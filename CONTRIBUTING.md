@@ -1,6 +1,6 @@
 # Contributing to Chiron
 
-Thanks for taking the time to improve Chiron Platform! This is a small document to get you started.
+Thanks for taking the time to improve Chiron Standalone! This is a small document to get you started.
 
 Please refer to the [getting-started documentation](https://chiron.sh/docs/contribute/getting-started) specific to contributing for more information.
 
