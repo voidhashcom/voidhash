@@ -1,5 +1,5 @@
 {
-    "name": "@chiron-sh/root",
+    "name": "@chiron-standalone/root",
     "private": true,
     "type": "module",
     "version": "0.0.1-alpha.1",
@@ -13,18 +13,27 @@
         "lint:fix": "biome check . --apply",
         "bump": "bumpp",
         "test": "turbo test",
-        "typecheck": "turbo typecheck"
+        "typecheck": "turbo typecheck",
+        "better-auth:generate": "npx @better-auth/cli@latest generate --config ./apps/web/src/lib/auth.ts",
+        "better-auth:migrate": "npx @better-auth/cli@latest migrate --config ./apps/web/src/lib/auth.ts",
+        "db:migrate": "pnpm with-env drizzle-kit migrate",
+        "db:studio": "pnpm with-env drizzle-kit studio",
+        "db:push": "pnpm with-env drizzle-kit push",
+        "with-env": "dotenv -e .env --"
     },
     "dependencies": {
         "@biomejs/biome": "1.9.4",
         "@types/node": "^20.17.9",
         "bumpp": "^9.8.1",
         "cross-env": "^7.0.3",
-        "dotenv-cli": "^7.4.4",
+        "drizzle-kit": "^0.30.5",
         "simple-git-hooks": "^2.11.1",
         "taze": "^0.18.0",
         "tinyglobby": "^0.2.10",
         "turbo": "^2.3.3",
         "typescript": "5.6.1-rc"
+    },
+    "devDependencies": {
+        "dotenv-cli": "^7.4.4"
     }
 }
