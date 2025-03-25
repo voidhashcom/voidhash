@@ -2,7 +2,7 @@
 import * as fs from "node:fs";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { Button } from "@chiron-standalone/ui/button";
+import { Button } from "@voidhash/ui/button";
 
 export const Route = createFileRoute("/")({
 	beforeLoad: async () => {

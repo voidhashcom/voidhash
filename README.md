@@ -5,7 +5,7 @@
     <img src="./banner.png" alt="Better Auth Logo">
   </picture>
   <h2 align="center">
-    Chiron Standalone
+    Voidhash
   </h2>
 
   <p align="center">
@@ -24,37 +24,46 @@
 [![GitHub stars](https://img.shields.io/github/stars/better-auth/better-auth)](https://github.com/better-auth/better-auth/stargazers) -->
 
 # Roadmap
+Core
+- [ ] Teams
+-- [ ] Invitations
+-- [ ] Settings
 
-## Core
+- [ ] Projects
+-- [ ] Create
+-- [ ] Update
+-- [ ] Delete
 
-[x] Setup
-[x] Fetching customer
-[x] Payment providers (core)
-[x] Third party identifiers
-[x] Access levels (configuration)
-[x] Fetching access levels
-[x] Fetching subscriptions
-[ ] Fix existing tests and write new ones
+- [ ] Users
+-- [x] Sign in
+-- [x] Sign up
+-- [ ] Forgot password
+-- [ ] Reset password
+-- [ ] Change password
+-- [ ] Change email
+-- [x] Sign out
+-- [ ] Github sign in
 
-## Stripe
+- [ ] Customers
+-- [ ] List
+-- [ ] Detail
 
-[x] Setup
-[x] Sync subscriptions
-[x] Get access levels
-[x] Webhooks
-[x] Checkout session
-[ ] Customer portal
-[ ] Configuration
+- [ ] Subscriptions
+-- [ ] List
+-- [ ] Detail
+
+- [ ] Payments
+-- [ ] List
+-- [ ] Detail
+
+- [ ] Analytics
+- [ ] Dashboard
+
+- [ ] Paywalls
+- [ ] A/B testing
+
+- [ ] Integrations
 
 
-## Website
-
-[ ] Landing page
-[ ] Redesign docs
-
-# Credits
-
-Huge thanks to [@better-auth](https://github.com/better-auth) for the base of this project that allowed us to make this happen so quickly.
-Another huge thanks to [hyochan](https://github.com/hyochan) for the [expo-iap](https://github.com/hyochan/expo-iap) library that we used to base our expo support on.
 
 </p>

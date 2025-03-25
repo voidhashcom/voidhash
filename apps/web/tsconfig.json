@@ -10,5 +10,11 @@
 		"paths": {
 			"@/*": ["src/*"]
 		}
-	}
+	},
+	"include": [
+		"src/**/*.ts",
+		"src/**/*.tsx",
+		"../../packages/features/**/*.ts",
+		"../../packages/features/**/*.tsx"
+	]
 }

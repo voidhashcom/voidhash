@@ -1,14 +1,14 @@
-# Contributing to Chiron
+# Contributing to voidhash
 
-Thanks for taking the time to improve Chiron Standalone! This is a small document to get you started.
+Thanks for taking the time to improve voidhash! This is a small document to get you started.
 
-Please refer to the [getting-started documentation](https://chiron.sh/docs/contribute/getting-started) specific to contributing for more information.
+Please refer to the [getting-started documentation](https://voidhash.com/docs/contribute/getting-started) specific to contributing for more information.
 
 ## Security Issues
 
-If you see any security issue we prefer you to disclose it via an email (security@chiron.sh). All reports will be promptly addressed, and you'll be credited accordingly.
+If you see any security issue we prefer you to disclose it via an email (security@voidhash.com). All reports will be promptly addressed, and you'll be credited accordingly.
 
-Learn more about our [security issues documentation](https://chiron.sh/docs/contribute/security-issues).
+Learn more about our [security issues documentation](https://voidhash.com/docs/contribute/security-issues).
 
 ## A Few Guidelines to keep in mind
 
@@ -18,9 +18,9 @@ Learn more about our [security issues documentation](https://chiron.sh/docs/cont
 
 ## Development
 
-Read more about development in the [getting-started documentation](https://chiron.sh/docs/contribute/getting-started#development-setup).
+Read more about development in the [getting-started documentation](https://voidhash.com/docs/contribute/getting-started#development-setup).
 ...TODO
 
 ## Testing
 
-Read more about testing in the [testing guide](https://chiron.sh/docs/contribute/testing).
+Read more about testing in the [testing guide](https://voidhash.com/docs/contribute/testing).

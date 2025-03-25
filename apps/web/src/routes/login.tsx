@@ -5,7 +5,7 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import { z } from "zod";
-import { authClient } from "src/lib/auth-client";
+import { authClient } from "@voidhash/auth/client";
 import {
 	Logo,
 	Alert,
@@ -14,9 +14,10 @@ import {
 	Label,
 	Input,
 	Button,
-} from "@chiron-standalone/ui";
+} from "@voidhash/ui";
 import { CheckCircle } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 const loginSearchSchema = z.object({
 	signup: z.boolean().catch(false),
@@ -49,16 +50,12 @@ function RouteComponent() {
 					setLoading(true);
 				},
 				onSuccess: () => {
-					if (router.basepath === "/login") {
-						navigate({
-							to: "/dashboard",
-						});
-					} else {
-						router.invalidate();
-					}
+					navigate({
+						to: "/dashboard",
+					});
 				},
 				onError: (ctx) => {
-					alert(ctx.error.message);
+					toast.error(ctx.error.message);
 					setLoading(false);
 				},
 			}

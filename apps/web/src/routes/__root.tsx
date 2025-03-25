@@ -8,23 +8,12 @@ import {
 	createRootRouteWithContext,
 } from "@tanstack/react-router";
 import appCss from "@/styles/globals.css?url";
-import { createServerFn } from "@tanstack/react-start";
-import { auth } from "src/lib/auth";
-import { getWebRequest } from "@tanstack/react-start/server";
-import { Toaster } from "@chiron-standalone/ui";
-
-const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
-	const { headers } = getWebRequest()!;
-	const res = await auth.api.getSession({
-		headers: headers,
-	});
-
-	return res?.user;
-});
+import { Toaster } from "@voidhash/ui";
+import { getMe } from "@/server/auth/queries";
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
-	user: Awaited<ReturnType<typeof fetchUser>>;
+	user: Awaited<ReturnType<typeof getMe>>;
 }>()({
 	head: () => ({
 		meta: [
@@ -45,7 +34,7 @@ export const Route = createRootRouteWithContext<{
 	beforeLoad: async ({ context }) => {
 		const user = await context.queryClient.fetchQuery({
 			queryKey: ["user"],
-			queryFn: ({ signal }) => fetchUser({ signal }),
+			queryFn: ({ signal }) => getMe({ signal }),
 		}); // we're using react-query for caching, see router.tsx
 		return { user };
 	},
@@ -56,7 +45,7 @@ function RootComponent() {
 		<RootDocument>
 			<Outlet />
 			<Toaster />
-			<TanStackRouterDevtools />
+			<TanStackRouterDevtools position="bottom-right" />
 		</RootDocument>
 	);
 }

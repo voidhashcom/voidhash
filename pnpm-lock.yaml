@@ -4,6 +4,12 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    superjson:
+      specifier: ^2.2.2
+      version: 2.2.2
+
 importers:
 
   .:
@@ -45,12 +51,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@chiron-standalone/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@chiron-standalone/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@t3-oss/env-core':
         specifier: ^0.12.0
         version: 0.12.0(typescript@5.6.1-rc)(valibot@1.0.0-beta.15(typescript@5.6.1-rc))(zod@3.24.2)
@@ -69,6 +69,18 @@ importers:
       '@tanstack/react-start':
         specifier: ^1.114.25
         version: 1.114.25(@tanstack/react-router@1.114.25(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(@types/node@20.17.16)(db0@0.3.1(drizzle-orm@0.40.1(gel@2.0.1)(kysely@0.27.6)(mysql2@3.13.0))(mysql2@3.13.0))(drizzle-orm@0.40.1(gel@2.0.1)(kysely@0.27.6)(mysql2@3.13.0))(ioredis@5.6.0)(jiti@2.4.2)(lightningcss@1.29.2)(mysql2@3.13.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)(terser@5.39.0)(tsx@4.19.3)(typescript@5.6.1-rc)(vite@6.2.2(@types/node@20.17.16)(jiti@2.4.2)(lightningcss@1.29.2)(terser@5.39.0)(tsx@4.19.3))
+      '@voidhash/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@voidhash/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@voidhash/features':
+        specifier: workspace:*
+        version: link:../../packages/features
+      '@voidhash/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       better-auth:
         specifier: ^1.2.4
         version: 1.2.4(typescript@5.6.1-rc)
@@ -84,6 +96,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.0.0(react@19.0.0)
+      superjson:
+        specifier: 'catalog:'
+        version: 2.2.2
       vinxi:
         specifier: ^0.5.3
         version: 0.5.3(@types/node@20.17.16)(db0@0.3.1(drizzle-orm@0.40.1(gel@2.0.1)(kysely@0.27.6)(mysql2@3.13.0))(mysql2@3.13.0))(drizzle-orm@0.40.1(gel@2.0.1)(kysely@0.27.6)(mysql2@3.13.0))(ioredis@5.6.0)(jiti@2.4.2)(lightningcss@1.29.2)(mysql2@3.13.0)(terser@5.39.0)(tsx@4.19.3)(typescript@5.6.1-rc)
@@ -124,6 +139,22 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.17.16)(lightningcss@1.29.2)(terser@5.39.0)
+
+  packages/auth:
+    dependencies:
+      '@voidhash/db':
+        specifier: workspace:*
+        version: link:../db
+      better-auth:
+        specifier: ^1.2.4
+        version: 1.2.4(typescript@5.6.1-rc)
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.2
+    devDependencies:
+      typescript:
+        specifier: 5.6.1-rc
+        version: 5.6.1-rc
 
   packages/db:
     dependencies:
@@ -168,6 +199,34 @@ importers:
       react-email:
         specifier: 3.0.7
         version: 3.0.7(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      typescript:
+        specifier: 5.6.1-rc
+        version: 5.6.1-rc
+
+  packages/features:
+    dependencies:
+      '@tanstack/react-table':
+        specifier: ^8.21.2
+        version: 8.21.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@voidhash/ui':
+        specifier: workspace:*
+        version: link:../ui
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.0.0(react@19.0.0)
+      zod:
+        specifier: ^3.24.2
+        version: 3.24.2
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.11
+        version: 19.0.11
+      '@types/react-dom':
+        specifier: ^19.0.4
+        version: 19.0.4(@types/react@19.0.11)
       typescript:
         specifier: 5.6.1-rc
         version: 5.6.1-rc
@@ -264,6 +323,9 @@ importers:
       cmdk:
         specifier: 1.0.0
         version: 1.0.0(@types/react-dom@19.0.4(@types/react@19.0.11))(@types/react@19.0.11)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      color-hash:
+        specifier: ^2.0.2
+        version: 2.0.2
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -3312,6 +3374,13 @@ packages:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  '@tanstack/react-table@8.21.2':
+    resolution: {integrity: sha512-11tNlEDTdIhMJba2RBH+ecJ9l1zgS2kjmexDPAraulc8jeNA4xocSNeyzextT0XJyASil4XsCYlJmf5jEWAtYg==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+
   '@tanstack/router-core@1.114.25':
     resolution: {integrity: sha512-OyLCfs7r+0LEhmQGAdyJxfO+pqGBITlr4aUN0rdhXqDTpqBn0tyrO6Tu+U9B3LQF9Xnux3KqbjzRopTY9QZBog==}
     engines: {node: '>=12'}
@@ -3400,6 +3469,10 @@ packages:
 
   '@tanstack/store@0.7.0':
     resolution: {integrity: sha512-CNIhdoUsmD2NolYuaIs8VfWM467RK6oIBAW4nPEKZhg1smZ+/CwtCdpURgp7nxSqOaV9oKkzdWD80+bC66F/Jg==}
+
+  '@tanstack/table-core@8.21.2':
+    resolution: {integrity: sha512-uvXk/U4cBiFMxt+p9/G7yUWI/UbHYbyghLCjlpWZ3mLeIZiUBSKcUnw9UnKkdRz7Z/N4UBuFLWQdJCjUe7HjvA==}
+    engines: {node: '>=12'}
 
   '@tanstack/virtual-file-routes@1.114.12':
     resolution: {integrity: sha512-aR13V1kSE/kUkP4a8snmqvj82OUlR5Q/rzxICmObLCsERGfzikUc4wquOy1d/RzJgsLb8o+FiOjSWynt4T7Jhg==}
@@ -3800,6 +3873,9 @@ packages:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
     engines: {node: '>=7.0.0'}
 
+  color-hash@2.0.2:
+    resolution: {integrity: sha512-6exeENAqBTuIR1wIo36mR8xVVBv6l1hSLd7Qmvf6158Ld1L15/dbahR9VUOiX7GmGJBCnQyS0EY+I8x+wa7egg==}
+
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
 
@@ -3856,6 +3932,10 @@ packages:
   cookie@1.0.2:
     resolution: {integrity: sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==}
     engines: {node: '>=18'}
+
+  copy-anything@3.0.5:
+    resolution: {integrity: sha512-yCEafptTtb4bk7GLEQoM8KVJpxAfdBJYaXyzQEgQQQgYrZiDp8SJmGKlYza6CYjEDNstAdNdKA3UuoULlEbS6w==}
+    engines: {node: '>=12.13'}
 
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
@@ -4632,6 +4712,10 @@ packages:
   is-unicode-supported@0.1.0:
     resolution: {integrity: sha512-knxG2q4UC3u8stRGyAVJCOdxFmv5DZiRcdlIaAQXAbSfJya+OhopNotLQrstBhququ4ZpuKbDc/8S6mgXgPFPw==}
     engines: {node: '>=10'}
+
+  is-what@4.1.16:
+    resolution: {integrity: sha512-ZhMwEosbFJkA0YhFnNDgTM4ZxDRsS6HqTo7qsZM08fehyRYIYa0yHu5R6mgo1n/8MgaPBXiPimPD77baVFYg+A==}
+    engines: {node: '>=12.13'}
 
   is-wsl@2.2.0:
     resolution: {integrity: sha512-fKzAra0rGJUUBwGBgNkHZuToZcn+TtXHpeCgmkMJMMYx1sQDYaCSyjJBSCa2nH1DGm7s3n1oBnohoVTBaN7Lww==}
@@ -5677,6 +5761,10 @@ packages:
         optional: true
       babel-plugin-macros:
         optional: true
+
+  superjson@2.2.2:
+    resolution: {integrity: sha512-5JRxVqC8I8NuOUjzBbvVJAKNM8qoVuH0O77h4WInc/qC2q5IreqKxYwgkga3PfA22OayK2ikceb/B26dztPl+Q==}
+    engines: {node: '>=16'}
 
   supports-color@10.0.0:
     resolution: {integrity: sha512-HRVVSbCCMbj7/kdWF9Q+bbckjBHLtHMEoJWlkmYzzdwhYMkjkOwubLM6t7NbWKjgKamGDrWL1++KrjUO1t9oAQ==}
@@ -8910,6 +8998,12 @@ snapshots:
       react-dom: 19.0.0(react@19.0.0)
       use-sync-external-store: 1.4.0(react@19.0.0)
 
+  '@tanstack/react-table@8.21.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
+    dependencies:
+      '@tanstack/table-core': 8.21.2
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+
   '@tanstack/router-core@1.114.25':
     dependencies:
       '@tanstack/history': 1.114.22
@@ -9134,6 +9228,8 @@ snapshots:
       - yaml
 
   '@tanstack/store@0.7.0': {}
+
+  '@tanstack/table-core@8.21.2': {}
 
   '@tanstack/virtual-file-routes@1.114.12': {}
 
@@ -9659,6 +9755,8 @@ snapshots:
     dependencies:
       color-name: 1.1.4
 
+  color-hash@2.0.2: {}
+
   color-name@1.1.4: {}
 
   color-string@1.9.1:
@@ -9706,6 +9804,10 @@ snapshots:
   cookie@0.7.2: {}
 
   cookie@1.0.2: {}
+
+  copy-anything@3.0.5:
+    dependencies:
+      is-what: 4.1.16
 
   core-util-is@1.0.3: {}
 
@@ -10526,6 +10628,8 @@ snapshots:
   is-stream@3.0.0: {}
 
   is-unicode-supported@0.1.0: {}
+
+  is-what@4.1.16: {}
 
   is-wsl@2.2.0:
     dependencies:
@@ -11663,6 +11767,10 @@ snapshots:
       react: 19.0.0
     optionalDependencies:
       '@babel/core': 7.24.5
+
+  superjson@2.2.2:
+    dependencies:
+      copy-anything: 3.0.5
 
   supports-color@10.0.0: {}
 
