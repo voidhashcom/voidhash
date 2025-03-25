@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { authClient } from "src/lib/auth-client";
+import { authClient } from "@voidhash/auth/client";
 import {
 	Logo,
 	Label,
@@ -10,7 +10,7 @@ import {
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@chiron-standalone/ui";
+} from "@voidhash/ui";
 import { toast } from "sonner";
 
 import { useState } from "react";

@@ -1,4 +1,4 @@
-import { Button } from "@chiron-standalone/ui";
+import { Button } from "@voidhash/ui";
 import {
 	ErrorComponent,
 	type ErrorComponentProps,

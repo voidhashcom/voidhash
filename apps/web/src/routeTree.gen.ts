@@ -15,7 +15,10 @@ import { Route as SignUpImport } from './routes/sign-up'
 import { Route as LoginImport } from './routes/login'
 import { Route as AuthedImport } from './routes/_authed'
 import { Route as IndexImport } from './routes/index'
-import { Route as AuthedDashboardImport } from './routes/_authed/dashboard'
+import { Route as AuthedDashboardRouteImport } from './routes/_authed/_dashboard/route'
+import { Route as AuthedDashboardDashboardImport } from './routes/_authed/_dashboard/dashboard'
+import { Route as AuthedDashboardSettingsGeneralImport } from './routes/_authed/_dashboard/settings/general'
+import { Route as AuthedDashboardSettingsTeamMembersImport } from './routes/_authed/_dashboard/settings/team/members'
 
 // Create/Update Routes
 
@@ -42,11 +45,30 @@ const IndexRoute = IndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const AuthedDashboardRoute = AuthedDashboardImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AuthedDashboardRouteRoute = AuthedDashboardRouteImport.update({
+  id: '/_dashboard',
   getParentRoute: () => AuthedRoute,
 } as any)
+
+const AuthedDashboardDashboardRoute = AuthedDashboardDashboardImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthedDashboardRouteRoute,
+} as any)
+
+const AuthedDashboardSettingsGeneralRoute =
+  AuthedDashboardSettingsGeneralImport.update({
+    id: '/settings/general',
+    path: '/settings/general',
+    getParentRoute: () => AuthedDashboardRouteRoute,
+  } as any)
+
+const AuthedDashboardSettingsTeamMembersRoute =
+  AuthedDashboardSettingsTeamMembersImport.update({
+    id: '/settings/team/members',
+    path: '/settings/team/members',
+    getParentRoute: () => AuthedDashboardRouteRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
@@ -80,24 +102,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignUpImport
       parentRoute: typeof rootRoute
     }
-    '/_authed/dashboard': {
-      id: '/_authed/dashboard'
+    '/_authed/_dashboard': {
+      id: '/_authed/_dashboard'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AuthedDashboardRouteImport
+      parentRoute: typeof AuthedImport
+    }
+    '/_authed/_dashboard/dashboard': {
+      id: '/_authed/_dashboard/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthedDashboardImport
-      parentRoute: typeof AuthedImport
+      preLoaderRoute: typeof AuthedDashboardDashboardImport
+      parentRoute: typeof AuthedDashboardRouteImport
+    }
+    '/_authed/_dashboard/settings/general': {
+      id: '/_authed/_dashboard/settings/general'
+      path: '/settings/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof AuthedDashboardSettingsGeneralImport
+      parentRoute: typeof AuthedDashboardRouteImport
+    }
+    '/_authed/_dashboard/settings/team/members': {
+      id: '/_authed/_dashboard/settings/team/members'
+      path: '/settings/team/members'
+      fullPath: '/settings/team/members'
+      preLoaderRoute: typeof AuthedDashboardSettingsTeamMembersImport
+      parentRoute: typeof AuthedDashboardRouteImport
     }
   }
 }
 
 // Create and export the route tree
 
+interface AuthedDashboardRouteRouteChildren {
+  AuthedDashboardDashboardRoute: typeof AuthedDashboardDashboardRoute
+  AuthedDashboardSettingsGeneralRoute: typeof AuthedDashboardSettingsGeneralRoute
+  AuthedDashboardSettingsTeamMembersRoute: typeof AuthedDashboardSettingsTeamMembersRoute
+}
+
+const AuthedDashboardRouteRouteChildren: AuthedDashboardRouteRouteChildren = {
+  AuthedDashboardDashboardRoute: AuthedDashboardDashboardRoute,
+  AuthedDashboardSettingsGeneralRoute: AuthedDashboardSettingsGeneralRoute,
+  AuthedDashboardSettingsTeamMembersRoute:
+    AuthedDashboardSettingsTeamMembersRoute,
+}
+
+const AuthedDashboardRouteRouteWithChildren =
+  AuthedDashboardRouteRoute._addFileChildren(AuthedDashboardRouteRouteChildren)
+
 interface AuthedRouteChildren {
-  AuthedDashboardRoute: typeof AuthedDashboardRoute
+  AuthedDashboardRouteRoute: typeof AuthedDashboardRouteRouteWithChildren
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
-  AuthedDashboardRoute: AuthedDashboardRoute,
+  AuthedDashboardRouteRoute: AuthedDashboardRouteRouteWithChildren,
 }
 
 const AuthedRouteWithChildren =
@@ -105,18 +164,22 @@ const AuthedRouteWithChildren =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '': typeof AuthedRouteWithChildren
+  '': typeof AuthedDashboardRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/sign-up': typeof SignUpRoute
-  '/dashboard': typeof AuthedDashboardRoute
+  '/dashboard': typeof AuthedDashboardDashboardRoute
+  '/settings/general': typeof AuthedDashboardSettingsGeneralRoute
+  '/settings/team/members': typeof AuthedDashboardSettingsTeamMembersRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '': typeof AuthedRouteWithChildren
+  '': typeof AuthedDashboardRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/sign-up': typeof SignUpRoute
-  '/dashboard': typeof AuthedDashboardRoute
+  '/dashboard': typeof AuthedDashboardDashboardRoute
+  '/settings/general': typeof AuthedDashboardSettingsGeneralRoute
+  '/settings/team/members': typeof AuthedDashboardSettingsTeamMembersRoute
 }
 
 export interface FileRoutesById {
@@ -125,21 +188,41 @@ export interface FileRoutesById {
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
   '/sign-up': typeof SignUpRoute
-  '/_authed/dashboard': typeof AuthedDashboardRoute
+  '/_authed/_dashboard': typeof AuthedDashboardRouteRouteWithChildren
+  '/_authed/_dashboard/dashboard': typeof AuthedDashboardDashboardRoute
+  '/_authed/_dashboard/settings/general': typeof AuthedDashboardSettingsGeneralRoute
+  '/_authed/_dashboard/settings/team/members': typeof AuthedDashboardSettingsTeamMembersRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '' | '/login' | '/sign-up' | '/dashboard'
+  fullPaths:
+    | '/'
+    | ''
+    | '/login'
+    | '/sign-up'
+    | '/dashboard'
+    | '/settings/general'
+    | '/settings/team/members'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '' | '/login' | '/sign-up' | '/dashboard'
+  to:
+    | '/'
+    | ''
+    | '/login'
+    | '/sign-up'
+    | '/dashboard'
+    | '/settings/general'
+    | '/settings/team/members'
   id:
     | '__root__'
     | '/'
     | '/_authed'
     | '/login'
     | '/sign-up'
-    | '/_authed/dashboard'
+    | '/_authed/_dashboard'
+    | '/_authed/_dashboard/dashboard'
+    | '/_authed/_dashboard/settings/general'
+    | '/_authed/_dashboard/settings/team/members'
   fileRoutesById: FileRoutesById
 }
 
@@ -179,7 +262,7 @@ export const routeTree = rootRoute
     "/_authed": {
       "filePath": "_authed.tsx",
       "children": [
-        "/_authed/dashboard"
+        "/_authed/_dashboard"
       ]
     },
     "/login": {
@@ -188,9 +271,26 @@ export const routeTree = rootRoute
     "/sign-up": {
       "filePath": "sign-up.tsx"
     },
-    "/_authed/dashboard": {
-      "filePath": "_authed/dashboard.tsx",
-      "parent": "/_authed"
+    "/_authed/_dashboard": {
+      "filePath": "_authed/_dashboard/route.tsx",
+      "parent": "/_authed",
+      "children": [
+        "/_authed/_dashboard/dashboard",
+        "/_authed/_dashboard/settings/general",
+        "/_authed/_dashboard/settings/team/members"
+      ]
+    },
+    "/_authed/_dashboard/dashboard": {
+      "filePath": "_authed/_dashboard/dashboard.tsx",
+      "parent": "/_authed/_dashboard"
+    },
+    "/_authed/_dashboard/settings/general": {
+      "filePath": "_authed/_dashboard/settings/general.tsx",
+      "parent": "/_authed/_dashboard"
+    },
+    "/_authed/_dashboard/settings/team/members": {
+      "filePath": "_authed/_dashboard/settings/team/members.tsx",
+      "parent": "/_authed/_dashboard"
     }
   }
 }

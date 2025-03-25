@@ -1,7 +1,9 @@
-import { db } from "@chiron-standalone/db";
+import { db } from "@voidhash/db";
 import { betterAuth } from "better-auth";
+import { organization } from "better-auth/plugins";
+import { apiKey } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import * as schema from "@chiron-standalone/db/schema";
+import * as schema from "@voidhash/db/schema";
 
 export const auth = betterAuth({
 	database: drizzleAdapter(db, {
@@ -11,4 +13,5 @@ export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 	},
+	plugins: [organization(), apiKey()],
 });

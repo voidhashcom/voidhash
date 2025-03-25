@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Button } from "@chiron-standalone/ui";
+import { Button } from "@voidhash/ui";
 
 export function NotFound() {
 	return (

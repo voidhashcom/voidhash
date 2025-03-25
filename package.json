@@ -1,5 +1,5 @@
 {
-    "name": "@chiron-standalone/root",
+    "name": "@voidhash/root",
     "private": true,
     "type": "module",
     "version": "0.0.1-alpha.1",
@@ -14,7 +14,7 @@
         "bump": "bumpp",
         "test": "turbo test",
         "typecheck": "turbo typecheck",
-        "better-auth:generate": "npx @better-auth/cli@latest generate --config ./apps/web/src/lib/auth.ts",
+        "better-auth:generate": "npx @better-auth/cli@latest generate --config ./apps/web/src/lib/auth.ts --output ./packages/db/auth-schema.ts",
         "better-auth:migrate": "npx @better-auth/cli@latest migrate --config ./apps/web/src/lib/auth.ts",
         "db:migrate": "pnpm with-env drizzle-kit migrate",
         "db:studio": "pnpm with-env drizzle-kit studio",

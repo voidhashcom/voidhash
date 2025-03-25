@@ -28,6 +28,7 @@ export const session = mysqlTable("session", {
 	userId: varchar("user_id", { length: 36 })
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
+	activeOrganizationId: text("active_organization_id"),
 });
 
 export const account = mysqlTable("account", {
@@ -55,4 +56,65 @@ export const verification = mysqlTable("verification", {
 	expiresAt: timestamp("expires_at").notNull(),
 	createdAt: timestamp("created_at"),
 	updatedAt: timestamp("updated_at"),
+});
+
+export const organization = mysqlTable("organization", {
+	id: varchar("id", { length: 36 }).primaryKey(),
+	name: text("name").notNull(),
+	slug: varchar("slug", { length: 255 }).unique(),
+	logo: text("logo"),
+	createdAt: timestamp("created_at").notNull(),
+	metadata: text("metadata"),
+});
+
+export const member = mysqlTable("member", {
+	id: varchar("id", { length: 36 }).primaryKey(),
+	organizationId: varchar("organization_id", { length: 36 })
+		.notNull()
+		.references(() => organization.id, { onDelete: "cascade" }),
+	userId: varchar("user_id", { length: 36 })
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+	role: text("role").notNull(),
+	createdAt: timestamp("created_at").notNull(),
+});
+
+export const invitation = mysqlTable("invitation", {
+	id: varchar("id", { length: 36 }).primaryKey(),
+	organizationId: varchar("organization_id", { length: 36 })
+		.notNull()
+		.references(() => organization.id, { onDelete: "cascade" }),
+	email: text("email").notNull(),
+	role: text("role"),
+	status: text("status").notNull(),
+	expiresAt: timestamp("expires_at").notNull(),
+	inviterId: varchar("inviter_id", { length: 36 })
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+});
+
+export const apikey = mysqlTable("apikey", {
+	id: varchar("id", { length: 36 }).primaryKey(),
+	name: text("name"),
+	start: text("start"),
+	prefix: text("prefix"),
+	key: text("key").notNull(),
+	userId: varchar("user_id", { length: 36 })
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+	refillInterval: int("refill_interval"),
+	refillAmount: int("refill_amount"),
+	lastRefillAt: timestamp("last_refill_at"),
+	enabled: boolean("enabled"),
+	rateLimitEnabled: boolean("rate_limit_enabled"),
+	rateLimitTimeWindow: int("rate_limit_time_window"),
+	rateLimitMax: int("rate_limit_max"),
+	requestCount: int("request_count"),
+	remaining: int("remaining"),
+	lastRequest: timestamp("last_request"),
+	expiresAt: timestamp("expires_at"),
+	createdAt: timestamp("created_at").notNull(),
+	updatedAt: timestamp("updated_at").notNull(),
+	permissions: text("permissions"),
+	metadata: text("metadata"),
 });

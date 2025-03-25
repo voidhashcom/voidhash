@@ -1,10 +1,10 @@
 {
-    "name": "@chiron-standalone/emails",
+    "name": "@voidhash/emails",
     "version": "0.0.1-alpha.1",
     "type": "module",
     "repository": {
         "type": "git",
-        "url": "https://github.com/chiron-sh/standalone",
+        "url": "https://github.com/voidhashcom/voidhash",
         "directory": "packages/emails"
     },
     "main": "./index.ts",
@@ -12,7 +12,7 @@
         ".": "./index.ts"
     },
     "scripts": {
-        "dev": "email dev"
+        "dev": "email dev --port 3002"
     },
     "dependencies": {
         "@react-email/components": "0.0.34",
