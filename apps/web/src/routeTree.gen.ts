@@ -10,239 +10,240 @@
 
 // Import Routes
 
-import { Route as rootRoute } from './routes/__root'
-import { Route as SignUpImport } from './routes/sign-up'
-import { Route as LoginImport } from './routes/login'
-import { Route as AuthedImport } from './routes/_authed'
-import { Route as IndexImport } from './routes/index'
-import { Route as AuthedDashboardRouteImport } from './routes/_authed/_dashboard/route'
-import { Route as AuthedDashboardDashboardImport } from './routes/_authed/_dashboard/dashboard'
-import { Route as AuthedDashboardSettingsGeneralImport } from './routes/_authed/_dashboard/settings/general'
-import { Route as AuthedDashboardSettingsTeamMembersImport } from './routes/_authed/_dashboard/settings/team/members'
+import { Route as rootRoute } from "./routes/__root";
+import { Route as SignUpImport } from "./routes/sign-up";
+import { Route as LoginImport } from "./routes/login";
+import { Route as AuthedImport } from "./routes/_authed";
+import { Route as IndexImport } from "./routes/index";
+import { Route as AuthedDashboardRouteImport } from "./routes/_authed/_dashboard/route";
+import { Route as AuthedDashboardDashboardImport } from "./routes/_authed/_dashboard/dashboard";
+import { Route as AuthedDashboardSettingsTeamMembersImport } from "./routes/_authed/_dashboard/settings/team/members";
+import { Route as AuthedDashboardSettingsTeamGeneralImport } from "./routes/_authed/_dashboard/settings/team/general";
 
 // Create/Update Routes
 
 const SignUpRoute = SignUpImport.update({
-  id: '/sign-up',
-  path: '/sign-up',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/sign-up",
+	path: "/sign-up",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const LoginRoute = LoginImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/login",
+	path: "/login",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const AuthedRoute = AuthedImport.update({
-  id: '/_authed',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/_authed",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const IndexRoute = IndexImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRoute,
-} as any)
+	id: "/",
+	path: "/",
+	getParentRoute: () => rootRoute,
+} as any);
 
 const AuthedDashboardRouteRoute = AuthedDashboardRouteImport.update({
-  id: '/_dashboard',
-  getParentRoute: () => AuthedRoute,
-} as any)
+	id: "/_dashboard",
+	getParentRoute: () => AuthedRoute,
+} as any);
 
 const AuthedDashboardDashboardRoute = AuthedDashboardDashboardImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AuthedDashboardRouteRoute,
-} as any)
-
-const AuthedDashboardSettingsGeneralRoute =
-  AuthedDashboardSettingsGeneralImport.update({
-    id: '/settings/general',
-    path: '/settings/general',
-    getParentRoute: () => AuthedDashboardRouteRoute,
-  } as any)
+	id: "/dashboard",
+	path: "/dashboard",
+	getParentRoute: () => AuthedDashboardRouteRoute,
+} as any);
 
 const AuthedDashboardSettingsTeamMembersRoute =
-  AuthedDashboardSettingsTeamMembersImport.update({
-    id: '/settings/team/members',
-    path: '/settings/team/members',
-    getParentRoute: () => AuthedDashboardRouteRoute,
-  } as any)
+	AuthedDashboardSettingsTeamMembersImport.update({
+		id: "/settings/team/members",
+		path: "/settings/team/members",
+		getParentRoute: () => AuthedDashboardRouteRoute,
+	} as any);
+
+const AuthedDashboardSettingsTeamGeneralRoute =
+	AuthedDashboardSettingsTeamGeneralImport.update({
+		id: "/settings/team/general",
+		path: "/settings/team/general",
+		getParentRoute: () => AuthedDashboardRouteRoute,
+	} as any);
 
 // Populate the FileRoutesByPath interface
 
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/_authed': {
-      id: '/_authed'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof AuthedImport
-      parentRoute: typeof rootRoute
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginImport
-      parentRoute: typeof rootRoute
-    }
-    '/sign-up': {
-      id: '/sign-up'
-      path: '/sign-up'
-      fullPath: '/sign-up'
-      preLoaderRoute: typeof SignUpImport
-      parentRoute: typeof rootRoute
-    }
-    '/_authed/_dashboard': {
-      id: '/_authed/_dashboard'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof AuthedDashboardRouteImport
-      parentRoute: typeof AuthedImport
-    }
-    '/_authed/_dashboard/dashboard': {
-      id: '/_authed/_dashboard/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthedDashboardDashboardImport
-      parentRoute: typeof AuthedDashboardRouteImport
-    }
-    '/_authed/_dashboard/settings/general': {
-      id: '/_authed/_dashboard/settings/general'
-      path: '/settings/general'
-      fullPath: '/settings/general'
-      preLoaderRoute: typeof AuthedDashboardSettingsGeneralImport
-      parentRoute: typeof AuthedDashboardRouteImport
-    }
-    '/_authed/_dashboard/settings/team/members': {
-      id: '/_authed/_dashboard/settings/team/members'
-      path: '/settings/team/members'
-      fullPath: '/settings/team/members'
-      preLoaderRoute: typeof AuthedDashboardSettingsTeamMembersImport
-      parentRoute: typeof AuthedDashboardRouteImport
-    }
-  }
+declare module "@tanstack/react-router" {
+	interface FileRoutesByPath {
+		"/": {
+			id: "/";
+			path: "/";
+			fullPath: "/";
+			preLoaderRoute: typeof IndexImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/_authed": {
+			id: "/_authed";
+			path: "";
+			fullPath: "";
+			preLoaderRoute: typeof AuthedImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/login": {
+			id: "/login";
+			path: "/login";
+			fullPath: "/login";
+			preLoaderRoute: typeof LoginImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/sign-up": {
+			id: "/sign-up";
+			path: "/sign-up";
+			fullPath: "/sign-up";
+			preLoaderRoute: typeof SignUpImport;
+			parentRoute: typeof rootRoute;
+		};
+		"/_authed/_dashboard": {
+			id: "/_authed/_dashboard";
+			path: "";
+			fullPath: "";
+			preLoaderRoute: typeof AuthedDashboardRouteImport;
+			parentRoute: typeof AuthedImport;
+		};
+		"/_authed/_dashboard/dashboard": {
+			id: "/_authed/_dashboard/dashboard";
+			path: "/dashboard";
+			fullPath: "/dashboard";
+			preLoaderRoute: typeof AuthedDashboardDashboardImport;
+			parentRoute: typeof AuthedDashboardRouteImport;
+		};
+		"/_authed/_dashboard/settings/team/general": {
+			id: "/_authed/_dashboard/settings/team/general";
+			path: "/settings/team/general";
+			fullPath: "/settings/team/general";
+			preLoaderRoute: typeof AuthedDashboardSettingsTeamGeneralImport;
+			parentRoute: typeof AuthedDashboardRouteImport;
+		};
+		"/_authed/_dashboard/settings/team/members": {
+			id: "/_authed/_dashboard/settings/team/members";
+			path: "/settings/team/members";
+			fullPath: "/settings/team/members";
+			preLoaderRoute: typeof AuthedDashboardSettingsTeamMembersImport;
+			parentRoute: typeof AuthedDashboardRouteImport;
+		};
+	}
 }
 
 // Create and export the route tree
 
 interface AuthedDashboardRouteRouteChildren {
-  AuthedDashboardDashboardRoute: typeof AuthedDashboardDashboardRoute
-  AuthedDashboardSettingsGeneralRoute: typeof AuthedDashboardSettingsGeneralRoute
-  AuthedDashboardSettingsTeamMembersRoute: typeof AuthedDashboardSettingsTeamMembersRoute
+	AuthedDashboardDashboardRoute: typeof AuthedDashboardDashboardRoute;
+	AuthedDashboardSettingsTeamGeneralRoute: typeof AuthedDashboardSettingsTeamGeneralRoute;
+	AuthedDashboardSettingsTeamMembersRoute: typeof AuthedDashboardSettingsTeamMembersRoute;
 }
 
 const AuthedDashboardRouteRouteChildren: AuthedDashboardRouteRouteChildren = {
-  AuthedDashboardDashboardRoute: AuthedDashboardDashboardRoute,
-  AuthedDashboardSettingsGeneralRoute: AuthedDashboardSettingsGeneralRoute,
-  AuthedDashboardSettingsTeamMembersRoute:
-    AuthedDashboardSettingsTeamMembersRoute,
-}
+	AuthedDashboardDashboardRoute: AuthedDashboardDashboardRoute,
+	AuthedDashboardSettingsTeamGeneralRoute:
+		AuthedDashboardSettingsTeamGeneralRoute,
+	AuthedDashboardSettingsTeamMembersRoute:
+		AuthedDashboardSettingsTeamMembersRoute,
+};
 
 const AuthedDashboardRouteRouteWithChildren =
-  AuthedDashboardRouteRoute._addFileChildren(AuthedDashboardRouteRouteChildren)
+	AuthedDashboardRouteRoute._addFileChildren(AuthedDashboardRouteRouteChildren);
 
 interface AuthedRouteChildren {
-  AuthedDashboardRouteRoute: typeof AuthedDashboardRouteRouteWithChildren
+	AuthedDashboardRouteRoute: typeof AuthedDashboardRouteRouteWithChildren;
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
-  AuthedDashboardRouteRoute: AuthedDashboardRouteRouteWithChildren,
-}
+	AuthedDashboardRouteRoute: AuthedDashboardRouteRouteWithChildren,
+};
 
 const AuthedRouteWithChildren =
-  AuthedRoute._addFileChildren(AuthedRouteChildren)
+	AuthedRoute._addFileChildren(AuthedRouteChildren);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '': typeof AuthedDashboardRouteRouteWithChildren
-  '/login': typeof LoginRoute
-  '/sign-up': typeof SignUpRoute
-  '/dashboard': typeof AuthedDashboardDashboardRoute
-  '/settings/general': typeof AuthedDashboardSettingsGeneralRoute
-  '/settings/team/members': typeof AuthedDashboardSettingsTeamMembersRoute
+	"/": typeof IndexRoute;
+	"": typeof AuthedDashboardRouteRouteWithChildren;
+	"/login": typeof LoginRoute;
+	"/sign-up": typeof SignUpRoute;
+	"/dashboard": typeof AuthedDashboardDashboardRoute;
+	"/settings/team/general": typeof AuthedDashboardSettingsTeamGeneralRoute;
+	"/settings/team/members": typeof AuthedDashboardSettingsTeamMembersRoute;
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '': typeof AuthedDashboardRouteRouteWithChildren
-  '/login': typeof LoginRoute
-  '/sign-up': typeof SignUpRoute
-  '/dashboard': typeof AuthedDashboardDashboardRoute
-  '/settings/general': typeof AuthedDashboardSettingsGeneralRoute
-  '/settings/team/members': typeof AuthedDashboardSettingsTeamMembersRoute
+	"/": typeof IndexRoute;
+	"": typeof AuthedDashboardRouteRouteWithChildren;
+	"/login": typeof LoginRoute;
+	"/sign-up": typeof SignUpRoute;
+	"/dashboard": typeof AuthedDashboardDashboardRoute;
+	"/settings/team/general": typeof AuthedDashboardSettingsTeamGeneralRoute;
+	"/settings/team/members": typeof AuthedDashboardSettingsTeamMembersRoute;
 }
 
 export interface FileRoutesById {
-  __root__: typeof rootRoute
-  '/': typeof IndexRoute
-  '/_authed': typeof AuthedRouteWithChildren
-  '/login': typeof LoginRoute
-  '/sign-up': typeof SignUpRoute
-  '/_authed/_dashboard': typeof AuthedDashboardRouteRouteWithChildren
-  '/_authed/_dashboard/dashboard': typeof AuthedDashboardDashboardRoute
-  '/_authed/_dashboard/settings/general': typeof AuthedDashboardSettingsGeneralRoute
-  '/_authed/_dashboard/settings/team/members': typeof AuthedDashboardSettingsTeamMembersRoute
+	__root__: typeof rootRoute;
+	"/": typeof IndexRoute;
+	"/_authed": typeof AuthedRouteWithChildren;
+	"/login": typeof LoginRoute;
+	"/sign-up": typeof SignUpRoute;
+	"/_authed/_dashboard": typeof AuthedDashboardRouteRouteWithChildren;
+	"/_authed/_dashboard/dashboard": typeof AuthedDashboardDashboardRoute;
+	"/_authed/_dashboard/settings/team/general": typeof AuthedDashboardSettingsTeamGeneralRoute;
+	"/_authed/_dashboard/settings/team/members": typeof AuthedDashboardSettingsTeamMembersRoute;
 }
 
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | ''
-    | '/login'
-    | '/sign-up'
-    | '/dashboard'
-    | '/settings/general'
-    | '/settings/team/members'
-  fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | ''
-    | '/login'
-    | '/sign-up'
-    | '/dashboard'
-    | '/settings/general'
-    | '/settings/team/members'
-  id:
-    | '__root__'
-    | '/'
-    | '/_authed'
-    | '/login'
-    | '/sign-up'
-    | '/_authed/_dashboard'
-    | '/_authed/_dashboard/dashboard'
-    | '/_authed/_dashboard/settings/general'
-    | '/_authed/_dashboard/settings/team/members'
-  fileRoutesById: FileRoutesById
+	fileRoutesByFullPath: FileRoutesByFullPath;
+	fullPaths:
+		| "/"
+		| ""
+		| "/login"
+		| "/sign-up"
+		| "/dashboard"
+		| "/settings/team/general"
+		| "/settings/team/members";
+	fileRoutesByTo: FileRoutesByTo;
+	to:
+		| "/"
+		| ""
+		| "/login"
+		| "/sign-up"
+		| "/dashboard"
+		| "/settings/team/general"
+		| "/settings/team/members";
+	id:
+		| "__root__"
+		| "/"
+		| "/_authed"
+		| "/login"
+		| "/sign-up"
+		| "/_authed/_dashboard"
+		| "/_authed/_dashboard/dashboard"
+		| "/_authed/_dashboard/settings/team/general"
+		| "/_authed/_dashboard/settings/team/members";
+	fileRoutesById: FileRoutesById;
 }
 
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AuthedRoute: typeof AuthedRouteWithChildren
-  LoginRoute: typeof LoginRoute
-  SignUpRoute: typeof SignUpRoute
+	IndexRoute: typeof IndexRoute;
+	AuthedRoute: typeof AuthedRouteWithChildren;
+	LoginRoute: typeof LoginRoute;
+	SignUpRoute: typeof SignUpRoute;
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AuthedRoute: AuthedRouteWithChildren,
-  LoginRoute: LoginRoute,
-  SignUpRoute: SignUpRoute,
-}
+	IndexRoute: IndexRoute,
+	AuthedRoute: AuthedRouteWithChildren,
+	LoginRoute: LoginRoute,
+	SignUpRoute: SignUpRoute,
+};
 
 export const routeTree = rootRoute
-  ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+	._addFileChildren(rootRouteChildren)
+	._addFileTypes<FileRouteTypes>();
 
 /* ROUTE_MANIFEST_START
 {
@@ -276,7 +277,7 @@ export const routeTree = rootRoute
       "parent": "/_authed",
       "children": [
         "/_authed/_dashboard/dashboard",
-        "/_authed/_dashboard/settings/general",
+        "/_authed/_dashboard/settings/team/general",
         "/_authed/_dashboard/settings/team/members"
       ]
     },
@@ -284,8 +285,8 @@ export const routeTree = rootRoute
       "filePath": "_authed/_dashboard/dashboard.tsx",
       "parent": "/_authed/_dashboard"
     },
-    "/_authed/_dashboard/settings/general": {
-      "filePath": "_authed/_dashboard/settings/general.tsx",
+    "/_authed/_dashboard/settings/team/general": {
+      "filePath": "_authed/_dashboard/settings/team/general.tsx",
       "parent": "/_authed/_dashboard"
     },
     "/_authed/_dashboard/settings/team/members": {
