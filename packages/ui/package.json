@@ -58,7 +58,8 @@
         "./toggle-group": "./components/ui/toggle-group.tsx",
         "./toggle": "./components/ui/toggle.tsx",
         "./tooltip": "./components/ui/tooltip.tsx",
-        "./copy-text": "./components/copy-text.tsx"
+        "./copy-text": "./components/copy-text.tsx",
+        "./shell": "./components/shell/index.tsx"
     },
     "scripts": {},
     "dependencies": {

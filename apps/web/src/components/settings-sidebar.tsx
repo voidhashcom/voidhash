@@ -1,10 +1,6 @@
-"use client";
-
 import * as React from "react";
-
-import { NavMain } from "@voidhash/features/shell";
+import { NavMain } from "@voidhash/ui";
 import { Sidebar, SidebarContent, SidebarHeader } from "@voidhash/ui";
-import { User } from "better-auth";
 import { Link, useRouterState } from "@tanstack/react-router";
 
 export function SettingsSidebar({
@@ -27,11 +23,11 @@ export function SettingsSidebar({
 				items: [
 					{
 						title: "General",
-						url: "#",
-					},
-					{
-						title: "Billing",
-						url: "#",
+						url: "/settings/team/general",
+						isActive: () =>
+							routerState.location.pathname.startsWith(
+								"/settings/team/general"
+							),
 					},
 					{
 						title: "Members",
@@ -47,7 +43,12 @@ export function SettingsSidebar({
 	};
 
 	return (
-		<Sidebar collapsible="none" className="border-r">
+		<Sidebar
+			variant="inset"
+			collapsible="none"
+			className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] border-r sticky flex"
+			{...props}
+		>
 			<SidebarHeader className="gap-3.5 border-b p-4">
 				<div className="flex w-full items-center justify-between">
 					<div className="text-base font-medium text-foreground">Settings</div>

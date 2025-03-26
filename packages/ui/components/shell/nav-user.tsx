@@ -36,6 +36,7 @@ export function NavUser({
 	onSignOut,
 }: {
 	user: {
+		id: string;
 		name: string;
 		email: string;
 		avatar?: string;
@@ -57,7 +58,7 @@ export function NavUser({
 								className="h-8 w-8 rounded-lg"
 								src={user.avatar}
 								alt={user.name}
-								fallback={user.email}
+								fallback={user.id}
 							/>
 							<div className="grid flex-1 text-left text-sm leading-tight">
 								<span className="truncate font-semibold">{user.name}</span>
@@ -79,7 +80,7 @@ export function NavUser({
 										className="h-8 w-8 rounded-lg"
 										src={user.avatar}
 										alt={user.name}
-										fallback={user.email}
+										fallback={user.id}
 									/>
 									<AvatarFallback className="rounded-lg">CN</AvatarFallback>
 								</Avatar>

@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-router";
 import appCss from "@/styles/globals.css?url";
 import { Toaster } from "@voidhash/ui";
-import { getMe } from "@/server/auth/queries";
+import { getMe } from "@voidhash/features/auth/server/queries";
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
@@ -56,7 +56,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
 			<head>
 				<HeadContent />
 			</head>
-			<body>
+			<body className="">
 				{children}
 				<Scripts />
 			</body>

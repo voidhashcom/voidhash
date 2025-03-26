@@ -158,18 +158,25 @@ class ColorHash {
 		const rgb = this.rgb(str);
 		return RGB2HEX(rgb);
 	}
+
+	hexPair(str: string) {
+		const s1Hsl = this.hsl(str);
+		const s2Hsl = [(s1Hsl[0] + 87) % 360, s1Hsl[1], s1Hsl[2]];
+		const rgb1 = HSL2RGB.apply(this, s1Hsl);
+		const rgb2 = HSL2RGB.apply(this, s2Hsl);
+		const hex1 = RGB2HEX(rgb1);
+		const hex2 = RGB2HEX(rgb2);
+		return [hex1, hex2];
+	}
 }
 
 const colorHash = new ColorHash({ saturation: 1.0 });
 
-const stringToColour = (s: string): string => colorHash.hex(s);
+const stringToColours = (s: string): string[] => colorHash.hexPair(s);
 
 const generateColours = (s: string): [string, string] => {
 	const s1 = s.substring(0, s.length / 2);
-	const s2 = s.substring(s.length / 2);
-	const c1 = stringToColour(s1);
-	const c2 = stringToColour(s2);
-
+	const [c1, c2] = stringToColours(s1);
 	return [c1, c2];
 };
 
