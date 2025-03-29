@@ -1,53 +1,82 @@
+import { useMe } from "@voidhash/features/auth/hooks/useMe";
 import {
 	Logo,
 	NavSlashSeparator,
+	NavUser,
 	ProjectSwitcher,
 	SidebarTrigger,
-	TeamSwitcher,
+	OrganizationSwitcher,
 } from "@voidhash/ui";
-import { GalleryVerticalEnd, AudioWaveform, Command } from "lucide-react";
+import { User } from "better-auth";
 import { useState } from "react";
+import { Building } from "lucide-react";
+import { Link, useParams } from "@tanstack/react-router";
 
-export function NavBar() {
-	const teams = [
-		{
-			id: "1",
-			name: "Acme Inc",
-			logo: GalleryVerticalEnd,
-			plan: "Enterprise",
-			projects: [
-				{
-					id: "1-1",
-					name: "Project 1",
-					logo: GalleryVerticalEnd,
+export function NavBar({
+	user,
+	onSignOut,
+}: {
+	user: User;
+	onSignOut: () => void;
+}) {
+	const userWithAvatar = {
+		...user,
+		avatar: user.image ?? undefined,
+	};
+
+	const { data: me } = useMe();
+
+	const { organizationSlug, projectId } = useParams({
+		strict: false,
+	});
+
+	const organizations =
+		me?.organizations.map((org) => ({
+			id: org.id,
+			slug: org.slug,
+			name: org.name,
+			logo: Building,
+			plan: "free",
+			projects:
+				org.projects?.map((project) => ({
+					id: project.id,
+					name: project.name,
+				})) ?? [],
+		})) ?? [];
+
+	const activeOrganization = organizations.find(
+		(org) => org.slug === organizationSlug
+	);
+
+	const activeProject = activeOrganization?.projects.find(
+		(project) => project.id === projectId
+	);
+
+	const homeLink = (() => {
+		if (organizationSlug && !projectId) {
+			return {
+				to: "/~/$organizationSlug",
+				params: {
+					organizationSlug,
 				},
-			],
-		},
-		{
-			id: "2",
-			name: "Acme Corp.",
-			logo: AudioWaveform,
-			plan: "Startup",
-			projects: [
-				{
-					id: "2-1",
-					name: "Project 1",
-					logo: GalleryVerticalEnd,
+			} as const;
+		}
+		if (organizationSlug && projectId) {
+			return {
+				to: "/~/$organizationSlug/$projectId",
+				params: {
+					organizationSlug,
+					projectId,
 				},
-			],
-		},
-		{
-			id: "3",
-			name: "Evil Corp.",
-			logo: Command,
-			plan: "Free",
-			projects: [],
-		},
-	];
+			} as const;
+		}
+		return {
+			to: "/",
+			params: undefined,
+		} as const;
+	})();
 
-	const [activeTeam, setActiveTeam] = useState(teams[0]);
-
-	if (!activeTeam) {
+	if (!activeOrganization) {
 		return null;
 	}
 
@@ -55,13 +84,29 @@ export function NavBar() {
 		<div className="p-4 border-b border-border w-full fixed top-0 left-0 right-0 bg-background z-50 h-[var(--header-height)] flex items-center justify-between">
 			<div className="flex items-center gap-7">
 				<SidebarTrigger className="px-4" />
-				<Logo />
+				<Link to={homeLink?.to} params={homeLink?.params}>
+					<Logo />
+				</Link>
 				<div className="flex items-center gap-2">
-					<TeamSwitcher teams={teams} activeTeam={activeTeam} />
-					<NavSlashSeparator />
-					<ProjectSwitcher teams={teams} activeTeam={activeTeam} />
+					<OrganizationSwitcher
+						organizations={organizations}
+						activeOrganization={activeOrganization}
+						activeProject={activeProject}
+					/>
+					{activeProject && (
+						<>
+							<NavSlashSeparator />
+							<ProjectSwitcher
+								organizations={organizations}
+								activeOrganization={activeOrganization}
+								activeProject={activeProject}
+							/>
+						</>
+					)}
 				</div>
 			</div>
+
+			<NavUser user={userWithAvatar} onSignOut={onSignOut} />
 		</div>
 	);
 }

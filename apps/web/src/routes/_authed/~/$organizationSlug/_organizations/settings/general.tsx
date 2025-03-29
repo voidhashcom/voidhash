@@ -1,0 +1,189 @@
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useMe } from "@voidhash/features/auth/hooks/useMe";
+import { authClient } from "@voidhash/features/auth/lib/client";
+import { organizationsQueryKeys } from "@voidhash/features/organizations/query-keys";
+import {
+	Avatar,
+	AvatarFallback,
+	Button,
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+	Input,
+	Label,
+	Page,
+	Separator,
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@voidhash/ui";
+import { LinkIcon, Plus, MoreHorizontal } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+import { authQueryKeys } from "@voidhash/features/auth/query-keys";
+import { updateOrganizationMutation } from "@voidhash/features/organizations/server/mutations";
+
+const updateTeamNameSchema = z.object({
+	name: z
+		.string()
+		.min(1, "Team name is required")
+		.max(32, "Team name must be less than 32 characters"),
+});
+
+type UpdateTeamNameForm = z.infer<typeof updateTeamNameSchema>;
+
+export const Route = createFileRoute(
+	"/_authed/~/$organizationSlug/_organizations/settings/general"
+)({
+	component: RouteComponent,
+});
+
+function TeamNameForm() {
+	const context = Route.useRouteContext();
+	const router = useRouter();
+	const { organizationSlug } = Route.useParams();
+	const { data: me } = useMe();
+
+	const organization = me?.organizations.find(
+		(org) => org.slug === organizationSlug
+	);
+
+	const form = useForm<UpdateTeamNameForm>({
+		resolver: zodResolver(updateTeamNameSchema),
+		defaultValues: {
+			name: organization?.name,
+		},
+	});
+
+	const { mutate: updateTeamName, isPending } = useMutation({
+		mutationFn: updateOrganizationMutation,
+		onSuccess: () => {
+			context.queryClient.invalidateQueries();
+			router.invalidate();
+			toast.success("Team name updated successfully");
+		},
+		onError: () => {
+			toast.error("Failed to update team name. Please try again.");
+		},
+	});
+
+	const onSubmit = (data: UpdateTeamNameForm) => {
+		if (!organization) return;
+		updateTeamName({
+			data: {
+				organizationId: organization.id,
+				name: data.name,
+			},
+		});
+	};
+
+	return (
+		<Form {...form}>
+			<form onSubmit={form.handleSubmit(onSubmit)}>
+				<Card className="pb-0 overflow-hidden mt-8">
+					<CardHeader>
+						<CardTitle>Team name</CardTitle>
+						<CardDescription>
+							This is your team's visible name within Voidhash. For example, the
+							name of your company or department.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<FormField
+							control={form.control}
+							name="name"
+							render={({ field }) => (
+								<FormItem>
+									<FormControl>
+										<Input
+											className="max-w-64 text-foreground text-sm"
+											placeholder="Enter team name"
+											{...field}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</CardContent>
+					<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
+						<div className="text-muted-foreground">
+							Please use 32 characters at maximum.
+						</div>
+						<div>
+							<Button type="submit" disabled={isPending}>
+								{isPending ? "Saving..." : "Save"}
+							</Button>
+						</div>
+					</CardFooter>
+				</Card>
+			</form>
+		</Form>
+	);
+}
+
+// function TeamUrlForm() {
+// 	return (
+// 		<Card className="pb-0 overflow-hidden mt-8">
+// 			<CardHeader>
+// 				<CardTitle>Team URL</CardTitle>
+// 				<CardDescription>
+// 					This is your team&apos;s URL namespace on voidhash. Within it, your
+// 					team can inspect their projects, check out any recent activity, or
+// 					configure settings to their liking.
+// 				</CardDescription>
+// 			</CardHeader>
+// 			<CardContent>
+// 				<Input className="max-w-64 text-foreground text-sm" />
+// 			</CardContent>
+// 			<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
+// 				<div className="text-muted-foreground">
+// 					Please use 48 characters at maximum.
+// 				</div>
+// 				<div>
+// 					<Button>Save</Button>
+// 				</div>
+// 			</CardFooter>
+// 		</Card>
+// 	);
+// }
+
+function RouteComponent() {
+	const { organizationSlug } = Route.useParams();
+
+	return (
+		<Page
+			breadcrumbs={[
+				{ title: "Settings", url: "/settings" },
+				{ title: "Team", url: "/settings/team" },
+				{ title: "Members", url: "/settings/team/members" },
+			]}
+		>
+			{/* Key is used to reload the default form data when the organization slug changes */}
+			<div className="max-w-4xl mx-auto">
+				<h1 className="text-3xl font-normal tracking-right">Team Settings</h1>
+				<p className="text-muted-foreground mt-3">All settings for team</p>
+
+				<TeamNameForm key={organizationSlug} />
+				{/* <TeamUrlForm /> */}
+			</div>
+		</Page>
+	);
+}

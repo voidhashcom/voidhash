@@ -10,7 +10,9 @@ import {
 } from "@voidhash/ui";
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authed/_dashboard/dashboard")({
+export const Route = createFileRoute(
+	"/_authed/~/$organizationSlug/$projectId/dashboard"
+)({
 	component: RouteComponent,
 });
 

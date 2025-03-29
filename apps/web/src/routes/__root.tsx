@@ -10,6 +10,7 @@ import {
 import appCss from "@/styles/globals.css?url";
 import { Toaster } from "@voidhash/ui";
 import { getMe } from "@voidhash/features/auth/server/queries";
+import { authQueryKeys } from "@voidhash/features/auth/query-keys";
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
@@ -25,7 +26,7 @@ export const Route = createRootRouteWithContext<{
 				content: "width=device-width, initial-scale=1",
 			},
 			{
-				title: "TanStack Start Starter",
+				title: "voidhash - Payments made simple",
 			},
 		],
 		links: [{ rel: "stylesheet", href: appCss }],
@@ -33,9 +34,9 @@ export const Route = createRootRouteWithContext<{
 	component: RootComponent,
 	beforeLoad: async ({ context }) => {
 		const user = await context.queryClient.fetchQuery({
-			queryKey: ["user"],
+			queryKey: authQueryKeys.me(),
 			queryFn: ({ signal }) => getMe({ signal }),
-		}); // we're using react-query for caching, see router.tsx
+		});
 		return { user };
 	},
 });
@@ -56,7 +57,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
 			<head>
 				<HeadContent />
 			</head>
-			<body className="">
+			<body className="dark">
 				{children}
 				<Scripts />
 			</body>

@@ -25,11 +25,11 @@ import {
 	TabsList,
 	TabsTrigger,
 } from "@voidhash/ui";
-import { DataTable } from "@voidhash/features/teams/components/settings/data-table";
-import { invitationsColumns } from "@voidhash/features/teams/components/settings/pending-invites/columns";
+import { DataTable } from "@voidhash/features/organizations/components/settings/data-table";
+import { invitationsColumns } from "@voidhash/features/organizations/components/settings/pending-invites/columns";
 import { LinkIcon, MoreHorizontal, Plus, Search, XIcon } from "lucide-react";
 export const Route = createFileRoute(
-	"/_authed/_dashboard/settings/team/members"
+	"/_authed/~/$organizationSlug/_organizations/settings/members"
 )({
 	component: RouteComponent,
 });
