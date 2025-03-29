@@ -47,4 +47,4 @@ export * from "./components/ui/toggle";
 export * from "./components/ui/tooltip";
 export * from "./components/logo";
 export * from "./components/copy-text";
-export * from "./components/shell";
+export * from "../features/shell";

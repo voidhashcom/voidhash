@@ -1,11 +1,24 @@
-// app/routes/index.tsx
-import * as fs from "node:fs";
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { Button } from "@voidhash/ui/button";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
-	beforeLoad: async () => {
-		throw redirect({ to: "/dashboard", replace: true });
+	loader: async ({ context }) => {
+		if (context.user) {
+			if (context.user.organizations.length == 0) {
+				throw redirect({
+					to: "/create-org",
+					replace: true,
+				});
+			}
+			throw redirect({
+				to: "/~/$organizationSlug",
+				params: { organizationSlug: context.user.organizations[0].slug },
+				replace: true,
+			});
+		}
+		throw redirect({
+			to: "/login",
+			replace: true,
+			search: { signup: false },
+		});
 	},
 });

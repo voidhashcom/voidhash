@@ -5,7 +5,7 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import { z } from "zod";
-import { authClient } from "@voidhash/auth/client";
+import { authClient } from "@voidhash/features/auth/lib/client";
 import {
 	Logo,
 	Alert,
@@ -18,6 +18,7 @@ import {
 import { CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { authQueryKeys } from "@voidhash/features/auth/query-keys";
 
 const loginSearchSchema = z.object({
 	signup: z.boolean().catch(false),
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/login")({
 
 function RouteComponent() {
 	const search = Route.useSearch();
+	const context = Route.useRouteContext();
 
 	const navigate = useNavigate({ from: "/login" });
 	const router = useRouter();
@@ -50,8 +52,11 @@ function RouteComponent() {
 					setLoading(true);
 				},
 				onSuccess: () => {
+					context.queryClient.invalidateQueries({
+						queryKey: authQueryKeys.all,
+					});
 					navigate({
-						to: "/dashboard",
+						to: "/",
 					});
 				},
 				onError: (ctx) => {

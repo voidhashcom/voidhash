@@ -6,6 +6,7 @@ import {
 	Command,
 	GalleryVerticalEnd,
 	GaugeIcon,
+	Grid2X2,
 	LifeBuoy,
 	Send,
 	Settings,
@@ -20,7 +21,7 @@ import {
 import { User } from "better-auth";
 import { Link, useParams, useRouterState } from "@tanstack/react-router";
 
-export function AppSidebar({
+export function OrganizationSidebar({
 	user,
 	onSignOut,
 	collapsible = "icon",
@@ -29,11 +30,6 @@ export function AppSidebar({
 	user: User;
 	onSignOut: () => void;
 }) {
-	const userWithAvatar = {
-		...user,
-		avatar: user.image ?? undefined,
-	};
-
 	const routerState = useRouterState();
 	const isSettingsRoute = routerState.location.pathname.includes("/settings");
 	const { setOpen } = useSidebar();
@@ -45,34 +41,24 @@ export function AppSidebar({
 		}
 	}, [isSettingsRoute]);
 
-	const { organizationSlug, projectId } = useParams({
+	const { organizationSlug } = useParams({
 		strict: false,
 	});
 
 	const data = {
-		user: {
-			name: "shadcn",
-			email: "m@example.com",
-			avatar: "/avatars/shadcn.jpg",
-		},
 		navMain: [
 			{
-				title: "Platform",
+				title: "Team",
 				items: [
 					{
-						title: "Overview",
-						url: `/~/${organizationSlug}/${projectId}/dashboard`,
-						icon: GaugeIcon,
+						title: "Projects",
+						url: `/~/${organizationSlug}/projects`,
+						icon: Grid2X2,
 						isActive: () =>
 							routerState.location.pathname.startsWith(
-								`/~/${organizationSlug}/${projectId}/dashboard`
+								`/~/${organizationSlug}/projects`
 							),
 					},
-					// {
-					// 	title: "Customers",
-					// 	url: "#",
-					// 	icon: UsersIcon,
-					// },
 					{
 						title: "Settings",
 						url: `/~/${organizationSlug}/settings/general`,
@@ -83,18 +69,6 @@ export function AppSidebar({
 							),
 					},
 				],
-			},
-		],
-		navSecondary: [
-			{
-				title: "Support",
-				url: "#",
-				icon: LifeBuoy,
-			},
-			{
-				title: "Feedback",
-				url: "#",
-				icon: Send,
 			},
 		],
 	};
@@ -108,7 +82,6 @@ export function AppSidebar({
 		>
 			<SidebarContent>
 				<NavMain groups={data.navMain} link={Link} />
-				<NavSecondary items={data.navSecondary} className="mt-auto" />
 			</SidebarContent>
 		</Sidebar>
 	);

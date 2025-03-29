@@ -10,240 +10,409 @@
 
 // Import Routes
 
-import { Route as rootRoute } from "./routes/__root";
-import { Route as SignUpImport } from "./routes/sign-up";
-import { Route as LoginImport } from "./routes/login";
-import { Route as AuthedImport } from "./routes/_authed";
-import { Route as IndexImport } from "./routes/index";
-import { Route as AuthedDashboardRouteImport } from "./routes/_authed/_dashboard/route";
-import { Route as AuthedDashboardDashboardImport } from "./routes/_authed/_dashboard/dashboard";
-import { Route as AuthedDashboardSettingsTeamMembersImport } from "./routes/_authed/_dashboard/settings/team/members";
-import { Route as AuthedDashboardSettingsTeamGeneralImport } from "./routes/_authed/_dashboard/settings/team/general";
+import { Route as rootRoute } from './routes/__root'
+import { Route as SignUpImport } from './routes/sign-up'
+import { Route as LoginImport } from './routes/login'
+import { Route as AuthedImport } from './routes/_authed'
+import { Route as IndexImport } from './routes/index'
+import { Route as AuthedCreateOrgImport } from './routes/_authed/create-org'
+import { Route as AuthedIndexImport } from './routes/_authed/~/index'
+import { Route as AuthedOrganizationSlugRouteImport } from './routes/_authed/~/$organizationSlug/route'
+import { Route as AuthedOrganizationSlugOrganizationsRouteImport } from './routes/_authed/~/$organizationSlug/_organizations/route'
+import { Route as AuthedOrganizationSlugProjectIdRouteImport } from './routes/_authed/~/$organizationSlug/$projectId/route'
+import { Route as AuthedOrganizationSlugOrganizationsIndexImport } from './routes/_authed/~/$organizationSlug/_organizations/index'
+import { Route as AuthedOrganizationSlugOrganizationsProjectsImport } from './routes/_authed/~/$organizationSlug/_organizations/projects'
+import { Route as AuthedOrganizationSlugProjectIdDashboardImport } from './routes/_authed/~/$organizationSlug/$projectId/dashboard'
+import { Route as AuthedOrganizationSlugOrganizationsSettingsMembersImport } from './routes/_authed/~/$organizationSlug/_organizations/settings/members'
+import { Route as AuthedOrganizationSlugOrganizationsSettingsGeneralImport } from './routes/_authed/~/$organizationSlug/_organizations/settings/general'
 
 // Create/Update Routes
 
 const SignUpRoute = SignUpImport.update({
-	id: "/sign-up",
-	path: "/sign-up",
-	getParentRoute: () => rootRoute,
-} as any);
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const LoginRoute = LoginImport.update({
-	id: "/login",
-	path: "/login",
-	getParentRoute: () => rootRoute,
-} as any);
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const AuthedRoute = AuthedImport.update({
-	id: "/_authed",
-	getParentRoute: () => rootRoute,
-} as any);
+  id: '/_authed',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const IndexRoute = IndexImport.update({
-	id: "/",
-	path: "/",
-	getParentRoute: () => rootRoute,
-} as any);
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
 
-const AuthedDashboardRouteRoute = AuthedDashboardRouteImport.update({
-	id: "/_dashboard",
-	getParentRoute: () => AuthedRoute,
-} as any);
+const AuthedCreateOrgRoute = AuthedCreateOrgImport.update({
+  id: '/create-org',
+  path: '/create-org',
+  getParentRoute: () => AuthedRoute,
+} as any)
 
-const AuthedDashboardDashboardRoute = AuthedDashboardDashboardImport.update({
-	id: "/dashboard",
-	path: "/dashboard",
-	getParentRoute: () => AuthedDashboardRouteRoute,
-} as any);
+const AuthedIndexRoute = AuthedIndexImport.update({
+  id: '/~/',
+  path: '/~/',
+  getParentRoute: () => AuthedRoute,
+} as any)
 
-const AuthedDashboardSettingsTeamMembersRoute =
-	AuthedDashboardSettingsTeamMembersImport.update({
-		id: "/settings/team/members",
-		path: "/settings/team/members",
-		getParentRoute: () => AuthedDashboardRouteRoute,
-	} as any);
+const AuthedOrganizationSlugRouteRoute =
+  AuthedOrganizationSlugRouteImport.update({
+    id: '/~/$organizationSlug',
+    path: '/~/$organizationSlug',
+    getParentRoute: () => AuthedRoute,
+  } as any)
 
-const AuthedDashboardSettingsTeamGeneralRoute =
-	AuthedDashboardSettingsTeamGeneralImport.update({
-		id: "/settings/team/general",
-		path: "/settings/team/general",
-		getParentRoute: () => AuthedDashboardRouteRoute,
-	} as any);
+const AuthedOrganizationSlugOrganizationsRouteRoute =
+  AuthedOrganizationSlugOrganizationsRouteImport.update({
+    id: '/_organizations',
+    getParentRoute: () => AuthedOrganizationSlugRouteRoute,
+  } as any)
+
+const AuthedOrganizationSlugProjectIdRouteRoute =
+  AuthedOrganizationSlugProjectIdRouteImport.update({
+    id: '/$projectId',
+    path: '/$projectId',
+    getParentRoute: () => AuthedOrganizationSlugRouteRoute,
+  } as any)
+
+const AuthedOrganizationSlugOrganizationsIndexRoute =
+  AuthedOrganizationSlugOrganizationsIndexImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthedOrganizationSlugOrganizationsRouteRoute,
+  } as any)
+
+const AuthedOrganizationSlugOrganizationsProjectsRoute =
+  AuthedOrganizationSlugOrganizationsProjectsImport.update({
+    id: '/projects',
+    path: '/projects',
+    getParentRoute: () => AuthedOrganizationSlugOrganizationsRouteRoute,
+  } as any)
+
+const AuthedOrganizationSlugProjectIdDashboardRoute =
+  AuthedOrganizationSlugProjectIdDashboardImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthedOrganizationSlugProjectIdRouteRoute,
+  } as any)
+
+const AuthedOrganizationSlugOrganizationsSettingsMembersRoute =
+  AuthedOrganizationSlugOrganizationsSettingsMembersImport.update({
+    id: '/settings/members',
+    path: '/settings/members',
+    getParentRoute: () => AuthedOrganizationSlugOrganizationsRouteRoute,
+  } as any)
+
+const AuthedOrganizationSlugOrganizationsSettingsGeneralRoute =
+  AuthedOrganizationSlugOrganizationsSettingsGeneralImport.update({
+    id: '/settings/general',
+    path: '/settings/general',
+    getParentRoute: () => AuthedOrganizationSlugOrganizationsRouteRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
-declare module "@tanstack/react-router" {
-	interface FileRoutesByPath {
-		"/": {
-			id: "/";
-			path: "/";
-			fullPath: "/";
-			preLoaderRoute: typeof IndexImport;
-			parentRoute: typeof rootRoute;
-		};
-		"/_authed": {
-			id: "/_authed";
-			path: "";
-			fullPath: "";
-			preLoaderRoute: typeof AuthedImport;
-			parentRoute: typeof rootRoute;
-		};
-		"/login": {
-			id: "/login";
-			path: "/login";
-			fullPath: "/login";
-			preLoaderRoute: typeof LoginImport;
-			parentRoute: typeof rootRoute;
-		};
-		"/sign-up": {
-			id: "/sign-up";
-			path: "/sign-up";
-			fullPath: "/sign-up";
-			preLoaderRoute: typeof SignUpImport;
-			parentRoute: typeof rootRoute;
-		};
-		"/_authed/_dashboard": {
-			id: "/_authed/_dashboard";
-			path: "";
-			fullPath: "";
-			preLoaderRoute: typeof AuthedDashboardRouteImport;
-			parentRoute: typeof AuthedImport;
-		};
-		"/_authed/_dashboard/dashboard": {
-			id: "/_authed/_dashboard/dashboard";
-			path: "/dashboard";
-			fullPath: "/dashboard";
-			preLoaderRoute: typeof AuthedDashboardDashboardImport;
-			parentRoute: typeof AuthedDashboardRouteImport;
-		};
-		"/_authed/_dashboard/settings/team/general": {
-			id: "/_authed/_dashboard/settings/team/general";
-			path: "/settings/team/general";
-			fullPath: "/settings/team/general";
-			preLoaderRoute: typeof AuthedDashboardSettingsTeamGeneralImport;
-			parentRoute: typeof AuthedDashboardRouteImport;
-		};
-		"/_authed/_dashboard/settings/team/members": {
-			id: "/_authed/_dashboard/settings/team/members";
-			path: "/settings/team/members";
-			fullPath: "/settings/team/members";
-			preLoaderRoute: typeof AuthedDashboardSettingsTeamMembersImport;
-			parentRoute: typeof AuthedDashboardRouteImport;
-		};
-	}
+declare module '@tanstack/react-router' {
+  interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AuthedImport
+      parentRoute: typeof rootRoute
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginImport
+      parentRoute: typeof rootRoute
+    }
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpImport
+      parentRoute: typeof rootRoute
+    }
+    '/_authed/create-org': {
+      id: '/_authed/create-org'
+      path: '/create-org'
+      fullPath: '/create-org'
+      preLoaderRoute: typeof AuthedCreateOrgImport
+      parentRoute: typeof AuthedImport
+    }
+    '/_authed/~/$organizationSlug': {
+      id: '/_authed/~/$organizationSlug'
+      path: '/~/$organizationSlug'
+      fullPath: '/~/$organizationSlug'
+      preLoaderRoute: typeof AuthedOrganizationSlugRouteImport
+      parentRoute: typeof AuthedImport
+    }
+    '/_authed/~/': {
+      id: '/_authed/~/'
+      path: '/~'
+      fullPath: '/~'
+      preLoaderRoute: typeof AuthedIndexImport
+      parentRoute: typeof AuthedImport
+    }
+    '/_authed/~/$organizationSlug/$projectId': {
+      id: '/_authed/~/$organizationSlug/$projectId'
+      path: '/$projectId'
+      fullPath: '/~/$organizationSlug/$projectId'
+      preLoaderRoute: typeof AuthedOrganizationSlugProjectIdRouteImport
+      parentRoute: typeof AuthedOrganizationSlugRouteImport
+    }
+    '/_authed/~/$organizationSlug/_organizations': {
+      id: '/_authed/~/$organizationSlug/_organizations'
+      path: ''
+      fullPath: '/~/$organizationSlug'
+      preLoaderRoute: typeof AuthedOrganizationSlugOrganizationsRouteImport
+      parentRoute: typeof AuthedOrganizationSlugRouteImport
+    }
+    '/_authed/~/$organizationSlug/$projectId/dashboard': {
+      id: '/_authed/~/$organizationSlug/$projectId/dashboard'
+      path: '/dashboard'
+      fullPath: '/~/$organizationSlug/$projectId/dashboard'
+      preLoaderRoute: typeof AuthedOrganizationSlugProjectIdDashboardImport
+      parentRoute: typeof AuthedOrganizationSlugProjectIdRouteImport
+    }
+    '/_authed/~/$organizationSlug/_organizations/projects': {
+      id: '/_authed/~/$organizationSlug/_organizations/projects'
+      path: '/projects'
+      fullPath: '/~/$organizationSlug/projects'
+      preLoaderRoute: typeof AuthedOrganizationSlugOrganizationsProjectsImport
+      parentRoute: typeof AuthedOrganizationSlugOrganizationsRouteImport
+    }
+    '/_authed/~/$organizationSlug/_organizations/': {
+      id: '/_authed/~/$organizationSlug/_organizations/'
+      path: '/'
+      fullPath: '/~/$organizationSlug/'
+      preLoaderRoute: typeof AuthedOrganizationSlugOrganizationsIndexImport
+      parentRoute: typeof AuthedOrganizationSlugOrganizationsRouteImport
+    }
+    '/_authed/~/$organizationSlug/_organizations/settings/general': {
+      id: '/_authed/~/$organizationSlug/_organizations/settings/general'
+      path: '/settings/general'
+      fullPath: '/~/$organizationSlug/settings/general'
+      preLoaderRoute: typeof AuthedOrganizationSlugOrganizationsSettingsGeneralImport
+      parentRoute: typeof AuthedOrganizationSlugOrganizationsRouteImport
+    }
+    '/_authed/~/$organizationSlug/_organizations/settings/members': {
+      id: '/_authed/~/$organizationSlug/_organizations/settings/members'
+      path: '/settings/members'
+      fullPath: '/~/$organizationSlug/settings/members'
+      preLoaderRoute: typeof AuthedOrganizationSlugOrganizationsSettingsMembersImport
+      parentRoute: typeof AuthedOrganizationSlugOrganizationsRouteImport
+    }
+  }
 }
 
 // Create and export the route tree
 
-interface AuthedDashboardRouteRouteChildren {
-	AuthedDashboardDashboardRoute: typeof AuthedDashboardDashboardRoute;
-	AuthedDashboardSettingsTeamGeneralRoute: typeof AuthedDashboardSettingsTeamGeneralRoute;
-	AuthedDashboardSettingsTeamMembersRoute: typeof AuthedDashboardSettingsTeamMembersRoute;
+interface AuthedOrganizationSlugProjectIdRouteRouteChildren {
+  AuthedOrganizationSlugProjectIdDashboardRoute: typeof AuthedOrganizationSlugProjectIdDashboardRoute
 }
 
-const AuthedDashboardRouteRouteChildren: AuthedDashboardRouteRouteChildren = {
-	AuthedDashboardDashboardRoute: AuthedDashboardDashboardRoute,
-	AuthedDashboardSettingsTeamGeneralRoute:
-		AuthedDashboardSettingsTeamGeneralRoute,
-	AuthedDashboardSettingsTeamMembersRoute:
-		AuthedDashboardSettingsTeamMembersRoute,
-};
+const AuthedOrganizationSlugProjectIdRouteRouteChildren: AuthedOrganizationSlugProjectIdRouteRouteChildren =
+  {
+    AuthedOrganizationSlugProjectIdDashboardRoute:
+      AuthedOrganizationSlugProjectIdDashboardRoute,
+  }
 
-const AuthedDashboardRouteRouteWithChildren =
-	AuthedDashboardRouteRoute._addFileChildren(AuthedDashboardRouteRouteChildren);
+const AuthedOrganizationSlugProjectIdRouteRouteWithChildren =
+  AuthedOrganizationSlugProjectIdRouteRoute._addFileChildren(
+    AuthedOrganizationSlugProjectIdRouteRouteChildren,
+  )
+
+interface AuthedOrganizationSlugOrganizationsRouteRouteChildren {
+  AuthedOrganizationSlugOrganizationsProjectsRoute: typeof AuthedOrganizationSlugOrganizationsProjectsRoute
+  AuthedOrganizationSlugOrganizationsIndexRoute: typeof AuthedOrganizationSlugOrganizationsIndexRoute
+  AuthedOrganizationSlugOrganizationsSettingsGeneralRoute: typeof AuthedOrganizationSlugOrganizationsSettingsGeneralRoute
+  AuthedOrganizationSlugOrganizationsSettingsMembersRoute: typeof AuthedOrganizationSlugOrganizationsSettingsMembersRoute
+}
+
+const AuthedOrganizationSlugOrganizationsRouteRouteChildren: AuthedOrganizationSlugOrganizationsRouteRouteChildren =
+  {
+    AuthedOrganizationSlugOrganizationsProjectsRoute:
+      AuthedOrganizationSlugOrganizationsProjectsRoute,
+    AuthedOrganizationSlugOrganizationsIndexRoute:
+      AuthedOrganizationSlugOrganizationsIndexRoute,
+    AuthedOrganizationSlugOrganizationsSettingsGeneralRoute:
+      AuthedOrganizationSlugOrganizationsSettingsGeneralRoute,
+    AuthedOrganizationSlugOrganizationsSettingsMembersRoute:
+      AuthedOrganizationSlugOrganizationsSettingsMembersRoute,
+  }
+
+const AuthedOrganizationSlugOrganizationsRouteRouteWithChildren =
+  AuthedOrganizationSlugOrganizationsRouteRoute._addFileChildren(
+    AuthedOrganizationSlugOrganizationsRouteRouteChildren,
+  )
+
+interface AuthedOrganizationSlugRouteRouteChildren {
+  AuthedOrganizationSlugProjectIdRouteRoute: typeof AuthedOrganizationSlugProjectIdRouteRouteWithChildren
+  AuthedOrganizationSlugOrganizationsRouteRoute: typeof AuthedOrganizationSlugOrganizationsRouteRouteWithChildren
+}
+
+const AuthedOrganizationSlugRouteRouteChildren: AuthedOrganizationSlugRouteRouteChildren =
+  {
+    AuthedOrganizationSlugProjectIdRouteRoute:
+      AuthedOrganizationSlugProjectIdRouteRouteWithChildren,
+    AuthedOrganizationSlugOrganizationsRouteRoute:
+      AuthedOrganizationSlugOrganizationsRouteRouteWithChildren,
+  }
+
+const AuthedOrganizationSlugRouteRouteWithChildren =
+  AuthedOrganizationSlugRouteRoute._addFileChildren(
+    AuthedOrganizationSlugRouteRouteChildren,
+  )
 
 interface AuthedRouteChildren {
-	AuthedDashboardRouteRoute: typeof AuthedDashboardRouteRouteWithChildren;
+  AuthedCreateOrgRoute: typeof AuthedCreateOrgRoute
+  AuthedOrganizationSlugRouteRoute: typeof AuthedOrganizationSlugRouteRouteWithChildren
+  AuthedIndexRoute: typeof AuthedIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
-	AuthedDashboardRouteRoute: AuthedDashboardRouteRouteWithChildren,
-};
+  AuthedCreateOrgRoute: AuthedCreateOrgRoute,
+  AuthedOrganizationSlugRouteRoute:
+    AuthedOrganizationSlugRouteRouteWithChildren,
+  AuthedIndexRoute: AuthedIndexRoute,
+}
 
 const AuthedRouteWithChildren =
-	AuthedRoute._addFileChildren(AuthedRouteChildren);
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
 
 export interface FileRoutesByFullPath {
-	"/": typeof IndexRoute;
-	"": typeof AuthedDashboardRouteRouteWithChildren;
-	"/login": typeof LoginRoute;
-	"/sign-up": typeof SignUpRoute;
-	"/dashboard": typeof AuthedDashboardDashboardRoute;
-	"/settings/team/general": typeof AuthedDashboardSettingsTeamGeneralRoute;
-	"/settings/team/members": typeof AuthedDashboardSettingsTeamMembersRoute;
+  '/': typeof IndexRoute
+  '': typeof AuthedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/sign-up': typeof SignUpRoute
+  '/create-org': typeof AuthedCreateOrgRoute
+  '/~/$organizationSlug': typeof AuthedOrganizationSlugOrganizationsRouteRouteWithChildren
+  '/~': typeof AuthedIndexRoute
+  '/~/$organizationSlug/$projectId': typeof AuthedOrganizationSlugProjectIdRouteRouteWithChildren
+  '/~/$organizationSlug/$projectId/dashboard': typeof AuthedOrganizationSlugProjectIdDashboardRoute
+  '/~/$organizationSlug/projects': typeof AuthedOrganizationSlugOrganizationsProjectsRoute
+  '/~/$organizationSlug/': typeof AuthedOrganizationSlugOrganizationsIndexRoute
+  '/~/$organizationSlug/settings/general': typeof AuthedOrganizationSlugOrganizationsSettingsGeneralRoute
+  '/~/$organizationSlug/settings/members': typeof AuthedOrganizationSlugOrganizationsSettingsMembersRoute
 }
 
 export interface FileRoutesByTo {
-	"/": typeof IndexRoute;
-	"": typeof AuthedDashboardRouteRouteWithChildren;
-	"/login": typeof LoginRoute;
-	"/sign-up": typeof SignUpRoute;
-	"/dashboard": typeof AuthedDashboardDashboardRoute;
-	"/settings/team/general": typeof AuthedDashboardSettingsTeamGeneralRoute;
-	"/settings/team/members": typeof AuthedDashboardSettingsTeamMembersRoute;
+  '/': typeof IndexRoute
+  '': typeof AuthedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/sign-up': typeof SignUpRoute
+  '/create-org': typeof AuthedCreateOrgRoute
+  '/~/$organizationSlug': typeof AuthedOrganizationSlugOrganizationsIndexRoute
+  '/~': typeof AuthedIndexRoute
+  '/~/$organizationSlug/$projectId': typeof AuthedOrganizationSlugProjectIdRouteRouteWithChildren
+  '/~/$organizationSlug/$projectId/dashboard': typeof AuthedOrganizationSlugProjectIdDashboardRoute
+  '/~/$organizationSlug/projects': typeof AuthedOrganizationSlugOrganizationsProjectsRoute
+  '/~/$organizationSlug/settings/general': typeof AuthedOrganizationSlugOrganizationsSettingsGeneralRoute
+  '/~/$organizationSlug/settings/members': typeof AuthedOrganizationSlugOrganizationsSettingsMembersRoute
 }
 
 export interface FileRoutesById {
-	__root__: typeof rootRoute;
-	"/": typeof IndexRoute;
-	"/_authed": typeof AuthedRouteWithChildren;
-	"/login": typeof LoginRoute;
-	"/sign-up": typeof SignUpRoute;
-	"/_authed/_dashboard": typeof AuthedDashboardRouteRouteWithChildren;
-	"/_authed/_dashboard/dashboard": typeof AuthedDashboardDashboardRoute;
-	"/_authed/_dashboard/settings/team/general": typeof AuthedDashboardSettingsTeamGeneralRoute;
-	"/_authed/_dashboard/settings/team/members": typeof AuthedDashboardSettingsTeamMembersRoute;
+  __root__: typeof rootRoute
+  '/': typeof IndexRoute
+  '/_authed': typeof AuthedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/sign-up': typeof SignUpRoute
+  '/_authed/create-org': typeof AuthedCreateOrgRoute
+  '/_authed/~/$organizationSlug': typeof AuthedOrganizationSlugRouteRouteWithChildren
+  '/_authed/~/': typeof AuthedIndexRoute
+  '/_authed/~/$organizationSlug/$projectId': typeof AuthedOrganizationSlugProjectIdRouteRouteWithChildren
+  '/_authed/~/$organizationSlug/_organizations': typeof AuthedOrganizationSlugOrganizationsRouteRouteWithChildren
+  '/_authed/~/$organizationSlug/$projectId/dashboard': typeof AuthedOrganizationSlugProjectIdDashboardRoute
+  '/_authed/~/$organizationSlug/_organizations/projects': typeof AuthedOrganizationSlugOrganizationsProjectsRoute
+  '/_authed/~/$organizationSlug/_organizations/': typeof AuthedOrganizationSlugOrganizationsIndexRoute
+  '/_authed/~/$organizationSlug/_organizations/settings/general': typeof AuthedOrganizationSlugOrganizationsSettingsGeneralRoute
+  '/_authed/~/$organizationSlug/_organizations/settings/members': typeof AuthedOrganizationSlugOrganizationsSettingsMembersRoute
 }
 
 export interface FileRouteTypes {
-	fileRoutesByFullPath: FileRoutesByFullPath;
-	fullPaths:
-		| "/"
-		| ""
-		| "/login"
-		| "/sign-up"
-		| "/dashboard"
-		| "/settings/team/general"
-		| "/settings/team/members";
-	fileRoutesByTo: FileRoutesByTo;
-	to:
-		| "/"
-		| ""
-		| "/login"
-		| "/sign-up"
-		| "/dashboard"
-		| "/settings/team/general"
-		| "/settings/team/members";
-	id:
-		| "__root__"
-		| "/"
-		| "/_authed"
-		| "/login"
-		| "/sign-up"
-		| "/_authed/_dashboard"
-		| "/_authed/_dashboard/dashboard"
-		| "/_authed/_dashboard/settings/team/general"
-		| "/_authed/_dashboard/settings/team/members";
-	fileRoutesById: FileRoutesById;
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    | '/'
+    | ''
+    | '/login'
+    | '/sign-up'
+    | '/create-org'
+    | '/~/$organizationSlug'
+    | '/~'
+    | '/~/$organizationSlug/$projectId'
+    | '/~/$organizationSlug/$projectId/dashboard'
+    | '/~/$organizationSlug/projects'
+    | '/~/$organizationSlug/'
+    | '/~/$organizationSlug/settings/general'
+    | '/~/$organizationSlug/settings/members'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | ''
+    | '/login'
+    | '/sign-up'
+    | '/create-org'
+    | '/~/$organizationSlug'
+    | '/~'
+    | '/~/$organizationSlug/$projectId'
+    | '/~/$organizationSlug/$projectId/dashboard'
+    | '/~/$organizationSlug/projects'
+    | '/~/$organizationSlug/settings/general'
+    | '/~/$organizationSlug/settings/members'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authed'
+    | '/login'
+    | '/sign-up'
+    | '/_authed/create-org'
+    | '/_authed/~/$organizationSlug'
+    | '/_authed/~/'
+    | '/_authed/~/$organizationSlug/$projectId'
+    | '/_authed/~/$organizationSlug/_organizations'
+    | '/_authed/~/$organizationSlug/$projectId/dashboard'
+    | '/_authed/~/$organizationSlug/_organizations/projects'
+    | '/_authed/~/$organizationSlug/_organizations/'
+    | '/_authed/~/$organizationSlug/_organizations/settings/general'
+    | '/_authed/~/$organizationSlug/_organizations/settings/members'
+  fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
-	IndexRoute: typeof IndexRoute;
-	AuthedRoute: typeof AuthedRouteWithChildren;
-	LoginRoute: typeof LoginRoute;
-	SignUpRoute: typeof SignUpRoute;
+  IndexRoute: typeof IndexRoute
+  AuthedRoute: typeof AuthedRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  SignUpRoute: typeof SignUpRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
-	IndexRoute: IndexRoute,
-	AuthedRoute: AuthedRouteWithChildren,
-	LoginRoute: LoginRoute,
-	SignUpRoute: SignUpRoute,
-};
+  IndexRoute: IndexRoute,
+  AuthedRoute: AuthedRouteWithChildren,
+  LoginRoute: LoginRoute,
+  SignUpRoute: SignUpRoute,
+}
 
 export const routeTree = rootRoute
-	._addFileChildren(rootRouteChildren)
-	._addFileTypes<FileRouteTypes>();
+  ._addFileChildren(rootRouteChildren)
+  ._addFileTypes<FileRouteTypes>()
 
 /* ROUTE_MANIFEST_START
 {
@@ -263,7 +432,9 @@ export const routeTree = rootRoute
     "/_authed": {
       "filePath": "_authed.tsx",
       "children": [
-        "/_authed/_dashboard"
+        "/_authed/create-org",
+        "/_authed/~/$organizationSlug",
+        "/_authed/~/"
       ]
     },
     "/login": {
@@ -272,26 +443,58 @@ export const routeTree = rootRoute
     "/sign-up": {
       "filePath": "sign-up.tsx"
     },
-    "/_authed/_dashboard": {
-      "filePath": "_authed/_dashboard/route.tsx",
+    "/_authed/create-org": {
+      "filePath": "_authed/create-org.tsx",
+      "parent": "/_authed"
+    },
+    "/_authed/~/$organizationSlug": {
+      "filePath": "_authed/~/$organizationSlug/route.tsx",
       "parent": "/_authed",
       "children": [
-        "/_authed/_dashboard/dashboard",
-        "/_authed/_dashboard/settings/team/general",
-        "/_authed/_dashboard/settings/team/members"
+        "/_authed/~/$organizationSlug/$projectId",
+        "/_authed/~/$organizationSlug/_organizations"
       ]
     },
-    "/_authed/_dashboard/dashboard": {
-      "filePath": "_authed/_dashboard/dashboard.tsx",
-      "parent": "/_authed/_dashboard"
+    "/_authed/~/": {
+      "filePath": "_authed/~/index.ts",
+      "parent": "/_authed"
     },
-    "/_authed/_dashboard/settings/team/general": {
-      "filePath": "_authed/_dashboard/settings/team/general.tsx",
-      "parent": "/_authed/_dashboard"
+    "/_authed/~/$organizationSlug/$projectId": {
+      "filePath": "_authed/~/$organizationSlug/$projectId/route.tsx",
+      "parent": "/_authed/~/$organizationSlug",
+      "children": [
+        "/_authed/~/$organizationSlug/$projectId/dashboard"
+      ]
     },
-    "/_authed/_dashboard/settings/team/members": {
-      "filePath": "_authed/_dashboard/settings/team/members.tsx",
-      "parent": "/_authed/_dashboard"
+    "/_authed/~/$organizationSlug/_organizations": {
+      "filePath": "_authed/~/$organizationSlug/_organizations/route.tsx",
+      "parent": "/_authed/~/$organizationSlug",
+      "children": [
+        "/_authed/~/$organizationSlug/_organizations/projects",
+        "/_authed/~/$organizationSlug/_organizations/",
+        "/_authed/~/$organizationSlug/_organizations/settings/general",
+        "/_authed/~/$organizationSlug/_organizations/settings/members"
+      ]
+    },
+    "/_authed/~/$organizationSlug/$projectId/dashboard": {
+      "filePath": "_authed/~/$organizationSlug/$projectId/dashboard.tsx",
+      "parent": "/_authed/~/$organizationSlug/$projectId"
+    },
+    "/_authed/~/$organizationSlug/_organizations/projects": {
+      "filePath": "_authed/~/$organizationSlug/_organizations/projects.tsx",
+      "parent": "/_authed/~/$organizationSlug/_organizations"
+    },
+    "/_authed/~/$organizationSlug/_organizations/": {
+      "filePath": "_authed/~/$organizationSlug/_organizations/index.tsx",
+      "parent": "/_authed/~/$organizationSlug/_organizations"
+    },
+    "/_authed/~/$organizationSlug/_organizations/settings/general": {
+      "filePath": "_authed/~/$organizationSlug/_organizations/settings/general.tsx",
+      "parent": "/_authed/~/$organizationSlug/_organizations"
+    },
+    "/_authed/~/$organizationSlug/_organizations/settings/members": {
+      "filePath": "_authed/~/$organizationSlug/_organizations/settings/members.tsx",
+      "parent": "/_authed/~/$organizationSlug/_organizations"
     }
   }
 }
