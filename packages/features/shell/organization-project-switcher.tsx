@@ -95,7 +95,7 @@ export function OrganizationProjectSwitcher({
 				sideOffset={4}
 			>
 				<div className="flex flex-row divide-x divide-border">
-					<div className="min-w-56">
+					<div className="w-56">
 						<div className="px-2 py-1.5 text-xs text-muted-foreground">
 							Teams
 						</div>
@@ -140,7 +140,7 @@ export function OrganizationProjectSwitcher({
 							}
 						/>
 					</div>
-					<div className="min-w-56">
+					<div className="w-56">
 						<div className="px-2 py-1.5 text-xs text-muted-foreground">
 							Projects
 						</div>

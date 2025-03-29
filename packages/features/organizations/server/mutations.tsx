@@ -2,8 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { createOrganization } from "./actions/create-organization";
 import { z } from "zod";
 import { getWebRequest } from "@tanstack/react-start/server";
-import { createOrganizationSchema, updateOrganizationSchema } from "./schema";
+import {
+	createOrganizationSchema,
+	deleteOrganizationSchema,
+	updateOrganizationSchema,
+} from "./schema";
 import { updateOrganization } from "./actions/update-organization";
+import { deleteOrganization } from "./actions/delete-organization";
 
 export const createOrganizationMutation = createServerFn({ method: "POST" })
 	.validator((input) => createOrganizationSchema.parse(input))
@@ -24,4 +29,15 @@ export const updateOrganizationMutation = createServerFn({ method: "POST" })
 			name,
 		});
 		return organization;
+	});
+
+export const deleteOrganizationMutation = createServerFn({ method: "POST" })
+	.validator((input) => deleteOrganizationSchema.parse(input))
+	.handler(async ({ data }) => {
+		const { organizationId } = data;
+		const req = getWebRequest()!;
+		await deleteOrganization({
+			request: req,
+			data: { organizationId },
+		});
 	});

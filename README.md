@@ -25,11 +25,10 @@
 
 # Roadmap
 Core
-- [ ] Teams
+- [x] Teams
 -- [x] Create
 -- [x] Update
--- [ ] Delete
--- [ ] Invitations
+-- [x] Delete
 
 - [ ] Projects
 -- [ ] Create

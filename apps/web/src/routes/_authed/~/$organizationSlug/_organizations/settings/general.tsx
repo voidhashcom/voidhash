@@ -38,7 +38,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { authQueryKeys } from "@voidhash/features/auth/query-keys";
-import { updateOrganizationMutation } from "@voidhash/features/organizations/server/mutations";
+import {
+	deleteOrganizationMutation,
+	updateOrganizationMutation,
+} from "@voidhash/features/organizations/server/mutations";
+import { useState } from "react";
+import { DeleteOrganizationModal } from "@voidhash/features/organizations/components/delete-organization-modal";
 
 const updateTeamNameSchema = z.object({
 	name: z
@@ -165,6 +170,75 @@ function TeamNameForm() {
 // 	);
 // }
 
+function TeamDelete() {
+	const { organizationSlug } = Route.useParams();
+	const context = Route.useRouteContext();
+	const router = useRouter();
+	const { data: me } = useMe();
+
+	const organization = me?.organizations.find(
+		(org) => org.slug === organizationSlug
+	);
+
+	const { mutate: deleteOrganization, isPending: isDeleting } = useMutation({
+		mutationFn: deleteOrganizationMutation,
+		onSuccess: () => {
+			toast.success("Team deleted successfully");
+			context.queryClient.invalidateQueries();
+			router.invalidate();
+			router.navigate({ to: "/" });
+		},
+		onError: () => {
+			toast.error("Failed to delete team. Please try again.");
+		},
+	});
+
+	const handleDelete = () => {
+		if (!organization) return;
+		deleteOrganization({
+			data: {
+				organizationId: organization.id,
+			},
+		});
+	};
+
+	// Delete modal
+	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+
+	return (
+		<Card className="pb-0 overflow-hidden mt-8" variant="destructive">
+			<CardHeader>
+				<CardTitle>Delete Team</CardTitle>
+				<CardDescription>
+					Permanently delete your team and all associated data. This action is
+					irreversible.
+				</CardDescription>
+			</CardHeader>
+			<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
+				<div className="text-muted-foreground"></div>
+				<div>
+					<DeleteOrganizationModal
+						open={deleteModalOpen}
+						onClose={() => setDeleteModalOpen(false)}
+						onDelete={handleDelete}
+						key={deleteModalOpen ? "open" : "closed"}
+						trigger={
+							<Button
+								variant="destructive"
+								onClick={() => setDeleteModalOpen(true)}
+								disabled={isDeleting}
+							>
+								{isDeleting ? "Deleting..." : "Delete Team"}
+							</Button>
+						}
+						organizationSlug={organizationSlug}
+					/>
+				</div>
+			</CardFooter>
+		</Card>
+	);
+}
+
 function RouteComponent() {
 	const { organizationSlug } = Route.useParams();
 
@@ -183,6 +257,7 @@ function RouteComponent() {
 
 				<TeamNameForm key={organizationSlug} />
 				{/* <TeamUrlForm /> */}
+				<TeamDelete />
 			</div>
 		</Page>
 	);
