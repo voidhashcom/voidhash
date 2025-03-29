@@ -7,6 +7,7 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { authClient } from "@voidhash/features/auth/lib/client";
+import { authQueryKeys } from "@voidhash/features/auth/query-keys";
 import { SidebarProvider } from "@voidhash/ui";
 import { toast } from "sonner";
 
@@ -34,7 +35,7 @@ function RouteComponent() {
 		authClient.signOut({
 			fetchOptions: {
 				onSuccess: () => {
-					queryClient.invalidateQueries({ queryKey: ["user"] });
+					queryClient.invalidateQueries();
 					router.invalidate();
 				},
 				onError: (error) => {
