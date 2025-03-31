@@ -30,10 +30,17 @@ Core
 -- [x] Update
 -- [x] Delete
 
-- [ ] Projects
--- [ ] Create
--- [ ] Update
--- [ ] Delete
+- [x] Projects
+-- [x] Create
+-- [x] Update
+-- [x] Delete
+
+- [ ] Authorization
+-- [ ] Setup
+-- [ ] Projects
+--- [ ] Create
+--- [ ] Update
+--- [ ] Delete
 
 - [ ] Environments
 -- [ ] Create

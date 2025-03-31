@@ -18,7 +18,7 @@ import {
 import { CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { authQueryKeys } from "@voidhash/features/auth/query-keys";
+import { authQueryKeys } from "@voidhash/features/auth/client/query-keys";
 
 const loginSearchSchema = z.object({
 	signup: z.boolean().catch(false),

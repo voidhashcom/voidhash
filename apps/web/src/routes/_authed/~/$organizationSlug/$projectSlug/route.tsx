@@ -8,9 +8,11 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { OrganizationSettingsSidebar } from "@/components/organization-settings-sidebar";
+import { ProjectSettingsSidebar } from "@/components/project-settings-sidebar";
 
-export const Route = createFileRoute("/_authed/~/$organizationSlug/$projectId")({
+export const Route = createFileRoute(
+	"/_authed/~/$organizationSlug/$projectSlug"
+)({
 	component: RouteComponent,
 });
 
@@ -39,7 +41,7 @@ function RouteComponent() {
 		<div className="flex flex-1">
 			<div className="flex flex-row">
 				<AppSidebar user={user!} onSignOut={handleSignOut} />
-				{isSettingsRoute && <OrganizationSettingsSidebar />}
+				{isSettingsRoute && <ProjectSettingsSidebar />}
 			</div>
 			<SidebarInset className="top-[var(--header-height)]">
 				<Outlet />

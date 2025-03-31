@@ -24,8 +24,12 @@ import { useForm } from "react-hook-form";
 import { authClient } from "@voidhash/features/auth/lib/client";
 import { useMutation } from "@tanstack/react-query";
 import { createOrganizationMutation } from "@voidhash/features/organizations/server/mutations";
-import { VoidhashError } from "@voidhash/features/lib/errors";
-import { authQueryKeys } from "@voidhash/features/auth/query-keys";
+import {
+	isVoidhashError,
+	parseVoidhashError,
+	VoidhashError,
+} from "@voidhash/features/lib/errors";
+import { authQueryKeys } from "@voidhash/features/auth/client/query-keys";
 
 const createOrganizationSchema = z.object({
 	name: z
@@ -67,7 +71,10 @@ function RouteComponent() {
 				to: "/",
 			});
 		},
-		onError: () => {
+		onError: (error) => {
+			if (isVoidhashError(error)) {
+				toast.error(parseVoidhashError(error));
+			}
 			toast.error("Failed to create team. Please try again.");
 		},
 	});

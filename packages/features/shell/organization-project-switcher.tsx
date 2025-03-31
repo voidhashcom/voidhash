@@ -7,78 +7,104 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 	GradientAvatar,
-	useSidebar,
+	cn,
 } from "@voidhash/ui";
-import {
-	Link,
-	useLocation,
-	useParams,
-	useRouter,
-	useRouterState,
-} from "@tanstack/react-router";
-import { CreateOrganizationModal } from "../organizations/components/create-organization-modal";
+import { Link } from "@tanstack/react-router";
+import { CreateOrganizationModal } from "../organizations/client/components/create-organization-modal";
+import { useQuery } from "@tanstack/react-query";
+import { teamProjectsBySlugQueryOptions } from "../projects/client/query-utils";
+import { useMe } from "../auth/client/hooks/useMe";
+import { CreateProjectModal } from "../projects/client/components/create-project-modal";
+import { useActiveOrganization } from "./hooks/useActiveOrganization";
+import { useActiveProject } from "./hooks/useActiveProject";
 
-export function OrganizationProjectSwitcher({
-	organizations,
-	activeOrganization,
-	activeProject,
+function OrganizationProjectSwitcherProjects({
+	organizationId,
+	organizationSlug,
+	activeProjectId,
+	onProjectClick,
 }: {
-	activeOrganization: {
-		id: string;
-		name: string;
-		logo: React.ElementType;
-	};
-	activeProject?: {
-		id: string;
-		name: string;
-		logo: React.ElementType;
-	};
-	organizations: {
-		id: string;
-		slug: string;
-		name: string;
-		logo: React.ElementType;
-		plan: string;
-		projects: {
-			id: string;
-			name: string;
-			logo: React.ElementType;
-		}[];
-	}[];
+	organizationId: string;
+	organizationSlug: string;
+	activeProjectId?: string;
+	onProjectClick?: () => void;
 }) {
-	const router = useRouter();
-	const routerState = useRouterState();
+	const { data } = useQuery(teamProjectsBySlugQueryOptions(organizationSlug));
+	const projects = data ?? [];
 
+	// Create project modal
+	const [createProjectModalOpen, setCreateProjectModalOpen] =
+		React.useState(false);
+
+	return (
+		<div className="w-56 bg-accent/30">
+			<div className="px-2 py-1.5 text-xs text-muted-foreground">Projects</div>
+			{(projects ?? []).map((project, index) => (
+				<Link
+					key={project.id}
+					to="/~/$organizationSlug/$projectSlug"
+					params={{
+						organizationSlug,
+						projectSlug: project.slug,
+					}}
+					onClick={onProjectClick}
+					className="flex w-full items-center gap-2 p-2 hover:bg-accent text-foreground hover:text-accent-foreground text-sm"
+				>
+					<GradientAvatar
+						className="h-6 w-6 rounded-lg text-xs"
+						src={undefined}
+						alt={project.name}
+						fallback={project.id}
+					/>
+					{project.name}
+					{project.id === activeProjectId && (
+						<Check className="ml-auto h-4 w-4" />
+					)}
+				</Link>
+			))}
+			<div className="h-px bg-border" />
+			<CreateProjectModal
+				organizationId={organizationId}
+				organizationSlug={organizationSlug}
+				open={createProjectModalOpen}
+				onClose={() => setCreateProjectModalOpen(false)}
+				trigger={
+					<button
+						onClick={() => setCreateProjectModalOpen(true)}
+						className="flex w-full items-center gap-2 p-2 hover:bg-accent hover:text-accent-foreground cursor-pointer"
+					>
+						<div className="flex size-6 items-center justify-center rounded-md border bg-background">
+							<Plus className="size-4 text-muted-foreground" />
+						</div>
+						<div className="text-sm">Add project</div>
+					</button>
+				}
+			/>
+		</div>
+	);
+}
+
+export function OrganizationProjectSwitcher() {
+	const [open, setOpen] = React.useState(false);
+	const { data: me } = useMe();
+	const organizations = me?.organizations ?? [];
+
+	const activeProject = useActiveProject();
+	const activeOrganization = useActiveOrganization();
+
+	// Highlight organization
 	const [highlightedOrganizationIndex, setHighlightedOrganizationIndex] =
-		React.useState(0);
-
-	const highlightedOrganizationProjects = organizations[
-		highlightedOrganizationIndex
-	].projects.map((project) => ({
-		...project,
-		logo: project.logo,
-	}));
+		React.useState<number | null>(null);
+	const highlightedOrganization =
+		highlightedOrganizationIndex !== null
+			? organizations[highlightedOrganizationIndex]
+			: null;
 
 	const [createOrganizationModalOpen, setCreateOrganizationModalOpen] =
 		React.useState(false);
 
-	const handleOrganizationSelect = (
-		organization: (typeof organizations)[0]
-	) => {
-		router.navigate({
-			params: {
-				// @ts-ignore
-				organizationSlug: organization.slug,
-			},
-		});
-	};
-
-	const handleProjectSelect = (
-		project: (typeof highlightedOrganizationProjects)[0]
-	) => {};
-
 	return (
-		<Popover>
+		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
 				<Button
 					size={"icon"}
@@ -94,77 +120,75 @@ export function OrganizationProjectSwitcher({
 				side={"bottom"}
 				sideOffset={4}
 			>
-				<div className="flex flex-row divide-x divide-border">
-					<div className="w-56">
-						<div className="px-2 py-1.5 text-xs text-muted-foreground">
-							Teams
-						</div>
-						{organizations.map((organization, index) => (
-							<Link
-								key={organization.name}
-								from={routerState.location.pathname}
-								// @ts-expect-error - TODO: fix this
-								params={(prev) => ({
-									...prev,
-									organizationSlug: organization.slug,
-								})}
-								onMouseEnter={() => setHighlightedOrganizationIndex(index)}
-								className="flex w-full items-center gap-2 p-2 hover:bg-accent text-foreground hover:text-accent-foreground text-sm"
-							>
-								<GradientAvatar
-									className="h-6 w-6 rounded-lg text-xs"
-									src={undefined}
-									alt={organization.name}
-									fallback={organization.id}
-								/>
-								{organization.name}
-								{organization.id === activeOrganization.id && (
-									<Check className="ml-auto h-4 w-4" />
-								)}
-							</Link>
-						))}
-						<div className="h-px bg-border" />
-						<CreateOrganizationModal
-							open={createOrganizationModalOpen}
-							onClose={() => setCreateOrganizationModalOpen(false)}
-							trigger={
-								<button
-									onClick={() => setCreateOrganizationModalOpen(true)}
-									className="flex w-full items-center gap-2 p-2 hover:bg-accent hover:text-accent-foreground"
-								>
-									<div className="flex size-6 items-center justify-center rounded-md border bg-background">
-										<Plus className="size-4 text-muted-foreground" />
-									</div>
-									<div className=" text-sm">Add team</div>
-								</button>
-							}
-						/>
-					</div>
-					<div className="w-56">
-						<div className="px-2 py-1.5 text-xs text-muted-foreground">
-							Projects
-						</div>
-						{highlightedOrganizationProjects.map((project, index) => (
-							<button
-								key={project.name}
-								onClick={() => handleProjectSelect(project)}
-								className="flex w-full items-center gap-2 p-2 hover:bg-accent text-foreground hover:text-accent-foreground text-sm"
-							>
-								{project.name}
-								{project.id === activeProject?.id && (
-									<Check className="ml-auto h-4 w-4" />
-								)}
-							</button>
-						))}
-						<div className="h-px bg-border" />
-						<button className="flex w-full items-center gap-2 p-2 hover:bg-accent hover:text-accent-foreground">
-							<div className="flex size-6 items-center justify-center rounded-md border bg-background">
-								<Plus className="size-4 text-muted-foreground" />
+				{activeOrganization && (
+					<div
+						className="flex flex-row divide-x divide-border"
+						onMouseLeave={() => setHighlightedOrganizationIndex(null)}
+					>
+						<div className="w-56">
+							<div className="px-2 py-1.5 text-xs text-muted-foreground">
+								Teams
 							</div>
-							<div className="text-sm">Add project</div>
-						</button>
+							{organizations.map((organization, index) => (
+								<Link
+									key={organization.name}
+									to="/~/$organizationSlug"
+									onClick={() => setOpen(false)}
+									params={(prev) => ({
+										...prev,
+										organizationSlug: organization.slug,
+									})}
+									onMouseEnter={() => setHighlightedOrganizationIndex(index)}
+									className={cn(
+										"flex w-full items-center gap-2 p-2 hover:bg-accent/50 text-foreground hover:text-accent-foreground text-sm",
+										organization.slug ===
+											(highlightedOrganization?.slug ??
+												activeOrganization?.slug) && "bg-accent/50"
+									)}
+								>
+									<GradientAvatar
+										className="h-6 w-6 rounded-lg text-xs"
+										src={undefined}
+										alt={organization.name}
+										fallback={organization.id}
+									/>
+									{organization.name}
+									{organization.slug === activeOrganization.slug && (
+										<Check className="ml-auto h-4 w-4" />
+									)}
+								</Link>
+							))}
+							<div className="h-px bg-border" />
+							<CreateOrganizationModal
+								open={createOrganizationModalOpen}
+								onClose={() => setCreateOrganizationModalOpen(false)}
+								trigger={
+									<button
+										onClick={() => setCreateOrganizationModalOpen(true)}
+										className="flex w-full items-center gap-2 p-2 hover:bg-accent/50 hover:text-accent-foreground cursor-pointer"
+									>
+										<div className="flex size-6 items-center justify-center rounded-md border bg-background">
+											<Plus className="size-4 text-muted-foreground" />
+										</div>
+										<div className=" text-sm">Add team</div>
+									</button>
+								}
+							/>
+						</div>
+						{(highlightedOrganization || activeProject) && (
+							<OrganizationProjectSwitcherProjects
+								organizationId={
+									highlightedOrganization?.id ?? activeOrganization.id
+								}
+								organizationSlug={
+									highlightedOrganization?.slug ?? activeOrganization.slug
+								}
+								activeProjectId={activeProject?.id}
+								onProjectClick={() => setOpen(false)}
+							/>
+						)}
 					</div>
-				</div>
+				)}
 			</PopoverContent>
 		</Popover>
 	);

@@ -4,6 +4,9 @@ export default defineConfig({
 	schema: "./packages/db/schema.ts",
 	out: "./packages/db/migrations",
 	dbCredentials: {
-		url: process.env.DATABASE_URL!,
+		host: process.env["DATABASE_HOST"]!,
+		user: process.env["DATABASE_USERNAME"]!,
+		database: process.env["DATABASE_NAME"]!,
+		password: process.env["DATABASE_PASSWORD"]!,
 	},
 });

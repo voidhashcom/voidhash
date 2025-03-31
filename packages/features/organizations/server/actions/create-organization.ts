@@ -14,7 +14,19 @@ export async function createOrganization(
 	request: Request,
 	{ name }: CreateOrganizationParams
 ) {
-	const slug = slugify(name) + "-" + randomUUID();
+	let slug = slugify(name);
+	try {
+		await auth.api.checkOrganizationSlug({
+			headers: request.headers,
+			body: {
+				slug,
+			},
+		});
+	} catch (error) {
+		if (error.body?.code === "SLUG_IS_TAKEN") {
+			slug = slug + "-" + randomUUID();
+		}
+	}
 	const organization = await auth.api.createOrganization({
 		headers: request.headers,
 		body: {

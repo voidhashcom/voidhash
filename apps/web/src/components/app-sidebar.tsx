@@ -1,22 +1,9 @@
 "use client";
 
 import * as React from "react";
-import {
-	AudioWaveform,
-	Command,
-	GalleryVerticalEnd,
-	GaugeIcon,
-	LifeBuoy,
-	Send,
-	Settings,
-} from "lucide-react";
-import { NavMain, NavSecondary, NavUser } from "@voidhash/ui";
-import {
-	Sidebar,
-	SidebarContent,
-	SidebarFooter,
-	useSidebar,
-} from "@voidhash/ui";
+import { GaugeIcon, LifeBuoy, Send, Settings } from "lucide-react";
+import { NavMain, NavSecondary } from "@voidhash/ui";
+import { Sidebar, SidebarContent, useSidebar } from "@voidhash/ui";
 import { User } from "better-auth";
 import { Link, useParams, useRouterState } from "@tanstack/react-router";
 
@@ -29,11 +16,6 @@ export function AppSidebar({
 	user: User;
 	onSignOut: () => void;
 }) {
-	const userWithAvatar = {
-		...user,
-		avatar: user.image ?? undefined,
-	};
-
 	const routerState = useRouterState();
 	const isSettingsRoute = routerState.location.pathname.includes("/settings");
 	const { setOpen } = useSidebar();
@@ -45,41 +27,31 @@ export function AppSidebar({
 		}
 	}, [isSettingsRoute]);
 
-	const { organizationSlug, projectId } = useParams({
+	const { organizationSlug, projectSlug } = useParams({
 		strict: false,
 	});
 
 	const data = {
-		user: {
-			name: "shadcn",
-			email: "m@example.com",
-			avatar: "/avatars/shadcn.jpg",
-		},
 		navMain: [
 			{
 				title: "Platform",
 				items: [
 					{
 						title: "Overview",
-						url: `/~/${organizationSlug}/${projectId}/dashboard`,
+						url: `/~/${organizationSlug}/${projectSlug}/dashboard`,
 						icon: GaugeIcon,
 						isActive: () =>
 							routerState.location.pathname.startsWith(
-								`/~/${organizationSlug}/${projectId}/dashboard`
+								`/~/${organizationSlug}/${projectSlug}/dashboard`
 							),
 					},
-					// {
-					// 	title: "Customers",
-					// 	url: "#",
-					// 	icon: UsersIcon,
-					// },
 					{
 						title: "Settings",
-						url: `/~/${organizationSlug}/settings/general`,
+						url: `/~/${organizationSlug}/${projectSlug}/settings/general`,
 						icon: Settings,
 						isActive: () =>
 							routerState.location.pathname.startsWith(
-								`/~/${organizationSlug}/settings/general`
+								`/~/${organizationSlug}/${projectSlug}/settings/general`
 							),
 					},
 				],

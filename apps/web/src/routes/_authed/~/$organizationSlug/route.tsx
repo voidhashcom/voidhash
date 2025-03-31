@@ -7,26 +7,21 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { authClient } from "@voidhash/features/auth/lib/client";
-import { authQueryKeys } from "@voidhash/features/auth/query-keys";
+import { teamProjectsBySlugQueryOptions } from "@voidhash/features/projects/client/query-utils";
 import { SidebarProvider } from "@voidhash/ui";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authed/~/$organizationSlug")({
 	component: RouteComponent,
-	beforeLoad: async ({ params, context }) => {
-		const teamExists = context.user?.organizations.some(
-			(org) => org.slug === params.organizationSlug
+	loader: async ({ params, context }) => {
+		await context.queryClient.ensureQueryData(
+			teamProjectsBySlugQueryOptions(params.organizationSlug)
 		);
-
-		if (!teamExists) {
-			return redirect({ to: "/" });
-		}
 	},
 });
 
 function RouteComponent() {
 	const { user, queryClient } = Route.useRouteContext();
-	const { organizationSlug } = Route.useParams();
 	const routerState = useRouterState();
 	const isSettingsRoute = routerState.location.pathname.includes("/settings");
 	const router = useRouter();
@@ -38,7 +33,7 @@ function RouteComponent() {
 					queryClient.invalidateQueries();
 					router.invalidate();
 				},
-				onError: (error) => {
+				onError: () => {
 					toast.error("Failed to sign out");
 				},
 			},

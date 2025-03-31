@@ -19,12 +19,13 @@ import { Route as AuthedCreateOrgImport } from './routes/_authed/create-org'
 import { Route as AuthedIndexImport } from './routes/_authed/~/index'
 import { Route as AuthedOrganizationSlugRouteImport } from './routes/_authed/~/$organizationSlug/route'
 import { Route as AuthedOrganizationSlugOrganizationsRouteImport } from './routes/_authed/~/$organizationSlug/_organizations/route'
-import { Route as AuthedOrganizationSlugProjectIdRouteImport } from './routes/_authed/~/$organizationSlug/$projectId/route'
+import { Route as AuthedOrganizationSlugProjectSlugRouteImport } from './routes/_authed/~/$organizationSlug/$projectSlug/route'
 import { Route as AuthedOrganizationSlugOrganizationsIndexImport } from './routes/_authed/~/$organizationSlug/_organizations/index'
 import { Route as AuthedOrganizationSlugOrganizationsProjectsImport } from './routes/_authed/~/$organizationSlug/_organizations/projects'
-import { Route as AuthedOrganizationSlugProjectIdDashboardImport } from './routes/_authed/~/$organizationSlug/$projectId/dashboard'
+import { Route as AuthedOrganizationSlugProjectSlugDashboardImport } from './routes/_authed/~/$organizationSlug/$projectSlug/dashboard'
 import { Route as AuthedOrganizationSlugOrganizationsSettingsMembersImport } from './routes/_authed/~/$organizationSlug/_organizations/settings/members'
 import { Route as AuthedOrganizationSlugOrganizationsSettingsGeneralImport } from './routes/_authed/~/$organizationSlug/_organizations/settings/general'
+import { Route as AuthedOrganizationSlugProjectSlugSettingsGeneralImport } from './routes/_authed/~/$organizationSlug/$projectSlug/settings/general'
 
 // Create/Update Routes
 
@@ -76,10 +77,10 @@ const AuthedOrganizationSlugOrganizationsRouteRoute =
     getParentRoute: () => AuthedOrganizationSlugRouteRoute,
   } as any)
 
-const AuthedOrganizationSlugProjectIdRouteRoute =
-  AuthedOrganizationSlugProjectIdRouteImport.update({
-    id: '/$projectId',
-    path: '/$projectId',
+const AuthedOrganizationSlugProjectSlugRouteRoute =
+  AuthedOrganizationSlugProjectSlugRouteImport.update({
+    id: '/$projectSlug',
+    path: '/$projectSlug',
     getParentRoute: () => AuthedOrganizationSlugRouteRoute,
   } as any)
 
@@ -97,11 +98,11 @@ const AuthedOrganizationSlugOrganizationsProjectsRoute =
     getParentRoute: () => AuthedOrganizationSlugOrganizationsRouteRoute,
   } as any)
 
-const AuthedOrganizationSlugProjectIdDashboardRoute =
-  AuthedOrganizationSlugProjectIdDashboardImport.update({
+const AuthedOrganizationSlugProjectSlugDashboardRoute =
+  AuthedOrganizationSlugProjectSlugDashboardImport.update({
     id: '/dashboard',
     path: '/dashboard',
-    getParentRoute: () => AuthedOrganizationSlugProjectIdRouteRoute,
+    getParentRoute: () => AuthedOrganizationSlugProjectSlugRouteRoute,
   } as any)
 
 const AuthedOrganizationSlugOrganizationsSettingsMembersRoute =
@@ -116,6 +117,13 @@ const AuthedOrganizationSlugOrganizationsSettingsGeneralRoute =
     id: '/settings/general',
     path: '/settings/general',
     getParentRoute: () => AuthedOrganizationSlugOrganizationsRouteRoute,
+  } as any)
+
+const AuthedOrganizationSlugProjectSlugSettingsGeneralRoute =
+  AuthedOrganizationSlugProjectSlugSettingsGeneralImport.update({
+    id: '/settings/general',
+    path: '/settings/general',
+    getParentRoute: () => AuthedOrganizationSlugProjectSlugRouteRoute,
   } as any)
 
 // Populate the FileRoutesByPath interface
@@ -171,11 +179,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedIndexImport
       parentRoute: typeof AuthedImport
     }
-    '/_authed/~/$organizationSlug/$projectId': {
-      id: '/_authed/~/$organizationSlug/$projectId'
-      path: '/$projectId'
-      fullPath: '/~/$organizationSlug/$projectId'
-      preLoaderRoute: typeof AuthedOrganizationSlugProjectIdRouteImport
+    '/_authed/~/$organizationSlug/$projectSlug': {
+      id: '/_authed/~/$organizationSlug/$projectSlug'
+      path: '/$projectSlug'
+      fullPath: '/~/$organizationSlug/$projectSlug'
+      preLoaderRoute: typeof AuthedOrganizationSlugProjectSlugRouteImport
       parentRoute: typeof AuthedOrganizationSlugRouteImport
     }
     '/_authed/~/$organizationSlug/_organizations': {
@@ -185,12 +193,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOrganizationSlugOrganizationsRouteImport
       parentRoute: typeof AuthedOrganizationSlugRouteImport
     }
-    '/_authed/~/$organizationSlug/$projectId/dashboard': {
-      id: '/_authed/~/$organizationSlug/$projectId/dashboard'
+    '/_authed/~/$organizationSlug/$projectSlug/dashboard': {
+      id: '/_authed/~/$organizationSlug/$projectSlug/dashboard'
       path: '/dashboard'
-      fullPath: '/~/$organizationSlug/$projectId/dashboard'
-      preLoaderRoute: typeof AuthedOrganizationSlugProjectIdDashboardImport
-      parentRoute: typeof AuthedOrganizationSlugProjectIdRouteImport
+      fullPath: '/~/$organizationSlug/$projectSlug/dashboard'
+      preLoaderRoute: typeof AuthedOrganizationSlugProjectSlugDashboardImport
+      parentRoute: typeof AuthedOrganizationSlugProjectSlugRouteImport
     }
     '/_authed/~/$organizationSlug/_organizations/projects': {
       id: '/_authed/~/$organizationSlug/_organizations/projects'
@@ -205,6 +213,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/~/$organizationSlug/'
       preLoaderRoute: typeof AuthedOrganizationSlugOrganizationsIndexImport
       parentRoute: typeof AuthedOrganizationSlugOrganizationsRouteImport
+    }
+    '/_authed/~/$organizationSlug/$projectSlug/settings/general': {
+      id: '/_authed/~/$organizationSlug/$projectSlug/settings/general'
+      path: '/settings/general'
+      fullPath: '/~/$organizationSlug/$projectSlug/settings/general'
+      preLoaderRoute: typeof AuthedOrganizationSlugProjectSlugSettingsGeneralImport
+      parentRoute: typeof AuthedOrganizationSlugProjectSlugRouteImport
     }
     '/_authed/~/$organizationSlug/_organizations/settings/general': {
       id: '/_authed/~/$organizationSlug/_organizations/settings/general'
@@ -225,19 +240,22 @@ declare module '@tanstack/react-router' {
 
 // Create and export the route tree
 
-interface AuthedOrganizationSlugProjectIdRouteRouteChildren {
-  AuthedOrganizationSlugProjectIdDashboardRoute: typeof AuthedOrganizationSlugProjectIdDashboardRoute
+interface AuthedOrganizationSlugProjectSlugRouteRouteChildren {
+  AuthedOrganizationSlugProjectSlugDashboardRoute: typeof AuthedOrganizationSlugProjectSlugDashboardRoute
+  AuthedOrganizationSlugProjectSlugSettingsGeneralRoute: typeof AuthedOrganizationSlugProjectSlugSettingsGeneralRoute
 }
 
-const AuthedOrganizationSlugProjectIdRouteRouteChildren: AuthedOrganizationSlugProjectIdRouteRouteChildren =
+const AuthedOrganizationSlugProjectSlugRouteRouteChildren: AuthedOrganizationSlugProjectSlugRouteRouteChildren =
   {
-    AuthedOrganizationSlugProjectIdDashboardRoute:
-      AuthedOrganizationSlugProjectIdDashboardRoute,
+    AuthedOrganizationSlugProjectSlugDashboardRoute:
+      AuthedOrganizationSlugProjectSlugDashboardRoute,
+    AuthedOrganizationSlugProjectSlugSettingsGeneralRoute:
+      AuthedOrganizationSlugProjectSlugSettingsGeneralRoute,
   }
 
-const AuthedOrganizationSlugProjectIdRouteRouteWithChildren =
-  AuthedOrganizationSlugProjectIdRouteRoute._addFileChildren(
-    AuthedOrganizationSlugProjectIdRouteRouteChildren,
+const AuthedOrganizationSlugProjectSlugRouteRouteWithChildren =
+  AuthedOrganizationSlugProjectSlugRouteRoute._addFileChildren(
+    AuthedOrganizationSlugProjectSlugRouteRouteChildren,
   )
 
 interface AuthedOrganizationSlugOrganizationsRouteRouteChildren {
@@ -265,14 +283,14 @@ const AuthedOrganizationSlugOrganizationsRouteRouteWithChildren =
   )
 
 interface AuthedOrganizationSlugRouteRouteChildren {
-  AuthedOrganizationSlugProjectIdRouteRoute: typeof AuthedOrganizationSlugProjectIdRouteRouteWithChildren
+  AuthedOrganizationSlugProjectSlugRouteRoute: typeof AuthedOrganizationSlugProjectSlugRouteRouteWithChildren
   AuthedOrganizationSlugOrganizationsRouteRoute: typeof AuthedOrganizationSlugOrganizationsRouteRouteWithChildren
 }
 
 const AuthedOrganizationSlugRouteRouteChildren: AuthedOrganizationSlugRouteRouteChildren =
   {
-    AuthedOrganizationSlugProjectIdRouteRoute:
-      AuthedOrganizationSlugProjectIdRouteRouteWithChildren,
+    AuthedOrganizationSlugProjectSlugRouteRoute:
+      AuthedOrganizationSlugProjectSlugRouteRouteWithChildren,
     AuthedOrganizationSlugOrganizationsRouteRoute:
       AuthedOrganizationSlugOrganizationsRouteRouteWithChildren,
   }
@@ -306,10 +324,11 @@ export interface FileRoutesByFullPath {
   '/create-org': typeof AuthedCreateOrgRoute
   '/~/$organizationSlug': typeof AuthedOrganizationSlugOrganizationsRouteRouteWithChildren
   '/~': typeof AuthedIndexRoute
-  '/~/$organizationSlug/$projectId': typeof AuthedOrganizationSlugProjectIdRouteRouteWithChildren
-  '/~/$organizationSlug/$projectId/dashboard': typeof AuthedOrganizationSlugProjectIdDashboardRoute
+  '/~/$organizationSlug/$projectSlug': typeof AuthedOrganizationSlugProjectSlugRouteRouteWithChildren
+  '/~/$organizationSlug/$projectSlug/dashboard': typeof AuthedOrganizationSlugProjectSlugDashboardRoute
   '/~/$organizationSlug/projects': typeof AuthedOrganizationSlugOrganizationsProjectsRoute
   '/~/$organizationSlug/': typeof AuthedOrganizationSlugOrganizationsIndexRoute
+  '/~/$organizationSlug/$projectSlug/settings/general': typeof AuthedOrganizationSlugProjectSlugSettingsGeneralRoute
   '/~/$organizationSlug/settings/general': typeof AuthedOrganizationSlugOrganizationsSettingsGeneralRoute
   '/~/$organizationSlug/settings/members': typeof AuthedOrganizationSlugOrganizationsSettingsMembersRoute
 }
@@ -322,9 +341,10 @@ export interface FileRoutesByTo {
   '/create-org': typeof AuthedCreateOrgRoute
   '/~/$organizationSlug': typeof AuthedOrganizationSlugOrganizationsIndexRoute
   '/~': typeof AuthedIndexRoute
-  '/~/$organizationSlug/$projectId': typeof AuthedOrganizationSlugProjectIdRouteRouteWithChildren
-  '/~/$organizationSlug/$projectId/dashboard': typeof AuthedOrganizationSlugProjectIdDashboardRoute
+  '/~/$organizationSlug/$projectSlug': typeof AuthedOrganizationSlugProjectSlugRouteRouteWithChildren
+  '/~/$organizationSlug/$projectSlug/dashboard': typeof AuthedOrganizationSlugProjectSlugDashboardRoute
   '/~/$organizationSlug/projects': typeof AuthedOrganizationSlugOrganizationsProjectsRoute
+  '/~/$organizationSlug/$projectSlug/settings/general': typeof AuthedOrganizationSlugProjectSlugSettingsGeneralRoute
   '/~/$organizationSlug/settings/general': typeof AuthedOrganizationSlugOrganizationsSettingsGeneralRoute
   '/~/$organizationSlug/settings/members': typeof AuthedOrganizationSlugOrganizationsSettingsMembersRoute
 }
@@ -338,11 +358,12 @@ export interface FileRoutesById {
   '/_authed/create-org': typeof AuthedCreateOrgRoute
   '/_authed/~/$organizationSlug': typeof AuthedOrganizationSlugRouteRouteWithChildren
   '/_authed/~/': typeof AuthedIndexRoute
-  '/_authed/~/$organizationSlug/$projectId': typeof AuthedOrganizationSlugProjectIdRouteRouteWithChildren
+  '/_authed/~/$organizationSlug/$projectSlug': typeof AuthedOrganizationSlugProjectSlugRouteRouteWithChildren
   '/_authed/~/$organizationSlug/_organizations': typeof AuthedOrganizationSlugOrganizationsRouteRouteWithChildren
-  '/_authed/~/$organizationSlug/$projectId/dashboard': typeof AuthedOrganizationSlugProjectIdDashboardRoute
+  '/_authed/~/$organizationSlug/$projectSlug/dashboard': typeof AuthedOrganizationSlugProjectSlugDashboardRoute
   '/_authed/~/$organizationSlug/_organizations/projects': typeof AuthedOrganizationSlugOrganizationsProjectsRoute
   '/_authed/~/$organizationSlug/_organizations/': typeof AuthedOrganizationSlugOrganizationsIndexRoute
+  '/_authed/~/$organizationSlug/$projectSlug/settings/general': typeof AuthedOrganizationSlugProjectSlugSettingsGeneralRoute
   '/_authed/~/$organizationSlug/_organizations/settings/general': typeof AuthedOrganizationSlugOrganizationsSettingsGeneralRoute
   '/_authed/~/$organizationSlug/_organizations/settings/members': typeof AuthedOrganizationSlugOrganizationsSettingsMembersRoute
 }
@@ -357,10 +378,11 @@ export interface FileRouteTypes {
     | '/create-org'
     | '/~/$organizationSlug'
     | '/~'
-    | '/~/$organizationSlug/$projectId'
-    | '/~/$organizationSlug/$projectId/dashboard'
+    | '/~/$organizationSlug/$projectSlug'
+    | '/~/$organizationSlug/$projectSlug/dashboard'
     | '/~/$organizationSlug/projects'
     | '/~/$organizationSlug/'
+    | '/~/$organizationSlug/$projectSlug/settings/general'
     | '/~/$organizationSlug/settings/general'
     | '/~/$organizationSlug/settings/members'
   fileRoutesByTo: FileRoutesByTo
@@ -372,9 +394,10 @@ export interface FileRouteTypes {
     | '/create-org'
     | '/~/$organizationSlug'
     | '/~'
-    | '/~/$organizationSlug/$projectId'
-    | '/~/$organizationSlug/$projectId/dashboard'
+    | '/~/$organizationSlug/$projectSlug'
+    | '/~/$organizationSlug/$projectSlug/dashboard'
     | '/~/$organizationSlug/projects'
+    | '/~/$organizationSlug/$projectSlug/settings/general'
     | '/~/$organizationSlug/settings/general'
     | '/~/$organizationSlug/settings/members'
   id:
@@ -386,11 +409,12 @@ export interface FileRouteTypes {
     | '/_authed/create-org'
     | '/_authed/~/$organizationSlug'
     | '/_authed/~/'
-    | '/_authed/~/$organizationSlug/$projectId'
+    | '/_authed/~/$organizationSlug/$projectSlug'
     | '/_authed/~/$organizationSlug/_organizations'
-    | '/_authed/~/$organizationSlug/$projectId/dashboard'
+    | '/_authed/~/$organizationSlug/$projectSlug/dashboard'
     | '/_authed/~/$organizationSlug/_organizations/projects'
     | '/_authed/~/$organizationSlug/_organizations/'
+    | '/_authed/~/$organizationSlug/$projectSlug/settings/general'
     | '/_authed/~/$organizationSlug/_organizations/settings/general'
     | '/_authed/~/$organizationSlug/_organizations/settings/members'
   fileRoutesById: FileRoutesById
@@ -451,7 +475,7 @@ export const routeTree = rootRoute
       "filePath": "_authed/~/$organizationSlug/route.tsx",
       "parent": "/_authed",
       "children": [
-        "/_authed/~/$organizationSlug/$projectId",
+        "/_authed/~/$organizationSlug/$projectSlug",
         "/_authed/~/$organizationSlug/_organizations"
       ]
     },
@@ -459,11 +483,12 @@ export const routeTree = rootRoute
       "filePath": "_authed/~/index.ts",
       "parent": "/_authed"
     },
-    "/_authed/~/$organizationSlug/$projectId": {
-      "filePath": "_authed/~/$organizationSlug/$projectId/route.tsx",
+    "/_authed/~/$organizationSlug/$projectSlug": {
+      "filePath": "_authed/~/$organizationSlug/$projectSlug/route.tsx",
       "parent": "/_authed/~/$organizationSlug",
       "children": [
-        "/_authed/~/$organizationSlug/$projectId/dashboard"
+        "/_authed/~/$organizationSlug/$projectSlug/dashboard",
+        "/_authed/~/$organizationSlug/$projectSlug/settings/general"
       ]
     },
     "/_authed/~/$organizationSlug/_organizations": {
@@ -476,9 +501,9 @@ export const routeTree = rootRoute
         "/_authed/~/$organizationSlug/_organizations/settings/members"
       ]
     },
-    "/_authed/~/$organizationSlug/$projectId/dashboard": {
-      "filePath": "_authed/~/$organizationSlug/$projectId/dashboard.tsx",
-      "parent": "/_authed/~/$organizationSlug/$projectId"
+    "/_authed/~/$organizationSlug/$projectSlug/dashboard": {
+      "filePath": "_authed/~/$organizationSlug/$projectSlug/dashboard.tsx",
+      "parent": "/_authed/~/$organizationSlug/$projectSlug"
     },
     "/_authed/~/$organizationSlug/_organizations/projects": {
       "filePath": "_authed/~/$organizationSlug/_organizations/projects.tsx",
@@ -487,6 +512,10 @@ export const routeTree = rootRoute
     "/_authed/~/$organizationSlug/_organizations/": {
       "filePath": "_authed/~/$organizationSlug/_organizations/index.tsx",
       "parent": "/_authed/~/$organizationSlug/_organizations"
+    },
+    "/_authed/~/$organizationSlug/$projectSlug/settings/general": {
+      "filePath": "_authed/~/$organizationSlug/$projectSlug/settings/general.tsx",
+      "parent": "/_authed/~/$organizationSlug/$projectSlug"
     },
     "/_authed/~/$organizationSlug/_organizations/settings/general": {
       "filePath": "_authed/~/$organizationSlug/_organizations/settings/general.tsx",

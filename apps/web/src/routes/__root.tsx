@@ -10,7 +10,7 @@ import {
 import appCss from "@/styles/globals.css?url";
 import { Toaster } from "@voidhash/ui";
 import { getMe } from "@voidhash/features/auth/server/queries";
-import { authQueryKeys } from "@voidhash/features/auth/query-keys";
+import { authQueryKeys } from "@voidhash/features/auth/client/query-keys";
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
