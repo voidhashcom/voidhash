@@ -1,8 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useMe } from "@voidhash/features/auth/hooks/useMe";
+import { useMe } from "@voidhash/features/auth/client/hooks/useMe";
 import { authClient } from "@voidhash/features/auth/lib/client";
-import { organizationsQueryKeys } from "@voidhash/features/organizations/query-keys";
+import { organizationsQueryKeys } from "@voidhash/features/organizations/client/query-keys";
 import {
 	Avatar,
 	AvatarFallback,
@@ -37,13 +37,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { authQueryKeys } from "@voidhash/features/auth/query-keys";
+import { authQueryKeys } from "@voidhash/features/auth/client/query-keys";
 import {
 	deleteOrganizationMutation,
 	updateOrganizationMutation,
 } from "@voidhash/features/organizations/server/mutations";
 import { useState } from "react";
-import { DeleteOrganizationModal } from "@voidhash/features/organizations/components/delete-organization-modal";
+import { DeleteOrganizationModal } from "@voidhash/features/organizations/client/components/delete-organization-modal";
+import {
+	isVoidhashError,
+	parseVoidhashError,
+} from "@voidhash/features/lib/errors";
 
 const updateTeamNameSchema = z.object({
 	name: z
@@ -84,7 +88,10 @@ function TeamNameForm() {
 			router.invalidate();
 			toast.success("Team name updated successfully");
 		},
-		onError: () => {
+		onError: (error) => {
+			if (isVoidhashError(error)) {
+				toast.error(parseVoidhashError(error));
+			}
 			toast.error("Failed to update team name. Please try again.");
 		},
 	});
@@ -188,7 +195,10 @@ function TeamDelete() {
 			router.invalidate();
 			router.navigate({ to: "/" });
 		},
-		onError: () => {
+		onError: (error) => {
+			if (isVoidhashError(error)) {
+				toast.error(parseVoidhashError(error));
+			}
 			toast.error("Failed to delete team. Please try again.");
 		},
 	});

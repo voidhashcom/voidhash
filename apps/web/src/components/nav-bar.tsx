@@ -1,4 +1,4 @@
-import { useMe } from "@voidhash/features/auth/hooks/useMe";
+import { useMe } from "@voidhash/features/auth/client/hooks/useMe";
 import {
 	Logo,
 	NavSlashSeparator,
@@ -8,9 +8,12 @@ import {
 	OrganizationSwitcher,
 } from "@voidhash/ui";
 import { User } from "better-auth";
-import { useState } from "react";
 import { Building } from "lucide-react";
 import { Link, useParams } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { teamProjectsBySlugQueryOptions } from "@voidhash/features/projects/client/query-utils";
+import { useActiveOrganization } from "@voidhash/features/shell/hooks/useActiveOrganization";
+import { useActiveProject } from "@voidhash/features/shell/hooks/useActiveProject";
 
 export function NavBar({
 	user,
@@ -24,49 +27,24 @@ export function NavBar({
 		avatar: user.image ?? undefined,
 	};
 
-	const { data: me } = useMe();
-
-	const { organizationSlug, projectId } = useParams({
-		strict: false,
-	});
-
-	const organizations =
-		me?.organizations.map((org) => ({
-			id: org.id,
-			slug: org.slug,
-			name: org.name,
-			logo: Building,
-			plan: "free",
-			projects:
-				org.projects?.map((project) => ({
-					id: project.id,
-					name: project.name,
-				})) ?? [],
-		})) ?? [];
-
-	const activeOrganization = organizations.find(
-		(org) => org.slug === organizationSlug
-	);
-
-	const activeProject = activeOrganization?.projects.find(
-		(project) => project.id === projectId
-	);
+	const activeOrganization = useActiveOrganization();
+	const activeProject = useActiveProject();
 
 	const homeLink = (() => {
-		if (organizationSlug && !projectId) {
+		if (activeOrganization && !activeProject) {
 			return {
 				to: "/~/$organizationSlug",
 				params: {
-					organizationSlug,
+					organizationSlug: activeOrganization.slug,
 				},
 			} as const;
 		}
-		if (organizationSlug && projectId) {
+		if (activeOrganization && activeProject) {
 			return {
-				to: "/~/$organizationSlug/$projectId",
+				to: "/~/$organizationSlug/$projectSlug",
 				params: {
-					organizationSlug,
-					projectId,
+					organizationSlug: activeOrganization.slug,
+					projectSlug: activeProject.slug,
 				},
 			} as const;
 		}
@@ -88,19 +66,11 @@ export function NavBar({
 					<Logo />
 				</Link>
 				<div className="flex items-center gap-2">
-					<OrganizationSwitcher
-						organizations={organizations}
-						activeOrganization={activeOrganization}
-						activeProject={activeProject}
-					/>
+					<OrganizationSwitcher />
 					{activeProject && (
 						<>
 							<NavSlashSeparator />
-							<ProjectSwitcher
-								organizations={organizations}
-								activeOrganization={activeOrganization}
-								activeProject={activeProject}
-							/>
+							<ProjectSwitcher />
 						</>
 					)}
 				</div>

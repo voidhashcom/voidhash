@@ -90,8 +90,10 @@ export function DeleteOrganizationModal({
 								<FormItem>
 									<FormLabel>
 										Please type{" "}
-										<span className="font-mono">{organizationSlug}</span> to
-										confirm
+										<span className="font-mono select-text">
+											{organizationSlug}
+										</span>{" "}
+										to confirm
 									</FormLabel>
 									<FormControl>
 										<Input placeholder={`${organizationSlug}`} {...field} />

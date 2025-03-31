@@ -21,10 +21,11 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createOrganizationMutation } from "../server/mutations";
+import { createOrganizationMutation } from "../../server/mutations";
 import { toast } from "sonner";
 import { useNavigate, useRouter } from "@tanstack/react-router";
-import { authQueryKeys } from "../../auth/query-keys";
+import { authQueryKeys } from "../../../auth/client/query-keys";
+import { isVoidhashError, parseVoidhashError } from "../../../lib/errors";
 
 const createOrganizationSchema = z.object({
 	name: z
@@ -75,7 +76,10 @@ export function CreateOrganizationModal({
 				});
 			}
 		},
-		onError: () => {
+		onError: (error) => {
+			if (isVoidhashError(error)) {
+				toast.error(parseVoidhashError(error));
+			}
 			toast.error("Failed to create team. Please try again.");
 		},
 	});

@@ -1,70 +1,23 @@
-import * as React from "react";
-
-import {
-	GradientAvatar,
-	OrganizationProjectSwitcher,
-	useSidebar,
-} from "@voidhash/ui";
+import { GradientAvatar, OrganizationProjectSwitcher } from "@voidhash/ui";
 import { Link } from "@tanstack/react-router";
+import { useActiveProject } from "./hooks/useActiveProject";
+import { useActiveOrganization } from "./hooks/useActiveOrganization";
 
-export function ProjectSwitcher({
-	organizations,
-	activeOrganization,
-	activeProject,
-	onOrganizationSelected,
-	onProjectSelected,
-}: {
-	activeOrganization: {
-		id: string;
-		slug: string;
-		name: string;
-		logo: React.ElementType;
-	};
-	activeProject?: {
-		id: string;
-		name: string;
-		logo: React.ElementType;
-	};
-	organizations: {
-		id: string;
-		name: string;
-		logo: React.ElementType;
-		plan: string;
-		projects: {
-			id: string;
-			name: string;
-			logo: React.ElementType;
-		}[];
-	}[];
-	onOrganizationSelected?: (organization: {
-		id: string;
-		name: string;
-		logo: React.ElementType;
-	}) => void;
-	onProjectSelected?: (project: {
-		id: string;
-		name: string;
-		logo: React.ElementType;
-	}) => void;
-}) {
-	const { isMobile } = useSidebar();
+export function ProjectSwitcher() {
+	const activeOrganization = useActiveOrganization();
+	const activeProject = useActiveProject();
 
-	if (!activeProject) {
+	if (!activeOrganization || !activeProject) {
 		return null;
 	}
 
 	return (
 		<div className="flex items-center gap-2">
-			<div className="flex items-center gap-2">
-				<span className="truncate text-sm text-foreground-">
-					{activeProject.name}
-				</span>
-			</div>
 			<Link
-				to="/~/$organizationSlug/$projectId"
+				to="/~/$organizationSlug/$projectSlug"
 				params={{
 					organizationSlug: activeOrganization.slug,
-					projectId: activeProject.id,
+					projectSlug: activeProject.slug,
 				}}
 			>
 				<div className="flex items-center gap-2">
@@ -79,13 +32,7 @@ export function ProjectSwitcher({
 					</span>
 				</div>
 			</Link>
-			<OrganizationProjectSwitcher
-				organizations={organizations}
-				activeOrganization={activeOrganization}
-				activeProject={activeProject}
-				onOrganizationSelected={onOrganizationSelected}
-				onProjectSelected={onProjectSelected}
-			/>
+			<OrganizationProjectSwitcher />
 		</div>
 	);
 }

@@ -14,8 +14,9 @@
     },
     "scripts": {},
     "dependencies": {
+        "@planetscale/database": "^1.19.0",
         "dotenv": "^16.4.7",
-        "drizzle-orm": "^0.40.1",
+        "drizzle-orm": "^0.41.0",
         "mysql2": "^3.13.0"
     },
     "devDependencies": {

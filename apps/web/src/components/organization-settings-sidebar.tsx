@@ -10,14 +10,17 @@ import {
 } from "@voidhash/ui";
 import { Sidebar, SidebarContent, SidebarHeader } from "@voidhash/ui";
 import { Link, useParams, useRouterState } from "@tanstack/react-router";
+import { useActiveOrganizationProjects } from "@voidhash/features/shell/hooks/useActiveOrganizationProjects";
 
 export function OrganizationSettingsSidebar({
 	...props
 }: React.ComponentProps<typeof Sidebar>) {
 	const routerState = useRouterState();
 	const { organizationSlug } = useParams({
-		from: "/_authed/~/$organizationSlug",
+		strict: false,
 	});
+
+	const activeOrganizationProjects = useActiveOrganizationProjects();
 
 	const data = {
 		navMain: [
@@ -44,13 +47,11 @@ export function OrganizationSettingsSidebar({
 				],
 			},
 		],
-		projects: [
-			{
-				id: "1",
-				name: "Project 1",
-			},
-		],
 	};
+
+	if (!organizationSlug) {
+		return null;
+	}
 
 	return (
 		<Sidebar
@@ -71,14 +72,14 @@ export function OrganizationSettingsSidebar({
 				<SidebarGroup>
 					<SidebarGroupLabel>Projects</SidebarGroupLabel>
 					<SidebarMenu>
-						{data.projects.map((project) => (
-							<SidebarMenuItem>
+						{activeOrganizationProjects.data?.map((project) => (
+							<SidebarMenuItem key={project.id}>
 								<SidebarMenuButton asChild tooltip={null} isActive={false}>
 									<Link
-										to="/~/$organizationSlug/$projectId"
+										to="/~/$organizationSlug/$projectSlug/settings/general"
 										params={{
 											organizationSlug: organizationSlug,
-											projectId: project.id,
+											projectSlug: project.slug,
 										}}
 									>
 										<div className="flex items-center gap-2">

@@ -1,32 +1,14 @@
 import { GradientAvatar } from "@voidhash/ui/gradient-avatar";
 import { OrganizationProjectSwitcher } from "./organization-project-switcher";
 import { Link } from "@tanstack/react-router";
+import { useActiveOrganization } from "./hooks/useActiveOrganization";
 
-export function OrganizationSwitcher({
-	activeOrganization,
-	activeProject,
-	organizations,
-}: {
-	activeOrganization: {
-		id: string;
-		slug: string;
-		name: string;
-		logo: React.ElementType;
-	};
-	activeProject?: { id: string; name: string; logo: React.ElementType };
-	organizations: {
-		id: string;
-		slug: string;
-		name: string;
-		logo: React.ElementType;
-		plan: string;
-		projects: {
-			id: string;
-			name: string;
-			logo: React.ElementType;
-		}[];
-	}[];
-}) {
+export function OrganizationSwitcher() {
+	const activeOrganization = useActiveOrganization();
+	if (!activeOrganization) {
+		return null;
+	}
+
 	return (
 		<div className="flex items-center gap-2">
 			<Link
@@ -45,11 +27,7 @@ export function OrganizationSwitcher({
 					</span>
 				</div>
 			</Link>
-			<OrganizationProjectSwitcher
-				organizations={organizations}
-				activeOrganization={activeOrganization}
-				activeProject={activeProject}
-			/>
+			<OrganizationProjectSwitcher />
 		</div>
 	);
 }

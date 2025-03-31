@@ -9,27 +9,32 @@ import {
 	int,
 } from "drizzle-orm/mysql-core";
 import { mysqlTable } from "drizzle-orm/mysql-core";
+import { organization, user } from "./auth-schema";
 
 export * from "./auth-schema";
 
 // // PROJECTS
-// export const projects = mysqlTable(
-// 	"projects",
-// 	{
-// 		id: varchar("id", { length: 255 }).primaryKey(),
-// 		name: varchar("name", { length: 255 }).notNull(),
-// 		teamId: varchar("team_id", { length: 255 }).notNull(),
-// 		createdByUserId: varchar("created_by", { length: 255 }).notNull(),
-// 		profilePictureAssetId: varchar("profile_picture_asset_id", { length: 255 }),
-// 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-// 		updatedAt: timestamp("updated_at").onUpdateNow(),
-// 	},
-// 	(table) => [index("team_id_idx").on(table.teamId)]
-// );
-// export const projectRelations = relations(projects, ({ one, many }) => ({
-// 	team: one(teams, { fields: [projects.teamId], references: [teams.id] }),
-// 	profilePictureAsset: one(assets, {
-// 		fields: [projects.profilePictureAssetId],
-// 		references: [assets.id],
-// 	}),
-// }));
+export const projects = mysqlTable(
+	"projects",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		name: varchar("name", { length: 255 }).notNull(),
+		slug: varchar("slug", { length: 255 }).notNull().unique(),
+		organizationId: varchar("organization_id", { length: 255 })
+			.notNull()
+			.references(() => organization.id),
+		createdByUserId: varchar("created_by", { length: 255 })
+			.notNull()
+			.references(() => user.id),
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [index("organization_id_idx").on(table.organizationId)]
+);
+
+export const projectsRelations = relations(projects, ({ one }) => ({
+	organization: one(organization, {
+		fields: [projects.organizationId],
+		references: [organization.id],
+	}),
+}));
