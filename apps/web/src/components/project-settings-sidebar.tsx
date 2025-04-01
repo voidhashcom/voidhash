@@ -28,6 +28,14 @@ export function ProjectSettingsSidebar({
 								`/~/${organizationSlug}/${projectSlug}/settings/general`
 							),
 					},
+					{
+						title: "Payment Providers",
+						url: `/~/${organizationSlug}/${projectSlug}/settings/payment-providers`,
+						isActive: () =>
+							routerState.location.pathname.startsWith(
+								`/~/${organizationSlug}/${projectSlug}/settings/payment-providers`
+							),
+					},
 				],
 			},
 		],

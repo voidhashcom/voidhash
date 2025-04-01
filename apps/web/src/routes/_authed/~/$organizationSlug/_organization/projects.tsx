@@ -20,7 +20,7 @@ import { EllipsisVerticalIcon } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute(
-	"/_authed/~/$organizationSlug/_organizations/projects"
+	"/_authed/~/$organizationSlug/_organization/projects"
 )({
 	component: RouteComponent,
 	loader: ({ context, params }) => {

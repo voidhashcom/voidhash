@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute(
-	"/_authed/~/$organizationSlug/_organizations/"
+	"/_authed/~/$organizationSlug/_organization/"
 )({
 	beforeLoad: async ({ context, params }) => {
 		throw redirect({

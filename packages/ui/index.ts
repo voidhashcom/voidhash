@@ -45,6 +45,7 @@ export * from "./components/ui/textarea";
 export * from "./components/ui/toggle-group";
 export * from "./components/ui/toggle";
 export * from "./components/ui/tooltip";
+export * from "./components/data-table-skeleton";
 export * from "./components/logo";
 export * from "./components/copy-text";
 export * from "../features/shell";

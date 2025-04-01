@@ -59,7 +59,7 @@ const updateTeamNameSchema = z.object({
 type UpdateTeamNameForm = z.infer<typeof updateTeamNameSchema>;
 
 export const Route = createFileRoute(
-	"/_authed/~/$organizationSlug/_organizations/settings/general"
+	"/_authed/~/$organizationSlug/_organization/settings/general"
 )({
 	component: RouteComponent,
 });

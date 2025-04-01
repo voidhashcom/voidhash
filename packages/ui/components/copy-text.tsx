@@ -1,17 +1,22 @@
 import { Copy } from "lucide-react";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
+import { cn } from "../lib/utils";
 
-export function CopyText({ text }: { text: string }) {
-	const handleCopy = async () => {
+export function CopyText({
+	text,
+	className,
+}: { text: string; className?: string }) {
+	const handleCopy = async (e: React.MouseEvent<HTMLButtonElement>) => {
+		e.preventDefault();
 		await navigator.clipboard.writeText(text);
 
 		toast.success("Copied to clipboard");
 	};
 
 	return (
-		<div className="flex items-center space-x-2">
-			<span>{text}</span>
+		<div className={cn("flex items-center space-x-2", className)}>
+			<span className="overflow-x-auto flex-1">{text}</span>
 			<Button
 				size={"sm"}
 				variant={"outline"}
