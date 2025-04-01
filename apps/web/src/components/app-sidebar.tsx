@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { GaugeIcon, LifeBuoy, Send, Settings } from "lucide-react";
+import {
+	GaugeIcon,
+	LifeBuoy,
+	Repeat,
+	Send,
+	Settings,
+	Users,
+} from "lucide-react";
 import { NavMain, NavSecondary } from "@voidhash/ui";
 import { Sidebar, SidebarContent, useSidebar } from "@voidhash/ui";
 import { User } from "better-auth";
@@ -43,6 +50,24 @@ export function AppSidebar({
 						isActive: () =>
 							routerState.location.pathname.startsWith(
 								`/~/${organizationSlug}/${projectSlug}/dashboard`
+							),
+					},
+					{
+						title: "Customers",
+						url: `/~/${organizationSlug}/${projectSlug}/customers`,
+						icon: Users,
+						isActive: () =>
+							routerState.location.pathname.startsWith(
+								`/~/${organizationSlug}/${projectSlug}/customers`
+							),
+					},
+					{
+						title: "Transactions",
+						url: `/~/${organizationSlug}/${projectSlug}/transactions`,
+						icon: Repeat,
+						isActive: () =>
+							routerState.location.pathname.startsWith(
+								`/~/${organizationSlug}/${projectSlug}/transactions`
 							),
 					},
 					{

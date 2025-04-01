@@ -228,6 +228,9 @@ importers:
       drizzle-orm:
         specifier: ^0.41.0
         version: 0.41.0(@planetscale/database@1.19.0)(gel@2.0.1)(kysely@0.27.6)(mysql2@3.13.0)
+      lucide-react:
+        specifier: ^0.483.0
+        version: 0.483.0(react@19.0.0)
       react:
         specifier: ^19.0.0
         version: 19.0.0

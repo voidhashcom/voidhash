@@ -59,7 +59,9 @@ export function NavMain({
 										isActive={item.isActive?.()}
 									>
 										<Link to={item.url}>
-											{item.icon && <item.icon />}
+											{item.icon && (
+												<item.icon className="text-muted-foreground" />
+											)}
 											<span>{item.title}</span>
 										</Link>
 									</SidebarMenuButton>

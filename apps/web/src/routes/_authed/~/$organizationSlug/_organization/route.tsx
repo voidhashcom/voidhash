@@ -9,11 +9,11 @@ import {
 import { authClient } from "@voidhash/features/auth/lib/client";
 import { SidebarInset } from "@voidhash/ui";
 import { toast } from "sonner";
-export const Route = createFileRoute("/_authed/~/$organizationSlug/_organizations")(
-	{
-		component: RouteComponent,
-	}
-);
+export const Route = createFileRoute(
+	"/_authed/~/$organizationSlug/_organization"
+)({
+	component: RouteComponent,
+});
 
 function RouteComponent() {
 	const { user, queryClient } = Route.useRouteContext();

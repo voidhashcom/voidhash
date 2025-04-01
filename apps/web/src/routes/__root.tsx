@@ -46,7 +46,7 @@ function RootComponent() {
 		<RootDocument>
 			<Outlet />
 			<Toaster />
-			<TanStackRouterDevtools position="bottom-right" />
+			<TanStackRouterDevtools position="bottom-left" />
 		</RootDocument>
 	);
 }

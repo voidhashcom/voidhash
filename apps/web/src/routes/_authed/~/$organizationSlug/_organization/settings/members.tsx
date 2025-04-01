@@ -29,7 +29,7 @@ import { DataTable } from "@voidhash/features/organizations/client/components/se
 import { invitationsColumns } from "@voidhash/features/organizations/client/components/settings/pending-invites/columns";
 import { LinkIcon, MoreHorizontal, Plus, Search, XIcon } from "lucide-react";
 export const Route = createFileRoute(
-	"/_authed/~/$organizationSlug/_organizations/settings/members"
+	"/_authed/~/$organizationSlug/_organization/settings/members"
 )({
 	component: RouteComponent,
 });
@@ -40,13 +40,7 @@ function RouteComponent() {
 	};
 
 	return (
-		<Page
-			breadcrumbs={[
-				{ title: "Settings", url: "/settings" },
-				{ title: "Team", url: "/settings/team" },
-				{ title: "Members", url: "/settings/team/members" },
-			]}
-		>
+		<Page>
 			<div className="max-w-4xl mx-auto">
 				<h1 className="text-3xl font-normal tracking-right">Members</h1>
 				<p className="text-muted-foreground mt-3">
