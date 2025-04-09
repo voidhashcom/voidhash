@@ -15,6 +15,7 @@ import type { AppRouter } from "@voidhash/trpc";
 
 import { createQueryClient } from "./query-client";
 import { env } from "../../../apps/web/lib/env";
+import { APP_DOMAIN } from "@voidhash/lib";
 
 let clientQueryClientSingleton: QueryClient | undefined = undefined;
 const getQueryClient = () => {
@@ -68,5 +69,5 @@ const getBaseUrl = () => {
 	if (typeof window !== "undefined") return window.location.origin;
 	if (env.VERCEL_URL) return `https://${env.VERCEL_URL}`;
 	// eslint-disable-next-line no-restricted-properties
-	return `http://localhost:${process.env.PORT ?? 3000}`;
+	return APP_DOMAIN;
 };

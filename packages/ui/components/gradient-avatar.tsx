@@ -182,7 +182,7 @@ const generateColours = (s: string): [string, string] => {
 };
 
 const generateDataUrl = (s: string): string => {
-	const [c1, c2] = generateColours(s);
+	const [c1, c2] = generateColours(s ?? "null");
 	const size = 256;
 	const svg = `
 <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -222,7 +222,7 @@ export function GradientAvatar({
 			) : (
 				<img src={avatarSrc} alt={alt} />
 			)}
-			<AvatarFallback>{fallback.slice(0, 2)}</AvatarFallback>
+			<AvatarFallback>{fallback?.slice(0, 2)}</AvatarFallback>
 		</Avatar>
 	);
 }

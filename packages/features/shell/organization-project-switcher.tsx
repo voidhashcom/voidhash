@@ -1,3 +1,4 @@
+"use client";
 import * as React from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 
@@ -11,7 +12,7 @@ import {
 } from "@voidhash/ui";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useMe } from "../auth/client/hooks/useMe";
+import { useMe } from "../auth/hooks/useMe";
 import { useActiveOrganization } from "./hooks/useActiveOrganization";
 import { useActiveProject } from "./hooks/useActiveProject";
 import { CreateOrganizationModal } from "../organizations/components/create-organization-modal";
@@ -90,8 +91,8 @@ export function OrganizationProjectSwitcher() {
 	const { data: me } = useMe();
 	const organizations = me?.organizations ?? [];
 
-	const activeProject = useActiveProject();
-	const activeOrganization = useActiveOrganization();
+	const { activeProject } = useActiveProject();
+	const { activeOrganization } = useActiveOrganization();
 
 	// Highlight organization
 	const [highlightedOrganizationIndex, setHighlightedOrganizationIndex] =

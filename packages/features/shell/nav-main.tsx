@@ -58,7 +58,7 @@ export function NavMain({
 										tooltip={tooltips === "enabled" ? item.title : null}
 										isActive={item.isActive?.()}
 									>
-										<Link to={item.url}>
+										<Link href={item.url}>
 											{item.icon && (
 												<item.icon className="text-muted-foreground" />
 											)}
@@ -81,7 +81,7 @@ export function NavMain({
 																isActive={item.isActive?.()}
 																asChild
 															>
-																<Link to={subItem.url}>
+																<Link href={subItem.url}>
 																	<span>{subItem.title}</span>
 																</Link>
 															</SidebarMenuSubButton>

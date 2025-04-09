@@ -5,7 +5,6 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import { z } from "zod";
-import { authClient } from "@voidhash/features/auth/lib/client";
 import {
 	Logo,
 	Alert,
@@ -18,7 +17,6 @@ import {
 import { CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { authQueryKeys } from "@voidhash/features/auth/client/query-keys";
 
 const loginSearchSchema = z.object({
 	signup: z.boolean().catch(false),
@@ -57,6 +55,7 @@ function RouteComponent() {
 					});
 					navigate({
 						to: "/",
+						replace: true,
 					});
 				},
 				onError: (ctx) => {

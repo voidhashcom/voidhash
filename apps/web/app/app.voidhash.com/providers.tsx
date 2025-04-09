@@ -1,3 +1,4 @@
+"use client";
 import { TRPCReactProvider } from "@voidhash/features/trpc/react";
 import { Toaster } from "@voidhash/ui";
 

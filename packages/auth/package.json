@@ -18,6 +18,7 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
+        "@voidhash/lib": "workspace:*",
         "@voidhash/db": "workspace:*",
         "better-auth": "^1.2.4"
     },
