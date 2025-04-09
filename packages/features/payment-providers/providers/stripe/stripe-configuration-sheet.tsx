@@ -24,10 +24,8 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { stripe } from "./stripe";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { savePaymentProviderConfigurationMutation } from "../../server/mutations";
-import { isVoidhashError, parseVoidhashError } from "../../../lib/errors";
-import { paymentProvidersQueryKeys } from "./client/query-utils";
 import { useActiveProject } from "../../../shell/hooks/useActiveProject";
+import { useTRPC } from "../../../trpc/react";
 
 type StripeConfigurationForm = z.infer<typeof stripe.configurationSchema>;
 
@@ -53,24 +51,27 @@ export function StripeConfigurationSheet({
 		},
 	});
 
-	const { mutate: saveConfiguration, isPending } = useMutation({
-		mutationFn: savePaymentProviderConfigurationMutation,
-		onSuccess: async () => {
-			toast.success("Stripe configuration saved successfully");
-			setOpen(false);
-			queryClient.invalidateQueries({
-				queryKey: paymentProvidersQueryKeys.getPaymentProvidersConfigurations(
-					activeProject?.id ?? "null"
-				),
-			});
-		},
-		onError: (error) => {
-			if (isVoidhashError(error)) {
-				toast.error(parseVoidhashError(error));
-			}
-			toast.error("Failed to save Stripe configuration. Please try again.");
-		},
-	});
+	const trpc = useTRPC();
+
+	const { mutate: saveConfiguration, isPending } = useMutation(
+		trpc.paymentProviders.savePaymentProviderConfiguration.mutationOptions({
+			onSuccess: async () => {
+				toast.success("Stripe configuration saved successfully");
+				setOpen(false);
+				queryClient.invalidateQueries({
+					queryKey:
+						trpc.paymentProviders.paymentProvidersConfigurations.queryKey(),
+				});
+			},
+			onError: (error) => {
+				if (error.data?.voidhashError) {
+					toast.error(error.data.voidhashError.message);
+				} else {
+					toast.error("Failed to save Stripe configuration. Please try again.");
+				}
+			},
+		})
+	);
 
 	const onSubmit = async (data: StripeConfigurationForm) => {
 		console.log({
@@ -80,12 +81,10 @@ export function StripeConfigurationSheet({
 			configuration: data,
 		});
 		saveConfiguration({
-			data: {
-				providerId: stripe.id,
-				projectId: activeProject?.id ?? "",
-				enabled: isEnabled,
-				configuration: data,
-			},
+			providerId: stripe.id,
+			projectId: activeProject?.id ?? "",
+			enabled: isEnabled,
+			configuration: data,
 		});
 	};
 
@@ -110,15 +109,15 @@ export function StripeConfigurationSheet({
 							)}
 						</div>
 						<div className="px-4 flex-1 space-y-6 ">
-							<Switch
-								checked={isEnabled}
-								id="enabled"
-								onCheckedChange={setIsEnabled}
-							/>
+							<div className="flex items-center gap-6">
+								<Switch
+									checked={isEnabled}
+									id="enabled"
+									onCheckedChange={setIsEnabled}
+								/>
 
-							<Label className="text-base" htmlFor="enabled">
-								Stripe enabled
-							</Label>
+								<Label htmlFor="enabled">Stripe enabled</Label>
+							</div>
 
 							<FormField
 								control={form.control}

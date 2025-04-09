@@ -1,21 +1,35 @@
-import { Link, useParams } from "@tanstack/react-router";
 import { Badge, Card, Skeleton } from "@voidhash/ui";
 import { ChevronRightIcon } from "lucide-react";
 import { StripeConfigurationSheet } from "../../providers/stripe/stripe-configuration-sheet";
-import { paymentProviders } from "../../config";
-import { paymentProvidersConfigurationsQueryOptions } from "../../providers/stripe/client/query-utils";
 import { useQuery } from "@tanstack/react-query";
 import { useActiveProject } from "../../../shell/hooks/useActiveProject";
+import { AppStoreConfigurationSheet } from "../../providers/app-store/app-store-configuration-sheet";
+import { paymentProviders } from "@voidhash/lib";
+import { useTRPC } from "../../../trpc/react";
+import { PaymentProviderLogo } from "./payment-provider-logo";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+
+const paymentProvidersConfigurationSheetComponents = {
+	stripe: StripeConfigurationSheet,
+	"app-store": AppStoreConfigurationSheet,
+} as const;
 
 export function PaymentProvidersList() {
-	const { organizationSlug, projectSlug } = useParams({
-		strict: false,
-	});
+	const { organizationSlug, projectSlug } = useParams();
 
 	const activeProject = useActiveProject();
 
+	const trpc = useTRPC();
 	const { data: paymentProvidersConfigurations, status } = useQuery(
-		paymentProvidersConfigurationsQueryOptions(activeProject?.id)
+		trpc.paymentProviders.paymentProvidersConfigurations.queryOptions(
+			{
+				projectId: activeProject?.id ?? "",
+			},
+			{
+				enabled: !!activeProject?.id,
+			}
+		)
 	);
 
 	const paymentProvidersWithConfigurations = paymentProviders.map(
@@ -26,6 +40,8 @@ export function PaymentProvidersList() {
 				);
 			return {
 				...paymentProvider,
+				ConfigurationSheet:
+					paymentProvidersConfigurationSheetComponents[paymentProvider.id],
 				configuration: paymentProvidersConfiguration?.configuration,
 				enabled: paymentProvidersConfiguration?.enabled,
 			};
@@ -63,25 +79,24 @@ export function PaymentProvidersList() {
 					className="relative isolate group hover:bg-accent/30 px-6 py-4"
 					key={paymentProvider.id}
 				>
-					<StripeConfigurationSheet
+					<paymentProvider.ConfigurationSheet
 						enabled={paymentProvider.enabled ?? false}
 						configuration={paymentProvider.configuration}
 						trigger={
 							<Link
 								className="inset-0 absolute w-full h-full"
-								to="/~/$organizationSlug/$projectSlug/settings/payment-providers"
-								params={{
-									organizationSlug,
-									projectSlug,
-								}}
+								href={`/~/${organizationSlug}/${projectSlug}/settings/payment-providers`}
 							></Link>
 						}
 					/>
 
 					<div className="flex flex-row items-center justify-between">
 						<div className="flex items-center gap-4 flex-1">
-							<div className="w-8 h-8">
-								<paymentProvider.logo className="w-full h-full" />
+							<div className="w-8 h-8 flex items-center justify-center">
+								<PaymentProviderLogo
+									providerId={paymentProvider.id}
+									className="w-full h-full"
+								/>
 							</div>
 							<div className="flex flex-col">
 								<p>{paymentProvider.title}</p>
