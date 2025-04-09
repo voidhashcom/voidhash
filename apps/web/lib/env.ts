@@ -15,7 +15,14 @@ export const env = createEnv({
 	 * Specify your server-side environment variables schema here.
 	 * This way you can ensure the app isn't built with invalid env vars.
 	 */
-	server: {},
+	server: {
+		BETTER_AUTH_SECRET: z.string(),
+		DATABASE_HOST: z.string(),
+		DATABASE_PORT: z.string(),
+		DATABASE_USERNAME: z.string(),
+		DATABASE_PASSWORD: z.string(),
+		DATABASE_NAME: z.string(),
+	},
 
 	/**
 	 * Specify your client-side environment variables schema here.

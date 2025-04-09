@@ -1,29 +1,36 @@
-import { GradientAvatar, OrganizationProjectSwitcher } from "@voidhash/ui";
+"use client";
+import {
+	GradientAvatar,
+	OrganizationProjectSwitcher,
+	Skeleton,
+} from "@voidhash/ui";
 import { useActiveProject } from "./hooks/useActiveProject";
-import { useActiveOrganization } from "./hooks/useActiveOrganization";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
 export function ProjectSwitcher() {
-	const activeOrganization = useActiveOrganization();
-	const activeProject = useActiveProject();
-
-	if (!activeOrganization || !activeProject) {
-		return null;
-	}
+	const { organizationSlug, projectSlug } = useParams();
+	const { activeProject, isLoading: isProjectLoading } = useActiveProject();
 
 	return (
 		<div className="flex items-center gap-2">
-			<Link href={`/~/${activeOrganization.slug}/${activeProject.slug}`}>
+			<Link href={`/~/${organizationSlug}/${projectSlug}`}>
 				<div className="flex items-center gap-2">
-					<GradientAvatar
-						className="h-6 w-6 rounded-lg text-xs"
-						src={undefined}
-						alt={activeProject.name}
-						fallback={activeProject.id}
-					/>
-					<span className="truncate text-sm text-foreground-">
-						{activeProject.name}
-					</span>
+					{isProjectLoading ? (
+						<Skeleton className="h-6 w-6 rounded-lg" />
+					) : activeProject ? (
+						<GradientAvatar
+							className="h-6 w-6 rounded-lg text-xs"
+							src={undefined}
+							alt={activeProject.name}
+							fallback={activeProject.id}
+						/>
+					) : null}
+					{activeProject && (
+						<span className="truncate text-sm text-foreground-">
+							{activeProject.name}
+						</span>
+					)}
 				</div>
 			</Link>
 			<OrganizationProjectSwitcher />

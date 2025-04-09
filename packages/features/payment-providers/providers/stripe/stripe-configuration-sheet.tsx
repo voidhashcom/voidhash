@@ -40,7 +40,7 @@ export function StripeConfigurationSheet({
 }) {
 	const [open, setOpen] = useState(false);
 	const queryClient = useQueryClient();
-	const activeProject = useActiveProject();
+	const { activeProject } = useActiveProject();
 	const [isEnabled, setIsEnabled] = useState(enabled);
 
 	const form = useForm<StripeConfigurationForm>({

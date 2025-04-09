@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-// import { authClient } from "@voidhash/auth/client";
+import { authClient } from "@voidhash/auth/client";
 import {
 	Logo,
 	Alert,
@@ -24,26 +24,32 @@ export default function LoginPage() {
 	const [password, setPassword] = useState("");
 	const [loading, setLoading] = useState(false);
 
-	const signIn = async (e: React.FormEvent) => {
+	const signIn = (e: React.FormEvent) => {
 		e.preventDefault();
 
-		try {
-			setLoading(true);
-			// await authClient.signIn.email({
-			// 	email: email,
-			// 	password: password,
-			// });
-
-			router.push("/");
-		} catch (error: unknown) {
-			if (error instanceof Error) {
-				toast.error(error.message);
-			} else {
-				toast.error("An unknown error occurred");
+		setLoading(true);
+		authClient.signIn.email(
+			{
+				email: email,
+				password: password,
+			},
+			{
+				onSuccess: () => {
+					router.push("/");
+					setLoading(false);
+				},
+				onError: (error) => {
+					if (error instanceof Error) {
+						toast.error(error.message);
+					} else {
+						toast.error("An unknown error occurred");
+					}
+					setLoading(false);
+				},
 			}
-		} finally {
-			setLoading(false);
-		}
+		);
+
+		router.push("/");
 	};
 
 	return (

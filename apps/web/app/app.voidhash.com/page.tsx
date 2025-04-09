@@ -1,7 +1,7 @@
 "use client";
 
-import { useMe } from "@voidhash/features/auth/client/hooks/useMe";
-import { useRouter } from "next/router";
+import { useMe } from "@voidhash/features/auth/hooks/useMe";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function Index() {

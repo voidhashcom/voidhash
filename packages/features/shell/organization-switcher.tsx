@@ -4,7 +4,7 @@ import { useActiveOrganization } from "./hooks/useActiveOrganization";
 import Link from "next/link";
 
 export function OrganizationSwitcher() {
-	const activeOrganization = useActiveOrganization();
+	const { activeOrganization, isLoading } = useActiveOrganization();
 	if (!activeOrganization) {
 		return null;
 	}

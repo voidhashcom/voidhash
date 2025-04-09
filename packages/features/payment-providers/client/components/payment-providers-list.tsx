@@ -18,7 +18,7 @@ const paymentProvidersConfigurationSheetComponents = {
 export function PaymentProvidersList() {
 	const { organizationSlug, projectSlug } = useParams();
 
-	const activeProject = useActiveProject();
+	const { activeProject } = useActiveProject();
 
 	const trpc = useTRPC();
 	const { data: paymentProvidersConfigurations, status } = useQuery(
