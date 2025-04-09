@@ -9,14 +9,14 @@ import {
 	GradientAvatar,
 	cn,
 } from "@voidhash/ui";
-import { Link } from "@tanstack/react-router";
-import { CreateOrganizationModal } from "../organizations/client/components/create-organization-modal";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { teamProjectsBySlugQueryOptions } from "../projects/client/query-utils";
 import { useMe } from "../auth/client/hooks/useMe";
-import { CreateProjectModal } from "../projects/client/components/create-project-modal";
 import { useActiveOrganization } from "./hooks/useActiveOrganization";
 import { useActiveProject } from "./hooks/useActiveProject";
+import { CreateOrganizationModal } from "../organizations/components/create-organization-modal";
+import { CreateProjectModal } from "../projects/components/create-project-modal";
+import { useTRPC } from "../trpc/react";
 
 function OrganizationProjectSwitcherProjects({
 	organizationId,
@@ -29,7 +29,12 @@ function OrganizationProjectSwitcherProjects({
 	activeProjectId?: string;
 	onProjectClick?: () => void;
 }) {
-	const { data } = useQuery(teamProjectsBySlugQueryOptions(organizationSlug));
+	const trpc = useTRPC();
+	const { data } = useQuery(
+		trpc.projects.getTeamsProjectsBySlug.queryOptions({
+			organizationSlug: organizationSlug,
+		})
+	);
 	const projects = data ?? [];
 
 	// Create project modal
@@ -42,11 +47,7 @@ function OrganizationProjectSwitcherProjects({
 			{(projects ?? []).map((project, index) => (
 				<Link
 					key={project.id}
-					to="/~/$organizationSlug/$projectSlug"
-					params={{
-						organizationSlug,
-						projectSlug: project.slug,
-					}}
+					href={`/~/${organizationSlug}/${project.slug}`}
 					onClick={onProjectClick}
 					className="flex w-full items-center gap-2 p-2 hover:bg-accent text-foreground hover:text-accent-foreground text-sm"
 				>
@@ -132,12 +133,8 @@ export function OrganizationProjectSwitcher() {
 							{organizations.map((organization, index) => (
 								<Link
 									key={organization.name}
-									to="/~/$organizationSlug"
+									href={`/~/${organization.slug}`}
 									onClick={() => setOpen(false)}
-									params={(prev) => ({
-										...prev,
-										organizationSlug: organization.slug,
-									})}
 									onMouseEnter={() => setHighlightedOrganizationIndex(index)}
 									className={cn(
 										"flex w-full items-center gap-2 p-2 hover:bg-accent/50 text-foreground hover:text-accent-foreground text-sm",

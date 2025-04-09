@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useActiveOrganization } from "./useActiveOrganization";
-import { teamProjectsBySlugQueryOptions } from "../../projects/client/query-utils";
+import { useTRPC } from "../../trpc/react";
 
 export function useActiveOrganizationProjects() {
+	const trpc = useTRPC();
 	const activeOrganization = useActiveOrganization();
 	return useQuery(
-		teamProjectsBySlugQueryOptions(activeOrganization?.slug ?? "")
+		trpc.projects.getTeamsProjectsBySlug.queryOptions({
+			organizationSlug: activeOrganization?.slug ?? "",
+		})
 	);
 }
