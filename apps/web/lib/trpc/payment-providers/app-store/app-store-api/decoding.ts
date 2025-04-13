@@ -51,8 +51,10 @@ export async function decodeNotificationPayload(
 async function decodeJWS(
 	token: string,
 	rootCertFingerprint: string = APPLE_ROOT_CA_G3_FINGERPRINT
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
 	// Extracts the key used to sign the JWS from the header of the token
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const getKey: jose.CompactVerifyGetKey = async (protectedHeader, _token) => {
 		// RC 7515 stipulates that the key used to sign the JWS must be the first in the chain.
 		// https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.6

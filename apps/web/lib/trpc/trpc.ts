@@ -10,7 +10,6 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { auth } from "@voidhash/auth";
 import { db } from "@voidhash/db";
 import { VoidhashError } from "@voidhash/lib";
-import { Session } from "better-auth";
 import superjson from "superjson";
 import { ZodError } from "zod";
 /**

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as jose from "jose";
 import { randomUUID } from "crypto";
 import { AppStoreError } from "./errors";
@@ -204,7 +205,7 @@ export class AppStoreServerAPI {
 			case 500:
 				const body = await result.json();
 				let retryAfter: number | undefined;
-				let retryAfterHeader = result.headers.get("retry-after");
+				const retryAfterHeader = result.headers.get("retry-after");
 				if (result.status === 429 && retryAfterHeader !== null) {
 					retryAfter = parseInt(retryAfterHeader);
 				}
