@@ -39,17 +39,11 @@ function LoginPageContent() {
 					setLoading(false);
 				},
 				onError: (error) => {
-					if (error instanceof Error) {
-						toast.error(error.message);
-					} else {
-						toast.error("An unknown error occurred");
-					}
+					toast.error(error.error.message);
 					setLoading(false);
 				},
 			}
 		);
-
-		router.push("/");
 	};
 
 	return (

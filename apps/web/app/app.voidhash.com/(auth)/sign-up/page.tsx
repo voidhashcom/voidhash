@@ -60,23 +60,27 @@ export default function SignUpPage() {
 	});
 
 	const onSubmit = async (data: SignUpForm) => {
-		try {
-			setLoading(true);
-			await authClient.signUp.email({
+		setLoading(true);
+		authClient.signUp.email(
+			{
 				email: data.email,
 				password: data.password,
 				name: data.name,
-			});
-
-			router.push(`/login?email=${encodeURIComponent(data.email)}&signup=true`);
-		} catch (error: unknown) {
-			if (error instanceof Error) {
-				toast.error(error.message);
-			} else {
-				toast.error("An unknown error occurred");
+			},
+			{
+				onSuccess: () => {
+					toast.success("Account created successfully");
+					router.push(
+						`/login?email=${encodeURIComponent(data.email)}&signup=true`
+					);
+					setLoading(false);
+				},
+				onError: (error) => {
+					toast.error(error.error.message);
+					setLoading(false);
+				},
 			}
-			setLoading(false);
-		}
+		);
 	};
 
 	return (
