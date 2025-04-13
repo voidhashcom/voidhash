@@ -6,11 +6,9 @@ export default async function AppMiddleware(req: NextRequest) {
 	const { fullPath, path } = parse(req);
 	console.log(`/app.voidhash.com${fullPath}`);
 
-	const sessionCookie = getSessionCookie(req, {
-		// Optionally pass config if cookie name or prefix is customized in auth config.
-		cookieName: "session_token",
-		cookiePrefix: "better-auth",
-	});
+	const sessionCookie = getSessionCookie(req);
+
+	console.log(sessionCookie);
 
 	// Prevent infinite redirect loop
 	if (!sessionCookie && path !== "/login" && path !== "/sign-up") {
