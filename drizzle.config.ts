@@ -4,9 +4,15 @@ export default defineConfig({
 	schema: "./packages/db/src/schema.ts",
 	out: "./packages/db/src/migrations",
 	dbCredentials: {
-		host: process.env["DATABASE_HOST"]!,
-		user: process.env["DATABASE_USERNAME"]!,
-		database: process.env["DATABASE_NAME"]!,
-		password: process.env["DATABASE_PASSWORD"]!,
+		...(process.env["NODE_ENV"] === "production"
+			? {
+					url: `mysql://${process.env["DATABASE_USERNAME"]}:${process.env["DATABASE_PASSWORD"]}@${process.env["DATABASE_HOST"]}/${process.env["DATABASE_NAME"]}?ssl={"rejectUnauthorized":true}`,
+				}
+			: {
+					host: process.env["DATABASE_HOST"]!,
+					user: process.env["DATABASE_USERNAME"]!,
+					database: process.env["DATABASE_NAME"]!,
+					password: process.env["DATABASE_PASSWORD"]!,
+				}),
 	},
 });

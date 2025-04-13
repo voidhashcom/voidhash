@@ -19,7 +19,7 @@
         "db:migrate": "pnpm with-env drizzle-kit migrate",
         "db:studio": "pnpm with-env drizzle-kit studio",
         "db:push": "pnpm with-env drizzle-kit push",
-        "with-env": "dotenv -e .env --"
+        "with-env": "dotenv -e ./apps/web/.env --"
     },
     "dependencies": {
         "@types/node": "^20.17.9",
