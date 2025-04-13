@@ -5,8 +5,10 @@ import { apiKey } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import * as schema from "@voidhash/db/schema";
 import { nextCookies } from "better-auth/next-js";
+import { APP_DOMAIN } from "@voidhash/lib";
 
 export const auth = betterAuth({
+	baseURL: APP_DOMAIN,
 	database: drizzleAdapter(db, {
 		provider: "mysql",
 		schema: schema,
