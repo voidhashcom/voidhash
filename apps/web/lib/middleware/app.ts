@@ -1,15 +1,13 @@
 import { parse } from "./utils/parse";
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionCookie } from "better-auth/cookies";
 
 export default async function AppMiddleware(req: NextRequest) {
 	const { fullPath, path } = parse(req);
 	console.log(`/app.voidhash.com${fullPath}`);
 
 	console.log(req.headers);
-	const sessionCookie = getSessionCookie(req);
 
-	console.log(sessionCookie);
+	const sessionCookie = req.cookies.get("better-auth.session_token");
 
 	// Prevent infinite redirect loop
 	if (!sessionCookie && path !== "/login" && path !== "/sign-up") {
