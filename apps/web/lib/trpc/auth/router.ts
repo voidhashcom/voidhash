@@ -1,5 +1,5 @@
 import { auth } from "@voidhash/auth";
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import { createTRPCRouter, publicProcedure } from "@/lib/trpc/trpc";
 
 export const authRouter = createTRPCRouter({
 	me: publicProcedure.query(async ({ ctx }) => {

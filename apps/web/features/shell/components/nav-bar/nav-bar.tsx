@@ -1,4 +1,3 @@
-import { SidebarTrigger } from "@voidhash/ui";
 import { NavBarLogo } from "./nav-bar-logo";
 import { OrganizationSwitcher } from "./organization-switcher";
 import { NavUser } from "./nav-user/nav-user";
