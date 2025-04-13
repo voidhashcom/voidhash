@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@voidhash/auth/client";
 import {
@@ -16,7 +16,7 @@ import { CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
-export default function LoginPage() {
+export function LoginPageContent() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
 
@@ -128,5 +128,13 @@ export default function LoginPage() {
 				/>
 			</div>
 		</div>
+	);
+}
+
+export default function LoginPage() {
+	return (
+		<Suspense fallback={<div>Loading...</div>}>
+			<LoginPageContent />
+		</Suspense>
 	);
 }
