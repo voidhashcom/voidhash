@@ -1,5 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { RouterOutputs } from "@voidhash/trpc";
+import { RouterOutputs } from "@/lib/trpc";
 
 type Customer = RouterOutputs["customers"]["getCustomers"][number];
 

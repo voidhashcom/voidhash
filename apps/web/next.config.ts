@@ -10,7 +10,6 @@ const nextConfig: NextConfig = {
 		"@voidhash/ui",
 		"@voidhash/auth",
 		"@voidhash/db",
-		"@voidhash/trpc",
 		"@voidhash/lib",
 		"@voidhash/emails",
 	],
