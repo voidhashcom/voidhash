@@ -45,7 +45,7 @@ export const projectsRouter = createTRPCRouter({
 
 	getTeamsProjectsBySlug: protectedProcedure
 		.input(getTeamsProjectsBySlugSchema)
-		.query(async ({ ctx, input }) => {
+		.query(async ({ input }) => {
 			const teamProjects = await db
 				.select()
 				.from(projects)
@@ -57,7 +57,7 @@ export const projectsRouter = createTRPCRouter({
 
 	update: protectedProcedure
 		.input(updateProjectSchema)
-		.mutation(async ({ ctx, input }) => {
+		.mutation(async ({ input }) => {
 			await db
 				.update(projects)
 				.set({
@@ -68,7 +68,7 @@ export const projectsRouter = createTRPCRouter({
 
 	delete: protectedProcedure
 		.input(deleteProjectSchema)
-		.mutation(async ({ ctx, input }) => {
+		.mutation(async ({ input }) => {
 			await db.delete(projects).where(eq(projects.id, input.projectId));
 		}),
 });

@@ -10,7 +10,7 @@ import { paymentProviders } from "@voidhash/lib";
 export const paymentProvidersRouter = createTRPCRouter({
 	paymentProvidersConfigurations: protectedProcedure
 		.input(getPaymentProvidersConfigurationsSchema)
-		.query(async ({ ctx, input }) => {
+		.query(async ({ input }) => {
 			const paymentProviderConfigurations = await db
 				.select()
 				.from(projectPaymentProviderConfiguration)
@@ -23,7 +23,7 @@ export const paymentProvidersRouter = createTRPCRouter({
 
 	savePaymentProviderConfiguration: protectedProcedure
 		.input(savePaymentProviderConfigurationSchema)
-		.mutation(async ({ ctx, input }) => {
+		.mutation(async ({ input }) => {
 			const provider = paymentProviders.find((p) => p.id === input.providerId);
 			if (!provider) {
 				throw new Error(`Provider ${input.providerId} not found`);

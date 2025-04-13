@@ -6,7 +6,7 @@ import { getCustomersSchema } from "./schema";
 export const customersRouter = createTRPCRouter({
 	getCustomers: protectedProcedure
 		.input(getCustomersSchema)
-		.query(async ({ ctx, input }) => {
+		.query(async ({ input }) => {
 			const customers = await db
 				.select()
 				.from(customer)
