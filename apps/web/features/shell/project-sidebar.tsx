@@ -43,38 +43,35 @@ export function ProjectSidebar({
 				items: [
 					{
 						title: "Overview",
-						url: `/~/${organizationSlug}/${projectSlug}/dashboard`,
+						url: `/${organizationSlug}/${projectSlug}`,
 						icon: GaugeIcon,
-						isActive: () =>
-							pathname.startsWith(
-								`/~/${organizationSlug}/${projectSlug}/dashboard`
-							),
+						isActive: () => pathname == `/${organizationSlug}/${projectSlug}`,
 					},
 					{
 						title: "Customers",
-						url: `/~/${organizationSlug}/${projectSlug}/customers`,
+						url: `/${organizationSlug}/${projectSlug}/customers`,
 						icon: Users,
 						isActive: () =>
 							pathname.startsWith(
-								`/~/${organizationSlug}/${projectSlug}/customers`
+								`/${organizationSlug}/${projectSlug}/customers`
 							),
 					},
 					{
 						title: "Transactions",
-						url: `/~/${organizationSlug}/${projectSlug}/transactions`,
+						url: `/${organizationSlug}/${projectSlug}/transactions`,
 						icon: Repeat,
 						isActive: () =>
 							pathname.startsWith(
-								`/~/${organizationSlug}/${projectSlug}/transactions`
+								`/${organizationSlug}/${projectSlug}/transactions`
 							),
 					},
 					{
 						title: "Settings",
-						url: `/~/${organizationSlug}/${projectSlug}/settings/general`,
+						url: `/${organizationSlug}/${projectSlug}/settings/general`,
 						icon: Settings,
 						isActive: () =>
 							pathname.startsWith(
-								`/~/${organizationSlug}/${projectSlug}/settings/general`
+								`/${organizationSlug}/${projectSlug}/settings/general`
 							),
 					},
 				],

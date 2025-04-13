@@ -11,12 +11,12 @@ export function NavBarLogo({
 	const homeLink = (() => {
 		if (organizationSlug && !projectSlug) {
 			return {
-				href: `/~/${organizationSlug}/projects`,
+				href: `/${organizationSlug}`,
 			} as const;
 		}
 		if (organizationSlug && projectSlug) {
 			return {
-				href: `/~/${organizationSlug}/${projectSlug}`,
+				href: `/${organizationSlug}/${projectSlug}`,
 			} as const;
 		}
 		return {

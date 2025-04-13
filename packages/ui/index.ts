@@ -47,5 +47,6 @@ export * from "./components/ui/toggle";
 export * from "./components/ui/tooltip";
 export * from "./components/data-table-skeleton";
 export * from "./components/logo";
+export * from "./components/settings-card-skeleton";
 export * from "./components/copy-text";
 export * from "./components/ui/dropzone";

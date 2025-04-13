@@ -23,17 +23,16 @@ export function OrganizationSidebar({
 				items: [
 					{
 						title: "Projects",
-						url: `/~/${organizationSlug}/projects`,
+						url: `/${organizationSlug}`,
 						icon: Grid2X2,
-						isActive: () =>
-							pathname.startsWith(`/~/${organizationSlug}/projects`),
+						isActive: () => pathname === `/${organizationSlug}`,
 					},
 					{
 						title: "Settings",
-						url: `/~/${organizationSlug}/settings/general`,
+						url: `/${organizationSlug}/~/settings/general`,
 						icon: Settings,
 						isActive: () =>
-							pathname.startsWith(`/~/${organizationSlug}/settings/general`),
+							pathname.startsWith(`/${organizationSlug}/~/settings/general`),
 					},
 				],
 			},

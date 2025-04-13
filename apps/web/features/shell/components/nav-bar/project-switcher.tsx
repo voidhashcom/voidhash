@@ -2,7 +2,7 @@ import { GradientAvatar, Skeleton } from "@voidhash/ui";
 import Link from "next/link";
 import { NavSlashSeparator } from "./nav-slash-separator";
 import { OrganizationProjectSwitcher } from "./organization-project-switcher";
-import { getProjectBySlug } from "@/features/projects/server/cached-queries";
+import { getProjectBySlug } from "@/lib/queries/cached-queries";
 import { Suspense } from "react";
 
 const ProjectTitle = async ({
@@ -54,7 +54,7 @@ export async function ProjectSwitcher({
 		<>
 			<NavSlashSeparator />
 			<div className="flex items-center gap-2">
-				<Link href={`/~/${organizationSlug}/${projectSlug}`}>
+				<Link href={`/${organizationSlug}/${projectSlug}`}>
 					<div className="flex items-center gap-2">
 						<Suspense fallback={<ProjectTitleSkeleton />}>
 							<ProjectTitle projectPromise={projectPromise} />

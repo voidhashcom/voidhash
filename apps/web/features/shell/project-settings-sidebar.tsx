@@ -6,7 +6,7 @@ import { ChevronLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { NavMain } from "./nav-main";
-import { getOrganizationBySlug } from "../organizations/server/cached-queries";
+import { getOrganizationBySlug } from "@/lib/queries/cached-queries";
 import { Suspense, use } from "react";
 
 const ActiveOrganization = ({
@@ -64,18 +64,18 @@ export function ProjectSettingsSidebar({
 				items: [
 					{
 						title: "General",
-						url: `/~/${organizationSlug}/${projectSlug}/settings/general`,
+						url: `/${organizationSlug}/${projectSlug}/settings/general`,
 						isActive: () =>
 							pathname.startsWith(
-								`/~/${organizationSlug}/${projectSlug}/settings/general`
+								`/${organizationSlug}/${projectSlug}/settings/general`
 							),
 					},
 					{
 						title: "Payment Providers",
-						url: `/~/${organizationSlug}/${projectSlug}/settings/payment-providers`,
+						url: `/${organizationSlug}/${projectSlug}/settings/payment-providers`,
 						isActive: () =>
 							pathname.startsWith(
-								`/~/${organizationSlug}/${projectSlug}/settings/payment-providers`
+								`/${organizationSlug}/${projectSlug}/settings/payment-providers`
 							),
 					},
 				],
@@ -93,7 +93,7 @@ export function ProjectSettingsSidebar({
 			<SidebarHeader className="gap-3.5 border-b p-4">
 				<div className="flex w-full items-start justify-start flex-col">
 					<Link
-						href={`/~/${organizationSlug}/settings/general`}
+						href={`/${organizationSlug}/~/settings/general`}
 						className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
 					>
 						<ChevronLeft className="size-4 -ml-1" />

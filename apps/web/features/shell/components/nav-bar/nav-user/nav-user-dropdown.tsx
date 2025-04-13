@@ -11,7 +11,7 @@ import {
 	DropdownMenuItem,
 } from "@voidhash/ui";
 import { BadgeCheck, CreditCard, LogOut } from "lucide-react";
-import { type getUser } from "@/features/auth/server/cached-queries";
+import { getUser } from "@/lib/queries/cached-queries";
 import { authClient } from "@voidhash/auth/client";
 import { useRouter } from "next/navigation";
 

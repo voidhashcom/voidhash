@@ -1,7 +1,6 @@
 import { GradientAvatar, Skeleton } from "@voidhash/ui";
 import { DropdownMenu, DropdownMenuTrigger } from "@voidhash/ui";
-// import { authClient } from "@voidhash/auth/client";
-import { getUser } from "@/features/auth/server/cached-queries";
+import { getUser } from "@/lib/queries/cached-queries";
 import { Suspense } from "react";
 import { NavUserDropdown } from "./nav-user-dropdown";
 

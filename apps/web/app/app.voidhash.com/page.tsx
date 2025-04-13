@@ -1,4 +1,4 @@
-import { getUser } from "@/features/auth/server/cached-queries";
+import { getUser } from "@/lib/queries/cached-queries";
 import { redirect } from "next/navigation";
 
 export default async function Index() {
@@ -6,9 +6,9 @@ export default async function Index() {
 
 	if (user) {
 		if (user.organizations.length === 0) {
-			return redirect("/create-org");
+			return redirect("/~/create-organization");
 		}
-		return redirect(`/~/${user.organizations[0]!.slug}`);
+		return redirect(`/${user.organizations[0]!.slug}`);
 	}
 
 	return redirect("/login");
