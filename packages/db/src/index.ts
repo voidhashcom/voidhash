@@ -4,7 +4,9 @@ import { Client } from "@planetscale/database";
 import { drizzle as drizzlePlanetscale } from "drizzle-orm/planetscale-serverless";
 import * as schema from "./schema";
 
-let db: ReturnType<typeof drizzlePlanetscale> | ReturnType<typeof drizzleMysql>;
+export let db:
+	| ReturnType<typeof drizzlePlanetscale>
+	| ReturnType<typeof drizzleMysql>;
 
 if (process.env["NODE_ENV"] === "production") {
 	const client = new Client({
