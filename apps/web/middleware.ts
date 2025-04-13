@@ -1,6 +1,7 @@
+import ApiMiddleware from "./lib/middleware/api";
 import AppMiddleware from "./lib/middleware/app";
 import { parse } from "./lib/middleware/utils/parse";
-import { APP_HOSTNAMES } from "@voidhash/lib";
+import { API_HOSTNAMES, APP_HOSTNAMES } from "@voidhash/lib";
 import { NextRequest } from "next/server";
 export const config = {
 	matcher: [
@@ -19,5 +20,10 @@ export default async function middleware(req: NextRequest) {
 	const { domain } = parse(req);
 	if (APP_HOSTNAMES.has(domain)) {
 		return AppMiddleware(req);
+	}
+
+	// for API
+	if (API_HOSTNAMES.has(domain)) {
+		return ApiMiddleware(req);
 	}
 }

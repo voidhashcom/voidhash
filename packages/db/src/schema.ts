@@ -53,7 +53,7 @@ export const customer = mysqlTable("customer", {
 export const projectPaymentProviderConfiguration = mysqlTable(
 	"project_payment_provider_configuration",
 	{
-		providerId: varchar("provider_id", { length: 255 }).primaryKey(),
+		providerId: varchar("provider_id", { length: 255 }),
 		projectId: varchar("project_id", { length: 255 })
 			.notNull()
 			.references(() => projects.id),

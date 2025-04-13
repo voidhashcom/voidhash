@@ -1,5 +1,5 @@
 import { paymentProviders } from "@voidhash/lib";
-import { AppleLogo } from "../../providers/app-store/components/apple-logo";
+import { AppleLogo } from "./app-store/apple-logo";
 
 export function PaymentProviderLogo({
 	providerId,

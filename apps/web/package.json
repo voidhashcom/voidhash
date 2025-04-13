@@ -19,6 +19,7 @@
     "@voidhash/ui": "workspace:*",
     "better-auth": "^1.2.4",
     "drizzle-orm": "^0.41.0",
+    "hono": "^4.7.6",
     "lucide-react": "^0.483.0",
     "next": "15.2.5",
     "next-safe-action": "^7.10.5",

@@ -24,8 +24,8 @@ export function ProjectDelete({ projectId }: { projectId: string }) {
 			toast.success("Project deleted successfully");
 			router.push("/");
 		},
-		onError: () => {
-			toast.error("Failed to delete project. Please try again.");
+		onError: (error) => {
+			toast.error(error.error.serverError);
 		},
 	});
 

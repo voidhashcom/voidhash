@@ -1,9 +1,10 @@
+"use client";
 import { Badge, Card, Skeleton } from "@voidhash/ui";
 import { ChevronRightIcon } from "lucide-react";
-import { StripeConfigurationSheet } from "../../providers/stripe/stripe-configuration-sheet";
+import { StripeConfigurationSheet } from "./stripe/stripe-configuration-sheet";
 import { useQuery } from "@tanstack/react-query";
 import { useActiveProject } from "../../../shell/hooks/useActiveProject";
-import { AppStoreConfigurationSheet } from "../../providers/app-store/app-store-configuration-sheet";
+import { AppStoreConfigurationSheet } from "./app-store/app-store-configuration-sheet";
 import { paymentProviders } from "@voidhash/lib";
 import { useTRPC } from "../../../trpc/react";
 import { PaymentProviderLogo } from "./payment-provider-logo";

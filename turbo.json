@@ -13,7 +13,16 @@
 				"dist/**",
 				".next/*"
 			],
-			"env": []
+			"env": [
+				"NEXT_PUBLIC_APP_NAME",
+				"NEXT_PUBLIC_APP_DOMAIN",
+				"NEXT_PUBLIC_APP_SHORT_DOMAIN",
+				"BETTER_AUTH_SECRET",
+				"DATABASE_HOST",
+				"DATABASE_USERNAME",
+				"DATABASE_PASSWORD",
+				"DATABASE_NAME"
+			]
 		},
 		"clean": {},
 		"format": {},

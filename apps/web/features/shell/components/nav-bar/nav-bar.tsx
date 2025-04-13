@@ -15,7 +15,7 @@ export async function NavBar({
 					organizationSlug={organizationSlug}
 					projectSlug={projectSlug}
 				/>
-				<SidebarTrigger className="px-4" />
+				{/* <SidebarTrigger className="px-4" /> */}
 				<div className="flex items-center gap-2">
 					<OrganizationSwitcher organizationSlug={organizationSlug} />
 					<ProjectSwitcher
