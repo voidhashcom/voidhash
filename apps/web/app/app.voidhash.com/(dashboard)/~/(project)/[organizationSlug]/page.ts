@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 
-export default function Dashboard({
+export default async function Dashboard({
 	params,
-}: { params: { organizationSlug: string } }) {
-	return redirect(`/~/${params.organizationSlug}/projects`);
+}: { params: Promise<{ organizationSlug: string }> }) {
+	const { organizationSlug } = await params;
+
+	return redirect(`/~/${organizationSlug}/projects`);
 }

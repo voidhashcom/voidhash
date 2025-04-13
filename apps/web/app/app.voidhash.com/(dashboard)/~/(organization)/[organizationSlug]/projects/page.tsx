@@ -1,14 +1,13 @@
-import { Page } from "@voidhash/ui";
-import { Content } from "./content";
-import { HydrateClient, trpc, prefetch } from "@voidhash/features/trpc/server";
+import { ProjectsPage } from "@/features/organizations/components/projects/projects-page";
 
-export default async function RouteComponent() {
-	void prefetch(trpc.auth.me.queryOptions());
-	return (
-		<HydrateClient>
-			<Page>
-				<Content />
-			</Page>
-		</HydrateClient>
-	);
+export default async function RouteComponent({
+	params,
+}: {
+	params: Promise<{
+		organizationSlug: string;
+	}>;
+}) {
+	const { organizationSlug } = await params;
+
+	return <ProjectsPage params={{ organizationSlug }} />;
 }

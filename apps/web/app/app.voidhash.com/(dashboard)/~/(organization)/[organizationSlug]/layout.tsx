@@ -1,46 +1,37 @@
-"use client";
-import { authClient } from "@voidhash/auth/client";
 import { SidebarInset } from "@voidhash/ui";
-import { usePathname, useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
-import { OrganizationSidebar } from "@voidhash/features/shell/organization-sidebar";
-import { OrganizationSettingsSidebar } from "@voidhash/features/shell/organization-settings-sidebar";
-import { useMe } from "@voidhash/features/auth/hooks/useMe";
+import { OrganizationSidebar } from "@/features/shell/organization-sidebar";
+import { OrganizationSettingsSidebar } from "@/features/shell/organization-settings-sidebar";
+import { LayoutSidebar } from "./layout-sidebar";
+import { NavBar } from "@/features/shell";
+import { getProjectsByOrganizationSlug } from "@/features/projects/server/cached-queries";
 
-export default function OrganizationLayout({
+export default async function OrganizationLayout({
 	children,
-}: { children: React.ReactNode }) {
-	const router = useRouter();
-	const pathname = usePathname();
-	const { data: me } = useMe();
-
-	const queryClient = useQueryClient();
-	const handleSignOut = () => {
-		authClient.signOut({
-			fetchOptions: {
-				onSuccess: () => {
-					queryClient.invalidateQueries({ queryKey: ["user"] });
-					router.refresh();
-				},
-				onError: () => {
-					toast.error("Failed to sign out");
-				},
-			},
-		});
-	};
-
-	const isSettingsRoute = pathname.includes("/settings");
+	params,
+}: {
+	children: React.ReactNode;
+	params: Promise<{ organizationSlug: string }>;
+}) {
+	const { organizationSlug } = await params;
+	const projectsPromise = getProjectsByOrganizationSlug(organizationSlug);
 
 	return (
-		<div className="flex flex-1">
-			<div className="flex flex-row">
-				<OrganizationSidebar user={me!} onSignOut={handleSignOut} />
-				{isSettingsRoute && <OrganizationSettingsSidebar />}
+		<>
+			<NavBar organizationSlug={organizationSlug} projectSlug={null} />
+
+			<div className="flex flex-1">
+				<LayoutSidebar
+					organizationSidebar={
+						<OrganizationSidebar organizationSlug={organizationSlug} />
+					}
+					organizationSettingsSidebar={
+						<OrganizationSettingsSidebar projectsPromise={projectsPromise} />
+					}
+				/>
+				<SidebarInset className="top-[var(--header-height)]">
+					{children}
+				</SidebarInset>
 			</div>
-			<SidebarInset className="top-[var(--header-height)]">
-				{children}
-			</SidebarInset>
-		</div>
+		</>
 	);
 }

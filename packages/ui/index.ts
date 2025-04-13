@@ -48,5 +48,4 @@ export * from "./components/ui/tooltip";
 export * from "./components/data-table-skeleton";
 export * from "./components/logo";
 export * from "./components/copy-text";
-export * from "../features/shell";
 export * from "./components/ui/dropzone";

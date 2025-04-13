@@ -11,7 +11,8 @@
 			"@/pages/*": ["pages/*"],
 			"@/styles/*": ["styles/*"],
 			"@/ui/*": ["ui/*"],
-			"@/lib/*": ["lib/*"]
+			"@/lib/*": ["lib/*"],
+			"@/features/*": ["features/*"]
 		},
 		"downlevelIteration": true,
 		"forceConsistentCasingInFileNames": true,
@@ -36,9 +37,9 @@
 		"**/*.ts",
 		"**/*.tsx",
 		".next/types/**/*.ts",
-		"../../packages/features/trpc/query-client.tsx",
-		"../../packages/features/trpc/react.tsx",
-		"../../packages/features/trpc/server.tsx"
+		"@/features/trpc/query-client.tsx",
+		"@/features/trpc/react.tsx",
+		"@/features/trpc/server.tsx"
 	],
 	"exclude": ["node_modules"]
 }

@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { authClient } from "@voidhash/features/auth/lib/client";
+import { authClient } from "@voidhash/auth/client";
 
 const signUpSchema = z
 	.object({
