@@ -6,6 +6,7 @@ export default async function AppMiddleware(req: NextRequest) {
 	const { fullPath, path } = parse(req);
 	console.log(`/app.voidhash.com${fullPath}`);
 
+	console.log(req.headers);
 	const sessionCookie = getSessionCookie(req);
 
 	console.log(sessionCookie);

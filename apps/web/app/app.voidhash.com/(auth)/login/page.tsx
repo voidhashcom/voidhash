@@ -34,11 +34,11 @@ function LoginPageContent() {
 
 		if (error) {
 			toast.error(error.message ?? "An unknown error occurred");
+			setLoading(false);
 			return;
 		}
 
 		router.push("/");
-		setLoading(false);
 	};
 
 	return (
