@@ -24,26 +24,21 @@ function LoginPageContent() {
 	const [password, setPassword] = useState("");
 	const [loading, setLoading] = useState(false);
 
-	const signIn = (e: React.FormEvent) => {
+	const signIn = async (e: React.FormEvent) => {
 		e.preventDefault();
-
 		setLoading(true);
-		authClient.signIn.email(
-			{
-				email: email,
-				password: password,
-			},
-			{
-				onSuccess: () => {
-					router.push("/");
-					setLoading(false);
-				},
-				onError: (error) => {
-					toast.error(error.error.message);
-					setLoading(false);
-				},
-			}
-		);
+		const { error } = await authClient.signIn.email({
+			email: email,
+			password: password,
+		});
+
+		if (error) {
+			toast.error(error.message ?? "An unknown error occurred");
+			return;
+		}
+
+		router.push("/");
+		setLoading(false);
 	};
 
 	return (

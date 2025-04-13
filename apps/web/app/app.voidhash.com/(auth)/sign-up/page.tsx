@@ -61,26 +61,20 @@ export default function SignUpPage() {
 
 	const onSubmit = async (data: SignUpForm) => {
 		setLoading(true);
-		authClient.signUp.email(
-			{
-				email: data.email,
-				password: data.password,
-				name: data.name,
-			},
-			{
-				onSuccess: () => {
-					toast.success("Account created successfully");
-					router.push(
-						`/login?email=${encodeURIComponent(data.email)}&signup=true`
-					);
-					setLoading(false);
-				},
-				onError: (error) => {
-					toast.error(error.error.message);
-					setLoading(false);
-				},
-			}
-		);
+		const { error } = await authClient.signUp.email({
+			email: data.email,
+			password: data.password,
+			name: data.name,
+		});
+
+		if (error) {
+			toast.error(error.message ?? "An unknown error occurred");
+			setLoading(false);
+			return;
+		}
+
+		router.push(`/login?email=${encodeURIComponent(data.email)}&signup=true`);
+		setLoading(false);
 	};
 
 	return (
