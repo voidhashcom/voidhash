@@ -1,24 +1,15 @@
-"use client";
+import { getUser } from "@/features/auth/server/cached-queries";
+import { redirect } from "next/navigation";
 
-import { useMe } from "@voidhash/features/auth/hooks/useMe";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+export default async function Index() {
+	const user = await getUser();
 
-export default function Index() {
-	const { data: me, isLoading } = useMe();
-	const router = useRouter();
-
-	useEffect(() => {
-		if (!isLoading && me) {
-			if (me.organizations.length == 0) {
-				router.push("/create-org");
-			} else {
-				router.push(`/~/${me.organizations[0]!.slug}`);
-			}
-		} else if (!isLoading && !me) {
-			router.push("/login");
+	if (user) {
+		if (user.organizations.length === 0) {
+			return redirect("/create-org");
 		}
-	}, [me, isLoading, router]);
+		return redirect(`/~/${user.organizations[0]!.slug}`);
+	}
 
-	return <div></div>;
+	return redirect("/login");
 }

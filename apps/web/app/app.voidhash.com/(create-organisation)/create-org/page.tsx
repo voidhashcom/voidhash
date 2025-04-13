@@ -20,7 +20,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "@voidhash/features/trpc/react";
+import { useTRPC } from "@/features/trpc/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 

@@ -1,5 +1,4 @@
-"use client";
-import { TRPCReactProvider } from "@voidhash/features/trpc/react";
+import { TRPCReactProvider } from "@/features/trpc/react";
 import { Toaster } from "@voidhash/ui";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {

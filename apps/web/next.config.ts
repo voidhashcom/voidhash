@@ -6,6 +6,12 @@ import "./lib/env";
 // Import env files to validate at build time. Use jiti so we can load .ts files in here.
 
 const nextConfig: NextConfig = {
+	transpilePackages: ["@voidhash/ui", "@/features", "@voidhash/auth"],
+	serverComponentsExternalPackages: [
+		"@voidhash/ui",
+		"@/features",
+		"@voidhash/auth",
+	],
 	/* config options here */
 	redirects: async () => {
 		return [

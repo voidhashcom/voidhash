@@ -1,11 +1,7 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useMe } from "@voidhash/features/auth/client/hooks/useMe";
-import { authClient } from "@voidhash/features/auth/lib/client";
-import { organizationsQueryKeys } from "@voidhash/features/organizations/client/query-keys";
 import {
-	Avatar,
-	AvatarFallback,
 	Button,
 	Card,
 	CardContent,
@@ -13,31 +9,18 @@ import {
 	CardFooter,
 	CardHeader,
 	CardTitle,
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
 	Input,
-	Label,
 	Page,
-	Separator,
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
 	Form,
 	FormControl,
 	FormField,
 	FormItem,
-	FormLabel,
 	FormMessage,
 } from "@voidhash/ui";
-import { LinkIcon, Plus, MoreHorizontal } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { authQueryKeys } from "@voidhash/features/auth/client/query-keys";
 import {
 	deleteOrganizationMutation,
 	updateOrganizationMutation,
