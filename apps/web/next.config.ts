@@ -1,3 +1,4 @@
+import { API_DOMAIN } from "@voidhash/lib/constants";
 import "./lib/env";
 
 // Import env files to validate at build time. Use jiti so we can load .ts files in here.
@@ -10,6 +11,21 @@ const nextConfig = {
 		"@voidhash/lib",
 		"@voidhash/emails",
 	],
+	async rewrites() {
+		return [
+			// for dub proxy
+			{
+				source: "/api/:path*",
+				has: [
+					{
+						type: "host",
+						value: "voidhash.com",
+					},
+				],
+				destination: `${API_DOMAIN}/:path*`,
+			},
+		];
+	},
 };
 
 export default nextConfig;
