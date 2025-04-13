@@ -14,7 +14,12 @@ export default async function AppMiddleware(req: NextRequest) {
 
 	// Prevent infinite redirect loop
 	if (!sessionCookie && path !== "/login" && path !== "/sign-up") {
-		return NextResponse.redirect(new URL("/app.voidhash.com/login", req.url));
+		return NextResponse.redirect(
+			new URL(
+				`/login${path === "/" ? "" : `?next=${encodeURIComponent(fullPath)}`}`,
+				req.url
+			)
+		);
 	}
 
 	// otherwise, rewrite the path to /app
