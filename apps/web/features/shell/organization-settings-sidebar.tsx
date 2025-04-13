@@ -14,7 +14,7 @@ import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { NavMain } from "./nav-main";
 import { Suspense, use } from "react";
-import { type getProjectsByOrganizationSlug } from "../projects/server/cached-queries";
+import { type getProjectsByOrganizationSlug } from "../../lib/queries/cached-queries";
 
 const SidebarProjects = ({
 	organizationSlug,
@@ -30,7 +30,7 @@ const SidebarProjects = ({
 				<SidebarMenuItem key={project.id}>
 					<SidebarMenuButton asChild tooltip={null} isActive={false}>
 						<Link
-							href={`/~/${organizationSlug}/${project.slug}/settings/general`}
+							href={`/${organizationSlug}/${project.slug}/settings/general`}
 						>
 							<div className="flex items-center gap-2">
 								<GradientAvatar
@@ -84,9 +84,9 @@ export function OrganizationSettingsSidebar({
 				items: [
 					{
 						title: "General",
-						url: `/~/${organizationSlug}/settings/general`,
+						url: `/${organizationSlug}/~/settings/general`,
 						isActive: () =>
-							pathname.startsWith(`/~/${organizationSlug}/settings/general`),
+							pathname.startsWith(`/${organizationSlug}/~/settings/general`),
 					},
 					// TODO: Add members settings and billing
 					// {

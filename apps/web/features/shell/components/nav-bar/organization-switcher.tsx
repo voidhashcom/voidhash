@@ -2,7 +2,7 @@ import { GradientAvatar } from "@voidhash/ui/gradient-avatar";
 
 import { OrganizationProjectSwitcher } from "./organization-project-switcher";
 import Link from "next/link";
-import { getOrganizationBySlug } from "../../../organizations/server/cached-queries";
+import { getOrganizationBySlug } from "@/lib/queries/cached-queries";
 import { Suspense } from "react";
 import { Skeleton } from "@voidhash/ui";
 
@@ -21,7 +21,7 @@ const OrganizationSwitcherComponent = async ({
 
 	return (
 		<div className="flex items-center gap-2">
-			<Link href={`/~/${organizationSlug}`}>
+			<Link href={`/${organizationSlug}`}>
 				<div className="flex items-center gap-2">
 					<GradientAvatar
 						className="h-6 w-6 rounded-lg text-xs"

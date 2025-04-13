@@ -85,7 +85,7 @@ export function PaymentProvidersList() {
 						trigger={
 							<Link
 								className="inset-0 absolute w-full h-full"
-								href={`/~/${organizationSlug}/${projectSlug}/settings/payment-providers`}
+								href={`/${organizationSlug}/${projectSlug}/settings/payment-providers`}
 							></Link>
 						}
 					/>

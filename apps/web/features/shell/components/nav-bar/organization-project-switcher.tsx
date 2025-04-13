@@ -14,8 +14,8 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "../../../trpc/react";
 import { useMe } from "../../../auth/hooks/useMe";
-import { CreateOrganizationModal } from "../../../organizations/components/create-organization-modal";
-import { CreateProjectModal } from "../../../projects/components/create-project-modal";
+import { CreateOrganizationModal } from "../../../organizations/create-organization-modal";
+import { CreateProjectModal } from "../../../projects/create-project-modal";
 import { useActiveOrganization } from "../../hooks/useActiveOrganization";
 import { useActiveProject } from "../../hooks/useActiveProject";
 
@@ -45,10 +45,10 @@ function OrganizationProjectSwitcherProjects({
 	return (
 		<div className="w-56 bg-accent/30">
 			<div className="px-2 py-1.5 text-xs text-muted-foreground">Projects</div>
-			{(projects ?? []).map((project, index) => (
+			{(projects ?? []).map((project) => (
 				<Link
 					key={project.id}
-					href={`/~/${organizationSlug}/${project.slug}`}
+					href={`/${organizationSlug}/${project.slug}`}
 					onClick={onProjectClick}
 					className="flex w-full items-center gap-2 p-2 hover:bg-accent text-foreground hover:text-accent-foreground text-sm"
 				>
@@ -134,7 +134,7 @@ export function OrganizationProjectSwitcher() {
 							{organizations.map((organization, index) => (
 								<Link
 									key={organization.name}
-									href={`/~/${organization.slug}`}
+									href={`/${organization.slug}`}
 									onClick={() => setOpen(false)}
 									onMouseEnter={() => setHighlightedOrganizationIndex(index)}
 									className={cn(
