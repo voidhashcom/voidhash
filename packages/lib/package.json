@@ -11,7 +11,7 @@
         ".": "./src/index.ts"
     },
     "scripts": {
-        "build": "tsup",
+        "-build": "tsup",
         "lint": "eslint src/",
         "typecheck": "tsc --noEmit"
     },
