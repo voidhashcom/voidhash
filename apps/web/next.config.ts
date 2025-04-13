@@ -47,7 +47,7 @@ const nextConfig: NextConfig = {
 						{
 							key: "host",
 							type: "host",
-							value: "dub.sh",
+							value: "voidhash.com",
 						},
 					],
 					destination: `https://voidhash.com/${segment}`,
@@ -59,37 +59,13 @@ const nextConfig: NextConfig = {
 						{
 							key: "host",
 							type: "host",
-							value: "dub.sh",
+							value: "voidhash.com",
 						},
 					],
 					destination: `https://voidhash.com/${segment}/:path*`,
 					permanent: true,
 				},
 			]),
-			{
-				source: "/metatags",
-				has: [
-					{
-						key: "host",
-						type: "host",
-						value: "dub.sh",
-					},
-				],
-				destination: "https://voidhash.com/tools/metatags",
-				permanent: true,
-			},
-			{
-				source: "/metatags",
-				has: [
-					{
-						key: "host",
-						type: "host",
-						value: "voidhash.com",
-					},
-				],
-				destination: "/tools/metatags",
-				permanent: true,
-			},
 			{
 				source: "/",
 				has: [
@@ -114,18 +90,18 @@ const nextConfig: NextConfig = {
 				destination: "https://preview.voidhash.com",
 				permanent: true,
 			},
-			{
-				source: "/",
-				has: [
-					{
-						key: "host",
-						type: "host",
-						value: "admin.voidhash.com",
-					},
-				],
-				destination: "https://admin.voidhash.com",
-				permanent: true,
-			},
+			// {
+			// 	source: "/",
+			// 	has: [
+			// 		{
+			// 			key: "host",
+			// 			type: "host",
+			// 			value: "admin.voidhash.com",
+			// 		},
+			// 	],
+			// 	destination: "https://admin.voidhash.com",
+			// 	permanent: true,
+			// },
 		];
 	},
 };
