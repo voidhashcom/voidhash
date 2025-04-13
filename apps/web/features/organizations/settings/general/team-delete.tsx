@@ -24,8 +24,8 @@ export function TeamDelete({ organizationId }: { organizationId: string }) {
 			toast.success("Team deleted successfully");
 			router.push("/");
 		},
-		onError: () => {
-			toast.error("Failed to delete team. Please try again.");
+		onError: (error) => {
+			toast.error(error.error.serverError);
 		},
 	});
 

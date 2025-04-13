@@ -1,3 +1,4 @@
+"use client";
 import {
 	Sheet,
 	SheetTrigger,
@@ -24,9 +25,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useActiveProject } from "../../../shell/hooks/useActiveProject";
+import { useActiveProject } from "../../../../shell/hooks/useActiveProject";
 import { CheckCircleIcon, XIcon } from "lucide-react";
-import { useTRPC } from "../../../trpc/react";
+import { useTRPC } from "../../../../trpc/react";
 
 const appStoreConfigurationSchema = z.object({
 	issuerId: z.string().min(1, {

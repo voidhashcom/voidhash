@@ -51,11 +51,7 @@ export function TeamNameForm({
 			router.refresh();
 		},
 		onError: (error) => {
-			if (error.error.validationErrors?.name?._errors?.[0]) {
-				toast.error(error.error.validationErrors.name._errors[0]);
-			} else {
-				toast.error("Failed to update team name. Please try again.");
-			}
+			toast.error(error.error.serverError);
 		},
 	});
 

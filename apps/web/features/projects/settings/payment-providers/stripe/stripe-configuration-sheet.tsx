@@ -1,3 +1,4 @@
+"use client";
 import {
 	Sheet,
 	SheetTrigger,
@@ -24,8 +25,8 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { stripe } from "./stripe";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useActiveProject } from "../../../shell/hooks/useActiveProject";
-import { useTRPC } from "../../../trpc/react";
+import { useActiveProject } from "../../../../shell/hooks/useActiveProject";
+import { useTRPC } from "../../../../trpc/react";
 
 type StripeConfigurationForm = z.infer<typeof stripe.configurationSchema>;
 

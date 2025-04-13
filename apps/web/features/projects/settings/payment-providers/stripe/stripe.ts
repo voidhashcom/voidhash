@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { PaymentProvider } from "../../lib/types";
-import { StripeLogo } from "./client/components/stripe-logo";
+import { PaymentProvider } from "../../../../payment-providers/lib/types";
+import { StripeLogo } from "./stripe-logo";
 
 export const stripe = {
 	id: "stripe",

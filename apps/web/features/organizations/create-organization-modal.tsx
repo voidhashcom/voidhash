@@ -65,8 +65,8 @@ export function CreateOrganizationModal({
 				router.push(`/${res?.data?.slug}`);
 			}
 		},
-		onError: () => {
-			toast.error("Failed to create team. Please try again.");
+		onError: (error) => {
+			toast.error(error.error.serverError);
 		},
 	});
 
