@@ -3,10 +3,10 @@ import mysql from "mysql2/promise";
 import { Client } from "@planetscale/database";
 import { drizzle as drizzlePlanetscale } from "drizzle-orm/planetscale-serverless";
 import * as schema from "./schema";
+import type { MySql2Database } from "drizzle-orm/mysql2";
+import type { PlanetScaleDatabase } from "drizzle-orm/planetscale-serverless";
 
-export let db:
-	| ReturnType<typeof drizzlePlanetscale>
-	| ReturnType<typeof drizzleMysql>;
+let db: MySql2Database<typeof schema> | PlanetScaleDatabase<typeof schema>;
 
 if (process.env["NODE_ENV"] === "production") {
 	const client = new Client({
@@ -31,4 +31,5 @@ if (process.env["NODE_ENV"] === "production") {
 	});
 }
 
+export { db };
 export * from "./schema";
