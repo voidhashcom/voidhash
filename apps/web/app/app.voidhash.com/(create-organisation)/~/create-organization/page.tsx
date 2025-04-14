@@ -65,6 +65,7 @@ export default function CreateOrgPage() {
 	const signOut = async () => {
 		await authClient.signOut();
 		router.refresh();
+		router.push("/");
 	};
 
 	return (
