@@ -33,6 +33,9 @@ export const createSecretKey = authActionClient
 		}
 
 		const environment = await getEnvironment(organization.slug, project.slug);
+		if (!environment) {
+			throw new Error("Environment not found");
+		}
 		const secretKey = await generateSecretKeyFn(environment);
 		await db.insert(apiKeys).values({
 			id: createId(),
