@@ -23,8 +23,6 @@ const createProjectSchema = z.object({
 export const createProject = authActionClient
 	.schema(createProjectSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		// TODO: Add authorization
-
 		const organization = await getOrganizationById(parsedInput.organizationId);
 		if (!organization) {
 			throw new NotFoundError("Organization not found");

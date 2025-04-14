@@ -12,6 +12,9 @@ export const parse = (req: NextRequest) => {
 
 	// path is the path of the URL (e.g. dub.sh/stats/github -> /stats/github)
 	const path = req.nextUrl.pathname;
+	const pathParts = path.split("/");
+	const organizationSlug = pathParts[1] !== "~" ? pathParts[1] : null;
+	const projectSlug = pathParts[2] !== "~" ? pathParts[2] : null;
 
 	// fullPath is the full URL path (along with search params)
 	const searchParams = req.nextUrl.searchParams.toString();
@@ -31,5 +34,7 @@ export const parse = (req: NextRequest) => {
 		fullKey,
 		searchParamsObj,
 		searchParamsString,
+		organizationSlug,
+		projectSlug,
 	};
 };

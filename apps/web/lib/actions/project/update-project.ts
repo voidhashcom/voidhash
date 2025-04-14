@@ -5,7 +5,7 @@ import { authActionClient } from "../../../features/lib/safe-action";
 import { db, projects } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { getProjectById } from "@/lib/queries/cached-queries";
-import { NotFoundError } from "@/features/lib/errors";
+import { NotFoundError } from "@voidhash/lib";
 import { revalidateTag } from "next/cache";
 
 const updateProjectSchema = z.object({

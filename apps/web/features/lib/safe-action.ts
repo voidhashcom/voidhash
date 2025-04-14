@@ -4,7 +4,7 @@ import {
 	DEFAULT_SERVER_ERROR_MESSAGE,
 } from "next-safe-action";
 import { headers } from "next/headers";
-import { VoidhashError } from "./errors";
+import { VoidhashError } from "@voidhash/lib";
 
 export const actionClient = createSafeActionClient({
 	handleServerError(e) {

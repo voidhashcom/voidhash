@@ -9,7 +9,7 @@
   </h2>
 
   <p align="center">
-    The universal subscription management library in Typescript for orchestrating subscriptions from Google Play, App Store, Stripe and more.
+    <!-- The universal subscription management library in Typescript for orchestrating subscriptions from Google Play, App Store, Stripe and more. -->
     <br />
     <a href="https://chiron.sh"><strong>Learn more »</strong></a>
     <br />
@@ -35,12 +35,6 @@ Core
 -- [x] Update
 -- [x] Delete
 
-- [ ] Authorization
--- [ ] Setup
--- [ ] Projects
---- [ ] Create
---- [ ] Update
---- [ ] Delete
 
 - [ ] Environments
 -- [ ] Create
