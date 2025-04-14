@@ -3,7 +3,12 @@ import { ProjectApiKeysPage } from "@/features/projects/settings/api-keys/projec
 export default async function Page({
 	params,
 }: { params: Promise<{ organizationSlug: string; projectSlug: string }> }) {
-	const { projectSlug } = await params;
+	const { organizationSlug, projectSlug } = await params;
 
-	return <ProjectApiKeysPage projectSlug={projectSlug} />;
+	return (
+		<ProjectApiKeysPage
+			organizationSlug={organizationSlug}
+			projectSlug={projectSlug}
+		/>
+	);
 }

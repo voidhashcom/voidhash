@@ -20,11 +20,11 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useTRPC } from "../trpc/react";
 import { useRouter } from "next/navigation";
-
+import { useAction } from "next-safe-action/hooks";
+import { createProject } from "@/lib/actions/project/create-project";
 const createProjectSchema = z.object({
 	name: z
 		.string()
@@ -58,32 +58,18 @@ export function CreateProjectModal({
 		},
 	});
 
-	const trpc = useTRPC();
 	const queryClient = useQueryClient();
 
-	const { mutate: createProject, isPending } = useMutation(
-		trpc.projects.create.mutationOptions({
-			onSuccess: async (res) => {
-				if (res?.id) {
-					queryClient.invalidateQueries({
-						queryKey: trpc.projects.pathKey(),
-					});
-
-					onClose?.();
-
-					// Navigate to the new project
-					router.push(`/~/${organizationSlug}/${res.slug}`);
-				}
-			},
-			onError: (error) => {
-				if (error.data?.voidhashError) {
-					toast.error(error.data.voidhashError.message);
-				} else {
-					toast.error("Failed to create project. Please try again.");
-				}
-			},
-		})
-	);
+	const { execute, isPending } = useAction(createProject, {
+		onSuccess: async (res) => {
+			queryClient.invalidateQueries();
+			router.push(`/${organizationSlug}/${res.data?.slug}`);
+			onClose?.();
+		},
+		onError: (error) => {
+			toast.error(error.error.serverError);
+		},
+	});
 
 	const handleOpenChange = (open: boolean) => {
 		if (!open) {
@@ -92,7 +78,7 @@ export function CreateProjectModal({
 	};
 
 	const onSubmit = (data: CreateProjectForm) => {
-		createProject({
+		execute({
 			...data,
 			organizationId,
 		});

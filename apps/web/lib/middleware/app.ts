@@ -20,9 +20,20 @@ export default async function AppMiddleware(req: NextRequest) {
 		);
 	}
 
-	if (organizationSlug && projectSlug) {
-		// Sets the environment cookie if it doesn't exist
-		await getEnvironment(organizationSlug, projectSlug);
+	if (
+		organizationSlug &&
+		projectSlug &&
+		!path.includes("/environment-redirect")
+	) {
+		const environment = await getEnvironment(organizationSlug, projectSlug);
+		if (!environment) {
+			return NextResponse.redirect(
+				new URL(
+					`/${organizationSlug}/${projectSlug}/environment-redirect?next=${encodeURIComponent(fullPath)}`,
+					req.url
+				)
+			);
+		}
 	}
 
 	// otherwise, rewrite the path to /app

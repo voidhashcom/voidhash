@@ -39,6 +39,41 @@ export const projectsRelations = relations(projects, ({ one }) => ({
 	}),
 }));
 
+export const apiKeys = mysqlTable("api_keys", {
+	id: varchar("id", { length: 255 }).primaryKey(),
+
+	name: varchar("name", { length: 255 }).notNull(),
+
+	/**
+	 * Shows the first few characters of the API key
+	 * This allows you to show those few characters in the UI to make it easier for users to identify the API key.
+	 */
+	end: varchar("start", { length: 255 }).notNull(),
+	/**
+	 * The full API key.
+	 */
+	key: varchar("key", { length: 255 }).notNull(),
+	/**
+	 * The prefix of the key.
+	 */
+	prefix: varchar("prefix", { length: 16 }).notNull(),
+	/**
+	 * Whether the API key is public. Public keys are not hashed and are visible to users.
+	 */
+	isPublic: boolean("is_public").notNull().default(false),
+	/**
+	 * The environment of the API key.
+	 */
+	environment: mysqlEnum("environment", ["production", "testing"]).notNull(),
+	projectId: varchar("project_id", { length: 255 })
+		.notNull()
+		.references(() => projects.id, {
+			onDelete: "cascade",
+		}),
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at").onUpdateNow(),
+});
+
 export const customer = mysqlTable("customer", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	name: varchar("name", { length: 255 }),
@@ -56,7 +91,9 @@ export const projectPaymentProviderConfiguration = mysqlTable(
 		providerId: varchar("provider_id", { length: 255 }),
 		projectId: varchar("project_id", { length: 255 })
 			.notNull()
-			.references(() => projects.id),
+			.references(() => projects.id, {
+				onDelete: "cascade",
+			}),
 		enabled: boolean("enabled").notNull().default(false),
 		configuration: json("configuration").$type<object>(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
