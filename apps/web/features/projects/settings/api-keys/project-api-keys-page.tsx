@@ -1,14 +1,31 @@
 import { Page } from "@/features/shell";
 import { Card } from "@voidhash/ui";
 import { ApiKeyRecord } from "./api-key-record";
+import { getApiKeys, getProjectBySlug } from "@/lib/queries/cached-queries";
+import { notFound } from "next/navigation";
+import { getEnvironment } from "@/lib/environments/utils";
 
-export function ProjectApiKeysPage({
+export async function ProjectApiKeysPage({
+	organizationSlug,
 	projectSlug,
 }: {
+	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const privateKey = "sk_test_51Np...";
-	const publicKey = "pk_test_51Np...";
+	const [project, environment] = await Promise.all([
+		getProjectBySlug(projectSlug),
+		getEnvironment(organizationSlug, projectSlug),
+	]);
+
+	if (!project) {
+		return notFound();
+	}
+
+	if (!environment) {
+		throw new Error("Environment not found");
+	}
+
+	const apiKeys = await getApiKeys(project.id, environment);
 
 	return (
 		<Page>
@@ -18,8 +35,9 @@ export function ProjectApiKeysPage({
 				<p className="text-muted-foreground mt-3">Manage your API keys</p>
 				<div className="mt-8">
 					<Card className="divide-y grid p-0 gap-0">
-						<ApiKeyRecord apiKey={privateKey} />
-						<ApiKeyRecord apiKey={publicKey} />
+						{apiKeys.map((apiKey) => (
+							<ApiKeyRecord key={apiKey.id} apiKey={apiKey} />
+						))}
 					</Card>
 				</div>
 			</div>

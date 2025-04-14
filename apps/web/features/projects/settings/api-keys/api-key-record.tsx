@@ -1,10 +1,11 @@
 "use client";
+import { type getApiKeyById } from "@/lib/queries/cached-queries";
 import { useState } from "react";
 
 export function ApiKeyRecord({
 	apiKey,
 }: {
-	apiKey: string;
+	apiKey: NonNullable<Awaited<ReturnType<typeof getApiKeyById>>>;
 }) {
 	const [showApiKey, setShowApiKey] = useState(false);
 
@@ -17,7 +18,13 @@ export function ApiKeyRecord({
 			<div className="flex flex-row items-center justify-between">
 				<div className="flex items-center gap-4 flex-1">
 					<div className="flex flex-col">
-						<p>{apiKey}</p>
+						{apiKey?.isPublic ? (
+							<p>{apiKey.key}</p>
+						) : (
+							<p>
+								{apiKey.prefix}...{apiKey.end}
+							</p>
+						)}
 					</div>
 				</div>
 				<div className="flex items-center gap-2"></div>

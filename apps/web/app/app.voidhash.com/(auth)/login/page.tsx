@@ -38,7 +38,12 @@ function LoginPageContent() {
 			return;
 		}
 
-		router.push("/");
+		const next = searchParams.get("next");
+		if (next) {
+			router.push(decodeURIComponent(next));
+		} else {
+			router.push("/");
+		}
 	};
 
 	return (

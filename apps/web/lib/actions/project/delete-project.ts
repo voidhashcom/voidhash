@@ -5,7 +5,10 @@ import { authActionClient } from "../../../features/lib/safe-action";
 import { db, projects } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { getProjectById } from "@/lib/queries/cached-queries";
+import {
+	getOrganizationById,
+	getProjectById,
+} from "@/lib/queries/cached-queries";
 import { revalidateTag } from "next/cache";
 
 const deleteProjectSchema = z.object({
@@ -16,8 +19,15 @@ export const deleteProject = authActionClient
 	.schema(deleteProjectSchema)
 	.action(async ({ parsedInput }) => {
 		const project = await getProjectById(parsedInput.projectId);
+
 		if (!project) {
 			throw new NotFoundError("Project not found");
+		}
+
+		const organization = await getOrganizationById(project.organizationId);
+
+		if (!organization) {
+			throw new Error("Organization not found");
 		}
 
 		await db.delete(projects).where(eq(projects.id, parsedInput.projectId));
