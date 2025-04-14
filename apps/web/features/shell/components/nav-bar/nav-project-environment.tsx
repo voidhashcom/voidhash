@@ -21,7 +21,7 @@ export async function NavProjectEnvironmentContent({
 	return (
 		<div>
 			<NavProjectEnvironmentToggle
-				environment={environment}
+				environment={environment ?? "testing"}
 				projectId={project.id}
 			/>
 		</div>
