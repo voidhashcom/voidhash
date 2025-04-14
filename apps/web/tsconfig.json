@@ -40,5 +40,5 @@
 		"@/features/trpc/react.tsx",
 		"@/features/trpc/server.tsx"
 	],
-	"exclude": ["node_modules"]
+	"exclude": ["node_modules", ".next"]
 }

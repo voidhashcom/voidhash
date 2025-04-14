@@ -1,8 +1,9 @@
+import { getEnvironment } from "../environments/utils";
 import { parse } from "./utils/parse";
 import { NextRequest, NextResponse } from "next/server";
 
 export default async function AppMiddleware(req: NextRequest) {
-	const { fullPath, path } = parse(req);
+	const { fullPath, path, organizationSlug, projectSlug } = parse(req);
 	console.log(`/app.voidhash.com${fullPath}`);
 
 	console.log(req.headers);
@@ -17,6 +18,11 @@ export default async function AppMiddleware(req: NextRequest) {
 				req.url
 			)
 		);
+	}
+
+	if (organizationSlug && projectSlug) {
+		// Sets the environment cookie if it doesn't exist
+		await getEnvironment(organizationSlug, projectSlug);
 	}
 
 	// otherwise, rewrite the path to /app

@@ -1,6 +1,6 @@
 "use server";
 
-import { NotFoundError } from "@/features/lib/errors";
+import { NotFoundError } from "@voidhash/lib";
 import { authActionClient } from "../../../features/lib/safe-action";
 import { db, projects } from "@voidhash/db";
 import { eq } from "drizzle-orm";

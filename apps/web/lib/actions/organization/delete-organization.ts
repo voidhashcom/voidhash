@@ -19,7 +19,6 @@ export const deleteOrganization = authActionClient
 			throw new Error("Organization not found");
 		}
 
-		// TODO: Add authorization
 		const response = await auth.api.deleteOrganization({
 			headers: await headers(),
 			body: {
