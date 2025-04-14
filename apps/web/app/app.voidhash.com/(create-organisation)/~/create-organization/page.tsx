@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAction } from "next-safe-action/hooks";
 import { createOrganization } from "@/lib/actions/organization/create-organization";
+import { authClient } from "@voidhash/auth/client";
 
 const createOrganizationSchema = z.object({
 	name: z
@@ -60,6 +61,12 @@ export default function CreateOrgPage() {
 		execute(data);
 	};
 
+	// Sign out
+	const signOut = async () => {
+		await authClient.signOut();
+		router.refresh();
+	};
+
 	return (
 		<div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
 			<div className="w-full max-w-sm">
@@ -71,7 +78,7 @@ export default function CreateOrgPage() {
 					</div>
 					<Card className="mt-4 text-center">
 						<CardHeader>
-							<CardTitle className="text-2xl">Welcome to voidhash</CardTitle>
+							<CardTitle className="text-2xl">Welcome to Voidhash</CardTitle>
 							<CardDescription>
 								Let&apos;s start by creating your new team.
 							</CardDescription>
@@ -110,7 +117,10 @@ export default function CreateOrgPage() {
 					</Card>
 					<div className="text-center text-sm text-muted-foreground">
 						Signed in to a wrong account?{" "}
-						<button className="underline underline-offset-4 text-foreground cursor-pointer">
+						<button
+							className="underline underline-offset-4 text-foreground cursor-pointer"
+							onClick={signOut}
+						>
 							Logout
 						</button>
 					</div>
