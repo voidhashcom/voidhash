@@ -21,9 +21,10 @@ const ActiveOrganization = ({
 	}
 
 	return (
-		<>
+		<div className="flex items-center gap-2 group">
+			<ChevronLeft className="size-4 -ml-1 opacity-0 group-hover:opacity-100 transition-opacity absolute" />
 			<GradientAvatar
-				className="h-4 w-4 rounded-lg text-xs"
+				className="h-4 w-4 rounded-lg text-xs scale-100 group-hover:opacity-0 transition-all group-hover:scale-0"
 				src={undefined}
 				alt={activeOrganization.name}
 				fallback={activeOrganization.id}
@@ -32,7 +33,7 @@ const ActiveOrganization = ({
 			<span className="truncate text-sm text-foreground-">
 				{activeOrganization?.name}
 			</span>
-		</>
+		</div>
 	);
 };
 
@@ -104,7 +105,6 @@ export function ProjectSettingsSidebar({
 						href={`/${organizationSlug}/~/settings/general`}
 						className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
 					>
-						<ChevronLeft className="size-4 -ml-1" />
 						<Suspense fallback={<ActiveOrganizationSkeleton />}>
 							<ActiveOrganization
 								activeOrganizationPromise={activeOrganizationPromise}

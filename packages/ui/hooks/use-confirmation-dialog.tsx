@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from "react";
+"use client";
+import { useState, useCallback } from "react";
 import {
 	AlertDialog,
 	AlertDialogAction,

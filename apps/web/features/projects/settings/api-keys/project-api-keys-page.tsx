@@ -4,6 +4,7 @@ import { ApiKeyRecord } from "./api-key-record";
 import { getApiKeys, getProjectBySlug } from "@/lib/queries/cached-queries";
 import { notFound } from "next/navigation";
 import { getEnvironment } from "@/lib/environments/utils";
+import { CreateSecretKeyModalButton } from "./create-secret-key-modal-button";
 
 export async function ProjectApiKeysPage({
 	organizationSlug,
@@ -31,7 +32,10 @@ export async function ProjectApiKeysPage({
 		<Page>
 			{/* Key is used to reload the default form data when the organization slug changes */}
 			<div className="max-w-4xl mx-auto">
-				<h1 className="text-3xl font-normal tracking-right">API Keys</h1>
+				<div className="flex flex-row items-center justify-between">
+					<h1 className="text-3xl font-normal tracking-right">API Keys</h1>
+					<CreateSecretKeyModalButton projectId={project.id} />
+				</div>
 				<p className="text-muted-foreground mt-3">Manage your API keys</p>
 				<div className="mt-8">
 					<Card className="divide-y grid p-0 gap-0">

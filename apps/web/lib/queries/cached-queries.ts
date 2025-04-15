@@ -13,7 +13,6 @@ import {
 import { unstable_cache } from "next/cache";
 import { auth } from "@voidhash/auth";
 import { headers } from "next/headers";
-import { getEnvironment } from "../environments/utils";
 import { NotFoundError, UnauthorizedError } from "@voidhash/lib/constants";
 import { Environment } from "../environments/types";
 
@@ -101,9 +100,9 @@ export const getApiKeys = cache(
 			async (projectId: string) => {
 				return getApiKeysQuery(projectId);
 			},
-			["api-keys"],
+			["api-keys", project.id],
 			{
-				tags: [`api-keys`],
+				tags: [`api-keys_${project.id}`],
 				revalidate: 3600,
 			}
 		)(project.id);

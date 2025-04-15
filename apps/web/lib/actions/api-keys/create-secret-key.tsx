@@ -10,6 +10,7 @@ import { z } from "zod";
 import { getEnvironment } from "@/lib/environments/utils";
 import { createSecretKey as generateSecretKeyFn } from "@/lib/api-keys/utils";
 import { apiKeys, db } from "@voidhash/db";
+import { revalidateTag } from "next/cache";
 
 const createSecretKeySchema = z.object({
 	projectId: z.string(),
@@ -36,11 +37,15 @@ export const createSecretKey = authActionClient
 		if (!environment) {
 			throw new Error("Environment not found");
 		}
-		const secretKey = await generateSecretKeyFn(environment);
+		const { rawKey, ...secretKey } = await generateSecretKeyFn(environment);
 		await db.insert(apiKeys).values({
 			id: createId(),
 			projectId: project.id,
 			name: parsedInput.name,
 			...secretKey,
 		});
+
+		revalidateTag(`api-keys_${project.id}`);
+
+		return { ...secretKey, rawKey };
 	});

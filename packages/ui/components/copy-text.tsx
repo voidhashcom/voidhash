@@ -16,7 +16,9 @@ export function CopyText({
 
 	return (
 		<div className={cn("flex items-center space-x-2", className)}>
-			<span className="overflow-x-auto flex-1">{text}</span>
+			<span className="flex-1 min-w-0 w-32 whitespace-pre-wrap break-words ">
+				{text}
+			</span>
 			<Button
 				size={"sm"}
 				variant={"outline"}
