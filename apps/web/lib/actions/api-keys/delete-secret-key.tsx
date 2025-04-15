@@ -4,38 +4,24 @@ import { NotFoundError } from "@voidhash/lib";
 import { authActionClient } from "@/features/lib/safe-action";
 import { getApiKeyById } from "@/lib/queries/cached-queries";
 import { z } from "zod";
-import { createSecretKey } from "@/lib/api-keys/utils";
 import { apiKeys, db } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 
-const rotateSecretKeySchema = z.object({
+const deleteSecretKeySchema = z.object({
 	secretKeyId: z.string(),
 });
 
-export const rotateSecretKey = authActionClient
-	.schema(rotateSecretKeySchema)
+export const deleteSecretKey = authActionClient
+	.schema(deleteSecretKeySchema)
 	.action(async ({ parsedInput }) => {
 		const existingKey = await getApiKeyById(parsedInput.secretKeyId);
 		if (!existingKey) {
 			throw new NotFoundError("API key not found");
 		}
 
-		const { rawKey, ...newKey } = await createSecretKey(
-			existingKey.environment
-		);
-
-		await db
-			.update(apiKeys)
-			.set({
-				...newKey,
-				updatedAt: new Date(),
-				createdAt: new Date(),
-			})
-			.where(eq(apiKeys.id, existingKey.id));
+		await db.delete(apiKeys).where(eq(apiKeys.id, existingKey.id));
 
 		revalidateTag(`api-keys_${existingKey.projectId}`);
 		revalidateTag(`api-key_${existingKey.id}`);
-
-		return { ...newKey, rawKey };
 	});

@@ -1,6 +1,7 @@
-import { base64Url, createId } from "@voidhash/lib/functions";
+import { base64Url } from "@voidhash/lib/functions";
 import { Environment, Environments } from "../environments/types";
 import { createHash } from "@voidhash/lib";
+import { ApiKey } from "./types";
 
 const keyGenerator = async (options: {
 	length: number;
@@ -63,10 +64,13 @@ async function generatePublishableKey(environment: Environment) {
 	return key;
 }
 
-export const createPublishableKey = async (environment: Environment) => {
+export const createPublishableKey = async (
+	environment: Environment
+): Promise<ApiKey> => {
 	const key = await generatePublishableKey(environment);
 	return {
 		key: key,
+		rawKey: key,
 		environment: environment,
 		isPublic: true,
 		end: key.slice(-KEY_END_LENGTH),
@@ -77,18 +81,25 @@ export const createPublishableKey = async (environment: Environment) => {
 	};
 };
 
-export const createSecretKey = async (environment: Environment) => {
+export const createSecretKey = async (
+	environment: Environment
+): Promise<ApiKey> => {
 	const key = await generateSecretKey(environment);
 	const hash = await createHash("SHA-256").digest(key);
 	const hashed = base64Url.encode(hash, {
 		padding: false,
 	});
 
+	console.log(key);
+	const end = key.slice(key.length - KEY_END_LENGTH);
+	console.log(end);
+
 	return {
 		key: hashed,
+		rawKey: key,
 		environment: environment,
 		isPublic: false,
-		end: key.slice(-KEY_END_LENGTH),
+		end: end,
 		prefix:
 			environment === Environments.Production
 				? PRODUCTION_SECRET_KEY_PREFIX
