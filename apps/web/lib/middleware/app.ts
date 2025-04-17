@@ -1,4 +1,5 @@
 import { getEnvironment } from "../environments/utils";
+import { NextMiddlewareCookiesAdapter } from "../nextjs/utils/next-middleware-cookie-adapter";
 import { parse } from "./utils/parse";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -25,7 +26,11 @@ export default async function AppMiddleware(req: NextRequest) {
 		projectSlug &&
 		!path.includes("/environment-redirect")
 	) {
-		const environment = await getEnvironment(organizationSlug, projectSlug);
+		const environment = await getEnvironment(
+			new NextMiddlewareCookiesAdapter(req),
+			organizationSlug,
+			projectSlug
+		);
 		if (!environment) {
 			return NextResponse.redirect(
 				new URL(

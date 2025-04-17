@@ -1,7 +1,7 @@
 "use client";
 
-import { updateProject } from "@/lib/actions/project/update-project";
-import { getProjectBySlug } from "@/lib/queries/cached-queries";
+import { updateProjectAction } from "@/lib/nextjs/server-actions";
+import { getProjectBySlug } from "@/lib/services/projects/queries";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	Card,
@@ -45,20 +45,23 @@ export function ProjectNameForm({
 
 	const router = useRouter();
 
-	const { execute: updateProjectName, isPending } = useAction(updateProject, {
-		onSuccess: () => {
-			toast.success("Project name updated successfully");
-			router.refresh();
-		},
-		onError: (error) => {
-			toast.error(error.error.serverError);
-		},
-	});
+	const { execute: updateProjectName, isPending } = useAction(
+		updateProjectAction,
+		{
+			onSuccess: () => {
+				toast.success("Project name updated successfully");
+				router.refresh();
+			},
+			onError: (error) => {
+				toast.error(error.error.serverError);
+			},
+		}
+	);
 
 	const onSubmit = (data: UpdateProjectNameForm) => {
 		if (!project) return;
 		updateProjectName({
-			projectId: project.id,
+			id: project.id,
 			name: data.name,
 		});
 	};

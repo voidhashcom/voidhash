@@ -24,7 +24,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useAction } from "next-safe-action/hooks";
-import { createSecretKey } from "@/lib/actions/api-keys/create-secret-key";
+import { createSecretKeyAction } from "@/lib/nextjs/server-actions";
 import { ApiKey } from "@/lib/api-keys/types";
 
 const createSecretKeySchema = z.object({
@@ -58,7 +58,7 @@ export function CreateSecretKeyModal({
 		},
 	});
 
-	const { execute, isPending } = useAction(createSecretKey, {
+	const { execute, isPending } = useAction(createSecretKeyAction, {
 		onSuccess: (res) => {
 			if (res.data) {
 				toast.success("Secret key created successfully");

@@ -1,7 +1,7 @@
 "use client";
 
-import { updateOrganization } from "@/lib/actions/organization/update-organization";
-import { getOrganizationBySlug } from "@/lib/queries/cached-queries";
+import { updateOrganizationAction } from "@/lib/nextjs/server-actions";
+import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	Card,
@@ -45,15 +45,18 @@ export function TeamNameForm({
 
 	const router = useRouter();
 
-	const { execute: updateTeamName, isPending } = useAction(updateOrganization, {
-		onSuccess: () => {
-			toast.success("Team name updated successfully");
-			router.refresh();
-		},
-		onError: (error) => {
-			toast.error(error.error.serverError);
-		},
-	});
+	const { execute: updateTeamName, isPending } = useAction(
+		updateOrganizationAction,
+		{
+			onSuccess: () => {
+				toast.success("Team name updated successfully");
+				router.refresh();
+			},
+			onError: (error) => {
+				toast.error(error.error.serverError);
+			},
+		}
+	);
 
 	const onSubmit = (data: UpdateTeamNameForm) => {
 		if (!organization) return;

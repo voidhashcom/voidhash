@@ -1,10 +1,12 @@
 import { Page } from "@/features/shell";
 import { Card } from "@voidhash/ui";
 import { ApiKeyRecord } from "./api-key-record";
-import { getApiKeys, getProjectBySlug } from "@/lib/queries/cached-queries";
+import { getProjectBySlug } from "@/lib/services/projects/queries";
 import { notFound } from "next/navigation";
 import { getEnvironment } from "@/lib/environments/utils";
 import { CreateSecretKeyModalButton } from "./create-secret-key-modal-button";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { getApiKeys } from "@/lib/services/api-keys/queries";
 
 export async function ProjectApiKeysPage({
 	organizationSlug,
@@ -13,9 +15,15 @@ export async function ProjectApiKeysPage({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
+	const serviceContext = await createNextServiceContext();
 	const [project, environment] = await Promise.all([
-		getProjectBySlug(projectSlug),
-		getEnvironment(organizationSlug, projectSlug),
+		getProjectBySlug({
+			ctx: serviceContext,
+			input: {
+				slug: projectSlug,
+			},
+		}),
+		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),
 	]);
 
 	if (!project) {
@@ -26,7 +34,13 @@ export async function ProjectApiKeysPage({
 		throw new Error("Environment not found");
 	}
 
-	const apiKeys = await getApiKeys(project.id, environment);
+	const apiKeys = await getApiKeys({
+		ctx: serviceContext,
+		input: {
+			projectId: project.id,
+			environment,
+		},
+	});
 
 	return (
 		<Page>

@@ -14,7 +14,7 @@ import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { NavMain } from "./nav-main";
 import { Suspense, use } from "react";
-import { type getProjectsByOrganizationSlug } from "../../lib/queries/cached-queries";
+import { type getProjectsByOrganizationSlug } from "@/lib/services/projects/queries";
 
 const SidebarProjects = ({
 	organizationSlug,

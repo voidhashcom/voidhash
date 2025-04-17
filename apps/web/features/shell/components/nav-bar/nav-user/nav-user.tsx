@@ -1,15 +1,18 @@
 import { GradientAvatar, Skeleton } from "@voidhash/ui";
 import { DropdownMenu, DropdownMenuTrigger } from "@voidhash/ui";
-import { getUser } from "@/lib/queries/cached-queries";
+import { getUser } from "@/lib/services/users/queries";
 import { Suspense } from "react";
 import { NavUserDropdown } from "./nav-user-dropdown";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 
 function NavUserSkeleton() {
 	return <Skeleton className="h-8 w-8 rounded-full" />;
 }
 
 export async function NavUserContent() {
-	const user = await getUser();
+	const user = await getUser({
+		ctx: await createNextServiceContext(),
+	});
 
 	return (
 		<div>

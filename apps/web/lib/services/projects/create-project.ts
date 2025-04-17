@@ -1,37 +1,43 @@
-"use server";
-
+import { createServiceFunction } from "@/lib/service-function";
+import { createPublishableKey } from "@/lib/api-keys/utils";
+import { Environments } from "@/lib/environments/types";
+import { db, projects, apiKeys } from "@voidhash/db";
 import {
-	createId,
-	createShortId,
-	createSlug,
 	NotFoundError,
 	SLUG_BLACKLIST,
-} from "@voidhash/lib";
-import { authActionClient } from "../../../features/lib/safe-action";
-import { apiKeys, db, projects } from "@voidhash/db";
+	UnauthorizedError,
+} from "@voidhash/lib/constants";
+import { createId, createSlug, createShortId } from "@voidhash/lib/functions";
 import { randomUUID } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { getOrganizationById } from "@/lib/queries/cached-queries";
-import { revalidateTag } from "next/cache";
-import { createPublishableKey } from "@/lib/api-keys/utils";
-import { Environments } from "@/lib/environments/types";
+import { getOrganizationById } from "../organizations/queries";
+import { getUser } from "../users/queries";
 
-const createProjectSchema = z.object({
+export const createProjectInputSchema = z.object({
 	name: z.string().min(1).max(32),
 	organizationId: z.string(),
 });
 
-export const createProject = authActionClient
-	.schema(createProjectSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const organization = await getOrganizationById(parsedInput.organizationId);
+export const createProject = createServiceFunction()
+	.input(createProjectInputSchema)
+	.function(async ({ input, ctx }) => {
+		const user = await getUser({ ctx });
+		if (!user) {
+			throw new UnauthorizedError("User not found");
+		}
+		const organization = await getOrganizationById({
+			ctx,
+			input: {
+				id: input.organizationId,
+			},
+		});
 		if (!organization) {
 			throw new NotFoundError("Organization not found");
 		}
 
 		const id = createId();
-		let slug = createSlug(parsedInput.name);
+		let slug = createSlug(input.name);
 
 		if (SLUG_BLACKLIST.includes(slug)) {
 			slug = slug + "-" + createShortId();
@@ -40,7 +46,7 @@ export const createProject = authActionClient
 		const existingProject = await db.query.projects.findFirst({
 			where: and(
 				eq(projects.slug, slug),
-				eq(projects.organizationId, parsedInput.organizationId)
+				eq(projects.organizationId, input.organizationId)
 			),
 		});
 
@@ -51,10 +57,10 @@ export const createProject = authActionClient
 		await db.transaction(async (tx) => {
 			await tx.insert(projects).values({
 				id,
-				name: parsedInput.name,
+				name: input.name,
 				slug,
-				organizationId: parsedInput.organizationId,
-				createdByUserId: ctx.user.id,
+				organizationId: input.organizationId,
+				createdByUserId: user.id,
 			});
 
 			// Save production publishable key
@@ -80,13 +86,13 @@ export const createProject = authActionClient
 			});
 		});
 
-		revalidateTag(`project_${id}`);
-		revalidateTag(`project_slug:${slug}`);
-		revalidateTag(`projects_${organization.id}`);
+		ctx.cache.invalidate(`project_${id}`);
+		ctx.cache.invalidate(`project_slug:${slug}`);
+		ctx.cache.invalidate(`projects_${organization.id}`);
 
 		return {
 			id,
-			name: parsedInput.name,
+			name: input.name,
 			slug,
 		};
 	});

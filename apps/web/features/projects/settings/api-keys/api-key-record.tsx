@@ -1,8 +1,6 @@
 "use client";
-import { deleteSecretKey } from "@/lib/actions/api-keys/delete-secret-key";
-import { rotateSecretKey } from "@/lib/actions/api-keys/rotate-secret-key";
 import { ApiKey } from "@/lib/api-keys/types";
-import { type getApiKeyById } from "@/lib/queries/cached-queries";
+import { type getApiKeyById } from "@/lib/services/api-keys/queries";
 import {
 	Button,
 	DropdownMenu,
@@ -21,6 +19,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { SecretKeyRevealModal } from "./secret-key-reveal-modal";
+import {
+	deleteSecretKeyAction,
+	rotateSecretKeyAction,
+} from "@/lib/nextjs/server-actions";
 
 export function ApiKeyRecord({
 	apiKey,
@@ -38,7 +40,7 @@ export function ApiKeyRecord({
 
 	// Rotate key
 	const { execute: rotateKey, isExecuting: isRotating } = useAction(
-		rotateSecretKey,
+		rotateSecretKeyAction,
 		{
 			onSuccess: (res) => {
 				toast.success("Key successfully rotated");
@@ -68,7 +70,7 @@ export function ApiKeyRecord({
 
 	// Delete key
 	const { execute: deleteKey, isExecuting: isDeleting } = useAction(
-		deleteSecretKey,
+		deleteSecretKeyAction,
 		{
 			onSuccess: () => {
 				toast.success("Key successfully deleted");

@@ -1,12 +1,12 @@
-import { cookies } from "next/headers";
 import { type Environment } from "./types";
+import { CookiesAdapter } from "@/lib/cookies-adapter";
 
 export async function getEnvironment(
+	cookies: CookiesAdapter,
 	organizationSlug: string,
 	projectSlug: string
 ) {
-	const cookiesAwaited = await cookies();
-	const projectEnvironmentCookie = cookiesAwaited.get(
+	const projectEnvironmentCookie = await cookies.get(
 		`project_environment_${organizationSlug}:${projectSlug}`
 	);
 
@@ -14,16 +14,16 @@ export async function getEnvironment(
 		return null;
 	}
 
-	return projectEnvironmentCookie.value as Environment;
+	return projectEnvironmentCookie as Environment;
 }
 
 export async function setEnvironment(
+	cookies: CookiesAdapter,
 	organizationSlug: string,
 	projectSlug: string,
 	environment: Environment
 ) {
-	const cookiesAwaited = await cookies();
-	cookiesAwaited.set(
+	await cookies.set(
 		`project_environment_${organizationSlug}:${projectSlug}`,
 		environment
 	);

@@ -24,7 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
-import { createProject } from "@/lib/actions/project/create-project";
+import { createProjectAction } from "@/lib/nextjs/server-actions";
 const createProjectSchema = z.object({
 	name: z
 		.string()
@@ -60,7 +60,7 @@ export function CreateProjectModal({
 
 	const queryClient = useQueryClient();
 
-	const { execute, isPending } = useAction(createProject, {
+	const { execute, isPending } = useAction(createProjectAction, {
 		onSuccess: async (res) => {
 			queryClient.invalidateQueries();
 			router.push(`/${organizationSlug}/${res.data?.slug}`);

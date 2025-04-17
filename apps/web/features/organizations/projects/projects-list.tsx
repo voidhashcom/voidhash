@@ -1,4 +1,4 @@
-import { getProjectsByOrganizationSlug } from "@/lib/queries/cached-queries";
+import { getProjectsByOrganizationSlug } from "@/lib/services/projects/queries";
 import {
 	Card,
 	GradientAvatar,
@@ -10,18 +10,29 @@ import {
 } from "@voidhash/ui";
 import { EllipsisVerticalIcon } from "lucide-react";
 import Link from "next/link";
-import { getOrganizationBySlug } from "@/lib/queries/cached-queries";
+import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { notFound } from "next/navigation";
 import { EmptyState } from "./empty-state";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 
 export async function ProjectsList({
 	organizationSlug,
 }: {
 	organizationSlug: string;
 }) {
-	const activeOrganizationPromise = getOrganizationBySlug(organizationSlug);
-	const organizationProjectsPromise =
-		getProjectsByOrganizationSlug(organizationSlug);
+	const serviceContext = await createNextServiceContext();
+	const activeOrganizationPromise = getOrganizationBySlug({
+		ctx: serviceContext,
+		input: {
+			slug: organizationSlug,
+		},
+	});
+	const organizationProjectsPromise = getProjectsByOrganizationSlug({
+		ctx: serviceContext,
+		input: {
+			slug: organizationSlug,
+		},
+	});
 
 	const [activeOrganization, organizationProjects] = await Promise.all([
 		activeOrganizationPromise,

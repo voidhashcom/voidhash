@@ -1,22 +1,23 @@
-"use server";
-
+import { createServiceFunction } from "@/lib/service-function";
 import { NotFoundError } from "@voidhash/lib";
-import { authActionClient } from "@/features/lib/safe-action";
-import { getApiKeyById } from "@/lib/queries/cached-queries";
 import { z } from "zod";
 import { createSecretKey } from "@/lib/api-keys/utils";
 import { apiKeys, db } from "@voidhash/db";
 import { eq } from "drizzle-orm";
-import { revalidateTag } from "next/cache";
+import { getApiKeyById } from "./queries";
 
-const rotateSecretKeySchema = z.object({
+export const rotateSecretKeyInputSchema = z.object({
 	secretKeyId: z.string(),
 });
 
-export const rotateSecretKey = authActionClient
-	.schema(rotateSecretKeySchema)
-	.action(async ({ parsedInput }) => {
-		const existingKey = await getApiKeyById(parsedInput.secretKeyId);
+export const rotateSecretKey = createServiceFunction()
+	.input(rotateSecretKeyInputSchema)
+	.function(async ({ input, ctx }) => {
+		const existingKey = await getApiKeyById({
+			ctx,
+			input: { id: input.secretKeyId },
+		});
+
 		if (!existingKey) {
 			throw new NotFoundError("API key not found");
 		}
@@ -34,8 +35,8 @@ export const rotateSecretKey = authActionClient
 			})
 			.where(eq(apiKeys.id, existingKey.id));
 
-		revalidateTag(`api-keys_${existingKey.projectId}`);
-		revalidateTag(`api-key_${existingKey.id}`);
+		ctx.cache.invalidate(`api-keys_${existingKey.projectId}`);
+		ctx.cache.invalidate(`api-key_${existingKey.id}`);
 
 		return { ...newKey, rawKey };
 	});

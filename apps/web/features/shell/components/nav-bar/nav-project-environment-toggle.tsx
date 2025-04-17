@@ -1,6 +1,6 @@
 "use client";
 
-import { switchEnvironment } from "@/lib/actions/environments/switch-environment";
+import { switchEnvironmentAction } from "@/lib/nextjs/server-actions";
 import { Environment } from "@/lib/environments/types";
 import { cn, Label, Switch } from "@voidhash/ui";
 import { useAction } from "next-safe-action/hooks";
@@ -12,7 +12,7 @@ export function NavProjectEnvironmentToggle({
 	projectId,
 }: { environment: Environment; projectId: string }) {
 	const router = useRouter();
-	const { execute, isExecuting } = useAction(switchEnvironment, {
+	const { execute, isExecuting } = useAction(switchEnvironmentAction, {
 		onSuccess: ({ input }) => {
 			if (input.environment === "testing") {
 				toast.success("Switched to testing environment");
