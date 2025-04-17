@@ -1,0 +1,121 @@
+import { Page } from "@/features/shell";
+import { Badge, Card } from "@voidhash/ui";
+import Link from "next/link";
+import { PaymentProviderLogo } from "./payment-provider-logo";
+import { ChevronRightIcon } from "lucide-react";
+import { paymentProviders } from "@voidhash/lib/constants";
+import { StripeConfigurationSheet } from "./stripe/stripe-configuration-sheet";
+import { AppStoreConfigurationSheet } from "./app-store/app-store-configuration-sheet";
+import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
+import { getProjectBySlug } from "@/lib/services/projects/queries";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { notFound } from "next/navigation";
+
+const paymentProvidersConfigurationSheetComponents = {
+	stripe: StripeConfigurationSheet,
+	"app-store": AppStoreConfigurationSheet,
+} as const;
+
+export async function PaymentProvidersPage({
+	paramsPromise,
+}: {
+	paramsPromise: Promise<{
+		organizationSlug: string;
+		projectSlug: string;
+	}>;
+}) {
+	const { organizationSlug, projectSlug } = await paramsPromise;
+
+	const serviceContext = await createNextServiceContext();
+	const project = await getProjectBySlug({
+		ctx: serviceContext,
+		input: {
+			slug: projectSlug,
+		},
+	});
+
+	if (!project) {
+		return notFound();
+	}
+
+	const paymentProvidersConfigurations = await getPaymentProviderConfigurations(
+		{
+			ctx: serviceContext,
+			input: {
+				projectId: project?.id,
+			},
+		}
+	);
+
+	const paymentProvidersWithConfigurations = paymentProviders.map(
+		(paymentProvider) => {
+			const paymentProvidersConfiguration =
+				paymentProvidersConfigurations?.find(
+					(p) => p.providerId === paymentProvider.id
+				);
+			return {
+				...paymentProvider,
+				ConfigurationSheet:
+					paymentProvidersConfigurationSheetComponents[paymentProvider.id],
+				configuration: paymentProvidersConfiguration?.configuration,
+				enabled: paymentProvidersConfiguration?.enabled,
+			};
+		}
+	);
+
+	return (
+		<Page>
+			{/* Key is used to reload the default form data when the organization slug changes */}
+			<div className="max-w-4xl mx-auto">
+				<h1 className="text-3xl font-normal tracking-right">
+					Payment Providers
+				</h1>
+				<p className="text-muted-foreground mt-3">
+					Configure your payment providers.
+				</p>
+				<div className="mt-8">
+					<Card className="divide-y grid p-0 gap-0">
+						{paymentProvidersWithConfigurations?.map((paymentProvider) => (
+							<div
+								className="relative isolate group hover:bg-accent/30 px-6 py-4"
+								key={paymentProvider.id}
+							>
+								<paymentProvider.ConfigurationSheet
+									enabled={paymentProvider.enabled ?? false}
+									configuration={paymentProvider.configuration}
+									project={project}
+									trigger={
+										<Link
+											className="inset-0 absolute w-full h-full"
+											href={`/${organizationSlug}/${projectSlug}/setup/payment-providers`}
+										></Link>
+									}
+								/>
+
+								<div className="flex flex-row items-center justify-between">
+									<div className="flex items-center gap-4 flex-1">
+										<div className="w-8 h-8 flex items-center justify-center">
+											<PaymentProviderLogo
+												providerId={paymentProvider.id}
+												className="w-full h-full"
+											/>
+										</div>
+										<div className="flex flex-col">
+											<p>{paymentProvider.title}</p>
+										</div>
+									</div>
+									<div className="flex items-center gap-2">
+										{paymentProvider.enabled && (
+											<Badge variant="outline">Enabled</Badge>
+										)}
+										<ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
+									</div>
+								</div>
+							</div>
+						))}
+					</Card>
+				</div>
+			</div>
+		</Page>
+	);
+}

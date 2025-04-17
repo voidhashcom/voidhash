@@ -25,8 +25,8 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { stripe } from "./stripe";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useActiveProject } from "../../../../shell/hooks/useActiveProject";
-import { useTRPC } from "../../../../trpc/react";
+import { useTRPC } from "../../../trpc/react";
+import { type getProjectById } from "@/lib/services/projects/queries";
 
 type StripeConfigurationForm = z.infer<typeof stripe.configurationSchema>;
 
@@ -34,14 +34,16 @@ export function StripeConfigurationSheet({
 	trigger,
 	enabled,
 	configuration,
+	project,
 }: {
 	trigger: React.ReactNode;
 	enabled: boolean;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	configuration?: any;
+	project: Awaited<ReturnType<typeof getProjectById>>;
 }) {
 	const [open, setOpen] = useState(false);
 	const queryClient = useQueryClient();
-	const { activeProject } = useActiveProject();
 	const [isEnabled, setIsEnabled] = useState(enabled);
 
 	const form = useForm<StripeConfigurationForm>({
@@ -77,13 +79,13 @@ export function StripeConfigurationSheet({
 	const onSubmit = async (data: StripeConfigurationForm) => {
 		console.log({
 			providerId: stripe.id,
-			projectId: activeProject?.id ?? "",
+			projectId: project?.id ?? "",
 			enabled: isEnabled,
 			configuration: data,
 		});
 		saveConfiguration({
 			providerId: stripe.id,
-			projectId: activeProject?.id ?? "",
+			projectId: project?.id ?? "",
 			enabled: isEnabled,
 			configuration: data,
 		});

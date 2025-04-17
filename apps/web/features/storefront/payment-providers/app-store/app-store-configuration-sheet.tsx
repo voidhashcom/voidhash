@@ -25,9 +25,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useActiveProject } from "../../../../shell/hooks/useActiveProject";
 import { CheckCircleIcon, XIcon } from "lucide-react";
-import { useTRPC } from "../../../../trpc/react";
+import { useTRPC } from "../../../trpc/react";
+import { type getProjectById } from "@/lib/services/projects/queries";
 
 const appStoreConfigurationSchema = z.object({
 	issuerId: z.string().min(1, {
@@ -52,14 +52,16 @@ export function AppStoreConfigurationSheet({
 	trigger,
 	enabled,
 	configuration,
+	project,
 }: {
 	trigger: React.ReactNode;
 	enabled: boolean;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	configuration?: any;
+	project: Awaited<ReturnType<typeof getProjectById>>;
 }) {
 	const [open, setOpen] = useState(false);
 	const queryClient = useQueryClient();
-	const { activeProject } = useActiveProject();
 	const [isEnabled, setIsEnabled] = useState(enabled);
 
 	const form = useForm<AppStoreConfigurationForm>({
@@ -91,13 +93,13 @@ export function AppStoreConfigurationSheet({
 	const onSubmit = async (data: AppStoreConfigurationForm) => {
 		console.log({
 			providerId: INTEGRATION_ID,
-			projectId: activeProject?.id ?? "",
+			projectId: project?.id ?? "",
 			enabled: isEnabled,
 			configuration: data,
 		});
 		saveConfiguration({
 			providerId: INTEGRATION_ID,
-			projectId: activeProject?.id ?? "",
+			projectId: project?.id ?? "",
 			enabled: isEnabled,
 			configuration: data,
 		});

@@ -7,6 +7,7 @@ import {
 	Repeat,
 	Send,
 	Settings,
+	Store,
 	Users,
 } from "lucide-react";
 import { Sidebar, SidebarContent, useSidebar } from "@voidhash/ui";
@@ -64,6 +65,41 @@ export function ProjectSidebar({
 							pathname.startsWith(
 								`/${organizationSlug}/${projectSlug}/transactions`
 							),
+					},
+					{
+						title: "Storefront",
+						icon: Store,
+						url: `/${organizationSlug}/${projectSlug}/storefront/payment-providers`,
+						isActive: () =>
+							pathname.startsWith(
+								`/${organizationSlug}/${projectSlug}/storefront`
+							),
+						items: [
+							{
+								title: "Payment Providers",
+								url: `/${organizationSlug}/${projectSlug}/storefront/payment-providers`,
+								isActive: () =>
+									pathname.startsWith(
+										`/${organizationSlug}/${projectSlug}/storefront/payment-providers`
+									),
+							},
+							{
+								title: "Products",
+								url: `/${organizationSlug}/${projectSlug}/storefront/products`,
+								isActive: () =>
+									pathname.startsWith(
+										`/${organizationSlug}/${projectSlug}/storefront/products`
+									),
+							},
+							{
+								title: "Access Levels",
+								url: `/${organizationSlug}/${projectSlug}/storefront/access-levels`,
+								isActive: () =>
+									pathname.startsWith(
+										`/${organizationSlug}/${projectSlug}/storefront/access-levels`
+									),
+							},
+						],
 					},
 					{
 						title: "Settings",
