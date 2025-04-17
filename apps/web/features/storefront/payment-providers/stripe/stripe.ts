@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PaymentProvider } from "../../../../payment-providers/lib/types";
+import { PaymentProvider } from "../lib/types";
 import { StripeLogo } from "./stripe-logo";
 
 export const stripe = {

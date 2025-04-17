@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
 	title: "Voidhash - Payments made simple",
-	description: "Voidhash# - Payments made simple",
+	description:
+		"Voidhash is an open-source subscription management platform simplifying integrations, analytics, and revenue growth for apps and digital products.",
 };
 
 export default function RootLayout({

@@ -6,6 +6,7 @@ import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { Suspense } from "react";
 import { Skeleton } from "@voidhash/ui";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { getUser } from "@/lib/services/users/queries";
 
 const OrganizationSwitcherComponent = async ({
 	organizationSlug,
@@ -14,12 +15,18 @@ const OrganizationSwitcherComponent = async ({
 		return null;
 	}
 
-	const activeOrganization = await getOrganizationBySlug({
-		ctx: await createNextServiceContext(),
+	const serviceContext = await createNextServiceContext();
+	const userPromise = getUser({
+		ctx: serviceContext,
+	});
+	const activeOrganizationPromise = getOrganizationBySlug({
+		ctx: serviceContext,
 		input: {
 			slug: organizationSlug,
 		},
 	});
+
+	const activeOrganization = await activeOrganizationPromise;
 
 	if (!activeOrganization) {
 		return null;
@@ -40,7 +47,10 @@ const OrganizationSwitcherComponent = async ({
 					</span>
 				</div>
 			</Link>
-			<OrganizationProjectSwitcher />
+			<OrganizationProjectSwitcher
+				userPromise={userPromise}
+				activeOrganizationPromise={activeOrganizationPromise}
+			/>
 		</div>
 	);
 };

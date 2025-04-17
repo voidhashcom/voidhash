@@ -79,14 +79,6 @@ export function ProjectSettingsSidebar({
 								`/${organizationSlug}/${projectSlug}/settings/api-keys`
 							),
 					},
-					{
-						title: "Payment Providers",
-						url: `/${organizationSlug}/${projectSlug}/settings/payment-providers`,
-						isActive: () =>
-							pathname.startsWith(
-								`/${organizationSlug}/${projectSlug}/settings/payment-providers`
-							),
-					},
 				],
 			},
 		],

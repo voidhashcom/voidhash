@@ -33,6 +33,7 @@ export function NavMain({
 			items?: {
 				title: string;
 				url: string;
+				isActive?: () => boolean;
 			}[];
 		}[];
 	}[];
@@ -48,13 +49,16 @@ export function NavMain({
 							<Collapsible
 								key={item.title}
 								asChild
-								defaultOpen={item.isActive?.()}
+								open={item.isActive?.() ? true : undefined}
 							>
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
 										tooltip={tooltips === "enabled" ? item.title : null}
-										isActive={item.isActive?.()}
+										isActive={
+											(!item.items?.length || item.items.length == 0) &&
+											item.isActive?.()
+										}
 									>
 										<Link href={item.url}>
 											{item.icon && (
@@ -76,7 +80,7 @@ export function NavMain({
 													{item.items?.map((subItem) => (
 														<SidebarMenuSubItem key={subItem.title}>
 															<SidebarMenuSubButton
-																isActive={item.isActive?.()}
+																isActive={subItem.isActive?.()}
 																asChild
 															>
 																<Link href={subItem.url}>

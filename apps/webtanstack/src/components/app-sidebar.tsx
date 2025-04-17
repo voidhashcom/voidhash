@@ -71,6 +71,9 @@ export function AppSidebar({
 							),
 					},
 					{
+						title: "Setup"
+					}
+					{
 						title: "Settings",
 						url: `/~/${organizationSlug}/${projectSlug}/settings/general`,
 						icon: Settings,

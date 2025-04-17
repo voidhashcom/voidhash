@@ -13,11 +13,12 @@ import {
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "../../../trpc/react";
-import { useMe } from "../../../auth/hooks/useMe";
 import { CreateOrganizationModal } from "../../../organizations/create-organization-modal";
 import { CreateProjectModal } from "../../../projects/create-project-modal";
-import { useActiveOrganization } from "../../hooks/useActiveOrganization";
-import { useActiveProject } from "../../hooks/useActiveProject";
+import { use } from "react";
+import { type getUser } from "@/lib/services/users/queries";
+import { type getOrganizationBySlug } from "@/lib/services/organizations/queries";
+import { type getProjectBySlug } from "@/lib/services/projects/queries";
 
 function OrganizationProjectSwitcherProjects({
 	organizationId,
@@ -86,13 +87,21 @@ function OrganizationProjectSwitcherProjects({
 	);
 }
 
-export function OrganizationProjectSwitcher() {
+export function OrganizationProjectSwitcher({
+	userPromise,
+	activeProjectPromise,
+	activeOrganizationPromise,
+}: {
+	userPromise: ReturnType<typeof getUser>;
+	activeOrganizationPromise: ReturnType<typeof getOrganizationBySlug>;
+	activeProjectPromise?: ReturnType<typeof getProjectBySlug>;
+}) {
 	const [open, setOpen] = React.useState(false);
-	const { data: me } = useMe();
+	const me = use(userPromise);
 	const organizations = me?.organizations ?? [];
 
-	const { activeProject } = useActiveProject();
-	const { activeOrganization } = useActiveOrganization();
+	const activeProject = activeProjectPromise ? use(activeProjectPromise) : null;
+	const activeOrganization = use(activeOrganizationPromise);
 
 	// Highlight organization
 	const [highlightedOrganizationIndex, setHighlightedOrganizationIndex] =
@@ -179,7 +188,9 @@ export function OrganizationProjectSwitcher() {
 									highlightedOrganization?.id ?? activeOrganization.id
 								}
 								organizationSlug={
-									highlightedOrganization?.slug ?? activeOrganization.slug
+									highlightedOrganization?.slug ??
+									activeOrganization.slug ??
+									"-"
 								}
 								activeProjectId={activeProject?.id}
 								onProjectClick={() => setOpen(false)}

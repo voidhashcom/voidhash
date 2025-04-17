@@ -5,6 +5,8 @@ import { OrganizationProjectSwitcher } from "./organization-project-switcher";
 import { getProjectBySlug } from "@/lib/services/projects/queries";
 import { Suspense } from "react";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
+import { getUser } from "@/lib/services/users/queries";
 
 const ProjectTitle = async ({
 	projectPromise,
@@ -45,12 +47,23 @@ export async function ProjectSwitcher({
 	organizationSlug: string | null;
 	projectSlug: string | null;
 }) {
-	if (!projectSlug) {
+	if (!projectSlug || !organizationSlug) {
 		return null;
 	}
 
+	const serviceContext = await createNextServiceContext();
+	const userPromise = getUser({
+		ctx: serviceContext,
+	});
+	const activeOrganizationPromise = getOrganizationBySlug({
+		ctx: serviceContext,
+		input: {
+			slug: organizationSlug,
+		},
+	});
+
 	const projectPromise = getProjectBySlug({
-		ctx: await createNextServiceContext(),
+		ctx: serviceContext,
 		input: {
 			slug: projectSlug,
 		},
@@ -67,7 +80,11 @@ export async function ProjectSwitcher({
 						</Suspense>
 					</div>
 				</Link>
-				<OrganizationProjectSwitcher />
+				<OrganizationProjectSwitcher
+					userPromise={userPromise}
+					activeOrganizationPromise={activeOrganizationPromise}
+					activeProjectPromise={projectPromise}
+				/>
 			</div>
 		</>
 	);
