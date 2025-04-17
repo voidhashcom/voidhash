@@ -1,6 +1,6 @@
 import { getEnvironment } from "@/lib/environments/utils";
 import { NavProjectEnvironmentToggle } from "./nav-project-environment-toggle";
-import { getProjectBySlug } from "@/lib/services/projects/queries";
+import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { Suspense } from "react";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 
@@ -12,12 +12,14 @@ export async function NavProjectEnvironmentContent({
 		return null;
 	}
 	const serviceContext = await createNextServiceContext();
+
 	const [environment, project] = await Promise.all([
 		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),
-		getProjectBySlug({
+		getProjectBySlugAndOrganizationSlug({
 			ctx: serviceContext,
 			input: {
-				slug: projectSlug,
+				organizationSlug: organizationSlug,
+				projectSlug: projectSlug,
 			},
 		}),
 	]);

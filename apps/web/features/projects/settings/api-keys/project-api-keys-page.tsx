@@ -1,7 +1,7 @@
 import { Page } from "@/features/shell";
 import { Card } from "@voidhash/ui";
 import { ApiKeyRecord } from "./api-key-record";
-import { getProjectBySlug } from "@/lib/services/projects/queries";
+import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { notFound } from "next/navigation";
 import { getEnvironment } from "@/lib/environments/utils";
 import { CreateSecretKeyModalButton } from "./create-secret-key-modal-button";
@@ -17,10 +17,11 @@ export async function ProjectApiKeysPage({
 }) {
 	const serviceContext = await createNextServiceContext();
 	const [project, environment] = await Promise.all([
-		getProjectBySlug({
+		getProjectBySlugAndOrganizationSlug({
 			ctx: serviceContext,
 			input: {
-				slug: projectSlug,
+				organizationSlug: organizationSlug,
+				projectSlug: projectSlug,
 			},
 		}),
 		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),

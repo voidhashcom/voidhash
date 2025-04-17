@@ -8,6 +8,7 @@ import {
 	timestamp,
 	int,
 	json,
+	uniqueIndex,
 } from "drizzle-orm/mysql-core";
 import { mysqlTable } from "drizzle-orm/mysql-core";
 import { organization, user } from "./auth-schema";
@@ -19,7 +20,7 @@ export const projects = mysqlTable(
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
 		name: varchar("name", { length: 255 }).notNull(),
-		slug: varchar("slug", { length: 255 }).notNull().unique(),
+		slug: varchar("slug", { length: 255 }).notNull(),
 		organizationId: varchar("organization_id", { length: 255 })
 			.notNull()
 			.references(() => organization.id),
@@ -29,7 +30,13 @@ export const projects = mysqlTable(
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
-	(table) => [index("organization_id_idx").on(table.organizationId)]
+	(table) => [
+		index("organization_id_idx").on(table.organizationId),
+		uniqueIndex("slug_oragnization_id_idx").on(
+			table.slug,
+			table.organizationId
+		),
+	]
 );
 
 export const projectsRelations = relations(projects, ({ one }) => ({
