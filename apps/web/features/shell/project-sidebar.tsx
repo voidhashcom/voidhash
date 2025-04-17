@@ -57,15 +57,15 @@ export function ProjectSidebar({
 								`/${organizationSlug}/${projectSlug}/customers`
 							),
 					},
-					{
-						title: "Transactions",
-						url: `/${organizationSlug}/${projectSlug}/transactions`,
-						icon: Repeat,
-						isActive: () =>
-							pathname.startsWith(
-								`/${organizationSlug}/${projectSlug}/transactions`
-							),
-					},
+					// {
+					// 	title: "Transactions",
+					// 	url: `/${organizationSlug}/${projectSlug}/transactions`,
+					// 	icon: Repeat,
+					// 	isActive: () =>
+					// 		pathname.startsWith(
+					// 			`/${organizationSlug}/${projectSlug}/transactions`
+					// 		),
+					// },
 					{
 						title: "Storefront",
 						icon: Store,
@@ -91,14 +91,14 @@ export function ProjectSidebar({
 										`/${organizationSlug}/${projectSlug}/storefront/products`
 									),
 							},
-							{
-								title: "Access Levels",
-								url: `/${organizationSlug}/${projectSlug}/storefront/access-levels`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/storefront/access-levels`
-									),
-							},
+							// {
+							// 	title: "Access Levels",
+							// 	url: `/${organizationSlug}/${projectSlug}/storefront/access-levels`,
+							// 	isActive: () =>
+							// 		pathname.startsWith(
+							// 			`/${organizationSlug}/${projectSlug}/storefront/access-levels`
+							// 		),
+							// },
 						],
 					},
 					{
