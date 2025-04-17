@@ -1,7 +1,8 @@
 import { getEnvironment } from "@/lib/environments/utils";
 import { NavProjectEnvironmentToggle } from "./nav-project-environment-toggle";
-import { getProjectBySlug } from "@/lib/queries/cached-queries";
+import { getProjectBySlug } from "@/lib/services/projects/queries";
 import { Suspense } from "react";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 
 export async function NavProjectEnvironmentContent({
 	organizationSlug,
@@ -10,9 +11,15 @@ export async function NavProjectEnvironmentContent({
 	if (!organizationSlug || !projectSlug) {
 		return null;
 	}
+	const serviceContext = await createNextServiceContext();
 	const [environment, project] = await Promise.all([
-		getEnvironment(organizationSlug, projectSlug),
-		getProjectBySlug(projectSlug),
+		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),
+		getProjectBySlug({
+			ctx: serviceContext,
+			input: {
+				slug: projectSlug,
+			},
+		}),
 	]);
 
 	if (!project) {

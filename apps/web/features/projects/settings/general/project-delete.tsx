@@ -12,14 +12,14 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAction } from "next-safe-action/hooks";
-import { deleteProject } from "@/lib/actions/project/delete-project";
+import { deleteProjectAction } from "@/lib/nextjs/server-actions";
 import { toast } from "sonner";
 
 export function ProjectDelete({ projectId }: { projectId: string }) {
 	const { organizationSlug, projectSlug } = useParams();
 	const router = useRouter();
 
-	const { execute, isPending } = useAction(deleteProject, {
+	const { execute, isPending } = useAction(deleteProjectAction, {
 		onSuccess: () => {
 			toast.success("Project deleted successfully");
 			router.push("/");
@@ -31,7 +31,7 @@ export function ProjectDelete({ projectId }: { projectId: string }) {
 
 	const handleDelete = () => {
 		execute({
-			projectId,
+			id: projectId,
 		});
 	};
 

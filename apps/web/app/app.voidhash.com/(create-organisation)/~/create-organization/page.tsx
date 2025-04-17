@@ -23,8 +23,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAction } from "next-safe-action/hooks";
-import { createOrganization } from "@/lib/actions/organization/create-organization";
 import { authClient } from "@voidhash/auth/client";
+import { createOrganizationAction } from "@/lib/nextjs/server-actions";
 
 const createOrganizationSchema = z.object({
 	name: z
@@ -47,7 +47,7 @@ export default function CreateOrgPage() {
 
 	const queryClient = useQueryClient();
 
-	const { execute, isPending } = useAction(createOrganization, {
+	const { execute, isPending } = useAction(createOrganizationAction, {
 		onSuccess: () => {
 			queryClient.invalidateQueries();
 			router.refresh();

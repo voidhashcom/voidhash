@@ -2,9 +2,10 @@ import { GradientAvatar } from "@voidhash/ui/gradient-avatar";
 
 import { OrganizationProjectSwitcher } from "./organization-project-switcher";
 import Link from "next/link";
-import { getOrganizationBySlug } from "@/lib/queries/cached-queries";
+import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { Suspense } from "react";
 import { Skeleton } from "@voidhash/ui";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 
 const OrganizationSwitcherComponent = async ({
 	organizationSlug,
@@ -13,7 +14,12 @@ const OrganizationSwitcherComponent = async ({
 		return null;
 	}
 
-	const activeOrganization = await getOrganizationBySlug(organizationSlug);
+	const activeOrganization = await getOrganizationBySlug({
+		ctx: await createNextServiceContext(),
+		input: {
+			slug: organizationSlug,
+		},
+	});
 
 	if (!activeOrganization) {
 		return null;

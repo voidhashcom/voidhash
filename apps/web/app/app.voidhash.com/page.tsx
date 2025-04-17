@@ -1,8 +1,11 @@
-import { getUser } from "@/lib/queries/cached-queries";
+import { getUser } from "@/lib/services/users/queries";
 import { redirect } from "next/navigation";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 
 export default async function Index() {
-	const user = await getUser();
+	const user = await getUser({
+		ctx: await createNextServiceContext(),
+	});
 
 	if (user) {
 		if (user.organizations.length === 0) {

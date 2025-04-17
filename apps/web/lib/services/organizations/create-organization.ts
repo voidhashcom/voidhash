@@ -1,27 +1,22 @@
-"use server";
-
 import { auth } from "@voidhash/auth";
 import { createSlug, createShortId, SLUG_BLACKLIST } from "@voidhash/lib";
-import { authActionClient } from "../../../features/lib/safe-action";
-import { headers } from "next/headers";
 import { z } from "zod";
-import { revalidateTag } from "next/cache";
+import { createServiceFunction } from "@/lib/service-function";
 
-const createOrganizationSchema = z.object({
+export const createOrganizationInputSchema = z.object({
 	name: z.string().min(1).max(32),
 });
 
-export const createOrganization = authActionClient
-	.schema(createOrganizationSchema)
-	.action(async ({ parsedInput }) => {
-		let slug = createSlug(parsedInput.name);
-		const reqHeaders = await headers();
+export const createOrganization = createServiceFunction()
+	.input(createOrganizationInputSchema)
+	.function(async ({ input, ctx }) => {
+		let slug = createSlug(input.name);
 		if (SLUG_BLACKLIST.includes(slug)) {
 			slug = slug + "-" + createShortId();
 		}
 		try {
 			await auth.api.checkOrganizationSlug({
-				headers: reqHeaders,
+				headers: ctx.headers,
 				body: {
 					slug,
 				},
@@ -35,9 +30,9 @@ export const createOrganization = authActionClient
 			}
 		}
 		const organization = await auth.api.createOrganization({
-			headers: reqHeaders,
+			headers: ctx.headers,
 			body: {
-				name: parsedInput.name,
+				name: input.name,
 				slug,
 			},
 		});
@@ -46,8 +41,8 @@ export const createOrganization = authActionClient
 			return null;
 		}
 
-		revalidateTag(`organization_slug:${slug}`);
-		revalidateTag(`organization_${organization.id}`);
+		ctx.cache.invalidate(`organization_slug:${slug}`);
+		ctx.cache.invalidate(`organization_${organization.id}`);
 
 		return organization;
 	});

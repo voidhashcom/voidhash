@@ -12,14 +12,14 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAction } from "next-safe-action/hooks";
-import { deleteOrganization } from "@/lib/actions/organization/delete-organization";
+import { deleteOrganizationAction } from "@/lib/nextjs/server-actions";
 import { toast } from "sonner";
 
 export function TeamDelete({ organizationId }: { organizationId: string }) {
 	const { organizationSlug } = useParams();
 	const router = useRouter();
 
-	const { execute, isPending } = useAction(deleteOrganization, {
+	const { execute, isPending } = useAction(deleteOrganizationAction, {
 		onSuccess: () => {
 			toast.success("Team deleted successfully");
 			router.push("/");

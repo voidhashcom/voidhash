@@ -3,7 +3,8 @@ import { LayoutSidebar } from "./layout-sidebar";
 import { SidebarInset } from "@voidhash/ui";
 import { ProjectSidebar } from "@/features/shell/project-sidebar";
 import { ProjectSettingsSidebar } from "@/features/shell/project-settings-sidebar";
-import { getOrganizationBySlug } from "@/lib/queries/cached-queries";
+import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 
 export default async function ProjectLayout({
 	children,
@@ -13,7 +14,12 @@ export default async function ProjectLayout({
 	params: Promise<{ organizationSlug: string; projectSlug: string }>;
 }) {
 	const { organizationSlug, projectSlug } = await params;
-	const activeOrganizationPromise = getOrganizationBySlug(organizationSlug);
+	const activeOrganizationPromise = getOrganizationBySlug({
+		ctx: await createNextServiceContext(),
+		input: {
+			slug: organizationSlug,
+		},
+	});
 
 	return (
 		<>

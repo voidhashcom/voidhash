@@ -2,8 +2,9 @@ import { GradientAvatar, Skeleton } from "@voidhash/ui";
 import Link from "next/link";
 import { NavSlashSeparator } from "./nav-slash-separator";
 import { OrganizationProjectSwitcher } from "./organization-project-switcher";
-import { getProjectBySlug } from "@/lib/queries/cached-queries";
+import { getProjectBySlug } from "@/lib/services/projects/queries";
 import { Suspense } from "react";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 
 const ProjectTitle = async ({
 	projectPromise,
@@ -48,7 +49,12 @@ export async function ProjectSwitcher({
 		return null;
 	}
 
-	const projectPromise = getProjectBySlug(projectSlug);
+	const projectPromise = getProjectBySlug({
+		ctx: await createNextServiceContext(),
+		input: {
+			slug: projectSlug,
+		},
+	});
 
 	return (
 		<>

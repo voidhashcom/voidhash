@@ -1,12 +1,18 @@
 import { Hono } from "hono";
 import { openAPISpecs } from "hono-openapi";
+import customers from "./endpoints/customers";
+import { Scalar } from "@scalar/hono-api-reference";
 
-const sdkApi = new Hono().basePath("/sdk");
-sdkApi.get("/", (c) => c.text("SDK Api")); // GET /user
+const app = new Hono().basePath("/sdk/v1");
+app.get("/", (c) => c.text("SDK Api")); // GET /user
 
-sdkApi.get(
+// Endpoints
+app.route("/customers", customers);
+
+// OpenAPI specs
+app.get(
 	"/openapi",
-	openAPISpecs(sdkApi, {
+	openAPISpecs(app, {
 		documentation: {
 			info: {
 				title: "Voidhash Client-SDK API",
@@ -17,5 +23,6 @@ sdkApi.get(
 		},
 	})
 );
+app.get("/docs", Scalar({ url: "/sdk/v1/openapi", theme: "default" }));
 
-export { sdkApi };
+export { app as sdkApi };

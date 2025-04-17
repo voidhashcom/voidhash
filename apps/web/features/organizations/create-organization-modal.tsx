@@ -25,7 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
-import { createOrganization } from "../../lib/actions/organization/create-organization";
+import { createOrganizationAction } from "@/lib/nextjs/server-actions";
 
 const createOrganizationSchema = z.object({
 	name: z
@@ -56,7 +56,7 @@ export function CreateOrganizationModal({
 		},
 	});
 
-	const { execute, isPending } = useAction(createOrganization, {
+	const { execute, isPending } = useAction(createOrganizationAction, {
 		onSuccess: async (res) => {
 			if (res?.data?.id) {
 				onClose?.();

@@ -1,5 +1,6 @@
 import { getEnvironment } from "@/lib/environments/utils";
-import { getProjectBySlug } from "@/lib/queries/cached-queries";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { getProjectBySlug } from "@/lib/services/projects/queries";
 import { Suspense } from "react";
 
 export async function EnviromentBarContent({
@@ -9,9 +10,15 @@ export async function EnviromentBarContent({
 	if (!organizationSlug || !projectSlug) {
 		return null;
 	}
+	const serviceContext = await createNextServiceContext();
 	const [environment, project] = await Promise.all([
-		getEnvironment(organizationSlug, projectSlug),
-		getProjectBySlug(projectSlug),
+		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),
+		getProjectBySlug({
+			ctx: serviceContext,
+			input: {
+				slug: projectSlug,
+			},
+		}),
 	]);
 
 	if (!project || !environment || environment !== "testing") {
