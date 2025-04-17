@@ -1,11 +1,17 @@
 import "server-only";
 
 import { db, projects } from "@voidhash/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-export const getProjectBySlugQuery = async (slug: string) => {
+export const getProjectBySlugQuery = async (
+	organizationId,
+	projectSlug: string
+) => {
 	return db.query.projects.findFirst({
-		where: eq(projects.slug, slug),
+		where: and(
+			eq(projects.slug, projectSlug),
+			eq(projects.organizationId, organizationId)
+		),
 	});
 };
 

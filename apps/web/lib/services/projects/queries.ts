@@ -13,21 +13,22 @@ export const getProjectBySlug = cache(
 	createServiceFunction()
 		.input(
 			z.object({
+				organizationId: z.string(),
 				slug: z.string(),
 			})
 		)
 		.function(async ({ input, ctx }) => {
 			const userPromise = getUser({ ctx });
 			const projectPromise = ctx.cache.cacheFn(
-				async (s: string) => {
-					return getProjectBySlugQuery(s);
+				async (organizationId: string, projectSlug: string) => {
+					return getProjectBySlugQuery(organizationId, projectSlug);
 				},
-				["project", input.slug],
+				["project", input.organizationId, input.slug],
 				{
-					tags: [`project_slug:${input.slug}`],
+					tags: [`project_${input.organizationId}_slug:${input.slug}`],
 					revalidate: 3600,
 				}
-			)(input.slug);
+			)(input.organizationId, input.slug);
 
 			const [user, project] = await Promise.all([userPromise, projectPromise]);
 
@@ -37,6 +38,36 @@ export const getProjectBySlug = cache(
 			}
 
 			return null;
+		})
+);
+
+export const getProjectBySlugAndOrganizationSlug = cache(
+	createServiceFunction()
+		.input(
+			z.object({
+				organizationSlug: z.string(),
+				projectSlug: z.string(),
+			})
+		)
+		.function(async ({ input, ctx }) => {
+			const organization = await getOrganizationBySlug({
+				ctx,
+				input: {
+					slug: input.organizationSlug,
+				},
+			});
+
+			if (!organization) {
+				return null;
+			}
+
+			return await getProjectBySlug({
+				ctx,
+				input: {
+					organizationId: organization.id,
+					slug: input.projectSlug,
+				},
+			});
 		})
 );
 

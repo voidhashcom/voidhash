@@ -1,20 +1,24 @@
 import { ProjectNameForm } from "./project-name";
 import { ProjectDelete } from "./project-delete";
-import { getProjectBySlug } from "@/lib/services/projects/queries";
+import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { notFound } from "next/navigation";
 import { ProjectSettingsGeneralLayout } from "./project-settings-general-layout";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 
 export async function ProjectSettingsGeneralPage({
+	organizationSlug,
 	projectSlug,
 }: {
+	organizationSlug: string;
 	projectSlug: string;
 }) {
 	const serviceContext = await createNextServiceContext();
-	const project = await getProjectBySlug({
+
+	const project = await getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: {
-			slug: projectSlug,
+			organizationSlug: organizationSlug,
+			projectSlug: projectSlug,
 		},
 	});
 

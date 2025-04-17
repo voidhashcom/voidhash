@@ -3,7 +3,12 @@ import { ProjectSettingsGeneralPage } from "@/features/projects/settings/general
 export default async function GeneralSettingsPage({
 	params,
 }: { params: Promise<{ organizationSlug: string; projectSlug: string }> }) {
-	const { projectSlug } = await params;
+	const { organizationSlug, projectSlug } = await params;
 
-	return <ProjectSettingsGeneralPage projectSlug={projectSlug} />;
+	return (
+		<ProjectSettingsGeneralPage
+			organizationSlug={organizationSlug}
+			projectSlug={projectSlug}
+		/>
+	);
 }
