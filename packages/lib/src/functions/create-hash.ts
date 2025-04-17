@@ -85,6 +85,21 @@ function base64Decode(data: string, alphabet: string): Uint8Array {
 	return Uint8Array.from(result);
 }
 
+// Helper function to safely convert any TypedArray to Uint8Array
+function toUint8Array(data: ArrayBuffer | TypedArray): Uint8Array {
+	if (data instanceof ArrayBuffer) {
+		return new Uint8Array(data);
+	}
+
+	// Handle BigInt arrays separately as they can't be directly passed to Uint8Array
+	if (data instanceof BigInt64Array || data instanceof BigUint64Array) {
+		return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+	}
+
+	// For other TypedArrays
+	return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+}
+
 const base64 = {
 	encode(
 		data: ArrayBuffer | TypedArray | string,
@@ -94,12 +109,12 @@ const base64 = {
 		const buffer =
 			typeof data === "string"
 				? new TextEncoder().encode(data)
-				: new Uint8Array(data);
+				: toUint8Array(data);
 		return base64Encode(buffer, alphabet, options.padding ?? true);
 	},
 	decode(data: string | ArrayBuffer | TypedArray) {
 		if (typeof data !== "string") {
-			data = new TextDecoder().decode(data);
+			data = new TextDecoder().decode(toUint8Array(data));
 		}
 		const urlSafe = data.includes("-") || data.includes("_");
 		const alphabet = getAlphabet(urlSafe);
@@ -116,7 +131,7 @@ export const base64Url = {
 		const buffer =
 			typeof data === "string"
 				? new TextEncoder().encode(data)
-				: new Uint8Array(data);
+				: toUint8Array(data);
 		return base64Encode(buffer, alphabet, options.padding ?? true);
 	},
 	decode(data: string) {
@@ -135,7 +150,8 @@ export function createHash<Encoding extends EncodingFormat = "none">(
 			input: string | ArrayBuffer | TypedArray
 		): Promise<Encoding extends "none" ? ArrayBuffer : string> => {
 			const encoder = new TextEncoder();
-			const data = typeof input === "string" ? encoder.encode(input) : input;
+			const data =
+				typeof input === "string" ? encoder.encode(input) : toUint8Array(input);
 			const hashBuffer = await subtle.digest(algorithm, data);
 
 			if (encoding === "hex") {
