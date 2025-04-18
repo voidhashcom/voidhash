@@ -23,6 +23,10 @@ type PaymentProviderP8UploadSection = {
 	successMessage: string;
 };
 
+export type CreateConfigurationSheetParams = {
+	projectId: string;
+};
+
 type PaymentProviderConfigurationSheetSection = {
 	key: string;
 } & (
@@ -31,16 +35,30 @@ type PaymentProviderConfigurationSheetSection = {
 	| PaymentProviderP8UploadSection
 );
 
-export type CreateConfigurationSheetParams = {
-	projectId: string;
+export type CreateProductEditorSheetParams = {
+	productId: string;
 };
+
+type PaymentProviderProductEditorSheetSection = {
+	key: string;
+} & (PaymentProviderTextInputSection | PaymentProviderCopyTextSection);
 
 export type PaymentProvider = {
 	id: string;
 	title: string;
-	defaultConfiguration: object;
-	configurationSchema: z.ZodSchema;
-	createConfigurationSheet: (params: CreateConfigurationSheetParams) => {
-		sections: PaymentProviderConfigurationSheetSection[];
+	configuration: {
+		defaultConfiguration: object;
+		configurationSchema: z.ZodSchema;
+		createConfigurationSheet: (params: CreateConfigurationSheetParams) => {
+			sections: PaymentProviderConfigurationSheetSection[];
+		};
+	};
+	products: {
+		keyProperties: string[];
+		defaultProductConfiguration: object;
+		productConfigurationSchema: z.ZodSchema;
+		createProductEditorSheet: (params: CreateProductEditorSheetParams) => {
+			sections: PaymentProviderProductEditorSheetSection[];
+		};
 	};
 };

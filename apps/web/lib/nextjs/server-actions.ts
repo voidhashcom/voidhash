@@ -47,6 +47,18 @@ import {
 } from "../services/products/create-product";
 import { savePaymentProviderConfigurationInputSchema } from "../services/payment-providers/save-payment-provider-configuration";
 import { savePaymentProviderConfiguration } from "../services/payment-providers/save-payment-provider-configuration";
+import {
+	createPaymentProviderProductInputSchema,
+	createPaymentProviderProduct,
+} from "../services/products/create-payment-provider-product";
+import {
+	updatePaymentProviderProductInputSchema,
+	updatePaymentProviderProduct,
+} from "../services/products/update-payment-provider-product";
+import {
+	deletePaymentProviderProductInputSchema,
+	deletePaymentProviderProduct,
+} from "../services/products/delete-payment-provider-product";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -156,6 +168,34 @@ export const savePaymentProviderConfigurationAction = actionClient
 	.schema(savePaymentProviderConfigurationInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		return await savePaymentProviderConfiguration({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+// Products
+export const createPaymentProviderProductAction = actionClient
+	.schema(createPaymentProviderProductInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await createPaymentProviderProduct({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+export const updatePaymentProviderProductAction = actionClient
+	.schema(updatePaymentProviderProductInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await updatePaymentProviderProduct({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+export const deletePaymentProviderProductAction = actionClient
+	.schema(deletePaymentProviderProductInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await deletePaymentProviderProduct({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

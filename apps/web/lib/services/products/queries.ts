@@ -4,7 +4,11 @@ import { product, db } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { getProjectById } from "../projects/queries";
 import { NotFoundError } from "@voidhash/lib/constants";
-import { getProductsQuery } from "./raw-queries";
+import {
+	getProductsQuery,
+	getProviderProductByPrimaryKeyQuery,
+	getProviderProductsByProductIdQuery,
+} from "./raw-queries";
 
 export const getProductsInputSchema = z.object({
 	projectId: z.string(),
@@ -54,4 +58,54 @@ export const getProductById = createServiceFunction()
 		}
 
 		return productResult;
+	});
+
+export const getProviderProductByPrimaryKey = createServiceFunction()
+	.input(
+		z.object({
+			projectId: z.string(),
+			providerId: z.string(),
+			productProviderKey: z.string(),
+		})
+	)
+	.function(async ({ input, ctx }) => {
+		const providerProduct = await getProviderProductByPrimaryKeyQuery(
+			input.projectId,
+			input.providerId,
+			input.productProviderKey
+		);
+
+		if (!providerProduct) {
+			throw new NotFoundError("Provider product not found");
+		}
+
+		// Auth check
+		const product = await getProductById({
+			ctx,
+			input: { id: providerProduct.productId },
+		});
+
+		if (!product) {
+			throw new NotFoundError("Product not found");
+		}
+
+		return providerProduct;
+	});
+
+export const getProviderProductsByProductId = createServiceFunction()
+	.input(z.object({ productId: z.string() }))
+	.function(async ({ input, ctx }) => {
+		const product = await getProductById({
+			ctx,
+			input: { id: input.productId },
+		});
+
+		if (!product) {
+			throw new NotFoundError("Product not found");
+		}
+		const providerProducts = await getProviderProductsByProductIdQuery(
+			input.productId
+		);
+
+		return providerProducts;
 	});

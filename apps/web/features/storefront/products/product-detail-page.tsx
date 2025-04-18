@@ -2,18 +2,22 @@ import { Page } from "@/features/shell";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
-import { getProductById } from "@/lib/services/products/queries";
+import {
+	getProductById,
+	getProviderProductsByProductId,
+} from "@/lib/services/products/queries";
 import { notFound } from "next/navigation";
 import { ProductDetailPaymentProvidersEmptyState } from "./product-detail-payment-providers-empty-state";
 import {
-	Button,
 	Card,
 	CardContent,
 	CardFooter,
 	CardHeader,
 	CardTitle,
 } from "@voidhash/ui";
-import { PlusIcon } from "lucide-react";
+import { PaymentProviderLogo } from "../payment-providers/payment-provider-logo";
+import { ProductDetailAddProductButton } from "./product-detail-add-product-button";
+import { ProductDetailProviderProductRecord } from "./product-detail-provider-product-record";
 
 export async function ProductDetailPage({
 	organizationSlug,
@@ -33,10 +37,23 @@ export async function ProductDetailPage({
 		return notFound();
 	}
 
-	const paymentProviderConfigurations = await getPaymentProviderConfigurations({
-		ctx: await createNextServiceContext(),
-		input: { projectId: product.projectId },
+	const serviceContext = await createNextServiceContext();
+	const providerProductsPromise = getProviderProductsByProductId({
+		ctx: serviceContext,
+		input: { productId: product.id },
 	});
+
+	const paymentProviderConfigurationsPromise = getPaymentProviderConfigurations(
+		{
+			ctx: serviceContext,
+			input: { projectId: product.projectId },
+		}
+	);
+
+	const [providerProducts, paymentProviderConfigurations] = await Promise.all([
+		providerProductsPromise,
+		paymentProviderConfigurationsPromise,
+	]);
 
 	const paymentProvidersWithEnabledConfigurations = paymentProviders
 		.map((paymentProvider) => {
@@ -46,7 +63,7 @@ export async function ProductDetailPage({
 			);
 
 			return {
-				...paymentProvider,
+				paymentProvider,
 				enabled:
 					!!paymentProviderConfiguration &&
 					paymentProviderConfiguration.enabled,
@@ -84,30 +101,71 @@ export async function ProductDetailPage({
 							organizationSlug={organizationSlug}
 						/>
 					)}
-					{paymentProvidersWithEnabledConfigurations.map((paymentProvider) => (
-						<Card
-							className="pb-0 overflow-hidden mt-8"
-							key={paymentProvider.id}
-						>
-							<CardHeader>
-								<CardTitle>{paymentProvider.title}</CardTitle>
-							</CardHeader>
-							<CardContent className="border-t border-border">
-								{/* Emtpy State */}
-								<div className="flex flex-col items-center justify-center h-full pt-6">
-									<div className="text-muted-foreground">
-										No {paymentProvider.title} products added yet.
-									</div>
-								</div>
-							</CardContent>
-							<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
-								<Button type="submit" variant={"secondary"}>
-									<PlusIcon className="w-4 h-4 mr-1 text-muted-foreground" />
-									<span>Add {paymentProvider.title} product</span>
-								</Button>
-							</CardFooter>
-						</Card>
-					))}
+					{paymentProvidersWithEnabledConfigurations.map(
+						(paymentProviderWithConfiguration) => (
+							<Card
+								className="pb-0 overflow-hidden mt-8 gap-0"
+								key={paymentProviderWithConfiguration.paymentProvider.id}
+							>
+								<CardHeader className="pb-4">
+									<CardTitle className="flex items-center gap-4">
+										<PaymentProviderLogo
+											providerId={
+												paymentProviderWithConfiguration.paymentProvider.id
+											}
+											className="w-5 h-5"
+										/>
+										<span>
+											{paymentProviderWithConfiguration.paymentProvider.title}
+										</span>
+									</CardTitle>
+								</CardHeader>
+								<CardContent className="border-t border-border divide-y divide-border px-0">
+									{/* Emtpy State */}
+									{providerProducts.filter(
+										(providerProduct) =>
+											providerProduct.providerId ===
+											paymentProviderWithConfiguration.paymentProvider.id
+									).length === 0 && (
+										<div className="flex flex-col items-center justify-center h-full py-6">
+											<div className="text-muted-foreground">
+												No{" "}
+												{paymentProviderWithConfiguration.paymentProvider.title}{" "}
+												products added yet.
+											</div>
+										</div>
+									)}
+
+									{providerProducts
+										.filter(
+											(providerProduct) =>
+												providerProduct.providerId ===
+												paymentProviderWithConfiguration.paymentProvider.id
+										)
+										.map((providerProduct) => (
+											<ProductDetailProviderProductRecord
+												key={providerProduct.providerProductKey}
+												providerProduct={providerProduct}
+												paymentProviderId={
+													paymentProviderWithConfiguration.paymentProvider.id
+												}
+											/>
+										))}
+								</CardContent>
+								<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
+									<ProductDetailAddProductButton
+										productId={product.id}
+										providerId={
+											paymentProviderWithConfiguration.paymentProvider.id
+										}
+										title={
+											paymentProviderWithConfiguration.paymentProvider.title
+										}
+									/>
+								</CardFooter>
+							</Card>
+						)
+					)}
 				</div>
 			</div>
 		</Page>

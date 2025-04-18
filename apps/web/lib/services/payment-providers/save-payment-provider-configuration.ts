@@ -38,7 +38,7 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 			);
 
 		if (input.enabled) {
-			const configurationSchema = provider.configurationSchema;
+			const configurationSchema = provider.configuration.configurationSchema;
 			const parsedConfiguration = configurationSchema.parse(
 				input.configuration
 			);

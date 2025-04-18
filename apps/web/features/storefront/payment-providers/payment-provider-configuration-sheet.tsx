@@ -55,9 +55,11 @@ export function PaymentProviderConfigurationSheet({
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const form = useForm<any>({
 		resolver: isEnabled
-			? zodResolver(paymentProvider?.configurationSchema ?? z.object({}))
+			? zodResolver(
+					paymentProvider?.configuration.configurationSchema ?? z.object({})
+				)
 			: undefined,
-		defaultValues: paymentProvider?.defaultConfiguration,
+		defaultValues: paymentProvider?.configuration.defaultConfiguration,
 	});
 
 	const { execute, isPending } = useAction(
@@ -91,7 +93,9 @@ export function PaymentProviderConfigurationSheet({
 
 	useEffect(() => {
 		if (open) {
-			form.reset(configuration ?? paymentProvider?.defaultConfiguration);
+			form.reset(
+				configuration ?? paymentProvider?.configuration.defaultConfiguration
+			);
 			setIsEnabled(enabled);
 		}
 	}, [open]);
@@ -104,9 +108,10 @@ export function PaymentProviderConfigurationSheet({
 		return null;
 	}
 
-	const configurationSheet = paymentProvider.createConfigurationSheet({
-		projectId: project.id,
-	});
+	const configurationSheet =
+		paymentProvider.configuration.createConfigurationSheet({
+			projectId: project.id,
+		});
 
 	const handleP8FileChange = (name: string, file: File) => {
 		const reader = new FileReader();
