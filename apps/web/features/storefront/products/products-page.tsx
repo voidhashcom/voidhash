@@ -43,7 +43,12 @@ export async function ProductsPage({
 				<div className="mt-8">
 					<Card className="divide-y grid p-0 gap-0">
 						{products.map((product) => (
-							<ProductRecord key={product.id} product={product} />
+							<ProductRecord
+								key={product.id}
+								product={product}
+								organizationSlug={organizationSlug}
+								projectSlug={projectSlug}
+							/>
 						))}
 					</Card>
 				</div>

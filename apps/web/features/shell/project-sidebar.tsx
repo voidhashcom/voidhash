@@ -1,18 +1,9 @@
 "use client";
 
 import * as React from "react";
-import {
-	GaugeIcon,
-	LifeBuoy,
-	Repeat,
-	Send,
-	Settings,
-	Store,
-	Users,
-} from "lucide-react";
+import { GaugeIcon, Settings, Store, Users } from "lucide-react";
 import { Sidebar, SidebarContent, useSidebar } from "@voidhash/ui";
 import { NavMain } from "./nav-main";
-import { NavSecondary } from "./nav-secondary";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
