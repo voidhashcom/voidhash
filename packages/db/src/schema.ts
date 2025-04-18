@@ -122,3 +122,24 @@ export const product = mysqlTable("product", {
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
+
+export const productProviderConfiguration = mysqlTable(
+	"product_provider_configuration",
+	{
+		providerProductKey: varchar("provider_product_key", { length: 255 }),
+		productId: varchar("product_id", { length: 255 })
+			.notNull()
+			.references(() => product.id),
+		providerId: varchar("provider_id", { length: 255 }),
+		configuration: json("configuration").$type<object>(),
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.productId, table.providerProductKey],
+			name: "product_provider_configuration_pk",
+		}),
+		index("provider_id_idx").on(table.providerId),
+	]
+);

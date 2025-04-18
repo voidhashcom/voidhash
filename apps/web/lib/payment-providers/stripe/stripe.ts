@@ -1,13 +1,15 @@
 import { z } from "zod";
-import { PaymentProvider } from "../lib/types";
-import { StripeLogo } from "./stripe-logo";
+import { PaymentProvider } from "../types";
 
 export const stripe = {
 	id: "stripe",
 	title: "Stripe",
-	logo: StripeLogo,
 	configurationSchema: z.object({
 		secretKey: z.string().min(1),
 		webhookSecret: z.string().min(1),
 	}),
+	defaultConfiguration: {
+		secretKey: "",
+		webhookSecret: "",
+	},
 } satisfies PaymentProvider;

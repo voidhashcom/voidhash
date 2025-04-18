@@ -1,5 +1,7 @@
 import { Page } from "@/features/shell";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
 import { getProductById } from "@/lib/services/products/queries";
 import { notFound } from "next/navigation";
 
@@ -20,6 +22,28 @@ export async function ProductDetailPage({
 	if (!product) {
 		return notFound();
 	}
+
+	const paymentProviderConfigurations = await getPaymentProviderConfigurations({
+		ctx: await createNextServiceContext(),
+		input: { projectId: product.projectId },
+	});
+
+	const paymentProvidersWithEnabledConfigurations = paymentProviders
+		.map((paymentProvider) => {
+			const paymentProviderConfiguration = paymentProviderConfigurations.find(
+				(paymentProviderConfiguration) =>
+					paymentProviderConfiguration.providerId === paymentProvider.id
+			);
+
+			return {
+				...paymentProvider,
+				enabled:
+					!!paymentProviderConfiguration &&
+					paymentProviderConfiguration.enabled,
+				configuration: paymentProviderConfiguration,
+			};
+		})
+		.filter((paymentProvider) => paymentProvider.enabled);
 
 	return (
 		<Page
@@ -43,7 +67,11 @@ export async function ProductDetailPage({
 					{/* <CreateProductModalButton projectId={project.id} /> */}
 				</div>
 
-				<div className="mt-8"></div>
+				<div className="mt-8">
+					{paymentProvidersWithEnabledConfigurations.map((paymentProvider) => (
+						<div key={paymentProvider.id}>{paymentProvider.title}</div>
+					))}
+				</div>
 			</div>
 		</Page>
 	);

@@ -24,29 +24,16 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircleIcon, XIcon } from "lucide-react";
-import { useTRPC } from "../../../trpc/react";
 import { type getProjectById } from "@/lib/services/projects/queries";
+import { appStore } from "@/lib/payment-providers/app-store/app-store";
+import { useAction } from "next-safe-action/hooks";
+import { savePaymentProviderConfigurationAction } from "@/lib/nextjs/server-actions";
+import { useRouter } from "next/navigation";
 
-const appStoreConfigurationSchema = z.object({
-	issuerId: z.string().min(1, {
-		message: "Issuer ID is required",
-	}),
-	bundleId: z.string().min(1, {
-		message: "Bundle ID is required",
-	}),
-	keyId: z.string().min(1, {
-		message: "Key ID is required",
-	}),
-	privateKey: z.string().min(1, {
-		message: "Private key is required",
-	}),
-});
+const INTEGRATION_ID = appStore.id;
 
-const INTEGRATION_ID = "app-store";
-
-type AppStoreConfigurationForm = z.infer<typeof appStoreConfigurationSchema>;
+type AppStoreConfigurationForm = z.infer<typeof appStore.configurationSchema>;
 
 export function AppStoreConfigurationSheet({
 	trigger,
@@ -60,44 +47,35 @@ export function AppStoreConfigurationSheet({
 	configuration?: any;
 	project: Awaited<ReturnType<typeof getProjectById>>;
 }) {
+	const router = useRouter();
 	const [open, setOpen] = useState(false);
-	const queryClient = useQueryClient();
+
 	const [isEnabled, setIsEnabled] = useState(enabled);
 
 	const form = useForm<AppStoreConfigurationForm>({
-		resolver: isEnabled ? zodResolver(appStoreConfigurationSchema) : undefined,
-		defaultValues: {},
+		resolver: isEnabled ? zodResolver(appStore.configurationSchema) : undefined,
+		defaultValues: appStore.defaultConfiguration,
 	});
 
-	const trpc = useTRPC();
-	const { mutate: saveConfiguration, isPending } = useMutation(
-		trpc.paymentProviders.savePaymentProviderConfiguration.mutationOptions({
-			onSuccess: async () => {
-				toast.success("Stripe configuration saved successfully");
+	const { execute, isPending } = useAction(
+		savePaymentProviderConfigurationAction,
+		{
+			onSuccess: () => {
+				toast.success("App Store configuration saved successfully");
 				setOpen(false);
-				queryClient.invalidateQueries({
-					queryKey:
-						trpc.paymentProviders.paymentProvidersConfigurations.queryKey(),
-				});
+				router.refresh();
 			},
 			onError: (error) => {
-				if (error.data?.voidhashError) {
-					toast.error(error.data.voidhashError.message);
-				} else {
-					toast.error("Failed to save Stripe configuration. Please try again.");
-				}
+				toast.error(
+					error.error.serverError ??
+						"Failed to save configuration. Please try again."
+				);
 			},
-		})
+		}
 	);
 
 	const onSubmit = async (data: AppStoreConfigurationForm) => {
-		console.log({
-			providerId: INTEGRATION_ID,
-			projectId: project?.id ?? "",
-			enabled: isEnabled,
-			configuration: data,
-		});
-		saveConfiguration({
+		execute({
 			providerId: INTEGRATION_ID,
 			projectId: project?.id ?? "",
 			enabled: isEnabled,
@@ -120,7 +98,7 @@ export function AppStoreConfigurationSheet({
 
 	useEffect(() => {
 		if (open) {
-			form.reset(configuration);
+			form.reset(configuration ?? appStore.defaultConfiguration);
 			setIsEnabled(enabled);
 		}
 	}, [open]);

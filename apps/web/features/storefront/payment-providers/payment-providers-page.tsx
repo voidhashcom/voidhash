@@ -3,13 +3,13 @@ import { Badge, Card } from "@voidhash/ui";
 import Link from "next/link";
 import { PaymentProviderLogo } from "./payment-provider-logo";
 import { ChevronRightIcon } from "lucide-react";
-import { paymentProviders } from "@voidhash/lib/constants";
 import { StripeConfigurationSheet } from "./stripe/stripe-configuration-sheet";
 import { AppStoreConfigurationSheet } from "./app-store/app-store-configuration-sheet";
 import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { notFound } from "next/navigation";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 
 const paymentProvidersConfigurationSheetComponents = {
 	stripe: StripeConfigurationSheet,
