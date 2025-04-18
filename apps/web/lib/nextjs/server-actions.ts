@@ -45,6 +45,8 @@ import {
 	createProduct,
 	createProductInputSchema,
 } from "../services/products/create-product";
+import { savePaymentProviderConfigurationInputSchema } from "../services/payment-providers/save-payment-provider-configuration";
+import { savePaymentProviderConfiguration } from "../services/payment-providers/save-payment-provider-configuration";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -144,6 +146,16 @@ export const switchEnvironmentAction = actionClient
 	.schema(switchEnvironmentInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		return await switchEnvironment({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+// Payment providers
+export const savePaymentProviderConfigurationAction = actionClient
+	.schema(savePaymentProviderConfigurationInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await savePaymentProviderConfiguration({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

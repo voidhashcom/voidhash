@@ -1,10 +1,5 @@
 import { z } from "zod";
-
-export type PaymentProvider = {
-	id: "app-store";
-	title: string;
-	configurationSchema: z.ZodSchema;
-};
+import { PaymentProvider } from "../types";
 
 export const appStore = {
 	id: "app-store",
@@ -23,6 +18,10 @@ export const appStore = {
 			message: "Private key is required",
 		}),
 	}),
+	defaultConfiguration: {
+		issuerId: "",
+		bundleId: "",
+		keyId: "",
+		privateKey: "",
+	},
 } satisfies PaymentProvider;
-
-export const paymentProviders = [appStore] as const;

@@ -18,15 +18,16 @@ import {
 	SheetFooter,
 	CopyText,
 } from "@voidhash/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { stripe } from "./stripe";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "../../../trpc/react";
 import { type getProjectById } from "@/lib/services/projects/queries";
+import { savePaymentProviderConfigurationAction } from "@/lib/nextjs/server-actions";
+import { useAction } from "next-safe-action/hooks";
+import { useRouter } from "next/navigation";
+import { stripe } from "@/lib/payment-providers/stripe/stripe";
 
 type StripeConfigurationForm = z.infer<typeof stripe.configurationSchema>;
 
@@ -42,54 +43,47 @@ export function StripeConfigurationSheet({
 	configuration?: any;
 	project: Awaited<ReturnType<typeof getProjectById>>;
 }) {
+	const router = useRouter();
 	const [open, setOpen] = useState(false);
-	const queryClient = useQueryClient();
 	const [isEnabled, setIsEnabled] = useState(enabled);
 
 	const form = useForm<StripeConfigurationForm>({
 		resolver: isEnabled ? zodResolver(stripe.configurationSchema) : undefined,
-		defaultValues: {
-			secretKey: configuration?.secretKey ?? "",
-			webhookSecret: configuration?.webhookSecret ?? "",
-		},
+		defaultValues: stripe.defaultConfiguration,
 	});
 
-	const trpc = useTRPC();
-
-	const { mutate: saveConfiguration, isPending } = useMutation(
-		trpc.paymentProviders.savePaymentProviderConfiguration.mutationOptions({
-			onSuccess: async () => {
+	const { execute, isPending } = useAction(
+		savePaymentProviderConfigurationAction,
+		{
+			onSuccess: () => {
 				toast.success("Stripe configuration saved successfully");
 				setOpen(false);
-				queryClient.invalidateQueries({
-					queryKey:
-						trpc.paymentProviders.paymentProvidersConfigurations.queryKey(),
-				});
+				router.refresh();
 			},
 			onError: (error) => {
-				if (error.data?.voidhashError) {
-					toast.error(error.data.voidhashError.message);
-				} else {
-					toast.error("Failed to save Stripe configuration. Please try again.");
-				}
+				toast.error(
+					error.error.serverError ??
+						"Failed to save configuration. Please try again."
+				);
 			},
-		})
+		}
 	);
 
 	const onSubmit = async (data: StripeConfigurationForm) => {
-		console.log({
-			providerId: stripe.id,
-			projectId: project?.id ?? "",
-			enabled: isEnabled,
-			configuration: data,
-		});
-		saveConfiguration({
+		execute({
 			providerId: stripe.id,
 			projectId: project?.id ?? "",
 			enabled: isEnabled,
 			configuration: data,
 		});
 	};
+
+	useEffect(() => {
+		if (open) {
+			form.reset(configuration ?? stripe.defaultConfiguration);
+			setIsEnabled(enabled);
+		}
+	}, [open]);
 
 	return (
 		<Sheet open={open} onOpenChange={setOpen}>
