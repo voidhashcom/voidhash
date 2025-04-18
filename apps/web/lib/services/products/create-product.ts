@@ -29,6 +29,6 @@ export const createProduct = createServiceFunction()
 			name: input.name,
 		};
 		await db.insert(product).values(newProduct);
-		ctx.cache.invalidate(`products_${project.id}`);
+
 		return newProduct;
 	});

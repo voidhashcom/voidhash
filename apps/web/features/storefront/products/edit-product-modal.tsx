@@ -8,7 +8,6 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "@voidhash/ui/dialog";
 import { Input } from "@voidhash/ui/input";
 import {
@@ -24,61 +23,49 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useAction } from "next-safe-action/hooks";
-import { createProductAction } from "@/lib/nextjs/server-actions";
+import { updateProductAction } from "@/lib/nextjs/server-actions";
+
+import { useEffect } from "react";
+import { type getProducts } from "@/lib/services/products/queries";
 import { useRouter } from "next/navigation";
 
-const createProductSchema = z.object({
-	name: z
-		.string()
-		.min(3, "Name must be at least 3 characters long")
-		.max(32, "Name must be less than 32 characters"),
+const updateProductSchema = z.object({
+	name: z.string().min(1),
 });
-
-type CreateProductForm = z.infer<typeof createProductSchema>;
+type UpdateProductForm = z.infer<typeof updateProductSchema>;
 
 // Define a Product type matching the DB schema
-export type Product = {
-	id: string;
-	name: string;
-	projectId: string;
-	createdAt?: string;
-	updatedAt?: string;
-};
 
-interface CreateProductModalProps {
+interface EditProductModalProps {
 	open: boolean;
 	onClose: () => void;
-	trigger: React.ReactNode;
-	projectId: string;
-	onSuccess?: (product: Product) => void;
+	product: Awaited<ReturnType<typeof getProducts>>[number];
 }
 
-export function CreateProductModal({
+export function EditProductModal({
 	open,
 	onClose,
-	trigger,
-	projectId,
-	onSuccess,
-}: CreateProductModalProps) {
+	product,
+}: EditProductModalProps) {
 	const router = useRouter();
-	const form = useForm<CreateProductForm>({
-		resolver: zodResolver(createProductSchema),
+	const form = useForm<UpdateProductForm>({
+		resolver: zodResolver(updateProductSchema),
 		defaultValues: {
 			name: "",
 		},
 	});
 
-	const { execute, isPending } = useAction(createProductAction, {
+	const { execute, isPending } = useAction(updateProductAction, {
 		onSuccess: (res) => {
 			if (res.data) {
-				toast.success("Product created successfully");
-				onSuccess?.(res.data);
+				toast.success("Product updated successfully");
 				router.refresh();
+				onClose?.();
 				handleOpenChange(false);
 			}
 		},
 		onError: (error) => {
-			toast.error(error.error.serverError || "Failed to create product");
+			toast.error(error.error.serverError || "Failed to update the product");
 		},
 	});
 
@@ -89,19 +76,24 @@ export function CreateProductModal({
 		}
 	};
 
-	const onSubmit = (data: CreateProductForm) => {
-		execute({ ...data, projectId });
+	const onSubmit = (data: UpdateProductForm) => {
+		execute({ ...data, productId: product.id });
 	};
+
+	useEffect(() => {
+		if (open) {
+			form.reset({
+				name: product.name,
+			});
+		}
+	}, [open]);
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogTrigger asChild>{trigger}</DialogTrigger>
 			<DialogContent className="max-w-sm">
 				<DialogHeader>
-					<DialogTitle>Create New Product</DialogTitle>
-					<DialogDescription>
-						Create a new product for your project.
-					</DialogDescription>
+					<DialogTitle>Edit Product</DialogTitle>
+					<DialogDescription>Edit the product details.</DialogDescription>
 				</DialogHeader>
 				<Form {...form}>
 					<form
@@ -127,7 +119,7 @@ export function CreateProductModal({
 								disabled={isPending}
 								className="w-full mt-4"
 							>
-								{isPending ? "Creating Product..." : "Create Product"}
+								{isPending ? "Saving..." : "Save Changes"}
 							</Button>
 						</DialogFooter>
 					</form>
