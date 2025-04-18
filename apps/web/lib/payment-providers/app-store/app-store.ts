@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { PaymentProvider } from "../types";
 
-export const appStore = {
+export const appStore: PaymentProvider = {
 	id: "app-store",
 	title: "Apple App Store",
 	configurationSchema: z.object({
@@ -24,4 +24,45 @@ export const appStore = {
 		keyId: "",
 		privateKey: "",
 	},
+	createConfigurationSheet: () => ({
+		sections: [
+			{
+				key: "bundleId",
+				type: "text-input",
+				name: "bundleId",
+				label: "Bundle ID",
+				input: {
+					type: "text",
+					placeholder: "com.example.app",
+				},
+			},
+			{
+				key: "issuerId",
+				type: "text-input",
+				name: "issuerId",
+				label: "Issuer ID",
+				input: {
+					type: "text",
+					placeholder: "00000000-0000-0000-0000-000000000000",
+				},
+			},
+			{
+				key: "keyId",
+				type: "text-input",
+				name: "keyId",
+				label: "Key ID",
+				input: {
+					type: "text",
+					placeholder: "XXXXXXXXXX",
+				},
+			},
+			{
+				key: "privateKey",
+				name: "privateKey",
+				type: "p8-upload",
+				label: "Private Key (.p8 file)",
+				successMessage: "Private key was successfully attached",
+			},
+		],
+	}),
 } satisfies PaymentProvider;

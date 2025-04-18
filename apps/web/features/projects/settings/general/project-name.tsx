@@ -23,6 +23,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/features/trpc/react";
 
 const updateProjectNameSchema = z.object({
 	name: z
@@ -43,6 +45,9 @@ export function ProjectNameForm({
 		},
 	});
 
+	const queryClient = useQueryClient();
+	const trpc = useTRPC();
+
 	const router = useRouter();
 
 	const { execute: updateProjectName, isPending } = useAction(
@@ -50,6 +55,9 @@ export function ProjectNameForm({
 		{
 			onSuccess: () => {
 				toast.success("Project name updated successfully");
+				queryClient.invalidateQueries({
+					queryKey: trpc.pathKey(),
+				});
 				router.refresh();
 			},
 			onError: (error) => {

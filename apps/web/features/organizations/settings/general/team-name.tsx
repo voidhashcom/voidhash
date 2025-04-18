@@ -23,6 +23,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useTRPC } from "@/features/trpc/react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const updateTeamNameSchema = z.object({
 	name: z
@@ -43,6 +45,9 @@ export function TeamNameForm({
 		},
 	});
 
+	const queryClient = useQueryClient();
+	const trpc = useTRPC();
+
 	const router = useRouter();
 
 	const { execute: updateTeamName, isPending } = useAction(
@@ -50,6 +55,9 @@ export function TeamNameForm({
 		{
 			onSuccess: () => {
 				toast.success("Team name updated successfully");
+				queryClient.invalidateQueries({
+					queryKey: trpc.pathKey(),
+				});
 				router.refresh();
 			},
 			onError: (error) => {

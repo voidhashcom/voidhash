@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { createProjectAction } from "@/lib/nextjs/server-actions";
+import { useTRPC } from "../trpc/react";
 const createProjectSchema = z.object({
 	name: z
 		.string()
@@ -59,11 +60,15 @@ export function CreateProjectModal({
 	});
 
 	const queryClient = useQueryClient();
+	const trpc = useTRPC();
 
 	const { execute, isPending } = useAction(createProjectAction, {
 		onSuccess: async (res) => {
 			queryClient.invalidateQueries();
 			router.push(`/${organizationSlug}/${res.data?.slug}`);
+			queryClient.invalidateQueries({
+				queryKey: trpc.projects.pathKey(),
+			});
 			onClose?.();
 		},
 		onError: (error) => {
