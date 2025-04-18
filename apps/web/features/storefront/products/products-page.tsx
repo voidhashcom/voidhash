@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { getProducts } from "@/lib/services/products/queries";
 import { Card } from "@voidhash/ui";
 import { ProductRecord } from "./product-record";
+import { ProductsPageEmptyState } from "./products-page-empty-state";
 
 export async function ProductsPage({
 	organizationSlug,
@@ -41,16 +42,20 @@ export async function ProductsPage({
 					List of products available to purchase.
 				</p>
 				<div className="mt-8">
-					<Card className="divide-y grid p-0 gap-0">
-						{products.map((product) => (
-							<ProductRecord
-								key={product.id}
-								product={product}
-								organizationSlug={organizationSlug}
-								projectSlug={projectSlug}
-							/>
-						))}
-					</Card>
+					{products.length === 0 ? (
+						<ProductsPageEmptyState projectId={project.id} />
+					) : (
+						<Card className="divide-y grid p-0 gap-0">
+							{products.map((product) => (
+								<ProductRecord
+									key={product.id}
+									product={product}
+									organizationSlug={organizationSlug}
+									projectSlug={projectSlug}
+								/>
+							))}
+						</Card>
+					)}
 				</div>
 			</div>
 		</Page>

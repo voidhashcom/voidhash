@@ -15,7 +15,7 @@ export function ProductsPageSkeleton() {
 				</p>
 				<div className="mt-8">
 					<Card className="divide-y grid p-0 gap-0">
-						{Array.from({ length: 5 }).map((_, index) => (
+						{Array.from({ length: 3 }).map((_, index) => (
 							<ProductRecordSkeleton key={index} />
 						))}
 					</Card>
