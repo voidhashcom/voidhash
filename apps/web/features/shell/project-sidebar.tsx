@@ -113,18 +113,6 @@ export function ProjectSidebar({
 				],
 			},
 		],
-		navSecondary: [
-			{
-				title: "Support",
-				url: "#",
-				icon: LifeBuoy,
-			},
-			{
-				title: "Feedback",
-				url: "#",
-				icon: Send,
-			},
-		],
 	};
 
 	return (
@@ -136,7 +124,6 @@ export function ProjectSidebar({
 		>
 			<SidebarContent>
 				<NavMain groups={data.navMain} link={Link} />
-				<NavSecondary items={data.navSecondary} className="mt-auto" />
 			</SidebarContent>
 		</Sidebar>
 	);
