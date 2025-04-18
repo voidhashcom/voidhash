@@ -41,12 +41,25 @@ import {
 	switchEnvironment,
 	switchEnvironmentInputSchema,
 } from "../services/environments/switch-environment";
+import {
+	createProduct,
+	createProductInputSchema,
+} from "../services/products/create-product";
 
 // Api keys
 export const createSecretKeyAction = actionClient
 	.schema(createSecretKeyInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		return await createSecretKey({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+export const createProductAction = actionClient
+	.schema(createProductInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await createProduct({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

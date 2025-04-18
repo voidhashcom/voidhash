@@ -32,7 +32,7 @@ export async function ProjectApiKeysPage({
 	}
 
 	if (!environment) {
-		throw new Error("Environment not found");
+		return notFound();
 	}
 
 	const apiKeys = await getApiKeys({
