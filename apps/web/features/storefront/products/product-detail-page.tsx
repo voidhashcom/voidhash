@@ -1,4 +1,9 @@
-export function ProductDetailPage({
+import { Page } from "@/features/shell";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { getProductById } from "@/lib/services/products/queries";
+import { notFound } from "next/navigation";
+
+export async function ProductDetailPage({
 	organizationSlug,
 	projectSlug,
 	id,
@@ -7,5 +12,39 @@ export function ProductDetailPage({
 	projectSlug: string;
 	id: string;
 }) {
-	return <div>ProductDetailPage</div>;
+	const product = await getProductById({
+		ctx: await createNextServiceContext(),
+		input: { id },
+	});
+
+	if (!product) {
+		return notFound();
+	}
+
+	return (
+		<Page
+			breadcrumbs={[
+				{
+					title: "Products",
+					url: `/${organizationSlug}/${projectSlug}/storefront/products`,
+				},
+				{
+					title: product.name,
+					url: `/${organizationSlug}/${projectSlug}/storefront/products/${id}`,
+				},
+			]}
+		>
+			{/* Key is used to reload the default form data when the organization slug changes */}
+			<div className="max-w-4xl mx-auto">
+				<div className="flex flex-row items-center justify-between">
+					<h1 className="text-3xl font-normal tracking-right">
+						{product.name}
+					</h1>
+					{/* <CreateProductModalButton projectId={project.id} /> */}
+				</div>
+
+				<div className="mt-8"></div>
+			</div>
+		</Page>
+	);
 }
