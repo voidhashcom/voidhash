@@ -2,9 +2,6 @@ import { NavBarLogo } from "./nav-bar-logo";
 import { OrganizationSwitcher } from "./organization-switcher";
 import { NavUser } from "./nav-user/nav-user";
 import { ProjectSwitcher } from "./project-switcher";
-import { NavProjectEnvironment } from "./nav-project-environment";
-import { EnviromentBar } from "./nav-environment-bar";
-
 export async function NavBar({
 	organizationSlug,
 	projectSlug,
@@ -25,15 +22,17 @@ export async function NavBar({
 					/>
 				</div>
 			</div>
-			<EnviromentBar
+			{/* Hide it for now */}
+			{/* <EnviromentBar
 				organizationSlug={organizationSlug}
 				projectSlug={projectSlug}
-			/>
+			/> */}
 			<div className="flex items-center gap-6">
-				<NavProjectEnvironment
+				{/* Hide it for now */}
+				{/* <NavProjectEnvironment
 					organizationSlug={organizationSlug}
 					projectSlug={projectSlug}
-				/>
+				/> */}
 				<NavUser />
 			</div>
 		</div>

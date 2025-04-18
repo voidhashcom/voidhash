@@ -13,12 +13,12 @@ export async function GET(
 ) {
 	const searchParams = request.nextUrl.searchParams;
 	const { organizationSlug, projectSlug } = await params;
-	// TODO: set the environment based on the state of the project
+
 	await setEnvironment(
 		new NextCookiesAdapter(),
 		organizationSlug,
 		projectSlug,
-		"testing"
+		"production"
 	);
 
 	const next = searchParams.get("next");
