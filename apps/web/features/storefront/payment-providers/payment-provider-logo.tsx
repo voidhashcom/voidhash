@@ -1,6 +1,6 @@
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { AppleLogo } from "./app-store/apple-logo";
-import { StripeLogo } from "./stripe/stripe-logo";
+import { AppleLogo } from "./logos/apple-logo";
+import { StripeLogo } from "./logos/stripe-logo";
 
 export function PaymentProviderLogo({
 	providerId,
