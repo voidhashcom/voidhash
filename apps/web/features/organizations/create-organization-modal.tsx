@@ -26,6 +26,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { createOrganizationAction } from "@/lib/nextjs/server-actions";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "../trpc/react";
 
 const createOrganizationSchema = z.object({
 	name: z
@@ -48,6 +50,8 @@ export function CreateOrganizationModal({
 	trigger,
 }: CreateOrganizationModalProps) {
 	const router = useRouter();
+	const queryClient = useQueryClient();
+	const trpc = useTRPC();
 
 	const form = useForm<CreateOrganizationForm>({
 		resolver: zodResolver(createOrganizationSchema),
@@ -60,7 +64,9 @@ export function CreateOrganizationModal({
 		onSuccess: async (res) => {
 			if (res?.data?.id) {
 				onClose?.();
-
+				queryClient.invalidateQueries({
+					queryKey: trpc.pathKey(),
+				});
 				// Navigate to the new organization
 				router.push(`/${res?.data?.slug}`);
 			}

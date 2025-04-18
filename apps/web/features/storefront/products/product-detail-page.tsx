@@ -4,6 +4,16 @@ import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
 import { getProductById } from "@/lib/services/products/queries";
 import { notFound } from "next/navigation";
+import { ProductDetailPaymentProvidersEmptyState } from "./product-detail-payment-providers-empty-state";
+import {
+	Button,
+	Card,
+	CardContent,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@voidhash/ui";
+import { PlusIcon } from "lucide-react";
 
 export async function ProductDetailPage({
 	organizationSlug,
@@ -68,8 +78,35 @@ export async function ProductDetailPage({
 				</div>
 
 				<div className="mt-8">
+					{paymentProvidersWithEnabledConfigurations.length === 0 && (
+						<ProductDetailPaymentProvidersEmptyState
+							projectSlug={projectSlug}
+							organizationSlug={organizationSlug}
+						/>
+					)}
 					{paymentProvidersWithEnabledConfigurations.map((paymentProvider) => (
-						<div key={paymentProvider.id}>{paymentProvider.title}</div>
+						<Card
+							className="pb-0 overflow-hidden mt-8"
+							key={paymentProvider.id}
+						>
+							<CardHeader>
+								<CardTitle>{paymentProvider.title}</CardTitle>
+							</CardHeader>
+							<CardContent className="border-t border-border">
+								{/* Emtpy State */}
+								<div className="flex flex-col items-center justify-center h-full pt-6">
+									<div className="text-muted-foreground">
+										No {paymentProvider.title} products added yet.
+									</div>
+								</div>
+							</CardContent>
+							<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
+								<Button type="submit" variant={"secondary"}>
+									<PlusIcon className="w-4 h-4 mr-1 text-muted-foreground" />
+									<span>Add {paymentProvider.title} product</span>
+								</Button>
+							</CardFooter>
+						</Card>
 					))}
 				</div>
 			</div>

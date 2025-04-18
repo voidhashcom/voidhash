@@ -14,14 +14,21 @@ import { useState } from "react";
 import { useAction } from "next-safe-action/hooks";
 import { deleteOrganizationAction } from "@/lib/nextjs/server-actions";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/features/trpc/react";
 
 export function TeamDelete({ organizationId }: { organizationId: string }) {
 	const { organizationSlug } = useParams();
 	const router = useRouter();
+	const queryClient = useQueryClient();
+	const trpc = useTRPC();
 
 	const { execute, isPending } = useAction(deleteOrganizationAction, {
 		onSuccess: () => {
 			toast.success("Team deleted successfully");
+			queryClient.invalidateQueries({
+				queryKey: trpc.pathKey(),
+			});
 			router.push("/");
 		},
 		onError: (error) => {

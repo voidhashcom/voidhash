@@ -3,18 +3,19 @@ import { Badge, Card } from "@voidhash/ui";
 import Link from "next/link";
 import { PaymentProviderLogo } from "./payment-provider-logo";
 import { ChevronRightIcon } from "lucide-react";
-import { StripeConfigurationSheet } from "./stripe/stripe-configuration-sheet";
-import { AppStoreConfigurationSheet } from "./app-store/app-store-configuration-sheet";
+// import { StripeConfigurationSheet } from "./stripe/stripe-configuration-sheet";
+// import { AppStoreConfigurationSheet } from "./app-store/app-store-configuration-sheet";
 import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { notFound } from "next/navigation";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { PaymentProviderConfigurationSheet } from "./payment-provider-configuration-sheet";
 
-const paymentProvidersConfigurationSheetComponents = {
-	stripe: StripeConfigurationSheet,
-	"app-store": AppStoreConfigurationSheet,
-} as const;
+// const paymentProvidersConfigurationSheetComponents = {
+// 	stripe: StripeConfigurationSheet,
+// 	"app-store": AppStoreConfigurationSheet,
+// } as const;
 
 export async function PaymentProvidersPage({
 	paramsPromise,
@@ -56,8 +57,6 @@ export async function PaymentProvidersPage({
 				);
 			return {
 				...paymentProvider,
-				ConfigurationSheet:
-					paymentProvidersConfigurationSheetComponents[paymentProvider.id],
 				configuration: paymentProvidersConfiguration?.configuration,
 				enabled: paymentProvidersConfiguration?.enabled,
 			};
@@ -81,7 +80,8 @@ export async function PaymentProvidersPage({
 								className="relative isolate group hover:bg-accent/30 px-6 py-4"
 								key={paymentProvider.id}
 							>
-								<paymentProvider.ConfigurationSheet
+								<PaymentProviderConfigurationSheet
+									providerId={paymentProvider.id}
 									enabled={paymentProvider.enabled ?? false}
 									configuration={paymentProvider.configuration}
 									project={project}
