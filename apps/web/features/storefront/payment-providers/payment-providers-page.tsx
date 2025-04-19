@@ -106,9 +106,7 @@ export async function PaymentProvidersPage({
 										</div>
 									</div>
 									<div className="flex items-center gap-2">
-										{paymentProvider.enabled && (
-											<Badge variant="outline">Enabled</Badge>
-										)}
+										{paymentProvider.enabled && <Badge>Enabled</Badge>}
 										<ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
 									</div>
 								</div>

@@ -1,6 +1,10 @@
 import { Hono } from "hono";
+import customers from "./endpoints/customers";
+const app = new Hono().basePath("/server");
 
-const serverApi = new Hono().basePath("/server");
-serverApi.get("/", (c) => c.text("Server Api")); // GET /user
+app.get("/", (c) => c.text("Server Api")); // GET /user
 
-export { serverApi };
+// Endpoints
+app.route("/customers", customers);
+
+export { app as serverApi };

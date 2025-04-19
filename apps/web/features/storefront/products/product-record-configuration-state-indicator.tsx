@@ -1,0 +1,57 @@
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
+import { getProviderProductsByProductId } from "@/lib/services/products/queries";
+import { Badge } from "@voidhash/ui";
+import { PaymentProviderLogo } from "../payment-providers/payment-provider-logo";
+
+export async function ProductRecordConfigurationStateIndicator({
+	productId,
+	projectId,
+}: {
+	productId: string;
+	projectId: string;
+}) {
+	const serviceContext = await createNextServiceContext();
+	const providerProductsPromise = getProviderProductsByProductId({
+		ctx: serviceContext,
+		input: { productId: productId },
+	});
+
+	const paymentProviderConfigurationsPromise = getPaymentProviderConfigurations(
+		{
+			ctx: serviceContext,
+			input: { projectId: projectId },
+		}
+	);
+
+	const [providerProducts, paymentProviderConfigurations] = await Promise.all([
+		providerProductsPromise,
+		paymentProviderConfigurationsPromise,
+	]);
+
+	if (providerProducts.length === 0) {
+		return <Badge>Configuration required</Badge>;
+	}
+
+	if (paymentProviderConfigurations.length === 0) {
+		return <Badge>Configuration required</Badge>;
+	}
+
+	return (
+		<div className="flex flex-row gap-2">
+			{paymentProviderConfigurations.map((paymentProviderConfiguration) => {
+				return providerProducts.some(
+					(providerProduct) =>
+						providerProduct.providerId ===
+						paymentProviderConfiguration.providerId
+				) ? (
+					<PaymentProviderLogo
+						key={paymentProviderConfiguration.providerId}
+						providerId={paymentProviderConfiguration.providerId ?? ""}
+						className="w-5 h-5"
+					/>
+				) : null;
+			})}
+		</div>
+	);
+}

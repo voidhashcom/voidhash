@@ -1,14 +1,17 @@
-// import { DataTableSkeleton } from "@voidhash/ui";
+import { columns } from "./columns";
+import { DataTable } from "./data-table";
+import { getCustomers } from "@/lib/services/customers/queries";
+import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 
-// import { columns } from "./columns";
-// import { DataTable } from "./data-table";
+export async function CustomersTable({
+	projectId,
+}: {
+	projectId: string;
+}) {
+	const customers = await getCustomers({
+		ctx: await createNextServiceContext(),
+		input: { projectId: projectId },
+	});
 
-// export function CustomersTable({
-// 	projectId,
-// }: {
-// 	projectId?: string | null;
-// }) {
-// 	if (false) return <DataTableSkeleton />;
-// 	if (false) return null;
-// 	return <DataTable columns={columns} data={[]} />;
-// }
+	return <DataTable columns={columns} data={customers} />;
+}

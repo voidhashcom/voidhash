@@ -17,7 +17,7 @@ export function ProductDetailAddProductButton({
 	const [open, setOpen] = useState(false);
 	return (
 		<>
-			<Button type="submit" variant={"secondary"} onClick={() => setOpen(true)}>
+			<Button type="submit" onClick={() => setOpen(true)}>
 				<PlusIcon className="w-4 h-4 mr-1 text-muted-foreground" />
 				<span>Add {title} product</span>
 			</Button>

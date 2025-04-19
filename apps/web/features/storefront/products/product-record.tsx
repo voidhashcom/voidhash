@@ -19,10 +19,12 @@ import { EditProductModal } from "./edit-product-modal";
 
 export function ProductRecord({
 	product,
+	configurationStateIndicator,
 	organizationSlug,
 	projectSlug,
 }: {
 	product: NonNullable<Awaited<ReturnType<typeof getProducts>>>[number];
+	configurationStateIndicator: React.ReactNode;
 	organizationSlug: string;
 	projectSlug: string;
 }) {
@@ -66,8 +68,9 @@ export function ProductRecord({
 				href={`/${organizationSlug}/${projectSlug}/storefront/products/${product.id}`}
 			></Link>
 			<div className="flex flex-row items-center justify-between">
-				<div className="flex items-start gap-4 flex-1">
+				<div className="flex gap-4 flex-1 items-center">
 					<div>{product.name}</div>
+					<div>{configurationStateIndicator}</div>
 				</div>
 				<div className="flex items-center gap-2">
 					<DropdownMenu>
