@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { CacheAdapter } from "./cache-adapter";
 import { CookiesAdapter } from "./cookies-adapter";
+import { User } from "better-auth";
+import { getUserAuthSession } from "./services/auth/queries";
 
 export type ServiceParamWithInput<T = unknown> = {
 	ctx: ServiceContext;
@@ -43,8 +45,76 @@ export function createServiceFunction() {
 	};
 }
 
+type UserSession = AuthSession & {
+	method: "user";
+};
+
+type ApiKeySession = AuthSession & {
+	method: "api-key";
+};
+
+type AuthSession = {
+	organizations: {
+		id: string;
+		slug: string;
+		permissions: string[];
+	}[];
+	projects: {
+		id: string;
+		slug: string;
+		permissions: string[];
+	}[];
+	user?: User;
+};
+
 export type ServiceContext = {
 	headers: Headers;
 	cache: CacheAdapter;
 	cookies: CookiesAdapter;
+	source: "nextjs" | "api";
+	session?: UserSession | ApiKeySession | null;
 };
+
+export async function authenticateContext(
+	ctx: ServiceContext
+): Promise<ServiceContext> {
+	// Do this only once
+	if (ctx.session) {
+		return ctx;
+	}
+	if (ctx.source === "nextjs") {
+		const session = await getUserAuthSession(ctx);
+		return {
+			...ctx,
+			session,
+		};
+	}
+
+	return ctx;
+}
+
+export function hasProjectPermission(
+	ctx: ServiceContext,
+	projectId: string,
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	permission: string
+) {
+	return ctx.session?.projects.some(
+		(p) =>
+			p.id ===
+			projectId /* && p.permissions.includes(permission) TODO: Add permissions */
+	);
+}
+
+export function hasOrganizationPermission(
+	ctx: ServiceContext,
+	organizationId: string,
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	permission: string
+) {
+	return ctx.session?.organizations.some(
+		(o) =>
+			o.id ===
+			organizationId /* && o.permissions.includes(permission) TODO: Add permissions */
+	);
+}

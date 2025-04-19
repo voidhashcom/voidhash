@@ -1,9 +1,11 @@
-import { createServiceFunction } from "@/lib/service-function";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
 import { z } from "zod";
 import { product, db } from "@voidhash/db";
 import { eq } from "drizzle-orm";
-import { getProjectById } from "../projects/queries";
-import { NotFoundError } from "@voidhash/lib/constants";
 import {
 	getProductsQuery,
 	getProviderProductByPrimaryKeyQuery,
@@ -19,23 +21,12 @@ export const getProducts = cache(
 	createServiceFunction()
 		.input(getProductsInputSchema)
 		.function(async ({ input, ctx }) => {
-			// Get project due to permissions
-			const projectPromise = getProjectById({
-				ctx,
-				input: { id: input.projectId },
-			});
-
-			const productsPromise = getProductsQuery(input.projectId);
-
-			const [project, products] = await Promise.all([
-				projectPromise,
-				productsPromise,
-			]);
-
-			if (!project) {
-				throw new NotFoundError("Project not found");
+			const authenticatedContext = await authenticateContext(ctx);
+			if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
+				return [];
 			}
 
+			const products = await getProductsQuery(input.projectId);
 			return products;
 		})
 );
@@ -44,21 +35,19 @@ export const getProductById = cache(
 	createServiceFunction()
 		.input(z.object({ id: z.string() }))
 		.function(async ({ input, ctx }) => {
+			const authenticatedContext = await authenticateContext(ctx);
 			const productResult = await db.query.product.findFirst({
 				where: eq(product.id, input.id),
 			});
 
 			if (!productResult) {
-				throw new NotFoundError("Product not found");
+				return null;
 			}
 
-			const project = await getProjectById({
-				ctx,
-				input: { id: productResult.projectId },
-			});
-
-			if (!project) {
-				throw new NotFoundError("Project not found");
+			if (
+				!hasProjectPermission(authenticatedContext, productResult.projectId, "")
+			) {
+				return null;
 			}
 
 			return productResult;
@@ -75,6 +64,7 @@ export const getProviderProductByPrimaryKey = cache(
 			})
 		)
 		.function(async ({ input, ctx }) => {
+			const authenticatedContext = await authenticateContext(ctx);
 			const providerProduct = await getProviderProductByPrimaryKeyQuery(
 				input.projectId,
 				input.providerId,
@@ -82,17 +72,21 @@ export const getProviderProductByPrimaryKey = cache(
 			);
 
 			if (!providerProduct) {
-				throw new NotFoundError("Provider product not found");
+				return null;
 			}
 
 			// Auth check
 			const product = await getProductById({
-				ctx,
+				ctx: authenticatedContext,
 				input: { id: providerProduct.productId },
 			});
 
 			if (!product) {
-				throw new NotFoundError("Product not found");
+				return null;
+			}
+
+			if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
+				return null;
 			}
 
 			return providerProduct;
@@ -103,14 +97,20 @@ export const getProviderProductsByProductId = cache(
 	createServiceFunction()
 		.input(z.object({ productId: z.string() }))
 		.function(async ({ input, ctx }) => {
+			const authenticatedContext = await authenticateContext(ctx);
 			const product = await getProductById({
-				ctx,
+				ctx: authenticatedContext,
 				input: { id: input.productId },
 			});
 
 			if (!product) {
-				throw new NotFoundError("Product not found");
+				return [];
 			}
+
+			if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
+				return [];
+			}
+
 			const providerProducts = await getProviderProductsByProductIdQuery(
 				input.productId
 			);

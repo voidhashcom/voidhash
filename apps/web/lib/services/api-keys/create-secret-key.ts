@@ -1,5 +1,9 @@
-import { createServiceFunction } from "@/lib/service-function";
-import { createId, NotFoundError } from "@voidhash/lib";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
+import { createId, NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
 import { getOrganizationById } from "../organizations/queries";
 import { getProjectById } from "../projects/queries";
@@ -15,18 +19,27 @@ export const createSecretKeyInputSchema = z.object({
 export const createSecretKey = createServiceFunction()
 	.input(createSecretKeyInputSchema)
 	.function(async ({ input, ctx }) => {
+		const authenticatedContext = await authenticateContext(ctx);
+		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
+			throw new UnauthorizedError(
+				"You are not authorized to create an api key for this project"
+			);
+		}
+
 		const project = await getProjectById({
-			ctx,
+			ctx: authenticatedContext,
 			input: { id: input.projectId },
 		});
+
 		if (!project) {
 			throw new NotFoundError("Project not found");
 		}
 
 		const organization = await getOrganizationById({
-			ctx,
+			ctx: authenticatedContext,
 			input: { id: project.organizationId },
 		});
+
 		if (!organization) {
 			throw new NotFoundError("Organization not found");
 		}

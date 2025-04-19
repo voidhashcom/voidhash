@@ -1,7 +1,10 @@
-import { createServiceFunction } from "@/lib/service-function";
-import { createId, NotFoundError } from "@voidhash/lib";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
+import { createId, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
-import { getProjectById } from "../projects/queries";
 import { product, db } from "@voidhash/db";
 
 export const createProductInputSchema = z.object({
@@ -15,17 +18,14 @@ export const createProductInputSchema = z.object({
 export const createProduct = createServiceFunction()
 	.input(createProductInputSchema)
 	.function(async ({ input, ctx }) => {
-		const project = await getProjectById({
-			ctx,
-			input: { id: input.projectId },
-		});
-		if (!project) {
-			throw new NotFoundError("Project not found");
+		const authenticatedContext = await authenticateContext(ctx);
+		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
+			throw new UnauthorizedError("You are not authorized to create products");
 		}
 
 		const newProduct = {
 			id: createId(),
-			projectId: project.id,
+			projectId: input.projectId,
 			name: input.name,
 		};
 		await db.insert(product).values(newProduct);

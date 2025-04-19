@@ -2,7 +2,12 @@ import { auth } from "@voidhash/auth";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { getOrganizationById } from "./queries";
-import { createServiceFunction } from "@/lib/service-function";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasOrganizationPermission,
+} from "@/lib/service-function";
+import { UnauthorizedError } from "@voidhash/lib/constants";
 
 export const updateOrganizationInputSchema = z.object({
 	organizationId: z.string(),
@@ -12,8 +17,18 @@ export const updateOrganizationInputSchema = z.object({
 export const updateOrganization = createServiceFunction()
 	.input(updateOrganizationInputSchema)
 	.function(async ({ input, ctx }) => {
+		const authenticatedContext = await authenticateContext(ctx);
+
+		if (
+			!hasOrganizationPermission(authenticatedContext, input.organizationId, "")
+		) {
+			throw new UnauthorizedError(
+				"You are not authorized to update this organization"
+			);
+		}
+
 		const organization = await getOrganizationById({
-			ctx,
+			ctx: authenticatedContext,
 			input: {
 				id: input.organizationId,
 			},

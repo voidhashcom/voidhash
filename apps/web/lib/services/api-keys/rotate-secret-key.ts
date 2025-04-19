@@ -1,5 +1,9 @@
-import { createServiceFunction } from "@/lib/service-function";
-import { NotFoundError } from "@voidhash/lib";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
+import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
 import { createSecretKey } from "@/lib/api-keys/utils";
 import { apiKeys, db } from "@voidhash/db";
@@ -13,13 +17,23 @@ export const rotateSecretKeyInputSchema = z.object({
 export const rotateSecretKey = createServiceFunction()
 	.input(rotateSecretKeyInputSchema)
 	.function(async ({ input, ctx }) => {
+		const authenticatedContext = await authenticateContext(ctx);
+
 		const existingKey = await getApiKeyById({
-			ctx,
+			ctx: authenticatedContext,
 			input: { id: input.secretKeyId },
 		});
 
 		if (!existingKey) {
 			throw new NotFoundError("API key not found");
+		}
+
+		if (
+			!hasProjectPermission(authenticatedContext, existingKey.projectId, "")
+		) {
+			throw new UnauthorizedError(
+				"You are not authorized to rotate this api key"
+			);
 		}
 
 		const { rawKey, ...newKey } = await createSecretKey(

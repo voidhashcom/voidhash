@@ -1,4 +1,9 @@
-import { createServiceFunction } from "@/lib/service-function";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasOrganizationPermission,
+	hasProjectPermission,
+} from "@/lib/service-function";
 import { z } from "zod";
 import {
 	getProjectByIdQuery,
@@ -7,7 +12,6 @@ import {
 } from "./raw-queries";
 import { cache } from "react";
 import { getOrganizationBySlug } from "../organizations/queries";
-import { getUser } from "../users/queries";
 
 export const getProjectBySlug = cache(
 	createServiceFunction()
@@ -18,8 +22,8 @@ export const getProjectBySlug = cache(
 			})
 		)
 		.function(async ({ input, ctx }) => {
-			const userPromise = getUser({ ctx });
-			const projectPromise = ctx.cache.cacheFn(
+			const authenticatedContext = await authenticateContext(ctx);
+			const project = await ctx.cache.cacheFn(
 				async (organizationId: string, projectSlug: string) => {
 					return getProjectBySlugQuery(organizationId, projectSlug);
 				},
@@ -30,14 +34,15 @@ export const getProjectBySlug = cache(
 				}
 			)(input.organizationId, input.slug);
 
-			const [user, project] = await Promise.all([userPromise, projectPromise]);
-
-			// Check if user has access to this organization
-			if (user?.organizations.some((c) => c.id === project?.organizationId)) {
-				return project;
+			if (!project) {
+				return null;
 			}
 
-			return null;
+			if (!hasProjectPermission(authenticatedContext, project.id, "")) {
+				return null;
+			}
+
+			return project;
 		})
 );
 
@@ -50,8 +55,9 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 			})
 		)
 		.function(async ({ input, ctx }) => {
+			const authenticatedContext = await authenticateContext(ctx);
 			const organization = await getOrganizationBySlug({
-				ctx,
+				ctx: authenticatedContext,
 				input: {
 					slug: input.organizationSlug,
 				},
@@ -61,13 +67,23 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 				return null;
 			}
 
-			return await getProjectBySlug({
-				ctx,
+			const project = await getProjectBySlug({
+				ctx: authenticatedContext,
 				input: {
 					organizationId: organization.id,
 					slug: input.projectSlug,
 				},
 			});
+
+			if (!project) {
+				return null;
+			}
+
+			if (!hasProjectPermission(authenticatedContext, project.id, "")) {
+				return null;
+			}
+
+			return project;
 		})
 );
 
@@ -79,8 +95,8 @@ export const getProjectById = cache(
 			})
 		)
 		.function(async ({ input, ctx }) => {
-			const userPromise = getUser({ ctx });
-			const projectPromise = ctx.cache.cacheFn(
+			const authenticatedContext = await authenticateContext(ctx);
+			const project = await ctx.cache.cacheFn(
 				async (id: string) => {
 					return getProjectByIdQuery(id);
 				},
@@ -91,14 +107,15 @@ export const getProjectById = cache(
 				}
 			)(input.id);
 
-			const [user, project] = await Promise.all([userPromise, projectPromise]);
-
-			// Check if user has access to this organization
-			if (user?.organizations.some((c) => c.id === project?.organizationId)) {
-				return project;
+			if (!project) {
+				return null;
 			}
 
-			return null;
+			if (!hasProjectPermission(authenticatedContext, project.id, "")) {
+				return null;
+			}
+
+			return project;
 		})
 );
 
@@ -110,14 +127,23 @@ export const getProjectsByOrganizationSlug = cache(
 			})
 		)
 		.function(async ({ input, ctx }) => {
+			const authenticatedContext = await authenticateContext(ctx);
 			const organization = await getOrganizationBySlug({
-				ctx,
+				ctx: authenticatedContext,
 				input: {
 					slug: input.slug,
 				},
 			});
 
-			if (!organization) return [];
+			if (!organization) {
+				return [];
+			}
+
+			if (
+				!hasOrganizationPermission(authenticatedContext, organization.id, "")
+			) {
+				return [];
+			}
 
 			return await ctx.cache.cacheFn(
 				async (orgId: string) => {

@@ -1,9 +1,11 @@
-import { createServiceFunction } from "@/lib/service-function";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
 import { cache } from "react";
 import { getPaymentProviderConfigurationsQuery } from "./raw-queries";
 import { z } from "zod";
-import { getProjectById } from "../projects/queries";
-import { NotFoundError } from "@voidhash/lib/constants";
 
 export const getPaymentProviderConfigurations = cache(
 	createServiceFunction()
@@ -13,12 +15,9 @@ export const getPaymentProviderConfigurations = cache(
 			})
 		)
 		.function(async ({ ctx, input }) => {
-			const project = await getProjectById({
-				ctx,
-				input: { id: input.projectId },
-			});
-			if (!project) {
-				throw new NotFoundError("Project not found");
+			const authenticatedContext = await authenticateContext(ctx);
+			if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
+				return [];
 			}
 			return await getPaymentProviderConfigurationsQuery(input.projectId);
 		})

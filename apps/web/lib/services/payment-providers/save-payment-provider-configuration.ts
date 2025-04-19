@@ -1,10 +1,13 @@
-import { createServiceFunction } from "@/lib/service-function";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
 import { z } from "zod";
 import { db, projectPaymentProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
-import { NotFoundError } from "@voidhash/lib/constants";
-import { getProjectById } from "../projects/queries";
+import { UnauthorizedError } from "@voidhash/lib/constants";
 import { getExistingPaymentProviderConfigurationByIdQuery } from "./raw-queries";
 
 export const savePaymentProviderConfigurationInputSchema = z.object({
@@ -19,13 +22,13 @@ export const savePaymentProviderConfigurationInputSchema = z.object({
 export const savePaymentProviderConfiguration = createServiceFunction()
 	.input(savePaymentProviderConfigurationInputSchema)
 	.function(async ({ input, ctx }) => {
-		const project = await getProjectById({
-			ctx,
-			input: { id: input.projectId },
-		});
-		if (!project) {
-			throw new NotFoundError("Project not found");
+		const authenticatedContext = await authenticateContext(ctx);
+		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
+			throw new UnauthorizedError(
+				"You are not authorized to save this payment provider configuration"
+			);
 		}
+
 		const provider = paymentProviders.find((p) => p.id === input.providerId);
 		if (!provider) {
 			throw new Error(`Provider ${input.providerId} not found`);

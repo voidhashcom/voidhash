@@ -1,5 +1,9 @@
-import { createServiceFunction } from "@/lib/service-function";
-import { NotFoundError } from "@voidhash/lib";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
+import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
 import { Environments } from "@/lib/environments/types";
 import { setEnvironment } from "@/lib/environments/utils";
@@ -14,8 +18,16 @@ export const switchEnvironmentInputSchema = z.object({
 export const switchEnvironment = createServiceFunction()
 	.input(switchEnvironmentInputSchema)
 	.function(async ({ input, ctx }) => {
+		const authenticatedContext = await authenticateContext(ctx);
+
+		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
+			throw new UnauthorizedError(
+				"You are not authorized to switch environment"
+			);
+		}
+
 		const project = await getProjectById({
-			ctx,
+			ctx: authenticatedContext,
 			input: { id: input.projectId },
 		});
 		if (!project) {

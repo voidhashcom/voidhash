@@ -1,7 +1,11 @@
-import { createServiceFunction } from "@/lib/service-function";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
 import { z } from "zod";
 import { getProjectById } from "./queries";
-import { NotFoundError } from "@voidhash/lib/constants";
+import { NotFoundError, UnauthorizedError } from "@voidhash/lib/constants";
 import { db, projects } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { getOrganizationById } from "../organizations/queries";
@@ -13,8 +17,15 @@ export const deleteProjectInputSchema = z.object({
 export const deleteProject = createServiceFunction()
 	.input(deleteProjectInputSchema)
 	.function(async ({ input, ctx }) => {
+		const authenticatedContext = await authenticateContext(ctx);
+		if (!hasProjectPermission(authenticatedContext, input.id, "")) {
+			throw new UnauthorizedError(
+				"You are not authorized to delete this project"
+			);
+		}
+
 		const project = await getProjectById({
-			ctx,
+			ctx: authenticatedContext,
 			input: {
 				id: input.id,
 			},
@@ -25,14 +36,14 @@ export const deleteProject = createServiceFunction()
 		}
 
 		const organization = await getOrganizationById({
-			ctx,
+			ctx: authenticatedContext,
 			input: {
 				id: project.organizationId,
 			},
 		});
 
 		if (!organization) {
-			throw new Error("Organization not found");
+			throw new NotFoundError("Organization not found");
 		}
 
 		await db.delete(projects).where(eq(projects.id, input.id));
