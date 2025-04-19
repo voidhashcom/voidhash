@@ -31,6 +31,8 @@ export const updateProject = createServiceFunction()
 			.where(eq(projects.id, input.id));
 
 		ctx.cache.invalidate(`project_${project.id}`);
-		ctx.cache.invalidate(`project_slug:${project.slug}`);
+		ctx.cache.invalidate(
+			`project_${project.organizationId}_slug:${project.slug}`
+		);
 		ctx.cache.invalidate(`projects_${project.organizationId}`);
 	});
