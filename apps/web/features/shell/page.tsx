@@ -9,6 +9,7 @@ import {
 	Separator,
 	Skeleton,
 } from "@voidhash/ui";
+import Link from "next/link";
 import { Fragment } from "react";
 
 export function Page({
@@ -34,8 +35,10 @@ export function Page({
 									<Fragment key={breadcrumb.url ?? breadcrumb.title}>
 										{index < breadcrumbs.length - 1 && (
 											<BreadcrumbItem className="hidden md:block">
-												<BreadcrumbLink href={breadcrumb.url}>
-													{breadcrumb.title}
+												<BreadcrumbLink asChild>
+													<Link href={breadcrumb.url ?? ""}>
+														{breadcrumb.title}
+													</Link>
 												</BreadcrumbLink>
 											</BreadcrumbItem>
 										)}
