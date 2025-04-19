@@ -19,7 +19,9 @@ app.get(
 				version: "1.0.0",
 				description: "API",
 			},
-			servers: [{ url: "http://localhost:3000", description: "Local Server" }],
+			servers: [
+				{ url: "http://api.localhost:3000", description: "Local Server" },
+			],
 		},
 	})
 );

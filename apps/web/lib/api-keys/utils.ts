@@ -85,14 +85,9 @@ export const createSecretKey = async (
 	environment: Environment
 ): Promise<ApiKey> => {
 	const key = await generateSecretKey(environment);
-	const hash = await createHash("SHA-256").digest(key);
-	const hashed = base64Url.encode(hash, {
-		padding: false,
-	});
+	const hashed = await hashKey(key);
 
-	console.log(key);
 	const end = key.slice(key.length - KEY_END_LENGTH);
-	console.log(end);
 
 	return {
 		key: hashed,
@@ -106,4 +101,13 @@ export const createSecretKey = async (
 				: TESTING_SECRET_KEY_PREFIX,
 	};
 };
+
+export const hashKey = async (key: string) => {
+	const hash = await createHash("SHA-256").digest(key);
+	const hashed = base64Url.encode(hash, {
+		padding: false,
+	});
+	return hashed;
+};
+
 export const KEY_END_LENGTH = 4;

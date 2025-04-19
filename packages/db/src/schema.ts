@@ -81,6 +81,13 @@ export const apiKeys = mysqlTable("api_keys", {
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
 
+export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+	project: one(projects, {
+		fields: [apiKeys.projectId],
+		references: [projects.id],
+	}),
+}));
+
 export const customer = mysqlTable("customer", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	name: varchar("name", { length: 255 }),

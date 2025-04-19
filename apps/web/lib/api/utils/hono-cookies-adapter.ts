@@ -2,7 +2,7 @@ import { CookiesAdapter } from "@/lib/cookies-adapter";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { Context } from "hono";
 
-export class NextMiddlewareCookiesAdapter implements CookiesAdapter {
+export class HonoCookiesAdapter implements CookiesAdapter {
 	constructor(private readonly honoContext: Context) {}
 
 	async get(name: string): Promise<string | null> {

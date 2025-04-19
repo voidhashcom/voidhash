@@ -2,7 +2,10 @@ import { z } from "zod";
 import { CacheAdapter } from "./cache-adapter";
 import { CookiesAdapter } from "./cookies-adapter";
 import { User } from "better-auth";
-import { getUserAuthSession } from "./services/auth/queries";
+import {
+	getSecretApiKeyAuthSession,
+	getUserAuthSession,
+} from "./services/auth/queries";
 
 export type ServiceParamWithInput<T = unknown> = {
 	ctx: ServiceContext;
@@ -71,7 +74,7 @@ export type ServiceContext = {
 	headers: Headers;
 	cache: CacheAdapter;
 	cookies: CookiesAdapter;
-	source: "nextjs" | "api";
+	source: "nextjs" | "api-server" | "api-sdk";
 	session?: UserSession | ApiKeySession | null;
 };
 
@@ -84,6 +87,19 @@ export async function authenticateContext(
 	}
 	if (ctx.source === "nextjs") {
 		const session = await getUserAuthSession(ctx);
+		return {
+			...ctx,
+			session,
+		};
+	}
+
+	if (ctx.source === "api-server") {
+		const apiKey = ctx.headers.get("x-api-key");
+		if (!apiKey) {
+			return ctx;
+		}
+
+		const session = await getSecretApiKeyAuthSession(ctx);
 		return {
 			...ctx,
 			session,

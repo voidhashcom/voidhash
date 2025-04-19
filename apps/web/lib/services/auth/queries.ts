@@ -1,8 +1,9 @@
+import { hashKey } from "@/lib/api-keys/utils";
 import { ServiceContext } from "@/lib/service-function";
 import { auth } from "@voidhash/auth";
-import { db, projects } from "@voidhash/db";
+import { apiKeys, db, projects } from "@voidhash/db";
 import { UnauthorizedError } from "@voidhash/lib/constants";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 export async function getUserAuthSession(ctx: ServiceContext) {
 	const userSession = await auth.api.getSession({
@@ -43,4 +44,36 @@ export async function getUserAuthSession(ctx: ServiceContext) {
 	} as const;
 
 	return session;
+}
+
+export async function getSecretApiKeyAuthSession(ctx: ServiceContext) {
+	const apiKey = ctx.headers.get("x-api-key");
+	if (!apiKey) {
+		throw new UnauthorizedError("You are not authenticated");
+	}
+
+	const keyHash = await hashKey(apiKey);
+	const apiKeyRecord = await db.query.apiKeys.findFirst({
+		where: eq(apiKeys.key, keyHash),
+		with: {
+			project: true,
+		},
+	});
+
+	if (!apiKeyRecord) {
+		throw new UnauthorizedError("You are not authenticated");
+	}
+
+	const projects = [apiKeyRecord.project];
+
+	return {
+		method: "api-key",
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		organizations: [] as any[],
+		projects: projects.map((p) => ({
+			id: p.id,
+			slug: p.slug,
+			permissions: [], // TODO: Add permissions
+		})),
+	} as const;
 }
