@@ -7,6 +7,7 @@ import { getProducts } from "@/lib/services/products/queries";
 import { Card } from "@voidhash/ui";
 import { ProductRecord } from "./product-record";
 import { ProductsPageEmptyState } from "./products-page-empty-state";
+import { ProductRecordConfigurationStateIndicator } from "./product-record-configuration-state-indicator";
 
 export async function ProductsPage({
 	organizationSlug,
@@ -52,6 +53,12 @@ export async function ProductsPage({
 									product={product}
 									organizationSlug={organizationSlug}
 									projectSlug={projectSlug}
+									configurationStateIndicator={
+										<ProductRecordConfigurationStateIndicator
+											productId={product.id}
+											projectId={project.id}
+										/>
+									}
 								/>
 							))}
 						</Card>
