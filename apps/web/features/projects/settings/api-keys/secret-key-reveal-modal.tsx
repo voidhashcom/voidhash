@@ -45,7 +45,7 @@ export function SecretKeyRevealModal({
 						<label className="text-sm font-medium">Secret Key</label>
 						<CopyText
 							className="w-full bg-card p-2 border border-border rounded-md text-muted-foreground"
-							text={`${apiKey?.prefix}${apiKey?.rawKey}`}
+							text={`${apiKey?.rawKey}`}
 						/>
 					</div>
 					<DialogFooter>

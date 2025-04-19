@@ -5,9 +5,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 export default async function AppMiddleware(req: NextRequest) {
 	const { fullPath, path, organizationSlug, projectSlug } = parse(req);
-	console.log(`/app.voidhash.com${fullPath}`);
-
-	console.log(req.headers);
 
 	const sessionCookie = req.cookies.get("better-auth.session_token");
 

@@ -98,7 +98,7 @@ export function CreateCustomerModal({
 			<DialogTrigger asChild>{trigger}</DialogTrigger>
 			<DialogContent className="max-w-sm">
 				<DialogHeader>
-					<DialogTitle>Create New Customer</DialogTitle>
+					<DialogTitle>Create Customer</DialogTitle>
 				</DialogHeader>
 				<Form {...form}>
 					<form
@@ -110,7 +110,7 @@ export function CreateCustomerModal({
 							name="name"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Name (Optional)</FormLabel>
+									<FormLabel>Name</FormLabel>
 									<FormControl>
 										<Input placeholder="John Doe" {...field} />
 									</FormControl>
