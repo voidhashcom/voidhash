@@ -38,6 +38,6 @@ export const deleteProject = createServiceFunction()
 		await db.delete(projects).where(eq(projects.id, input.id));
 
 		ctx.cache.invalidate(`project_${project.id}`);
-		ctx.cache.invalidate(`project_slug:${project.slug}`);
+		ctx.cache.invalidate(`project_${organization.id}_slug:${project.slug}`);
 		ctx.cache.invalidate(`projects_${project.organizationId}`);
 	});

@@ -87,7 +87,7 @@ export const createProject = createServiceFunction()
 		});
 
 		ctx.cache.invalidate(`project_${id}`);
-		ctx.cache.invalidate(`project_slug:${slug}`);
+		ctx.cache.invalidate(`project_${organization.id}_slug:${slug}`);
 		ctx.cache.invalidate(`projects_${organization.id}`);
 
 		return {
