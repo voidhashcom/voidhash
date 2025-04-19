@@ -67,6 +67,10 @@ import {
 	deleteProductInputSchema,
 	deleteProduct,
 } from "../services/products/delete-product";
+import {
+	createCustomer,
+	createCustomerInputSchema,
+} from "../services/customers/create-customer";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -222,6 +226,16 @@ export const deletePaymentProviderProductAction = actionClient
 	.schema(deletePaymentProviderProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		return await deletePaymentProviderProduct({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+// Customers
+export const createCustomerAction = actionClient
+	.schema(createCustomerInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await createCustomer({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

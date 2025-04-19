@@ -38,20 +38,22 @@ export async function ProductRecordConfigurationStateIndicator({
 	}
 
 	return (
-		<div className="flex flex-row gap-2">
-			{paymentProviderConfigurations.map((paymentProviderConfiguration) => {
-				return providerProducts.some(
-					(providerProduct) =>
-						providerProduct.providerId ===
-						paymentProviderConfiguration.providerId
-				) ? (
-					<PaymentProviderLogo
-						key={paymentProviderConfiguration.providerId}
-						providerId={paymentProviderConfiguration.providerId ?? ""}
-						className="w-5 h-5"
-					/>
-				) : null;
-			})}
+		<div className="flex flex-row gap-3 items-center">
+			{paymentProviderConfigurations
+				.filter((f) => !!f.enabled)
+				.map((paymentProviderConfiguration) => {
+					return providerProducts.some(
+						(providerProduct) =>
+							providerProduct.providerId ===
+							paymentProviderConfiguration.providerId
+					) ? (
+						<PaymentProviderLogo
+							key={paymentProviderConfiguration.providerId}
+							providerId={paymentProviderConfiguration.providerId ?? ""}
+							className="w-4 h-4"
+						/>
+					) : null;
+				})}
 		</div>
 	);
 }
