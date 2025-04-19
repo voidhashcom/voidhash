@@ -1,36 +1,27 @@
 import "server-only";
 
-import { createServiceFunction } from "@/lib/service-function";
-import { auth } from "@voidhash/auth";
+import {
+	authenticateContext,
+	createServiceFunction,
+} from "@/lib/service-function";
 import { cache } from "react";
 import { getUsersOrganizations } from "../organizations/queries";
-
-// Session
-export const getSession = cache(
-	createServiceFunction().function(async ({ ctx }) => {
-		const session = await auth.api.getSession({
-			headers: ctx.headers,
-		});
-
-		return session;
-	})
-);
 
 // User
 export const getUser = cache(
 	createServiceFunction().function(async ({ ctx }) => {
-		const session = await getSession({ ctx });
+		const authenticatedContext = await authenticateContext(ctx);
 
-		if (!session?.user) {
+		const organizations = await getUsersOrganizations({
+			ctx: authenticatedContext,
+		});
+
+		if (!authenticatedContext?.session?.user) {
 			return null;
 		}
 
-		const organizations = await getUsersOrganizations({
-			ctx: ctx,
-		});
-
 		return {
-			...session.user,
+			...authenticatedContext.session.user,
 			organizations,
 		};
 	})

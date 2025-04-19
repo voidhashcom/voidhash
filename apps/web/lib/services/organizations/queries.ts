@@ -1,4 +1,8 @@
-import { createServiceFunction } from "@/lib/service-function";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasOrganizationPermission,
+} from "@/lib/service-function";
 import { z } from "zod";
 import {
 	getOrganizationByIdQuery,
@@ -6,7 +10,6 @@ import {
 } from "./raw-queries";
 import { cache } from "react";
 import { auth } from "@voidhash/auth";
-import { getUser } from "../users/queries";
 
 export const getOrganizationBySlugInputSchema = z.object({
 	slug: z.string(),
@@ -15,8 +18,9 @@ export const getOrganizationBySlug = cache(
 	createServiceFunction()
 		.input(getOrganizationBySlugInputSchema)
 		.function(async ({ ctx, input }) => {
-			const userPromise = getUser({ ctx });
-			const organizationPromise = ctx.cache.cacheFn(
+			const authenticatedContext = await authenticateContext(ctx);
+
+			const organization = await ctx.cache.cacheFn(
 				async (s: string) => {
 					return getOrganizationBySlugQuery(s);
 				},
@@ -27,20 +31,17 @@ export const getOrganizationBySlug = cache(
 				}
 			)(input.slug);
 
-			const [user, organization] = await Promise.all([
-				userPromise,
-				organizationPromise,
-			]);
-
-			// Check if user has access to this organization
-			if (
-				organization &&
-				user?.organizations.some((c) => c.id === organization.id)
-			) {
-				return organization;
+			if (!organization) {
+				return null;
 			}
 
-			return null;
+			if (
+				!hasOrganizationPermission(authenticatedContext, organization.id, "")
+			) {
+				return null;
+			}
+
+			return organization;
 		})
 );
 
@@ -51,8 +52,9 @@ export const getOrganizationById = cache(
 	createServiceFunction()
 		.input(getOrganizationByIdInputSchema)
 		.function(async ({ ctx, input }) => {
-			const userPromise = getUser({ ctx });
-			const organizationPromise = ctx.cache.cacheFn(
+			const authenticatedContext = await authenticateContext(ctx);
+
+			const organization = await ctx.cache.cacheFn(
 				async (id: string) => {
 					return getOrganizationByIdQuery(id);
 				},
@@ -63,20 +65,17 @@ export const getOrganizationById = cache(
 				}
 			)(input.id);
 
-			const [user, organization] = await Promise.all([
-				userPromise,
-				organizationPromise,
-			]);
-
-			// Check if user has access to this organization
-			if (
-				organization &&
-				user?.organizations.some((c) => c.id === organization.id)
-			) {
-				return organization;
+			if (!organization) {
+				return null;
 			}
 
-			return null;
+			if (
+				!hasOrganizationPermission(authenticatedContext, organization.id, "")
+			) {
+				return null;
+			}
+
+			return organization;
 		})
 );
 

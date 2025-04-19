@@ -1,7 +1,11 @@
-import { createServiceFunction } from "@/lib/service-function";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
 import { z } from "zod";
 import { getProjectById } from "./queries";
-import { NotFoundError } from "@voidhash/lib/constants";
+import { NotFoundError, UnauthorizedError } from "@voidhash/lib/constants";
 import { db, projects } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 
@@ -13,14 +17,21 @@ export const updateProjectInputSchema = z.object({
 export const updateProject = createServiceFunction()
 	.input(updateProjectInputSchema)
 	.function(async ({ input, ctx }) => {
+		const authenticatedContext = await authenticateContext(ctx);
 		const project = await getProjectById({
-			ctx,
+			ctx: authenticatedContext,
 			input: {
 				id: input.id,
 			},
 		});
 		if (!project) {
 			throw new NotFoundError("Project not found");
+		}
+
+		if (!hasProjectPermission(authenticatedContext, project.id, "")) {
+			throw new UnauthorizedError(
+				"You are not authorized to update this project"
+			);
 		}
 
 		await db

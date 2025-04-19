@@ -1,18 +1,16 @@
-import { createServiceFunction } from "@/lib/service-function";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasOrganizationPermission,
+} from "@/lib/service-function";
 import { createPublishableKey } from "@/lib/api-keys/utils";
 import { Environments } from "@/lib/environments/types";
 import { db, projects, apiKeys } from "@voidhash/db";
-import {
-	NotFoundError,
-	SLUG_BLACKLIST,
-	UnauthorizedError,
-} from "@voidhash/lib/constants";
+import { SLUG_BLACKLIST, UnauthorizedError } from "@voidhash/lib/constants";
 import { createId, createSlug, createShortId } from "@voidhash/lib/functions";
 import { randomUUID } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { getOrganizationById } from "../organizations/queries";
-import { getUser } from "../users/queries";
 
 export const createProjectInputSchema = z.object({
 	name: z.string().min(1).max(32),
@@ -22,18 +20,20 @@ export const createProjectInputSchema = z.object({
 export const createProject = createServiceFunction()
 	.input(createProjectInputSchema)
 	.function(async ({ input, ctx }) => {
-		const user = await getUser({ ctx });
-		if (!user) {
-			throw new UnauthorizedError("User not found");
+		const authenticatedContext = await authenticateContext(ctx);
+		if (
+			!hasOrganizationPermission(authenticatedContext, input.organizationId, "")
+		) {
+			throw new UnauthorizedError(
+				"You are not authorized to create a projects"
+			);
 		}
-		const organization = await getOrganizationById({
-			ctx,
-			input: {
-				id: input.organizationId,
-			},
-		});
-		if (!organization) {
-			throw new NotFoundError("Organization not found");
+
+		const userId = authenticatedContext?.session?.user?.id;
+		if (!userId) {
+			throw new UnauthorizedError(
+				"You are not authorized to create a projects"
+			);
 		}
 
 		const id = createId();
@@ -60,7 +60,7 @@ export const createProject = createServiceFunction()
 				name: input.name,
 				slug,
 				organizationId: input.organizationId,
-				createdByUserId: user.id,
+				createdByUserId: userId,
 			});
 
 			// Save production publishable key
@@ -87,8 +87,8 @@ export const createProject = createServiceFunction()
 		});
 
 		ctx.cache.invalidate(`project_${id}`);
-		ctx.cache.invalidate(`project_${organization.id}_slug:${slug}`);
-		ctx.cache.invalidate(`projects_${organization.id}`);
+		ctx.cache.invalidate(`project_${input.organizationId}_slug:${slug}`);
+		ctx.cache.invalidate(`projects_${input.organizationId}`);
 
 		return {
 			id,

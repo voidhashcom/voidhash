@@ -1,5 +1,9 @@
-import { createServiceFunction } from "@/lib/service-function";
-import { NotFoundError } from "@voidhash/lib";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
+import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
 import { db, productProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
@@ -17,12 +21,19 @@ export const deletePaymentProviderProductInputSchema = z.object({
 export const deletePaymentProviderProduct = createServiceFunction()
 	.input(deletePaymentProviderProductInputSchema)
 	.function(async ({ input, ctx }) => {
+		const authenticatedContext = await authenticateContext(ctx);
 		const product = await getProductById({
-			ctx,
+			ctx: authenticatedContext,
 			input: { id: input.productId },
 		});
 		if (!product) {
 			throw new NotFoundError("Product not found");
+		}
+
+		if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
+			throw new UnauthorizedError(
+				"You are not authorized to delete this payment provider product"
+			);
 		}
 
 		await db

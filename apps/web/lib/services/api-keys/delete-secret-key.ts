@@ -1,5 +1,9 @@
-import { createServiceFunction } from "@/lib/service-function";
-import { NotFoundError } from "@voidhash/lib";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
+import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
 import { apiKeys, db } from "@voidhash/db";
 import { eq } from "drizzle-orm";
@@ -12,13 +16,23 @@ export const deleteSecretKeyInputSchema = z.object({
 export const deleteSecretKey = createServiceFunction()
 	.input(deleteSecretKeyInputSchema)
 	.function(async ({ input, ctx }) => {
+		const authenticatedContext = await authenticateContext(ctx);
+
 		const existingKey = await getApiKeyById({
-			ctx,
+			ctx: authenticatedContext,
 			input: { id: input.secretKeyId },
 		});
 
 		if (!existingKey) {
 			throw new NotFoundError("API key not found");
+		}
+
+		if (
+			!hasProjectPermission(authenticatedContext, existingKey.projectId, "")
+		) {
+			throw new UnauthorizedError(
+				"You are not authorized to delete this api key"
+			);
 		}
 
 		await db.delete(apiKeys).where(eq(apiKeys.id, existingKey.id));

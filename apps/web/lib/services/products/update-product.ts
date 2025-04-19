@@ -1,5 +1,9 @@
-import { createServiceFunction } from "@/lib/service-function";
-import { NotFoundError } from "@voidhash/lib";
+import {
+	authenticateContext,
+	createServiceFunction,
+	hasProjectPermission,
+} from "@/lib/service-function";
+import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
 
 import { product, db } from "@voidhash/db";
@@ -17,13 +21,21 @@ export const updateProductInputSchema = z.object({
 export const updateProduct = createServiceFunction()
 	.input(updateProductInputSchema)
 	.function(async ({ input, ctx }) => {
-		// Auth check
+		const authenticatedContext = await authenticateContext(ctx);
 		const existingProduct = await getProductById({
-			ctx,
+			ctx: authenticatedContext,
 			input: { id: input.productId },
 		});
 		if (!existingProduct) {
 			throw new NotFoundError("Product not found");
+		}
+
+		if (
+			!hasProjectPermission(authenticatedContext, existingProduct.projectId, "")
+		) {
+			throw new UnauthorizedError(
+				"You are not authorized to update this product"
+			);
 		}
 
 		await db
