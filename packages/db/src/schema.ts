@@ -141,6 +141,7 @@ export const productProviderConfiguration = mysqlTable(
 			.references(() => product.id, {
 				onDelete: "cascade",
 			}),
+		isActive: boolean("is_active").notNull().default(true),
 		providerId: varchar("provider_id", { length: 255 }).notNull(),
 		configuration: json("configuration").$type<object>(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),

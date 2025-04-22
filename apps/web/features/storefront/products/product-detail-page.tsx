@@ -8,7 +8,13 @@ import {
 } from "@/lib/services/products/queries";
 import { notFound } from "next/navigation";
 import { ProductDetailPaymentProvidersEmptyState } from "./product-detail-payment-providers-empty-state";
-import { Card, CardContent, CardHeader, CardTitle } from "@voidhash/ui";
+import {
+	Card,
+	CardContent,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@voidhash/ui";
 import { PaymentProviderLogo } from "../payment-providers/payment-provider-logo";
 import { ProductDetailAddProductButton } from "./product-detail-add-product-button";
 import { ProductDetailProviderProductRecord } from "./product-detail-provider-product-record";
@@ -158,6 +164,24 @@ export async function ProductDetailPage({
 											/>
 										))}
 								</CardContent>
+								{providerProducts.filter(
+									(providerProduct) =>
+										providerProduct.providerId ===
+										paymentProviderWithConfiguration.paymentProvider.id
+								).length > 0 && (
+									<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
+										<ProductDetailAddProductButton
+											variant="secondary"
+											productId={product.id}
+											providerId={
+												paymentProviderWithConfiguration.paymentProvider.id
+											}
+											title={
+												paymentProviderWithConfiguration.paymentProvider.title
+											}
+										/>
+									</CardFooter>
+								)}
 							</Card>
 						)
 					)}
