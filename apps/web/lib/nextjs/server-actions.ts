@@ -75,6 +75,14 @@ import {
 	setActivePaymentProviderProductInputSchema,
 	setActivePaymentProviderProduct,
 } from "../services/products/set-active-payment-provider-product";
+import {
+	deletePaywall,
+	deletePaywallInputSchema,
+} from "../services/paywalls/delete-paywall";
+import {
+	createPaywall,
+	createPaywallInputSchema,
+} from "../services/paywalls/create-paywall";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -249,6 +257,25 @@ export const createCustomerAction = actionClient
 	.schema(createCustomerInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		return await createCustomer({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+// Paywalls
+export const createPaywallAction = actionClient
+	.schema(createPaywallInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await createPaywall({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+export const deletePaywallAction = actionClient
+	.schema(deletePaywallInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await deletePaywall({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

@@ -155,3 +155,14 @@ export const productProviderConfiguration = mysqlTable(
 		index("provider_id_idx").on(table.providerId),
 	]
 );
+
+// Paywall
+export const paywall = mysqlTable("paywall", {
+	id: varchar("id", { length: 255 }).primaryKey(),
+	name: varchar("name", { length: 255 }).notNull(),
+	projectId: varchar("project_id", { length: 255 })
+		.notNull()
+		.references(() => projects.id),
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at").onUpdateNow(),
+});
