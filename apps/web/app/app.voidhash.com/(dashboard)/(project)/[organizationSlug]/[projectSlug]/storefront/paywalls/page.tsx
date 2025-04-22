@@ -1,13 +1,16 @@
-import { CustomersPage } from "@/features/customers/customers-page";
+import { PaywallsPage } from "@/features/storefront/paywalls/paywalls-page";
 
 export default async function Page({
 	params,
 }: {
-	params: { organizationSlug: string; projectSlug: string };
+	params: Promise<{
+		organizationSlug: string;
+		projectSlug: string;
+	}>;
 }) {
 	const { organizationSlug, projectSlug } = await params;
 	return (
-		<CustomersPage
+		<PaywallsPage
 			organizationSlug={organizationSlug}
 			projectSlug={projectSlug}
 		/>
