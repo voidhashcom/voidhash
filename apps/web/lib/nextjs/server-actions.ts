@@ -71,6 +71,10 @@ import {
 	createCustomer,
 	createCustomerInputSchema,
 } from "../services/customers/create-customer";
+import {
+	setActivePaymentProviderProductInputSchema,
+	setActivePaymentProviderProduct,
+} from "../services/products/set-active-payment-provider-product";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -217,6 +221,15 @@ export const updatePaymentProviderProductAction = actionClient
 	.schema(updatePaymentProviderProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		return await updatePaymentProviderProduct({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+export const setActivePaymentProviderProductAction = actionClient
+	.schema(setActivePaymentProviderProductInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await setActivePaymentProviderProduct({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

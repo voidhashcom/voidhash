@@ -8,6 +8,7 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	useConfirmDialog,
+	cn,
 } from "@voidhash/ui";
 import { Clock4Icon, EllipsisVerticalIcon } from "lucide-react";
 import { format } from "date-fns";
@@ -16,7 +17,10 @@ import { type getProviderProductsByProductId } from "@/lib/services/products/que
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { toast } from "sonner";
 import { useAction } from "next-safe-action/hooks";
-import { deletePaymentProviderProductAction } from "@/lib/nextjs/server-actions";
+import {
+	deletePaymentProviderProductAction,
+	setActivePaymentProviderProductAction,
+} from "@/lib/nextjs/server-actions";
 import { useRouter } from "next/navigation";
 import { ProviderProductSheet } from "./provider-product-sheet";
 import { useState } from "react";
@@ -56,6 +60,32 @@ export function ProductDetailProviderProductRecord({
 		}
 	);
 
+	const {
+		execute: setActiveProviderProduct,
+		isPending: isSettingActiveProviderProduct,
+	} = useAction(setActivePaymentProviderProductAction, {
+		onSuccess: () => {
+			toast.success(
+				`${paymentProvider?.title} product was successfully activated`
+			);
+			router.refresh();
+		},
+		onError: (error) => {
+			toast.error(
+				error.error.serverError ??
+					`Failed to activate ${paymentProvider?.title} product. Please try again.`
+			);
+		},
+	});
+
+	const handleSetActiveProviderProduct = async () => {
+		setActiveProviderProduct({
+			productId: providerProduct.productId,
+			providerId: paymentProviderId,
+			providerProductKey: providerProduct.providerProductKey,
+		});
+	};
+
 	const { ConfirmationDialog, openDialog } = useConfirmDialog();
 
 	const handleDeleteProviderProduct = async () => {
@@ -84,7 +114,12 @@ export function ProductDetailProviderProductRecord({
 			key={providerProduct.providerProductKey}
 			className="px-6 py-4 justify-between items-center flex hover:bg-accent/30"
 		>
-			<div className="flex flex-row gap-2">
+			<div
+				className={cn(
+					"flex flex-row gap-2",
+					!providerProduct.isActive && "opacity-50"
+				)}
+			>
 				{paymentProvider.products.keyProperties.map((key) => (
 					<Badge variant="outline" key={key}>
 						{providerProduct.configuration?.[key]}
@@ -92,8 +127,18 @@ export function ProductDetailProviderProductRecord({
 				))}
 			</div>
 			<div className="flex flex-row gap-2">
-				<div className="flex flex-row gap-4 text-muted-foreground">
-					<div className="flex flex-row gap-1 items-center">
+				<div className="flex flex-row gap-4 text-muted-foreground items-center">
+					{providerProduct.isActive && (
+						<div>
+							<Badge variant="outline">Active</Badge>
+						</div>
+					)}
+					<div
+						className={cn(
+							"flex flex-row gap-1 items-center",
+							!providerProduct.isActive && "opacity-50"
+						)}
+					>
 						<Clock4Icon className="w-4 h-4" />
 						<span className="text-sm text-muted-foreground">
 							{format(providerProduct.createdAt ?? new Date(), "MMM d, yyyy")}
@@ -110,6 +155,12 @@ export function ProductDetailProviderProductRecord({
 					<DropdownMenuContent className="w-48" align="end">
 						<DropdownMenuItem onSelect={() => setOpenEditSheet(true)}>
 							Edit
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							disabled={isSettingActiveProviderProduct}
+							onSelect={handleSetActiveProviderProduct}
+						>
+							{isSettingActiveProviderProduct ? "Activating..." : "Activate"}
 						</DropdownMenuItem>
 						<DropdownMenuItem
 							disabled={isPending}

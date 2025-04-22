@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db, productProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getProductById } from "./queries";
+import { and, eq } from "drizzle-orm";
 
 export const createPaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
@@ -42,6 +43,17 @@ export const createPaymentProviderProduct = createServiceFunction()
 
 		const parsedConfiguration =
 			provider.products.productConfigurationSchema.parse(input.configuration);
+
+		// Disable other provider products for this product
+		await db
+			.update(productProviderConfiguration)
+			.set({ isActive: false })
+			.where(
+				and(
+					eq(productProviderConfiguration.productId, product.id),
+					eq(productProviderConfiguration.providerId, input.providerId)
+				)
+			);
 
 		const newPaymentProviderProduct = {
 			productId: product.id,
