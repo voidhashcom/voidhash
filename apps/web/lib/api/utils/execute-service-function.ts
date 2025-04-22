@@ -2,7 +2,7 @@ import { VoidhashError } from "@voidhash/lib/constants";
 import { Context } from "hono";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 
-export const useServiceFunction = async <T,>(
+export const useServiceFunction = async <T extends object | object[]>(
 	c: Context,
 	fn: () => Promise<T>
 ) => {
