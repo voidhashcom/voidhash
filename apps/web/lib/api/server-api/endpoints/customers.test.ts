@@ -7,7 +7,7 @@ describe("Search Endpoint", () => {
 	const client = testClient(app);
 
 	it("should return search results", async () => {
-		const res = await client.identify.$post({
+		const res = await client.index.$post({
 			json: {
 				name: "John Doe",
 				email: "john.doe@example.com",
