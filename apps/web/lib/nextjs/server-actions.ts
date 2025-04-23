@@ -83,6 +83,14 @@ import {
 	createPaywall,
 	createPaywallInputSchema,
 } from "../services/paywalls/create-paywall";
+import {
+	deletePaywallProduct,
+	deletePaywallProductInputSchema,
+} from "../services/paywalls/delete-paywall-product";
+import {
+	createPaywallProduct,
+	createPaywallProductInputSchema,
+} from "../services/paywalls/create-paywall-product";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -276,6 +284,25 @@ export const deletePaywallAction = actionClient
 	.schema(deletePaywallInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		return await deletePaywall({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+// Paywall products
+export const createPaywallProductAction = actionClient
+	.schema(createPaywallProductInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await createPaywallProduct({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+export const deletePaywallProductAction = actionClient
+	.schema(deletePaywallProductInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await deletePaywallProduct({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

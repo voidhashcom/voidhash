@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { PaymentProvider } from "../types";
+import { createPaymentProvider } from "../types";
 
-export const stripe: PaymentProvider = {
+export const stripe = createPaymentProvider({
 	id: "stripe",
 	title: "Stripe",
 	configuration: {
@@ -96,4 +96,4 @@ export const stripe: PaymentProvider = {
 			],
 		}),
 	},
-} satisfies PaymentProvider;
+});

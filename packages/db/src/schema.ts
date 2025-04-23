@@ -166,3 +166,29 @@ export const paywall = mysqlTable("paywall", {
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
+
+export const paywallProduct = mysqlTable(
+	"paywall_product",
+	{
+		paywallId: varchar("paywall_id", { length: 255 })
+			.notNull()
+			.references(() => paywall.id),
+		productId: varchar("product_id", { length: 255 })
+			.notNull()
+			.references(() => product.id),
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [
+		primaryKey({
+			columns: [table.paywallId, table.productId],
+		}),
+	]
+);
+
+export const paywallProductRelations = relations(paywallProduct, ({ one }) => ({
+	product: one(product, {
+		fields: [paywallProduct.productId],
+		references: [product.id],
+	}),
+}));

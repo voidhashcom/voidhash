@@ -12,7 +12,6 @@ import {
 import { useAction } from "next-safe-action/hooks";
 import { EllipsisVerticalIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 // import { EditProductModal } from "./edit-product-modal";
@@ -27,7 +26,7 @@ export function PaywallRecord({
 	projectSlug: string;
 }) {
 	const router = useRouter();
-	const [openEditModal, setOpenEditModal] = useState(false);
+	// const [setOpenEditModal] = useState(false);
 
 	const { execute: deletePaywall, isPending } = useAction(deletePaywallAction, {
 		onSuccess: () => {
@@ -77,7 +76,7 @@ export function PaywallRecord({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent className="w-48" align="end">
-							<DropdownMenuItem
+							{/* <DropdownMenuItem
 								className="cursor-pointer"
 								onSelect={(e) => {
 									e.preventDefault();
@@ -85,7 +84,7 @@ export function PaywallRecord({
 								}}
 							>
 								Edit paywall
-							</DropdownMenuItem>
+							</DropdownMenuItem> */}
 							<DropdownMenuItem
 								className="cursor-pointer"
 								disabled={isPending}
