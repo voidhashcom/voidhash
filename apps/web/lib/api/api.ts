@@ -30,7 +30,7 @@ app
 	.onError((err, c) => {
 		if (err instanceof VoidhashError) {
 			// Get the custom response
-			return c.json({ error: err.message }, err.code as ContentfulStatusCode);
+			return c.json({ message: err.message }, err.code as ContentfulStatusCode);
 		}
-		return c.json({ error: "Internal server error" }, 500);
+		return c.json({ message: "Internal server error" }, 500);
 	});
