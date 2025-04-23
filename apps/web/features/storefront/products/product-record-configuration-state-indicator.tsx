@@ -49,7 +49,11 @@ export async function ProductRecordConfigurationStateIndicator({
 					) ? (
 						<PaymentProviderLogo
 							key={paymentProviderConfiguration.providerId}
-							providerId={paymentProviderConfiguration.providerId ?? ""}
+							providerId={
+								paymentProviderConfiguration.providerId as
+									| "stripe"
+									| "app-store"
+							}
 							className="w-4 h-4"
 						/>
 					) : null;

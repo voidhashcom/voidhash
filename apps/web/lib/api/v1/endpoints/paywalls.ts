@@ -60,7 +60,6 @@ const app = new Hono()
 			const response: z.infer<typeof paywallResponseSchema> = {
 				paywallId: createdPaywall.id,
 				name: createdPaywall.name,
-				projectId: createdPaywall.projectId,
 			};
 			return c.json(response);
 		}
