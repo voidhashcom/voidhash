@@ -6,6 +6,7 @@ import {
 	getSecretApiKeyAuthSession,
 	getUserAuthSession,
 } from "./services/auth/queries";
+import { UnauthorizedError } from "@voidhash/lib/constants";
 
 export type ServiceParamWithInput<T = unknown> = {
 	ctx: ServiceContext;
@@ -96,7 +97,9 @@ export async function authenticateContext(
 	if (ctx.source === "api-server") {
 		const apiKey = ctx.headers.get("x-api-key");
 		if (!apiKey) {
-			return ctx;
+			throw new UnauthorizedError(
+				"Secret key is required. Add it to the x-api-key header."
+			);
 		}
 
 		const session = await getSecretApiKeyAuthSession(ctx);

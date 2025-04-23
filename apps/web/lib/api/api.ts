@@ -1,13 +1,13 @@
 import { Hono } from "hono";
-import { sdkApi } from "./sdk-api/sdk-api";
-import { serverApi } from "./server-api/server-api";
 import { openAPISpecs } from "hono-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
+import { VoidhashError } from "@voidhash/lib/constants";
+import { ContentfulStatusCode } from "hono/utils/http-status";
+import { v1 } from "./v1";
 
 export const app = new Hono();
 
-app.route("/", sdkApi); // Handle /book
-app.route("/", serverApi); // Handle /user
+app.route("/", v1);
 
 // OpenAPI specs
 app.get(
@@ -25,4 +25,12 @@ app.get(
 		},
 	})
 );
-app.get("/docs", Scalar({ url: "/openapi", theme: "default" }));
+app
+	.get("/docs", Scalar({ url: "/openapi", theme: "default" }))
+	.onError((err, c) => {
+		if (err instanceof VoidhashError) {
+			// Get the custom response
+			return c.json({ error: err.message }, err.code as ContentfulStatusCode);
+		}
+		return c.json({ error: "Internal server error" }, 500);
+	});

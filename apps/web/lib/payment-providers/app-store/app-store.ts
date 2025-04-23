@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { PaymentProvider } from "../types";
+import { createPaymentProvider } from "../types";
 
-export const appStore: PaymentProvider = {
+export const appStore = createPaymentProvider({
 	id: "app-store",
 	title: "Apple App Store",
 	configuration: {
@@ -92,4 +92,4 @@ export const appStore: PaymentProvider = {
 			],
 		}),
 	},
-} satisfies PaymentProvider;
+});

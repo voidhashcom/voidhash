@@ -5,7 +5,11 @@ import {
 } from "@/lib/service-function";
 import { z } from "zod";
 import { cache } from "react";
-import { getPaywallByIdQuery, getPaywallsQuery } from "./raw-queries";
+import {
+	getPaywallByIdQuery,
+	getPaywallProductsQuery,
+	getPaywallsQuery,
+} from "./raw-queries";
 
 export const getPaywallsInputSchema = z.object({
 	projectId: z.string(),
@@ -42,5 +46,26 @@ export const getPaywallById = cache(
 			}
 
 			return paywallResult;
+		})
+);
+
+export const getPaywallProducts = cache(
+	createServiceFunction()
+		.input(z.object({ paywallId: z.string() }))
+		.function(async ({ input, ctx }) => {
+			const authenticatedContext = await authenticateContext(ctx);
+			const paywall = await getPaywallById({
+				ctx: authenticatedContext,
+				input: { id: input.paywallId },
+			});
+			if (!paywall) {
+				return [];
+			}
+
+			if (!hasProjectPermission(authenticatedContext, paywall.projectId, "")) {
+				return [];
+			}
+
+			return await getPaywallProductsQuery(input.paywallId);
 		})
 );
