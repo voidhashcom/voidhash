@@ -46,6 +46,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["products"],
 		}),
 		zValidator("json", createProductBodySchema),
 		async (c) => {
@@ -85,6 +86,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["products"],
 		}),
 
 		async (c) => {
@@ -125,6 +127,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["products"],
 		}),
 		zValidator("param", getProductByIdParamsSchema),
 		async (c) => {
@@ -163,6 +166,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["products"],
 		}),
 		zValidator("param", updateProductParamsSchema),
 		zValidator("json", updateProductBodySchema),
@@ -202,6 +206,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["products"],
 		}),
 		zValidator("param", deleteProductParamsSchema),
 		async (c) => {
@@ -233,6 +238,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["products"],
 		}),
 		zValidator("param", attachProviderProductParamsSchema),
 		zValidator("json", attachProviderProductBodySchema),
@@ -282,6 +288,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["products"],
 		}),
 		zValidator("param", getProviderProductsParamsSchema),
 		async (c) => {
@@ -322,6 +329,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["products"],
 		}),
 		zValidator("param", updateProviderProductParamsSchema),
 		zValidator("json", updateProviderProductBodySchema),
@@ -360,6 +368,7 @@ const app = new Hono()
 					description: "Successful response",
 				},
 			},
+			tags: ["products"],
 		}),
 		zValidator("param", deleteProviderProductParamsSchema),
 		async (c) => {

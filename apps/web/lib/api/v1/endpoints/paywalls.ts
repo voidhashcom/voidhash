@@ -39,6 +39,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["paywalls"],
 		}),
 		zValidator("json", createPaywallBodySchema),
 		async (c) => {
@@ -79,6 +80,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["paywalls"],
 		}),
 		async (c) => {
 			const context = await createServerServiceContext(c);
@@ -120,6 +122,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["paywalls"],
 		}),
 		zValidator("param", getPaywallByIdParamsSchema),
 		async (c) => {
@@ -161,6 +164,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["paywalls"],
 		}),
 		zValidator("param", deletePaywallParamsSchema),
 		async (c) => {
@@ -193,6 +197,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["paywalls"],
 		}),
 		zValidator("param", attachProductToPaywallParamsSchema),
 		zValidator("json", attachProductToPaywallBodySchema),
@@ -236,6 +241,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["paywalls"],
 		}),
 		zValidator("param", getPaywallProductsParamsSchema),
 		async (c) => {
@@ -270,6 +276,7 @@ const app = new Hono()
 					description: "Successful response",
 				},
 			},
+			tags: ["paywalls"],
 		}),
 		zValidator("param", deletePaywallProductParamsSchema),
 		async (c) => {
