@@ -21,6 +21,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["customers"],
 		}),
 		zValidator("json", createCustomerBodySchema),
 		async (c) => {
@@ -62,6 +63,7 @@ const app = new Hono()
 					},
 				},
 			},
+			tags: ["customers"],
 		}),
 		async (c) => {
 			const context = await createServerServiceContext(c);
