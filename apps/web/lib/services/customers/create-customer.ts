@@ -9,6 +9,7 @@ import { db, customer } from "@voidhash/db";
 
 export const createCustomerInputSchema = z.object({
 	projectId: z.string(),
+	appUserId: z.string().optional(),
 	name: z.string().optional(),
 	email: z.string().email(),
 });
@@ -24,6 +25,7 @@ export const createCustomer = createServiceFunction()
 		const newCustomer = {
 			id: createId(),
 			projectId: input.projectId,
+			appUserId: input.appUserId,
 			name: input.name,
 			email: input.email,
 		};

@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { cache } from "react";
 import { z } from "zod";
-import { getCustomersQuery } from "./raw-queries";
+import { getCustomerByAppUserIdQuery, getCustomersQuery } from "./raw-queries";
 
 export const getCustomers = cache(
 	createServiceFunction()
@@ -23,5 +23,21 @@ export const getCustomers = cache(
 
 			const customers = await getCustomersQuery(input.projectId);
 			return customers;
+		})
+);
+
+export const getCustomerByAppUserId = cache(
+	createServiceFunction()
+		.input(z.object({ appUserId: z.string() }))
+		.function(async ({ ctx, input }) => {
+			const authenticatedContext = await authenticateContext(ctx);
+			const customer = await getCustomerByAppUserIdQuery(input.appUserId);
+			if (!customer) {
+				return null;
+			}
+			if (!hasProjectPermission(authenticatedContext, customer.projectId, "")) {
+				return null;
+			}
+			return customer;
 		})
 );

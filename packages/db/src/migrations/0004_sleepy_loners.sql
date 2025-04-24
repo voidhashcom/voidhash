@@ -1,0 +1,1 @@
+ALTER TABLE `customer` ADD CONSTRAINT `app_user_id_project_id_idx` UNIQUE(`app_user_id`,`project_id`);

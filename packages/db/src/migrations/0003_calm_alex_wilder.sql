@@ -1,0 +1,1 @@
+ALTER TABLE `customer` ADD `app_user_id` varchar(255);

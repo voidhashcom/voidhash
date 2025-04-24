@@ -6,7 +6,6 @@ import {
 	mysqlEnum,
 	primaryKey,
 	timestamp,
-	int,
 	json,
 	uniqueIndex,
 } from "drizzle-orm/mysql-core";
@@ -88,16 +87,27 @@ export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
 	}),
 }));
 
-export const customer = mysqlTable("customer", {
-	id: varchar("id", { length: 255 }).primaryKey(),
-	name: varchar("name", { length: 255 }),
-	email: varchar("email", { length: 255 }),
-	projectId: varchar("project_id", { length: 255 })
-		.notNull()
-		.references(() => projects.id),
-	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at").onUpdateNow(),
-});
+export const customer = mysqlTable(
+	"customer",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		name: varchar("name", { length: 255 }),
+		// Connecting customer to user in app
+		appUserId: varchar("app_user_id", { length: 255 }),
+		email: varchar("email", { length: 255 }),
+		projectId: varchar("project_id", { length: 255 })
+			.notNull()
+			.references(() => projects.id),
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [
+		uniqueIndex("app_user_id_project_id_idx").on(
+			table.appUserId,
+			table.projectId
+		),
+	]
+);
 
 export const projectPaymentProviderConfiguration = mysqlTable(
 	"project_payment_provider_configuration",

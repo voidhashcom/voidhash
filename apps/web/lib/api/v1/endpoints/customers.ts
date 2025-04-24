@@ -6,7 +6,10 @@ import { createServerServiceContext } from "../../utils/create-server-service-co
 import { authenticateContext } from "@/lib/service-function";
 import { createCustomerBodySchema, customerResponseSchema } from "./schema";
 import { z } from "zod";
-import { getCustomers } from "@/lib/services/customers/queries";
+import {
+	getCustomerByAppUserId,
+	getCustomers,
+} from "@/lib/services/customers/queries";
 
 const app = new Hono()
 	.post(
@@ -38,6 +41,7 @@ const app = new Hono()
 				input: {
 					email: c.req.valid("json").email,
 					name: c.req.valid("json").name,
+					appUserId: c.req.valid("json").appUserId,
 					projectId,
 				},
 			});
@@ -45,6 +49,7 @@ const app = new Hono()
 				customerId: createdCustomer.id,
 				name: createdCustomer.name ?? null,
 				email: createdCustomer.email,
+				appUserId: createdCustomer.appUserId ?? null,
 			};
 			return c.json(response);
 		}
@@ -86,8 +91,47 @@ const app = new Hono()
 					customerId: customer.id,
 					name: customer.name ?? null,
 					email: customer.email,
+					appUserId: customer.appUserId ?? null,
 				})
 			);
+
+			return c.json(response);
+		}
+	)
+	.get(
+		"/by-app-user-id/:appUserId",
+		describeRoute({
+			description: "Get a customer by app user ID",
+			responses: {
+				200: {
+					description: "Successful response",
+					content: {
+						"application/json": { schema: resolver(customerResponseSchema) },
+					},
+				},
+			},
+			tags: ["customers"],
+		}),
+		async (c) => {
+			const context = await createServerServiceContext(c);
+			const authenticatedContext = await authenticateContext(context);
+			const appUserId = c.req.param("appUserId");
+
+			const customer = await getCustomerByAppUserId({
+				ctx: authenticatedContext,
+				input: { appUserId },
+			});
+
+			if (!customer) {
+				return c.json({ error: "Customer not found" }, 404);
+			}
+
+			const response: z.infer<typeof customerResponseSchema> = {
+				customerId: customer.id,
+				name: customer.name ?? null,
+				email: customer.email,
+				appUserId: customer.appUserId ?? null,
+			};
 
 			return c.json(response);
 		}

@@ -22,6 +22,20 @@
       "when": 1745350001855,
       "tag": "0002_blushing_epoch",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1745517389870,
+      "tag": "0003_calm_alex_wilder",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1745517412799,
+      "tag": "0004_sleepy_loners",
+      "breakpoints": true
     }
   ]
 }

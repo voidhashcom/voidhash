@@ -150,6 +150,9 @@ importers:
       superjson:
         specifier: 'catalog:'
         version: 2.2.2
+      voidhash:
+        specifier: 0.0.1-alpha.1
+        version: 0.0.1-alpha.1
       zod:
         specifier: ^3.24.2
         version: 3.24.2
@@ -6303,6 +6306,9 @@ packages:
       jsdom:
         optional: true
 
+  voidhash@0.0.1-alpha.1:
+    resolution: {integrity: sha512-7ji2IXfEjVJxoASz03QzTNVBSCkB40uZII/LQqY6BKoxWmWitdat+0mfdxU7osjv0U+SIxZNF545Nd7CeHbpGA==}
+
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
 
@@ -12087,6 +12093,8 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  voidhash@0.0.1-alpha.1: {}
 
   wcwidth@1.0.1:
     dependencies:
