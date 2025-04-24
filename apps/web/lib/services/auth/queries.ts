@@ -47,7 +47,7 @@ export async function getUserAuthSession(ctx: ServiceContext) {
 }
 
 export async function getSecretApiKeyAuthSession(ctx: ServiceContext) {
-	const apiKey = ctx.headers.get("x-api-key");
+	const apiKey = ctx.headers.get("x-secret-key");
 	if (!apiKey) {
 		throw new UnauthorizedError("You are not authenticated");
 	}

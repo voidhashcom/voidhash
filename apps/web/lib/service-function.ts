@@ -95,10 +95,10 @@ export async function authenticateContext(
 	}
 
 	if (ctx.source === "api-server") {
-		const apiKey = ctx.headers.get("x-api-key");
+		const apiKey = ctx.headers.get("x-secret-key");
 		if (!apiKey) {
 			throw new UnauthorizedError(
-				"Secret key is required. Add it to the x-api-key header."
+				"Secret key is required. Add it to the x-secret-key header."
 			);
 		}
 
