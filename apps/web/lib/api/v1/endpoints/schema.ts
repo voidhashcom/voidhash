@@ -61,7 +61,7 @@ export const attachProviderProductBodySchema =
 	productProviderConfigurationSchema;
 
 export const providerProductResponseSchema = z.object({
-	providerProductId: z.string(),
+	providerProductKey: z.string(),
 	providerConfiguration: productProviderConfigurationSchema,
 });
 

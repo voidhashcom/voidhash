@@ -264,7 +264,7 @@ const app = new Hono()
 			});
 
 			const response: z.infer<typeof providerProductResponseSchema> = {
-				providerProductId: providerProduct.providerProductKey,
+				providerProductKey: providerProduct.providerProductKey,
 				providerConfiguration: {
 					providerId: providerProduct.providerId,
 					configuration: providerProduct.configuration,
@@ -305,7 +305,7 @@ const app = new Hono()
 
 			const response: z.infer<typeof providerProductResponseSchema>[] =
 				providerProducts.map((providerProduct) => ({
-					providerProductId: providerProduct.providerProductKey,
+					providerProductKey: providerProduct.providerProductKey,
 					providerConfiguration: {
 						providerId: providerProduct.providerId,
 						configuration: providerProduct.configuration,
@@ -352,7 +352,7 @@ const app = new Hono()
 			});
 
 			const response: z.infer<typeof providerProductResponseSchema> = {
-				providerProductId: updatedProviderProduct.providerProductKey,
+				providerProductKey: updatedProviderProduct.providerProductKey,
 				providerConfiguration: updatedProviderProduct.configuration,
 			};
 
