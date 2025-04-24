@@ -39,7 +39,7 @@ function LoginPageContent() {
 		}
 
 		const next = searchParams.get("next");
-		if (next) {
+		if (next && next.length > 1) {
 			router.push(decodeURIComponent(next));
 		} else {
 			router.push("/");
