@@ -155,7 +155,7 @@ importers:
         version: 2.2.2
       voidhash:
         specifier: 0.0.1-alpha.2
-        version: link:../../../voidhash-node
+        version: 0.0.1-alpha.2
       zod:
         specifier: ^3.24.2
         version: 3.24.2
@@ -6617,6 +6617,9 @@ packages:
       jsdom:
         optional: true
 
+  voidhash@0.0.1-alpha.2:
+    resolution: {integrity: sha512-ttEPwJprkyFro3lCz6Ae7ZLccKI9FIRy6j+1zIGY/EbTGQXCdpXQHAL2s/W+Bv5z1YBoUpy5z9X3brlPZSVenw==}
+
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
 
@@ -12818,6 +12821,8 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  voidhash@0.0.1-alpha.2: {}
 
   wcwidth@1.0.1:
     dependencies:
