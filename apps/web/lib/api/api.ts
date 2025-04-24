@@ -1,36 +1,30 @@
 import { Hono } from "hono";
-import { openAPISpecs } from "hono-openapi";
-import { Scalar } from "@scalar/hono-api-reference";
 import { VoidhashError } from "@voidhash/lib/constants";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { v1 } from "./v1";
+import { Scalar } from "@scalar/hono-api-reference";
 
 export const app = new Hono();
 
-app.route("/", v1);
+app.route("/v1", v1);
 
-// OpenAPI specs
 app.get(
-	"/openapi",
-	openAPISpecs(app, {
-		documentation: {
-			info: {
-				title: "Voidhash API",
-				version: "1.0.0",
-				description: "API",
+	"/docs",
+	Scalar({
+		sources: [
+			{
+				url: "/v1/openapi",
+				title: "v1",
 			},
-			servers: [
-				{ url: "http://api.localhost:3000", description: "Local Server" },
-			],
-		},
+		],
+		theme: "default",
 	})
 );
-app
-	.get("/docs", Scalar({ url: "/openapi", theme: "default" }))
-	.onError((err, c) => {
-		if (err instanceof VoidhashError) {
-			// Get the custom response
-			return c.json({ message: err.message }, err.code as ContentfulStatusCode);
-		}
-		return c.json({ message: "Internal server error" }, 500);
-	});
+
+app.onError((err, c) => {
+	if (err instanceof VoidhashError) {
+		// Get the custom response
+		return c.json({ message: err.message }, err.code as ContentfulStatusCode);
+	}
+	return c.json({ message: "Internal server error" }, 500);
+});
