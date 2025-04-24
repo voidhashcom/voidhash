@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { createId, NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
 import { db, productProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
@@ -56,6 +56,7 @@ export const createPaymentProviderProduct = createServiceFunction()
 			);
 
 		const newPaymentProviderProduct = {
+			id: createId(),
 			productId: product.id,
 			providerId: input.providerId,
 			providerProductKey: provider.products.keyProperties

@@ -88,6 +88,9 @@ export async function authenticateContext(
 	}
 	if (ctx.source === "nextjs") {
 		const session = await getUserAuthSession(ctx);
+		if (!session) {
+			throw new UnauthorizedError("User is not authenticated");
+		}
 		return {
 			...ctx,
 			session,
