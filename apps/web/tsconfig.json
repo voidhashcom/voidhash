@@ -38,7 +38,8 @@
 		".next/types/**/*.ts",
 		"@/features/trpc/query-client.tsx",
 		"@/features/trpc/react.tsx",
-		"@/features/trpc/server.tsx"
+    "@/features/trpc/server.tsx",
+    "trigger.config.ts"
 	],
 	"exclude": ["node_modules", ".next"]
 }

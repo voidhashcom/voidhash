@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { createId, NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
 import { db, paywallProduct } from "@voidhash/db";
 import { getProductById } from "../products/queries";
@@ -32,6 +32,7 @@ export const createPaywallProduct = createServiceFunction()
 		}
 
 		const newPaywallProduct = {
+			id: createId(),
 			productId: product.id,
 			paywallId: input.paywallId,
 		} satisfies typeof paywallProduct.$inferInsert;

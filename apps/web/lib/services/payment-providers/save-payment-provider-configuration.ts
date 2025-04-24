@@ -9,6 +9,7 @@ import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
 import { UnauthorizedError } from "@voidhash/lib/constants";
 import { getExistingPaymentProviderConfigurationByIdQuery } from "./raw-queries";
+import { createId } from "@voidhash/lib/functions";
 
 export const savePaymentProviderConfigurationInputSchema = z.object({
 	providerId: z.enum(
@@ -64,6 +65,7 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 					);
 			} else {
 				await db.insert(projectPaymentProviderConfiguration).values({
+					id: createId(),
 					providerId: input.providerId,
 					projectId: input.projectId,
 					enabled: input.enabled,

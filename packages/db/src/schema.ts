@@ -112,6 +112,7 @@ export const customer = mysqlTable(
 export const projectPaymentProviderConfiguration = mysqlTable(
 	"project_payment_provider_configuration",
 	{
+		id: varchar("id", { length: 255 }).primaryKey(),
 		providerId: varchar("provider_id", { length: 255 }),
 		projectId: varchar("project_id", { length: 255 })
 			.notNull()
@@ -124,7 +125,10 @@ export const projectPaymentProviderConfiguration = mysqlTable(
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
 	(table) => [
-		primaryKey({ columns: [table.projectId, table.providerId] }),
+		uniqueIndex("project_id_provider_id_idx").on(
+			table.projectId,
+			table.providerId
+		),
 		index("project_id_idx").on(table.projectId),
 		index("provider_id_idx").on(table.providerId),
 	]
@@ -143,6 +147,7 @@ export const product = mysqlTable("product", {
 export const productProviderConfiguration = mysqlTable(
 	"product_provider_configuration",
 	{
+		id: varchar("id", { length: 255 }).primaryKey(),
 		providerProductKey: varchar("provider_product_key", {
 			length: 255,
 		}).notNull(),
@@ -158,10 +163,11 @@ export const productProviderConfiguration = mysqlTable(
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
 	(table) => [
-		primaryKey({
-			columns: [table.productId, table.providerId, table.providerProductKey],
-			name: "product_provider_configuration_pk",
-		}),
+		uniqueIndex("product_id_provider_id_provider_product_key_idx").on(
+			table.productId,
+			table.providerId,
+			table.providerProductKey
+		),
 		index("provider_id_idx").on(table.providerId),
 	]
 );
@@ -180,6 +186,7 @@ export const paywall = mysqlTable("paywall", {
 export const paywallProduct = mysqlTable(
 	"paywall_product",
 	{
+		id: varchar("id", { length: 255 }).primaryKey(),
 		paywallId: varchar("paywall_id", { length: 255 })
 			.notNull()
 			.references(() => paywall.id),
@@ -190,9 +197,10 @@ export const paywallProduct = mysqlTable(
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
 	(table) => [
-		primaryKey({
-			columns: [table.paywallId, table.productId],
-		}),
+		uniqueIndex("paywall_id_product_id_idx").on(
+			table.paywallId,
+			table.productId
+		),
 	]
 );
 
