@@ -7,12 +7,14 @@ import { z } from "zod";
 export const createCustomerBodySchema = createCustomerInputSchema.pick({
 	email: true,
 	name: true,
+	appUserId: true,
 });
 
 export const customerResponseSchema = z.object({
 	customerId: z.string(),
 	name: z.string().nullable(),
 	email: z.string().nullable(),
+	appUserId: z.string().nullable(),
 });
 
 // Product

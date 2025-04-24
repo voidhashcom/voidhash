@@ -22,6 +22,7 @@ export const env = createEnv({
 		DATABASE_USERNAME: z.string(),
 		DATABASE_PASSWORD: z.string(),
 		DATABASE_NAME: z.string().optional(),
+		VOIDHASH_SECRET_KEY: z.string(),
 	},
 
 	/**
