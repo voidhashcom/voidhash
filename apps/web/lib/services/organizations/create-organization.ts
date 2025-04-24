@@ -58,7 +58,7 @@ export const createOrganization = createServiceFunction()
 			throw new NotFoundError("User not found");
 		}
 
-		createVoidhashCustomerTask.trigger({
+		await createVoidhashCustomerTask.trigger({
 			organizationId: organization.id,
 			name: organization.name,
 			email: user,
