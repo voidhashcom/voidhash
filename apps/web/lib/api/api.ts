@@ -4,16 +4,19 @@ import { ContentfulStatusCode } from "hono/utils/http-status";
 import { v1 } from "./v1";
 import { Scalar } from "@scalar/hono-api-reference";
 
-export const app = new Hono();
+export let app = new Hono();
+
+const basePath = process.env.NODE_ENV === "development" ? "/api" : "";
+
+app = app.basePath(basePath);
 
 app.route("/v1", v1);
-
 app.get(
 	"/docs",
 	Scalar({
 		sources: [
 			{
-				url: "/v1/openapi",
+				url: `${basePath}/v1/openapi`,
 				title: "v1",
 			},
 		],

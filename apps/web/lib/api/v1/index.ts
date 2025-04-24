@@ -3,6 +3,7 @@ import customers from "./endpoints/customers";
 import paywalls from "./endpoints/paywalls";
 import products from "./endpoints/products";
 import { openAPISpecs } from "hono-openapi";
+import { API_DOMAIN } from "@voidhash/lib/constants";
 
 const app = new Hono();
 
@@ -20,9 +21,7 @@ app.get(
 				version: "1.0.0",
 				description: "API",
 			},
-			servers: [
-				{ url: "http://api.localhost:3000/v1", description: "Local Server" },
-			],
+			servers: [{ url: `${API_DOMAIN}/v1`, description: "Local Server" }],
 		},
 	})
 );
