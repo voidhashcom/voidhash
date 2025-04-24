@@ -24,6 +24,7 @@ export const env = createEnv({
 		DATABASE_NAME: z.string().optional(),
 		VOIDHASH_SECRET_KEY: z.string(),
 		TRIGGER_PROJECT_ID: z.string(),
+		TRIGGER_SECRET_KEY: z.string(),
 	},
 
 	/**
