@@ -7,9 +7,17 @@ export default async function AppMiddleware(req: NextRequest) {
 	const { fullPath, path, organizationSlug, projectSlug } = parse(req);
 
 	const sessionCookie = req.cookies.get("better-auth.session_token");
+	const secureSessionCookie = req.cookies.get(
+		"__Secure-better-auth.session_token"
+	);
 
 	// Prevent infinite redirect loop
-	if (!sessionCookie && path !== "/login" && path !== "/sign-up") {
+	if (
+		!sessionCookie &&
+		!secureSessionCookie &&
+		path !== "/login" &&
+		path !== "/sign-up"
+	) {
 		return NextResponse.redirect(
 			new URL(
 				`/login${path === "/" ? "" : `?next=${encodeURIComponent(fullPath)}`}`,
