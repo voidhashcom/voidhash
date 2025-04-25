@@ -10,6 +10,7 @@
     "lint": "next lint",
     "trigger:dev": "pnpm with-env npx trigger.dev@latest dev",
     "trigger:deploy": "pnpm with-env npx trigger.dev@latest deploy",
+    "trigger:deploy-staging": "pnpm with-env npx trigger.dev@latest deploy --env staging",
     "with-env": "dotenv -e .env --"
   },
   "dependencies": {
