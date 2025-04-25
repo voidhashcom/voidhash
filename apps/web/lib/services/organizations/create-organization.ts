@@ -52,8 +52,8 @@ export const createOrganization = createServiceFunction()
 			return null;
 		}
 
-		const user = authenticatedContext.session?.user?.email;
-		if (!user) {
+		const email = authenticatedContext.session?.user?.email;
+		if (!email) {
 			// Should not happen
 			throw new NotFoundError("User not found");
 		}
@@ -61,7 +61,7 @@ export const createOrganization = createServiceFunction()
 		await createVoidhashCustomerTask.trigger({
 			organizationId: organization.id,
 			name: organization.name,
-			email: user,
+			email: email,
 		});
 
 		ctx.cache.invalidate(`organization_slug:${slug}`);

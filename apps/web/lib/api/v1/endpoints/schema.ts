@@ -1,13 +1,12 @@
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { createCustomerInputSchema } from "@/lib/services/customers/create-customer";
 import { createProductInputSchema } from "@/lib/services/products/create-product";
 import { z } from "zod";
 
 // Customer
-export const createCustomerBodySchema = createCustomerInputSchema.pick({
-	email: true,
-	name: true,
-	appUserId: true,
+export const createCustomerBodySchema = z.object({
+	appUserId: z.string().optional(),
+	name: z.string().optional(),
+	email: z.string().email(),
 });
 
 export const customerResponseSchema = z.object({
