@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: 🚀 Deploy Trigger.dev
+      - name: 🚀 Deploy Trigger.dev (prod)
         env:
           TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
         run: |
