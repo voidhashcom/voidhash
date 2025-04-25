@@ -43,7 +43,7 @@
     "slug": "^10.0.0",
     "sonner": "^2.0.1",
     "superjson": "catalog:",
-    "voidhash": "0.0.1-alpha.3",
+    "voidhash": "0.0.1-alpha.4",
     "zod": "^3.24.2",
     "zod-openapi": "^4.2.4"
   },
