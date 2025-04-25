@@ -7,6 +7,11 @@ import { API_DOMAIN } from "@voidhash/lib/constants";
 
 const app = new Hono();
 
+const url =
+	process.env.NODE_ENV === "development"
+		? "http://localhost:3000/api/v1"
+		: `${API_DOMAIN}/v1`;
+
 app.route("/customers", customers);
 app.route("/paywalls", paywalls);
 app.route("/products", products);
@@ -21,7 +26,7 @@ app.get(
 				version: "1.0.0",
 				description: "API",
 			},
-			servers: [{ url: `${API_DOMAIN}/v1`, description: "Local Server" }],
+			servers: [{ url, description: "Local Server" }],
 		},
 	})
 );
