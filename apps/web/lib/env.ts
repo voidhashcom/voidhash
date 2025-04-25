@@ -35,6 +35,7 @@ export const env = createEnv({
 		NEXT_PUBLIC_APP_NAME: z.string(),
 		NEXT_PUBLIC_APP_DOMAIN: z.string(),
 		NEXT_PUBLIC_APP_SHORT_DOMAIN: z.string(),
+		NEXT_PUBLIC_VERCEL_ENV: z.string(),
 	},
 	/**
 	 * Destructure all variables from `process.env` to make sure they aren't tree-shaken away.
@@ -44,6 +45,7 @@ export const env = createEnv({
 		NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
 		NEXT_PUBLIC_APP_DOMAIN: process.env.NEXT_PUBLIC_APP_DOMAIN,
 		NEXT_PUBLIC_APP_SHORT_DOMAIN: process.env.NEXT_PUBLIC_APP_SHORT_DOMAIN,
+		NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV,
 	},
 	skipValidation:
 		!!process.env.CI || process.env.npm_lifecycle_event === "lint",
