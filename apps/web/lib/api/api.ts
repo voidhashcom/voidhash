@@ -3,7 +3,6 @@ import { VoidhashError } from "@voidhash/lib/constants";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 import { v1 } from "./v1";
 import { Scalar } from "@scalar/hono-api-reference";
-import { logger } from "hono/logger";
 
 export let app = new Hono();
 
