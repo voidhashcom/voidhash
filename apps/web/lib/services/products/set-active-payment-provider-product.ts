@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { productProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
@@ -27,18 +27,25 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 			input: { id: input.productId },
 		});
 		if (!product) {
-			throw new NotFoundError("Product not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Product not found",
+			});
 		}
 
 		if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
-			throw new UnauthorizedError(
-				"You are not authorized to update this product"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to update this product",
+			});
 		}
 
 		const provider = paymentProviders.find((p) => p.id === input.providerId);
 		if (!provider) {
-			throw new NotFoundError("Provider not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Provider not found",
+			});
 		}
 
 		const providerProduct = await getProviderProductByPrimaryKey({
@@ -51,7 +58,10 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 		});
 
 		if (!providerProduct) {
-			throw new NotFoundError("Provider product not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Provider product not found",
+			});
 		}
 
 		// Disable other provider products for this product

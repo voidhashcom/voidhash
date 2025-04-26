@@ -32,12 +32,14 @@ import { createPaymentProviderProduct } from "@/lib/services/products/create-pay
 import { updatePaymentProviderProduct } from "@/lib/services/products/update-payment-provider-product";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { deletePaymentProviderProduct } from "@/lib/services/products/delete-payment-provider-product";
+import { openApiErrorResponses } from "../../errors/openapi_responses";
 
 const app = new Hono()
 	.post(
 		"/",
 		describeRoute({
 			description: "Create a new product",
+			operationId: "createProduct",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -45,6 +47,7 @@ const app = new Hono()
 						"application/json": { schema: resolver(customerResponseSchema) },
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["products"],
 		}),
@@ -65,17 +68,18 @@ const app = new Hono()
 					projectId,
 				},
 			});
-			const response: z.infer<typeof productResponseSchema> = {
+
+			return c.json<z.infer<typeof productResponseSchema>>({
 				productId: createdProduct.id,
 				name: createdProduct.name,
-			};
-			return c.json(response);
+			});
 		}
 	)
 	.get(
 		"/",
 		describeRoute({
 			description: "List products",
+			operationId: "listProducts",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -85,6 +89,7 @@ const app = new Hono()
 						},
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["products"],
 		}),
@@ -105,20 +110,19 @@ const app = new Hono()
 				},
 			});
 
-			const response: z.infer<typeof productResponseSchema>[] = products.map(
-				(product) => ({
+			return c.json<z.infer<typeof productResponseSchema>[]>(
+				products.map((product) => ({
 					productId: product.id,
 					name: product.name,
-				})
+				}))
 			);
-
-			return c.json(response);
 		}
 	)
 	.get(
 		"/:productId",
 		describeRoute({
 			description: "Get a product",
+			operationId: "getProductById",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -126,6 +130,7 @@ const app = new Hono()
 						"application/json": { schema: resolver(productResponseSchema) },
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["products"],
 		}),
@@ -146,18 +151,17 @@ const app = new Hono()
 				return c.json({ error: "Product not found" }, 404);
 			}
 
-			const response: z.infer<typeof productResponseSchema> = {
+			return c.json<z.infer<typeof productResponseSchema>>({
 				productId: product.id,
 				name: product.name,
-			};
-
-			return c.json(response);
+			});
 		}
 	)
 	.put(
 		"/:productId",
 		describeRoute({
 			description: "Update a product",
+			operationId: "updateProduct",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -165,6 +169,7 @@ const app = new Hono()
 						"application/json": { schema: resolver(productResponseSchema) },
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["products"],
 		}),
@@ -184,18 +189,17 @@ const app = new Hono()
 				},
 			});
 
-			const response: z.infer<typeof productResponseSchema> = {
+			return c.json<z.infer<typeof productResponseSchema>>({
 				productId: updatedProduct.id,
 				name: updatedProduct.name,
-			};
-
-			return c.json(response);
+			});
 		}
 	)
 	.delete(
 		"/:productId",
 		describeRoute({
 			description: "Delete a product",
+			operationId: "deleteProduct",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -205,6 +209,7 @@ const app = new Hono()
 						},
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["products"],
 		}),
@@ -228,6 +233,7 @@ const app = new Hono()
 		"/:productId/provider-products",
 		describeRoute({
 			description: "Attach a new provider product",
+			operationId: "attachProviderProduct",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -237,6 +243,7 @@ const app = new Hono()
 						},
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["products"],
 		}),
@@ -263,21 +270,20 @@ const app = new Hono()
 				},
 			});
 
-			const response: z.infer<typeof providerProductResponseSchema> = {
+			return c.json<z.infer<typeof providerProductResponseSchema>>({
 				providerProductKey: providerProduct.providerProductKey,
 				providerConfiguration: {
 					providerId: providerProduct.providerId,
 					configuration: providerProduct.configuration,
 				},
-			};
-
-			return c.json(response);
+			});
 		}
 	)
 	.get(
 		"/:productId/provider-products",
 		describeRoute({
 			description: "Get all provider products for a product",
+			operationId: "getProviderProductsByProductId",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -287,6 +293,7 @@ const app = new Hono()
 						},
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["products"],
 		}),
@@ -303,22 +310,22 @@ const app = new Hono()
 				},
 			});
 
-			const response: z.infer<typeof providerProductResponseSchema>[] =
+			return c.json<z.infer<typeof providerProductResponseSchema>[]>(
 				providerProducts.map((providerProduct) => ({
 					providerProductKey: providerProduct.providerProductKey,
 					providerConfiguration: {
 						providerId: providerProduct.providerId,
 						configuration: providerProduct.configuration,
 					},
-				}));
-
-			return c.json(response);
+				}))
+			);
 		}
 	)
 	.put(
 		"/:productId/provider-products/:providerId/:providerProductKey",
 		describeRoute({
 			description: "Update a provider product",
+			operationId: "updateProviderProduct",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -328,6 +335,7 @@ const app = new Hono()
 						},
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["products"],
 		}),
@@ -351,22 +359,22 @@ const app = new Hono()
 				},
 			});
 
-			const response: z.infer<typeof providerProductResponseSchema> = {
+			return c.json<z.infer<typeof providerProductResponseSchema>>({
 				providerProductKey: updatedProviderProduct.providerProductKey,
 				providerConfiguration: updatedProviderProduct.configuration,
-			};
-
-			return c.json(response);
+			});
 		}
 	)
 	.delete(
 		"/:productId/provider-products/:providerId/:providerProductKey",
 		describeRoute({
 			description: "Delete a provider product",
+			operationId: "deleteProviderProduct",
 			responses: {
 				200: {
 					description: "Successful response",
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["products"],
 		}),

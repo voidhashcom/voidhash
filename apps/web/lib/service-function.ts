@@ -6,8 +6,9 @@ import {
 	getSecretApiKeyAuthSession,
 	getUserAuthSession,
 } from "./services/auth/queries";
-import { UnauthorizedError } from "@voidhash/lib/constants";
+import { VoidhashError } from "@voidhash/lib/constants";
 import { Database } from "@voidhash/db";
+import { Logger } from "./logger/types";
 
 export type ServiceParamWithInput<T = unknown> = {
 	ctx: ServiceContext;
@@ -85,6 +86,7 @@ export type ServiceContext = {
 	source: "nextjs" | "api-server" | "api-sdk";
 	session?: UserSession | ApiKeySession | null;
 	db: Database;
+	logger: Logger;
 };
 
 export async function authenticateContext(
@@ -97,7 +99,10 @@ export async function authenticateContext(
 	if (ctx.source === "nextjs") {
 		const session = await getUserAuthSession(ctx);
 		if (!session) {
-			throw new UnauthorizedError("User is not authenticated");
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "User is not authenticated",
+			});
 		}
 		return {
 			...ctx,
@@ -108,9 +113,10 @@ export async function authenticateContext(
 	if (ctx.source === "api-server") {
 		const apiKey = ctx.headers.get("x-secret-key");
 		if (!apiKey) {
-			throw new UnauthorizedError(
-				"Secret key is required. Add it to the x-secret-key header."
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "Secret key is required. Add it to the x-secret-key header.",
+			});
 		}
 
 		const session = await getSecretApiKeyAuthSession(ctx);

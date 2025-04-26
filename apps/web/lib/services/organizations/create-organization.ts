@@ -3,7 +3,7 @@ import {
 	createSlug,
 	createShortId,
 	SLUG_BLACKLIST,
-	NotFoundError,
+	VoidhashError,
 } from "@voidhash/lib";
 import { z } from "zod";
 import {
@@ -55,7 +55,10 @@ export const createOrganization = createServiceFunction()
 		const email = authenticatedContext.session?.user?.email;
 		if (!email) {
 			// Should not happen
-			throw new NotFoundError("User not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "User not found",
+			});
 		}
 
 		await createVoidhashCustomerTask.trigger({

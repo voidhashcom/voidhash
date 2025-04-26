@@ -1,6 +1,31 @@
+import { z } from "zod";
+
+const ErrorCode = z.enum([
+	"BAD_REQUEST",
+	"FORBIDDEN",
+	"INTERNAL_SERVER_ERROR",
+	"USAGE_EXCEEDED",
+	"DISABLED",
+	"NOT_FOUND",
+	"CONFLICT",
+	"RATE_LIMITED",
+	"UNAUTHORIZED",
+	"PRECONDITION_FAILED",
+	"INSUFFICIENT_PERMISSIONS",
+	"METHOD_NOT_ALLOWED",
+	"EXPIRED",
+	"DELETE_PROTECTED",
+]);
+
 export class VoidhashError extends Error {
-	public code: number;
-	constructor(message: string, code: number) {
+	public code: z.infer<typeof ErrorCode>;
+	constructor({
+		code,
+		message,
+	}: {
+		code: z.infer<typeof ErrorCode>;
+		message: string;
+	}) {
 		super(message);
 		this.name = "VoidhashError";
 		this.message = `${message}`;
@@ -8,33 +33,33 @@ export class VoidhashError extends Error {
 	}
 }
 
-export class BadRequestError extends VoidhashError {
-	constructor(message: string) {
-		super(message, 400);
-		this.name = "BadRequestError";
-	}
-}
+// export class BadRequestError extends VoidhashError {
+// 	constructor(message: string) {
+// 		super({ code: "BAD_REQUEST", message });
+// 		this.name = "BadRequestError";
+// 	}
+// }
 
-export class NotFoundError extends VoidhashError {
-	constructor(message: string) {
-		super(message, 404);
-		this.name = "NotFoundError";
-	}
-}
+// export class NotFoundError extends VoidhashError {
+// 	constructor(message: string) {
+// 		super({ code: "NOT_FOUND", message });
+// 		this.name = "NotFoundError";
+// 	}
+// }
 
-export class UnauthorizedError extends VoidhashError {
-	constructor(message: string) {
-		super(message, 401);
-		this.name = "UnauthorizedError";
-	}
-}
+// export class UnauthorizedError extends VoidhashError {
+// 	constructor(message: string) {
+// 		super({ code: "UNAUTHORIZED", message });
+// 		this.name = "UnauthorizedError";
+// 	}
+// }
 
-export class ConflictError extends VoidhashError {
-	constructor(message: string) {
-		super(message, 409);
-		this.name = "ConflictError";
-	}
-}
+// export class ConflictError extends VoidhashError {
+// 	constructor(message: string) {
+// 		super({ code: "CONFLICT", message });
+// 		this.name = "ConflictError";
+// 	}
+// }
 
 export function isVoidhashError(error: Error) {
 	return error.message.startsWith("VoidhashError:");

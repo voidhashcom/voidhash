@@ -7,7 +7,7 @@ import {
 	createServiceFunction,
 	hasOrganizationPermission,
 } from "@/lib/service-function";
-import { UnauthorizedError } from "@voidhash/lib/constants";
+import { VoidhashError } from "@voidhash/lib";
 
 export const deleteOrganizationInputSchema = z.object({
 	organizationId: z.string(),
@@ -21,9 +21,10 @@ export const deleteOrganization = createServiceFunction()
 		if (
 			!hasOrganizationPermission(authenticatedContext, input.organizationId, "")
 		) {
-			throw new UnauthorizedError(
-				"You are not authorized to delete this organization"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to delete this organization",
+			});
 		}
 
 		const organization = await getOrganizationById({

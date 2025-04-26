@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { Environments } from "@/lib/environments/types";
 import { setEnvironment } from "@/lib/environments/utils";
@@ -21,9 +21,10 @@ export const switchEnvironment = createServiceFunction()
 		const authenticatedContext = await authenticateContext(ctx);
 
 		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
-			throw new UnauthorizedError(
-				"You are not authorized to switch environment"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to switch environment",
+			});
 		}
 
 		const project = await getProjectById({
@@ -31,7 +32,10 @@ export const switchEnvironment = createServiceFunction()
 			input: { id: input.projectId },
 		});
 		if (!project) {
-			throw new NotFoundError("Project not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Project not found",
+			});
 		}
 
 		const organization = await getOrganizationById({
@@ -39,7 +43,10 @@ export const switchEnvironment = createServiceFunction()
 			input: { id: project.organizationId },
 		});
 		if (!organization) {
-			throw new NotFoundError("Organization not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Organization not found",
+			});
 		}
 
 		if (!organization.slug) {

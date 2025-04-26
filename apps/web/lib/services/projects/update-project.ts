@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { z } from "zod";
 import { getProjectById } from "./queries";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib/constants";
+import { VoidhashError } from "@voidhash/lib";
 import { projects } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 
@@ -25,13 +25,17 @@ export const updateProject = createServiceFunction()
 			},
 		});
 		if (!project) {
-			throw new NotFoundError("Project not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Project not found",
+			});
 		}
 
 		if (!hasProjectPermission(authenticatedContext, project.id, "")) {
-			throw new UnauthorizedError(
-				"You are not authorized to update this project"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to update this project",
+			});
 		}
 
 		await ctx.db

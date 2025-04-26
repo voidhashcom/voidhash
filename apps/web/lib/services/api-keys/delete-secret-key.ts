@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { apiKeys } from "@voidhash/db";
 import { eq } from "drizzle-orm";
@@ -24,15 +24,19 @@ export const deleteSecretKey = createServiceFunction()
 		});
 
 		if (!existingKey) {
-			throw new NotFoundError("API key not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "API key not found",
+			});
 		}
 
 		if (
 			!hasProjectPermission(authenticatedContext, existingKey.projectId, "")
 		) {
-			throw new UnauthorizedError(
-				"You are not authorized to delete this api key"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to delete this api key",
+			});
 		}
 
 		await ctx.db.delete(apiKeys).where(eq(apiKeys.id, existingKey.id));

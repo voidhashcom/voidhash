@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { createId, UnauthorizedError } from "@voidhash/lib";
+import { createId, VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { paywall } from "@voidhash/db";
 
@@ -20,7 +20,10 @@ export const createPaywall = createServiceFunction()
 	.function(async ({ input, ctx }) => {
 		const authenticatedContext = await authenticateContext(ctx);
 		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
-			throw new UnauthorizedError("You are not authorized to create paywalls");
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to create paywalls",
+			});
 		}
 
 		const newPaywall = {

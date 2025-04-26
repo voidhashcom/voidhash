@@ -7,7 +7,7 @@ import {
 	createServiceFunction,
 	hasOrganizationPermission,
 } from "@/lib/service-function";
-import { UnauthorizedError } from "@voidhash/lib/constants";
+import { VoidhashError } from "@voidhash/lib/constants";
 
 export const updateOrganizationInputSchema = z.object({
 	organizationId: z.string(),
@@ -22,9 +22,10 @@ export const updateOrganization = createServiceFunction()
 		if (
 			!hasOrganizationPermission(authenticatedContext, input.organizationId, "")
 		) {
-			throw new UnauthorizedError(
-				"You are not authorized to update this organization"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to update this organization",
+			});
 		}
 
 		const organization = await getOrganizationById({

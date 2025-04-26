@@ -24,6 +24,7 @@ import {
 import { deletePaywall } from "@/lib/services/paywalls/delete-paywall";
 import { createPaywallProduct } from "@/lib/services/paywalls/create-paywall-product";
 import { deletePaywallProduct } from "@/lib/services/paywalls/delete-paywall-product";
+import { openApiErrorResponses } from "../../errors/openapi_responses";
 
 const app = new Hono()
 	// Create Paywall
@@ -31,6 +32,7 @@ const app = new Hono()
 		"/",
 		describeRoute({
 			description: "Create a new paywall",
+			operationId: "createPaywall",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -38,6 +40,7 @@ const app = new Hono()
 						"application/json": { schema: resolver(paywallResponseSchema) },
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["paywalls"],
 		}),
@@ -70,6 +73,7 @@ const app = new Hono()
 		"/",
 		describeRoute({
 			description: "List paywalls",
+			operationId: "listPaywalls",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -79,6 +83,7 @@ const app = new Hono()
 						},
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["paywalls"],
 		}),
@@ -114,6 +119,7 @@ const app = new Hono()
 		"/:paywallId",
 		describeRoute({
 			description: "Get a paywall",
+			operationId: "getPaywallById",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -121,6 +127,7 @@ const app = new Hono()
 						"application/json": { schema: resolver(paywallResponseSchema) },
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["paywalls"],
 		}),
@@ -154,6 +161,7 @@ const app = new Hono()
 		"/:paywallId",
 		describeRoute({
 			description: "Delete a paywall",
+			operationId: "deletePaywall",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -163,6 +171,7 @@ const app = new Hono()
 						},
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["paywalls"],
 		}),
@@ -187,6 +196,7 @@ const app = new Hono()
 		"/:paywallId/products",
 		describeRoute({
 			description: "Attach a product to a paywall",
+			operationId: "attachProductToPaywall",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -196,6 +206,7 @@ const app = new Hono()
 						},
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["paywalls"],
 		}),
@@ -217,13 +228,12 @@ const app = new Hono()
 
 			// Note: createPaywallProduct returns { paywallId, productId }, but the query for productName is separate.
 			// We'll return what we have for now.
-			const response: z.infer<typeof paywallProductResponseSchema> = {
+
+			return c.json<z.infer<typeof paywallProductResponseSchema>>({
 				paywallId: paywallProduct.paywallId,
 				productId: paywallProduct.productId,
 				productName: null, // productName is not directly available here
-			};
-
-			return c.json(response);
+			});
 		}
 	)
 	// List Products for Paywall
@@ -231,6 +241,7 @@ const app = new Hono()
 		"/:paywallId/products",
 		describeRoute({
 			description: "Get all products for a paywall",
+			operationId: "getPaywallProducts",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -240,6 +251,7 @@ const app = new Hono()
 						},
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["paywalls"],
 		}),
@@ -256,14 +268,13 @@ const app = new Hono()
 				},
 			});
 
-			const response: z.infer<typeof paywallProductResponseSchema>[] =
+			return c.json<z.infer<typeof paywallProductResponseSchema>[]>(
 				paywallProducts.map((pp) => ({
 					paywallId: pp.paywallId,
 					productId: pp.productId,
 					productName: pp.product.name ?? null,
-				}));
-
-			return c.json(response);
+				}))
+			);
 		}
 	)
 	// Remove Product from Paywall
@@ -271,10 +282,12 @@ const app = new Hono()
 		"/:paywallId/products/:productId",
 		describeRoute({
 			description: "Remove a product from a paywall",
+			operationId: "deletePaywallProduct",
 			responses: {
 				200: {
 					description: "Successful response",
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["paywalls"],
 		}),
