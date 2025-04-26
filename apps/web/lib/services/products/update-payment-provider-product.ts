@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
-import { db, productProviderConfiguration } from "@voidhash/db";
+import { productProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getProductById, getProviderProductByPrimaryKey } from "./queries";
 import { and, eq } from "drizzle-orm";
@@ -62,7 +62,7 @@ export const updatePaymentProviderProduct = createServiceFunction()
 			.map((key) => parsedConfiguration[key])
 			.join(":");
 
-		await db
+		await ctx.db
 			.update(productProviderConfiguration)
 			.set({
 				providerProductKey,

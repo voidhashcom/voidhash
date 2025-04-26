@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
-import { apiKeys, db } from "@voidhash/db";
+import { apiKeys } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { getApiKeyById } from "./queries";
 
@@ -35,7 +35,7 @@ export const deleteSecretKey = createServiceFunction()
 			);
 		}
 
-		await db.delete(apiKeys).where(eq(apiKeys.id, existingKey.id));
+		await ctx.db.delete(apiKeys).where(eq(apiKeys.id, existingKey.id));
 
 		ctx.cache.invalidate(`api-keys_${existingKey.projectId}`);
 		ctx.cache.invalidate(`api-key_${existingKey.id}`);

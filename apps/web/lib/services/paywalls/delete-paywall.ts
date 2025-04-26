@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
-import { db, paywall } from "@voidhash/db";
+import { paywall } from "@voidhash/db";
 import { getPaywallById } from "./queries";
 import { eq } from "drizzle-orm";
 
@@ -33,5 +33,5 @@ export const deletePaywall = createServiceFunction()
 			);
 		}
 
-		await db.delete(paywall).where(eq(paywall.id, input.paywallId));
+		await ctx.db.delete(paywall).where(eq(paywall.id, input.paywallId));
 	});

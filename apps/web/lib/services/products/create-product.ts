@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { createId, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
-import { product, db } from "@voidhash/db";
+import { product } from "@voidhash/db";
 
 export const createProductInputSchema = z.object({
 	projectId: z.string(),
@@ -28,7 +28,7 @@ export const createProduct = createServiceFunction()
 			projectId: input.projectId,
 			name: input.name,
 		};
-		await db.insert(product).values(newProduct);
+		await ctx.db.insert(product).values(newProduct);
 
 		return newProduct;
 	});

@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { createId, NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
-import { db, paywallProduct } from "@voidhash/db";
+import { paywallProduct } from "@voidhash/db";
 import { getProductById } from "../products/queries";
 
 export const createPaywallProductInputSchema = z.object({
@@ -37,7 +37,7 @@ export const createPaywallProduct = createServiceFunction()
 			paywallId: input.paywallId,
 		} satisfies typeof paywallProduct.$inferInsert;
 
-		await db.insert(paywallProduct).values(newPaywallProduct);
+		await ctx.db.insert(paywallProduct).values(newPaywallProduct);
 
 		return newPaywallProduct;
 	});

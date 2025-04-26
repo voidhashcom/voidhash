@@ -6,7 +6,7 @@ import {
 import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
 
-import { product, db } from "@voidhash/db";
+import { product } from "@voidhash/db";
 import { getProductById } from "./queries";
 import { eq } from "drizzle-orm";
 
@@ -38,7 +38,7 @@ export const updateProduct = createServiceFunction()
 			);
 		}
 
-		await db
+		await ctx.db
 			.update(product)
 			.set({
 				name: input.name,

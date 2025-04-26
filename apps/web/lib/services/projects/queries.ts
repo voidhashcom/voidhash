@@ -25,7 +25,11 @@ export const getProjectBySlug = cache(
 			const authenticatedContext = await authenticateContext(ctx);
 			const project = await ctx.cache.cacheFn(
 				async (organizationId: string, projectSlug: string) => {
-					return getProjectBySlugQuery(organizationId, projectSlug);
+					return getProjectBySlugQuery(
+						authenticatedContext,
+						organizationId,
+						projectSlug
+					);
 				},
 				["project", input.organizationId, input.slug],
 				{
@@ -43,7 +47,7 @@ export const getProjectBySlug = cache(
 			}
 
 			return project;
-		})
+		}).invoke
 );
 
 export const getProjectBySlugAndOrganizationSlug = cache(
@@ -84,7 +88,7 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 			}
 
 			return project;
-		})
+		}).invoke
 );
 
 export const getProjectById = cache(
@@ -98,7 +102,7 @@ export const getProjectById = cache(
 			const authenticatedContext = await authenticateContext(ctx);
 			const project = await ctx.cache.cacheFn(
 				async (id: string) => {
-					return getProjectByIdQuery(id);
+					return getProjectByIdQuery(authenticatedContext, id);
 				},
 				["project", input.id],
 				{
@@ -116,7 +120,7 @@ export const getProjectById = cache(
 			}
 
 			return project;
-		})
+		}).invoke
 );
 
 export const getProjectsByOrganizationSlug = cache(
@@ -147,7 +151,7 @@ export const getProjectsByOrganizationSlug = cache(
 
 			return await ctx.cache.cacheFn(
 				async (orgId: string) => {
-					return getProjectsByIdQuery(orgId);
+					return getProjectsByIdQuery(authenticatedContext, orgId);
 				},
 				["projects", organization.id],
 				{
@@ -155,5 +159,5 @@ export const getProjectsByOrganizationSlug = cache(
 					revalidate: 3600,
 				}
 			)(organization.id);
-		})
+		}).invoke
 );

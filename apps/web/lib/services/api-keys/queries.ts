@@ -19,7 +19,7 @@ export const getApiKeyById = cache(
 
 			const apiKeyPromise = ctx.cache.cacheFn(
 				async (keyId: string) => {
-					return getApiKeyByIdQuery(keyId);
+					return getApiKeyByIdQuery(authenticatedContext, keyId);
 				},
 				["api-key", input.id],
 				{
@@ -42,7 +42,7 @@ export const getApiKeyById = cache(
 			}
 
 			return apiKey;
-		})
+		}).invoke
 );
 
 export const getApiKeysInputSchema = z.object({
@@ -61,7 +61,7 @@ export const getApiKeys = cache(
 
 			const apiKeys = await ctx.cache.cacheFn(
 				async (projectId: string) => {
-					return getApiKeysQuery(projectId);
+					return getApiKeysQuery(authenticatedContext, projectId);
 				},
 				["api-keys", input.projectId],
 				{
@@ -79,5 +79,5 @@ export const getApiKeys = cache(
 			}
 
 			return apiKeys;
-		})
+		}).invoke
 );

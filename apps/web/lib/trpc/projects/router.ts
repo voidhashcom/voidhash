@@ -1,13 +1,13 @@
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { getTeamsProjectsBySlugSchema } from "./schema";
-import { db, organization, projects } from "@voidhash/db";
+import { organization, projects } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 
 export const projectsRouter = createTRPCRouter({
 	getTeamsProjectsBySlug: protectedProcedure
 		.input(getTeamsProjectsBySlugSchema)
-		.query(async ({ input }) => {
-			const teamProjects = await db
+		.query(async ({ input, ctx }) => {
+			const teamProjects = await ctx.db
 				.select()
 				.from(projects)
 				.innerJoin(organization, eq(projects.organizationId, organization.id))

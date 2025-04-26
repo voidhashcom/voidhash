@@ -6,7 +6,7 @@ import {
 import { z } from "zod";
 import { getProjectById } from "./queries";
 import { NotFoundError, UnauthorizedError } from "@voidhash/lib/constants";
-import { db, projects } from "@voidhash/db";
+import { projects } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 
 export const updateProjectInputSchema = z.object({
@@ -34,7 +34,7 @@ export const updateProject = createServiceFunction()
 			);
 		}
 
-		await db
+		await ctx.db
 			.update(projects)
 			.set({
 				name: input.name,

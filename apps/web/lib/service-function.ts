@@ -7,6 +7,7 @@ import {
 	getUserAuthSession,
 } from "./services/auth/queries";
 import { UnauthorizedError } from "@voidhash/lib/constants";
+import { Database } from "@voidhash/db";
 
 export type ServiceParamWithInput<T = unknown> = {
 	ctx: ServiceContext;
@@ -29,22 +30,28 @@ export function createServiceFunction() {
 						ctx,
 					}: { input: Input; ctx: ServiceContext }) => Promise<OutputType>
 				) => {
-					return async ({
-						ctx,
-						input,
-					}: ServiceParamWithInput<Input>): Promise<OutputType> => {
-						const validatedInput = schema.parse(input) as Input;
-						return await fn({ ctx, input: validatedInput });
+					const invokableFunction = {
+						invoke: async ({
+							ctx,
+							input,
+						}: ServiceParamWithInput<Input>): Promise<OutputType> => {
+							const validatedInput = schema.parse(input) as Input;
+							return await fn({ ctx, input: validatedInput });
+						},
 					};
+					return invokableFunction;
 				},
 			};
 		},
 		function: <OutputType = unknown>(
 			fn: ({ ctx }: { ctx: ServiceContext }) => Promise<OutputType>
 		) => {
-			return async ({ ctx }: ServiceParamWithoutInput): Promise<OutputType> => {
-				return await fn({ ctx });
+			const invokableFunction = {
+				invoke: async ({ ctx }: ServiceParamWithoutInput) => {
+					return await fn({ ctx });
+				},
 			};
+			return invokableFunction;
 		},
 	};
 }
@@ -77,6 +84,7 @@ export type ServiceContext = {
 	cookies: CookiesAdapter;
 	source: "nextjs" | "api-server" | "api-sdk";
 	session?: UserSession | ApiKeySession | null;
+	db: Database;
 };
 
 export async function authenticateContext(

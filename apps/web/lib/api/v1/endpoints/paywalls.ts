@@ -51,7 +51,7 @@ const app = new Hono()
 				return c.json({ error: "Project not found" }, 404);
 			}
 
-			const createdPaywall = await createPaywall({
+			const createdPaywall = await createPaywall.invoke({
 				ctx: authenticatedContext,
 				input: {
 					name: c.req.valid("json").name,
@@ -172,7 +172,7 @@ const app = new Hono()
 			const authenticatedContext = await authenticateContext(context);
 			const paywallId = c.req.param("paywallId");
 
-			await deletePaywall({
+			await deletePaywall.invoke({
 				ctx: authenticatedContext,
 				input: {
 					paywallId,
@@ -207,7 +207,7 @@ const app = new Hono()
 			const paywallId = c.req.param("paywallId");
 			const productId = c.req.valid("json").productId;
 
-			const paywallProduct = await createPaywallProduct({
+			const paywallProduct = await createPaywallProduct.invoke({
 				ctx: authenticatedContext,
 				input: {
 					paywallId,
@@ -285,7 +285,7 @@ const app = new Hono()
 			const paywallId = c.req.param("paywallId");
 			const productId = c.req.param("productId");
 
-			await deletePaywallProduct({
+			await deletePaywallProduct.invoke({
 				ctx: authenticatedContext,
 				input: {
 					paywallId,

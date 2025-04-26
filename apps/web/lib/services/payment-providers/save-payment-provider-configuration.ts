@@ -4,7 +4,7 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import { z } from "zod";
-import { db, projectPaymentProviderConfiguration } from "@voidhash/db";
+import { projectPaymentProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
 import { UnauthorizedError } from "@voidhash/lib/constants";
@@ -37,6 +37,7 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 
 		const existingConfiguration =
 			await getExistingPaymentProviderConfigurationByIdQuery(
+				authenticatedContext,
 				input.projectId,
 				input.providerId
 			);
@@ -48,7 +49,7 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 			);
 
 			if (existingConfiguration) {
-				await db
+				await ctx.db
 					.update(projectPaymentProviderConfiguration)
 					.set({
 						configuration: parsedConfiguration,
@@ -64,7 +65,7 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 						)
 					);
 			} else {
-				await db.insert(projectPaymentProviderConfiguration).values({
+				await ctx.db.insert(projectPaymentProviderConfiguration).values({
 					id: createId(),
 					providerId: input.providerId,
 					projectId: input.projectId,
@@ -73,7 +74,7 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 				});
 			}
 		} else {
-			await db
+			await ctx.db
 				.update(projectPaymentProviderConfiguration)
 				.set({
 					enabled: false,
