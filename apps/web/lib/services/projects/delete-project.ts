@@ -6,7 +6,7 @@ import {
 import { z } from "zod";
 import { getProjectById } from "./queries";
 import { NotFoundError, UnauthorizedError } from "@voidhash/lib/constants";
-import { db, projects } from "@voidhash/db";
+import { projects } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { getOrganizationById } from "../organizations/queries";
 
@@ -46,7 +46,7 @@ export const deleteProject = createServiceFunction()
 			throw new NotFoundError("Organization not found");
 		}
 
-		await db.delete(projects).where(eq(projects.id, input.id));
+		await ctx.db.delete(projects).where(eq(projects.id, input.id));
 
 		ctx.cache.invalidate(`project_${project.id}`);
 		ctx.cache.invalidate(`project_${organization.id}_slug:${project.slug}`);

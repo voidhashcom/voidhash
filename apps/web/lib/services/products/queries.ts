@@ -4,7 +4,7 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import { z } from "zod";
-import { product, db } from "@voidhash/db";
+import { product } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import {
 	getProductsQuery,
@@ -26,9 +26,12 @@ export const getProducts = cache(
 				return [];
 			}
 
-			const products = await getProductsQuery(input.projectId);
+			const products = await getProductsQuery(
+				authenticatedContext,
+				input.projectId
+			);
 			return products;
-		})
+		}).invoke
 );
 
 export const getProductById = cache(
@@ -36,7 +39,7 @@ export const getProductById = cache(
 		.input(z.object({ id: z.string() }))
 		.function(async ({ input, ctx }) => {
 			const authenticatedContext = await authenticateContext(ctx);
-			const productResult = await db.query.product.findFirst({
+			const productResult = await ctx.db.query.product.findFirst({
 				where: eq(product.id, input.id),
 			});
 
@@ -51,7 +54,7 @@ export const getProductById = cache(
 			}
 
 			return productResult;
-		})
+		}).invoke
 );
 
 export const getProviderProductByPrimaryKey = cache(
@@ -66,6 +69,7 @@ export const getProviderProductByPrimaryKey = cache(
 		.function(async ({ input, ctx }) => {
 			const authenticatedContext = await authenticateContext(ctx);
 			const providerProduct = await getProviderProductByPrimaryKeyQuery(
+				authenticatedContext,
 				input.projectId,
 				input.providerId,
 				input.productProviderKey
@@ -90,7 +94,7 @@ export const getProviderProductByPrimaryKey = cache(
 			}
 
 			return providerProduct;
-		})
+		}).invoke
 );
 
 export const getProviderProductsByProductId = cache(
@@ -112,9 +116,10 @@ export const getProviderProductsByProductId = cache(
 			}
 
 			const providerProducts = await getProviderProductsByProductIdQuery(
+				authenticatedContext,
 				input.productId
 			);
 
 			return providerProducts;
-		})
+		}).invoke
 );

@@ -1,7 +1,7 @@
 import { hashKey } from "@/lib/api-keys/utils";
 import { ServiceContext } from "@/lib/service-function";
 import { auth } from "@voidhash/auth";
-import { apiKeys, db, projects } from "@voidhash/db";
+import { apiKeys, projects } from "@voidhash/db";
 import { UnauthorizedError } from "@voidhash/lib/constants";
 import { eq, inArray } from "drizzle-orm";
 
@@ -18,7 +18,7 @@ export async function getUserAuthSession(ctx: ServiceContext) {
 		headers: ctx.headers,
 	});
 
-	const usersProjects = await db
+	const usersProjects = await ctx.db
 		.select()
 		.from(projects)
 		.where(
@@ -53,7 +53,7 @@ export async function getSecretApiKeyAuthSession(ctx: ServiceContext) {
 	}
 
 	const keyHash = await hashKey(apiKey);
-	const apiKeyRecord = await db.query.apiKeys.findFirst({
+	const apiKeyRecord = await ctx.db.query.apiKeys.findFirst({
 		where: eq(apiKeys.key, keyHash),
 		with: {
 			project: true,

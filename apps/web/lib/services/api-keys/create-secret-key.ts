@@ -9,7 +9,7 @@ import { getOrganizationById } from "../organizations/queries";
 import { getProjectById } from "../projects/queries";
 import { getEnvironment } from "@/lib/environments/utils";
 import { createSecretKey as generateSecretKeyFn } from "@/lib/api-keys/utils";
-import { apiKeys, db } from "@voidhash/db";
+import { apiKeys } from "@voidhash/db";
 
 export const createSecretKeyInputSchema = z.object({
 	projectId: z.string(),
@@ -58,7 +58,7 @@ export const createSecretKey = createServiceFunction()
 		}
 
 		const { rawKey, ...secretKey } = await generateSecretKeyFn(environment);
-		await db.insert(apiKeys).values({
+		await ctx.db.insert(apiKeys).values({
 			id: createId(),
 			projectId: project.id,
 			name: input.name,

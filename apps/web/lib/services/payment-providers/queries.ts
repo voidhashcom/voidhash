@@ -19,6 +19,9 @@ export const getPaymentProviderConfigurations = cache(
 			if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
 				return [];
 			}
-			return await getPaymentProviderConfigurationsQuery(input.projectId);
-		})
+			return await getPaymentProviderConfigurationsQuery(
+				authenticatedContext,
+				input.projectId
+			);
+		}).invoke
 );

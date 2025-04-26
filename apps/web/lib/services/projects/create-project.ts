@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { createPublishableKey } from "@/lib/api-keys/utils";
 import { Environments } from "@/lib/environments/types";
-import { db, projects, apiKeys } from "@voidhash/db";
+import { projects, apiKeys } from "@voidhash/db";
 import { SLUG_BLACKLIST, UnauthorizedError } from "@voidhash/lib/constants";
 import { createId, createSlug, createShortId } from "@voidhash/lib/functions";
 import { randomUUID } from "crypto";
@@ -43,7 +43,7 @@ export const createProject = createServiceFunction()
 			slug = slug + "-" + createShortId();
 		}
 
-		const existingProject = await db.query.projects.findFirst({
+		const existingProject = await ctx.db.query.projects.findFirst({
 			where: and(
 				eq(projects.slug, slug),
 				eq(projects.organizationId, input.organizationId)
@@ -54,7 +54,7 @@ export const createProject = createServiceFunction()
 			slug = slug + "-" + randomUUID();
 		}
 
-		await db.transaction(async (tx) => {
+		await ctx.db.transaction(async (tx) => {
 			await tx.insert(projects).values({
 				id,
 				name: input.name,

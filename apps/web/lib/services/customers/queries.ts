@@ -21,9 +21,12 @@ export const getCustomers = cache(
 				return [];
 			}
 
-			const customers = await getCustomersQuery(input.projectId);
+			const customers = await getCustomersQuery(
+				authenticatedContext,
+				input.projectId
+			);
 			return customers;
-		})
+		}).invoke
 );
 
 export const getCustomerByAppUserId = cache(
@@ -31,7 +34,10 @@ export const getCustomerByAppUserId = cache(
 		.input(z.object({ appUserId: z.string() }))
 		.function(async ({ ctx, input }) => {
 			const authenticatedContext = await authenticateContext(ctx);
-			const customer = await getCustomerByAppUserIdQuery(input.appUserId);
+			const customer = await getCustomerByAppUserIdQuery(
+				authenticatedContext,
+				input.appUserId
+			);
 			if (!customer) {
 				return null;
 			}
@@ -39,5 +45,5 @@ export const getCustomerByAppUserId = cache(
 				return null;
 			}
 			return customer;
-		})
+		}).invoke
 );

@@ -58,7 +58,7 @@ const app = new Hono()
 				return c.json({ error: "Project not found" }, 404);
 			}
 
-			const createdProduct = await createProduct({
+			const createdProduct = await createProduct.invoke({
 				ctx: authenticatedContext,
 				input: {
 					name: c.req.valid("json").name,
@@ -176,7 +176,7 @@ const app = new Hono()
 			const productId = c.req.param("productId");
 			const name = c.req.valid("json").name;
 
-			const updatedProduct = await updateProduct({
+			const updatedProduct = await updateProduct.invoke({
 				ctx: authenticatedContext,
 				input: {
 					productId: productId,
@@ -214,7 +214,7 @@ const app = new Hono()
 			const authenticatedContext = await authenticateContext(context);
 			const productId = c.req.param("productId");
 
-			await deleteProduct({
+			await deleteProduct.invoke({
 				ctx: authenticatedContext,
 				input: {
 					productId,
@@ -254,7 +254,7 @@ const app = new Hono()
 				return c.json({ error: "Provider not found" }, 404);
 			}
 
-			const providerProduct = await createPaymentProviderProduct({
+			const providerProduct = await createPaymentProviderProduct.invoke({
 				ctx: authenticatedContext,
 				input: {
 					productId,
@@ -341,7 +341,7 @@ const app = new Hono()
 			const providerProductKey = c.req.param("providerProductKey");
 			const configuration = c.req.valid("json").configuration;
 
-			const updatedProviderProduct = await updatePaymentProviderProduct({
+			const updatedProviderProduct = await updatePaymentProviderProduct.invoke({
 				ctx: authenticatedContext,
 				input: {
 					productId,
@@ -378,7 +378,7 @@ const app = new Hono()
 			const providerId = c.req.param("providerId");
 			const providerProductKey = c.req.param("providerProductKey");
 
-			await deletePaymentProviderProduct({
+			await deletePaymentProviderProduct.invoke({
 				ctx: authenticatedContext,
 				input: {
 					productId,

@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
-import { db, productProviderConfiguration } from "@voidhash/db";
+import { productProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getProductById } from "./queries";
 import { and, eq } from "drizzle-orm";
@@ -36,7 +36,7 @@ export const deletePaymentProviderProduct = createServiceFunction()
 			);
 		}
 
-		await db
+		await ctx.db
 			.delete(productProviderConfiguration)
 			.where(
 				and(

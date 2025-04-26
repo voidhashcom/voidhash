@@ -22,7 +22,7 @@ export const getOrganizationBySlug = cache(
 
 			const organization = await ctx.cache.cacheFn(
 				async (s: string) => {
-					return getOrganizationBySlugQuery(s);
+					return getOrganizationBySlugQuery(authenticatedContext, s);
 				},
 				["organization", input.slug],
 				{
@@ -42,7 +42,7 @@ export const getOrganizationBySlug = cache(
 			}
 
 			return organization;
-		})
+		}).invoke
 );
 
 export const getOrganizationByIdInputSchema = z.object({
@@ -56,7 +56,7 @@ export const getOrganizationById = cache(
 
 			const organization = await ctx.cache.cacheFn(
 				async (id: string) => {
-					return getOrganizationByIdQuery(id);
+					return getOrganizationByIdQuery(authenticatedContext, id);
 				},
 				["organization", input.id],
 				{
@@ -76,7 +76,7 @@ export const getOrganizationById = cache(
 			}
 
 			return organization;
-		})
+		}).invoke
 );
 
 export const getUsersOrganizations = cache(
@@ -86,5 +86,5 @@ export const getUsersOrganizations = cache(
 		});
 
 		return organizations;
-	})
+	}).invoke
 );

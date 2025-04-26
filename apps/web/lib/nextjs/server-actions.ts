@@ -96,7 +96,7 @@ import {
 export const createSecretKeyAction = actionClient
 	.schema(createSecretKeyInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await createSecretKey({
+		return await createSecretKey.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -105,7 +105,7 @@ export const createSecretKeyAction = actionClient
 export const rotateSecretKeyAction = actionClient
 	.schema(rotateSecretKeyInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await rotateSecretKey({
+		return await rotateSecretKey.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -114,7 +114,7 @@ export const rotateSecretKeyAction = actionClient
 export const deleteSecretKeyAction = actionClient
 	.schema(deleteSecretKeyInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await deleteSecretKey({
+		return await deleteSecretKey.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -124,7 +124,7 @@ export const deleteSecretKeyAction = actionClient
 export const createOrganizationAction = actionClient
 	.schema(createOrganizationInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await createOrganization({
+		return await createOrganization.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -133,7 +133,7 @@ export const createOrganizationAction = actionClient
 export const updateOrganizationAction = actionClient
 	.schema(updateOrganizationInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await updateOrganization({
+		return await updateOrganization.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -142,7 +142,7 @@ export const updateOrganizationAction = actionClient
 export const deleteOrganizationAction = actionClient
 	.schema(deleteOrganizationInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await deleteOrganization({
+		return await deleteOrganization.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -152,7 +152,7 @@ export const deleteOrganizationAction = actionClient
 export const createProjectAction = actionClient
 	.schema(createProjectInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await createProject({
+		return await createProject.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -161,7 +161,7 @@ export const createProjectAction = actionClient
 export const updateProjectAction = actionClient
 	.schema(updateProjectInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await updateProject({
+		return await updateProject.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -170,7 +170,7 @@ export const updateProjectAction = actionClient
 export const deleteProjectAction = actionClient
 	.schema(deleteProjectInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await deleteProject({
+		return await deleteProject.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -180,7 +180,7 @@ export const deleteProjectAction = actionClient
 export const switchEnvironmentAction = actionClient
 	.schema(switchEnvironmentInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await switchEnvironment({
+		return await switchEnvironment.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -190,7 +190,7 @@ export const switchEnvironmentAction = actionClient
 export const savePaymentProviderConfigurationAction = actionClient
 	.schema(savePaymentProviderConfigurationInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await savePaymentProviderConfiguration({
+		return await savePaymentProviderConfiguration.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -200,7 +200,7 @@ export const savePaymentProviderConfigurationAction = actionClient
 export const createProductAction = actionClient
 	.schema(createProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await createProduct({
+		return await createProduct.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -209,7 +209,7 @@ export const createProductAction = actionClient
 export const updateProductAction = actionClient
 	.schema(updateProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await updateProduct({
+		return await updateProduct.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -218,7 +218,7 @@ export const updateProductAction = actionClient
 export const deleteProductAction = actionClient
 	.schema(deleteProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await deleteProduct({
+		return await deleteProduct.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -227,7 +227,7 @@ export const deleteProductAction = actionClient
 export const createPaymentProviderProductAction = actionClient
 	.schema(createPaymentProviderProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await createPaymentProviderProduct({
+		return await createPaymentProviderProduct.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -236,7 +236,7 @@ export const createPaymentProviderProductAction = actionClient
 export const updatePaymentProviderProductAction = actionClient
 	.schema(updatePaymentProviderProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await updatePaymentProviderProduct({
+		return await updatePaymentProviderProduct.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -245,7 +245,7 @@ export const updatePaymentProviderProductAction = actionClient
 export const setActivePaymentProviderProductAction = actionClient
 	.schema(setActivePaymentProviderProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await setActivePaymentProviderProduct({
+		return await setActivePaymentProviderProduct.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -254,7 +254,7 @@ export const setActivePaymentProviderProductAction = actionClient
 export const deletePaymentProviderProductAction = actionClient
 	.schema(deletePaymentProviderProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await deletePaymentProviderProduct({
+		return await deletePaymentProviderProduct.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -264,7 +264,7 @@ export const deletePaymentProviderProductAction = actionClient
 export const createCustomerAction = actionClient
 	.schema(createCustomerInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await createCustomer({
+		return await createCustomer.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -274,7 +274,7 @@ export const createCustomerAction = actionClient
 export const createPaywallAction = actionClient
 	.schema(createPaywallInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await createPaywall({
+		return await createPaywall.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -283,7 +283,7 @@ export const createPaywallAction = actionClient
 export const deletePaywallAction = actionClient
 	.schema(deletePaywallInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await deletePaywall({
+		return await deletePaywall.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -293,7 +293,7 @@ export const deletePaywallAction = actionClient
 export const createPaywallProductAction = actionClient
 	.schema(createPaywallProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await createPaywallProduct({
+		return await createPaywallProduct.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
@@ -302,7 +302,7 @@ export const createPaywallProductAction = actionClient
 export const deletePaywallProductAction = actionClient
 	.schema(deletePaywallProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		return await deletePaywallProduct({
+		return await deletePaywallProduct.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

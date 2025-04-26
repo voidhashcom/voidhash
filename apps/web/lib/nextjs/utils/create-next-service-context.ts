@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { NextUnstableCacheAdapter } from "./next-unstable-cache-adapter";
 import { NextCookiesAdapter } from "./next-cookies-adapter";
 import { ServiceContext } from "@/lib/service-function";
+import { db } from "@voidhash/db";
 
 export const createNextServiceContext = async (): Promise<ServiceContext> => {
 	return {
@@ -9,5 +10,6 @@ export const createNextServiceContext = async (): Promise<ServiceContext> => {
 		headers: await headers(),
 		cache: new NextUnstableCacheAdapter(),
 		cookies: new NextCookiesAdapter(),
+		db: db,
 	};
 };

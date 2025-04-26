@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { createId, NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
-import { db, productProviderConfiguration } from "@voidhash/db";
+import { productProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getProductById } from "./queries";
 import { and, eq } from "drizzle-orm";
@@ -45,7 +45,7 @@ export const createPaymentProviderProduct = createServiceFunction()
 			provider.products.productConfigurationSchema.parse(input.configuration);
 
 		// Disable other provider products for this product
-		await db
+		await ctx.db
 			.update(productProviderConfiguration)
 			.set({ isActive: false })
 			.where(
@@ -65,7 +65,7 @@ export const createPaymentProviderProduct = createServiceFunction()
 			configuration: parsedConfiguration,
 		} satisfies typeof productProviderConfiguration.$inferInsert;
 
-		await db
+		await ctx.db
 			.insert(productProviderConfiguration)
 			.values(newPaymentProviderProduct);
 

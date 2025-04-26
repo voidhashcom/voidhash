@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
-import { db, productProviderConfiguration } from "@voidhash/db";
+import { productProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getProductById, getProviderProductByPrimaryKey } from "./queries";
 import { and, eq, not } from "drizzle-orm";
@@ -55,7 +55,7 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 		}
 
 		// Disable other provider products for this product
-		await db
+		await ctx.db
 			.update(productProviderConfiguration)
 			.set({ isActive: false })
 			.where(
@@ -71,7 +71,7 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 				)
 			);
 
-		await db
+		await ctx.db
 			.update(productProviderConfiguration)
 			.set({
 				isActive: true,

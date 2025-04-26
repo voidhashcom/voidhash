@@ -36,7 +36,7 @@ const app = new Hono()
 				return c.json({ error: "Project not found" }, 404);
 			}
 
-			const createdCustomer = await createCustomer({
+			const createdCustomer = await createCustomer.invoke({
 				ctx: authenticatedContext,
 				input: {
 					email: c.req.valid("json").email,

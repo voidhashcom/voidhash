@@ -24,9 +24,12 @@ export const getPaywalls = cache(
 				return [];
 			}
 
-			const paywalls = await getPaywallsQuery(input.projectId);
+			const paywalls = await getPaywallsQuery(
+				authenticatedContext,
+				input.projectId
+			);
 			return paywalls;
-		})
+		}).invoke
 );
 
 export const getPaywallById = cache(
@@ -34,7 +37,10 @@ export const getPaywallById = cache(
 		.input(z.object({ id: z.string() }))
 		.function(async ({ input, ctx }) => {
 			const authenticatedContext = await authenticateContext(ctx);
-			const paywallResult = await getPaywallByIdQuery(input.id);
+			const paywallResult = await getPaywallByIdQuery(
+				authenticatedContext,
+				input.id
+			);
 			if (!paywallResult) {
 				return null;
 			}
@@ -46,7 +52,7 @@ export const getPaywallById = cache(
 			}
 
 			return paywallResult;
-		})
+		}).invoke
 );
 
 export const getPaywallProducts = cache(
@@ -66,6 +72,9 @@ export const getPaywallProducts = cache(
 				return [];
 			}
 
-			return await getPaywallProductsQuery(input.paywallId);
-		})
+			return await getPaywallProductsQuery(
+				authenticatedContext,
+				input.paywallId
+			);
+		}).invoke
 );

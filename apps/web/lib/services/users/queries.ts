@@ -24,5 +24,5 @@ export const getUser = cache(
 			...authenticatedContext.session.user,
 			organizations,
 		};
-	})
+	}).invoke
 );

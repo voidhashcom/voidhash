@@ -6,7 +6,7 @@ import {
 import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
 import { z } from "zod";
 import { createSecretKey } from "@/lib/api-keys/utils";
-import { apiKeys, db } from "@voidhash/db";
+import { apiKeys } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { getApiKeyById } from "./queries";
 
@@ -40,7 +40,7 @@ export const rotateSecretKey = createServiceFunction()
 			existingKey.environment
 		);
 
-		await db
+		await ctx.db
 			.update(apiKeys)
 			.set({
 				...newKey,
