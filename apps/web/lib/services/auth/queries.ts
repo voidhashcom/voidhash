@@ -2,7 +2,7 @@ import { hashKey } from "@/lib/api-keys/utils";
 import { ServiceContext } from "@/lib/service-function";
 import { auth } from "@voidhash/auth";
 import { apiKeys, projects } from "@voidhash/db";
-import { UnauthorizedError } from "@voidhash/lib/constants";
+import { VoidhashError } from "@voidhash/lib";
 import { eq, inArray } from "drizzle-orm";
 
 export async function getUserAuthSession(ctx: ServiceContext) {
@@ -11,7 +11,10 @@ export async function getUserAuthSession(ctx: ServiceContext) {
 	});
 
 	if (!userSession?.user) {
-		throw new UnauthorizedError("You are not authenticated");
+		throw new VoidhashError({
+			code: "UNAUTHORIZED",
+			message: "You are not authenticated",
+		});
 	}
 
 	const usersOrganizations = await auth.api.listOrganizations({
@@ -49,7 +52,10 @@ export async function getUserAuthSession(ctx: ServiceContext) {
 export async function getSecretApiKeyAuthSession(ctx: ServiceContext) {
 	const apiKey = ctx.headers.get("x-secret-key");
 	if (!apiKey) {
-		throw new UnauthorizedError("You are not authenticated");
+		throw new VoidhashError({
+			code: "UNAUTHORIZED",
+			message: "You are not authenticated",
+		});
 	}
 
 	const keyHash = await hashKey(apiKey);
@@ -61,7 +67,10 @@ export async function getSecretApiKeyAuthSession(ctx: ServiceContext) {
 	});
 
 	if (!apiKeyRecord) {
-		throw new UnauthorizedError("You are not authenticated");
+		throw new VoidhashError({
+			code: "UNAUTHORIZED",
+			message: "You are not authenticated",
+		});
 	}
 
 	const projects = [apiKeyRecord.project];

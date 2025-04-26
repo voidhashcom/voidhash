@@ -10,12 +10,14 @@ import {
 	getCustomerByAppUserId,
 	getCustomers,
 } from "@/lib/services/customers/queries";
+import { openApiErrorResponses } from "../../errors/openapi_responses";
 
 const app = new Hono()
 	.post(
 		"/",
 		describeRoute({
 			description: "Create a new customer",
+			operationId: "createCustomer",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -23,6 +25,7 @@ const app = new Hono()
 						"application/json": { schema: resolver(customerResponseSchema) },
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["customers"],
 		}),
@@ -45,19 +48,20 @@ const app = new Hono()
 					projectId,
 				},
 			});
-			const response: z.infer<typeof customerResponseSchema> = {
+
+			return c.json<z.infer<typeof customerResponseSchema>>({
 				customerId: createdCustomer.id,
 				name: createdCustomer.name ?? null,
 				email: createdCustomer.email,
 				appUserId: createdCustomer.appUserId ?? null,
-			};
-			return c.json(response);
+			});
 		}
 	)
 	.get(
 		"/",
 		describeRoute({
 			description: "List customers",
+			operationId: "listCustomers",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -67,6 +71,7 @@ const app = new Hono()
 						},
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["customers"],
 		}),
@@ -86,22 +91,21 @@ const app = new Hono()
 				},
 			});
 
-			const response: z.infer<typeof customerResponseSchema>[] = customers.map(
-				(customer) => ({
+			return c.json<z.infer<typeof customerResponseSchema>[]>(
+				customers.map((customer) => ({
 					customerId: customer.id,
 					name: customer.name ?? null,
 					email: customer.email,
 					appUserId: customer.appUserId ?? null,
-				})
+				}))
 			);
-
-			return c.json(response);
 		}
 	)
 	.get(
 		"/by-app-user-id/:appUserId",
 		describeRoute({
 			description: "Get a customer by app user ID",
+			operationId: "getCustomerByAppUserId",
 			responses: {
 				200: {
 					description: "Successful response",
@@ -109,6 +113,7 @@ const app = new Hono()
 						"application/json": { schema: resolver(customerResponseSchema) },
 					},
 				},
+				...openApiErrorResponses,
 			},
 			tags: ["customers"],
 		}),
@@ -126,14 +131,12 @@ const app = new Hono()
 				return c.json({ error: "Customer not found" }, 404);
 			}
 
-			const response: z.infer<typeof customerResponseSchema> = {
+			return c.json<z.infer<typeof customerResponseSchema>>({
 				customerId: customer.id,
 				name: customer.name ?? null,
 				email: customer.email,
 				appUserId: customer.appUserId ?? null,
-			};
-
-			return c.json(response);
+			});
 		}
 	);
 

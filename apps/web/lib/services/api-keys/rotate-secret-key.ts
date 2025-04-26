@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { createSecretKey } from "@/lib/api-keys/utils";
 import { apiKeys } from "@voidhash/db";
@@ -25,15 +25,19 @@ export const rotateSecretKey = createServiceFunction()
 		});
 
 		if (!existingKey) {
-			throw new NotFoundError("API key not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "API key not found",
+			});
 		}
 
 		if (
 			!hasProjectPermission(authenticatedContext, existingKey.projectId, "")
 		) {
-			throw new UnauthorizedError(
-				"You are not authorized to rotate this api key"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to rotate this api key",
+			});
 		}
 
 		const { rawKey, ...newKey } = await createSecretKey(

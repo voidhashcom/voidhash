@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { productProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
@@ -27,13 +27,18 @@ export const deletePaymentProviderProduct = createServiceFunction()
 			input: { id: input.productId },
 		});
 		if (!product) {
-			throw new NotFoundError("Product not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Product not found",
+			});
 		}
 
 		if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
-			throw new UnauthorizedError(
-				"You are not authorized to delete this payment provider product"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message:
+					"You are not authorized to delete this payment provider product",
+			});
 		}
 
 		await ctx.db

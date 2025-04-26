@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { paywall } from "@voidhash/db";
 import { getPaywallById } from "./queries";
@@ -22,15 +22,19 @@ export const deletePaywall = createServiceFunction()
 			input: { id: input.paywallId },
 		});
 		if (!existingPaywall) {
-			throw new NotFoundError("Paywall not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Paywall not found",
+			});
 		}
 
 		if (
 			!hasProjectPermission(authenticatedContext, existingPaywall.projectId, "")
 		) {
-			throw new UnauthorizedError(
-				"You are not authorized to delete this paywall"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to delete this paywall",
+			});
 		}
 
 		await ctx.db.delete(paywall).where(eq(paywall.id, input.paywallId));

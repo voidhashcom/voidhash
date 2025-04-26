@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { paywallProduct } from "@voidhash/db";
 import { and, eq } from "drizzle-orm";
@@ -23,13 +23,17 @@ export const deletePaywallProduct = createServiceFunction()
 			input: { id: input.paywallId },
 		});
 		if (!paywall) {
-			throw new NotFoundError("Product not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Product not found",
+			});
 		}
 
 		if (!hasProjectPermission(authenticatedContext, paywall.projectId, "")) {
-			throw new UnauthorizedError(
-				"You are not authorized to remove this product"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to remove this product",
+			});
 		}
 
 		await ctx.db

@@ -7,7 +7,7 @@ import { z } from "zod";
 import { projectPaymentProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
-import { UnauthorizedError } from "@voidhash/lib/constants";
+import { VoidhashError } from "@voidhash/lib";
 import { getExistingPaymentProviderConfigurationByIdQuery } from "./raw-queries";
 import { createId } from "@voidhash/lib/functions";
 
@@ -25,9 +25,11 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 	.function(async ({ input, ctx }) => {
 		const authenticatedContext = await authenticateContext(ctx);
 		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
-			throw new UnauthorizedError(
-				"You are not authorized to save this payment provider configuration"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message:
+					"You are not authorized to save this payment provider configuration",
+			});
 		}
 
 		const provider = paymentProviders.find((p) => p.id === input.providerId);

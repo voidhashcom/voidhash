@@ -1,38 +1,61 @@
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { createProductInputSchema } from "@/lib/services/products/create-product";
 import { z } from "zod";
+import { extendZodWithOpenApi } from "zod-openapi";
+
+extendZodWithOpenApi(z);
 
 // Customer
-export const createCustomerBodySchema = z.object({
-	appUserId: z.string().optional(),
-	name: z.string().optional(),
-	email: z.string().email(),
-});
+export const createCustomerBodySchema = z
+	.object({
+		appUserId: z.string().optional(),
+		name: z.string().optional(),
+		email: z.string().email(),
+	})
+	.openapi({
+		ref: "CreateCustomerBody",
+	});
 
-export const customerResponseSchema = z.object({
-	customerId: z.string(),
-	name: z.string().nullable(),
-	email: z.string().nullable(),
-	appUserId: z.string().nullable(),
-});
+export const customerResponseSchema = z
+	.object({
+		customerId: z.string(),
+		name: z.string().nullable(),
+		email: z.string().nullable(),
+		appUserId: z.string().nullable(),
+	})
+	.openapi({
+		ref: "Customer",
+	});
 
 // Product
-export const createProductBodySchema = createProductInputSchema.pick({
-	name: true,
-});
+export const createProductBodySchema = createProductInputSchema
+	.pick({
+		name: true,
+	})
+	.openapi({
+		ref: "CreateProductBody",
+	});
 
-export const productResponseSchema = z.object({
-	productId: z.string(),
-	name: z.string(),
-});
+export const productResponseSchema = z
+	.object({
+		productId: z.string(),
+		name: z.string(),
+	})
+	.openapi({
+		ref: "Product",
+	});
 
 export const getProductByIdParamsSchema = z.object({
 	productId: z.string(),
 });
 
-export const updateProductBodySchema = z.object({
-	name: z.string(),
-});
+export const updateProductBodySchema = z
+	.object({
+		name: z.string(),
+	})
+	.openapi({
+		ref: "UpdateProductBody",
+	});
 
 export const updateProductParamsSchema = z.object({
 	productId: z.string(),
@@ -42,29 +65,43 @@ export const deleteProductParamsSchema = z.object({
 	productId: z.string(),
 });
 
-const productProviderConfigurationSchema = z.discriminatedUnion("providerId", [
-	...paymentProviders.map((p) =>
-		z.object({
-			providerId: z.literal(p.id),
-			configuration: p.products.productConfigurationSchema,
-		})
-	),
-] as unknown as [
-	z.ZodDiscriminatedUnionOption<"providerId">,
-	...z.ZodDiscriminatedUnionOption<"providerId">[],
-]);
+const productProviderConfigurationSchema = z
+	.discriminatedUnion("providerId", [
+		...paymentProviders.map((p) =>
+			z
+				.object({
+					providerId: z.literal(p.id),
+					configuration: p.products.productConfigurationSchema,
+				})
+				.openapi({
+					ref: `ProductProviderConfiguration_${p.id}`,
+				})
+		),
+	] as unknown as [
+		z.ZodDiscriminatedUnionOption<"providerId">,
+		...z.ZodDiscriminatedUnionOption<"providerId">[],
+	])
+	.openapi({
+		ref: "ProductProviderConfiguration",
+	});
 
 export const attachProviderProductParamsSchema = z.object({
 	productId: z.string(),
 });
 
 export const attachProviderProductBodySchema =
-	productProviderConfigurationSchema;
+	productProviderConfigurationSchema.openapi({
+		ref: "AttachProviderProductBody",
+	});
 
-export const providerProductResponseSchema = z.object({
-	providerProductKey: z.string(),
-	providerConfiguration: productProviderConfigurationSchema,
-});
+export const providerProductResponseSchema = z
+	.object({
+		providerProductKey: z.string(),
+		providerConfiguration: productProviderConfigurationSchema,
+	})
+	.openapi({
+		ref: "ProviderProduct",
+	});
 
 export const getProviderProductsParamsSchema = z.object({
 	productId: z.string(),
@@ -76,9 +113,13 @@ export const updateProviderProductParamsSchema = z.object({
 	providerProductKey: z.string(),
 });
 
-export const updateProviderProductBodySchema = z.object({
-	configuration: productProviderConfigurationSchema,
-});
+export const updateProviderProductBodySchema = z
+	.object({
+		configuration: productProviderConfigurationSchema,
+	})
+	.openapi({
+		ref: "UpdateProviderProductBody",
+	});
 
 export const deleteProviderProductParamsSchema = z.object({
 	productId: z.string(),
@@ -87,14 +128,22 @@ export const deleteProviderProductParamsSchema = z.object({
 });
 
 // Paywall
-export const createPaywallBodySchema = z.object({
-	name: z.string(),
-});
+export const createPaywallBodySchema = z
+	.object({
+		name: z.string(),
+	})
+	.openapi({
+		ref: "CreatePaywallBody",
+	});
 
-export const paywallResponseSchema = z.object({
-	paywallId: z.string(),
-	name: z.string(),
-});
+export const paywallResponseSchema = z
+	.object({
+		paywallId: z.string(),
+		name: z.string(),
+	})
+	.openapi({
+		ref: "Paywall",
+	});
 
 export const getPaywallByIdParamsSchema = z.object({
 	paywallId: z.string(),
@@ -109,15 +158,23 @@ export const attachProductToPaywallParamsSchema = z.object({
 	paywallId: z.string(),
 });
 
-export const attachProductToPaywallBodySchema = z.object({
-	productId: z.string(),
-});
+export const attachProductToPaywallBodySchema = z
+	.object({
+		productId: z.string(),
+	})
+	.openapi({
+		ref: "AttachProductToPaywallBody",
+	});
 
-export const paywallProductResponseSchema = z.object({
-	paywallId: z.string(),
-	productId: z.string(),
-	productName: z.string().nullable(),
-});
+export const paywallProductResponseSchema = z
+	.object({
+		paywallId: z.string(),
+		productId: z.string(),
+		productName: z.string().nullable(),
+	})
+	.openapi({
+		ref: "PaywallProduct",
+	});
 
 export const getPaywallProductsParamsSchema = z.object({
 	paywallId: z.string(),

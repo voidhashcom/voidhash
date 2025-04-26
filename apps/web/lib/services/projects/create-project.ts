@@ -6,7 +6,7 @@ import {
 import { createPublishableKey } from "@/lib/api-keys/utils";
 import { Environments } from "@/lib/environments/types";
 import { projects, apiKeys } from "@voidhash/db";
-import { SLUG_BLACKLIST, UnauthorizedError } from "@voidhash/lib/constants";
+import { SLUG_BLACKLIST, VoidhashError } from "@voidhash/lib/constants";
 import { createId, createSlug, createShortId } from "@voidhash/lib/functions";
 import { randomUUID } from "crypto";
 import { and, eq } from "drizzle-orm";
@@ -24,16 +24,18 @@ export const createProject = createServiceFunction()
 		if (
 			!hasOrganizationPermission(authenticatedContext, input.organizationId, "")
 		) {
-			throw new UnauthorizedError(
-				"You are not authorized to create a projects"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to create a projects",
+			});
 		}
 
 		const userId = authenticatedContext?.session?.user?.id;
 		if (!userId) {
-			throw new UnauthorizedError(
-				"You are not authorized to create a projects"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to create a projects",
+			});
 		}
 
 		const id = createId();

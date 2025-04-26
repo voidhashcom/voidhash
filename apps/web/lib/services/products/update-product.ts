@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 
 import { product } from "@voidhash/db";
@@ -27,15 +27,19 @@ export const updateProduct = createServiceFunction()
 			input: { id: input.productId },
 		});
 		if (!existingProduct) {
-			throw new NotFoundError("Product not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Product not found",
+			});
 		}
 
 		if (
 			!hasProjectPermission(authenticatedContext, existingProduct.projectId, "")
 		) {
-			throw new UnauthorizedError(
-				"You are not authorized to update this product"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to update this product",
+			});
 		}
 
 		await ctx.db

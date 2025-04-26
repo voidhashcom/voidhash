@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { createId, NotFoundError, UnauthorizedError } from "@voidhash/lib";
+import { createId, VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { getOrganizationById } from "../organizations/queries";
 import { getProjectById } from "../projects/queries";
@@ -21,9 +21,10 @@ export const createSecretKey = createServiceFunction()
 	.function(async ({ input, ctx }) => {
 		const authenticatedContext = await authenticateContext(ctx);
 		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
-			throw new UnauthorizedError(
-				"You are not authorized to create an api key for this project"
-			);
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to create an api key for this project",
+			});
 		}
 
 		const project = await getProjectById({
@@ -32,7 +33,10 @@ export const createSecretKey = createServiceFunction()
 		});
 
 		if (!project) {
-			throw new NotFoundError("Project not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Project not found",
+			});
 		}
 
 		const organization = await getOrganizationById({
@@ -41,7 +45,10 @@ export const createSecretKey = createServiceFunction()
 		});
 
 		if (!organization) {
-			throw new NotFoundError("Organization not found");
+			throw new VoidhashError({
+				code: "NOT_FOUND",
+				message: "Organization not found",
+			});
 		}
 
 		if (!organization.slug) {

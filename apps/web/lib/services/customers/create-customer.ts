@@ -3,7 +3,7 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { createId, UnauthorizedError } from "@voidhash/lib";
+import { createId, VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { customer } from "@voidhash/db";
 
@@ -19,7 +19,10 @@ export const createCustomer = createServiceFunction()
 	.function(async ({ input, ctx }) => {
 		const authenticatedContext = await authenticateContext(ctx);
 		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
-			throw new UnauthorizedError("You are not authorized to create customers");
+			throw new VoidhashError({
+				code: "UNAUTHORIZED",
+				message: "You are not authorized to create customers",
+			});
 		}
 
 		const newCustomer = {
