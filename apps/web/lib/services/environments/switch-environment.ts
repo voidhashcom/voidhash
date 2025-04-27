@@ -5,8 +5,8 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { Environments } from "@/lib/environments/types";
-import { setEnvironment } from "@/lib/environments/utils";
+import { Environments } from "@/lib/services/environments/types";
+import { setEnvironment } from "@/lib/services/environments/utils";
 import { getOrganizationById } from "../organizations/queries";
 import { getProjectById } from "../projects/queries";
 

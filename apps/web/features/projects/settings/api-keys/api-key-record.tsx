@@ -1,5 +1,5 @@
 "use client";
-import { ApiKey } from "@/lib/api-keys/types";
+import { ApiKey } from "@/lib/services/api-keys/types";
 import { type getApiKeyById } from "@/lib/services/api-keys/queries";
 import {
 	Button,

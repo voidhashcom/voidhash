@@ -4,7 +4,7 @@ import { Button } from "@voidhash/ui/button";
 import { CreateSecretKeyModal } from "./create-secret-key-modal";
 import { useState } from "react";
 import { SecretKeyRevealModal } from "./secret-key-reveal-modal";
-import { ApiKey } from "@/lib/api-keys/types";
+import { ApiKey } from "@/lib/services/api-keys/types";
 
 export function CreateSecretKeyModalButton({
 	projectId,

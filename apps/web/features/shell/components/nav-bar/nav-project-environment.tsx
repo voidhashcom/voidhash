@@ -1,4 +1,4 @@
-import { getEnvironment } from "@/lib/environments/utils";
+import { getEnvironment } from "@/lib/services/environments/utils";
 import { NavProjectEnvironmentToggle } from "./nav-project-environment-toggle";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { Suspense } from "react";

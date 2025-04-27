@@ -1,4 +1,4 @@
-import { hashKey } from "@/lib/api-keys/utils";
+import { hashKey } from "@/lib/services/api-keys/utils";
 import { ServiceContext } from "@/lib/service-function";
 import { auth } from "@voidhash/auth";
 import { apiKeys, projects } from "@voidhash/db";

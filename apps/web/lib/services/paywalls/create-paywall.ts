@@ -3,9 +3,10 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { createId, VoidhashError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { paywall } from "@voidhash/db";
+import { generateId } from "@/lib/id/generate";
 
 export const createPaywallInputSchema = z.object({
 	projectId: z.string(),
@@ -27,7 +28,7 @@ export const createPaywall = createServiceFunction()
 		}
 
 		const newPaywall = {
-			id: createId(),
+			id: generateId("paywall"),
 			projectId: input.projectId,
 			name: input.name,
 		};

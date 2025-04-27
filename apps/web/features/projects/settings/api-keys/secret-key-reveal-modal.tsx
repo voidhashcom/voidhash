@@ -10,7 +10,7 @@ import {
 	DialogTitle,
 } from "@voidhash/ui/dialog";
 import { CopyText } from "@voidhash/ui/copy-text";
-import { ApiKey } from "@/lib/api-keys/types";
+import { ApiKey } from "@/lib/services/api-keys/types";
 
 interface SecretKeyRevealModalProps {
 	open: boolean;

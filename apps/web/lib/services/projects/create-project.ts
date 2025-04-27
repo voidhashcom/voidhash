@@ -1,13 +1,14 @@
+import { generateId } from "@/lib/id/generate";
 import {
 	authenticateContext,
 	createServiceFunction,
 	hasOrganizationPermission,
 } from "@/lib/service-function";
-import { createPublishableKey } from "@/lib/api-keys/utils";
-import { Environments } from "@/lib/environments/types";
+import { createPublishableKey } from "@/lib/services/api-keys/utils";
+import { Environments } from "@/lib/services/environments/types";
 import { projects, apiKeys } from "@voidhash/db";
 import { SLUG_BLACKLIST, VoidhashError } from "@voidhash/lib/constants";
-import { createId, createSlug, createShortId } from "@voidhash/lib/functions";
+import { createSlug, createShortId } from "@voidhash/lib/functions";
 import { randomUUID } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -38,7 +39,7 @@ export const createProject = createServiceFunction()
 			});
 		}
 
-		const id = createId();
+		const id = generateId("project");
 		let slug = createSlug(input.name);
 
 		if (SLUG_BLACKLIST.includes(slug)) {
@@ -70,7 +71,7 @@ export const createProject = createServiceFunction()
 				Environments.Production
 			);
 			await tx.insert(apiKeys).values({
-				id: createId(),
+				id: generateId("apiPublishableKey"),
 				projectId: id,
 				name: "Publishable key",
 				...productionPublishableKey,
@@ -81,7 +82,7 @@ export const createProject = createServiceFunction()
 				Environments.Testing
 			);
 			await tx.insert(apiKeys).values({
-				id: createId(),
+				id: generateId("apiPublishableKeyTesting"),
 				projectId: id,
 				name: "Publishable key",
 				...testingPublishableKey,

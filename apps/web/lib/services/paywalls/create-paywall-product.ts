@@ -3,10 +3,11 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { createId, VoidhashError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { paywallProduct } from "@voidhash/db";
 import { getProductById } from "../products/queries";
+import { generateId } from "@/lib/id/generate";
 
 export const createPaywallProductInputSchema = z.object({
 	productId: z.string(),
@@ -36,7 +37,7 @@ export const createPaywallProduct = createServiceFunction()
 		}
 
 		const newPaywallProduct = {
-			id: createId(),
+			id: generateId("paywallProduct"),
 			productId: product.id,
 			paywallId: input.paywallId,
 		} satisfies typeof paywallProduct.$inferInsert;

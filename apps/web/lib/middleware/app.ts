@@ -1,4 +1,4 @@
-import { getEnvironment } from "../environments/utils";
+import { getEnvironment } from "../services/environments/utils";
 import { NextMiddlewareCookiesAdapter } from "../nextjs/utils/next-middleware-cookie-adapter";
 import { parse } from "./utils/parse";
 import { NextRequest, NextResponse } from "next/server";

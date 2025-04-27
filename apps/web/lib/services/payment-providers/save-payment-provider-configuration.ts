@@ -9,7 +9,7 @@ import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
 import { VoidhashError } from "@voidhash/lib";
 import { getExistingPaymentProviderConfigurationByIdQuery } from "./raw-queries";
-import { createId } from "@voidhash/lib/functions";
+import { generateId } from "@/lib/id/generate";
 
 export const savePaymentProviderConfigurationInputSchema = z.object({
 	providerId: z.enum(
@@ -68,7 +68,7 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 					);
 			} else {
 				await ctx.db.insert(projectPaymentProviderConfiguration).values({
-					id: createId(),
+					id: generateId("projectPaymentProviderConfiguration"),
 					providerId: input.providerId,
 					projectId: input.projectId,
 					enabled: input.enabled,

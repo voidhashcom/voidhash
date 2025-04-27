@@ -3,9 +3,10 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { createId, VoidhashError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { product } from "@voidhash/db";
+import { generateId } from "@/lib/id/generate";
 
 export const createProductInputSchema = z.object({
 	projectId: z.string(),
@@ -27,7 +28,7 @@ export const createProduct = createServiceFunction()
 		}
 
 		const newProduct = {
-			id: createId(),
+			id: generateId("product"),
 			projectId: input.projectId,
 			name: input.name,
 		};

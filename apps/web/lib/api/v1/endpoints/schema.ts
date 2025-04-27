@@ -68,14 +68,10 @@ export const deleteProductParamsSchema = z.object({
 const productProviderConfigurationSchema = z
 	.discriminatedUnion("providerId", [
 		...paymentProviders.map((p) =>
-			z
-				.object({
-					providerId: z.literal(p.id),
-					configuration: p.products.productConfigurationSchema,
-				})
-				.openapi({
-					ref: `ProductProviderConfiguration_${p.id}`,
-				})
+			z.object({
+				providerId: z.literal(p.id),
+				configuration: p.products.productConfigurationSchema,
+			})
 		),
 	] as unknown as [
 		z.ZodDiscriminatedUnionOption<"providerId">,

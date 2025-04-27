@@ -3,9 +3,10 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { createId, VoidhashError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { customer } from "@voidhash/db";
+import { generateId } from "@/lib/id/generate";
 
 export const createCustomerInputSchema = z.object({
 	projectId: z.string(),
@@ -26,7 +27,7 @@ export const createCustomer = createServiceFunction()
 		}
 
 		const newCustomer = {
-			id: createId(),
+			id: generateId("customer"),
 			projectId: input.projectId,
 			appUserId: input.appUserId,
 			name: input.name,
