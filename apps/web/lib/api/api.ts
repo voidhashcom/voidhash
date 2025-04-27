@@ -1,53 +1,68 @@
-import { Hono } from "hono";
-// import { VoidhashError } from "@voidhash/lib/constants";
-// import { ContentfulStatusCode } from "hono/utils/http-status";
-import { v1 } from "./v1";
-import { Scalar } from "@scalar/hono-api-reference";
-import { handleError } from "./errors/http";
-import { prettyJSON } from "hono/pretty-json";
-import { HonoEnv } from "./hono/env";
+import { openAPISpecs } from "hono-openapi";
+import { newApp } from "./hono/app";
+import { API_DOMAIN } from "@voidhash/lib/constants";
+import { registerCustomersListCustomers } from "./v1/customers_listCustomers";
+import { registerCustomersGetCustomerByAppUserId } from "./v1/customers_getCustomerByAppUserId";
+import { registerPaywallsCreatePaywall } from "./v1/paywalls_createPaywall";
+import { registerPaywallsListPaywalls } from "./v1/paywalls_listPaywalls";
+import { registerPaywallsGetPaywallById } from "./v1/paywalls_getPaywallById";
+import { registerPaywallsDeletePaywall } from "./v1/paywalls_deletePaywall";
+import { registerPaywallsAttachProductToPaywall } from "./v1/paywalls_attachProductToPaywall";
+import { registerPaywallsGetPaywallProducts } from "./v1/paywalls_getPaywallProducts";
+import { registerPaywallsDeletePaywallProduct } from "./v1/paywalls_deletePaywallProduct";
+import { registerProductsCreateProduct } from "./v1/products_createProduct";
+import { registerProductsListProducts } from "./v1/products_listProducts";
+import { registerProductsGetProductById } from "./v1/products_getProductById";
+import { registerProductsUpdateProduct } from "./v1/products_updateProduct";
+import { registerProductsDeleteProduct } from "./v1/products_deleteProduct";
+import { registerProductsAttachProviderProduct } from "./v1/products_attachProviderProduct";
+import { registerProductsGetProviderProductsByProductId } from "./v1/products_getProviderProductsByProductId";
+import { registerProductsUpdateProviderProduct } from "./v1/products_updateProviderProduct";
+import { registerProductsDeleteProviderProduct } from "./v1/products_deleteProviderProduct";
+import { registerCustomersCreateCustomer } from "./v1/customers_createCustomer";
 
-export let app = new Hono<HonoEnv>();
+export const app = newApp();
 
-const basePath = process.env.NODE_ENV === "development" ? "/api" : "";
+const url =
+	process.env.NODE_ENV === "development"
+		? "http://localhost:3000/api/v1"
+		: `${API_DOMAIN}/v1`;
 
-app = app.basePath(basePath);
-app.use(prettyJSON());
-app.onError(handleError);
+// Customers
+registerCustomersCreateCustomer(app);
+registerCustomersListCustomers(app);
+registerCustomersGetCustomerByAppUserId(app);
 
-app.use("*", (c, next) => {
-	// TODO: Fix this for vercel
-	c.set(
-		"location",
-		c.req.header("True-Client-IP") ??
-			c.req.header("CF-Connecting-IP") ??
-			// @ts-expect-error - the cf object will be there on cloudflare
-			c.req.raw?.cf?.colo ??
-			""
-	);
-	c.set("userAgent", c.req.header("User-Agent"));
+// // Paywalls
+registerPaywallsCreatePaywall(app);
+registerPaywallsListPaywalls(app);
+registerPaywallsGetPaywallById(app);
+registerPaywallsDeletePaywall(app);
+registerPaywallsAttachProductToPaywall(app);
+registerPaywallsGetPaywallProducts(app);
+registerPaywallsDeletePaywallProduct(app);
 
-	return next();
-});
+// Products
+registerProductsCreateProduct(app);
+registerProductsListProducts(app);
+registerProductsGetProductById(app);
+registerProductsUpdateProduct(app);
+registerProductsDeleteProduct(app);
+registerProductsAttachProviderProduct(app);
+registerProductsGetProviderProductsByProductId(app);
+registerProductsUpdateProviderProduct(app);
+registerProductsDeleteProviderProduct(app);
 
-app.route("/v1", v1);
 app.get(
-	"/docs",
-	Scalar({
-		sources: [
-			{
-				url: `${basePath}/v1/openapi`,
-				title: "v1",
+	"/v1/openapi",
+	openAPISpecs(app, {
+		documentation: {
+			info: {
+				title: "Voidhash API",
+				version: "1.0.0",
+				description: "API",
 			},
-		],
-		theme: "default",
+			servers: [{ url, description: "Local Server" }],
+		},
 	})
 );
-
-// app.onError((err, c) => {
-// 	if (err instanceof VoidhashError) {
-// 		// Get the custom response
-// 		return c.json({ message: err.message }, err.code as ContentfulStatusCode);
-// 	}
-// 	return c.json({ message: "Internal server error" }, 500);
-// });

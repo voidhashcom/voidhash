@@ -20,7 +20,7 @@ export const deleteProject = createServiceFunction()
 		const authenticatedContext = await authenticateContext(ctx);
 		if (!hasProjectPermission(authenticatedContext, input.id, "")) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to delete this project",
 			});
 		}

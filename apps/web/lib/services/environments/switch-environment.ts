@@ -22,7 +22,7 @@ export const switchEnvironment = createServiceFunction()
 
 		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to switch environment",
 			});
 		}

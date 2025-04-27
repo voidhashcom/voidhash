@@ -35,7 +35,7 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 
 		if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to update this product",
 			});
 		}

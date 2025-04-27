@@ -23,7 +23,7 @@ export const updateOrganization = createServiceFunction()
 			!hasOrganizationPermission(authenticatedContext, input.organizationId, "")
 		) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to update this organization",
 			});
 		}

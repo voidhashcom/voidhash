@@ -37,7 +37,7 @@ export const updateProduct = createServiceFunction()
 			!hasProjectPermission(authenticatedContext, existingProduct.projectId, "")
 		) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to update this product",
 			});
 		}

@@ -33,34 +33,6 @@ export class VoidhashError extends Error {
 	}
 }
 
-// export class BadRequestError extends VoidhashError {
-// 	constructor(message: string) {
-// 		super({ code: "BAD_REQUEST", message });
-// 		this.name = "BadRequestError";
-// 	}
-// }
-
-// export class NotFoundError extends VoidhashError {
-// 	constructor(message: string) {
-// 		super({ code: "NOT_FOUND", message });
-// 		this.name = "NotFoundError";
-// 	}
-// }
-
-// export class UnauthorizedError extends VoidhashError {
-// 	constructor(message: string) {
-// 		super({ code: "UNAUTHORIZED", message });
-// 		this.name = "UnauthorizedError";
-// 	}
-// }
-
-// export class ConflictError extends VoidhashError {
-// 	constructor(message: string) {
-// 		super({ code: "CONFLICT", message });
-// 		this.name = "ConflictError";
-// 	}
-// }
-
 export function isVoidhashError(error: Error) {
 	return error.message.startsWith("VoidhashError:");
 }

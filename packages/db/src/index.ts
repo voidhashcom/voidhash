@@ -47,9 +47,14 @@ if (process.env["NODE_ENV"] === "production") {
 	});
 }
 
+export { drizzle } from "drizzle-orm/planetscale-serverless";
+export { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
+export * from "drizzle-orm";
+
 async function dangrously_resetDb() {
 	await reset(db, schema);
 }
 
 export { db, dangrously_resetDb };
 export * from "./schema";
+export * from "./types";

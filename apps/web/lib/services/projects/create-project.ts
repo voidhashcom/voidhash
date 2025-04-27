@@ -26,7 +26,7 @@ export const createProject = createServiceFunction()
 			!hasOrganizationPermission(authenticatedContext, input.organizationId, "")
 		) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to create a projects",
 			});
 		}

@@ -4,13 +4,12 @@ import {
 	varchar,
 	index,
 	mysqlEnum,
-	primaryKey,
 	timestamp,
 	json,
 	uniqueIndex,
 } from "drizzle-orm/mysql-core";
 import { mysqlTable } from "drizzle-orm/mysql-core";
-import { organization, user } from "./auth-schema";
+import { organization } from "./auth-schema";
 
 export * from "./auth-schema";
 
@@ -20,12 +19,8 @@ export const projects = mysqlTable(
 		id: varchar("id", { length: 255 }).primaryKey(),
 		name: varchar("name", { length: 255 }).notNull(),
 		slug: varchar("slug", { length: 255 }).notNull(),
-		organizationId: varchar("organization_id", { length: 255 })
-			.notNull()
-			.references(() => organization.id),
-		createdByUserId: varchar("created_by", { length: 255 })
-			.notNull()
-			.references(() => user.id),
+		organizationId: varchar("organization_id", { length: 255 }).notNull(),
+		createdByUserId: varchar("created_by", { length: 255 }),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
@@ -71,11 +66,7 @@ export const apiKeys = mysqlTable("api_keys", {
 	 * The environment of the API key.
 	 */
 	environment: mysqlEnum("environment", ["production", "testing"]).notNull(),
-	projectId: varchar("project_id", { length: 255 })
-		.notNull()
-		.references(() => projects.id, {
-			onDelete: "cascade",
-		}),
+	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
@@ -95,9 +86,7 @@ export const customer = mysqlTable(
 		// Connecting customer to user in app
 		appUserId: varchar("app_user_id", { length: 255 }),
 		email: varchar("email", { length: 255 }),
-		projectId: varchar("project_id", { length: 255 })
-			.notNull()
-			.references(() => projects.id),
+		projectId: varchar("project_id", { length: 255 }).notNull(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
@@ -114,11 +103,7 @@ export const projectPaymentProviderConfiguration = mysqlTable(
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
 		providerId: varchar("provider_id", { length: 255 }),
-		projectId: varchar("project_id", { length: 255 })
-			.notNull()
-			.references(() => projects.id, {
-				onDelete: "cascade",
-			}),
+		projectId: varchar("project_id", { length: 255 }).notNull(),
 		enabled: boolean("enabled").notNull().default(false),
 		configuration: json("configuration").$type<object>(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
@@ -137,9 +122,7 @@ export const projectPaymentProviderConfiguration = mysqlTable(
 export const product = mysqlTable("product", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	name: varchar("name", { length: 255 }).notNull(),
-	projectId: varchar("project_id", { length: 255 })
-		.notNull()
-		.references(() => projects.id),
+	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
@@ -151,11 +134,7 @@ export const productProviderConfiguration = mysqlTable(
 		providerProductKey: varchar("provider_product_key", {
 			length: 255,
 		}).notNull(),
-		productId: varchar("product_id", { length: 255 })
-			.notNull()
-			.references(() => product.id, {
-				onDelete: "cascade",
-			}),
+		productId: varchar("product_id", { length: 255 }).notNull(),
 		isActive: boolean("is_active").notNull().default(true),
 		providerId: varchar("provider_id", { length: 255 }).notNull(),
 		configuration: json("configuration").$type<object>(),
@@ -176,9 +155,7 @@ export const productProviderConfiguration = mysqlTable(
 export const paywall = mysqlTable("paywall", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	name: varchar("name", { length: 255 }).notNull(),
-	projectId: varchar("project_id", { length: 255 })
-		.notNull()
-		.references(() => projects.id),
+	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
