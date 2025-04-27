@@ -3,7 +3,7 @@ import { Card } from "@voidhash/ui";
 import { ApiKeyRecord } from "./api-key-record";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { notFound } from "next/navigation";
-import { getEnvironment } from "@/lib/environments/utils";
+import { getEnvironment } from "@/lib/services/environments/utils";
 import { CreateSecretKeyModalButton } from "./create-secret-key-modal-button";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { getApiKeys } from "@/lib/services/api-keys/queries";

@@ -1,7 +1,7 @@
 "use client";
 
 import { switchEnvironmentAction } from "@/lib/nextjs/server-actions";
-import { Environment } from "@/lib/environments/types";
+import { Environment } from "@/lib/services/environments/types";
 import { cn, Label, Switch } from "@voidhash/ui";
 import { useAction } from "next-safe-action/hooks";
 import { useRouter } from "next/navigation";

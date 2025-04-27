@@ -3,12 +3,13 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { createId, VoidhashError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { productProviderConfiguration } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getProductById } from "./queries";
 import { and, eq } from "drizzle-orm";
+import { generateId } from "@/lib/id/generate";
 
 export const createPaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
@@ -63,7 +64,7 @@ export const createPaymentProviderProduct = createServiceFunction()
 			);
 
 		const newPaymentProviderProduct = {
-			id: createId(),
+			id: generateId("paymentProviderProduct"),
 			productId: product.id,
 			providerId: input.providerId,
 			providerProductKey: provider.products.keyProperties

@@ -3,13 +3,14 @@ import {
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
-import { createId, VoidhashError } from "@voidhash/lib";
+import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 import { getOrganizationById } from "../organizations/queries";
 import { getProjectById } from "../projects/queries";
-import { getEnvironment } from "@/lib/environments/utils";
-import { createSecretKey as generateSecretKeyFn } from "@/lib/api-keys/utils";
+import { getEnvironment } from "@/lib/services/environments/utils";
+import { createSecretKey as generateSecretKeyFn } from "@/lib/services/api-keys/utils";
 import { apiKeys } from "@voidhash/db";
+import { generateId } from "@/lib/id/generate";
 
 export const createSecretKeyInputSchema = z.object({
 	projectId: z.string(),
@@ -66,7 +67,7 @@ export const createSecretKey = createServiceFunction()
 
 		const { rawKey, ...secretKey } = await generateSecretKeyFn(environment);
 		await ctx.db.insert(apiKeys).values({
-			id: createId(),
+			id: generateId("apiSecretKey"),
 			projectId: project.id,
 			name: input.name,
 			...secretKey,

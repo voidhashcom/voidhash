@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { z } from "zod";
 import { getApiKeyByIdQuery, getApiKeysQuery } from "./raw-queries";
-import { Environments } from "@/lib/environments/types";
+import { Environments } from "@/lib/services/environments/types";
 import { cache } from "react";
 
 export const getApiKeyByIdInputSchema = z.object({

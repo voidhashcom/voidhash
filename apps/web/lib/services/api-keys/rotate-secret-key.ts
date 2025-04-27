@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { createSecretKey } from "@/lib/api-keys/utils";
+import { createSecretKey } from "@/lib/services/api-keys/utils";
 import { apiKeys } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { getApiKeyById } from "./queries";

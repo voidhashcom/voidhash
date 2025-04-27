@@ -1,4 +1,4 @@
-import { getEnvironment } from "@/lib/environments/utils";
+import { getEnvironment } from "@/lib/services/environments/utils";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
