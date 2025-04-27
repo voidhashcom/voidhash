@@ -1,6 +1,9 @@
 import { createId } from "@paralleldrive/cuid2";
 
 const prefixes = {
+	request: "req",
+	user: "user",
+	organization: "org",
 	apiSecretKey: "api_sk",
 	apiPublishableKey: "api_pk",
 	apiPublishableKeyTesting: "api_pk_test",

@@ -31,7 +31,7 @@ export const deletePaywallProduct = createServiceFunction()
 
 		if (!hasProjectPermission(authenticatedContext, paywall.projectId, "")) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to remove this product",
 			});
 		}

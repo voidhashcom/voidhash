@@ -34,7 +34,7 @@ export const deleteSecretKey = createServiceFunction()
 			!hasProjectPermission(authenticatedContext, existingKey.projectId, "")
 		) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to delete this api key",
 			});
 		}

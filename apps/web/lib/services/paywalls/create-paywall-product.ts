@@ -31,7 +31,7 @@ export const createPaywallProduct = createServiceFunction()
 
 		if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to create paywall products",
 			});
 		}

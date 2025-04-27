@@ -32,7 +32,7 @@ export const deleteProduct = createServiceFunction()
 			!hasProjectPermission(authenticatedContext, existingProduct.projectId, "")
 		) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to delete this product",
 			});
 		}

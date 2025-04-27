@@ -32,7 +32,7 @@ export const deletePaywall = createServiceFunction()
 			!hasProjectPermission(authenticatedContext, existingPaywall.projectId, "")
 		) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to delete this paywall",
 			});
 		}

@@ -33,7 +33,7 @@ export const updateProject = createServiceFunction()
 
 		if (!hasProjectPermission(authenticatedContext, project.id, "")) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to update this project",
 			});
 		}

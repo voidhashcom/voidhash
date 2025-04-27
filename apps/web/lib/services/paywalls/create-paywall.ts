@@ -22,7 +22,7 @@ export const createPaywall = createServiceFunction()
 		const authenticatedContext = await authenticateContext(ctx);
 		if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to create paywalls",
 			});
 		}

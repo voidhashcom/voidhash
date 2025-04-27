@@ -35,7 +35,7 @@ export const rotateSecretKey = createServiceFunction()
 			!hasProjectPermission(authenticatedContext, existingKey.projectId, "")
 		) {
 			throw new VoidhashError({
-				code: "UNAUTHORIZED",
+				code: "FORBIDDEN",
 				message: "You are not authorized to rotate this api key",
 			});
 		}
