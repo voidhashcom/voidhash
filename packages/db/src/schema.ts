@@ -86,6 +86,16 @@ export const customer = mysqlTable(
 		// Connecting customer to user in app
 		appUserId: varchar("app_user_id", { length: 255 }),
 		email: varchar("email", { length: 255 }),
+		/**
+		 * From where the customer was created
+		 */
+		origin: mysqlEnum("origin", [
+			"dashboard",
+			"ios",
+			"android",
+			"stripe",
+			"api",
+		]).notNull(),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -94,6 +104,30 @@ export const customer = mysqlTable(
 		uniqueIndex("app_user_id_project_id_idx").on(
 			table.appUserId,
 			table.projectId
+		),
+	]
+);
+
+export const customerRelations = relations(customer, ({ many }) => ({
+	externalIdentifiers: many(externalCustomerIdentifier),
+}));
+
+export const externalCustomerIdentifier = mysqlTable(
+	"external_customer_identifier",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		customerId: varchar("customer_id", { length: 255 }).notNull(),
+		serviceId: varchar("service_id", { length: 255 }).notNull(), // stripe, appstore, slack etc
+		isDefault: boolean("is_default").notNull(),
+		identifier: varchar("identifier", { length: 255 }).notNull(),
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [
+		index("customer_id_service_id_identifier_idx").on(
+			table.customerId,
+			table.serviceId,
+			table.identifier
 		),
 	]
 );

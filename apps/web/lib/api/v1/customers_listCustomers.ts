@@ -49,6 +49,7 @@ export const registerCustomersListCustomers = (app: App) =>
 				name: customer.name ?? null,
 				email: customer.email,
 				appUserId: customer.appUserId ?? null,
+				origin: customer.origin,
 			}))
 		);
 	});

@@ -45,6 +45,7 @@ export const registerCustomersCreateCustomer = (app: App) =>
 					email: c.req.valid("json").email,
 					name: c.req.valid("json").name,
 					appUserId: c.req.valid("json").appUserId,
+					origin: "api",
 					projectId,
 				},
 			});
@@ -52,7 +53,8 @@ export const registerCustomersCreateCustomer = (app: App) =>
 			return c.json<z.infer<typeof customerResponseSchema>>({
 				customerId: createdCustomer.id,
 				name: createdCustomer.name ?? null,
-				email: createdCustomer.email,
+				email: createdCustomer.email ?? null,
+				origin: createdCustomer.origin,
 				appUserId: createdCustomer.appUserId ?? null,
 			});
 		}

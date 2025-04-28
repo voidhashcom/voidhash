@@ -4,6 +4,12 @@ import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service
 import { notFound } from "next/navigation";
 import { CustomersTable } from "./customers-table";
 import { CreateCustomerButton } from "./create-customer-button";
+import {
+	UnderlineTabs,
+	UnderlineTabsContent,
+	UnderlineTabsList,
+	UnderlineTabsTrigger,
+} from "@voidhash/ui";
 export async function CustomersPage({
 	organizationSlug,
 	projectSlug,
@@ -32,8 +38,31 @@ export async function CustomersPage({
 				{/* <p className="text-muted-foreground mt-3">
 					List of products available to purchase.
 				</p> */}
-				<div className="mt-8">
-					<CustomersTable projectId={project.id} />
+				<div className="mt-3">
+					<UnderlineTabs defaultValue="identified">
+						<UnderlineTabsList>
+							<UnderlineTabsTrigger value="identified">
+								Identified
+							</UnderlineTabsTrigger>
+							<UnderlineTabsTrigger value="unknown">
+								<span>Unknown</span> {/* Number of unidentified customers */}
+								{/* {!!10 && (
+									<Badge
+										variant="secondary"
+										className="ml-2 px-1 py-0 text-xs rounded-full"
+									>
+										10
+									</Badge>
+								)} */}
+							</UnderlineTabsTrigger>
+						</UnderlineTabsList>
+						<UnderlineTabsContent value="identified">
+							<CustomersTable projectId={project.id} hasAppUserId={true} />
+						</UnderlineTabsContent>
+						<UnderlineTabsContent value="unknown">
+							<CustomersTable projectId={project.id} hasAppUserId={false} />
+						</UnderlineTabsContent>
+					</UnderlineTabs>
 				</div>
 			</div>
 		</Page>

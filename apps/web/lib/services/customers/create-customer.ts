@@ -5,14 +5,15 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { customer } from "@voidhash/db";
+import { customer, InsertCustomer } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 
 export const createCustomerInputSchema = z.object({
 	projectId: z.string(),
 	appUserId: z.string().optional(),
 	name: z.string().optional(),
-	email: z.string().email(),
+	email: z.string().email().optional(),
+	origin: z.enum(["dashboard", "ios", "android", "stripe", "api"]),
 });
 
 export const createCustomer = createServiceFunction()
@@ -26,12 +27,13 @@ export const createCustomer = createServiceFunction()
 			});
 		}
 
-		const newCustomer = {
+		const newCustomer: InsertCustomer = {
 			id: generateId("customer"),
 			projectId: input.projectId,
 			appUserId: input.appUserId,
 			name: input.name,
 			email: input.email,
+			origin: input.origin,
 		};
 
 		await ctx.db.insert(customer).values(newCustomer);

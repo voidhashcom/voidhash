@@ -22,6 +22,7 @@ export const customerResponseSchema = z
 		name: z.string().nullable(),
 		email: z.string().nullable(),
 		appUserId: z.string().nullable(),
+		origin: z.enum(["dashboard", "ios", "android", "stripe", "api"]),
 	})
 	.openapi({
 		ref: "Customer",

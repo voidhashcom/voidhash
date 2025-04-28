@@ -26,12 +26,15 @@ import { useAction } from "next-safe-action/hooks";
 import { createCustomerAction } from "@/lib/nextjs/server-actions";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@voidhash/ui";
+import { InfoIcon } from "lucide-react";
 
 // Extract the relevant parts from createCustomerInputSchema for the form
 const createCustomerFormSchema = z.object({
+	appUserId: z.string().min(1),
 	name: z.string().optional(),
-	email: z.string().email(),
+	email: z.string().optional(),
 });
 
 type CreateCustomerForm = z.infer<typeof createCustomerFormSchema>;
@@ -53,10 +56,13 @@ export function CreateCustomerModal({
 	const form = useForm<CreateCustomerForm>({
 		resolver: zodResolver(createCustomerFormSchema),
 		defaultValues: {
+			appUserId: "",
 			name: "",
 			email: "",
 		},
 	});
+
+	const [showAppUserIdTooltip, setShowAppUserIdTooltip] = useState(false);
 
 	const { execute, isPending } = useAction(createCustomerAction, {
 		onSuccess: async () => {
@@ -105,6 +111,36 @@ export function CreateCustomerModal({
 						onSubmit={form.handleSubmit(onSubmit)}
 						className="space-y-4 pt-4"
 					>
+						<FormField
+							control={form.control}
+							name="appUserId"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>
+										App User ID{" "}
+										<Tooltip open={showAppUserIdTooltip}>
+											<TooltipTrigger
+												onMouseEnter={() => setShowAppUserIdTooltip(true)}
+												onMouseLeave={() => setShowAppUserIdTooltip(false)}
+											>
+												<InfoIcon className="w-4 h-4 text-muted-foreground" />
+											</TooltipTrigger>
+											<TooltipContent>
+												<p>
+													App User ID links your application&apos;s user
+													identifier with their corresponding Voidhash customer
+													profile.
+												</p>
+											</TooltipContent>
+										</Tooltip>
+									</FormLabel>
+									<FormControl>
+										<Input placeholder="#######" {...field} />
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 						<FormField
 							control={form.control}
 							name="name"

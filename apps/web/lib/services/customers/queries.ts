@@ -12,6 +12,7 @@ export const getCustomers = cache(
 		.input(
 			z.object({
 				projectId: z.string(),
+				hasAppUserId: z.boolean().optional(),
 			})
 		)
 		.function(async ({ ctx, input }) => {
@@ -23,7 +24,10 @@ export const getCustomers = cache(
 
 			const customers = await getCustomersQuery(
 				authenticatedContext,
-				input.projectId
+				input.projectId,
+				{
+					hasAppUserId: input.hasAppUserId ?? null,
+				}
 			);
 			return customers;
 		}).invoke
