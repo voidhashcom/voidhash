@@ -1,8 +1,7 @@
 "use client"; // Error boundaries must be Client Components
 
-// import { VoidhashError } from "@voidhash/lib/constants";
-// import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function Error({
 	error,
@@ -11,19 +10,23 @@ export default function Error({
 	error: Error & { digest?: string };
 	reset: () => void;
 }) {
-	// const router = useRouter();
+	const router = useRouter();
+	const pathname = usePathname();
+	const [initialized, setInitialized] = useState(false);
 	useEffect(() => {
-		// console.log("VOIDHASH ERROR", JSON.stringify(error, null, 2));
-		// if (error instanceof VoidhashError) {
-		// 	if (error.code === "UNAUTHORIZED") {
-		// 		router.push("/login");
-		// 	}
-		// 	// Log the error to an error reporting service
-		// }
-		if (error instanceof Error) {
-			console.error(error);
+		console.log(error.name, typeof error.name);
+		if (error.name === "VoidhashError:UNAUTHORIZED" && pathname !== "/login") {
+			console.log("Redirecting to login");
+			router.push("/login");
 		}
-	}, [error]);
+
+		console.error(error);
+		setInitialized(true);
+	}, [error, pathname]);
+
+	if (!initialized) {
+		return <div>Loading...</div>;
+	}
 
 	return (
 		<div>
