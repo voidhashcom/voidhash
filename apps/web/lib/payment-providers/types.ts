@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { App } from "../api/hono/app";
 
 type PaymentProviderTextInputSection = {
 	type: "text-input";
@@ -94,3 +95,9 @@ export const createPaymentProvider = <
 		TConfigurationSchema
 	>
 > => provider;
+
+export const createPaymentProviderApi = (api: {
+	registerEndpoints: (app: App) => void;
+}) => {
+	return api;
+};

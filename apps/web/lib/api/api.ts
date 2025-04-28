@@ -20,6 +20,7 @@ import { registerProductsGetProviderProductsByProductId } from "./v1/products_ge
 import { registerProductsUpdateProviderProduct } from "./v1/products_updateProviderProduct";
 import { registerProductsDeleteProviderProduct } from "./v1/products_deleteProviderProduct";
 import { registerCustomersCreateCustomer } from "./v1/customers_createCustomer";
+import { paymentProviderApis } from "../payment-providers/payment-provider-apis";
 
 export const app = newApp();
 
@@ -52,6 +53,8 @@ registerProductsAttachProviderProduct(app);
 registerProductsGetProviderProductsByProductId(app);
 registerProductsUpdateProviderProduct(app);
 registerProductsDeleteProviderProduct(app);
+
+paymentProviderApis.forEach((api) => api.registerEndpoints(app));
 
 app.get(
 	"/v1/openapi",

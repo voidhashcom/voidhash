@@ -19,5 +19,5 @@ const prefixes = {
 export const generateId = <TPrefix extends keyof typeof prefixes>(
 	prefix: TPrefix
 ) => {
-	return `${prefixes[prefix]}_${createId()}}`;
+	return `${prefixes[prefix]}_${createId()}`;
 };

@@ -5,12 +5,14 @@ import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service
 
 export async function CustomersTable({
 	projectId,
+	hasAppUserId,
 }: {
 	projectId: string;
+	hasAppUserId?: boolean;
 }) {
 	const customers = await getCustomers({
 		ctx: await createNextServiceContext(),
-		input: { projectId: projectId },
+		input: { projectId: projectId, hasAppUserId: hasAppUserId },
 	});
 
 	return <DataTable columns={columns} data={customers} />;

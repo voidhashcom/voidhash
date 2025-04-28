@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { createPaymentProvider } from "../types";
+import { API_DOMAIN } from "@voidhash/lib/constants";
 
+export const stripeProviderId = "stripe";
 export const stripe = createPaymentProvider({
 	id: "stripe",
 	title: "Stripe",
@@ -13,7 +15,7 @@ export const stripe = createPaymentProvider({
 			secretKey: "",
 			webhookSecret: "",
 		},
-		createConfigurationSheet: () => ({
+		createConfigurationSheet: ({ projectId }) => ({
 			sections: [
 				{
 					key: "secretKey",
@@ -39,7 +41,7 @@ export const stripe = createPaymentProvider({
 					key: "webhookUrl",
 					type: "copy-text",
 					label: "Webhook URL",
-					text: `https://api.voidhash.com/webhooks/stripe`,
+					text: `${API_DOMAIN}/payment-providers/stripe/webhook/${projectId}`,
 				},
 			],
 		}),

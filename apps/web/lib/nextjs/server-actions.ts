@@ -262,11 +262,14 @@ export const deletePaymentProviderProductAction = actionClient
 
 // Customers
 export const createCustomerAction = actionClient
-	.schema(createCustomerInputSchema)
+	.schema(createCustomerInputSchema.omit({ origin: true }))
 	.action(async ({ parsedInput, ctx }) => {
 		return await createCustomer.invoke({
 			ctx: ctx.serviceContext,
-			input: parsedInput,
+			input: {
+				...parsedInput,
+				origin: "dashboard",
+			},
 		});
 	});
 
