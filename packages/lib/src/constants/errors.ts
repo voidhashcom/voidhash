@@ -27,7 +27,7 @@ export class VoidhashError extends Error {
 		message: string;
 	}) {
 		super(message);
-		this.name = "VoidhashError";
+		this.name = `VoidhashError:${code}`;
 		this.message = `${message}`;
 		this.code = code;
 	}
