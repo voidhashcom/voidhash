@@ -62,7 +62,7 @@ export function PaywallRecord({
 		<div className="relative isolate group hover:bg-accent/30 px-6 py-4">
 			<Link
 				className="inset-0 absolute w-full h-full"
-				href={`/${organizationSlug}/${projectSlug}/storefront/paywalls/${paywall.id}`}
+				href={`/${organizationSlug}/${projectSlug}/monetization/paywalls/${paywall.id}`}
 			></Link>
 			<div className="flex flex-row items-center justify-between">
 				<div className="flex gap-4 flex-1 items-center">

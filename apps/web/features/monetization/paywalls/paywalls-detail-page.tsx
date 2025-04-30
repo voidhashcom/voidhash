@@ -69,11 +69,11 @@ export async function PaywallsDetailPage({
 			breadcrumbs={[
 				{
 					title: "Paywalls",
-					url: `/${organizationSlug}/${projectSlug}/storefront/paywalls`,
+					url: `/${organizationSlug}/${projectSlug}/monetization/paywalls`,
 				},
 				{
 					title: paywall.name,
-					url: `/${organizationSlug}/${projectSlug}/storefront/paywalls/${id}`,
+					url: `/${organizationSlug}/${projectSlug}/monetization/paywalls/${id}`,
 				},
 			]}
 		>

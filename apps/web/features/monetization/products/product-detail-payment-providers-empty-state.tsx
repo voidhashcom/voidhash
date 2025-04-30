@@ -22,7 +22,7 @@ export function ProductDetailPaymentProvidersEmptyState({
 			</CardHeader>
 			<CardContent>
 				<Link
-					href={`/${organizationSlug}/${projectSlug}/storefront/payment-providers`}
+					href={`/${organizationSlug}/${projectSlug}/monetization/payment-providers`}
 				>
 					<Button>Setup payment providers</Button>
 				</Link>

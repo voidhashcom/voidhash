@@ -88,7 +88,7 @@ export async function PaymentProvidersPage({
 									trigger={
 										<Link
 											className="inset-0 absolute w-full h-full"
-											href={`/${organizationSlug}/${projectSlug}/storefront/payment-providers`}
+											href={`/${organizationSlug}/${projectSlug}/monetization/payment-providers`}
 										></Link>
 									}
 								/>

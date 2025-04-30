@@ -78,42 +78,42 @@ export function ProjectSidebar({
 					{
 						title: "Monetization",
 						icon: Store,
-						url: `/${organizationSlug}/${projectSlug}/storefront/payment-providers`,
+						url: `/${organizationSlug}/${projectSlug}/monetization/payment-providers`,
 						isActive: () =>
 							pathname.startsWith(
-								`/${organizationSlug}/${projectSlug}/storefront`
+								`/${organizationSlug}/${projectSlug}/monetization`
 							),
 						items: [
 							{
 								title: "Payment Providers",
-								url: `/${organizationSlug}/${projectSlug}/storefront/payment-providers`,
+								url: `/${organizationSlug}/${projectSlug}/monetization/payment-providers`,
 								isActive: () =>
 									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/storefront/payment-providers`
+										`/${organizationSlug}/${projectSlug}/monetization/payment-providers`
 									),
 							},
 							{
 								title: "Products",
-								url: `/${organizationSlug}/${projectSlug}/storefront/products`,
+								url: `/${organizationSlug}/${projectSlug}/monetization/products`,
 								isActive: () =>
 									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/storefront/products`
+										`/${organizationSlug}/${projectSlug}/monetization/products`
 									),
 							},
 							{
 								title: "Perks",
-								url: `/${organizationSlug}/${projectSlug}/storefront/perks`,
+								url: `/${organizationSlug}/${projectSlug}/monetization/perks`,
 								isActive: () =>
 									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/storefront/perks`
+										`/${organizationSlug}/${projectSlug}/monetization/perks`
 									),
 							},
 							{
 								title: "Paywalls",
-								url: `/${organizationSlug}/${projectSlug}/storefront/paywalls`,
+								url: `/${organizationSlug}/${projectSlug}/monetization/paywalls`,
 								isActive: () =>
 									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/storefront/paywalls`
+										`/${organizationSlug}/${projectSlug}/monetization/paywalls`
 									),
 							},
 						],
