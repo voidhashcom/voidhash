@@ -91,6 +91,14 @@ import {
 	createPaywallProduct,
 	createPaywallProductInputSchema,
 } from "../services/paywalls/create-paywall-product";
+import {
+	deletePerk,
+	deletePerkInputSchema,
+} from "../services/perks/delete-perk";
+import {
+	createPerk,
+	createPerkInputSchema,
+} from "../services/perks/create-perk";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -306,6 +314,25 @@ export const deletePaywallProductAction = actionClient
 	.schema(deletePaywallProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		return await deletePaywallProduct.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+// Perks
+export const createPerkAction = actionClient
+	.schema(createPerkInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await createPerk.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+export const deletePerkAction = actionClient
+	.schema(deletePerkInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await deletePerk.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

@@ -225,3 +225,12 @@ export const paywallProductRelations = relations(
 		}),
 	})
 );
+
+// Perk
+export const perks = mysqlTable("perk", {
+	id: varchar("id", { length: 255 }).primaryKey(),
+	name: varchar("name", { length: 255 }).notNull(),
+	projectId: varchar("project_id", { length: 255 }).notNull(),
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at").onUpdateNow(),
+});
