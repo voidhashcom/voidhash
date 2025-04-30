@@ -57,3 +57,6 @@ export const registerProductsCreateProduct = (app: App) =>
 			});
 		}
 	);
+
+export type RouteResponse = z.infer<typeof productResponseSchema>;
+export type RouteRequest = z.infer<typeof createProductBodySchema>;

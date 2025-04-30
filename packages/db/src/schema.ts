@@ -10,11 +10,11 @@ import {
 } from "drizzle-orm/mysql-core";
 import { mysqlTable } from "drizzle-orm/mysql-core";
 import { organization } from "./auth-schema";
-
+import { PRODUCT_TYPES } from "@voidhash/lib";
 export * from "./auth-schema";
 
 export const projects = mysqlTable(
-	"projects",
+	"project",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
 		name: varchar("name", { length: 255 }).notNull(),
@@ -40,7 +40,7 @@ export const projectsRelations = relations(projects, ({ one }) => ({
 	}),
 }));
 
-export const apiKeys = mysqlTable("api_keys", {
+export const apiKeys = mysqlTable("api_key", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 
 	name: varchar("name", { length: 255 }).notNull(),
@@ -78,7 +78,7 @@ export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
 	}),
 }));
 
-export const customer = mysqlTable(
+export const customers = mysqlTable(
 	"customer",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
@@ -108,11 +108,11 @@ export const customer = mysqlTable(
 	]
 );
 
-export const customerRelations = relations(customer, ({ many }) => ({
-	externalIdentifiers: many(externalCustomerIdentifier),
+export const customerRelations = relations(customers, ({ many }) => ({
+	externalIdentifiers: many(externalCustomerIdentifiers),
 }));
 
-export const externalCustomerIdentifier = mysqlTable(
+export const externalCustomerIdentifiers = mysqlTable(
 	"external_customer_identifier",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
@@ -132,7 +132,7 @@ export const externalCustomerIdentifier = mysqlTable(
 	]
 );
 
-export const projectPaymentProviderConfiguration = mysqlTable(
+export const projectPaymentProviderConfigurations = mysqlTable(
 	"project_payment_provider_configuration",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
@@ -153,15 +153,16 @@ export const projectPaymentProviderConfiguration = mysqlTable(
 	]
 );
 
-export const product = mysqlTable("product", {
+export const products = mysqlTable("product", {
 	id: varchar("id", { length: 255 }).primaryKey(),
+	type: mysqlEnum("type", PRODUCT_TYPES).default("subscription").notNull(),
 	name: varchar("name", { length: 255 }).notNull(),
 	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
 
-export const productProviderConfiguration = mysqlTable(
+export const productProviderConfigurations = mysqlTable(
 	"product_provider_configuration",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
@@ -186,7 +187,7 @@ export const productProviderConfiguration = mysqlTable(
 );
 
 // Paywall
-export const paywall = mysqlTable("paywall", {
+export const paywalls = mysqlTable("paywall", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	name: varchar("name", { length: 255 }).notNull(),
 	projectId: varchar("project_id", { length: 255 }).notNull(),
@@ -194,16 +195,16 @@ export const paywall = mysqlTable("paywall", {
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
 
-export const paywallProduct = mysqlTable(
+export const paywallProducts = mysqlTable(
 	"paywall_product",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
 		paywallId: varchar("paywall_id", { length: 255 })
 			.notNull()
-			.references(() => paywall.id),
+			.references(() => paywalls.id),
 		productId: varchar("product_id", { length: 255 })
 			.notNull()
-			.references(() => product.id),
+			.references(() => products.id),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
@@ -215,9 +216,12 @@ export const paywallProduct = mysqlTable(
 	]
 );
 
-export const paywallProductRelations = relations(paywallProduct, ({ one }) => ({
-	product: one(product, {
-		fields: [paywallProduct.productId],
-		references: [product.id],
-	}),
-}));
+export const paywallProductRelations = relations(
+	paywallProducts,
+	({ one }) => ({
+		product: one(products, {
+			fields: [paywallProducts.productId],
+			references: [products.id],
+		}),
+	})
+);

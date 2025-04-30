@@ -36,7 +36,7 @@ export function init(): MiddlewareHandler<HonoEnv> {
 
 		c.set("requestStartedAt", Date.now());
 
-		c.res.headers.set("Unkey-Request-Id", requestId);
+		c.res.headers.set("Voidhash-Request-Id", requestId);
 
 		const logger = new ConsoleLogger({
 			requestId,

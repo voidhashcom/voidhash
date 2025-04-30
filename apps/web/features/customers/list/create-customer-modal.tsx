@@ -26,9 +26,8 @@ import { useAction } from "next-safe-action/hooks";
 import { createCustomerAction } from "@/lib/nextjs/server-actions";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@voidhash/ui";
-import { InfoIcon } from "lucide-react";
+import { useEffect } from "react";
+import { InfoTooltip } from "@voidhash/ui";
 
 // Extract the relevant parts from createCustomerInputSchema for the form
 const createCustomerFormSchema = z.object({
@@ -61,8 +60,6 @@ export function CreateCustomerModal({
 			email: "",
 		},
 	});
-
-	const [showAppUserIdTooltip, setShowAppUserIdTooltip] = useState(false);
 
 	const { execute, isPending } = useAction(createCustomerAction, {
 		onSuccess: async () => {
@@ -109,30 +106,16 @@ export function CreateCustomerModal({
 				<Form {...form}>
 					<form
 						onSubmit={form.handleSubmit(onSubmit)}
-						className="space-y-4 pt-4"
+						className="space-y-6 pt-4"
 					>
 						<FormField
 							control={form.control}
 							name="appUserId"
 							render={({ field }) => (
-								<FormItem>
+								<FormItem className="space-y-1">
 									<FormLabel>
 										App User ID{" "}
-										<Tooltip open={showAppUserIdTooltip}>
-											<TooltipTrigger
-												onMouseEnter={() => setShowAppUserIdTooltip(true)}
-												onMouseLeave={() => setShowAppUserIdTooltip(false)}
-											>
-												<InfoIcon className="w-4 h-4 text-muted-foreground" />
-											</TooltipTrigger>
-											<TooltipContent>
-												<p>
-													App User ID links your application&apos;s user
-													identifier with their corresponding Voidhash customer
-													profile.
-												</p>
-											</TooltipContent>
-										</Tooltip>
+										<InfoTooltip info="App User ID links your application&apos;s user identifier with their corresponding Voidhash customer profile." />
 									</FormLabel>
 									<FormControl>
 										<Input placeholder="#######" {...field} />
@@ -145,7 +128,7 @@ export function CreateCustomerModal({
 							control={form.control}
 							name="name"
 							render={({ field }) => (
-								<FormItem>
+								<FormItem className="space-y-1">
 									<FormLabel>Name</FormLabel>
 									<FormControl>
 										<Input placeholder="John Doe" {...field} />
@@ -158,7 +141,7 @@ export function CreateCustomerModal({
 							control={form.control}
 							name="email"
 							render={({ field }) => (
-								<FormItem>
+								<FormItem className="space-y-1">
 									<FormLabel>Email</FormLabel>
 									<FormControl>
 										<Input

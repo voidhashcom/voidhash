@@ -54,7 +54,7 @@ export async function getSecretApiKeyAuthSession(ctx: ServiceContext) {
 	if (!apiKey) {
 		throw new VoidhashError({
 			code: "UNAUTHORIZED",
-			message: "You are not authenticated",
+			message: "No Secret Key provided.",
 		});
 	}
 
@@ -69,7 +69,7 @@ export async function getSecretApiKeyAuthSession(ctx: ServiceContext) {
 	if (!apiKeyRecord) {
 		throw new VoidhashError({
 			code: "UNAUTHORIZED",
-			message: "You are not authenticated",
+			message: "Invalid Secret Key.",
 		});
 	}
 

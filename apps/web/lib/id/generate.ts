@@ -1,6 +1,7 @@
 import { createId } from "@paralleldrive/cuid2";
 
 const prefixes = {
+	test: "test",
 	request: "req",
 	user: "user",
 	organization: "org",

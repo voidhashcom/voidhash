@@ -6,7 +6,7 @@ import {
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
 
-import { product } from "@voidhash/db";
+import { products } from "@voidhash/db";
 import { getProductById } from "./queries";
 import { eq } from "drizzle-orm";
 
@@ -43,11 +43,11 @@ export const updateProduct = createServiceFunction()
 		}
 
 		await ctx.db
-			.update(product)
+			.update(products)
 			.set({
 				name: input.name,
 			})
-			.where(eq(product.id, input.productId));
+			.where(eq(products.id, input.productId));
 
 		return { ...existingProduct, name: input.name };
 	});

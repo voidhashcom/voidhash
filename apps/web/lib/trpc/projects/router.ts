@@ -13,6 +13,6 @@ export const projectsRouter = createTRPCRouter({
 				.innerJoin(organization, eq(projects.organizationId, organization.id))
 				.where(eq(organization.slug, input.organizationSlug));
 
-			return teamProjects.map((project) => project.projects);
+			return teamProjects.map((project) => project.project);
 		}),
 });

@@ -2,8 +2,8 @@ import { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { Client } from "@planetscale/database";
 import { drizzle as drizzlePlanetscale } from "drizzle-orm/planetscale-serverless";
-import * as schema from "./schema";
 import type { MySql2Database, MySql2Transaction } from "drizzle-orm/mysql2";
+import * as schema from "./schema";
 import type {
 	PlanetScaleDatabase,
 	PlanetScaleTransaction,

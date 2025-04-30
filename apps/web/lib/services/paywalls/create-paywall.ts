@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { paywall } from "@voidhash/db";
+import { paywalls } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 
 export const createPaywallInputSchema = z.object({
@@ -32,7 +32,7 @@ export const createPaywall = createServiceFunction()
 			projectId: input.projectId,
 			name: input.name,
 		};
-		await ctx.db.insert(paywall).values(newPaywall);
+		await ctx.db.insert(paywalls).values(newPaywall);
 
 		return newPaywall;
 	});

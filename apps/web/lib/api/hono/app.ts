@@ -4,7 +4,7 @@ import { prettyJSON } from "hono/pretty-json";
 import { HonoEnv } from "./env";
 import { handleError } from "../errors/http";
 import type { Context as GenericContext } from "hono";
-import { cors } from "hono/cors";
+// import { cors } from "hono/cors";
 import { init } from "./middleware/init";
 
 export function newApp() {
@@ -29,7 +29,7 @@ export function newApp() {
 	});
 
 	app.use(init());
-	app.use(cors());
+	// app.use(cors());
 	app.use(prettyJSON());
 
 	app.get(

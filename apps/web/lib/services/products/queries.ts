@@ -4,7 +4,7 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import { z } from "zod";
-import { product } from "@voidhash/db";
+import { products } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import {
 	getProductsQuery,
@@ -39,8 +39,8 @@ export const getProductById = cache(
 		.input(z.object({ id: z.string() }))
 		.function(async ({ input, ctx }) => {
 			const authenticatedContext = await authenticateContext(ctx);
-			const productResult = await ctx.db.query.product.findFirst({
-				where: eq(product.id, input.id),
+			const productResult = await ctx.db.query.products.findFirst({
+				where: eq(products.id, input.id),
 			});
 
 			if (!productResult) {

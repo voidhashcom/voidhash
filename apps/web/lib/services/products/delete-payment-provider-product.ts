@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { productProviderConfiguration } from "@voidhash/db";
+import { productProviderConfigurations } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getProductById } from "./queries";
 import { and, eq } from "drizzle-orm";
@@ -42,12 +42,12 @@ export const deletePaymentProviderProduct = createServiceFunction()
 		}
 
 		await ctx.db
-			.delete(productProviderConfiguration)
+			.delete(productProviderConfigurations)
 			.where(
 				and(
-					eq(productProviderConfiguration.productId, product.id),
+					eq(productProviderConfigurations.productId, product.id),
 					eq(
-						productProviderConfiguration.providerProductKey,
+						productProviderConfigurations.providerProductKey,
 						input.providerProductKey
 					)
 				)

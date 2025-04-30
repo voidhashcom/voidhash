@@ -5,10 +5,11 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { productProviderConfiguration } from "@voidhash/db";
+import { productProviderConfigurations } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getProductById, getProviderProductByPrimaryKey } from "./queries";
 import { and, eq } from "drizzle-orm";
+import { createPaymentProviderKey } from "./lib";
 
 export const updatePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
@@ -68,25 +69,30 @@ export const updatePaymentProviderProduct = createServiceFunction()
 			});
 		}
 
-		const providerProductKey = provider.products.keyProperties
-			.map((key) => parsedConfiguration[key])
-			.join(":");
+		// const providerProductKey = provider.products.keyProperties
+		// 	.map((key) => parsedConfiguration[key])
+		// 	.join(":");
+
+		const providerProductKey = createPaymentProviderKey(
+			parsedConfiguration,
+			provider.id
+		);
 
 		await ctx.db
-			.update(productProviderConfiguration)
+			.update(productProviderConfigurations)
 			.set({
 				providerProductKey,
 				configuration: parsedConfiguration,
 			})
 			.where(
 				and(
-					eq(productProviderConfiguration.productId, product.id),
+					eq(productProviderConfigurations.productId, product.id),
 					eq(
-						productProviderConfiguration.providerId,
+						productProviderConfigurations.providerId,
 						providerProduct.providerId
 					),
 					eq(
-						productProviderConfiguration.providerProductKey,
+						productProviderConfigurations.providerProductKey,
 						providerProduct.providerProductKey
 					)
 				)

@@ -32,6 +32,7 @@
     "@voidhash/lib": "workspace:*",
     "@voidhash/ui": "workspace:*",
     "better-auth": "^1.2.4",
+    "cross-fetch": "^4.1.0",
     "drizzle-orm": "^0.41.0",
     "hono": "^4.7.6",
     "hono-openapi": "^0.4.6",
@@ -46,6 +47,7 @@
     "sonner": "^2.0.1",
     "stripe": "^18.0.0",
     "superjson": "catalog:",
+    "vite-tsconfig-paths": "^5.1.4",
     "voidhash": "0.0.1-alpha.4",
     "zod": "^3.24.2",
     "zod-openapi": "^4.2.4"

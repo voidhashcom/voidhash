@@ -26,8 +26,8 @@ export const app = newApp();
 
 const url =
 	process.env.NODE_ENV === "development"
-		? "http://localhost:3000/api/v1"
-		: `${API_DOMAIN}/v1`;
+		? "http://localhost:3000"
+		: `${API_DOMAIN}`;
 
 // Customers
 registerCustomersCreateCustomer(app);
