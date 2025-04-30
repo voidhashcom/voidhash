@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { paywallProduct } from "@voidhash/db";
+import { paywallProducts } from "@voidhash/db";
 import { and, eq } from "drizzle-orm";
 import { getPaywallById } from "./queries";
 
@@ -37,11 +37,11 @@ export const deletePaywallProduct = createServiceFunction()
 		}
 
 		await ctx.db
-			.delete(paywallProduct)
+			.delete(paywallProducts)
 			.where(
 				and(
-					eq(paywallProduct.productId, input.productId),
-					eq(paywallProduct.paywallId, input.paywallId)
+					eq(paywallProducts.productId, input.productId),
+					eq(paywallProducts.paywallId, input.paywallId)
 				)
 			);
 	});

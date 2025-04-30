@@ -104,7 +104,7 @@ export function EditProductModal({
 							control={form.control}
 							name="name"
 							render={({ field }) => (
-								<FormItem>
+								<FormItem className="space-y-1">
 									<FormLabel>Product Name</FormLabel>
 									<FormControl>
 										<Input placeholder="Product Name" {...field} />

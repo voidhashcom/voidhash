@@ -105,7 +105,7 @@ export function CreateOrganizationModal({
 							control={form.control}
 							name="name"
 							render={({ field }) => (
-								<FormItem>
+								<FormItem className="space-y-1">
 									<FormLabel>Team Name</FormLabel>
 									<FormControl>
 										<Input placeholder="Acme Inc." {...field} />

@@ -67,3 +67,6 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 			});
 		}
 	);
+
+export type RouteResponse = z.infer<typeof providerProductResponseSchema>;
+export type RouteRequest = z.infer<typeof attachProviderProductBodySchema>;

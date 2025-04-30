@@ -1,4 +1,4 @@
-import { customer, externalCustomerIdentifier } from "@voidhash/db";
+import { customers, externalCustomerIdentifiers } from "@voidhash/db";
 import { eq, and, isNull, isNotNull } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
 
@@ -9,20 +9,20 @@ export const getCustomersQuery = async (
 		hasAppUserId: boolean | null;
 	}
 ) => {
-	const customers = ctx.db
+	const customerList = await ctx.db
 		.select()
-		.from(customer)
+		.from(customers)
 		.where(
 			and(
-				eq(customer.projectId, projectId),
+				eq(customers.projectId, projectId),
 				filters.hasAppUserId !== null
 					? filters.hasAppUserId
-						? isNotNull(customer.appUserId)
-						: isNull(customer.appUserId)
+						? isNotNull(customers.appUserId)
+						: isNull(customers.appUserId)
 					: undefined
 			)
 		);
-	return customers;
+	return customerList;
 };
 
 export const getCustomerByAppUserIdQuery = async (
@@ -31,8 +31,8 @@ export const getCustomerByAppUserIdQuery = async (
 ) => {
 	const res = await ctx.db
 		.select()
-		.from(customer)
-		.where(eq(customer.appUserId, appUserId));
+		.from(customers)
+		.where(eq(customers.appUserId, appUserId));
 
 	return res[0];
 };
@@ -45,16 +45,16 @@ export const getCustomerByExternalIdentifierQuery = async (
 ) => {
 	const res = await ctx.db
 		.select()
-		.from(customer)
+		.from(customers)
 		.innerJoin(
-			externalCustomerIdentifier,
-			eq(customer.id, externalCustomerIdentifier.customerId)
+			externalCustomerIdentifiers,
+			eq(customers.id, externalCustomerIdentifiers.customerId)
 		)
 		.where(
 			and(
-				eq(customer.projectId, projectId),
-				eq(externalCustomerIdentifier.serviceId, serviceId),
-				eq(externalCustomerIdentifier.identifier, identifier)
+				eq(customers.projectId, projectId),
+				eq(externalCustomerIdentifiers.serviceId, serviceId),
+				eq(externalCustomerIdentifiers.identifier, identifier)
 			)
 		);
 	return res[0]?.customer;

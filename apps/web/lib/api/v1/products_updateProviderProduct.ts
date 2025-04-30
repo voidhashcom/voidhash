@@ -42,7 +42,7 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 			const productId = c.req.param("productId");
 			const providerId = c.req.param("providerId");
 			const providerProductKey = c.req.param("providerProductKey");
-			const configuration = c.req.valid("json").configuration;
+			const configuration = c.req.valid("json").configuration.configuration;
 
 			const updatedProviderProduct = await updatePaymentProviderProduct.invoke({
 				ctx: authenticatedContext,
@@ -54,9 +54,20 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 				},
 			});
 
-			return c.json<z.infer<typeof providerProductResponseSchema>>({
+			// Construct the response according to the providerProductResponseSchema
+			// The service returns the *inner* configuration, but the response schema expects
+			// the full wrapper object { providerId: string, configuration: object }.
+			const responseBody: z.infer<typeof providerProductResponseSchema> = {
 				providerProductKey: updatedProviderProduct.providerProductKey,
-				providerConfiguration: updatedProviderProduct.configuration,
-			});
+				providerConfiguration: {
+					providerId: providerId, // Use the providerId from the request params
+					configuration: updatedProviderProduct.configuration, // This is the inner config object
+				},
+			};
+
+			return c.json(responseBody);
 		}
 	);
+
+export type RouteResponse = z.infer<typeof providerProductResponseSchema>;
+export type RouteRequest = z.infer<typeof updateProviderProductBodySchema>;

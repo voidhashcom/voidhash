@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { productProviderConfiguration } from "@voidhash/db";
+import { productProviderConfigurations } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getProductById } from "./queries";
 import { and, eq } from "drizzle-orm";
@@ -54,12 +54,12 @@ export const createPaymentProviderProduct = createServiceFunction()
 
 		// Disable other provider products for this product
 		await ctx.db
-			.update(productProviderConfiguration)
+			.update(productProviderConfigurations)
 			.set({ isActive: false })
 			.where(
 				and(
-					eq(productProviderConfiguration.productId, product.id),
-					eq(productProviderConfiguration.providerId, input.providerId)
+					eq(productProviderConfigurations.productId, product.id),
+					eq(productProviderConfigurations.providerId, input.providerId)
 				)
 			);
 
@@ -71,10 +71,10 @@ export const createPaymentProviderProduct = createServiceFunction()
 				.map((key) => parsedConfiguration[key])
 				.join(":"),
 			configuration: parsedConfiguration,
-		} satisfies typeof productProviderConfiguration.$inferInsert;
+		} satisfies typeof productProviderConfigurations.$inferInsert;
 
 		await ctx.db
-			.insert(productProviderConfiguration)
+			.insert(productProviderConfigurations)
 			.values(newPaymentProviderProduct);
 
 		return newPaymentProviderProduct;

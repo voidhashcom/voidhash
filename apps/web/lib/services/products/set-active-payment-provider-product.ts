@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { productProviderConfiguration } from "@voidhash/db";
+import { productProviderConfigurations } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { getProductById, getProviderProductByPrimaryKey } from "./queries";
 import { and, eq, not } from "drizzle-orm";
@@ -66,15 +66,15 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 
 		// Disable other provider products for this product
 		await ctx.db
-			.update(productProviderConfiguration)
+			.update(productProviderConfigurations)
 			.set({ isActive: false })
 			.where(
 				and(
-					eq(productProviderConfiguration.productId, product.id),
-					eq(productProviderConfiguration.providerId, input.providerId),
+					eq(productProviderConfigurations.productId, product.id),
+					eq(productProviderConfigurations.providerId, input.providerId),
 					not(
 						eq(
-							productProviderConfiguration.providerProductKey,
+							productProviderConfigurations.providerProductKey,
 							providerProduct.providerProductKey
 						)
 					)
@@ -82,19 +82,19 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 			);
 
 		await ctx.db
-			.update(productProviderConfiguration)
+			.update(productProviderConfigurations)
 			.set({
 				isActive: true,
 			})
 			.where(
 				and(
-					eq(productProviderConfiguration.productId, product.id),
+					eq(productProviderConfigurations.productId, product.id),
 					eq(
-						productProviderConfiguration.providerId,
+						productProviderConfigurations.providerId,
 						providerProduct.providerId
 					),
 					eq(
-						productProviderConfiguration.providerProductKey,
+						productProviderConfigurations.providerProductKey,
 						providerProduct.providerProductKey
 					)
 				)

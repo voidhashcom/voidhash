@@ -51,3 +51,5 @@ export const registerProductsGetProductById = (app: App) =>
 			});
 		}
 	);
+
+export type RouteResponse = z.infer<typeof productResponseSchema>;

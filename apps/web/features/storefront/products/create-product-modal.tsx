@@ -26,12 +26,16 @@ import { toast } from "sonner";
 import { useAction } from "next-safe-action/hooks";
 import { createProductAction } from "@/lib/nextjs/server-actions";
 import { useRouter } from "next/navigation";
+import { Badge, InfoTooltip, RadioGroup, RadioGroupItem } from "@voidhash/ui";
+import { PRODUCT_TYPE_LABELS, PRODUCT_TYPES } from "@voidhash/lib/constants";
 
 const createProductSchema = z.object({
 	name: z
 		.string()
 		.min(3, "Name must be at least 3 characters long")
 		.max(32, "Name must be less than 32 characters"),
+
+	type: z.enum(PRODUCT_TYPES),
 });
 
 type CreateProductForm = z.infer<typeof createProductSchema>;
@@ -65,6 +69,7 @@ export function CreateProductModal({
 		resolver: zodResolver(createProductSchema),
 		defaultValues: {
 			name: "",
+			type: PRODUCT_TYPES[0],
 		},
 	});
 
@@ -106,13 +111,13 @@ export function CreateProductModal({
 				<Form {...form}>
 					<form
 						onSubmit={form.handleSubmit(onSubmit)}
-						className="space-y-4 pt-4"
+						className="space-y-6 pt-4"
 					>
 						<FormField
 							control={form.control}
 							name="name"
 							render={({ field }) => (
-								<FormItem>
+								<FormItem className="space-y-1">
 									<FormLabel>Product Name</FormLabel>
 									<FormControl>
 										<Input placeholder="Product Name" {...field} />
@@ -121,6 +126,62 @@ export function CreateProductModal({
 								</FormItem>
 							)}
 						/>
+						<FormField
+							control={form.control}
+							name="type"
+							render={({ field }) => (
+								<FormItem className="space-y-3">
+									<FormLabel>Product type</FormLabel>
+									<FormControl>
+										<RadioGroup
+											onValueChange={field.onChange}
+											defaultValue={field.value}
+											className="flex flex-col space-y-1"
+										>
+											<FormItem className="flex items-center space-x-3 space-y-0">
+												<FormControl>
+													<RadioGroupItem value="subscription" />
+												</FormControl>
+												<FormLabel className="font-normal">
+													<span>{PRODUCT_TYPE_LABELS["subscription"]}</span>
+												</FormLabel>
+											</FormItem>
+											<FormItem className="flex items-center space-x-3 space-y-0 opacity-50">
+												<FormControl>
+													<RadioGroupItem disabled={true} value="one_time" />
+												</FormControl>
+												<FormLabel className="font-normal">
+													<span className="flex items-center gap-2">
+														<span>{PRODUCT_TYPE_LABELS["one_time"]}</span>
+														<Badge variant="outline">Coming Soon</Badge>
+													</span>
+													<InfoTooltip info="One-time products can only be purchased once per customer. For example: Lifetime access to a course." />
+												</FormLabel>
+											</FormItem>
+											<FormItem className="flex items-center space-x-3 space-y-0 opacity-50">
+												<FormControl>
+													<RadioGroupItem
+														disabled={true}
+														value={PRODUCT_TYPES[2]}
+													/>
+												</FormControl>
+												<FormLabel className="font-normal">
+													<span className="flex items-center gap-2">
+														<span>
+															{PRODUCT_TYPE_LABELS["one_time_consumable"]}
+														</span>
+														<Badge variant="outline">Coming Soon</Badge>
+													</span>
+													<InfoTooltip info="One-time consumable products can be purchased multiple times. For example: Battle passes, in-game currency, etc." />
+												</FormLabel>
+											</FormItem>
+										</RadioGroup>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
 						<DialogFooter>
 							<Button
 								type="submit"

@@ -1,4 +1,4 @@
-import { product, productProviderConfiguration } from "@voidhash/db";
+import { products, productProviderConfigurations } from "@voidhash/db";
 import { and, eq, asc } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
 
@@ -6,15 +6,15 @@ export const getProductsQuery = async (
 	ctx: ServiceContext,
 	projectId: string
 ) => {
-	const products = ctx.db
+	const productList = await ctx.db
 		.select()
-		.from(product)
-		.where(eq(product.projectId, projectId));
-	return products;
+		.from(products)
+		.where(eq(products.projectId, projectId));
+	return productList;
 };
 
 export const getProductByIdQuery = async (ctx: ServiceContext, id: string) => {
-	return ctx.db.select().from(product).where(eq(product.id, id));
+	return ctx.db.select().from(products).where(eq(products.id, id));
 };
 
 export const getProviderProductByPrimaryKeyQuery = async (
@@ -25,13 +25,16 @@ export const getProviderProductByPrimaryKeyQuery = async (
 ) => {
 	const providerProductsResult = await ctx.db
 		.select()
-		.from(productProviderConfiguration)
-		.leftJoin(product, eq(productProviderConfiguration.productId, product.id))
+		.from(productProviderConfigurations)
+		.leftJoin(
+			products,
+			eq(productProviderConfigurations.productId, products.id)
+		)
 		.where(
 			and(
-				eq(product.projectId, projectId),
-				eq(productProviderConfiguration.providerId, providerId),
-				eq(productProviderConfiguration.providerProductKey, productProviderKey)
+				eq(products.projectId, projectId),
+				eq(productProviderConfigurations.providerId, providerId),
+				eq(productProviderConfigurations.providerProductKey, productProviderKey)
 			)
 		);
 
@@ -48,7 +51,7 @@ export const getProviderProductsByProductIdQuery = async (
 ) => {
 	return ctx.db
 		.select()
-		.from(productProviderConfiguration)
-		.where(eq(productProviderConfiguration.productId, productId))
-		.orderBy(asc(productProviderConfiguration.createdAt));
+		.from(productProviderConfigurations)
+		.where(eq(productProviderConfigurations.productId, productId))
+		.orderBy(asc(productProviderConfigurations.createdAt));
 };

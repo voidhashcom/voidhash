@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { paywallProduct } from "@voidhash/db";
+import { paywallProducts } from "@voidhash/db";
 import { getProductById } from "../products/queries";
 import { generateId } from "@/lib/id/generate";
 
@@ -40,9 +40,9 @@ export const createPaywallProduct = createServiceFunction()
 			id: generateId("paywallProduct"),
 			productId: product.id,
 			paywallId: input.paywallId,
-		} satisfies typeof paywallProduct.$inferInsert;
+		} satisfies typeof paywallProducts.$inferInsert;
 
-		await ctx.db.insert(paywallProduct).values(newPaywallProduct);
+		await ctx.db.insert(paywallProducts).values(newPaywallProduct);
 
 		return newPaywallProduct;
 	});

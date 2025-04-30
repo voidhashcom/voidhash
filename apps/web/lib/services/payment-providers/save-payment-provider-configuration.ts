@@ -4,7 +4,7 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import { z } from "zod";
-import { projectPaymentProviderConfiguration } from "@voidhash/db";
+import { projectPaymentProviderConfigurations } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
 import { VoidhashError } from "@voidhash/lib";
@@ -52,7 +52,7 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 
 			if (existingConfiguration) {
 				await ctx.db
-					.update(projectPaymentProviderConfiguration)
+					.update(projectPaymentProviderConfigurations)
 					.set({
 						configuration: parsedConfiguration,
 						enabled: input.enabled,
@@ -60,14 +60,17 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 					.where(
 						and(
 							eq(
-								projectPaymentProviderConfiguration.providerId,
+								projectPaymentProviderConfigurations.providerId,
 								input.providerId
 							),
-							eq(projectPaymentProviderConfiguration.projectId, input.projectId)
+							eq(
+								projectPaymentProviderConfigurations.projectId,
+								input.projectId
+							)
 						)
 					);
 			} else {
-				await ctx.db.insert(projectPaymentProviderConfiguration).values({
+				await ctx.db.insert(projectPaymentProviderConfigurations).values({
 					id: generateId("projectPaymentProviderConfiguration"),
 					providerId: input.providerId,
 					projectId: input.projectId,
@@ -77,17 +80,17 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 			}
 		} else {
 			await ctx.db
-				.update(projectPaymentProviderConfiguration)
+				.update(projectPaymentProviderConfigurations)
 				.set({
 					enabled: false,
 				})
 				.where(
 					and(
 						eq(
-							projectPaymentProviderConfiguration.providerId,
+							projectPaymentProviderConfigurations.providerId,
 							input.providerId
 						),
-						eq(projectPaymentProviderConfiguration.projectId, input.projectId)
+						eq(projectPaymentProviderConfigurations.projectId, input.projectId)
 					)
 				);
 		}

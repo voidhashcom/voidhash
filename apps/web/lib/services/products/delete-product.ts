@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { product } from "@voidhash/db";
+import { products } from "@voidhash/db";
 import { getProductById } from "./queries";
 import { eq } from "drizzle-orm";
 
@@ -37,5 +37,5 @@ export const deleteProduct = createServiceFunction()
 			});
 		}
 
-		await ctx.db.delete(product).where(eq(product.id, input.productId));
+		await ctx.db.delete(products).where(eq(products.id, input.productId));
 	});

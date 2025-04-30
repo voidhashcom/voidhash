@@ -101,7 +101,7 @@ export function CreateSecretKeyModal({
 							control={form.control}
 							name="name"
 							render={({ field }) => (
-								<FormItem>
+								<FormItem className="space-y-1">
 									<FormLabel>Key Name</FormLabel>
 									<FormControl>
 										<Input placeholder="Production API Key" {...field} />

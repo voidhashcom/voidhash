@@ -105,7 +105,7 @@ export function CreateProjectModal({
 							control={form.control}
 							name="name"
 							render={({ field }) => (
-								<FormItem>
+								<FormItem className="space-y-1">
 									<FormLabel>Name</FormLabel>
 									<FormControl>
 										<Input placeholder="My Awesome App" {...field} />

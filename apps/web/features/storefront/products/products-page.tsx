@@ -37,7 +37,9 @@ export async function ProductsPage({
 			<div className="max-w-4xl mx-auto">
 				<div className="flex flex-row items-center justify-between">
 					<h1 className="text-3xl font-normal tracking-right">Products</h1>
-					<CreateProductModalButton projectId={project.id} />
+					{products.length > 0 && (
+						<CreateProductModalButton projectId={project.id} />
+					)}
 				</div>
 				<p className="text-muted-foreground mt-3">
 					List of products available to purchase.

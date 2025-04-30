@@ -1,87 +1,108 @@
 // Credits: Inspired by https://github.com/unkeyed/unkey
 
 import { Client } from "@planetscale/database";
-import { Database, eq } from "@voidhash/db";
+import { Database } from "@voidhash/db";
 import type { TaskContext } from "vitest";
-import { env } from "../env";
-import { drizzle } from "drizzle-orm/planetscale-serverless";
+import { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
+import { drizzle as drizzlePlanetscale } from "drizzle-orm/planetscale-serverless";
 import * as schema from "@voidhash/db/schema";
 import type { User, Organization, Project, ApiKey } from "@voidhash/db";
 import { generateId } from "../id/generate";
+import { env, integrationTestEnv } from "./env";
+import { z } from "zod";
+import { hashKey } from "../services/api-keys/utils";
+import { reset } from "drizzle-seed";
 
 export type Resources = {
 	user: User;
 	organization: Organization;
 	project: Project;
-	secretKey: ApiKey;
+	secretKey: ApiKey & { unhashedKey: string };
 };
 
 export abstract class Harness {
-	public readonly db: { primary: Database; readonly: Database };
+	public db: { primary: Database; readonly: Database };
 	public resources: Resources;
+	private env: z.infer<typeof integrationTestEnv>;
 
 	constructor(t: TaskContext) {
-		const { DATABASE_HOST, DATABASE_PASSWORD, DATABASE_USERNAME } = env;
-		const db = drizzle(
-			new Client({
-				host: DATABASE_HOST,
-				username: DATABASE_USERNAME,
-				password: DATABASE_PASSWORD,
-				fetch: (url, init) => {
-					const u = new URL(url);
-					if (u.hostname === "planetscale" || u.host.includes("localhost")) {
-						u.protocol = "http";
-					}
-					return fetch(u, init);
-				},
-			}),
-			{
-				schema,
-			}
-		);
-
-		this.db = { primary: db, readonly: db };
-
-		this.resources = this.createResources();
-
+		this.env = env;
 		t.onTestFinished(async () => {
-			await this.teardown();
+			await reset(this.db.primary, schema);
+			// await this.teardown();
 		});
 	}
 
-	private async teardown(): Promise<void> {
-		const deleteResources = async () => {
-			await this.db.primary.transaction(async (tx) => {
-				await tx
-					.delete(schema.apiKeys)
-					.where(eq(schema.apiKeys.id, this.resources.secretKey.id));
-				await tx
-					.delete(schema.projects)
-					.where(eq(schema.projects.id, this.resources.project.id));
-				await tx
-					.delete(schema.organization)
-					.where(eq(schema.organization.id, this.resources.organization.id));
-				await tx
-					.delete(schema.user)
-					.where(eq(schema.user.id, this.resources.user.id));
+	protected async initHarness(): Promise<void> {
+		const {
+			DATABASE_HOST,
+			DATABASE_PASSWORD,
+			DATABASE_USERNAME,
+			DATABASE_NAME,
+		} = this.env;
+
+		let db: Database;
+		if (DATABASE_HOST.includes("psdb.cloud")) {
+			const client = new Client({
+				host: DATABASE_HOST,
+				username: DATABASE_USERNAME,
+				password: DATABASE_PASSWORD,
 			});
-		};
-		for (let i = 1; i <= 5; i++) {
-			try {
-				await deleteResources();
-				return;
-			} catch (err) {
-				if (i === 5) {
-					throw err;
-				}
-				await new Promise((r) => setTimeout(r, i * 500));
-			}
+
+			db = drizzlePlanetscale(client, { schema });
+		} else {
+			const connection = await mysql.createConnection({
+				host: DATABASE_HOST,
+				user: DATABASE_USERNAME,
+				database: DATABASE_NAME,
+				password: DATABASE_PASSWORD,
+			});
+
+			db = drizzleMysql({
+				client: connection,
+				schema,
+				mode: "default",
+			});
 		}
+
+		this.db = { primary: db, readonly: db };
+		this.resources = await this.createResources();
 	}
 
-	public createResources(): Resources {
+	// private async teardown(): Promise<void> {
+	// 	const deleteResources = async () => {
+	// 		await this.db.primary.transaction(async (tx) => {
+	// 			await tx
+	// 				.delete(schema.apiKeys)
+	// 				.where(eq(schema.apiKeys.id, this.resources.secretKey.id));
+	// 			await tx
+	// 				.delete(schema.projects)
+	// 				.where(eq(schema.projects.id, this.resources.project.id));
+	// 			await tx
+	// 				.delete(schema.organization)
+	// 				.where(eq(schema.organization.id, this.resources.organization.id));
+	// 			await tx
+	// 				.delete(schema.user)
+	// 				.where(eq(schema.user.id, this.resources.user.id));
+	// 		});
+	// 	};
+	// 	for (let i = 1; i <= 5; i++) {
+	// 		try {
+	// 			await deleteResources();
+	// 			return;
+	// 		} catch (err) {
+	// 			if (i === 5) {
+	// 				throw err;
+	// 			}
+	// 			await new Promise((r) => setTimeout(r, i * 500));
+	// 		}
+	// 	}
+	// }
+
+	public async createResources(): Promise<Resources> {
 		const user: User = {
-			id: generateId("user"),
+			id: generateId("test"),
 			name: "Test User",
 			email: "test@test.com",
 			createdAt: new Date(),
@@ -91,7 +112,7 @@ export abstract class Harness {
 		};
 
 		const organization: Organization = {
-			id: generateId("organization"),
+			id: generateId("test"),
 			name: "Test Organization",
 			slug: "test-organization",
 			logo: null,
@@ -100,7 +121,7 @@ export abstract class Harness {
 		};
 
 		const project: Project = {
-			id: generateId("project"),
+			id: generateId("test"),
 			name: "Test Project",
 			slug: "test-project",
 			createdByUserId: user.id,
@@ -109,10 +130,14 @@ export abstract class Harness {
 			organizationId: organization.id,
 		};
 
-		const secretKey: ApiKey = {
-			id: generateId("apiSecretKey"),
+		const unhashedKey = "test-secret-key";
+		const hashedKey = await hashKey(unhashedKey);
+
+		const secretKey: ApiKey & { unhashedKey: string } = {
+			id: generateId("test"),
 			name: "Test Secret Key",
-			key: "test-secret-key",
+			key: hashedKey,
+			unhashedKey,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 			prefix: "test_",

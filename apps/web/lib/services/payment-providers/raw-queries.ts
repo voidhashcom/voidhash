@@ -1,4 +1,4 @@
-import { projectPaymentProviderConfiguration } from "@voidhash/db";
+import { projectPaymentProviderConfigurations } from "@voidhash/db";
 import { and, eq } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
 
@@ -8,8 +8,8 @@ export const getPaymentProviderConfigurationsQuery = async (
 ) => {
 	return await ctx.db
 		.select()
-		.from(projectPaymentProviderConfiguration)
-		.where(eq(projectPaymentProviderConfiguration.projectId, projectId));
+		.from(projectPaymentProviderConfigurations)
+		.where(eq(projectPaymentProviderConfigurations.projectId, projectId));
 };
 
 export const getExistingPaymentProviderConfigurationByIdQuery = async (
@@ -17,10 +17,10 @@ export const getExistingPaymentProviderConfigurationByIdQuery = async (
 	projectId: string,
 	providerId: string
 ) => {
-	return await ctx.db.query.projectPaymentProviderConfiguration.findFirst({
+	return await ctx.db.query.projectPaymentProviderConfigurations.findFirst({
 		where: and(
-			eq(projectPaymentProviderConfiguration.projectId, projectId),
-			eq(projectPaymentProviderConfiguration.providerId, providerId)
+			eq(projectPaymentProviderConfigurations.projectId, projectId),
+			eq(projectPaymentProviderConfigurations.providerId, providerId)
 		),
 	});
 };

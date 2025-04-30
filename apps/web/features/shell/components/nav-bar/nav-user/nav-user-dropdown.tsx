@@ -9,11 +9,21 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuGroup,
 	DropdownMenuItem,
+	ToggleGroup,
+	ToggleGroupItem,
 } from "@voidhash/ui";
-import { BadgeCheck, CreditCard, LogOut } from "lucide-react";
+import {
+	BadgeCheck,
+	CreditCard,
+	LogOut,
+	Monitor,
+	Moon,
+	Sun,
+} from "lucide-react";
 import { getUser } from "@/lib/services/users/queries";
 import { authClient } from "@voidhash/auth/client";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 
 export function NavUserDropdown({
 	user,
@@ -21,6 +31,8 @@ export function NavUserDropdown({
 	user: NonNullable<Awaited<ReturnType<typeof getUser>>>;
 }) {
 	const router = useRouter();
+
+	const { setTheme, theme } = useTheme();
 
 	const handleSignOut = async () => {
 		await authClient.signOut();
@@ -66,6 +78,40 @@ export function NavUserDropdown({
 					Billing
 				</DropdownMenuItem>
 			</DropdownMenuGroup>
+			<DropdownMenuSeparator />
+			<div className="flex gap-2 w-full justify-between p-2 items-center">
+				<span className="text-sm text-muted-foreground ">Theme</span>
+				<div>
+					<ToggleGroup
+						type="single"
+						className="border border-border divide-x rounded-full overflow-hidden"
+						value={theme}
+						onValueChange={(value) => setTheme(value)}
+					>
+						<ToggleGroupItem
+							value="system"
+							aria-label="Toggle system"
+							className="p-0 px-2 h-6"
+						>
+							<Monitor className="h-4 w-4" />
+						</ToggleGroupItem>
+						<ToggleGroupItem
+							value="light"
+							aria-label="Toggle light"
+							className="p-0 px-2 h-6"
+						>
+							<Sun className="h-4 w-4" />
+						</ToggleGroupItem>
+						<ToggleGroupItem
+							value="dark"
+							aria-label="Toggle strikethrough"
+							className="p-0 px-2 h-6"
+						>
+							<Moon className="h-4 w-4" />
+						</ToggleGroupItem>
+					</ToggleGroup>
+				</div>
+			</div>
 			<DropdownMenuSeparator />
 			<DropdownMenuItem asChild>
 				<button onClick={handleSignOut} className="w-full">

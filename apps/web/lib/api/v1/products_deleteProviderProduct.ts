@@ -23,7 +23,7 @@ export type Route = typeof route;
 
 export const registerProductsDeleteProviderProduct = (app: App) =>
 	app.delete(
-		"/:productId/provider-products/:providerId/:providerProductKey",
+		"/v1/products/:productId/provider-products/:providerId/:providerProductKey",
 		route,
 		zValidator("param", deleteProviderProductParamsSchema),
 		async (c) => {
