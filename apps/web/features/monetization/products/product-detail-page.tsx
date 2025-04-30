@@ -77,11 +77,11 @@ export async function ProductDetailPage({
 			breadcrumbs={[
 				{
 					title: "Products",
-					url: `/${organizationSlug}/${projectSlug}/storefront/products`,
+					url: `/${organizationSlug}/${projectSlug}/monetization/products`,
 				},
 				{
 					title: product.name,
-					url: `/${organizationSlug}/${projectSlug}/storefront/products/${id}`,
+					url: `/${organizationSlug}/${projectSlug}/monetization/products/${id}`,
 				},
 			]}
 		>
