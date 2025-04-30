@@ -74,8 +74,8 @@ export const updatePaymentProviderProduct = createServiceFunction()
 		// 	.join(":");
 
 		const providerProductKey = createPaymentProviderKey(
-			parsedConfiguration,
-			provider.id
+			provider.id,
+			parsedConfiguration
 		);
 
 		await ctx.db

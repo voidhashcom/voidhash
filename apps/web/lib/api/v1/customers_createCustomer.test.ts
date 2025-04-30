@@ -52,8 +52,9 @@ describe.sequential("/v1/customers", async () => {
 
 	test("POST /v1/customers - create customer minimal", async (t) => {
 		const h = await IntegrationHarness.init(t);
+		const testAppUserId = generateId("test");
 		const customerInput: CustomersCreateCustomerRequestBody = {
-			email: "minimal@test.com",
+			appUserId: testAppUserId,
 		};
 
 		const res = await h.post({
@@ -73,9 +74,9 @@ describe.sequential("/v1/customers", async () => {
 		const responseBody = res.body as CustomersCreateCustomerResponse;
 
 		expect(responseBody.customerId).toBeDefined();
-		expect(responseBody.email).toBe(customerInput.email);
+		expect(responseBody.email).toBeNull();
 		expect(responseBody.name).toBeNull();
-		expect(responseBody.appUserId).toBeNull();
+		expect(responseBody.appUserId).toBe(customerInput.appUserId);
 		expect(responseBody.origin).toBe("api");
 
 		// Clean up the created customer

@@ -54,8 +54,8 @@ export const registerCustomersCreateCustomer = (app: App) =>
 				customerId: createdCustomer.id,
 				name: createdCustomer.name ?? null,
 				email: createdCustomer.email ?? null,
-				origin: createdCustomer.origin,
 				appUserId: createdCustomer.appUserId ?? null,
+				origin: createdCustomer.origin,
 			});
 		}
 	);

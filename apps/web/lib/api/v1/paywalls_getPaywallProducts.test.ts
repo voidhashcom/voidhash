@@ -127,8 +127,15 @@ describe.sequential("/v1/paywalls/:paywallId/products", async () => {
 		// Service likely returns empty array for non-existent paywall
 		expect(
 			res.status,
-			`expected 200, received: ${JSON.stringify(res, null, 2)}`
-		).toBe(200);
-		expect(res.body).toEqual([]);
+			`expected 404, received: ${JSON.stringify(res, null, 2)}`
+		).toBe(404);
+		expect(res.body).toEqual({
+			error: {
+				code: "NOT_FOUND",
+				docs: expect.any(String),
+				message: "Paywall not found.",
+				requestId: expect.any(String),
+			},
+		});
 	});
 });

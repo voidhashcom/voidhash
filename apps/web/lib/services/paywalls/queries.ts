@@ -10,6 +10,7 @@ import {
 	getPaywallProductsQuery,
 	getPaywallsQuery,
 } from "./raw-queries";
+import { VoidhashError } from "@voidhash/lib/constants";
 
 export const getPaywallsInputSchema = z.object({
 	projectId: z.string(),
@@ -65,11 +66,17 @@ export const getPaywallProducts = cache(
 				input: { id: input.paywallId },
 			});
 			if (!paywall) {
-				return [];
+				throw new VoidhashError({
+					code: "NOT_FOUND",
+					message: "Paywall not found.",
+				});
 			}
 
 			if (!hasProjectPermission(authenticatedContext, paywall.projectId, "")) {
-				return [];
+				throw new VoidhashError({
+					code: "FORBIDDEN",
+					message: "No permission to access paywall.",
+				});
 			}
 
 			return await getPaywallProductsQuery(
