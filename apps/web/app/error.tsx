@@ -22,7 +22,7 @@ export default function Error({
 
 		console.error(error);
 		setInitialized(true);
-	}, [error, pathname]);
+	}, [error, pathname, router]);
 
 	if (!initialized) {
 		return <div>Loading...</div>;

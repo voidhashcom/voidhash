@@ -8,9 +8,9 @@ extendZodWithOpenApi(z);
 // Customer
 export const createCustomerBodySchema = z
 	.object({
-		appUserId: z.string().optional(),
+		appUserId: z.string(),
 		name: z.string().optional(),
-		email: z.string().email(),
+		email: z.string().email().optional(),
 	})
 	.openapi({
 		ref: "CreateCustomerBody",

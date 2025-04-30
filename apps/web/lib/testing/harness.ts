@@ -12,7 +12,6 @@ import { generateId } from "../id/generate";
 import { env, integrationTestEnv } from "./env";
 import { z } from "zod";
 import { hashKey } from "../services/api-keys/utils";
-import { reset } from "drizzle-seed";
 
 export type Resources = {
 	user: User;
@@ -29,8 +28,7 @@ export abstract class Harness {
 	constructor(t: TaskContext) {
 		this.env = env;
 		t.onTestFinished(async () => {
-			await reset(this.db.primary, schema);
-			// await this.teardown();
+			await this.teardown();
 		});
 	}
 
@@ -70,35 +68,35 @@ export abstract class Harness {
 		this.resources = await this.createResources();
 	}
 
-	// private async teardown(): Promise<void> {
-	// 	const deleteResources = async () => {
-	// 		await this.db.primary.transaction(async (tx) => {
-	// 			await tx
-	// 				.delete(schema.apiKeys)
-	// 				.where(eq(schema.apiKeys.id, this.resources.secretKey.id));
-	// 			await tx
-	// 				.delete(schema.projects)
-	// 				.where(eq(schema.projects.id, this.resources.project.id));
-	// 			await tx
-	// 				.delete(schema.organization)
-	// 				.where(eq(schema.organization.id, this.resources.organization.id));
-	// 			await tx
-	// 				.delete(schema.user)
-	// 				.where(eq(schema.user.id, this.resources.user.id));
-	// 		});
-	// 	};
-	// 	for (let i = 1; i <= 5; i++) {
-	// 		try {
-	// 			await deleteResources();
-	// 			return;
-	// 		} catch (err) {
-	// 			if (i === 5) {
-	// 				throw err;
-	// 			}
-	// 			await new Promise((r) => setTimeout(r, i * 500));
-	// 		}
-	// 	}
-	// }
+	private async teardown(): Promise<void> {
+		const deleteResources = async () => {
+			await this.db.primary.transaction(async (tx) => {
+				await tx
+					.delete(schema.apiKeys)
+					.where(eq(schema.apiKeys.id, this.resources.secretKey.id));
+				await tx
+					.delete(schema.projects)
+					.where(eq(schema.projects.id, this.resources.project.id));
+				await tx
+					.delete(schema.organization)
+					.where(eq(schema.organization.id, this.resources.organization.id));
+				await tx
+					.delete(schema.user)
+					.where(eq(schema.user.id, this.resources.user.id));
+			});
+		};
+		for (let i = 1; i <= 5; i++) {
+			try {
+				await deleteResources();
+				return;
+			} catch (err) {
+				if (i === 5) {
+					throw err;
+				}
+				await new Promise((r) => setTimeout(r, i * 500));
+			}
+		}
+	}
 
 	public async createResources(): Promise<Resources> {
 		const user: User = {

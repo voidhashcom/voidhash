@@ -1,4 +1,3 @@
-import { generateId } from "@/lib/id/generate";
 import { eq } from "drizzle-orm";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import { products } from "@voidhash/db";
