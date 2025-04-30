@@ -76,7 +76,7 @@ export function ProjectSidebar({
 					// 		),
 					// },
 					{
-						title: "Storefront",
+						title: "Monetization",
 						icon: Store,
 						url: `/${organizationSlug}/${projectSlug}/storefront/payment-providers`,
 						isActive: () =>
@@ -100,7 +100,14 @@ export function ProjectSidebar({
 										`/${organizationSlug}/${projectSlug}/storefront/products`
 									),
 							},
-
+							{
+								title: "Perks",
+								url: `/${organizationSlug}/${projectSlug}/storefront/perks`,
+								isActive: () =>
+									pathname.startsWith(
+										`/${organizationSlug}/${projectSlug}/storefront/perks`
+									),
+							},
 							{
 								title: "Paywalls",
 								url: `/${organizationSlug}/${projectSlug}/storefront/paywalls`,
@@ -133,7 +140,7 @@ export function ProjectSidebar({
 			{...props}
 		>
 			<SidebarContent>
-				<NavMain groups={data.navMain} link={Link} />
+				<NavMain groups={data.navMain} link={Link} defaultOpenNested={true} />
 			</SidebarContent>
 		</Sidebar>
 	);

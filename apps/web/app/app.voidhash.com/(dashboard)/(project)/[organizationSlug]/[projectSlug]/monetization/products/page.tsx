@@ -1,4 +1,4 @@
-import { PaywallsPage } from "@/features/storefront/paywalls/paywalls-page";
+import { ProductsPage } from "@/features/monetization/products/products-page";
 
 export default async function Page({
 	params,
@@ -10,7 +10,7 @@ export default async function Page({
 }) {
 	const { organizationSlug, projectSlug } = await params;
 	return (
-		<PaywallsPage
+		<ProductsPage
 			organizationSlug={organizationSlug}
 			projectSlug={projectSlug}
 		/>

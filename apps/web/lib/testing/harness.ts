@@ -1,7 +1,7 @@
 // Credits: Inspired by https://github.com/unkeyed/unkey
 
 import { Client } from "@planetscale/database";
-import { Database } from "@voidhash/db";
+import { Database, eq } from "@voidhash/db";
 import type { TaskContext } from "vitest";
 import { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";

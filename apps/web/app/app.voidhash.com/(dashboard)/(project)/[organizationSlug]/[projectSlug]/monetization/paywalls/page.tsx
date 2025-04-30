@@ -1,4 +1,4 @@
-import { ProductDetailPage } from "@/features/storefront/products/product-detail-page";
+import { PaywallsPage } from "@/features/monetization/paywalls/paywalls-page";
 
 export default async function Page({
 	params,
@@ -6,15 +6,13 @@ export default async function Page({
 	params: Promise<{
 		organizationSlug: string;
 		projectSlug: string;
-		id: string;
 	}>;
 }) {
-	const { organizationSlug, projectSlug, id } = await params;
+	const { organizationSlug, projectSlug } = await params;
 	return (
-		<ProductDetailPage
+		<PaywallsPage
 			organizationSlug={organizationSlug}
 			projectSlug={projectSlug}
-			id={id}
 		/>
 	);
 }

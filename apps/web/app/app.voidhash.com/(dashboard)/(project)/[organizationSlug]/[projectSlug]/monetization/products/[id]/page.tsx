@@ -1,4 +1,4 @@
-import { ProductsPage } from "@/features/storefront/products/products-page";
+import { ProductDetailPage } from "@/features/monetization/products/product-detail-page";
 
 export default async function Page({
 	params,
@@ -6,13 +6,15 @@ export default async function Page({
 	params: Promise<{
 		organizationSlug: string;
 		projectSlug: string;
+		id: string;
 	}>;
 }) {
-	const { organizationSlug, projectSlug } = await params;
+	const { organizationSlug, projectSlug, id } = await params;
 	return (
-		<ProductsPage
+		<ProductDetailPage
 			organizationSlug={organizationSlug}
 			projectSlug={projectSlug}
+			id={id}
 		/>
 	);
 }
