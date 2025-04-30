@@ -1,4 +1,4 @@
-import { PaywallsDetailPage } from "@/features/storefront/paywalls/paywalls-detail-page";
+import { PaywallsDetailPage } from "@/features/monetization/paywalls/paywalls-detail-page";
 
 export default async function Page({
 	params,

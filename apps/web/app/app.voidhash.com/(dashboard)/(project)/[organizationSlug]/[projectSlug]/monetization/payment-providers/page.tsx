@@ -1,4 +1,4 @@
-import { PaymentProvidersPage } from "@/features/storefront/payment-providers/payment-providers-page";
+import { PaymentProvidersPage } from "@/features/monetization/payment-providers/payment-providers-page";
 
 export default async function Page({
 	params,

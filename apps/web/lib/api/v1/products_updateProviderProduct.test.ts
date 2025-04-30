@@ -34,13 +34,10 @@ describe.sequential(
 				id: generateId("test"),
 				productId: productInput.id,
 				providerId: "stripe",
-				providerProductKey: createPaymentProviderKey(
-					{
-						productId: `prod_123`,
-						priceId: `price_123`,
-					},
-					"stripe"
-				),
+				providerProductKey: createPaymentProviderKey("stripe", {
+					productId: `prod_123`,
+					priceId: `price_123`,
+				}),
 				configuration: {
 					productId: `prod_123`,
 					priceId: `price_123`,

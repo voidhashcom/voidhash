@@ -21,8 +21,10 @@ export function NavMain({
 	link: Link,
 	groups,
 	tooltips = "enabled",
+	defaultOpenNested = false,
 }: {
 	link: React.ElementType;
+	defaultOpenNested?: boolean;
 	groups: {
 		title: string;
 		items: {
@@ -49,6 +51,7 @@ export function NavMain({
 							<Collapsible
 								key={item.title}
 								asChild
+								defaultOpen={defaultOpenNested}
 								open={item.isActive?.() ? true : undefined}
 							>
 								<SidebarMenuItem>
