@@ -16,6 +16,7 @@ const prefixes = {
 	product: "prod",
 	project: "proj",
 	perk: "perk",
+	paywallLocation: "pw_loc",
 } as const;
 
 export const generateId = <TPrefix extends keyof typeof prefixes>(

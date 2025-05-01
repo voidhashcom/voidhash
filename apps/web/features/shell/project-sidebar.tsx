@@ -85,6 +85,14 @@ export function ProjectSidebar({
 							),
 						items: [
 							{
+								title: "Perks",
+								url: `/${organizationSlug}/${projectSlug}/monetization/perks`,
+								isActive: () =>
+									pathname.startsWith(
+										`/${organizationSlug}/${projectSlug}/monetization/perks`
+									),
+							},
+							{
 								title: "Payment Providers",
 								url: `/${organizationSlug}/${projectSlug}/monetization/payment-providers`,
 								isActive: () =>
@@ -101,19 +109,19 @@ export function ProjectSidebar({
 									),
 							},
 							{
-								title: "Perks",
-								url: `/${organizationSlug}/${projectSlug}/monetization/perks`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/monetization/perks`
-									),
-							},
-							{
 								title: "Paywalls",
 								url: `/${organizationSlug}/${projectSlug}/monetization/paywalls`,
 								isActive: () =>
 									pathname.startsWith(
 										`/${organizationSlug}/${projectSlug}/monetization/paywalls`
+									),
+							},
+							{
+								title: "Paywall Locations",
+								url: `/${organizationSlug}/${projectSlug}/monetization/paywall-locations`,
+								isActive: () =>
+									pathname.startsWith(
+										`/${organizationSlug}/${projectSlug}/monetization/paywall-locations`
 									),
 							},
 						],

@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { paywalls } from "@voidhash/db";
+import { paywallLocations, paywalls } from "@voidhash/db";
 import { getPaywallById } from "./queries";
 import { eq } from "drizzle-orm";
 
@@ -34,6 +34,19 @@ export const deletePaywall = createServiceFunction()
 			throw new VoidhashError({
 				code: "FORBIDDEN",
 				message: "You are not authorized to delete this paywall",
+			});
+		}
+
+		const paywallLocationsWithSameDefaultPaywall =
+			await ctx.db.query.paywallLocations.findMany({
+				where: eq(paywallLocations.defaultPaywallId, input.paywallId),
+			});
+
+		if (paywallLocationsWithSameDefaultPaywall.length > 0) {
+			throw new VoidhashError({
+				code: "BAD_REQUEST",
+				message:
+					"You cannot delete this paywall, because some paywall locations are still using it. Please update the paywall locations to use a different paywall first, or delete the paywall locations.",
 			});
 		}
 

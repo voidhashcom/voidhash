@@ -1,24 +1,24 @@
 import { Page } from "@/features/shell";
 import { Card } from "@voidhash/ui";
-import { PerkRecordSkeleton } from "./perk-record-skeleton";
+import { PaywallLocationRecordSkeleton } from "./paywall-location-record-skeleton";
 
-export function PerksPageSkeleton() {
+export function PaywallLocationsPageSkeleton() {
 	return (
 		<Page>
 			{/* Key is used to reload the default form data when the organization slug changes */}
 			<div className="max-w-4xl mx-auto">
 				<div className="flex flex-row items-center justify-between">
-					<h1 className="text-3xl font-normal tracking-right">Perks</h1>
+					<h1 className="text-3xl font-normal tracking-right">
+						Paywall Locations
+					</h1>
 				</div>
 
-				<p className="text-muted-foreground mt-3">
-					List of unlockable features / perks.
-				</p>
+				<p className="text-muted-foreground mt-3">List of paywall locations.</p>
 
 				<div className="mt-8">
 					<Card className="divide-y grid p-0 gap-0">
 						{Array.from({ length: 3 }).map((_, index) => (
-							<PerkRecordSkeleton key={index} />
+							<PaywallLocationRecordSkeleton key={index} />
 						))}
 					</Card>
 				</div>

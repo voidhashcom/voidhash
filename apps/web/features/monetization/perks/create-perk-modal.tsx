@@ -26,12 +26,21 @@ import { useAction } from "next-safe-action/hooks";
 import { createPerkAction } from "@/lib/nextjs/server-actions";
 import { useRouter } from "next/navigation";
 import { InferSafeActionFnResult } from "next-safe-action";
+import { InfoTooltip } from "@voidhash/ui";
 
 const createPerkSchema = z.object({
 	name: z
 		.string()
 		.min(3, "Name must be at least 3 characters long")
 		.max(32, "Name must be less than 32 characters"),
+	slug: z
+		.string()
+		.min(3, "Slug must be at least 3 characters long")
+		.max(32, "Slug must be less than 32 characters")
+		.regex(
+			/^[a-z0-9_-]+$/,
+			"Slug must contain only lowercase letters, numbers, underscores, and hyphens"
+		),
 });
 
 type CreatePerkForm = z.infer<typeof createPerkSchema>;
@@ -57,6 +66,7 @@ export function CreatePerkModal({
 		resolver: zodResolver(createPerkSchema),
 		defaultValues: {
 			name: "",
+			slug: "",
 		},
 	});
 
@@ -106,6 +116,29 @@ export function CreatePerkModal({
 									<FormControl>
 										<Input
 											placeholder="All-Access, AI-features, etc."
+											{...field}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name="slug"
+							render={({ field }) => (
+								<FormItem className="space-y-1">
+									<FormLabel>
+										<span>Slug (ID)</span>
+										<InfoTooltip
+											info={
+												"Slugs are unique identifiers used to reference the perk in code."
+											}
+										/>
+									</FormLabel>
+									<FormControl>
+										<Input
+											placeholder="all-access, ai-features, etc."
 											{...field}
 										/>
 									</FormControl>
