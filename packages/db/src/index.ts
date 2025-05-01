@@ -24,7 +24,7 @@ export type Transaction =
 
 let db: Database;
 
-if (process.env["NODE_ENV"] === "production") {
+if (process.env.DATABASE_HOST?.includes("psdb.cloud")) {
 	const client = new Client({
 		host: process.env.DATABASE_HOST,
 		username: process.env.DATABASE_USERNAME,

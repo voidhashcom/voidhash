@@ -5,7 +5,7 @@ import {
 } from "@/lib/service-function";
 import { VoidhashError } from "@voidhash/lib";
 import { z } from "zod";
-import { perks } from "@voidhash/db";
+import { and, eq, perks } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 
 export const createPerkInputSchema = z.object({
@@ -14,6 +14,14 @@ export const createPerkInputSchema = z.object({
 		.string()
 		.min(3, "Name must be at least 3 characters long")
 		.max(32, "Name must be less than 32 characters"),
+	slug: z
+		.string()
+		.min(3, "Slug must be at least 3 characters long")
+		.max(32, "Slug must be less than 32 characters")
+		.regex(
+			/^[a-z0-9_-]+$/,
+			"Slug must contain only lowercase letters, numbers, underscores, and hyphens"
+		),
 });
 
 export const createPerk = createServiceFunction()
@@ -27,8 +35,24 @@ export const createPerk = createServiceFunction()
 			});
 		}
 
+		const existingPerk = await ctx.db.query.perks.findFirst({
+			where: and(
+				eq(perks.slug, input.slug),
+				eq(perks.projectId, input.projectId)
+			),
+		});
+
+		if (existingPerk) {
+			throw new VoidhashError({
+				code: "CONFLICT",
+				message:
+					"Perk with this slug already exists. Please choose a different slug.",
+			});
+		}
+
 		const newPerk = {
 			id: generateId("perk"),
+			slug: input.slug,
 			projectId: input.projectId,
 			name: input.name,
 		};

@@ -226,11 +226,37 @@ export const paywallProductRelations = relations(
 	})
 );
 
+// Paywall Locations
+export const paywallLocations = mysqlTable(
+	"paywall_location",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		slug: varchar("slug", { length: 255 }).notNull(),
+		name: varchar("name", { length: 255 }).notNull(),
+		defaultPaywallId: varchar("default_paywall_id", {
+			length: 255,
+		}).notNull(),
+		projectId: varchar("project_id", { length: 255 }).notNull(),
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [
+		uniqueIndex("slug_project_id_idx").on(table.slug, table.projectId),
+	]
+);
+
 // Perk
-export const perks = mysqlTable("perk", {
-	id: varchar("id", { length: 255 }).primaryKey(),
-	name: varchar("name", { length: 255 }).notNull(),
-	projectId: varchar("project_id", { length: 255 }).notNull(),
-	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at").onUpdateNow(),
-});
+export const perks = mysqlTable(
+	"perk",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		slug: varchar("slug", { length: 255 }).notNull(),
+		name: varchar("name", { length: 255 }).notNull(),
+		projectId: varchar("project_id", { length: 255 }).notNull(),
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [
+		uniqueIndex("slug_project_id_idx").on(table.slug, table.projectId),
+	]
+);

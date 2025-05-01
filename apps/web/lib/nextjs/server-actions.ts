@@ -99,6 +99,14 @@ import {
 	createPerk,
 	createPerkInputSchema,
 } from "../services/perks/create-perk";
+import {
+	createPaywallLocationInputSchema,
+	createPaywallLocation,
+} from "../services/paywall-locations/create-paywall-location";
+import {
+	deletePaywallLocationInputSchema,
+	deletePaywallLocation,
+} from "../services/paywall-locations/delete-paywall-location";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -319,6 +327,24 @@ export const deletePaywallProductAction = actionClient
 		});
 	});
 
+// Paywall locations
+export const createPaywallLocationAction = actionClient
+	.schema(createPaywallLocationInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await createPaywallLocation.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+export const deletePaywallLocationAction = actionClient
+	.schema(deletePaywallLocationInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await deletePaywallLocation.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
 // Perks
 export const createPerkAction = actionClient
 	.schema(createPerkInputSchema)

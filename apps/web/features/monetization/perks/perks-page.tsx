@@ -37,8 +37,10 @@ export async function PerksPage({
 				<div className="flex flex-row items-center justify-between">
 					<h1 className="text-3xl font-normal tracking-right">Perks</h1>
 					{perks.length > 0 && <CreatePerkModalButton projectId={project.id} />}
-				</div>
-
+				</div>{" "}
+				<p className="text-muted-foreground mt-3">
+					List of unlockable features / perks.
+				</p>
 				<div className="mt-8">
 					{perks.length === 0 ? (
 						<PerksPageEmptyState projectId={project.id} />
