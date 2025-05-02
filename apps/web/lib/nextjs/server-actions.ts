@@ -107,6 +107,14 @@ import {
 	deletePaywallLocationInputSchema,
 	deletePaywallLocation,
 } from "../services/paywall-locations/delete-paywall-location";
+import {
+	createProductPerk,
+	createProductPerkInputSchema,
+} from "../services/products/create-product-perk";
+import {
+	deleteProductPerk,
+	deleteProductPerkInputSchema,
+} from "../services/products/delete-product-perk";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -240,6 +248,26 @@ export const deleteProductAction = actionClient
 		});
 	});
 
+// Product perks
+export const createProductPerkAction = actionClient
+	.schema(createProductPerkInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await createProductPerk.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+export const deleteProductPerkAction = actionClient
+	.schema(deleteProductPerkInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		return await deleteProductPerk.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+	});
+
+// Payment provider products
 export const createPaymentProviderProductAction = actionClient
 	.schema(createPaymentProviderProductInputSchema)
 	.action(async ({ parsedInput, ctx }) => {

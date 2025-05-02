@@ -58,5 +58,7 @@ export const createPerk = createServiceFunction()
 		};
 		await ctx.db.insert(perks).values(newPerk);
 
+		// TODO: Adding a perk should unlock it for existing users?
+
 		return newPerk;
 	});

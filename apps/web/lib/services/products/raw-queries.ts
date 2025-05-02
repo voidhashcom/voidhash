@@ -1,4 +1,8 @@
-import { products, productProviderConfigurations } from "@voidhash/db";
+import {
+	products,
+	productProviderConfigurations,
+	productPerks,
+} from "@voidhash/db";
 import { and, eq, asc } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
 
@@ -54,4 +58,15 @@ export const getProviderProductsByProductIdQuery = async (
 		.from(productProviderConfigurations)
 		.where(eq(productProviderConfigurations.productId, productId))
 		.orderBy(asc(productProviderConfigurations.createdAt));
+};
+
+export const getProductPerksByProductIdQuery = async (
+	ctx: ServiceContext,
+	productId: string
+) => {
+	return ctx.db
+		.select()
+		.from(productPerks)
+		.where(eq(productPerks.productId, productId))
+		.orderBy(asc(productPerks.createdAt));
 };

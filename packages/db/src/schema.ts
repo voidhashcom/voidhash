@@ -153,6 +153,22 @@ export const projectPaymentProviderConfigurations = mysqlTable(
 	]
 );
 
+// Perk
+export const perks = mysqlTable(
+	"perk",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		slug: varchar("slug", { length: 255 }).notNull(),
+		name: varchar("name", { length: 255 }).notNull(),
+		projectId: varchar("project_id", { length: 255 }).notNull(),
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [
+		uniqueIndex("slug_project_id_idx").on(table.slug, table.projectId),
+	]
+);
+
 export const products = mysqlTable("product", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	type: mysqlEnum("type", PRODUCT_TYPES).default("subscription").notNull(),
@@ -161,6 +177,20 @@ export const products = mysqlTable("product", {
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
+
+export const productPerks = mysqlTable(
+	"product_perk",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		productId: varchar("product_id", { length: 255 }).notNull(),
+		perkId: varchar("perk_id", { length: 255 }).notNull(),
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [
+		uniqueIndex("product_id_perk_id_idx").on(table.productId, table.perkId),
+	]
+);
 
 export const productProviderConfigurations = mysqlTable(
 	"product_provider_configuration",
@@ -236,22 +266,6 @@ export const paywallLocations = mysqlTable(
 		defaultPaywallId: varchar("default_paywall_id", {
 			length: 255,
 		}).notNull(),
-		projectId: varchar("project_id", { length: 255 }).notNull(),
-		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-		updatedAt: timestamp("updated_at").onUpdateNow(),
-	},
-	(table) => [
-		uniqueIndex("slug_project_id_idx").on(table.slug, table.projectId),
-	]
-);
-
-// Perk
-export const perks = mysqlTable(
-	"perk",
-	{
-		id: varchar("id", { length: 255 }).primaryKey(),
-		slug: varchar("slug", { length: 255 }).notNull(),
-		name: varchar("name", { length: 255 }).notNull(),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),

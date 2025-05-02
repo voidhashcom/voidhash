@@ -73,10 +73,10 @@ export function PaywallLocationRecord({
 
 	return (
 		<div className="relative isolate group hover:bg-accent/30 px-6 py-4">
-			<Link
+			{/* <Link
 				className="inset-0 absolute w-full h-full pointer-events-"
 				href={`/${organizationSlug}/${projectSlug}/monetization/paywall-locations/${paywallLocation.id}`}
-			></Link>
+			></Link> */}
 			<div className="flex flex-row items-center justify-between z-10">
 				<div className="flex gap-4 flex-1 items-center">
 					<div className="flex gap-1 items-baseline flex-col">

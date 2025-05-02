@@ -218,6 +218,7 @@ export function CreatePaywallLocationModal({
 																<CommandItem
 																	value={paywall.name}
 																	key={paywall.id}
+																	className="cursor-pointer"
 																	onSelect={() => {
 																		form.setValue(
 																			"defaultPaywallId",

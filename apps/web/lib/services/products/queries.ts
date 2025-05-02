@@ -7,6 +7,7 @@ import { z } from "zod";
 import { products } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import {
+	getProductPerksByProductIdQuery,
 	getProductsQuery,
 	getProviderProductByPrimaryKeyQuery,
 	getProviderProductsByProductIdQuery,
@@ -121,5 +122,32 @@ export const getProviderProductsByProductId = cache(
 			);
 
 			return providerProducts;
+		}).invoke
+);
+
+export const getProductPerksByProductId = cache(
+	createServiceFunction()
+		.input(z.object({ productId: z.string() }))
+		.function(async ({ input, ctx }) => {
+			const authenticatedContext = await authenticateContext(ctx);
+			const product = await getProductById({
+				ctx: authenticatedContext,
+				input: { id: input.productId },
+			});
+
+			if (!product) {
+				return [];
+			}
+
+			if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
+				return [];
+			}
+
+			const productPerks = await getProductPerksByProductIdQuery(
+				authenticatedContext,
+				input.productId
+			);
+
+			return productPerks;
 		}).invoke
 );

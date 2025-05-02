@@ -62,20 +62,8 @@ export function PaywallDetailAddProductButton({
 		<>
 			<Popover open={open} onOpenChange={setOpen}>
 				<PopoverTrigger asChild>
-					{/* <Button
-						variant="outline"
-						role="combobox"
-						aria-expanded={open}
-						className="w-[200px] justify-between"
-					>
-						{value
-							? products.find((product) => product.id === value)?.name
-							: "Select product..."}
-						<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-					</Button> */}
 					<Button role="combobox" aria-expanded={open} variant={variant}>
-						<PlusIcon className="w-4 h-4 mr-1 text-muted-foreground" />
-						<span>Add product</span>
+						Add product
 					</Button>
 				</PopoverTrigger>
 				<PopoverContent className="w-[200px] p-0">
@@ -88,6 +76,7 @@ export function PaywallDetailAddProductButton({
 									<CommandItem
 										key={product.id}
 										value={product.id}
+										className="cursor-pointer"
 										onSelect={() => {
 											handleSelect(product.id);
 											setValue("");
