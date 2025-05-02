@@ -47,12 +47,7 @@ export async function PerksPage({
 					) : (
 						<Card className="divide-y grid p-0 gap-0">
 							{perks.map((perk) => (
-								<PerkRecord
-									key={perk.id}
-									perk={perk}
-									organizationSlug={organizationSlug}
-									projectSlug={projectSlug}
-								/>
+								<PerkRecord key={perk.id} perk={perk} />
 							))}
 						</Card>
 					)}
