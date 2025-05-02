@@ -39,6 +39,7 @@
     "lucide-react": "^0.483.0",
     "next": "15.2.5",
     "next-safe-action": "^7.10.5",
+    "next13-progressbar": "^1.2.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
