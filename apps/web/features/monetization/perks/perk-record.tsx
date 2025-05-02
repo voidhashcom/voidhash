@@ -15,33 +15,40 @@ import {
 } from "@voidhash/ui";
 import { useAction } from "next-safe-action/hooks";
 import { CopyIcon, EllipsisVerticalIcon } from "lucide-react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 // import { EditProductModal } from "./edit-product-modal";
 
 export function PerkRecord({
 	perk,
-	organizationSlug,
-	projectSlug,
 }: {
 	perk: NonNullable<Awaited<ReturnType<typeof getPerks>>>[number];
-	organizationSlug: string;
-	projectSlug: string;
 }) {
 	const router = useRouter();
 	// const [setOpenEditModal] = useState(false);
 
 	const { execute: deletePerk, isPending } = useAction(deletePerkAction, {
+		onExecute: () => {
+			toast.loading("Deleting perk...");
+		},
 		onSuccess: () => {
-			toast.success(`Perk was successfully deleted`);
+			setTimeout(() => {
+				toast.success(`Perk was successfully deleted`);
+			}, 100);
 			router.refresh();
 		},
 		onError: (error) => {
-			toast.error(
-				error.error.serverError ??
-					`Failed to delete the perk. Please try again.`
-			);
+			setTimeout(() => {
+				toast.error(
+					error.error.serverError ??
+						`Failed to delete the perk. Please try again.`
+				);
+			}, 100);
+		},
+		onSettled: () => {
+			setTimeout(() => {
+				toast.dismiss();
+			}, 50);
 		},
 	});
 
