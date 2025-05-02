@@ -16,6 +16,7 @@ const prefixes = {
 	product: "prod",
 	project: "proj",
 	perk: "perk",
+	productPerk: "prod_perk",
 	paywallLocation: "pw_loc",
 } as const;
 

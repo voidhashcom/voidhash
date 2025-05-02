@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@voidhash/ui";
-import { PlusIcon } from "lucide-react";
 import { ProviderProductSheet } from "./provider-product-sheet";
 import { useState } from "react";
 
@@ -20,8 +19,7 @@ export function ProductDetailAddProductButton({
 	return (
 		<>
 			<Button type="submit" variant={variant} onClick={() => setOpen(true)}>
-				<PlusIcon className="w-4 h-4 mr-1 text-muted-foreground" />
-				<span>Add {title} product</span>
+				Add {title} product
 			</Button>
 			<ProviderProductSheet
 				open={open}
