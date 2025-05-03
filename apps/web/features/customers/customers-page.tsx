@@ -57,10 +57,20 @@ export async function CustomersPage({
 							</UnderlineTabsTrigger>
 						</UnderlineTabsList>
 						<UnderlineTabsContent value="identified">
-							<CustomersTable projectId={project.id} hasAppUserId={true} />
+							<CustomersTable
+								projectId={project.id}
+								hasAppUserId={true}
+								organizationSlug={organizationSlug}
+								projectSlug={projectSlug}
+							/>
 						</UnderlineTabsContent>
 						<UnderlineTabsContent value="unknown">
-							<CustomersTable projectId={project.id} hasAppUserId={false} />
+							<CustomersTable
+								projectId={project.id}
+								hasAppUserId={false}
+								organizationSlug={organizationSlug}
+								projectSlug={projectSlug}
+							/>
 						</UnderlineTabsContent>
 					</UnderlineTabs>
 				</div>

@@ -9,6 +9,7 @@ const prefixes = {
 	apiPublishableKey: "api_pk",
 	apiPublishableKeyTesting: "api_pk_test",
 	customer: "cust",
+	customerProduct: "cust_prod",
 	paywall: "pw",
 	paywallProduct: "pw_prod",
 	projectPaymentProviderConfiguration: "pp_conf",
@@ -18,6 +19,7 @@ const prefixes = {
 	perk: "perk",
 	productPerk: "prod_perk",
 	paywallLocation: "pw_loc",
+	customerUnlockedPerk: "cust_perk",
 } as const;
 
 export const generateId = <TPrefix extends keyof typeof prefixes>(

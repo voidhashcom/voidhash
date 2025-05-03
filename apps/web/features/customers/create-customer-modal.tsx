@@ -115,7 +115,7 @@ export function CreateCustomerModal({
 								<FormItem className="space-y-1">
 									<FormLabel>
 										App User ID{" "}
-										<InfoTooltip info="App User ID links your application&apos;s user identifier with their corresponding Voidhash customer profile." />
+										<InfoTooltip info="App User ID links your application's user identifier with its corresponding Voidhash customer profile." />
 									</FormLabel>
 									<FormControl>
 										<Input placeholder="#######" {...field} />

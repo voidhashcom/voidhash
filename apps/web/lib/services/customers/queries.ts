@@ -5,7 +5,12 @@ import {
 } from "@/lib/service-function";
 import { cache } from "react";
 import { z } from "zod";
-import { getCustomerByAppUserIdQuery, getCustomersQuery } from "./raw-queries";
+import {
+	getCustomerByAppUserIdQuery,
+	getCustomerByIdQuery,
+	getCustomersQuery,
+	getCustomersUnlockedPerksQuery,
+} from "./raw-queries";
 
 export const getCustomers = cache(
 	createServiceFunction()
@@ -33,6 +38,19 @@ export const getCustomers = cache(
 		}).invoke
 );
 
+export const getCustomerById = cache(
+	createServiceFunction()
+		.input(z.object({ id: z.string() }))
+		.function(async ({ ctx, input }) => {
+			const authenticatedContext = await authenticateContext(ctx);
+			const customer = await getCustomerByIdQuery(
+				authenticatedContext,
+				input.id
+			);
+			return customer;
+		}).invoke
+);
+
 export const getCustomerByAppUserId = cache(
 	createServiceFunction()
 		.input(z.object({ appUserId: z.string() }))
@@ -48,6 +66,19 @@ export const getCustomerByAppUserId = cache(
 			if (!hasProjectPermission(authenticatedContext, customer.projectId, "")) {
 				return null;
 			}
+			return customer;
+		}).invoke
+);
+
+export const getCustomersUnlockedPerks = cache(
+	createServiceFunction()
+		.input(z.object({ customerId: z.string() }))
+		.function(async ({ ctx, input }) => {
+			const authenticatedContext = await authenticateContext(ctx);
+			const customer = await getCustomersUnlockedPerksQuery(
+				authenticatedContext,
+				input.customerId
+			);
 			return customer;
 		}).invoke
 );

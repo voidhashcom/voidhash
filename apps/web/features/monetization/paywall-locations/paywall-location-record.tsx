@@ -15,7 +15,6 @@ import {
 } from "@voidhash/ui";
 import { useAction } from "next-safe-action/hooks";
 import { CopyIcon, EllipsisVerticalIcon } from "lucide-react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { getPaywallLocations } from "@/lib/services/paywall-locations/queries";
@@ -24,8 +23,6 @@ import { type getPaywalls } from "@/lib/services/paywalls/queries";
 
 export function PaywallLocationRecord({
 	paywallLocation,
-	organizationSlug,
-	projectSlug,
 	paywalls,
 }: {
 	paywallLocation: NonNullable<

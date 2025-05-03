@@ -1,4 +1,4 @@
-import { CustomersPage } from "@/features/customers/list/customers-page";
+import { CustomersPage } from "@/features/customers/customers-page";
 
 export default async function Page({
 	params,

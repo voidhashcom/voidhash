@@ -1,7 +1,7 @@
 // Credits: Inspired by https://github.com/unkeyed/unkey
 
 import { Client } from "@planetscale/database";
-import { Database, eq } from "@voidhash/db";
+import { Database, eq, like } from "@voidhash/db";
 import type { TaskContext } from "vitest";
 import { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
@@ -65,21 +65,43 @@ export abstract class Harness {
 		}
 
 		this.db = { primary: db, readonly: db };
+
 		this.resources = await this.createResources();
 	}
 
 	private async teardown(): Promise<void> {
 		const deleteResources = async () => {
 			await this.db.primary.transaction(async (tx) => {
-				await tx
-					.delete(schema.apiKeys)
-					.where(eq(schema.apiKeys.id, this.resources.secretKey.id));
+				// Delete all previous test ids
+				await tx.delete(schema.apiKeys).where(like(schema.apiKeys.id, "test%"));
 				await tx
 					.delete(schema.projects)
-					.where(eq(schema.projects.id, this.resources.project.id));
+					.where(like(schema.projects.id, "test%"));
+				await tx
+					.delete(schema.organization)
+					.where(like(schema.organization.id, "test%"));
+				await tx.delete(schema.user).where(like(schema.user.id, "test%"));
+				await tx
+					.delete(schema.customers)
+					.where(like(schema.customers.id, "test%"));
+				await tx
+					.delete(schema.purchases)
+					.where(like(schema.purchases.id, "test%"));
+				await tx
+					.delete(schema.products)
+					.where(like(schema.products.id, "test%"));
+				await tx
+					.delete(schema.productProviderConfigurations)
+					.where(like(schema.productProviderConfigurations.id, "test%"));
+				await tx
+					.delete(schema.productPerks)
+					.where(like(schema.productPerks.id, "test%"));
+				await tx.delete(schema.perks).where(like(schema.perks.id, "test%"));
+
 				await tx
 					.delete(schema.organization)
 					.where(eq(schema.organization.id, this.resources.organization.id));
+
 				await tx
 					.delete(schema.user)
 					.where(eq(schema.user.id, this.resources.user.id));
@@ -102,7 +124,7 @@ export abstract class Harness {
 		const user: User = {
 			id: generateId("test"),
 			name: "Test User",
-			email: "test@test.com",
+			email: `${generateId("test")}@test.com`,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 			emailVerified: true,
@@ -112,7 +134,7 @@ export abstract class Harness {
 		const organization: Organization = {
 			id: generateId("test"),
 			name: "Test Organization",
-			slug: "test-organization",
+			slug: `${generateId("test")}-organization`,
 			logo: null,
 			createdAt: new Date(),
 			metadata: null,
@@ -121,7 +143,7 @@ export abstract class Harness {
 		const project: Project = {
 			id: generateId("test"),
 			name: "Test Project",
-			slug: "test-project",
+			slug: `${generateId("test")}-project`,
 			createdByUserId: user.id,
 			createdAt: new Date(),
 			updatedAt: new Date(),

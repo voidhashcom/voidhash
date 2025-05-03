@@ -54,9 +54,6 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 				},
 			});
 
-			// Construct the response according to the providerProductResponseSchema
-			// The service returns the *inner* configuration, but the response schema expects
-			// the full wrapper object { providerId: string, configuration: object }.
 			const responseBody: z.infer<typeof providerProductResponseSchema> = {
 				providerProductKey: updatedProviderProduct.providerProductKey,
 				providerConfiguration: {

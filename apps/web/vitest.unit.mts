@@ -6,19 +6,9 @@ export default defineConfig({
   // @ts-expect-error - TODO: Fix
   plugins: [tsconfigPaths()],
   test: {
-    include: [
-      "./lib/api/v1/**/*.test.ts",
-      "./lib/services/**/*.integration.test.ts",
-    ],
+    include: ["./**/*.test.ts"],
+    exclude: ["./lib/api/v1/**/*.test.ts", "./node_modules/**"],
     reporters: ["verbose"],
-    pool: "threads",
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-    },
     env: loadEnv("", process.cwd(), ""),
-    testTimeout: 60_000,
-    teardownTimeout: 60_000,
   },
 });
