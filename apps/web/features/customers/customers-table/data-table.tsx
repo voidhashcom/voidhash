@@ -15,21 +15,28 @@ import {
 	TableHeader,
 	TableRow,
 } from "@voidhash/ui";
+import { useRouter } from "next/navigation";
 
-interface DataTableProps<TData, TValue> {
+interface DataTableProps<TData extends { id: string }, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
+	organizationSlug: string;
+	projectSlug: string;
 }
 
 export function DataTable<TData, TValue>({
 	columns,
 	data,
-}: DataTableProps<TData, TValue>) {
+	organizationSlug,
+	projectSlug,
+}: DataTableProps<TData & { id: string }, TValue>) {
 	const table = useReactTable({
 		data,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 	});
+
+	const router = useRouter();
 
 	return (
 		<div className="rounded-md border">
@@ -58,6 +65,12 @@ export function DataTable<TData, TValue>({
 							<TableRow
 								key={row.id}
 								data-state={row.getIsSelected() && "selected"}
+								className="cursor-pointer"
+								onClick={() => {
+									router.push(
+										`/${organizationSlug}/${projectSlug}/customers/${row.original.id}`
+									);
+								}}
 							>
 								{row.getVisibleCells().map((cell) => (
 									<TableCell key={cell.id}>

@@ -13,7 +13,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@voidhash/ui";
-import { Check, PlusIcon } from "lucide-react";
+import { Check } from "lucide-react";
 import { useState } from "react";
 import { type getProducts } from "@/lib/services/products/queries";
 import { createPaywallProductAction } from "@/lib/nextjs/server-actions";

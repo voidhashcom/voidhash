@@ -108,6 +108,71 @@ export const customers = mysqlTable(
 	]
 );
 
+export const customersUnlockedPerks = mysqlTable(
+	"customer_unlocked_perk",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		customerId: varchar("customer_id", { length: 255 }).notNull(),
+		perkId: varchar("perk_id", { length: 255 }).notNull(),
+		// Controls the lifetime of the perk
+		unlockedByCustomerProductId: varchar("unlocked_by_purchase_id", {
+			length: 255,
+		}).notNull(),
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [
+		uniqueIndex("customer_id_perk_id_idx").on(table.customerId, table.perkId),
+	]
+);
+
+export const purchases = mysqlTable("purchase", {
+	id: varchar("id", { length: 255 }).primaryKey(),
+	customerId: varchar("customer_id", { length: 255 }).notNull(),
+
+	/**
+	 * Subscription status - can be active, trialing, or canceled
+	 */
+	type: mysqlEnum("type", PRODUCT_TYPES).default("subscription").notNull(),
+
+	status: mysqlEnum("status", ["active", "trialing", "canceled"]).default(
+		"active"
+	),
+
+	providerProductId: varchar("provider_product_id", {
+		length: 255,
+	}).notNull(),
+	/**
+	 * The environment the subscription was purchased in
+	 */
+	environment: mysqlEnum("environment", ["production", "sandbox"]).default(
+		"production"
+	),
+	/**
+	 * The date the subscription started
+	 */
+	startsAt: timestamp("starts_at").notNull(),
+	/**
+	 * The date the subscription expires. Null if the subscription is not set to expire or if it is a one-time purchase
+	 */
+	expiresAt: timestamp("expires_at"),
+	/**
+	 * The date the subscription was purchased
+	 */
+	purchasedAt: timestamp("purchased_at").notNull(),
+	/**
+	 * Whether the subscription is set to cancel at the end of the current period
+	 */
+	cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+	/**
+	 * The date the subscription was canceled
+	 */
+	canceledAt: timestamp("canceled_at"),
+
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at").onUpdateNow(),
+});
+
 export const customerRelations = relations(customers, ({ many }) => ({
 	externalIdentifiers: many(externalCustomerIdentifiers),
 }));

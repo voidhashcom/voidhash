@@ -11,41 +11,40 @@ import type {
 import { reset } from "drizzle-seed";
 import { ExtractTablesWithRelations } from "drizzle-orm";
 
-export type Database =
-	| PlanetScaleDatabase<typeof schema>
-	| MySql2Database<typeof schema>;
+const createDb = async () => {
+	if (process.env.DATABASE_HOST?.includes("psdb.cloud")) {
+		const client = new Client({
+			host: process.env.DATABASE_HOST,
+			username: process.env.DATABASE_USERNAME,
+			password: process.env.DATABASE_PASSWORD,
+		});
 
+		return drizzlePlanetscale(client, { schema });
+	} else {
+		const connection = await mysql.createConnection({
+			host: process.env["DATABASE_HOST"],
+			user: process.env["DATABASE_USERNAME"],
+			database: process.env["DATABASE_NAME"],
+			password: process.env["DATABASE_PASSWORD"],
+		});
+
+		return drizzleMysql({
+			client: connection,
+			schema,
+			mode: "default",
+		});
+	}
+};
+
+const db = await createDb();
+
+export type Database = Awaited<ReturnType<typeof createDb>>;
 export type Transaction =
 	| PlanetScaleTransaction<
 			typeof schema,
 			ExtractTablesWithRelations<typeof schema>
 	  >
 	| MySql2Transaction<typeof schema, ExtractTablesWithRelations<typeof schema>>;
-
-let db: Database;
-
-if (process.env.DATABASE_HOST?.includes("psdb.cloud")) {
-	const client = new Client({
-		host: process.env.DATABASE_HOST,
-		username: process.env.DATABASE_USERNAME,
-		password: process.env.DATABASE_PASSWORD,
-	});
-
-	db = drizzlePlanetscale(client, { schema });
-} else {
-	const connection = await mysql.createConnection({
-		host: process.env["DATABASE_HOST"],
-		user: process.env["DATABASE_USERNAME"],
-		database: process.env["DATABASE_NAME"],
-		password: process.env["DATABASE_PASSWORD"],
-	});
-
-	db = drizzleMysql({
-		client: connection,
-		schema,
-		mode: "default",
-	});
-}
 
 export { drizzle } from "drizzle-orm/planetscale-serverless";
 export { drizzle as drizzleMysql } from "drizzle-orm/mysql2";

@@ -66,7 +66,7 @@ export function NavUserDropdown({
 					</div>
 				</div>
 			</DropdownMenuLabel>
-			<DropdownMenuSeparator />
+			{/* <DropdownMenuSeparator />
 
 			<DropdownMenuGroup>
 				<DropdownMenuItem>
@@ -77,7 +77,7 @@ export function NavUserDropdown({
 					<CreditCard />
 					Billing
 				</DropdownMenuItem>
-			</DropdownMenuGroup>
+			</DropdownMenuGroup> */}
 			<DropdownMenuSeparator />
 			<div className="flex gap-2 w-full justify-between p-2 items-center">
 				<span className="text-sm text-muted-foreground ">Theme</span>

@@ -21,6 +21,22 @@ export const getProductByIdQuery = async (ctx: ServiceContext, id: string) => {
 	return ctx.db.select().from(products).where(eq(products.id, id));
 };
 
+export const getProviderProductByIdQuery = async (
+	ctx: ServiceContext,
+	providerProductId: string
+) => {
+	const providerProductsResult = await ctx.db
+		.select()
+		.from(productProviderConfigurations)
+		.where(eq(productProviderConfigurations.id, providerProductId));
+
+	if (providerProductsResult.length === 0) {
+		return null;
+	}
+
+	return providerProductsResult[0];
+};
+
 export const getProviderProductByPrimaryKeyQuery = async (
 	ctx: ServiceContext,
 	projectId: string,

@@ -59,3 +59,9 @@ export type InsertInvitation = InferInsertModel<typeof schema.invitation>;
 
 export type Apikey = InferSelectModel<typeof schema.apikey>; // Note: different from apiKeys
 export type InsertApikey = InferInsertModel<typeof schema.apikey>;
+
+export type Perk = InferSelectModel<typeof schema.perks>;
+export type InsertPerk = InferInsertModel<typeof schema.perks>;
+
+export type ProductPerk = InferSelectModel<typeof schema.productPerks>;
+export type InsertProductPerk = InferInsertModel<typeof schema.productPerks>;

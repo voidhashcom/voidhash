@@ -7,7 +7,7 @@ import {
 	getUserAuthSession,
 } from "./services/auth/queries";
 import { VoidhashError } from "@voidhash/lib/constants";
-import { Database } from "@voidhash/db";
+import { Database, Transaction } from "@voidhash/db";
 import { Logger } from "./logger/types";
 
 export type ServiceParamWithInput<T = unknown> = {
@@ -86,6 +86,7 @@ export type ServiceContext = {
 	source: "nextjs" | "api-server" | "api-sdk";
 	session?: UserSession | ApiKeySession | null;
 	db: Database;
+	tx?: Transaction;
 	logger: Logger;
 };
 

@@ -1,4 +1,8 @@
-import { customers, externalCustomerIdentifiers } from "@voidhash/db";
+import {
+	customers,
+	customersUnlockedPerks,
+	externalCustomerIdentifiers,
+} from "@voidhash/db";
 import { eq, and, isNull, isNotNull } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
 
@@ -23,6 +27,17 @@ export const getCustomersQuery = async (
 			)
 		);
 	return customerList;
+};
+
+export const getCustomerByIdQuery = async (
+	ctx: ServiceContext,
+	customerId: string
+) => {
+	const res = await ctx.db
+		.select()
+		.from(customers)
+		.where(eq(customers.id, customerId));
+	return res[0];
 };
 
 export const getCustomerByAppUserIdQuery = async (
@@ -58,4 +73,14 @@ export const getCustomerByExternalIdentifierQuery = async (
 			)
 		);
 	return res[0]?.customer;
+};
+
+export const getCustomersUnlockedPerksQuery = async (
+	ctx: ServiceContext,
+	customerId: string
+) => {
+	const res = await ctx.db.query.customersUnlockedPerks.findMany({
+		where: eq(customersUnlockedPerks.customerId, customerId),
+	});
+	return res;
 };

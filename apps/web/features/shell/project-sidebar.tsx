@@ -41,30 +41,12 @@ export function ProjectSidebar({
 					},
 					{
 						title: "Customers",
-						url: `/${organizationSlug}/${projectSlug}/customers/list`,
+						url: `/${organizationSlug}/${projectSlug}/customers`,
 						icon: Users,
 						isActive: () =>
 							pathname.startsWith(
 								`/${organizationSlug}/${projectSlug}/customers`
 							),
-						items: [
-							{
-								title: "All Customers",
-								url: `/${organizationSlug}/${projectSlug}/customers/list`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/customers/list`
-									),
-							},
-							// {
-							// 	title: "Access Levels",
-							// 	url: `/${organizationSlug}/${projectSlug}/customers/access-levels`,
-							// 	isActive: () =>
-							// 		pathname.startsWith(
-							// 			`/${organizationSlug}/${projectSlug}/customers/access-levels`
-							// 		),
-							// },
-						],
 					},
 					// {
 					// 	title: "Transactions",
