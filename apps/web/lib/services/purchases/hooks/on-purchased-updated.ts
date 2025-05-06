@@ -12,22 +12,22 @@ import {
 	getProviderProductByIdQuery,
 } from "../../products/raw-queries";
 
-export type PurchasedProductUpdateEvent = {
-	customerProductId: string; // ID of the record to update
+export type PurchaseUpdateEvent = {
+	purchaseId: string; // ID of the record to update
 	status: "active" | "trialing" | "canceled";
 	canceledAt: Date | null;
 	cancelAtPeriodEnd: boolean;
 	expiresAt: Date | null;
 };
 
-export async function handlePurchasedProductUpdated(
+export async function handlePurchaseUpdated(
 	ctx: ServiceContext,
-	event: PurchasedProductUpdateEvent
+	event: PurchaseUpdateEvent
 ) {
 	const tx = ctx.tx ?? ctx.db;
 
 	const existingCustomerProduct = await tx.query.purchases.findFirst({
-		where: eq(purchases.id, event.customerProductId),
+		where: eq(purchases.id, event.purchaseId),
 	});
 
 	console.log("existingCustomerProduct");
@@ -35,7 +35,7 @@ export async function handlePurchasedProductUpdated(
 	if (!existingCustomerProduct) {
 		throw new VoidhashError({
 			code: "NOT_FOUND",
-			message: `Customer product with id ${event.customerProductId} not found.`,
+			message: `Customer product with id ${event.purchaseId} not found.`,
 		});
 	}
 
@@ -60,7 +60,7 @@ export async function handlePurchasedProductUpdated(
 			expiresAt: event.expiresAt,
 			updatedAt: new Date(),
 		})
-		.where(eq(purchases.id, event.customerProductId));
+		.where(eq(purchases.id, event.purchaseId));
 
 	// 4. Handle perk updates based on status change
 	if (oldStatus !== newStatus) {

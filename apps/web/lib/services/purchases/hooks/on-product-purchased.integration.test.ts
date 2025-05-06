@@ -106,6 +106,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 		});
 
 		const event: PurchaseEvent = {
+			providerKey: generateId("test"),
 			type: "subscription" as const,
 			status: "active" as const,
 			customerId: testCustomerId,
@@ -171,6 +172,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 		const testProviderProductId = productProviderConfigurationId; // Use harness resource
 
 		const event = {
+			providerKey: generateId("test"),
 			type: "one_time" as const,
 			status: "active" as const,
 			customerId: testCustomerId,
@@ -201,6 +203,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 
 		const nonExistentCustomerId = generateId("customer"); // Ensure this ID does not exist
 		const event: PurchaseEvent = {
+			providerKey: generateId("test"),
 			type: "subscription" as const,
 			status: "active" as const,
 			customerId: nonExistentCustomerId,
@@ -240,6 +243,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 
 		const nonExistentProviderProductId = generateId("test"); // Ensure this ID does not exist
 		const event: PurchaseEvent = {
+			providerKey: generateId("test"),
 			type: "subscription" as const,
 			status: "active" as const,
 			customerId: testCustomerId,
@@ -285,6 +289,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 		});
 
 		const event: PurchaseEvent = {
+			providerKey: generateId("test"),
 			type: "subscription" as const,
 			status: "canceled" as const,
 			customerId: testCustomerId,
