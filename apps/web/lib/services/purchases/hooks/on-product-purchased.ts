@@ -10,13 +10,14 @@ import {
 
 export type PurchaseEvent = {
 	type: (typeof PRODUCT_TYPES)[number];
+	providerKey: string;
 	status: "active" | "trialing" | "canceled";
 	customerId: string;
 	providerProductId: string;
 	purchasedAt: Date;
 	startsAt: Date;
-	canceledAt: Date;
 	cancelAtPeriodEnd: boolean;
+	canceledAt: Date | null;
 	environment: "production" | "sandbox";
 	expiresAt: Date;
 };
@@ -56,6 +57,7 @@ export async function handleProductPurchase(
 
 	const customerProduct = {
 		id: generateId("customerProduct"),
+		providerKey: event.providerKey,
 		status: event.status,
 		type: event.type,
 		customerId: event.customerId,

@@ -16,6 +16,7 @@
     "with-env": "dotenv -e .env --"
   },
   "dependencies": {
+    "@chronark/zod-bird": "^0.3.10",
     "@hono/zod-openapi": "^0.19.4",
     "@hono/zod-validator": "^0.4.3",
     "@hookform/resolvers": "^4.1.3",

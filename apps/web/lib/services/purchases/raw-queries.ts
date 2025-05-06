@@ -30,3 +30,12 @@ export const getPurchasesQuery = async (
 		total: (purchaseCount[0]?.count ?? 0) as number,
 	};
 };
+
+export const getPurchaseByProviderKeyQuery = async (
+	ctx: ServiceContext,
+	providerKey: string
+) => {
+	return await ctx.db.query.purchases.findFirst({
+		where: eq(purchases.providerKey, providerKey),
+	});
+};

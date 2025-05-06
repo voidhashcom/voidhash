@@ -14,9 +14,9 @@ import {
 } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 import {
-	handlePurchasedProductUpdated,
-	PurchasedProductUpdateEvent,
-} from "./on-purchased-product-updated";
+	handlePurchaseUpdated,
+	PurchaseUpdateEvent,
+} from "./on-purchased-updated";
 import { VoidhashError } from "@voidhash/lib";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import { eq } from "drizzle-orm";
@@ -116,6 +116,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		});
 
 		const initialEvent = {
+			providerKey: generateId("test"),
 			type: "subscription" as const,
 			status: "canceled" as const,
 			customerId: testCustomerId,
@@ -142,8 +143,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		expect(perks).toHaveLength(0);
 
 		// 2. Event: Update status to active
-		const updateEvent: PurchasedProductUpdateEvent = {
-			customerProductId: initialCustomerProduct.id,
+		const updateEvent: PurchaseUpdateEvent = {
+			purchaseId: initialCustomerProduct.id,
 			status: "active",
 			canceledAt: null,
 			cancelAtPeriodEnd: false,
@@ -151,7 +152,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		};
 
 		// 3. Action: Handle the update
-		await handlePurchasedProductUpdated(serviceContext, updateEvent);
+		await handlePurchaseUpdated(serviceContext, updateEvent);
 
 		// 4. Assertions
 		const updatedCustomerProduct = await h.db.primary.query.purchases.findFirst(
@@ -209,6 +210,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		});
 
 		const initialEvent = {
+			providerKey: generateId("test"),
 			type: "subscription" as const,
 			status: "active" as const, // Start as active to have perks
 			customerId: testCustomerId,
@@ -235,8 +237,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		expect(perks).toHaveLength(1); // Should have perks initially
 
 		// 2. Event: Update status to canceled
-		const updateEvent: PurchasedProductUpdateEvent = {
-			customerProductId: initialCustomerProduct.id,
+		const updateEvent: PurchaseUpdateEvent = {
+			purchaseId: initialCustomerProduct.id,
 			status: "canceled",
 			canceledAt: new Date(), // Set canceled date
 			cancelAtPeriodEnd: false, // Or true, depending on scenario
@@ -244,7 +246,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		};
 
 		// 3. Action: Handle the update
-		await handlePurchasedProductUpdated(serviceContext, updateEvent);
+		await handlePurchaseUpdated(serviceContext, updateEvent);
 
 		// 4. Assertions
 		const updatedCustomerProduct = await h.db.primary.query.purchases.findFirst(
@@ -294,6 +296,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		});
 
 		const initialEvent = {
+			providerKey: generateId("test"),
 			type: "subscription" as const,
 			status: "active" as const,
 			customerId: testCustomerId,
@@ -321,8 +324,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 
 		// 2. Event: Update only non-status fields
 		const newExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
-		const updateEvent: PurchasedProductUpdateEvent = {
-			customerProductId: initialCustomerProduct.id,
+		const updateEvent: PurchaseUpdateEvent = {
+			purchaseId: initialCustomerProduct.id,
 			status: "active", // Status remains the same
 			canceledAt: null,
 			cancelAtPeriodEnd: true, // Example: update cancelAtPeriodEnd
@@ -330,7 +333,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		};
 
 		// 3. Action: Handle the update
-		await handlePurchasedProductUpdated(serviceContext, updateEvent);
+		await handlePurchaseUpdated(serviceContext, updateEvent);
 
 		// 4. Assertions
 		const updatedCustomerProduct = await h.db.primary.query.purchases.findFirst(
@@ -377,8 +380,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		const serviceContext = await createTestServiceContext();
 
 		const nonExistentCustomerProductId = generateId("customerProduct");
-		const updateEvent: PurchasedProductUpdateEvent = {
-			customerProductId: nonExistentCustomerProductId,
+		const updateEvent: PurchaseUpdateEvent = {
+			purchaseId: nonExistentCustomerProductId,
 			status: "active",
 			canceledAt: null,
 			cancelAtPeriodEnd: false,
@@ -386,10 +389,10 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		};
 
 		await expect(
-			handlePurchasedProductUpdated(serviceContext, updateEvent)
+			handlePurchaseUpdated(serviceContext, updateEvent)
 		).rejects.toThrow(VoidhashError);
 		await expect(
-			handlePurchasedProductUpdated(serviceContext, updateEvent)
+			handlePurchaseUpdated(serviceContext, updateEvent)
 		).rejects.toThrow(
 			`Customer product with id ${nonExistentCustomerProductId} not found.`
 		);
@@ -416,6 +419,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		const customerProductId = generateId("customerProduct");
 		await h.db.primary.insert(purchases).values({
 			id: customerProductId,
+			providerKey: generateId("test"),
 			status: "trialing",
 			type: "subscription",
 			customerId: testCustomerId,
@@ -429,8 +433,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		});
 
 		// 2. Event: Trigger a status change that requires perk logic
-		const updateEvent: PurchasedProductUpdateEvent = {
-			customerProductId: customerProductId,
+		const updateEvent: PurchaseUpdateEvent = {
+			purchaseId: customerProductId,
 			status: "active",
 			canceledAt: null,
 			cancelAtPeriodEnd: false,
@@ -439,7 +443,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 
 		// 3. Action & Assertion: Expect internal server error
 		await expect(
-			handlePurchasedProductUpdated(serviceContext, updateEvent)
+			handlePurchaseUpdated(serviceContext, updateEvent)
 		).rejects.toThrow(VoidhashError);
 
 		// 4. Cleanup

@@ -5,12 +5,9 @@ import { getExistingPaymentProviderConfigurationByIdQuery } from "@/lib/services
 import { stripe as stripePaymentProvider, stripeProviderId } from "../stripe";
 import { z } from "zod";
 import { ALLOWED_EVENTS } from "../constants";
-// Assuming App type might be defined elsewhere, adjust import as needed
-// import { App } from '../../hono/app'; // Example path - adjust based on actual location
-// Assuming error responses might be defined elsewhere
-// import { openApiErrorResponses } from '../../errors/openapi_responses'; // Example path
-
-// Initialize Stripe (using api version from library is recommended)
+import { handleSessionCompleted } from "../hooks/on-session-completed";
+import { handleSubscriptionUpdated } from "../hooks/on-subscription-updated";
+import { handleSubscriptionDeleted } from "../hooks/on-subscription-deleted";
 
 export const registerStripeWebhook = (app: App) => {
 	app.post(
@@ -32,6 +29,12 @@ export const registerStripeWebhook = (app: App) => {
 					stripeProviderId
 				);
 
+			if (paymentProviderConfiguration?.enabled === false) {
+				throw new HTTPException(400, {
+					message: "Stripe is not enabled for this project.",
+				});
+			}
+
 			if (!paymentProviderConfiguration) {
 				throw new HTTPException(400, { message: "Project not found" });
 			}
@@ -43,12 +46,6 @@ export const registerStripeWebhook = (app: App) => {
 
 			const stripeWebhookSecret = configuration.webhookSecret;
 			const stripeSecretKey = configuration.secretKey;
-
-			if (paymentProviderConfiguration.enabled === false) {
-				throw new HTTPException(400, {
-					message: "Stripe is not enabled for this project.",
-				});
-			}
 
 			if (!stripeWebhookSecret || !stripeSecretKey) {
 				throw new HTTPException(500, {
@@ -80,17 +77,39 @@ export const registerStripeWebhook = (app: App) => {
 			if (!ALLOWED_EVENTS.includes(event.type)) return;
 
 			// Handle the event
-			switch (event.type) {
-				case "checkout.session.completed":
-					break;
-				case "customer.subscription.updated":
-					break;
-				case "customer.subscription.deleted":
-					break;
-				// ... handle other event types as needed
-				// e.g., 'customer.subscription.created', 'customer.subscription.deleted', etc.
-				default:
-					break;
+			try {
+				switch (event.type) {
+					case "checkout.session.completed":
+						handleSessionCompleted(
+							ctx,
+							c.req.param("projectId"),
+							stripe,
+							event
+						);
+						break;
+					case "customer.subscription.updated":
+						handleSubscriptionUpdated(
+							ctx,
+							c.req.param("projectId"),
+							stripe,
+							event
+						);
+						break;
+					case "customer.subscription.deleted":
+						handleSubscriptionDeleted(
+							ctx,
+							c.req.param("projectId"),
+							stripe,
+							event
+						);
+						break;
+					default:
+						break;
+				}
+			} catch {
+				throw new HTTPException(400, {
+					message: "Webhook error: See server logs for more information.",
+				});
 			}
 
 			// Return a 200 response to acknowledge receipt of the event

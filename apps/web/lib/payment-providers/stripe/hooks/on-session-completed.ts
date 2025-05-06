@@ -1,127 +1,139 @@
-// import { ServiceContext } from "@/lib/service-function";
-// import {
-// 	getProductByIdQuery,
-// 	getProviderProductByPrimaryKeyQuery,
-// } from "@/lib/services/products/raw-queries";
-// import Stripe from "stripe";
-// import { stripeProviderId } from "../stripe";
-// import { createPaymentProviderKey } from "@/lib/services/products/lib";
+import { ServiceContext } from "@/lib/service-function";
+import {
+	getProductByIdQuery,
+	getProviderProductByPrimaryKeyQuery,
+} from "@/lib/services/products/raw-queries";
+import Stripe from "stripe";
+import { stripeProviderId } from "../stripe";
+import { createPaymentProviderKey } from "@/lib/services/products/lib";
+import { handleProductPurchase } from "@/lib/services/purchases/hooks/on-product-purchased";
+import { getCustomerByExternalIdentifierQuery } from "@/lib/services/customers/raw-queries";
+import { VoidhashError } from "@voidhash/lib/constants";
+import { mapSubscriptionStatus } from "../utils";
 
-// export async function handleSessionCompleted(
-// 	serviceContext: ServiceContext,
-// 	projectId: string,
-// 	stripe: Stripe,
-// 	event: Stripe.Event
-// ) {
-// 	try {
-// 		const checkoutSession = event.data.object as Stripe.Checkout.Session;
+export async function handleSessionCompleted(
+	serviceContext: ServiceContext,
+	projectId: string,
+	stripe: Stripe,
+	event: Stripe.Event
+) {
+	try {
+		const checkoutSession = event.data.object as Stripe.Checkout.Session;
 
-// 		// If the checkout session is a setup session, we don't need to do anything
-// 		if (checkoutSession.mode === "setup") {
-// 			return;
-// 		}
-// 		const subscription = await stripe.subscriptions.retrieve(
-// 			checkoutSession.subscription as string
-// 		);
+		// If the checkout session is a setup session, we don't need to do anything
+		if (checkoutSession.mode === "setup") {
+			return;
+		}
 
-// 		const productId = subscription.items.data[0]?.price.product;
-// 		const priceId = subscription.items.data[0]?.price.id;
+		if (checkoutSession.subscription == null) {
+			// TODO: Add support for non-subscription based products
+			serviceContext.logger.error(
+				"No subscription id found in checkout session event. This is not a subscription based product and is not supported yet."
+			);
+			return;
+		}
 
-// 		const stripeProviderProduct = await getProviderProductByPrimaryKeyQuery(
-// 			serviceContext,
-// 			projectId,
-// 			stripeProviderId,
-// 			createPaymentProviderKey("stripe", {
-// 				productId: productId as string,
-// 				priceId: priceId as string,
-// 			})
-// 		);
+		const subscription = await stripe.subscriptions.retrieve(
+			checkoutSession.subscription as string
+		);
 
-// 		if (!stripeProviderProduct) {
-// 			// TODO: No product setup for this in Voidhash. We should probably try to notify user about it. For now, we'll just return.
-// 			return;
-// 		}
+		if (!subscription) {
+			throw new VoidhashError({
+				code: "INTERNAL_SERVER_ERROR",
+				message: "No stripe subscription found.",
+			});
+		}
 
-// 		const product = await getProductByIdQuery(
-// 			serviceContext,
-// 			stripeProviderProduct.productId
-// 		);
-// 		if (!product) {
-// 			serviceContext.logger.warn(
-// 				"Stripe provider product exists while product itself does not. This shouldn't happer. Stripe provider products should be deleted when parent product is."
-// 			);
-// 			// Product was deleted, it was probably users intention, we can safely return,
-// 			return;
-// 		}
+		const subscriptionItem = subscription.items.data[0];
+		const productId = subscriptionItem?.price.product;
+		const priceId = subscriptionItem?.price.id;
 
-// 		const plan = await getPlanByPriceId(options, priceId as string);
+		if (!subscriptionItem || !productId || !priceId) {
+			serviceContext.logger.error(
+				"No product id or price id found in checkout session event."
+			);
+			return;
+		}
 
-// 		if (plan) {
-// 			const referenceId =
-// 				checkoutSession?.client_reference_id ||
-// 				checkoutSession?.metadata?.referenceId;
+		const stripeProviderProduct = await getProviderProductByPrimaryKeyQuery(
+			serviceContext,
+			projectId,
+			stripeProviderId,
+			createPaymentProviderKey("stripe", {
+				productId: typeof productId === "string" ? productId : productId.id,
+				priceId: priceId,
+			})
+		);
 
-// 			const subscriptionId = checkoutSession?.metadata?.subscriptionId;
-// 			const seats = subscription.items.data[0].quantity;
-// 			if (referenceId && subscriptionId) {
-// 				const trial =
-// 					subscription.trial_start && subscription.trial_end
-// 						? {
-// 								trialStart: new Date(subscription.trial_start * 1000),
-// 								trialEnd: new Date(subscription.trial_end * 1000),
-// 							}
-// 						: {};
+		if (!stripeProviderProduct) {
+			// TODO: No product setup for this in Voidhash. We should probably try to notify user about it. For now, we'll just return.
+			// TODO: Add it to unpaired purchase list if no product is found
+			return;
+		}
 
-// 				let dbSubscription =
-// 					await ctx.context.adapter.update<InputSubscription>({
-// 						model: "subscription",
-// 						update: {
-// 							plan: plan.name.toLowerCase(),
-// 							status: subscription.status,
-// 							updatedAt: new Date(),
-// 							periodStart: new Date(
-// 								subscription.items.data[0].current_period_start * 1000
-// 							),
-// 							periodEnd: new Date(
-// 								subscription.items.data[0].current_period_end * 1000
-// 							),
-// 							stripeSubscriptionId: checkoutSession.subscription as string,
-// 							seats,
-// 							...trial,
-// 						},
-// 						where: [
-// 							{
-// 								field: "id",
-// 								value: subscriptionId,
-// 							},
-// 						],
-// 					});
+		const product = await getProductByIdQuery(
+			serviceContext,
+			stripeProviderProduct.productId
+		);
+		if (!product) {
+			serviceContext.logger.warn(
+				"Stripe provider product exists while product itself does not. This shouldn't happer. Stripe provider products should be deleted when parent product is."
+			);
+			// TODO: Add it to unpaired purchase list if no product is found
+			// Product was deleted, it was probably users intention, we can safely return,
+			return;
+		}
 
-// 				if (trial.trialStart && plan.freeTrial?.onTrialStart) {
-// 					await plan.freeTrial.onTrialStart(dbSubscription as Subscription);
-// 				}
+		const customerId =
+			checkoutSession.customer == null
+				? null
+				: typeof checkoutSession.customer === "string"
+					? checkoutSession.customer
+					: typeof checkoutSession.customer === "object"
+						? checkoutSession.customer.id
+						: null;
 
-// 				if (!dbSubscription) {
-// 					dbSubscription = await ctx.context.adapter.findOne<Subscription>({
-// 						model: "subscription",
-// 						where: [
-// 							{
-// 								field: "id",
-// 								value: subscriptionId,
-// 							},
-// 						],
-// 					});
-// 				}
-// 				await options.subscription?.onSubscriptionComplete?.({
-// 					event,
-// 					subscription: dbSubscription as Subscription,
-// 					stripeSubscription: subscription,
-// 					plan,
-// 				});
-// 				return;
-// 			}
-// 		}
-// 	} catch (e: any) {
-// 		logger.error(`Stripe webhook failed. Error: ${e.message}`);
-// 	}
-// }
+		if (!customerId) {
+			serviceContext.logger.error(
+				"No customer id found in checkout session event. This shouldn't happen."
+			);
+			return;
+		}
+
+		const customer = await getCustomerByExternalIdentifierQuery(
+			serviceContext,
+			projectId,
+			stripeProviderId,
+			customerId
+		);
+
+		if (!customer) {
+			// TODO: Load customer from stripe
+			// TODO: Add it to unpaired purchase list if no customer is found
+			return;
+		}
+
+		await handleProductPurchase(serviceContext, {
+			type: "subscription",
+			providerKey: subscription.id,
+			customerId: customer?.id,
+			providerProductId: stripeProviderProduct.id,
+			status: mapSubscriptionStatus(subscription.status),
+			startsAt: new Date(
+				subscription.items.data[0]!.current_period_start * 1000
+			),
+			expiresAt: new Date(subscriptionItem.current_period_end * 1000),
+			cancelAtPeriodEnd: subscription.cancel_at_period_end,
+			canceledAt: subscription.canceled_at
+				? new Date(subscription.canceled_at * 1000)
+				: null,
+			environment: "production",
+			purchasedAt: new Date(subscription.created * 1000),
+			// TODO: Add stripe related metadata to purchase
+		});
+	} catch (e: unknown) {
+		serviceContext.logger.error(
+			`Stripe webhook failed. Error: ${e instanceof Error ? e.message : "Unknown error"}`
+		);
+	}
+}

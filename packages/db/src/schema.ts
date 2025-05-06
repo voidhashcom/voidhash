@@ -10,7 +10,7 @@ import {
 } from "drizzle-orm/mysql-core";
 import { mysqlTable } from "drizzle-orm/mysql-core";
 import { organization } from "./auth-schema";
-import { PRODUCT_TYPES } from "@voidhash/lib";
+import { PRODUCT_TYPES, SUBSCRIPTION_STATUSES } from "@voidhash/lib";
 export * from "./auth-schema";
 
 export const projects = mysqlTable(
@@ -126,52 +126,56 @@ export const customersUnlockedPerks = mysqlTable(
 	]
 );
 
-export const purchases = mysqlTable("purchase", {
-	id: varchar("id", { length: 255 }).primaryKey(),
-	customerId: varchar("customer_id", { length: 255 }).notNull(),
+export const purchases = mysqlTable(
+	"purchase",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		customerId: varchar("customer_id", { length: 255 }).notNull(),
 
-	/**
-	 * Subscription status - can be active, trialing, or canceled
-	 */
-	type: mysqlEnum("type", PRODUCT_TYPES).default("subscription").notNull(),
+		providerKey: varchar("provider_key", { length: 255 }).notNull(),
 
-	status: mysqlEnum("status", ["active", "trialing", "canceled"]).default(
-		"active"
-	),
+		/**
+		 * Subscription status - can be active, trialing, or canceled
+		 */
+		type: mysqlEnum("type", PRODUCT_TYPES).default("subscription").notNull(),
 
-	providerProductId: varchar("provider_product_id", {
-		length: 255,
-	}).notNull(),
-	/**
-	 * The environment the subscription was purchased in
-	 */
-	environment: mysqlEnum("environment", ["production", "sandbox"]).default(
-		"production"
-	),
-	/**
-	 * The date the subscription started
-	 */
-	startsAt: timestamp("starts_at").notNull(),
-	/**
-	 * The date the subscription expires. Null if the subscription is not set to expire or if it is a one-time purchase
-	 */
-	expiresAt: timestamp("expires_at"),
-	/**
-	 * The date the subscription was purchased
-	 */
-	purchasedAt: timestamp("purchased_at").notNull(),
-	/**
-	 * Whether the subscription is set to cancel at the end of the current period
-	 */
-	cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
-	/**
-	 * The date the subscription was canceled
-	 */
-	canceledAt: timestamp("canceled_at"),
+		status: mysqlEnum("status", SUBSCRIPTION_STATUSES).default("active"),
 
-	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at").onUpdateNow(),
-});
+		providerProductId: varchar("provider_product_id", {
+			length: 255,
+		}).notNull(),
+		/**
+		 * The environment the subscription was purchased in
+		 */
+		environment: mysqlEnum("environment", ["production", "sandbox"]).default(
+			"production"
+		),
+		/**
+		 * The date the subscription started
+		 */
+		startsAt: timestamp("starts_at").notNull(),
+		/**
+		 * The date the subscription expires. Null if the subscription is not set to expire or if it is a one-time purchase
+		 */
+		expiresAt: timestamp("expires_at"),
+		/**
+		 * The date the subscription was purchased
+		 */
+		purchasedAt: timestamp("purchased_at").notNull(),
+		/**
+		 * Whether the subscription is set to cancel at the end of the current period
+		 */
+		cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+		/**
+		 * The date the subscription was canceled
+		 */
+		canceledAt: timestamp("canceled_at"),
+
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [uniqueIndex("provider_key_idx").on(table.providerKey)]
+);
 
 export const customerRelations = relations(customers, ({ many }) => ({
 	externalIdentifiers: many(externalCustomerIdentifiers),

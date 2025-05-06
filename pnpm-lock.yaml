@@ -66,6 +66,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@chronark/zod-bird':
+        specifier: ^0.3.10
+        version: 0.3.10
       '@hono/zod-openapi':
         specifier: ^0.19.4
         version: 0.19.4(hono@4.7.6)(zod@3.24.2)
@@ -657,6 +660,9 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@chronark/zod-bird@0.3.10':
+    resolution: {integrity: sha512-QkGvy8Lz+NTGPOfBH2lIEAxiaizp9vrEufxsi1wYz8WM0/ADqs4hUqO1zRjt7ntoZdKiXCcnpZtzUMdOjfo5AQ==}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -7065,6 +7071,10 @@ snapshots:
 
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
+
+  '@chronark/zod-bird@0.3.10':
+    dependencies:
+      zod: 3.24.2
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
