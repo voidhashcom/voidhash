@@ -1,4 +1,6 @@
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { VoidhashBadRequestError } from "@voidhash/lib/constants";
+import { err, ok, Result } from "neverthrow";
 import { z } from "zod";
 
 export const createPaymentProviderKey = <
@@ -9,14 +11,19 @@ export const createPaymentProviderKey = <
 >(
 	paymentProviderId: TKey,
 	configuration: TConfiguration
-) => {
+): Result<string, VoidhashBadRequestError> => {
 	const paymentProvider = paymentProviders.find(
 		(p) => p.id === paymentProviderId
 	);
 	if (!paymentProvider) {
-		throw new Error("Payment provider not found");
+		return err({
+			code: "BAD_REQUEST",
+			message: "Payment provider not found",
+		});
 	}
-	return paymentProvider.products.keyProperties
-		.map((key) => configuration[key])
-		.join(":");
+	return ok(
+		paymentProvider.products.keyProperties
+			.map((key) => configuration[key])
+			.join(":")
+	);
 };

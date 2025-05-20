@@ -4,31 +4,31 @@ import { actionClient } from "@/lib/safe-action";
 import {
 	createOrganizationInputSchema,
 	createOrganization,
-} from "../services/organizations/create-organization";
+} from "../services/organizations/actions/create-organization";
 import {
 	deleteOrganizationInputSchema,
 	deleteOrganization,
-} from "../services/organizations/delete-organization";
+} from "../services/organizations/actions/delete-organization";
 import {
 	updateOrganizationInputSchema,
 	updateOrganization,
-} from "../services/organizations/update-organization";
+} from "../services/organizations/actions/update-organization";
 import {
 	createProject,
 	createProjectInputSchema,
-} from "../services/projects/create-project";
+} from "../services/projects/actions/create-project";
 import {
 	deleteProject,
 	deleteProjectInputSchema,
-} from "../services/projects/delete-project";
+} from "../services/projects/actions/delete-project";
 import {
 	updateProject,
 	updateProjectInputSchema,
-} from "../services/projects/update-project";
+} from "@/lib/services/projects/actions/update-project";
 import {
 	rotateSecretKey,
 	rotateSecretKeyInputSchema,
-} from "../services/api-keys/rotate-secret-key";
+} from "@/lib/services/api-keys/rotate-secret-key";
 import {
 	createSecretKey,
 	createSecretKeyInputSchema,
@@ -40,81 +40,81 @@ import {
 import {
 	switchEnvironment,
 	switchEnvironmentInputSchema,
-} from "../services/environments/switch-environment";
+} from "@/lib/services/environments/actions/switch-environment";
 import {
 	createProduct,
 	createProductInputSchema,
-} from "../services/products/create-product";
-import { savePaymentProviderConfigurationInputSchema } from "../services/payment-providers/save-payment-provider-configuration";
-import { savePaymentProviderConfiguration } from "../services/payment-providers/save-payment-provider-configuration";
+} from "@/lib/services/products/actions/create-product";
+import { savePaymentProviderConfigurationInputSchema } from "../services/payment-providers/actions/save-payment-provider-configuration";
+import { savePaymentProviderConfiguration } from "../services/payment-providers/actions/save-payment-provider-configuration";
 import {
 	createPaymentProviderProductInputSchema,
 	createPaymentProviderProduct,
-} from "../services/products/create-payment-provider-product";
+} from "../services/products/actions/create-payment-provider-product";
 import {
 	updatePaymentProviderProductInputSchema,
 	updatePaymentProviderProduct,
-} from "../services/products/update-payment-provider-product";
+} from "../services/products/actions/update-payment-provider-product";
 import {
 	deletePaymentProviderProductInputSchema,
 	deletePaymentProviderProduct,
-} from "../services/products/delete-payment-provider-product";
+} from "../services/products/actions/delete-payment-provider-product";
 import {
 	updateProduct,
 	updateProductInputSchema,
-} from "../services/products/update-product";
+} from "../services/products/actions/update-product";
 import {
 	deleteProductInputSchema,
 	deleteProduct,
-} from "../services/products/delete-product";
+} from "../services/products/actions/delete-product";
 import {
 	createCustomer,
 	createCustomerInputSchema,
-} from "../services/customers/create-customer";
+} from "../services/customers/actions/create-customer";
 import {
 	setActivePaymentProviderProductInputSchema,
 	setActivePaymentProviderProduct,
-} from "../services/products/set-active-payment-provider-product";
+} from "../services/products/actions/set-active-payment-provider-product";
 import {
 	deletePaywall,
 	deletePaywallInputSchema,
-} from "../services/paywalls/delete-paywall";
+} from "../services/paywalls/actions/delete-paywall";
 import {
 	createPaywall,
 	createPaywallInputSchema,
-} from "../services/paywalls/create-paywall";
+} from "../services/paywalls/actions/create-paywall";
 import {
 	deletePaywallProduct,
 	deletePaywallProductInputSchema,
-} from "../services/paywalls/delete-paywall-product";
+} from "../services/paywalls/actions/delete-paywall-product";
 import {
 	createPaywallProduct,
 	createPaywallProductInputSchema,
-} from "../services/paywalls/create-paywall-product";
+} from "../services/paywalls/actions/create-paywall-product";
 import {
 	deletePerk,
 	deletePerkInputSchema,
-} from "../services/perks/delete-perk";
+} from "../services/perks/actions/delete-perk";
 import {
 	createPerk,
 	createPerkInputSchema,
-} from "../services/perks/create-perk";
+} from "../services/perks/actions/create-perk";
 import {
 	createPaywallLocationInputSchema,
 	createPaywallLocation,
-} from "../services/paywall-locations/create-paywall-location";
+} from "../services/paywall-locations/actions/create-paywall-location";
 import {
 	deletePaywallLocationInputSchema,
 	deletePaywallLocation,
-} from "../services/paywall-locations/delete-paywall-location";
+} from "../services/paywall-locations/actions/delete-paywall-location";
 import {
 	createProductPerk,
 	createProductPerkInputSchema,
-} from "../services/products/create-product-perk";
+} from "../services/products/actions/create-product-perk";
 import {
 	deleteProductPerk,
 	deleteProductPerkInputSchema,
-} from "../services/products/delete-product-perk";
+} from "../services/products/actions/delete-product-perk";
 
 // Api keys
 export const createSecretKeyAction = actionClient

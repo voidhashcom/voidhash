@@ -9,51 +9,110 @@ import {
 	getPaywallLocationByIdQuery,
 	getPaywallLocationsQuery,
 } from "./raw-queries";
+import {
+	VoidhashForbiddenError,
+	VoidhashInternalServerError,
+	VoidhashNotFoundError,
+	VoidhashUnauthorizedError,
+} from "@voidhash/lib/constants";
+import { err, ok, Result } from "neverthrow";
+import { PaywallLocation } from "@voidhash/db";
 
 export const getPaywallLocationsInputSchema = z.object({
 	projectId: z.string(),
 });
 
+type GetPaywallLocationsError =
+	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashInternalServerError;
+
 export const getPaywallLocations = cache(
 	createServiceFunction()
 		.input(getPaywallLocationsInputSchema)
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
-				return [];
-			}
+		.function(
+			async ({
+				input,
+				ctx,
+			}): Promise<Result<PaywallLocation[], GetPaywallLocationsError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						input.projectId,
+						"project:all"
+					)
+				) {
+					return err({
+						code: "FORBIDDEN",
+						message: "You are not authorized to access this project",
+					});
+				}
 
-			const paywallLocations = await getPaywallLocationsQuery(
-				authenticatedContext,
-				input.projectId
-			);
-			return paywallLocations;
-		}).invoke
+				const paywallLocations = await getPaywallLocationsQuery(
+					authenticatedContext.value,
+					input.projectId
+				);
+				return paywallLocations;
+			}
+		).invoke
 );
+
+type GetPaywallLocationByIdError =
+	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashNotFoundError
+	| VoidhashInternalServerError;
 
 export const getPaywallLocationById = cache(
 	createServiceFunction()
 		.input(z.object({ id: z.string() }))
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const paywallLocationResult = await getPaywallLocationByIdQuery(
-				authenticatedContext,
-				input.id
-			);
-			if (!paywallLocationResult) {
-				return null;
-			}
+		.function(
+			async ({
+				input,
+				ctx,
+			}): Promise<
+				Result<PaywallLocation | null, GetPaywallLocationByIdError>
+			> => {
+				const authenticatedContext = await authenticateContext(ctx);
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
+				const paywallLocationResult = await getPaywallLocationByIdQuery(
+					authenticatedContext.value,
+					input.id
+				);
+				if (paywallLocationResult.isErr()) {
+					return err(paywallLocationResult.error);
+				}
+				if (!paywallLocationResult.value) {
+					return err({
+						code: "NOT_FOUND",
+						message: "Paywall location not found",
+						resource: "paywall_location",
+						payload: {
+							id: input.id,
+						},
+					});
+				}
 
-			if (
-				!hasProjectPermission(
-					authenticatedContext,
-					paywallLocationResult.projectId,
-					""
-				)
-			) {
-				return null;
-			}
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						paywallLocationResult.value.projectId,
+						"project:all"
+					)
+				) {
+					return err({
+						code: "FORBIDDEN",
+						message: "You are not authorized to access this project",
+					});
+				}
 
-			return paywallLocationResult;
-		}).invoke
+				return ok(paywallLocationResult.value);
+			}
+		).invoke
 );
