@@ -12,6 +12,18 @@ import {
 } from "./raw-queries";
 import { cache } from "react";
 import { getOrganizationBySlug } from "../organizations/queries";
+import {
+	VoidhashUnauthorizedError,
+	VoidhashInternalServerError,
+	VoidhashBadRequestError,
+	VoidhashForbiddenError,
+} from "@voidhash/lib/constants";
+import { err, ok, Result } from "neverthrow";
+import { Project } from "@voidhash/db";
+
+type GetProjectBySlugError =
+	| VoidhashUnauthorizedError
+	| VoidhashInternalServerError;
 
 export const getProjectBySlug = cache(
 	createServiceFunction()
@@ -21,34 +33,59 @@ export const getProjectBySlug = cache(
 				slug: z.string(),
 			})
 		)
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const project = await ctx.cache.cacheFn(
-				async (organizationId: string, projectSlug: string) => {
-					return getProjectBySlugQuery(
-						authenticatedContext,
-						organizationId,
-						projectSlug
-					);
-				},
-				["project", input.organizationId, input.slug],
-				{
-					tags: [`project_${input.organizationId}_slug:${input.slug}`],
-					revalidate: 3600,
+		.function(
+			async ({
+				input,
+				ctx,
+			}): Promise<Result<Project | null, GetProjectBySlugError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
+
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
 				}
-			)(input.organizationId, input.slug);
 
-			if (!project) {
-				return null;
+				const project = await ctx.cache.cacheFn(
+					async (organizationId: string, projectSlug: string) => {
+						return getProjectBySlugQuery(
+							authenticatedContext.value,
+							organizationId,
+							projectSlug
+						);
+					},
+					["project", input.organizationId, input.slug],
+					{
+						tags: [`project_${input.organizationId}_slug:${input.slug}`],
+						revalidate: 3600,
+					}
+				)(input.organizationId, input.slug);
+
+				if (project.isErr()) {
+					return err(project.error);
+				}
+
+				if (!project.value) {
+					return ok(null);
+				}
+
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						project.value.id,
+						"project:all"
+					)
+				) {
+					return ok(null);
+				}
+
+				return ok(project.value);
 			}
-
-			if (!hasProjectPermission(authenticatedContext, project.id, "")) {
-				return null;
-			}
-
-			return project;
-		}).invoke
+		).invoke
 );
+
+type GetProjectBySlugAndOrganizationSlugError =
+	| VoidhashUnauthorizedError
+	| VoidhashInternalServerError
+	| VoidhashBadRequestError;
 
 export const getProjectBySlugAndOrganizationSlug = cache(
 	createServiceFunction()
@@ -58,38 +95,68 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 				projectSlug: z.string(),
 			})
 		)
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const organization = await getOrganizationBySlug({
-				ctx: authenticatedContext,
-				input: {
-					slug: input.organizationSlug,
-				},
-			});
+		.function(
+			async ({
+				input,
+				ctx,
+			}): Promise<
+				Result<Project | null, GetProjectBySlugAndOrganizationSlugError>
+			> => {
+				const authenticatedContext = await authenticateContext(ctx);
 
-			if (!organization) {
-				return null;
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
+
+				const organization = await getOrganizationBySlug({
+					ctx: authenticatedContext.value,
+					input: {
+						slug: input.organizationSlug,
+					},
+				});
+
+				if (organization.isErr()) {
+					return err(organization.error);
+				}
+
+				if (!organization.value) {
+					return ok(null);
+				}
+
+				const project = await getProjectBySlug({
+					ctx: authenticatedContext.value,
+					input: {
+						organizationId: organization.value.id,
+						slug: input.projectSlug,
+					},
+				});
+
+				if (project.isErr()) {
+					return err(project.error);
+				}
+
+				if (!project.value) {
+					return ok(null);
+				}
+
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						project.value.id,
+						"project:all"
+					)
+				) {
+					return ok(null);
+				}
+
+				return ok(project.value);
 			}
-
-			const project = await getProjectBySlug({
-				ctx: authenticatedContext,
-				input: {
-					organizationId: organization.id,
-					slug: input.projectSlug,
-				},
-			});
-
-			if (!project) {
-				return null;
-			}
-
-			if (!hasProjectPermission(authenticatedContext, project.id, "")) {
-				return null;
-			}
-
-			return project;
-		}).invoke
+		).invoke
 );
+
+type GetProjectByIdError =
+	| VoidhashUnauthorizedError
+	| VoidhashInternalServerError;
 
 export const getProjectById = cache(
 	createServiceFunction()
@@ -98,30 +165,56 @@ export const getProjectById = cache(
 				id: z.string(),
 			})
 		)
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const project = await ctx.cache.cacheFn(
-				async (id: string) => {
-					return getProjectByIdQuery(authenticatedContext, id);
-				},
-				["project", input.id],
-				{
-					tags: [`project_${input.id}`],
-					revalidate: 3600,
+		.function(
+			async ({
+				input,
+				ctx,
+			}): Promise<Result<Project | null, GetProjectByIdError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
+
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
 				}
-			)(input.id);
 
-			if (!project) {
-				return null;
+				const project = await ctx.cache.cacheFn(
+					async (id: string) => {
+						return getProjectByIdQuery(authenticatedContext.value, id);
+					},
+					["project", input.id],
+					{
+						tags: [`project_${input.id}`],
+						revalidate: 3600,
+					}
+				)(input.id);
+
+				if (project.isErr()) {
+					return err(project.error);
+				}
+
+				if (!project.value) {
+					return ok(null);
+				}
+
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						project.value.id,
+						"project:all"
+					)
+				) {
+					return ok(null);
+				}
+
+				return ok(project.value);
 			}
-
-			if (!hasProjectPermission(authenticatedContext, project.id, "")) {
-				return null;
-			}
-
-			return project;
-		}).invoke
+		).invoke
 );
+
+type GetProjectsByOrganizationSlugError =
+	| VoidhashUnauthorizedError
+	| VoidhashInternalServerError
+	| VoidhashForbiddenError
+	| VoidhashBadRequestError;
 
 export const getProjectsByOrganizationSlug = cache(
 	createServiceFunction()
@@ -130,34 +223,59 @@ export const getProjectsByOrganizationSlug = cache(
 				slug: z.string(),
 			})
 		)
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const organization = await getOrganizationBySlug({
-				ctx: authenticatedContext,
-				input: {
-					slug: input.slug,
-				},
-			});
+		.function(
+			async ({
+				input,
+				ctx,
+			}): Promise<Result<Project[], GetProjectsByOrganizationSlugError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
 
-			if (!organization) {
-				return [];
-			}
-
-			if (
-				!hasOrganizationPermission(authenticatedContext, organization.id, "")
-			) {
-				return [];
-			}
-
-			return await ctx.cache.cacheFn(
-				async (orgId: string) => {
-					return getProjectsByIdQuery(authenticatedContext, orgId);
-				},
-				["projects", organization.id],
-				{
-					tags: [`projects_${organization.id}`],
-					revalidate: 3600,
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
 				}
-			)(organization.id);
-		}).invoke
+
+				const organization = await getOrganizationBySlug({
+					ctx: authenticatedContext.value,
+					input: {
+						slug: input.slug,
+					},
+				});
+
+				if (organization.isErr()) {
+					return err(organization.error);
+				}
+
+				if (!organization.value) {
+					return ok([]);
+				}
+
+				if (
+					!hasOrganizationPermission(
+						authenticatedContext.value,
+						organization.value.id,
+						"organization:all"
+					)
+				) {
+					return err({
+						code: "FORBIDDEN",
+						message: "You are not authorized to access this organization",
+						resource: "organization",
+						payload: {
+							id: organization.value.id,
+						},
+					});
+				}
+
+				return await ctx.cache.cacheFn(
+					async (orgId: string) => {
+						return getProjectsByIdQuery(authenticatedContext.value, orgId);
+					},
+					["projects", organization.value.id],
+					{
+						tags: [`projects_${organization.value.id}`],
+						revalidate: 3600,
+					}
+				)(organization.value.id);
+			}
+		).invoke
 );

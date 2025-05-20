@@ -135,5 +135,6 @@ export async function handleSessionCompleted(
 		serviceContext.logger.error(
 			`Stripe webhook failed. Error: ${e instanceof Error ? e.message : "Unknown error"}`
 		);
+		// TODO: Add a way to show this to the user
 	}
 }

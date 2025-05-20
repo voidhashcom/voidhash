@@ -166,6 +166,3 @@ WWDC videos:
 - [Support customers and handle refunds](https://developer.apple.com/videos/play/wwdc2021/10175/)
 - [What's new with in-app purchase](https://developer.apple.com/videos/play/wwdc2022/10007/)
 - [What's new in App Store server APIs](https://developer.apple.com/videos/play/wwdc2023/10141/)
-
-## License
-MIT

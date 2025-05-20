@@ -7,77 +7,136 @@ import { z } from "zod";
 import { getApiKeyByIdQuery, getApiKeysQuery } from "./raw-queries";
 import { Environments } from "@/lib/services/environments/types";
 import { cache } from "react";
+import { err, ok, Result } from "neverthrow";
+import {
+	VoidhashInternalServerError,
+	VoidhashUnauthorizedError,
+} from "@voidhash/lib/constants";
+import { ApiKey } from "@voidhash/db";
 
 export const getApiKeyByIdInputSchema = z.object({
 	id: z.string(),
 });
+
+type GetApiKeyByIdError =
+	| VoidhashInternalServerError
+	| VoidhashUnauthorizedError;
 export const getApiKeyById = cache(
 	createServiceFunction()
 		.input(getApiKeyByIdInputSchema)
-		.function(async ({ ctx, input }) => {
-			const authenticatedContextPromise = authenticateContext(ctx);
+		.function(
+			async ({
+				ctx,
+				input,
+			}): Promise<Result<ApiKey | null, GetApiKeyByIdError>> => {
+				const authenticatedContextPromise = authenticateContext(ctx);
 
-			const apiKeyPromise = ctx.cache.cacheFn(
-				async (keyId: string) => {
-					return getApiKeyByIdQuery(authenticatedContext, keyId);
-				},
-				["api-key", input.id],
-				{
-					tags: [`api-key_${input.id}`],
-					revalidate: 3600,
+				const apiKeyPromise = ctx.cache.cacheFn(
+					async (keyId: string) => {
+						const apiKey = await getApiKeyByIdQuery(ctx, keyId);
+						if (apiKey.isErr()) {
+							return err(apiKey.error);
+						}
+						return ok(apiKey.value);
+					},
+					["api-key", input.id],
+					{
+						tags: [`api-key_${input.id}`],
+						revalidate: 3600,
+					}
+				)(input.id);
+
+				const [authenticatedContext, apiKey] = await Promise.all([
+					authenticatedContextPromise,
+					apiKeyPromise,
+				]);
+
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
 				}
-			)(input.id);
 
-			const [authenticatedContext, apiKey] = await Promise.all([
-				authenticatedContextPromise,
-				apiKeyPromise,
-			]);
+				if (apiKey.isErr()) {
+					return err(apiKey.error);
+				}
 
-			if (!apiKey) {
-				return null;
+				if (!apiKey.value) {
+					return ok(null);
+				}
+
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						apiKey.value.projectId,
+						"project:all"
+					)
+				) {
+					return ok(null);
+				}
+
+				return ok(apiKey.value);
 			}
-
-			if (!hasProjectPermission(authenticatedContext, apiKey?.projectId, "")) {
-				return null;
-			}
-
-			return apiKey;
-		}).invoke
+		).invoke
 );
 
 export const getApiKeysInputSchema = z.object({
 	projectId: z.string(),
 	environment: z.nativeEnum(Environments).optional(),
 });
+
+type GetApiKeysError = VoidhashInternalServerError | VoidhashUnauthorizedError;
+
 export const getApiKeys = cache(
 	createServiceFunction()
 		.input(getApiKeysInputSchema)
-		.function(async ({ ctx, input }) => {
-			const authenticatedContext = await authenticateContext(ctx);
+		.function(
+			async ({ ctx, input }): Promise<Result<ApiKey[], GetApiKeysError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
 
-			if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
-				return [];
-			}
-
-			const apiKeys = await ctx.cache.cacheFn(
-				async (projectId: string) => {
-					return getApiKeysQuery(authenticatedContext, projectId);
-				},
-				["api-keys", input.projectId],
-				{
-					tags: [`api-keys_${input.projectId}`],
-					revalidate: 3600,
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
 				}
-			)(input.projectId);
 
-			if (input.environment) {
-				const availableApiKeys = apiKeys.filter(
-					(key) => key.environment === input.environment
-				);
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						input.projectId,
+						"project:all"
+					)
+				) {
+					return ok([]);
+				}
 
-				return availableApiKeys;
+				const apiKeys = await ctx.cache.cacheFn(
+					async (projectId: string) => {
+						const apiKeys = await getApiKeysQuery(
+							authenticatedContext.value,
+							projectId
+						);
+						if (apiKeys.isErr()) {
+							return err(apiKeys.error);
+						}
+						return ok(apiKeys.value);
+					},
+					["api-keys", input.projectId],
+					{
+						tags: [`api-keys_${input.projectId}`],
+						revalidate: 3600,
+					}
+				)(input.projectId);
+
+				if (apiKeys.isErr()) {
+					return err(apiKeys.error);
+				}
+
+				if (input.environment) {
+					const availableApiKeys = apiKeys.value.filter(
+						(key) => key.environment === input.environment
+					);
+
+					return ok(availableApiKeys);
+				}
+
+				return ok(apiKeys.value);
 			}
-
-			return apiKeys;
-		}).invoke
+		).invoke
 );

@@ -10,81 +10,153 @@ import {
 } from "./raw-queries";
 import { cache } from "react";
 import { auth } from "@voidhash/auth";
+import { err, ok, Result, ResultAsync } from "neverthrow";
+import {
+	fromUnknownThrow,
+	VoidhashInternalServerError,
+	VoidhashUnauthorizedError,
+} from "@voidhash/lib/constants";
+import { Organization } from "@voidhash/db";
 
 export const getOrganizationBySlugInputSchema = z.object({
 	slug: z.string(),
 });
+
+type GetOrganizationBySlugError =
+	| VoidhashUnauthorizedError
+	| VoidhashInternalServerError;
+
 export const getOrganizationBySlug = cache(
 	createServiceFunction()
 		.input(getOrganizationBySlugInputSchema)
-		.function(async ({ ctx, input }) => {
-			const authenticatedContext = await authenticateContext(ctx);
+		.function(
+			async ({
+				ctx,
+				input,
+			}): Promise<Result<Organization | null, GetOrganizationBySlugError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
 
-			const organization = await ctx.cache.cacheFn(
-				async (s: string) => {
-					return getOrganizationBySlugQuery(authenticatedContext, s);
-				},
-				["organization", input.slug],
-				{
-					tags: [`organization_slug:${input.slug}`],
-					revalidate: 3600,
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
 				}
-			)(input.slug);
 
-			if (!organization) {
-				return null;
+				const organization = await ctx.cache.cacheFn(
+					async (s: string) => {
+						return getOrganizationBySlugQuery(authenticatedContext.value, s);
+					},
+					["organization", input.slug],
+					{
+						tags: [`organization_slug:${input.slug}`],
+						revalidate: 3600,
+					}
+				)(input.slug);
+
+				if (organization.isErr()) {
+					return err(organization.error);
+				}
+
+				if (!organization.value) {
+					return ok(null);
+				}
+
+				if (
+					!hasOrganizationPermission(
+						authenticatedContext.value,
+						organization.value.id,
+						"organization:all"
+					)
+				) {
+					return ok(null);
+				}
+
+				return ok(organization.value);
 			}
-
-			if (
-				!hasOrganizationPermission(authenticatedContext, organization.id, "")
-			) {
-				return null;
-			}
-
-			return organization;
-		}).invoke
+		).invoke
 );
 
 export const getOrganizationByIdInputSchema = z.object({
 	id: z.string(),
 });
+
+type GetOrganizationByIdError =
+	| VoidhashUnauthorizedError
+	| VoidhashInternalServerError;
+
 export const getOrganizationById = cache(
 	createServiceFunction()
 		.input(getOrganizationByIdInputSchema)
-		.function(async ({ ctx, input }) => {
-			const authenticatedContext = await authenticateContext(ctx);
+		.function(
+			async ({
+				ctx,
+				input,
+			}): Promise<Result<Organization | null, GetOrganizationByIdError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
 
-			const organization = await ctx.cache.cacheFn(
-				async (id: string) => {
-					return getOrganizationByIdQuery(authenticatedContext, id);
-				},
-				["organization", input.id],
-				{
-					tags: [`organization_${input.id}`],
-					revalidate: 3600,
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
 				}
-			)(input.id);
 
-			if (!organization) {
-				return null;
+				const organization = await ctx.cache.cacheFn(
+					async (id: string) => {
+						return getOrganizationByIdQuery(authenticatedContext.value, id);
+					},
+					["organization", input.id],
+					{
+						tags: [`organization_${input.id}`],
+						revalidate: 3600,
+					}
+				)(input.id);
+
+				if (organization.isErr()) {
+					return err(organization.error);
+				}
+
+				if (!organization.value) {
+					return ok(null);
+				}
+
+				if (
+					!hasOrganizationPermission(
+						authenticatedContext.value,
+						organization.value.id,
+						"organization:all"
+					)
+				) {
+					return ok(null);
+				}
+
+				return ok(organization.value);
 			}
-
-			if (
-				!hasOrganizationPermission(authenticatedContext, organization.id, "")
-			) {
-				return null;
-			}
-
-			return organization;
-		}).invoke
+		).invoke
 );
 
-export const getUsersOrganizations = cache(
-	createServiceFunction().function(async ({ ctx }) => {
-		const organizations = await auth.api.listOrganizations({
-			headers: ctx.headers,
-		});
+type GetUsersOrganizationsError =
+	| VoidhashUnauthorizedError
+	| VoidhashInternalServerError;
 
-		return organizations;
-	}).invoke
+export const getUsersOrganizations = cache(
+	createServiceFunction().function(
+		async ({
+			ctx,
+		}): Promise<Result<Organization[], GetUsersOrganizationsError>> => {
+			const authenticatedContext = await authenticateContext(ctx);
+
+			if (authenticatedContext.isErr()) {
+				return err(authenticatedContext.error);
+			}
+
+			const organizations = await ResultAsync.fromPromise(
+				auth.api.listOrganizations({
+					headers: ctx.headers,
+				}),
+				(e) => fromUnknownThrow(e)
+			);
+
+			if (organizations.isErr()) {
+				return err(organizations.error);
+			}
+
+			return ok(organizations.value);
+		}
+	).invoke
 );

@@ -1,12 +1,19 @@
 import { generateId } from "@/lib/id/generate";
 import { ServiceContext } from "@/lib/service-function";
 import { purchases, customersUnlockedPerks, db } from "@voidhash/db";
-import { PRODUCT_TYPES, VoidhashError } from "@voidhash/lib";
+import {
+	fromUnknownThrow,
+	PRODUCT_TYPES,
+	VoidhashError,
+	VoidhashInternalServerError,
+	VoidhashNotFoundError,
+} from "@voidhash/lib";
 import { getCustomerByIdQuery } from "../../customers/raw-queries";
 import {
 	getProductPerksByProductIdQuery,
 	getProviderProductByIdQuery,
 } from "../../products/raw-queries";
+import { err, ok, Result } from "neverthrow";
 
 export type PurchaseEvent = {
 	type: (typeof PRODUCT_TYPES)[number];
@@ -22,36 +29,51 @@ export type PurchaseEvent = {
 	expiresAt: Date;
 };
 
+type HandleProductPurchaseError =
+	| VoidhashInternalServerError
+	| VoidhashNotFoundError;
+
 export async function handleProductPurchase(
 	ctx: ServiceContext,
 	event: PurchaseEvent
-) {
+): Promise<Result<{ id: string }, HandleProductPurchaseError>> {
 	// TODO: Support other product types
 	if (event.type !== "subscription") {
-		throw new VoidhashError({
+		return err({
 			code: "INTERNAL_SERVER_ERROR",
 			message: "Only subscription products are supported for now",
+			originalError: new VoidhashError({
+				code: "INTERNAL_SERVER_ERROR",
+				message: "Only subscription products are supported for now",
+			}),
 		});
 	}
 
 	const customer = await getCustomerByIdQuery(ctx, event.customerId);
 	if (!customer) {
-		throw new VoidhashError({
+		throw {
 			code: "NOT_FOUND",
 			message: "Customer not found",
-		});
+		};
 	}
 
 	const providerProduct = await getProviderProductByIdQuery(
 		ctx,
 		event.providerProductId
 	);
-	console.log("event", event);
-	console.log("providerProduct", providerProduct);
-	if (!providerProduct) {
-		throw new VoidhashError({
+
+	if (providerProduct.isErr()) {
+		return err(providerProduct.error);
+	}
+
+	if (!providerProduct.value) {
+		return err({
 			code: "NOT_FOUND",
 			message: "Provider product not found",
+			resource: "providerProduct",
+			payload: {
+				id: event.providerProductId,
+			},
 		});
 	}
 
@@ -69,7 +91,11 @@ export async function handleProductPurchase(
 		environment: event.environment,
 		expiresAt: event.expiresAt,
 	};
-	await (ctx.tx ?? ctx.db).insert(purchases).values(customerProduct);
+	try {
+		await (ctx.tx ?? ctx.db).insert(purchases).values(customerProduct);
+	} catch (error) {
+		return err(fromUnknownThrow(error));
+	}
 
 	// Add grants
 	const hasAccessToPerks =
@@ -77,9 +103,14 @@ export async function handleProductPurchase(
 	if (hasAccessToPerks) {
 		const productPerks = await getProductPerksByProductIdQuery(
 			ctx,
-			providerProduct.productId
+			providerProduct.value.productId
 		);
-		for (const productPerk of productPerks) {
+
+		if (productPerks.isErr()) {
+			return err(productPerks.error);
+		}
+
+		for (const productPerk of productPerks.value) {
 			await db.insert(customersUnlockedPerks).values({
 				id: generateId("customerUnlockedPerk"),
 				customerId: event.customerId,
@@ -89,5 +120,7 @@ export async function handleProductPurchase(
 		}
 	}
 
-	return customerProduct;
+	return ok({
+		id: customerProduct.id,
+	});
 }
