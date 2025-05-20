@@ -10,6 +10,13 @@ export type InsertApiKey = InferInsertModel<typeof schema.apiKeys>;
 export type Customer = InferSelectModel<typeof schema.customers>;
 export type InsertCustomer = InferInsertModel<typeof schema.customers>;
 
+export type CustomerUnlockedPerk = InferSelectModel<
+	typeof schema.customersUnlockedPerks
+>;
+export type InsertCustomerUnlockedPerk = InferInsertModel<
+	typeof schema.customersUnlockedPerks
+>;
+
 export type ProjectPaymentProviderConfiguration = InferSelectModel<
 	typeof schema.projectPaymentProviderConfigurations
 >;
@@ -65,3 +72,11 @@ export type InsertPerk = InferInsertModel<typeof schema.perks>;
 
 export type ProductPerk = InferSelectModel<typeof schema.productPerks>;
 export type InsertProductPerk = InferInsertModel<typeof schema.productPerks>;
+
+export type PaywallLocation = InferSelectModel<typeof schema.paywallLocations>;
+export type InsertPaywallLocation = InferInsertModel<
+	typeof schema.paywallLocations
+>;
+
+export type Purchase = InferSelectModel<typeof schema.purchases>;
+export type InsertPurchase = InferInsertModel<typeof schema.purchases>;
