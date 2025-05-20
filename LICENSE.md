@@ -1,3 +1,5 @@
+Copyright (c) 2025-present Voidhash s.r.o.
+
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 
