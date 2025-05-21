@@ -6,6 +6,7 @@ import { App } from "../../hono/app";
 import { authenticateContext } from "@/lib/service-function";
 import { getCustomers } from "@/lib/services/customers/queries";
 import { z } from "zod";
+import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "List customers",
@@ -30,21 +31,28 @@ export const registerCustomersListCustomers = (app: App) =>
 	app.get("/v1/customers", route, async (c) => {
 		const context = c.get("services");
 		const authenticatedContext = await authenticateContext(context);
-		const projectId = authenticatedContext.session?.projects[0]?.id;
+		if (authenticatedContext.isErr()) {
+			throw toVoidhashHTTPError(authenticatedContext.error);
+		}
+		const projectId = authenticatedContext.value.session?.projects[0]?.id;
 
 		if (!projectId) {
 			return c.json({ error: "Project not found" }, 404);
 		}
 
 		const customers = await getCustomers({
-			ctx: authenticatedContext,
+			ctx: authenticatedContext.value,
 			input: {
 				projectId,
 			},
 		});
 
+		if (customers.isErr()) {
+			throw toVoidhashHTTPError(customers.error);
+		}
+
 		return c.json<z.infer<typeof customerResponseSchema>[]>(
-			customers.map((customer) => ({
+			customers.value.map((customer) => ({
 				customerId: customer.id,
 				name: customer.name ?? null,
 				email: customer.email,

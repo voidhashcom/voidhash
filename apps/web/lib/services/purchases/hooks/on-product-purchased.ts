@@ -4,7 +4,7 @@ import { purchases, customersUnlockedPerks, db } from "@voidhash/db";
 import {
 	fromUnknownThrow,
 	PRODUCT_TYPES,
-	VoidhashError,
+	VoidhashHTTPError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
 } from "@voidhash/lib";
@@ -42,7 +42,7 @@ export async function handleProductPurchase(
 		return err({
 			code: "INTERNAL_SERVER_ERROR",
 			message: "Only subscription products are supported for now",
-			originalError: new VoidhashError({
+			originalError: new VoidhashHTTPError({
 				code: "INTERNAL_SERVER_ERROR",
 				message: "Only subscription products are supported for now",
 			}),
@@ -50,11 +50,8 @@ export async function handleProductPurchase(
 	}
 
 	const customer = await getCustomerByIdQuery(ctx, event.customerId);
-	if (!customer) {
-		throw {
-			code: "NOT_FOUND",
-			message: "Customer not found",
-		};
+	if (customer.isErr()) {
+		return err(customer.error);
 	}
 
 	const providerProduct = await getProviderProductByIdQuery(
@@ -64,17 +61,6 @@ export async function handleProductPurchase(
 
 	if (providerProduct.isErr()) {
 		return err(providerProduct.error);
-	}
-
-	if (!providerProduct.value) {
-		return err({
-			code: "NOT_FOUND",
-			message: "Provider product not found",
-			resource: "providerProduct",
-			payload: {
-				id: event.providerProductId,
-			},
-		});
 	}
 
 	const customerProduct = {

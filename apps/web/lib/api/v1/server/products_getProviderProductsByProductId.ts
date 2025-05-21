@@ -9,6 +9,7 @@ import { z } from "zod";
 import { getProviderProductsByProductId } from "@/lib/services/products/queries";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
+import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Get all provider products for a product",
@@ -37,17 +38,24 @@ export const registerProductsGetProviderProductsByProductId = (app: App) =>
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
+			if (authenticatedContext.isErr()) {
+				throw toVoidhashHTTPError(authenticatedContext.error);
+			}
 			const productId = c.req.param("productId");
 
 			const providerProducts = await getProviderProductsByProductId({
-				ctx: authenticatedContext,
+				ctx: authenticatedContext.value,
 				input: {
 					productId,
 				},
 			});
 
+			if (providerProducts.isErr()) {
+				throw toVoidhashHTTPError(providerProducts.error);
+			}
+
 			return c.json<z.infer<typeof providerProductResponseSchema>[]>(
-				providerProducts.map((providerProduct) => ({
+				providerProducts.value.map((providerProduct) => ({
 					providerProductKey: providerProduct.providerProductKey,
 					providerConfiguration: {
 						providerId: providerProduct.providerId,

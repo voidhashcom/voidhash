@@ -1,4 +1,4 @@
-import { z, ZodError } from "zod";
+import { z } from "zod";
 
 const ErrorCode = z.enum([
 	"BAD_REQUEST",
@@ -12,7 +12,7 @@ const ErrorCode = z.enum([
 	"UNAUTHORIZED",
 ]);
 
-export class VoidhashError extends Error {
+export class VoidhashHTTPError extends Error {
 	public code: z.infer<typeof ErrorCode>;
 	public originalError: Error | null;
 
@@ -128,4 +128,26 @@ export function fromUnknownThrow(error: unknown): VoidhashInternalServerError {
 		message: "Unknown error",
 		originalError: new Error("Unknown error"),
 	};
+}
+
+export function toVoidhashHTTPError(
+	error: AnyVoidhashError
+): VoidhashHTTPError {
+	let originalError = null;
+	switch (error.code) {
+		case "BAD_REQUEST":
+			originalError = error.validationErrors;
+			break;
+		case "INTERNAL_SERVER_ERROR":
+			originalError = error.originalError;
+			break;
+		default:
+			originalError = null;
+	}
+
+	return new VoidhashHTTPError({
+		code: error.code,
+		message: error.message,
+		originalError: originalError,
+	});
 }

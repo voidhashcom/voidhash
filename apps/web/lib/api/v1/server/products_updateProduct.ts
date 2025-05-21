@@ -10,6 +10,8 @@ import { z } from "zod";
 import { updateProduct } from "@/lib/services/products/actions/update-product";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
+import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { getProductById } from "@/lib/services/products/queries";
 
 const route = describeRoute({
 	description: "Update a product",
@@ -37,20 +39,36 @@ export const registerProductsUpdateProduct = (app: App) =>
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
+			if (authenticatedContext.isErr()) {
+				throw toVoidhashHTTPError(authenticatedContext.error);
+			}
 			const productId = c.req.param("productId");
 			const name = c.req.valid("json").name;
 
 			const updatedProduct = await updateProduct.invoke({
-				ctx: authenticatedContext,
+				ctx: authenticatedContext.value,
 				input: {
 					productId: productId,
 					name,
 				},
 			});
+			if (updatedProduct.isErr()) {
+				throw toVoidhashHTTPError(updatedProduct.error);
+			}
+
+			const product = await getProductById({
+				ctx: authenticatedContext.value,
+				input: {
+					id: productId,
+				},
+			});
+			if (product.isErr()) {
+				throw toVoidhashHTTPError(product.error);
+			}
 
 			return c.json<z.infer<typeof productResponseSchema>>({
-				productId: updatedProduct.id,
-				name: updatedProduct.name,
+				productId: product.value.id,
+				name: product.value.name,
 			});
 		}
 	);

@@ -16,7 +16,7 @@ import {
 } from "@voidhash/lib";
 import { getExistingPaymentProviderConfigurationByIdQuery } from "../raw-queries";
 import { generateId } from "@/lib/id/generate";
-import { err, ok, Result, ResultAsync } from "neverthrow";
+import { err, ok, Result } from "neverthrow";
 
 export const savePaymentProviderConfigurationInputSchema = z.object({
 	providerId: z.enum(

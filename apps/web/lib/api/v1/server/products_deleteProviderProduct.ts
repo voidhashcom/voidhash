@@ -6,6 +6,7 @@ import { deleteProviderProductParamsSchema } from "./schema";
 import { deletePaymentProviderProduct } from "@/lib/services/products/actions/delete-payment-provider-product";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
+import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Delete a provider product",
@@ -29,18 +30,25 @@ export const registerProductsDeleteProviderProduct = (app: App) =>
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
+			if (authenticatedContext.isErr()) {
+				throw toVoidhashHTTPError(authenticatedContext.error);
+			}
 			const productId = c.req.param("productId");
 			const providerId = c.req.param("providerId");
 			const providerProductKey = c.req.param("providerProductKey");
 
-			await deletePaymentProviderProduct.invoke({
-				ctx: authenticatedContext,
+			const deletedProviderProduct = await deletePaymentProviderProduct.invoke({
+				ctx: authenticatedContext.value,
 				input: {
 					productId,
 					providerId,
 					providerProductKey,
 				},
 			});
+
+			if (deletedProviderProduct.isErr()) {
+				throw toVoidhashHTTPError(deletedProviderProduct.error);
+			}
 
 			return c.json({ message: "Provider product deleted" });
 		}

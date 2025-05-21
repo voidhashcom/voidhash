@@ -3,7 +3,6 @@ import {
 	createSlug,
 	createShortId,
 	SLUG_BLACKLIST,
-	VoidhashError,
 	VoidhashUnauthorizedError,
 	VoidhashInternalServerError,
 	fromUnknownThrow,
@@ -15,7 +14,6 @@ import {
 	createServiceFunction,
 } from "@/lib/service-function";
 import { createVoidhashCustomerTask } from "jobs/create-voidhash-customer-task";
-import { Organization } from "@voidhash/db";
 import { err, ok, Result, ResultAsync } from "neverthrow";
 
 export const createOrganizationInputSchema = z.object({

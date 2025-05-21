@@ -1,6 +1,6 @@
 // Credited to https://github.com/unkeyed/unkey
 import { parseZodErrorMessage } from "@/lib/zod-error";
-import { VoidhashError } from "@voidhash/lib/constants";
+import { VoidhashHTTPError } from "@voidhash/lib/constants";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode, StatusCode } from "hono/utils/http-status";
@@ -172,7 +172,7 @@ export function handleError(err: Error, c: Context<HonoEnv>): Response {
 	/**
 	 * We can handle this very well, as it is something we threw ourselves
 	 */
-	if (err instanceof VoidhashError) {
+	if (err instanceof VoidhashHTTPError) {
 		const status = codeToStatus(err.code);
 		if (status >= 500) {
 			logger.error("returning 5XX", {

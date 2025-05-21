@@ -4,7 +4,6 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import {
-	VoidhashError,
 	VoidhashUnauthorizedError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -13,8 +12,8 @@ import {
 import { z } from "zod";
 import { apiKeys } from "@voidhash/db";
 import { eq } from "drizzle-orm";
-import { getApiKeyById } from "./queries";
 import { err, ok, Result } from "neverthrow";
+import { getApiKeyByIdQuery } from "./raw-queries";
 
 export const deleteSecretKeyInputSchema = z.object({
 	secretKeyId: z.string(),
@@ -29,29 +28,20 @@ type DeleteSecretKeyError =
 export const deleteSecretKey = createServiceFunction()
 	.input(deleteSecretKeyInputSchema)
 	.function(
-		async ({ input, ctx }): Promise<Result<unknown, DeleteSecretKeyError>> => {
+		async ({ input, ctx }): Promise<Result<void, DeleteSecretKeyError>> => {
 			const authenticatedContext = await authenticateContext(ctx);
 
 			if (authenticatedContext.isErr()) {
 				return err(authenticatedContext.error);
 			}
 
-			const existingKey = await getApiKeyById({
-				ctx: authenticatedContext.value,
-				input: { id: input.secretKeyId },
-			});
+			const existingKey = await getApiKeyByIdQuery(
+				authenticatedContext.value,
+				input.secretKeyId
+			);
 
 			if (existingKey.isErr()) {
 				return err(existingKey.error);
-			}
-
-			if (!existingKey.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "API key not found",
-					resource: "api-key",
-					payload: { id: input.secretKeyId },
-				});
 			}
 
 			if (
@@ -85,6 +75,6 @@ export const deleteSecretKey = createServiceFunction()
 			ctx.cache.invalidate(`api-keys_${existingKey.value.projectId}`);
 			ctx.cache.invalidate(`api-key_${existingKey.value.id}`);
 
-			return ok({});
+			return ok(undefined);
 		}
 	);

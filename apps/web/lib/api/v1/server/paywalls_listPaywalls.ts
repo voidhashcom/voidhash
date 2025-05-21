@@ -6,6 +6,10 @@ import { paywallResponseSchema } from "./schema";
 import { getPaywalls } from "@/lib/services/paywalls/queries";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
+import {
+	toVoidhashHTTPError,
+	VoidhashHTTPError,
+} from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "List paywalls",
@@ -30,26 +34,37 @@ export const registerPaywallsListPaywalls = (app: App) =>
 	app.get("/v1/paywalls", route, async (c) => {
 		const context = c.get("services");
 		const authenticatedContext = await authenticateContext(context);
-		const projectId = authenticatedContext.session?.projects[0]?.id;
+
+		if (authenticatedContext.isErr()) {
+			throw toVoidhashHTTPError(authenticatedContext.error);
+		}
+
+		const projectId = authenticatedContext.value.session?.projects[0]?.id;
 
 		if (!projectId) {
-			return c.json({ error: "Project not found" }, 404);
+			throw new VoidhashHTTPError({
+				code: "NOT_FOUND",
+				message: "Project not found",
+			});
 		}
 
 		const paywalls = await getPaywalls({
-			ctx: authenticatedContext,
+			ctx: authenticatedContext.value,
 			input: {
 				projectId,
 			},
 		});
 
-		const response: z.infer<typeof paywallResponseSchema>[] = paywalls.map(
-			(paywall) => ({
+		if (paywalls.isErr()) {
+			throw toVoidhashHTTPError(paywalls.error);
+		}
+
+		const response: z.infer<typeof paywallResponseSchema>[] =
+			paywalls.value.map((paywall) => ({
 				paywallId: paywall.id,
 				name: paywall.name,
 				projectId: paywall.projectId,
-			})
-		);
+			}));
 
 		return c.json(response);
 	});

@@ -4,7 +4,6 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import { z } from "zod";
-import { getProjectById } from "@/lib/services/projects/queries";
 import {
 	fromUnknownThrow,
 	VoidhashBadRequestError,
@@ -16,6 +15,7 @@ import {
 import { projects } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
+import { getProjectByIdQuery } from "../raw-queries";
 
 export const updateProjectInputSchema = z.object({
 	id: z.string(),
@@ -38,25 +38,12 @@ export const updateProject = createServiceFunction()
 				return err(authenticatedContext.error);
 			}
 
-			const project = await getProjectById({
-				ctx: authenticatedContext.value,
-				input: {
-					id: input.id,
-				},
-			});
+			const project = await getProjectByIdQuery(
+				authenticatedContext.value,
+				input.id
+			);
 			if (project.isErr()) {
 				return err(project.error);
-			}
-
-			if (!project.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Project not found",
-					resource: "project",
-					payload: {
-						id: input.id,
-					},
-				});
 			}
 
 			if (

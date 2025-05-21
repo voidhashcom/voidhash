@@ -29,15 +29,21 @@ describe.sequential(
 				projectId: h.resources.project.id,
 			});
 
+			const providerProductKey = createPaymentProviderKey("stripe", {
+				productId: `prod_123`,
+				priceId: `price_123`,
+			});
+
+			if (providerProductKey.isErr()) {
+				throw new Error("Failed to create provider product key");
+			}
+
 			// Directly insert an initial provider product
 			const initialProviderConfig: InsertProductProviderConfiguration = {
 				id: generateId("test"),
 				productId: productInput.id,
 				providerId: "stripe",
-				providerProductKey: createPaymentProviderKey("stripe", {
-					productId: `prod_123`,
-					priceId: `price_123`,
-				}),
+				providerProductKey: providerProductKey.value,
 				configuration: {
 					productId: `prod_123`,
 					priceId: `price_123`,

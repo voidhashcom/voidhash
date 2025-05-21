@@ -4,7 +4,6 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import {
-	VoidhashError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -13,9 +12,9 @@ import {
 import { z } from "zod";
 import { Environments } from "@/lib/services/environments/types";
 import { setEnvironment } from "@/lib/services/environments/utils";
-import { getOrganizationById } from "@/lib/services/organizations/queries";
-import { getProjectById } from "@/lib/services/projects/queries";
 import { err, ok, Result } from "neverthrow";
+import { getOrganizationByIdQuery } from "../../organizations/raw-queries";
+import { getProjectByIdQuery } from "../../projects/raw-queries";
 
 export const switchEnvironmentInputSchema = z.object({
 	projectId: z.string(),
@@ -51,39 +50,21 @@ export const switchEnvironment = createServiceFunction()
 				});
 			}
 
-			const project = await getProjectById({
-				ctx: authenticatedContext.value,
-				input: { id: input.projectId },
-			});
+			const project = await getProjectByIdQuery(
+				authenticatedContext.value,
+				input.projectId
+			);
 
 			if (project.isErr()) {
 				return err(project.error);
 			}
 
-			if (!project.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Project not found",
-					resource: "project",
-					payload: { id: input.projectId },
-				});
-			}
-
-			const organization = await getOrganizationById({
-				ctx: authenticatedContext.value,
-				input: { id: project.value.organizationId },
-			});
+			const organization = await getOrganizationByIdQuery(
+				authenticatedContext.value,
+				project.value.organizationId
+			);
 			if (organization.isErr()) {
 				return err(organization.error);
-			}
-
-			if (!organization.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Organization not found",
-					resource: "organization",
-					payload: { id: project.value.organizationId },
-				});
 			}
 
 			if (!organization.value.slug) {

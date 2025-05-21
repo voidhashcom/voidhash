@@ -95,17 +95,6 @@ export const createPaywallLocation = createServiceFunction()
 				return err(defaultPaywall.error);
 			}
 
-			if (!defaultPaywall.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Default paywall not found",
-					resource: "paywall",
-					payload: {
-						paywallId: input.defaultPaywallId,
-					},
-				});
-			}
-
 			const newPaywallLocation = {
 				id: generateId("paywallLocation"),
 				slug: input.slug,

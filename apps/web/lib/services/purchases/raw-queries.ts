@@ -87,3 +87,34 @@ export const getPurchaseByProviderKeyQuery = async (
 
 	return ok(purchase.value);
 };
+
+export const getPurchaseByIdQuery = async (
+	ctx: ServiceContext,
+	id: string
+): Promise<
+	Result<Purchase, VoidhashInternalServerError | VoidhashNotFoundError>
+> => {
+	const findPurchase = ResultAsync.fromThrowable(
+		ctx.db.query.purchases.findFirst,
+		(e) => fromUnknownThrow(e)
+	);
+	const purchase = await findPurchase({
+		where: eq(purchases.id, id),
+	});
+	if (purchase.isErr()) {
+		return err(purchase.error);
+	}
+
+	if (!purchase.value) {
+		return err({
+			code: "NOT_FOUND",
+			message: "Purchase not found",
+			resource: "purchase",
+			payload: {
+				id,
+			},
+		});
+	}
+
+	return ok(purchase.value);
+};

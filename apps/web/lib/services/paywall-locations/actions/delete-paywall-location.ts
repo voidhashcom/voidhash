@@ -44,16 +44,6 @@ export const deletePaywallLocation = createServiceFunction()
 			if (existingPaywallLocation.isErr()) {
 				return err(existingPaywallLocation.error);
 			}
-			if (!existingPaywallLocation.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Paywall location not found",
-					resource: "paywall_location",
-					payload: {
-						paywallLocationId: input.paywallLocationId,
-					},
-				});
-			}
 			if (
 				!hasProjectPermission(
 					authenticatedContext.value,

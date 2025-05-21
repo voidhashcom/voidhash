@@ -5,8 +5,6 @@ import {
 } from "@/lib/service-function";
 import {
 	fromUnknownThrow,
-	VoidhashBadRequestError,
-	VoidhashError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -14,10 +12,10 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { productPerks } from "@voidhash/db";
-import { getProductById } from "../queries";
 import { generateId } from "@/lib/id/generate";
 import { getPerkByIdQuery } from "../../perks/raw-queries";
 import { err, ok, Result } from "neverthrow";
+import { getProductByIdQuery } from "../raw-queries";
 
 export const createProductPerkInputSchema = z.object({
 	productId: z.string(),
@@ -28,8 +26,7 @@ type CreateProductPerkError =
 	| VoidhashUnauthorizedError
 	| VoidhashForbiddenError
 	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashBadRequestError;
+	| VoidhashNotFoundError;
 
 export const createProductPerk = createServiceFunction()
 	.input(createProductPerkInputSchema)
@@ -43,10 +40,10 @@ export const createProductPerk = createServiceFunction()
 				return err(authenticatedContext.error);
 			}
 
-			const product = await getProductById({
-				ctx: authenticatedContext.value,
-				input: { id: input.productId },
-			});
+			const product = await getProductByIdQuery(
+				authenticatedContext.value,
+				input.productId
+			);
 
 			if (product.isErr()) {
 				return err(product.error);

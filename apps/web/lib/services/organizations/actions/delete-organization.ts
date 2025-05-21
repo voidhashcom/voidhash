@@ -1,7 +1,6 @@
 import { auth } from "@voidhash/auth";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { getOrganizationById } from "../queries";
 import {
 	authenticateContext,
 	createServiceFunction,
@@ -9,13 +8,13 @@ import {
 } from "@/lib/service-function";
 import {
 	fromUnknownThrow,
-	VoidhashError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib";
 import { err, ok, Result } from "neverthrow";
+import { getOrganizationByIdQuery } from "../raw-queries";
 
 export const deleteOrganizationInputSchema = z.object({
 	organizationId: z.string(),
@@ -49,26 +48,15 @@ export const deleteOrganization = createServiceFunction()
 				});
 			}
 
-			const organization = await getOrganizationById({
-				ctx: authenticatedContext.value,
-				input: {
-					id: input.organizationId,
-				},
-			});
+			const organization = await getOrganizationByIdQuery(
+				authenticatedContext.value,
+				input.organizationId
+			);
+
 			if (organization.isErr()) {
 				return err(organization.error);
 			}
 
-			if (!organization.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Organization not found",
-					resource: "organization",
-					payload: {
-						organizationId: input.organizationId,
-					},
-				});
-			}
 			try {
 				await auth.api.deleteOrganization({
 					headers: await headers(),

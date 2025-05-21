@@ -5,7 +5,6 @@ import {
 } from "@/lib/service-function";
 import {
 	fromUnknownThrow,
-	VoidhashBadRequestError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -14,9 +13,9 @@ import {
 import { z } from "zod";
 import { productProviderConfigurations } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { getProductById } from "../queries";
 import { and, eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
+import { getProductByIdQuery } from "../raw-queries";
 
 export const deletePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
@@ -30,8 +29,7 @@ type DeletePaymentProviderProductError =
 	| VoidhashUnauthorizedError
 	| VoidhashForbiddenError
 	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashBadRequestError;
+	| VoidhashNotFoundError;
 
 export const deletePaymentProviderProduct = createServiceFunction()
 	.input(deletePaymentProviderProductInputSchema)
@@ -45,24 +43,13 @@ export const deletePaymentProviderProduct = createServiceFunction()
 				return err(authenticatedContext.error);
 			}
 
-			const product = await getProductById({
-				ctx: authenticatedContext.value,
-				input: { id: input.productId },
-			});
+			const product = await getProductByIdQuery(
+				authenticatedContext.value,
+				input.productId
+			);
 
 			if (product.isErr()) {
 				return err(product.error);
-			}
-
-			if (!product.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Product not found",
-					resource: "product",
-					payload: {
-						id: input.productId,
-					},
-				});
 			}
 
 			if (

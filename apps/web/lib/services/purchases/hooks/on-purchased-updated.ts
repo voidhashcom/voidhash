@@ -7,7 +7,7 @@ import {
 } from "@voidhash/db";
 import {
 	fromUnknownThrow,
-	VoidhashError,
+	VoidhashHTTPError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
 } from "@voidhash/lib";
@@ -16,7 +16,8 @@ import {
 	getProductPerksByProductIdQuery,
 	getProviderProductByIdQuery,
 } from "../../products/raw-queries";
-import { err, ok, Result, ResultAsync } from "neverthrow";
+import { err, ok, Result } from "neverthrow";
+import { getPurchaseByIdQuery } from "../raw-queries";
 
 export type PurchaseUpdateEvent = {
 	purchaseId: string; // ID of the record to update
@@ -36,26 +37,12 @@ export async function handlePurchaseUpdated(
 ): Promise<Result<void, HandlePurchaseUpdatedError>> {
 	const tx = ctx.tx ?? ctx.db;
 
-	const getPurchaseById = ResultAsync.fromThrowable(
-		tx.query.purchases.findFirst,
-		(e) => fromUnknownThrow(e)
+	const existingCustomerProduct = await getPurchaseByIdQuery(
+		ctx,
+		event.purchaseId
 	);
-	const existingCustomerProduct = await getPurchaseById({
-		where: eq(purchases.id, event.purchaseId),
-	});
 	if (existingCustomerProduct.isErr()) {
 		return err(existingCustomerProduct.error);
-	}
-
-	if (!existingCustomerProduct.value) {
-		return err({
-			code: "NOT_FOUND",
-			message: `Customer product with id ${event.purchaseId} not found.`,
-			resource: "purchase",
-			payload: {
-				id: event.purchaseId,
-			},
-		});
 	}
 
 	// TODO: Add support other product types
@@ -63,7 +50,7 @@ export async function handlePurchaseUpdated(
 		return err({
 			code: "INTERNAL_SERVER_ERROR",
 			message: "Only subscription products updates are supported for now",
-			originalError: new VoidhashError({
+			originalError: new VoidhashHTTPError({
 				code: "INTERNAL_SERVER_ERROR",
 				message: "Only subscription products updates are supported for now",
 			}),
@@ -102,7 +89,7 @@ export async function handlePurchaseUpdated(
 			return err({
 				code: "INTERNAL_SERVER_ERROR",
 				message: `Provider product ${existingCustomerProduct.value.providerProductId} not found for customer product ${existingCustomerProduct.value.id}`,
-				originalError: new VoidhashError({
+				originalError: new VoidhashHTTPError({
 					code: "INTERNAL_SERVER_ERROR",
 					message: `Provider product ${existingCustomerProduct.value.providerProductId} not found for customer product ${existingCustomerProduct.value.id}`,
 				}),
@@ -128,23 +115,32 @@ export async function handlePurchaseUpdated(
 			);
 			for (const productPerk of productPerks.value) {
 				// Use findFirst to check if the specific grant already exists (idempotency)
-				const existingGrant = await tx.query.customersUnlockedPerks.findFirst({
-					where: and(
-						eq(
-							customersUnlockedPerks.unlockedByCustomerProductId,
-							existingCustomerProduct.value.id
-						),
-						eq(customersUnlockedPerks.perkId, productPerk.perkId)
-					),
-				});
+				try {
+					const existingGrant = await tx.query.customersUnlockedPerks.findFirst(
+						{
+							where: and(
+								eq(
+									customersUnlockedPerks.unlockedByCustomerProductId,
+									existingCustomerProduct.value.id
+								),
+								eq(customersUnlockedPerks.perkId, productPerk.perkId)
+							),
+						}
+					);
 
-				if (!existingGrant) {
-					await tx.insert(customersUnlockedPerks).values({
-						id: generateId("customerUnlockedPerk"),
-						customerId: existingCustomerProduct.value.customerId,
-						perkId: productPerk.perkId,
-						unlockedByCustomerProductId: existingCustomerProduct.value.id,
-					});
+					if (!existingGrant) {
+						await tx.insert(customersUnlockedPerks).values({
+							id: generateId("customerUnlockedPerk"),
+							customerId: existingCustomerProduct.value.customerId,
+							perkId: productPerk.perkId,
+							unlockedByCustomerProductId: existingCustomerProduct.value.id,
+						});
+					}
+				} catch (e) {
+					ctx.logger.error(
+						`Error granting perk ${productPerk.perkId} to customer product ${existingCustomerProduct.value.id}: ${e}`
+					);
+					return err(fromUnknownThrow(e));
 				}
 			}
 		}
@@ -154,14 +150,21 @@ export async function handlePurchaseUpdated(
 				`Revoking perks for customer product ${existingCustomerProduct.value.id} due to status change from active.`
 			);
 			// Remove perks granted specifically by this product instance
-			await tx
-				.delete(customersUnlockedPerks)
-				.where(
-					eq(
-						customersUnlockedPerks.unlockedByCustomerProductId,
-						existingCustomerProduct.value.id
-					)
+			try {
+				await tx
+					.delete(customersUnlockedPerks)
+					.where(
+						eq(
+							customersUnlockedPerks.unlockedByCustomerProductId,
+							existingCustomerProduct.value.id
+						)
+					);
+			} catch (e) {
+				ctx.logger.error(
+					`Error revoking perks for customer product ${existingCustomerProduct.value.id}: ${e}`
 				);
+				return err(fromUnknownThrow(e));
+			}
 		}
 	}
 

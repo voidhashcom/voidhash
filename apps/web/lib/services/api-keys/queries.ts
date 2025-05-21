@@ -29,10 +29,7 @@ export const getApiKeyById = cache(
 	createServiceFunction()
 		.input(getApiKeyByIdInputSchema)
 		.function(
-			async ({
-				ctx,
-				input,
-			}): Promise<Result<ApiKey | null, GetApiKeyByIdError>> => {
+			async ({ ctx, input }): Promise<Result<ApiKey, GetApiKeyByIdError>> => {
 				const authenticatedContextPromise = authenticateContext(ctx);
 
 				const apiKeyPromise = ctx.cache.cacheFn(

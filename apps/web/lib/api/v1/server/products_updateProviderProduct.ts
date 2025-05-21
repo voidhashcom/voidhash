@@ -10,6 +10,11 @@ import { z } from "zod";
 import { updatePaymentProviderProduct } from "@/lib/services/products/actions/update-payment-provider-product";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
+import {
+	toVoidhashHTTPError,
+	VoidhashHTTPError,
+} from "@voidhash/lib/constants";
+import { getProviderProductByPrimaryKey } from "@/lib/services/products/queries";
 
 const route = describeRoute({
 	description: "Update a provider product",
@@ -39,13 +44,24 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
+			if (authenticatedContext.isErr()) {
+				throw toVoidhashHTTPError(authenticatedContext.error);
+			}
 			const productId = c.req.param("productId");
 			const providerId = c.req.param("providerId");
 			const providerProductKey = c.req.param("providerProductKey");
 			const configuration = c.req.valid("json").configuration.configuration;
 
+			const projectId = authenticatedContext.value.session?.projects[0]?.id;
+			if (!projectId) {
+				throw new VoidhashHTTPError({
+					code: "NOT_FOUND",
+					message: "Project not found",
+				});
+			}
+
 			const updatedProviderProduct = await updatePaymentProviderProduct.invoke({
-				ctx: authenticatedContext,
+				ctx: authenticatedContext.value,
 				input: {
 					productId,
 					providerId,
@@ -54,12 +70,26 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 				},
 			});
 
-			const responseBody: z.infer<typeof providerProductResponseSchema> = {
-				providerProductKey: updatedProviderProduct.providerProductKey,
-				providerConfiguration: {
-					providerId: providerId, // Use the providerId from the request params
-					configuration: updatedProviderProduct.configuration, // This is the inner config object
+			if (updatedProviderProduct.isErr()) {
+				throw toVoidhashHTTPError(updatedProviderProduct.error);
+			}
+
+			const providerProduct = await getProviderProductByPrimaryKey({
+				ctx: authenticatedContext.value,
+				input: {
+					providerId,
+					projectId,
+					productProviderKey: providerProductKey,
 				},
+			});
+
+			if (providerProduct.isErr()) {
+				throw toVoidhashHTTPError(providerProduct.error);
+			}
+
+			const responseBody: z.infer<typeof providerProductResponseSchema> = {
+				providerProductKey: providerProduct.value.providerProductKey,
+				providerConfiguration: providerProduct.value.configuration ?? {},
 			};
 
 			return c.json(responseBody);
