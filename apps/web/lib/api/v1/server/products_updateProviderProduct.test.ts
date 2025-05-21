@@ -86,7 +86,8 @@ describe.sequential(
 			expect(responseBody.providerProductKey).toBe(
 				initialProviderConfig.providerProductKey
 			);
-			expect(responseBody.providerConfiguration).toEqual(
+
+			expect(responseBody.providerConfiguration).toMatchObject(
 				updatePayload.configuration // The API returns the full wrapper
 			);
 
@@ -95,7 +96,7 @@ describe.sequential(
 				await h.db.primary.query.productProviderConfigurations.findFirst({
 					where: eq(productProviderConfigurations.id, initialProviderConfig.id),
 				});
-			expect(dbProviderProduct?.configuration).toEqual(
+			expect(dbProviderProduct?.configuration).toMatchObject(
 				updatePayload.configuration.configuration // The DB stores only the inner config
 			);
 

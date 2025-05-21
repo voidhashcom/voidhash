@@ -17,16 +17,15 @@ export const getProjectBySlugQuery = async (
 ): Promise<
 	Result<Project, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findProject = ResultAsync.fromThrowable(
-		ctx.db.query.projects.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.projects.findFirst({
+			where: and(
+				eq(projects.slug, projectSlug),
+				eq(projects.organizationId, organizationId)
+			),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findProject({
-		where: and(
-			eq(projects.slug, projectSlug),
-			eq(projects.organizationId, organizationId)
-		),
-	});
 	if (res.isErr()) {
 		return err(res.error);
 	}
@@ -52,13 +51,12 @@ export const getProjectByIdQuery = async (
 ): Promise<
 	Result<Project, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findProject = ResultAsync.fromThrowable(
-		ctx.db.query.projects.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.projects.findFirst({
+			where: eq(projects.id, id),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findProject({
-		where: eq(projects.id, id),
-	});
 	if (res.isErr()) {
 		return err(res.error);
 	}
@@ -81,13 +79,12 @@ export const getProjectsByIdQuery = async (
 	ctx: ServiceContext,
 	organizationId: string
 ): Promise<Result<Project[], VoidhashInternalServerError>> => {
-	const findProjects = ResultAsync.fromThrowable(
-		ctx.db.query.projects.findMany,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.projects.findMany({
+			where: eq(projects.organizationId, organizationId),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findProjects({
-		where: eq(projects.organizationId, organizationId),
-	});
 	if (res.isErr()) {
 		return err(res.error);
 	}

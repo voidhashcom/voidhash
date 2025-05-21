@@ -16,13 +16,12 @@ export const getOrganizationBySlugQuery = async (
 ): Promise<
 	Result<Organization, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findOrganization = ResultAsync.fromThrowable(
-		ctx.db.query.organization.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.organization.findFirst({
+			where: eq(organization.slug, slug),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findOrganization({
-		where: eq(organization.slug, slug),
-	});
 	if (res.isErr()) {
 		return err(res.error);
 	}
@@ -45,13 +44,12 @@ export const getOrganizationByIdQuery = async (
 ): Promise<
 	Result<Organization, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findOrganization = ResultAsync.fromThrowable(
-		ctx.db.query.organization.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.organization.findFirst({
+			where: eq(organization.id, id),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findOrganization({
-		where: eq(organization.id, id),
-	});
 	if (res.isErr()) {
 		return err(res.error);
 	}

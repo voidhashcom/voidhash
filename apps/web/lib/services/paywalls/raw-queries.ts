@@ -17,20 +17,18 @@ export const getPaywallsQuery = async (
 	ctx: ServiceContext,
 	projectId: string
 ): Promise<Result<Paywall[], VoidhashInternalServerError>> => {
-	const findPaywalls = ResultAsync.fromThrowable(
-		ctx.db.query.paywalls.findMany,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.paywalls.findMany({
+			where: eq(paywalls.projectId, projectId),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
 
-	const paywallList = await findPaywalls({
-		where: eq(paywalls.projectId, projectId),
-	});
-
-	if (paywallList.isErr()) {
-		return err(paywallList.error);
+	if (res.isErr()) {
+		return err(res.error);
 	}
 
-	return ok(paywallList.value ?? []);
+	return ok(res.value ?? []);
 };
 
 export const getPaywallByIdQuery = async (
@@ -39,20 +37,18 @@ export const getPaywallByIdQuery = async (
 ): Promise<
 	Result<Paywall, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findPaywall = ResultAsync.fromThrowable(
-		ctx.db.query.paywalls.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.paywalls.findFirst({
+			where: eq(paywalls.id, id),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
 
-	const paywall = await findPaywall({
-		where: eq(paywalls.id, id),
-	});
-
-	if (paywall.isErr()) {
-		return err(paywall.error);
+	if (res.isErr()) {
+		return err(res.error);
 	}
 
-	if (!paywall.value) {
+	if (!res.value) {
 		return err({
 			code: "NOT_FOUND",
 			message: "Paywall not found",
@@ -63,7 +59,7 @@ export const getPaywallByIdQuery = async (
 		});
 	}
 
-	return ok(paywall.value);
+	return ok(res.value);
 };
 
 export const getPaywallProductsQuery = async (

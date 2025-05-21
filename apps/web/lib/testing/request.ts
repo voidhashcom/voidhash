@@ -29,7 +29,6 @@ export async function step<TRequestBody = unknown, TResponseBody = unknown>(
 		}
 	}
 
-	console.log("url");
 	const res = await fetch(url, {
 		method: req.method,
 		headers: req.headers,
@@ -37,18 +36,13 @@ export async function step<TRequestBody = unknown, TResponseBody = unknown>(
 	});
 
 	const body = await res.text();
-	console.log("body");
-	console.log(body);
 	try {
-		console.log("JSON.parse(body)");
-		console.log(JSON.parse(body));
 		return {
 			status: res.status,
 			headers: headersToRecord(res.headers),
 			body: JSON.parse(body),
 		};
-	} catch (e) {
-		console.log("error", e);
+	} catch {
 		console.error(`${url.toString()} didn't return json, received: ${body}`);
 		return {} as StepResponse<TResponseBody>;
 	}

@@ -68,6 +68,13 @@ describe.sequential("/v1/customers/**", async () => {
 			res.status,
 			`expected 404, received: ${JSON.stringify(res, null, 2)}`
 		).toBe(404);
-		expect(res.body).toEqual({ error: "Customer not found" });
+		expect(res.body).toEqual({
+			error: {
+				code: "NOT_FOUND",
+				docs: expect.any(String),
+				message: "Customer not found",
+				requestId: expect.any(String),
+			},
+		});
 	});
 });

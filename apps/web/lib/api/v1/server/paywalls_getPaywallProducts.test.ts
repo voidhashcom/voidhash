@@ -133,7 +133,7 @@ describe.sequential("/v1/paywalls/:paywallId/products", async () => {
 			error: {
 				code: "NOT_FOUND",
 				docs: expect.any(String),
-				message: "Paywall not found.",
+				message: "Paywall not found",
 				requestId: expect.any(String),
 			},
 		});

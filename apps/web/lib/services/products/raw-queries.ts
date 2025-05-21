@@ -19,14 +19,16 @@ export const getProductsQuery = async (
 	ctx: ServiceContext,
 	projectId: string
 ): Promise<Result<Product[], VoidhashInternalServerError>> => {
-	const getProducts = ResultAsync.fromThrowable(
-		ctx.db.query.products.findMany,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.products.findMany({
+			where: eq(products.projectId, projectId),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const productList = await getProducts({
-		where: eq(products.projectId, projectId),
-	});
-	return productList;
+	if (res.isErr()) {
+		return err(res.error);
+	}
+	return ok(res.value);
 };
 
 export const getProductByIdQuery = async (
@@ -35,13 +37,12 @@ export const getProductByIdQuery = async (
 ): Promise<
 	Result<Product, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const getProduct = ResultAsync.fromThrowable(
-		ctx.db.query.products.findFirst,
+	const product = await ResultAsync.fromPromise(
+		ctx.db.query.products.findFirst({
+			where: eq(products.id, id),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const product = await getProduct({
-		where: eq(products.id, id),
-	});
 	if (product.isErr()) {
 		return err(product.error);
 	}
@@ -69,18 +70,17 @@ export const getProviderProductByIdQuery = async (
 		VoidhashInternalServerError | VoidhashNotFoundError
 	>
 > => {
-	const getProviderProducts = ResultAsync.fromThrowable(
-		ctx.db.query.productProviderConfigurations.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.productProviderConfigurations.findFirst({
+			where: eq(productProviderConfigurations.id, providerProductId),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const providerProductsResult = await getProviderProducts({
-		where: eq(productProviderConfigurations.id, providerProductId),
-	});
-	if (providerProductsResult.isErr()) {
-		return err(providerProductsResult.error);
+	if (res.isErr()) {
+		return err(res.error);
 	}
 
-	if (!providerProductsResult.value) {
+	if (!res.value) {
 		return err({
 			code: "NOT_FOUND",
 			message: "Provider product not found",
@@ -91,7 +91,7 @@ export const getProviderProductByIdQuery = async (
 		});
 	}
 
-	return ok(providerProductsResult.value);
+	return ok(res.value);
 };
 
 export const getProviderProductByPrimaryKeyQuery = async (
@@ -154,34 +154,32 @@ export const getProviderProductsByProductIdQuery = async (
 ): Promise<
 	Result<ProductProviderConfiguration[], VoidhashInternalServerError>
 > => {
-	const getProviderProducts = ResultAsync.fromThrowable(
-		ctx.db.query.productProviderConfigurations.findMany,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.productProviderConfigurations.findMany({
+			where: eq(productProviderConfigurations.productId, productId),
+			orderBy: [asc(productProviderConfigurations.createdAt)],
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const providerProductsResult = await getProviderProducts({
-		where: eq(productProviderConfigurations.productId, productId),
-		orderBy: [asc(productProviderConfigurations.createdAt)],
-	});
-	if (providerProductsResult.isErr()) {
-		return err(providerProductsResult.error);
+	if (res.isErr()) {
+		return err(res.error);
 	}
-	return ok(providerProductsResult.value);
+	return ok(res.value);
 };
 
 export const getProductPerksByProductIdQuery = async (
 	ctx: ServiceContext,
 	productId: string
 ): Promise<Result<ProductPerk[], VoidhashInternalServerError>> => {
-	const getProductPerks = ResultAsync.fromThrowable(
-		ctx.db.query.productPerks.findMany,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.productPerks.findMany({
+			where: eq(productPerks.productId, productId),
+			orderBy: [asc(productPerks.createdAt)],
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const productPerksResult = await getProductPerks({
-		where: eq(productPerks.productId, productId),
-		orderBy: [asc(productPerks.createdAt)],
-	});
-	if (productPerksResult.isErr()) {
-		return err(productPerksResult.error);
+	if (res.isErr()) {
+		return err(res.error);
 	}
-	return ok(productPerksResult.value);
+	return ok(res.value);
 };

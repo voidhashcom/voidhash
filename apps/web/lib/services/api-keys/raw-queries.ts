@@ -16,13 +16,12 @@ export const getApiKeyByIdQuery = async (
 ): Promise<
 	Result<ApiKey, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findApiKey = ResultAsync.fromThrowable(
-		ctx.db.query.apiKeys.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.apiKeys.findFirst({
+			where: eq(apiKeys.id, id),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findApiKey({
-		where: eq(apiKeys.id, id),
-	});
 	if (res.isErr()) {
 		return err(res.error);
 	}
@@ -44,12 +43,11 @@ export const getApiKeysQuery = async (
 	ctx: ServiceContext,
 	projectId: string
 ): Promise<Result<ApiKey[], VoidhashInternalServerError>> => {
-	const findApiKeys = ResultAsync.fromThrowable(
-		ctx.db.query.apiKeys.findMany,
+	return await ResultAsync.fromPromise(
+		ctx.db.query.apiKeys.findMany({
+			where: eq(apiKeys.projectId, projectId),
+			orderBy: [desc(apiKeys.isPublic), asc(apiKeys.createdAt)],
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	return await findApiKeys({
-		where: eq(apiKeys.projectId, projectId),
-		orderBy: [desc(apiKeys.isPublic), asc(apiKeys.createdAt)],
-	});
 };

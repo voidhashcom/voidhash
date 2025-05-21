@@ -12,17 +12,16 @@ export const getPaywallLocationsQuery = async (
 	ctx: ServiceContext,
 	projectId: string
 ): Promise<Result<PaywallLocation[], VoidhashInternalServerError>> => {
-	const findPaywallLocations = ResultAsync.fromThrowable(
-		ctx.db.query.paywallLocations.findMany,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.paywallLocations.findMany({
+			where: eq(paywallLocations.projectId, projectId),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const paywallLocationList = await findPaywallLocations({
-		where: eq(paywallLocations.projectId, projectId),
-	});
-	if (paywallLocationList.isErr()) {
-		return err(paywallLocationList.error);
+	if (res.isErr()) {
+		return err(res.error);
 	}
-	return ok(paywallLocationList.value ?? []);
+	return ok(res.value ?? []);
 };
 
 export const getPaywallLocationByIdQuery = async (
@@ -31,17 +30,16 @@ export const getPaywallLocationByIdQuery = async (
 ): Promise<
 	Result<PaywallLocation, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findPaywallLocation = ResultAsync.fromThrowable(
-		ctx.db.query.paywallLocations.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.paywallLocations.findFirst({
+			where: eq(paywallLocations.id, id),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const paywallLocation = await findPaywallLocation({
-		where: eq(paywallLocations.id, id),
-	});
-	if (paywallLocation.isErr()) {
-		return err(paywallLocation.error);
+	if (res.isErr()) {
+		return err(res.error);
 	}
-	if (!paywallLocation.value) {
+	if (!res.value) {
 		return err({
 			code: "NOT_FOUND",
 			message: "Paywall location not found",
@@ -51,5 +49,5 @@ export const getPaywallLocationByIdQuery = async (
 			},
 		});
 	}
-	return ok(paywallLocation.value);
+	return ok(res.value);
 };
