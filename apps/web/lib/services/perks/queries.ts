@@ -86,15 +86,6 @@ export const getPerkById = cache(
 					return err(perkResult.error);
 				}
 
-				if (!perkResult.value) {
-					return err({
-						code: "NOT_FOUND",
-						message: "Perk not found.",
-						resource: "perk",
-						payload: { id: input.id },
-					});
-				}
-
 				if (
 					!hasProjectPermission(
 						authenticatedContext.value,

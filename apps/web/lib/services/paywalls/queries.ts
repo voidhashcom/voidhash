@@ -11,7 +11,6 @@ import {
 	getPaywallsQuery,
 } from "./raw-queries";
 import {
-	VoidhashError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -151,15 +150,6 @@ export const getPaywallProducts = cache(
 						});
 					}
 					return err(paywall.error);
-				}
-
-				if (!paywall.value) {
-					return err({
-						code: "NOT_FOUND",
-						message: "Paywall not found.",
-						resource: "paywall",
-						payload: { id: input.paywallId },
-					});
 				}
 
 				if (

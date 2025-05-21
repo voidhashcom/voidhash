@@ -196,20 +196,28 @@ export const getPublishableApiKeyAuthSession = async (
 
 	const customerId = ctx.headers.get("x-app-user-id");
 
-	const customer = customerId
-		? await getCustomerByAppUserIdQuery(ctx, customerId)
-		: ok(null);
-
-	if (customer.isErr()) {
-		return err(customer.error);
-	}
-
-	if (!customer.value) {
-		// TODO: Create customer
+	if (!customerId) {
 		return err({
 			code: "UNAUTHORIZED",
 			message: "Customer not found.",
 		});
+	}
+
+	const customer = (await getCustomerByAppUserIdQuery(ctx, customerId)).orElse(
+		(error) => {
+			if (error.code === "NOT_FOUND") {
+				// TODO: Handle profile creation instead
+				return err({
+					code: "UNAUTHORIZED",
+					message: "Customer not found.",
+				} as VoidhashUnauthorizedError);
+			}
+			return err(error);
+		}
+	);
+
+	if (customer.isErr()) {
+		return err(customer.error);
 	}
 
 	const projects = [apiKeyRecord.value.project];

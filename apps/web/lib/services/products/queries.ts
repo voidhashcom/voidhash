@@ -97,15 +97,6 @@ export const getProductById = cache(
 					return err(productResult.error);
 				}
 
-				if (!productResult.value) {
-					return err({
-						code: "NOT_FOUND",
-						message: "Product not found.",
-						resource: "product",
-						payload: { id: input.id },
-					});
-				}
-
 				if (
 					!hasProjectPermission(
 						authenticatedContext.value,
@@ -163,15 +154,6 @@ export const getProviderProductByPrimaryKey = cache(
 
 				if (providerProductResult.isErr()) {
 					return err(providerProductResult.error);
-				}
-
-				if (!providerProductResult.value) {
-					return err({
-						code: "NOT_FOUND",
-						message: "Provider product not found.",
-						resource: "productProviderConfiguration",
-						payload: { ...input },
-					});
 				}
 
 				// Auth check
