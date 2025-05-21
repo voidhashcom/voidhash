@@ -61,6 +61,13 @@ describe.sequential("/v1/paywalls/:paywallId", async () => {
 			res.status,
 			`expected 404, received: ${JSON.stringify(res, null, 2)}`
 		).toBe(404);
-		expect(res.body).toEqual({ error: "Paywall not found" });
+		expect(res.body).toEqual({
+			error: {
+				code: "NOT_FOUND",
+				docs: expect.any(String),
+				message: "Paywall not found",
+				requestId: expect.any(String),
+			},
+		});
 	});
 });

@@ -17,14 +17,13 @@ export const getPurchasesQuery = async (
 	ctx: ServiceContext,
 	customerId?: string
 ): Promise<Result<GetPurchasesQueryResult, VoidhashInternalServerError>> => {
-	const findPurchases = ResultAsync.fromThrowable(
-		ctx.db.query.purchases.findMany,
+	const purchaseListQuery = ResultAsync.fromPromise(
+		ctx.db.query.purchases.findMany({
+			where: customerId ? eq(purchases.customerId, customerId) : undefined,
+			limit: 10,
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const purchaseListQuery = findPurchases({
-		where: customerId ? eq(purchases.customerId, customerId) : undefined,
-		limit: 10,
-	});
 
 	const purchaseCountQuery = ResultAsync.fromPromise(
 		ctx.db
@@ -63,18 +62,17 @@ export const getPurchaseByProviderKeyQuery = async (
 ): Promise<
 	Result<Purchase, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findPurchase = ResultAsync.fromThrowable(
-		ctx.db.query.purchases.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.purchases.findFirst({
+			where: eq(purchases.providerKey, providerKey),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const purchase = await findPurchase({
-		where: eq(purchases.providerKey, providerKey),
-	});
-	if (purchase.isErr()) {
-		return err(purchase.error);
+	if (res.isErr()) {
+		return err(res.error);
 	}
 
-	if (!purchase.value) {
+	if (!res.value) {
 		return err({
 			code: "NOT_FOUND",
 			message: "Purchase not found",
@@ -85,7 +83,7 @@ export const getPurchaseByProviderKeyQuery = async (
 		});
 	}
 
-	return ok(purchase.value);
+	return ok(res.value);
 };
 
 export const getPurchaseByIdQuery = async (
@@ -94,18 +92,17 @@ export const getPurchaseByIdQuery = async (
 ): Promise<
 	Result<Purchase, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findPurchase = ResultAsync.fromThrowable(
-		ctx.db.query.purchases.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.purchases.findFirst({
+			where: eq(purchases.id, id),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const purchase = await findPurchase({
-		where: eq(purchases.id, id),
-	});
-	if (purchase.isErr()) {
-		return err(purchase.error);
+	if (res.isErr()) {
+		return err(res.error);
 	}
 
-	if (!purchase.value) {
+	if (!res.value) {
 		return err({
 			code: "NOT_FOUND",
 			message: "Purchase not found",
@@ -116,5 +113,5 @@ export const getPurchaseByIdQuery = async (
 		});
 	}
 
-	return ok(purchase.value);
+	return ok(res.value);
 };

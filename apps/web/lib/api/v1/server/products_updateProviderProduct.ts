@@ -44,6 +44,7 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
+
 			if (authenticatedContext.isErr()) {
 				throw toVoidhashHTTPError(authenticatedContext.error);
 			}
@@ -89,7 +90,7 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 
 			const responseBody: z.infer<typeof providerProductResponseSchema> = {
 				providerProductKey: providerProduct.value.providerProductKey,
-				providerConfiguration: providerProduct.value.configuration ?? {},
+				providerConfiguration: providerProduct.value,
 			};
 
 			return c.json(responseBody);

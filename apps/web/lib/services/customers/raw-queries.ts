@@ -21,22 +21,19 @@ export const getCustomersQuery = async (
 		hasAppUserId: boolean | null;
 	}
 ): Promise<Result<Customer[], VoidhashInternalServerError>> => {
-	const findCustomers = ResultAsync.fromThrowable(
-		ctx.db.query.customers.findMany,
-		(e) => fromUnknownThrow(e)
-	);
-	const customerList = await findCustomers({
-		where: and(
-			and(
+	const customerList = await ResultAsync.fromPromise(
+		ctx.db.query.customers.findMany({
+			where: and(
 				eq(customers.projectId, projectId),
 				filters.hasAppUserId !== null
 					? filters.hasAppUserId
 						? isNotNull(customers.appUserId)
 						: isNull(customers.appUserId)
 					: undefined
-			)
-		),
-	});
+			),
+		}),
+		(e) => fromUnknownThrow(e)
+	);
 	if (customerList.isErr()) {
 		return err(customerList.error);
 	}
@@ -49,13 +46,12 @@ export const getCustomerByIdQuery = async (
 ): Promise<
 	Result<Customer, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findCustomer = ResultAsync.fromThrowable(
-		ctx.db.query.customers.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.customers.findFirst({
+			where: eq(customers.id, customerId),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findCustomer({
-		where: eq(customers.id, customerId),
-	});
 	if (res.isErr()) {
 		return err(res.error);
 	}
@@ -78,13 +74,13 @@ export const getCustomerByAppUserIdQuery = async (
 ): Promise<
 	Result<Customer, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const findCustomer = ResultAsync.fromThrowable(
-		ctx.db.query.customers.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.customers.findFirst({
+			where: eq(customers.appUserId, appUserId),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findCustomer({
-		where: eq(customers.appUserId, appUserId),
-	});
+
 	if (res.isErr()) {
 		return err(res.error);
 	}
@@ -145,13 +141,12 @@ export const getCustomersUnlockedPerksQuery = async (
 	ctx: ServiceContext,
 	customerId: string
 ): Promise<Result<CustomerUnlockedPerk[], VoidhashInternalServerError>> => {
-	const findCustomersUnlockedPerks = ResultAsync.fromThrowable(
-		ctx.db.query.customersUnlockedPerks.findMany,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.customersUnlockedPerks.findMany({
+			where: eq(customersUnlockedPerks.customerId, customerId),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findCustomersUnlockedPerks({
-		where: eq(customersUnlockedPerks.customerId, customerId),
-	});
 	if (res.isErr()) {
 		return err(res.error);
 	}

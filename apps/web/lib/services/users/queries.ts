@@ -13,7 +13,7 @@ import {
 } from "@voidhash/lib/constants";
 import { err, ok, Result } from "neverthrow";
 import { User } from "better-auth";
-import { Organization } from "@voidhash/db/schema";
+import { Organization } from "@voidhash/db";
 
 // User
 type GetUserError =

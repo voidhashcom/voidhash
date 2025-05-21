@@ -18,13 +18,12 @@ export const getPaymentProviderConfigurationsQuery = async (
 ): Promise<
 	Result<ProjectPaymentProviderConfiguration[], VoidhashInternalServerError>
 > => {
-	const findPaymentProviderConfigurations = ResultAsync.fromThrowable(
-		ctx.db.query.projectPaymentProviderConfigurations.findMany,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.projectPaymentProviderConfigurations.findMany({
+			where: eq(projectPaymentProviderConfigurations.projectId, projectId),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findPaymentProviderConfigurations({
-		where: eq(projectPaymentProviderConfigurations.projectId, projectId),
-	});
 	if (res.isErr()) {
 		return err(res.error);
 	}
@@ -41,16 +40,15 @@ export const getExistingPaymentProviderConfigurationByIdQuery = async (
 		VoidhashInternalServerError | VoidhashNotFoundError
 	>
 > => {
-	const findPaymentProviderConfiguration = ResultAsync.fromThrowable(
-		ctx.db.query.projectPaymentProviderConfigurations.findFirst,
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.projectPaymentProviderConfigurations.findFirst({
+			where: and(
+				eq(projectPaymentProviderConfigurations.projectId, projectId),
+				eq(projectPaymentProviderConfigurations.providerId, providerId)
+			),
+		}),
 		(e) => fromUnknownThrow(e)
 	);
-	const res = await findPaymentProviderConfiguration({
-		where: and(
-			eq(projectPaymentProviderConfigurations.projectId, projectId),
-			eq(projectPaymentProviderConfigurations.providerId, providerId)
-		),
-	});
 	if (res.isErr()) {
 		return err(res.error);
 	}

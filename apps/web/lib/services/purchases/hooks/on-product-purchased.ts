@@ -4,6 +4,7 @@ import { purchases, customersUnlockedPerks, db } from "@voidhash/db";
 import {
 	fromUnknownThrow,
 	PRODUCT_TYPES,
+	VoidhashBadRequestError,
 	VoidhashHTTPError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -31,7 +32,8 @@ export type PurchaseEvent = {
 
 type HandleProductPurchaseError =
 	| VoidhashInternalServerError
-	| VoidhashNotFoundError;
+	| VoidhashNotFoundError
+	| VoidhashBadRequestError;
 
 export async function handleProductPurchase(
 	ctx: ServiceContext,
@@ -40,12 +42,8 @@ export async function handleProductPurchase(
 	// TODO: Support other product types
 	if (event.type !== "subscription") {
 		return err({
-			code: "INTERNAL_SERVER_ERROR",
+			code: "BAD_REQUEST",
 			message: "Only subscription products are supported for now",
-			originalError: new VoidhashHTTPError({
-				code: "INTERNAL_SERVER_ERROR",
-				message: "Only subscription products are supported for now",
-			}),
 		});
 	}
 

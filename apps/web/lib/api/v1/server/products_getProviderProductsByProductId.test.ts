@@ -131,8 +131,7 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 		// The service might return an empty list even if the product doesn't exist.
 		expect(
 			res.status,
-			`expected 200, received: ${JSON.stringify(res, null, 2)}`
-		).toBe(200);
-		expect(res.body).toEqual([]);
+			`expected 404, received: ${JSON.stringify(res, null, 2)}`
+		).toBe(404);
 	});
 });

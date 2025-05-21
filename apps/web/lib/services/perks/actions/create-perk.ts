@@ -62,23 +62,21 @@ export const createPerk = createServiceFunction()
 				});
 			}
 
-			const getPerksBySlug = ResultAsync.fromThrowable(
-				ctx.db.query.perks.findFirst,
+			const res = await ResultAsync.fromPromise(
+				ctx.db.query.perks.findFirst({
+					where: and(
+						eq(perks.slug, input.slug),
+						eq(perks.projectId, input.projectId)
+					),
+				}),
 				(e) => fromUnknownThrow(e)
 			);
 
-			const existingPerk = await getPerksBySlug({
-				where: and(
-					eq(perks.slug, input.slug),
-					eq(perks.projectId, input.projectId)
-				),
-			});
-
-			if (existingPerk.isErr()) {
-				return err(existingPerk.error);
+			if (res.isErr()) {
+				return err(res.error);
 			}
 
-			if (existingPerk.value) {
+			if (res.value) {
 				return err({
 					code: "CONFLICT",
 					message:

@@ -12,13 +12,16 @@ export const getPerksQuery = async (
 	ctx: ServiceContext,
 	projectId: string
 ): Promise<Result<Perk[], VoidhashInternalServerError>> => {
-	const getPerks = ResultAsync.fromThrowable(ctx.db.query.perks.findMany, (e) =>
-		fromUnknownThrow(e)
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.perks.findMany({
+			where: eq(perks.projectId, projectId),
+		}),
+		(e) => fromUnknownThrow(e)
 	);
-	const perkList = await getPerks({
-		where: eq(perks.projectId, projectId),
-	});
-	return perkList;
+	if (res.isErr()) {
+		return err(res.error);
+	}
+	return ok(res.value);
 };
 
 export const getPerkByIdQuery = async (
@@ -27,17 +30,17 @@ export const getPerkByIdQuery = async (
 ): Promise<
 	Result<Perk, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
-	const getPerk = ResultAsync.fromThrowable(ctx.db.query.perks.findFirst, (e) =>
-		fromUnknownThrow(e)
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.perks.findFirst({
+			where: eq(perks.id, id),
+		}),
+		(e) => fromUnknownThrow(e)
 	);
-	const perk = await getPerk({
-		where: eq(perks.id, id),
-	});
-	if (perk.isErr()) {
-		return err(perk.error);
+	if (res.isErr()) {
+		return err(res.error);
 	}
 
-	if (!perk.value) {
+	if (!res.value) {
 		return err({
 			code: "NOT_FOUND",
 			message: "Perk not found",
@@ -48,5 +51,5 @@ export const getPerkByIdQuery = async (
 		});
 	}
 
-	return ok(perk.value);
+	return ok(res.value);
 };

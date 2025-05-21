@@ -160,7 +160,16 @@ export const getUsersOrganizations = cache(
 				return err(organizations.error);
 			}
 
-			return ok(organizations.value);
+			return ok(
+				organizations.value.map((o) => ({
+					id: o.id,
+					name: o.name,
+					slug: o.slug,
+					logo: o.logo ?? null,
+					createdAt: o.createdAt,
+					metadata: o.metadata ?? null,
+				}))
+			);
 		}
 	).invoke
 );
