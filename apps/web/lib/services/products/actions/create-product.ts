@@ -6,7 +6,6 @@ import {
 import {
 	fromUnknownThrow,
 	VoidhashBadRequestError,
-	VoidhashError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,

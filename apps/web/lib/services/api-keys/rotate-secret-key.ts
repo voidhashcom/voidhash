@@ -4,7 +4,6 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import {
-	VoidhashError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -14,9 +13,10 @@ import { z } from "zod";
 import { createSecretKey } from "@/lib/services/api-keys/utils";
 import { apiKeys } from "@voidhash/db";
 import { eq } from "drizzle-orm";
-import { getApiKeyById } from "./queries";
+
 import { err, ok, Result } from "neverthrow";
 import { ApiKey } from "./types";
+import { getApiKeyByIdQuery } from "./raw-queries";
 
 export const rotateSecretKeyInputSchema = z.object({
 	secretKeyId: z.string(),
@@ -38,22 +38,13 @@ export const rotateSecretKey = createServiceFunction()
 				return err(authenticatedContext.error);
 			}
 
-			const existingKey = await getApiKeyById({
-				ctx: authenticatedContext.value,
-				input: { id: input.secretKeyId },
-			});
+			const existingKey = await getApiKeyByIdQuery(
+				authenticatedContext.value,
+				input.secretKeyId
+			);
 
 			if (existingKey.isErr()) {
 				return err(existingKey.error);
-			}
-
-			if (!existingKey.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "API key not found",
-					resource: "api-key",
-					payload: { id: input.secretKeyId },
-				});
 			}
 
 			if (

@@ -5,7 +5,6 @@ import {
 } from "@/lib/service-function";
 import {
 	fromUnknownThrow,
-	VoidhashError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -41,15 +40,6 @@ export const deletePerk = createServiceFunction()
 		);
 		if (existingPerk.isErr()) {
 			return err(existingPerk.error);
-		}
-
-		if (!existingPerk.value) {
-			return err({
-				code: "NOT_FOUND",
-				message: "Perk not found",
-				resource: "perk",
-				payload: { id: input.perkId },
-			});
 		}
 
 		if (

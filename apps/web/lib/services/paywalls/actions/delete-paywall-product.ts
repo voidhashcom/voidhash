@@ -50,15 +50,6 @@ export const deletePaywallProduct = createServiceFunction()
 				return err(paywall.error);
 			}
 
-			if (!paywall.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Paywall with specified id not found",
-					resource: "paywall",
-					payload: { id: input.paywallId },
-				});
-			}
-
 			if (
 				!hasProjectPermission(
 					authenticatedContext.value,

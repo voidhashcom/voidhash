@@ -64,15 +64,6 @@ export const createSecretKey = createServiceFunction()
 				return err(project.error);
 			}
 
-			if (!project.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Project not found",
-					resource: "project",
-					payload: { id: input.projectId },
-				});
-			}
-
 			const organization = await getOrganizationById({
 				ctx: authenticatedContext.value,
 				input: { id: project.value.organizationId },
@@ -80,15 +71,6 @@ export const createSecretKey = createServiceFunction()
 
 			if (organization.isErr()) {
 				return err(organization.error);
-			}
-
-			if (!organization.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Organization not found",
-					resource: "organization",
-					payload: { id: project.value.organizationId },
-				});
 			}
 
 			if (!organization.value.slug) {
@@ -101,27 +83,29 @@ export const createSecretKey = createServiceFunction()
 				});
 			}
 
-			const environment = await getEnvironment(
-				ctx.cookies,
-				organization.value.slug,
-				project.value.slug
-			);
+			const environment = (
+				await getEnvironment(
+					ctx.cookies,
+					organization.value.slug,
+					project.value.slug
+				)
+			).orElse((e) => {
+				return e.code === "NOT_FOUND"
+					? err({
+							code: "INTERNAL_SERVER_ERROR",
+							message: "Environment not found",
+							originalError: new Error(
+								"Environment not found - " +
+									organization.value.slug +
+									" - " +
+									project.value.slug
+							),
+						} as VoidhashInternalServerError)
+					: err(e);
+			});
 
 			if (environment.isErr()) {
 				return err(environment.error);
-			}
-
-			if (!environment.value) {
-				return err({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Environment not found",
-					originalError: new Error(
-						"Environment not found - " +
-							organization.value.slug +
-							" - " +
-							project.value.slug
-					),
-				});
 			}
 
 			const { rawKey, ...secretKey } = await generateSecretKeyFn(

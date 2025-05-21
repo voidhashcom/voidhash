@@ -11,6 +11,7 @@ import { createPaymentProviderProduct } from "@/lib/services/products/actions/cr
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
+import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Attach a new provider product",
@@ -40,6 +41,9 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
+			if (authenticatedContext.isErr()) {
+				throw toVoidhashHTTPError(authenticatedContext.error);
+			}
 			const productId = c.req.param("productId");
 			const providerId = c.req.valid("json").providerId;
 			if (!providerId) {
@@ -50,19 +54,21 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 			}
 
 			const providerProduct = await createPaymentProviderProduct.invoke({
-				ctx: authenticatedContext,
+				ctx: authenticatedContext.value,
 				input: {
 					productId,
 					providerId: providerId as string,
 					configuration: c.req.valid("json").configuration,
 				},
 			});
-
+			if (providerProduct.isErr()) {
+				throw toVoidhashHTTPError(providerProduct.error);
+			}
 			return c.json<z.infer<typeof providerProductResponseSchema>>({
-				providerProductKey: providerProduct.providerProductKey,
+				providerProductKey: providerProduct.value.providerProductKey,
 				providerConfiguration: {
-					providerId: providerProduct.providerId,
-					configuration: providerProduct.configuration,
+					providerId: providerProduct.value.providerId,
+					configuration: providerProduct.value.configuration,
 				},
 			});
 		}

@@ -5,6 +5,7 @@ import { deletePaywallProductParamsSchema } from "./schema";
 import { deletePaywallProduct } from "@/lib/services/paywalls/actions/delete-paywall-product";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
+import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Remove a product from a paywall",
@@ -28,16 +29,23 @@ export const registerPaywallsDeletePaywallProduct = (app: App) =>
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
+			if (authenticatedContext.isErr()) {
+				throw toVoidhashHTTPError(authenticatedContext.error);
+			}
 			const paywallId = c.req.param("paywallId");
 			const productId = c.req.param("productId");
 
-			await deletePaywallProduct.invoke({
-				ctx: authenticatedContext,
+			const deletedPaywallProduct = await deletePaywallProduct.invoke({
+				ctx: authenticatedContext.value,
 				input: {
 					paywallId,
 					productId,
 				},
 			});
+
+			if (deletedPaywallProduct.isErr()) {
+				throw toVoidhashHTTPError(deletedPaywallProduct.error);
+			}
 
 			return c.json({ message: "Product removed from paywall" });
 		}

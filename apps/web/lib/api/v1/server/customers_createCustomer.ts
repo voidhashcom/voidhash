@@ -7,6 +7,10 @@ import { zValidator } from "@hono/zod-validator";
 import { authenticateContext } from "@/lib/service-function";
 import { createCustomer } from "@/lib/services/customers/actions/create-customer";
 import { z } from "zod";
+import {
+	toVoidhashHTTPError,
+	VoidhashHTTPError,
+} from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Create a new customer",
@@ -33,14 +37,20 @@ export const registerCustomersCreateCustomer = (app: App) =>
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
-			const projectId = authenticatedContext.session?.projects[0]?.id;
+			if (authenticatedContext.isErr()) {
+				throw toVoidhashHTTPError(authenticatedContext.error);
+			}
+			const projectId = authenticatedContext.value.session?.projects[0]?.id;
 
 			if (!projectId) {
-				return c.json({ error: "Project not found" }, 404);
+				throw new VoidhashHTTPError({
+					code: "NOT_FOUND",
+					message: "Project not found",
+				});
 			}
 
 			const createdCustomer = await createCustomer.invoke({
-				ctx: authenticatedContext,
+				ctx: authenticatedContext.value,
 				input: {
 					email: c.req.valid("json").email,
 					name: c.req.valid("json").name,
@@ -49,13 +59,16 @@ export const registerCustomersCreateCustomer = (app: App) =>
 					projectId,
 				},
 			});
+			if (createdCustomer.isErr()) {
+				throw toVoidhashHTTPError(createdCustomer.error);
+			}
 
 			return c.json<z.infer<typeof customerResponseSchema>>({
-				customerId: createdCustomer.id,
-				name: createdCustomer.name ?? null,
-				email: createdCustomer.email ?? null,
-				appUserId: createdCustomer.appUserId ?? null,
-				origin: createdCustomer.origin,
+				customerId: createdCustomer.value.id,
+				name: createdCustomer.value.name ?? null,
+				email: createdCustomer.value.email ?? null,
+				appUserId: createdCustomer.value.appUserId ?? null,
+				origin: createdCustomer.value.origin,
 			});
 		}
 	);

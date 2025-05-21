@@ -1,5 +1,5 @@
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { VoidhashBadRequestError } from "@voidhash/lib/constants";
+import { VoidhashInternalServerError } from "@voidhash/lib/constants";
 import { err, ok, Result } from "neverthrow";
 import { z } from "zod";
 
@@ -11,14 +11,15 @@ export const createPaymentProviderKey = <
 >(
 	paymentProviderId: TKey,
 	configuration: TConfiguration
-): Result<string, VoidhashBadRequestError> => {
+): Result<string, VoidhashInternalServerError> => {
 	const paymentProvider = paymentProviders.find(
 		(p) => p.id === paymentProviderId
 	);
 	if (!paymentProvider) {
 		return err({
-			code: "BAD_REQUEST",
+			code: "INTERNAL_SERVER_ERROR",
 			message: "Payment provider not found",
+			originalError: new Error("Payment provider not found"),
 		});
 	}
 	return ok(

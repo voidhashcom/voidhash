@@ -44,16 +44,6 @@ export const deletePaywall = createServiceFunction()
 			if (existingPaywall.isErr()) {
 				return err(existingPaywall.error);
 			}
-
-			if (!existingPaywall.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Paywall not found",
-					resource: "paywall",
-					payload: { id: input.paywallId },
-				});
-			}
-
 			if (
 				!hasProjectPermission(
 					authenticatedContext.value,

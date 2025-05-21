@@ -8,6 +8,10 @@ import { ALLOWED_EVENTS } from "../constants";
 import { handleSessionCompleted } from "../hooks/on-session-completed";
 import { handleSubscriptionUpdated } from "../hooks/on-subscription-updated";
 import { handleSubscriptionDeleted } from "../hooks/on-subscription-deleted";
+import {
+	toVoidhashHTTPError,
+	VoidhashHTTPError,
+} from "@voidhash/lib/constants";
 
 export const registerStripeWebhook = (app: App) => {
 	app.post(
@@ -29,26 +33,28 @@ export const registerStripeWebhook = (app: App) => {
 					stripeProviderId
 				);
 
-			if (paymentProviderConfiguration?.enabled === false) {
-				throw new HTTPException(400, {
+			if (paymentProviderConfiguration.isErr()) {
+				throw toVoidhashHTTPError(paymentProviderConfiguration.error);
+			}
+
+			if (paymentProviderConfiguration.value.enabled === false) {
+				throw new VoidhashHTTPError({
+					code: "DISABLED",
 					message: "Stripe is not enabled for this project.",
 				});
 			}
 
-			if (!paymentProviderConfiguration) {
-				throw new HTTPException(400, { message: "Project not found" });
-			}
-
-			const configuration =
-				paymentProviderConfiguration?.configuration as z.infer<
-					typeof stripePaymentProvider.configuration.configurationSchema
-				>;
+			const configuration = paymentProviderConfiguration.value
+				.configuration as z.infer<
+				typeof stripePaymentProvider.configuration.configurationSchema
+			>;
 
 			const stripeWebhookSecret = configuration.webhookSecret;
 			const stripeSecretKey = configuration.secretKey;
 
 			if (!stripeWebhookSecret || !stripeSecretKey) {
-				throw new HTTPException(500, {
+				throw new VoidhashHTTPError({
+					code: "INTERNAL_SERVER_ERROR",
 					message: "Stripe webhook secret or secret key is not configured.",
 				});
 			}
@@ -70,7 +76,10 @@ export const registerStripeWebhook = (app: App) => {
 				// Check if it's an error object before accessing message
 				const message = err instanceof Error ? err.message : "Unknown error";
 				console.error(`Webhook signature verification failed: ${message}`);
-				throw new HTTPException(400, { message: `Webhook Error: ${message}` });
+				throw new VoidhashHTTPError({
+					code: "BAD_REQUEST",
+					message: `Webhook Error: ${message}`,
+				});
 			}
 
 			// Skip processing if the event isn't one we're tracking
@@ -80,34 +89,46 @@ export const registerStripeWebhook = (app: App) => {
 			try {
 				switch (event.type) {
 					case "checkout.session.completed":
-						handleSessionCompleted(
+						const handleSessionCompletedResult = await handleSessionCompleted(
 							ctx,
 							c.req.param("projectId"),
 							stripe,
 							event
 						);
+						if (handleSessionCompletedResult.isErr()) {
+							throw toVoidhashHTTPError(handleSessionCompletedResult.error);
+						}
 						break;
 					case "customer.subscription.updated":
-						handleSubscriptionUpdated(
-							ctx,
-							c.req.param("projectId"),
-							stripe,
-							event
-						);
+						const handleSubscriptionUpdatedResult =
+							await handleSubscriptionUpdated(
+								ctx,
+								c.req.param("projectId"),
+								stripe,
+								event
+							);
+						if (handleSubscriptionUpdatedResult.isErr()) {
+							throw toVoidhashHTTPError(handleSubscriptionUpdatedResult.error);
+						}
 						break;
 					case "customer.subscription.deleted":
-						handleSubscriptionDeleted(
-							ctx,
-							c.req.param("projectId"),
-							stripe,
-							event
-						);
+						const handleSubscriptionDeletedResult =
+							await handleSubscriptionDeleted(
+								ctx,
+								c.req.param("projectId"),
+								stripe,
+								event
+							);
+						if (handleSubscriptionDeletedResult.isErr()) {
+							throw toVoidhashHTTPError(handleSubscriptionDeletedResult.error);
+						}
 						break;
 					default:
 						break;
 				}
 			} catch {
-				throw new HTTPException(400, {
+				throw new VoidhashHTTPError({
+					code: "BAD_REQUEST",
 					message: "Webhook error: See server logs for more information.",
 				});
 			}

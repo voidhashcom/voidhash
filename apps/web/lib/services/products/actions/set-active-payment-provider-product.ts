@@ -6,7 +6,6 @@ import {
 import {
 	fromUnknownThrow,
 	VoidhashBadRequestError,
-	VoidhashError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -15,9 +14,12 @@ import {
 import { z } from "zod";
 import { productProviderConfigurations } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { getProductById, getProviderProductByPrimaryKey } from "../queries";
 import { and, eq, not } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
+import {
+	getProductByIdQuery,
+	getProviderProductByPrimaryKeyQuery,
+} from "../raw-queries";
 
 export const setActivePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
@@ -46,24 +48,13 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 				return err(authenticatedContext.error);
 			}
 
-			const product = await getProductById({
-				ctx: authenticatedContext.value,
-				input: { id: input.productId },
-			});
+			const product = await getProductByIdQuery(
+				authenticatedContext.value,
+				input.productId
+			);
 
 			if (product.isErr()) {
 				return err(product.error);
-			}
-
-			if (!product.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Product not found",
-					resource: "product",
-					payload: {
-						id: input.productId,
-					},
-				});
 			}
 
 			if (
@@ -91,28 +82,15 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 				});
 			}
 
-			const providerProduct = await getProviderProductByPrimaryKey({
-				ctx: authenticatedContext.value,
-				input: {
-					projectId: product.value.projectId,
-					providerId: input.providerId,
-					productProviderKey: input.providerProductKey,
-				},
-			});
+			const providerProduct = await getProviderProductByPrimaryKeyQuery(
+				authenticatedContext.value,
+				product.value.projectId,
+				input.providerId,
+				input.providerProductKey
+			);
 
 			if (providerProduct.isErr()) {
 				return err(providerProduct.error);
-			}
-
-			if (!providerProduct.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Provider product not found",
-					resource: "providerProduct",
-					payload: {
-						providerProductKey: input.providerProductKey,
-					},
-				});
 			}
 
 			// Disable other provider products for this product

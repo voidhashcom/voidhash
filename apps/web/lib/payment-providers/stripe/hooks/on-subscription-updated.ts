@@ -1,30 +1,45 @@
 import { ServiceContext } from "@/lib/service-function";
 import Stripe from "stripe";
-import { VoidhashError } from "@voidhash/lib/constants";
+import {
+	fromUnknownThrow,
+	VoidhashInternalServerError,
+	VoidhashNotFoundError,
+} from "@voidhash/lib/constants";
 import { mapSubscriptionStatus } from "../utils";
 import { getPurchaseByProviderKeyQuery } from "@/lib/services/purchases/raw-queries";
 import { handlePurchaseUpdated } from "@/lib/services/purchases/hooks/on-purchased-updated";
+import { err, ok, Result, ResultAsync } from "neverthrow";
+
+type HandleSubscriptionUpdatedError =
+	| VoidhashInternalServerError
+	| VoidhashNotFoundError;
 
 export async function handleSubscriptionUpdated(
 	serviceContext: ServiceContext,
 	projectId: string,
 	stripe: Stripe,
 	event: Stripe.Event
-) {
+): Promise<Result<void, HandleSubscriptionUpdatedError>> {
 	try {
 		const subscriptionUpdated = event.data.object as Stripe.Subscription;
 		// Retrieve the subscription from stripe, because the event object may be outdated due to webhook ordering being not guaranteed
-		const subscription = await stripe.subscriptions.retrieve(
-			subscriptionUpdated.id
+		const subscription = await ResultAsync.fromPromise(
+			stripe.subscriptions.retrieve(subscriptionUpdated.id),
+			(e) => fromUnknownThrow(e)
 		);
-		if (!subscription) {
-			throw new VoidhashError({
+		if (subscription.isErr()) {
+			return err(subscription.error);
+		}
+
+		if (!subscription.value) {
+			return err({
 				code: "INTERNAL_SERVER_ERROR",
 				message: "No stripe subscription found.",
+				originalError: new Error("No stripe subscription found."),
 			});
 		}
 
-		const subscriptionItem = subscription.items.data[0];
+		const subscriptionItem = subscription.value.items.data[0];
 		const productId = subscriptionItem?.price.product;
 		const priceId = subscriptionItem?.price.id;
 
@@ -32,32 +47,50 @@ export async function handleSubscriptionUpdated(
 			serviceContext.logger.error(
 				"No product id or price id found in checkout session event."
 			);
-			return;
+			return ok(undefined);
 		}
 
-		const purchase = await getPurchaseByProviderKeyQuery(
-			serviceContext,
-			subscriptionUpdated.id
-		);
+		const purchase = (
+			await getPurchaseByProviderKeyQuery(
+				serviceContext,
+				subscriptionUpdated.id
+			)
+		).orElse((e) => {
+			if (e.code === "NOT_FOUND") {
+				return ok(undefined);
+			}
+			return err(e);
+		});
 
-		if (!purchase) {
+		if (purchase.isErr()) {
+			return err(purchase.error);
+		}
+
+		if (!purchase.value) {
 			serviceContext.logger.error("No purchase found for stripe subscription.");
-			return;
+			return ok(undefined);
 		}
 
 		// TODO: Maybe allow for product id or price id changes
-		await handlePurchaseUpdated(serviceContext, {
-			purchaseId: purchase.id,
-			status: mapSubscriptionStatus(subscription.status),
-			canceledAt: subscription.canceled_at
-				? new Date(subscription.canceled_at * 1000)
+		const purchaseUpdated = await handlePurchaseUpdated(serviceContext, {
+			purchaseId: purchase.value.id,
+			status: mapSubscriptionStatus(subscription.value.status),
+			canceledAt: subscription.value.canceled_at
+				? new Date(subscription.value.canceled_at * 1000)
 				: null,
-			cancelAtPeriodEnd: subscription.cancel_at_period_end,
+			cancelAtPeriodEnd: subscription.value.cancel_at_period_end,
 			expiresAt: new Date(subscriptionItem.current_period_end * 1000),
 		});
+
+		if (purchaseUpdated.isErr()) {
+			return err(purchaseUpdated.error);
+		}
+
+		return ok(undefined);
 	} catch (e: unknown) {
 		serviceContext.logger.error(
 			`Stripe webhook failed. Error: ${e instanceof Error ? e.message : "Unknown error"}`
 		);
+		return err(fromUnknownThrow(e));
 	}
 }

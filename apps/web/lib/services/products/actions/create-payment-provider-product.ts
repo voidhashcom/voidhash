@@ -14,10 +14,10 @@ import {
 import { z } from "zod";
 import { productProviderConfigurations } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { getProductById } from "../queries";
 import { and, eq } from "drizzle-orm";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
+import { getProductByIdQuery } from "../raw-queries";
 
 export const createPaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
@@ -51,22 +51,13 @@ export const createPaymentProviderProduct = createServiceFunction()
 				return err(authenticatedContext.error);
 			}
 
-			const product = await getProductById({
-				ctx: authenticatedContext.value,
-				input: { id: input.productId },
-			});
+			const product = await getProductByIdQuery(
+				authenticatedContext.value,
+				input.productId
+			);
 			if (product.isErr()) {
 				return err(product.error);
 			}
-			if (!product.value) {
-				return err({
-					code: "BAD_REQUEST",
-					message: `Product ${input.productId} not found`,
-					resource: "product",
-					payload: { id: input.productId },
-				});
-			}
-
 			if (
 				!hasProjectPermission(
 					authenticatedContext.value,
@@ -83,8 +74,12 @@ export const createPaymentProviderProduct = createServiceFunction()
 			const provider = paymentProviders.find((p) => p.id === input.providerId);
 			if (!provider) {
 				return err({
-					code: "BAD_REQUEST",
+					code: "NOT_FOUND",
 					message: `Provider ${input.providerId} not found`,
+					resource: "payment_provider",
+					payload: {
+						providerId: input.providerId,
+					},
 				});
 			}
 

@@ -9,6 +9,7 @@ import {
 import { getPaywallProducts } from "@/lib/services/paywalls/queries";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
+import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Get all products for a paywall",
@@ -37,17 +38,24 @@ export const registerPaywallsGetPaywallProducts = (app: App) =>
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
+			if (authenticatedContext.isErr()) {
+				throw toVoidhashHTTPError(authenticatedContext.error);
+			}
 			const paywallId = c.req.param("paywallId");
 
 			const paywallProducts = await getPaywallProducts({
-				ctx: authenticatedContext,
+				ctx: authenticatedContext.value,
 				input: {
 					paywallId,
 				},
 			});
 
+			if (paywallProducts.isErr()) {
+				throw toVoidhashHTTPError(paywallProducts.error);
+			}
+
 			return c.json<z.infer<typeof paywallProductResponseSchema>[]>(
-				paywallProducts.map((pp) => ({
+				paywallProducts.value.map((pp) => ({
 					paywallId: pp.paywallId,
 					productId: pp.productId,
 					productName: pp.product.name ?? null,

@@ -7,6 +7,10 @@ import { z } from "zod";
 import { getProducts } from "@/lib/services/products/queries";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
+import {
+	toVoidhashHTTPError,
+	VoidhashHTTPError,
+} from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "List products",
@@ -31,21 +35,31 @@ export const registerProductsListProducts = (app: App) =>
 	app.get("/v1/products", route, async (c) => {
 		const context = c.get("services");
 		const authenticatedContext = await authenticateContext(context);
-		const projectId = authenticatedContext.session?.projects[0]?.id;
+		if (authenticatedContext.isErr()) {
+			throw toVoidhashHTTPError(authenticatedContext.error);
+		}
+		const projectId = authenticatedContext.value.session?.projects[0]?.id;
 
 		if (!projectId) {
-			return c.json({ error: "Project not found" }, 404);
+			throw new VoidhashHTTPError({
+				code: "NOT_FOUND",
+				message: "Project not found",
+			});
 		}
 
 		const products = await getProducts({
-			ctx: authenticatedContext,
+			ctx: authenticatedContext.value,
 			input: {
 				projectId,
 			},
 		});
 
+		if (products.isErr()) {
+			throw toVoidhashHTTPError(products.error);
+		}
+
 		return c.json<z.infer<typeof productResponseSchema>[]>(
-			products.map((product) => ({
+			products.value.map((product) => ({
 				productId: product.id,
 				name: product.name,
 			}))

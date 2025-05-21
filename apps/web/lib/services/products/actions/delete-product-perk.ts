@@ -6,7 +6,6 @@ import {
 import {
 	fromUnknownThrow,
 	VoidhashBadRequestError,
-	VoidhashError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -14,9 +13,9 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { productPerks } from "@voidhash/db";
-import { getProductById } from "../queries";
 import { and, eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
+import { getProductByIdQuery } from "../raw-queries";
 
 export const deleteProductPerkInputSchema = z.object({
 	productId: z.string(),
@@ -39,24 +38,13 @@ export const deleteProductPerk = createServiceFunction()
 				return err(authenticatedContext.error);
 			}
 
-			const product = await getProductById({
-				ctx: authenticatedContext.value,
-				input: { id: input.productId },
-			});
+			const product = await getProductByIdQuery(
+				authenticatedContext.value,
+				input.productId
+			);
 
 			if (product.isErr()) {
 				return err(product.error);
-			}
-
-			if (!product.value) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Product not found",
-					resource: "product",
-					payload: {
-						id: input.productId,
-					},
-				});
 			}
 
 			if (

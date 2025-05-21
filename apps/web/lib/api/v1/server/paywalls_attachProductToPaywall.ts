@@ -10,6 +10,7 @@ import {
 import { createPaywallProduct } from "@/lib/services/paywalls/actions/create-paywall-product";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
+import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Attach a product to a paywall",
@@ -39,23 +40,30 @@ export const registerPaywallsAttachProductToPaywall = (app: App) =>
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
+			if (authenticatedContext.isErr()) {
+				throw toVoidhashHTTPError(authenticatedContext.error);
+			}
 			const paywallId = c.req.param("paywallId");
 			const productId = c.req.valid("json").productId;
 
 			const paywallProduct = await createPaywallProduct.invoke({
-				ctx: authenticatedContext,
+				ctx: authenticatedContext.value,
 				input: {
 					paywallId,
 					productId,
 				},
 			});
 
-			// Note: createPaywallProduct returns { paywallId, productId }, but the query for productName is separate.
+			if (paywallProduct.isErr()) {
+				throw toVoidhashHTTPError(paywallProduct.error);
+			}
+
+			// TODO: createPaywallProduct returns { paywallId, productId }, but the query for productName is separate.
 			// We'll return what we have for now.
 
 			return c.json<z.infer<typeof paywallProductResponseSchema>>({
-				paywallId: paywallProduct.paywallId,
-				productId: paywallProduct.productId,
+				paywallId: paywallProduct.value.paywallId,
+				productId: paywallProduct.value.productId,
 				productName: null, // productName is not directly available here
 			});
 		}

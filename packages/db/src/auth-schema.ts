@@ -69,7 +69,7 @@ export const organization = mysqlTable("organization", {
 
 export type Organization = Omit<
 	typeof organization.$inferSelect,
-	"logo" | "createdAt" | "metadata"
+	"logo" | "metadata"
 > & {
 	logo?: string | null;
 	metadata?: string | null;

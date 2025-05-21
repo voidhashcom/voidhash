@@ -2,7 +2,7 @@ import {
 	createSafeActionClient,
 	DEFAULT_SERVER_ERROR_MESSAGE,
 } from "next-safe-action";
-import { VoidhashError } from "@voidhash/lib";
+import { VoidhashHTTPError } from "@voidhash/lib";
 import { createNextServiceContext } from "./nextjs/utils/create-next-service-context";
 
 export const actionClient = createSafeActionClient({
@@ -16,7 +16,7 @@ export const actionClient = createSafeActionClient({
 
 		// In this case, we can use the 'MyCustomError` class to unmask errors
 		// and return them with their actual messages to the client.
-		if (e instanceof VoidhashError) {
+		if (e instanceof VoidhashHTTPError) {
 			return e.message;
 		}
 

@@ -6,7 +6,6 @@ import {
 import {
 	fromUnknownThrow,
 	VoidhashBadRequestError,
-	VoidhashError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -14,7 +13,6 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { PaywallProduct, paywallProducts } from "@voidhash/db";
-import { getProductById } from "../../products/queries";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
 import { getProductByIdQuery } from "../../products/raw-queries";
@@ -50,13 +48,6 @@ export const createPaywallProduct = createServiceFunction()
 
 			if (product.isErr()) {
 				return err(product.error);
-			}
-
-			if (!product.value) {
-				return err({
-					code: "BAD_REQUEST",
-					message: "Product with specified id not found",
-				});
 			}
 
 			if (

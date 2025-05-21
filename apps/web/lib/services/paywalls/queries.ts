@@ -131,7 +131,16 @@ export const getPaywallProducts = cache(
 			async ({
 				input,
 				ctx,
-			}): Promise<Result<PaywallProduct[], GetPaywallProductsError>> => {
+			}): Promise<
+				Result<
+					(PaywallProduct & {
+						product: {
+							name: string;
+						};
+					})[],
+					GetPaywallProductsError
+				>
+			> => {
 				const authenticatedContext = await authenticateContext(ctx);
 				if (authenticatedContext.isErr()) {
 					return err(authenticatedContext.error);

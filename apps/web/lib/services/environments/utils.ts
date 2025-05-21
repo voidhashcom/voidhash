@@ -1,6 +1,7 @@
 import {
 	fromUnknownThrow,
 	VoidhashInternalServerError,
+	VoidhashNotFoundError,
 } from "@voidhash/lib/constants";
 import { type Environment } from "./types";
 import { CookiesAdapter } from "@/lib/cookies-adapter";
@@ -10,7 +11,9 @@ export async function getEnvironment(
 	cookies: CookiesAdapter,
 	organizationSlug: string,
 	projectSlug: string
-): Promise<Result<Environment | null, VoidhashInternalServerError>> {
+): Promise<
+	Result<Environment, VoidhashInternalServerError | VoidhashNotFoundError>
+> {
 	const projectEnvironmentCookie = await ResultAsync.fromPromise(
 		cookies.get(`project_environment_${organizationSlug}:${projectSlug}`),
 		(e) => fromUnknownThrow(e)
@@ -21,7 +24,12 @@ export async function getEnvironment(
 	}
 
 	if (!projectEnvironmentCookie.value) {
-		return ok(null);
+		return err({
+			code: "NOT_FOUND",
+			message: "Project environment not found",
+			resource: "projectEnvironment",
+			payload: { organizationSlug, projectSlug },
+		});
 	}
 
 	return ok(projectEnvironmentCookie.value as Environment);
