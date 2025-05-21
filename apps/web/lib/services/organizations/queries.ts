@@ -13,7 +13,9 @@ import { auth } from "@voidhash/auth";
 import { err, ok, Result, ResultAsync } from "neverthrow";
 import {
 	fromUnknownThrow,
+	VoidhashForbiddenError,
 	VoidhashInternalServerError,
+	VoidhashNotFoundError,
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
 import { Organization } from "@voidhash/db";
@@ -24,6 +26,8 @@ export const getOrganizationBySlugInputSchema = z.object({
 
 type GetOrganizationBySlugError =
 	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashNotFoundError
 	| VoidhashInternalServerError;
 
 export const getOrganizationBySlug = cache(
@@ -33,7 +37,7 @@ export const getOrganizationBySlug = cache(
 			async ({
 				ctx,
 				input,
-			}): Promise<Result<Organization | null, GetOrganizationBySlugError>> => {
+			}): Promise<Result<Organization, GetOrganizationBySlugError>> => {
 				const authenticatedContext = await authenticateContext(ctx);
 
 				if (authenticatedContext.isErr()) {
@@ -55,10 +59,6 @@ export const getOrganizationBySlug = cache(
 					return err(organization.error);
 				}
 
-				if (!organization.value) {
-					return ok(null);
-				}
-
 				if (
 					!hasOrganizationPermission(
 						authenticatedContext.value,
@@ -66,7 +66,10 @@ export const getOrganizationBySlug = cache(
 						"organization:all"
 					)
 				) {
-					return ok(null);
+					return err({
+						code: "FORBIDDEN",
+						message: "You are not authorized to access this organization",
+					});
 				}
 
 				return ok(organization.value);
@@ -80,6 +83,8 @@ export const getOrganizationByIdInputSchema = z.object({
 
 type GetOrganizationByIdError =
 	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashNotFoundError
 	| VoidhashInternalServerError;
 
 export const getOrganizationById = cache(
@@ -89,7 +94,7 @@ export const getOrganizationById = cache(
 			async ({
 				ctx,
 				input,
-			}): Promise<Result<Organization | null, GetOrganizationByIdError>> => {
+			}): Promise<Result<Organization, GetOrganizationByIdError>> => {
 				const authenticatedContext = await authenticateContext(ctx);
 
 				if (authenticatedContext.isErr()) {
@@ -111,10 +116,6 @@ export const getOrganizationById = cache(
 					return err(organization.error);
 				}
 
-				if (!organization.value) {
-					return ok(null);
-				}
-
 				if (
 					!hasOrganizationPermission(
 						authenticatedContext.value,
@@ -122,7 +123,10 @@ export const getOrganizationById = cache(
 						"organization:all"
 					)
 				) {
-					return ok(null);
+					return err({
+						code: "FORBIDDEN",
+						message: "You are not authorized to access this organization",
+					});
 				}
 
 				return ok(organization.value);

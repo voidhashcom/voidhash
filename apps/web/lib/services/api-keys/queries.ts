@@ -9,7 +9,9 @@ import { Environments } from "@/lib/services/environments/types";
 import { cache } from "react";
 import { err, ok, Result } from "neverthrow";
 import {
+	VoidhashForbiddenError,
 	VoidhashInternalServerError,
+	VoidhashNotFoundError,
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
 import { ApiKey } from "@voidhash/db";
@@ -20,6 +22,8 @@ export const getApiKeyByIdInputSchema = z.object({
 
 type GetApiKeyByIdError =
 	| VoidhashInternalServerError
+	| VoidhashNotFoundError
+	| VoidhashForbiddenError
 	| VoidhashUnauthorizedError;
 export const getApiKeyById = cache(
 	createServiceFunction()
@@ -54,13 +58,8 @@ export const getApiKeyById = cache(
 				if (authenticatedContext.isErr()) {
 					return err(authenticatedContext.error);
 				}
-
 				if (apiKey.isErr()) {
 					return err(apiKey.error);
-				}
-
-				if (!apiKey.value) {
-					return ok(null);
 				}
 
 				if (
@@ -70,7 +69,10 @@ export const getApiKeyById = cache(
 						"project:all"
 					)
 				) {
-					return ok(null);
+					return err({
+						code: "FORBIDDEN",
+						message: "You are not allowed to access this API key",
+					});
 				}
 
 				return ok(apiKey.value);
@@ -83,7 +85,10 @@ export const getApiKeysInputSchema = z.object({
 	environment: z.nativeEnum(Environments).optional(),
 });
 
-type GetApiKeysError = VoidhashInternalServerError | VoidhashUnauthorizedError;
+type GetApiKeysError =
+	| VoidhashInternalServerError
+	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError;
 
 export const getApiKeys = cache(
 	createServiceFunction()
@@ -103,7 +108,11 @@ export const getApiKeys = cache(
 						"project:all"
 					)
 				) {
-					return ok([]);
+					return err({
+						code: "FORBIDDEN",
+						message:
+							"You are not allowed to retrieve API keys for this project",
+					});
 				}
 
 				const apiKeys = await ctx.cache.cacheFn(

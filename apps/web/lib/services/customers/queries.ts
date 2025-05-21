@@ -15,6 +15,7 @@ import { err, ok, Result } from "neverthrow";
 import {
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
+	VoidhashNotFoundError,
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
 import { Customer, CustomerUnlockedPerk } from "@voidhash/db";
@@ -66,7 +67,8 @@ export const getCustomers = cache(
 
 type GetCustomerByIdError =
 	| VoidhashInternalServerError
-	| VoidhashUnauthorizedError;
+	| VoidhashUnauthorizedError
+	| VoidhashNotFoundError;
 
 export const getCustomerById = cache(
 	createServiceFunction()
@@ -75,24 +77,22 @@ export const getCustomerById = cache(
 			async ({
 				ctx,
 				input,
-			}): Promise<Result<Customer | null, GetCustomerByIdError>> => {
+			}): Promise<Result<Customer, GetCustomerByIdError>> => {
 				const authenticatedContext = await authenticateContext(ctx);
 
 				if (authenticatedContext.isErr()) {
 					return err(authenticatedContext.error);
 				}
 
-				const customer = await getCustomerByIdQuery(
-					authenticatedContext.value,
-					input.id
-				);
-				return customer;
+				return await getCustomerByIdQuery(authenticatedContext.value, input.id);
 			}
 		).invoke
 );
 
 type GetCustomerByAppUserIdError =
 	| VoidhashInternalServerError
+	| VoidhashNotFoundError
+	| VoidhashForbiddenError
 	| VoidhashUnauthorizedError;
 
 export const getCustomerByAppUserId = cache(
@@ -102,7 +102,7 @@ export const getCustomerByAppUserId = cache(
 			async ({
 				ctx,
 				input,
-			}): Promise<Result<Customer | null, GetCustomerByAppUserIdError>> => {
+			}): Promise<Result<Customer, GetCustomerByAppUserIdError>> => {
 				const authenticatedContext = await authenticateContext(ctx);
 
 				if (authenticatedContext.isErr()) {
@@ -118,10 +118,6 @@ export const getCustomerByAppUserId = cache(
 					return err(customer.error);
 				}
 
-				if (!customer.value) {
-					return ok(null);
-				}
-
 				if (
 					!hasProjectPermission(
 						authenticatedContext.value,
@@ -129,7 +125,10 @@ export const getCustomerByAppUserId = cache(
 						"project:all"
 					)
 				) {
-					return ok(null);
+					return err({
+						code: "FORBIDDEN",
+						message: "Customer not found",
+					} satisfies VoidhashForbiddenError);
 				}
 
 				return ok(customer.value);

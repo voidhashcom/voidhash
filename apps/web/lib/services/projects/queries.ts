@@ -17,12 +17,15 @@ import {
 	VoidhashInternalServerError,
 	VoidhashBadRequestError,
 	VoidhashForbiddenError,
+	VoidhashNotFoundError,
 } from "@voidhash/lib/constants";
 import { err, ok, Result } from "neverthrow";
 import { Project } from "@voidhash/db";
 
 type GetProjectBySlugError =
 	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashNotFoundError
 	| VoidhashInternalServerError;
 
 export const getProjectBySlug = cache(
@@ -37,7 +40,7 @@ export const getProjectBySlug = cache(
 			async ({
 				input,
 				ctx,
-			}): Promise<Result<Project | null, GetProjectBySlugError>> => {
+			}): Promise<Result<Project, GetProjectBySlugError>> => {
 				const authenticatedContext = await authenticateContext(ctx);
 
 				if (authenticatedContext.isErr()) {
@@ -63,10 +66,6 @@ export const getProjectBySlug = cache(
 					return err(project.error);
 				}
 
-				if (!project.value) {
-					return ok(null);
-				}
-
 				if (
 					!hasProjectPermission(
 						authenticatedContext.value,
@@ -74,7 +73,10 @@ export const getProjectBySlug = cache(
 						"project:all"
 					)
 				) {
-					return ok(null);
+					return err({
+						code: "FORBIDDEN",
+						message: "You are not authorized to access this project",
+					});
 				}
 
 				return ok(project.value);
@@ -85,6 +87,8 @@ export const getProjectBySlug = cache(
 type GetProjectBySlugAndOrganizationSlugError =
 	| VoidhashUnauthorizedError
 	| VoidhashInternalServerError
+	| VoidhashForbiddenError
+	| VoidhashNotFoundError
 	| VoidhashBadRequestError;
 
 export const getProjectBySlugAndOrganizationSlug = cache(
@@ -100,7 +104,7 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 				input,
 				ctx,
 			}): Promise<
-				Result<Project | null, GetProjectBySlugAndOrganizationSlugError>
+				Result<Project, GetProjectBySlugAndOrganizationSlugError>
 			> => {
 				const authenticatedContext = await authenticateContext(ctx);
 
@@ -119,10 +123,6 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 					return err(organization.error);
 				}
 
-				if (!organization.value) {
-					return ok(null);
-				}
-
 				const project = await getProjectBySlug({
 					ctx: authenticatedContext.value,
 					input: {
@@ -135,10 +135,6 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 					return err(project.error);
 				}
 
-				if (!project.value) {
-					return ok(null);
-				}
-
 				if (
 					!hasProjectPermission(
 						authenticatedContext.value,
@@ -146,7 +142,10 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 						"project:all"
 					)
 				) {
-					return ok(null);
+					return err({
+						code: "FORBIDDEN",
+						message: "You are not authorized to access this project",
+					});
 				}
 
 				return ok(project.value);
@@ -156,7 +155,9 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 
 type GetProjectByIdError =
 	| VoidhashUnauthorizedError
-	| VoidhashInternalServerError;
+	| VoidhashInternalServerError
+	| VoidhashForbiddenError
+	| VoidhashNotFoundError;
 
 export const getProjectById = cache(
 	createServiceFunction()
@@ -166,10 +167,7 @@ export const getProjectById = cache(
 			})
 		)
 		.function(
-			async ({
-				input,
-				ctx,
-			}): Promise<Result<Project | null, GetProjectByIdError>> => {
+			async ({ input, ctx }): Promise<Result<Project, GetProjectByIdError>> => {
 				const authenticatedContext = await authenticateContext(ctx);
 
 				if (authenticatedContext.isErr()) {
@@ -191,10 +189,6 @@ export const getProjectById = cache(
 					return err(project.error);
 				}
 
-				if (!project.value) {
-					return ok(null);
-				}
-
 				if (
 					!hasProjectPermission(
 						authenticatedContext.value,
@@ -202,7 +196,10 @@ export const getProjectById = cache(
 						"project:all"
 					)
 				) {
-					return ok(null);
+					return err({
+						code: "FORBIDDEN",
+						message: "You are not authorized to access this project",
+					});
 				}
 
 				return ok(project.value);
@@ -214,6 +211,7 @@ type GetProjectsByOrganizationSlugError =
 	| VoidhashUnauthorizedError
 	| VoidhashInternalServerError
 	| VoidhashForbiddenError
+	| VoidhashNotFoundError
 	| VoidhashBadRequestError;
 
 export const getProjectsByOrganizationSlug = cache(
@@ -243,10 +241,6 @@ export const getProjectsByOrganizationSlug = cache(
 
 				if (organization.isErr()) {
 					return err(organization.error);
-				}
-
-				if (!organization.value) {
-					return ok([]);
 				}
 
 				if (

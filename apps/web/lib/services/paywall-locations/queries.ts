@@ -74,9 +74,7 @@ export const getPaywallLocationById = cache(
 			async ({
 				input,
 				ctx,
-			}): Promise<
-				Result<PaywallLocation | null, GetPaywallLocationByIdError>
-			> => {
+			}): Promise<Result<PaywallLocation, GetPaywallLocationByIdError>> => {
 				const authenticatedContext = await authenticateContext(ctx);
 				if (authenticatedContext.isErr()) {
 					return err(authenticatedContext.error);
@@ -87,16 +85,6 @@ export const getPaywallLocationById = cache(
 				);
 				if (paywallLocationResult.isErr()) {
 					return err(paywallLocationResult.error);
-				}
-				if (!paywallLocationResult.value) {
-					return err({
-						code: "NOT_FOUND",
-						message: "Paywall location not found",
-						resource: "paywall_location",
-						payload: {
-							id: input.id,
-						},
-					});
 				}
 
 				if (
