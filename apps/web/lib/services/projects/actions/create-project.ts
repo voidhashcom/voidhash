@@ -80,12 +80,15 @@ export const createProject = createServiceFunction()
 				slug
 			);
 
-			if (existingProject.isErr()) {
-				return err(existingProject.error);
+			// Project exists
+			if (existingProject.isOk()) {
+				slug = slug + "-" + randomUUID();
 			}
 
-			if (existingProject.value) {
-				slug = slug + "-" + randomUUID();
+			if (existingProject.isErr()) {
+				if (existingProject.error.code !== "NOT_FOUND") {
+					return err(existingProject.error);
+				}
 			}
 
 			try {

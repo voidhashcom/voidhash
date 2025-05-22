@@ -5,6 +5,37 @@ import { ProjectSidebar } from "@/features/shell/project-sidebar";
 import { ProjectSettingsSidebar } from "@/features/shell/project-settings-sidebar";
 import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { Suspense } from "react";
+
+async function ProjectLayoutSidebar({
+	organizationSlug,
+	projectSlug,
+}: {
+	organizationSlug: string;
+	projectSlug: string;
+}) {
+	const activeOrganizationResult = await getOrganizationBySlug({
+		ctx: await createNextServiceContext(),
+		input: {
+			slug: organizationSlug,
+		},
+	});
+
+	if (activeOrganizationResult.isErr()) {
+		return null;
+	}
+
+	const activeOrganization = activeOrganizationResult.value;
+
+	return (
+		<ProjectSettingsSidebar
+			organizationSlug={organizationSlug}
+			projectSlug={projectSlug}
+			activeOrganization={activeOrganization}
+			isActiveOrganizationLoading={false}
+		/>
+	);
+}
 
 export default async function ProjectLayout({
 	children,
@@ -14,12 +45,6 @@ export default async function ProjectLayout({
 	params: Promise<{ organizationSlug: string; projectSlug: string }>;
 }) {
 	const { organizationSlug, projectSlug } = await params;
-	const activeOrganizationPromise = getOrganizationBySlug({
-		ctx: await createNextServiceContext(),
-		input: {
-			slug: organizationSlug,
-		},
-	});
 
 	return (
 		<>
@@ -34,11 +59,21 @@ export default async function ProjectLayout({
 						/>
 					}
 					projectSettingsSidebar={
-						<ProjectSettingsSidebar
-							organizationSlug={organizationSlug}
-							projectSlug={projectSlug}
-							activeOrganizationPromise={activeOrganizationPromise}
-						/>
+						<Suspense
+							fallback={
+								<ProjectSettingsSidebar
+									organizationSlug={organizationSlug}
+									projectSlug={projectSlug}
+									activeOrganization={null}
+									isActiveOrganizationLoading={true}
+								/>
+							}
+						>
+							<ProjectLayoutSidebar
+								organizationSlug={organizationSlug}
+								projectSlug={projectSlug}
+							/>
+						</Suspense>
 					}
 				/>
 				<SidebarInset className="top-[var(--header-height)]">

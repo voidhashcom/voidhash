@@ -60,7 +60,17 @@ export function createServiceFunction() {
 						> => {
 							try {
 								const validatedInput = schema.parse(input) as Input;
-								return await fn({ ctx, input: validatedInput });
+								const result = await fn({ ctx, input: validatedInput });
+								if (result.isErr()) {
+									if (result.error.code === "INTERNAL_SERVER_ERROR") {
+										console.log(result.error);
+									}
+									if (result.error.code === "FORBIDDEN") {
+										console.log(result.error);
+									}
+									return err(result.error);
+								}
+								return ok(result.value);
 							} catch (e) {
 								if (e instanceof ZodError) {
 									return err({

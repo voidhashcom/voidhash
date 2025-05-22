@@ -2,26 +2,14 @@ import { GradientAvatar, Skeleton } from "@voidhash/ui";
 import Link from "next/link";
 import { NavSlashSeparator } from "./nav-slash-separator";
 import { OrganizationProjectSwitcher } from "./organization-project-switcher";
-import {
-	type getProjectBySlug,
-	getProjectBySlugAndOrganizationSlug,
-} from "@/lib/services/projects/queries";
+import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { Suspense } from "react";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { getUser } from "@/lib/services/users/queries";
+import { Project } from "@voidhash/db";
 
-const ProjectTitle = async ({
-	projectPromise,
-}: { projectPromise: ReturnType<typeof getProjectBySlug> }) => {
-	const projectResult = await projectPromise;
-
-	if (projectResult.isErr()) {
-		return null;
-	}
-
-	const project = projectResult.value;
-
+const ProjectTitle = async ({ project }: { project: Project }) => {
 	return (
 		<div className="flex items-center gap-2">
 			<GradientAvatar
@@ -57,9 +45,11 @@ export async function ProjectSwitcher({
 	}
 
 	const serviceContext = await createNextServiceContext();
+
 	const userPromise = getUser({
 		ctx: serviceContext,
 	});
+
 	const activeOrganizationPromise = getOrganizationBySlug({
 		ctx: serviceContext,
 		input: {
@@ -67,13 +57,32 @@ export async function ProjectSwitcher({
 		},
 	});
 
-	const projectPromise = getProjectBySlugAndOrganizationSlug({
+	const projectPromisePromise = getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: {
 			organizationSlug: organizationSlug,
 			projectSlug: projectSlug,
 		},
 	});
+
+	const [userResult, activeOrganizationResult, activeProjectResult] =
+		await Promise.all([
+			userPromise,
+			activeOrganizationPromise,
+			projectPromisePromise,
+		]);
+
+	if (
+		userResult.isErr() ||
+		activeOrganizationResult.isErr() ||
+		activeProjectResult.isErr()
+	) {
+		return null;
+	}
+
+	const user = userResult.value;
+	const activeOrganization = activeOrganizationResult.value;
+	const activeProject = activeProjectResult.value;
 
 	return (
 		<>
@@ -82,14 +91,14 @@ export async function ProjectSwitcher({
 				<Link href={`/${organizationSlug}/${projectSlug}`}>
 					<div className="flex items-center gap-2">
 						<Suspense fallback={<ProjectTitleSkeleton />}>
-							<ProjectTitle projectPromise={projectPromise} />
+							<ProjectTitle project={activeProject} />
 						</Suspense>
 					</div>
 				</Link>
 				<OrganizationProjectSwitcher
-					userPromise={userPromise}
-					activeOrganizationPromise={activeOrganizationPromise}
-					activeProjectPromise={projectPromise}
+					user={user}
+					activeOrganization={activeOrganization}
+					activeProject={activeProject}
 				/>
 			</div>
 		</>
