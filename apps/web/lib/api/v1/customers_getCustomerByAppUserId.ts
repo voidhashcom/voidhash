@@ -1,8 +1,8 @@
 import { describeRoute } from "hono-openapi";
 import { resolver } from "hono-openapi/zod";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
+import { openApiErrorResponses } from "../errors/openapi_responses";
 import { customerResponseSchema } from "./schema";
-import { App } from "../../hono/app";
+import { App } from "../hono/app";
 import { authenticateContext } from "@/lib/service-function";
 import { getCustomerByAppUserId } from "@/lib/services/customers/queries";
 import { z } from "zod";
@@ -11,6 +11,11 @@ import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 const route = describeRoute({
 	description: "Get a customer by app user ID",
 	operationId: "getCustomerByAppUserId",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",

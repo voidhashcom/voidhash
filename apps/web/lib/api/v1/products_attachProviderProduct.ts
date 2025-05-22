@@ -9,13 +9,18 @@ import {
 import { z } from "zod";
 import { createPaymentProviderProduct } from "@/lib/services/products/actions/create-payment-provider-product";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Attach a new provider product",
 	operationId: "attachProviderProduct",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",

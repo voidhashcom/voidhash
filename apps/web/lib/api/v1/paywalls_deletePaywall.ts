@@ -4,13 +4,18 @@ import { z } from "zod";
 import { authenticateContext } from "@/lib/service-function";
 import { deletePaywallParamsSchema } from "./schema";
 import { deletePaywall } from "@/lib/services/paywalls/actions/delete-paywall";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Delete a paywall",
 	operationId: "deletePaywall",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",

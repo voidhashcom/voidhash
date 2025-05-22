@@ -1,8 +1,8 @@
 import { describeRoute } from "hono-openapi";
 import { resolver } from "hono-openapi/zod";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
+import { openApiErrorResponses } from "../errors/openapi_responses";
 import { createCustomerBodySchema, customerResponseSchema } from "./schema";
-import { App } from "../../hono/app";
+import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
 import { authenticateContext } from "@/lib/service-function";
 import { createCustomer } from "@/lib/services/customers/actions/create-customer";
@@ -15,6 +15,11 @@ import {
 const route = describeRoute({
 	description: "Create a new customer",
 	operationId: "createCustomer",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",

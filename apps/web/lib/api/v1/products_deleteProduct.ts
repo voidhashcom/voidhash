@@ -1,21 +1,28 @@
 import { describeRoute } from "hono-openapi";
 import { resolver, validator as zValidator } from "hono-openapi/zod";
 import { authenticateContext } from "@/lib/service-function";
-import { getProductByIdParamsSchema, productResponseSchema } from "./schema";
+import { deleteProductParamsSchema } from "./schema";
 import { z } from "zod";
-import { getProductById } from "@/lib/services/products/queries";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { deleteProduct } from "@/lib/services/products/actions/delete-product";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
-	description: "Get a product",
-	operationId: "getProductById",
+	description: "Delete a product",
+	operationId: "deleteProduct",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",
 			content: {
-				"application/json": { schema: resolver(productResponseSchema) },
+				"application/json": {
+					schema: resolver(z.object({ message: z.string() })),
+				},
 			},
 		},
 		...openApiErrorResponses,
@@ -25,37 +32,30 @@ const route = describeRoute({
 
 export type Route = typeof route;
 
-export const registerProductsGetProductById = (app: App) =>
-	app.get(
+export const registerProductsDeleteProduct = (app: App) =>
+	app.delete(
 		"/v1/products/:productId",
 		route,
-		zValidator("param", getProductByIdParamsSchema),
+		zValidator("param", deleteProductParamsSchema),
 		async (c) => {
 			const context = c.get("services");
 			const authenticatedContext = await authenticateContext(context);
-
 			if (authenticatedContext.isErr()) {
 				throw toVoidhashHTTPError(authenticatedContext.error);
 			}
-
 			const productId = c.req.param("productId");
 
-			const product = await getProductById({
+			const deletedProduct = await deleteProduct.invoke({
 				ctx: authenticatedContext.value,
 				input: {
-					id: productId,
+					productId,
 				},
 			});
 
-			if (product.isErr()) {
-				throw toVoidhashHTTPError(product.error);
+			if (deletedProduct.isErr()) {
+				throw toVoidhashHTTPError(deletedProduct.error);
 			}
 
-			return c.json<z.infer<typeof productResponseSchema>>({
-				productId: product.value.id,
-				name: product.value.name,
-			});
+			return c.json({ message: "Product deleted" });
 		}
 	);
-
-export type RouteResponse = z.infer<typeof productResponseSchema>;

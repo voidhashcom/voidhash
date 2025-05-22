@@ -4,8 +4,8 @@ import { z } from "zod";
 import { authenticateContext } from "@/lib/service-function";
 import { paywallResponseSchema } from "./schema";
 import { getPaywalls } from "@/lib/services/paywalls/queries";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import {
 	toVoidhashHTTPError,
 	VoidhashHTTPError,
@@ -14,6 +14,11 @@ import {
 const route = describeRoute({
 	description: "List paywalls",
 	operationId: "listPaywalls",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",

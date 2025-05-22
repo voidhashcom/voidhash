@@ -5,8 +5,8 @@ import { authenticateContext } from "@/lib/service-function";
 import { productResponseSchema } from "./schema";
 import { z } from "zod";
 import { getProducts } from "@/lib/services/products/queries";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import {
 	toVoidhashHTTPError,
 	VoidhashHTTPError,
@@ -15,6 +15,11 @@ import {
 const route = describeRoute({
 	description: "List products",
 	operationId: "listProducts",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",

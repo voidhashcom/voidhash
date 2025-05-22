@@ -1,7 +1,7 @@
 import { describeRoute } from "hono-openapi";
 import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import {
 	sdkGetPaywallByLocationParamsSchema,
 	sdkPaywallResponseSchema,
@@ -10,6 +10,11 @@ import {
 const route = describeRoute({
 	description: "Get paywall by location",
 	operationId: "sdkGetPaywallByLocation",
+	security: [
+		{
+			publishableKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",
@@ -24,7 +29,7 @@ const route = describeRoute({
 
 export type Route = typeof route;
 
-export const registerPaywallsGetPaywallByLocation = (app: App) =>
+export const registerSdkGetPaywallByLocation = (app: App) =>
 	app.get(
 		"/v1/sdk/get-paywall-by-location",
 		route,

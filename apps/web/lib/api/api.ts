@@ -1,25 +1,25 @@
 import { openAPISpecs } from "hono-openapi";
 import { newApp } from "./hono/app";
 import { API_DOMAIN } from "@voidhash/lib/constants";
-import { registerCustomersListCustomers } from "./v1/server/customers_listCustomers";
-import { registerCustomersGetCustomerByAppUserId } from "./v1/server/customers_getCustomerByAppUserId";
-import { registerPaywallsCreatePaywall } from "./v1/server/paywalls_createPaywall";
-import { registerPaywallsListPaywalls } from "./v1/server/paywalls_listPaywalls";
-import { registerPaywallsGetPaywallById } from "./v1/server/paywalls_getPaywallById";
-import { registerPaywallsDeletePaywall } from "./v1/server/paywalls_deletePaywall";
-import { registerPaywallsAttachProductToPaywall } from "./v1/server/paywalls_attachProductToPaywall";
-import { registerPaywallsGetPaywallProducts } from "./v1/server/paywalls_getPaywallProducts";
-import { registerPaywallsDeletePaywallProduct } from "./v1/server/paywalls_deletePaywallProduct";
-import { registerProductsCreateProduct } from "./v1/server/products_createProduct";
-import { registerProductsListProducts } from "./v1/server/products_listProducts";
-import { registerProductsGetProductById } from "./v1/server/products_getProductById";
-import { registerProductsUpdateProduct } from "./v1/server/products_updateProduct";
-import { registerProductsDeleteProduct } from "./v1/server/products_deleteProduct";
-import { registerProductsAttachProviderProduct } from "./v1/server/products_attachProviderProduct";
-import { registerProductsGetProviderProductsByProductId } from "./v1/server/products_getProviderProductsByProductId";
-import { registerProductsUpdateProviderProduct } from "./v1/server/products_updateProviderProduct";
-import { registerProductsDeleteProviderProduct } from "./v1/server/products_deleteProviderProduct";
-import { registerCustomersCreateCustomer } from "./v1/server/customers_createCustomer";
+import { registerCustomersListCustomers } from "./v1/customers_listCustomers";
+import { registerCustomersGetCustomerByAppUserId } from "./v1/customers_getCustomerByAppUserId";
+import { registerPaywallsCreatePaywall } from "./v1/paywalls_createPaywall";
+import { registerPaywallsListPaywalls } from "./v1/paywalls_listPaywalls";
+import { registerPaywallsGetPaywallById } from "./v1/paywalls_getPaywallById";
+import { registerPaywallsDeletePaywall } from "./v1/paywalls_deletePaywall";
+import { registerPaywallsAttachProductToPaywall } from "./v1/paywalls_attachProductToPaywall";
+import { registerPaywallsGetPaywallProducts } from "./v1/paywalls_getPaywallProducts";
+import { registerPaywallsDeletePaywallProduct } from "./v1/paywalls_deletePaywallProduct";
+import { registerProductsCreateProduct } from "./v1/products_createProduct";
+import { registerProductsListProducts } from "./v1/products_listProducts";
+import { registerProductsGetProductById } from "./v1/products_getProductById";
+import { registerProductsUpdateProduct } from "./v1/products_updateProduct";
+import { registerProductsDeleteProduct } from "./v1/products_deleteProduct";
+import { registerProductsAttachProviderProduct } from "./v1/products_attachProviderProduct";
+import { registerProductsGetProviderProductsByProductId } from "./v1/products_getProviderProductsByProductId";
+import { registerProductsUpdateProviderProduct } from "./v1/products_updateProviderProduct";
+import { registerProductsDeleteProviderProduct } from "./v1/products_deleteProviderProduct";
+import { registerCustomersCreateCustomer } from "./v1/customers_createCustomer";
 import { paymentProviderApis } from "../payment-providers/payment-provider-apis";
 
 export const app = newApp();
@@ -34,7 +34,7 @@ registerCustomersCreateCustomer(app);
 registerCustomersListCustomers(app);
 registerCustomersGetCustomerByAppUserId(app);
 
-// // Paywalls
+// Paywalls
 registerPaywallsCreatePaywall(app);
 registerPaywallsListPaywalls(app);
 registerPaywallsGetPaywallById(app);
@@ -54,6 +54,9 @@ registerProductsGetProviderProductsByProductId(app);
 registerProductsUpdateProviderProduct(app);
 registerProductsDeleteProviderProduct(app);
 
+// SDK
+// registerPaywallsGetPaywallByLocation(app);
+
 paymentProviderApis.forEach((api) => api.registerEndpoints(app));
 
 app.get(
@@ -64,6 +67,22 @@ app.get(
 				title: "Voidhash API",
 				version: "1.0.0",
 				description: "API",
+			},
+			components: {
+				securitySchemes: {
+					secretKey: {
+						description: "Secret API key",
+						type: "apiKey",
+						name: "x-secret-key",
+						in: "header",
+					},
+					publishableKey: {
+						description: "Publishable API key",
+						type: "apiKey",
+						name: "x-publishable-key",
+						in: "header",
+					},
+				},
 			},
 			servers: [{ url, description: "Local Server" }],
 		},

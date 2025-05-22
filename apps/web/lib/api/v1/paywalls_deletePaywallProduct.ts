@@ -3,13 +3,18 @@ import { validator as zValidator } from "hono-openapi/zod";
 import { authenticateContext } from "@/lib/service-function";
 import { deletePaywallProductParamsSchema } from "./schema";
 import { deletePaywallProduct } from "@/lib/services/paywalls/actions/delete-paywall-product";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Remove a product from a paywall",
 	operationId: "deletePaywallProduct",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",
