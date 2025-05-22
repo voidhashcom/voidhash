@@ -47,20 +47,26 @@ export const getProjectBySlug = cache(
 					return err(authenticatedContext.error);
 				}
 
-				const project = await ctx.cache.cacheFn(
-					async (organizationId: string, projectSlug: string) => {
-						return getProjectBySlugQuery(
-							authenticatedContext.value,
-							organizationId,
-							projectSlug
-						);
-					},
-					["project", input.organizationId, input.slug],
-					{
-						tags: [`project_${input.organizationId}_slug:${input.slug}`],
-						revalidate: 3600,
-					}
-				)(input.organizationId, input.slug);
+				// const project = await ctx.cache.cacheFn(
+				// 	async (organizationId: string, projectSlug: string) => {
+				// 		return getProjectBySlugQuery(
+				// 			authenticatedContext.value,
+				// 			organizationId,
+				// 			projectSlug
+				// 		);
+				// 	},
+				// 	["project", input.organizationId, input.slug],
+				// 	{
+				// 		tags: [`project_${input.organizationId}_slug:${input.slug}`],
+				// 		revalidate: 3600,
+				// 	}
+				// )(input.organizationId, input.slug);
+
+				const project = await getProjectBySlugQuery(
+					authenticatedContext.value,
+					input.organizationId,
+					input.slug
+				);
 
 				if (project.isErr()) {
 					return err(project.error);
@@ -176,16 +182,21 @@ export const getProjectById = cache(
 					return err(authenticatedContext.error);
 				}
 
-				const project = await ctx.cache.cacheFn(
-					async (id: string) => {
-						return getProjectByIdQuery(authenticatedContext.value, id);
-					},
-					["project", input.id],
-					{
-						tags: [`project_${input.id}`],
-						revalidate: 3600,
-					}
-				)(input.id);
+				// const project = await ctx.cache.cacheFn(
+				// 	async (id: string) => {
+				// 		return getProjectByIdQuery(authenticatedContext.value, id);
+				// 	},
+				// 	["project", input.id],
+				// 	{
+				// 		tags: [`project_${input.id}`],
+				// 		revalidate: 3600,
+				// 	}
+				// )(input.id);
+
+				const project = await getProjectByIdQuery(
+					authenticatedContext.value,
+					input.id
+				);
 
 				if (project.isErr()) {
 					return err(project.error);
@@ -262,16 +273,20 @@ export const getProjectsByOrganizationSlug = cache(
 					});
 				}
 
-				return await ctx.cache.cacheFn(
-					async (orgId: string) => {
-						return getProjectsByIdQuery(authenticatedContext.value, orgId);
-					},
-					["projects", organization.value.id],
-					{
-						tags: [`projects_${organization.value.id}`],
-						revalidate: 3600,
-					}
-				)(organization.value.id);
+				return await getProjectsByIdQuery(
+					authenticatedContext.value,
+					organization.value.id
+				);
+				// return await ctx.cache.cacheFn(
+				// 	async (orgId: string) => {
+				// 		return
+				// 	},
+				// 	["projects", organization.value.id],
+				// 	{
+				// 		tags: [`projects_${organization.value.id}`],
+				// 		revalidate: 3600,
+				// 	}
+				// )(organization.value.id);
 			}
 		).invoke
 );

@@ -71,24 +71,21 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 				});
 			}
 
-			const existingConfiguration =
-				await getExistingPaymentProviderConfigurationByIdQuery(
-					authenticatedContext.value,
-					input.projectId,
-					input.providerId
-				);
-
-			if (existingConfiguration.isErr()) {
-				return err(existingConfiguration.error);
-			}
-
 			if (input.enabled) {
 				const configurationSchema = provider.configuration.configurationSchema;
 				const parsedConfiguration = configurationSchema.parse(
 					input.configuration
 				);
 
-				if (existingConfiguration) {
+				const existingConfiguration =
+					await getExistingPaymentProviderConfigurationByIdQuery(
+						authenticatedContext.value,
+						input.projectId,
+						input.providerId
+					);
+
+				// Update if exists
+				if (existingConfiguration.isOk()) {
 					try {
 						await ctx.db
 							.update(projectPaymentProviderConfigurations)
@@ -112,7 +109,10 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 					} catch (e) {
 						return err(fromUnknownThrow(e));
 					}
-				} else {
+				}
+
+				// Create if not found
+				if (existingConfiguration.error.code === "NOT_FOUND") {
 					try {
 						await ctx.db.insert(projectPaymentProviderConfigurations).values({
 							id: generateId("projectPaymentProviderConfiguration"),
@@ -126,29 +126,33 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 						return err(fromUnknownThrow(e));
 					}
 				}
-			} else {
-				try {
-					await ctx.db
-						.update(projectPaymentProviderConfigurations)
-						.set({
-							enabled: false,
-						})
-						.where(
-							and(
-								eq(
-									projectPaymentProviderConfigurations.providerId,
-									input.providerId
-								),
-								eq(
-									projectPaymentProviderConfigurations.projectId,
-									input.projectId
-								)
+
+				// If any other error, return it
+				return err(existingConfiguration.error);
+			}
+
+			// Disable if disabled
+			try {
+				await ctx.db
+					.update(projectPaymentProviderConfigurations)
+					.set({
+						enabled: false,
+					})
+					.where(
+						and(
+							eq(
+								projectPaymentProviderConfigurations.providerId,
+								input.providerId
+							),
+							eq(
+								projectPaymentProviderConfigurations.projectId,
+								input.projectId
 							)
-						);
-					return ok(undefined);
-				} catch (e) {
-					return err(fromUnknownThrow(e));
-				}
+						)
+					);
+				return ok(undefined);
+			} catch (e) {
+				return err(fromUnknownThrow(e));
 			}
 		}
 	);

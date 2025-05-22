@@ -1,7 +1,7 @@
 import { ProjectNameForm } from "./project-name";
 import { ProjectDelete } from "./project-delete";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { notFound } from "next/navigation";
+
 import { ProjectSettingsGeneralLayout } from "./project-settings-general-layout";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
