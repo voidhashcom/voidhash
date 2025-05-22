@@ -11,17 +11,12 @@ import {
 	cn,
 } from "@voidhash/ui";
 import { EllipsisVerticalIcon } from "lucide-react";
-import { type getProductPerksByProductId } from "@/lib/services/products/queries";
 import { toast } from "sonner";
 import { useAction } from "next-safe-action/hooks";
 import { deleteProductPerkAction } from "@/lib/nextjs/server-actions";
 import { useRouter } from "next/navigation";
-import { type getPerks } from "@/lib/services/perks/queries";
+import type { Perk, ProductPerk } from "@voidhash/db";
 
-type Perk = Awaited<ReturnType<typeof getPerks>>[number];
-type ProductPerk = Awaited<
-	ReturnType<typeof getProductPerksByProductId>
->[number];
 export function ProductDetailPerkRecord({
 	productPerk,
 	perks,

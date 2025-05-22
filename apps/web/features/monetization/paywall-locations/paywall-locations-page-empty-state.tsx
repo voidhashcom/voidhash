@@ -10,12 +10,12 @@ import {
 } from "@voidhash/ui";
 import { useState } from "react";
 import { CreatePaywallLocationModal } from "./create-paywall-location-modal";
-import { type getPaywalls } from "@/lib/services/paywalls/queries";
+import type { Paywall } from "@voidhash/db";
 
 export function PaywallLocationsPageEmptyState({
 	projectId,
 	paywalls,
-}: { projectId: string; paywalls: Awaited<ReturnType<typeof getPaywalls>> }) {
+}: { projectId: string; paywalls: Paywall[] }) {
 	const [open, setOpen] = useState(false);
 
 	return (

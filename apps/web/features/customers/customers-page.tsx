@@ -1,7 +1,6 @@
 import { Page } from "@/features/shell";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { notFound } from "next/navigation";
 import { CustomersTable } from "./customers-table";
 import { CreateCustomerButton } from "./create-customer-button";
 import {
@@ -10,6 +9,7 @@ import {
 	UnderlineTabsList,
 	UnderlineTabsTrigger,
 } from "@voidhash/ui";
+import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
 export async function CustomersPage({
 	organizationSlug,
 	projectSlug,
@@ -18,14 +18,17 @@ export async function CustomersPage({
 	projectSlug;
 }) {
 	const serviceContext = await createNextServiceContext();
-	const project = await getProjectBySlugAndOrganizationSlug({
+	const projectResult = await getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: { projectSlug: projectSlug, organizationSlug },
 	});
 
-	if (!project) {
-		return notFound();
+	if (projectResult.isErr()) {
+		const error = projectResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
+
+	const project = projectResult.value;
 
 	return (
 		<Page>

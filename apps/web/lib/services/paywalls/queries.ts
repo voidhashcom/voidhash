@@ -124,6 +124,12 @@ type GetPaywallProductsError =
 	| VoidhashInternalServerError
 	| VoidhashNotFoundError;
 
+export type GetPaywallProducts = (PaywallProduct & {
+	product: {
+		name: string;
+	};
+})[];
+
 export const getPaywallProducts = cache(
 	createServiceFunction()
 		.input(z.object({ paywallId: z.string() }))
@@ -131,16 +137,7 @@ export const getPaywallProducts = cache(
 			async ({
 				input,
 				ctx,
-			}): Promise<
-				Result<
-					(PaywallProduct & {
-						product: {
-							name: string;
-						};
-					})[],
-					GetPaywallProductsError
-				>
-			> => {
+			}): Promise<Result<GetPaywallProducts, GetPaywallProductsError>> => {
 				const authenticatedContext = await authenticateContext(ctx);
 				if (authenticatedContext.isErr()) {
 					return err(authenticatedContext.error);

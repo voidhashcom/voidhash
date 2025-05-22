@@ -26,8 +26,8 @@ import { useAction } from "next-safe-action/hooks";
 import { updateProductAction } from "@/lib/nextjs/server-actions";
 
 import { useEffect } from "react";
-import { type getProducts } from "@/lib/services/products/queries";
 import { useRouter } from "next/navigation";
+import type { Product } from "@voidhash/db";
 
 const updateProductSchema = z.object({
 	name: z.string().min(1),
@@ -39,7 +39,7 @@ type UpdateProductForm = z.infer<typeof updateProductSchema>;
 interface EditProductModalProps {
 	open: boolean;
 	onClose: () => void;
-	product: Awaited<ReturnType<typeof getProducts>>[number];
+	product: Product;
 }
 
 export function EditProductModal({

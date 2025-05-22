@@ -36,6 +36,7 @@ export const createOrganization = createServiceFunction()
 				{
 					id: string;
 					name: string;
+					slug: string;
 				},
 				CreateOrganizationError
 			>

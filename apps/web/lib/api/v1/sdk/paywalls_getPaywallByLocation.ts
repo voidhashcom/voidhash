@@ -1,8 +1,5 @@
 import { describeRoute } from "hono-openapi";
 import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { z } from "zod";
-import { authenticateContext } from "@/lib/service-function";
-import { getPaywallById } from "@/lib/services/paywalls/queries";
 import { openApiErrorResponses } from "../../errors/openapi_responses";
 import { App } from "../../hono/app";
 import {
@@ -32,9 +29,9 @@ export const registerPaywallsGetPaywallByLocation = (app: App) =>
 		"/v1/sdk/get-paywall-by-location",
 		route,
 		zValidator("param", sdkGetPaywallByLocationParamsSchema),
-		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
+		async () => {
+			// const context = c.get("services");
+			// const authenticatedContext = await authenticateContext(context);
 			// const paywallId = c.req.param("paywallId");
 			// const paywall = await getPaywallById({
 			// 	ctx: authenticatedContext,

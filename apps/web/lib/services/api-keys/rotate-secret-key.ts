@@ -11,11 +11,11 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { createSecretKey } from "@/lib/services/api-keys/utils";
-import { apiKeys } from "@voidhash/db";
+import { ApiKey, apiKeys } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 
 import { err, ok, Result } from "neverthrow";
-import { ApiKey } from "./types";
+
 import { getApiKeyByIdQuery } from "./raw-queries";
 
 export const rotateSecretKeyInputSchema = z.object({
@@ -85,6 +85,6 @@ export const rotateSecretKey = createServiceFunction()
 			ctx.cache.invalidate(`api-keys_${existingKey.value.projectId}`);
 			ctx.cache.invalidate(`api-key_${existingKey.value.id}`);
 
-			return ok({ ...newKey, rawKey });
+			return ok({ ...existingKey.value, ...newKey, rawKey });
 		}
 	);

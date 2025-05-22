@@ -16,9 +16,10 @@ import { getOrganizationById } from "../organizations/queries";
 import { getProjectById } from "../projects/queries";
 import { getEnvironment } from "@/lib/services/environments/utils";
 import { createSecretKey as generateSecretKeyFn } from "@/lib/services/api-keys/utils";
-import { apiKeys } from "@voidhash/db";
+import { ApiKey, apiKeys } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
+import { getApiKeyByIdQuery } from "./raw-queries";
 export const createSecretKeyInputSchema = z.object({
 	projectId: z.string(),
 	name: z.string().min(3, "Name must be at least 3 characters long"),
@@ -34,7 +35,7 @@ type CreateSecretKeyError =
 export const createSecretKey = createServiceFunction()
 	.input(createSecretKeyInputSchema)
 	.function(
-		async ({ input, ctx }): Promise<Result<unknown, CreateSecretKeyError>> => {
+		async ({ input, ctx }): Promise<Result<ApiKey, CreateSecretKeyError>> => {
 			const authenticatedContext = await authenticateContext(ctx);
 
 			if (authenticatedContext.isErr()) {
@@ -113,15 +114,22 @@ export const createSecretKey = createServiceFunction()
 			);
 
 			try {
+				const apiKeyId = generateId("apiSecretKey");
 				await ctx.db.insert(apiKeys).values({
-					id: generateId("apiSecretKey"),
+					id: apiKeyId,
 					projectId: project.value.id,
 					name: input.name,
 					...secretKey,
 				});
 
+				const apiKey = await getApiKeyByIdQuery(ctx, apiKeyId);
+
+				if (apiKey.isErr()) {
+					return err(apiKey.error);
+				}
+
 				ctx.cache.invalidate(`api-keys_${project.value.id}`);
-				return ok({ ...secretKey, rawKey });
+				return ok({ ...apiKey.value, rawKey });
 			} catch (e) {
 				return err(fromUnknownThrow(e));
 			}

@@ -11,9 +11,9 @@ import {
 import { EllipsisVerticalIcon } from "lucide-react";
 import Link from "next/link";
 import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
-import { notFound } from "next/navigation";
 import { EmptyState } from "./empty-state";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 export async function ProjectsList({
 	organizationSlug,
@@ -34,14 +34,22 @@ export async function ProjectsList({
 		},
 	});
 
-	const [activeOrganization, organizationProjects] = await Promise.all([
-		activeOrganizationPromise,
-		organizationProjectsPromise,
-	]);
+	const [activeOrganizationResult, organizationProjectsResult] =
+		await Promise.all([activeOrganizationPromise, organizationProjectsPromise]);
 
-	if (!activeOrganization) {
-		return notFound();
+	if (activeOrganizationResult.isErr()) {
+		const error = activeOrganizationResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
+
+	const activeOrganization = activeOrganizationResult.value;
+
+	if (organizationProjectsResult.isErr()) {
+		const error = organizationProjectsResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const organizationProjects = organizationProjectsResult.value;
 
 	if (organizationProjects?.length === 0) {
 		return (

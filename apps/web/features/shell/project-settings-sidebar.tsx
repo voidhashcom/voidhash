@@ -14,11 +14,11 @@ const ActiveOrganization = ({
 }: {
 	activeOrganizationPromise: ReturnType<typeof getOrganizationBySlug>;
 }) => {
-	const activeOrganization = use(activeOrganizationPromise);
-
-	if (!activeOrganization) {
+	const activeOrganizationResult = use(activeOrganizationPromise);
+	if (activeOrganizationResult.isErr()) {
 		return null;
 	}
+	const activeOrganization = activeOrganizationResult.value;
 
 	return (
 		<div className="flex items-center gap-2 group">

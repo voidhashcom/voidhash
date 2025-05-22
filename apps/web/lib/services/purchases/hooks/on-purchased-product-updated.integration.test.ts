@@ -18,7 +18,6 @@ import {
 	handlePurchaseUpdated,
 	PurchaseUpdateEvent,
 } from "./on-purchased-updated";
-import { VoidhashHTTPError } from "@voidhash/lib";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import { eq } from "drizzle-orm";
 import { createTestServiceContext } from "@/lib/testing/create-test-service-context";

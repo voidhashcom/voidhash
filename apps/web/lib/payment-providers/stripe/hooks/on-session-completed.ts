@@ -10,6 +10,7 @@ import { handleProductPurchase } from "@/lib/services/purchases/hooks/on-product
 import { getCustomerByExternalIdentifierQuery } from "@/lib/services/customers/raw-queries";
 import {
 	fromUnknownThrow,
+	VoidhashBadRequestError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
 } from "@voidhash/lib/constants";
@@ -18,6 +19,7 @@ import { err, ok, Result, ResultAsync } from "neverthrow";
 
 type HandleSessionCompletedError =
 	| VoidhashInternalServerError
+	| VoidhashBadRequestError
 	| VoidhashNotFoundError;
 export async function handleSessionCompleted(
 	serviceContext: ServiceContext,

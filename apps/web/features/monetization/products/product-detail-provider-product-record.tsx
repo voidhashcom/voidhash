@@ -13,7 +13,6 @@ import {
 import { Clock4Icon, EllipsisVerticalIcon } from "lucide-react";
 import { format } from "date-fns";
 
-import { type getProviderProductsByProductId } from "@/lib/services/products/queries";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { toast } from "sonner";
 import { useAction } from "next-safe-action/hooks";
@@ -24,16 +23,14 @@ import {
 import { useRouter } from "next/navigation";
 import { ProviderProductSheet } from "./provider-product-sheet";
 import { useState } from "react";
+import type { ProductProviderConfiguration } from "@voidhash/db";
 
-type ProviderProduct = Awaited<
-	ReturnType<typeof getProviderProductsByProductId>
->[number];
 export function ProductDetailProviderProductRecord({
 	paymentProviderId,
 	providerProduct,
 }: {
 	paymentProviderId: string;
-	providerProduct: ProviderProduct;
+	providerProduct: ProductProviderConfiguration;
 }) {
 	const router = useRouter();
 	const paymentProvider = paymentProviders.find(

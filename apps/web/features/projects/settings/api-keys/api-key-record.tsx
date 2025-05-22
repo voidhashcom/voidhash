@@ -1,6 +1,4 @@
 "use client";
-import { ApiKey } from "@/lib/services/api-keys/types";
-import { type getApiKeyById } from "@/lib/services/api-keys/queries";
 import {
 	Button,
 	DropdownMenu,
@@ -23,11 +21,12 @@ import {
 	deleteSecretKeyAction,
 	rotateSecretKeyAction,
 } from "@/lib/nextjs/server-actions";
+import type { ApiKey } from "@voidhash/db";
 
 export function ApiKeyRecord({
 	apiKey,
 }: {
-	apiKey: NonNullable<Awaited<ReturnType<typeof getApiKeyById>>>;
+	apiKey: ApiKey;
 }) {
 	const router = useRouter();
 	const [secretKey, setSecretKey] = useState<ApiKey | null>(null);

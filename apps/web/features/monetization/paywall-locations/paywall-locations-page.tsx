@@ -1,13 +1,13 @@
 import { Page } from "@/features/shell";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { notFound } from "next/navigation";
 import { Card } from "@voidhash/ui";
 import { getPaywallLocations } from "@/lib/services/paywall-locations/queries";
 import { CreatePaywallLocationModalButton } from "./create-paywall-location-modal-button";
 import { PaywallLocationsPageEmptyState } from "./paywall-locations-page-empty-state";
 import { PaywallLocationRecord } from "./paywall-location-record";
 import { getPaywalls } from "@/lib/services/paywalls/queries";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 export async function PaywallLocationsPage({
 	organizationSlug,
@@ -17,14 +17,17 @@ export async function PaywallLocationsPage({
 	projectSlug: string;
 }) {
 	const serviceContext = await createNextServiceContext();
-	const project = await getProjectBySlugAndOrganizationSlug({
+	const projectResult = await getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: { projectSlug: projectSlug, organizationSlug },
 	});
 
-	if (!project) {
-		return notFound();
+	if (projectResult.isErr()) {
+		const error = projectResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
+
+	const project = projectResult.value;
 
 	const paywallsPromise = getPaywalls({
 		ctx: serviceContext,
@@ -36,10 +39,23 @@ export async function PaywallLocationsPage({
 		input: { projectId: project.id },
 	});
 
-	const [paywalls, paywallLocations] = await Promise.all([
+	const [paywallsResult, paywallLocationsResult] = await Promise.all([
 		paywallsPromise,
 		paywallLocationsPromise,
 	]);
+
+	if (paywallsResult.isErr()) {
+		const error = paywallsResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	if (paywallLocationsResult.isErr()) {
+		const error = paywallLocationsResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const paywalls = paywallsResult.value;
+	const paywallLocations = paywallLocationsResult.value;
 
 	return (
 		<Page>

@@ -1,3 +1,4 @@
+/* eslint-disable neverthrow-must-use/must-use-result */
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import {
 	purchases,

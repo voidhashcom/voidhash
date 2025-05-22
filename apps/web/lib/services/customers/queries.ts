@@ -25,6 +25,8 @@ type GetCustomersError =
 	| VoidhashUnauthorizedError
 	| VoidhashForbiddenError;
 
+export type GetCustomersSuccess = Customer[];
+
 export const getCustomers = cache(
 	createServiceFunction()
 		.input(

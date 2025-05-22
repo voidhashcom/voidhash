@@ -10,9 +10,15 @@ function NavUserSkeleton() {
 }
 
 export async function NavUserContent() {
-	const user = await getUser({
+	const userResult = await getUser({
 		ctx: await createNextServiceContext(),
 	});
+
+	if (userResult.isErr()) {
+		return <div>Error loading user</div>;
+	}
+
+	const user = userResult.value;
 
 	return (
 		<div>

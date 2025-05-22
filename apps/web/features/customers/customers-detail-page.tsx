@@ -4,12 +4,12 @@ import {
 	getCustomerById,
 	getCustomersUnlockedPerks,
 } from "@/lib/services/customers/queries";
-import { notFound } from "next/navigation";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { getPurchases } from "@/lib/services/purchases/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@voidhash/ui";
 import { format } from "date-fns";
 import { Clock4Icon } from "lucide-react";
+import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
 
 export async function CustomerDetailPage({
 	customerId,
@@ -26,8 +26,9 @@ export async function CustomerDetailPage({
 		input: { projectSlug: projectSlug, organizationSlug },
 	});
 
-	if (!project) {
-		return notFound();
+	if (project.isErr()) {
+		const error = project._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
 
 	const customerPromise = getCustomerById({
@@ -37,7 +38,7 @@ export async function CustomerDetailPage({
 
 	const customerPurchasesPromise = getPurchases({
 		ctx: serviceContext,
-		input: { projectId: project.id, customerId },
+		input: { projectId: project.value.id, customerId },
 	});
 
 	const customerUnlockedPerksPromise = getCustomersUnlockedPerks({
@@ -45,16 +46,31 @@ export async function CustomerDetailPage({
 		input: { customerId },
 	});
 
-	const [customer, customerPurchases, customerUnlockedPerks] =
+	const [customerResult, customerPurchasesResult, customerUnlockedPerksResult] =
 		await Promise.all([
 			customerPromise,
 			customerPurchasesPromise,
 			customerUnlockedPerksPromise,
 		]);
 
-	if (!customer) {
-		return notFound();
+	if (customerResult.isErr()) {
+		const error = customerResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
+
+	if (customerPurchasesResult.isErr()) {
+		const error = customerPurchasesResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	if (customerUnlockedPerksResult.isErr()) {
+		const error = customerUnlockedPerksResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const customer = customerResult.value;
+	const customerPurchases = customerPurchasesResult.value;
+	const customerUnlockedPerks = customerUnlockedPerksResult.value;
 
 	const title =
 		customer.name ?? customer.email ?? customer.appUserId ?? customer.id;
