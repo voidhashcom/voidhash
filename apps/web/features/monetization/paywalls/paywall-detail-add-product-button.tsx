@@ -15,13 +15,11 @@ import {
 } from "@voidhash/ui";
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { type getProducts } from "@/lib/services/products/queries";
 import { createPaywallProductAction } from "@/lib/nextjs/server-actions";
 import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-
-type Product = Awaited<ReturnType<typeof getProducts>>[number];
+import type { Product } from "@voidhash/db";
 
 export function PaywallDetailAddProductButton({
 	products,

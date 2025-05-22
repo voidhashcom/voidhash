@@ -2,12 +2,12 @@ import { Page } from "@/features/shell";
 import { CreateProductModalButton } from "./create-product-modal-button";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { notFound } from "next/navigation";
 import { getProducts } from "@/lib/services/products/queries";
 import { Card } from "@voidhash/ui";
 import { ProductRecord } from "./product-record";
 import { ProductsPageEmptyState } from "./products-page-empty-state";
 import { ProductRecordConfigurationStateIndicator } from "./product-record-configuration-state-indicator";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 export async function ProductsPage({
 	organizationSlug,
@@ -17,20 +17,29 @@ export async function ProductsPage({
 	projectSlug;
 }) {
 	const serviceContext = await createNextServiceContext();
-	const project = await getProjectBySlugAndOrganizationSlug({
+	const projectResult = await getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: { projectSlug: projectSlug, organizationSlug },
 	});
 
-	if (!project) {
-		return notFound();
+	if (projectResult.isErr()) {
+		const error = projectResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
 
-	const products = await getProducts({
+	const project = projectResult.value;
+
+	const productsResult = await getProducts({
 		ctx: serviceContext,
 		input: { projectId: project.id },
 	});
 
+	if (productsResult.isErr()) {
+		const error = productsResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const products = productsResult.value;
 	return (
 		<Page>
 			{/* Key is used to reload the default form data when the organization slug changes */}

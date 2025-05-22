@@ -24,10 +24,22 @@ export async function ProductRecordConfigurationStateIndicator({
 		}
 	);
 
-	const [providerProducts, paymentProviderConfigurations] = await Promise.all([
-		providerProductsPromise,
-		paymentProviderConfigurationsPromise,
-	]);
+	const [providerProductsResult, paymentProviderConfigurationsResult] =
+		await Promise.all([
+			providerProductsPromise,
+			paymentProviderConfigurationsPromise,
+		]);
+
+	if (
+		providerProductsResult.isErr() ||
+		paymentProviderConfigurationsResult.isErr()
+	) {
+		return <Badge>Loading error</Badge>;
+	}
+
+	const providerProducts = providerProductsResult.value;
+	const paymentProviderConfigurations =
+		paymentProviderConfigurationsResult.value;
 
 	if (providerProducts.length === 0) {
 		return <Badge>Configuration required</Badge>;

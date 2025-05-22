@@ -26,11 +26,13 @@ const OrganizationSwitcherComponent = async ({
 		},
 	});
 
-	const activeOrganization = await activeOrganizationPromise;
+	const activeOrganizationResult = await activeOrganizationPromise;
 
-	if (!activeOrganization) {
+	if (activeOrganizationResult.isErr()) {
 		return null;
 	}
+
+	const activeOrganization = activeOrganizationResult.value;
 
 	return (
 		<div className="flex items-center gap-2">

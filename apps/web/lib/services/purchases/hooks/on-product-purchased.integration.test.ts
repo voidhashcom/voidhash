@@ -1,3 +1,4 @@
+/* eslint-disable neverthrow-must-use/must-use-result */
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import {
 	purchases,
@@ -14,7 +15,7 @@ import {
 } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 import { handleProductPurchase, PurchaseEvent } from "./on-product-purchased";
-import { VoidhashError } from "@voidhash/lib";
+
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import { eq, and } from "drizzle-orm";
 import { createTestServiceContext } from "@/lib/testing/create-test-service-context";
@@ -122,8 +123,12 @@ describe.sequential("on-product-purchased integration tests", () => {
 		const serviceContext = await createTestServiceContext();
 		const result = await handleProductPurchase(serviceContext, event);
 
+		if (result.isErr()) {
+			throw result.error;
+		}
+
 		const customerProduct = await h.db.primary.query.purchases.findFirst({
-			where: eq(purchases.id, result.id),
+			where: eq(purchases.id, result.value.id),
 		});
 
 		// Verify customerProduct creation
@@ -136,7 +141,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 		expect(customerProduct?.type).toBe("subscription");
 
 		const dbCustomerProduct = await h.db.primary.query.purchases.findFirst({
-			where: eq(purchases.id, result.id),
+			where: eq(purchases.id, result.value.id),
 		});
 		expect(dbCustomerProduct).toBeDefined();
 		expect(dbCustomerProduct?.status).toBe("active");
@@ -146,7 +151,10 @@ describe.sequential("on-product-purchased integration tests", () => {
 			await h.db.primary.query.customersUnlockedPerks.findMany({
 				where: and(
 					eq(customersUnlockedPerks.customerId, testCustomerId),
-					eq(customersUnlockedPerks.unlockedByCustomerProductId, result.id)
+					eq(
+						customersUnlockedPerks.unlockedByCustomerProductId,
+						result.value.id
+					)
 				),
 			});
 
@@ -155,7 +163,9 @@ describe.sequential("on-product-purchased integration tests", () => {
 		expect(unlockedPerkIds).toContain(perkId);
 
 		t.onTestFinished(async () => {
-			await h.db.primary.delete(purchases).where(eq(purchases.id, result.id));
+			await h.db.primary
+				.delete(purchases)
+				.where(eq(purchases.id, result.value.id));
 			await h.db.primary
 				.delete(customersUnlockedPerks)
 				.where(eq(customersUnlockedPerks.customerId, testCustomerId));
@@ -186,15 +196,13 @@ describe.sequential("on-product-purchased integration tests", () => {
 		} satisfies Omit<PurchaseEvent, "type"> & { type: "one_time" };
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		await expect(
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			handleProductPurchase(serviceContext, event as any)
-		).rejects.toThrow(VoidhashError);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		await expect(
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			handleProductPurchase(serviceContext, event as any)
-		).rejects.toThrow("Only subscription products are supported for now");
+		const res = await handleProductPurchase(serviceContext, event as any);
+
+		expect(res.isErr()).toBe(true);
+		expect(res._unsafeUnwrapErr()).toMatchObject({
+			code: "BAD_REQUEST",
+			message: "Only subscription products are supported for now",
+		});
 	});
 
 	test("should throw error if customer not found", async () => {
@@ -216,12 +224,12 @@ describe.sequential("on-product-purchased integration tests", () => {
 			expiresAt: new Date(),
 		};
 
-		await expect(handleProductPurchase(serviceContext, event)).rejects.toThrow(
-			VoidhashError
-		);
-		await expect(handleProductPurchase(serviceContext, event)).rejects.toThrow(
-			"Customer not found"
-		);
+		const res = await handleProductPurchase(serviceContext, event);
+		expect(res.isErr()).toBe(true);
+		expect(res._unsafeUnwrapErr()).toMatchObject({
+			code: "NOT_FOUND",
+			message: "Customer not found",
+		});
 	});
 
 	test("should throw error if provider product not found", async (t) => {
@@ -256,12 +264,12 @@ describe.sequential("on-product-purchased integration tests", () => {
 			expiresAt: new Date(),
 		};
 
-		await expect(handleProductPurchase(serviceContext, event)).rejects.toThrow(
-			VoidhashError
-		);
-		await expect(handleProductPurchase(serviceContext, event)).rejects.toThrow(
-			"Provider product not found"
-		);
+		const res = await handleProductPurchase(serviceContext, event);
+		expect(res.isErr()).toBe(true);
+		expect(res._unsafeUnwrapErr()).toMatchObject({
+			code: "NOT_FOUND",
+			message: "Provider product not found",
+		});
 
 		// Cleanup created customer
 		t.onTestFinished(async () => {
@@ -304,14 +312,24 @@ describe.sequential("on-product-purchased integration tests", () => {
 
 		const result = await handleProductPurchase(serviceContext, event);
 
+		if (result.isErr()) {
+			throw result.error;
+		}
+
+		const customerProduct = await h.db.primary.query.purchases.findFirst({
+			where: eq(purchases.id, result.value.id),
+		});
+
 		// Verify customerProduct creation
-		expect(result.id).toBeDefined();
-		expect(result.customerId).toBe(testCustomerId);
-		expect(result.providerProductId).toBe(productProviderConfigurationId);
-		expect(result.status).toBe("canceled");
+		expect(customerProduct).toBeDefined();
+		expect(customerProduct?.customerId).toBe(testCustomerId);
+		expect(customerProduct?.providerProductId).toBe(
+			productProviderConfigurationId
+		);
+		expect(customerProduct?.status).toBe("canceled");
 
 		const dbCustomerProduct = await h.db.primary.query.purchases.findFirst({
-			where: eq(purchases.id, result.id),
+			where: eq(purchases.id, result.value.id),
 		});
 		expect(dbCustomerProduct).toBeDefined();
 		expect(dbCustomerProduct?.status).toBe("canceled");
@@ -326,7 +344,9 @@ describe.sequential("on-product-purchased integration tests", () => {
 
 		// Cleanup created resources
 		t.onTestFinished(async () => {
-			await h.db.primary.delete(purchases).where(eq(purchases.id, result.id));
+			await h.db.primary
+				.delete(purchases)
+				.where(eq(purchases.id, result.value.id));
 			await h.db.primary
 				.delete(customers)
 				.where(eq(customers.id, testCustomerId));

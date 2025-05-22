@@ -2,11 +2,11 @@ import { Page } from "@/features/shell";
 import { Card } from "@voidhash/ui";
 import { ApiKeyRecord } from "./api-key-record";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { notFound } from "next/navigation";
 import { getEnvironment } from "@/lib/services/environments/utils";
 import { CreateSecretKeyModalButton } from "./create-secret-key-modal-button";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { getApiKeys } from "@/lib/services/api-keys/queries";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 export async function ProjectApiKeysPage({
 	organizationSlug,
@@ -16,7 +16,7 @@ export async function ProjectApiKeysPage({
 	projectSlug: string;
 }) {
 	const serviceContext = await createNextServiceContext();
-	const [project, environment] = await Promise.all([
+	const [projectResult, environmentResult] = await Promise.all([
 		getProjectBySlugAndOrganizationSlug({
 			ctx: serviceContext,
 			input: {
@@ -27,21 +27,34 @@ export async function ProjectApiKeysPage({
 		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),
 	]);
 
-	if (!project) {
-		return notFound();
+	if (projectResult.isErr()) {
+		const error = projectResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
 
-	if (!environment) {
-		return notFound();
+	const project = projectResult.value;
+
+	if (environmentResult.isErr()) {
+		const error = environmentResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
 
-	const apiKeys = await getApiKeys({
+	const environment = environmentResult.value;
+
+	const apiKeysResult = await getApiKeys({
 		ctx: serviceContext,
 		input: {
 			projectId: project.id,
 			environment,
 		},
 	});
+
+	if (apiKeysResult.isErr()) {
+		const error = apiKeysResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const apiKeys = apiKeysResult.value;
 
 	return (
 		<Page>

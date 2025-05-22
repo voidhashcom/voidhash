@@ -11,6 +11,21 @@ import {
 	getCustomersQuery,
 	getCustomersUnlockedPerksQuery,
 } from "./raw-queries";
+import { err, ok, Result } from "neverthrow";
+import {
+	VoidhashForbiddenError,
+	VoidhashInternalServerError,
+	VoidhashNotFoundError,
+	VoidhashUnauthorizedError,
+} from "@voidhash/lib/constants";
+import { Customer, CustomerUnlockedPerk } from "@voidhash/db";
+
+type GetCustomersError =
+	| VoidhashInternalServerError
+	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError;
+
+export type GetCustomersSuccess = Customer[];
 
 export const getCustomers = cache(
 	createServiceFunction()
@@ -20,65 +35,139 @@ export const getCustomers = cache(
 				hasAppUserId: z.boolean().optional(),
 			})
 		)
-		.function(async ({ ctx, input }) => {
-			const authenticatedContext = await authenticateContext(ctx);
+		.function(
+			async ({
+				ctx,
+				input,
+			}): Promise<Result<Customer[], GetCustomersError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
 
-			if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
-				return [];
-			}
-
-			const customers = await getCustomersQuery(
-				authenticatedContext,
-				input.projectId,
-				{
-					hasAppUserId: input.hasAppUserId ?? null,
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
 				}
-			);
-			return customers;
-		}).invoke
+
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						input.projectId,
+						"project:all"
+					)
+				) {
+					return ok([]);
+				}
+
+				return await getCustomersQuery(
+					authenticatedContext.value,
+					input.projectId,
+					{
+						hasAppUserId: input.hasAppUserId ?? null,
+					}
+				);
+			}
+		).invoke
 );
+
+type GetCustomerByIdError =
+	| VoidhashInternalServerError
+	| VoidhashUnauthorizedError
+	| VoidhashNotFoundError;
 
 export const getCustomerById = cache(
 	createServiceFunction()
 		.input(z.object({ id: z.string() }))
-		.function(async ({ ctx, input }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const customer = await getCustomerByIdQuery(
-				authenticatedContext,
-				input.id
-			);
-			return customer;
-		}).invoke
+		.function(
+			async ({
+				ctx,
+				input,
+			}): Promise<Result<Customer, GetCustomerByIdError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
+
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
+
+				return await getCustomerByIdQuery(authenticatedContext.value, input.id);
+			}
+		).invoke
 );
+
+type GetCustomerByAppUserIdError =
+	| VoidhashInternalServerError
+	| VoidhashNotFoundError
+	| VoidhashForbiddenError
+	| VoidhashUnauthorizedError;
 
 export const getCustomerByAppUserId = cache(
 	createServiceFunction()
 		.input(z.object({ appUserId: z.string() }))
-		.function(async ({ ctx, input }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const customer = await getCustomerByAppUserIdQuery(
-				authenticatedContext,
-				input.appUserId
-			);
-			if (!customer) {
-				return null;
+		.function(
+			async ({
+				ctx,
+				input,
+			}): Promise<Result<Customer, GetCustomerByAppUserIdError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
+
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
+
+				const customer = await getCustomerByAppUserIdQuery(
+					authenticatedContext.value,
+					input.appUserId
+				);
+
+				if (customer.isErr()) {
+					return err(customer.error);
+				}
+
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						customer.value.projectId,
+						"project:all"
+					)
+				) {
+					return err({
+						code: "FORBIDDEN",
+						message: "Customer not found",
+					} satisfies VoidhashForbiddenError);
+				}
+
+				return ok(customer.value);
 			}
-			if (!hasProjectPermission(authenticatedContext, customer.projectId, "")) {
-				return null;
-			}
-			return customer;
-		}).invoke
+		).invoke
 );
+
+type GetCustomersUnlockedPerksError =
+	| VoidhashInternalServerError
+	| VoidhashUnauthorizedError;
 
 export const getCustomersUnlockedPerks = cache(
 	createServiceFunction()
 		.input(z.object({ customerId: z.string() }))
-		.function(async ({ ctx, input }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const customer = await getCustomersUnlockedPerksQuery(
-				authenticatedContext,
-				input.customerId
-			);
-			return customer;
-		}).invoke
+		.function(
+			async ({
+				ctx,
+				input,
+			}): Promise<
+				Result<CustomerUnlockedPerk[], GetCustomersUnlockedPerksError>
+			> => {
+				const authenticatedContext = await authenticateContext(ctx);
+
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
+
+				const perks = await getCustomersUnlockedPerksQuery(
+					authenticatedContext.value,
+					input.customerId
+				);
+
+				if (perks.isErr()) {
+					return err(perks.error);
+				}
+
+				return ok(perks.value);
+			}
+		).invoke
 );

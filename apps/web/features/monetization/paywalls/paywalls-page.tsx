@@ -1,12 +1,12 @@
 import { Page } from "@/features/shell";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { notFound } from "next/navigation";
 import { getPaywalls } from "@/lib/services/paywalls/queries";
 import { Card } from "@voidhash/ui";
 import { PaywallRecord } from "./paywall-record";
 import { PaywallsPageEmptyState } from "./paywalls-page-empty-state";
 import { CreatePaywallModalButton } from "./create-paywall-modal-button";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 export async function PaywallsPage({
 	organizationSlug,
@@ -16,19 +16,29 @@ export async function PaywallsPage({
 	projectSlug: string;
 }) {
 	const serviceContext = await createNextServiceContext();
-	const project = await getProjectBySlugAndOrganizationSlug({
+	const projectResult = await getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: { projectSlug: projectSlug, organizationSlug },
 	});
 
-	if (!project) {
-		return notFound();
+	if (projectResult.isErr()) {
+		const error = projectResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
 
-	const paywalls = await getPaywalls({
+	const project = projectResult.value;
+
+	const paywallsResult = await getPaywalls({
 		ctx: serviceContext,
 		input: { projectId: project.id },
 	});
+
+	if (paywallsResult.isErr()) {
+		const error = paywallsResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const paywalls = paywallsResult.value;
 
 	return (
 		<Page>

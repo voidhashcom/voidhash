@@ -54,7 +54,9 @@ interface CreateProductModalProps {
 	onClose: () => void;
 	trigger: React.ReactNode;
 	projectId: string;
-	onSuccess?: (product: Product) => void;
+	onSuccess?: (product: {
+		id: string;
+	}) => void;
 }
 
 export function CreateProductModal({

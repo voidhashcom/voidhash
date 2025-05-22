@@ -21,7 +21,7 @@ export async function EnviromentBarContent({
 	if (!organization) {
 		return null;
 	}
-	const [environment, project] = await Promise.all([
+	const [environmentResult, projectResult] = await Promise.all([
 		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),
 		getProjectBySlugAndOrganizationSlug({
 			ctx: serviceContext,
@@ -31,6 +31,13 @@ export async function EnviromentBarContent({
 			},
 		}),
 	]);
+
+	if (projectResult.isErr() || environmentResult.isErr()) {
+		return null;
+	}
+
+	const project = projectResult.value;
+	const environment = environmentResult.value;
 
 	if (!project || !environment || environment !== "testing") {
 		return null;

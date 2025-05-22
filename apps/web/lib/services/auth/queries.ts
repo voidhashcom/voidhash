@@ -1,88 +1,236 @@
 import { hashKey } from "@/lib/services/api-keys/utils";
 import { ServiceContext } from "@/lib/service-function";
 import { auth } from "@voidhash/auth";
-import { apiKeys, projects } from "@voidhash/db";
-import { VoidhashError } from "@voidhash/lib";
+import { apiKeys, Customer, projects } from "@voidhash/db";
+import {
+	fromUnknownThrow,
+	VoidhashInternalServerError,
+	VoidhashUnauthorizedError,
+} from "@voidhash/lib";
 import { eq, inArray } from "drizzle-orm";
+import { getCustomerByAppUserIdQuery } from "../customers/raw-queries";
+import { err, ok, Result, ResultAsync } from "neverthrow";
+import { User } from "better-auth";
+import {
+	ApiKeySession,
+	PublishableApiKeySession,
+	UserSession,
+} from "@/lib/service-function-auth";
 
-export async function getUserAuthSession(ctx: ServiceContext) {
-	const userSession = await auth.api.getSession({
-		headers: ctx.headers,
-	});
+export type VoidhashAuthSession = {
+	method: "user" | "api-key" | "publishable-api-key";
+	user: User | null;
+	customer: Customer | null;
+	organizations: {
+		id: string;
+		slug: string;
+		permissions: string[];
+	}[];
+	projects: {
+		id: string;
+		slug: string;
+		permissions: string[];
+	}[];
+};
 
-	if (!userSession?.user) {
-		throw new VoidhashError({
+export async function getUserAuthSession(
+	ctx: ServiceContext
+): Promise<
+	Result<UserSession, VoidhashInternalServerError | VoidhashUnauthorizedError>
+> {
+	const userSession = await ResultAsync.fromPromise(
+		auth.api.getSession({
+			headers: ctx.headers,
+		}),
+		(e) => fromUnknownThrow(e)
+	);
+
+	if (userSession.isErr()) {
+		return err(userSession.error);
+	}
+
+	if (!userSession.value?.user) {
+		return err({
 			code: "UNAUTHORIZED",
 			message: "You are not authenticated",
 		});
 	}
 
-	const usersOrganizations = await auth.api.listOrganizations({
-		headers: ctx.headers,
-	});
+	const usersOrganizations = await ResultAsync.fromPromise(
+		auth.api.listOrganizations({
+			headers: ctx.headers,
+		}),
+		(e) => fromUnknownThrow(e)
+	);
 
-	const usersProjects = await ctx.db
-		.select()
-		.from(projects)
-		.where(
-			inArray(
-				projects.organizationId,
-				usersOrganizations.map((o) => o.id)
-			)
-		);
+	if (usersOrganizations.isErr()) {
+		return err(usersOrganizations.error);
+	}
 
-	const session = {
+	const usersProjects = await ResultAsync.fromPromise(
+		ctx.db
+			.select()
+			.from(projects)
+			.where(
+				inArray(
+					projects.organizationId,
+					usersOrganizations.value.map((o) => o.id)
+				)
+			),
+		(e) => fromUnknownThrow(e)
+	);
+
+	if (usersProjects.isErr()) {
+		return err(usersProjects.error);
+	}
+
+	return ok({
 		method: "user",
-		user: userSession.user,
-		organizations: usersOrganizations.map((o) => ({
+		user: {
+			...userSession.value.user,
+			image: userSession.value.user.image || null,
+		},
+		customer: null,
+		organizations: usersOrganizations.value.map((o) => ({
 			id: o.id,
 			slug: o.slug,
 			permissions: [], // TODO: Add permissions
 		})),
-		projects: usersProjects.map((p) => ({
+		projects: usersProjects.value.map((p) => ({
 			id: p.id,
 			slug: p.slug,
-			permissions: [], // TODO: Add permissions
+			permissions: ["project:all"], // TODO: Add permissions
 		})),
-	} as const;
-
-	return session;
+	});
 }
 
-export async function getSecretApiKeyAuthSession(ctx: ServiceContext) {
+type GetSecretApiKeyAuthSessionError =
+	| VoidhashUnauthorizedError
+	| VoidhashInternalServerError;
+
+export async function getSecretApiKeyAuthSession(
+	ctx: ServiceContext
+): Promise<Result<ApiKeySession, GetSecretApiKeyAuthSessionError>> {
 	const apiKey = ctx.headers.get("x-secret-key");
 	if (!apiKey) {
-		throw new VoidhashError({
+		return err({
 			code: "UNAUTHORIZED",
 			message: "No Secret Key provided.",
 		});
 	}
 
 	const keyHash = await hashKey(apiKey);
-	const apiKeyRecord = await ctx.db.query.apiKeys.findFirst({
-		where: eq(apiKeys.key, keyHash),
-		with: {
-			project: true,
-		},
-	});
+	const apiKeyRecord = await ResultAsync.fromPromise(
+		ctx.db.query.apiKeys.findFirst({
+			where: eq(apiKeys.key, keyHash),
+			with: {
+				project: true,
+			},
+		}),
+		(e) => fromUnknownThrow(e)
+	);
 
-	if (!apiKeyRecord) {
-		throw new VoidhashError({
+	if (apiKeyRecord.isErr()) {
+		return err(apiKeyRecord.error);
+	}
+
+	if (!apiKeyRecord.value) {
+		return err({
 			code: "UNAUTHORIZED",
 			message: "Invalid Secret Key.",
 		});
 	}
 
-	const projects = [apiKeyRecord.project];
+	const projects = [apiKeyRecord.value.project];
 
-	return {
+	return ok({
 		method: "api-key",
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		organizations: [] as any[],
+		customer: null,
+		user: null,
+		organizations: [],
 		projects: projects.map((p) => ({
 			id: p.id,
 			slug: p.slug,
-			permissions: [], // TODO: Add permissions
+			permissions: ["project:all"], // TODO: Add permissions
 		})),
-	} as const;
+	} as const);
 }
+
+type GetPublishableApiKeyAuthSessionError =
+	| VoidhashUnauthorizedError
+	| VoidhashInternalServerError;
+
+export const getPublishableApiKeyAuthSession = async (
+	ctx: ServiceContext
+): Promise<
+	Result<PublishableApiKeySession, GetPublishableApiKeyAuthSessionError>
+> => {
+	const publishableApiKey = ctx.headers.get("x-publishable-key");
+	if (!publishableApiKey) {
+		return err({
+			code: "UNAUTHORIZED",
+			message:
+				"Publishable key is required. Add it to the x-publishable-key header.",
+		});
+	}
+
+	const apiKeyRecord = await ResultAsync.fromPromise(
+		ctx.db.query.apiKeys.findFirst({
+			where: eq(apiKeys.key, publishableApiKey),
+			with: {
+				project: true,
+			},
+		}),
+		(e) => fromUnknownThrow(e)
+	);
+
+	if (apiKeyRecord.isErr()) {
+		return err(apiKeyRecord.error);
+	}
+	if (!apiKeyRecord.value) {
+		return err({
+			code: "UNAUTHORIZED",
+			message: "Invalid Publishable Key.",
+		});
+	}
+
+	const customerId = ctx.headers.get("x-app-user-id");
+
+	if (!customerId) {
+		return err({
+			code: "UNAUTHORIZED",
+			message: "Customer not found.",
+		});
+	}
+
+	const customer = (await getCustomerByAppUserIdQuery(ctx, customerId)).orElse(
+		(error) => {
+			if (error.code === "NOT_FOUND") {
+				// TODO: Handle profile creation instead
+				return err({
+					code: "UNAUTHORIZED",
+					message: "Customer not found.",
+				} as VoidhashUnauthorizedError);
+			}
+			return err(error);
+		}
+	);
+
+	if (customer.isErr()) {
+		return err(customer.error);
+	}
+
+	const projects = [apiKeyRecord.value.project];
+
+	return ok({
+		method: "publishable-api-key",
+		user: null,
+		organizations: [] as never[],
+		customer: customer.value, // TODO: Make sure customer exists!
+		projects: projects.map((p) => ({
+			id: p.id,
+			slug: p.slug,
+			permissions: [],
+		})),
+	} as const);
+};
