@@ -31,18 +31,22 @@ export default async function AppMiddleware(req: NextRequest) {
 		projectSlug &&
 		!path.includes("/environment-redirect")
 	) {
-		const environment = await getEnvironment(
+		const environmentResult = await getEnvironment(
 			new NextMiddlewareCookiesAdapter(req),
 			organizationSlug,
 			projectSlug
 		);
-		if (!environment) {
-			return NextResponse.redirect(
-				new URL(
-					`/${organizationSlug}/${projectSlug}/environment-redirect?next=${encodeURIComponent(fullPath)}`,
-					req.url
-				)
-			);
+		if (environmentResult.isErr()) {
+			console.log(environmentResult.error);
+			if (environmentResult.error.code === "NOT_FOUND") {
+				return NextResponse.redirect(
+					new URL(
+						`/${organizationSlug}/${projectSlug}/environment-redirect?next=${encodeURIComponent(fullPath)}`,
+						req.url
+					)
+				);
+			}
+			return NextResponse.redirect(new URL(`/error`, req.url));
 		}
 	}
 

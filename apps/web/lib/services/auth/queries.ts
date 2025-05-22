@@ -94,7 +94,7 @@ export async function getUserAuthSession(
 		organizations: usersOrganizations.value.map((o) => ({
 			id: o.id,
 			slug: o.slug,
-			permissions: [], // TODO: Add permissions
+			permissions: ["organization:all"], // TODO: Add permissions
 		})),
 		projects: usersProjects.value.map((p) => ({
 			id: p.id,

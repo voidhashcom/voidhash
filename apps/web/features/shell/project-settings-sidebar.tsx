@@ -6,20 +6,13 @@ import { ChevronLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { NavMain } from "./nav-main";
-import { type getOrganizationBySlug } from "@/lib/services/organizations/queries";
-import { Suspense, use } from "react";
+import type { Organization } from "@voidhash/db";
 
 const ActiveOrganization = ({
-	activeOrganizationPromise,
+	activeOrganization,
 }: {
-	activeOrganizationPromise: ReturnType<typeof getOrganizationBySlug>;
+	activeOrganization: Organization;
 }) => {
-	const activeOrganizationResult = use(activeOrganizationPromise);
-	if (activeOrganizationResult.isErr()) {
-		return null;
-	}
-	const activeOrganization = activeOrganizationResult.value;
-
 	return (
 		<div className="flex items-center gap-2 group">
 			<ChevronLeft className="size-4 -ml-1 opacity-0 group-hover:opacity-100 transition-opacity absolute" />
@@ -31,7 +24,7 @@ const ActiveOrganization = ({
 			/>
 
 			<span className="truncate text-sm text-foreground-">
-				{activeOrganization?.name}
+				{activeOrganization.name}
 			</span>
 		</div>
 	);
@@ -47,12 +40,14 @@ const ActiveOrganizationSkeleton = () => {
 };
 
 export function ProjectSettingsSidebar({
-	activeOrganizationPromise,
+	activeOrganization,
+	isActiveOrganizationLoading,
 	organizationSlug,
 	projectSlug,
 	...props
 }: React.ComponentProps<typeof Sidebar> & {
-	activeOrganizationPromise: ReturnType<typeof getOrganizationBySlug>;
+	activeOrganization: Organization | null;
+	isActiveOrganizationLoading: boolean;
 	organizationSlug: string;
 	projectSlug: string;
 }) {
@@ -97,11 +92,11 @@ export function ProjectSettingsSidebar({
 						href={`/${organizationSlug}/~/settings/general`}
 						className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
 					>
-						<Suspense fallback={<ActiveOrganizationSkeleton />}>
-							<ActiveOrganization
-								activeOrganizationPromise={activeOrganizationPromise}
-							/>
-						</Suspense>
+						{isActiveOrganizationLoading || !activeOrganization ? (
+							<ActiveOrganizationSkeleton />
+						) : (
+							<ActiveOrganization activeOrganization={activeOrganization} />
+						)}
 					</Link>
 
 					<div className="text-base font-medium text-foreground w-full mt-2">

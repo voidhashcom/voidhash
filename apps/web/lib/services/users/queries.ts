@@ -20,18 +20,14 @@ type GetUserError =
 	| VoidhashUnauthorizedError
 	| VoidhashInternalServerError
 	| VoidhashNotFoundError;
+
+export type GetUserSuccess = User & {
+	organizations: Organization[];
+};
+
 export const getUser = cache(
 	createServiceFunction().function(
-		async ({
-			ctx,
-		}): Promise<
-			Result<
-				User & {
-					organizations: Organization[];
-				},
-				GetUserError
-			>
-		> => {
+		async ({ ctx }): Promise<Result<GetUserSuccess, GetUserError>> => {
 			const authenticatedContext = await authenticateContext(ctx);
 			if (authenticatedContext.isErr()) {
 				return err(authenticatedContext.error);

@@ -44,16 +44,10 @@ export const getOrganizationBySlug = cache(
 					return err(authenticatedContext.error);
 				}
 
-				const organization = await ctx.cache.cacheFn(
-					async (s: string) => {
-						return getOrganizationBySlugQuery(authenticatedContext.value, s);
-					},
-					["organization", input.slug],
-					{
-						tags: [`organization_slug:${input.slug}`],
-						revalidate: 3600,
-					}
-				)(input.slug);
+				const organization = await getOrganizationBySlugQuery(
+					authenticatedContext.value,
+					input.slug
+				);
 
 				if (organization.isErr()) {
 					return err(organization.error);
@@ -66,6 +60,7 @@ export const getOrganizationBySlug = cache(
 						"organization:all"
 					)
 				) {
+					console.log(authenticatedContext.value.session);
 					return err({
 						code: "FORBIDDEN",
 						message: "You are not authorized to access this organization",
@@ -101,16 +96,21 @@ export const getOrganizationById = cache(
 					return err(authenticatedContext.error);
 				}
 
-				const organization = await ctx.cache.cacheFn(
-					async (id: string) => {
-						return getOrganizationByIdQuery(authenticatedContext.value, id);
-					},
-					["organization", input.id],
-					{
-						tags: [`organization_${input.id}`],
-						revalidate: 3600,
-					}
-				)(input.id);
+				// const organization = await ctx.cache.cacheFn(
+				// 	async (id: string) => {
+				// 		return getOrganizationByIdQuery(authenticatedContext.value, id);
+				// 	},
+				// 	["organization", input.id],
+				// 	{
+				// 		tags: [`organization_${input.id}`],
+				// 		revalidate: 3600,
+				// 	}
+				// )(input.id);
+
+				const organization = await getOrganizationByIdQuery(
+					authenticatedContext.value,
+					input.id
+				);
 
 				if (organization.isErr()) {
 					return err(organization.error);
