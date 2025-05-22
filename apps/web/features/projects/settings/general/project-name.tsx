@@ -1,7 +1,6 @@
 "use client";
 
 import { updateProjectAction } from "@/lib/nextjs/server-actions";
-import { type getProjectBySlug } from "@/lib/services/projects/queries";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	Card,

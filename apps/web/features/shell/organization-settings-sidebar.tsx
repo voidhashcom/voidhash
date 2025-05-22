@@ -13,22 +13,15 @@ import { Sidebar, SidebarContent, SidebarHeader } from "@voidhash/ui";
 import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { NavMain } from "./nav-main";
-import { Suspense, use } from "react";
-import { type getProjectsByOrganizationSlug } from "@/lib/services/projects/queries";
+import type { Project } from "@voidhash/db";
 
 const SidebarProjects = ({
 	organizationSlug,
-	projectsPromise,
+	projects,
 }: {
 	organizationSlug: string;
-	projectsPromise: ReturnType<typeof getProjectsByOrganizationSlug>;
+	projects: Project[];
 }) => {
-	const projectsResult = use(projectsPromise);
-	if (projectsResult.isErr()) {
-		return <div>Error</div>;
-	}
-	const projects = projectsResult.value;
-
 	return (
 		<SidebarMenu>
 			{projects.map((project) => (
@@ -74,10 +67,12 @@ const SidebarProjectsSkeleton = () => {
 };
 
 export function OrganizationSettingsSidebar({
-	projectsPromise,
+	projects,
+	areProjectsLoading,
 	...props
 }: React.ComponentProps<typeof Sidebar> & {
-	projectsPromise: ReturnType<typeof getProjectsByOrganizationSlug>;
+	projects: Project[];
+	areProjectsLoading: boolean;
 }) {
 	const pathname = usePathname();
 	const { organizationSlug } = useParams();
@@ -129,14 +124,16 @@ export function OrganizationSettingsSidebar({
 				<NavMain groups={data.navMain} link={Link} tooltips="disabled" />
 				<SidebarGroup>
 					<SidebarGroupLabel>Projects</SidebarGroupLabel>
-					<Suspense fallback={<SidebarProjectsSkeleton />}>
+					{areProjectsLoading ? (
+						<SidebarProjectsSkeleton />
+					) : (
 						<SidebarProjects
 							organizationSlug={
 								typeof organizationSlug === "string" ? organizationSlug : ""
 							}
-							projectsPromise={projectsPromise}
+							projects={projects}
 						/>
-					</Suspense>
+					)}
 				</SidebarGroup>
 			</SidebarContent>
 		</Sidebar>

@@ -32,21 +32,22 @@ export const getApiKeyById = cache(
 			async ({ ctx, input }): Promise<Result<ApiKey, GetApiKeyByIdError>> => {
 				const authenticatedContextPromise = authenticateContext(ctx);
 
-				const apiKeyPromise = ctx.cache.cacheFn(
-					async (keyId: string) => {
-						const apiKey = await getApiKeyByIdQuery(ctx, keyId);
-						if (apiKey.isErr()) {
-							return err(apiKey.error);
-						}
-						return ok(apiKey.value);
-					},
-					["api-key", input.id],
-					{
-						tags: [`api-key_${input.id}`],
-						revalidate: 3600,
-					}
-				)(input.id);
+				// const apiKeyPromise = ctx.cache.cacheFn(
+				// 	async (keyId: string) => {
+				// 		const apiKey = await getApiKeyByIdQuery(ctx, keyId);
+				// 		if (apiKey.isErr()) {
+				// 			return err(apiKey.error);
+				// 		}
+				// 		return ok(apiKey.value);
+				// 	},
+				// 	["api-key", input.id],
+				// 	{
+				// 		tags: [`api-key_${input.id}`],
+				// 		revalidate: 3600,
+				// 	}
+				// )(input.id);
 
+				const apiKeyPromise = getApiKeyByIdQuery(ctx, input.id);
 				const [authenticatedContext, apiKey] = await Promise.all([
 					authenticatedContextPromise,
 					apiKeyPromise,
@@ -112,23 +113,28 @@ export const getApiKeys = cache(
 					});
 				}
 
-				const apiKeys = await ctx.cache.cacheFn(
-					async (projectId: string) => {
-						const apiKeys = await getApiKeysQuery(
-							authenticatedContext.value,
-							projectId
-						);
-						if (apiKeys.isErr()) {
-							return err(apiKeys.error);
-						}
-						return ok(apiKeys.value);
-					},
-					["api-keys", input.projectId],
-					{
-						tags: [`api-keys_${input.projectId}`],
-						revalidate: 3600,
-					}
-				)(input.projectId);
+				// const apiKeys = await ctx.cache.cacheFn(
+				// 	async (projectId: string) => {
+				// 		const apiKeys = await getApiKeysQuery(
+				// 			authenticatedContext.value,
+				// 			projectId
+				// 		);
+				// 		if (apiKeys.isErr()) {
+				// 			return err(apiKeys.error);
+				// 		}
+				// 		return ok(apiKeys.value);
+				// 	},
+				// 	["api-keys", input.projectId],
+				// 	{
+				// 		tags: [`api-keys_${input.projectId}`],
+				// 		revalidate: 3600,
+				// 	}
+				// )(input.projectId);
+
+				const apiKeys = await getApiKeysQuery(
+					authenticatedContext.value,
+					input.projectId
+				);
 
 				if (apiKeys.isErr()) {
 					return err(apiKeys.error);

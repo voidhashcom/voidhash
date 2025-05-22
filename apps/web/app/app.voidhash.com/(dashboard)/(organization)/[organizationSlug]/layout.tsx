@@ -5,6 +5,33 @@ import { LayoutSidebar } from "./layout-sidebar";
 import { NavBar } from "@/features/shell";
 import { getProjectsByOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { Suspense } from "react";
+
+async function OrganizationSettingsLayoutSidebar({
+	organizationSlug,
+}: {
+	organizationSlug: string;
+}) {
+	const projectsResult = await getProjectsByOrganizationSlug({
+		ctx: await createNextServiceContext(),
+		input: {
+			slug: organizationSlug,
+		},
+	});
+
+	if (projectsResult.isErr()) {
+		return null;
+	}
+
+	const projects = projectsResult.value;
+
+	return (
+		<OrganizationSettingsSidebar
+			projects={projects}
+			areProjectsLoading={false}
+		/>
+	);
+}
 
 export default async function OrganizationLayout({
 	children,
@@ -14,12 +41,6 @@ export default async function OrganizationLayout({
 	params: Promise<{ organizationSlug: string }>;
 }) {
 	const { organizationSlug } = await params;
-	const projectsPromise = getProjectsByOrganizationSlug({
-		ctx: await createNextServiceContext(),
-		input: {
-			slug: organizationSlug,
-		},
-	});
 
 	return (
 		<>
@@ -31,7 +52,18 @@ export default async function OrganizationLayout({
 						<OrganizationSidebar organizationSlug={organizationSlug} />
 					}
 					organizationSettingsSidebar={
-						<OrganizationSettingsSidebar projectsPromise={projectsPromise} />
+						<Suspense
+							fallback={
+								<OrganizationSettingsSidebar
+									projects={[]}
+									areProjectsLoading={true}
+								/>
+							}
+						>
+							<OrganizationSettingsLayoutSidebar
+								organizationSlug={organizationSlug}
+							/>
+						</Suspense>
 					}
 				/>
 				<SidebarInset className="top-[var(--header-height)]">

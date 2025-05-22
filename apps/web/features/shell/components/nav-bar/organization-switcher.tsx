@@ -26,12 +26,16 @@ const OrganizationSwitcherComponent = async ({
 		},
 	});
 
-	const activeOrganizationResult = await activeOrganizationPromise;
+	const [userResult, activeOrganizationResult] = await Promise.all([
+		userPromise,
+		activeOrganizationPromise,
+	]);
 
-	if (activeOrganizationResult.isErr()) {
+	if (userResult.isErr() || activeOrganizationResult.isErr()) {
 		return null;
 	}
 
+	const user = userResult.value;
 	const activeOrganization = activeOrganizationResult.value;
 
 	return (
@@ -50,8 +54,9 @@ const OrganizationSwitcherComponent = async ({
 				</div>
 			</Link>
 			<OrganizationProjectSwitcher
-				userPromise={userPromise}
-				activeOrganizationPromise={activeOrganizationPromise}
+				user={user}
+				activeOrganization={activeOrganization}
+				activeProject={null}
 			/>
 		</div>
 	);

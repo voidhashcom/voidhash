@@ -15,11 +15,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "../../../trpc/react";
 import { CreateOrganizationModal } from "../../../organizations/create-organization-modal";
 import { CreateProjectModal } from "../../../projects/create-project-modal";
-import { use } from "react";
-import { type getUser } from "@/lib/services/users/queries";
-import { type getOrganizationBySlug } from "@/lib/services/organizations/queries";
-import { type getProjectBySlug } from "@/lib/services/projects/queries";
-import { ok } from "neverthrow";
+import type { Organization, Project } from "@voidhash/db";
+import type { GetUserSuccess } from "@/lib/services/users/queries";
 
 function OrganizationProjectSwitcherProjects({
 	organizationId,
@@ -89,23 +86,18 @@ function OrganizationProjectSwitcherProjects({
 }
 
 export function OrganizationProjectSwitcher({
-	userPromise,
-	activeProjectPromise,
-	activeOrganizationPromise,
+	user,
+	activeProject,
+	activeOrganization,
 }: {
-	userPromise: ReturnType<typeof getUser>;
-	activeOrganizationPromise: ReturnType<typeof getOrganizationBySlug>;
-	activeProjectPromise?: ReturnType<typeof getProjectBySlug>;
+	user: GetUserSuccess;
+	activeProject: Project | null;
+	activeOrganization: Organization;
 }) {
 	const [open, setOpen] = React.useState(false);
-	const me = use(userPromise);
+	const me = user;
 
-	const organizations = me.isOk() ? (me.value?.organizations ?? []) : [];
-
-	const activeProjectResult = activeProjectPromise
-		? use(activeProjectPromise)
-		: ok(null);
-	const activeOrganizationResult = use(activeOrganizationPromise);
+	const organizations = me?.organizations ?? [];
 
 	// Highlight organization
 	const [highlightedOrganizationIndex, setHighlightedOrganizationIndex] =
@@ -117,20 +109,6 @@ export function OrganizationProjectSwitcher({
 
 	const [createOrganizationModalOpen, setCreateOrganizationModalOpen] =
 		React.useState(false);
-
-	if (me.isErr()) {
-		return <div>Error</div>;
-	}
-
-	if (activeOrganizationResult.isErr()) {
-		return <div>Error</div>;
-	}
-	if (activeProjectResult.isErr()) {
-		return <div>Error</div>;
-	}
-
-	const activeOrganization = activeOrganizationResult.value;
-	const activeProject = activeProjectResult.value;
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
