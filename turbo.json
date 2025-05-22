@@ -11,7 +11,8 @@
 			],
 			"outputs": [
 				"dist/**",
-				".next/*"
+				".next/*",
+				"!.next/cache/**"
 			],
 			"env": [
 				"NEXT_PUBLIC_APP_NAME",
