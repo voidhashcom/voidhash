@@ -67,14 +67,6 @@ export const organization = mysqlTable("organization", {
 	metadata: text("metadata"),
 });
 
-export type Organization = Omit<
-	typeof organization.$inferSelect,
-	"logo" | "metadata"
-> & {
-	logo?: string | null;
-	metadata?: string | null;
-};
-
 export const member = mysqlTable("member", {
 	id: varchar("id", { length: 36 }).primaryKey(),
 	organizationId: varchar("organization_id", { length: 36 })

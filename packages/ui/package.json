@@ -59,6 +59,7 @@
         "./toggle": "./components/ui/toggle.tsx",
         "./tooltip": "./components/ui/tooltip.tsx",
         "./copy-text": "./components/copy-text.tsx",
+        "./error-card": "./components/error-card.tsx",
         "./shell": "./components/shell/index.tsx"
     },
     "scripts": {},

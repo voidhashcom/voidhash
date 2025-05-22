@@ -53,5 +53,6 @@ export * from "./components/info-tooltip";
 export * from "./components/logo";
 export * from "./components/settings-card-skeleton";
 export * from "./components/copy-text";
+export * from "./components/error-card";
 export * from "./components/theme-provider";
 export * from "./components/ui/dropzone";

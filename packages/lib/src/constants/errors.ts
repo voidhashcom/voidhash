@@ -133,13 +133,13 @@ export function fromUnknownThrow(error: unknown): VoidhashInternalServerError {
 export function toVoidhashHTTPError(
 	error: AnyVoidhashError
 ): VoidhashHTTPError {
-	let originalError = null;
+	let originalError: Error | null = null;
 	switch (error.code) {
 		case "BAD_REQUEST":
-			originalError = error.validationErrors;
+			originalError = error.validationErrors ?? null;
 			break;
 		case "INTERNAL_SERVER_ERROR":
-			originalError = error.originalError;
+			originalError = error.originalError ?? null;
 			break;
 		default:
 			originalError = null;
