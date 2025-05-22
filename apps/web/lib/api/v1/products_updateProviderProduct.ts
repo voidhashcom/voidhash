@@ -8,8 +8,8 @@ import {
 } from "./schema";
 import { z } from "zod";
 import { updatePaymentProviderProduct } from "@/lib/services/products/actions/update-payment-provider-product";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import {
 	toVoidhashHTTPError,
 	VoidhashHTTPError,
@@ -19,6 +19,11 @@ import { getProviderProductByPrimaryKey } from "@/lib/services/products/queries"
 const route = describeRoute({
 	description: "Update a provider product",
 	operationId: "updateProviderProduct",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",

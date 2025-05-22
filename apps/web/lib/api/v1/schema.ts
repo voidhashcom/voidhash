@@ -181,3 +181,17 @@ export const deletePaywallProductParamsSchema = z.object({
 	paywallId: z.string(),
 	productId: z.string(),
 });
+
+// SDK
+export const sdkGetPaywallByLocationParamsSchema = z.object({
+	location: z.string(),
+});
+
+export const sdkPaywallResponseSchema = z
+	.object({
+		paywallId: z.string(),
+		name: z.string(),
+	})
+	.openapi({
+		ref: "SdkPaywall",
+	});

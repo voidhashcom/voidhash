@@ -9,7 +9,7 @@ import {
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
-import { stripe } from "../../../payment-providers/stripe/stripe";
+import { stripe } from "../../payment-providers/stripe/stripe";
 import { RouteResponse, RouteRequest } from "./products_updateProviderProduct";
 import { createPaymentProviderKey } from "@/lib/services/products/lib";
 

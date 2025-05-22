@@ -4,8 +4,8 @@ import { z } from "zod";
 import { authenticateContext } from "@/lib/service-function";
 import { createPaywallBodySchema, paywallResponseSchema } from "./schema";
 import { createPaywall } from "@/lib/services/paywalls/actions/create-paywall";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import {
 	toVoidhashHTTPError,
 	VoidhashHTTPError,
@@ -15,6 +15,11 @@ import { getPaywallById } from "@/lib/services/paywalls/queries";
 const route = describeRoute({
 	description: "Create a new paywall",
 	operationId: "createPaywall",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",

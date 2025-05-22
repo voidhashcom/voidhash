@@ -7,13 +7,18 @@ import {
 } from "./schema";
 import { z } from "zod";
 import { getProviderProductsByProductId } from "@/lib/services/products/queries";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Get all provider products for a product",
 	operationId: "getProviderProductsByProductId",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",

@@ -7,13 +7,18 @@ import {
 	paywallProductResponseSchema,
 } from "./schema";
 import { getPaywallProducts } from "@/lib/services/paywalls/queries";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 
 const route = describeRoute({
 	description: "Get all products for a paywall",
 	operationId: "getPaywallProducts",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",

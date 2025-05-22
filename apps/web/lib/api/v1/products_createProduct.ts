@@ -1,15 +1,11 @@
 import { describeRoute } from "hono-openapi";
 import { resolver, validator as zValidator } from "hono-openapi/zod";
 import { authenticateContext } from "@/lib/service-function";
-import {
-	createProductBodySchema,
-	customerResponseSchema,
-	productResponseSchema,
-} from "./schema";
+import { createProductBodySchema, productResponseSchema } from "./schema";
 import { z } from "zod";
 import { createProduct } from "@/lib/services/products/actions/create-product";
-import { openApiErrorResponses } from "../../errors/openapi_responses";
-import { App } from "../../hono/app";
+import { openApiErrorResponses } from "../errors/openapi_responses";
+import { App } from "../hono/app";
 import {
 	toVoidhashHTTPError,
 	VoidhashHTTPError,
@@ -19,12 +15,16 @@ import { getProductById } from "@/lib/services/products/queries";
 const route = describeRoute({
 	description: "Create a new product",
 	operationId: "createProduct",
+	security: [
+		{
+			secretKey: [],
+		},
+	],
 	responses: {
 		200: {
 			description: "Successful response",
 			content: {
-				// TODO: This response schema seems incorrect, should be productResponseSchema
-				"application/json": { schema: resolver(customerResponseSchema) },
+				"application/json": { schema: resolver(productResponseSchema) },
 			},
 		},
 		...openApiErrorResponses,
