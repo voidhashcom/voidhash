@@ -194,3 +194,5 @@ android/
 .vinxi
 
 .tinyb
+# Turborepo
+.turbo
