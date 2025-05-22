@@ -4,6 +4,7 @@ import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/que
 import { notFound } from "next/navigation";
 import { ProjectSettingsGeneralLayout } from "./project-settings-general-layout";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 export async function ProjectSettingsGeneralPage({
 	organizationSlug,
@@ -14,7 +15,7 @@ export async function ProjectSettingsGeneralPage({
 }) {
 	const serviceContext = await createNextServiceContext();
 
-	const project = await getProjectBySlugAndOrganizationSlug({
+	const projectResult = await getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: {
 			organizationSlug: organizationSlug,
@@ -22,9 +23,12 @@ export async function ProjectSettingsGeneralPage({
 		},
 	});
 
-	if (!project) {
-		return notFound();
+	if (projectResult.isErr()) {
+		const error = projectResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
+
+	const project = projectResult.value;
 
 	return (
 		<ProjectSettingsGeneralLayout>

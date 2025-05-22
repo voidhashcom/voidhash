@@ -2,8 +2,8 @@
 
 import { savePaymentProviderConfigurationAction } from "@/lib/nextjs/server-actions";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { getProjectById } from "@/lib/services/projects/queries";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { Project } from "@voidhash/db";
 import {
 	Form,
 	Sheet,
@@ -45,7 +45,7 @@ export function PaymentProviderConfigurationSheet({
 	enabled: boolean;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	configuration?: any;
-	project: Awaited<ReturnType<typeof getProjectById>>;
+	project: Project;
 }) {
 	const router = useRouter();
 	const [open, setOpen] = useState(false);

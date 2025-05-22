@@ -1,6 +1,5 @@
 "use client";
 import { deletePerkAction } from "@/lib/nextjs/server-actions";
-import { getPerks } from "@/lib/services/perks/queries";
 import {
 	DropdownMenu,
 	DropdownMenuTrigger,
@@ -17,12 +16,13 @@ import { useAction } from "next-safe-action/hooks";
 import { CopyIcon, EllipsisVerticalIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import type { Perk } from "@voidhash/db";
 // import { EditProductModal } from "./edit-product-modal";
 
 export function PerkRecord({
 	perk,
 }: {
-	perk: NonNullable<Awaited<ReturnType<typeof getPerks>>>[number];
+	perk: Perk;
 }) {
 	const router = useRouter();
 	// const [setOpenEditModal] = useState(false);

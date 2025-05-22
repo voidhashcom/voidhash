@@ -1,6 +1,5 @@
 "use client";
 import { deletePaywallAction } from "@/lib/nextjs/server-actions";
-import { getPaywalls } from "@/lib/services/paywalls/queries";
 import {
 	DropdownMenu,
 	DropdownMenuTrigger,
@@ -14,14 +13,14 @@ import { EllipsisVerticalIcon } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-// import { EditProductModal } from "./edit-product-modal";
+import { type Paywall } from "@voidhash/db";
 
 export function PaywallRecord({
 	paywall,
 	organizationSlug,
 	projectSlug,
 }: {
-	paywall: NonNullable<Awaited<ReturnType<typeof getPaywalls>>>[number];
+	paywall: Paywall;
 	organizationSlug: string;
 	projectSlug: string;
 }) {

@@ -8,9 +8,9 @@ import { ChevronRightIcon } from "lucide-react";
 import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { notFound } from "next/navigation";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { PaymentProviderConfigurationSheet } from "./payment-provider-configuration-sheet";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 // const paymentProvidersConfigurationSheetComponents = {
 // 	stripe: StripeConfigurationSheet,
@@ -28,7 +28,7 @@ export async function PaymentProvidersPage({
 	const { organizationSlug, projectSlug } = await paramsPromise;
 
 	const serviceContext = await createNextServiceContext();
-	const project = await getProjectBySlugAndOrganizationSlug({
+	const projectResult = await getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: {
 			organizationSlug: organizationSlug,
@@ -36,18 +36,28 @@ export async function PaymentProvidersPage({
 		},
 	});
 
-	if (!project) {
-		return notFound();
+	if (projectResult.isErr()) {
+		const error = projectResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
 
-	const paymentProvidersConfigurations = await getPaymentProviderConfigurations(
-		{
+	const project = projectResult.value;
+
+	const paymentProvidersConfigurationsResult =
+		await getPaymentProviderConfigurations({
 			ctx: serviceContext,
 			input: {
-				projectId: project?.id,
+				projectId: project.id,
 			},
-		}
-	);
+		});
+
+	if (paymentProvidersConfigurationsResult.isErr()) {
+		const error = paymentProvidersConfigurationsResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const paymentProvidersConfigurations =
+		paymentProvidersConfigurationsResult.value;
 
 	const paymentProvidersWithConfigurations = paymentProviders.map(
 		(paymentProvider) => {

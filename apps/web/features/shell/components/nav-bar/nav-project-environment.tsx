@@ -13,7 +13,7 @@ export async function NavProjectEnvironmentContent({
 	}
 	const serviceContext = await createNextServiceContext();
 
-	const [environment, project] = await Promise.all([
+	const [environmentResult, projectResult] = await Promise.all([
 		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),
 		getProjectBySlugAndOrganizationSlug({
 			ctx: serviceContext,
@@ -24,9 +24,13 @@ export async function NavProjectEnvironmentContent({
 		}),
 	]);
 
-	if (!project) {
+	if (projectResult.isErr() || environmentResult.isErr()) {
 		return null;
 	}
+
+	const project = projectResult.value;
+	const environment = environmentResult.value;
+
 	return (
 		<div>
 			<NavProjectEnvironmentToggle

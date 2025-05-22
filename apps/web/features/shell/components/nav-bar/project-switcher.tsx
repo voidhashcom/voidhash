@@ -14,11 +14,13 @@ import { getUser } from "@/lib/services/users/queries";
 const ProjectTitle = async ({
 	projectPromise,
 }: { projectPromise: ReturnType<typeof getProjectBySlug> }) => {
-	const project = await projectPromise;
+	const projectResult = await projectPromise;
 
-	if (!project) {
+	if (projectResult.isErr()) {
 		return null;
 	}
+
+	const project = projectResult.value;
 
 	return (
 		<div className="flex items-center gap-2">

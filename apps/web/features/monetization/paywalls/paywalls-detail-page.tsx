@@ -1,6 +1,5 @@
 import { Page } from "@/features/shell";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { notFound } from "next/navigation";
 import {
 	getPaywallById,
 	getPaywallProducts,
@@ -16,6 +15,7 @@ import { PaywallDetailProductRecord } from "./paywall-detail-product-record";
 import { getProducts } from "@/lib/services/products/queries";
 import { PaywallDetailAddProductButton } from "./paywall-detail-add-product-button";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 export async function PaywallsDetailPage({
 	organizationSlug,
@@ -27,13 +27,17 @@ export async function PaywallsDetailPage({
 	id: string;
 }) {
 	const serviceContext = await createNextServiceContext();
-	const project = await getProjectBySlugAndOrganizationSlug({
+	const projectResult = await getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: { organizationSlug: organizationSlug, projectSlug: projectSlug },
 	});
-	if (!project) {
-		return notFound();
+	if (projectResult.isErr()) {
+		const error = projectResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
+
+	const project = projectResult.value;
+
 	const paywallPromise = getPaywallById({
 		ctx: serviceContext,
 		input: { id },
@@ -47,15 +51,31 @@ export async function PaywallsDetailPage({
 		input: { projectId: project.id },
 	});
 
-	const [paywall, paywallProducts, products] = await Promise.all([
-		paywallPromise,
-		paywallProductsPromise,
-		productsPromise,
-	]);
+	const [paywallResult, paywallProductsResult, productsResult] =
+		await Promise.all([
+			paywallPromise,
+			paywallProductsPromise,
+			productsPromise,
+		]);
 
-	if (!paywall) {
-		return notFound();
+	if (paywallResult.isErr()) {
+		const error = paywallResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
+
+	if (paywallProductsResult.isErr()) {
+		const error = paywallProductsResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	if (productsResult.isErr()) {
+		const error = productsResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const paywall = paywallResult.value;
+	const paywallProducts = paywallProductsResult.value;
+	const products = productsResult.value;
 
 	const productsWithoutAddedProducts = products.filter(
 		(product) =>

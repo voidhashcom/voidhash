@@ -5,7 +5,6 @@ import {
 	fromUnknownThrow,
 	PRODUCT_TYPES,
 	VoidhashBadRequestError,
-	VoidhashHTTPError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
 } from "@voidhash/lib";

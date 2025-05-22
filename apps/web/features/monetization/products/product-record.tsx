@@ -1,6 +1,5 @@
 "use client";
 import { deleteProductAction } from "@/lib/nextjs/server-actions";
-import { getProducts } from "@/lib/services/products/queries";
 import {
 	DropdownMenu,
 	DropdownMenuTrigger,
@@ -16,6 +15,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { EditProductModal } from "./edit-product-modal";
+import { Product } from "@voidhash/db";
 
 export function ProductRecord({
 	product,
@@ -23,7 +23,7 @@ export function ProductRecord({
 	organizationSlug,
 	projectSlug,
 }: {
-	product: NonNullable<Awaited<ReturnType<typeof getProducts>>>[number];
+	product: Product;
 	configurationStateIndicator: React.ReactNode;
 	organizationSlug: string;
 	projectSlug: string;

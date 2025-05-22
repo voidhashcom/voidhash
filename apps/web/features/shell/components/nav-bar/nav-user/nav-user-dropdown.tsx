@@ -7,28 +7,20 @@ import {
 	GradientAvatar,
 	AvatarFallback,
 	DropdownMenuSeparator,
-	DropdownMenuGroup,
 	DropdownMenuItem,
 	ToggleGroup,
 	ToggleGroupItem,
 } from "@voidhash/ui";
-import {
-	BadgeCheck,
-	CreditCard,
-	LogOut,
-	Monitor,
-	Moon,
-	Sun,
-} from "lucide-react";
-import { getUser } from "@/lib/services/users/queries";
+import { LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { authClient } from "@voidhash/auth/client";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { User } from "better-auth";
 
 export function NavUserDropdown({
 	user,
 }: {
-	user: NonNullable<Awaited<ReturnType<typeof getUser>>>;
+	user: User;
 }) {
 	const router = useRouter();
 

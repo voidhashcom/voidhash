@@ -50,7 +50,7 @@ export default function CreateOrgPage() {
 	const { execute, isPending } = useAction(createOrganizationAction, {
 		onSuccess: (res) => {
 			queryClient.invalidateQueries();
-			router.push(`/${res?.data?.slug}`);
+			router.push(`/${res.data?.slug}`);
 		},
 		onError: (error) => {
 			toast.error(error.error.serverError);

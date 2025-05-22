@@ -1,10 +1,10 @@
 "use client";
 import { ColumnDef } from "@tanstack/react-table";
-import { type getCustomers } from "@/lib/services/customers/queries";
+import { type GetCustomersSuccess } from "@/lib/services/customers/queries";
 import { format } from "date-fns";
 // import { RouterOutputs } from "@/lib/trpc";
 
-type Customer = Awaited<ReturnType<typeof getCustomers>>[number];
+type Customer = GetCustomersSuccess[number];
 
 export const columns: ColumnDef<Customer>[] = [
 	{

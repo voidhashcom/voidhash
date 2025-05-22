@@ -1,7 +1,6 @@
 "use client";
 
 import { updateOrganizationAction } from "@/lib/nextjs/server-actions";
-import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	Card,
@@ -25,6 +24,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useTRPC } from "@/features/trpc/react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { Organization } from "@voidhash/db";
 
 const updateTeamNameSchema = z.object({
 	name: z
@@ -35,9 +35,7 @@ const updateTeamNameSchema = z.object({
 
 type UpdateTeamNameForm = z.infer<typeof updateTeamNameSchema>;
 
-export function TeamNameForm({
-	organization,
-}: { organization: Awaited<ReturnType<typeof getOrganizationBySlug>> }) {
+export function TeamNameForm({ organization }: { organization: Organization }) {
 	const form = useForm<UpdateTeamNameForm>({
 		resolver: zodResolver(updateTeamNameSchema),
 		defaultValues: {

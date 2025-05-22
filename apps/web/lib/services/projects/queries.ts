@@ -159,6 +159,8 @@ type GetProjectByIdError =
 	| VoidhashForbiddenError
 	| VoidhashNotFoundError;
 
+export type GetProjectByIdSuccess = Project;
+
 export const getProjectById = cache(
 	createServiceFunction()
 		.input(
