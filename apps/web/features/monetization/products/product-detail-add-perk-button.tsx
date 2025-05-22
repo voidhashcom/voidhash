@@ -19,7 +19,7 @@ import { Check } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { type getPerks } from "@/lib/services/perks/queries";
+import type { Perk } from "@voidhash/db";
 
 export function ProductDetailAddPerkButton({
 	productId,
@@ -27,7 +27,7 @@ export function ProductDetailAddPerkButton({
 	variant = "default",
 }: {
 	productId: string;
-	perks: Awaited<ReturnType<typeof getPerks>>;
+	perks: Perk[];
 	variant?: "default" | "secondary";
 }) {
 	const [open, setOpen] = useState(false);

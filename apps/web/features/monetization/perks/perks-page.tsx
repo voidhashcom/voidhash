@@ -1,12 +1,12 @@
 import { Page } from "@/features/shell";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { notFound } from "next/navigation";
 import { Card } from "@voidhash/ui";
 import { PerkRecord } from "./perk-record";
 import { PerksPageEmptyState } from "./perks-page-empty-state";
 import { CreatePerkModalButton } from "./create-perk-modal-button";
 import { getPerks } from "@/lib/services/perks/queries";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 export async function PerksPage({
 	organizationSlug,
@@ -16,19 +16,29 @@ export async function PerksPage({
 	projectSlug: string;
 }) {
 	const serviceContext = await createNextServiceContext();
-	const project = await getProjectBySlugAndOrganizationSlug({
+	const projectResult = await getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: { projectSlug: projectSlug, organizationSlug },
 	});
 
-	if (!project) {
-		return notFound();
+	if (projectResult.isErr()) {
+		const error = projectResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
 
-	const perks = await getPerks({
+	const project = projectResult.value;
+
+	const perksResult = await getPerks({
 		ctx: serviceContext,
 		input: { projectId: project.id },
 	});
+
+	if (perksResult.isErr()) {
+		const error = perksResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const perks = perksResult.value;
 
 	return (
 		<Page>

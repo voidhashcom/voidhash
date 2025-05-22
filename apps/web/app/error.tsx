@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-
+import { ErrorCard } from "@voidhash/ui";
 export default function Error({
 	error,
 	reset,
@@ -29,16 +29,11 @@ export default function Error({
 	}
 
 	return (
-		<div>
-			<h2>Something went wrong!</h2>
-			<button
-				onClick={
-					// Attempt to recover by trying to re-render the segment
-					() => reset()
-				}
-			>
-				Try again
-			</button>
-		</div>
+		<ErrorCard
+			title="Something went wrong!"
+			description="Please try again"
+			onRetry={() => reset()}
+			className="h-screen"
+		/>
 	);
 }

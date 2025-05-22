@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/features/trpc/react";
+import type { Project } from "@voidhash/db";
 
 const updateProjectNameSchema = z.object({
 	name: z
@@ -35,9 +36,7 @@ const updateProjectNameSchema = z.object({
 
 type UpdateProjectNameForm = z.infer<typeof updateProjectNameSchema>;
 
-export function ProjectNameForm({
-	project,
-}: { project: Awaited<ReturnType<typeof getProjectBySlug>> }) {
+export function ProjectNameForm({ project }: { project: Project }) {
 	const form = useForm<UpdateProjectNameForm>({
 		resolver: zodResolver(updateProjectNameSchema),
 		defaultValues: {

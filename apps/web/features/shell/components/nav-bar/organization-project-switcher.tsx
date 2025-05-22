@@ -19,6 +19,7 @@ import { use } from "react";
 import { type getUser } from "@/lib/services/users/queries";
 import { type getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { type getProjectBySlug } from "@/lib/services/projects/queries";
+import { ok } from "neverthrow";
 
 function OrganizationProjectSwitcherProjects({
 	organizationId,
@@ -98,10 +99,13 @@ export function OrganizationProjectSwitcher({
 }) {
 	const [open, setOpen] = React.useState(false);
 	const me = use(userPromise);
-	const organizations = me?.organizations ?? [];
 
-	const activeProject = activeProjectPromise ? use(activeProjectPromise) : null;
-	const activeOrganization = use(activeOrganizationPromise);
+	const organizations = me.isOk() ? (me.value?.organizations ?? []) : [];
+
+	const activeProjectResult = activeProjectPromise
+		? use(activeProjectPromise)
+		: ok(null);
+	const activeOrganizationResult = use(activeOrganizationPromise);
 
 	// Highlight organization
 	const [highlightedOrganizationIndex, setHighlightedOrganizationIndex] =
@@ -113,6 +117,20 @@ export function OrganizationProjectSwitcher({
 
 	const [createOrganizationModalOpen, setCreateOrganizationModalOpen] =
 		React.useState(false);
+
+	if (me.isErr()) {
+		return <div>Error</div>;
+	}
+
+	if (activeOrganizationResult.isErr()) {
+		return <div>Error</div>;
+	}
+	if (activeProjectResult.isErr()) {
+		return <div>Error</div>;
+	}
+
+	const activeOrganization = activeOrganizationResult.value;
+	const activeProject = activeProjectResult.value;
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>

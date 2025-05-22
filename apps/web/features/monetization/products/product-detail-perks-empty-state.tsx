@@ -1,6 +1,5 @@
 "use client";
 
-import { type getPerks } from "@/lib/services/perks/queries";
 import {
 	Card,
 	CardHeader,
@@ -9,13 +8,14 @@ import {
 	CardContent,
 } from "@voidhash/ui";
 import { ProductDetailAddPerkButton } from "./product-detail-add-perk-button";
+import type { Perk } from "@voidhash/db";
 
 export function ProductDetailPerksEmptyState({
 	productId,
 	perks,
 }: {
 	productId: string;
-	perks: Awaited<ReturnType<typeof getPerks>>;
+	perks: Perk[];
 }) {
 	return (
 		<Card className="max-w-5xl mx-auto w-full text-center">

@@ -39,9 +39,9 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@voidhash/ui";
-import { type getPaywalls } from "@/lib/services/paywalls/queries";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useEffect } from "react";
+import type { Paywall } from "@voidhash/db";
 
 const createPaywallLocationSchema = z.object({
 	name: z
@@ -67,7 +67,7 @@ type PaywallLocation = InferSafeActionFnResult<
 interface CreatePaywallLocationModalProps {
 	open: boolean;
 	onClose: () => void;
-	paywalls: Awaited<ReturnType<typeof getPaywalls>>;
+	paywalls: Paywall[];
 	trigger: React.ReactNode;
 	projectId: string;
 	onSuccess?: (paywallLocation: PaywallLocation) => void;

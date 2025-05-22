@@ -11,13 +11,13 @@ import {
 	productProviderConfigurations,
 	productPerks,
 	perks,
+	db,
 } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 import {
 	handlePurchaseUpdated,
 	PurchaseUpdateEvent,
 } from "./on-purchased-updated";
-import { VoidhashError } from "@voidhash/lib";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import { eq } from "drizzle-orm";
 import { createTestServiceContext } from "@/lib/testing/create-test-service-context";
@@ -133,18 +133,22 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			initialEvent
 		);
 
+		if (initialCustomerProduct.isErr()) {
+			throw initialCustomerProduct.error;
+		}
+
 		// Verify initial state (trialing, no perks)
 		let perks = await h.db.primary.query.customersUnlockedPerks.findMany({
 			where: eq(
 				customersUnlockedPerks.unlockedByCustomerProductId,
-				initialCustomerProduct.id
+				initialCustomerProduct.value.id
 			),
 		});
 		expect(perks).toHaveLength(0);
 
 		// 2. Event: Update status to active
 		const updateEvent: PurchaseUpdateEvent = {
-			purchaseId: initialCustomerProduct.id,
+			purchaseId: initialCustomerProduct.value.id,
 			status: "active",
 			canceledAt: null,
 			cancelAtPeriodEnd: false,
@@ -157,7 +161,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		// 4. Assertions
 		const updatedCustomerProduct = await h.db.primary.query.purchases.findFirst(
 			{
-				where: eq(purchases.id, initialCustomerProduct.id),
+				where: eq(purchases.id, initialCustomerProduct.value.id),
 			}
 		);
 		expect(updatedCustomerProduct).toBeDefined();
@@ -170,7 +174,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		perks = await h.db.primary.query.customersUnlockedPerks.findMany({
 			where: eq(
 				customersUnlockedPerks.unlockedByCustomerProductId,
-				initialCustomerProduct.id
+				initialCustomerProduct.value.id
 			),
 		});
 		expect(perks).toHaveLength(1);
@@ -182,12 +186,12 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 				.where(
 					eq(
 						customersUnlockedPerks.unlockedByCustomerProductId,
-						initialCustomerProduct.id
+						initialCustomerProduct.value.id
 					)
 				);
 			await h.db.primary
 				.delete(purchases)
-				.where(eq(purchases.id, initialCustomerProduct.id));
+				.where(eq(purchases.id, initialCustomerProduct.value.id));
 			await h.db.primary
 				.delete(customers)
 				.where(eq(customers.id, testCustomerId));
@@ -222,10 +226,22 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			environment: "production" as const,
 			expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
 		};
-		const initialCustomerProduct = await handleProductPurchase(
+		const productPurchaseRes = await handleProductPurchase(
 			serviceContext,
 			initialEvent
 		);
+
+		if (productPurchaseRes.isErr()) {
+			throw productPurchaseRes.error;
+		}
+
+		const initialCustomerProduct = await db.query.purchases.findFirst({
+			where: eq(purchases.id, productPurchaseRes.value.id),
+		});
+
+		if (!initialCustomerProduct) {
+			throw new Error("Initial customer product not found");
+		}
 
 		// Verify initial state (active, has perks)
 		let perks = await h.db.primary.query.customersUnlockedPerks.findMany({
@@ -308,10 +324,22 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			environment: "production" as const,
 			expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
 		};
-		const initialCustomerProduct = await handleProductPurchase(
+		const productPurchaseRes = await handleProductPurchase(
 			serviceContext,
 			initialEvent
 		);
+
+		if (productPurchaseRes.isErr()) {
+			throw productPurchaseRes.error;
+		}
+
+		const initialCustomerProduct = await db.query.purchases.findFirst({
+			where: eq(purchases.id, productPurchaseRes.value.id),
+		});
+
+		if (!initialCustomerProduct) {
+			throw new Error("Initial customer product not found");
+		}
 
 		// Verify initial state (active, has perks)
 		let perks = await h.db.primary.query.customersUnlockedPerks.findMany({
@@ -388,13 +416,13 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			expiresAt: new Date(),
 		};
 
-		await expect(
-			handlePurchaseUpdated(serviceContext, updateEvent)
-		).rejects.toThrow(VoidhashError);
-		await expect(
-			handlePurchaseUpdated(serviceContext, updateEvent)
-		).rejects.toThrow(
-			`Customer product with id ${nonExistentCustomerProductId} not found.`
+		const puchaseUpdatedRes = await handlePurchaseUpdated(
+			serviceContext,
+			updateEvent
+		);
+		expect(puchaseUpdatedRes.isErr()).toBe(true);
+		expect(puchaseUpdatedRes._unsafeUnwrapErr().message).toBe(
+			`Purchase not found`
 		);
 	});
 
@@ -442,9 +470,14 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		};
 
 		// 3. Action & Assertion: Expect internal server error
-		await expect(
-			handlePurchaseUpdated(serviceContext, updateEvent)
-		).rejects.toThrow(VoidhashError);
+		const puchaseUpdatedRes = await handlePurchaseUpdated(
+			serviceContext,
+			updateEvent
+		);
+		expect(puchaseUpdatedRes.isErr()).toBe(true);
+		expect(puchaseUpdatedRes._unsafeUnwrapErr().message).toBe(
+			`Provider product not found`
+		);
 
 		// 4. Cleanup
 		t.onTestFinished(async () => {

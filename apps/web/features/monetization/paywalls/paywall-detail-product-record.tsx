@@ -14,13 +14,12 @@ import { toast } from "sonner";
 import { useAction } from "next-safe-action/hooks";
 import { deletePaywallProductAction } from "@/lib/nextjs/server-actions";
 import { useRouter } from "next/navigation";
-import { type getPaywallProducts } from "@/lib/services/paywalls/queries";
+import { type GetPaywallProducts } from "@/lib/services/paywalls/queries";
 
-type PaywallProduct = Awaited<ReturnType<typeof getPaywallProducts>>[number];
 export function PaywallDetailProductRecord({
 	paywallProduct,
 }: {
-	paywallProduct: PaywallProduct;
+	paywallProduct: GetPaywallProducts[number];
 }) {
 	const router = useRouter();
 

@@ -20,10 +20,15 @@ const SidebarProjects = ({
 	organizationSlug,
 	projectsPromise,
 }: {
-	organizationSlug;
+	organizationSlug: string;
 	projectsPromise: ReturnType<typeof getProjectsByOrganizationSlug>;
 }) => {
-	const projects = use(projectsPromise);
+	const projectsResult = use(projectsPromise);
+	if (projectsResult.isErr()) {
+		return <div>Error</div>;
+	}
+	const projects = projectsResult.value;
+
 	return (
 		<SidebarMenu>
 			{projects.map((project) => (
@@ -126,7 +131,9 @@ export function OrganizationSettingsSidebar({
 					<SidebarGroupLabel>Projects</SidebarGroupLabel>
 					<Suspense fallback={<SidebarProjectsSkeleton />}>
 						<SidebarProjects
-							organizationSlug={organizationSlug}
+							organizationSlug={
+								typeof organizationSlug === "string" ? organizationSlug : ""
+							}
 							projectsPromise={projectsPromise}
 						/>
 					</Suspense>

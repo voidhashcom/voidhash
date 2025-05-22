@@ -9,7 +9,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { auth } from "@voidhash/auth";
 import { db } from "@voidhash/db";
-import { VoidhashError } from "@voidhash/lib";
+import { VoidhashHTTPError } from "@voidhash/lib";
 import superjson from "superjson";
 import { ZodError } from "zod";
 /**
@@ -65,7 +65,8 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
 		data: {
 			...shape.data,
 			zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
-			voidhashError: error.cause instanceof VoidhashError ? error.cause : null,
+			voidhashError:
+				error.cause instanceof VoidhashHTTPError ? error.cause : null,
 		},
 	}),
 });

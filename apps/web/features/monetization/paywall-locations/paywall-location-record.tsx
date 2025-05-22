@@ -17,20 +17,17 @@ import { useAction } from "next-safe-action/hooks";
 import { CopyIcon, EllipsisVerticalIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { getPaywallLocations } from "@/lib/services/paywall-locations/queries";
-import { type getPaywalls } from "@/lib/services/paywalls/queries";
+import type { PaywallLocation, Paywall } from "@voidhash/db";
 // import { EditProductModal } from "./edit-product-modal";
 
 export function PaywallLocationRecord({
 	paywallLocation,
 	paywalls,
 }: {
-	paywallLocation: NonNullable<
-		Awaited<ReturnType<typeof getPaywallLocations>>
-	>[number];
+	paywallLocation: PaywallLocation;
 	organizationSlug: string;
 	projectSlug: string;
-	paywalls: Awaited<ReturnType<typeof getPaywalls>>;
+	paywalls: Paywall[];
 }) {
 	const router = useRouter();
 	// const [setOpenEditModal] = useState(false);

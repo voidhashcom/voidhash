@@ -7,7 +7,6 @@ import {
 	getProductPerksByProductId,
 	getProviderProductsByProductId,
 } from "@/lib/services/products/queries";
-import { notFound } from "next/navigation";
 import { ProductDetailPaymentProvidersEmptyState } from "./product-detail-payment-providers-empty-state";
 import {
 	Card,
@@ -23,6 +22,7 @@ import { ProductDetailPerksEmptyState } from "./product-detail-perks-empty-state
 import { getPerks } from "@/lib/services/perks/queries";
 import { ProductDetailPerkRecord } from "./product-detail-product-perk-record";
 import { ProductDetailAddPerkButton } from "./product-detail-add-perk-button";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 export async function ProductDetailPage({
 	organizationSlug,
@@ -33,14 +33,17 @@ export async function ProductDetailPage({
 	projectSlug: string;
 	id: string;
 }) {
-	const product = await getProductById({
+	const productResult = await getProductById({
 		ctx: await createNextServiceContext(),
 		input: { id },
 	});
 
-	if (!product) {
-		return notFound();
+	if (productResult.isErr()) {
+		const error = productResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
 	}
+
+	const product = productResult.value;
 
 	const serviceContext = await createNextServiceContext();
 	const providerProductsPromise = getProviderProductsByProductId({
@@ -65,13 +68,46 @@ export async function ProductDetailPage({
 		input: { productId: product.id },
 	});
 
-	const [providerProducts, paymentProviderConfigurations, perks, productPerks] =
-		await Promise.all([
-			providerProductsPromise,
-			paymentProviderConfigurationsPromise,
-			perksPromise,
-			productPerksPromise,
-		]);
+	const [
+		providerProductsResult,
+		paymentProviderConfigurationsResult,
+		perksResult,
+		productPerksResult,
+	] = await Promise.all([
+		providerProductsPromise,
+		paymentProviderConfigurationsPromise,
+		perksPromise,
+		productPerksPromise,
+	]);
+
+	if (providerProductsResult.isErr()) {
+		const error = providerProductsResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const providerProducts = providerProductsResult.value;
+
+	if (paymentProviderConfigurationsResult.isErr()) {
+		const error = paymentProviderConfigurationsResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const paymentProviderConfigurations =
+		paymentProviderConfigurationsResult.value;
+
+	if (perksResult.isErr()) {
+		const error = perksResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const perks = perksResult.value;
+
+	if (productPerksResult.isErr()) {
+		const error = productPerksResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const productPerks = productPerksResult.value;
 
 	const paymentProvidersWithEnabledConfigurations = paymentProviders
 		.map((paymentProvider) => {

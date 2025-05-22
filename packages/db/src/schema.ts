@@ -200,6 +200,15 @@ export const externalCustomerIdentifiers = mysqlTable(
 		),
 	]
 );
+export const externalCustomerIdentifiersRelations = relations(
+	externalCustomerIdentifiers,
+	({ one }) => ({
+		customer: one(customers, {
+			fields: [externalCustomerIdentifiers.customerId],
+			references: [customers.id],
+		}),
+	})
+);
 
 export const projectPaymentProviderConfigurations = mysqlTable(
 	"project_payment_provider_configuration",

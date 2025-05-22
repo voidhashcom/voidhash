@@ -4,59 +4,123 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import { z } from "zod";
-import { products } from "@voidhash/db";
-import { eq } from "drizzle-orm";
+import {
+	Product,
+	ProductPerk,
+	ProductProviderConfiguration,
+} from "@voidhash/db";
 import {
 	getProductPerksByProductIdQuery,
 	getProductsQuery,
+	getProductByIdQuery,
 	getProviderProductByPrimaryKeyQuery,
 	getProviderProductsByProductIdQuery,
 } from "./raw-queries";
 import { cache } from "react";
+import { err, ok, Result } from "neverthrow";
+import {
+	VoidhashForbiddenError,
+	VoidhashInternalServerError,
+	VoidhashNotFoundError,
+	VoidhashUnauthorizedError,
+	VoidhashBadRequestError,
+} from "@voidhash/lib/constants";
 
 export const getProductsInputSchema = z.object({
 	projectId: z.string(),
 });
 
+type GetProductsError =
+	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashInternalServerError;
+
 export const getProducts = cache(
 	createServiceFunction()
 		.input(getProductsInputSchema)
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (!hasProjectPermission(authenticatedContext, input.projectId, "")) {
-				return [];
-			}
+		.function(
+			async ({ input, ctx }): Promise<Result<Product[], GetProductsError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
 
-			const products = await getProductsQuery(
-				authenticatedContext,
-				input.projectId
-			);
-			return products;
-		}).invoke
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						input.projectId,
+						"project:all"
+					)
+				) {
+					return err({
+						code: "FORBIDDEN",
+						message: "No permission to access products.",
+					});
+				}
+
+				const productsResult = await getProductsQuery(
+					authenticatedContext.value,
+					input.projectId
+				);
+
+				if (productsResult.isErr()) {
+					return err(productsResult.error);
+				}
+
+				return ok(productsResult.value);
+			}
+		).invoke
 );
+
+type GetProductByIdError =
+	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashInternalServerError
+	| VoidhashNotFoundError;
 
 export const getProductById = cache(
 	createServiceFunction()
 		.input(z.object({ id: z.string() }))
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const productResult = await ctx.db.query.products.findFirst({
-				where: eq(products.id, input.id),
-			});
+		.function(
+			async ({ input, ctx }): Promise<Result<Product, GetProductByIdError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
 
-			if (!productResult) {
-				return null;
+				const productResult = await getProductByIdQuery(
+					authenticatedContext.value,
+					input.id
+				);
+
+				if (productResult.isErr()) {
+					return err(productResult.error);
+				}
+
+				if (
+					!hasProjectPermission(
+						authenticatedContext.value,
+						productResult.value.projectId,
+						"project:all"
+					)
+				) {
+					return err({
+						code: "FORBIDDEN",
+						message: "No permission to access product.",
+					});
+				}
+
+				return ok(productResult.value);
 			}
-
-			if (
-				!hasProjectPermission(authenticatedContext, productResult.projectId, "")
-			) {
-				return null;
-			}
-
-			return productResult;
-		}).invoke
+		).invoke
 );
+
+type GetProviderProductByPrimaryKeyError =
+	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashInternalServerError
+	| VoidhashNotFoundError
+	| VoidhashBadRequestError;
 
 export const getProviderProductByPrimaryKey = cache(
 	createServiceFunction()
@@ -67,87 +131,137 @@ export const getProviderProductByPrimaryKey = cache(
 				productProviderKey: z.string(),
 			})
 		)
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const providerProduct = await getProviderProductByPrimaryKeyQuery(
-				authenticatedContext,
-				input.projectId,
-				input.providerId,
-				input.productProviderKey
-			);
+		.function(
+			async ({
+				input,
+				ctx,
+			}): Promise<
+				Result<
+					ProductProviderConfiguration,
+					GetProviderProductByPrimaryKeyError
+				>
+			> => {
+				const authenticatedContext = await authenticateContext(ctx);
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
+				const providerProductResult = await getProviderProductByPrimaryKeyQuery(
+					authenticatedContext.value,
+					input.projectId,
+					input.providerId,
+					input.productProviderKey
+				);
 
-			if (!providerProduct) {
-				return null;
+				if (providerProductResult.isErr()) {
+					return err(providerProductResult.error);
+				}
+
+				// Auth check
+				const productResult = await getProductById({
+					ctx: authenticatedContext.value,
+					input: { id: providerProductResult.value.productId },
+				});
+
+				if (productResult.isErr()) {
+					return err(productResult.error); // Propagate other errors
+				}
+
+				return ok(providerProductResult.value);
 			}
-
-			// Auth check
-			const product = await getProductById({
-				ctx: authenticatedContext,
-				input: { id: providerProduct.productId },
-			});
-
-			if (!product) {
-				return null;
-			}
-
-			if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
-				return null;
-			}
-
-			return providerProduct;
-		}).invoke
+		).invoke
 );
+
+type GetProviderProductsByProductIdError =
+	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashInternalServerError
+	| VoidhashNotFoundError
+	| VoidhashBadRequestError;
 
 export const getProviderProductsByProductId = cache(
 	createServiceFunction()
 		.input(z.object({ productId: z.string() }))
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const product = await getProductById({
-				ctx: authenticatedContext,
-				input: { id: input.productId },
-			});
+		.function(
+			async ({
+				input,
+				ctx,
+			}): Promise<
+				Result<
+					ProductProviderConfiguration[],
+					GetProviderProductsByProductIdError
+				>
+			> => {
+				const authenticatedContext = await authenticateContext(ctx);
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
 
-			if (!product) {
-				return [];
+				// Auth check
+				const productResult = await getProductById({
+					ctx: authenticatedContext.value,
+					input: { id: input.productId },
+				});
+
+				if (productResult.isErr()) {
+					return err(productResult.error);
+				}
+				// Permission check already handled by getProductById
+
+				const providerProductsResult =
+					await getProviderProductsByProductIdQuery(
+						authenticatedContext.value,
+						input.productId
+					);
+
+				if (providerProductsResult.isErr()) {
+					return err(providerProductsResult.error);
+				}
+
+				return ok(providerProductsResult.value);
 			}
-
-			if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
-				return [];
-			}
-
-			const providerProducts = await getProviderProductsByProductIdQuery(
-				authenticatedContext,
-				input.productId
-			);
-
-			return providerProducts;
-		}).invoke
+		).invoke
 );
+
+type GetProductPerksByProductIdError =
+	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashInternalServerError
+	| VoidhashNotFoundError
+	| VoidhashBadRequestError;
 
 export const getProductPerksByProductId = cache(
 	createServiceFunction()
 		.input(z.object({ productId: z.string() }))
-		.function(async ({ input, ctx }) => {
-			const authenticatedContext = await authenticateContext(ctx);
-			const product = await getProductById({
-				ctx: authenticatedContext,
-				input: { id: input.productId },
-			});
+		.function(
+			async ({
+				input,
+				ctx,
+			}): Promise<Result<ProductPerk[], GetProductPerksByProductIdError>> => {
+				const authenticatedContext = await authenticateContext(ctx);
+				if (authenticatedContext.isErr()) {
+					return err(authenticatedContext.error);
+				}
 
-			if (!product) {
-				return [];
+				// Auth check
+				const productResult = await getProductById({
+					ctx: authenticatedContext.value,
+					input: { id: input.productId },
+				});
+
+				if (productResult.isErr()) {
+					return err(productResult.error);
+				}
+
+				const productPerksResult = await getProductPerksByProductIdQuery(
+					authenticatedContext.value,
+					input.productId
+				);
+
+				if (productPerksResult.isErr()) {
+					return err(productPerksResult.error);
+				}
+
+				return ok(productPerksResult.value);
 			}
-
-			if (!hasProjectPermission(authenticatedContext, product.projectId, "")) {
-				return [];
-			}
-
-			const productPerks = await getProductPerksByProductIdQuery(
-				authenticatedContext,
-				input.productId
-			);
-
-			return productPerks;
-		}).invoke
+		).invoke
 );

@@ -8,21 +8,31 @@ import { stripeProviderId } from "../stripe";
 import { createPaymentProviderKey } from "@/lib/services/products/lib";
 import { handleProductPurchase } from "@/lib/services/purchases/hooks/on-product-purchased";
 import { getCustomerByExternalIdentifierQuery } from "@/lib/services/customers/raw-queries";
-import { VoidhashError } from "@voidhash/lib/constants";
+import {
+	fromUnknownThrow,
+	VoidhashBadRequestError,
+	VoidhashInternalServerError,
+	VoidhashNotFoundError,
+} from "@voidhash/lib/constants";
 import { mapSubscriptionStatus } from "../utils";
+import { err, ok, Result, ResultAsync } from "neverthrow";
 
+type HandleSessionCompletedError =
+	| VoidhashInternalServerError
+	| VoidhashBadRequestError
+	| VoidhashNotFoundError;
 export async function handleSessionCompleted(
 	serviceContext: ServiceContext,
 	projectId: string,
 	stripe: Stripe,
 	event: Stripe.Event
-) {
+): Promise<Result<void, HandleSessionCompletedError>> {
 	try {
 		const checkoutSession = event.data.object as Stripe.Checkout.Session;
 
 		// If the checkout session is a setup session, we don't need to do anything
 		if (checkoutSession.mode === "setup") {
-			return;
+			return ok(undefined);
 		}
 
 		if (checkoutSession.subscription == null) {
@@ -30,21 +40,27 @@ export async function handleSessionCompleted(
 			serviceContext.logger.error(
 				"No subscription id found in checkout session event. This is not a subscription based product and is not supported yet."
 			);
-			return;
+			return ok(undefined);
 		}
 
-		const subscription = await stripe.subscriptions.retrieve(
-			checkoutSession.subscription as string
+		const subscription = await ResultAsync.fromPromise(
+			stripe.subscriptions.retrieve(checkoutSession.subscription as string),
+			(e) => fromUnknownThrow(e)
 		);
 
-		if (!subscription) {
-			throw new VoidhashError({
+		if (subscription.isErr()) {
+			return err(subscription.error);
+		}
+
+		if (!subscription.value) {
+			return err({
 				code: "INTERNAL_SERVER_ERROR",
 				message: "No stripe subscription found.",
+				originalError: new Error("No stripe subscription found."),
 			});
 		}
 
-		const subscriptionItem = subscription.items.data[0];
+		const subscriptionItem = subscription.value.items.data[0];
 		const productId = subscriptionItem?.price.product;
 		const priceId = subscriptionItem?.price.id;
 
@@ -52,28 +68,43 @@ export async function handleSessionCompleted(
 			serviceContext.logger.error(
 				"No product id or price id found in checkout session event."
 			);
-			return;
+			return ok(undefined);
 		}
 
-		const stripeProviderProduct = await getProviderProductByPrimaryKeyQuery(
-			serviceContext,
-			projectId,
-			stripeProviderId,
-			createPaymentProviderKey("stripe", {
-				productId: typeof productId === "string" ? productId : productId.id,
-				priceId: priceId,
-			})
-		);
+		const paymentProviderKey = createPaymentProviderKey("stripe", {
+			productId: typeof productId === "string" ? productId : productId.id,
+			priceId: priceId,
+		});
 
-		if (!stripeProviderProduct) {
-			// TODO: No product setup for this in Voidhash. We should probably try to notify user about it. For now, we'll just return.
-			// TODO: Add it to unpaired purchase list if no product is found
-			return;
+		if (paymentProviderKey.isErr()) {
+			return err(paymentProviderKey.error);
+		}
+
+		const stripeProviderProduct = (
+			await getProviderProductByPrimaryKeyQuery(
+				serviceContext,
+				projectId,
+				stripeProviderId,
+				paymentProviderKey.value
+			)
+		).orElse((e) => {
+			if (e.code === "NOT_FOUND") {
+				return ok(undefined);
+			}
+			return err(e);
+		});
+
+		if (stripeProviderProduct.isErr()) {
+			return err(stripeProviderProduct.error);
+		}
+
+		if (!stripeProviderProduct.value) {
+			return ok(undefined);
 		}
 
 		const product = await getProductByIdQuery(
 			serviceContext,
-			stripeProviderProduct.productId
+			stripeProviderProduct.value.productId
 		);
 		if (!product) {
 			serviceContext.logger.warn(
@@ -81,7 +112,7 @@ export async function handleSessionCompleted(
 			);
 			// TODO: Add it to unpaired purchase list if no product is found
 			// Product was deleted, it was probably users intention, we can safely return,
-			return;
+			return ok(undefined);
 		}
 
 		const customerId =
@@ -97,43 +128,63 @@ export async function handleSessionCompleted(
 			serviceContext.logger.error(
 				"No customer id found in checkout session event. This shouldn't happen."
 			);
-			return;
+			return ok(undefined);
 		}
 
-		const customer = await getCustomerByExternalIdentifierQuery(
-			serviceContext,
-			projectId,
-			stripeProviderId,
-			customerId
-		);
+		const customer = (
+			await getCustomerByExternalIdentifierQuery(
+				serviceContext,
+				projectId,
+				stripeProviderId,
+				customerId
+			)
+		).orElse((e) => {
+			if (e.code === "NOT_FOUND") {
+				return ok(undefined);
+			}
+			return err(e);
+		});
 
-		if (!customer) {
+		if (customer.isErr()) {
+			return err(customer.error);
+		}
+
+		if (!customer.value) {
 			// TODO: Load customer from stripe
 			// TODO: Add it to unpaired purchase list if no customer is found
-			return;
+			return ok(undefined);
 		}
 
-		await handleProductPurchase(serviceContext, {
+		const purchase = await handleProductPurchase(serviceContext, {
 			type: "subscription",
-			providerKey: subscription.id,
-			customerId: customer?.id,
-			providerProductId: stripeProviderProduct.id,
-			status: mapSubscriptionStatus(subscription.status),
+			providerKey: subscription.value.id,
+			customerId: customer.value.id,
+			providerProductId: stripeProviderProduct.value.id,
+			status: mapSubscriptionStatus(subscription.value.status),
 			startsAt: new Date(
-				subscription.items.data[0]!.current_period_start * 1000
+				subscription.value.items.data[0]!.current_period_start * 1000
 			),
-			expiresAt: new Date(subscriptionItem.current_period_end * 1000),
-			cancelAtPeriodEnd: subscription.cancel_at_period_end,
-			canceledAt: subscription.canceled_at
-				? new Date(subscription.canceled_at * 1000)
+			expiresAt: new Date(
+				subscription.value.items.data[0]!.current_period_end * 1000
+			),
+			cancelAtPeriodEnd: subscription.value.cancel_at_period_end,
+			canceledAt: subscription.value.canceled_at
+				? new Date(subscription.value.canceled_at * 1000)
 				: null,
 			environment: "production",
-			purchasedAt: new Date(subscription.created * 1000),
+			purchasedAt: new Date(subscription.value.created * 1000),
 			// TODO: Add stripe related metadata to purchase
 		});
+		if (purchase.isErr()) {
+			return err(purchase.error);
+		}
+
+		return ok(undefined);
 	} catch (e: unknown) {
 		serviceContext.logger.error(
 			`Stripe webhook failed. Error: ${e instanceof Error ? e.message : "Unknown error"}`
 		);
+		return err(fromUnknownThrow(e));
+		// TODO: Add a way to show this to the user
 	}
 }
