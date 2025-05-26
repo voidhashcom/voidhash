@@ -30,3 +30,13 @@ export const API_DOMAIN =
 		: process.env.NEXT_PUBLIC_VERCEL_ENV === "preview"
 			? `https://api-staging.${process.env.NEXT_PUBLIC_APP_DOMAIN}`
 			: "http://api.localhost:3000";
+
+export const DOCS_HOSTNAMES = new Set([
+	`docs.${process.env.NEXT_PUBLIC_APP_DOMAIN}`,
+	"docs.localhost:3001",
+]);
+
+export const DOCS_DOMAIN =
+	process.env.NEXT_PUBLIC_VERCEL_ENV === "production"
+		? `https://docs.${process.env.NEXT_PUBLIC_APP_DOMAIN}`
+		: "http://docs.localhost:3001";

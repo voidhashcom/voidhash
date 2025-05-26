@@ -19,7 +19,11 @@ export const config = {
 export default async function middleware(req: NextRequest) {
 	const { domain, path } = parse(req);
 
-	if (APP_HOSTNAMES.has(domain) && path !== "/api") {
+	if (
+		APP_HOSTNAMES.has(domain) &&
+		path !== "/api" &&
+		!path.startsWith("/docs")
+	) {
 		return AppMiddleware(req);
 	}
 
