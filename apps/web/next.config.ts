@@ -1,4 +1,4 @@
-import { API_DOMAIN } from "@voidhash/lib/constants";
+import { API_DOMAIN, DOCS_DOMAIN } from "@voidhash/lib/constants";
 import "./lib/env";
 
 // Import env files to validate at build time. Use jiti so we can load .ts files in here.
@@ -23,6 +23,16 @@ const nextConfig = {
 					},
 				],
 				destination: `${API_DOMAIN}/:path*`,
+			},
+			{
+				source: "/docs/:path*",
+				has: [
+					{
+						type: "host",
+						value: "voidhash.com",
+					},
+				],
+				destination: `${DOCS_DOMAIN}/:path*`,
 			},
 		];
 	},
