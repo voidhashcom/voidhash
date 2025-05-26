@@ -1,37 +1,19 @@
 import { hashKey } from "@/lib/services/api-keys/utils";
 import { ServiceContext } from "@/lib/service-function";
 import { auth } from "@voidhash/auth";
-import { apiKeys, Customer, projects } from "@voidhash/db";
+import { apiKeys, projects } from "@voidhash/db";
 import {
 	fromUnknownThrow,
 	VoidhashInternalServerError,
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib";
 import { eq, inArray } from "drizzle-orm";
-import { getCustomerByAppUserIdQuery } from "../customers/raw-queries";
 import { err, ok, Result, ResultAsync } from "neverthrow";
-import { User } from "better-auth";
 import {
 	ApiKeySession,
 	PublishableApiKeySession,
 	UserSession,
 } from "@/lib/service-function-auth";
-
-export type VoidhashAuthSession = {
-	method: "user" | "api-key" | "publishable-api-key";
-	user: User | null;
-	customer: Customer | null;
-	organizations: {
-		id: string;
-		slug: string;
-		permissions: string[];
-	}[];
-	projects: {
-		id: string;
-		slug: string;
-		permissions: string[];
-	}[];
-};
 
 export async function getUserAuthSession(
 	ctx: ServiceContext
@@ -194,39 +176,33 @@ export const getPublishableApiKeyAuthSession = async (
 		});
 	}
 
-	const customerId = ctx.headers.get("x-app-user-id");
+	const appUserId = ctx.headers.get("x-app-user-id");
 
-	if (!customerId) {
+	if (!appUserId) {
 		return err({
 			code: "UNAUTHORIZED",
-			message: "Customer not found.",
+			message: "App User ID not found.",
 		});
 	}
 
-	const customer = (await getCustomerByAppUserIdQuery(ctx, customerId)).orElse(
-		(error) => {
-			if (error.code === "NOT_FOUND") {
-				// TODO: Handle profile creation instead
-				return err({
-					code: "UNAUTHORIZED",
-					message: "Customer not found.",
-				} as VoidhashUnauthorizedError);
-			}
-			return err(error);
-		}
-	);
-
-	if (customer.isErr()) {
-		return err(customer.error);
-	}
+	const sdkOrigin = ctx.headers.get("x-sdk-origin");
+	const sdkVersion = ctx.headers.get("x-sdk-version");
+	const os = ctx.headers.get("x-os");
+	const device = ctx.headers.get("x-device");
 
 	const projects = [apiKeyRecord.value.project];
 
 	return ok({
 		method: "publishable-api-key",
 		user: null,
+		customer: {
+			appUserId: appUserId,
+			sdkOrigin,
+			sdkVersion,
+			os,
+			device,
+		},
 		organizations: [] as never[],
-		customer: customer.value, // TODO: Make sure customer exists!
 		projects: projects.map((p) => ({
 			id: p.id,
 			slug: p.slug,

@@ -45,8 +45,12 @@ export function init(): MiddlewareHandler<HonoEnv> {
 			defaultFields: { environment: env.VERCEL_ENV ?? "unknown" },
 		});
 
+		const source = c.req.path.startsWith("/api/v1/sdk")
+			? "api-sdk"
+			: "api-server";
+
 		c.set("services", {
-			source: "api-server",
+			source: source,
 			headers: await headers(),
 			cache: new NextUnstableCacheAdapter(),
 			cookies: new HonoCookiesAdapter(c),

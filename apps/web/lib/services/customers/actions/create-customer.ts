@@ -15,7 +15,7 @@ import { err, ok, Result } from "neverthrow";
 
 export const createCustomerInputSchema = z.object({
 	projectId: z.string(),
-	appUserId: z.string().optional(),
+	appUserId: z.string(),
 	name: z.string().optional(),
 	email: z.string().email().optional(),
 	origin: z.enum(["dashboard", "ios", "android", "stripe", "api"]),
@@ -54,9 +54,11 @@ export const createCustomer = createServiceFunction()
 			const newCustomer = {
 				id: generateId("customer"),
 				projectId: input.projectId,
-				appUserId: input.appUserId ?? null,
+				appUserId: input.appUserId,
+				type: "identified",
 				name: input.name ?? null,
 				email: input.email ?? null,
+				parentCustomerId: null,
 				origin: input.origin,
 			} satisfies InsertCustomer;
 
@@ -64,6 +66,7 @@ export const createCustomer = createServiceFunction()
 				await ctx.db.insert(customers).values(newCustomer);
 				return ok({
 					...newCustomer,
+					archivedAt: null,
 					createdAt: new Date(),
 					updatedAt: new Date(),
 				});

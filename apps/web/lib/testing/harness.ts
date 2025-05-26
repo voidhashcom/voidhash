@@ -18,6 +18,7 @@ export type Resources = {
 	organization: Organization;
 	project: Project;
 	secretKey: ApiKey & { unhashedKey: string };
+	publishableKey: ApiKey & { unhashedKey: string };
 };
 
 export abstract class Harness {
@@ -167,11 +168,27 @@ export abstract class Harness {
 			projectId: project.id,
 		};
 
+		const testPublishableKey = "test-publishable-key";
+		const publishableKey: ApiKey & { unhashedKey: string } = {
+			id: generateId("test"),
+			name: "Test Publishable Key",
+			key: testPublishableKey,
+			unhashedKey: testPublishableKey,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			prefix: "test_",
+			end: "1234",
+			isPublic: true,
+			environment: "production",
+			projectId: project.id,
+		};
+
 		return {
 			user,
 			organization,
 			project,
 			secretKey,
+			publishableKey,
 		};
 	}
 
@@ -186,5 +203,8 @@ export abstract class Harness {
 		await this.db.primary
 			.insert(schema.apiKeys)
 			.values(this.resources.secretKey);
+		await this.db.primary
+			.insert(schema.apiKeys)
+			.values(this.resources.publishableKey);
 	}
 }

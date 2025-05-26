@@ -1,20 +1,6 @@
-import { Customer, User } from "@voidhash/db";
+import { User } from "@voidhash/db";
 
-export type UserSession = VoidhashAuthSession & {
-	method: "user";
-	user: User;
-};
-
-export type ApiKeySession = VoidhashAuthSession & {
-	method: "api-key";
-};
-
-export type PublishableApiKeySession = VoidhashAuthSession & {
-	method: "publishable-api-key";
-	customer: Customer;
-};
-
-export type VoidhashAuthSession = {
+type VoidhashBaseSession = {
 	organizations: {
 		id: string;
 		slug: string;
@@ -25,6 +11,33 @@ export type VoidhashAuthSession = {
 		slug: string;
 		permissions: string[];
 	}[];
-	user: User | null;
-	customer: Customer | null;
 };
+
+export type UserSession = VoidhashBaseSession & {
+	method: "user";
+	user: User;
+	customer: null;
+};
+
+export type ApiKeySession = VoidhashBaseSession & {
+	method: "api-key";
+	user: null;
+	customer: null;
+};
+
+export type PublishableApiKeySession = VoidhashBaseSession & {
+	method: "publishable-api-key";
+	customer: {
+		appUserId: string;
+		sdkOrigin: string | null;
+		sdkVersion: string | null;
+		os: string | null;
+		device: string | null;
+	};
+	user: null;
+};
+
+export type VoidhashAuthSession =
+	| UserSession
+	| ApiKeySession
+	| PublishableApiKeySession;

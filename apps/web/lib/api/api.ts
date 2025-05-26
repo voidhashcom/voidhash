@@ -21,6 +21,8 @@ import { registerProductsUpdateProviderProduct } from "./v1/products_updateProvi
 import { registerProductsDeleteProviderProduct } from "./v1/products_deleteProviderProduct";
 import { registerCustomersCreateCustomer } from "./v1/customers_createCustomer";
 import { paymentProviderApis } from "../payment-providers/payment-provider-apis";
+import { registerSdkGetCustomer } from "./v1/sdk_getCustomer";
+import { registerSdkIdentify } from "./v1/sdk_identify";
 
 export const app = newApp();
 
@@ -55,6 +57,8 @@ registerProductsUpdateProviderProduct(app);
 registerProductsDeleteProviderProduct(app);
 
 // SDK
+registerSdkGetCustomer(app);
+registerSdkIdentify(app);
 // registerPaywallsGetPaywallByLocation(app);
 
 paymentProviderApis.forEach((api) => api.registerEndpoints(app));

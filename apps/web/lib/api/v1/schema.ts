@@ -195,3 +195,14 @@ export const sdkPaywallResponseSchema = z
 	.openapi({
 		ref: "SdkPaywall",
 	});
+
+export const sdkCustomerResponseSchema = z
+	.object({
+		customerId: z.string(),
+		name: z.string().nullable(),
+		email: z.string().nullable(),
+		appUserId: z.string().nullable(),
+	})
+	.openapi({
+		ref: "SdkCustomer",
+	});

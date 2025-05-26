@@ -5,7 +5,6 @@ import {
 	getPublishableApiKeyAuthSession,
 	getSecretApiKeyAuthSession,
 	getUserAuthSession,
-	VoidhashAuthSession,
 } from "./services/auth/queries";
 import {
 	fromUnknownThrow,
@@ -19,6 +18,7 @@ import { Logger } from "./logger/types";
 import { OrganizationPermission } from "./services/organizations/permissions";
 import { ProjectPermission } from "./services/projects/permissions";
 import { err, ok, Result } from "neverthrow";
+import { VoidhashAuthSession } from "./service-function-auth";
 
 export type ServiceParamWithInput<T = unknown> = {
 	ctx: ServiceContext;

@@ -12,7 +12,7 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib";
 import { z } from "zod";
-import { paywallLocations, paywalls } from "@voidhash/db";
+import { paywallLocations, paywallProducts, paywalls } from "@voidhash/db";
 import { getPaywallById } from "../queries";
 import { eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
@@ -71,7 +71,13 @@ export const deletePaywall = createServiceFunction()
 					});
 				}
 
-				await ctx.db.delete(paywalls).where(eq(paywalls.id, input.paywallId));
+				await ctx.db.transaction(async (tx) => {
+					await tx
+						.delete(paywallProducts)
+						.where(eq(paywallProducts.paywallId, input.paywallId));
+					await tx.delete(paywalls).where(eq(paywalls.id, input.paywallId));
+				});
+
 				return ok(undefined);
 			} catch (error) {
 				return err(fromUnknownThrow(error));
