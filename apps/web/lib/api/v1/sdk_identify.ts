@@ -30,8 +30,8 @@ const route = describeRoute({
 
 export type Route = typeof route;
 
-export const registerSdkGetCustomer = (app: App) =>
-	app.get("/v1/sdk/get-customer", route, async (c) => {
+export const registerSdkIdentify = (app: App) =>
+	app.post("/v1/sdk/identify", route, async (c) => {
 		const context = c.get("services");
 		const authenticatedContext = await authenticateContext(context);
 

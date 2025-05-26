@@ -82,9 +82,12 @@ export const customers = mysqlTable(
 	"customer",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
+		type: mysqlEnum("type", ["anonymous", "identified"])
+			.default("anonymous")
+			.notNull(),
 		name: varchar("name", { length: 255 }),
 		// Connecting customer to user in app
-		appUserId: varchar("app_user_id", { length: 255 }),
+		appUserId: varchar("app_user_id", { length: 255 }).notNull(),
 		email: varchar("email", { length: 255 }),
 		/**
 		 * From where the customer was created
@@ -97,6 +100,8 @@ export const customers = mysqlTable(
 			"api",
 		]).notNull(),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
+		parentCustomerId: varchar("parent_customer_id", { length: 255 }), // When Identified, we store the parent customer id
+		archivedAt: timestamp("archived_at"),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
@@ -105,8 +110,17 @@ export const customers = mysqlTable(
 			table.appUserId,
 			table.projectId
 		),
+		index("parent_customer_id_idx").on(table.parentCustomerId),
 	]
 );
+
+export const customerRelations = relations(customers, ({ many, one }) => ({
+	externalIdentifiers: many(externalCustomerIdentifiers),
+	parentCustomer: one(customers, {
+		fields: [customers.parentCustomerId],
+		references: [customers.id],
+	}),
+}));
 
 export const customersUnlockedPerks = mysqlTable(
 	"customer_unlocked_perk",
@@ -176,10 +190,6 @@ export const purchases = mysqlTable(
 	},
 	(table) => [uniqueIndex("provider_key_idx").on(table.providerKey)]
 );
-
-export const customerRelations = relations(customers, ({ many }) => ({
-	externalIdentifiers: many(externalCustomerIdentifiers),
-}));
 
 export const externalCustomerIdentifiers = mysqlTable(
 	"external_customer_identifier",
