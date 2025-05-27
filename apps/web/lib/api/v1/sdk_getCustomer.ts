@@ -1,7 +1,7 @@
 import { describeRoute } from "hono-openapi";
 import { resolver } from "hono-openapi/zod";
 import { openApiErrorResponses } from "../errors/openapi_responses";
-import { customerResponseSchema } from "./schema";
+import { customerResponseSchema, sdkCustomerResponseSchema } from "./schema";
 import { App } from "../hono/app";
 import { authenticateContext } from "@/lib/service-function";
 import { z } from "zod";
@@ -20,12 +20,12 @@ const route = describeRoute({
 		200: {
 			description: "Successful response",
 			content: {
-				"application/json": { schema: resolver(customerResponseSchema) },
+				"application/json": { schema: resolver(sdkCustomerResponseSchema) },
 			},
 		},
 		...openApiErrorResponses,
 	},
-	tags: ["customers", "sdk"],
+	tags: ["SDK"],
 });
 
 export type Route = typeof route;

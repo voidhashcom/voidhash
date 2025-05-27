@@ -30,7 +30,7 @@ const route = describeRoute({
 		},
 		...openApiErrorResponses,
 	},
-	tags: ["paywalls"],
+	tags: ["Paywalls"],
 });
 
 export type Route = typeof route;
