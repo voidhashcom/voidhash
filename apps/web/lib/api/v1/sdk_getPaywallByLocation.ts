@@ -24,7 +24,7 @@ const route = describeRoute({
 		},
 		...openApiErrorResponses,
 	},
-	tags: ["paywalls", "sdk"],
+	tags: ["SDK"],
 });
 
 export type Route = typeof route;

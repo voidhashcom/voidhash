@@ -15,11 +15,23 @@ import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
 import { getCustomerWithParentByAppUserIdQuery } from "../raw-queries";
 import { mergeCustomers } from "../../customers/merge-customers";
+import { ID_BLACKLIST } from "@voidhash/lib/constants/id-blacklist";
+import { ANONYMOUS_USER_ID_PREFIX } from "../constants";
 
 export const identifyCustomerInputSchema = z.object({
-	projectId: z.string(),
-	// TODO: Add blacklist of app user ids - eg. null, void, undefined, etc.
-	appUserId: z.string().min(5),
+	appUserId: z
+		.string()
+		.min(5)
+		.refine((id) => {
+			return (
+				!ID_BLACKLIST.includes(id) &&
+				!id.includes("/") &&
+				!id.startsWith(ANONYMOUS_USER_ID_PREFIX)
+			);
+		}, "Invalid app user ID"),
+
+	name: z.string().optional(),
+	email: z.string().email().optional(),
 });
 
 type CreateAnonymousCustomerError =
@@ -55,6 +67,16 @@ export const identifyCustomer = createServiceFunction()
 						...authenticatedContext.value,
 						tx: tx,
 					};
+					const projectId = authenticatedContext.value.session?.projects[0]?.id;
+					if (!projectId) {
+						return err({
+							code: "INTERNAL_SERVER_ERROR",
+							message: "Project ID not found after authentication",
+							originalError: new Error(
+								"Project ID not found after authentication"
+							),
+						} satisfies VoidhashInternalServerError);
+					}
 					const currentAppUserId =
 						authenticatedContext.value.session?.customer?.appUserId;
 					const currentCustomerResult = currentAppUserId
@@ -124,9 +146,11 @@ export const identifyCustomer = createServiceFunction()
 						const newCustomer = await createCustomer(
 							authenticatedContextWithTx,
 							{
-								projectId: input.projectId,
+								projectId,
 								appUserId: input.appUserId,
 								parentCustomerId: null,
+								name: input.name ?? null,
+								email: input.email ?? null,
 								origin: "ios", // TODO: Make this dynamic
 							}
 						);
@@ -193,6 +217,8 @@ async function createCustomer(
 		appUserId: string;
 		parentCustomerId: string | null;
 		origin: "ios" | "android";
+		name: string | null;
+		email: string | null;
 	}
 ): Promise<Result<Customer, CreateAnonymousCustomerError>> {
 	const tx = ctx.tx ?? ctx.db;
@@ -200,6 +226,8 @@ async function createCustomer(
 		id: generateId("customer"),
 		projectId: input.projectId,
 		appUserId: input.appUserId,
+		name: input.name ?? null,
+		email: input.email ?? null,
 		origin: "ios", // TODO: Make this dynamic
 		type: "identified",
 		parentCustomerId: input.parentCustomerId,
@@ -209,8 +237,6 @@ async function createCustomer(
 		await tx.insert(customers).values(newCustomer);
 		return ok({
 			...newCustomer,
-			name: null,
-			email: null,
 			archivedAt: null,
 			createdAt: new Date(),
 			updatedAt: new Date(),

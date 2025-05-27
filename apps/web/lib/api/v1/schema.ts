@@ -206,3 +206,13 @@ export const sdkCustomerResponseSchema = z
 	.openapi({
 		ref: "SdkCustomer",
 	});
+
+export const sdkIdentifyCustomerBodySchema = z
+	.object({
+		appUserId: z.string(),
+		name: z.string().optional(),
+		email: z.string().email().optional(),
+	})
+	.openapi({
+		ref: "SdkIdentifyCustomerBody",
+	});

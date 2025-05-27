@@ -32,7 +32,7 @@ const route = describeRoute({
 		},
 		...openApiErrorResponses,
 	},
-	tags: ["products"],
+	tags: ["Products"],
 });
 
 export type Route = typeof route;
