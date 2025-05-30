@@ -56,13 +56,11 @@ export function EditProductModal({
 	});
 
 	const { execute, isPending } = useAction(updateProductAction, {
-		onSuccess: (res) => {
-			if (res.data) {
-				toast.success("Product updated successfully");
-				router.refresh();
-				onClose?.();
-				handleOpenChange(false);
-			}
+		onSuccess: () => {
+			toast.success("Product updated successfully");
+			router.refresh();
+			onClose?.();
+			handleOpenChange(false);
 		},
 		onError: (error) => {
 			toast.error(error.error.serverError || "Failed to update the product");

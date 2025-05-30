@@ -98,7 +98,7 @@ function FormLabel({
 			data-slot="form-label"
 			data-error={!!error}
 			className={cn(
-				"data-[error=true]:text-destructive cursor-pointer",
+				"data-[error=true]:text-destructive cursor-pointer text-muted-foreground",
 				className
 			)}
 			htmlFor={formItemId}

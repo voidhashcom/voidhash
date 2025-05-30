@@ -84,14 +84,6 @@ import {
 	createPaywallInputSchema,
 } from "../services/paywalls/actions/create-paywall";
 import {
-	deletePaywallProduct,
-	deletePaywallProductInputSchema,
-} from "../services/paywalls/actions/delete-paywall-product";
-import {
-	createPaywallProduct,
-	createPaywallProductInputSchema,
-} from "../services/paywalls/actions/create-paywall-product";
-import {
 	deletePerk,
 	deletePerkInputSchema,
 } from "../services/perks/actions/delete-perk";
@@ -116,6 +108,10 @@ import {
 	deleteProductPerkInputSchema,
 } from "../services/products/actions/delete-product-perk";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import {
+	updatePaywall,
+	updatePaywallInputSchema,
+} from "../services/paywalls/actions/update-paywall";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -460,41 +456,25 @@ export const createPaywallAction = actionClient
 		return res.value;
 	});
 
+export const updatePaywallAction = actionClient
+	.schema(updatePaywallInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		const res = await updatePaywall.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+
+		if (res.isErr()) {
+			throw toVoidhashHTTPError(res.error);
+		}
+
+		return res.value;
+	});
+
 export const deletePaywallAction = actionClient
 	.schema(deletePaywallInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		const res = await deletePaywall.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
-
-		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
-		}
-
-		return res.value;
-	});
-
-// Paywall products
-export const createPaywallProductAction = actionClient
-	.schema(createPaywallProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createPaywallProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
-
-		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
-		}
-
-		return res.value;
-	});
-
-export const deletePaywallProductAction = actionClient
-	.schema(deletePaywallProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deletePaywallProduct.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

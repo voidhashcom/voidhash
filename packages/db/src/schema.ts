@@ -7,6 +7,7 @@ import {
 	timestamp,
 	json,
 	uniqueIndex,
+	int,
 } from "drizzle-orm/mysql-core";
 import { mysqlTable } from "drizzle-orm/mysql-core";
 import { organization } from "./auth-schema";
@@ -313,16 +314,20 @@ export const paywalls = mysqlTable("paywall", {
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
 
+export const paywallRelations = relations(paywalls, ({ many }) => ({
+	paywallProducts: many(paywallProducts),
+}));
+
 export const paywallProducts = mysqlTable(
 	"paywall_product",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
-		paywallId: varchar("paywall_id", { length: 255 })
+		displayName: varchar("display_name", { length: 255 })
 			.notNull()
-			.references(() => paywalls.id),
-		productId: varchar("product_id", { length: 255 })
-			.notNull()
-			.references(() => products.id),
+			.default("Unknown"),
+		paywallId: varchar("paywall_id", { length: 255 }).notNull(),
+		productId: varchar("product_id", { length: 255 }).notNull(),
+		order: int("order").notNull().default(0),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
@@ -331,6 +336,9 @@ export const paywallProducts = mysqlTable(
 			table.paywallId,
 			table.productId
 		),
+		index("paywall_id_idx").on(table.paywallId),
+		index("product_id_idx").on(table.productId),
+		uniqueIndex("paywall_id_order_idx").on(table.paywallId, table.order),
 	]
 );
 
@@ -340,6 +348,10 @@ export const paywallProductRelations = relations(
 		product: one(products, {
 			fields: [paywallProducts.productId],
 			references: [products.id],
+		}),
+		paywall: one(paywalls, {
+			fields: [paywallProducts.paywallId],
+			references: [paywalls.id],
 		}),
 	})
 );
@@ -361,4 +373,14 @@ export const paywallLocations = mysqlTable(
 	(table) => [
 		uniqueIndex("slug_project_id_idx").on(table.slug, table.projectId),
 	]
+);
+
+export const paywallLocationRelations = relations(
+	paywallLocations,
+	({ one }) => ({
+		defaultPaywall: one(paywalls, {
+			fields: [paywallLocations.defaultPaywallId],
+			references: [paywalls.id],
+		}),
+	})
 );

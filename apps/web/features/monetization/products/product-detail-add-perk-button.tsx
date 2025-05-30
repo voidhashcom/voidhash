@@ -39,16 +39,13 @@ export function ProductDetailAddPerkButton({
 			toast.loading("Adding perk...");
 		},
 		onSuccess: () => {
-			setTimeout(() => {
-				toast.success("Perk added");
-			}, 100);
-
+			toast.dismiss();
+			toast.success("Perk added");
 			router.refresh();
 		},
-		onSettled: () => {
-			setTimeout(() => {
-				toast.dismiss();
-			}, 50);
+		onError: (error) => {
+			toast.dismiss();
+			toast.error(error.error.serverError ?? "An error occurred");
 		},
 	});
 

@@ -39,14 +39,6 @@ export const registerSdkGetCustomer = (app: App) =>
 			throw toVoidhashHTTPError(authenticatedContext.error);
 		}
 
-		const appUserId = authenticatedContext.value.session?.customer?.appUserId;
-		if (!appUserId) {
-			throw toVoidhashHTTPError({
-				code: "UNAUTHORIZED",
-				message: "App User ID not found",
-			});
-		}
-
 		const customerResultResult = await sdkGetCustomerOrCreateAnonymous.invoke({
 			ctx: authenticatedContext.value,
 		});
@@ -62,6 +54,6 @@ export const registerSdkGetCustomer = (app: App) =>
 			name: customer.name ?? null,
 			email: customer.email,
 			appUserId: customer.appUserId ?? null,
-			origin: customer.origin,
+			// origin: customer.origin,
 		});
 	});
