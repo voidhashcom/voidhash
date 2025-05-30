@@ -53,6 +53,6 @@ export const registerCustomersGetCustomerByAppUserId = (app: App) =>
 			name: customer.value.name ?? null,
 			email: customer.value.email,
 			appUserId: customer.value.appUserId ?? null,
-			origin: customer.value.origin,
+			// origin: customer.value.origin,
 		});
 	});

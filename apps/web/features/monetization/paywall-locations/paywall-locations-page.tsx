@@ -72,7 +72,9 @@ export async function PaywallLocationsPage({
 						/>
 					)}
 				</div>{" "}
-				<p className="text-muted-foreground mt-3">List of paywall locations.</p>
+				<p className="text-muted-foreground mt-3">
+					Places throughout your app where paywalls can be shown.
+				</p>
 				<div className="mt-8">
 					{paywallLocations.length === 0 ? (
 						<PaywallLocationsPageEmptyState

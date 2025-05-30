@@ -35,11 +35,15 @@ type GetProductsError =
 	| VoidhashForbiddenError
 	| VoidhashInternalServerError;
 
+export type GetProductsResult = Product[];
 export const getProducts = cache(
 	createServiceFunction()
 		.input(getProductsInputSchema)
 		.function(
-			async ({ input, ctx }): Promise<Result<Product[], GetProductsError>> => {
+			async ({
+				input,
+				ctx,
+			}): Promise<Result<GetProductsResult, GetProductsError>> => {
 				const authenticatedContext = await authenticateContext(ctx);
 				if (authenticatedContext.isErr()) {
 					return err(authenticatedContext.error);

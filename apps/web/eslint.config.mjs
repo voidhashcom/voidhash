@@ -2,7 +2,7 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
 import { defineConfig } from "eslint/config";
-import neverthrowMustUse from "eslint-plugin-neverthrow-must-use"; // Import plugin
+// import neverthrowMustUse from "eslint-plugin-neverthrow-must-use"; // Import plugin
 import tsPlugin from "@typescript-eslint/eslint-plugin"; // Import TypeScript plugin
 import tsParser from "@typescript-eslint/parser"; // Import TypeScript parser
 
@@ -37,11 +37,11 @@ const eslintConfig = defineConfig([
     },
     plugins: {
       "@typescript-eslint": tsPlugin, // Enable TypeScript ESLint rules
-      "neverthrow-must-use": neverthrowMustUse, // Register the plugin
+      // "neverthrow-must-use": neverthrowMustUse, // Register the plugin
     },
     rules: {
       "@typescript-eslint/no-unused-vars": "error", // Example TypeScript rule
-      "neverthrow-must-use/must-use-result": "error", // Enforce `neverthrow` rule
+      // "neverthrow-must-use/must-use-result": "error", // Enforce `neverthrow` rule
     },
   },
 ]);

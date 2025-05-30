@@ -22,7 +22,7 @@ export const customerResponseSchema = z
 		name: z.string().nullable(),
 		email: z.string().nullable(),
 		appUserId: z.string().nullable(),
-		origin: z.enum(["dashboard", "ios", "android", "stripe", "api"]),
+		// origin: z.enum(["dashboard", "ios", "android", "stripe", "api"]),
 	})
 	.openapi({
 		ref: "Customer",
@@ -184,13 +184,19 @@ export const deletePaywallProductParamsSchema = z.object({
 
 // SDK
 export const sdkGetPaywallByLocationParamsSchema = z.object({
-	location: z.string(),
+	locationSlug: z.string(),
 });
 
 export const sdkPaywallResponseSchema = z
 	.object({
 		paywallId: z.string(),
-		name: z.string(),
+		paywallProducts: z.array(
+			z.object({
+				productId: z.string(),
+				displayName: z.string(),
+				price: z.number().nullable(),
+			})
+		),
 	})
 	.openapi({
 		ref: "SdkPaywall",

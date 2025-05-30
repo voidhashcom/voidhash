@@ -85,8 +85,7 @@ export const getPaywallProductsQuery = async (
 					},
 				},
 			},
-			// TODO: Temporary order by createdAt until we have a better way to order the products
-			orderBy: [asc(paywallProducts.createdAt)],
+			orderBy: [asc(paywallProducts.order)],
 		}),
 		(e) => fromUnknownThrow(e)
 	);

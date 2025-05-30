@@ -43,7 +43,7 @@ describe.sequential("/v1/customers/**", async () => {
 		expect(responseBody.email).toBe(customerInput.email);
 		expect(responseBody.name).toBe(customerInput.name);
 		expect(responseBody.appUserId).toBe(customerInput.appUserId);
-		expect(responseBody.origin).toBe(customerInput.origin);
+		// expect(responseBody.origin).toBe(customerInput.origin);
 
 		// Clean up the created customer
 		t.onTestFinished(async () => {

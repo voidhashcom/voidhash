@@ -71,7 +71,7 @@ export const registerSdkIdentify = (app: App) =>
 				name: customer.name ?? null,
 				email: customer.email,
 				appUserId: customer.appUserId ?? null,
-				origin: customer.origin,
+				// origin: customer.origin,
 			});
 		}
 	);

@@ -6,6 +6,10 @@ import {
 	sdkGetPaywallByLocationParamsSchema,
 	sdkPaywallResponseSchema,
 } from "./schema";
+import { authenticateContext } from "@/lib/service-function";
+import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { sdkGetPaywallByLocation } from "@/lib/services/sdk/actions/get-paywall-by-location";
+import { z } from "zod";
 
 const route = describeRoute({
 	description: "Get paywall by location",
@@ -31,26 +35,37 @@ export type Route = typeof route;
 
 export const registerSdkGetPaywallByLocation = (app: App) =>
 	app.get(
-		"/v1/sdk/get-paywall-by-location",
+		"/v1/sdk/get-paywall-by-location/:locationSlug",
 		route,
 		zValidator("param", sdkGetPaywallByLocationParamsSchema),
-		async () => {
-			// const context = c.get("services");
-			// const authenticatedContext = await authenticateContext(context);
-			// const paywallId = c.req.param("paywallId");
-			// const paywall = await getPaywallById({
-			// 	ctx: authenticatedContext,
-			// 	input: {
-			// 		id: paywallId,
-			// 	},
-			// });
-			// if (!paywall) {
-			// 	return c.json({ error: "Paywall not found" }, 404);
-			// }
-			// const response: z.infer<typeof sdkPaywallResponseSchema> = {
-			// 	paywallId: paywall.id,
-			// 	name: paywall.name,
-			// };
-			// return c.json(response);
+		async (c) => {
+			const context = c.get("services");
+			const authenticatedContext = await authenticateContext(context);
+
+			if (authenticatedContext.isErr()) {
+				throw toVoidhashHTTPError(authenticatedContext.error);
+			}
+
+			const paywallResult = await sdkGetPaywallByLocation.invoke({
+				ctx: authenticatedContext.value,
+				input: {
+					locationSlug: c.req.param("locationSlug"),
+				},
+			});
+
+			if (paywallResult.isErr()) {
+				throw toVoidhashHTTPError(paywallResult.error);
+			}
+
+			const paywall = paywallResult.value;
+
+			return c.json<z.infer<typeof sdkPaywallResponseSchema>>({
+				paywallId: paywall.id,
+				paywallProducts: paywall.paywallProducts.map((paywallProduct) => ({
+					productId: paywallProduct.productId,
+					displayName: paywallProduct.displayName,
+					price: paywallProduct.price,
+				})),
+			});
 		}
 	);

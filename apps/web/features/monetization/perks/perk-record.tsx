@@ -32,23 +32,16 @@ export function PerkRecord({
 			toast.loading("Deleting perk...");
 		},
 		onSuccess: () => {
-			setTimeout(() => {
-				toast.success(`Perk was successfully deleted`);
-			}, 100);
+			toast.dismiss();
+			toast.success(`Perk was successfully deleted`);
 			router.refresh();
 		},
 		onError: (error) => {
-			setTimeout(() => {
-				toast.error(
-					error.error.serverError ??
-						`Failed to delete the perk. Please try again.`
-				);
-			}, 100);
-		},
-		onSettled: () => {
-			setTimeout(() => {
-				toast.dismiss();
-			}, 50);
+			toast.dismiss();
+			toast.error(
+				error.error.serverError ??
+					`Failed to delete the perk. Please try again.`
+			);
 		},
 	});
 

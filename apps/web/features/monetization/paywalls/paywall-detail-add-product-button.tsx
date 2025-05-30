@@ -15,43 +15,22 @@ import {
 } from "@voidhash/ui";
 import { Check } from "lucide-react";
 import { useState } from "react";
-import { createPaywallProductAction } from "@/lib/nextjs/server-actions";
-import { useAction } from "next-safe-action/hooks";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import type { Product } from "@voidhash/db";
 
 export function PaywallDetailAddProductButton({
 	products,
-	paywallId,
 	variant = "default",
+	onAdd,
 }: {
 	products: Product[];
-	paywallId: string;
 	variant?: "default" | "secondary";
+	onAdd: (productId: string) => void;
 }) {
 	const [open, setOpen] = useState(false);
 	const [value, setValue] = useState("");
-	const router = useRouter();
-
-	const { execute } = useAction(createPaywallProductAction, {
-		onExecute: () => {
-			toast.loading("Adding product...");
-		},
-		onSuccess: () => {
-			toast.success("Product added");
-			router.refresh();
-		},
-		onSettled: () => {
-			toast.dismiss();
-		},
-	});
 
 	const handleSelect = (productId: string) => {
-		execute({
-			productId,
-			paywallId: paywallId,
-		});
+		onAdd(productId);
 		setValue(productId);
 		setOpen(false);
 	};

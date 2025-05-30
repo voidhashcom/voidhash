@@ -7,9 +7,9 @@ import { registerPaywallsCreatePaywall } from "./v1/paywalls_createPaywall";
 import { registerPaywallsListPaywalls } from "./v1/paywalls_listPaywalls";
 import { registerPaywallsGetPaywallById } from "./v1/paywalls_getPaywallById";
 import { registerPaywallsDeletePaywall } from "./v1/paywalls_deletePaywall";
-import { registerPaywallsAttachProductToPaywall } from "./v1/paywalls_attachProductToPaywall";
+// import { registerPaywallsAttachProductToPaywall } from "./v1/paywalls_attachProductToPaywall";
 import { registerPaywallsGetPaywallProducts } from "./v1/paywalls_getPaywallProducts";
-import { registerPaywallsDeletePaywallProduct } from "./v1/paywalls_deletePaywallProduct";
+// import { registerPaywallsDeletePaywallProduct } from "./v1/paywalls_deletePaywallProduct";
 import { registerProductsCreateProduct } from "./v1/products_createProduct";
 import { registerProductsListProducts } from "./v1/products_listProducts";
 import { registerProductsGetProductById } from "./v1/products_getProductById";
@@ -23,6 +23,7 @@ import { registerCustomersCreateCustomer } from "./v1/customers_createCustomer";
 import { paymentProviderApis } from "../payment-providers/payment-provider-apis";
 import { registerSdkGetCustomer } from "./v1/sdk_getCustomer";
 import { registerSdkIdentify } from "./v1/sdk_identify";
+import { registerSdkGetPaywallByLocation } from "./v1/sdk_getPaywallByLocation";
 
 export const app = newApp();
 
@@ -41,9 +42,9 @@ registerPaywallsCreatePaywall(app);
 registerPaywallsListPaywalls(app);
 registerPaywallsGetPaywallById(app);
 registerPaywallsDeletePaywall(app);
-registerPaywallsAttachProductToPaywall(app);
+// registerPaywallsAttachProductToPaywall(app);
 registerPaywallsGetPaywallProducts(app);
-registerPaywallsDeletePaywallProduct(app);
+// registerPaywallsDeletePaywallProduct(app);
 
 // Products
 registerProductsCreateProduct(app);
@@ -59,7 +60,7 @@ registerProductsDeleteProviderProduct(app);
 // SDK
 registerSdkGetCustomer(app);
 registerSdkIdentify(app);
-// registerPaywallsGetPaywallByLocation(app);
+registerSdkGetPaywallByLocation(app);
 
 paymentProviderApis.forEach((api) => api.registerEndpoints(app));
 
