@@ -5,9 +5,10 @@ import {
 	CustomerUnlockedPerk,
 	externalCustomerIdentifiers,
 } from "@voidhash/db";
-import { eq, and, isNull, isNotNull } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
 import {
+	Environment,
 	fromUnknownThrow,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -18,18 +19,16 @@ export const getCustomersQuery = async (
 	ctx: ServiceContext,
 	projectId: string,
 	filters: {
-		hasAppUserId: boolean | null;
+		environment: Environment;
+		type: "identified" | "anonymous" | null;
 	}
 ): Promise<Result<Customer[], VoidhashInternalServerError>> => {
 	const customerList = await ResultAsync.fromPromise(
 		ctx.db.query.customers.findMany({
 			where: and(
 				eq(customers.projectId, projectId),
-				filters.hasAppUserId !== null
-					? filters.hasAppUserId
-						? isNotNull(customers.appUserId)
-						: isNull(customers.appUserId)
-					: undefined
+				filters.type !== null ? eq(customers.type, filters.type) : undefined,
+				eq(customers.environment, filters.environment)
 			),
 		}),
 		(e) => fromUnknownThrow(e)
@@ -48,7 +47,7 @@ export const getCustomerByIdQuery = async (
 > => {
 	const res = await ResultAsync.fromPromise(
 		ctx.db.query.customers.findFirst({
-			where: eq(customers.id, customerId),
+			where: and(eq(customers.id, customerId)),
 		}),
 		(e) => fromUnknownThrow(e)
 	);
@@ -70,13 +69,17 @@ export const getCustomerByIdQuery = async (
 
 export const getCustomerByAppUserIdQuery = async (
 	ctx: ServiceContext,
-	appUserId: string
+	appUserId: string,
+	environment: Environment
 ): Promise<
 	Result<Customer, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
 	const res = await ResultAsync.fromPromise(
 		ctx.db.query.customers.findFirst({
-			where: eq(customers.appUserId, appUserId),
+			where: and(
+				eq(customers.appUserId, appUserId),
+				eq(customers.environment, environment)
+			),
 		}),
 		(e) => fromUnknownThrow(e)
 	);
@@ -101,7 +104,8 @@ export const getCustomerByExternalIdentifierQuery = async (
 	ctx: ServiceContext,
 	projectId: string,
 	serviceId: string,
-	identifier: string
+	identifier: string,
+	environment: Environment
 ): Promise<
 	Result<Customer, VoidhashInternalServerError | VoidhashNotFoundError>
 > => {
@@ -117,7 +121,8 @@ export const getCustomerByExternalIdentifierQuery = async (
 				and(
 					eq(customers.projectId, projectId),
 					eq(externalCustomerIdentifiers.serviceId, serviceId),
-					eq(externalCustomerIdentifiers.identifier, identifier)
+					eq(externalCustomerIdentifiers.identifier, identifier),
+					eq(customers.environment, environment)
 				)
 			),
 		(e) => fromUnknownThrow(e)

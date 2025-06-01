@@ -126,7 +126,7 @@ export function ProjectSidebar({
 		<Sidebar
 			variant="inset"
 			collapsible={collapsible}
-			className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] border-r"
+			className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] transition-all duration-300 border-r"
 			{...props}
 		>
 			<SidebarContent>

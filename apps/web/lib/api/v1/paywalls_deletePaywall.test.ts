@@ -12,6 +12,7 @@ describe.sequential("/v1/paywalls/:paywallId", async () => {
 		const paywallInput: Omit<InsertPaywall, "projectId"> = {
 			id: generateId("test"),
 			name: "Paywall To Delete",
+			environment: "production",
 		};
 
 		await h.db.primary.insert(paywalls).values({

@@ -18,6 +18,7 @@ describe.sequential("/v1/customers/**", async () => {
 			name: "Get By App User ID Test",
 			appUserId: testAppUserId,
 			origin: "api",
+			environment: "production",
 		};
 
 		await h.db.primary.insert(customers).values({

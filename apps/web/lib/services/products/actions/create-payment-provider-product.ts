@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -18,6 +17,7 @@ import { and, eq } from "drizzle-orm";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
 import { getProductByIdQuery } from "../raw-queries";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const createPaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
@@ -36,6 +36,7 @@ type CreatePaymentProviderProductError =
 
 export const createPaymentProviderProduct = createServiceFunction()
 	.input(createPaymentProviderProductInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({
 			input,
@@ -46,25 +47,11 @@ export const createPaymentProviderProduct = createServiceFunction()
 				CreatePaymentProviderProductError
 			>
 		> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			const product = await getProductByIdQuery(
-				authenticatedContext.value,
-				input.productId
-			);
+			const product = await getProductByIdQuery(ctx, input.productId);
 			if (product.isErr()) {
 				return err(product.error);
 			}
-			if (
-				!hasProjectPermission(
-					authenticatedContext.value,
-					product.value.projectId,
-					"project:all"
-				)
-			) {
+			if (!hasProjectPermission(ctx, product.value.projectId, "project:all")) {
 				return err({
 					code: "FORBIDDEN",
 					message: "You are not authorized to create payment provider products",

@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -13,9 +12,10 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { paywallLocations, paywallProducts, paywalls } from "@voidhash/db";
-import { getPaywallById } from "../queries";
 import { eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
+import { isAuthenticated } from "@/lib/middlewares";
+import { getPaywallByIdQuery } from "../raw-queries";
 
 export const deletePaywallInputSchema = z.object({
 	paywallId: z.string(),
@@ -30,23 +30,16 @@ type DeletePaywallError =
 
 export const deletePaywall = createServiceFunction()
 	.input(deletePaywallInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({ input, ctx }): Promise<Result<void, DeletePaywallError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			const existingPaywall = await getPaywallById({
-				ctx: authenticatedContext.value,
-				input: { id: input.paywallId },
-			});
+			const existingPaywall = await getPaywallByIdQuery(ctx, input.paywallId);
 			if (existingPaywall.isErr()) {
 				return err(existingPaywall.error);
 			}
 			if (
 				!hasProjectPermission(
-					authenticatedContext.value,
+					ctx,
 					existingPaywall.value.projectId,
 					"project:all"
 				)

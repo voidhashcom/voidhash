@@ -1,8 +1,9 @@
 import { Perk, perks } from "@voidhash/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
 import { err, ok, Result, ResultAsync } from "neverthrow";
 import {
+	Environment,
 	fromUnknownThrow,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -10,11 +11,15 @@ import {
 
 export const getPerksQuery = async (
 	ctx: ServiceContext,
-	projectId: string
+	projectId: string,
+	environment: Environment
 ): Promise<Result<Perk[], VoidhashInternalServerError>> => {
 	const res = await ResultAsync.fromPromise(
 		ctx.db.query.perks.findMany({
-			where: eq(perks.projectId, projectId),
+			where: and(
+				eq(perks.projectId, projectId),
+				eq(perks.environment, environment)
+			),
 		}),
 		(e) => fromUnknownThrow(e)
 	);

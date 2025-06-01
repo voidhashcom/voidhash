@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -17,6 +16,7 @@ import {
 import { getExistingPaymentProviderConfigurationByIdQuery } from "../raw-queries";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const savePaymentProviderConfigurationInputSchema = z.object({
 	providerId: z.enum(
@@ -35,23 +35,13 @@ type SavePaymentProviderConfigurationError =
 
 export const savePaymentProviderConfiguration = createServiceFunction()
 	.input(savePaymentProviderConfigurationInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({
 			input,
 			ctx,
 		}): Promise<Result<void, SavePaymentProviderConfigurationError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			if (
-				!hasProjectPermission(
-					authenticatedContext.value,
-					input.projectId,
-					"project:all"
-				)
-			) {
+			if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 				return err({
 					code: "FORBIDDEN",
 					message:
@@ -79,7 +69,7 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 
 				const existingConfiguration =
 					await getExistingPaymentProviderConfigurationByIdQuery(
-						authenticatedContext.value,
+						ctx,
 						input.projectId,
 						input.providerId
 					);

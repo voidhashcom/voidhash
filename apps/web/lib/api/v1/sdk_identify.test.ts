@@ -20,6 +20,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 			email: "initial@example.com",
 			type: "anonymous",
 			origin: "ios",
+			environment: "production",
 		} as const;
 		// Ensure anonymous customer exists
 		await h.db.primary.insert(customers).values(anonymousCustomer);
@@ -148,6 +149,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 			type: "identified",
 			email: "initial@example.com",
 			origin: "ios",
+			environment: "production",
 		});
 
 		const res = await h.post({
@@ -242,6 +244,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 			name: parentName,
 			type: "identified",
 			origin: "ios",
+			environment: "production",
 		};
 		await h.db.primary.insert(customers).values(parentCustomerValues);
 
@@ -254,6 +257,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 			type: "anonymous",
 			parentCustomerId: parentCustomerValues.id,
 			origin: "ios",
+			environment: "production",
 		});
 
 		const res = await h.post({
@@ -293,6 +297,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 			name: "P",
 			type: "identified",
 			origin: "api",
+			environment: "production",
 		};
 		await h.db.primary.insert(customers).values(parentCustomerValues);
 
@@ -305,6 +310,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 			type: "anonymous",
 			parentCustomerId: parentCustomerValues.id,
 			origin: "api",
+			environment: "production",
 		});
 
 		const differentAppUserId = generateId("test");
@@ -339,6 +345,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 			name: "Initial",
 			type: "identified",
 			origin: "api",
+			environment: "production",
 		};
 		await h.db.primary.insert(customers).values(initialCustomerValues);
 

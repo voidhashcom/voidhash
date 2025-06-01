@@ -14,6 +14,7 @@ describe.sequential("/v1/products/:productId", async () => {
 		const productInput: Omit<InsertProduct, "projectId"> = {
 			id: generateId("test"),
 			name: "Get Product By ID Test",
+			environment: "production",
 		};
 
 		await h.db.primary.insert(products).values({

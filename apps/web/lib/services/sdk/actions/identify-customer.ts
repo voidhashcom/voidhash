@@ -1,9 +1,6 @@
+import { createServiceFunction, ServiceContext } from "@/lib/service-function";
 import {
-	authenticateContext,
-	createServiceFunction,
-	ServiceContext,
-} from "@/lib/service-function";
-import {
+	Environment,
 	fromUnknownThrow,
 	VoidhashConflictError,
 	VoidhashInternalServerError,
@@ -17,6 +14,7 @@ import { getCustomerWithParentByAppUserIdQuery } from "../raw-queries";
 import { mergeCustomers } from "../../customers/merge-customers";
 import { ID_BLACKLIST } from "@voidhash/lib/constants/id-blacklist";
 import { ANONYMOUS_USER_ID_PREFIX } from "../constants";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
 export const identifyCustomerInputSchema = z.object({
 	appUserId: z
@@ -51,23 +49,20 @@ type CreateAnonymousCustomerError =
 
 export const identifyCustomer = createServiceFunction()
 	.input(identifyCustomerInputSchema)
+	.use(isAuthenticated)
+	.use(hasEnvironment)
 	.function(
 		async ({
 			input,
 			ctx,
 		}): Promise<Result<Customer, CreateAnonymousCustomerError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
 			try {
 				return await ctx.db.transaction(async (tx) => {
 					const authenticatedContextWithTx = {
-						...authenticatedContext.value,
+						...ctx,
 						tx: tx,
 					};
-					const projectId = authenticatedContext.value.session?.projects[0]?.id;
+					const projectId = ctx.session?.projects[0]?.id;
 					if (!projectId) {
 						return err({
 							code: "INTERNAL_SERVER_ERROR",
@@ -77,8 +72,7 @@ export const identifyCustomer = createServiceFunction()
 							),
 						} satisfies VoidhashInternalServerError);
 					}
-					const currentAppUserId =
-						authenticatedContext.value.session?.customer?.appUserId;
+					const currentAppUserId = ctx.session?.customer?.appUserId;
 					const currentCustomerResult = currentAppUserId
 						? (
 								await getCustomerWithParentByAppUserIdQuery(
@@ -152,6 +146,7 @@ export const identifyCustomer = createServiceFunction()
 								name: input.name ?? null,
 								email: input.email ?? null,
 								origin: "ios", // TODO: Make this dynamic
+								environment: ctx.session.environment,
 							}
 						);
 
@@ -219,6 +214,7 @@ async function createCustomer(
 		origin: "ios" | "android";
 		name: string | null;
 		email: string | null;
+		environment: Environment;
 	}
 ): Promise<Result<Customer, CreateAnonymousCustomerError>> {
 	const tx = ctx.tx ?? ctx.db;
@@ -231,6 +227,7 @@ async function createCustomer(
 		origin: "ios", // TODO: Make this dynamic
 		type: "identified",
 		parentCustomerId: input.parentCustomerId,
+		environment: input.environment,
 	} satisfies InsertCustomer;
 
 	try {

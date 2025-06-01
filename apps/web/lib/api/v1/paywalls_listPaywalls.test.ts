@@ -9,6 +9,7 @@ import { paywallResponseSchema } from "./schema";
 const paywallInput: Omit<InsertPaywall, "projectId"> = {
 	id: generateId("test"),
 	name: "Test Paywall for List",
+	environment: "production",
 };
 
 const expectedPaywall: z.infer<typeof paywallResponseSchema> = {

@@ -23,6 +23,7 @@ import { getPerks } from "@/lib/services/perks/queries";
 import { ProductDetailPerkRecord } from "./product-detail-product-perk-record";
 import { ProductDetailAddPerkButton } from "./product-detail-add-perk-button";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { getEnvironment } from "@/lib/services/environments/utils";
 
 export async function ProductDetailPage({
 	organizationSlug,
@@ -51,6 +52,12 @@ export async function ProductDetailPage({
 		input: { productId: product.id },
 	});
 
+	const environmentPromise = getEnvironment(
+		serviceContext.cookies,
+		organizationSlug,
+		projectSlug
+	);
+
 	const paymentProviderConfigurationsPromise = getPaymentProviderConfigurations(
 		{
 			ctx: serviceContext,
@@ -73,11 +80,13 @@ export async function ProductDetailPage({
 		paymentProviderConfigurationsResult,
 		perksResult,
 		productPerksResult,
+		environmentResult,
 	] = await Promise.all([
 		providerProductsPromise,
 		paymentProviderConfigurationsPromise,
 		perksPromise,
 		productPerksPromise,
+		environmentPromise,
 	]);
 
 	if (providerProductsResult.isErr()) {
@@ -108,6 +117,13 @@ export async function ProductDetailPage({
 	}
 
 	const productPerks = productPerksResult.value;
+
+	if (environmentResult.isErr()) {
+		const error = environmentResult._unsafeUnwrapErr();
+		return <VoidhashErrorCard error={error} />;
+	}
+
+	const environment = environmentResult.value;
 
 	const paymentProvidersWithEnabledConfigurations = paymentProviders
 		.map((paymentProvider) => {
@@ -193,112 +209,119 @@ export async function ProductDetailPage({
 						)}
 					</div>
 				</div>
-				<div className="mt-16">
-					<h2 className="text-2xl font-normal tracking-right">
-						Payment Providers
-					</h2>
-					<p className="text-muted-foreground mt-2">
-						Sets up a relationship between this voidhash product and payment
-						providers products.
-					</p>
+				{environment !== "testing" && (
+					<div className="mt-16">
+						<h2 className="text-2xl font-normal tracking-right">
+							Payment Providers
+						</h2>
+						<p className="text-muted-foreground mt-2">
+							Sets up a relationship between this voidhash product and payment
+							providers products.
+						</p>
 
-					<div className="mt-8">
-						{paymentProvidersWithEnabledConfigurations.length === 0 && (
-							<ProductDetailPaymentProvidersEmptyState
-								projectSlug={projectSlug}
-								organizationSlug={organizationSlug}
-							/>
-						)}
-						{paymentProvidersWithEnabledConfigurations.map(
-							(paymentProviderWithConfiguration) => (
-								<Card
-									className="pb-0 overflow-hidden mt-8 gap-0"
-									key={paymentProviderWithConfiguration.paymentProvider.id}
-								>
-									<CardHeader className="pb-4">
-										<CardTitle className="flex items-center gap-4">
-											<PaymentProviderLogo
-												providerId={
+						<div className="mt-8">
+							{paymentProvidersWithEnabledConfigurations.length === 0 && (
+								<ProductDetailPaymentProvidersEmptyState
+									projectSlug={projectSlug}
+									organizationSlug={organizationSlug}
+								/>
+							)}
+							{paymentProvidersWithEnabledConfigurations.map(
+								(paymentProviderWithConfiguration) => (
+									<Card
+										className="pb-0 overflow-hidden mt-8 gap-0"
+										key={paymentProviderWithConfiguration.paymentProvider.id}
+									>
+										<CardHeader className="pb-4">
+											<CardTitle className="flex items-center gap-4">
+												<PaymentProviderLogo
+													providerId={
+														paymentProviderWithConfiguration.paymentProvider.id
+													}
+													className="w-5 h-5"
+												/>
+												<span>
+													{
+														paymentProviderWithConfiguration.paymentProvider
+															.title
+													}
+												</span>
+											</CardTitle>
+										</CardHeader>
+										<CardContent className="border-t border-border divide-y divide-border px-0">
+											{/* Emtpy State */}
+											{providerProducts.filter(
+												(providerProduct) =>
+													providerProduct.providerId ===
 													paymentProviderWithConfiguration.paymentProvider.id
-												}
-												className="w-5 h-5"
-											/>
-											<span>
-												{paymentProviderWithConfiguration.paymentProvider.title}
-											</span>
-										</CardTitle>
-									</CardHeader>
-									<CardContent className="border-t border-border divide-y divide-border px-0">
-										{/* Emtpy State */}
+											).length === 0 && (
+												<div className="flex flex-col items-center justify-center h-full py-6">
+													<div className="text-muted-foreground">
+														You haven&apos;t added any{" "}
+														{
+															paymentProviderWithConfiguration.paymentProvider
+																.title
+														}{" "}
+														product yet.
+													</div>
+													<div className="mt-4">
+														<ProductDetailAddProductButton
+															productId={product.id}
+															providerId={
+																paymentProviderWithConfiguration.paymentProvider
+																	.id
+															}
+															title={
+																paymentProviderWithConfiguration.paymentProvider
+																	.title
+															}
+														/>
+													</div>
+												</div>
+											)}
+
+											{providerProducts
+												.filter(
+													(providerProduct) =>
+														providerProduct.providerId ===
+														paymentProviderWithConfiguration.paymentProvider.id
+												)
+												.map((providerProduct) => (
+													<ProductDetailProviderProductRecord
+														key={providerProduct.providerProductKey}
+														providerProduct={providerProduct}
+														paymentProviderId={
+															paymentProviderWithConfiguration.paymentProvider
+																.id
+														}
+													/>
+												))}
+										</CardContent>
 										{providerProducts.filter(
 											(providerProduct) =>
 												providerProduct.providerId ===
 												paymentProviderWithConfiguration.paymentProvider.id
-										).length === 0 && (
-											<div className="flex flex-col items-center justify-center h-full py-6">
-												<div className="text-muted-foreground">
-													You haven&apos;t added any{" "}
-													{
-														paymentProviderWithConfiguration.paymentProvider
-															.title
-													}{" "}
-													product yet.
-												</div>
-												<div className="mt-4">
-													<ProductDetailAddProductButton
-														productId={product.id}
-														providerId={
-															paymentProviderWithConfiguration.paymentProvider
-																.id
-														}
-														title={
-															paymentProviderWithConfiguration.paymentProvider
-																.title
-														}
-													/>
-												</div>
-											</div>
-										)}
-
-										{providerProducts
-											.filter(
-												(providerProduct) =>
-													providerProduct.providerId ===
-													paymentProviderWithConfiguration.paymentProvider.id
-											)
-											.map((providerProduct) => (
-												<ProductDetailProviderProductRecord
-													key={providerProduct.providerProductKey}
-													providerProduct={providerProduct}
-													paymentProviderId={
+										).length > 0 && (
+											<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
+												<ProductDetailAddProductButton
+													variant="secondary"
+													productId={product.id}
+													providerId={
 														paymentProviderWithConfiguration.paymentProvider.id
 													}
+													title={
+														paymentProviderWithConfiguration.paymentProvider
+															.title
+													}
 												/>
-											))}
-									</CardContent>
-									{providerProducts.filter(
-										(providerProduct) =>
-											providerProduct.providerId ===
-											paymentProviderWithConfiguration.paymentProvider.id
-									).length > 0 && (
-										<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
-											<ProductDetailAddProductButton
-												variant="secondary"
-												productId={product.id}
-												providerId={
-													paymentProviderWithConfiguration.paymentProvider.id
-												}
-												title={
-													paymentProviderWithConfiguration.paymentProvider.title
-												}
-											/>
-										</CardFooter>
-									)}
-								</Card>
-							)
-						)}
+											</CardFooter>
+										)}
+									</Card>
+								)
+							)}
+						</div>
 					</div>
-				</div>
+				)}
 			</div>
 		</Page>
 	);

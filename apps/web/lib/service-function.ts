@@ -29,80 +29,229 @@ export type ServiceParamWithoutInput = {
 	ctx: ServiceContext;
 };
 
-export function createServiceFunction() {
-	return {
-		input: <TSchema extends z.ZodType>(schema: TSchema) => {
-			type Input = z.infer<TSchema>;
+export type Middleware<
+	TServiceInput,
+	CtxIn extends ServiceContext,
+	CtxOut extends ServiceContext = CtxIn,
+	TError extends AnyVoidhashError = AnyVoidhashError,
+> = (params: { ctx: CtxIn; input: TServiceInput }) => Promise<
+	Result<CtxOut, TError>
+>;
 
-			return {
-				function: <
-					OutputType = unknown,
-					ErrorType extends AnyVoidhashError = AnyVoidhashError,
-				>(
-					fn: ({
-						input,
-						ctx,
-					}: { input: Input; ctx: ServiceContext }) => Promise<
-						Result<OutputType, ErrorType>
-					>
-				) => {
-					const invokableFunction = {
-						invoke: async ({
-							ctx,
-							input,
-						}: ServiceParamWithInput<Input>): Promise<
-							Result<
-								OutputType,
-								| ErrorType
-								| VoidhashBadRequestError
-								| VoidhashInternalServerError
-							>
-						> => {
-							try {
-								const validatedInput = schema.parse(input) as Input;
-								const result = await fn({ ctx, input: validatedInput });
-								if (result.isErr()) {
-									if (result.error.code === "INTERNAL_SERVER_ERROR") {
-										console.log(result.error);
-									}
-									if (result.error.code === "FORBIDDEN") {
-										console.log(result.error);
-									}
-									return err(result.error);
-								}
-								return ok(result.value);
-							} catch (e) {
-								if (e instanceof ZodError) {
-									return err({
-										code: "BAD_REQUEST",
-										message: "Invalid input",
-										validationErrors: e,
-									} satisfies VoidhashBadRequestError);
-								}
-								return err(fromUnknownThrow(e));
-							}
-						},
-					};
-					return invokableFunction;
-				},
-			};
-		},
-		function: <
-			OutputType = unknown,
-			ErrorType extends AnyVoidhashError = AnyVoidhashError,
-		>(
-			fn: ({
-				ctx,
-			}: { ctx: ServiceContext }) => Promise<Result<OutputType, ErrorType>>
-		) => {
-			const invokableFunction = {
-				invoke: async ({ ctx }: ServiceParamWithoutInput) => {
-					return await fn({ ctx });
-				},
-			};
-			return invokableFunction;
-		},
+export function createMiddleware<
+	TServiceInput,
+	CtxIn extends ServiceContext,
+	CtxOut extends ServiceContext = CtxIn,
+	TError extends AnyVoidhashError = AnyVoidhashError,
+>(
+	fn: (params: { ctx: CtxIn; input: TServiceInput }) => Promise<
+		Result<CtxOut, TError>
+	>
+) {
+	return fn;
+}
+
+// Represents the final, callable service function
+class InvokableServiceFunction<
+	TInput,
+	TOutput,
+	TFunctionError extends AnyVoidhashError, // Error from the core function itself
+	TAllMiddlewareErrors extends AnyVoidhashError, // Union of all errors from all middlewares
+	FinalCtx extends ServiceContext, // Context type after all middlewares
+> {
+	private fn: (params: { input: TInput; ctx: FinalCtx }) => Promise<
+		Result<TOutput, TFunctionError>
+	>;
+	private schema?: z.ZodType<TInput>;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	private middlewares: Middleware<TInput, any, any, AnyVoidhashError>[];
+
+	constructor(
+		fn: (params: { input: TInput; ctx: FinalCtx }) => Promise<
+			Result<TOutput, TFunctionError>
+		>,
+		schema?: z.ZodType<TInput>,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		middlewares?: Middleware<TInput, any, any, AnyVoidhashError>[]
+	) {
+		this.fn = fn;
+		this.schema = schema;
+		this.middlewares = middlewares || [];
+	}
+
+	public invoke = async (
+		params: TInput extends undefined
+			? ServiceParamWithoutInput
+			: ServiceParamWithInput<TInput>
+	): Promise<
+		Result<
+			TOutput,
+			| TFunctionError
+			| TAllMiddlewareErrors
+			| VoidhashBadRequestError
+			| VoidhashInternalServerError
+		>
+	> => {
+		try {
+			let currentCtx: ServiceContext = params.ctx;
+			const originalInput: TInput = (params as ServiceParamWithInput<TInput>)
+				.input;
+
+			// Run middlewares
+			for (const mw of this.middlewares) {
+				const mwResult = await mw({
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					ctx: currentCtx as any,
+					input: originalInput,
+				});
+				if (mwResult.isErr()) {
+					// Cast is necessary because mwResult.error is AnyVoidhashError from array typing,
+					// but we know it's one of the errors included in TAllMiddlewareErrors.
+					return err(mwResult.error as TAllMiddlewareErrors);
+				}
+				currentCtx = mwResult.value; // Update context
+			}
+
+			let validatedInput: TInput = originalInput;
+			if (this.schema) {
+				const parseResult = this.schema.safeParse(originalInput);
+				if (!parseResult.success) {
+					return err({
+						code: "BAD_REQUEST",
+						message: "Invalid input",
+						validationErrors: parseResult.error,
+					} satisfies VoidhashBadRequestError);
+				}
+				validatedInput = parseResult.data;
+			}
+
+			const result = await this.fn({
+				ctx: currentCtx as FinalCtx, // Context after middlewares
+				input: validatedInput,
+			});
+			if (result.isErr()) {
+				if (result.error.code === "INTERNAL_SERVER_ERROR") {
+					console.log(result.error);
+				}
+				if (result.error.code === "FORBIDDEN") {
+					console.log(result.error);
+				}
+				return err(result.error);
+			}
+			return ok(result.value);
+		} catch (e) {
+			if (e instanceof ZodError) {
+				return err({
+					code: "BAD_REQUEST",
+					message: "Invalid input",
+					validationErrors: e,
+				} satisfies VoidhashBadRequestError);
+			}
+			return err(fromUnknownThrow(e));
+		}
 	};
+}
+
+class ServiceFunctionBuilder<
+	TSchema extends z.ZodType | undefined = undefined,
+	CurrentCtx extends ServiceContext = ServiceContext, // Tracks context type
+	TCurrentMiddlewareErrors extends AnyVoidhashError = never, // Accumulates middleware errors
+> {
+	private readonly schema?: TSchema;
+	private readonly middlewares: Middleware<
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		any, // This 'any' is for TServiceInput of the middleware
+		ServiceContext,
+		ServiceContext,
+		AnyVoidhashError // This is TError of the middleware in the array
+	>[];
+
+	constructor(
+		schema?: TSchema,
+		middlewares: Middleware<
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			any,
+			ServiceContext,
+			ServiceContext,
+			AnyVoidhashError
+		>[] = []
+	) {
+		this.schema = schema;
+		this.middlewares = middlewares;
+	}
+
+	public input = <NewTSchema extends z.ZodType>(
+		schema: NewTSchema
+	): ServiceFunctionBuilder<
+		NewTSchema,
+		CurrentCtx,
+		TCurrentMiddlewareErrors
+	> => {
+		return new ServiceFunctionBuilder(schema, this.middlewares);
+	};
+
+	public use = <
+		MwServiceInput = TSchema extends z.ZodType ? z.infer<TSchema> : undefined,
+		MwCtxOut extends ServiceContext = CurrentCtx,
+		MwError extends AnyVoidhashError = AnyVoidhashError,
+	>(
+		middleware: Middleware<MwServiceInput, CurrentCtx, MwCtxOut, MwError>
+	): ServiceFunctionBuilder<
+		TSchema,
+		MwCtxOut,
+		TCurrentMiddlewareErrors | MwError
+	> => {
+		const newMiddlewares = [
+			...this.middlewares,
+			middleware as Middleware<
+				// Cast to the array's element type
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				any,
+				ServiceContext,
+				ServiceContext,
+				AnyVoidhashError
+			>,
+		];
+		return new ServiceFunctionBuilder(this.schema, newMiddlewares);
+	};
+
+	public function = <
+		TOutput = unknown,
+		TFunctionError extends AnyVoidhashError = AnyVoidhashError, // Error from the function itself
+	>(
+		fn: (params: {
+			input: TSchema extends z.ZodType ? z.infer<TSchema> : undefined;
+			ctx: CurrentCtx; // Function receives context after all middlewares
+		}) => Promise<Result<TOutput, TFunctionError>>
+	): InvokableServiceFunction<
+		TSchema extends z.ZodType ? z.infer<TSchema> : undefined,
+		TOutput,
+		TFunctionError, // Pass the function's own error type
+		TCurrentMiddlewareErrors, // Pass the accumulated middleware errors
+		CurrentCtx
+	> => {
+		type ServiceFnInput = TSchema extends z.ZodType
+			? z.infer<TSchema>
+			: undefined;
+		return new InvokableServiceFunction(
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			fn as any,
+			this.schema,
+			// Cast the middlewares to match the expected input type for InvokableServiceFunction's constructor
+			this.middlewares as Middleware<
+				ServiceFnInput,
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				any,
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				any,
+				AnyVoidhashError
+			>[]
+		);
+	};
+}
+
+export function createServiceFunction() {
+	return new ServiceFunctionBuilder<undefined, ServiceContext, never>(); // Initial context and 'never' for middleware errors
 }
 
 export type ServiceContext = {

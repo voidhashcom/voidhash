@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -20,6 +19,7 @@ import {
 	getProductByIdQuery,
 	getProviderProductByPrimaryKeyQuery,
 } from "../raw-queries";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const setActivePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
@@ -38,32 +38,19 @@ type SetActivePaymentProviderProductError =
 
 export const setActivePaymentProviderProduct = createServiceFunction()
 	.input(setActivePaymentProviderProductInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({
 			input,
 			ctx,
 		}): Promise<Result<void, SetActivePaymentProviderProductError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			const product = await getProductByIdQuery(
-				authenticatedContext.value,
-				input.productId
-			);
+			const product = await getProductByIdQuery(ctx, input.productId);
 
 			if (product.isErr()) {
 				return err(product.error);
 			}
 
-			if (
-				!hasProjectPermission(
-					authenticatedContext.value,
-					product.value.projectId,
-					"project:all"
-				)
-			) {
+			if (!hasProjectPermission(ctx, product.value.projectId, "project:all")) {
 				return err({
 					code: "FORBIDDEN",
 					message: "You are not authorized to update this product",
@@ -83,7 +70,7 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 			}
 
 			const providerProduct = await getProviderProductByPrimaryKeyQuery(
-				authenticatedContext.value,
+				ctx,
 				product.value.projectId,
 				input.providerId,
 				input.providerProductKey

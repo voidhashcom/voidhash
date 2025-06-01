@@ -41,14 +41,15 @@ export async function CustomersPage({
 				{/* <p className="text-muted-foreground mt-3">
 					List of products available to purchase.
 				</p> */}
+
 				<div className="mt-3">
 					<UnderlineTabs defaultValue="identified">
 						<UnderlineTabsList>
 							<UnderlineTabsTrigger value="identified">
 								Identified
 							</UnderlineTabsTrigger>
-							<UnderlineTabsTrigger value="unknown">
-								<span>Unknown</span> {/* Number of unidentified customers */}
+							<UnderlineTabsTrigger value="anonymous">
+								<span>Anonymous</span> {/* Number of unidentified customers */}
 								{/* {!!10 && (
 									<Badge
 										variant="secondary"
@@ -62,15 +63,15 @@ export async function CustomersPage({
 						<UnderlineTabsContent value="identified">
 							<CustomersTable
 								projectId={project.id}
-								hasAppUserId={true}
+								type="identified"
 								organizationSlug={organizationSlug}
 								projectSlug={projectSlug}
 							/>
 						</UnderlineTabsContent>
-						<UnderlineTabsContent value="unknown">
+						<UnderlineTabsContent value="anonymous">
 							<CustomersTable
 								projectId={project.id}
-								hasAppUserId={false}
+								type="anonymous"
 								organizationSlug={organizationSlug}
 								projectSlug={projectSlug}
 							/>

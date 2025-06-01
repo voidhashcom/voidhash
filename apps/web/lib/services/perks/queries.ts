@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -14,6 +13,7 @@ import {
 } from "@voidhash/lib/constants";
 import { Perk } from "@voidhash/db";
 import { err, ok, Result } from "neverthrow";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
 export const getPerksInputSchema = z.object({
 	projectId: z.string(),
@@ -27,20 +27,11 @@ type GetPerksError =
 export const getPerks = cache(
 	createServiceFunction()
 		.input(getPerksInputSchema)
+		.use(isAuthenticated)
+		.use(hasEnvironment)
 		.function(
 			async ({ input, ctx }): Promise<Result<Perk[], GetPerksError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						input.projectId,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message: "No permission to access perks.",
@@ -48,8 +39,9 @@ export const getPerks = cache(
 				}
 
 				const perks = await getPerksQuery(
-					authenticatedContext.value,
-					input.projectId
+					ctx,
+					input.projectId,
+					ctx.session.environment
 				);
 
 				if (perks.isErr()) {
@@ -70,28 +62,17 @@ type GetPerkByIdError =
 export const getPerkById = cache(
 	createServiceFunction()
 		.input(z.object({ id: z.string() }))
+		.use(isAuthenticated)
 		.function(
 			async ({ input, ctx }): Promise<Result<Perk, GetPerkByIdError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				const perkResult = await getPerkByIdQuery(
-					authenticatedContext.value,
-					input.id
-				);
+				const perkResult = await getPerkByIdQuery(ctx, input.id);
 
 				if (perkResult.isErr()) {
 					return err(perkResult.error);
 				}
 
 				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						perkResult.value.projectId,
-						"project:all"
-					)
+					!hasProjectPermission(ctx, perkResult.value.projectId, "project:all")
 				) {
 					return err({
 						code: "FORBIDDEN",

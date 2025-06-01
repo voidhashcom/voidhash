@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -15,6 +14,7 @@ import { paywallLocations } from "@voidhash/db";
 import { getPaywallLocationByIdQuery } from "../raw-queries";
 import { eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const deletePaywallLocationInputSchema = z.object({
 	paywallLocationId: z.string(),
@@ -28,17 +28,14 @@ type DeletePaywallLocationError =
 
 export const deletePaywallLocation = createServiceFunction()
 	.input(deletePaywallLocationInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({
 			input,
 			ctx,
 		}): Promise<Result<void, DeletePaywallLocationError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
 			const existingPaywallLocation = await getPaywallLocationByIdQuery(
-				authenticatedContext.value,
+				ctx,
 				input.paywallLocationId
 			);
 			if (existingPaywallLocation.isErr()) {
@@ -46,7 +43,7 @@ export const deletePaywallLocation = createServiceFunction()
 			}
 			if (
 				!hasProjectPermission(
-					authenticatedContext.value,
+					ctx,
 					existingPaywallLocation.value.projectId,
 					"project:all"
 				)

@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -17,6 +16,7 @@ import {
 } from "@voidhash/lib/constants";
 import { err, ok, Result } from "neverthrow";
 import { PaywallLocation } from "@voidhash/db";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
 export const getPaywallLocationsInputSchema = z.object({
 	projectId: z.string(),
@@ -30,22 +30,14 @@ type GetPaywallLocationsError =
 export const getPaywallLocations = cache(
 	createServiceFunction()
 		.input(getPaywallLocationsInputSchema)
+		.use(isAuthenticated)
+		.use(hasEnvironment)
 		.function(
 			async ({
 				input,
 				ctx,
 			}): Promise<Result<PaywallLocation[], GetPaywallLocationsError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						input.projectId,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message: "You are not authorized to access this project",
@@ -53,8 +45,9 @@ export const getPaywallLocations = cache(
 				}
 
 				const paywallLocations = await getPaywallLocationsQuery(
-					authenticatedContext.value,
-					input.projectId
+					ctx,
+					input.projectId,
+					ctx.session.environment
 				);
 				return paywallLocations;
 			}
@@ -70,17 +63,14 @@ type GetPaywallLocationByIdError =
 export const getPaywallLocationById = cache(
 	createServiceFunction()
 		.input(z.object({ id: z.string() }))
+		.use(isAuthenticated)
 		.function(
 			async ({
 				input,
 				ctx,
 			}): Promise<Result<PaywallLocation, GetPaywallLocationByIdError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
 				const paywallLocationResult = await getPaywallLocationByIdQuery(
-					authenticatedContext.value,
+					ctx,
 					input.id
 				);
 				if (paywallLocationResult.isErr()) {
@@ -89,7 +79,7 @@ export const getPaywallLocationById = cache(
 
 				if (
 					!hasProjectPermission(
-						authenticatedContext.value,
+						ctx,
 						paywallLocationResult.value.projectId,
 						"project:all"
 					)

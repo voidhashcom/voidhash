@@ -6,18 +6,18 @@ import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-ca
 
 export async function CustomersTable({
 	projectId,
-	hasAppUserId,
+	type,
 	organizationSlug,
 	projectSlug,
 }: {
 	projectId: string;
-	hasAppUserId?: boolean;
+	type?: "identified" | "anonymous";
 	organizationSlug: string;
 	projectSlug: string;
 }) {
 	const customersResult = await getCustomers({
 		ctx: await createNextServiceContext(),
-		input: { projectId: projectId, hasAppUserId: hasAppUserId },
+		input: { projectId: projectId, type: type },
 	});
 
 	if (customersResult.isErr()) {

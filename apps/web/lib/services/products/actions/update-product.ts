@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -17,6 +16,7 @@ import { products } from "@voidhash/db";
 import { getProductByIdQuery } from "../raw-queries";
 import { eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const updateProductInputSchema = z.object({
 	productId: z.string(),
@@ -35,24 +35,17 @@ type UpdateProductError =
 
 export const updateProduct = createServiceFunction()
 	.input(updateProductInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({ input, ctx }): Promise<Result<void, UpdateProductError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			const existingProduct = await getProductByIdQuery(
-				authenticatedContext.value,
-				input.productId
-			);
+			const existingProduct = await getProductByIdQuery(ctx, input.productId);
 			if (existingProduct.isErr()) {
 				return err(existingProduct.error);
 			}
 
 			if (
 				!hasProjectPermission(
-					authenticatedContext.value,
+					ctx,
 					existingProduct.value.projectId,
 					"project:all"
 				)

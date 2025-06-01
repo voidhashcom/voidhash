@@ -25,6 +25,7 @@ describe.sequential(
 				id: generateId("test"),
 				name: "Test Product for Paywall",
 				type: "subscription",
+				environment: "production",
 			};
 			await h.db.primary.insert(products).values({
 				...productInput,
@@ -34,6 +35,7 @@ describe.sequential(
 			const paywallInput: Omit<InsertPaywall, "projectId"> = {
 				id: generateId("test"),
 				name: "Test Paywall",
+				environment: "production",
 			};
 			await h.db.primary.insert(paywalls).values({
 				...paywallInput,
@@ -55,6 +57,7 @@ describe.sequential(
 				name: "Test Location",
 				slug: locationSlug,
 				defaultPaywallId: paywallInput.id,
+				environment: "production",
 			};
 			await h.db.primary.insert(paywallLocations).values({
 				...paywallLocationInput,

@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -16,6 +15,7 @@ import { generateId } from "@/lib/id/generate";
 import { getPerkByIdQuery } from "../../perks/raw-queries";
 import { err, ok, Result } from "neverthrow";
 import { getProductByIdQuery } from "../raw-queries";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const createProductPerkInputSchema = z.object({
 	productId: z.string(),
@@ -30,42 +30,26 @@ type CreateProductPerkError =
 
 export const createProductPerk = createServiceFunction()
 	.input(createProductPerkInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({
 			input,
 			ctx,
 		}): Promise<Result<{ id: string }, CreateProductPerkError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			const product = await getProductByIdQuery(
-				authenticatedContext.value,
-				input.productId
-			);
+			const product = await getProductByIdQuery(ctx, input.productId);
 
 			if (product.isErr()) {
 				return err(product.error);
 			}
 
-			if (
-				!hasProjectPermission(
-					authenticatedContext.value,
-					product.value.projectId,
-					"project:all"
-				)
-			) {
+			if (!hasProjectPermission(ctx, product.value.projectId, "project:all")) {
 				return err({
 					code: "FORBIDDEN",
 					message: "You are not authorized to create payment provider products",
 				});
 			}
 
-			const perk = await getPerkByIdQuery(
-				authenticatedContext.value,
-				input.perkId
-			);
+			const perk = await getPerkByIdQuery(ctx, input.perkId);
 			if (perk.isErr()) {
 				return err(perk.error);
 			}

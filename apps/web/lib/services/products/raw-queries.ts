@@ -10,6 +10,7 @@ import { and, eq, asc } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
 import { err, ok, Result, ResultAsync } from "neverthrow";
 import {
+	Environment,
 	fromUnknownThrow,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -17,11 +18,15 @@ import {
 
 export const getProductsQuery = async (
 	ctx: ServiceContext,
-	projectId: string
+	projectId: string,
+	environment: Environment
 ): Promise<Result<Product[], VoidhashInternalServerError>> => {
 	const res = await ResultAsync.fromPromise(
 		ctx.db.query.products.findMany({
-			where: eq(products.projectId, projectId),
+			where: and(
+				eq(products.projectId, projectId),
+				eq(products.environment, environment)
+			),
 		}),
 		(e) => fromUnknownThrow(e)
 	);

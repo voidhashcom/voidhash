@@ -1,7 +1,4 @@
-import {
-	createServiceFunction,
-	authenticateContext,
-} from "@/lib/service-function";
+import { createServiceFunction } from "@/lib/service-function";
 import {
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -10,6 +7,7 @@ import {
 import { Result, err, ok } from "neverthrow";
 import { getPaywallWithProductsByLocationSlugQuery } from "../raw-queries";
 import { z } from "zod";
+import { isAuthenticated } from "@/lib/middlewares";
 
 type GetPaywallByLocationError =
 	| VoidhashInternalServerError
@@ -31,18 +29,13 @@ export const sdkGetPaywallByLocation = createServiceFunction()
 			locationSlug: z.string(),
 		})
 	)
+	.use(isAuthenticated)
 	.function(
 		async ({
 			input,
 			ctx,
 		}): Promise<Result<PaywallResponse, GetPaywallByLocationError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			const appUserId = authenticatedContext.value.session?.customer?.appUserId;
+			const appUserId = ctx.session?.customer?.appUserId;
 
 			if (!appUserId) {
 				return err({
@@ -51,7 +44,7 @@ export const sdkGetPaywallByLocation = createServiceFunction()
 				});
 			}
 
-			const projectId = authenticatedContext.value.session?.projects[0]?.id;
+			const projectId = ctx.session?.projects[0]?.id;
 			if (!projectId) {
 				return err({
 					code: "INTERNAL_SERVER_ERROR",
@@ -61,7 +54,7 @@ export const sdkGetPaywallByLocation = createServiceFunction()
 			}
 
 			const paywall = await getPaywallWithProductsByLocationSlugQuery(
-				authenticatedContext.value,
+				ctx,
 				input.locationSlug
 			);
 			if (paywall.isErr()) {

@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -18,6 +17,7 @@ import {
 } from "@voidhash/lib/constants";
 import { Paywall, PaywallProduct } from "@voidhash/db";
 import { err, ok, Result } from "neverthrow";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
 export const getPaywallsInputSchema = z.object({
 	projectId: z.string(),
@@ -31,20 +31,11 @@ type GetPaywallsError =
 export const getPaywalls = cache(
 	createServiceFunction()
 		.input(getPaywallsInputSchema)
+		.use(isAuthenticated)
+		.use(hasEnvironment)
 		.function(
 			async ({ input, ctx }): Promise<Result<Paywall[], GetPaywallsError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						input.projectId,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message: "No permission to access paywalls.",
@@ -52,8 +43,9 @@ export const getPaywalls = cache(
 				}
 
 				const paywalls = await getPaywallsQuery(
-					authenticatedContext.value,
-					input.projectId
+					ctx,
+					input.projectId,
+					ctx.session.environment
 				);
 
 				if (paywalls.isErr()) {
@@ -75,21 +67,14 @@ export type GetPaywallByIdResult = Paywall;
 export const getPaywallById = cache(
 	createServiceFunction()
 		.input(z.object({ id: z.string() }))
+		.use(isAuthenticated)
+		.use(hasEnvironment)
 		.function(
 			async ({
 				input,
 				ctx,
 			}): Promise<Result<GetPaywallByIdResult, GetPaywallByIdError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				const paywallResult = await getPaywallByIdQuery(
-					authenticatedContext.value,
-					input.id
-				);
+				const paywallResult = await getPaywallByIdQuery(ctx, input.id);
 
 				if (paywallResult.isErr()) {
 					return err(paywallResult.error);
@@ -106,7 +91,7 @@ export const getPaywallById = cache(
 
 				if (
 					!hasProjectPermission(
-						authenticatedContext.value,
+						ctx,
 						paywallResult.value.projectId,
 						"project:all"
 					)
@@ -136,6 +121,8 @@ export type GetPaywallProductsResult = (PaywallProduct & {
 export const getPaywallProducts = cache(
 	createServiceFunction()
 		.input(z.object({ paywallId: z.string() }))
+		.use(isAuthenticated)
+		.use(hasEnvironment)
 		.function(
 			async ({
 				input,
@@ -143,32 +130,13 @@ export const getPaywallProducts = cache(
 			}): Promise<
 				Result<GetPaywallProductsResult, GetPaywallProductsError>
 			> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				const paywall = await getPaywallById({
-					ctx: authenticatedContext.value,
-					input: { id: input.paywallId },
-				});
+				const paywall = await getPaywallByIdQuery(ctx, input.paywallId);
 				if (paywall.isErr()) {
-					if (paywall.error.code === "BAD_REQUEST") {
-						return err({
-							code: "INTERNAL_SERVER_ERROR",
-							message: "Invalid paywall id.",
-							originalError: new Error(paywall.error.message),
-						});
-					}
 					return err(paywall.error);
 				}
 
 				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						paywall.value.projectId,
-						"project:all"
-					)
+					!hasProjectPermission(ctx, paywall.value.projectId, "project:all")
 				) {
 					return err({
 						code: "FORBIDDEN",
@@ -177,7 +145,7 @@ export const getPaywallProducts = cache(
 				}
 
 				const paywallProducts = await getPaywallProductsQuery(
-					authenticatedContext.value,
+					ctx,
 					input.paywallId
 				);
 

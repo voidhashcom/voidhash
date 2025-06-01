@@ -1,5 +1,5 @@
 import { Page } from "@/features/shell";
-import { Badge, Card } from "@voidhash/ui";
+import { Badge, Card, cn } from "@voidhash/ui";
 import Link from "next/link";
 import { PaymentProviderLogo } from "./payment-provider-logo";
 import { ChevronRightIcon } from "lucide-react";
@@ -11,6 +11,8 @@ import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { PaymentProviderConfigurationSheet } from "./payment-provider-configuration-sheet";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { EnvironmentFilterNotification } from "@/features/shell/components/environment-filter-notification";
+import { getEnvironment } from "@/lib/services/environments/utils";
 
 // const paymentProvidersConfigurationSheetComponents = {
 // 	stripe: StripeConfigurationSheet,
@@ -28,7 +30,7 @@ export async function PaymentProvidersPage({
 	const { organizationSlug, projectSlug } = await paramsPromise;
 
 	const serviceContext = await createNextServiceContext();
-	const projectResult = await getProjectBySlugAndOrganizationSlug({
+	const projectPromise = getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: {
 			organizationSlug: organizationSlug,
@@ -36,12 +38,26 @@ export async function PaymentProvidersPage({
 		},
 	});
 
-	if (projectResult.isErr()) {
-		const error = projectResult._unsafeUnwrapErr();
+	const environmentPromise = getEnvironment(
+		serviceContext.cookies,
+		organizationSlug,
+		projectSlug
+	);
+
+	const [projectResult, environmentResult] = await Promise.all([
+		projectPromise,
+		environmentPromise,
+	]);
+
+	if (projectResult.isErr() || environmentResult.isErr()) {
+		const error = projectResult.isErr()
+			? projectResult._unsafeUnwrapErr()
+			: environmentResult._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
 	const project = projectResult.value;
+	const environment = environmentResult.value;
 
 	const paymentProvidersConfigurationsResult =
 		await getPaymentProviderConfigurations({
@@ -83,25 +99,39 @@ export async function PaymentProvidersPage({
 				<p className="text-muted-foreground mt-3">
 					Configure your payment providers.
 				</p>
+				{environment === "testing" && (
+					<EnvironmentFilterNotification
+						message="Payment providers are not enabled in development mode. Instead, you will be presented with a test payment provider to simplify the development process."
+						className="mt-6"
+						type="testing"
+					/>
+				)}
 				<div className="mt-8">
-					<Card className="divide-y grid p-0 gap-0">
+					<Card
+						className={cn(
+							"divide-y grid p-0 gap-0",
+							environment === "testing" && "blur-xl"
+						)}
+					>
 						{paymentProvidersWithConfigurations?.map((paymentProvider) => (
 							<div
 								className="relative isolate group hover:bg-accent/30 px-6 py-4"
 								key={paymentProvider.id}
 							>
-								<PaymentProviderConfigurationSheet
-									providerId={paymentProvider.id}
-									enabled={paymentProvider.enabled ?? false}
-									configuration={paymentProvider.configuration}
-									project={project}
-									trigger={
-										<Link
-											className="inset-0 absolute w-full h-full"
-											href={`/${organizationSlug}/${projectSlug}/monetization/payment-providers`}
-										></Link>
-									}
-								/>
+								{environment !== "testing" && (
+									<PaymentProviderConfigurationSheet
+										providerId={paymentProvider.id}
+										enabled={paymentProvider.enabled ?? false}
+										configuration={paymentProvider.configuration}
+										project={project}
+										trigger={
+											<Link
+												className="inset-0 absolute w-full h-full"
+												href={`/${organizationSlug}/${projectSlug}/monetization/payment-providers`}
+											></Link>
+										}
+									/>
+								)}
 
 								<div className="flex flex-row items-center justify-between">
 									<div className="flex items-center gap-4 flex-1">

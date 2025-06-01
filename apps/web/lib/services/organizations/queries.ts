@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasOrganizationPermission,
 } from "@/lib/service-function";
@@ -19,6 +18,7 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
 import { Organization } from "@voidhash/db";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const getOrganizationBySlugInputSchema = z.object({
 	slug: z.string(),
@@ -33,21 +33,13 @@ type GetOrganizationBySlugError =
 export const getOrganizationBySlug = cache(
 	createServiceFunction()
 		.input(getOrganizationBySlugInputSchema)
+		.use(isAuthenticated)
 		.function(
 			async ({
 				ctx,
 				input,
 			}): Promise<Result<Organization, GetOrganizationBySlugError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				const organization = await getOrganizationBySlugQuery(
-					authenticatedContext.value,
-					input.slug
-				);
+				const organization = await getOrganizationBySlugQuery(ctx, input.slug);
 
 				if (organization.isErr()) {
 					return err(organization.error);
@@ -55,12 +47,12 @@ export const getOrganizationBySlug = cache(
 
 				if (
 					!hasOrganizationPermission(
-						authenticatedContext.value,
+						ctx,
 						organization.value.id,
 						"organization:all"
 					)
 				) {
-					console.log(authenticatedContext.value.session);
+					console.log(ctx.session);
 					return err({
 						code: "FORBIDDEN",
 						message: "You are not authorized to access this organization",
@@ -85,17 +77,12 @@ type GetOrganizationByIdError =
 export const getOrganizationById = cache(
 	createServiceFunction()
 		.input(getOrganizationByIdInputSchema)
+		.use(isAuthenticated)
 		.function(
 			async ({
 				ctx,
 				input,
 			}): Promise<Result<Organization, GetOrganizationByIdError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
 				// const organization = await ctx.cache.cacheFn(
 				// 	async (id: string) => {
 				// 		return getOrganizationByIdQuery(authenticatedContext.value, id);
@@ -107,10 +94,7 @@ export const getOrganizationById = cache(
 				// 	}
 				// )(input.id);
 
-				const organization = await getOrganizationByIdQuery(
-					authenticatedContext.value,
-					input.id
-				);
+				const organization = await getOrganizationByIdQuery(ctx, input.id);
 
 				if (organization.isErr()) {
 					return err(organization.error);
@@ -118,7 +102,7 @@ export const getOrganizationById = cache(
 
 				if (
 					!hasOrganizationPermission(
-						authenticatedContext.value,
+						ctx,
 						organization.value.id,
 						"organization:all"
 					)
@@ -139,37 +123,33 @@ type GetUsersOrganizationsError =
 	| VoidhashInternalServerError;
 
 export const getUsersOrganizations = cache(
-	createServiceFunction().function(
-		async ({
-			ctx,
-		}): Promise<Result<Organization[], GetUsersOrganizationsError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
+	createServiceFunction()
+		.use(isAuthenticated)
+		.function(
+			async ({
+				ctx,
+			}): Promise<Result<Organization[], GetUsersOrganizationsError>> => {
+				const organizations = await ResultAsync.fromPromise(
+					auth.api.listOrganizations({
+						headers: ctx.headers,
+					}),
+					(e) => fromUnknownThrow(e)
+				);
 
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
+				if (organizations.isErr()) {
+					return err(organizations.error);
+				}
+
+				return ok(
+					organizations.value.map((o) => ({
+						id: o.id,
+						name: o.name,
+						slug: o.slug,
+						logo: o.logo ?? null,
+						createdAt: o.createdAt,
+						metadata: o.metadata ?? null,
+					}))
+				);
 			}
-
-			const organizations = await ResultAsync.fromPromise(
-				auth.api.listOrganizations({
-					headers: ctx.headers,
-				}),
-				(e) => fromUnknownThrow(e)
-			);
-
-			if (organizations.isErr()) {
-				return err(organizations.error);
-			}
-
-			return ok(
-				organizations.value.map((o) => ({
-					id: o.id,
-					name: o.name,
-					slug: o.slug,
-					logo: o.logo ?? null,
-					createdAt: o.createdAt,
-					metadata: o.metadata ?? null,
-				}))
-			);
-		}
-	).invoke
+		).invoke
 );

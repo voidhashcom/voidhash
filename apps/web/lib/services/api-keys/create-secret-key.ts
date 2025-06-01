@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -12,14 +11,15 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib";
 import { z } from "zod";
-import { getOrganizationById } from "../organizations/queries";
-import { getProjectById } from "../projects/queries";
 import { getEnvironment } from "@/lib/services/environments/utils";
 import { createSecretKey as generateSecretKeyFn } from "@/lib/services/api-keys/utils";
 import { ApiKey, apiKeys } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
 import { getApiKeyByIdQuery } from "./raw-queries";
+import { isAuthenticated } from "@/lib/middlewares";
+import { getProjectByIdQuery } from "../projects/raw-queries";
+import { getOrganizationByIdQuery } from "../organizations/raw-queries";
 export const createSecretKeyInputSchema = z.object({
 	projectId: z.string(),
 	name: z.string().min(3, "Name must be at least 3 characters long"),
@@ -34,21 +34,10 @@ type CreateSecretKeyError =
 
 export const createSecretKey = createServiceFunction()
 	.input(createSecretKeyInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({ input, ctx }): Promise<Result<ApiKey, CreateSecretKeyError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			if (
-				!hasProjectPermission(
-					authenticatedContext.value,
-					input.projectId,
-					"project:all"
-				)
-			) {
+			if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 				return err({
 					code: "FORBIDDEN",
 					message:
@@ -56,19 +45,16 @@ export const createSecretKey = createServiceFunction()
 				});
 			}
 
-			const project = await getProjectById({
-				ctx: authenticatedContext.value,
-				input: { id: input.projectId },
-			});
+			const project = await getProjectByIdQuery(ctx, input.projectId);
 
 			if (project.isErr()) {
 				return err(project.error);
 			}
 
-			const organization = await getOrganizationById({
-				ctx: authenticatedContext.value,
-				input: { id: project.value.organizationId },
-			});
+			const organization = await getOrganizationByIdQuery(
+				ctx,
+				project.value.organizationId
+			);
 
 			if (organization.isErr()) {
 				return err(organization.error);

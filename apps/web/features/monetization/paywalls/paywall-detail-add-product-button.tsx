@@ -23,7 +23,7 @@ export function PaywallDetailAddProductButton({
 	onAdd,
 }: {
 	products: Product[];
-	variant?: "default" | "secondary";
+	variant?: "default" | "secondary" | "outline";
 	onAdd: (productId: string) => void;
 }) {
 	const [open, setOpen] = useState(false);

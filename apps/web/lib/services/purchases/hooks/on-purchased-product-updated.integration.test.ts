@@ -42,6 +42,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			id: productId,
 			name: "Test Product",
 			type: "subscription",
+			environment: "production",
 			createdAt: new Date(),
 			updatedAt: new Date(),
 			projectId: h.resources.project.id,
@@ -66,6 +67,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			name: "Test Perk",
 			slug: "test-perk",
 			projectId: h.resources.project.id,
+			environment: "production",
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -112,6 +114,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			name: "Test Customer Update Active",
 			projectId: h.resources.project.id,
 			origin: "api",
+			environment: "production",
 			appUserId: generateId("test"),
 		});
 
@@ -210,6 +213,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			name: "Test Customer Update Cancel",
 			projectId: h.resources.project.id,
 			origin: "api",
+			environment: "production",
 			appUserId: generateId("test"),
 		});
 
@@ -308,6 +312,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			name: "Test Customer Update NonStatus",
 			projectId: h.resources.project.id,
 			origin: "api",
+			environment: "production",
 			appUserId: generateId("test"),
 		});
 
@@ -440,6 +445,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			name: "Test Inconsistent",
 			projectId: h.resources.project.id,
 			origin: "api",
+			environment: "production",
 			appUserId: generateId("test"),
 		});
 
@@ -456,7 +462,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			startsAt: new Date(),
 			canceledAt: null,
 			cancelAtPeriodEnd: false,
-			environment: "production",
+			purchaseEnvironment: "production",
 			expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
 		});
 

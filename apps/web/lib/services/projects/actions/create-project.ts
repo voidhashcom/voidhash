@@ -1,6 +1,5 @@
 import { generateId } from "@/lib/id/generate";
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasOrganizationPermission,
 } from "@/lib/service-function";
@@ -21,6 +20,7 @@ import { randomUUID } from "crypto";
 import { err, ok, Result } from "neverthrow";
 import { z } from "zod";
 import { getProjectBySlugQuery } from "../raw-queries";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const createProjectInputSchema = z.object({
 	name: z.string().min(1).max(32),
@@ -36,19 +36,15 @@ type CreateProjectError =
 
 export const createProject = createServiceFunction()
 	.input(createProjectInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({
 			input,
 			ctx,
 		}): Promise<Result<{ id: string; slug: string }, CreateProjectError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
 			if (
 				!hasOrganizationPermission(
-					authenticatedContext.value,
+					ctx,
 					input.organizationId,
 					"organization:all"
 				)
@@ -59,7 +55,7 @@ export const createProject = createServiceFunction()
 				});
 			}
 
-			const userId = authenticatedContext.value.session?.user?.id;
+			const userId = ctx.session?.user?.id;
 			if (!userId) {
 				return err({
 					code: "UNAUTHORIZED",
@@ -75,7 +71,7 @@ export const createProject = createServiceFunction()
 			}
 
 			const existingProject = await getProjectBySlugQuery(
-				authenticatedContext.value,
+				ctx,
 				input.organizationId,
 				slug
 			);

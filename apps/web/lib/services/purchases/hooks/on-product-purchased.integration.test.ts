@@ -1,4 +1,3 @@
-/* eslint-disable neverthrow-must-use/must-use-result */
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import {
 	purchases,
@@ -33,6 +32,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 			id: productId,
 			name: "Test Product",
 			type: "subscription",
+			environment: "production",
 			createdAt: new Date(),
 			updatedAt: new Date(),
 			projectId: h.resources.project.id,
@@ -56,6 +56,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 			id: perkId,
 			name: "Test Perk",
 			slug: "test-perk",
+			environment: "production",
 			projectId: h.resources.project.id,
 			createdAt: new Date(),
 			updatedAt: new Date(),
@@ -104,6 +105,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 			origin: "api" as const,
 			projectId: h.resources.project.id,
 			appUserId: "test-app-user-id",
+			environment: "production" as const,
 		});
 
 		const event: PurchaseEvent = {
@@ -247,6 +249,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 			origin: "api" as const,
 			projectId: h.resources.project.id,
 			appUserId: "test-ppnf-app-user-id",
+			environment: "production" as const,
 		});
 
 		const nonExistentProviderProductId = generateId("test"); // Ensure this ID does not exist
@@ -294,6 +297,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 			origin: "api" as const,
 			projectId: h.resources.project.id,
 			appUserId: "test-na-app-user-id",
+			environment: "production" as const,
 		});
 
 		const event: PurchaseEvent = {

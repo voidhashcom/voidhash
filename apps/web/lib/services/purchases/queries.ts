@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -13,6 +12,7 @@ import {
 	VoidhashInternalServerError,
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const getPurchasesInputSchema = z.object({
 	projectId: z.string(),
@@ -28,33 +28,20 @@ type GetPurchasesError =
 export const getPurchases = cache(
 	createServiceFunction()
 		.input(getPurchasesInputSchema)
+		.use(isAuthenticated)
 		.function(
 			async ({
 				input,
 				ctx,
 			}): Promise<Result<GetPurchasesQueryResult, GetPurchasesError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						input.projectId,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message: "You do not have permission to access this project",
 					} satisfies VoidhashForbiddenError);
 				}
 
-				return await getPurchasesQuery(
-					authenticatedContext.value,
-					input.customerId
-				);
+				return await getPurchasesQuery(ctx, input.customerId);
 			}
 		).invoke
 );

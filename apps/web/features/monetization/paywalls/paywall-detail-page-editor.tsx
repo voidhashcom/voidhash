@@ -206,7 +206,7 @@ export function PaywallDetailPageEditor({
 										<PaywallDetailAddProductButton
 											products={productsWithoutAddedProducts}
 											onAdd={(productId) => handleAddPaywallProduct(productId)}
-											variant="secondary"
+											variant="outline"
 										/>
 									</div>
 								</div>

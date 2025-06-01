@@ -9,12 +9,10 @@ import {
 	VoidhashNotFoundError,
 } from "@voidhash/lib";
 import { z } from "zod";
-import {
-	authenticateContext,
-	createServiceFunction,
-} from "@/lib/service-function";
+import { createServiceFunction } from "@/lib/service-function";
 import { createVoidhashCustomerTask } from "jobs/create-voidhash-customer-task";
 import { err, ok, Result, ResultAsync } from "neverthrow";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const createOrganizationInputSchema = z.object({
 	name: z.string().min(1).max(32),
@@ -27,6 +25,7 @@ type CreateOrganizationError =
 
 export const createOrganization = createServiceFunction()
 	.input(createOrganizationInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({
 			input,
@@ -41,12 +40,6 @@ export const createOrganization = createServiceFunction()
 				CreateOrganizationError
 			>
 		> => {
-			const authenticatedContext = await authenticateContext(ctx);
-
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
 			let slug = createSlug(input.name);
 			if (SLUG_BLACKLIST.includes(slug)) {
 				slug = slug + "-" + createShortId();
@@ -89,7 +82,7 @@ export const createOrganization = createServiceFunction()
 					originalError: new Error("Failed to create organization"),
 				});
 			}
-			const email = authenticatedContext.value.session?.user?.email;
+			const email = ctx.session?.user?.email;
 			if (!email) {
 				// Should not happen
 				return err({
