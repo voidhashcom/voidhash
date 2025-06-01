@@ -15,6 +15,7 @@ import {
 import { CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import Image from "next/image";
 
 function LoginPageContent() {
 	const searchParams = useSearchParams();
@@ -115,9 +116,11 @@ function LoginPageContent() {
 				</div>
 			</div>
 			<div className="bg-muted relative hidden lg:block">
-				<img
+				<Image
 					src="/images/circles-blur.jpg"
 					alt="Image"
+					width={1000}
+					height={1000}
 					className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
 				/>
 			</div>
