@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -16,6 +15,7 @@ import { productPerks } from "@voidhash/db";
 import { and, eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
 import { getProductByIdQuery } from "../raw-queries";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const deleteProductPerkInputSchema = z.object({
 	productId: z.string(),
@@ -31,29 +31,16 @@ type DeleteProductPerkError =
 
 export const deleteProductPerk = createServiceFunction()
 	.input(deleteProductPerkInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({ input, ctx }): Promise<Result<void, DeleteProductPerkError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			const product = await getProductByIdQuery(
-				authenticatedContext.value,
-				input.productId
-			);
+			const product = await getProductByIdQuery(ctx, input.productId);
 
 			if (product.isErr()) {
 				return err(product.error);
 			}
 
-			if (
-				!hasProjectPermission(
-					authenticatedContext.value,
-					product.value.projectId,
-					"project:all"
-				)
-			) {
+			if (!hasProjectPermission(ctx, product.value.projectId, "project:all")) {
 				return err({
 					code: "FORBIDDEN",
 					message:

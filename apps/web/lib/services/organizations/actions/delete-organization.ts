@@ -2,7 +2,6 @@ import { auth } from "@voidhash/auth";
 import { headers } from "next/headers";
 import { z } from "zod";
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasOrganizationPermission,
 } from "@/lib/service-function";
@@ -15,6 +14,7 @@ import {
 } from "@voidhash/lib";
 import { err, ok, Result } from "neverthrow";
 import { getOrganizationByIdQuery } from "../raw-queries";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const deleteOrganizationInputSchema = z.object({
 	organizationId: z.string(),
@@ -28,16 +28,12 @@ type DeleteOrganizationError =
 
 export const deleteOrganization = createServiceFunction()
 	.input(deleteOrganizationInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({ input, ctx }): Promise<Result<void, DeleteOrganizationError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
 			if (
 				!hasOrganizationPermission(
-					authenticatedContext.value,
+					ctx,
 					input.organizationId,
 					"organization:all"
 				)
@@ -49,7 +45,7 @@ export const deleteOrganization = createServiceFunction()
 			}
 
 			const organization = await getOrganizationByIdQuery(
-				authenticatedContext.value,
+				ctx,
 				input.organizationId
 			);
 

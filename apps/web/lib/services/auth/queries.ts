@@ -78,9 +78,11 @@ export async function getUserAuthSession(
 			slug: o.slug,
 			permissions: ["organization:all"], // TODO: Add permissions
 		})),
+		environment: null,
 		projects: usersProjects.value.map((p) => ({
 			id: p.id,
 			slug: p.slug,
+			organizationId: p.organizationId,
 			permissions: ["project:all"], // TODO: Add permissions
 		})),
 	});
@@ -129,10 +131,12 @@ export async function getSecretApiKeyAuthSession(
 		method: "api-key",
 		customer: null,
 		user: null,
+		environment: apiKeyRecord.value.environment,
 		organizations: [],
 		projects: projects.map((p) => ({
 			id: p.id,
 			slug: p.slug,
+			organizationId: p.organizationId,
 			permissions: ["project:all"], // TODO: Add permissions
 		})),
 	} as const);
@@ -202,10 +206,12 @@ export const getPublishableApiKeyAuthSession = async (
 			os,
 			device,
 		},
+		environment: apiKeyRecord.value.environment,
 		organizations: [] as never[],
 		projects: projects.map((p) => ({
 			id: p.id,
 			slug: p.slug,
+			organizationId: p.organizationId,
 			permissions: [],
 		})),
 	} as const);

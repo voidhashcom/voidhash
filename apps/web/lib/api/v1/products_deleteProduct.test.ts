@@ -12,6 +12,7 @@ describe.sequential("/v1/products/:productId", async () => {
 		const productInput: Omit<InsertProduct, "projectId"> = {
 			id: generateId("test"),
 			name: "Product To Delete",
+			environment: "production",
 		};
 
 		await h.db.primary.insert(products).values({

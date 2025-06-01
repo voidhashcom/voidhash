@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -14,6 +13,7 @@ import { z } from "zod";
 import { and, eq, perks } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result, ResultAsync } from "neverthrow";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
 export const createPerkInputSchema = z.object({
 	projectId: z.string(),
@@ -39,23 +39,14 @@ type CreatePerkError =
 
 export const createPerk = createServiceFunction()
 	.input(createPerkInputSchema)
+	.use(isAuthenticated)
+	.use(hasEnvironment)
 	.function(
 		async ({
 			input,
 			ctx,
 		}): Promise<Result<{ id: string }, CreatePerkError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			if (
-				!hasProjectPermission(
-					authenticatedContext.value,
-					input.projectId,
-					"project:all"
-				)
-			) {
+			if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 				return err({
 					code: "FORBIDDEN",
 					message: "You are not authorized to create perks",
@@ -66,7 +57,8 @@ export const createPerk = createServiceFunction()
 				ctx.db.query.perks.findFirst({
 					where: and(
 						eq(perks.slug, input.slug),
-						eq(perks.projectId, input.projectId)
+						eq(perks.projectId, input.projectId),
+						eq(perks.environment, ctx.session.environment)
 					),
 				}),
 				(e) => fromUnknownThrow(e)
@@ -91,6 +83,7 @@ export const createPerk = createServiceFunction()
 				slug: input.slug,
 				projectId: input.projectId,
 				name: input.name,
+				environment: ctx.session.environment,
 			};
 
 			try {

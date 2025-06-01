@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -15,6 +14,7 @@ import { perks } from "@voidhash/db";
 import { getPerkByIdQuery } from "../raw-queries";
 import { eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const deletePerkInputSchema = z.object({
 	perkId: z.string(),
@@ -28,26 +28,15 @@ type DeletePerkError =
 
 export const deletePerk = createServiceFunction()
 	.input(deletePerkInputSchema)
+	.use(isAuthenticated)
 	.function(async ({ input, ctx }): Promise<Result<void, DeletePerkError>> => {
-		const authenticatedContext = await authenticateContext(ctx);
-		if (authenticatedContext.isErr()) {
-			return err(authenticatedContext.error);
-		}
-
-		const existingPerk = await getPerkByIdQuery(
-			authenticatedContext.value,
-			input.perkId
-		);
+		const existingPerk = await getPerkByIdQuery(ctx, input.perkId);
 		if (existingPerk.isErr()) {
 			return err(existingPerk.error);
 		}
 
 		if (
-			!hasProjectPermission(
-				authenticatedContext.value,
-				existingPerk.value.projectId,
-				"project:all"
-			)
+			!hasProjectPermission(ctx, existingPerk.value.projectId, "project:all")
 		) {
 			return err({
 				code: "FORBIDDEN",

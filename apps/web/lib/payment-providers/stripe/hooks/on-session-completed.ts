@@ -136,7 +136,8 @@ export async function handleSessionCompleted(
 				serviceContext,
 				projectId,
 				stripeProviderId,
-				customerId
+				customerId,
+				"production" // Stripe webhooks are only supported in production
 			)
 		).orElse((e) => {
 			if (e.code === "NOT_FOUND") {

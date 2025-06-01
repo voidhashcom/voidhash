@@ -3,14 +3,21 @@ import { getPaymentProviderConfigurations } from "@/lib/services/payment-provide
 import { getProviderProductsByProductId } from "@/lib/services/products/queries";
 import { Badge } from "@voidhash/ui";
 import { PaymentProviderLogo } from "../payment-providers/payment-provider-logo";
+import { Environment } from "@voidhash/lib/constants";
 
 export async function ProductRecordConfigurationStateIndicator({
 	productId,
 	projectId,
+	environment,
 }: {
 	productId: string;
 	projectId: string;
+	environment: Environment;
 }) {
+	if (environment === "testing") {
+		return null;
+	}
+
 	const serviceContext = await createNextServiceContext();
 	const providerProductsPromise = getProviderProductsByProductId({
 		ctx: serviceContext,

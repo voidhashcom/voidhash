@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -15,6 +14,7 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
 import { ApiKey } from "@voidhash/db";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const getApiKeyByIdInputSchema = z.object({
 	id: z.string(),
@@ -28,10 +28,9 @@ type GetApiKeyByIdError =
 export const getApiKeyById = cache(
 	createServiceFunction()
 		.input(getApiKeyByIdInputSchema)
+		.use(isAuthenticated)
 		.function(
 			async ({ ctx, input }): Promise<Result<ApiKey, GetApiKeyByIdError>> => {
-				const authenticatedContextPromise = authenticateContext(ctx);
-
 				// const apiKeyPromise = ctx.cache.cacheFn(
 				// 	async (keyId: string) => {
 				// 		const apiKey = await getApiKeyByIdQuery(ctx, keyId);
@@ -47,26 +46,13 @@ export const getApiKeyById = cache(
 				// 	}
 				// )(input.id);
 
-				const apiKeyPromise = getApiKeyByIdQuery(ctx, input.id);
-				const [authenticatedContext, apiKey] = await Promise.all([
-					authenticatedContextPromise,
-					apiKeyPromise,
-				]);
+				const apiKey = await getApiKeyByIdQuery(ctx, input.id);
 
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
 				if (apiKey.isErr()) {
 					return err(apiKey.error);
 				}
 
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						apiKey.value.projectId,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, apiKey.value.projectId, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message: "You are not allowed to access this API key",
@@ -91,21 +77,10 @@ type GetApiKeysError =
 export const getApiKeys = cache(
 	createServiceFunction()
 		.input(getApiKeysInputSchema)
+		.use(isAuthenticated)
 		.function(
 			async ({ ctx, input }): Promise<Result<ApiKey[], GetApiKeysError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						input.projectId,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message:
@@ -131,10 +106,7 @@ export const getApiKeys = cache(
 				// 	}
 				// )(input.projectId);
 
-				const apiKeys = await getApiKeysQuery(
-					authenticatedContext.value,
-					input.projectId
-				);
+				const apiKeys = await getApiKeysQuery(ctx, input.projectId);
 
 				if (apiKeys.isErr()) {
 					return err(apiKeys.error);

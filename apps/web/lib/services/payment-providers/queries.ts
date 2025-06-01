@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -13,6 +12,7 @@ import {
 	VoidhashInternalServerError,
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
+import { isAuthenticated } from "@/lib/middlewares";
 
 type GetPaymentProviderConfigurationsError =
 	| VoidhashInternalServerError
@@ -26,6 +26,7 @@ export const getPaymentProviderConfigurations = cache(
 				projectId: z.string(),
 			})
 		)
+		.use(isAuthenticated)
 		.function(
 			async ({
 				ctx,
@@ -36,24 +37,14 @@ export const getPaymentProviderConfigurations = cache(
 					GetPaymentProviderConfigurationsError
 				>
 			> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						input.projectId,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message: "You are not authorized to access this project",
 					});
 				}
 				return await getPaymentProviderConfigurationsQuery(
-					authenticatedContext.value,
+					ctx,
 					input.projectId
 				);
 			}

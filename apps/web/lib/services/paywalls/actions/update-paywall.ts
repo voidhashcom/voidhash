@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -16,6 +15,7 @@ import { eq, inArray, paywallProducts, paywalls, products } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
 import { getPaywallByIdQuery } from "../raw-queries";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const updatePaywallInputSchema = z.object({
 	paywallId: z.string(),
@@ -42,31 +42,18 @@ type CreatePaywallProductError =
 
 export const updatePaywall = createServiceFunction()
 	.input(updatePaywallInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({
 			input,
 			ctx,
 		}): Promise<Result<void, CreatePaywallProductError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			const paywall = await getPaywallByIdQuery(
-				authenticatedContext.value,
-				input.paywallId
-			);
+			const paywall = await getPaywallByIdQuery(ctx, input.paywallId);
 			if (paywall.isErr()) {
 				return err(paywall.error);
 			}
 
-			if (
-				!hasProjectPermission(
-					authenticatedContext.value,
-					paywall.value.projectId,
-					"project:all"
-				)
-			) {
+			if (!hasProjectPermission(ctx, paywall.value.projectId, "project:all")) {
 				return err({
 					code: "FORBIDDEN",
 					message: "You are not authorized to create paywall products",

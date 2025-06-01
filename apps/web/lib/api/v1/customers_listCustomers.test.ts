@@ -10,6 +10,7 @@ const customerInput: Omit<InsertCustomer, "projectId"> = {
 	name: "Test Customer",
 	appUserId: "test-app-user-id",
 	origin: "api",
+	environment: "production",
 };
 
 const expectedCustomer = {

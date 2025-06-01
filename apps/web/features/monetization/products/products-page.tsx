@@ -8,6 +8,7 @@ import { ProductRecord } from "./product-record";
 import { ProductsPageEmptyState } from "./products-page-empty-state";
 import { ProductRecordConfigurationStateIndicator } from "./product-record-configuration-state-indicator";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { getEnvironment } from "@/lib/services/environments/utils";
 
 export async function ProductsPage({
 	organizationSlug,
@@ -17,17 +18,31 @@ export async function ProductsPage({
 	projectSlug;
 }) {
 	const serviceContext = await createNextServiceContext();
-	const projectResult = await getProjectBySlugAndOrganizationSlug({
+	const projectPromise = await getProjectBySlugAndOrganizationSlug({
 		ctx: serviceContext,
 		input: { projectSlug: projectSlug, organizationSlug },
 	});
 
-	if (projectResult.isErr()) {
-		const error = projectResult._unsafeUnwrapErr();
+	const environmentPromise = getEnvironment(
+		serviceContext.cookies,
+		organizationSlug,
+		projectSlug
+	);
+
+	const [projectResult, environmentResult] = await Promise.all([
+		projectPromise,
+		environmentPromise,
+	]);
+
+	if (projectResult.isErr() || environmentResult.isErr()) {
+		const error = projectResult.isErr()
+			? projectResult._unsafeUnwrapErr()
+			: environmentResult._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
 	const project = projectResult.value;
+	const environment = environmentResult.value;
 
 	const productsResult = await getProducts({
 		ctx: serviceContext,
@@ -53,6 +68,7 @@ export async function ProductsPage({
 				<p className="text-muted-foreground mt-3">
 					List of products available to purchase.
 				</p>
+
 				<div className="mt-8">
 					{products.length === 0 ? (
 						<ProductsPageEmptyState projectId={project.id} />
@@ -68,6 +84,7 @@ export async function ProductsPage({
 										<ProductRecordConfigurationStateIndicator
 											productId={product.id}
 											projectId={project.id}
+											environment={environment}
 										/>
 									}
 								/>

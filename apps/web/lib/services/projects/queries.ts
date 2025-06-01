@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasOrganizationPermission,
 	hasProjectPermission,
@@ -11,7 +10,6 @@ import {
 	getProjectsByIdQuery,
 } from "./raw-queries";
 import { cache } from "react";
-import { getOrganizationBySlug } from "../organizations/queries";
 import {
 	VoidhashUnauthorizedError,
 	VoidhashInternalServerError,
@@ -21,6 +19,8 @@ import {
 } from "@voidhash/lib/constants";
 import { err, ok, Result } from "neverthrow";
 import { Project } from "@voidhash/db";
+import { isAuthenticated } from "@/lib/middlewares";
+import { getOrganizationBySlugQuery } from "../organizations/raw-queries";
 
 type GetProjectBySlugError =
 	| VoidhashUnauthorizedError
@@ -36,17 +36,12 @@ export const getProjectBySlug = cache(
 				slug: z.string(),
 			})
 		)
+		.use(isAuthenticated)
 		.function(
 			async ({
 				input,
 				ctx,
 			}): Promise<Result<Project, GetProjectBySlugError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
 				// const project = await ctx.cache.cacheFn(
 				// 	async (organizationId: string, projectSlug: string) => {
 				// 		return getProjectBySlugQuery(
@@ -63,7 +58,7 @@ export const getProjectBySlug = cache(
 				// )(input.organizationId, input.slug);
 
 				const project = await getProjectBySlugQuery(
-					authenticatedContext.value,
+					ctx,
 					input.organizationId,
 					input.slug
 				);
@@ -72,13 +67,7 @@ export const getProjectBySlug = cache(
 					return err(project.error);
 				}
 
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						project.value.id,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, project.value.id, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message: "You are not authorized to access this project",
@@ -105,6 +94,7 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 				projectSlug: z.string(),
 			})
 		)
+		.use(isAuthenticated)
 		.function(
 			async ({
 				input,
@@ -112,42 +102,26 @@ export const getProjectBySlugAndOrganizationSlug = cache(
 			}): Promise<
 				Result<Project, GetProjectBySlugAndOrganizationSlugError>
 			> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				const organization = await getOrganizationBySlug({
-					ctx: authenticatedContext.value,
-					input: {
-						slug: input.organizationSlug,
-					},
-				});
+				const organization = await getOrganizationBySlugQuery(
+					ctx,
+					input.organizationSlug
+				);
 
 				if (organization.isErr()) {
 					return err(organization.error);
 				}
 
-				const project = await getProjectBySlug({
-					ctx: authenticatedContext.value,
-					input: {
-						organizationId: organization.value.id,
-						slug: input.projectSlug,
-					},
-				});
+				const project = await getProjectBySlugQuery(
+					ctx,
+					organization.value.id,
+					input.projectSlug
+				);
 
 				if (project.isErr()) {
 					return err(project.error);
 				}
 
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						project.value.id,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, project.value.id, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message: "You are not authorized to access this project",
@@ -174,14 +148,9 @@ export const getProjectById = cache(
 				id: z.string(),
 			})
 		)
+		.use(isAuthenticated)
 		.function(
 			async ({ input, ctx }): Promise<Result<Project, GetProjectByIdError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
 				// const project = await ctx.cache.cacheFn(
 				// 	async (id: string) => {
 				// 		return getProjectByIdQuery(authenticatedContext.value, id);
@@ -193,22 +162,13 @@ export const getProjectById = cache(
 				// 	}
 				// )(input.id);
 
-				const project = await getProjectByIdQuery(
-					authenticatedContext.value,
-					input.id
-				);
+				const project = await getProjectByIdQuery(ctx, input.id);
 
 				if (project.isErr()) {
 					return err(project.error);
 				}
 
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						project.value.id,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, project.value.id, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message: "You are not authorized to access this project",
@@ -234,23 +194,13 @@ export const getProjectsByOrganizationSlug = cache(
 				slug: z.string(),
 			})
 		)
+		.use(isAuthenticated)
 		.function(
 			async ({
 				input,
 				ctx,
 			}): Promise<Result<Project[], GetProjectsByOrganizationSlugError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				const organization = await getOrganizationBySlug({
-					ctx: authenticatedContext.value,
-					input: {
-						slug: input.slug,
-					},
-				});
+				const organization = await getOrganizationBySlugQuery(ctx, input.slug);
 
 				if (organization.isErr()) {
 					return err(organization.error);
@@ -258,7 +208,7 @@ export const getProjectsByOrganizationSlug = cache(
 
 				if (
 					!hasOrganizationPermission(
-						authenticatedContext.value,
+						ctx,
 						organization.value.id,
 						"organization:all"
 					)
@@ -273,10 +223,7 @@ export const getProjectsByOrganizationSlug = cache(
 					});
 				}
 
-				return await getProjectsByIdQuery(
-					authenticatedContext.value,
-					organization.value.id
-				);
+				return await getProjectsByIdQuery(ctx, organization.value.id);
 				// return await ctx.cache.cacheFn(
 				// 	async (orgId: string) => {
 				// 		return

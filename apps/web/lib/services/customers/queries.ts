@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -19,6 +18,7 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
 import { Customer, CustomerUnlockedPerk } from "@voidhash/db";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
 type GetCustomersError =
 	| VoidhashInternalServerError
@@ -32,37 +32,24 @@ export const getCustomers = cache(
 		.input(
 			z.object({
 				projectId: z.string(),
-				hasAppUserId: z.boolean().optional(),
+				type: z.enum(["identified", "anonymous"]).optional(),
 			})
 		)
+		.use(isAuthenticated)
+		.use(hasEnvironment)
 		.function(
 			async ({
 				ctx,
 				input,
 			}): Promise<Result<Customer[], GetCustomersError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						input.projectId,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 					return ok([]);
 				}
 
-				return await getCustomersQuery(
-					authenticatedContext.value,
-					input.projectId,
-					{
-						hasAppUserId: input.hasAppUserId ?? null,
-					}
-				);
+				return await getCustomersQuery(ctx, input.projectId, {
+					environment: ctx.session.environment,
+					type: input.type ?? null,
+				});
 			}
 		).invoke
 );
@@ -75,18 +62,13 @@ type GetCustomerByIdError =
 export const getCustomerById = cache(
 	createServiceFunction()
 		.input(z.object({ id: z.string() }))
+		.use(isAuthenticated)
 		.function(
 			async ({
 				ctx,
 				input,
 			}): Promise<Result<Customer, GetCustomerByIdError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				return await getCustomerByIdQuery(authenticatedContext.value, input.id);
+				return await getCustomerByIdQuery(ctx, input.id);
 			}
 		).invoke
 );
@@ -100,20 +82,17 @@ type GetCustomerByAppUserIdError =
 export const getCustomerByAppUserId = cache(
 	createServiceFunction()
 		.input(z.object({ appUserId: z.string() }))
+		.use(isAuthenticated)
+		.use(hasEnvironment)
 		.function(
 			async ({
 				ctx,
 				input,
 			}): Promise<Result<Customer, GetCustomerByAppUserIdError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
 				const customer = await getCustomerByAppUserIdQuery(
-					authenticatedContext.value,
-					input.appUserId
+					ctx,
+					input.appUserId,
+					ctx.session.environment
 				);
 
 				if (customer.isErr()) {
@@ -121,11 +100,7 @@ export const getCustomerByAppUserId = cache(
 				}
 
 				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						customer.value.projectId,
-						"project:all"
-					)
+					!hasProjectPermission(ctx, customer.value.projectId, "project:all")
 				) {
 					return err({
 						code: "FORBIDDEN",
@@ -145,6 +120,7 @@ type GetCustomersUnlockedPerksError =
 export const getCustomersUnlockedPerks = cache(
 	createServiceFunction()
 		.input(z.object({ customerId: z.string() }))
+		.use(isAuthenticated)
 		.function(
 			async ({
 				ctx,
@@ -152,14 +128,8 @@ export const getCustomersUnlockedPerks = cache(
 			}): Promise<
 				Result<CustomerUnlockedPerk[], GetCustomersUnlockedPerksError>
 			> => {
-				const authenticatedContext = await authenticateContext(ctx);
-
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
 				const perks = await getCustomersUnlockedPerksQuery(
-					authenticatedContext.value,
+					ctx,
 					input.customerId
 				);
 

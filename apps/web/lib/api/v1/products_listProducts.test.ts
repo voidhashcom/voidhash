@@ -9,6 +9,7 @@ import { productResponseSchema } from "./schema";
 const productInput: Omit<InsertProduct, "projectId"> = {
 	id: generateId("test"),
 	name: "Test Product for List",
+	environment: "production",
 };
 
 const expectedProduct: z.infer<typeof productResponseSchema> = {

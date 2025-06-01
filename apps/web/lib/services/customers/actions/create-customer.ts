@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -12,6 +11,7 @@ import { z } from "zod";
 import { Customer, customers, InsertCustomer } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
 export const createCustomerInputSchema = z.object({
 	projectId: z.string(),
@@ -28,21 +28,11 @@ type CreateCustomerError =
 
 export const createCustomer = createServiceFunction()
 	.input(createCustomerInputSchema)
+	.use(isAuthenticated)
+	.use(hasEnvironment)
 	.function(
 		async ({ input, ctx }): Promise<Result<Customer, CreateCustomerError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			if (
-				!hasProjectPermission(
-					authenticatedContext.value,
-					input.projectId,
-					"project:all"
-				)
-			) {
+			if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 				return err({
 					code: "FORBIDDEN",
 					message: "You are not authorized to create customers",
@@ -60,6 +50,7 @@ export const createCustomer = createServiceFunction()
 				email: input.email ?? null,
 				parentCustomerId: null,
 				origin: input.origin,
+				environment: ctx.session.environment,
 			} satisfies InsertCustomer;
 
 			try {

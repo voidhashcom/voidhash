@@ -21,6 +21,7 @@ describe.sequential("/v1/paywalls/:paywallId/products", async () => {
 		const paywallInput: Omit<InsertPaywall, "projectId"> = {
 			id: generateId("test"),
 			name: "Paywall for Get Products",
+			environment: "production",
 		};
 		await h.db.primary.insert(paywalls).values({
 			...paywallInput,
@@ -31,6 +32,7 @@ describe.sequential("/v1/paywalls/:paywallId/products", async () => {
 		const productInput: Omit<InsertProduct, "projectId"> = {
 			id: generateId("test"),
 			name: "Product Attached to Paywall",
+			environment: "production",
 		};
 		await h.db.primary.insert(products).values({
 			...productInput,
@@ -86,6 +88,7 @@ describe.sequential("/v1/paywalls/:paywallId/products", async () => {
 		const paywallInput: Omit<InsertPaywall, "projectId"> = {
 			id: generateId("test"),
 			name: "Empty Paywall",
+			environment: "production",
 		};
 		await h.db.primary.insert(paywalls).values({
 			...paywallInput,

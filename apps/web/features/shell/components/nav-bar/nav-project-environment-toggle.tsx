@@ -39,15 +39,15 @@ export function NavProjectEnvironmentToggle({
 		<div className="flex items-center gap-2">
 			<Label
 				htmlFor="test-mode-switch"
-				className={cn(environment === "testing" && "text-orange-600")}
+				className={cn(environment === "testing" && "text-primary")}
 			>
-				Test Mode
+				Dev Mode
 			</Label>
 			<Switch
 				id="test-mode-switch"
 				checked={environment === "testing"}
 				disabled={isExecuting}
-				className="data-[state=checked]:bg-orange-600"
+				className="data-[state=checked]:bg-primary"
 				onCheckedChange={handleSwitch}
 			/>
 		</div>

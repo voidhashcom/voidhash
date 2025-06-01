@@ -3,6 +3,7 @@ import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service
 import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { Suspense } from "react";
+import { cn } from "@voidhash/ui";
 
 export async function EnviromentBarContent({
 	organizationSlug,
@@ -39,12 +40,21 @@ export async function EnviromentBarContent({
 	const project = projectResult.value;
 	const environment = environmentResult.value;
 
-	if (!project || !environment || environment !== "testing") {
-		return null;
-	}
+	const showBar = project && environment && environment === "testing";
 
 	return (
-		<div className="absolute top-0 left-0 right-0 h-0.5 w-full bg-orange-600"></div>
+		<div
+			className={cn(
+				"flex-1 w-full bg-primary flex-shrink-0 text-white flex text-center items-center justify-center font-semibold transition-all duration-300",
+				showBar ? "h-[41px] opacity-100" : "h-0 opacity-0"
+			)}
+		>
+			{
+				// Marker to update layout if bar is visible
+				showBar && <div id="nav-enviromental-bar" className="display-none" />
+			}
+			You are in development mode.
+		</div>
 	);
 }
 

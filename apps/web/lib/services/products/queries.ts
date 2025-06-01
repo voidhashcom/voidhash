@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -25,6 +24,7 @@ import {
 	VoidhashUnauthorizedError,
 	VoidhashBadRequestError,
 } from "@voidhash/lib/constants";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
 export const getProductsInputSchema = z.object({
 	projectId: z.string(),
@@ -39,23 +39,14 @@ export type GetProductsResult = Product[];
 export const getProducts = cache(
 	createServiceFunction()
 		.input(getProductsInputSchema)
+		.use(isAuthenticated)
+		.use(hasEnvironment)
 		.function(
 			async ({
 				input,
 				ctx,
 			}): Promise<Result<GetProductsResult, GetProductsError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				if (
-					!hasProjectPermission(
-						authenticatedContext.value,
-						input.projectId,
-						"project:all"
-					)
-				) {
+				if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
 					return err({
 						code: "FORBIDDEN",
 						message: "No permission to access products.",
@@ -63,8 +54,9 @@ export const getProducts = cache(
 				}
 
 				const productsResult = await getProductsQuery(
-					authenticatedContext.value,
-					input.projectId
+					ctx,
+					input.projectId,
+					ctx.session.environment
 				);
 
 				if (productsResult.isErr()) {
@@ -85,17 +77,10 @@ type GetProductByIdError =
 export const getProductById = cache(
 	createServiceFunction()
 		.input(z.object({ id: z.string() }))
+		.use(isAuthenticated)
 		.function(
 			async ({ input, ctx }): Promise<Result<Product, GetProductByIdError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				const productResult = await getProductByIdQuery(
-					authenticatedContext.value,
-					input.id
-				);
+				const productResult = await getProductByIdQuery(ctx, input.id);
 
 				if (productResult.isErr()) {
 					return err(productResult.error);
@@ -103,7 +88,7 @@ export const getProductById = cache(
 
 				if (
 					!hasProjectPermission(
-						authenticatedContext.value,
+						ctx,
 						productResult.value.projectId,
 						"project:all"
 					)
@@ -135,6 +120,7 @@ export const getProviderProductByPrimaryKey = cache(
 				productProviderKey: z.string(),
 			})
 		)
+		.use(isAuthenticated)
 		.function(
 			async ({
 				input,
@@ -145,12 +131,15 @@ export const getProviderProductByPrimaryKey = cache(
 					GetProviderProductByPrimaryKeyError
 				>
 			> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
+				if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
+					return err({
+						code: "FORBIDDEN",
+						message: "No permission to access provider product.",
+					});
 				}
+
 				const providerProductResult = await getProviderProductByPrimaryKeyQuery(
-					authenticatedContext.value,
+					ctx,
 					input.projectId,
 					input.providerId,
 					input.productProviderKey
@@ -160,14 +149,13 @@ export const getProviderProductByPrimaryKey = cache(
 					return err(providerProductResult.error);
 				}
 
-				// Auth check
-				const productResult = await getProductById({
-					ctx: authenticatedContext.value,
-					input: { id: providerProductResult.value.productId },
-				});
+				const productResult = await getProductByIdQuery(
+					ctx,
+					providerProductResult.value.productId
+				);
 
 				if (productResult.isErr()) {
-					return err(productResult.error); // Propagate other errors
+					return err(productResult.error);
 				}
 
 				return ok(providerProductResult.value);
@@ -185,6 +173,7 @@ type GetProviderProductsByProductIdError =
 export const getProviderProductsByProductId = cache(
 	createServiceFunction()
 		.input(z.object({ productId: z.string() }))
+		.use(isAuthenticated)
 		.function(
 			async ({
 				input,
@@ -195,27 +184,27 @@ export const getProviderProductsByProductId = cache(
 					GetProviderProductsByProductIdError
 				>
 			> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				// Auth check
-				const productResult = await getProductById({
-					ctx: authenticatedContext.value,
-					input: { id: input.productId },
-				});
+				const productResult = await getProductByIdQuery(ctx, input.productId);
 
 				if (productResult.isErr()) {
 					return err(productResult.error);
 				}
-				// Permission check already handled by getProductById
+
+				if (
+					!hasProjectPermission(
+						ctx,
+						productResult.value.projectId,
+						"project:all"
+					)
+				) {
+					return err({
+						code: "FORBIDDEN",
+						message: "No permission to access provider products.",
+					});
+				}
 
 				const providerProductsResult =
-					await getProviderProductsByProductIdQuery(
-						authenticatedContext.value,
-						input.productId
-					);
+					await getProviderProductsByProductIdQuery(ctx, input.productId);
 
 				if (providerProductsResult.isErr()) {
 					return err(providerProductsResult.error);
@@ -236,28 +225,33 @@ type GetProductPerksByProductIdError =
 export const getProductPerksByProductId = cache(
 	createServiceFunction()
 		.input(z.object({ productId: z.string() }))
+		.use(isAuthenticated)
 		.function(
 			async ({
 				input,
 				ctx,
 			}): Promise<Result<ProductPerk[], GetProductPerksByProductIdError>> => {
-				const authenticatedContext = await authenticateContext(ctx);
-				if (authenticatedContext.isErr()) {
-					return err(authenticatedContext.error);
-				}
-
-				// Auth check
-				const productResult = await getProductById({
-					ctx: authenticatedContext.value,
-					input: { id: input.productId },
-				});
+				const productResult = await getProductByIdQuery(ctx, input.productId);
 
 				if (productResult.isErr()) {
 					return err(productResult.error);
 				}
 
+				if (
+					!hasProjectPermission(
+						ctx,
+						productResult.value.projectId,
+						"project:all"
+					)
+				) {
+					return err({
+						code: "FORBIDDEN",
+						message: "No permission to access product perks.",
+					});
+				}
+
 				const productPerksResult = await getProductPerksByProductIdQuery(
-					authenticatedContext.value,
+					ctx,
 					input.productId
 				);
 

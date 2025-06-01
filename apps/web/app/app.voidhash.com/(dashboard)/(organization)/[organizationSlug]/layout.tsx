@@ -66,7 +66,7 @@ export default async function OrganizationLayout({
 						</Suspense>
 					}
 				/>
-				<SidebarInset className="top-[var(--header-height)]">
+				<SidebarInset className="top-[var(--header-height)] transition-all duration-300">
 					{children}
 				</SidebarInset>
 			</div>

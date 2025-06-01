@@ -4,10 +4,11 @@ import {
 	Paywall,
 	PaywallProduct,
 } from "@voidhash/db";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
 import { err, ok, Result, ResultAsync } from "neverthrow";
 import {
+	Environment,
 	fromUnknownThrow,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -15,11 +16,15 @@ import {
 
 export const getPaywallsQuery = async (
 	ctx: ServiceContext,
-	projectId: string
+	projectId: string,
+	environment: Environment
 ): Promise<Result<Paywall[], VoidhashInternalServerError>> => {
 	const res = await ResultAsync.fromPromise(
 		ctx.db.query.paywalls.findMany({
-			where: eq(paywalls.projectId, projectId),
+			where: and(
+				eq(paywalls.projectId, projectId),
+				eq(paywalls.environment, environment)
+			),
 		}),
 		(e) => fromUnknownThrow(e)
 	);

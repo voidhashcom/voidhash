@@ -1,5 +1,4 @@
 import {
-	authenticateContext,
 	createServiceFunction,
 	hasProjectPermission,
 } from "@/lib/service-function";
@@ -14,6 +13,7 @@ import { apiKeys } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
 import { getApiKeyByIdQuery } from "./raw-queries";
+import { isAuthenticated } from "@/lib/middlewares";
 
 export const deleteSecretKeyInputSchema = z.object({
 	secretKeyId: z.string(),
@@ -27,29 +27,17 @@ type DeleteSecretKeyError =
 
 export const deleteSecretKey = createServiceFunction()
 	.input(deleteSecretKeyInputSchema)
+	.use(isAuthenticated)
 	.function(
 		async ({ input, ctx }): Promise<Result<void, DeleteSecretKeyError>> => {
-			const authenticatedContext = await authenticateContext(ctx);
-
-			if (authenticatedContext.isErr()) {
-				return err(authenticatedContext.error);
-			}
-
-			const existingKey = await getApiKeyByIdQuery(
-				authenticatedContext.value,
-				input.secretKeyId
-			);
+			const existingKey = await getApiKeyByIdQuery(ctx, input.secretKeyId);
 
 			if (existingKey.isErr()) {
 				return err(existingKey.error);
 			}
 
 			if (
-				!hasProjectPermission(
-					authenticatedContext.value,
-					existingKey.value.projectId,
-					"project:all"
-				)
+				!hasProjectPermission(ctx, existingKey.value.projectId, "project:all")
 			) {
 				return err({
 					code: "FORBIDDEN",
