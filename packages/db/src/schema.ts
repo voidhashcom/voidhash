@@ -11,7 +11,11 @@ import {
 } from "drizzle-orm/mysql-core";
 import { mysqlTable } from "drizzle-orm/mysql-core";
 import { organization } from "./auth-schema";
-import { PRODUCT_TYPES, SUBSCRIPTION_STATUSES } from "@voidhash/lib";
+import {
+	ENVIRONMENTS,
+	PRODUCT_TYPES,
+	SUBSCRIPTION_STATUSES,
+} from "@voidhash/lib";
 export * from "./auth-schema";
 
 export const projects = mysqlTable(
@@ -66,7 +70,9 @@ export const apiKeys = mysqlTable("api_key", {
 	/**
 	 * The environment of the API key.
 	 */
-	environment: mysqlEnum("environment", ["production", "testing"]).notNull(),
+	environment: mysqlEnum("environment", ENVIRONMENTS)
+		.default("production")
+		.notNull(),
 	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -100,6 +106,9 @@ export const customers = mysqlTable(
 			"stripe",
 			"api",
 		]).notNull(),
+		environment: mysqlEnum("environment", ENVIRONMENTS)
+			.default("production")
+			.notNull(),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		parentCustomerId: varchar("parent_customer_id", { length: 255 }), // When Identified, we store the parent customer id
 		archivedAt: timestamp("archived_at"),
@@ -159,12 +168,16 @@ export const purchases = mysqlTable(
 		providerProductId: varchar("provider_product_id", {
 			length: 255,
 		}).notNull(),
+
 		/**
 		 * The environment the subscription was purchased in
 		 */
-		environment: mysqlEnum("environment", ["production", "sandbox"]).default(
-			"production"
-		),
+		purchaseEnvironment: mysqlEnum("purchase_environment", [
+			"production",
+			"sandbox",
+		])
+			.default("production")
+			.notNull(),
 		/**
 		 * The date the subscription started
 		 */
@@ -249,12 +262,19 @@ export const perks = mysqlTable(
 		id: varchar("id", { length: 255 }).primaryKey(),
 		slug: varchar("slug", { length: 255 }).notNull(),
 		name: varchar("name", { length: 255 }).notNull(),
+		environment: mysqlEnum("environment", ENVIRONMENTS)
+			// .default("production")
+			.notNull(),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
 	(table) => [
-		uniqueIndex("slug_project_id_idx").on(table.slug, table.projectId),
+		uniqueIndex("slug_project_id_idx").on(
+			table.slug,
+			table.projectId,
+			table.environment
+		),
 	]
 );
 
@@ -262,6 +282,9 @@ export const products = mysqlTable("product", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	type: mysqlEnum("type", PRODUCT_TYPES).default("subscription").notNull(),
 	name: varchar("name", { length: 255 }).notNull(),
+	environment: mysqlEnum("environment", ENVIRONMENTS)
+		// .default("production")
+		.notNull(),
 	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -309,6 +332,9 @@ export const productProviderConfigurations = mysqlTable(
 export const paywalls = mysqlTable("paywall", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	name: varchar("name", { length: 255 }).notNull(),
+	environment: mysqlEnum("environment", ENVIRONMENTS)
+		// .default("production")
+		.notNull(),
 	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -366,12 +392,19 @@ export const paywallLocations = mysqlTable(
 		defaultPaywallId: varchar("default_paywall_id", {
 			length: 255,
 		}).notNull(),
+		environment: mysqlEnum("environment", ENVIRONMENTS)
+			// .default("production")
+			.notNull(),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
 	(table) => [
-		uniqueIndex("slug_project_id_idx").on(table.slug, table.projectId),
+		uniqueIndex("slug_project_id_idx").on(
+			table.slug,
+			table.projectId,
+			table.environment
+		),
 	]
 );
 
