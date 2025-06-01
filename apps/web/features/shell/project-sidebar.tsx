@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { GaugeIcon, Settings, Store, Users } from "lucide-react";
+import {
+	GalleryHorizontalEnd,
+	GaugeIcon,
+	Package2,
+	Settings,
+	SquareTerminal,
+	Users,
+} from "lucide-react";
 import { Sidebar, SidebarContent, useSidebar } from "@voidhash/ui";
 import { NavMain } from "./nav-main";
 import { usePathname } from "next/navigation";
@@ -48,65 +55,32 @@ export function ProjectSidebar({
 								`/${organizationSlug}/${projectSlug}/customers`
 							),
 					},
-					// {
-					// 	title: "Transactions",
-					// 	url: `/${organizationSlug}/${projectSlug}/transactions`,
-					// 	icon: Repeat,
-					// 	isActive: () =>
-					// 		pathname.startsWith(
-					// 			`/${organizationSlug}/${projectSlug}/transactions`
-					// 		),
-					// },
 					{
-						title: "Monetization",
-						icon: Store,
-						url: `/${organizationSlug}/${projectSlug}/monetization/payment-providers`,
+						title: "Products",
+						url: `/${organizationSlug}/${projectSlug}/products`,
+						icon: Package2,
 						isActive: () =>
 							pathname.startsWith(
-								`/${organizationSlug}/${projectSlug}/monetization`
+								`/${organizationSlug}/${projectSlug}/products`
 							),
-						items: [
-							{
-								title: "Perks",
-								url: `/${organizationSlug}/${projectSlug}/monetization/perks`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/monetization/perks`
-									),
-							},
-							{
-								title: "Payment Providers",
-								url: `/${organizationSlug}/${projectSlug}/monetization/payment-providers`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/monetization/payment-providers`
-									),
-							},
-							{
-								title: "Products",
-								url: `/${organizationSlug}/${projectSlug}/monetization/products`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/monetization/products`
-									),
-							},
-							{
-								title: "Paywalls",
-								url: `/${organizationSlug}/${projectSlug}/monetization/paywalls`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/monetization/paywalls`
-									),
-							},
-							{
-								title: "Paywall Locations",
-								url: `/${organizationSlug}/${projectSlug}/monetization/paywall-locations`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/monetization/paywall-locations`
-									),
-							},
-						],
+					},
+					{
+						title: "Paywalls",
+						url: `/${organizationSlug}/${projectSlug}/paywalls`,
+						icon: GalleryHorizontalEnd,
+						isActive: () =>
+							pathname.startsWith(
+								`/${organizationSlug}/${projectSlug}/paywalls`
+							),
+					},
+					{
+						title: "Developers",
+						url: `/${organizationSlug}/${projectSlug}/developers`,
+						icon: SquareTerminal,
+						isActive: () =>
+							pathname.startsWith(
+								`/${organizationSlug}/${projectSlug}/developers`
+							),
 					},
 					{
 						title: "Settings",

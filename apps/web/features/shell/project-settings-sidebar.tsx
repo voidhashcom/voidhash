@@ -67,11 +67,11 @@ export function ProjectSettingsSidebar({
 							),
 					},
 					{
-						title: "API Keys",
-						url: `/${organizationSlug}/${projectSlug}/settings/api-keys`,
+						title: "Payment Providers",
+						url: `/${organizationSlug}/${projectSlug}/settings/payment-providers`,
 						isActive: () =>
 							pathname.startsWith(
-								`/${organizationSlug}/${projectSlug}/settings/api-keys`
+								`/${organizationSlug}/${projectSlug}/settings/payment-providers`
 							),
 					},
 				],

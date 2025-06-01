@@ -45,7 +45,7 @@ export async function EnviromentBarContent({
 	return (
 		<div
 			className={cn(
-				"flex-1 w-full bg-primary flex-shrink-0 text-white flex text-center items-center justify-center font-semibold transition-all duration-300",
+				"flex-1 w-full bg-primary flex-shrink-0 text-white flex text-center items-center justify-center font-semibold transition-all text-sm duration-300",
 				showBar ? "h-[41px] opacity-100" : "h-0 opacity-0"
 			)}
 		>
@@ -53,7 +53,7 @@ export async function EnviromentBarContent({
 				// Marker to update layout if bar is visible
 				showBar && <div id="nav-enviromental-bar" className="display-none" />
 			}
-			You are in development mode.
+			You are in development mode. Displaying test data.
 		</div>
 	);
 }
