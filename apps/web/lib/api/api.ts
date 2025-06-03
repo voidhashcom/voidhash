@@ -24,6 +24,7 @@ import { paymentProviderApis } from "../payment-providers/payment-provider-apis"
 import { registerSdkGetCustomer } from "./v1/sdk_getCustomer";
 import { registerSdkIdentify } from "./v1/sdk_identify";
 import { registerSdkGetPaywallByLocation } from "./v1/sdk_getPaywallByLocation";
+import { registerSdkCreateCheckout } from "./v1/sdk_createCheckout";
 
 export const app = newApp();
 
@@ -58,6 +59,7 @@ registerProductsUpdateProviderProduct(app);
 registerProductsDeleteProviderProduct(app);
 
 // SDK
+registerSdkCreateCheckout(app);
 registerSdkGetCustomer(app);
 registerSdkIdentify(app);
 registerSdkGetPaywallByLocation(app);

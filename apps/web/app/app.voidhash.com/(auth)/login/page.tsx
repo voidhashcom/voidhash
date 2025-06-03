@@ -15,7 +15,8 @@ import {
 import { CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
-import Image from "next/image";
+
+// import { LoginPageIllustration } from "@/features/auth/components/login-page-illustration";
 
 function LoginPageContent() {
 	const searchParams = useSearchParams();
@@ -48,8 +49,8 @@ function LoginPageContent() {
 	};
 
 	return (
-		<div className="grid min-h-svh lg:grid-cols-2">
-			<div className="flex flex-col gap-4 bg-surface-3 p-6 md:p-10">
+		<div className="grid min-h-svh lg:grid-cols-2 bg-background">
+			<div className="flex flex-col gap-4 bg-background p-6 md:p-10">
 				<div className="flex justify-center gap-2 md:justify-start">
 					<Link href="/" className="flex items-center gap-2 font-medium">
 						<Logo />
@@ -115,14 +116,8 @@ function LoginPageContent() {
 					</div>
 				</div>
 			</div>
-			<div className="bg-muted relative hidden lg:block">
-				<Image
-					src="/images/circles-blur.jpg"
-					alt="Image"
-					width={1000}
-					height={1000}
-					className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-				/>
+			<div className="bg-background relative hidden lg:block">
+				{/* <LoginPageIllustration /> */}
 			</div>
 		</div>
 	);

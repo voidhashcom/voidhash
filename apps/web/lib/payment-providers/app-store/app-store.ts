@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { createPaymentProvider } from "../types";
+import { createPaymentProvider } from "../core/payment-provider";
 
 export const appStore = createPaymentProvider({
 	id: "app-store",
 	title: "Apple App Store",
+	environments: ["production"],
 	configuration: {
 		configurationSchema: z.object({
 			issuerId: z.string().min(1, {

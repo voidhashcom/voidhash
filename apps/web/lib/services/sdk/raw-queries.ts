@@ -9,16 +9,18 @@ import {
 	Product,
 } from "@voidhash/db";
 import {
+	Environment,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
 	fromUnknownThrow,
 } from "@voidhash/lib/constants";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { Result, ResultAsync, err, ok } from "neverthrow";
 
 export const getCustomerWithParentByAppUserIdQuery = async (
 	ctx: ServiceContext,
-	appUserId: string
+	appUserId: string,
+	environment: Environment
 ): Promise<
 	Result<
 		Customer & { parentCustomer: Customer | null },
@@ -27,7 +29,10 @@ export const getCustomerWithParentByAppUserIdQuery = async (
 > => {
 	const res = await ResultAsync.fromPromise(
 		ctx.db.query.customers.findFirst({
-			where: eq(customers.appUserId, appUserId),
+			where: and(
+				eq(customers.appUserId, appUserId),
+				eq(customers.environment, environment)
+			),
 			with: {
 				parentCustomer: true,
 			},
@@ -62,7 +67,8 @@ export type PaywallWithProducts = {
 };
 export const getPaywallWithProductsByLocationSlugQuery = async (
 	ctx: ServiceContext,
-	locationSlug: string
+	locationSlug: string,
+	environment: Environment
 ): Promise<
 	Result<
 		Paywall & {
@@ -75,7 +81,10 @@ export const getPaywallWithProductsByLocationSlugQuery = async (
 > => {
 	const res = await ResultAsync.fromPromise(
 		ctx.db.query.paywallLocations.findFirst({
-			where: eq(paywallLocations.slug, locationSlug),
+			where: and(
+				eq(paywallLocations.slug, locationSlug),
+				eq(paywallLocations.environment, environment)
+			),
 			with: {
 				defaultPaywall: {
 					with: {
@@ -108,4 +117,41 @@ export const getPaywallWithProductsByLocationSlugQuery = async (
 	}
 
 	return ok(res.value.defaultPaywall);
+};
+
+export const getPaywallProductByIdQuery = async (
+	ctx: ServiceContext,
+	paywallProductId: string
+): Promise<
+	Result<
+		PaywallProduct & { product: Product },
+		VoidhashInternalServerError | VoidhashNotFoundError
+	>
+> => {
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.paywallProducts.findFirst({
+			where: eq(paywallProducts.id, paywallProductId),
+			with: {
+				product: true,
+			},
+		}),
+		(e) => fromUnknownThrow(e)
+	);
+
+	if (res.isErr()) {
+		return err(res.error);
+	}
+
+	if (!res.value) {
+		return err({
+			code: "NOT_FOUND",
+			message: "Paywall product not found",
+			resource: "paywallProduct",
+			payload: {
+				paywallProductId,
+			},
+		});
+	}
+
+	return ok(res.value);
 };

@@ -68,7 +68,6 @@ export const getPaywallById = cache(
 	createServiceFunction()
 		.input(z.object({ id: z.string() }))
 		.use(isAuthenticated)
-		.use(hasEnvironment)
 		.function(
 			async ({
 				input,
@@ -122,7 +121,6 @@ export const getPaywallProducts = cache(
 	createServiceFunction()
 		.input(z.object({ paywallId: z.string() }))
 		.use(isAuthenticated)
-		.use(hasEnvironment)
 		.function(
 			async ({
 				input,

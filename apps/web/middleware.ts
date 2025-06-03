@@ -1,7 +1,12 @@
 import ApiMiddleware from "./lib/middleware/api";
 import AppMiddleware from "./lib/middleware/app";
+import CheckoutMiddleware from "./lib/middleware/checkout";
 import { parse } from "./lib/middleware/utils/parse";
-import { API_HOSTNAMES, APP_HOSTNAMES } from "@voidhash/lib";
+import {
+	API_HOSTNAMES,
+	APP_HOSTNAMES,
+	CHECKOUT_HOSTNAMES,
+} from "@voidhash/lib";
 import { NextRequest } from "next/server";
 export const config = {
 	matcher: [
@@ -21,6 +26,7 @@ export default async function middleware(req: NextRequest) {
 
 	if (
 		APP_HOSTNAMES.has(domain) &&
+		!path.startsWith("/checkout.voidhash.com") &&
 		path !== "/api" &&
 		!path.startsWith("/docs")
 	) {
@@ -30,5 +36,10 @@ export default async function middleware(req: NextRequest) {
 	// for API
 	if (API_HOSTNAMES.has(domain)) {
 		return ApiMiddleware(req);
+	}
+
+	// for checkout
+	if (CHECKOUT_HOSTNAMES.has(domain)) {
+		return CheckoutMiddleware(req);
 	}
 }

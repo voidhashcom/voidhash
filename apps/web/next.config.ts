@@ -13,7 +13,6 @@ const nextConfig = {
 	],
 	async rewrites() {
 		return [
-			// for dub proxy
 			{
 				source: "/api/:path*",
 				has: [

@@ -108,6 +108,9 @@ export function PaywallDetailPageEditor({
 				productId,
 				displayName: product.name,
 				order: prevProducts.length,
+				enableNativePurchase: true,
+				enableWebCheckout: false,
+				webCheckoutPaymentProviderId: null,
 			};
 			return reorderProducts([...prevProducts, newProduct]);
 		});

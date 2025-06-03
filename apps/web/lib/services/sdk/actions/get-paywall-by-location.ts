@@ -7,7 +7,8 @@ import {
 import { Result, err, ok } from "neverthrow";
 import { getPaywallWithProductsByLocationSlugQuery } from "../raw-queries";
 import { z } from "zod";
-import { isAuthenticated } from "@/lib/middlewares";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { PaywallProduct } from "@voidhash/db";
 
 type GetPaywallByLocationError =
 	| VoidhashInternalServerError
@@ -15,11 +16,14 @@ type GetPaywallByLocationError =
 	| VoidhashUnauthorizedError;
 
 type PaywallResponse = {
-	id: string;
+	paywallId: string;
 	paywallProducts: {
+		paywallProductId: string;
 		productId: string;
+		price: number;
 		displayName: string;
-		price: number | null;
+		nativePurchaseAvailable: boolean;
+		webCheckoutAvailable: boolean;
 	}[];
 };
 
@@ -30,13 +34,13 @@ export const sdkGetPaywallByLocation = createServiceFunction()
 		})
 	)
 	.use(isAuthenticated)
+	.use(hasEnvironment)
 	.function(
 		async ({
 			input,
 			ctx,
 		}): Promise<Result<PaywallResponse, GetPaywallByLocationError>> => {
 			const appUserId = ctx.session?.customer?.appUserId;
-
 			if (!appUserId) {
 				return err({
 					code: "UNAUTHORIZED",
@@ -55,23 +59,68 @@ export const sdkGetPaywallByLocation = createServiceFunction()
 
 			const paywall = await getPaywallWithProductsByLocationSlugQuery(
 				ctx,
-				input.locationSlug
+				input.locationSlug,
+				ctx.session.environment
 			);
 			if (paywall.isErr()) {
 				return err(paywall.error);
 			}
 
-			const response: PaywallResponse = {
-				id: paywall.value.id,
-				paywallProducts: paywall.value.paywallProducts.map(
-					(paywallProduct) => ({
-						productId: paywallProduct.product.id,
+			const environment = ctx.session.environment;
+
+			const paywallProducts = paywall.value.paywallProducts.map(
+				(paywallProduct) => {
+					const product = paywallProduct.product;
+
+					const nativePurchaseAvailable = checkNativePurchaseAvailability({
+						environment,
+						paywallProduct,
+					});
+					const webCheckoutAvailable = checkWebCheckoutAvailability({
+						environment,
+						paywallProduct,
+					});
+
+					console.log(nativePurchaseAvailable, webCheckoutAvailable);
+
+					return {
+						paywallProductId: paywallProduct.id,
+						productId: product.id,
 						displayName: paywallProduct.displayName,
-						price: null,
-					})
-				),
+						price: 100, // TODO: Get real price
+						nativePurchaseAvailable,
+						webCheckoutAvailable,
+					};
+				}
+			);
+
+			const response: PaywallResponse = {
+				paywallId: paywall.value.id,
+				paywallProducts,
 			};
 
 			return ok(response);
 		}
 	);
+
+const checkNativePurchaseAvailability = (options: {
+	environment: string;
+	paywallProduct: PaywallProduct;
+}) => {
+	if (options.environment === "testing") {
+		return false;
+	}
+
+	return options.paywallProduct.enableNativePurchase;
+};
+
+const checkWebCheckoutAvailability = (options: {
+	environment: string;
+	paywallProduct: PaywallProduct;
+}) => {
+	if (options.environment === "testing") {
+		return true;
+	}
+
+	return options.paywallProduct.enableWebCheckout;
+};

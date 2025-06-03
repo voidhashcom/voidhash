@@ -83,7 +83,7 @@ export function ProjectSettingsSidebar({
 		<Sidebar
 			variant="inset"
 			collapsible="none"
-			className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] transition-all duration-300 border-r sticky flex"
+			className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] transition-all duration-75 border-r sticky flex"
 			{...props}
 		>
 			<SidebarHeader className="gap-3.5 border-b p-4">

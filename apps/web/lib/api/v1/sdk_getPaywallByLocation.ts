@@ -57,15 +57,8 @@ export const registerSdkGetPaywallByLocation = (app: App) =>
 				throw toVoidhashHTTPError(paywallResult.error);
 			}
 
-			const paywall = paywallResult.value;
-
-			return c.json<z.infer<typeof sdkPaywallResponseSchema>>({
-				paywallId: paywall.id,
-				paywallProducts: paywall.paywallProducts.map((paywallProduct) => ({
-					productId: paywallProduct.productId,
-					displayName: paywallProduct.displayName,
-					price: paywallProduct.price,
-				})),
-			});
+			return c.json<z.infer<typeof sdkPaywallResponseSchema>>(
+				paywallResult.value
+			);
 		}
 	);
