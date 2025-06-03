@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { App } from "../api/hono/app";
 
 type PaymentProviderTextInputSection = {
@@ -28,7 +27,7 @@ export type CreateConfigurationSheetParams = {
 	projectId: string;
 };
 
-type PaymentProviderConfigurationSheetSection = {
+export type PaymentProviderConfigurationSheetSection = {
 	key: string;
 } & (
 	| PaymentProviderTextInputSection
@@ -40,61 +39,11 @@ export type CreateProductEditorSheetParams = {
 	productId: string;
 };
 
-type PaymentProviderProductEditorSheetSection = {
+export type PaymentProviderProductEditorSheetSection = {
 	key: string;
 } & (PaymentProviderTextInputSection | PaymentProviderCopyTextSection);
 
-export type PaymentProvider<
-	TKey,
-	TConfiguration,
-	TProductConfiguration,
-	TProductConfigurationSchema extends z.ZodSchema,
-	TConfigurationSchema extends z.ZodSchema,
-> = {
-	id: TKey;
-	title: string;
-	configuration: {
-		defaultConfiguration: TConfiguration;
-		configurationSchema: TConfigurationSchema;
-		createConfigurationSheet: (params: CreateConfigurationSheetParams) => {
-			sections: PaymentProviderConfigurationSheetSection[];
-		};
-	};
-	products: {
-		keyProperties: string[];
-		defaultProductConfiguration: TProductConfiguration;
-		productConfigurationSchema: TProductConfigurationSchema;
-		createProductEditorSheet: (params: CreateProductEditorSheetParams) => {
-			sections: PaymentProviderProductEditorSheetSection[];
-		};
-	};
-};
-
 export type Simplify<T> = { [KeyType in keyof T]: T[KeyType] } & {};
-
-export const createPaymentProvider = <
-	TKey extends string,
-	TConfiguration,
-	TProductConfiguration,
-	TProductConfigurationSchema extends z.ZodSchema,
-	TConfigurationSchema extends z.ZodSchema,
->(
-	provider: PaymentProvider<
-		TKey,
-		TConfiguration,
-		TProductConfiguration,
-		TProductConfigurationSchema,
-		TConfigurationSchema
-	>
-): Simplify<
-	PaymentProvider<
-		TKey,
-		TConfiguration,
-		TProductConfiguration,
-		TProductConfigurationSchema,
-		TConfigurationSchema
-	>
-> => provider;
 
 export const createPaymentProviderApi = (api: {
 	registerEndpoints: (app: App) => void;

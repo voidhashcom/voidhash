@@ -14,7 +14,8 @@ import { zValidator } from "@hono/zod-validator";
 import { identifyCustomer } from "@/lib/services/sdk/actions/identify-customer";
 
 const route = describeRoute({
-	description: "Get a customer by app user ID",
+	description:
+		"Identifies a customer. If the customer does not exist, it will be created.",
 	operationId: "sdkGetCustomerByAppUserId",
 	security: [
 		{

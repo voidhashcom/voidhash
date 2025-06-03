@@ -263,7 +263,7 @@ export const perks = mysqlTable(
 		slug: varchar("slug", { length: 255 }).notNull(),
 		name: varchar("name", { length: 255 }).notNull(),
 		environment: mysqlEnum("environment", ENVIRONMENTS)
-			// .default("production")
+			.default("production")
 			.notNull(),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
@@ -283,12 +283,18 @@ export const products = mysqlTable("product", {
 	type: mysqlEnum("type", PRODUCT_TYPES).default("subscription").notNull(),
 	name: varchar("name", { length: 255 }).notNull(),
 	environment: mysqlEnum("environment", ENVIRONMENTS)
-		// .default("production")
+		.default("production")
 		.notNull(),
 	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
+
+export const productRelations = relations(products, ({ many }) => ({
+	perks: many(productPerks),
+	paywallProducts: many(paywallProducts),
+	checkoutSessions: many(checkoutSessions),
+}));
 
 export const productPerks = mysqlTable(
 	"product_perk",
@@ -333,7 +339,7 @@ export const paywalls = mysqlTable("paywall", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	name: varchar("name", { length: 255 }).notNull(),
 	environment: mysqlEnum("environment", ENVIRONMENTS)
-		// .default("production")
+		.default("production")
 		.notNull(),
 	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
@@ -353,6 +359,13 @@ export const paywallProducts = mysqlTable(
 			.default("Unknown"),
 		paywallId: varchar("paywall_id", { length: 255 }).notNull(),
 		productId: varchar("product_id", { length: 255 }).notNull(),
+		enableNativePurchase: boolean("enable_native_purchase")
+			.notNull()
+			.default(true),
+		enableWebCheckout: boolean("enable_web_checkout").notNull().default(false),
+		webCheckoutPaymentProviderId: varchar("web_checkout_payment_provider_id", {
+			length: 255,
+		}),
 		order: int("order").notNull().default(0),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -393,7 +406,7 @@ export const paywallLocations = mysqlTable(
 			length: 255,
 		}).notNull(),
 		environment: mysqlEnum("environment", ENVIRONMENTS)
-			// .default("production")
+			.default("production")
 			.notNull(),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
@@ -414,6 +427,39 @@ export const paywallLocationRelations = relations(
 		defaultPaywall: one(paywalls, {
 			fields: [paywallLocations.defaultPaywallId],
 			references: [paywalls.id],
+		}),
+	})
+);
+
+export const checkoutSessions = mysqlTable("checkout_session", {
+	id: varchar("id", { length: 255 }).primaryKey(),
+	customerId: varchar("customer_id", { length: 255 }).notNull(),
+	productId: varchar("product_id", { length: 255 }).notNull(),
+	successCallbackUrl: varchar("success_callback_url", {
+		length: 255,
+	})
+		.notNull()
+		.default("LEGACY"),
+	errorCallbackUrl: varchar("error_callback_url", { length: 255 })
+		.notNull()
+		.default("LEGACY"),
+	paymentProviderId: varchar("payment_provider_id", { length: 255 })
+		.notNull()
+		.default("LEGACY"),
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at").onUpdateNow(),
+});
+
+export const checkoutSessionRelations = relations(
+	checkoutSessions,
+	({ one }) => ({
+		customer: one(customers, {
+			fields: [checkoutSessions.customerId],
+			references: [customers.id],
+		}),
+		product: one(products, {
+			fields: [checkoutSessions.productId],
+			references: [products.id],
 		}),
 	})
 );

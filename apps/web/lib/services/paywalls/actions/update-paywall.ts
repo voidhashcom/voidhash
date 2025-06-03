@@ -27,6 +27,9 @@ export const updatePaywallInputSchema = z.object({
 				displayName: z
 					.string()
 					.min(2, "Display name must be at least 2 characters long"),
+				enableNativePurchase: z.boolean(),
+				enableWebCheckout: z.boolean(),
+				webCheckoutPaymentProviderId: z.string().nullable(),
 				order: z.number(),
 			})
 		)
@@ -106,6 +109,10 @@ export const updatePaywall = createServiceFunction()
 								order: product.order,
 								paywallId: input.paywallId,
 								productId: existingProduct.id,
+								enableNativePurchase: product.enableNativePurchase,
+								enableWebCheckout: product.enableWebCheckout,
+								webCheckoutPaymentProviderId:
+									product.webCheckoutPaymentProviderId,
 							});
 						}
 					}

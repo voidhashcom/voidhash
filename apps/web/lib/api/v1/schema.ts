@@ -192,14 +192,36 @@ export const sdkPaywallResponseSchema = z
 		paywallId: z.string(),
 		paywallProducts: z.array(
 			z.object({
+				paywallProductId: z.string(),
 				productId: z.string(),
 				displayName: z.string(),
 				price: z.number().nullable(),
+				nativePurchaseAvailable: z.boolean(),
+				webCheckoutAvailable: z.boolean(),
 			})
 		),
 	})
 	.openapi({
 		ref: "SdkPaywall",
+	});
+
+export const sdkCreateCheckoutBodySchema = z
+	.object({
+		paywallProductId: z.string(),
+		successCallbackUrl: z.string().min(1).includes("://"),
+		errorCallbackUrl: z.string().min(1).includes("://"),
+	})
+	.openapi({
+		ref: "SdkCreateCheckoutBody",
+	});
+
+export const sdkCheckoutResponseSchema = z
+	.object({
+		checkoutSessionId: z.string(),
+		checkoutUrl: z.string(),
+	})
+	.openapi({
+		ref: "SdkCheckout",
 	});
 
 export const sdkCustomerResponseSchema = z

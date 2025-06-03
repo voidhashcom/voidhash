@@ -17,6 +17,12 @@ import {
 	FormMessage,
 	Input,
 	Form,
+	Switch,
+	Select,
+	SelectTrigger,
+	SelectValue,
+	SelectContent,
+	SelectItem,
 } from "@voidhash/ui";
 import { EllipsisVerticalIcon, GripVerticalIcon } from "lucide-react";
 
@@ -33,6 +39,9 @@ const paywallProductSchema = z.object({
 	displayName: z
 		.string()
 		.min(2, "Display name must be at least 2 characters long"),
+	enableNativePurchase: z.boolean(),
+	enableWebCheckout: z.boolean(),
+	webCheckoutPaymentProviderId: z.string().nullable(),
 });
 
 type PaywallProductForm = z.infer<typeof paywallProductSchema>;
@@ -47,6 +56,9 @@ export function PaywallDetailProductRecord({
 	paywallProduct: {
 		productId: string;
 		displayName: string;
+		enableNativePurchase: boolean;
+		enableWebCheckout: boolean;
+		webCheckoutPaymentProviderId: string | null;
 	};
 	onUpdate: (data: PaywallProductForm) => void;
 	onRemove: () => void;
@@ -56,6 +68,9 @@ export function PaywallDetailProductRecord({
 		defaultValues: {
 			productId: paywallProduct.productId,
 			displayName: paywallProduct.displayName,
+			enableNativePurchase: paywallProduct.enableNativePurchase,
+			enableWebCheckout: paywallProduct.enableWebCheckout,
+			webCheckoutPaymentProviderId: paywallProduct.webCheckoutPaymentProviderId,
 		},
 	});
 
@@ -89,7 +104,7 @@ export function PaywallDetailProductRecord({
 	return (
 		<Form {...form}>
 			<div className="space-y-6" ref={setNodeRef} style={style}>
-				<Card className="pb-0 pt-3 gap-3">
+				<Card className="pb-0 pt-3 gap-0">
 					<CardHeader className="pr-3 pl-3">
 						<div className="flex flex-row items-center justify-between">
 							<CardTitle className="flex flex-row items-center gap-2">
@@ -119,7 +134,7 @@ export function PaywallDetailProductRecord({
 							</DropdownMenu>
 						</div>
 					</CardHeader>
-					<CardContent className="border-t border-border divide-y divide-border py-6">
+					<CardContent className="border-t border-border divide-y divide-border py-6 mt-3">
 						<FormField
 							control={form.control}
 							name={"displayName"}
@@ -142,6 +157,67 @@ export function PaywallDetailProductRecord({
 								</FormItem>
 							)}
 						/>
+					</CardContent>
+					<CardContent className="border-t border-border divide-y divide-border py-0 px-0">
+						<div className="flex flex-row items-center justify-start px-6 py-4 space-x-4">
+							<FormField
+								control={form.control}
+								name={"enableNativePurchase"}
+								render={({ field }) => (
+									<FormItem className="flex flex-row items-center justify-start space-x-4">
+										<FormControl>
+											<Switch
+												checked={field.value}
+												onCheckedChange={(e) => {
+													handleOnUpdate({
+														enableNativePurchase: e,
+													});
+												}}
+											/>
+										</FormControl>
+										<p>Native purchase</p>
+									</FormItem>
+								)}
+							/>
+						</div>
+					</CardContent>
+					<CardContent className="border-t border-border divide-y divide-border py-0 px-0 mt-0">
+						<div className="flex flex-row items-center justify-start px-6 py-4 space-x-4">
+							<div>
+								<FormField
+									control={form.control}
+									name={"enableWebCheckout"}
+									render={({ field }) => (
+										<FormItem className="flex flex-row items-center justify-start space-x-4">
+											<FormControl>
+												<Switch
+													checked={field.value}
+													onCheckedChange={(e) => {
+														handleOnUpdate({
+															enableWebCheckout: e,
+														});
+													}}
+												/>
+											</FormControl>
+											<p>Web checkout</p>
+										</FormItem>
+									)}
+								/>
+							</div>
+							<div className="flex flex-row items-center justify-start space-x-4">
+								{/* <Label className="sr-only">Payment provider</Label> */}
+								{/* TODO: Make this dynamic */}
+								<Select>
+									<SelectTrigger>
+										<SelectValue placeholder="Select a payment provider" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="stripe">Stripe</SelectItem>
+										<SelectItem value="paypal">Polar.sh</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
 					</CardContent>
 				</Card>
 			</div>

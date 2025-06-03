@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { createPaymentProvider } from "../types";
 import { API_DOMAIN } from "@voidhash/lib/constants";
+import { createPaymentProvider } from "../core/payment-provider";
 
 export const stripeProviderId = "stripe";
 export const stripe = createPaymentProvider({
 	id: "stripe",
 	title: "Stripe",
+	environments: ["production"],
 	configuration: {
 		configurationSchema: z.object({
 			secretKey: z.string().min(1),

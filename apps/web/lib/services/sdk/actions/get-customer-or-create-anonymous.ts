@@ -46,7 +46,8 @@ export const sdkGetCustomerOrCreateAnonymous = createServiceFunction()
 
 			const customer = await getCustomerWithParentByAppUserIdQuery(
 				ctx,
-				appUserId
+				appUserId,
+				ctx.session.environment
 			);
 
 			if (customer.isErr()) {

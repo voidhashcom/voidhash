@@ -9,7 +9,7 @@ export async function NavBar({
 	projectSlug,
 }: { organizationSlug: string | null; projectSlug: string | null }) {
 	return (
-		<div className="flex flex-col h-[var(--header-height)] transition-all duration-300 border-b border-border w-full fixed bg-background z-50 justify-between">
+		<div className="flex flex-col h-[var(--header-height)] transition-all duration-75 border-b border-border w-full fixed bg-background z-50 justify-between">
 			<EnviromentBar
 				organizationSlug={organizationSlug}
 				projectSlug={projectSlug}

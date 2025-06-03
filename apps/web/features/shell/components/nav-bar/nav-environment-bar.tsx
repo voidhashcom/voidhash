@@ -45,7 +45,7 @@ export async function EnviromentBarContent({
 	return (
 		<div
 			className={cn(
-				"flex-1 w-full bg-primary flex-shrink-0 text-white flex text-center items-center justify-center font-semibold transition-all text-sm duration-300",
+				"flex-1 w-full bg-primary flex-shrink-0 text-white flex text-center items-center justify-center font-semibold transition-all text-sm duration-75",
 				showBar ? "h-[41px] opacity-100" : "h-0 opacity-0"
 			)}
 		>

@@ -43,7 +43,7 @@ export function OrganizationSidebar({
 		<Sidebar
 			variant="inset"
 			collapsible={collapsible}
-			className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] transition-all duration-300 border-r"
+			className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] transition-all duration-75 border-r"
 			{...props}
 		>
 			<SidebarContent>
