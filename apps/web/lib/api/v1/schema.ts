@@ -1,4 +1,4 @@
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { createProductInputSchema } from "@/lib/services/products/actions/create-product";
 import { z } from "zod";
 import { extendZodWithOpenApi } from "zod-openapi";
@@ -70,8 +70,8 @@ const productProviderConfigurationSchema = z
 	.discriminatedUnion("providerId", [
 		...paymentProviders.map((p) =>
 			z.object({
-				providerId: z.literal(p.id),
-				configuration: p.products.productConfigurationSchema,
+				providerId: z.literal(p.getId()),
+				configuration: p.getProductConfigurationSchema(),
 			})
 		),
 	] as unknown as [

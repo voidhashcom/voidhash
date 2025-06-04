@@ -1,5 +1,5 @@
 import { Page } from "@/features/shell";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { Card, Skeleton } from "@voidhash/ui";
 
 export function PaymentProvidersPageSkeleton() {
@@ -18,7 +18,7 @@ export function PaymentProvidersPageSkeleton() {
 						{paymentProviders?.map((paymentProvider) => (
 							<div
 								className="relative isolate group hover:bg-accent/30 px-6 py-4"
-								key={paymentProvider.id}
+								key={paymentProvider.getId()}
 							>
 								<div className="flex flex-row items-center justify-between">
 									<div className="flex items-center gap-4 flex-1">

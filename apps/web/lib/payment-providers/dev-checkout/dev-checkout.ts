@@ -1,25 +1,72 @@
 import { z } from "zod";
-import { createWebCheckoutPaymentProvider } from "../core/web-checkout-payment-provider";
+import { BasePaymentProvider } from "../core/base-payment-provider";
+import { PaymentProvider } from "../core/payment-provider";
+import {
+	PaymentProviderConfigurationSheetSection,
+	PaymentProviderProductEditorSheetSection,
+} from "../core/types";
 
-export const devCheckoutProviderId = "dev-checkout";
-export const devCheckout = createWebCheckoutPaymentProvider({
-	id: "dev-checkout",
-	title: "Dev Checkout",
-	environments: ["testing"],
-	configuration: {
-		configurationSchema: z.object({}),
-		defaultConfiguration: {},
-		createConfigurationSheet: () => ({
+export const devCheckoutPaymentProviderId = "dev-checkout" as const;
+
+const devCheckoutGlobalConfigurationSchema = z.object({});
+
+const devCheckoutProductConfigurationSchema = z.object({});
+
+export class DevCheckoutPaymentProvider
+	extends BasePaymentProvider<typeof devCheckoutPaymentProviderId>
+	implements
+		PaymentProvider<
+			typeof devCheckoutPaymentProviderId,
+			typeof devCheckoutGlobalConfigurationSchema,
+			typeof devCheckoutProductConfigurationSchema
+		>
+{
+	constructor() {
+		super(devCheckoutPaymentProviderId, "Dev Checkout", ["testing"]);
+	}
+	getIsConfigurable(): boolean {
+		return false;
+	}
+	getDefaultGlobalConfiguration(): Partial<
+		z.infer<typeof devCheckoutGlobalConfigurationSchema>
+	> {
+		return {};
+	}
+	getGlobalConfigurationSchema(): typeof devCheckoutGlobalConfigurationSchema {
+		return devCheckoutGlobalConfigurationSchema;
+	}
+	getGlobalConfigurationSheet(): {
+		sections: PaymentProviderConfigurationSheetSection[];
+	} {
+		return {
 			sections: [],
-		}),
-	},
-	products: {
-		keyProperties: ["productId", "priceId"],
-		productConfigurationSchema: z.object({}),
-		defaultProductConfiguration: {},
-		createProductEditorSheet: () => ({
+		};
+	}
+	getIsProductConfigurable(): boolean {
+		return false;
+	}
+	getDefaultProductConfiguration(): Partial<
+		z.infer<typeof devCheckoutProductConfigurationSchema>
+	> {
+		return {};
+	}
+	getProductConfigurationSchema(): typeof devCheckoutProductConfigurationSchema {
+		return devCheckoutProductConfigurationSchema;
+	}
+	getProductConfigurationSheet(): {
+		sections: PaymentProviderProductEditorSheetSection[];
+	} {
+		return {
 			sections: [],
-		}),
-	},
-	createCheckoutUrl: () => "https://checkout.dev-checkout.com/dev-checkout",
-});
+		};
+	}
+	getProductKeyProperties(): string[] {
+		return [];
+	}
+
+	checkIfCorrectlyConfigured(): boolean {
+		return true;
+	}
+}
+
+export const devCheckout = new DevCheckoutPaymentProvider();

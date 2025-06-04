@@ -4,7 +4,7 @@ import {
 	createPaymentProviderProductAction,
 	updatePaymentProviderProductAction,
 } from "@/lib/nextjs/server-actions";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	Form,
@@ -49,14 +49,16 @@ export function ProviderProductSheet({
 	configuration?: any;
 }) {
 	const router = useRouter();
-	const paymentProvider = paymentProviders.find((pp) => pp.id === providerId);
+	const paymentProvider = paymentProviders.find(
+		(pp) => pp.getId() === providerId
+	);
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const form = useForm<any>({
 		resolver: zodResolver(
-			paymentProvider?.products.productConfigurationSchema ?? z.object({})
+			paymentProvider?.getProductConfigurationSchema() ?? z.object({})
 		),
-		defaultValues: paymentProvider?.products.defaultProductConfiguration,
+		defaultValues: paymentProvider?.getDefaultProductConfiguration(),
 	});
 
 	const { execute: create, isPending: createPending } = useAction(
@@ -64,7 +66,7 @@ export function ProviderProductSheet({
 		{
 			onSuccess: () => {
 				toast.success(
-					`${paymentProvider?.title} configuration saved successfully`
+					`${paymentProvider?.getTitle()} configuration saved successfully`
 				);
 				onClose();
 				router.refresh();
@@ -72,7 +74,7 @@ export function ProviderProductSheet({
 			onError: (error) => {
 				toast.error(
 					error.error.serverError ??
-						`Failed to save ${paymentProvider?.title} configuration. Please try again.`
+						`Failed to save ${paymentProvider?.getTitle()} configuration. Please try again.`
 				);
 			},
 		}
@@ -83,7 +85,7 @@ export function ProviderProductSheet({
 		{
 			onSuccess: () => {
 				toast.success(
-					`${paymentProvider?.title} configuration saved successfully`
+					`${paymentProvider?.getTitle()} configuration saved successfully`
 				);
 				onClose();
 				router.refresh();
@@ -91,7 +93,7 @@ export function ProviderProductSheet({
 			onError: (error) => {
 				toast.error(
 					error.error.serverError ??
-						`Failed to save ${paymentProvider?.title} configuration. Please try again.`
+						`Failed to save ${paymentProvider?.getTitle()} configuration. Please try again.`
 				);
 			},
 		}
@@ -124,9 +126,7 @@ export function ProviderProductSheet({
 	useEffect(() => {
 		if (open) {
 			form.reset(
-				configuration ??
-					paymentProvider?.products.defaultProductConfiguration ??
-					{}
+				configuration ?? paymentProvider?.getDefaultProductConfiguration() ?? {}
 			);
 		}
 	}, [open]);
@@ -135,9 +135,7 @@ export function ProviderProductSheet({
 		return null;
 	}
 
-	const configurationSheet = paymentProvider.products.createProductEditorSheet({
-		productId: productId,
-	});
+	const configurationSheet = paymentProvider.getProductConfigurationSheet();
 
 	return (
 		<Sheet
@@ -152,8 +150,8 @@ export function ProviderProductSheet({
 				<SheetHeader>
 					<SheetTitle>
 						{mode === "add"
-							? `Add ${paymentProvider?.title} Product`
-							: `Edit ${paymentProvider?.title} Product`}
+							? `Add ${paymentProvider.getTitle()} Product`
+							: `Edit ${paymentProvider.getTitle()} Product`}
 					</SheetTitle>
 				</SheetHeader>
 

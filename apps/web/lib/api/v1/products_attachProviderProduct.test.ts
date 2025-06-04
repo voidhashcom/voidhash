@@ -12,7 +12,7 @@ import {
 	attachProviderProductBodySchema,
 	providerProductResponseSchema,
 } from "./schema";
-import { stripe } from "@/lib/payment-providers/stripe/stripe";
+import { stripe } from "@/lib/payment-providers-v0/stripe/stripe";
 
 describe.sequential("/v1/products/:productId/provider-products", async () => {
 	test("POST /v1/products/:productId/provider-products - success", async (t) => {

@@ -12,7 +12,7 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { productProviderConfigurations } from "@voidhash/db";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { and, eq } from "drizzle-orm";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
@@ -22,7 +22,7 @@ import { isAuthenticated } from "@/lib/middlewares";
 export const createPaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
 	providerId: z.enum(
-		paymentProviders.map((p) => p.id) as [string, ...string[]]
+		paymentProviders.map((p) => p.getId()) as [string, ...string[]]
 	),
 	configuration: z.object({}).passthrough(),
 });
@@ -58,7 +58,9 @@ export const createPaymentProviderProduct = createServiceFunction()
 				});
 			}
 
-			const provider = paymentProviders.find((p) => p.id === input.providerId);
+			const provider = paymentProviders.find(
+				(p) => p.getId() === input.providerId
+			);
 			if (!provider) {
 				return err({
 					code: "NOT_FOUND",
@@ -70,9 +72,9 @@ export const createPaymentProviderProduct = createServiceFunction()
 				});
 			}
 
-			provider.products.productConfigurationSchema.parse(input.configuration);
+			provider.getProductConfigurationSchema().parse(input.configuration);
 			const parseConfigurationSchema = Result.fromThrowable(
-				provider.products.productConfigurationSchema.parse,
+				provider.getProductConfigurationSchema().parse,
 				(e) =>
 					({
 						code: "BAD_REQUEST",
@@ -101,7 +103,8 @@ export const createPaymentProviderProduct = createServiceFunction()
 					id: generateId("paymentProviderProduct"),
 					productId: product.value.id,
 					providerId: input.providerId,
-					providerProductKey: provider.products.keyProperties
+					providerProductKey: provider
+						.getProductKeyProperties()
 						.map((key) => parsedConfiguration.value[key])
 						.join(":"),
 					configuration: parsedConfiguration.value,

@@ -13,7 +13,7 @@ import {
 import { Clock4Icon, EllipsisVerticalIcon } from "lucide-react";
 import { format } from "date-fns";
 
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { toast } from "sonner";
 import { useAction } from "next-safe-action/hooks";
 import {
@@ -34,7 +34,7 @@ export function ProductDetailProviderProductRecord({
 }) {
 	const router = useRouter();
 	const paymentProvider = paymentProviders.find(
-		(p) => p.id === paymentProviderId
+		(p) => p.getId() === paymentProviderId
 	);
 
 	const [openEditSheet, setOpenEditSheet] = useState(false);
@@ -44,14 +44,14 @@ export function ProductDetailProviderProductRecord({
 		{
 			onSuccess: () => {
 				toast.success(
-					`${paymentProvider?.title} product was successfully deleted`
+					`${paymentProvider?.getTitle()} product was successfully deleted`
 				);
 				router.refresh();
 			},
 			onError: (error) => {
 				toast.error(
 					error.error.serverError ??
-						`Failed to delete ${paymentProvider?.title} product. Please try again.`
+						`Failed to delete ${paymentProvider?.getTitle()} product. Please try again.`
 				);
 			},
 		}
@@ -63,14 +63,14 @@ export function ProductDetailProviderProductRecord({
 	} = useAction(setActivePaymentProviderProductAction, {
 		onSuccess: () => {
 			toast.success(
-				`${paymentProvider?.title} product was successfully activated`
+				`${paymentProvider?.getTitle()} product was successfully activated`
 			);
 			router.refresh();
 		},
 		onError: (error) => {
 			toast.error(
 				error.error.serverError ??
-					`Failed to activate ${paymentProvider?.title} product. Please try again.`
+					`Failed to activate ${paymentProvider?.getTitle()} product. Please try again.`
 			);
 		},
 	});
@@ -86,9 +86,13 @@ export function ProductDetailProviderProductRecord({
 	const { ConfirmationDialog, openDialog } = useConfirmDialog();
 
 	const handleDeleteProviderProduct = async () => {
+		if (!paymentProvider) {
+			return;
+		}
+
 		const res = await openDialog({
 			title: "Delete product",
-			description: `Are you sure you want to delete this ${paymentProvider?.title} product? This may break access for customers who have already purchased this.`,
+			description: `Are you sure you want to delete this ${paymentProvider.getTitle()} product? This may break access for customers who have already purchased this.`,
 		});
 
 		if (!res) {
@@ -117,7 +121,7 @@ export function ProductDetailProviderProductRecord({
 					!providerProduct.isActive && "opacity-50"
 				)}
 			>
-				{paymentProvider.products.keyProperties.map((key) => (
+				{paymentProvider.getProductKeyProperties().map((key) => (
 					<Badge variant="outline" key={key}>
 						{providerProduct.configuration?.[key]}
 					</Badge>

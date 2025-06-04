@@ -8,7 +8,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { PaymentProviderConfigurationSheet } from "./payment-provider-configuration-sheet";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { EnvironmentFilterNotification } from "@/features/shell/components/environment-filter-notification";
@@ -75,19 +75,19 @@ export async function PaymentProvidersPage({
 	const paymentProvidersConfigurations =
 		paymentProvidersConfigurationsResult.value;
 
-	const paymentProvidersWithConfigurations = paymentProviders.map(
-		(paymentProvider) => {
+	const paymentProvidersWithConfigurations = paymentProviders
+		.map((paymentProvider) => {
 			const paymentProvidersConfiguration =
 				paymentProvidersConfigurations?.find(
-					(p) => p.providerId === paymentProvider.id
+					(p) => p.providerId === paymentProvider.getId()
 				);
 			return {
-				...paymentProvider,
+				provider: paymentProvider,
 				configuration: paymentProvidersConfiguration?.configuration,
 				enabled: paymentProvidersConfiguration?.enabled,
 			};
-		}
-	);
+		})
+		.filter((c) => c.provider.getIsConfigurable());
 
 	return (
 		<Page>
@@ -116,11 +116,11 @@ export async function PaymentProvidersPage({
 						{paymentProvidersWithConfigurations?.map((paymentProvider) => (
 							<div
 								className="relative isolate group hover:bg-accent/30 px-6 py-4"
-								key={paymentProvider.id}
+								key={paymentProvider.provider.getId()}
 							>
 								{environment !== "testing" && (
 									<PaymentProviderConfigurationSheet
-										providerId={paymentProvider.id}
+										providerId={paymentProvider.provider.getId()}
 										enabled={paymentProvider.enabled ?? false}
 										configuration={paymentProvider.configuration}
 										project={project}
@@ -137,12 +137,12 @@ export async function PaymentProvidersPage({
 									<div className="flex items-center gap-4 flex-1">
 										<div className="w-8 h-8 flex items-center justify-center">
 											<PaymentProviderLogo
-												providerId={paymentProvider.id}
+												providerId={paymentProvider.provider.getId()}
 												className="w-full h-full"
 											/>
 										</div>
 										<div className="flex flex-col">
-											<p>{paymentProvider.title}</p>
+											<p>{paymentProvider.provider.getTitle()}</p>
 										</div>
 									</div>
 									<div className="flex items-center gap-2">

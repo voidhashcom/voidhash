@@ -1,5 +1,5 @@
 import { ServiceContext } from "@/lib/service-function";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import {
 	Environment,
 	VoidhashInternalServerError,
@@ -15,7 +15,7 @@ export async function getAvailablePaymentProviders(
 ): Promise<
 	Result<
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		PaymentProvider<string, any, any, any, any>[],
+		PaymentProvider<string, any, any>[],
 		VoidhashInternalServerError
 	>
 > {
@@ -32,11 +32,11 @@ export async function getAvailablePaymentProviders(
 	const availablePaymentProviders = allPaymentProvidersInEnvironment.filter(
 		(provider) => {
 			const configuration = paymentProviderConfigurations.value.find(
-				(configuration) => configuration.providerId === provider.id
+				(configuration) => configuration.providerId === provider.getId()
 			);
 
 			// Primarily for Dev Checkout
-			if (!provider.requiresConfiguration()) {
+			if (!provider.getIsConfigurable()) {
 				return true;
 			}
 
@@ -50,7 +50,7 @@ export async function getAvailablePaymentProviders(
 			return (
 				configuration.enabled &&
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				provider.isCorrectlyConfigured(configuration.configuration as any)
+				provider.checkIfCorrectlyConfigured(configuration.configuration as any)
 			);
 		}
 	);
