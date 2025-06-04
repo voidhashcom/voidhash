@@ -8,6 +8,7 @@ import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
 import {
 	fromUnknownThrow,
+	VoidhashBadRequestError,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -31,7 +32,8 @@ type SavePaymentProviderConfigurationError =
 	| VoidhashUnauthorizedError
 	| VoidhashForbiddenError
 	| VoidhashInternalServerError
-	| VoidhashNotFoundError;
+	| VoidhashNotFoundError
+	| VoidhashBadRequestError;
 
 export const savePaymentProviderConfiguration = createServiceFunction()
 	.input(savePaymentProviderConfigurationInputSchema)
@@ -62,7 +64,13 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 			}
 
 			if (input.enabled) {
-				const configurationSchema = provider.configuration.configurationSchema;
+				const configurationSchema = provider.configuration?.configurationSchema;
+				if (!configurationSchema) {
+					return err({
+						code: "BAD_REQUEST",
+						message: `Provider ${input.providerId} does not have a configuration`,
+					} satisfies VoidhashBadRequestError);
+				}
 				const parsedConfiguration = configurationSchema.parse(
 					input.configuration
 				);

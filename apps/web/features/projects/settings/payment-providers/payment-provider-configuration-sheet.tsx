@@ -56,10 +56,10 @@ export function PaymentProviderConfigurationSheet({
 	const form = useForm<any>({
 		resolver: isEnabled
 			? zodResolver(
-					paymentProvider?.configuration.configurationSchema ?? z.object({})
+					paymentProvider?.configuration?.configurationSchema ?? z.object({})
 				)
 			: undefined,
-		defaultValues: paymentProvider?.configuration.defaultConfiguration,
+		defaultValues: paymentProvider?.configuration?.defaultConfiguration,
 	});
 
 	const { execute, isPending } = useAction(
@@ -94,7 +94,7 @@ export function PaymentProviderConfigurationSheet({
 	useEffect(() => {
 		if (open) {
 			form.reset(
-				configuration ?? paymentProvider?.configuration.defaultConfiguration
+				configuration ?? paymentProvider?.configuration?.defaultConfiguration
 			);
 			setIsEnabled(enabled);
 		}
@@ -109,7 +109,7 @@ export function PaymentProviderConfigurationSheet({
 	}
 
 	const configurationSheet =
-		paymentProvider.configuration.createConfigurationSheet({
+		paymentProvider.configuration?.createConfigurationSheet({
 			projectId: project.id,
 		});
 
@@ -156,7 +156,7 @@ export function PaymentProviderConfigurationSheet({
 								</Label>
 							</div>
 
-							{configurationSheet.sections.map((section) => (
+							{configurationSheet?.sections.map((section) => (
 								<Fragment key={section.key}>
 									{section.type === "text-input" && (
 										<FormField

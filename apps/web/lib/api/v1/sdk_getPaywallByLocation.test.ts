@@ -47,6 +47,8 @@ describe.sequential(
 				paywallId: paywallInput.id,
 				productId: productInput.id,
 				displayName: "Test Product Display Name",
+				enableNativePurchase: true,
+				enableWebCheckout: true,
 				order: 0,
 			};
 			await h.db.primary.insert(paywallProducts).values(paywallProductInput);
@@ -87,7 +89,11 @@ describe.sequential(
 			expect(responseBody.paywallProducts[0]?.displayName).toBe(
 				paywallProductInput.displayName
 			);
-			expect(responseBody.paywallProducts[0]?.price).toBeNull();
+			expect(responseBody.paywallProducts[0]?.price).toBe(100);
+			expect(responseBody.paywallProducts[0]?.nativePurchaseAvailable).toBe(
+				true
+			);
+			expect(responseBody.paywallProducts[0]?.webCheckoutAvailable).toBe(true);
 
 			t.onTestFinished(async () => {
 				await h.db.primary

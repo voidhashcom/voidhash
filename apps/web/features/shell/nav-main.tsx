@@ -16,6 +16,7 @@ import {
 	SidebarMenuSubButton,
 	SidebarMenuSubItem,
 } from "@voidhash/ui";
+import NextLink from "next/link";
 
 export function NavMain({
 	link: Link,
@@ -23,7 +24,7 @@ export function NavMain({
 	tooltips = "enabled",
 	defaultOpenNested = false,
 }: {
-	link: React.ElementType;
+	link: typeof NextLink | "a";
 	defaultOpenNested?: boolean;
 	groups: {
 		title: string;

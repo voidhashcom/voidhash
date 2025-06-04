@@ -41,12 +41,14 @@ export const createCheckoutSession = createServiceFunction()
 			input,
 			ctx,
 		}): Promise<Result<CreateCheckoutResponse, CreateCheckoutError>> => {
+			console.log("createCheckoutSession", input);
 			const paywallProduct = await getPaywallProductByIdQuery(
 				ctx,
 				input.paywallProductId
 			);
 
 			if (paywallProduct.isErr()) {
+				console.log("paywallProduct error", paywallProduct.error);
 				return err(paywallProduct.error);
 			}
 
@@ -64,11 +66,13 @@ export const createCheckoutSession = createServiceFunction()
 			);
 
 			if (customer.isErr()) {
+				console.log("customer error", customer.error);
 				return err(customer.error);
 			}
 
 			const projectId = ctx.session.projects[0]?.id;
 			if (!projectId) {
+				console.log("projectId not found");
 				return err({
 					code: "INTERNAL_SERVER_ERROR",
 					message: "Project not found",

@@ -77,7 +77,8 @@ export const identifyCustomer = createServiceFunction()
 						? (
 								await getCustomerWithParentByAppUserIdQuery(
 									authenticatedContextWithTx,
-									currentAppUserId
+									currentAppUserId,
+									ctx.session.environment
 								)
 							).orElse((e) => {
 								if (e.code === "NOT_FOUND") {
@@ -95,7 +96,8 @@ export const identifyCustomer = createServiceFunction()
 					const identifyingAsCustomerResult = (
 						await getCustomerWithParentByAppUserIdQuery(
 							authenticatedContextWithTx,
-							input.appUserId
+							input.appUserId,
+							ctx.session.environment
 						)
 					).orElse((e) => {
 						if (e.code === "NOT_FOUND") {
@@ -180,7 +182,8 @@ export const identifyCustomer = createServiceFunction()
 					const updatedIdentifiedAsCustomer = (
 						await getCustomerWithParentByAppUserIdQuery(
 							authenticatedContextWithTx,
-							input.appUserId
+							input.appUserId,
+							ctx.session.environment
 						)
 					).orElse((e) => {
 						if (e.code === "NOT_FOUND") {
