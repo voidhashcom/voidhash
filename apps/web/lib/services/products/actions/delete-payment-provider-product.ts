@@ -11,7 +11,7 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { productProviderConfigurations } from "@voidhash/db";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { and, eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
 import { getProductByIdQuery } from "../raw-queries";
@@ -20,7 +20,7 @@ import { isAuthenticated } from "@/lib/middlewares";
 export const deletePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
 	providerId: z.enum(
-		paymentProviders.map((p) => p.id) as [string, ...string[]]
+		paymentProviders.map((p) => p.getId()) as [string, ...string[]]
 	),
 	providerProductKey: z.string(),
 });

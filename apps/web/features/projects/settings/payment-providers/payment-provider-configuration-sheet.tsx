@@ -1,7 +1,7 @@
 "use client";
 
 import { savePaymentProviderConfigurationAction } from "@/lib/nextjs/server-actions";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Project } from "@voidhash/db";
 import {
@@ -50,16 +50,18 @@ export function PaymentProviderConfigurationSheet({
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
 	const [isEnabled, setIsEnabled] = useState(enabled);
-	const paymentProvider = paymentProviders.find((pp) => pp.id === providerId);
+	const paymentProvider = paymentProviders.find(
+		(pp) => pp.getId() === providerId
+	);
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const form = useForm<any>({
 		resolver: isEnabled
 			? zodResolver(
-					paymentProvider?.configuration?.configurationSchema ?? z.object({})
+					paymentProvider?.getGlobalConfigurationSchema() ?? z.object({})
 				)
 			: undefined,
-		defaultValues: paymentProvider?.configuration?.defaultConfiguration,
+		defaultValues: paymentProvider?.getDefaultGlobalConfiguration(),
 	});
 
 	const { execute, isPending } = useAction(
@@ -67,7 +69,7 @@ export function PaymentProviderConfigurationSheet({
 		{
 			onSuccess: () => {
 				toast.success(
-					`${paymentProvider?.title} configuration saved successfully`
+					`${paymentProvider?.getTitle()} configuration saved successfully`
 				);
 				setOpen(false);
 				router.refresh();
@@ -75,7 +77,7 @@ export function PaymentProviderConfigurationSheet({
 			onError: (error) => {
 				toast.error(
 					error.error.serverError ??
-						`Failed to save ${paymentProvider?.title} configuration. Please try again.`
+						`Failed to save ${paymentProvider?.getTitle()} configuration. Please try again.`
 				);
 			},
 		}
@@ -94,7 +96,7 @@ export function PaymentProviderConfigurationSheet({
 	useEffect(() => {
 		if (open) {
 			form.reset(
-				configuration ?? paymentProvider?.configuration?.defaultConfiguration
+				configuration ?? paymentProvider?.getDefaultGlobalConfiguration()
 			);
 			setIsEnabled(enabled);
 		}
@@ -108,10 +110,9 @@ export function PaymentProviderConfigurationSheet({
 		return null;
 	}
 
-	const configurationSheet =
-		paymentProvider.configuration?.createConfigurationSheet({
-			projectId: project.id,
-		});
+	const configurationSheet = paymentProvider.getGlobalConfigurationSheet({
+		projectId: project.id,
+	});
 
 	const handleP8FileChange = (name: string, file: File) => {
 		const reader = new FileReader();
@@ -127,7 +128,7 @@ export function PaymentProviderConfigurationSheet({
 			<SheetTrigger asChild>{trigger}</SheetTrigger>
 			<SheetContent className="sm:max-w-2xl">
 				<SheetHeader>
-					<SheetTitle>{paymentProvider?.title} Configuration</SheetTitle>
+					<SheetTitle>{paymentProvider.getTitle()} Configuration</SheetTitle>
 				</SheetHeader>
 
 				<Form {...form}>
@@ -152,7 +153,7 @@ export function PaymentProviderConfigurationSheet({
 								/>
 
 								<Label htmlFor="enabled">
-									{paymentProvider?.title} enabled
+									{paymentProvider.getTitle()} enabled
 								</Label>
 							</div>
 

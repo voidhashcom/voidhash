@@ -4,7 +4,7 @@ import {
 } from "@/lib/service-function";
 import { z } from "zod";
 import { projectPaymentProviderConfigurations } from "@voidhash/db";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { and, eq } from "drizzle-orm";
 import {
 	fromUnknownThrow,
@@ -21,7 +21,7 @@ import { isAuthenticated } from "@/lib/middlewares";
 
 export const savePaymentProviderConfigurationInputSchema = z.object({
 	providerId: z.enum(
-		paymentProviders.map((p) => p.id) as [string, ...string[]]
+		paymentProviders.map((p) => p.getId()) as [string, ...string[]]
 	),
 	projectId: z.string(),
 	enabled: z.boolean(),
@@ -51,7 +51,9 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 				});
 			}
 
-			const provider = paymentProviders.find((p) => p.id === input.providerId);
+			const provider = paymentProviders.find(
+				(p) => p.getId() === input.providerId
+			);
 			if (!provider) {
 				return err({
 					code: "NOT_FOUND",
@@ -64,7 +66,7 @@ export const savePaymentProviderConfiguration = createServiceFunction()
 			}
 
 			if (input.enabled) {
-				const configurationSchema = provider.configuration?.configurationSchema;
+				const configurationSchema = provider.getGlobalConfigurationSchema();
 				if (!configurationSchema) {
 					return err({
 						code: "BAD_REQUEST",

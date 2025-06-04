@@ -1,32 +1,66 @@
 import { z } from "zod";
-import { createPaymentProvider } from "../core/payment-provider";
+import { BasePaymentProvider } from "../core/base-payment-provider";
+import { PaymentProvider } from "../core/payment-provider";
+import {
+	PaymentProviderConfigurationSheetSection,
+	PaymentProviderProductEditorSheetSection,
+} from "../core/types";
 
-export const appStore = createPaymentProvider({
-	id: "app-store",
-	title: "Apple App Store",
-	environments: ["production"],
-	configuration: {
-		configurationSchema: z.object({
-			issuerId: z.string().min(1, {
-				message: "Issuer ID is required",
-			}),
-			bundleId: z.string().min(1, {
-				message: "Bundle ID is required",
-			}),
-			keyId: z.string().min(1, {
-				message: "Key ID is required",
-			}),
-			privateKey: z.string().min(1, {
-				message: "Private key is required",
-			}),
-		}),
-		defaultConfiguration: {
+export const appStorePaymentProviderId = "app-store" as const;
+
+const appStoreGlobalConfigurationSchema = z.object({
+	issuerId: z.string().min(1, {
+		message: "Issuer ID is required",
+	}),
+	bundleId: z.string().min(1, {
+		message: "Bundle ID is required",
+	}),
+	keyId: z.string().min(1, {
+		message: "Key ID is required",
+	}),
+	privateKey: z.string().min(1, {
+		message: "Private key is required",
+	}),
+});
+
+const appStoreProductConfigurationSchema = z.object({
+	productId: z.string().min(1, {
+		message: "Product ID is required",
+	}),
+});
+
+export class AppStorePaymentProvider
+	extends BasePaymentProvider<typeof appStorePaymentProviderId>
+	implements
+		PaymentProvider<
+			typeof appStorePaymentProviderId,
+			typeof appStoreGlobalConfigurationSchema,
+			typeof appStoreProductConfigurationSchema
+		>
+{
+	constructor() {
+		super(appStorePaymentProviderId, "App Store", ["production"]);
+	}
+	getIsConfigurable(): boolean {
+		return true;
+	}
+	getDefaultGlobalConfiguration(): Partial<
+		z.infer<typeof appStoreGlobalConfigurationSchema>
+	> {
+		return {
 			issuerId: "",
 			bundleId: "",
 			keyId: "",
 			privateKey: "",
-		},
-		createConfigurationSheet: () => ({
+		};
+	}
+	getGlobalConfigurationSchema(): typeof appStoreGlobalConfigurationSchema {
+		return appStoreGlobalConfigurationSchema;
+	}
+	getGlobalConfigurationSheet(): {
+		sections: PaymentProviderConfigurationSheetSection[];
+	} {
+		return {
 			sections: [
 				{
 					key: "bundleId",
@@ -66,19 +100,25 @@ export const appStore = createPaymentProvider({
 					successMessage: "Private key was successfully attached",
 				},
 			],
-		}),
-	},
-	products: {
-		keyProperties: ["productId"],
-		productConfigurationSchema: z.object({
-			productId: z.string().min(1, {
-				message: "Product ID is required",
-			}),
-		}),
-		defaultProductConfiguration: {
+		};
+	}
+	getIsProductConfigurable(): boolean {
+		return true;
+	}
+	getDefaultProductConfiguration(): Partial<
+		z.infer<typeof appStoreProductConfigurationSchema>
+	> {
+		return {
 			productId: "",
-		},
-		createProductEditorSheet: () => ({
+		};
+	}
+	getProductConfigurationSchema(): typeof appStoreProductConfigurationSchema {
+		return appStoreProductConfigurationSchema;
+	}
+	getProductConfigurationSheet(): {
+		sections: PaymentProviderProductEditorSheetSection[];
+	} {
+		return {
 			sections: [
 				{
 					key: "productId",
@@ -91,6 +131,17 @@ export const appStore = createPaymentProvider({
 					},
 				},
 			],
-		}),
-	},
-});
+		};
+	}
+	getProductKeyProperties(): string[] {
+		return ["productId"];
+	}
+
+	checkIfCorrectlyConfigured(
+		// configuration: z.infer<typeof appStoreProductConfigurationSchema>
+	): boolean {
+		return true;
+	}
+}
+
+export const appStore = new AppStorePaymentProvider();

@@ -25,6 +25,8 @@ export const env = createEnv({
 		VOIDHASH_SECRET_KEY: z.string(),
 		TRIGGER_PROJECT_ID: z.string(),
 		TRIGGER_SECRET_KEY: z.string(),
+		GITHUB_CLIENT_ID: z.string(),
+		GITHUB_CLIENT_SECRET: z.string(),
 	},
 
 	/**

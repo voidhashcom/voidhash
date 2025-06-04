@@ -1,19 +1,21 @@
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { VoidhashInternalServerError } from "@voidhash/lib/constants";
 import { err, ok, Result } from "neverthrow";
 import { z } from "zod";
 
 export const createPaymentProviderKey = <
-	TKey extends (typeof paymentProviders)[number]["id"],
+	TKey extends ReturnType<(typeof paymentProviders)[number]["getId"]>,
 	TConfiguration extends z.infer<
-		(typeof paymentProviders)[number]["products"]["productConfigurationSchema"]
+		ReturnType<
+			(typeof paymentProviders)[number]["getProductConfigurationSchema"]
+		>
 	>,
 >(
 	paymentProviderId: TKey,
 	configuration: TConfiguration
 ): Result<string, VoidhashInternalServerError> => {
 	const paymentProvider = paymentProviders.find(
-		(p) => p.id === paymentProviderId
+		(p) => p.getId() === paymentProviderId
 	);
 	if (!paymentProvider) {
 		return err({
@@ -23,7 +25,8 @@ export const createPaymentProviderKey = <
 		});
 	}
 	return ok(
-		paymentProvider.products.keyProperties
+		paymentProvider
+			.getProductKeyProperties()
 			.map((key) => configuration[key])
 			.join(":")
 	);

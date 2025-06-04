@@ -1,6 +1,6 @@
 import { Page } from "@/features/shell";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
 import {
 	getProductById,
@@ -129,7 +129,7 @@ export async function ProductDetailPage({
 		.map((paymentProvider) => {
 			const paymentProviderConfiguration = paymentProviderConfigurations.find(
 				(paymentProviderConfiguration) =>
-					paymentProviderConfiguration.providerId === paymentProvider.id
+					paymentProviderConfiguration.providerId === paymentProvider.getId()
 			);
 
 			return {
@@ -230,21 +230,16 @@ export async function ProductDetailPage({
 								(paymentProviderWithConfiguration) => (
 									<Card
 										className="pb-0 overflow-hidden mt-8 gap-0"
-										key={paymentProviderWithConfiguration.paymentProvider.id}
+										key={paymentProviderWithConfiguration.paymentProvider.getId()}
 									>
 										<CardHeader className="pb-4">
 											<CardTitle className="flex items-center gap-4">
 												<PaymentProviderLogo
-													providerId={
-														paymentProviderWithConfiguration.paymentProvider.id
-													}
+													providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
 													className="w-5 h-5"
 												/>
 												<span>
-													{
-														paymentProviderWithConfiguration.paymentProvider
-															.title
-													}
+													{paymentProviderWithConfiguration.paymentProvider.getTitle()}
 												</span>
 											</CardTitle>
 										</CardHeader>
@@ -253,28 +248,19 @@ export async function ProductDetailPage({
 											{providerProducts.filter(
 												(providerProduct) =>
 													providerProduct.providerId ===
-													paymentProviderWithConfiguration.paymentProvider.id
+													paymentProviderWithConfiguration.paymentProvider.getId()
 											).length === 0 && (
 												<div className="flex flex-col items-center justify-center h-full py-6">
 													<div className="text-muted-foreground">
 														You haven&apos;t added any{" "}
-														{
-															paymentProviderWithConfiguration.paymentProvider
-																.title
-														}{" "}
+														{paymentProviderWithConfiguration.paymentProvider.getTitle()}{" "}
 														product yet.
 													</div>
 													<div className="mt-4">
 														<ProductDetailAddProductButton
 															productId={product.id}
-															providerId={
-																paymentProviderWithConfiguration.paymentProvider
-																	.id
-															}
-															title={
-																paymentProviderWithConfiguration.paymentProvider
-																	.title
-															}
+															providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
+															title={paymentProviderWithConfiguration.paymentProvider.getTitle()}
 														/>
 													</div>
 												</div>
@@ -284,35 +270,27 @@ export async function ProductDetailPage({
 												.filter(
 													(providerProduct) =>
 														providerProduct.providerId ===
-														paymentProviderWithConfiguration.paymentProvider.id
+														paymentProviderWithConfiguration.paymentProvider.getId()
 												)
 												.map((providerProduct) => (
 													<ProductDetailProviderProductRecord
 														key={providerProduct.providerProductKey}
 														providerProduct={providerProduct}
-														paymentProviderId={
-															paymentProviderWithConfiguration.paymentProvider
-																.id
-														}
+														paymentProviderId={paymentProviderWithConfiguration.paymentProvider.getId()}
 													/>
 												))}
 										</CardContent>
 										{providerProducts.filter(
 											(providerProduct) =>
 												providerProduct.providerId ===
-												paymentProviderWithConfiguration.paymentProvider.id
+												paymentProviderWithConfiguration.paymentProvider.getId()
 										).length > 0 && (
 											<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
 												<ProductDetailAddProductButton
 													variant="secondary"
 													productId={product.id}
-													providerId={
-														paymentProviderWithConfiguration.paymentProvider.id
-													}
-													title={
-														paymentProviderWithConfiguration.paymentProvider
-															.title
-													}
+													providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
+													title={paymentProviderWithConfiguration.paymentProvider.getTitle()}
 												/>
 											</CardFooter>
 										)}

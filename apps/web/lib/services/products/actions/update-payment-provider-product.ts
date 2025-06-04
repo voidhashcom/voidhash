@@ -12,7 +12,7 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { productProviderConfigurations } from "@voidhash/db";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { and, eq } from "drizzle-orm";
 import { createPaymentProviderKey } from "../lib";
 import { err, ok, Result } from "neverthrow";
@@ -26,7 +26,7 @@ export const updatePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
 	providerProductKey: z.string(),
 	providerId: z.enum(
-		paymentProviders.map((p) => p.id) as [string, ...string[]]
+		paymentProviders.map((p) => p.getId()) as [string, ...string[]]
 	),
 	configuration: z.object({}).passthrough(),
 });
@@ -59,7 +59,9 @@ export const updatePaymentProviderProduct = createServiceFunction()
 				});
 			}
 
-			const provider = paymentProviders.find((p) => p.id === input.providerId);
+			const provider = paymentProviders.find(
+				(p) => p.getId() === input.providerId
+			);
 			if (!provider) {
 				return err({
 					code: "NOT_FOUND",
@@ -71,8 +73,9 @@ export const updatePaymentProviderProduct = createServiceFunction()
 				});
 			}
 
-			const parsedConfiguration =
-				provider.products.productConfigurationSchema.parse(input.configuration);
+			const parsedConfiguration = provider
+				.getProductConfigurationSchema()
+				.parse(input.configuration);
 
 			const providerProduct = await getProviderProductByPrimaryKeyQuery(
 				ctx,
@@ -86,7 +89,7 @@ export const updatePaymentProviderProduct = createServiceFunction()
 			}
 
 			const providerProductKey = createPaymentProviderKey(
-				provider.id,
+				provider.getId(),
 				parsedConfiguration
 			);
 

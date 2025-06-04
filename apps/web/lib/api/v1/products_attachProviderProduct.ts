@@ -8,7 +8,7 @@ import {
 } from "./schema";
 import { z } from "zod";
 import { createPaymentProviderProduct } from "@/lib/services/products/actions/create-payment-provider-product";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
@@ -54,7 +54,7 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 			if (!providerId) {
 				return c.json({ error: "Provider ID is required" }, 400);
 			}
-			if (!paymentProviders.find((p) => p.id === providerId)) {
+			if (!paymentProviders.find((p) => p.getId() === providerId)) {
 				return c.json({ error: "Provider not found" }, 404);
 			}
 

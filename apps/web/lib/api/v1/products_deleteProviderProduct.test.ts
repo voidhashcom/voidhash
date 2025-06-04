@@ -9,7 +9,7 @@ import {
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
-import { stripe } from "@/lib/payment-providers/stripe/stripe";
+import { stripe } from "@/lib/payment-providers-v0/stripe/stripe";
 
 describe.sequential(
 	"/v1/products/:productId/provider-products/:providerId/:providerProductKey",
