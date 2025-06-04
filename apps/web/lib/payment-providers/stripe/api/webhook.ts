@@ -44,6 +44,13 @@ export const registerStripeWebhook = (app: App) => {
 				});
 			}
 
+			if (!stripePaymentProvider.configuration) {
+				throw new VoidhashHTTPError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Stripe configuration is not set.",
+				});
+			}
+
 			const configuration = paymentProviderConfiguration.value
 				.configuration as z.infer<
 				typeof stripePaymentProvider.configuration.configurationSchema
