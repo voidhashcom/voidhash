@@ -18,7 +18,7 @@ import Link from "next/link";
 
 // import { LoginPageIllustration } from "@/features/auth/components/login-page-illustration";
 
-function LoginPageContent() {
+export default function LoginPage() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
 
@@ -42,8 +42,10 @@ function LoginPageContent() {
 
 		const next = searchParams.get("next");
 		if (next && next.length > 1) {
+			router.refresh();
 			router.push(decodeURIComponent(next));
 		} else {
+			router.refresh();
 			router.push("/");
 		}
 	};
@@ -137,8 +139,4 @@ function LoginPageContent() {
 			</div>
 		</div>
 	);
-}
-
-export default function LoginPage() {
-	return <LoginPageContent />;
 }
