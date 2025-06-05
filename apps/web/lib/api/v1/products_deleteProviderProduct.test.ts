@@ -9,7 +9,7 @@ import {
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
-import { stripe } from "@/lib/payment-providers-v0/stripe/stripe";
+import { stripe } from "@/lib/payment-providers/stripe/stripe";
 
 describe.sequential(
 	"/v1/products/:productId/provider-products/:providerId/:providerProductKey",
@@ -37,7 +37,9 @@ describe.sequential(
 				configuration: {
 					priceId: `price_to_delete_${generateId("test")}`,
 					productId: `prod_to_delete_${generateId("test")}`,
-				} satisfies z.infer<typeof stripe.products.productConfigurationSchema>,
+				} satisfies z.infer<
+					ReturnType<typeof stripe.getProductConfigurationSchema>
+				>,
 				isActive: true,
 			};
 			await h.db.primary

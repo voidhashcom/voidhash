@@ -13,7 +13,7 @@ import { getPaywallProductByIdQuery } from "../raw-queries";
 import { generateId } from "@/lib/id/generate";
 import { checkoutSessions, db } from "@voidhash/db";
 import { getCustomerByAppUserIdQuery } from "../../customers/raw-queries";
-import { devCheckoutProviderId } from "@/lib/payment-providers-v0/dev-checkout/dev-checkout";
+import { devCheckoutPaymentProviderId } from "@/lib/payment-providers/dev-checkout/dev-checkout";
 
 export const createCheckoutInputSchema = z.object({
 	paywallProductId: z.string().min(1),
@@ -109,7 +109,7 @@ export const createCheckoutSession = createServiceFunction()
 						successCallbackUrl: input.successCallbackUrl,
 						errorCallbackUrl: input.errorCallbackUrl,
 						// TODO: Replace with real payment provider id
-						paymentProviderId: devCheckoutProviderId,
+						paymentProviderId: devCheckoutPaymentProviderId,
 						createdAt: new Date(),
 						updatedAt: new Date(),
 					};

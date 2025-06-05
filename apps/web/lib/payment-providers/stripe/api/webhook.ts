@@ -2,7 +2,10 @@ import Stripe from "stripe";
 import { HTTPException } from "hono/http-exception";
 import { App } from "@/lib/api/hono/app";
 import { getExistingPaymentProviderConfigurationByIdQuery } from "@/lib/services/payment-providers/raw-queries";
-import { stripe as stripePaymentProvider, stripeProviderId } from "../stripe";
+import {
+	stripe as stripePaymentProvider,
+	stripePaymentProviderId,
+} from "../stripe";
 import { z } from "zod";
 import { ALLOWED_EVENTS } from "../constants";
 import { handleSessionCompleted } from "../hooks/on-session-completed";
@@ -30,7 +33,7 @@ export const registerStripeWebhook = (app: App) => {
 				await getExistingPaymentProviderConfigurationByIdQuery(
 					ctx,
 					c.req.param("projectId"),
-					stripeProviderId
+					stripePaymentProviderId
 				);
 
 			if (paymentProviderConfiguration.isErr()) {
@@ -44,16 +47,9 @@ export const registerStripeWebhook = (app: App) => {
 				});
 			}
 
-			if (!stripePaymentProvider.configuration) {
-				throw new VoidhashHTTPError({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Stripe configuration is not set.",
-				});
-			}
-
 			const configuration = paymentProviderConfiguration.value
 				.configuration as z.infer<
-				typeof stripePaymentProvider.configuration.configurationSchema
+				ReturnType<typeof stripePaymentProvider.getGlobalConfigurationSchema>
 			>;
 
 			const stripeWebhookSecret = configuration.webhookSecret;
