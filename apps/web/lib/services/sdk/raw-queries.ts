@@ -27,8 +27,9 @@ export const getCustomerWithParentByAppUserIdQuery = async (
 		VoidhashInternalServerError | VoidhashNotFoundError
 	>
 > => {
+	const tx = ctx.tx ?? ctx.db;
 	const res = await ResultAsync.fromPromise(
-		ctx.db.query.customers.findFirst({
+		tx.query.customers.findFirst({
 			where: and(
 				eq(customers.appUserId, appUserId),
 				eq(customers.environment, environment)
