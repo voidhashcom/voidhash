@@ -45,9 +45,13 @@ export function init(): MiddlewareHandler<HonoEnv> {
 			defaultFields: { environment: env.VERCEL_ENV ?? "unknown" },
 		});
 
-		const source = c.req.path.startsWith("/api/v1/sdk")
-			? "api-sdk"
-			: "api-server";
+		const sdkPathPrefixes = ["/api/v1/sdk", "/v1/sdk"];
+
+		const isSdkPathname = sdkPathPrefixes.some((prefix) =>
+			c.req.path.startsWith(prefix)
+		);
+
+		const source = isSdkPathname ? "api-sdk" : "api-server";
 
 		c.set("services", {
 			source: source,
