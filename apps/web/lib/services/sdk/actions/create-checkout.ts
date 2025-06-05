@@ -11,9 +11,11 @@ import { err, ok, Result } from "neverthrow";
 import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 import { getPaywallProductByIdQuery } from "../raw-queries";
 import { generateId } from "@/lib/id/generate";
-import { checkoutSessions, db } from "@voidhash/db";
+import { checkoutSessions } from "@voidhash/db";
 import { getCustomerByAppUserIdQuery } from "../../customers/raw-queries";
 import { devCheckoutPaymentProviderId } from "@/lib/payment-providers/dev-checkout/dev-checkout";
+import { isAnonymousId } from "../utils";
+import { createAnonymousCustomer } from "../create-anonymous-customer";
 
 export const createCheckoutInputSchema = z.object({
 	paywallProductId: z.string().min(1),
@@ -42,6 +44,15 @@ export const createCheckoutSession = createServiceFunction()
 			ctx,
 		}): Promise<Result<CreateCheckoutResponse, CreateCheckoutError>> => {
 			console.log("createCheckoutSession", input);
+			const appUserId = ctx.session?.customer?.appUserId;
+
+			if (!appUserId) {
+				return err({
+					code: "UNAUTHORIZED",
+					message: "App user ID not found",
+				});
+			}
+
 			const paywallProduct = await getPaywallProductByIdQuery(
 				ctx,
 				input.paywallProductId
@@ -50,24 +61,6 @@ export const createCheckoutSession = createServiceFunction()
 			if (paywallProduct.isErr()) {
 				console.log("paywallProduct error", paywallProduct.error);
 				return err(paywallProduct.error);
-			}
-
-			if (!ctx.session.customer) {
-				return err({
-					code: "UNAUTHORIZED",
-					message: "Customer not found",
-				});
-			}
-
-			const customer = await getCustomerByAppUserIdQuery(
-				ctx,
-				ctx.session.customer.appUserId,
-				ctx.session.environment
-			);
-
-			if (customer.isErr()) {
-				console.log("customer error", customer.error);
-				return err(customer.error);
 			}
 
 			const projectId = ctx.session.projects[0]?.id;
@@ -101,10 +94,59 @@ export const createCheckoutSession = createServiceFunction()
 			// }
 
 			try {
-				return await db.transaction(async (tx) => {
+				return await ctx.db.transaction(async (tx) => {
+					const customerResult = await getCustomerByAppUserIdQuery(
+						{
+							...ctx,
+							tx: tx,
+						},
+						appUserId,
+						ctx.session.environment
+					);
+
+					let customer = customerResult.isOk() ? customerResult.value : null;
+
+					if (customerResult.isErr()) {
+						// When not found, we should check if the id is anonymous. If it is, we should create a new customer.
+						if (
+							customerResult.error.code === "NOT_FOUND" &&
+							isAnonymousId(appUserId)
+						) {
+							const createAnonymousCustomerResult =
+								await createAnonymousCustomer(
+									{
+										...ctx,
+										tx: tx,
+									},
+									{
+										projectId,
+										appUserId: appUserId,
+										origin: "ios", // TODO: Make this dynamic
+										environment: ctx.session.environment,
+									}
+								);
+
+							if (createAnonymousCustomerResult.isErr()) {
+								return err(createAnonymousCustomerResult.error);
+							}
+
+							customer = createAnonymousCustomerResult.value;
+						}
+
+						return err(customerResult.error);
+					}
+
+					if (!customer) {
+						return err({
+							code: "INTERNAL_SERVER_ERROR",
+							message: "Customer not found",
+							originalError: new Error("Customer not found"),
+						} satisfies VoidhashInternalServerError);
+					}
+
 					const sessionInsert = {
 						id: generateId("checkoutSession"),
-						customerId: customer.value.id,
+						customerId: customer.id,
 						productId: paywallProduct.value.product.id,
 						successCallbackUrl: input.successCallbackUrl,
 						errorCallbackUrl: input.errorCallbackUrl,

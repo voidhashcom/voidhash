@@ -1,17 +1,17 @@
-import { createServiceFunction, ServiceContext } from "@/lib/service-function";
-import { customers, type Customer, type InsertCustomer } from "@voidhash/db";
+import { createServiceFunction } from "@/lib/service-function";
+import { type Customer } from "@voidhash/db";
 import {
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
 	VoidhashForbiddenError,
 	VoidhashUnauthorizedError,
-	Environment,
+	fromUnknownThrow,
 } from "@voidhash/lib/constants";
 import { Result, err, ok } from "neverthrow";
 import { getCustomerWithParentByAppUserIdQuery } from "../raw-queries";
 import { isAnonymousId } from "../utils";
-import { generateId } from "@/lib/id/generate";
 import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { createAnonymousCustomer } from "../create-anonymous-customer";
 
 type GetOrCreateAnonymousCustomerError =
 	| VoidhashInternalServerError
@@ -44,70 +44,49 @@ export const sdkGetCustomerOrCreateAnonymous = createServiceFunction()
 				});
 			}
 
-			const customer = await getCustomerWithParentByAppUserIdQuery(
-				ctx,
-				appUserId,
-				ctx.session.environment
-			);
+			try {
+				return await ctx.db.transaction(async (tx) => {
+					const customer = await getCustomerWithParentByAppUserIdQuery(
+						{
+							...ctx,
+							tx: tx,
+						},
+						appUserId,
+						ctx.session.environment
+					);
 
-			if (customer.isErr()) {
-				// When not found, we should check if the id is anonymous. If it is, we should create a new customer.
-				if (customer.error.code === "NOT_FOUND" && isAnonymousId(appUserId)) {
-					return createAnonymousCustomer(ctx, {
-						projectId,
-						appUserId: appUserId,
-						origin: "ios", // TODO: Make this dynamic
-						environment: ctx.session.environment,
-					});
-				}
+					if (customer.isErr()) {
+						// When not found, we should check if the id is anonymous. If it is, we should create a new customer.
+						if (
+							customer.error.code === "NOT_FOUND" &&
+							isAnonymousId(appUserId)
+						) {
+							return createAnonymousCustomer(
+								{
+									...ctx,
+									tx: tx,
+								},
+								{
+									projectId,
+									appUserId: appUserId,
+									origin: "ios", // TODO: Make this dynamic
+									environment: ctx.session.environment,
+								}
+							);
+						}
 
-				return err(customer.error);
+						return err(customer.error);
+					}
+
+					// Return parent, if it exists
+					if (customer.value.parentCustomer) {
+						return ok(customer.value.parentCustomer);
+					}
+
+					return ok(customer.value);
+				});
+			} catch (e) {
+				return err(fromUnknownThrow(e));
 			}
-
-			// Return parent, if it exists
-			if (customer.value.parentCustomer) {
-				return ok(customer.value.parentCustomer);
-			}
-
-			return ok(customer.value);
 		}
 	);
-
-async function createAnonymousCustomer(
-	ctx: ServiceContext,
-	input: {
-		projectId: string;
-		appUserId: string;
-		origin: "ios" | "android";
-		environment: Environment;
-	}
-): Promise<Result<Customer, VoidhashInternalServerError>> {
-	try {
-		const newCustomer = {
-			id: generateId("customer"),
-			type: "anonymous",
-			parentCustomerId: null,
-			projectId: input.projectId,
-			appUserId: input.appUserId,
-			origin: input.origin,
-			environment: input.environment,
-		} satisfies InsertCustomer;
-
-		await ctx.db.insert(customers).values(newCustomer);
-
-		return ok({
-			...newCustomer,
-			name: null,
-			email: null,
-			archivedAt: null,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		});
-	} catch (error) {
-		return err({
-			code: "INTERNAL_SERVER_ERROR",
-			message: "Failed to create customer",
-			originalError: error,
-		});
-	}
-}
