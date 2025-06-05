@@ -12,7 +12,7 @@ import {
 	attachProviderProductBodySchema,
 	providerProductResponseSchema,
 } from "./schema";
-import { stripe } from "@/lib/payment-providers-v0/stripe/stripe";
+import { stripe } from "@/lib/payment-providers/stripe/stripe";
 
 describe.sequential("/v1/products/:productId/provider-products", async () => {
 	test("POST /v1/products/:productId/provider-products - success", async (t) => {
@@ -39,7 +39,9 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 				// These fields depend heavily on the Stripe configuration schema
 				productId: `prod_${generateId("test")}`,
 				priceId: `price_${generateId("test")}`,
-			} satisfies z.infer<typeof stripe.products.productConfigurationSchema>,
+			} satisfies z.infer<
+				ReturnType<typeof stripe.getProductConfigurationSchema>
+			>,
 		};
 
 		const res = await h.post({

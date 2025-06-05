@@ -9,7 +9,7 @@ import {
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
-import { stripe } from "../../payment-providers-v0/stripe/stripe";
+import { stripe } from "@/lib/payment-providers/stripe/stripe";
 import { RouteResponse, RouteRequest } from "./products_updateProviderProduct";
 import { createPaymentProviderKey } from "@/lib/services/products/lib";
 
@@ -48,7 +48,9 @@ describe.sequential(
 				configuration: {
 					productId: `prod_123`,
 					priceId: `price_123`,
-				} satisfies z.infer<typeof stripe.products.productConfigurationSchema>,
+				} satisfies z.infer<
+					ReturnType<typeof stripe.getProductConfigurationSchema>
+				>,
 				isActive: true,
 			};
 			await h.db.primary
@@ -63,7 +65,7 @@ describe.sequential(
 						productId: `prod_123`,
 						priceId: `price_123`,
 					} satisfies z.infer<
-						typeof stripe.products.productConfigurationSchema
+						ReturnType<typeof stripe.getProductConfigurationSchema>
 					>,
 				},
 			};
@@ -126,7 +128,7 @@ describe.sequential(
 						productId: `prod_123`,
 						priceId: `price_update_fail`,
 					} satisfies z.infer<
-						typeof stripe.products.productConfigurationSchema
+						ReturnType<typeof stripe.getProductConfigurationSchema>
 					>,
 				},
 			};
