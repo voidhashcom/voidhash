@@ -111,45 +111,6 @@ export class PaymentProviderCoreService {
 		return ok(productProviderConfiguration);
 	}
 
-	async updateCheckoutSessionStatus(
-		ctx: ServiceContext,
-		tx: Transaction,
-		checkoutSessionId: string,
-		status: "success" | "error"
-	): Promise<
-		Result<void, VoidhashInternalServerError | VoidhashNotFoundError>
-	> {
-		try {
-			const checkoutSession = await tx.query.checkoutSessions.findFirst({
-				where: eq(checkoutSessions.id, checkoutSessionId),
-			});
-
-			if (!checkoutSession) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Checkout session not found",
-					resource: "checkoutSession",
-					payload: {
-						checkoutSessionId,
-					},
-				});
-			}
-
-			await tx
-				.update(checkoutSessions)
-				.set({ status })
-				.where(eq(checkoutSessions.id, checkoutSessionId));
-
-			return ok();
-		} catch (error) {
-			return err({
-				code: "INTERNAL_SERVER_ERROR",
-				message: "Internal server error",
-				originalError: error,
-			});
-		}
-	}
-
 	async processSubscriptionPurchase(
 		ctx: ServiceContext,
 		tx: Transaction,
@@ -207,7 +168,6 @@ export class PaymentProviderCoreService {
 			await tx.insert(purchases).values(customerProduct);
 
 			// Add grants
-
 			const productPerks = await getProductPerksByProductIdQuery(
 				ctx,
 				productProviderConfiguration.product.id

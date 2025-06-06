@@ -9,6 +9,7 @@ export default defineConfig({
     include: [
       "./lib/api/v1/**/*.test.ts",
       "./lib/services/**/*.integration.test.ts",
+      "./lib/payment-providers/**/*.integration.test.ts",
     ],
     reporters: ["verbose"],
     pool: "threads",

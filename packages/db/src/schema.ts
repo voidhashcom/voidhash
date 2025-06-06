@@ -341,6 +341,16 @@ export const productProviderConfigurations = mysqlTable(
 	]
 );
 
+export const productProviderConfigurationRelations = relations(
+	productProviderConfigurations,
+	({ one }) => ({
+		product: one(products, {
+			fields: [productProviderConfigurations.productId],
+			references: [products.id],
+		}),
+	})
+);
+
 // Paywall
 export const paywalls = mysqlTable("paywall", {
 	id: varchar("id", { length: 255 }).primaryKey(),
