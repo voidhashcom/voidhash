@@ -81,6 +81,10 @@ export class DevCheckoutPaymentProviderServer extends DevCheckoutPaymentProvider
 					);
 
 				if (productProviderConfiguration.isErr()) {
+					console.log(
+						"productProviderConfiguration",
+						productProviderConfiguration
+					);
 					// TODO: Should log the error
 					return await checkoutError(tx, checkoutSession.value);
 				}
@@ -106,6 +110,10 @@ export class DevCheckoutPaymentProviderServer extends DevCheckoutPaymentProvider
 					);
 
 				if (processSubscriptionPurchaseResult.isErr()) {
+					console.log(
+						"processSubscriptionPurchaseResult",
+						processSubscriptionPurchaseResult
+					);
 					// TODO: Should log the error
 					return await checkoutError(tx, checkoutSession.value);
 				}
