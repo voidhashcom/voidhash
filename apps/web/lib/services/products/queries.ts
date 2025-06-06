@@ -121,6 +121,7 @@ export const getProviderProductByPrimaryKey = cache(
 			})
 		)
 		.use(isAuthenticated)
+		.use(hasEnvironment)
 		.function(
 			async ({
 				input,
@@ -142,7 +143,8 @@ export const getProviderProductByPrimaryKey = cache(
 					ctx,
 					input.projectId,
 					input.providerId,
-					input.productProviderKey
+					input.productProviderKey,
+					ctx.session.environment
 				);
 
 				if (providerProductResult.isErr()) {

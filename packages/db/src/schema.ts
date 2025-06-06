@@ -139,7 +139,7 @@ export const customersUnlockedPerks = mysqlTable(
 		customerId: varchar("customer_id", { length: 255 }).notNull(),
 		perkId: varchar("perk_id", { length: 255 }).notNull(),
 		// Controls the lifetime of the perk
-		unlockedByCustomerProductId: varchar("unlocked_by_purchase_id", {
+		unlockedByPurchaseId: varchar("unlocked_by_purchase_id", {
 			length: 255,
 		}).notNull(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
@@ -317,7 +317,11 @@ export const productProviderConfigurations = mysqlTable(
 		providerProductKey: varchar("provider_product_key", {
 			length: 255,
 		}).notNull(),
+		projectId: varchar("project_id", { length: 255 }).notNull(),
 		productId: varchar("product_id", { length: 255 }).notNull(),
+		environment: mysqlEnum("environment", ENVIRONMENTS)
+			.default("production")
+			.notNull(),
 		isActive: boolean("is_active").notNull().default(true),
 		providerId: varchar("provider_id", { length: 255 }).notNull(),
 		configuration: json("configuration").$type<object>(),
@@ -325,10 +329,13 @@ export const productProviderConfigurations = mysqlTable(
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
 	(table) => [
-		uniqueIndex("product_id_provider_id_provider_product_key_idx").on(
-			table.productId,
+		uniqueIndex(
+			"project_id_provider_id_provider_product_key_environment_idx"
+		).on(
+			table.projectId,
 			table.providerId,
-			table.providerProductKey
+			table.providerProductKey,
+			table.environment
 		),
 		index("provider_id_idx").on(table.providerId),
 	]
@@ -435,6 +442,9 @@ export const checkoutSessions = mysqlTable("checkout_session", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	customerId: varchar("customer_id", { length: 255 }).notNull(),
 	productId: varchar("product_id", { length: 255 }).notNull(),
+	status: mysqlEnum("status", ["pending", "success", "error", "cancelled"])
+		.notNull()
+		.default("pending"),
 	successCallbackUrl: varchar("success_callback_url", {
 		length: 255,
 	})

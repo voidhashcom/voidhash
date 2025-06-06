@@ -112,6 +112,14 @@ import {
 	updatePaywall,
 	updatePaywallInputSchema,
 } from "../services/paywalls/actions/update-paywall";
+import {
+	confirmDevCheckoutPurchase,
+	confirmDevCheckoutPurchaseInputSchema,
+} from "../payment-providers/dev-checkout/actions/confirm-purchase";
+import {
+	cancelDevCheckoutPurchase,
+	cancelDevCheckoutPurchaseInputSchema,
+} from "../payment-providers/dev-checkout/actions/cancel-purchase";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -536,6 +544,37 @@ export const deletePerkAction = actionClient
 	.schema(deletePerkInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
 		const res = await deletePerk.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+
+		if (res.isErr()) {
+			throw toVoidhashHTTPError(res.error);
+		}
+
+		return res.value;
+	});
+
+// Dev checkout
+export const confirmDevCheckoutPurchaseAction = actionClient
+	.schema(confirmDevCheckoutPurchaseInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		const res = await confirmDevCheckoutPurchase.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+
+		if (res.isErr()) {
+			throw toVoidhashHTTPError(res.error);
+		}
+
+		return res.value;
+	});
+
+export const cancelDevCheckoutPurchaseAction = actionClient
+	.schema(cancelDevCheckoutPurchaseInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		const res = await cancelDevCheckoutPurchase.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});

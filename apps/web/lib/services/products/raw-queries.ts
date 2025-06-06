@@ -103,7 +103,8 @@ export const getProviderProductByPrimaryKeyQuery = async (
 	ctx: ServiceContext,
 	projectId: string,
 	providerId: string,
-	productProviderKey: string
+	productProviderKey: string,
+	environment: Environment
 ): Promise<
 	Result<
 		ProductProviderConfiguration,
@@ -114,18 +115,16 @@ export const getProviderProductByPrimaryKeyQuery = async (
 		ctx.db
 			.select()
 			.from(productProviderConfigurations)
-			.leftJoin(
-				products,
-				eq(productProviderConfigurations.productId, products.id)
-			)
+
 			.where(
 				and(
-					eq(products.projectId, projectId),
+					eq(productProviderConfigurations.projectId, projectId),
 					eq(productProviderConfigurations.providerId, providerId),
 					eq(
 						productProviderConfigurations.providerProductKey,
 						productProviderKey
-					)
+					),
+					eq(productProviderConfigurations.environment, environment)
 				)
 			),
 		(e) => fromUnknownThrow(e)
@@ -135,8 +134,7 @@ export const getProviderProductByPrimaryKeyQuery = async (
 		return err(providerProductsResult.error);
 	}
 
-	const productProviderConfiguration =
-		providerProductsResult.value[0]?.product_provider_configuration;
+	const productProviderConfiguration = providerProductsResult.value[0];
 
 	if (!productProviderConfiguration) {
 		return err({

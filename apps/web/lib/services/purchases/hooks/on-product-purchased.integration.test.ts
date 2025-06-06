@@ -48,6 +48,8 @@ describe.sequential("on-product-purchased integration tests", () => {
 				productId: "prod_1234567890",
 				priceId: "price_1234567890",
 			},
+			projectId: h.resources.project.id,
+			environment: "production",
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -153,10 +155,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 			await h.db.primary.query.customersUnlockedPerks.findMany({
 				where: and(
 					eq(customersUnlockedPerks.customerId, testCustomerId),
-					eq(
-						customersUnlockedPerks.unlockedByCustomerProductId,
-						result.value.id
-					)
+					eq(customersUnlockedPerks.unlockedByPurchaseId, result.value.id)
 				),
 			});
 

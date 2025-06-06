@@ -1,11 +1,16 @@
+import {
+	cancelDevCheckoutPurchaseAction,
+	confirmDevCheckoutPurchaseAction,
+} from "@/lib/nextjs/server-actions";
 import { checkoutSessions, db, eq } from "@voidhash/db";
 import { Button, Card, Logo } from "@voidhash/ui";
+
 import { redirect } from "next/navigation";
 
 export default async function CheckoutPage({
 	params,
 }: {
-	params: { checkoutSessionId: string };
+	params: Promise<{ checkoutSessionId: string }>;
 }) {
 	const { checkoutSessionId } = await params;
 
@@ -22,29 +27,25 @@ export default async function CheckoutPage({
 
 	const handleConfirm = async () => {
 		"use server";
-		// await db
-		// 	.update(checkoutSessions)
-		// 	.set({
-		// 		// TODO: Add status
-		// 	})
-		// 	.where(eq(checkoutSessions.id, checkoutSessionId));
+
+		const res = await confirmDevCheckoutPurchaseAction({
+			checkoutSessionId,
+		});
 
 		redirect(
-			`${checkoutSession.successCallbackUrl}?checkoutSessionId=${checkoutSessionId}&success=true`
+			`${res?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&success=true`
 		);
 	};
 
 	const handleCancel = async () => {
 		"use server";
-		// await db
-		// 	.update(checkoutSessions)
-		// 	.set({
-		// 		// TODO: Add status
-		// 	})
-		// 	.where(eq(checkoutSessions.id, checkoutSessionId));
+
+		const res = await cancelDevCheckoutPurchaseAction({
+			checkoutSessionId,
+		});
 
 		redirect(
-			`${checkoutSession.errorCallbackUrl}?checkoutSessionId=${checkoutSessionId}&error=cancelled`
+			`${res?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&error=cancelled`
 		);
 	};
 

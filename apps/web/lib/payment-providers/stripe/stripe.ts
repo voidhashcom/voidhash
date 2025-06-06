@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { BasePaymentProvider } from "../core/base-payment-provider";
-import { PaymentProvider } from "../core/payment-provider";
+import { BasePaymentProvider } from "../../services/payment-providers/core/base-payment-provider";
+import { PaymentProvider } from "../../services/payment-providers/core/payment-provider";
 import {
 	PaymentProviderConfigurationSheetSection,
 	PaymentProviderProductEditorSheetSection,
-} from "../core/types";
+} from "../../services/payment-providers/core/types";
 import { API_DOMAIN } from "@voidhash/lib/constants";
 
 const stripeGlobalConfigurationSchema = z.object({
@@ -34,7 +34,10 @@ const stripeProductConfigurationSchema = z.object({
 export const stripePaymentProviderId = "stripe" as const;
 
 export class StripePaymentProvider
-	extends BasePaymentProvider<typeof stripePaymentProviderId>
+	extends BasePaymentProvider<
+		typeof stripePaymentProviderId,
+		typeof stripeProductConfigurationSchema
+	>
 	implements
 		PaymentProvider<
 			typeof stripePaymentProviderId,
@@ -43,7 +46,12 @@ export class StripePaymentProvider
 		>
 {
 	constructor() {
-		super(stripePaymentProviderId, "Stripe", ["production"]);
+		super(
+			stripePaymentProviderId,
+			"Stripe",
+			["production"],
+			["productId", "priceId"]
+		);
 	}
 	getIsConfigurable(): boolean {
 		return true;
@@ -130,9 +138,6 @@ export class StripePaymentProvider
 		return {
 			sections,
 		};
-	}
-	getProductKeyProperties(): string[] {
-		return ["productId", "priceId"];
 	}
 
 	checkIfCorrectlyConfigured(

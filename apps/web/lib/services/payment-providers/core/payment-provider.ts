@@ -32,6 +32,7 @@ export interface PaymentProvider<
 		sections: PaymentProviderProductEditorSheetSection[];
 	};
 	getProductKeyProperties(): string[];
+	createProductKey(configuration: z.infer<TProductConfigurationSchema>): string;
 	checkIfCorrectlyConfigured(
 		configuration: z.infer<TProductConfigurationSchema>
 	): boolean;

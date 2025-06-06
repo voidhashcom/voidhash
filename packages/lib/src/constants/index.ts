@@ -1,3 +1,4 @@
+export * from "./currencies";
 export * from "./environments";
 export * from "./main";
 export * from "./errors";

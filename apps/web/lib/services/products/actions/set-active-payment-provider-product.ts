@@ -19,7 +19,7 @@ import {
 	getProductByIdQuery,
 	getProviderProductByPrimaryKeyQuery,
 } from "../raw-queries";
-import { isAuthenticated } from "@/lib/middlewares";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
 export const setActivePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
@@ -39,6 +39,7 @@ type SetActivePaymentProviderProductError =
 export const setActivePaymentProviderProduct = createServiceFunction()
 	.input(setActivePaymentProviderProductInputSchema)
 	.use(isAuthenticated)
+	.use(hasEnvironment)
 	.function(
 		async ({
 			input,
@@ -75,7 +76,8 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 				ctx,
 				product.value.projectId,
 				input.providerId,
-				input.providerProductKey
+				input.providerProductKey,
+				ctx.session.environment
 			);
 
 			if (providerProduct.isErr()) {

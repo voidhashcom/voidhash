@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { BasePaymentProvider } from "../core/base-payment-provider";
-import { PaymentProvider } from "../core/payment-provider";
+import { BasePaymentProvider } from "../../services/payment-providers/core/base-payment-provider";
+import { PaymentProvider } from "../../services/payment-providers/core/payment-provider";
 import {
 	PaymentProviderConfigurationSheetSection,
 	PaymentProviderProductEditorSheetSection,
-} from "../core/types";
+} from "../../services/payment-providers/core/types";
 
 export const appStorePaymentProviderId = "app-store" as const;
 
@@ -30,7 +30,10 @@ const appStoreProductConfigurationSchema = z.object({
 });
 
 export class AppStorePaymentProvider
-	extends BasePaymentProvider<typeof appStorePaymentProviderId>
+	extends BasePaymentProvider<
+		typeof appStorePaymentProviderId,
+		typeof appStoreProductConfigurationSchema
+	>
 	implements
 		PaymentProvider<
 			typeof appStorePaymentProviderId,
@@ -39,7 +42,12 @@ export class AppStorePaymentProvider
 		>
 {
 	constructor() {
-		super(appStorePaymentProviderId, "App Store", ["production"]);
+		super(
+			appStorePaymentProviderId,
+			"App Store",
+			["production"],
+			["productId"]
+		);
 	}
 	getIsConfigurable(): boolean {
 		return true;
@@ -132,9 +140,6 @@ export class AppStorePaymentProvider
 				},
 			],
 		};
-	}
-	getProductKeyProperties(): string[] {
-		return ["productId"];
 	}
 
 	checkIfCorrectlyConfigured(

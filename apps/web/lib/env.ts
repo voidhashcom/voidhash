@@ -27,6 +27,7 @@ export const env = createEnv({
 		TRIGGER_SECRET_KEY: z.string(),
 		GITHUB_CLIENT_ID: z.string(),
 		GITHUB_CLIENT_SECRET: z.string(),
+		POLAR_ACCESS_TOKEN: z.string(),
 	},
 
 	/**

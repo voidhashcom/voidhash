@@ -85,7 +85,8 @@ export async function handleSessionCompleted(
 				serviceContext,
 				projectId,
 				stripePaymentProviderId,
-				paymentProviderKey.value
+				paymentProviderKey.value,
+				"production"
 			)
 		).orElse((e) => {
 			if (e.code === "NOT_FOUND") {

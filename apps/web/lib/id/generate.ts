@@ -9,7 +9,7 @@ const prefixes = {
 	apiPublishableKey: "api_pk",
 	apiPublishableKeyTesting: "api_pk_test",
 	customer: "cust",
-	customerProduct: "cust_prod",
+	purchase: "pur",
 	paywall: "pw",
 	paywallProduct: "pw_prod",
 	projectPaymentProviderConfiguration: "pp_conf",
