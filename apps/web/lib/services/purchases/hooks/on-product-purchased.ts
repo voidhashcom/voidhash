@@ -61,7 +61,7 @@ export async function handleProductPurchase(
 	}
 
 	const customerProduct = {
-		id: generateId("customerProduct"),
+		id: generateId("purchase"),
 		providerKey: event.providerKey,
 		status: event.status,
 		type: event.type,
@@ -98,7 +98,7 @@ export async function handleProductPurchase(
 				id: generateId("customerUnlockedPerk"),
 				customerId: event.customerId,
 				perkId: productPerk.perkId,
-				unlockedByCustomerProductId: customerProduct.id,
+				unlockedByPurchaseId: customerProduct.id,
 			});
 		}
 	}

@@ -17,7 +17,7 @@ import { and, eq } from "drizzle-orm";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
 import { getProductByIdQuery } from "../raw-queries";
-import { isAuthenticated } from "@/lib/middlewares";
+import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
 export const createPaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
@@ -37,6 +37,7 @@ type CreatePaymentProviderProductError =
 export const createPaymentProviderProduct = createServiceFunction()
 	.input(createPaymentProviderProductInputSchema)
 	.use(isAuthenticated)
+	.use(hasEnvironment)
 	.function(
 		async ({
 			input,
@@ -72,7 +73,6 @@ export const createPaymentProviderProduct = createServiceFunction()
 				});
 			}
 
-			provider.getProductConfigurationSchema().parse(input.configuration);
 			const parseConfigurationSchema = Result.fromThrowable(
 				provider.getProductConfigurationSchema().parse,
 				(e) =>
@@ -103,11 +103,14 @@ export const createPaymentProviderProduct = createServiceFunction()
 					id: generateId("paymentProviderProduct"),
 					productId: product.value.id,
 					providerId: input.providerId,
-					providerProductKey: provider
-						.getProductKeyProperties()
-						.map((key) => parsedConfiguration.value[key])
-						.join(":"),
+					providerProductKey: provider.createProductKey(
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						parsedConfiguration.value as any
+					),
+					projectId: product.value.projectId,
+					environment: ctx.session.environment,
 					configuration: parsedConfiguration.value,
+					isActive: true,
 				} satisfies typeof productProviderConfigurations.$inferInsert;
 
 				await ctx.db

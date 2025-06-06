@@ -120,7 +120,7 @@ export async function handlePurchaseUpdated(
 						{
 							where: and(
 								eq(
-									customersUnlockedPerks.unlockedByCustomerProductId,
+									customersUnlockedPerks.unlockedByPurchaseId,
 									existingCustomerProduct.value.id
 								),
 								eq(customersUnlockedPerks.perkId, productPerk.perkId)
@@ -133,7 +133,7 @@ export async function handlePurchaseUpdated(
 							id: generateId("customerUnlockedPerk"),
 							customerId: existingCustomerProduct.value.customerId,
 							perkId: productPerk.perkId,
-							unlockedByCustomerProductId: existingCustomerProduct.value.id,
+							unlockedByPurchaseId: existingCustomerProduct.value.id,
 						});
 					}
 				} catch (e) {
@@ -155,7 +155,7 @@ export async function handlePurchaseUpdated(
 					.delete(customersUnlockedPerks)
 					.where(
 						eq(
-							customersUnlockedPerks.unlockedByCustomerProductId,
+							customersUnlockedPerks.unlockedByPurchaseId,
 							existingCustomerProduct.value.id
 						)
 					);

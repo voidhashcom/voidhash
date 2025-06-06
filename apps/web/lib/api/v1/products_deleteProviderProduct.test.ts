@@ -34,6 +34,7 @@ describe.sequential(
 				productId: productInput.id,
 				providerId: "stripe",
 				providerProductKey: `ppk_to_delete_${generateId("test")}`,
+				projectId: h.resources.project.id,
 				configuration: {
 					priceId: `price_to_delete_${generateId("test")}`,
 					productId: `prod_to_delete_${generateId("test")}`,

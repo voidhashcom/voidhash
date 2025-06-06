@@ -58,6 +58,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 				productId: "prod_1234567890",
 				priceId: "price_1234567890",
 			},
+			environment: "production",
+			projectId: h.resources.project.id,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 		};
@@ -143,7 +145,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		// Verify initial state (trialing, no perks)
 		let perks = await h.db.primary.query.customersUnlockedPerks.findMany({
 			where: eq(
-				customersUnlockedPerks.unlockedByCustomerProductId,
+				customersUnlockedPerks.unlockedByPurchaseId,
 				initialCustomerProduct.value.id
 			),
 		});
@@ -176,7 +178,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		// Verify perks were granted
 		perks = await h.db.primary.query.customersUnlockedPerks.findMany({
 			where: eq(
-				customersUnlockedPerks.unlockedByCustomerProductId,
+				customersUnlockedPerks.unlockedByPurchaseId,
 				initialCustomerProduct.value.id
 			),
 		});
@@ -188,7 +190,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 				.delete(customersUnlockedPerks)
 				.where(
 					eq(
-						customersUnlockedPerks.unlockedByCustomerProductId,
+						customersUnlockedPerks.unlockedByPurchaseId,
 						initialCustomerProduct.value.id
 					)
 				);
@@ -250,7 +252,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		// Verify initial state (active, has perks)
 		let perks = await h.db.primary.query.customersUnlockedPerks.findMany({
 			where: eq(
-				customersUnlockedPerks.unlockedByCustomerProductId,
+				customersUnlockedPerks.unlockedByPurchaseId,
 				initialCustomerProduct.id
 			),
 		});
@@ -282,7 +284,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		// Verify perks were revoked
 		perks = await h.db.primary.query.customersUnlockedPerks.findMany({
 			where: eq(
-				customersUnlockedPerks.unlockedByCustomerProductId,
+				customersUnlockedPerks.unlockedByPurchaseId,
 				initialCustomerProduct.id
 			),
 		});
@@ -349,7 +351,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		// Verify initial state (active, has perks)
 		let perks = await h.db.primary.query.customersUnlockedPerks.findMany({
 			where: eq(
-				customersUnlockedPerks.unlockedByCustomerProductId,
+				customersUnlockedPerks.unlockedByPurchaseId,
 				initialCustomerProduct.id
 			),
 		});
@@ -384,7 +386,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		// Verify perks remain unchanged
 		perks = await h.db.primary.query.customersUnlockedPerks.findMany({
 			where: eq(
-				customersUnlockedPerks.unlockedByCustomerProductId,
+				customersUnlockedPerks.unlockedByPurchaseId,
 				initialCustomerProduct.id
 			),
 		});
@@ -396,7 +398,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 				.delete(customersUnlockedPerks)
 				.where(
 					eq(
-						customersUnlockedPerks.unlockedByCustomerProductId,
+						customersUnlockedPerks.unlockedByPurchaseId,
 						initialCustomerProduct.id
 					)
 				);
@@ -412,7 +414,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 	test("should throw error if customer product not found", async () => {
 		const serviceContext = await createTestServiceContext();
 
-		const nonExistentCustomerProductId = generateId("customerProduct");
+		const nonExistentCustomerProductId = generateId("purchase");
 		const updateEvent: PurchaseUpdateEvent = {
 			purchaseId: nonExistentCustomerProductId,
 			status: "active",
@@ -450,7 +452,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 		});
 
 		const inconsistentProviderProductId = generateId("test");
-		const customerProductId = generateId("customerProduct");
+		const customerProductId = generateId("purchase");
 		await h.db.primary.insert(purchases).values({
 			id: customerProductId,
 			providerKey: generateId("test"),

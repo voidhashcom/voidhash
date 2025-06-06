@@ -45,6 +45,7 @@ describe.sequential(
 				productId: productInput.id,
 				providerId: "stripe",
 				providerProductKey: providerProductKey.value,
+				projectId: h.resources.project.id,
 				configuration: {
 					productId: `prod_123`,
 					priceId: `price_123`,

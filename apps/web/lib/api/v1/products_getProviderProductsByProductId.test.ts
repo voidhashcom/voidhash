@@ -34,6 +34,7 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 			id: generateId("test"),
 			providerId: "stripe",
 			providerProductKey: `ppk_${generateId("test")}`,
+			projectId: h.resources.project.id,
 			configuration: { stripePriceId: `price_${generateId("test")}` }, // Simplified
 			isActive: true,
 		};

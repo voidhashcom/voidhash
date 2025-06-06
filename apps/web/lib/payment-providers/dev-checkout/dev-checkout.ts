@@ -1,19 +1,24 @@
 import { z } from "zod";
-import { BasePaymentProvider } from "../core/base-payment-provider";
-import { PaymentProvider } from "../core/payment-provider";
+import { BasePaymentProvider } from "../../services/payment-providers/core/base-payment-provider";
+import { PaymentProvider } from "../../services/payment-providers/core/payment-provider";
 import {
 	PaymentProviderConfigurationSheetSection,
 	PaymentProviderProductEditorSheetSection,
-} from "../core/types";
+} from "../../services/payment-providers/core/types";
 
 export const devCheckoutPaymentProviderId = "dev-checkout" as const;
 
 const devCheckoutGlobalConfigurationSchema = z.object({});
 
-const devCheckoutProductConfigurationSchema = z.object({});
+const devCheckoutProductConfigurationSchema = z.object({
+	productId: z.string().min(1),
+});
 
 export class DevCheckoutPaymentProvider
-	extends BasePaymentProvider<typeof devCheckoutPaymentProviderId>
+	extends BasePaymentProvider<
+		typeof devCheckoutPaymentProviderId,
+		typeof devCheckoutProductConfigurationSchema
+	>
 	implements
 		PaymentProvider<
 			typeof devCheckoutPaymentProviderId,
@@ -22,7 +27,12 @@ export class DevCheckoutPaymentProvider
 		>
 {
 	constructor() {
-		super(devCheckoutPaymentProviderId, "Dev Checkout", ["testing"]);
+		super(
+			devCheckoutPaymentProviderId,
+			"Dev Checkout",
+			["testing"],
+			["productId"]
+		);
 	}
 	getIsConfigurable(): boolean {
 		return false;
@@ -43,12 +53,14 @@ export class DevCheckoutPaymentProvider
 		};
 	}
 	getIsProductConfigurable(): boolean {
-		return false;
+		return true;
 	}
 	getDefaultProductConfiguration(): Partial<
 		z.infer<typeof devCheckoutProductConfigurationSchema>
 	> {
-		return {};
+		return {
+			productId: "",
+		};
 	}
 	getProductConfigurationSchema(): typeof devCheckoutProductConfigurationSchema {
 		return devCheckoutProductConfigurationSchema;
@@ -57,11 +69,19 @@ export class DevCheckoutPaymentProvider
 		sections: PaymentProviderProductEditorSheetSection[];
 	} {
 		return {
-			sections: [],
+			sections: [
+				{
+					key: "productId",
+					type: "text-input",
+					name: "productId",
+					label: "Product ID",
+					input: {
+						type: "text",
+						placeholder: "prod_...",
+					},
+				},
+			],
 		};
-	}
-	getProductKeyProperties(): string[] {
-		return [];
 	}
 
 	checkIfCorrectlyConfigured(): boolean {

@@ -6,7 +6,7 @@ import {
 } from "@voidhash/lib/constants";
 import { getPaymentProviderConfigurationsQuery } from "./raw-queries";
 import { err, ok, Result } from "neverthrow";
-import { PaymentProvider } from "@/lib/payment-providers/core/payment-provider";
+import { PaymentProvider } from "@/lib/services/payment-providers/core/payment-provider";
 
 export async function getAvailablePaymentProviders(
 	ctx: ServiceContext,
