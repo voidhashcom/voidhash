@@ -12,7 +12,7 @@ export function CheckoutButtons({
 }: {
 	checkoutSessionId: string;
 }) {
-	const { execute: handleConfirm } = useAction(
+	const { execute: handleConfirm, isExecuting: isConfirming } = useAction(
 		confirmDevCheckoutPurchaseAction,
 		{
 			onSuccess: (data) => {
@@ -26,32 +26,37 @@ export function CheckoutButtons({
 		}
 	);
 
-	const { execute: handleCancel } = useAction(cancelDevCheckoutPurchaseAction, {
-		onSuccess: (data) => {
-			window.location.replace(
-				`${data?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&error=cancelled`
-			);
-		},
-		onError: (error) => {
-			console.log(error);
-		},
-	});
+	const { execute: handleCancel, isExecuting: isCancelling } = useAction(
+		cancelDevCheckoutPurchaseAction,
+		{
+			onSuccess: (data) => {
+				window.location.replace(
+					`${data?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&error=cancelled`
+				);
+			},
+			onError: (error) => {
+				console.log(error);
+			},
+		}
+	);
 
 	return (
 		<>
 			<Button
 				onClick={() => handleConfirm({ checkoutSessionId })}
 				className="w-full"
+				disabled={isConfirming}
 			>
-				Confirm Purchase
+				{isConfirming ? "Confirming..." : "Confirm Purchase"}
 			</Button>
 
 			<Button
 				onClick={() => handleCancel({ checkoutSessionId })}
 				variant="outline"
 				className="w-full"
+				disabled={isCancelling}
 			>
-				Cancel
+				{isCancelling ? "Cancelling..." : "Cancel"}
 			</Button>
 		</>
 	);
