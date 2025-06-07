@@ -6,7 +6,6 @@ import {
 	VoidhashNotFoundError,
 } from "@voidhash/lib";
 import { err, ok, Result } from "neverthrow";
-import { isAuthenticated } from "@/lib/middlewares";
 import { createDevCheckoutPaymentProviderServer } from "../dev-checout-server";
 
 export const confirmDevCheckoutPurchaseInputSchema = z.object({
@@ -14,7 +13,6 @@ export const confirmDevCheckoutPurchaseInputSchema = z.object({
 });
 export const confirmDevCheckoutPurchase = createServiceFunction()
 	.input(confirmDevCheckoutPurchaseInputSchema)
-	.use(isAuthenticated)
 	.function(
 		async ({
 			input,

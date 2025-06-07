@@ -28,25 +28,36 @@ export default async function CheckoutPage({
 	const handleConfirm = async () => {
 		"use server";
 
-		const res = await confirmDevCheckoutPurchaseAction({
-			checkoutSessionId,
-		});
+		console.log(checkoutSessionId);
 
-		redirect(
-			`${res?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&success=true`
-		);
+		try {
+			const res = await confirmDevCheckoutPurchaseAction({
+				checkoutSessionId,
+			});
+			redirect(
+				`${res?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&success=true`
+			);
+		} catch (e) {
+			console.log(e);
+		}
 	};
 
 	const handleCancel = async () => {
 		"use server";
 
-		const res = await cancelDevCheckoutPurchaseAction({
-			checkoutSessionId,
-		});
+		console.log(checkoutSessionId);
 
-		redirect(
-			`${res?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&error=cancelled`
-		);
+		try {
+			const res = await cancelDevCheckoutPurchaseAction({
+				checkoutSessionId,
+			});
+
+			redirect(
+				`${res?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&error=cancelled`
+			);
+		} catch (e) {
+			console.log(e);
+		}
 	};
 
 	return (
