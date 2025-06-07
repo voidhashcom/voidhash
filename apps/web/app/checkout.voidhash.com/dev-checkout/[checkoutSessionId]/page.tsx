@@ -1,11 +1,6 @@
-import {
-	cancelDevCheckoutPurchaseAction,
-	confirmDevCheckoutPurchaseAction,
-} from "@/lib/nextjs/server-actions";
 import { checkoutSessions, db, eq } from "@voidhash/db";
-import { Button, Card, Logo } from "@voidhash/ui";
-
-import { redirect } from "next/navigation";
+import { Card, Logo } from "@voidhash/ui";
+import { CheckoutButtons } from "./checkout-buttons";
 
 export default async function CheckoutPage({
 	params,
@@ -25,41 +20,6 @@ export default async function CheckoutPage({
 		return <div>Checkout session not found</div>;
 	}
 
-	const handleConfirm = async () => {
-		"use server";
-
-		console.log(checkoutSessionId);
-
-		try {
-			const res = await confirmDevCheckoutPurchaseAction({
-				checkoutSessionId,
-			});
-			redirect(
-				`${res?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&success=true`
-			);
-		} catch (e) {
-			console.log(e);
-		}
-	};
-
-	const handleCancel = async () => {
-		"use server";
-
-		console.log(checkoutSessionId);
-
-		try {
-			const res = await cancelDevCheckoutPurchaseAction({
-				checkoutSessionId,
-			});
-
-			redirect(
-				`${res?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&error=cancelled`
-			);
-		} catch (e) {
-			console.log(e);
-		}
-	};
-
 	return (
 		<div className="h-screen flex bg-background max-w-md mx-auto items-end md:items-center justify-center">
 			<Card className="flex flex-col gap-4 p-4 fixed bottom-0 left-0 right-0 md:relative w-full md:left-auto md:right-auto ">
@@ -76,14 +36,7 @@ export default async function CheckoutPage({
 				<p className="text-sm text-muted-foreground">
 					You won&apos;t be charged for this purchase.
 				</p>
-				<form action={handleConfirm}>
-					<Button className="w-full">Confirm Purchase</Button>
-				</form>
-				<form action={handleCancel}>
-					<Button variant="outline" className="w-full">
-						Cancel
-					</Button>
-				</form>
+				<CheckoutButtons checkoutSessionId={checkoutSessionId} />
 			</Card>
 		</div>
 	);
