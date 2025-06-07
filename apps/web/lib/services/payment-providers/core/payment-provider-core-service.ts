@@ -1,6 +1,7 @@
 import { ServiceContext } from "@/lib/service-function";
 import {
 	and,
+	charges,
 	CheckoutSession,
 	checkoutSessions,
 	customersUnlockedPerks,
@@ -121,14 +122,16 @@ export class PaymentProviderCoreService {
 		options: {
 			providerKey: string; // Unique identifier for the purchase in the payment provider
 			customerId: string;
-			price: number;
-			currency: ISO4217CurrencyCode;
 			status: "active" | "trialing" | "canceled";
 			purchasedAt: Date;
 			startsAt: Date;
 			canceledAt: Date | null;
 			cancelAtPeriodEnd: boolean;
 			expiresAt: Date;
+			charge?: {
+				amount: number;
+				currency: ISO4217CurrencyCode;
+			};
 		}
 	): Promise<Result<void, ProcessSubscriptionPurchaseError>> {
 		if (productProviderConfiguration.product.type !== "subscription") {
@@ -149,6 +152,8 @@ export class PaymentProviderCoreService {
 			return err(customer.error);
 		}
 
+		const purchaseEnvironment = "production";
+
 		const customerProduct = {
 			id: generateId("purchase"),
 			status: options.status,
@@ -159,7 +164,7 @@ export class PaymentProviderCoreService {
 			startsAt: options.startsAt,
 			canceledAt: options.canceledAt,
 			cancelAtPeriodEnd: options.cancelAtPeriodEnd,
-			purchaseEnvironment: "production",
+			purchaseEnvironment: purchaseEnvironment,
 			expiresAt: options.expiresAt,
 			providerKey: options.providerKey,
 		} satisfies InsertPurchase;
@@ -183,6 +188,18 @@ export class PaymentProviderCoreService {
 					customerId: options.customerId,
 					perkId: productPerk.perkId,
 					unlockedByPurchaseId: customerProduct.id,
+				});
+			}
+
+			if (options.charge) {
+				await tx.insert(charges).values({
+					id: generateId("charge"),
+					customerId: options.customerId,
+					amount: options.charge.amount,
+					currency: options.charge.currency,
+					paymentProviderId: productProviderConfiguration.providerId,
+					environment,
+					purchaseEnvironment: purchaseEnvironment,
 				});
 			}
 

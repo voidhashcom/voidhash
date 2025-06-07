@@ -97,15 +97,17 @@ export class DevCheckoutPaymentProviderServer extends DevCheckoutPaymentProvider
 						productProviderConfiguration.value,
 						{
 							providerKey: checkoutSession.value.id, // We use the checkout session id as the provider key - this is only correct for dev checkout, where there is no external id.
-							currency: "USD",
 							customerId: checkoutSession.value.customerId,
-							price: 100,
 							status: "active",
 							purchasedAt: new Date(),
 							startsAt: new Date(),
 							canceledAt: null,
 							cancelAtPeriodEnd: false,
 							expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24), // 1 day
+							charge: {
+								amount: 100,
+								currency: "USD",
+							},
 						}
 					);
 
