@@ -205,6 +205,25 @@ export const purchases = mysqlTable(
 	(table) => [uniqueIndex("provider_key_idx").on(table.providerKey)]
 );
 
+export const charges = mysqlTable("charge", {
+	id: varchar("id", { length: 255 }).primaryKey(),
+	customerId: varchar("customer_id", { length: 255 }).notNull(),
+	amount: int("amount").notNull(),
+	currency: varchar("currency", { length: 3 }).notNull(),
+	paymentProviderId: varchar("payment_provider_id", { length: 255 }).notNull(),
+	environment: mysqlEnum("environment", ENVIRONMENTS)
+		.default("production")
+		.notNull(),
+	purchaseEnvironment: mysqlEnum("purchase_environment", [
+		"production",
+		"sandbox",
+	])
+		.default("production")
+		.notNull(),
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at").onUpdateNow(),
+});
+
 export const externalCustomerIdentifiers = mysqlTable(
 	"external_customer_identifier",
 	{
