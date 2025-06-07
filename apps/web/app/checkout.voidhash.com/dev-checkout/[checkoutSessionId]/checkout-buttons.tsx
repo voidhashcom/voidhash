@@ -6,7 +6,6 @@ import {
 } from "@/lib/nextjs/server-actions";
 import { Button } from "@voidhash/ui";
 import { useAction } from "next-safe-action/hooks";
-import { redirect } from "next/navigation";
 
 export function CheckoutButtons({
 	checkoutSessionId,
@@ -17,8 +16,7 @@ export function CheckoutButtons({
 		confirmDevCheckoutPurchaseAction,
 		{
 			onSuccess: (data) => {
-				console.log(data);
-				redirect(
+				window.location.replace(
 					`${data?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&success=true`
 				);
 			},
@@ -30,8 +28,7 @@ export function CheckoutButtons({
 
 	const { execute: handleCancel } = useAction(cancelDevCheckoutPurchaseAction, {
 		onSuccess: (data) => {
-			console.log(data);
-			redirect(
+			window.location.replace(
 				`${data?.data ?? ""}?checkoutSessionId=${checkoutSessionId}&error=cancelled`
 			);
 		},
