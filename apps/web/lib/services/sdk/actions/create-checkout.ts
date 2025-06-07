@@ -131,9 +131,9 @@ export const createCheckoutSession = createServiceFunction()
 							}
 
 							customer = createAnonymousCustomerResult.value;
+						} else {
+							return err(customerResult.error);
 						}
-
-						return err(customerResult.error);
 					}
 
 					if (!customer) {
