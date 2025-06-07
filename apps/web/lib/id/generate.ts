@@ -21,6 +21,7 @@ const prefixes = {
 	paywallLocation: "pw_loc",
 	customerUnlockedPerk: "cust_perk",
 	checkoutSession: "ch_sess",
+	charge: "ch",
 } as const;
 
 export const generateId = <TPrefix extends keyof typeof prefixes>(
