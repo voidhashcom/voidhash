@@ -22,6 +22,7 @@ const prefixes = {
 	customerUnlockedPerk: "cust_perk",
 	checkoutSession: "ch_sess",
 	charge: "ch",
+	outbox: "outbox",
 } as const;
 
 export const generateId = <TPrefix extends keyof typeof prefixes>(

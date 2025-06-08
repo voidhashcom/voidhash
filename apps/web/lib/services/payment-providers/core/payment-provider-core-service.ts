@@ -7,11 +7,11 @@ import {
 	customersUnlockedPerks,
 	eq,
 	InsertPurchase,
+	outbox,
 	Product,
 	ProductProviderConfiguration,
 	productProviderConfigurations,
 	purchases,
-	Transaction,
 } from "@voidhash/db";
 import {
 	Environment,
@@ -21,9 +21,9 @@ import {
 	VoidhashNotFoundError,
 } from "@voidhash/lib/constants";
 import { err, ok, Result } from "neverthrow";
-import { getProductPerksByProductIdQuery } from "../../products/raw-queries";
 import { getCustomerByIdQuery } from "../../customers/raw-queries";
 import { generateId } from "@/lib/id/generate";
+import { getProductPerksByProductIdQuery } from "../../products/raw-queries";
 
 type ProcessSubscriptionPurchaseError =
 	| VoidhashInternalServerError
@@ -43,11 +43,11 @@ type ProcessSubscriptionPurchaseError =
 export class PaymentProviderCoreService {
 	async getCheckoutSession(
 		ctx: ServiceContext,
-		tx: Transaction,
 		checkoutSessionId: string
 	): Promise<
 		Result<CheckoutSession, VoidhashInternalServerError | VoidhashNotFoundError>
 	> {
+		const tx = ctx.tx ?? ctx.db;
 		try {
 			const checkoutSession = await tx.query.checkoutSessions.findFirst({
 				where: eq(checkoutSessions.id, checkoutSessionId),
@@ -114,7 +114,6 @@ export class PaymentProviderCoreService {
 
 	async processSubscriptionPurchase(
 		ctx: ServiceContext,
-		tx: Transaction,
 		environment: Environment,
 		productProviderConfiguration: ProductProviderConfiguration & {
 			product: Product;
@@ -169,41 +168,69 @@ export class PaymentProviderCoreService {
 			providerKey: options.providerKey,
 		} satisfies InsertPurchase;
 
+		const productPerksResult = await getProductPerksByProductIdQuery(
+			ctx,
+			productProviderConfiguration.product.id
+		);
+
+		if (productPerksResult.isErr()) {
+			return err(productPerksResult.error);
+		}
+
 		try {
-			await tx.insert(purchases).values(customerProduct);
-
-			// Add grants
-			const productPerks = await getProductPerksByProductIdQuery(
-				ctx,
-				productProviderConfiguration.product.id
-			);
-
-			if (productPerks.isErr()) {
-				return err(productPerks.error);
-			}
-
-			for (const productPerk of productPerks.value) {
-				await tx.insert(customersUnlockedPerks).values({
-					id: generateId("customerUnlockedPerk"),
-					customerId: options.customerId,
-					perkId: productPerk.perkId,
-					unlockedByPurchaseId: customerProduct.id,
+			return await ctx.db.transaction(async (tx) => {
+				const existingPurchase = await tx.query.purchases.findFirst({
+					where: and(
+						eq(purchases.providerKey, options.providerKey),
+						eq(purchases.customerId, options.customerId)
+					),
 				});
-			}
 
-			if (options.charge) {
-				await tx.insert(charges).values({
-					id: generateId("charge"),
-					customerId: options.customerId,
-					amount: options.charge.amount,
-					currency: options.charge.currency,
-					paymentProviderId: productProviderConfiguration.providerId,
-					environment,
-					purchaseEnvironment: purchaseEnvironment,
+				// Indempotency check
+				if (existingPurchase) {
+					return ok();
+				}
+
+				await tx.insert(purchases).values(customerProduct);
+
+				// Add grants
+				for (const productPerk of productPerksResult.value) {
+					await tx.insert(customersUnlockedPerks).values({
+						id: generateId("customerUnlockedPerk"),
+						customerId: options.customerId,
+						perkId: productPerk.perkId,
+						unlockedByPurchaseId: customerProduct.id,
+					});
+				}
+
+				if (options.charge) {
+					await tx.insert(charges).values({
+						id: generateId("charge"),
+						customerId: options.customerId,
+						amount: options.charge.amount,
+						currency: options.charge.currency,
+						paymentProviderId: productProviderConfiguration.providerId,
+						environment,
+						purchaseEnvironment: purchaseEnvironment,
+					});
+				}
+
+				await tx.insert(outbox).values({
+					id: generateId("outbox"),
+					topic: "subscription.purchased",
+					payload: {
+						customerId: options.customerId,
+						productId: productProviderConfiguration.product.id,
+						providerKey: options.providerKey,
+						providerProductId: productProviderConfiguration.id,
+						providerId: productProviderConfiguration.providerId,
+						environment,
+						startsAt: options.startsAt,
+					},
 				});
-			}
 
-			return ok();
+				return ok();
+			});
 		} catch (error) {
 			return err(fromUnknownThrow(error));
 		}
