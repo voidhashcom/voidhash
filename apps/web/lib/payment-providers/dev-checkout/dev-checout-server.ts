@@ -3,7 +3,7 @@ import {
 	DevCheckoutPaymentProvider,
 	devCheckoutPaymentProviderId,
 } from "./dev-checkout";
-import { CheckoutSession, checkoutSessions, Transaction } from "@voidhash/db";
+import { CheckoutSession, checkoutSessions } from "@voidhash/db";
 import {
 	VoidhashBadRequestError,
 	VoidhashInternalServerError,
@@ -50,83 +50,79 @@ export class DevCheckoutPaymentProviderServer extends DevCheckoutPaymentProvider
 		input: ConfirmPurchaseInput
 	): Promise<Result<ConfirmPurchaseResult, ConfirmPurchaseError>> {
 		try {
-			return await ctx.db.transaction(async (tx: Transaction) => {
-				const checkoutSession =
-					await this.paymentProviderCoreService.getCheckoutSession(
-						ctx,
-						tx,
-						input.checkoutSessionId
-					);
+			const checkoutSession =
+				await this.paymentProviderCoreService.getCheckoutSession(
+					ctx,
+					input.checkoutSessionId
+				);
 
-				if (checkoutSession.isErr()) {
-					return err(checkoutSession.error);
-				}
+			if (checkoutSession.isErr()) {
+				return err(checkoutSession.error);
+			}
 
-				if (checkoutSession.value.status === "success") {
-					return ok({
-						redirectUrl: checkoutSession.value.successCallbackUrl,
-					});
-				}
-
-				if (checkoutSession.value.status === "error") {
-					// TODO: Should log the error
-					return await checkoutError(tx, checkoutSession.value);
-				}
-
-				const productProviderConfiguration =
-					await this.paymentProviderCoreService.getProductProviderConfigurationByProductId(
-						ctx,
-						checkoutSession.value.productId,
-						devCheckoutPaymentProviderId
-					);
-
-				if (productProviderConfiguration.isErr()) {
-					console.log(
-						"productProviderConfiguration",
-						productProviderConfiguration
-					);
-					// TODO: Should log the error
-					return await checkoutError(tx, checkoutSession.value);
-				}
-
-				const processSubscriptionPurchaseResult =
-					await this.paymentProviderCoreService.processSubscriptionPurchase(
-						ctx,
-						tx,
-						"production",
-						productProviderConfiguration.value,
-						{
-							providerKey: checkoutSession.value.id, // We use the checkout session id as the provider key - this is only correct for dev checkout, where there is no external id.
-							customerId: checkoutSession.value.customerId,
-							status: "active",
-							purchasedAt: new Date(),
-							startsAt: new Date(),
-							canceledAt: null,
-							cancelAtPeriodEnd: false,
-							expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24), // 1 day
-							charge: {
-								amount: 100,
-								currency: "USD",
-							},
-						}
-					);
-
-				if (processSubscriptionPurchaseResult.isErr()) {
-					console.log(
-						"processSubscriptionPurchaseResult",
-						processSubscriptionPurchaseResult
-					);
-					// TODO: Should log the error
-					return await checkoutError(tx, checkoutSession.value);
-				}
-
-				await tx.update(checkoutSessions).set({
-					status: "success",
-				});
-
+			if (checkoutSession.value.status === "success") {
 				return ok({
 					redirectUrl: checkoutSession.value.successCallbackUrl,
 				});
+			}
+
+			if (checkoutSession.value.status === "error") {
+				// TODO: Should log the error
+				return await checkoutError(ctx, checkoutSession.value);
+			}
+
+			const productProviderConfiguration =
+				await this.paymentProviderCoreService.getProductProviderConfigurationByProductId(
+					ctx,
+					checkoutSession.value.productId,
+					devCheckoutPaymentProviderId
+				);
+
+			if (productProviderConfiguration.isErr()) {
+				console.log(
+					"productProviderConfiguration",
+					productProviderConfiguration
+				);
+				// TODO: Should log the error
+				return await checkoutError(ctx, checkoutSession.value);
+			}
+
+			const processSubscriptionPurchaseResult =
+				await this.paymentProviderCoreService.processSubscriptionPurchase(
+					ctx,
+					"production",
+					productProviderConfiguration.value,
+					{
+						providerKey: checkoutSession.value.id, // We use the checkout session id as the provider key - this is only correct for dev checkout, where there is no external id.
+						customerId: checkoutSession.value.customerId,
+						status: "active",
+						purchasedAt: new Date(),
+						startsAt: new Date(),
+						canceledAt: null,
+						cancelAtPeriodEnd: false,
+						expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24), // 1 day
+						charge: {
+							amount: 100,
+							currency: "USD",
+						},
+					}
+				);
+
+			if (processSubscriptionPurchaseResult.isErr()) {
+				console.log(
+					"processSubscriptionPurchaseResult",
+					processSubscriptionPurchaseResult
+				);
+				// TODO: Should log the error
+				return await checkoutError(ctx, checkoutSession.value);
+			}
+
+			await ctx.db.update(checkoutSessions).set({
+				status: "success",
+			});
+
+			return ok({
+				redirectUrl: checkoutSession.value.successCallbackUrl,
 			});
 		} catch (error) {
 			return err({
@@ -142,29 +138,32 @@ export class DevCheckoutPaymentProviderServer extends DevCheckoutPaymentProvider
 		input: CancelPurchaseInput
 	): Promise<Result<CancelPurchaseResult, CancelPurchaseError>> {
 		try {
-			return await ctx.db.transaction(async (tx: Transaction) => {
-				const checkoutSession =
-					await this.paymentProviderCoreService.getCheckoutSession(
-						ctx,
-						tx,
-						input.checkoutSessionId
-					);
+			const checkoutSession =
+				await this.paymentProviderCoreService.getCheckoutSession(
+					ctx,
+					input.checkoutSessionId
+				);
 
-				if (checkoutSession.isErr()) {
-					return err({
-						code: "INTERNAL_SERVER_ERROR",
-						message: "Internal server error",
-						originalError: new Error(checkoutSession.error.message),
-					} satisfies VoidhashInternalServerError);
-				}
+			if (checkoutSession.isErr()) {
+				return err({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Internal server error",
+					originalError: new Error(checkoutSession.error.message),
+				} satisfies VoidhashInternalServerError);
+			}
 
-				await tx.update(checkoutSessions).set({
-					status: "cancelled",
-				});
-
+			if (checkoutSession.value.status === "success") {
 				return ok({
-					redirectUrl: checkoutSession.value.errorCallbackUrl,
+					redirectUrl: checkoutSession.value.successCallbackUrl,
 				});
+			}
+
+			await ctx.db.update(checkoutSessions).set({
+				status: "cancelled",
+			});
+
+			return ok({
+				redirectUrl: checkoutSession.value.errorCallbackUrl,
 			});
 		} catch (error) {
 			return err({
@@ -181,10 +180,10 @@ export function createDevCheckoutPaymentProviderServer() {
 }
 
 async function checkoutError(
-	tx: Transaction,
+	ctx: ServiceContext,
 	checkoutSession: CheckoutSession
 ) {
-	await tx.update(checkoutSessions).set({
+	await ctx.db.update(checkoutSessions).set({
 		status: "error",
 	});
 	return ok({
