@@ -502,3 +502,11 @@ export const checkoutSessionRelations = relations(
 		}),
 	})
 );
+
+export const outbox = mysqlTable("outbox", {
+	id: varchar("id", { length: 255 }).primaryKey(),
+	topic: varchar("topic", { length: 255 }).notNull(),
+	payload: json("payload").$type<object>(),
+	publishedAt: timestamp("published_at"),
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
