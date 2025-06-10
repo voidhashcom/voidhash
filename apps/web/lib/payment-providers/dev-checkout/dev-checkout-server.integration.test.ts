@@ -12,7 +12,7 @@ import {
 	products,
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
-import { devCheckout, devCheckoutPaymentProviderId } from "./dev-checkout";
+import { devCheckout } from "./dev-checkout";
 import { createDevCheckoutPaymentProviderServer } from "./dev-checout-server";
 import { createTestServiceContext } from "@/lib/testing/create-test-service-context";
 
@@ -35,8 +35,8 @@ describe.sequential("dev-checkout-server", async () => {
 		const productProviderConfigurationInsert = {
 			id: generateId("test"),
 			productId: productInsert.id,
-			providerId: devCheckoutPaymentProviderId,
-			projectId: h.resources.project.id,
+			providerConfigurationId:
+				h.resources.projectPaymentProviderConfiguration.id,
 			providerProductKey: devCheckout.createProductKey({
 				productId: productInsert.id,
 			}),
@@ -70,7 +70,8 @@ describe.sequential("dev-checkout-server", async () => {
 			status: "pending",
 			successCallbackUrl: "testapp://voidhash/callback/success",
 			errorCallbackUrl: "testapp://voidhash/callback/error",
-			paymentProviderId: devCheckoutPaymentProviderId,
+			paymentProviderConfigurationId:
+				h.resources.projectPaymentProviderConfiguration.id,
 		} satisfies InsertCheckoutSession;
 
 		await h.db.primary.insert(checkoutSessions).values(sessionInsert);
@@ -131,8 +132,8 @@ describe.sequential("dev-checkout-server", async () => {
 		const productProviderConfigurationInsert = {
 			id: generateId("test"),
 			productId: productInsert.id,
-			providerId: devCheckoutPaymentProviderId,
-			projectId: h.resources.project.id,
+			providerConfigurationId:
+				h.resources.projectPaymentProviderConfiguration.id,
 			providerProductKey: devCheckout.createProductKey({
 				productId: productInsert.id,
 			}),
@@ -163,7 +164,8 @@ describe.sequential("dev-checkout-server", async () => {
 			status: "pending",
 			successCallbackUrl: "testapp://voidhash/callback/success",
 			errorCallbackUrl: "testapp://voidhash/callback/error",
-			paymentProviderId: devCheckoutPaymentProviderId,
+			paymentProviderConfigurationId:
+				h.resources.projectPaymentProviderConfiguration.id,
 		} satisfies InsertCheckoutSession;
 
 		await h.db.primary.insert(checkoutSessions).values(sessionInsert);

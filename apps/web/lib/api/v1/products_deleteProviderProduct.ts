@@ -29,7 +29,7 @@ export type Route = typeof route;
 
 export const registerProductsDeleteProviderProduct = (app: App) =>
 	app.delete(
-		"/v1/products/:productId/provider-products/:providerId/:providerProductKey",
+		"/v1/products/:productId/provider-products/:providerConfigurationId/:providerProductKey",
 		route,
 		zValidator("param", deleteProviderProductParamsSchema),
 		async (c) => {
@@ -39,14 +39,14 @@ export const registerProductsDeleteProviderProduct = (app: App) =>
 				throw toVoidhashHTTPError(authenticatedContext.error);
 			}
 			const productId = c.req.param("productId");
-			const providerId = c.req.param("providerId");
+			const providerConfigurationId = c.req.param("providerConfigurationId");
 			const providerProductKey = c.req.param("providerProductKey");
 
 			const deletedProviderProduct = await deletePaymentProviderProduct.invoke({
 				ctx: authenticatedContext.value,
 				input: {
 					productId,
-					providerId,
+					providerConfigurationId,
 					providerProductKey,
 				},
 			});

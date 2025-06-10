@@ -20,7 +20,7 @@ import { registerProductsGetProviderProductsByProductId } from "./v1/products_ge
 import { registerProductsUpdateProviderProduct } from "./v1/products_updateProviderProduct";
 import { registerProductsDeleteProviderProduct } from "./v1/products_deleteProviderProduct";
 import { registerCustomersCreateCustomer } from "./v1/customers_createCustomer";
-import { paymentProviderApis } from "@/lib/payment-providers/paymentProvidersApi";
+import { paymentProviderApis } from "@/lib/payment-providers/payment-providers-api";
 import { registerSdkGetCustomer } from "./v1/sdk_getCustomer";
 import { registerSdkIdentify } from "./v1/sdk_identify";
 import { registerSdkGetPaywallByLocation } from "./v1/sdk_getPaywallByLocation";

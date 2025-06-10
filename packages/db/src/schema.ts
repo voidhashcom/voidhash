@@ -210,7 +210,10 @@ export const charges = mysqlTable("charge", {
 	customerId: varchar("customer_id", { length: 255 }).notNull(),
 	amount: int("amount").notNull(),
 	currency: varchar("currency", { length: 3 }).notNull(),
-	paymentProviderId: varchar("payment_provider_id", { length: 255 }).notNull(),
+	paymentProviderConfigurationId: varchar("payment_provider_configuration_id", {
+		length: 255,
+	}).notNull(),
+	purchaseId: varchar("purchase_id", { length: 255 }).notNull(),
 	environment: mysqlEnum("environment", ENVIRONMENTS)
 		.default("production")
 		.notNull(),
@@ -257,21 +260,29 @@ export const projectPaymentProviderConfigurations = mysqlTable(
 	"project_payment_provider_configuration",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
-		providerId: varchar("provider_id", { length: 255 }),
+		providerId: varchar("provider_id", { length: 255 }).notNull(),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		enabled: boolean("enabled").notNull().default(false),
+		name: varchar("name", { length: 255 }).notNull().default("Unknown"),
 		configuration: json("configuration").$type<object>(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
 	(table) => [
-		uniqueIndex("project_id_provider_id_idx").on(
-			table.projectId,
-			table.providerId
-		),
 		index("project_id_idx").on(table.projectId),
 		index("provider_id_idx").on(table.providerId),
 	]
+);
+
+export const projectPaymentProviderConfigurationRelations = relations(
+	projectPaymentProviderConfigurations,
+	({ one, many }) => ({
+		project: one(projects, {
+			fields: [projectPaymentProviderConfigurations.projectId],
+			references: [projects.id],
+		}),
+		productProviderConfigurations: many(productProviderConfigurations),
+	})
 );
 
 // Perk
@@ -333,30 +344,29 @@ export const productProviderConfigurations = mysqlTable(
 	"product_provider_configuration",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
+		providerConfigurationId: varchar("provider_configuration_id", {
+			length: 255,
+		}).notNull(),
 		providerProductKey: varchar("provider_product_key", {
 			length: 255,
 		}).notNull(),
-		projectId: varchar("project_id", { length: 255 }).notNull(),
 		productId: varchar("product_id", { length: 255 }).notNull(),
 		environment: mysqlEnum("environment", ENVIRONMENTS)
 			.default("production")
 			.notNull(),
 		isActive: boolean("is_active").notNull().default(true),
-		providerId: varchar("provider_id", { length: 255 }).notNull(),
 		configuration: json("configuration").$type<object>(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
 	(table) => [
-		uniqueIndex(
-			"project_id_provider_id_provider_product_key_environment_idx"
-		).on(
-			table.projectId,
-			table.providerId,
+		uniqueIndex("product_provider_configuration_ext_pk_idx").on(
+			table.providerConfigurationId,
 			table.providerProductKey,
+			table.productId,
 			table.environment
 		),
-		index("provider_id_idx").on(table.providerId),
+		index("provider_configuration_id_idx").on(table.providerConfigurationId),
 	]
 );
 
@@ -366,6 +376,10 @@ export const productProviderConfigurationRelations = relations(
 		product: one(products, {
 			fields: [productProviderConfigurations.productId],
 			references: [products.id],
+		}),
+		providerConfiguration: one(projectPaymentProviderConfigurations, {
+			fields: [productProviderConfigurations.providerConfigurationId],
+			references: [projectPaymentProviderConfigurations.id],
 		}),
 	})
 );
@@ -482,9 +496,9 @@ export const checkoutSessions = mysqlTable("checkout_session", {
 	errorCallbackUrl: varchar("error_callback_url", { length: 255 })
 		.notNull()
 		.default("LEGACY"),
-	paymentProviderId: varchar("payment_provider_id", { length: 255 })
-		.notNull()
-		.default("LEGACY"),
+	paymentProviderConfigurationId: varchar("payment_provider_configuration_id", {
+		length: 255,
+	}).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });

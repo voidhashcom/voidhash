@@ -42,13 +42,13 @@ describe.sequential("on-product-purchased integration tests", () => {
 			id: productProviderConfigurationId,
 			productId: productId,
 			isActive: true,
-			providerId: "stripe",
+			providerConfigurationId:
+				h.resources.projectPaymentProviderConfiguration.id,
 			providerProductKey: "test-product-id",
 			configuration: {
 				productId: "prod_1234567890",
 				priceId: "price_1234567890",
 			},
-			projectId: h.resources.project.id,
 			environment: "production",
 			createdAt: new Date(),
 			updatedAt: new Date(),

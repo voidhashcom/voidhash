@@ -1,4 +1,4 @@
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { VoidhashInternalServerError } from "@voidhash/lib/constants";
 import { err, ok, Result } from "neverthrow";
 import { z } from "zod";

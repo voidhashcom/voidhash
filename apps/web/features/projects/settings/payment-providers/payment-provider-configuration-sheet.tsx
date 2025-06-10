@@ -1,7 +1,7 @@
 "use client";
 
 import { savePaymentProviderConfigurationAction } from "@/lib/nextjs/server-actions";
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Project } from "@voidhash/db";
 import {
@@ -34,24 +34,38 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 export function PaymentProviderConfigurationSheet({
+	open,
+	onOpenChange: onOpenChangeProp,
 	trigger,
 	providerId,
 	enabled,
 	configuration,
 	project,
+	name: nameProp,
 }: {
-	trigger: React.ReactNode;
+	open?: boolean;
+	onOpenChange?: (open: boolean) => void;
+	trigger?: React.ReactNode;
 	providerId: string;
 	enabled: boolean;
+	name: string;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	configuration?: any;
 	project: Project;
 }) {
 	const router = useRouter();
-	const [open, setOpen] = useState(false);
+
+	const handleClose = () => {
+		console.log("closing");
+		onOpenChangeProp?.(false);
+	};
+
 	const [isEnabled, setIsEnabled] = useState(enabled);
 	const paymentProvider = paymentProviders.find(
 		(pp) => pp.getId() === providerId
+	);
+	const [name, setName] = useState(
+		configuration?.name ?? paymentProvider?.getTitle() ?? ""
 	);
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,7 +85,7 @@ export function PaymentProviderConfigurationSheet({
 				toast.success(
 					`${paymentProvider?.getTitle()} configuration saved successfully`
 				);
-				setOpen(false);
+				handleClose();
 				router.refresh();
 			},
 			onError: (error) => {
@@ -89,6 +103,7 @@ export function PaymentProviderConfigurationSheet({
 			providerId: providerId,
 			projectId: project?.id ?? "",
 			enabled: isEnabled,
+			name: name,
 			configuration: data,
 		});
 	};
@@ -98,6 +113,7 @@ export function PaymentProviderConfigurationSheet({
 			form.reset(
 				configuration ?? paymentProvider?.getDefaultGlobalConfiguration()
 			);
+			setName(nameProp ?? paymentProvider?.getTitle() ?? "");
 			setIsEnabled(enabled);
 		}
 	}, [open]);
@@ -124,11 +140,22 @@ export function PaymentProviderConfigurationSheet({
 	};
 
 	return (
-		<Sheet open={open} onOpenChange={setOpen}>
+		<Sheet
+			open={open}
+			onOpenChange={
+				handleClose
+					? (open) => {
+							if (!open) {
+								handleClose();
+							}
+						}
+					: undefined
+			}
+		>
 			<SheetTrigger asChild>{trigger}</SheetTrigger>
 			<SheetContent className="sm:max-w-2xl">
 				<SheetHeader>
-					<SheetTitle>{paymentProvider.getTitle()} Configuration</SheetTitle>
+					<SheetTitle>{name} Configuration</SheetTitle>
 				</SheetHeader>
 
 				<Form {...form}>
@@ -156,6 +183,18 @@ export function PaymentProviderConfigurationSheet({
 									{paymentProvider.getTitle()} enabled
 								</Label>
 							</div>
+
+							{paymentProvider.getType() === "native" && (
+								<div>
+									<Label htmlFor="name">Name</Label>
+									<Input
+										id="name"
+										className="mt-2"
+										value={name}
+										onChange={(e) => setName(e.target.value)}
+									/>
+								</div>
+							)}
 
 							{configurationSheet?.sections.map((section) => (
 								<Fragment key={section.key}>
@@ -236,7 +275,7 @@ export function PaymentProviderConfigurationSheet({
 								variant="outline"
 								onClick={(e) => {
 									e.preventDefault();
-									setOpen(false);
+									handleClose();
 								}}
 							>
 								Cancel

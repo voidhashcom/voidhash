@@ -31,7 +31,8 @@ export class DevCheckoutPaymentProvider
 			devCheckoutPaymentProviderId,
 			"Dev Checkout",
 			["testing"],
-			["productId"]
+			["productId"],
+			"web-checkout"
 		);
 	}
 	getIsConfigurable(): boolean {

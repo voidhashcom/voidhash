@@ -12,7 +12,7 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { productProviderConfigurations } from "@voidhash/db";
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
 import { createPaymentProviderKey } from "../lib";
 import { err, ok, Result } from "neverthrow";
@@ -21,13 +21,12 @@ import {
 	getProviderProductByPrimaryKeyQuery,
 } from "../raw-queries";
 import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { getPaymentProviderConfigurationByIdQuery } from "../../payment-providers/raw-queries";
 
 export const updatePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
 	providerProductKey: z.string(),
-	providerId: z.enum(
-		paymentProviders.map((p) => p.getId()) as [string, ...string[]]
-	),
+	paymentProviderConfigurationId: z.string(),
 	configuration: z.object({}).passthrough(),
 });
 
@@ -47,13 +46,38 @@ export const updatePaymentProviderProduct = createServiceFunction()
 			input,
 			ctx,
 		}): Promise<Result<void, UpdatePaymentProviderProductError>> => {
-			const product = await getProductByIdQuery(ctx, input.productId);
+			const productQuery = getProductByIdQuery(ctx, input.productId);
+			const providerConfigurationQuery =
+				getPaymentProviderConfigurationByIdQuery(
+					ctx,
+					input.paymentProviderConfigurationId
+				);
 
-			if (product.isErr()) {
-				return err(product.error);
+			const [productResult, providerConfigurationResult] = await Promise.all([
+				productQuery,
+				providerConfigurationQuery,
+			]);
+
+			if (productResult.isErr()) {
+				return err(productResult.error);
 			}
 
-			if (!hasProjectPermission(ctx, product.value.projectId, "project:all")) {
+			if (providerConfigurationResult.isErr()) {
+				return err(providerConfigurationResult.error);
+			}
+
+			if (
+				!hasProjectPermission(
+					ctx,
+					productResult.value.projectId,
+					"project:all"
+				) ||
+				!hasProjectPermission(
+					ctx,
+					providerConfigurationResult.value.projectId,
+					"project:all"
+				)
+			) {
 				return err({
 					code: "FORBIDDEN",
 					message: "You are not authorized to update this product",
@@ -61,7 +85,7 @@ export const updatePaymentProviderProduct = createServiceFunction()
 			}
 
 			const provider = paymentProviders.find(
-				(p) => p.getId() === input.providerId
+				(p) => p.getId() === providerConfigurationResult.value.providerId
 			);
 			if (!provider) {
 				return err({
@@ -69,7 +93,7 @@ export const updatePaymentProviderProduct = createServiceFunction()
 					message: "Provider not found",
 					resource: "provider",
 					payload: {
-						id: input.providerId,
+						id: providerConfigurationResult.value.providerId,
 					},
 				});
 			}
@@ -80,8 +104,7 @@ export const updatePaymentProviderProduct = createServiceFunction()
 
 			const providerProduct = await getProviderProductByPrimaryKeyQuery(
 				ctx,
-				product.value.projectId,
-				input.providerId,
+				input.paymentProviderConfigurationId,
 				input.providerProductKey,
 				ctx.session.environment
 			);
@@ -108,10 +131,13 @@ export const updatePaymentProviderProduct = createServiceFunction()
 					})
 					.where(
 						and(
-							eq(productProviderConfigurations.productId, product.value.id),
 							eq(
-								productProviderConfigurations.providerId,
-								providerProduct.value.providerId
+								productProviderConfigurations.productId,
+								productResult.value.id
+							),
+							eq(
+								productProviderConfigurations.providerConfigurationId,
+								providerProduct.value.providerConfigurationId
 							),
 							eq(
 								productProviderConfigurations.providerProductKey,

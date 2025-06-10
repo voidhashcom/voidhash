@@ -9,6 +9,7 @@ import { mapSubscriptionStatus } from "../utils";
 import { getPurchaseByProviderKeyQuery } from "@/lib/services/purchases/raw-queries";
 import { handlePurchaseUpdated } from "@/lib/services/purchases/hooks/on-purchased-updated";
 import { err, ok, Result, ResultAsync } from "neverthrow";
+import { ProjectPaymentProviderConfiguration } from "@voidhash/db";
 
 type HandleSubscriptionUpdatedError =
 	| VoidhashInternalServerError
@@ -16,7 +17,7 @@ type HandleSubscriptionUpdatedError =
 
 export async function handleSubscriptionUpdated(
 	serviceContext: ServiceContext,
-	projectId: string,
+	paymentProviderConfiguration: ProjectPaymentProviderConfiguration,
 	stripe: Stripe,
 	event: Stripe.Event
 ): Promise<Result<void, HandleSubscriptionUpdatedError>> {

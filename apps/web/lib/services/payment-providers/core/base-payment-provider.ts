@@ -9,18 +9,21 @@ export class BasePaymentProvider<
 	private _title: string;
 	private _environments: Environment[];
 	private _productKeyProperties: (keyof z.infer<TProductConfigurationSchema>)[];
+	private _type: "native" | "web-checkout";
 	// Configuration is optional for payment providers that don't require configuration - e.g. Dev Checkout
 
 	constructor(
 		id: TKey,
 		title: string,
 		environments: Environment[],
-		productKeyProperties: (keyof z.infer<TProductConfigurationSchema>)[]
+		productKeyProperties: (keyof z.infer<TProductConfigurationSchema>)[],
+		type: "native" | "web-checkout"
 	) {
 		this._id = id;
 		this._title = title;
 		this._environments = environments;
 		this._productKeyProperties = productKeyProperties;
+		this._type = type;
 	}
 
 	public getId() {
@@ -29,6 +32,10 @@ export class BasePaymentProvider<
 
 	public getTitle() {
 		return this._title;
+	}
+
+	public getType() {
+		return this._type;
 	}
 
 	public isAvailableInEnvironment(environment: Environment) {

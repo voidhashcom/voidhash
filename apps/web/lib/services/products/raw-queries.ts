@@ -5,6 +5,7 @@ import {
 	Product,
 	ProductProviderConfiguration,
 	ProductPerk,
+	projectPaymentProviderConfigurations,
 } from "@voidhash/db";
 import { and, eq, asc } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
@@ -101,13 +102,15 @@ export const getProviderProductByIdQuery = async (
 
 export const getProviderProductByPrimaryKeyQuery = async (
 	ctx: ServiceContext,
-	projectId: string,
-	providerId: string,
+	paymentProviderConfigurationId: string,
 	productProviderKey: string,
 	environment: Environment
 ): Promise<
 	Result<
-		ProductProviderConfiguration,
+		ProductProviderConfiguration & {
+			projectId: string;
+			providerId: string;
+		},
 		VoidhashInternalServerError | VoidhashNotFoundError
 	>
 > => {
@@ -115,11 +118,19 @@ export const getProviderProductByPrimaryKeyQuery = async (
 		ctx.db
 			.select()
 			.from(productProviderConfigurations)
-
+			.innerJoin(
+				projectPaymentProviderConfigurations,
+				eq(
+					productProviderConfigurations.providerConfigurationId,
+					projectPaymentProviderConfigurations.id
+				)
+			)
 			.where(
 				and(
-					eq(productProviderConfigurations.projectId, projectId),
-					eq(productProviderConfigurations.providerId, providerId),
+					eq(
+						productProviderConfigurations.providerConfigurationId,
+						paymentProviderConfigurationId
+					),
 					eq(
 						productProviderConfigurations.providerProductKey,
 						productProviderKey
@@ -142,13 +153,20 @@ export const getProviderProductByPrimaryKeyQuery = async (
 			message: "Provider product not found",
 			resource: "productProviderConfiguration",
 			payload: {
-				projectId,
-				providerId,
+				paymentProviderConfigurationId,
 				productProviderKey,
 			},
 		});
 	}
-	return ok(productProviderConfiguration);
+	return ok({
+		...productProviderConfiguration.product_provider_configuration,
+		projectId:
+			productProviderConfiguration.project_payment_provider_configuration
+				.projectId,
+		providerId:
+			productProviderConfiguration.project_payment_provider_configuration
+				.providerId,
+	});
 };
 
 export const getProviderProductsByProductIdQuery = async (

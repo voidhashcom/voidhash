@@ -77,7 +77,7 @@ export class PaymentProviderCoreService {
 	async getProductProviderConfigurationByProductId(
 		ctx: ServiceContext,
 		productId: string,
-		paymentProviderId: string
+		paymentProviderConfigurationId: string
 	): Promise<
 		Result<
 			ProductProviderConfiguration & {
@@ -91,7 +91,10 @@ export class PaymentProviderCoreService {
 			await tx.query.productProviderConfigurations.findFirst({
 				where: and(
 					eq(productProviderConfigurations.productId, productId),
-					eq(productProviderConfigurations.providerId, paymentProviderId)
+					eq(
+						productProviderConfigurations.providerConfigurationId,
+						paymentProviderConfigurationId
+					)
 				),
 				with: {
 					product: true,
@@ -105,7 +108,7 @@ export class PaymentProviderCoreService {
 				resource: "productProviderConfiguration",
 				payload: {
 					productId,
-					paymentProviderId,
+					paymentProviderConfigurationId,
 				},
 			});
 		}
@@ -153,7 +156,7 @@ export class PaymentProviderCoreService {
 
 		const purchaseEnvironment = "production";
 
-		const customerProduct = {
+		const purchase = {
 			id: generateId("purchase"),
 			status: options.status,
 			type: "subscription",
@@ -191,7 +194,7 @@ export class PaymentProviderCoreService {
 					return ok();
 				}
 
-				await tx.insert(purchases).values(customerProduct);
+				await tx.insert(purchases).values(purchase);
 
 				// Add grants
 				for (const productPerk of productPerksResult.value) {
@@ -199,7 +202,7 @@ export class PaymentProviderCoreService {
 						id: generateId("customerUnlockedPerk"),
 						customerId: options.customerId,
 						perkId: productPerk.perkId,
-						unlockedByPurchaseId: customerProduct.id,
+						unlockedByPurchaseId: purchase.id,
 					});
 				}
 
@@ -209,7 +212,9 @@ export class PaymentProviderCoreService {
 						customerId: options.customerId,
 						amount: options.charge.amount,
 						currency: options.charge.currency,
-						paymentProviderId: productProviderConfiguration.providerId,
+						purchaseId: purchase.id,
+						paymentProviderConfigurationId:
+							productProviderConfiguration.providerConfigurationId,
 						environment,
 						purchaseEnvironment: purchaseEnvironment,
 					});
@@ -223,7 +228,8 @@ export class PaymentProviderCoreService {
 						productId: productProviderConfiguration.product.id,
 						providerKey: options.providerKey,
 						providerProductId: productProviderConfiguration.id,
-						providerId: productProviderConfiguration.providerId,
+						providerConfigurationId:
+							productProviderConfiguration.providerConfigurationId,
 						environment,
 						startsAt: options.startsAt,
 					},

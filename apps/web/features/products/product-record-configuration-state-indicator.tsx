@@ -63,8 +63,8 @@ export async function ProductRecordConfigurationStateIndicator({
 				.map((paymentProviderConfiguration) => {
 					return providerProducts.some(
 						(providerProduct) =>
-							providerProduct.providerId ===
-							paymentProviderConfiguration.providerId
+							providerProduct.providerConfigurationId ===
+							paymentProviderConfiguration.id
 					) ? (
 						<PaymentProviderLogo
 							key={paymentProviderConfiguration.providerId}

@@ -12,21 +12,17 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { productProviderConfigurations } from "@voidhash/db";
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq, not } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
-import {
-	getProductByIdQuery,
-	getProviderProductByPrimaryKeyQuery,
-} from "../raw-queries";
+import { getProductByIdQuery } from "../raw-queries";
 import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { getPaymentProviderConfigurationByIdQuery } from "../../payment-providers/raw-queries";
 
 export const setActivePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
 	providerProductKey: z.string(),
-	providerId: z.enum(
-		paymentProviders.map((p) => p.getId()) as [string, ...string[]]
-	),
+	providerConfigurationId: z.string(),
 });
 
 type SetActivePaymentProviderProductError =
@@ -45,13 +41,38 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 			input,
 			ctx,
 		}): Promise<Result<void, SetActivePaymentProviderProductError>> => {
-			const product = await getProductByIdQuery(ctx, input.productId);
+			const productQuery = getProductByIdQuery(ctx, input.productId);
+			const providerConfigurationQuery =
+				getPaymentProviderConfigurationByIdQuery(
+					ctx,
+					input.providerConfigurationId
+				);
 
-			if (product.isErr()) {
-				return err(product.error);
+			const [productResult, providerConfigurationResult] = await Promise.all([
+				productQuery,
+				providerConfigurationQuery,
+			]);
+
+			if (productResult.isErr()) {
+				return err(productResult.error);
 			}
 
-			if (!hasProjectPermission(ctx, product.value.projectId, "project:all")) {
+			if (providerConfigurationResult.isErr()) {
+				return err(providerConfigurationResult.error);
+			}
+
+			if (
+				!hasProjectPermission(
+					ctx,
+					productResult.value.projectId,
+					"project:all"
+				) ||
+				!hasProjectPermission(
+					ctx,
+					providerConfigurationResult.value.projectId,
+					"project:all"
+				)
+			) {
 				return err({
 					code: "FORBIDDEN",
 					message: "You are not authorized to update this product",
@@ -59,7 +80,7 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 			}
 
 			const provider = paymentProviders.find(
-				(p) => p.getId() === input.providerId
+				(p) => p.getId() === providerConfigurationResult.value.providerId
 			);
 			if (!provider) {
 				return err({
@@ -67,21 +88,9 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 					message: "Provider not found",
 					resource: "provider",
 					payload: {
-						id: input.providerId,
+						id: providerConfigurationResult.value.providerId,
 					},
 				});
-			}
-
-			const providerProduct = await getProviderProductByPrimaryKeyQuery(
-				ctx,
-				product.value.projectId,
-				input.providerId,
-				input.providerProductKey,
-				ctx.session.environment
-			);
-
-			if (providerProduct.isErr()) {
-				return err(providerProduct.error);
 			}
 
 			// Disable other provider products for this product
@@ -91,12 +100,18 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 					.set({ isActive: false })
 					.where(
 						and(
-							eq(productProviderConfigurations.productId, product.value.id),
-							eq(productProviderConfigurations.providerId, input.providerId),
+							eq(
+								productProviderConfigurations.productId,
+								productResult.value.id
+							),
+							eq(
+								productProviderConfigurations.providerConfigurationId,
+								providerConfigurationResult.value.id
+							),
 							not(
 								eq(
 									productProviderConfigurations.providerProductKey,
-									providerProduct.value.providerProductKey
+									input.providerProductKey
 								)
 							)
 						)
@@ -109,14 +124,17 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 					})
 					.where(
 						and(
-							eq(productProviderConfigurations.productId, product.value.id),
 							eq(
-								productProviderConfigurations.providerId,
-								providerProduct.value.providerId
+								productProviderConfigurations.productId,
+								productResult.value.id
+							),
+							eq(
+								productProviderConfigurations.providerConfigurationId,
+								providerConfigurationResult.value.id
 							),
 							eq(
 								productProviderConfigurations.providerProductKey,
-								providerProduct.value.providerProductKey
+								input.providerProductKey
 							)
 						)
 					);

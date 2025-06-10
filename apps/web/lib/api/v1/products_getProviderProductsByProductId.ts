@@ -6,10 +6,10 @@ import {
 	providerProductResponseSchema,
 } from "./schema";
 import { z } from "zod";
-import { getProviderProductsByProductId } from "@/lib/services/products/queries";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { getProviderProductsByProductId } from "@/lib/services/products/queries";
 
 const route = describeRoute({
 	description: "Get all provider products for a product",
@@ -63,7 +63,7 @@ export const registerProductsGetProviderProductsByProductId = (app: App) =>
 				providerProducts.value.map((providerProduct) => ({
 					providerProductKey: providerProduct.providerProductKey,
 					providerConfiguration: {
-						providerId: providerProduct.providerId,
+						providerConfigurationId: providerProduct.providerConfigurationId,
 						configuration: providerProduct.configuration,
 					},
 				}))

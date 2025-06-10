@@ -1,11 +1,8 @@
 import Stripe from "stripe";
 import { HTTPException } from "hono/http-exception";
 import { App } from "@/lib/api/hono/app";
-import { getExistingPaymentProviderConfigurationByIdQuery } from "@/lib/services/payment-providers/raw-queries";
-import {
-	stripe as stripePaymentProvider,
-	stripePaymentProviderId,
-} from "../stripe";
+import { getPaymentProviderConfigurationByIdQuery } from "@/lib/services/payment-providers/raw-queries";
+import { stripe as stripePaymentProvider } from "../stripe";
 import { z } from "zod";
 import { ALLOWED_EVENTS } from "../constants";
 import { handleSessionCompleted } from "../hooks/on-session-completed";
@@ -18,7 +15,7 @@ import {
 
 export const registerStripeWebhook = (app: App) => {
 	app.post(
-		"/payment-providers/stripe/webhook/:projectId",
+		"/payment-providers/stripe/webhook/:providerConfigurationId",
 		// Note: Hono needs the raw body for signature verification.
 		async (c) => {
 			const signature = c.req.header("stripe-signature");
@@ -30,10 +27,9 @@ export const registerStripeWebhook = (app: App) => {
 
 			const ctx = c.get("services");
 			const paymentProviderConfiguration =
-				await getExistingPaymentProviderConfigurationByIdQuery(
+				await getPaymentProviderConfigurationByIdQuery(
 					ctx,
-					c.req.param("projectId"),
-					stripePaymentProviderId
+					c.req.param("providerConfigurationId")
 				);
 
 			if (paymentProviderConfiguration.isErr()) {
@@ -94,7 +90,7 @@ export const registerStripeWebhook = (app: App) => {
 					case "checkout.session.completed":
 						const handleSessionCompletedResult = await handleSessionCompleted(
 							ctx,
-							c.req.param("projectId"),
+							paymentProviderConfiguration.value,
 							stripe,
 							event
 						);
@@ -106,7 +102,7 @@ export const registerStripeWebhook = (app: App) => {
 						const handleSubscriptionUpdatedResult =
 							await handleSubscriptionUpdated(
 								ctx,
-								c.req.param("projectId"),
+								paymentProviderConfiguration.value,
 								stripe,
 								event
 							);
@@ -118,7 +114,7 @@ export const registerStripeWebhook = (app: App) => {
 						const handleSubscriptionDeletedResult =
 							await handleSubscriptionDeleted(
 								ctx,
-								c.req.param("projectId"),
+								paymentProviderConfiguration.value,
 								stripe,
 								event
 							);

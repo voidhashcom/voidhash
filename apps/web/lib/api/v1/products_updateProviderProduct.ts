@@ -42,7 +42,7 @@ export type Route = typeof route;
 
 export const registerProductsUpdateProviderProduct = (app: App) =>
 	app.put(
-		"/v1/products/:productId/provider-products/:providerId/:providerProductKey",
+		"/v1/products/:productId/provider-products/:providerConfigurationId/:providerProductKey",
 		route,
 		zValidator("param", updateProviderProductParamsSchema),
 		zValidator("json", updateProviderProductBodySchema),
@@ -54,9 +54,9 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 				throw toVoidhashHTTPError(authenticatedContext.error);
 			}
 			const productId = c.req.param("productId");
-			const providerId = c.req.param("providerId");
+			const providerConfigurationId = c.req.param("providerConfigurationId");
 			const providerProductKey = c.req.param("providerProductKey");
-			const configuration = c.req.valid("json").configuration.configuration;
+			const configuration = c.req.valid("json");
 
 			const projectId = authenticatedContext.value.session?.projects[0]?.id;
 			if (!projectId) {
@@ -70,8 +70,8 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 				ctx: authenticatedContext.value,
 				input: {
 					productId,
-					providerId,
-					configuration,
+					paymentProviderConfigurationId: providerConfigurationId,
+					configuration: configuration.configuration,
 					providerProductKey,
 				},
 			});
@@ -83,8 +83,7 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 			const providerProduct = await getProviderProductByPrimaryKey({
 				ctx: authenticatedContext.value,
 				input: {
-					providerId,
-					projectId,
+					providerConfigurationId: providerConfigurationId,
 					productProviderKey: providerProductKey,
 				},
 			});
@@ -95,7 +94,10 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 
 			const responseBody: z.infer<typeof providerProductResponseSchema> = {
 				providerProductKey: providerProduct.value.providerProductKey,
-				providerConfiguration: providerProduct.value,
+				providerConfiguration: {
+					configuration: providerProduct.value.configuration,
+					providerId: providerProduct.value.providerId,
+				},
 			};
 
 			return c.json(responseBody);
