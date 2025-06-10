@@ -30,13 +30,14 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 		});
 
 		// Define provider product input (assuming Stripe for now)
-		// NOTE: Adjust configuration based on actual schema/paymentProviders definition
 		const providerProductInput: z.infer<
 			typeof attachProviderProductBodySchema
 		> = {
-			providerId: "stripe", // Assuming 'stripe' is a valid provider ID
+			providerId: "stripe",
+			providerConfigurationId:
+				h.resources.projectPaymentProviderConfiguration.id,
+			// These fields depend heavily on the Stripe configuration schema
 			configuration: {
-				// These fields depend heavily on the Stripe configuration schema
 				productId: `prod_${generateId("test")}`,
 				priceId: `price_${generateId("test")}`,
 			} satisfies z.infer<
@@ -63,8 +64,8 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 		>;
 
 		expect(responseBody.providerProductKey).toBeDefined(); // Key might be auto-generated or based on input
-		expect(responseBody.providerConfiguration.providerId).toBe(
-			providerProductInput.providerId
+		expect(responseBody.providerConfiguration.providerConfigurationId).toBe(
+			providerProductInput.providerConfigurationId
 		);
 		expect(responseBody.providerConfiguration.configuration).toEqual(
 			providerProductInput.configuration
@@ -82,7 +83,9 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 				),
 			});
 		expect(dbProviderProduct).toBeDefined();
-		expect(dbProviderProduct?.providerId).toBe(providerProductInput.providerId);
+		expect(dbProviderProduct?.providerConfigurationId).toBe(
+			providerProductInput.providerConfigurationId
+		);
 		expect(dbProviderProduct?.configuration).toEqual(
 			providerProductInput.configuration
 		);

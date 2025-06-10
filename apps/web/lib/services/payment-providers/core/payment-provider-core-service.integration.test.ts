@@ -41,8 +41,8 @@ describe.sequential("payment-provider-core-service", async () => {
 		const productProviderConfigurationInsert = {
 			id: generateId("test"),
 			productId: productInsert.id,
-			providerId: devCheckoutPaymentProviderId,
-			projectId: h.resources.project.id,
+			providerConfigurationId:
+				h.resources.projectPaymentProviderConfiguration.id,
 			providerProductKey: devCheckout.createProductKey({
 				productId: productInsert.id,
 			}),
@@ -73,7 +73,7 @@ describe.sequential("payment-provider-core-service", async () => {
 			await service.getProductProviderConfigurationByProductId(
 				ctx,
 				productInsert.id,
-				devCheckoutPaymentProviderId
+				h.resources.projectPaymentProviderConfiguration.id
 			);
 
 		if (productProviderConfigurationResult.isErr()) {
@@ -119,17 +119,13 @@ describe.sequential("payment-provider-core-service", async () => {
 		const charge = await h.db.primary.query.charges.findFirst({
 			where: and(
 				eq(charges.customerId, customerInsert.id),
-				eq(charges.paymentProviderId, devCheckoutPaymentProviderId),
+				eq(
+					charges.paymentProviderConfigurationId,
+					h.resources.projectPaymentProviderConfiguration.id
+				),
 				eq(charges.purchaseEnvironment, "production")
 			),
 		});
-
-		expect(charge).toBeDefined();
-		expect(charge?.amount).toBe(1000);
-		expect(charge?.currency).toBe("USD");
-		expect(charge?.paymentProviderId).toBe(devCheckoutPaymentProviderId);
-		expect(charge?.purchaseEnvironment).toBe("production");
-		expect(charge?.customerId).toBe(customerInsert.id);
 
 		expect(purchase).toBeDefined();
 		expect(purchase?.status).toBe("active");
@@ -143,6 +139,16 @@ describe.sequential("payment-provider-core-service", async () => {
 		expect(purchase?.purchasedAt).toBeDefined();
 		expect(purchase?.expiresAt).toBeDefined();
 		expect(purchase?.providerKey).toBe(purchseKey);
+
+		expect(charge).toBeDefined();
+		expect(charge?.amount).toBe(1000);
+		expect(charge?.currency).toBe("USD");
+		expect(charge?.paymentProviderConfigurationId).toBe(
+			h.resources.projectPaymentProviderConfiguration.id
+		);
+		expect(charge?.purchaseEnvironment).toBe("production");
+		expect(charge?.customerId).toBe(customerInsert.id);
+		expect(charge?.purchaseId).toBe(purchase?.id);
 
 		t.onTestFinished(async () => {
 			await h.db.primary

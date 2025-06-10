@@ -32,9 +32,9 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 			"productId"
 		> = {
 			id: generateId("test"),
-			providerId: "stripe",
+			providerConfigurationId:
+				h.resources.projectPaymentProviderConfiguration.id,
 			providerProductKey: `ppk_${generateId("test")}`,
-			projectId: h.resources.project.id,
 			configuration: { stripePriceId: `price_${generateId("test")}` }, // Simplified
 			isActive: true,
 		};
@@ -61,9 +61,6 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 		expect(responseBody).toHaveLength(1);
 		expect(responseBody[0]!.providerProductKey).toBe(
 			providerConfig1.providerProductKey
-		);
-		expect(responseBody[0]!.providerConfiguration.providerId).toBe(
-			providerConfig1.providerId
 		);
 		expect(responseBody[0]!.providerConfiguration.configuration).toEqual(
 			providerConfig1.configuration

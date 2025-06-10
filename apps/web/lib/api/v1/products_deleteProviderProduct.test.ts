@@ -32,9 +32,9 @@ describe.sequential(
 			const providerConfigToDelete: InsertProductProviderConfiguration = {
 				id: generateId("test"),
 				productId: productInput.id,
-				providerId: "stripe",
+				providerConfigurationId:
+					h.resources.projectPaymentProviderConfiguration.id,
 				providerProductKey: `ppk_to_delete_${generateId("test")}`,
-				projectId: h.resources.project.id,
 				configuration: {
 					priceId: `price_to_delete_${generateId("test")}`,
 					productId: `prod_to_delete_${generateId("test")}`,
@@ -48,7 +48,7 @@ describe.sequential(
 				.values(providerConfigToDelete);
 
 			const res = await h.delete({
-				url: `/v1/products/${productInput.id}/provider-products/${providerConfigToDelete.providerId}/${providerConfigToDelete.providerProductKey}`,
+				url: `/v1/products/${productInput.id}/provider-products/${providerConfigToDelete.providerConfigurationId}/${providerConfigToDelete.providerProductKey}`,
 				headers: {
 					"x-secret-key": h.resources.secretKey.unhashedKey,
 				},

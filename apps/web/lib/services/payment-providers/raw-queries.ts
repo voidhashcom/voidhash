@@ -30,6 +30,37 @@ export const getPaymentProviderConfigurationsQuery = async (
 	return ok(res.value ?? []);
 };
 
+export const getPaymentProviderConfigurationByIdQuery = async (
+	ctx: ServiceContext,
+	id: string
+): Promise<
+	Result<
+		ProjectPaymentProviderConfiguration,
+		VoidhashInternalServerError | VoidhashNotFoundError
+	>
+> => {
+	const res = await ResultAsync.fromPromise(
+		ctx.db.query.projectPaymentProviderConfigurations.findFirst({
+			where: eq(projectPaymentProviderConfigurations.id, id),
+		}),
+		(e) => fromUnknownThrow(e)
+	);
+	if (res.isErr()) {
+		return err(res.error);
+	}
+	if (!res.value) {
+		return err({
+			code: "NOT_FOUND",
+			message: "Payment provider configuration not found",
+			resource: "payment_provider_configuration",
+			payload: {
+				id,
+			},
+		});
+	}
+	return ok(res.value);
+};
+
 export const getExistingPaymentProviderConfigurationByIdQuery = async (
 	ctx: ServiceContext,
 	projectId: string,

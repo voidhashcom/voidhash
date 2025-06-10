@@ -12,18 +12,17 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { productProviderConfigurations } from "@voidhash/db";
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
 import { getProductByIdQuery } from "../raw-queries";
 import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { getPaymentProviderConfigurationByIdQuery } from "../../payment-providers/raw-queries";
 
 export const createPaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
-	providerId: z.enum(
-		paymentProviders.map((p) => p.getId()) as [string, ...string[]]
-	),
+	providerConfigurationId: z.string(),
 	configuration: z.object({}).passthrough(),
 });
 
@@ -48,11 +47,38 @@ export const createPaymentProviderProduct = createServiceFunction()
 				CreatePaymentProviderProductError
 			>
 		> => {
-			const product = await getProductByIdQuery(ctx, input.productId);
-			if (product.isErr()) {
-				return err(product.error);
+			const productQuery = getProductByIdQuery(ctx, input.productId);
+			const providerConfigurationQuery =
+				getPaymentProviderConfigurationByIdQuery(
+					ctx,
+					input.providerConfigurationId
+				);
+
+			const [productResult, providerConfigurationResult] = await Promise.all([
+				productQuery,
+				providerConfigurationQuery,
+			]);
+
+			if (productResult.isErr()) {
+				return err(productResult.error);
 			}
-			if (!hasProjectPermission(ctx, product.value.projectId, "project:all")) {
+
+			if (providerConfigurationResult.isErr()) {
+				return err(providerConfigurationResult.error);
+			}
+
+			if (
+				!hasProjectPermission(
+					ctx,
+					productResult.value.projectId,
+					"project:all"
+				) ||
+				!hasProjectPermission(
+					ctx,
+					providerConfigurationResult.value.projectId,
+					"project:all"
+				)
+			) {
 				return err({
 					code: "FORBIDDEN",
 					message: "You are not authorized to create payment provider products",
@@ -60,15 +86,15 @@ export const createPaymentProviderProduct = createServiceFunction()
 			}
 
 			const provider = paymentProviders.find(
-				(p) => p.getId() === input.providerId
+				(p) => p.getId() === providerConfigurationResult.value.providerId
 			);
 			if (!provider) {
 				return err({
 					code: "NOT_FOUND",
-					message: `Provider ${input.providerId} not found`,
+					message: `Provider ${providerConfigurationResult.value.providerId} not found`,
 					resource: "payment_provider",
 					payload: {
-						providerId: input.providerId,
+						providerId: providerConfigurationResult.value.providerId,
 					},
 				});
 			}
@@ -78,7 +104,7 @@ export const createPaymentProviderProduct = createServiceFunction()
 				(e) =>
 					({
 						code: "BAD_REQUEST",
-						message: `Invalid configuration for provider ${input.providerId}`,
+						message: `Invalid configuration for provider ${providerConfigurationResult.value.providerId}`,
 						validationErrors: e,
 					}) as VoidhashBadRequestError
 			);
@@ -94,20 +120,25 @@ export const createPaymentProviderProduct = createServiceFunction()
 					.set({ isActive: false })
 					.where(
 						and(
-							eq(productProviderConfigurations.productId, product.value.id),
-							eq(productProviderConfigurations.providerId, input.providerId)
+							eq(
+								productProviderConfigurations.productId,
+								productResult.value.id
+							),
+							eq(
+								productProviderConfigurations.providerConfigurationId,
+								input.providerConfigurationId
+							)
 						)
 					);
 
 				const newPaymentProviderProduct = {
 					id: generateId("paymentProviderProduct"),
-					productId: product.value.id,
-					providerId: input.providerId,
+					productId: productResult.value.id,
+					providerConfigurationId: providerConfigurationResult.value.id,
 					providerProductKey: provider.createProductKey(
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						parsedConfiguration.value as any
 					),
-					projectId: product.value.projectId,
 					environment: ctx.session.environment,
 					configuration: parsedConfiguration.value,
 					isActive: true,

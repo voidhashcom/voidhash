@@ -4,7 +4,7 @@ import {
 	getProviderProductByPrimaryKeyQuery,
 } from "@/lib/services/products/raw-queries";
 import Stripe from "stripe";
-import { stripePaymentProviderId } from "../stripe";
+
 import { createPaymentProviderKey } from "@/lib/services/products/lib";
 import { handleProductPurchase } from "@/lib/services/purchases/hooks/on-product-purchased";
 import { getCustomerByExternalIdentifierQuery } from "@/lib/services/customers/raw-queries";
@@ -16,6 +16,7 @@ import {
 } from "@voidhash/lib/constants";
 import { mapSubscriptionStatus } from "@/lib/payment-providers/stripe/utils";
 import { err, ok, Result, ResultAsync } from "neverthrow";
+import { ProjectPaymentProviderConfiguration } from "@voidhash/db";
 
 type HandleSessionCompletedError =
 	| VoidhashInternalServerError
@@ -23,7 +24,7 @@ type HandleSessionCompletedError =
 	| VoidhashNotFoundError;
 export async function handleSessionCompleted(
 	serviceContext: ServiceContext,
-	projectId: string,
+	paymentProviderConfiguration: ProjectPaymentProviderConfiguration,
 	stripe: Stripe,
 	event: Stripe.Event
 ): Promise<Result<void, HandleSessionCompletedError>> {
@@ -83,8 +84,7 @@ export async function handleSessionCompleted(
 		const stripeProviderProduct = (
 			await getProviderProductByPrimaryKeyQuery(
 				serviceContext,
-				projectId,
-				stripePaymentProviderId,
+				paymentProviderConfiguration.id,
 				paymentProviderKey.value,
 				"production"
 			)
@@ -135,8 +135,8 @@ export async function handleSessionCompleted(
 		const customer = (
 			await getCustomerByExternalIdentifierQuery(
 				serviceContext,
-				projectId,
-				stripePaymentProviderId,
+				paymentProviderConfiguration.projectId,
+				paymentProviderConfiguration.providerId,
 				customerId,
 				"production" // Stripe webhooks are only supported in production
 			)

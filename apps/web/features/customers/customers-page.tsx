@@ -31,20 +31,21 @@ export async function CustomersPage({
 	const project = projectResult.value;
 
 	return (
-		<Page>
+		<Page className="p-0 py-8">
 			{/* Key is used to reload the default form data when the organization slug changes */}
-			<div className="max-w-4xl mx-auto">
-				<div className="flex flex-row items-center justify-between">
-					<h1 className="text-3xl font-normal tracking-right">Customers</h1>
-					<CreateCustomerButton projectId={project.id} />
-				</div>
-				{/* <p className="text-muted-foreground mt-3">
+
+			<div className="flex flex-row items-center justify-between max-w-4xl mx-auto">
+				<h1 className="text-3xl font-normal tracking-right">Customers</h1>
+				<CreateCustomerButton projectId={project.id} />
+			</div>
+			{/* <p className="text-muted-foreground mt-3">
 					List of products available to purchase.
 				</p> */}
 
-				<div className="mt-3">
-					<UnderlineTabs defaultValue="identified">
-						<UnderlineTabsList>
+			<div className="mt-3">
+				<UnderlineTabs defaultValue="identified">
+					<UnderlineTabsList>
+						<div className="max-w-4xl mx-auto w-full inline-flex items-center rounded-none space-x-4">
 							<UnderlineTabsTrigger value="identified">
 								Identified
 							</UnderlineTabsTrigger>
@@ -59,25 +60,29 @@ export async function CustomersPage({
 									</Badge>
 								)} */}
 							</UnderlineTabsTrigger>
-						</UnderlineTabsList>
-						<UnderlineTabsContent value="identified">
+						</div>
+					</UnderlineTabsList>
+					<UnderlineTabsContent value="identified">
+						<div className="max-w-4xl mx-auto">
 							<CustomersTable
 								projectId={project.id}
 								type="identified"
 								organizationSlug={organizationSlug}
 								projectSlug={projectSlug}
 							/>
-						</UnderlineTabsContent>
-						<UnderlineTabsContent value="anonymous">
+						</div>
+					</UnderlineTabsContent>
+					<UnderlineTabsContent value="anonymous">
+						<div className="max-w-4xl mx-auto">
 							<CustomersTable
 								projectId={project.id}
 								type="anonymous"
 								organizationSlug={organizationSlug}
 								projectSlug={projectSlug}
 							/>
-						</UnderlineTabsContent>
-					</UnderlineTabs>
-				</div>
+						</div>
+					</UnderlineTabsContent>
+				</UnderlineTabs>
 			</div>
 		</Page>
 	);

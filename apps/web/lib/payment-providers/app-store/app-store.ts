@@ -46,7 +46,8 @@ export class AppStorePaymentProvider
 			appStorePaymentProviderId,
 			"App Store",
 			["production"],
-			["productId"]
+			["productId"],
+			"native"
 		);
 	}
 	getIsConfigurable(): boolean {

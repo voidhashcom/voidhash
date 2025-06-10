@@ -7,11 +7,22 @@ import { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { drizzle as drizzlePlanetscale } from "drizzle-orm/planetscale-serverless";
 import * as schema from "@voidhash/db/schema";
-import type { User, Organization, Project, ApiKey } from "@voidhash/db";
+import type {
+	User,
+	Organization,
+	Project,
+	ApiKey,
+	ProjectPaymentProviderConfiguration,
+} from "@voidhash/db";
 import { generateId } from "../id/generate";
 import { env, integrationTestEnv } from "./env";
 import { z } from "zod";
 import { hashKey } from "../services/api-keys/utils";
+import {
+	stripe,
+	stripePaymentProviderId,
+} from "../payment-providers/stripe/stripe";
+import { devCheckoutPaymentProviderId } from "../payment-providers/dev-checkout/dev-checkout";
 
 export type Resources = {
 	user: User;
@@ -19,6 +30,8 @@ export type Resources = {
 	project: Project;
 	secretKey: ApiKey & { unhashedKey: string };
 	publishableKey: ApiKey & { unhashedKey: string };
+	devCheckoutPaymentProviderConfiguration: ProjectPaymentProviderConfiguration;
+	projectPaymentProviderConfiguration: ProjectPaymentProviderConfiguration;
 };
 
 export abstract class Harness {
@@ -94,6 +107,10 @@ export abstract class Harness {
 				await tx
 					.delete(schema.productProviderConfigurations)
 					.where(like(schema.productProviderConfigurations.id, "test%"));
+
+				await tx
+					.delete(schema.projectPaymentProviderConfigurations)
+					.where(like(schema.projectPaymentProviderConfigurations.id, "test%"));
 				await tx
 					.delete(schema.productPerks)
 					.where(like(schema.productPerks.id, "test%"));
@@ -151,6 +168,35 @@ export abstract class Harness {
 			organizationId: organization.id,
 		};
 
+		const devCheckoutPaymentProviderConfiguration: ProjectPaymentProviderConfiguration =
+			{
+				id: generateId("test"),
+				projectId: project.id,
+				providerId: devCheckoutPaymentProviderId,
+				name: "DevCheckout",
+				enabled: true,
+				configuration: {},
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			};
+
+		const projectPaymentProviderConfiguration: ProjectPaymentProviderConfiguration =
+			{
+				id: generateId("test"),
+				projectId: project.id,
+				providerId: stripePaymentProviderId,
+				name: "Stripe",
+				enabled: true,
+				configuration: {
+					secretKey: "sk_test_123",
+					webhookSecret: "whsec_123",
+				} satisfies z.infer<
+					ReturnType<typeof stripe.getGlobalConfigurationSchema>
+				>,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			};
+
 		const unhashedKey = "test-secret-key";
 		const hashedKey = await hashKey(unhashedKey);
 
@@ -189,6 +235,8 @@ export abstract class Harness {
 			project,
 			secretKey,
 			publishableKey,
+			devCheckoutPaymentProviderConfiguration,
+			projectPaymentProviderConfiguration,
 		};
 	}
 
@@ -206,5 +254,11 @@ export abstract class Harness {
 		await this.db.primary
 			.insert(schema.apiKeys)
 			.values(this.resources.publishableKey);
+		await this.db.primary
+			.insert(schema.projectPaymentProviderConfigurations)
+			.values(this.resources.projectPaymentProviderConfiguration);
+		await this.db.primary
+			.insert(schema.projectPaymentProviderConfigurations)
+			.values(this.resources.devCheckoutPaymentProviderConfiguration);
 	}
 }

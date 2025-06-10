@@ -13,7 +13,7 @@ import {
 import { Clock4Icon, EllipsisVerticalIcon } from "lucide-react";
 import { format } from "date-fns";
 
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { toast } from "sonner";
 import { useAction } from "next-safe-action/hooks";
 import {
@@ -27,9 +27,11 @@ import type { ProductProviderConfiguration } from "@voidhash/db";
 
 export function ProductDetailProviderProductRecord({
 	paymentProviderId,
+	providerConfigurationId,
 	providerProduct,
 }: {
 	paymentProviderId: string;
+	providerConfigurationId: string;
 	providerProduct: ProductProviderConfiguration;
 }) {
 	const router = useRouter();
@@ -78,7 +80,7 @@ export function ProductDetailProviderProductRecord({
 	const handleSetActiveProviderProduct = async () => {
 		setActiveProviderProduct({
 			productId: providerProduct.productId,
-			providerId: paymentProviderId,
+			providerConfigurationId: providerConfigurationId,
 			providerProductKey: providerProduct.providerProductKey,
 		});
 	};
@@ -176,6 +178,7 @@ export function ProductDetailProviderProductRecord({
 			<ProviderProductSheet
 				open={openEditSheet}
 				onClose={() => setOpenEditSheet(false)}
+				providerConfigurationId={providerConfigurationId}
 				providerId={paymentProviderId}
 				productId={providerProduct.productId}
 				mode={"edit"}

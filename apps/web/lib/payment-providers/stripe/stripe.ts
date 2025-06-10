@@ -50,7 +50,8 @@ export class StripePaymentProvider
 			stripePaymentProviderId,
 			"Stripe",
 			["production"],
-			["productId", "priceId"]
+			["productId", "priceId"],
+			"web-checkout"
 		);
 	}
 	getIsConfigurable(): boolean {

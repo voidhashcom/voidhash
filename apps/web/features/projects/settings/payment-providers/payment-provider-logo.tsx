@@ -1,4 +1,4 @@
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { AppleLogo } from "./logos/apple-logo";
 import { StripeLogo } from "./logos/stripe-logo";
 

@@ -5,7 +5,12 @@ import {
 } from "@/lib/service-function";
 import { createPublishableKey } from "@/lib/services/api-keys/utils";
 import { Environments } from "@/lib/services/environments/types";
-import { projects, apiKeys } from "@voidhash/db";
+import {
+	projects,
+	apiKeys,
+	projectPaymentProviderConfigurations,
+	InsertProjectPaymentProviderConfiguration,
+} from "@voidhash/db";
 import {
 	fromUnknownThrow,
 	SLUG_BLACKLIST,
@@ -21,6 +26,7 @@ import { err, ok, Result } from "neverthrow";
 import { z } from "zod";
 import { getProjectBySlugQuery } from "../raw-queries";
 import { isAuthenticated } from "@/lib/middlewares";
+import { devCheckoutPaymentProviderId } from "@/lib/payment-providers/dev-checkout/dev-checkout";
 
 export const createProjectInputSchema = z.object({
 	name: z.string().min(1).max(32),
@@ -118,6 +124,16 @@ export const createProject = createServiceFunction()
 						name: "Publishable key",
 						...testingPublishableKey,
 					});
+
+					// Create dev checkout payment provider configuration
+					await tx.insert(projectPaymentProviderConfigurations).values({
+						id: generateId("projectPaymentProviderConfiguration"),
+						projectId: id,
+						name: "Dev Checkout",
+						providerId: devCheckoutPaymentProviderId,
+						enabled: true,
+						configuration: {},
+					} satisfies InsertProjectPaymentProviderConfiguration);
 				});
 
 				ctx.cache.invalidate(`project_${id}`);

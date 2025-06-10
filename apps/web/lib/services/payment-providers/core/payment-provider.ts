@@ -13,6 +13,7 @@ export interface PaymentProvider<
 	getId(): TKey;
 	getTitle(): string;
 	isAvailableInEnvironment(environment: Environment): boolean;
+	getType(): "native" | "web-checkout";
 
 	// Global configuration
 	getIsConfigurable(): boolean; // This is true for almost all payment providers, except for Dev Checkout

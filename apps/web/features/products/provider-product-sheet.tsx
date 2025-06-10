@@ -4,7 +4,7 @@ import {
 	createPaymentProviderProductAction,
 	updatePaymentProviderProductAction,
 } from "@/lib/nextjs/server-actions";
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
 	Form,
@@ -34,6 +34,7 @@ export function ProviderProductSheet({
 	open,
 	onClose,
 	productId,
+	providerConfigurationId,
 	providerId,
 	providerProductKey,
 	configuration,
@@ -42,6 +43,7 @@ export function ProviderProductSheet({
 	open: boolean;
 	onClose: () => void;
 	productId: string;
+	providerConfigurationId: string;
 	providerId: string;
 	providerProductKey?: string;
 	mode: "add" | "edit";
@@ -105,7 +107,7 @@ export function ProviderProductSheet({
 	const onSubmit = async (data: any) => {
 		if (mode === "add") {
 			create({
-				providerId: providerId,
+				providerConfigurationId: providerConfigurationId,
 				productId: productId,
 				configuration: data,
 			});
@@ -115,7 +117,7 @@ export function ProviderProductSheet({
 				return;
 			}
 			update({
-				providerId: providerId,
+				paymentProviderConfigurationId: providerConfigurationId,
 				productId: productId,
 				providerProductKey: providerProductKey,
 				configuration: data,

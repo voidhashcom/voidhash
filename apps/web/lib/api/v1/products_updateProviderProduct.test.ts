@@ -43,9 +43,9 @@ describe.sequential(
 			const initialProviderConfig: InsertProductProviderConfiguration = {
 				id: generateId("test"),
 				productId: productInput.id,
-				providerId: "stripe",
+				providerConfigurationId:
+					h.resources.projectPaymentProviderConfiguration.id,
 				providerProductKey: providerProductKey.value,
-				projectId: h.resources.project.id,
 				configuration: {
 					productId: `prod_123`,
 					priceId: `price_123`,
@@ -60,19 +60,19 @@ describe.sequential(
 
 			// Define the update payload
 			const updatePayload: RouteRequest = {
+				providerConfigurationId:
+					h.resources.projectPaymentProviderConfiguration.id,
+				providerId: "stripe",
 				configuration: {
-					providerId: initialProviderConfig.providerId,
-					configuration: {
-						productId: `prod_123`,
-						priceId: `price_123`,
-					} satisfies z.infer<
-						ReturnType<typeof stripe.getProductConfigurationSchema>
-					>,
-				},
+					productId: `prod_123`,
+					priceId: `price_123`,
+				} satisfies z.infer<
+					ReturnType<typeof stripe.getProductConfigurationSchema>
+				>,
 			};
 
 			const res = await h.put<RouteRequest, RouteResponse>({
-				url: `/v1/products/${productInput.id}/provider-products/${initialProviderConfig.providerId}/${initialProviderConfig.providerProductKey}`,
+				url: `/v1/products/${productInput.id}/provider-products/${initialProviderConfig.providerConfigurationId}/${initialProviderConfig.providerProductKey}`,
 				headers: {
 					"Content-Type": "application/json",
 					"x-secret-key": h.resources.secretKey.unhashedKey,
@@ -91,8 +91,13 @@ describe.sequential(
 				initialProviderConfig.providerProductKey
 			);
 
+			const {
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+				providerConfigurationId,
+				...updatePayloadWithoutProviderConfigurationId
+			} = updatePayload;
 			expect(responseBody.providerConfiguration).toMatchObject(
-				updatePayload.configuration // The API returns the full wrapper
+				updatePayloadWithoutProviderConfigurationId // The API returns the full wrapper
 			);
 
 			// Verify in DB
@@ -100,8 +105,9 @@ describe.sequential(
 				await h.db.primary.query.productProviderConfigurations.findFirst({
 					where: eq(productProviderConfigurations.id, initialProviderConfig.id),
 				});
+
 			expect(dbProviderProduct?.configuration).toMatchObject(
-				updatePayload.configuration.configuration // The DB stores only the inner config
+				updatePayload.configuration // The DB stores only the inner config
 			);
 
 			// Clean up
@@ -120,22 +126,21 @@ describe.sequential(
 		test("PUT /v1/products/:productId/provider-products/:providerId/:providerProductKey - not found", async (t) => {
 			const h = await IntegrationHarness.init(t);
 			const productId = generateId("test");
-			const providerId = "stripe";
 			const nonExistentKey = `ppk_nonexistent_${generateId("test")}`;
 			const updatePayload: RouteRequest = {
+				providerConfigurationId:
+					h.resources.projectPaymentProviderConfiguration.id,
+				providerId: "stripe",
 				configuration: {
-					providerId: "stripe",
-					configuration: {
-						productId: `prod_123`,
-						priceId: `price_update_fail`,
-					} satisfies z.infer<
-						ReturnType<typeof stripe.getProductConfigurationSchema>
-					>,
-				},
+					productId: `prod_123`,
+					priceId: `price_update_fail`,
+				} satisfies z.infer<
+					ReturnType<typeof stripe.getProductConfigurationSchema>
+				>,
 			};
 
 			const res = await h.put<RouteRequest, RouteResponse>({
-				url: `/v1/products/${productId}/provider-products/${providerId}/${nonExistentKey}`,
+				url: `/v1/products/${productId}/provider-products/${h.resources.projectPaymentProviderConfiguration.id}/${nonExistentKey}`,
 				headers: {
 					"Content-Type": "application/json",
 					"x-secret-key": h.resources.secretKey.unhashedKey,

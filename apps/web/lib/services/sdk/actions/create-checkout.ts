@@ -11,7 +11,13 @@ import { err, ok, Result } from "neverthrow";
 import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 import { getPaywallProductByIdQuery } from "../raw-queries";
 import { generateId } from "@/lib/id/generate";
-import { checkoutSessions } from "@voidhash/db";
+import {
+	and,
+	checkoutSessions,
+	eq,
+	InsertCheckoutSession,
+	projectPaymentProviderConfigurations,
+} from "@voidhash/db";
 import { getCustomerByAppUserIdQuery } from "../../customers/raw-queries";
 import { devCheckoutPaymentProviderId } from "@/lib/payment-providers/dev-checkout/dev-checkout";
 import { isAnonymousId } from "../utils";
@@ -75,25 +81,29 @@ export const createCheckoutSession = createServiceFunction()
 
 			// TODO: Uncomment this when we have a way to get payment providers
 			// const paymentProviders = await getAvailablePaymentProviders(
-			// 	ctx,
-			// 	projectId,
-			// 	ctx.session.environment
-			// );
-
-			// if (paymentProviders.isErr()) {
-			// 	return err(paymentProviders.error);
-			// }
-
-			// const paymentProvider = paymentProviders.value[0];
-			// if (!paymentProvider) {
-			// 	return err({
-			// 		code: "INTERNAL_SERVER_ERROR",
-			// 		message: "No payment provider found",
-			// 		originalError: new Error("No payment provider found"),
-			// 	});
-			// }
 
 			try {
+				const devCheckoutPaymentProviderConfiguration =
+					await ctx.db.query.projectPaymentProviderConfigurations.findFirst({
+						where: and(
+							eq(projectPaymentProviderConfigurations.projectId, projectId),
+							eq(
+								projectPaymentProviderConfigurations.providerId,
+								devCheckoutPaymentProviderId
+							)
+						),
+					});
+
+				if (!devCheckoutPaymentProviderConfiguration) {
+					return err({
+						code: "INTERNAL_SERVER_ERROR",
+						message: "Dev checkout payment provider configuration not found",
+						originalError: new Error(
+							"Dev checkout payment provider configuration not found"
+						),
+					});
+				}
+
 				return await ctx.db.transaction(async (tx) => {
 					const customerResult = await getCustomerByAppUserIdQuery(
 						{
@@ -151,10 +161,11 @@ export const createCheckoutSession = createServiceFunction()
 						successCallbackUrl: input.successCallbackUrl,
 						errorCallbackUrl: input.errorCallbackUrl,
 						// TODO: Replace with real payment provider id
-						paymentProviderId: devCheckoutPaymentProviderId,
+						paymentProviderConfigurationId:
+							devCheckoutPaymentProviderConfiguration.id,
 						createdAt: new Date(),
 						updatedAt: new Date(),
-					};
+					} satisfies InsertCheckoutSession;
 
 					await tx.insert(checkoutSessions).values(sessionInsert);
 

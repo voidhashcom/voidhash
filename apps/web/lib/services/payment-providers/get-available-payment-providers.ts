@@ -1,5 +1,5 @@
 import { ServiceContext } from "@/lib/service-function";
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import {
 	Environment,
 	VoidhashInternalServerError,

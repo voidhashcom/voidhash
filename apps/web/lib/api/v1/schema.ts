@@ -1,4 +1,4 @@
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { createProductInputSchema } from "@/lib/services/products/actions/create-product";
 import { z } from "zod";
 import { extendZodWithOpenApi } from "zod-openapi";
@@ -67,10 +67,12 @@ export const deleteProductParamsSchema = z.object({
 });
 
 const productProviderConfigurationSchema = z
+
 	.discriminatedUnion("providerId", [
 		...paymentProviders.map((p) =>
 			z.object({
 				providerId: z.literal(p.getId()),
+				providerConfigurationId: z.string(),
 				configuration: p.getProductConfigurationSchema(),
 			})
 		),
@@ -106,21 +108,18 @@ export const getProviderProductsParamsSchema = z.object({
 
 export const updateProviderProductParamsSchema = z.object({
 	productId: z.string(),
-	providerId: z.string(),
+	providerConfigurationId: z.string(),
 	providerProductKey: z.string(),
 });
 
-export const updateProviderProductBodySchema = z
-	.object({
-		configuration: productProviderConfigurationSchema,
-	})
-	.openapi({
+export const updateProviderProductBodySchema =
+	productProviderConfigurationSchema.openapi({
 		ref: "UpdateProviderProductBody",
 	});
 
 export const deleteProviderProductParamsSchema = z.object({
 	productId: z.string(),
-	providerId: z.string(),
+	providerConfigurationId: z.string(),
 	providerProductKey: z.string(),
 });
 

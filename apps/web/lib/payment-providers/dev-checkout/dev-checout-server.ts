@@ -1,8 +1,5 @@
 import { ServiceContext } from "@/lib/service-function";
-import {
-	DevCheckoutPaymentProvider,
-	devCheckoutPaymentProviderId,
-} from "./dev-checkout";
+import { DevCheckoutPaymentProvider } from "./dev-checkout";
 import { CheckoutSession, checkoutSessions } from "@voidhash/db";
 import {
 	VoidhashBadRequestError,
@@ -75,7 +72,7 @@ export class DevCheckoutPaymentProviderServer extends DevCheckoutPaymentProvider
 				await this.paymentProviderCoreService.getProductProviderConfigurationByProductId(
 					ctx,
 					checkoutSession.value.productId,
-					devCheckoutPaymentProviderId
+					checkoutSession.value.paymentProviderConfigurationId
 				);
 
 			if (productProviderConfiguration.isErr()) {

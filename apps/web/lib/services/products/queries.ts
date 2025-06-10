@@ -115,8 +115,7 @@ export const getProviderProductByPrimaryKey = cache(
 	createServiceFunction()
 		.input(
 			z.object({
-				projectId: z.string(),
-				providerId: z.string(),
+				providerConfigurationId: z.string(),
 				productProviderKey: z.string(),
 			})
 		)
@@ -128,27 +127,35 @@ export const getProviderProductByPrimaryKey = cache(
 				ctx,
 			}): Promise<
 				Result<
-					ProductProviderConfiguration,
+					ProductProviderConfiguration & {
+						projectId: string;
+						providerId: string;
+					},
 					GetProviderProductByPrimaryKeyError
 				>
 			> => {
-				if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
-					return err({
-						code: "FORBIDDEN",
-						message: "No permission to access provider product.",
-					});
-				}
-
 				const providerProductResult = await getProviderProductByPrimaryKeyQuery(
 					ctx,
-					input.projectId,
-					input.providerId,
+					input.providerConfigurationId,
 					input.productProviderKey,
 					ctx.session.environment
 				);
 
 				if (providerProductResult.isErr()) {
 					return err(providerProductResult.error);
+				}
+
+				if (
+					!hasProjectPermission(
+						ctx,
+						providerProductResult.value.projectId,
+						"project:all"
+					)
+				) {
+					return err({
+						code: "FORBIDDEN",
+						message: "No permission to access provider product.",
+					});
 				}
 
 				const productResult = await getProductByIdQuery(

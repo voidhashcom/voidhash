@@ -1,5 +1,5 @@
 import { Page } from "@/features/shell";
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { Card, Skeleton } from "@voidhash/ui";
 
 export function PaymentProvidersPageSkeleton() {

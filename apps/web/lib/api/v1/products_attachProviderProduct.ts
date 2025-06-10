@@ -8,7 +8,6 @@ import {
 } from "./schema";
 import { z } from "zod";
 import { createPaymentProviderProduct } from "@/lib/services/products/actions/create-payment-provider-product";
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
@@ -50,19 +49,12 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 				throw toVoidhashHTTPError(authenticatedContext.error);
 			}
 			const productId = c.req.param("productId");
-			const providerId = c.req.valid("json").providerId;
-			if (!providerId) {
-				return c.json({ error: "Provider ID is required" }, 400);
-			}
-			if (!paymentProviders.find((p) => p.getId() === providerId)) {
-				return c.json({ error: "Provider not found" }, 404);
-			}
 
 			const providerProduct = await createPaymentProviderProduct.invoke({
 				ctx: authenticatedContext.value,
 				input: {
 					productId,
-					providerId: providerId as string,
+					providerConfigurationId: c.req.valid("json").providerConfigurationId,
 					configuration: c.req.valid("json").configuration,
 				},
 			});
@@ -72,7 +64,8 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 			return c.json<z.infer<typeof providerProductResponseSchema>>({
 				providerProductKey: providerProduct.value.providerProductKey,
 				providerConfiguration: {
-					providerId: providerProduct.value.providerId,
+					providerConfigurationId:
+						providerProduct.value.providerConfigurationId,
 					configuration: providerProduct.value.configuration,
 				},
 			});

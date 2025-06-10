@@ -11,7 +11,6 @@ import {
 } from "@voidhash/lib";
 import { z } from "zod";
 import { productProviderConfigurations } from "@voidhash/db";
-import { paymentProviders } from "@/lib/payment-providers/paymentProviders";
 import { and, eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
 import { getProductByIdQuery } from "../raw-queries";
@@ -19,9 +18,7 @@ import { isAuthenticated } from "@/lib/middlewares";
 
 export const deletePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
-	providerId: z.enum(
-		paymentProviders.map((p) => p.getId()) as [string, ...string[]]
-	),
+	providerConfigurationId: z.string(),
 	providerProductKey: z.string(),
 });
 
@@ -59,6 +56,10 @@ export const deletePaymentProviderProduct = createServiceFunction()
 					.where(
 						and(
 							eq(productProviderConfigurations.productId, product.value.id),
+							eq(
+								productProviderConfigurations.providerConfigurationId,
+								input.providerConfigurationId
+							),
 							eq(
 								productProviderConfigurations.providerProductKey,
 								input.providerProductKey
