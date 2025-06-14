@@ -14,6 +14,7 @@ import { eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
 import { getApiKeyByIdQuery } from "./raw-queries";
 import { isAuthenticated } from "@/lib/middlewares";
+import { safeTryPromise } from "@/lib/neverthrow";
 
 export const deleteSecretKeyInputSchema = z.object({
 	secretKeyId: z.string(),
@@ -47,17 +48,25 @@ export const deleteSecretKey = createServiceFunction()
 				});
 			}
 
-			try {
-				await ctx.db
-					.delete(apiKeys)
-					.where(eq(apiKeys.id, existingKey.value.id));
-			} catch (error) {
-				return err({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Failed to delete api key",
-					originalError: error,
-					resource: "api-key",
-				});
+			const res = await safeTryPromise({
+				try: async () => {
+					await ctx.db
+						.delete(apiKeys)
+						.where(eq(apiKeys.id, existingKey.value.id));
+
+					return ok(undefined);
+				},
+				catch: (error) => {
+					return err({
+						code: "INTERNAL_SERVER_ERROR",
+						message: "Failed to delete api key",
+						originalError: error as Error,
+					} satisfies VoidhashInternalServerError);
+				},
+			});
+
+			if (res.isErr()) {
+				return res.error;
 			}
 
 			ctx.cache.invalidate(`api-keys_${existingKey.value.projectId}`);

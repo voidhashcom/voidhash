@@ -178,6 +178,7 @@ export abstract class Harness {
 				configuration: {},
 				createdAt: new Date(),
 				updatedAt: new Date(),
+				deletedAt: null,
 			};
 
 		const projectPaymentProviderConfiguration: ProjectPaymentProviderConfiguration =
@@ -195,6 +196,7 @@ export abstract class Harness {
 				>,
 				createdAt: new Date(),
 				updatedAt: new Date(),
+				deletedAt: null,
 			};
 
 		const unhashedKey = "test-secret-key";

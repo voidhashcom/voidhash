@@ -1,30 +1,19 @@
 import { Page } from "@/features/shell";
-import {
-	Badge,
-	Button,
-	Card,
-	CardHeader,
-	CardTitle,
-	cn,
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@voidhash/ui";
+import { Badge, Card, CardHeader, CardTitle, cn } from "@voidhash/ui";
 import Link from "next/link";
 import { PaymentProviderLogo } from "./payment-provider-logo";
-import { ChevronRightIcon, PlusIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 // import { StripeConfigurationSheet } from "./stripe/stripe-configuration-sheet";
 // import { AppStoreConfigurationSheet } from "./app-store/app-store-configuration-sheet";
 import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { PaymentProviderConfigurationSheet } from "./payment-provider-configuration-sheet";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { EnvironmentFilterNotification } from "@/features/shell/components/environment-filter-notification";
 import { getEnvironment } from "@/lib/services/environments/utils";
 import { PaymentProvidersNewStoreDropdown } from "./payment-providers-new-store-dropdown";
+import { SetupPaymentProviderButton } from "./setup-payment-provider-button";
 
 // const paymentProvidersConfigurationSheetComponents = {
 // 	stripe: StripeConfigurationSheet,
@@ -93,15 +82,11 @@ export async function PaymentProvidersPage({
 				return null;
 			}
 			return {
+				...p,
 				provider: paymentProvider,
-				configuration: p.configuration,
-				name: p.name,
-				enabled: p.enabled,
 			};
 		})
 		.filter(Boolean);
-
-	console.log(paymentProvidersConfigurations);
 
 	const webCheckoutProvidersWithConfigurations = paymentProviders
 		.filter((p) => p.getType() === "web-checkout")
@@ -111,10 +96,8 @@ export async function PaymentProvidersPage({
 					(p) => p.providerId === paymentProvider.getId()
 				);
 			return {
+				...paymentProvidersConfiguration,
 				provider: paymentProvider,
-				configuration: paymentProvidersConfiguration?.configuration,
-				name: paymentProvidersConfiguration?.name,
-				enabled: paymentProvidersConfiguration?.enabled,
 			};
 		})
 		.filter((c) => c.provider.getIsConfigurable());
@@ -149,26 +132,11 @@ export async function PaymentProvidersPage({
 							<div className="flex justify-between items-center">
 								<CardTitle>Stores</CardTitle>
 								{applicationsWithConfiguration.length > 0 && (
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button>
-												<PlusIcon className="w-4 h-4" />
-												Add New Store
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent className="w-48" align="end">
-											{paymentProviders
-												.filter((p) => p.getType() === "native")
-												.map((p) => (
-													<DropdownMenuItem
-														className="cursor-pointer"
-														key={p.getId()}
-													>
-														{p.getTitle()}
-													</DropdownMenuItem>
-												))}
-										</DropdownMenuContent>
-									</DropdownMenu>
+									<PaymentProvidersNewStoreDropdown
+										project={project}
+										organizationSlug={organizationSlug}
+										projectSlug={projectSlug}
+									/>
 								)}
 							</div>
 						</CardHeader>
@@ -178,53 +146,66 @@ export async function PaymentProvidersPage({
 									You haven&apos;t configured any stores for this project.
 								</div>
 								<div className="mt-4">
-									<PaymentProvidersNewStoreDropdown project={project} />
+									<PaymentProvidersNewStoreDropdown
+										project={project}
+										organizationSlug={organizationSlug}
+										projectSlug={projectSlug}
+									/>
 								</div>
 							</div>
 						)}
 
-						{applicationsWithConfiguration?.map((paymentProvider) =>
-							!paymentProvider?.provider ? null : (
-								<div
-									className="relative isolate group hover:bg-accent/30 px-6 py-4"
-									key={paymentProvider.provider.getId()}
-								>
-									<PaymentProviderConfigurationSheet
-										providerId={paymentProvider.provider.getId()}
-										enabled={paymentProvider.enabled ?? false}
-										configuration={paymentProvider.configuration}
-										project={project}
-										name={
-											paymentProvider.name ??
-											paymentProvider.provider.getTitle()
-										}
-										trigger={
-											<Link
-												className="inset-0 absolute w-full h-full"
-												href={`/${organizationSlug}/${projectSlug}/settings/payment-providers`}
-											></Link>
-										}
-									/>
+						{applicationsWithConfiguration?.map(
+							(paymentProviderConfiguration) =>
+								!paymentProviderConfiguration?.provider ? null : (
+									<div
+										className="relative isolate group hover:bg-accent/30 px-6 py-4"
+										key={paymentProviderConfiguration.id}
+									>
+										{/* <PaymentProviderConfigurationSheet
+											providerId={paymentProviderConfiguration.provider.getId()}
+											enabled={paymentProviderConfiguration.enabled ?? false}
+											configuration={paymentProviderConfiguration.configuration}
+											project={project}
+											name={
+												paymentProviderConfiguration.name ??
+												paymentProviderConfiguration.provider.getTitle()
+											}
+											id={paymentProviderConfiguration.id}
+											trigger={
+												<Link
+													className="inset-0 absolute w-full h-full"
+													href={`/${organizationSlug}/${projectSlug}/settings/payment-providers`}
+												></Link>
+											}
+										/> */}
 
-									<div className="flex flex-row items-center justify-between">
-										<div className="flex items-center gap-4 flex-1">
-											<div className="w-8 h-8 flex items-center justify-center">
-												<PaymentProviderLogo
-													providerId={paymentProvider.provider.getId()}
-													className="w-full h-full"
-												/>
+										<Link
+											className="inset-0 absolute w-full h-full"
+											href={`/${organizationSlug}/${projectSlug}/settings/payment-providers/${paymentProviderConfiguration.id}`}
+										></Link>
+
+										<div className="flex flex-row items-center justify-between">
+											<div className="flex items-center gap-4 flex-1">
+												<div className="w-8 h-8 flex items-center justify-center">
+													<PaymentProviderLogo
+														providerId={paymentProviderConfiguration.provider.getId()}
+														className="w-full h-full"
+													/>
+												</div>
+												<div className="flex flex-col">
+													<p>{paymentProviderConfiguration.name}</p>
+												</div>
 											</div>
-											<div className="flex flex-col">
-												<p>{paymentProvider.provider.getTitle()}</p>
+											<div className="flex items-center gap-2">
+												{paymentProviderConfiguration.enabled && (
+													<Badge>Enabled</Badge>
+												)}
+												<ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
 											</div>
-										</div>
-										<div className="flex items-center gap-2">
-											{paymentProvider.enabled && <Badge>Enabled</Badge>}
-											<ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
 										</div>
 									</div>
-								</div>
-							)
+								)
 						)}
 					</Card>
 				</div>
@@ -244,46 +225,64 @@ export async function PaymentProvidersPage({
 								/>
 							</div>
 						)}
-						{webCheckoutProvidersWithConfigurations?.map((paymentProvider) => (
-							<div
-								className="relative isolate group hover:bg-accent/30 px-6 py-4"
-								key={paymentProvider.provider.getId()}
-							>
-								<PaymentProviderConfigurationSheet
-									providerId={paymentProvider.provider.getId()}
-									enabled={paymentProvider.enabled ?? false}
-									configuration={paymentProvider.configuration}
-									project={project}
-									name={
-										paymentProvider.name ?? paymentProvider.provider.getTitle()
+						{webCheckoutProvidersWithConfigurations?.map(
+							(paymentProviderConfiguration) => (
+								<div
+									className="relative isolate group hover:bg-accent/30 px-6 py-4"
+									key={
+										paymentProviderConfiguration.id ??
+										paymentProviderConfiguration.provider.getId()
 									}
-									trigger={
+								>
+									{paymentProviderConfiguration.id && (
 										<Link
 											className="inset-0 absolute w-full h-full"
-											href={`/${organizationSlug}/${projectSlug}/settings/payment-providers`}
+											href={`/${organizationSlug}/${projectSlug}/settings/payment-providers/${paymentProviderConfiguration.id}`}
 										></Link>
-									}
-								/>
+									)}
 
-								<div className="flex flex-row items-center justify-between">
-									<div className="flex items-center gap-4 flex-1">
-										<div className="w-8 h-8 flex items-center justify-center">
-											<PaymentProviderLogo
-												providerId={paymentProvider.provider.getId()}
-												className="w-full h-full"
-											/>
+									<div className="flex flex-row items-center justify-between">
+										<div className="flex items-center gap-4 flex-1">
+											<div className="w-8 h-8 flex items-center justify-center">
+												<PaymentProviderLogo
+													providerId={paymentProviderConfiguration.provider.getId()}
+													className="w-full h-full"
+												/>
+											</div>
+											<div className="flex flex-col">
+												<p>
+													{paymentProviderConfiguration.provider.getTitle()}
+												</p>
+											</div>
 										</div>
-										<div className="flex flex-col">
-											<p>{paymentProvider.provider.getTitle()}</p>
-										</div>
-									</div>
-									<div className="flex items-center gap-2">
-										{paymentProvider.enabled && <Badge>Enabled</Badge>}
-										<ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
+
+										{/* If configuration exists, show the enabled/disabled badge and the chevron right */}
+										{paymentProviderConfiguration.id && (
+											<div className="flex items-center gap-2">
+												{paymentProviderConfiguration.enabled ? (
+													<Badge>Enabled</Badge>
+												) : (
+													<Badge variant="outline">Disabled</Badge>
+												)}
+												<ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
+											</div>
+										)}
+
+										{/* If configuration does not exist, show the add button */}
+										{!paymentProviderConfiguration.id && (
+											<div className="flex items-center gap-2">
+												<SetupPaymentProviderButton
+													projectId={project.id}
+													providerId={paymentProviderConfiguration.provider.getId()}
+													organizationSlug={organizationSlug}
+													projectSlug={projectSlug}
+												/>
+											</div>
+										)}
 									</div>
 								</div>
-							</div>
-						))}
+							)
+						)}
 					</Card>
 				</div>
 			</div>

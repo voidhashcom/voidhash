@@ -1,7 +1,13 @@
-import { Copy } from "lucide-react";
+import { Copy, CopyIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "./ui/tooltip";
 
 export function CopyText({
 	text,
@@ -15,19 +21,27 @@ export function CopyText({
 	};
 
 	return (
-		<div className={cn("flex items-center space-x-2", className)}>
+		<div className={cn("flex items-center space-x-4", className)}>
 			<span className="flex-1 min-w-0 w-32 whitespace-pre-wrap break-words ">
 				{text}
 			</span>
-			<Button
-				size={"sm"}
-				variant={"outline"}
-				onClick={handleCopy}
-				className="flex space-x-2"
-			>
-				<Copy size={16} strokeWidth={1.5} />
-				<span>{"Copy"}</span>
-			</Button>
+			<TooltipProvider>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="outline"
+							size="icon"
+							className="z-20"
+							onClick={handleCopy}
+						>
+							<CopyIcon className="w-4 h-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>
+						<p>Click to copy</p>
+					</TooltipContent>
+				</Tooltip>
+			</TooltipProvider>
 		</div>
 	);
 }

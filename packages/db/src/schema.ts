@@ -267,6 +267,7 @@ export const projectPaymentProviderConfigurations = mysqlTable(
 		configuration: json("configuration").$type<object>(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
+		deletedAt: timestamp("deleted_at"),
 	},
 	(table) => [
 		index("project_id_idx").on(table.projectId),
@@ -308,6 +309,10 @@ export const perks = mysqlTable(
 	]
 );
 
+export const perkRelations = relations(perks, ({ many }) => ({
+	productPerks: many(productPerks),
+}));
+
 export const products = mysqlTable("product", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	type: mysqlEnum("type", PRODUCT_TYPES).default("subscription").notNull(),
@@ -339,6 +344,17 @@ export const productPerks = mysqlTable(
 		uniqueIndex("product_id_perk_id_idx").on(table.productId, table.perkId),
 	]
 );
+
+export const productPerkRelations = relations(productPerks, ({ one }) => ({
+	product: one(products, {
+		fields: [productPerks.productId],
+		references: [products.id],
+	}),
+	perk: one(perks, {
+		fields: [productPerks.perkId],
+		references: [perks.id],
+	}),
+}));
 
 export const productProviderConfigurations = mysqlTable(
 	"product_provider_configuration",
