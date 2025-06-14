@@ -1,8 +1,5 @@
 import { generateId } from "@/lib/id/generate";
-import {
-	devCheckout,
-	devCheckoutPaymentProviderId,
-} from "@/lib/payment-providers/dev-checkout/dev-checkout";
+import { devCheckout } from "@/lib/payment-providers/dev-checkout/dev-checkout";
 import { createTestServiceContext } from "@/lib/testing/create-test-service-context";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import {

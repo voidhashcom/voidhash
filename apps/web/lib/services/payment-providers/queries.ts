@@ -3,13 +3,17 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import { cache } from "react";
-import { getPaymentProviderConfigurationsQuery } from "./raw-queries";
+import {
+	getPaymentProviderConfigurationByIdQuery,
+	getPaymentProviderConfigurationsQuery,
+} from "./raw-queries";
 import { z } from "zod";
-import { err, Result } from "neverthrow";
+import { err, ok, Result } from "neverthrow";
 import { ProjectPaymentProviderConfiguration } from "@voidhash/db";
 import {
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
+	VoidhashNotFoundError,
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
 import { isAuthenticated } from "@/lib/middlewares";
@@ -47,6 +51,52 @@ export const getPaymentProviderConfigurations = cache(
 					ctx,
 					input.projectId
 				);
+			}
+		).invoke
+);
+
+type GetPaymentProviderConfigurationByIdError =
+	| VoidhashInternalServerError
+	| VoidhashUnauthorizedError
+	| VoidhashForbiddenError
+	| VoidhashNotFoundError;
+
+export const getPaymentProviderConfigurationById = cache(
+	createServiceFunction()
+		.input(z.object({ id: z.string() }))
+		.use(isAuthenticated)
+		.function(
+			async ({
+				ctx,
+				input,
+			}): Promise<
+				Result<
+					ProjectPaymentProviderConfiguration,
+					GetPaymentProviderConfigurationByIdError
+				>
+			> => {
+				const configuration = await getPaymentProviderConfigurationByIdQuery(
+					ctx,
+					input.id
+				);
+				if (configuration.isErr()) {
+					return err(configuration.error);
+				}
+
+				if (
+					!hasProjectPermission(
+						ctx,
+						configuration.value.projectId,
+						"project:all"
+					)
+				) {
+					return err({
+						code: "FORBIDDEN",
+						message: "You are not authorized to access this project",
+					});
+				}
+
+				return ok(configuration.value);
 			}
 		).invoke
 );

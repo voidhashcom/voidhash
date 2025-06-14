@@ -7,24 +7,44 @@ import {
 	DropdownMenuTrigger,
 } from "@voidhash/ui";
 import { PlusIcon } from "lucide-react";
-import { PaymentProviderConfigurationSheet } from "./payment-provider-configuration-sheet";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import type { Project } from "@voidhash/db";
-import { useState } from "react";
-import { PaymentProvider } from "@/lib/services/payment-providers/core/payment-provider";
+import { useAction } from "next-safe-action/hooks";
+import { toast } from "sonner";
+import { createPaymentProviderConfigurationAction } from "@/lib/nextjs/server-actions";
+import { useRouter } from "next/navigation";
 
 export function PaymentProvidersNewStoreDropdown({
 	project,
-}: { project: Project }) {
-	const [open, setOpen] = useState(false);
-	const [selectedProvider, setSelectedProvider] = useState<PaymentProvider<
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		any,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		any,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		any
-	> | null>(null);
+	organizationSlug,
+	projectSlug,
+}: {
+	project: Project;
+	organizationSlug: string;
+	projectSlug: string;
+}) {
+	const router = useRouter();
+
+	const { execute, isPending } = useAction(
+		createPaymentProviderConfigurationAction,
+		{
+			onSuccess: (res) => {
+				toast.success("Payment provider configuration created successfully");
+				router.push(
+					`/${organizationSlug}/${projectSlug}/settings/payment-providers/${res.data?.id}`
+				);
+			},
+		}
+	);
+
+	const handleCreatePaymentProviderConfiguration = async (
+		providerId: string
+	) => {
+		execute({
+			providerId,
+			projectId: project.id,
+		});
+	};
 
 	return (
 		<>
@@ -42,10 +62,9 @@ export function PaymentProvidersNewStoreDropdown({
 							<DropdownMenuItem
 								key={p.getId()}
 								className="cursor-pointer"
+								disabled={isPending}
 								onClick={() => {
-									console.log("opening");
-									setSelectedProvider(p);
-									setOpen(true);
+									handleCreatePaymentProviderConfiguration(p.getId());
 								}}
 							>
 								{p.getTitle()}
@@ -53,16 +72,6 @@ export function PaymentProvidersNewStoreDropdown({
 						))}
 				</DropdownMenuContent>
 			</DropdownMenu>
-			<PaymentProviderConfigurationSheet
-				open={open}
-				onOpenChange={setOpen}
-				key={selectedProvider?.getId()}
-				providerId={selectedProvider?.getId()}
-				enabled={true}
-				configuration={null}
-				project={project}
-				name={selectedProvider?.getTitle() ?? ""}
-			/>
 		</>
 	);
 }

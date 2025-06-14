@@ -2,7 +2,7 @@ import {
 	ProjectPaymentProviderConfiguration,
 	projectPaymentProviderConfigurations,
 } from "@voidhash/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
 import {
 	VoidhashInternalServerError,
@@ -20,7 +20,10 @@ export const getPaymentProviderConfigurationsQuery = async (
 > => {
 	const res = await ResultAsync.fromPromise(
 		ctx.db.query.projectPaymentProviderConfigurations.findMany({
-			where: eq(projectPaymentProviderConfigurations.projectId, projectId),
+			where: and(
+				eq(projectPaymentProviderConfigurations.projectId, projectId),
+				isNull(projectPaymentProviderConfigurations.deletedAt)
+			),
 		}),
 		(e) => fromUnknownThrow(e)
 	);
@@ -71,11 +74,13 @@ export const getExistingPaymentProviderConfigurationByIdQuery = async (
 		VoidhashInternalServerError | VoidhashNotFoundError
 	>
 > => {
+	const tx = ctx.tx ?? ctx.db;
 	const res = await ResultAsync.fromPromise(
-		ctx.db.query.projectPaymentProviderConfigurations.findFirst({
+		tx.query.projectPaymentProviderConfigurations.findFirst({
 			where: and(
 				eq(projectPaymentProviderConfigurations.projectId, projectId),
-				eq(projectPaymentProviderConfigurations.providerId, providerId)
+				eq(projectPaymentProviderConfigurations.providerId, providerId),
+				isNull(projectPaymentProviderConfigurations.deletedAt)
 			),
 		}),
 		(e) => fromUnknownThrow(e)

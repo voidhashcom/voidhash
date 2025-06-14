@@ -45,8 +45,12 @@ import {
 	createProduct,
 	createProductInputSchema,
 } from "@/lib/services/products/actions/create-product";
-import { savePaymentProviderConfigurationInputSchema } from "../services/payment-providers/actions/save-payment-provider-configuration";
-import { savePaymentProviderConfiguration } from "../services/payment-providers/actions/save-payment-provider-configuration";
+import {
+	createPaymentProviderConfiguration,
+	createPaymentProviderConfigurationInputSchema,
+} from "../services/payment-providers/actions/create-payment-provider-configuration";
+import { updatePaymentProviderConfigurationInputSchema } from "../services/payment-providers/actions/update-payment-provider-configuration";
+import { updatePaymentProviderConfiguration } from "../services/payment-providers/actions/update-payment-provider-configuration";
 import {
 	createPaymentProviderProductInputSchema,
 	createPaymentProviderProduct,
@@ -120,6 +124,10 @@ import {
 	cancelDevCheckoutPurchase,
 	cancelDevCheckoutPurchaseInputSchema,
 } from "../payment-providers/dev-checkout/actions/cancel-purchase";
+import {
+	deletePaymentProviderConfiguration,
+	deletePaymentProviderConfigurationInputSchema,
+} from "../services/payment-providers/actions/delete-payment-provider-configuration";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -276,10 +284,40 @@ export const switchEnvironmentAction = actionClient
 	});
 
 // Payment providers
-export const savePaymentProviderConfigurationAction = actionClient
-	.schema(savePaymentProviderConfigurationInputSchema)
+export const createPaymentProviderConfigurationAction = actionClient
+	.schema(createPaymentProviderConfigurationInputSchema)
 	.action(async ({ parsedInput, ctx }) => {
-		const res = await savePaymentProviderConfiguration.invoke({
+		const res = await createPaymentProviderConfiguration.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+
+		if (res.isErr()) {
+			throw toVoidhashHTTPError(res.error);
+		}
+
+		return res.value;
+	});
+
+export const updatePaymentProviderConfigurationAction = actionClient
+	.schema(updatePaymentProviderConfigurationInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		const res = await updatePaymentProviderConfiguration.invoke({
+			ctx: ctx.serviceContext,
+			input: parsedInput,
+		});
+
+		if (res.isErr()) {
+			throw toVoidhashHTTPError(res.error);
+		}
+
+		return res.value;
+	});
+
+export const deletePaymentProviderConfigurationAction = actionClient
+	.schema(deletePaymentProviderConfigurationInputSchema)
+	.action(async ({ parsedInput, ctx }) => {
+		const res = await deletePaymentProviderConfiguration.invoke({
 			ctx: ctx.serviceContext,
 			input: parsedInput,
 		});
