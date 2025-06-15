@@ -38,7 +38,7 @@ export function useConfirmDialog() {
 	const openDialog = useCallback((config: ConfirmDialogConfig) => {
 		setIsOpen(true);
 		setDialogConfig(config);
-		return new Promise((resolve) => {
+		return new Promise<boolean>((resolve) => {
 			setResolveCallback(() => resolve);
 		});
 	}, []);
