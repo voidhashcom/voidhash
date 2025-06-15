@@ -169,11 +169,11 @@ export function PaymentProviderDetailConfiguration({
 
 		// Case 1: Form is invalid and provider is currently enabled
 		if (!isValid && isCurrentlyEnabled) {
-			const shouldContinue = (await openDialog({
+			const shouldContinue = await openDialog({
 				title: "Invalid Configuration",
 				description:
 					"The current configuration is invalid. If you continue, the payment provider will be disabled. Do you want to proceed?",
-			})) as boolean;
+			});
 
 			if (!shouldContinue) {
 				return;
