@@ -54,7 +54,8 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 				ctx: authenticatedContext.value,
 				input: {
 					productId,
-					providerConfigurationId: c.req.valid("json").providerConfigurationId,
+					paymentProviderConfigurationId:
+						c.req.valid("json").paymentProviderConfigurationId,
 					configuration: c.req.valid("json").configuration,
 				},
 			});
@@ -64,8 +65,8 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 			return c.json<z.infer<typeof providerProductResponseSchema>>({
 				providerProductKey: providerProduct.value.providerProductKey,
 				providerConfiguration: {
-					providerConfigurationId:
-						providerProduct.value.providerConfigurationId,
+					paymentProviderConfigurationId:
+						providerProduct.value.paymentProviderConfigurationId,
 					configuration: providerProduct.value.configuration,
 				},
 			});

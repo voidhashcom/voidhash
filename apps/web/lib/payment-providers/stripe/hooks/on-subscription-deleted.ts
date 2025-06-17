@@ -9,7 +9,7 @@ import { mapSubscriptionStatus } from "../utils";
 import { getPurchaseByProviderKeyQuery } from "@/lib/services/purchases/raw-queries";
 import { handlePurchaseUpdated } from "@/lib/services/purchases/hooks/on-purchased-updated";
 import { err, ok, Result, ResultAsync } from "neverthrow";
-import { ProjectPaymentProviderConfiguration } from "@voidhash/db";
+import { type PaymentProviderConfiguration } from "@voidhash/db";
 
 type HandleSubscriptionDeletedError =
 	| VoidhashInternalServerError
@@ -17,7 +17,7 @@ type HandleSubscriptionDeletedError =
 
 export async function handleSubscriptionDeleted(
 	serviceContext: ServiceContext,
-	paymentProviderConfiguration: ProjectPaymentProviderConfiguration,
+	paymentProviderConfiguration: PaymentProviderConfiguration,
 	stripe: Stripe,
 	event: Stripe.Event
 ): Promise<Result<void, HandleSubscriptionDeletedError>> {

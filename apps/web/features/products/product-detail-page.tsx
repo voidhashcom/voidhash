@@ -125,30 +125,35 @@ export async function ProductDetailPage({
 
 	const environment = environmentResult.value;
 
-	const paymentProvidersWithEnabledConfigurations =
-		paymentProviderConfigurations
-			.map((paymentProviderConfiguration) => {
-				const paymentProvider = paymentProviders.find(
-					(paymentProvider) =>
-						paymentProvider.getId() === paymentProviderConfiguration.providerId
-				);
+	const enabledPaymentProviderConfigurations = paymentProviderConfigurations
+		.map((paymentProviderConfiguration) => {
+			const paymentProvider = paymentProviders.find(
+				(paymentProvider) =>
+					paymentProvider.getId() === paymentProviderConfiguration.providerId
+			);
 
-				if (!paymentProvider) {
-					return null;
-				}
+			if (!paymentProvider) {
+				return null;
+			}
 
-				return {
-					paymentProvider,
-					id: paymentProviderConfiguration.id,
-					name: paymentProviderConfiguration.name,
-					enabled:
-						!!paymentProviderConfiguration &&
-						paymentProviderConfiguration.enabled,
-					configuration: paymentProviderConfiguration,
-				};
-			})
-			.filter((paymentProvider) => paymentProvider !== null)
-			.filter((paymentProvider) => paymentProvider?.enabled);
+			return {
+				paymentProvider,
+				id: paymentProviderConfiguration.id,
+				name: paymentProviderConfiguration.name,
+				enabled:
+					!!paymentProviderConfiguration &&
+					paymentProviderConfiguration.enabled,
+				configuration: paymentProviderConfiguration,
+			};
+		})
+		.filter(
+			(paymentProviderConfiguration) => paymentProviderConfiguration !== null
+		)
+		.filter(
+			(paymentProviderConfiguration) =>
+				paymentProviderConfiguration.paymentProvider.getIsProductConfigurable() &&
+				paymentProviderConfiguration.enabled
+		);
 
 	const perksWithoutProductPerks = perks.filter(
 		(perk) =>
@@ -228,13 +233,13 @@ export async function ProductDetailPage({
 						</p>
 
 						<div className="mt-8">
-							{paymentProvidersWithEnabledConfigurations.length === 0 && (
+							{enabledPaymentProviderConfigurations.length === 0 && (
 								<ProductDetailPaymentProvidersEmptyState
 									projectSlug={projectSlug}
 									organizationSlug={organizationSlug}
 								/>
 							)}
-							{paymentProvidersWithEnabledConfigurations.map(
+							{enabledPaymentProviderConfigurations.map(
 								(paymentProviderWithConfiguration) => (
 									<Card
 										className="pb-0 overflow-hidden mt-8 gap-0"
@@ -255,7 +260,7 @@ export async function ProductDetailPage({
 											{/* Emtpy State */}
 											{providerProducts.filter(
 												(providerProduct) =>
-													providerProduct.providerConfigurationId ===
+													providerProduct.paymentProviderConfigurationId ===
 													paymentProviderWithConfiguration.id
 											).length === 0 && (
 												<div className="flex flex-col items-center justify-center h-full py-6">
@@ -267,7 +272,7 @@ export async function ProductDetailPage({
 													<div className="mt-4">
 														<ProductDetailAddProductButton
 															productId={product.id}
-															providerConfigurationId={
+															paymentProviderConfigurationId={
 																paymentProviderWithConfiguration.id
 															}
 															providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
@@ -280,13 +285,13 @@ export async function ProductDetailPage({
 											{providerProducts
 												.filter(
 													(providerProduct) =>
-														providerProduct.providerConfigurationId ===
+														providerProduct.paymentProviderConfigurationId ===
 														paymentProviderWithConfiguration.id
 												)
 												.map((providerProduct) => (
 													<ProductDetailProviderProductRecord
 														key={providerProduct.providerProductKey}
-														providerConfigurationId={
+														paymentProviderConfigurationId={
 															paymentProviderWithConfiguration.id
 														}
 														providerProduct={providerProduct}
@@ -296,14 +301,14 @@ export async function ProductDetailPage({
 										</CardContent>
 										{providerProducts.filter(
 											(providerProduct) =>
-												providerProduct.providerConfigurationId ===
+												providerProduct.paymentProviderConfigurationId ===
 												paymentProviderWithConfiguration.id
 										).length > 0 && (
 											<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
 												<ProductDetailAddProductButton
 													variant="secondary"
 													productId={product.id}
-													providerConfigurationId={
+													paymentProviderConfigurationId={
 														paymentProviderWithConfiguration.id
 													}
 													providerId={paymentProviderWithConfiguration.paymentProvider.getId()}

@@ -6,7 +6,7 @@ import { z } from "zod";
 import {
 	Product,
 	ProductPerk,
-	ProductProviderConfiguration,
+	PaymentProviderConfigurationProduct,
 } from "@voidhash/db";
 import {
 	getProductPerksByProductIdQuery,
@@ -115,7 +115,7 @@ export const getProviderProductByPrimaryKey = cache(
 	createServiceFunction()
 		.input(
 			z.object({
-				providerConfigurationId: z.string(),
+				paymentProviderConfigurationId: z.string(),
 				productProviderKey: z.string(),
 			})
 		)
@@ -127,7 +127,7 @@ export const getProviderProductByPrimaryKey = cache(
 				ctx,
 			}): Promise<
 				Result<
-					ProductProviderConfiguration & {
+					PaymentProviderConfigurationProduct & {
 						projectId: string;
 						providerId: string;
 					},
@@ -136,7 +136,7 @@ export const getProviderProductByPrimaryKey = cache(
 			> => {
 				const providerProductResult = await getProviderProductByPrimaryKeyQuery(
 					ctx,
-					input.providerConfigurationId,
+					input.paymentProviderConfigurationId,
 					input.productProviderKey,
 					ctx.session.environment
 				);
@@ -189,7 +189,7 @@ export const getProviderProductsByProductId = cache(
 				ctx,
 			}): Promise<
 				Result<
-					ProductProviderConfiguration[],
+					PaymentProviderConfigurationProduct[],
 					GetProviderProductsByProductIdError
 				>
 			> => {

@@ -54,7 +54,7 @@ export class DevCheckoutPaymentProvider
 		};
 	}
 	getIsProductConfigurable(): boolean {
-		return true;
+		return false;
 	}
 	getDefaultProductConfiguration(): Partial<
 		z.infer<typeof devCheckoutProductConfigurationSchema>

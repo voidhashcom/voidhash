@@ -13,8 +13,8 @@ import {
 import { z } from "zod";
 import {
 	and,
-	InsertProductProviderConfiguration,
-	productProviderConfigurations,
+	InsertPaymentProviderConfigurationProduct,
+	paymentProviderConfigurationProducts,
 	products,
 	Transaction,
 } from "@voidhash/db";
@@ -64,38 +64,40 @@ export const createProduct = createServiceFunction()
 				environment: ctx.session.environment,
 			};
 
-			const devCheckoutPaymentProviderConfiguration =
-				await ctx.db.query.projectPaymentProviderConfigurations.findFirst({
-					where: (projectPaymentProviderConfigurations, { eq }) =>
-						and(
-							eq(
-								projectPaymentProviderConfigurations.projectId,
-								input.projectId
-							),
-							eq(
-								projectPaymentProviderConfigurations.providerId,
-								devCheckoutPaymentProviderId
-							)
-						),
-				});
-
-			if (!devCheckoutPaymentProviderConfiguration) {
-				return err({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Dev Checkout configuration not found",
-					originalError: new Error("Dev Checkout configuration not found"),
-				});
-			}
-
 			try {
 				return await ctx.db.transaction(async (tx: Transaction) => {
 					await tx.insert(products).values(newProduct);
 
 					if (ctx.session.environment === "testing") {
-						await tx.insert(productProviderConfigurations).values({
+						const devCheckoutPaymentProviderConfiguration =
+							await ctx.db.query.paymentProviderConfigurations.findFirst({
+								where: (paymentProviderConfigurations, { eq }) =>
+									and(
+										eq(
+											paymentProviderConfigurations.projectId,
+											input.projectId
+										),
+										eq(
+											paymentProviderConfigurations.providerId,
+											devCheckoutPaymentProviderId
+										)
+									),
+							});
+
+						if (!devCheckoutPaymentProviderConfiguration) {
+							return err({
+								code: "INTERNAL_SERVER_ERROR",
+								message: "Dev Checkout configuration not found",
+								originalError: new Error(
+									"Dev Checkout configuration not found"
+								),
+							} satisfies VoidhashInternalServerError);
+						}
+
+						await tx.insert(paymentProviderConfigurationProducts).values({
 							id: generateId("paymentProviderProduct"),
 							productId: newProduct.id,
-							providerConfigurationId:
+							paymentProviderConfigurationId:
 								devCheckoutPaymentProviderConfiguration.id,
 							providerProductKey: devCheckout.createProductKey({
 								productId: newProduct.id,
@@ -105,8 +107,9 @@ export const createProduct = createServiceFunction()
 							},
 							environment: ctx.session.environment,
 							isActive: true,
-						} satisfies InsertProductProviderConfiguration);
+						} satisfies InsertPaymentProviderConfigurationProduct);
 					}
+
 					return ok({ id: newProduct.id });
 				});
 			} catch (e) {

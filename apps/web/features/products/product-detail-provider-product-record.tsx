@@ -23,16 +23,16 @@ import {
 import { useRouter } from "next/navigation";
 import { ProviderProductSheet } from "./provider-product-sheet";
 import { useState } from "react";
-import type { ProductProviderConfiguration } from "@voidhash/db";
+import type { PaymentProviderConfigurationProduct } from "@voidhash/db";
 
 export function ProductDetailProviderProductRecord({
 	paymentProviderId,
-	providerConfigurationId,
+	paymentProviderConfigurationId,
 	providerProduct,
 }: {
 	paymentProviderId: string;
-	providerConfigurationId: string;
-	providerProduct: ProductProviderConfiguration;
+	paymentProviderConfigurationId: string;
+	providerProduct: PaymentProviderConfigurationProduct;
 }) {
 	const router = useRouter();
 	const paymentProvider = paymentProviders.find(
@@ -80,7 +80,7 @@ export function ProductDetailProviderProductRecord({
 	const handleSetActiveProviderProduct = async () => {
 		setActiveProviderProduct({
 			productId: providerProduct.productId,
-			providerConfigurationId: providerConfigurationId,
+			paymentProviderConfigurationId: paymentProviderConfigurationId,
 			providerProductKey: providerProduct.providerProductKey,
 		});
 	};
@@ -103,7 +103,7 @@ export function ProductDetailProviderProductRecord({
 
 		deleteProviderProduct({
 			productId: providerProduct.productId,
-			providerConfigurationId: providerConfigurationId,
+			paymentProviderConfigurationId: paymentProviderConfigurationId,
 			providerProductKey: providerProduct.providerProductKey,
 		});
 	};
@@ -178,7 +178,7 @@ export function ProductDetailProviderProductRecord({
 			<ProviderProductSheet
 				open={openEditSheet}
 				onClose={() => setOpenEditSheet(false)}
-				providerConfigurationId={providerConfigurationId}
+				paymentProviderConfigurationId={paymentProviderConfigurationId}
 				providerId={paymentProviderId}
 				productId={providerProduct.productId}
 				mode={"edit"}

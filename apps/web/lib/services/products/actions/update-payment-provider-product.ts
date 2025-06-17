@@ -11,7 +11,7 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib";
 import { z } from "zod";
-import { productProviderConfigurations } from "@voidhash/db";
+import { paymentProviderConfigurationProducts } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
 import { createPaymentProviderKey } from "../lib";
@@ -124,7 +124,7 @@ export const updatePaymentProviderProduct = createServiceFunction()
 
 			try {
 				await ctx.db
-					.update(productProviderConfigurations)
+					.update(paymentProviderConfigurationProducts)
 					.set({
 						providerProductKey: providerProductKey.value,
 						configuration: parsedConfiguration,
@@ -132,15 +132,15 @@ export const updatePaymentProviderProduct = createServiceFunction()
 					.where(
 						and(
 							eq(
-								productProviderConfigurations.productId,
+								paymentProviderConfigurationProducts.productId,
 								productResult.value.id
 							),
 							eq(
-								productProviderConfigurations.providerConfigurationId,
-								providerProduct.value.providerConfigurationId
+								paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+								providerProduct.value.paymentProviderConfigurationId
 							),
 							eq(
-								productProviderConfigurations.providerProductKey,
+								paymentProviderConfigurationProducts.providerProductKey,
 								providerProduct.value.providerProductKey
 							)
 						)

@@ -11,7 +11,7 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib";
 import { z } from "zod";
-import { productProviderConfigurations } from "@voidhash/db";
+import { paymentProviderConfigurationProducts } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq, not } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
@@ -22,7 +22,7 @@ import { getPaymentProviderConfigurationByIdQuery } from "../../payment-provider
 export const setActivePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
 	providerProductKey: z.string(),
-	providerConfigurationId: z.string(),
+	paymentProviderConfigurationId: z.string(),
 });
 
 type SetActivePaymentProviderProductError =
@@ -45,7 +45,7 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 			const providerConfigurationQuery =
 				getPaymentProviderConfigurationByIdQuery(
 					ctx,
-					input.providerConfigurationId
+					input.paymentProviderConfigurationId
 				);
 
 			const [productResult, providerConfigurationResult] = await Promise.all([
@@ -96,21 +96,21 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 			// Disable other provider products for this product
 			try {
 				await ctx.db
-					.update(productProviderConfigurations)
+					.update(paymentProviderConfigurationProducts)
 					.set({ isActive: false })
 					.where(
 						and(
 							eq(
-								productProviderConfigurations.productId,
+								paymentProviderConfigurationProducts.productId,
 								productResult.value.id
 							),
 							eq(
-								productProviderConfigurations.providerConfigurationId,
+								paymentProviderConfigurationProducts.paymentProviderConfigurationId,
 								providerConfigurationResult.value.id
 							),
 							not(
 								eq(
-									productProviderConfigurations.providerProductKey,
+									paymentProviderConfigurationProducts.providerProductKey,
 									input.providerProductKey
 								)
 							)
@@ -118,22 +118,22 @@ export const setActivePaymentProviderProduct = createServiceFunction()
 					);
 
 				await ctx.db
-					.update(productProviderConfigurations)
+					.update(paymentProviderConfigurationProducts)
 					.set({
 						isActive: true,
 					})
 					.where(
 						and(
 							eq(
-								productProviderConfigurations.productId,
+								paymentProviderConfigurationProducts.productId,
 								productResult.value.id
 							),
 							eq(
-								productProviderConfigurations.providerConfigurationId,
+								paymentProviderConfigurationProducts.paymentProviderConfigurationId,
 								providerConfigurationResult.value.id
 							),
 							eq(
-								productProviderConfigurations.providerProductKey,
+								paymentProviderConfigurationProducts.providerProductKey,
 								input.providerProductKey
 							)
 						)

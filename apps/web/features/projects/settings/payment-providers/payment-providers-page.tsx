@@ -89,7 +89,7 @@ export async function PaymentProvidersPage({
 		.filter(Boolean);
 
 	const webCheckoutProvidersWithConfigurations = paymentProviders
-		.filter((p) => p.getType() === "web-checkout")
+		.filter((p) => p.getType() === "web-checkout" && p.getIsConfigurable())
 		.map((paymentProvider) => {
 			const paymentProvidersConfiguration =
 				paymentProvidersConfigurations?.find(
@@ -99,8 +99,7 @@ export async function PaymentProvidersPage({
 				...paymentProvidersConfiguration,
 				provider: paymentProvider,
 			};
-		})
-		.filter((c) => c.provider.getIsConfigurable());
+		});
 
 	return (
 		<Page>
@@ -217,14 +216,6 @@ export async function PaymentProvidersPage({
 								<CardTitle>Web Checkout Providers</CardTitle>
 							</div>
 						</CardHeader>
-						{environment === "testing" && (
-							<div className="p-3 py-3 bg-card">
-								<EnvironmentFilterNotification
-									message="In development mode, our custom testing payment provider will be used instead of your configured payment provider."
-									type="testing"
-								/>
-							</div>
-						)}
 						{webCheckoutProvidersWithConfigurations?.map(
 							(paymentProviderConfiguration) => (
 								<div
@@ -234,12 +225,13 @@ export async function PaymentProvidersPage({
 										paymentProviderConfiguration.provider.getId()
 									}
 								>
-									{paymentProviderConfiguration.id && (
-										<Link
-											className="inset-0 absolute w-full h-full"
-											href={`/${organizationSlug}/${projectSlug}/settings/payment-providers/${paymentProviderConfiguration.id}`}
-										></Link>
-									)}
+									{paymentProviderConfiguration.id &&
+										paymentProviderConfiguration.provider.getIsConfigurable() && (
+											<Link
+												className="inset-0 absolute w-full h-full"
+												href={`/${organizationSlug}/${projectSlug}/settings/payment-providers/${paymentProviderConfiguration.id}`}
+											></Link>
+										)}
 
 									<div className="flex flex-row items-center justify-between">
 										<div className="flex items-center gap-4 flex-1">

@@ -63,7 +63,8 @@ export const registerProductsGetProviderProductsByProductId = (app: App) =>
 				providerProducts.value.map((providerProduct) => ({
 					providerProductKey: providerProduct.providerProductKey,
 					providerConfiguration: {
-						providerConfigurationId: providerProduct.providerConfigurationId,
+						paymentProviderConfigurationId:
+							providerProduct.paymentProviderConfigurationId,
 						configuration: providerProduct.configuration,
 					},
 				}))

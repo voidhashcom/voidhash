@@ -9,8 +9,8 @@ import {
 	eq,
 	InsertCustomer,
 	InsertProduct,
-	InsertProductProviderConfiguration,
-	productProviderConfigurations,
+	InsertPaymentProviderConfigurationProduct,
+	paymentProviderConfigurationProducts,
 	products,
 	purchases,
 } from "@voidhash/db";
@@ -35,22 +35,22 @@ describe.sequential("payment-provider-core-service", async () => {
 
 		await h.db.primary.insert(products).values(productInsert);
 
-		const productProviderConfigurationInsert = {
+		const paymentProviderConfigurationProductInsert = {
 			id: generateId("test"),
 			productId: productInsert.id,
-			providerConfigurationId:
-				h.resources.projectPaymentProviderConfiguration.id,
+			paymentProviderConfigurationId:
+				h.resources.paymentProviderConfiguration.id,
 			providerProductKey: devCheckout.createProductKey({
 				productId: productInsert.id,
 			}),
 			configuration: {
 				productId: productInsert.id,
 			},
-		} satisfies InsertProductProviderConfiguration;
+		} satisfies InsertPaymentProviderConfigurationProduct;
 
 		await h.db.primary
-			.insert(productProviderConfigurations)
-			.values(productProviderConfigurationInsert);
+			.insert(paymentProviderConfigurationProducts)
+			.values(paymentProviderConfigurationProductInsert);
 
 		const customerInsert = {
 			id: generateId("test"),
@@ -66,26 +66,25 @@ describe.sequential("payment-provider-core-service", async () => {
 
 		await h.db.primary.insert(customers).values(customerInsert);
 
-		const productProviderConfigurationResult =
-			await service.getProductProviderConfigurationByProductId(
+		const paymentProviderConfigurationProductResult =
+			await service.getPaymentProviderConfigurationProductById(
 				ctx,
-				productInsert.id,
-				h.resources.projectPaymentProviderConfiguration.id
+				paymentProviderConfigurationProductInsert.id
 			);
 
-		if (productProviderConfigurationResult.isErr()) {
-			throw productProviderConfigurationResult.error;
+		if (paymentProviderConfigurationProductResult.isErr()) {
+			throw paymentProviderConfigurationProductResult.error;
 		}
 
-		const productProviderConfiguration =
-			productProviderConfigurationResult.value;
+		const paymentProviderConfigurationProduct =
+			paymentProviderConfigurationProductResult.value;
 
 		const purchseKey = generateId("test");
 		const processSubscriptionPurchaseResult =
 			await service.processSubscriptionPurchase(
 				ctx,
 				"production",
-				productProviderConfiguration,
+				paymentProviderConfigurationProduct,
 				{
 					customerId: customerInsert.id,
 					status: "active",
@@ -117,8 +116,8 @@ describe.sequential("payment-provider-core-service", async () => {
 			where: and(
 				eq(charges.customerId, customerInsert.id),
 				eq(
-					charges.paymentProviderConfigurationId,
-					h.resources.projectPaymentProviderConfiguration.id
+					charges.paymentProviderConfigurationProductId,
+					paymentProviderConfigurationProduct.id
 				),
 				eq(charges.purchaseEnvironment, "production")
 			),
@@ -128,7 +127,9 @@ describe.sequential("payment-provider-core-service", async () => {
 		expect(purchase?.status).toBe("active");
 		expect(purchase?.type).toBe("subscription");
 		expect(purchase?.customerId).toBe(customerInsert.id);
-		expect(purchase?.providerProductId).toBe(productProviderConfiguration.id);
+		expect(purchase?.paymentProviderConfigurationProductId).toBe(
+			paymentProviderConfigurationProduct.id
+		);
 		expect(purchase?.startsAt).toBeDefined();
 		expect(purchase?.canceledAt).toBeNull();
 		expect(purchase?.cancelAtPeriodEnd).toBe(false);
@@ -140,8 +141,8 @@ describe.sequential("payment-provider-core-service", async () => {
 		expect(charge).toBeDefined();
 		expect(charge?.amount).toBe(1000);
 		expect(charge?.currency).toBe("USD");
-		expect(charge?.paymentProviderConfigurationId).toBe(
-			h.resources.projectPaymentProviderConfiguration.id
+		expect(charge?.paymentProviderConfigurationProductId).toBe(
+			paymentProviderConfigurationProduct.id
 		);
 		expect(charge?.purchaseEnvironment).toBe("production");
 		expect(charge?.customerId).toBe(customerInsert.id);
@@ -155,8 +156,10 @@ describe.sequential("payment-provider-core-service", async () => {
 				.delete(products)
 				.where(eq(products.id, productInsert.id));
 			await h.db.primary
-				.delete(productProviderConfigurations)
-				.where(eq(productProviderConfigurations.productId, productInsert.id));
+				.delete(paymentProviderConfigurationProducts)
+				.where(
+					eq(paymentProviderConfigurationProducts.productId, productInsert.id)
+				);
 			await h.db.primary
 				.delete(purchases)
 				.where(eq(purchases.customerId, customerInsert.id));

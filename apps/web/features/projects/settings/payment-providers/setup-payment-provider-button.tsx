@@ -27,7 +27,7 @@ export function SetupPaymentProviderButton({
 					`${paymentProvider?.getTitle()} configuration saved successfully`
 				);
 
-				if (res.data?.id) {
+				if (res.data?.id && paymentProvider?.getIsConfigurable()) {
 					router.push(
 						`/${organizationSlug}/${projectSlug}/settings/payment-providers/${res.data.id}`
 					);

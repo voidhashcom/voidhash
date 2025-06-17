@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import {
 	InsertProduct,
-	productProviderConfigurations,
-	InsertProductProviderConfiguration,
+	paymentProviderConfigurationProducts,
+	InsertPaymentProviderConfigurationProduct,
 	products,
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
@@ -29,26 +29,27 @@ describe.sequential(
 			});
 
 			// Directly insert a provider product to delete
-			const providerConfigToDelete: InsertProductProviderConfiguration = {
-				id: generateId("test"),
-				productId: productInput.id,
-				providerConfigurationId:
-					h.resources.projectPaymentProviderConfiguration.id,
-				providerProductKey: `ppk_to_delete_${generateId("test")}`,
-				configuration: {
-					priceId: `price_to_delete_${generateId("test")}`,
-					productId: `prod_to_delete_${generateId("test")}`,
-				} satisfies z.infer<
-					ReturnType<typeof stripe.getProductConfigurationSchema>
-				>,
-				isActive: true,
-			};
+			const providerConfigToDelete: InsertPaymentProviderConfigurationProduct =
+				{
+					id: generateId("test"),
+					productId: productInput.id,
+					paymentProviderConfigurationId:
+						h.resources.paymentProviderConfiguration.id,
+					providerProductKey: `ppk_to_delete_${generateId("test")}`,
+					configuration: {
+						priceId: `price_to_delete_${generateId("test")}`,
+						productId: `prod_to_delete_${generateId("test")}`,
+					} satisfies z.infer<
+						ReturnType<typeof stripe.getProductConfigurationSchema>
+					>,
+					isActive: true,
+				};
 			await h.db.primary
-				.insert(productProviderConfigurations)
+				.insert(paymentProviderConfigurationProducts)
 				.values(providerConfigToDelete);
 
 			const res = await h.delete({
-				url: `/v1/products/${productInput.id}/provider-products/${providerConfigToDelete.providerConfigurationId}/${providerConfigToDelete.providerProductKey}`,
+				url: `/v1/products/${productInput.id}/provider-products/${providerConfigToDelete.paymentProviderConfigurationId}/${providerConfigToDelete.providerProductKey}`,
 				headers: {
 					"x-secret-key": h.resources.secretKey.unhashedKey,
 				},
@@ -63,12 +64,14 @@ describe.sequential(
 
 			// Verify deletion in DB
 			const dbProviderProduct =
-				await h.db.primary.query.productProviderConfigurations.findFirst({
-					where: eq(
-						productProviderConfigurations.id,
-						providerConfigToDelete.id
-					),
-				});
+				await h.db.primary.query.paymentProviderConfigurationProducts.findFirst(
+					{
+						where: eq(
+							paymentProviderConfigurationProducts.id,
+							providerConfigToDelete.id
+						),
+					}
+				);
 			expect(dbProviderProduct).toBeUndefined();
 
 			// Clean up base product

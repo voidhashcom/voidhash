@@ -6,10 +6,7 @@ import {
 } from "@/lib/nextjs/server-actions";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type {
-	Project,
-	ProjectPaymentProviderConfiguration,
-} from "@voidhash/db";
+import type { Project, PaymentProviderConfiguration } from "@voidhash/db";
 import {
 	Form,
 	Label,
@@ -48,7 +45,7 @@ export function PaymentProviderDetailConfiguration({
 	organizationSlug: string;
 	projectSlug: string;
 	project: Project;
-	paymentProviderConfiguration: ProjectPaymentProviderConfiguration;
+	paymentProviderConfiguration: PaymentProviderConfiguration;
 }) {
 	const router = useRouter();
 

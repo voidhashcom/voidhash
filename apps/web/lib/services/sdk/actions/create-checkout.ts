@@ -9,22 +9,23 @@ import {
 import { z } from "zod";
 import { err, ok, Result } from "neverthrow";
 import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
-import { getPaywallProductByIdQuery } from "../raw-queries";
 import { generateId } from "@/lib/id/generate";
 import {
 	and,
 	checkoutSessions,
 	eq,
 	InsertCheckoutSession,
-	projectPaymentProviderConfigurations,
+	paymentProviderConfigurations,
+	Transaction,
 } from "@voidhash/db";
 import { getCustomerByAppUserIdQuery } from "../../customers/raw-queries";
 import { devCheckoutPaymentProviderId } from "@/lib/payment-providers/dev-checkout/dev-checkout";
 import { isAnonymousId } from "../utils";
 import { createAnonymousCustomer } from "../create-anonymous-customer";
+import { getProviderProductByIdQuery } from "../../products/raw-queries";
 
 export const createCheckoutInputSchema = z.object({
-	paywallProductId: z.string().min(1),
+	paymentProviderConfigurationProductId: z.string().min(1),
 	successCallbackUrl: z.string().min(1).includes("://"),
 	errorCallbackUrl: z.string().min(1).includes("://"),
 });
@@ -59,14 +60,18 @@ export const createCheckoutSession = createServiceFunction()
 				});
 			}
 
-			const paywallProduct = await getPaywallProductByIdQuery(
-				ctx,
-				input.paywallProductId
-			);
+			const paymentProviderConfigurationProduct =
+				await getProviderProductByIdQuery(
+					ctx,
+					input.paymentProviderConfigurationProductId
+				);
 
-			if (paywallProduct.isErr()) {
-				console.log("paywallProduct error", paywallProduct.error);
-				return err(paywallProduct.error);
+			if (paymentProviderConfigurationProduct.isErr()) {
+				console.log(
+					"paymentProviderConfigurationProduct error",
+					paymentProviderConfigurationProduct.error
+				);
+				return err(paymentProviderConfigurationProduct.error);
 			}
 
 			const projectId = ctx.session.projects[0]?.id;
@@ -84,11 +89,11 @@ export const createCheckoutSession = createServiceFunction()
 
 			try {
 				const devCheckoutPaymentProviderConfiguration =
-					await ctx.db.query.projectPaymentProviderConfigurations.findFirst({
+					await ctx.db.query.paymentProviderConfigurations.findFirst({
 						where: and(
-							eq(projectPaymentProviderConfigurations.projectId, projectId),
+							eq(paymentProviderConfigurations.projectId, projectId),
 							eq(
-								projectPaymentProviderConfigurations.providerId,
+								paymentProviderConfigurations.providerId,
 								devCheckoutPaymentProviderId
 							)
 						),
@@ -104,7 +109,7 @@ export const createCheckoutSession = createServiceFunction()
 					});
 				}
 
-				return await ctx.db.transaction(async (tx) => {
+				return await ctx.db.transaction(async (tx: Transaction) => {
 					const customerResult = await getCustomerByAppUserIdQuery(
 						{
 							...ctx,
@@ -157,12 +162,10 @@ export const createCheckoutSession = createServiceFunction()
 					const sessionInsert = {
 						id: generateId("checkoutSession"),
 						customerId: customer.id,
-						productId: paywallProduct.value.product.id,
+						paymentProviderConfigurationProductId:
+							paymentProviderConfigurationProduct.value.id,
 						successCallbackUrl: input.successCallbackUrl,
 						errorCallbackUrl: input.errorCallbackUrl,
-						// TODO: Replace with real payment provider id
-						paymentProviderConfigurationId:
-							devCheckoutPaymentProviderConfiguration.id,
 						createdAt: new Date(),
 						updatedAt: new Date(),
 					} satisfies InsertCheckoutSession;

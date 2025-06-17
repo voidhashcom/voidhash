@@ -12,7 +12,8 @@ import type {
 	Organization,
 	Project,
 	ApiKey,
-	ProjectPaymentProviderConfiguration,
+	PaymentProviderConfiguration,
+	Transaction,
 } from "@voidhash/db";
 import { generateId } from "../id/generate";
 import { env, integrationTestEnv } from "./env";
@@ -30,8 +31,8 @@ export type Resources = {
 	project: Project;
 	secretKey: ApiKey & { unhashedKey: string };
 	publishableKey: ApiKey & { unhashedKey: string };
-	devCheckoutPaymentProviderConfiguration: ProjectPaymentProviderConfiguration;
-	projectPaymentProviderConfiguration: ProjectPaymentProviderConfiguration;
+	devCheckoutPaymentProviderConfiguration: PaymentProviderConfiguration;
+	paymentProviderConfiguration: PaymentProviderConfiguration;
 };
 
 export abstract class Harness {
@@ -85,7 +86,7 @@ export abstract class Harness {
 
 	private async teardown(): Promise<void> {
 		const deleteResources = async () => {
-			await this.db.primary.transaction(async (tx) => {
+			await this.db.primary.transaction(async (tx: Transaction) => {
 				// Delete all previous test ids
 				await tx.delete(schema.apiKeys).where(like(schema.apiKeys.id, "test%"));
 				await tx
@@ -105,12 +106,12 @@ export abstract class Harness {
 					.delete(schema.products)
 					.where(like(schema.products.id, "test%"));
 				await tx
-					.delete(schema.productProviderConfigurations)
-					.where(like(schema.productProviderConfigurations.id, "test%"));
+					.delete(schema.paymentProviderConfigurationProducts)
+					.where(like(schema.paymentProviderConfigurationProducts.id, "test%"));
 
 				await tx
-					.delete(schema.projectPaymentProviderConfigurations)
-					.where(like(schema.projectPaymentProviderConfigurations.id, "test%"));
+					.delete(schema.paymentProviderConfigurations)
+					.where(like(schema.paymentProviderConfigurations.id, "test%"));
 				await tx
 					.delete(schema.productPerks)
 					.where(like(schema.productPerks.id, "test%"));
@@ -168,7 +169,7 @@ export abstract class Harness {
 			organizationId: organization.id,
 		};
 
-		const devCheckoutPaymentProviderConfiguration: ProjectPaymentProviderConfiguration =
+		const devCheckoutPaymentProviderConfiguration: PaymentProviderConfiguration =
 			{
 				id: generateId("test"),
 				projectId: project.id,
@@ -181,23 +182,22 @@ export abstract class Harness {
 				deletedAt: null,
 			};
 
-		const projectPaymentProviderConfiguration: ProjectPaymentProviderConfiguration =
-			{
-				id: generateId("test"),
-				projectId: project.id,
-				providerId: stripePaymentProviderId,
-				name: "Stripe",
-				enabled: true,
-				configuration: {
-					secretKey: "sk_test_123",
-					webhookSecret: "whsec_123",
-				} satisfies z.infer<
-					ReturnType<typeof stripe.getGlobalConfigurationSchema>
-				>,
-				createdAt: new Date(),
-				updatedAt: new Date(),
-				deletedAt: null,
-			};
+		const paymentProviderConfiguration: PaymentProviderConfiguration = {
+			id: generateId("test"),
+			projectId: project.id,
+			providerId: stripePaymentProviderId,
+			name: "Stripe",
+			enabled: true,
+			configuration: {
+				secretKey: "sk_test_123",
+				webhookSecret: "whsec_123",
+			} satisfies z.infer<
+				ReturnType<typeof stripe.getGlobalConfigurationSchema>
+			>,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			deletedAt: null,
+		};
 
 		const unhashedKey = "test-secret-key";
 		const hashedKey = await hashKey(unhashedKey);
@@ -238,7 +238,7 @@ export abstract class Harness {
 			secretKey,
 			publishableKey,
 			devCheckoutPaymentProviderConfiguration,
-			projectPaymentProviderConfiguration,
+			paymentProviderConfiguration,
 		};
 	}
 
@@ -257,10 +257,10 @@ export abstract class Harness {
 			.insert(schema.apiKeys)
 			.values(this.resources.publishableKey);
 		await this.db.primary
-			.insert(schema.projectPaymentProviderConfigurations)
-			.values(this.resources.projectPaymentProviderConfiguration);
+			.insert(schema.paymentProviderConfigurations)
+			.values(this.resources.paymentProviderConfiguration);
 		await this.db.primary
-			.insert(schema.projectPaymentProviderConfigurations)
+			.insert(schema.paymentProviderConfigurations)
 			.values(this.resources.devCheckoutPaymentProviderConfiguration);
 	}
 }

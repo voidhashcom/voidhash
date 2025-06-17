@@ -1,6 +1,11 @@
 import { generateId } from "@/lib/id/generate";
 import { ServiceContext } from "@/lib/service-function";
-import { purchases, customersUnlockedPerks, db } from "@voidhash/db";
+import {
+	purchases,
+	customersUnlockedPerks,
+	db,
+	InsertPurchase,
+} from "@voidhash/db";
 import {
 	fromUnknownThrow,
 	PRODUCT_TYPES,
@@ -20,7 +25,7 @@ export type PurchaseEvent = {
 	providerKey: string;
 	status: "active" | "trialing" | "canceled";
 	customerId: string;
-	providerProductId: string;
+	paymentProviderConfigurationProductId: string;
 	purchasedAt: Date;
 	startsAt: Date;
 	cancelAtPeriodEnd: boolean;
@@ -53,7 +58,7 @@ export async function handleProductPurchase(
 
 	const providerProduct = await getProviderProductByIdQuery(
 		ctx,
-		event.providerProductId
+		event.paymentProviderConfigurationProductId
 	);
 
 	if (providerProduct.isErr()) {
@@ -66,14 +71,14 @@ export async function handleProductPurchase(
 		status: event.status,
 		type: event.type,
 		customerId: event.customerId,
-		providerProductId: event.providerProductId,
+		paymentProviderConfigurationProductId:
+			event.paymentProviderConfigurationProductId,
 		purchasedAt: event.purchasedAt,
 		startsAt: event.startsAt,
 		canceledAt: event.canceledAt,
 		cancelAtPeriodEnd: event.cancelAtPeriodEnd,
-		environment: event.environment,
 		expiresAt: event.expiresAt,
-	};
+	} satisfies InsertPurchase;
 	try {
 		await (ctx.tx ?? ctx.db).insert(purchases).values(customerProduct);
 	} catch (error) {

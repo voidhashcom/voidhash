@@ -50,7 +50,8 @@ export const registerSdkCreateCheckout = (app: App) =>
 			const checkoutResult = await createCheckoutSession.invoke({
 				ctx: authenticatedContext.value,
 				input: {
-					paywallProductId: c.req.valid("json").paywallProductId,
+					paymentProviderConfigurationProductId:
+						c.req.valid("json").paymentProviderConfigurationProductId,
 					successCallbackUrl: c.req.valid("json").successCallbackUrl,
 					errorCallbackUrl: c.req.valid("json").errorCallbackUrl,
 				},

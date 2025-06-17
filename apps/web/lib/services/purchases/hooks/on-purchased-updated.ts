@@ -80,7 +80,7 @@ export async function handlePurchaseUpdated(
 	if (oldStatus !== newStatus) {
 		const providerProduct = await getProviderProductByIdQuery(
 			ctx,
-			existingCustomerProduct.value.providerProductId
+			existingCustomerProduct.value.paymentProviderConfigurationProductId
 		);
 		if (providerProduct.isErr()) {
 			return err(providerProduct.error);
@@ -88,10 +88,10 @@ export async function handlePurchaseUpdated(
 		if (!providerProduct.value) {
 			return err({
 				code: "INTERNAL_SERVER_ERROR",
-				message: `Provider product ${existingCustomerProduct.value.providerProductId} not found for customer product ${existingCustomerProduct.value.id}`,
+				message: `Provider product ${existingCustomerProduct.value.paymentProviderConfigurationProductId} not found for customer product ${existingCustomerProduct.value.id}`,
 				originalError: new VoidhashHTTPError({
 					code: "INTERNAL_SERVER_ERROR",
-					message: `Provider product ${existingCustomerProduct.value.providerProductId} not found for customer product ${existingCustomerProduct.value.id}`,
+					message: `Provider product ${existingCustomerProduct.value.paymentProviderConfigurationProductId} not found for customer product ${existingCustomerProduct.value.id}`,
 				}),
 			});
 		}

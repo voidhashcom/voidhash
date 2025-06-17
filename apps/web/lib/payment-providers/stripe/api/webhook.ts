@@ -15,7 +15,7 @@ import {
 
 export const registerStripeWebhook = (app: App) => {
 	app.post(
-		"/payment-providers/stripe/webhook/:providerConfigurationId",
+		"/payment-providers/stripe/webhook/:paymentProviderConfigurationId",
 		// Note: Hono needs the raw body for signature verification.
 		async (c) => {
 			const signature = c.req.header("stripe-signature");
@@ -29,7 +29,7 @@ export const registerStripeWebhook = (app: App) => {
 			const paymentProviderConfiguration =
 				await getPaymentProviderConfigurationByIdQuery(
 					ctx,
-					c.req.param("providerConfigurationId")
+					c.req.param("paymentProviderConfigurationId")
 				);
 
 			if (paymentProviderConfiguration.isErr()) {

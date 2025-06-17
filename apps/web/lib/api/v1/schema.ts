@@ -66,13 +66,13 @@ export const deleteProductParamsSchema = z.object({
 	productId: z.string(),
 });
 
-const productProviderConfigurationSchema = z
+const paymentProviderConfigurationProductSchema = z
 
 	.discriminatedUnion("providerId", [
 		...paymentProviders.map((p) =>
 			z.object({
 				providerId: z.literal(p.getId()),
-				providerConfigurationId: z.string(),
+				paymentProviderConfigurationId: z.string(),
 				configuration: p.getProductConfigurationSchema(),
 			})
 		),
@@ -81,7 +81,7 @@ const productProviderConfigurationSchema = z
 		...z.ZodDiscriminatedUnionOption<"providerId">[],
 	])
 	.openapi({
-		ref: "ProductProviderConfiguration",
+		ref: "PaymentProviderConfigurationProduct",
 	});
 
 export const attachProviderProductParamsSchema = z.object({
@@ -89,14 +89,14 @@ export const attachProviderProductParamsSchema = z.object({
 });
 
 export const attachProviderProductBodySchema =
-	productProviderConfigurationSchema.openapi({
+	paymentProviderConfigurationProductSchema.openapi({
 		ref: "AttachProviderProductBody",
 	});
 
 export const providerProductResponseSchema = z
 	.object({
 		providerProductKey: z.string(),
-		providerConfiguration: productProviderConfigurationSchema,
+		providerConfiguration: paymentProviderConfigurationProductSchema,
 	})
 	.openapi({
 		ref: "ProviderProduct",
@@ -108,18 +108,18 @@ export const getProviderProductsParamsSchema = z.object({
 
 export const updateProviderProductParamsSchema = z.object({
 	productId: z.string(),
-	providerConfigurationId: z.string(),
+	paymentProviderConfigurationId: z.string(),
 	providerProductKey: z.string(),
 });
 
 export const updateProviderProductBodySchema =
-	productProviderConfigurationSchema.openapi({
+	paymentProviderConfigurationProductSchema.openapi({
 		ref: "UpdateProviderProductBody",
 	});
 
 export const deleteProviderProductParamsSchema = z.object({
 	productId: z.string(),
-	providerConfigurationId: z.string(),
+	paymentProviderConfigurationId: z.string(),
 	providerProductKey: z.string(),
 });
 
@@ -197,6 +197,7 @@ export const sdkPaywallResponseSchema = z
 				price: z.number().nullable(),
 				nativePurchaseAvailable: z.boolean(),
 				webCheckoutAvailable: z.boolean(),
+				webCheckoutPaymentProviderConfigurationProductId: z.string().nullable(),
 			})
 		),
 	})
@@ -206,7 +207,7 @@ export const sdkPaywallResponseSchema = z
 
 export const sdkCreateCheckoutBodySchema = z
 	.object({
-		paywallProductId: z.string(),
+		paymentProviderConfigurationProductId: z.string(),
 		successCallbackUrl: z.string().min(1).includes("://"),
 		errorCallbackUrl: z.string().min(1).includes("://"),
 	})

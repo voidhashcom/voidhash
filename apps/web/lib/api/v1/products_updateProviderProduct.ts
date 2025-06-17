@@ -42,7 +42,7 @@ export type Route = typeof route;
 
 export const registerProductsUpdateProviderProduct = (app: App) =>
 	app.put(
-		"/v1/products/:productId/provider-products/:providerConfigurationId/:providerProductKey",
+		"/v1/products/:productId/provider-products/:paymentProviderConfigurationId/:providerProductKey",
 		route,
 		zValidator("param", updateProviderProductParamsSchema),
 		zValidator("json", updateProviderProductBodySchema),
@@ -54,7 +54,9 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 				throw toVoidhashHTTPError(authenticatedContext.error);
 			}
 			const productId = c.req.param("productId");
-			const providerConfigurationId = c.req.param("providerConfigurationId");
+			const paymentProviderConfigurationId = c.req.param(
+				"paymentProviderConfigurationId"
+			);
 			const providerProductKey = c.req.param("providerProductKey");
 			const configuration = c.req.valid("json");
 
@@ -70,7 +72,7 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 				ctx: authenticatedContext.value,
 				input: {
 					productId,
-					paymentProviderConfigurationId: providerConfigurationId,
+					paymentProviderConfigurationId: paymentProviderConfigurationId,
 					configuration: configuration.configuration,
 					providerProductKey,
 				},
@@ -83,7 +85,7 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 			const providerProduct = await getProviderProductByPrimaryKey({
 				ctx: authenticatedContext.value,
 				input: {
-					providerConfigurationId: providerConfigurationId,
+					paymentProviderConfigurationId: paymentProviderConfigurationId,
 					productProviderKey: providerProductKey,
 				},
 			});

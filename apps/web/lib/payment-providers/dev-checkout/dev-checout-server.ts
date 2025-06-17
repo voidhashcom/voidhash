@@ -11,6 +11,7 @@ import {
 	createPaymentProviderCoreService,
 	PaymentProviderCoreService,
 } from "../../services/payment-providers/core/payment-provider-core-service";
+import { asfn } from "@/lib/neverthrow";
 
 type ConfirmPurchaseInput = {
 	checkoutSessionId: string;
@@ -42,56 +43,49 @@ export class DevCheckoutPaymentProviderServer extends DevCheckoutPaymentProvider
 		this.paymentProviderCoreService = createPaymentProviderCoreService();
 	}
 
-	async confirmPurchase(
-		ctx: ServiceContext,
-		input: ConfirmPurchaseInput
-	): Promise<Result<ConfirmPurchaseResult, ConfirmPurchaseError>> {
-		try {
-			const checkoutSession =
+	confirmPurchase = asfn<ConfirmPurchaseError>()(
+		(assert) => async (ctx: ServiceContext, input: ConfirmPurchaseInput) => {
+			const checkoutSession = assert(
 				await this.paymentProviderCoreService.getCheckoutSession(
 					ctx,
 					input.checkoutSessionId
-				);
+				)
+			);
 
-			if (checkoutSession.isErr()) {
-				return err(checkoutSession.error);
+			if (checkoutSession.status === "success") {
+				return {
+					redirectUrl: checkoutSession.successCallbackUrl,
+				};
 			}
 
-			if (checkoutSession.value.status === "success") {
-				return ok({
-					redirectUrl: checkoutSession.value.successCallbackUrl,
-				});
-			}
-
-			if (checkoutSession.value.status === "error") {
+			if (checkoutSession.status === "error") {
 				// TODO: Should log the error
-				return await checkoutError(ctx, checkoutSession.value);
+				return assert(await checkoutError(ctx, checkoutSession));
 			}
 
-			const productProviderConfiguration =
-				await this.paymentProviderCoreService.getProductProviderConfigurationByProductId(
+			const paymentProviderConfigurationProduct =
+				await this.paymentProviderCoreService.getPaymentProviderConfigurationProductById(
 					ctx,
-					checkoutSession.value.productId,
-					checkoutSession.value.paymentProviderConfigurationId
+					checkoutSession.paymentProviderConfigurationProductId
 				);
 
-			if (productProviderConfiguration.isErr()) {
+			if (paymentProviderConfigurationProduct.isErr()) {
 				console.log(
-					"productProviderConfiguration",
-					productProviderConfiguration
+					"paymentProviderConfigurationProduct",
+					paymentProviderConfigurationProduct
 				);
 				// TODO: Should log the error
-				return await checkoutError(ctx, checkoutSession.value);
+				return assert(await checkoutError(ctx, checkoutSession));
 			}
 
 			const processSubscriptionPurchaseResult =
 				await this.paymentProviderCoreService.processSubscriptionPurchase(
 					ctx,
 					"production",
-					productProviderConfiguration.value,
+					paymentProviderConfigurationProduct.value,
 					{
-						providerKey: checkoutSession.value.id, // We use the checkout session id as the provider key - this is only correct for dev checkout, where there is no external id.
-						customerId: checkoutSession.value.customerId,
+						providerKey: checkoutSession.id, // We use the checkout session id as the provider key - this is only correct for dev checkout, where there is no external id.
+						customerId: checkoutSession.customerId,
 						status: "active",
 						purchasedAt: new Date(),
 						startsAt: new Date(),
@@ -111,24 +105,18 @@ export class DevCheckoutPaymentProviderServer extends DevCheckoutPaymentProvider
 					processSubscriptionPurchaseResult
 				);
 				// TODO: Should log the error
-				return await checkoutError(ctx, checkoutSession.value);
+				return assert(await checkoutError(ctx, checkoutSession));
 			}
 
 			await ctx.db.update(checkoutSessions).set({
 				status: "success",
 			});
 
-			return ok({
-				redirectUrl: checkoutSession.value.successCallbackUrl,
-			});
-		} catch (error) {
-			return err({
-				code: "INTERNAL_SERVER_ERROR",
-				message: "Internal server error",
-				originalError: error,
-			} satisfies VoidhashInternalServerError);
+			return {
+				redirectUrl: checkoutSession.successCallbackUrl,
+			};
 		}
-	}
+	);
 
 	async cancelPurchase(
 		ctx: ServiceContext,

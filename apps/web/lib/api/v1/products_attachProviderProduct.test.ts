@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import {
 	InsertProduct,
-	productProviderConfigurations,
+	paymentProviderConfigurationProducts,
 	products,
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
@@ -34,8 +34,8 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 			typeof attachProviderProductBodySchema
 		> = {
 			providerId: "stripe",
-			providerConfigurationId:
-				h.resources.projectPaymentProviderConfiguration.id,
+			paymentProviderConfigurationId:
+				h.resources.paymentProviderConfiguration.id,
 			// These fields depend heavily on the Stripe configuration schema
 			configuration: {
 				productId: `prod_${generateId("test")}`,
@@ -64,27 +64,27 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 		>;
 
 		expect(responseBody.providerProductKey).toBeDefined(); // Key might be auto-generated or based on input
-		expect(responseBody.providerConfiguration.providerConfigurationId).toBe(
-			providerProductInput.providerConfigurationId
-		);
+		expect(
+			responseBody.providerConfiguration.paymentProviderConfigurationId
+		).toBe(providerProductInput.paymentProviderConfigurationId);
 		expect(responseBody.providerConfiguration.configuration).toEqual(
 			providerProductInput.configuration
 		);
 
 		// Verify in DB
 		const dbProviderProduct =
-			await h.db.primary.query.productProviderConfigurations.findFirst({
+			await h.db.primary.query.paymentProviderConfigurationProducts.findFirst({
 				where: and(
-					eq(productProviderConfigurations.productId, productInput.id),
+					eq(paymentProviderConfigurationProducts.productId, productInput.id),
 					eq(
-						productProviderConfigurations.providerProductKey,
+						paymentProviderConfigurationProducts.providerProductKey,
 						responseBody.providerProductKey
 					)
 				),
 			});
 		expect(dbProviderProduct).toBeDefined();
-		expect(dbProviderProduct?.providerConfigurationId).toBe(
-			providerProductInput.providerConfigurationId
+		expect(dbProviderProduct?.paymentProviderConfigurationId).toBe(
+			providerProductInput.paymentProviderConfigurationId
 		);
 		expect(dbProviderProduct?.configuration).toEqual(
 			providerProductInput.configuration
@@ -93,10 +93,10 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 		// Clean up
 		t.onTestFinished(async () => {
 			await h.db.primary
-				.delete(productProviderConfigurations)
+				.delete(paymentProviderConfigurationProducts)
 				.where(
 					eq(
-						productProviderConfigurations.providerProductKey,
+						paymentProviderConfigurationProducts.providerProductKey,
 						responseBody.providerProductKey
 					)
 				);

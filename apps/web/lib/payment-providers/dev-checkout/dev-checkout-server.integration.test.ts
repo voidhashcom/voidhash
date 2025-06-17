@@ -7,8 +7,8 @@ import {
 	InsertCheckoutSession,
 	InsertCustomer,
 	InsertProduct,
-	InsertProductProviderConfiguration,
-	productProviderConfigurations,
+	InsertPaymentProviderConfigurationProduct,
+	paymentProviderConfigurationProducts,
 	products,
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
@@ -32,22 +32,22 @@ describe.sequential("dev-checkout-server", async () => {
 
 		await h.db.primary.insert(products).values(productInsert);
 
-		const productProviderConfigurationInsert = {
+		const paymentProviderConfigurationProductInsert = {
 			id: generateId("test"),
 			productId: productInsert.id,
-			providerConfigurationId:
-				h.resources.projectPaymentProviderConfiguration.id,
+			paymentProviderConfigurationId:
+				h.resources.paymentProviderConfiguration.id,
 			providerProductKey: devCheckout.createProductKey({
 				productId: productInsert.id,
 			}),
 			configuration: {
 				productId: productInsert.id,
 			},
-		} satisfies InsertProductProviderConfiguration;
+		} satisfies InsertPaymentProviderConfigurationProduct;
 
 		await h.db.primary
-			.insert(productProviderConfigurations)
-			.values(productProviderConfigurationInsert);
+			.insert(paymentProviderConfigurationProducts)
+			.values(paymentProviderConfigurationProductInsert);
 
 		const customerInsert = {
 			id: generateId("test"),
@@ -65,13 +65,12 @@ describe.sequential("dev-checkout-server", async () => {
 
 		const sessionInsert = {
 			id: generateId("test"),
-			productId: productInsert.id,
+			paymentProviderConfigurationProductId:
+				paymentProviderConfigurationProductInsert.id,
 			customerId: customerInsert.id,
 			status: "pending",
 			successCallbackUrl: "testapp://voidhash/callback/success",
 			errorCallbackUrl: "testapp://voidhash/callback/error",
-			paymentProviderConfigurationId:
-				h.resources.projectPaymentProviderConfiguration.id,
 		} satisfies InsertCheckoutSession;
 
 		await h.db.primary.insert(checkoutSessions).values(sessionInsert);
@@ -109,8 +108,10 @@ describe.sequential("dev-checkout-server", async () => {
 				.delete(products)
 				.where(eq(products.id, productInsert.id));
 			await h.db.primary
-				.delete(productProviderConfigurations)
-				.where(eq(productProviderConfigurations.productId, productInsert.id));
+				.delete(paymentProviderConfigurationProducts)
+				.where(
+					eq(paymentProviderConfigurationProducts.productId, productInsert.id)
+				);
 		});
 	});
 
@@ -129,19 +130,19 @@ describe.sequential("dev-checkout-server", async () => {
 
 		await h.db.primary.insert(products).values(productInsert);
 
-		const productProviderConfigurationInsert = {
+		const paymentProviderConfigurationProductInsert = {
 			id: generateId("test"),
 			productId: productInsert.id,
-			providerConfigurationId:
-				h.resources.projectPaymentProviderConfiguration.id,
+			paymentProviderConfigurationId:
+				h.resources.paymentProviderConfiguration.id,
 			providerProductKey: devCheckout.createProductKey({
 				productId: productInsert.id,
 			}),
-		} satisfies InsertProductProviderConfiguration;
+		} satisfies InsertPaymentProviderConfigurationProduct;
 
 		await h.db.primary
-			.insert(productProviderConfigurations)
-			.values(productProviderConfigurationInsert);
+			.insert(paymentProviderConfigurationProducts)
+			.values(paymentProviderConfigurationProductInsert);
 
 		const customerInsert = {
 			id: generateId("test"),
@@ -159,13 +160,13 @@ describe.sequential("dev-checkout-server", async () => {
 
 		const sessionInsert = {
 			id: generateId("test"),
-			productId: productInsert.id,
+
 			customerId: customerInsert.id,
 			status: "pending",
 			successCallbackUrl: "testapp://voidhash/callback/success",
 			errorCallbackUrl: "testapp://voidhash/callback/error",
-			paymentProviderConfigurationId:
-				h.resources.projectPaymentProviderConfiguration.id,
+			paymentProviderConfigurationProductId:
+				paymentProviderConfigurationProductInsert.id,
 		} satisfies InsertCheckoutSession;
 
 		await h.db.primary.insert(checkoutSessions).values(sessionInsert);
@@ -193,8 +194,10 @@ describe.sequential("dev-checkout-server", async () => {
 				.delete(products)
 				.where(eq(products.id, productInsert.id));
 			await h.db.primary
-				.delete(productProviderConfigurations)
-				.where(eq(productProviderConfigurations.productId, productInsert.id));
+				.delete(paymentProviderConfigurationProducts)
+				.where(
+					eq(paymentProviderConfigurationProducts.productId, productInsert.id)
+				);
 		});
 	});
 });

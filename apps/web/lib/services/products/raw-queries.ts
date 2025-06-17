@@ -1,11 +1,11 @@
 import {
 	products,
-	productProviderConfigurations,
+	paymentProviderConfigurationProducts,
 	productPerks,
 	Product,
-	ProductProviderConfiguration,
+	PaymentProviderConfigurationProduct,
 	ProductPerk,
-	projectPaymentProviderConfigurations,
+	paymentProviderConfigurations,
 } from "@voidhash/db";
 import { and, eq, asc } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
@@ -72,13 +72,13 @@ export const getProviderProductByIdQuery = async (
 	providerProductId: string
 ): Promise<
 	Result<
-		ProductProviderConfiguration,
+		PaymentProviderConfigurationProduct,
 		VoidhashInternalServerError | VoidhashNotFoundError
 	>
 > => {
 	const res = await ResultAsync.fromPromise(
-		ctx.db.query.productProviderConfigurations.findFirst({
-			where: eq(productProviderConfigurations.id, providerProductId),
+		ctx.db.query.paymentProviderConfigurationProducts.findFirst({
+			where: eq(paymentProviderConfigurationProducts.id, providerProductId),
 		}),
 		(e) => fromUnknownThrow(e)
 	);
@@ -90,7 +90,7 @@ export const getProviderProductByIdQuery = async (
 		return err({
 			code: "NOT_FOUND",
 			message: "Provider product not found",
-			resource: "productProviderConfiguration",
+			resource: "PaymentProviderConfigurationProduct",
 			payload: {
 				id: providerProductId,
 			},
@@ -107,7 +107,7 @@ export const getProviderProductByPrimaryKeyQuery = async (
 	environment: Environment
 ): Promise<
 	Result<
-		ProductProviderConfiguration & {
+		PaymentProviderConfigurationProduct & {
 			projectId: string;
 			providerId: string;
 		},
@@ -117,25 +117,25 @@ export const getProviderProductByPrimaryKeyQuery = async (
 	const providerProductsResult = await ResultAsync.fromPromise(
 		ctx.db
 			.select()
-			.from(productProviderConfigurations)
+			.from(paymentProviderConfigurationProducts)
 			.innerJoin(
-				projectPaymentProviderConfigurations,
+				paymentProviderConfigurations,
 				eq(
-					productProviderConfigurations.providerConfigurationId,
-					projectPaymentProviderConfigurations.id
+					paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+					paymentProviderConfigurations.id
 				)
 			)
 			.where(
 				and(
 					eq(
-						productProviderConfigurations.providerConfigurationId,
+						paymentProviderConfigurationProducts.paymentProviderConfigurationId,
 						paymentProviderConfigurationId
 					),
 					eq(
-						productProviderConfigurations.providerProductKey,
+						paymentProviderConfigurationProducts.providerProductKey,
 						productProviderKey
 					),
-					eq(productProviderConfigurations.environment, environment)
+					eq(paymentProviderConfigurationProducts.environment, environment)
 				)
 			),
 		(e) => fromUnknownThrow(e)
@@ -145,13 +145,13 @@ export const getProviderProductByPrimaryKeyQuery = async (
 		return err(providerProductsResult.error);
 	}
 
-	const productProviderConfiguration = providerProductsResult.value[0];
+	const paymentProviderConfigurationProduct = providerProductsResult.value[0];
 
-	if (!productProviderConfiguration) {
+	if (!paymentProviderConfigurationProduct) {
 		return err({
 			code: "NOT_FOUND",
 			message: "Provider product not found",
-			resource: "productProviderConfiguration",
+			resource: "PaymentProviderConfigurationProduct",
 			payload: {
 				paymentProviderConfigurationId,
 				productProviderKey,
@@ -159,12 +159,12 @@ export const getProviderProductByPrimaryKeyQuery = async (
 		});
 	}
 	return ok({
-		...productProviderConfiguration.product_provider_configuration,
+		...paymentProviderConfigurationProduct.payment_provider_configuration_product,
 		projectId:
-			productProviderConfiguration.project_payment_provider_configuration
+			paymentProviderConfigurationProduct.payment_provider_configuration
 				.projectId,
 		providerId:
-			productProviderConfiguration.project_payment_provider_configuration
+			paymentProviderConfigurationProduct.payment_provider_configuration
 				.providerId,
 	});
 };
@@ -173,12 +173,12 @@ export const getProviderProductsByProductIdQuery = async (
 	ctx: ServiceContext,
 	productId: string
 ): Promise<
-	Result<ProductProviderConfiguration[], VoidhashInternalServerError>
+	Result<PaymentProviderConfigurationProduct[], VoidhashInternalServerError>
 > => {
 	const res = await ResultAsync.fromPromise(
-		ctx.db.query.productProviderConfigurations.findMany({
-			where: eq(productProviderConfigurations.productId, productId),
-			orderBy: [asc(productProviderConfigurations.createdAt)],
+		ctx.db.query.paymentProviderConfigurationProducts.findMany({
+			where: eq(paymentProviderConfigurationProducts.productId, productId),
+			orderBy: [asc(paymentProviderConfigurationProducts.createdAt)],
 		}),
 		(e) => fromUnknownThrow(e)
 	);

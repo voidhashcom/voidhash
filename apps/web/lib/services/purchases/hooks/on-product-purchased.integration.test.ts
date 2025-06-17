@@ -4,11 +4,11 @@ import {
 	customersUnlockedPerks,
 	customers,
 	Product,
-	ProductProviderConfiguration,
+	PaymentProviderConfigurationProduct,
 	Perk,
 	ProductPerk,
 	products,
-	productProviderConfigurations,
+	paymentProviderConfigurationProducts,
 	perks,
 	productPerks,
 } from "@voidhash/db";
@@ -21,7 +21,7 @@ import { createTestServiceContext } from "@/lib/testing/create-test-service-cont
 
 describe.sequential("on-product-purchased integration tests", () => {
 	const productId = generateId("test");
-	const productProviderConfigurationId = generateId("test");
+	const paymentProviderConfigurationProductId = generateId("test");
 	const perkId = generateId("test");
 	const productPerkId = generateId("test");
 
@@ -38,21 +38,22 @@ describe.sequential("on-product-purchased integration tests", () => {
 			projectId: h.resources.project.id,
 		};
 
-		const productProviderConfiguration: ProductProviderConfiguration = {
-			id: productProviderConfigurationId,
-			productId: productId,
-			isActive: true,
-			providerConfigurationId:
-				h.resources.projectPaymentProviderConfiguration.id,
-			providerProductKey: "test-product-id",
-			configuration: {
-				productId: "prod_1234567890",
-				priceId: "price_1234567890",
-			},
-			environment: "production",
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		};
+		const paymentProviderConfigurationProduct: PaymentProviderConfigurationProduct =
+			{
+				id: paymentProviderConfigurationProductId,
+				productId: productId,
+				isActive: true,
+				paymentProviderConfigurationId:
+					h.resources.paymentProviderConfiguration.id,
+				providerProductKey: "test-product-id",
+				configuration: {
+					productId: "prod_1234567890",
+					priceId: "price_1234567890",
+				},
+				environment: "production",
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			};
 
 		const perk: Perk = {
 			id: perkId,
@@ -74,8 +75,8 @@ describe.sequential("on-product-purchased integration tests", () => {
 
 		await h.db.primary.insert(products).values(product);
 		await h.db.primary
-			.insert(productProviderConfigurations)
-			.values(productProviderConfiguration);
+			.insert(paymentProviderConfigurationProducts)
+			.values(paymentProviderConfigurationProduct);
 		await h.db.primary.insert(perks).values(perk);
 		await h.db.primary.insert(productPerks).values(productPerk);
 	});
@@ -89,8 +90,8 @@ describe.sequential("on-product-purchased integration tests", () => {
 			.delete(perks)
 			.where(eq(perks.projectId, h.resources.project.id));
 		await h.db.primary
-			.delete(productProviderConfigurations)
-			.where(eq(productProviderConfigurations.productId, productId));
+			.delete(paymentProviderConfigurationProducts)
+			.where(eq(paymentProviderConfigurationProducts.productId, productId));
 		await h.db.primary.delete(products).where(eq(products.id, productId));
 	});
 
@@ -115,7 +116,8 @@ describe.sequential("on-product-purchased integration tests", () => {
 			type: "subscription" as const,
 			status: "active" as const,
 			customerId: testCustomerId,
-			providerProductId: productProviderConfigurationId,
+			paymentProviderConfigurationProductId:
+				paymentProviderConfigurationProductId,
 			purchasedAt: new Date(),
 			startsAt: new Date(),
 			canceledAt: new Date(),
@@ -138,8 +140,8 @@ describe.sequential("on-product-purchased integration tests", () => {
 		// Verify customerProduct creation
 		expect(customerProduct).toBeDefined();
 		expect(customerProduct?.customerId).toBe(testCustomerId);
-		expect(customerProduct?.providerProductId).toBe(
-			productProviderConfigurationId
+		expect(customerProduct?.paymentProviderConfigurationProductId).toBe(
+			paymentProviderConfigurationProductId
 		);
 		expect(customerProduct?.status).toBe("active");
 		expect(customerProduct?.type).toBe("subscription");
@@ -180,14 +182,14 @@ describe.sequential("on-product-purchased integration tests", () => {
 		const serviceContext = await createTestServiceContext();
 
 		const testCustomerId = generateId("test"); // Use a generated ID as customer doesn't need to exist
-		const testProviderProductId = productProviderConfigurationId; // Use harness resource
+		const testProviderProductId = paymentProviderConfigurationProductId; // Use harness resource
 
 		const event = {
 			providerKey: generateId("test"),
 			type: "one_time" as const,
 			status: "active" as const,
 			customerId: testCustomerId,
-			providerProductId: testProviderProductId,
+			paymentProviderConfigurationProductId: testProviderProductId,
 			purchasedAt: new Date(),
 			startsAt: new Date(),
 			canceledAt: new Date(),
@@ -208,7 +210,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 
 	test("should throw error if customer not found", async () => {
 		const serviceContext = await createTestServiceContext();
-		const testProviderProductId = productProviderConfigurationId; // Use harness resource
+		const testProviderProductId = paymentProviderConfigurationProductId; // Use harness resource
 
 		const nonExistentCustomerId = generateId("customer"); // Ensure this ID does not exist
 		const event: PurchaseEvent = {
@@ -216,7 +218,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 			type: "subscription" as const,
 			status: "active" as const,
 			customerId: nonExistentCustomerId,
-			providerProductId: testProviderProductId,
+			paymentProviderConfigurationProductId: testProviderProductId,
 			purchasedAt: new Date(),
 			startsAt: new Date(),
 			canceledAt: new Date(),
@@ -257,7 +259,7 @@ describe.sequential("on-product-purchased integration tests", () => {
 			type: "subscription" as const,
 			status: "active" as const,
 			customerId: testCustomerId,
-			providerProductId: nonExistentProviderProductId,
+			paymentProviderConfigurationProductId: nonExistentProviderProductId,
 			purchasedAt: new Date(),
 			startsAt: new Date(),
 			canceledAt: new Date(),
@@ -304,7 +306,8 @@ describe.sequential("on-product-purchased integration tests", () => {
 			type: "subscription" as const,
 			status: "canceled" as const,
 			customerId: testCustomerId,
-			providerProductId: productProviderConfigurationId,
+			paymentProviderConfigurationProductId:
+				paymentProviderConfigurationProductId,
 			purchasedAt: new Date(),
 			startsAt: new Date(),
 			canceledAt: new Date(),
@@ -326,8 +329,8 @@ describe.sequential("on-product-purchased integration tests", () => {
 		// Verify customerProduct creation
 		expect(customerProduct).toBeDefined();
 		expect(customerProduct?.customerId).toBe(testCustomerId);
-		expect(customerProduct?.providerProductId).toBe(
-			productProviderConfigurationId
+		expect(customerProduct?.paymentProviderConfigurationProductId).toBe(
+			paymentProviderConfigurationProductId
 		);
 		expect(customerProduct?.status).toBe("canceled");
 

@@ -34,7 +34,7 @@ export function ProviderProductSheet({
 	open,
 	onClose,
 	productId,
-	providerConfigurationId,
+	paymentProviderConfigurationId,
 	providerId,
 	providerProductKey,
 	configuration,
@@ -43,7 +43,7 @@ export function ProviderProductSheet({
 	open: boolean;
 	onClose: () => void;
 	productId: string;
-	providerConfigurationId: string;
+	paymentProviderConfigurationId: string;
 	providerId: string;
 	providerProductKey?: string;
 	mode: "add" | "edit";
@@ -107,7 +107,7 @@ export function ProviderProductSheet({
 	const onSubmit = async (data: any) => {
 		if (mode === "add") {
 			create({
-				providerConfigurationId: providerConfigurationId,
+				paymentProviderConfigurationId: paymentProviderConfigurationId,
 				productId: productId,
 				configuration: data,
 			});
@@ -117,7 +117,7 @@ export function ProviderProductSheet({
 				return;
 			}
 			update({
-				paymentProviderConfigurationId: providerConfigurationId,
+				paymentProviderConfigurationId: paymentProviderConfigurationId,
 				productId: productId,
 				providerProductKey: providerProductKey,
 				configuration: data,

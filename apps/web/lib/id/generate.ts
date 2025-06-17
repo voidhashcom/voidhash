@@ -12,7 +12,7 @@ const prefixes = {
 	purchase: "pur",
 	paywall: "pw",
 	paywallProduct: "pw_prod",
-	projectPaymentProviderConfiguration: "pp_conf",
+	paymentProviderConfiguration: "pp_conf",
 	paymentProviderProduct: "pp_prod",
 	product: "prod",
 	project: "proj",

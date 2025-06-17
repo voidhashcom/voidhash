@@ -1,6 +1,6 @@
 import {
-	ProjectPaymentProviderConfiguration,
-	projectPaymentProviderConfigurations,
+	PaymentProviderConfiguration,
+	paymentProviderConfigurations,
 } from "@voidhash/db";
 import { and, eq, isNull } from "drizzle-orm";
 import { ServiceContext } from "@/lib/service-function";
@@ -16,13 +16,13 @@ export const getPaymentProviderConfigurationsQuery = async (
 	ctx: ServiceContext,
 	projectId: string
 ): Promise<
-	Result<ProjectPaymentProviderConfiguration[], VoidhashInternalServerError>
+	Result<PaymentProviderConfiguration[], VoidhashInternalServerError>
 > => {
 	const res = await ResultAsync.fromPromise(
-		ctx.db.query.projectPaymentProviderConfigurations.findMany({
+		ctx.db.query.paymentProviderConfigurations.findMany({
 			where: and(
-				eq(projectPaymentProviderConfigurations.projectId, projectId),
-				isNull(projectPaymentProviderConfigurations.deletedAt)
+				eq(paymentProviderConfigurations.projectId, projectId),
+				isNull(paymentProviderConfigurations.deletedAt)
 			),
 		}),
 		(e) => fromUnknownThrow(e)
@@ -38,13 +38,13 @@ export const getPaymentProviderConfigurationByIdQuery = async (
 	id: string
 ): Promise<
 	Result<
-		ProjectPaymentProviderConfiguration,
+		PaymentProviderConfiguration,
 		VoidhashInternalServerError | VoidhashNotFoundError
 	>
 > => {
 	const res = await ResultAsync.fromPromise(
-		ctx.db.query.projectPaymentProviderConfigurations.findFirst({
-			where: eq(projectPaymentProviderConfigurations.id, id),
+		ctx.db.query.paymentProviderConfigurations.findFirst({
+			where: eq(paymentProviderConfigurations.id, id),
 		}),
 		(e) => fromUnknownThrow(e)
 	);
@@ -70,17 +70,17 @@ export const getExistingPaymentProviderConfigurationByIdQuery = async (
 	providerId: string
 ): Promise<
 	Result<
-		ProjectPaymentProviderConfiguration,
+		PaymentProviderConfiguration,
 		VoidhashInternalServerError | VoidhashNotFoundError
 	>
 > => {
 	const tx = ctx.tx ?? ctx.db;
 	const res = await ResultAsync.fromPromise(
-		tx.query.projectPaymentProviderConfigurations.findFirst({
+		tx.query.paymentProviderConfigurations.findFirst({
 			where: and(
-				eq(projectPaymentProviderConfigurations.projectId, projectId),
-				eq(projectPaymentProviderConfigurations.providerId, providerId),
-				isNull(projectPaymentProviderConfigurations.deletedAt)
+				eq(paymentProviderConfigurations.projectId, projectId),
+				eq(paymentProviderConfigurations.providerId, providerId),
+				isNull(paymentProviderConfigurations.deletedAt)
 			),
 		}),
 		(e) => fromUnknownThrow(e)

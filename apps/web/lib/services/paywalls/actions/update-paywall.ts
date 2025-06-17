@@ -11,7 +11,14 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib";
 import { z } from "zod";
-import { eq, inArray, paywallProducts, paywalls, products } from "@voidhash/db";
+import {
+	eq,
+	inArray,
+	paywallProducts,
+	paywalls,
+	products,
+	Transaction,
+} from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
 import { getPaywallByIdQuery } from "../raw-queries";
@@ -29,7 +36,7 @@ export const updatePaywallInputSchema = z.object({
 					.min(2, "Display name must be at least 2 characters long"),
 				enableNativePurchase: z.boolean(),
 				enableWebCheckout: z.boolean(),
-				webCheckoutPaymentProviderId: z.string().nullable(),
+				webCheckoutPaymentProviderConfigurationProductId: z.string().nullable(),
 				order: z.number(),
 			})
 		)
@@ -64,7 +71,7 @@ export const updatePaywall = createServiceFunction()
 			}
 
 			try {
-				await ctx.db.transaction(async (tx) => {
+				await ctx.db.transaction(async (tx: Transaction) => {
 					if (input.name) {
 						await tx
 							.update(paywalls)
@@ -72,22 +79,32 @@ export const updatePaywall = createServiceFunction()
 								name: input.name,
 								updatedAt: new Date(),
 							})
-							.where(eq(paywalls.id, input.paywallId));
+							.where(eq(paywalls.id, paywall.value.id));
 					}
 					if (input.paywallProducts) {
 						await tx
 							.delete(paywallProducts)
-							.where(eq(paywallProducts.paywallId, input.paywallId));
+							.where(eq(paywallProducts.paywallId, paywall.value.id));
 
-						const productsFromDb = await tx
-							.select()
-							.from(products)
-							.where(
-								inArray(
-									products.id,
-									input.paywallProducts.map((p) => p.productId)
-								)
-							);
+						// const productsFromDb = await tx
+						// 	.select()
+						// 	.from(products)
+						// 	.where(
+						// 		inArray(
+						// 			products.id,
+						// 			input.paywallProducts.map((p) => p.productId)
+						// 		)
+						// 	);
+
+						const productsFromDb = await tx.query.products.findMany({
+							where: inArray(
+								products.id,
+								input.paywallProducts?.map((p) => p.productId)
+							),
+							with: {
+								paymentProviderConfigurationProducts: true,
+							},
+						});
 
 						for (const product of input.paywallProducts.sort(
 							(a, b) => a.order - b.order
@@ -103,16 +120,33 @@ export const updatePaywall = createServiceFunction()
 								} satisfies VoidhashBadRequestError);
 							}
 
+							const webCheckoutPaymentProviderConfigurationProduct =
+								existingProduct.paymentProviderConfigurationProducts.find(
+									(p) =>
+										p.id ===
+										product.webCheckoutPaymentProviderConfigurationProductId
+								);
+
+							if (
+								product.enableWebCheckout &&
+								!webCheckoutPaymentProviderConfigurationProduct
+							) {
+								return err({
+									code: "BAD_REQUEST",
+									message: `Web checkout payment provider product configuration does not exist`,
+								} satisfies VoidhashBadRequestError);
+							}
+
 							await tx.insert(paywallProducts).values({
 								id: generateId("paywallProduct"),
 								displayName: product.displayName,
 								order: product.order,
-								paywallId: input.paywallId,
+								paywallId: paywall.value.id,
 								productId: existingProduct.id,
 								enableNativePurchase: product.enableNativePurchase,
 								enableWebCheckout: product.enableWebCheckout,
-								webCheckoutPaymentProviderId:
-									product.webCheckoutPaymentProviderId,
+								webCheckoutPaymentProviderConfigurationProductId:
+									product.webCheckoutPaymentProviderConfigurationProductId,
 							});
 						}
 					}
