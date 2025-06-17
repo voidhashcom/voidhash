@@ -11,7 +11,7 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib";
 import { z } from "zod";
-import { productProviderConfigurations } from "@voidhash/db";
+import { paymentProviderConfigurationProducts } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { and, eq } from "drizzle-orm";
 import { generateId } from "@/lib/id/generate";
@@ -22,7 +22,7 @@ import { getPaymentProviderConfigurationByIdQuery } from "../../payment-provider
 
 export const createPaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
-	providerConfigurationId: z.string(),
+	paymentProviderConfigurationId: z.string(),
 	configuration: z.object({}).passthrough(),
 });
 
@@ -43,7 +43,7 @@ export const createPaymentProviderProduct = createServiceFunction()
 			ctx,
 		}): Promise<
 			Result<
-				typeof productProviderConfigurations.$inferInsert,
+				typeof paymentProviderConfigurationProducts.$inferInsert,
 				CreatePaymentProviderProductError
 			>
 		> => {
@@ -51,7 +51,7 @@ export const createPaymentProviderProduct = createServiceFunction()
 			const providerConfigurationQuery =
 				getPaymentProviderConfigurationByIdQuery(
 					ctx,
-					input.providerConfigurationId
+					input.paymentProviderConfigurationId
 				);
 
 			const [productResult, providerConfigurationResult] = await Promise.all([
@@ -116,17 +116,17 @@ export const createPaymentProviderProduct = createServiceFunction()
 			// Disable other provider products for this product
 			try {
 				await ctx.db
-					.update(productProviderConfigurations)
+					.update(paymentProviderConfigurationProducts)
 					.set({ isActive: false })
 					.where(
 						and(
 							eq(
-								productProviderConfigurations.productId,
+								paymentProviderConfigurationProducts.productId,
 								productResult.value.id
 							),
 							eq(
-								productProviderConfigurations.providerConfigurationId,
-								input.providerConfigurationId
+								paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+								input.paymentProviderConfigurationId
 							)
 						)
 					);
@@ -134,7 +134,7 @@ export const createPaymentProviderProduct = createServiceFunction()
 				const newPaymentProviderProduct = {
 					id: generateId("paymentProviderProduct"),
 					productId: productResult.value.id,
-					providerConfigurationId: providerConfigurationResult.value.id,
+					paymentProviderConfigurationId: providerConfigurationResult.value.id,
 					providerProductKey: provider.createProductKey(
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						parsedConfiguration.value as any
@@ -142,10 +142,10 @@ export const createPaymentProviderProduct = createServiceFunction()
 					environment: ctx.session.environment,
 					configuration: parsedConfiguration.value,
 					isActive: true,
-				} satisfies typeof productProviderConfigurations.$inferInsert;
+				} satisfies typeof paymentProviderConfigurationProducts.$inferInsert;
 
 				await ctx.db
-					.insert(productProviderConfigurations)
+					.insert(paymentProviderConfigurationProducts)
 					.values(newPaymentProviderProduct);
 
 				return ok(newPaymentProviderProduct);

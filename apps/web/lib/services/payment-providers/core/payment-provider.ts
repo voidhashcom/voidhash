@@ -43,7 +43,7 @@ export interface PaymentProvider<
 	// 	TConfiguration,
 	// 	TConfigurationSchema
 	// > | null;
-	// products: PaymentProviderProductConfiguration<
+	// products: PaymentProviderConfigurationProduct<
 	// 	TProductConfiguration,
 	// 	TProductConfigurationSchema
 	// >;

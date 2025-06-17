@@ -9,9 +9,10 @@ import {
 	InsertPurchase,
 	outbox,
 	Product,
-	ProductProviderConfiguration,
-	productProviderConfigurations,
+	PaymentProviderConfigurationProduct,
+	paymentProviderConfigurationProducts,
 	purchases,
+	Transaction,
 } from "@voidhash/db";
 import {
 	Environment,
@@ -74,26 +75,24 @@ export class PaymentProviderCoreService {
 		}
 	}
 
-	async getProductProviderConfigurationByProductId(
+	async getPaymentProviderConfigurationProductById(
 		ctx: ServiceContext,
-		productId: string,
-		paymentProviderConfigurationId: string
+		paymentProviderConfigurationProductId: string
 	): Promise<
 		Result<
-			ProductProviderConfiguration & {
+			PaymentProviderConfigurationProduct & {
 				product: Product;
 			},
 			VoidhashInternalServerError | VoidhashNotFoundError
 		>
 	> {
 		const tx = ctx.tx ?? ctx.db;
-		const productProviderConfiguration =
-			await tx.query.productProviderConfigurations.findFirst({
+		const paymentProviderConfigurationProduct =
+			await tx.query.paymentProviderConfigurationProducts.findFirst({
 				where: and(
-					eq(productProviderConfigurations.productId, productId),
 					eq(
-						productProviderConfigurations.providerConfigurationId,
-						paymentProviderConfigurationId
+						paymentProviderConfigurationProducts.id,
+						paymentProviderConfigurationProductId
 					)
 				),
 				with: {
@@ -101,24 +100,23 @@ export class PaymentProviderCoreService {
 				},
 			});
 
-		if (!productProviderConfiguration) {
+		if (!paymentProviderConfigurationProduct) {
 			return err({
 				code: "NOT_FOUND",
 				message: "Product provider configuration not found",
-				resource: "productProviderConfiguration",
+				resource: "paymentProviderConfigurationProduct",
 				payload: {
-					productId,
-					paymentProviderConfigurationId,
+					paymentProviderConfigurationProductId,
 				},
 			});
 		}
-		return ok(productProviderConfiguration);
+		return ok(paymentProviderConfigurationProduct);
 	}
 
 	async processSubscriptionPurchase(
 		ctx: ServiceContext,
 		environment: Environment,
-		productProviderConfiguration: ProductProviderConfiguration & {
+		paymentProviderConfigurationProduct: PaymentProviderConfigurationProduct & {
 			product: Product;
 		},
 		options: {
@@ -136,7 +134,11 @@ export class PaymentProviderCoreService {
 			};
 		}
 	): Promise<Result<void, ProcessSubscriptionPurchaseError>> {
-		if (productProviderConfiguration.product.type !== "subscription") {
+		console.log("processSubscriptionPurchase", {
+			paymentProviderConfigurationProduct,
+			options,
+		});
+		if (paymentProviderConfigurationProduct.product.type !== "subscription") {
 			return err({
 				code: "UNSUPPORTED_PRODUCT_TYPE",
 				message: "Only subscription products are supported for now",
@@ -161,7 +163,8 @@ export class PaymentProviderCoreService {
 			status: options.status,
 			type: "subscription",
 			customerId: options.customerId,
-			providerProductId: productProviderConfiguration.id,
+			paymentProviderConfigurationProductId:
+				paymentProviderConfigurationProduct.id,
 			purchasedAt: options.purchasedAt,
 			startsAt: options.startsAt,
 			canceledAt: options.canceledAt,
@@ -173,7 +176,7 @@ export class PaymentProviderCoreService {
 
 		const productPerksResult = await getProductPerksByProductIdQuery(
 			ctx,
-			productProviderConfiguration.product.id
+			paymentProviderConfigurationProduct.product.id
 		);
 
 		if (productPerksResult.isErr()) {
@@ -181,7 +184,7 @@ export class PaymentProviderCoreService {
 		}
 
 		try {
-			return await ctx.db.transaction(async (tx) => {
+			return await ctx.db.transaction(async (tx: Transaction) => {
 				const existingPurchase = await tx.query.purchases.findFirst({
 					where: and(
 						eq(purchases.providerKey, options.providerKey),
@@ -213,8 +216,8 @@ export class PaymentProviderCoreService {
 						amount: options.charge.amount,
 						currency: options.charge.currency,
 						purchaseId: purchase.id,
-						paymentProviderConfigurationId:
-							productProviderConfiguration.providerConfigurationId,
+						paymentProviderConfigurationProductId:
+							paymentProviderConfigurationProduct.id,
 						environment,
 						purchaseEnvironment: purchaseEnvironment,
 					});
@@ -225,11 +228,11 @@ export class PaymentProviderCoreService {
 					topic: "subscription.purchased",
 					payload: {
 						customerId: options.customerId,
-						productId: productProviderConfiguration.product.id,
+						productId: paymentProviderConfigurationProduct.product.id,
 						providerKey: options.providerKey,
-						providerProductId: productProviderConfiguration.id,
-						providerConfigurationId:
-							productProviderConfiguration.providerConfigurationId,
+						providerProductId: paymentProviderConfigurationProduct.id,
+						paymentProviderConfigurationId:
+							paymentProviderConfigurationProduct.paymentProviderConfigurationId,
 						environment,
 						startsAt: options.startsAt,
 					},

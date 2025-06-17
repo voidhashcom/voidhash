@@ -1,5 +1,5 @@
 import { createServiceFunction } from "@/lib/service-function";
-import { type Customer } from "@voidhash/db";
+import { Transaction, type Customer } from "@voidhash/db";
 import {
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -45,7 +45,7 @@ export const sdkGetCustomerOrCreateAnonymous = createServiceFunction()
 			}
 
 			try {
-				return await ctx.db.transaction(async (tx) => {
+				return await ctx.db.transaction(async (tx: Transaction) => {
 					const customer = await getCustomerWithParentByAppUserIdQuery(
 						{
 							...ctx,

@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import {
 	InsertProduct,
-	productProviderConfigurations,
-	InsertProductProviderConfiguration,
+	paymentProviderConfigurationProducts,
+	InsertPaymentProviderConfigurationProduct,
 	products,
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
@@ -40,11 +40,11 @@ describe.sequential(
 			}
 
 			// Directly insert an initial provider product
-			const initialProviderConfig: InsertProductProviderConfiguration = {
+			const initialProviderConfig: InsertPaymentProviderConfigurationProduct = {
 				id: generateId("test"),
 				productId: productInput.id,
-				providerConfigurationId:
-					h.resources.projectPaymentProviderConfiguration.id,
+				paymentProviderConfigurationId:
+					h.resources.paymentProviderConfiguration.id,
 				providerProductKey: providerProductKey.value,
 				configuration: {
 					productId: `prod_123`,
@@ -55,13 +55,13 @@ describe.sequential(
 				isActive: true,
 			};
 			await h.db.primary
-				.insert(productProviderConfigurations)
+				.insert(paymentProviderConfigurationProducts)
 				.values(initialProviderConfig);
 
 			// Define the update payload
 			const updatePayload: RouteRequest = {
-				providerConfigurationId:
-					h.resources.projectPaymentProviderConfiguration.id,
+				paymentProviderConfigurationId:
+					h.resources.paymentProviderConfiguration.id,
 				providerId: "stripe",
 				configuration: {
 					productId: `prod_123`,
@@ -72,7 +72,7 @@ describe.sequential(
 			};
 
 			const res = await h.put<RouteRequest, RouteResponse>({
-				url: `/v1/products/${productInput.id}/provider-products/${initialProviderConfig.providerConfigurationId}/${initialProviderConfig.providerProductKey}`,
+				url: `/v1/products/${productInput.id}/provider-products/${initialProviderConfig.paymentProviderConfigurationId}/${initialProviderConfig.providerProductKey}`,
 				headers: {
 					"Content-Type": "application/json",
 					"x-secret-key": h.resources.secretKey.unhashedKey,
@@ -93,7 +93,7 @@ describe.sequential(
 
 			const {
 				// eslint-disable-next-line @typescript-eslint/no-unused-vars
-				providerConfigurationId,
+				paymentProviderConfigurationId,
 				...updatePayloadWithoutProviderConfigurationId
 			} = updatePayload;
 			expect(responseBody.providerConfiguration).toMatchObject(
@@ -102,9 +102,14 @@ describe.sequential(
 
 			// Verify in DB
 			const dbProviderProduct =
-				await h.db.primary.query.productProviderConfigurations.findFirst({
-					where: eq(productProviderConfigurations.id, initialProviderConfig.id),
-				});
+				await h.db.primary.query.paymentProviderConfigurationProducts.findFirst(
+					{
+						where: eq(
+							paymentProviderConfigurationProducts.id,
+							initialProviderConfig.id
+						),
+					}
+				);
 
 			expect(dbProviderProduct?.configuration).toMatchObject(
 				updatePayload.configuration // The DB stores only the inner config
@@ -113,9 +118,12 @@ describe.sequential(
 			// Clean up
 			t.onTestFinished(async () => {
 				await h.db.primary
-					.delete(productProviderConfigurations)
+					.delete(paymentProviderConfigurationProducts)
 					.where(
-						eq(productProviderConfigurations.id, initialProviderConfig.id)
+						eq(
+							paymentProviderConfigurationProducts.id,
+							initialProviderConfig.id
+						)
 					);
 				await h.db.primary
 					.delete(products)
@@ -128,8 +136,8 @@ describe.sequential(
 			const productId = generateId("test");
 			const nonExistentKey = `ppk_nonexistent_${generateId("test")}`;
 			const updatePayload: RouteRequest = {
-				providerConfigurationId:
-					h.resources.projectPaymentProviderConfiguration.id,
+				paymentProviderConfigurationId:
+					h.resources.paymentProviderConfiguration.id,
 				providerId: "stripe",
 				configuration: {
 					productId: `prod_123`,
@@ -140,7 +148,7 @@ describe.sequential(
 			};
 
 			const res = await h.put<RouteRequest, RouteResponse>({
-				url: `/v1/products/${productId}/provider-products/${h.resources.projectPaymentProviderConfiguration.id}/${nonExistentKey}`,
+				url: `/v1/products/${productId}/provider-products/${h.resources.paymentProviderConfiguration.id}/${nonExistentKey}`,
 				headers: {
 					"Content-Type": "application/json",
 					"x-secret-key": h.resources.secretKey.unhashedKey,

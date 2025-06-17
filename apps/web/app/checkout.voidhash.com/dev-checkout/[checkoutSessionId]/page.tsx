@@ -12,7 +12,11 @@ export default async function CheckoutPage({
 	const checkoutSession = await db.query.checkoutSessions.findFirst({
 		where: eq(checkoutSessions.id, checkoutSessionId),
 		with: {
-			product: true,
+			paymentProviderConfigurationProduct: {
+				with: {
+					product: true,
+				},
+			},
 		},
 	});
 
@@ -29,7 +33,7 @@ export default async function CheckoutPage({
 					<p>
 						You are about to purchase{" "}
 						<span className="font-semibold">
-							{checkoutSession.product.name}
+							{checkoutSession.paymentProviderConfigurationProduct.product.name}
 						</span>
 					</p>
 				</div>

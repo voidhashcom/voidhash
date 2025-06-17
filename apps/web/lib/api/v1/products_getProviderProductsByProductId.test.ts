@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import {
 	InsertProduct,
-	productProviderConfigurations,
-	InsertProductProviderConfiguration,
+	paymentProviderConfigurationProducts,
+	InsertPaymentProviderConfigurationProduct,
 	products,
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
@@ -28,17 +28,17 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 
 		// Directly insert provider products
 		const providerConfig1: Omit<
-			InsertProductProviderConfiguration,
+			InsertPaymentProviderConfigurationProduct,
 			"productId"
 		> = {
 			id: generateId("test"),
-			providerConfigurationId:
-				h.resources.projectPaymentProviderConfiguration.id,
+			paymentProviderConfigurationId:
+				h.resources.paymentProviderConfiguration.id,
 			providerProductKey: `ppk_${generateId("test")}`,
 			configuration: { stripePriceId: `price_${generateId("test")}` }, // Simplified
 			isActive: true,
 		};
-		await h.db.primary.insert(productProviderConfigurations).values({
+		await h.db.primary.insert(paymentProviderConfigurationProducts).values({
 			...providerConfig1,
 			productId: productInput.id,
 		});
@@ -69,10 +69,10 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 		// Clean up
 		t.onTestFinished(async () => {
 			await h.db.primary
-				.delete(productProviderConfigurations)
+				.delete(paymentProviderConfigurationProducts)
 				.where(
 					eq(
-						productProviderConfigurations.providerProductKey,
+						paymentProviderConfigurationProducts.providerProductKey,
 						providerConfig1.providerProductKey
 					)
 				);

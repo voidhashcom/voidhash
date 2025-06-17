@@ -41,7 +41,7 @@ const paywallProductSchema = z.object({
 		.min(2, "Display name must be at least 2 characters long"),
 	enableNativePurchase: z.boolean(),
 	enableWebCheckout: z.boolean(),
-	webCheckoutPaymentProviderId: z.string().nullable(),
+	webCheckoutPaymentProviderConfigurationProductId: z.string().nullable(),
 });
 
 type PaywallProductForm = z.infer<typeof paywallProductSchema>;
@@ -58,7 +58,7 @@ export function PaywallDetailProductRecord({
 		displayName: string;
 		enableNativePurchase: boolean;
 		enableWebCheckout: boolean;
-		webCheckoutPaymentProviderId: string | null;
+		webCheckoutPaymentProviderConfigurationProductId: string | null;
 	};
 	onUpdate: (data: PaywallProductForm) => void;
 	onRemove: () => void;
@@ -70,7 +70,8 @@ export function PaywallDetailProductRecord({
 			displayName: paywallProduct.displayName,
 			enableNativePurchase: paywallProduct.enableNativePurchase,
 			enableWebCheckout: paywallProduct.enableWebCheckout,
-			webCheckoutPaymentProviderId: paywallProduct.webCheckoutPaymentProviderId,
+			webCheckoutPaymentProviderConfigurationProductId:
+				paywallProduct.webCheckoutPaymentProviderConfigurationProductId,
 		},
 	});
 

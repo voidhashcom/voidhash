@@ -3,7 +3,7 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import { z } from "zod";
-import { projectPaymentProviderConfigurations } from "@voidhash/db";
+import { paymentProviderConfigurations } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import {
 	fromUnknownThrow,
@@ -65,13 +65,13 @@ export const deletePaymentProviderConfiguration = createServiceFunction()
 			return await safeTryPromise({
 				try: async () => {
 					await ctx.db
-						.update(projectPaymentProviderConfigurations)
+						.update(paymentProviderConfigurations)
 						.set({
 							deletedAt: new Date(),
 						})
 						.where(
 							eq(
-								projectPaymentProviderConfigurations.id,
+								paymentProviderConfigurations.id,
 								paymentProviderConfiguration.id
 							)
 						);

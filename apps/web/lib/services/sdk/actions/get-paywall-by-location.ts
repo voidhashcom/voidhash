@@ -4,11 +4,12 @@ import {
 	VoidhashNotFoundError,
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
-import { Result, err, ok } from "neverthrow";
+import { err } from "neverthrow";
 import { getPaywallWithProductsByLocationSlugQuery } from "../raw-queries";
 import { z } from "zod";
 import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 import { PaywallProduct } from "@voidhash/db";
+import { asfn } from "@/lib/neverthrow";
 
 type GetPaywallByLocationError =
 	| VoidhashInternalServerError
@@ -24,6 +25,7 @@ type PaywallResponse = {
 		displayName: string;
 		nativePurchaseAvailable: boolean;
 		webCheckoutAvailable: boolean;
+		webCheckoutPaymentProviderConfigurationProductId: string | null;
 	}[];
 };
 
@@ -31,86 +33,87 @@ export const sdkGetPaywallByLocation = createServiceFunction()
 	.input(
 		z.object({
 			locationSlug: z.string(),
+			nativePaymentProviderId: z.string().optional(),
 		})
 	)
 	.use(isAuthenticated)
 	.use(hasEnvironment)
 	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<PaywallResponse, GetPaywallByLocationError>> => {
+		asfn<GetPaywallByLocationError>()((assert) => async ({ input, ctx }) => {
 			const appUserId = ctx.session?.customer?.appUserId;
 			if (!appUserId) {
-				return err({
-					code: "UNAUTHORIZED",
-					message: "App user ID not found",
-				});
+				assert(
+					err({
+						code: "UNAUTHORIZED",
+						message: "App user ID not found",
+					})
+				);
 			}
 
 			const projectId = ctx.session?.projects[0]?.id;
 			if (!projectId) {
-				return err({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Project ID not found after authentication",
-					originalError: new Error("Project ID not found after authentication"),
-				});
+				assert(
+					err({
+						code: "INTERNAL_SERVER_ERROR",
+						message: "Project ID not found after authentication",
+						originalError: new Error(
+							"Project ID not found after authentication"
+						),
+					})
+				);
 			}
 
-			const paywall = await getPaywallWithProductsByLocationSlugQuery(
-				ctx,
-				input.locationSlug,
-				ctx.session.environment
+			const paywall = assert(
+				await getPaywallWithProductsByLocationSlugQuery(
+					ctx,
+					input.locationSlug,
+					ctx.session.environment
+				)
 			);
-			if (paywall.isErr()) {
-				return err(paywall.error);
-			}
 
 			const environment = ctx.session.environment;
 
-			const paywallProducts = paywall.value.paywallProducts.map(
-				(paywallProduct) => {
-					const product = paywallProduct.product;
+			const paywallProducts = paywall.paywallProducts.map((paywallProduct) => {
+				const product = paywallProduct.product;
 
-					const nativePurchaseAvailable = checkNativePurchaseAvailability({
-						environment,
-						paywallProduct,
-					});
-					const webCheckoutAvailable = checkWebCheckoutAvailability({
-						environment,
-						paywallProduct,
-					});
+				const nativePurchaseAvailable = input.nativePaymentProviderId
+					? checkNativePurchaseAvailability({
+							environment,
+							paywallProduct,
+						})
+					: false;
 
-					console.log(nativePurchaseAvailable, webCheckoutAvailable);
+				const webCheckoutAvailable = checkWebCheckoutAvailability({
+					environment,
+					paywallProduct,
+				});
 
-					return {
-						paywallProductId: paywallProduct.id,
-						productId: product.id,
-						displayName: paywallProduct.displayName,
-						price: 100, // TODO: Get real price
-						nativePurchaseAvailable,
-						webCheckoutAvailable,
-					};
-				}
-			);
+				return {
+					paywallProductId: paywallProduct.id,
+					productId: product.id,
+					displayName: paywallProduct.displayName,
+					price: 100, // TODO: Get real price
+					nativePurchaseAvailable,
+					webCheckoutAvailable,
+					webCheckoutPaymentProviderConfigurationProductId: webCheckoutAvailable
+						? paywallProduct.webCheckoutPaymentProviderConfigurationProductId
+						: null,
+				};
+			});
 
 			const response: PaywallResponse = {
-				paywallId: paywall.value.id,
+				paywallId: paywall.id,
 				paywallProducts,
 			};
 
-			return ok(response);
-		}
+			return response;
+		})
 	);
 
 const checkNativePurchaseAvailability = (options: {
 	environment: string;
 	paywallProduct: PaywallProduct;
 }) => {
-	if (options.environment === "testing") {
-		return false;
-	}
-
 	return options.paywallProduct.enableNativePurchase;
 };
 

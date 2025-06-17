@@ -6,9 +6,9 @@ import {
 	Perk,
 	Product,
 	ProductPerk,
-	ProductProviderConfiguration,
+	PaymentProviderConfigurationProduct,
 	products,
-	productProviderConfigurations,
+	paymentProviderConfigurationProducts,
 	productPerks,
 	perks,
 	db,
@@ -31,7 +31,7 @@ const compareSeconds = (date: Date | null | undefined): number | null => {
 
 describe.sequential("on-purchased-product-updated integration tests", () => {
 	const productId = generateId("test");
-	const productProviderConfigurationId = generateId("test");
+	const paymentProviderConfigurationProductId = generateId("test");
 	const perkId = generateId("test");
 	const productPerkId = generateId("test");
 
@@ -48,21 +48,22 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			projectId: h.resources.project.id,
 		};
 
-		const productProviderConfiguration: ProductProviderConfiguration = {
-			id: productProviderConfigurationId,
-			productId: productId,
-			isActive: true,
-			providerConfigurationId:
-				h.resources.projectPaymentProviderConfiguration.id,
-			providerProductKey: "test-product-id",
-			configuration: {
-				productId: "prod_1234567890",
-				priceId: "price_1234567890",
-			},
-			environment: "production",
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		};
+		const paymentProviderConfigurationProduct: PaymentProviderConfigurationProduct =
+			{
+				id: paymentProviderConfigurationProductId,
+				productId: productId,
+				isActive: true,
+				paymentProviderConfigurationId:
+					h.resources.paymentProviderConfiguration.id,
+				providerProductKey: "test-product-id",
+				configuration: {
+					productId: "prod_1234567890",
+					priceId: "price_1234567890",
+				},
+				environment: "production",
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			};
 
 		const perk: Perk = {
 			id: perkId,
@@ -84,8 +85,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 
 		await h.db.primary.insert(products).values(product);
 		await h.db.primary
-			.insert(productProviderConfigurations)
-			.values(productProviderConfiguration);
+			.insert(paymentProviderConfigurationProducts)
+			.values(paymentProviderConfigurationProduct);
 		await h.db.primary.insert(perks).values(perk);
 		await h.db.primary.insert(productPerks).values(productPerk);
 	});
@@ -99,8 +100,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			.delete(perks)
 			.where(eq(perks.projectId, h.resources.project.id));
 		await h.db.primary
-			.delete(productProviderConfigurations)
-			.where(eq(productProviderConfigurations.productId, productId));
+			.delete(paymentProviderConfigurationProducts)
+			.where(eq(paymentProviderConfigurationProducts.productId, productId));
 		await h.db.primary.delete(products).where(eq(products.id, productId));
 	});
 
@@ -125,7 +126,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			type: "subscription" as const,
 			status: "canceled" as const,
 			customerId: testCustomerId,
-			providerProductId: productProviderConfigurationId,
+			paymentProviderConfigurationProductId:
+				paymentProviderConfigurationProductId,
 			purchasedAt: new Date(),
 			startsAt: new Date(),
 			canceledAt: new Date(),
@@ -224,7 +226,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			type: "subscription" as const,
 			status: "active" as const, // Start as active to have perks
 			customerId: testCustomerId,
-			providerProductId: productProviderConfigurationId,
+			paymentProviderConfigurationProductId:
+				paymentProviderConfigurationProductId,
 			purchasedAt: new Date(),
 			startsAt: new Date(),
 			canceledAt: new Date(),
@@ -323,7 +326,8 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			type: "subscription" as const,
 			status: "active" as const,
 			customerId: testCustomerId,
-			providerProductId: productProviderConfigurationId,
+			paymentProviderConfigurationProductId:
+				paymentProviderConfigurationProductId,
 			purchasedAt: new Date(),
 			startsAt: new Date(),
 			canceledAt: new Date(),
@@ -459,7 +463,7 @@ describe.sequential("on-purchased-product-updated integration tests", () => {
 			status: "trialing",
 			type: "subscription",
 			customerId: testCustomerId,
-			providerProductId: inconsistentProviderProductId,
+			paymentProviderConfigurationProductId: inconsistentProviderProductId,
 			purchasedAt: new Date(),
 			startsAt: new Date(),
 			canceledAt: null,

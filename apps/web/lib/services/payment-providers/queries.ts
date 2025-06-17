@@ -9,7 +9,7 @@ import {
 } from "./raw-queries";
 import { z } from "zod";
 import { err, ok, Result } from "neverthrow";
-import { ProjectPaymentProviderConfiguration } from "@voidhash/db";
+import { PaymentProviderConfiguration } from "@voidhash/db";
 import {
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
@@ -37,7 +37,7 @@ export const getPaymentProviderConfigurations = cache(
 				input,
 			}): Promise<
 				Result<
-					ProjectPaymentProviderConfiguration[],
+					PaymentProviderConfiguration[],
 					GetPaymentProviderConfigurationsError
 				>
 			> => {
@@ -71,7 +71,7 @@ export const getPaymentProviderConfigurationById = cache(
 				input,
 			}): Promise<
 				Result<
-					ProjectPaymentProviderConfiguration,
+					PaymentProviderConfiguration,
 					GetPaymentProviderConfigurationByIdError
 				>
 			> => {

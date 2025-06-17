@@ -7,12 +7,12 @@ import { useState } from "react";
 export function ProductDetailAddProductButton({
 	productId,
 	providerId,
-	providerConfigurationId,
+	paymentProviderConfigurationId,
 	title,
 	variant = "default",
 }: {
 	productId: string;
-	providerConfigurationId: string;
+	paymentProviderConfigurationId: string;
 	providerId: string;
 	title: string;
 	variant?: "default" | "secondary";
@@ -27,7 +27,7 @@ export function ProductDetailAddProductButton({
 				open={open}
 				onClose={() => setOpen(false)}
 				productId={productId}
-				providerConfigurationId={providerConfigurationId}
+				paymentProviderConfigurationId={paymentProviderConfigurationId}
 				providerId={providerId}
 				mode={"add"}
 			/>

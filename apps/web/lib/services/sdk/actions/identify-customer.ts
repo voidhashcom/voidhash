@@ -7,7 +7,7 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib";
 import { z } from "zod";
-import { Customer, customers, InsertCustomer } from "@voidhash/db";
+import { Customer, customers, InsertCustomer, Transaction } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
 import { err, ok, Result } from "neverthrow";
 import { getCustomerWithParentByAppUserIdQuery } from "../raw-queries";
@@ -57,7 +57,7 @@ export const identifyCustomer = createServiceFunction()
 			ctx,
 		}): Promise<Result<Customer, CreateAnonymousCustomerError>> => {
 			try {
-				return await ctx.db.transaction(async (tx) => {
+				return await ctx.db.transaction(async (tx: Transaction) => {
 					const authenticatedContextWithTx = {
 						...ctx,
 						tx: tx,

@@ -16,7 +16,7 @@ import {
 } from "@voidhash/lib/constants";
 import { mapSubscriptionStatus } from "@/lib/payment-providers/stripe/utils";
 import { err, ok, Result, ResultAsync } from "neverthrow";
-import { ProjectPaymentProviderConfiguration } from "@voidhash/db";
+import { PaymentProviderConfiguration } from "@voidhash/db";
 
 type HandleSessionCompletedError =
 	| VoidhashInternalServerError
@@ -24,7 +24,7 @@ type HandleSessionCompletedError =
 	| VoidhashNotFoundError;
 export async function handleSessionCompleted(
 	serviceContext: ServiceContext,
-	paymentProviderConfiguration: ProjectPaymentProviderConfiguration,
+	paymentProviderConfiguration: PaymentProviderConfiguration,
 	stripe: Stripe,
 	event: Stripe.Event
 ): Promise<Result<void, HandleSessionCompletedError>> {
@@ -161,7 +161,7 @@ export async function handleSessionCompleted(
 			type: "subscription",
 			providerKey: subscription.value.id,
 			customerId: customer.value.id,
-			providerProductId: stripeProviderProduct.value.id,
+			paymentProviderConfigurationProductId: stripeProviderProduct.value.id,
 			status: mapSubscriptionStatus(subscription.value.status),
 			startsAt: new Date(
 				subscription.value.items.data[0]!.current_period_start * 1000

@@ -10,7 +10,7 @@ import {
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib";
 import { z } from "zod";
-import { productProviderConfigurations } from "@voidhash/db";
+import { paymentProviderConfigurationProducts } from "@voidhash/db";
 import { and, eq } from "drizzle-orm";
 import { err, ok, Result } from "neverthrow";
 import { getProductByIdQuery } from "../raw-queries";
@@ -18,7 +18,7 @@ import { isAuthenticated } from "@/lib/middlewares";
 
 export const deletePaymentProviderProductInputSchema = z.object({
 	productId: z.string(),
-	providerConfigurationId: z.string(),
+	paymentProviderConfigurationId: z.string(),
 	providerProductKey: z.string(),
 });
 
@@ -52,16 +52,19 @@ export const deletePaymentProviderProduct = createServiceFunction()
 
 			try {
 				await ctx.db
-					.delete(productProviderConfigurations)
+					.delete(paymentProviderConfigurationProducts)
 					.where(
 						and(
-							eq(productProviderConfigurations.productId, product.value.id),
 							eq(
-								productProviderConfigurations.providerConfigurationId,
-								input.providerConfigurationId
+								paymentProviderConfigurationProducts.productId,
+								product.value.id
 							),
 							eq(
-								productProviderConfigurations.providerProductKey,
+								paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+								input.paymentProviderConfigurationId
+							),
+							eq(
+								paymentProviderConfigurationProducts.providerProductKey,
 								input.providerProductKey
 							)
 						)

@@ -3,10 +3,7 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import { z } from "zod";
-import {
-	projectPaymentProviderConfigurations,
-	Transaction,
-} from "@voidhash/db";
+import { paymentProviderConfigurations, Transaction } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { eq } from "drizzle-orm";
 import {
@@ -122,13 +119,13 @@ export const updatePaymentProviderConfiguration = createServiceFunction()
 				try: async () => {
 					return await ctx.db.transaction(async (tx: Transaction) => {
 						await tx
-							.update(projectPaymentProviderConfigurations)
+							.update(paymentProviderConfigurations)
 							.set({
 								configuration: parsedConfiguration.value,
 								enabled: input.enabled,
 								name: input.name,
 							})
-							.where(eq(projectPaymentProviderConfigurations.id, input.id!));
+							.where(eq(paymentProviderConfigurations.id, input.id!));
 
 						return ok({ id: input.id });
 					});

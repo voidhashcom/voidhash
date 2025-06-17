@@ -1,5 +1,5 @@
 import { ServiceContext } from "@/lib/service-function";
-import { customers, eq } from "@voidhash/db";
+import { customers, eq, Transaction } from "@voidhash/db";
 import { VoidhashInternalServerError } from "@voidhash/lib/constants";
 import { ok, Result } from "neverthrow";
 
@@ -8,7 +8,7 @@ export async function mergeCustomers(
 	fromCustomerId: string,
 	toCustomerId: string
 ): Promise<Result<null, VoidhashInternalServerError>> {
-	await ctx.db.transaction(async (tx) => {
+	await ctx.db.transaction(async (tx: Transaction) => {
 		// Archive the from customer and reparent
 		await tx
 			.update(customers)

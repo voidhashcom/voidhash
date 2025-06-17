@@ -8,8 +8,9 @@ import { Environments } from "@/lib/services/environments/types";
 import {
 	projects,
 	apiKeys,
-	projectPaymentProviderConfigurations,
-	InsertProjectPaymentProviderConfiguration,
+	paymentProviderConfigurations,
+	InsertPaymentProviderConfiguration,
+	Transaction,
 } from "@voidhash/db";
 import {
 	fromUnknownThrow,
@@ -94,7 +95,7 @@ export const createProject = createServiceFunction()
 			}
 
 			try {
-				await ctx.db.transaction(async (tx) => {
+				await ctx.db.transaction(async (tx: Transaction) => {
 					await tx.insert(projects).values({
 						id,
 						name: input.name,
@@ -126,14 +127,14 @@ export const createProject = createServiceFunction()
 					});
 
 					// Create dev checkout payment provider configuration
-					await tx.insert(projectPaymentProviderConfigurations).values({
-						id: generateId("projectPaymentProviderConfiguration"),
+					await tx.insert(paymentProviderConfigurations).values({
+						id: generateId("paymentProviderConfiguration"),
 						projectId: id,
 						name: "Dev Checkout",
 						providerId: devCheckoutPaymentProviderId,
 						enabled: true,
 						configuration: {},
-					} satisfies InsertProjectPaymentProviderConfiguration);
+					} satisfies InsertPaymentProviderConfiguration);
 				});
 
 				ctx.cache.invalidate(`project_${id}`);

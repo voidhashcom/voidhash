@@ -3,10 +3,7 @@ import {
 	hasProjectPermission,
 } from "@/lib/service-function";
 import { z } from "zod";
-import {
-	projectPaymentProviderConfigurations,
-	Transaction,
-} from "@voidhash/db";
+import { paymentProviderConfigurations, Transaction } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import {
 	fromUnknownThrow,
@@ -92,12 +89,12 @@ export const createPaymentProviderConfiguration = createServiceFunction()
 							}
 						}
 
-						const id = generateId("projectPaymentProviderConfiguration");
+						const id = generateId("paymentProviderConfiguration");
 
-						await ctx.db.insert(projectPaymentProviderConfigurations).values({
+						await ctx.db.insert(paymentProviderConfigurations).values({
 							id: id,
 							configuration: provider.getDefaultGlobalConfiguration(),
-							enabled: false,
+							enabled: provider.getIsConfigurable() ? false : true,
 							name: provider.getTitle(),
 							providerId: input.providerId,
 							projectId: input.projectId,
