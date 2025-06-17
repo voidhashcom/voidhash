@@ -17,21 +17,21 @@ export type InsertCustomerUnlockedPerk = InferInsertModel<
 	typeof schema.customersUnlockedPerks
 >;
 
-export type ProjectPaymentProviderConfiguration = InferSelectModel<
-	typeof schema.projectPaymentProviderConfigurations
+export type PaymentProviderConfiguration = InferSelectModel<
+	typeof schema.paymentProviderConfigurations
 >;
-export type InsertProjectPaymentProviderConfiguration = InferInsertModel<
-	typeof schema.projectPaymentProviderConfigurations
+export type InsertPaymentProviderConfiguration = InferInsertModel<
+	typeof schema.paymentProviderConfigurations
 >;
 
 export type Product = InferSelectModel<typeof schema.products>;
 export type InsertProduct = InferInsertModel<typeof schema.products>;
 
-export type ProductProviderConfiguration = InferSelectModel<
-	typeof schema.productProviderConfigurations
+export type PaymentProviderConfigurationProduct = InferSelectModel<
+	typeof schema.paymentProviderConfigurationProducts
 >;
-export type InsertProductProviderConfiguration = InferInsertModel<
-	typeof schema.productProviderConfigurations
+export type InsertPaymentProviderConfigurationProduct = InferInsertModel<
+	typeof schema.paymentProviderConfigurationProducts
 >;
 
 export type Paywall = InferSelectModel<typeof schema.paywalls>;

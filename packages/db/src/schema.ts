@@ -165,9 +165,12 @@ export const purchases = mysqlTable(
 
 		status: mysqlEnum("status", SUBSCRIPTION_STATUSES).default("active"),
 
-		providerProductId: varchar("provider_product_id", {
-			length: 255,
-		}).notNull(),
+		paymentProviderConfigurationProductId: varchar(
+			"payment_provider_configuration_product_id",
+			{
+				length: 255,
+			}
+		).notNull(),
 
 		/**
 		 * The environment the subscription was purchased in
@@ -210,9 +213,12 @@ export const charges = mysqlTable("charge", {
 	customerId: varchar("customer_id", { length: 255 }).notNull(),
 	amount: int("amount").notNull(),
 	currency: varchar("currency", { length: 3 }).notNull(),
-	paymentProviderConfigurationId: varchar("payment_provider_configuration_id", {
-		length: 255,
-	}).notNull(),
+	paymentProviderConfigurationProductId: varchar(
+		"payment_provider_product_configuration_id",
+		{
+			length: 255,
+		}
+	).notNull(),
 	purchaseId: varchar("purchase_id", { length: 255 }).notNull(),
 	environment: mysqlEnum("environment", ENVIRONMENTS)
 		.default("production")
@@ -256,8 +262,8 @@ export const externalCustomerIdentifiersRelations = relations(
 	})
 );
 
-export const projectPaymentProviderConfigurations = mysqlTable(
-	"project_payment_provider_configuration",
+export const paymentProviderConfigurations = mysqlTable(
+	"payment_provider_configuration",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
 		providerId: varchar("provider_id", { length: 255 }).notNull(),
@@ -275,14 +281,16 @@ export const projectPaymentProviderConfigurations = mysqlTable(
 	]
 );
 
-export const projectPaymentProviderConfigurationRelations = relations(
-	projectPaymentProviderConfigurations,
+export const paymentProviderConfigurationRelations = relations(
+	paymentProviderConfigurations,
 	({ one, many }) => ({
 		project: one(projects, {
-			fields: [projectPaymentProviderConfigurations.projectId],
+			fields: [paymentProviderConfigurations.projectId],
 			references: [projects.id],
 		}),
-		productProviderConfigurations: many(productProviderConfigurations),
+		paymentProviderConfigurationProducts: many(
+			paymentProviderConfigurationProducts
+		),
 	})
 );
 
@@ -329,6 +337,9 @@ export const productRelations = relations(products, ({ many }) => ({
 	perks: many(productPerks),
 	paywallProducts: many(paywallProducts),
 	checkoutSessions: many(checkoutSessions),
+	paymentProviderConfigurationProducts: many(
+		paymentProviderConfigurationProducts
+	),
 }));
 
 export const productPerks = mysqlTable(
@@ -356,13 +367,16 @@ export const productPerkRelations = relations(productPerks, ({ one }) => ({
 	}),
 }));
 
-export const productProviderConfigurations = mysqlTable(
-	"product_provider_configuration",
+export const paymentProviderConfigurationProducts = mysqlTable(
+	"payment_provider_configuration_product",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
-		providerConfigurationId: varchar("provider_configuration_id", {
-			length: 255,
-		}).notNull(),
+		paymentProviderConfigurationId: varchar(
+			"payment_provider_configuration_id",
+			{
+				length: 255,
+			}
+		).notNull(),
 		providerProductKey: varchar("provider_product_key", {
 			length: 255,
 		}).notNull(),
@@ -377,25 +391,29 @@ export const productProviderConfigurations = mysqlTable(
 	},
 	(table) => [
 		uniqueIndex("product_provider_configuration_ext_pk_idx").on(
-			table.providerConfigurationId,
+			table.paymentProviderConfigurationId,
 			table.providerProductKey,
 			table.productId,
 			table.environment
 		),
-		index("provider_configuration_id_idx").on(table.providerConfigurationId),
+		index("payment_provider_configuration_id_idx").on(
+			table.paymentProviderConfigurationId
+		),
 	]
 );
 
-export const productProviderConfigurationRelations = relations(
-	productProviderConfigurations,
+export const PaymentProviderConfigurationProductRelations = relations(
+	paymentProviderConfigurationProducts,
 	({ one }) => ({
 		product: one(products, {
-			fields: [productProviderConfigurations.productId],
+			fields: [paymentProviderConfigurationProducts.productId],
 			references: [products.id],
 		}),
-		providerConfiguration: one(projectPaymentProviderConfigurations, {
-			fields: [productProviderConfigurations.providerConfigurationId],
-			references: [projectPaymentProviderConfigurations.id],
+		paymentProviderConfiguration: one(paymentProviderConfigurations, {
+			fields: [
+				paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+			],
+			references: [paymentProviderConfigurations.id],
 		}),
 	})
 );
@@ -429,9 +447,12 @@ export const paywallProducts = mysqlTable(
 			.notNull()
 			.default(true),
 		enableWebCheckout: boolean("enable_web_checkout").notNull().default(false),
-		webCheckoutPaymentProviderId: varchar("web_checkout_payment_provider_id", {
-			length: 255,
-		}),
+		webCheckoutPaymentProviderConfigurationProductId: varchar(
+			"web_checkout_payment_provider_product_configuration_id",
+			{
+				length: 255,
+			}
+		),
 		order: int("order").notNull().default(0),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -500,7 +521,12 @@ export const paywallLocationRelations = relations(
 export const checkoutSessions = mysqlTable("checkout_session", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	customerId: varchar("customer_id", { length: 255 }).notNull(),
-	productId: varchar("product_id", { length: 255 }).notNull(),
+	paymentProviderConfigurationProductId: varchar(
+		"payment_provider_configuration_product_id",
+		{
+			length: 255,
+		}
+	).notNull(),
 	status: mysqlEnum("status", ["pending", "success", "error", "cancelled"])
 		.notNull()
 		.default("pending"),
@@ -512,9 +538,6 @@ export const checkoutSessions = mysqlTable("checkout_session", {
 	errorCallbackUrl: varchar("error_callback_url", { length: 255 })
 		.notNull()
 		.default("LEGACY"),
-	paymentProviderConfigurationId: varchar("payment_provider_configuration_id", {
-		length: 255,
-	}).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
@@ -526,10 +549,13 @@ export const checkoutSessionRelations = relations(
 			fields: [checkoutSessions.customerId],
 			references: [customers.id],
 		}),
-		product: one(products, {
-			fields: [checkoutSessions.productId],
-			references: [products.id],
-		}),
+		paymentProviderConfigurationProduct: one(
+			paymentProviderConfigurationProducts,
+			{
+				fields: [checkoutSessions.paymentProviderConfigurationProductId],
+				references: [paymentProviderConfigurationProducts.id],
+			}
+		),
 	})
 );
 

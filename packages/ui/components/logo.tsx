@@ -10,7 +10,7 @@ export const Logo = ({
 	variant?: "default" | "short" | "symbol";
 	color?: "dual-tone" | "mono";
 }) => {
-	const symbolColor = color === "dual-tone" ? "#FF3E03" : "currentColor";
+	const symbolColor = color === "dual-tone" ? "#005EFF" : "currentColor";
 	if (variant === "short") {
 		return (
 			<svg

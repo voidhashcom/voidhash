@@ -1,9 +1,10 @@
-import ShortUniqueId from "short-unique-id";
-const { randomUUID } = new ShortUniqueId({
-	length: 10,
-	dictionary: "alphanum_lower",
-});
+import { customAlphabet } from "nanoid";
+
+const alphabet =
+	"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+const nanoid = customAlphabet(alphabet, 10);
 
 export function createShortId() {
-	return randomUUID();
+	return nanoid();
 }
