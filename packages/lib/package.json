@@ -17,6 +17,7 @@
     },
     "dependencies": {
         "@paralleldrive/cuid2": "^2.2.2",
+        "nanoid": "^5.1.5",
         "short-unique-id": "^5.2.2",
         "slug": "^10.0.0",
         "tsup": "^6.1.3",
