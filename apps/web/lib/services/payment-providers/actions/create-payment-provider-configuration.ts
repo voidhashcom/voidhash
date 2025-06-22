@@ -67,8 +67,8 @@ export const createPaymentProviderConfiguration = createServiceFunction()
 
 			const canHaveMultipleConfigurations = provider.getType() === "native";
 
-			const res = await safeTryPromise({
-				try: async () => {
+			const res = await safeTryPromise(
+				async () => {
 					return await ctx.db.transaction(async (tx: Transaction) => {
 						if (!canHaveMultipleConfigurations) {
 							const existingConfiguration =
@@ -98,15 +98,16 @@ export const createPaymentProviderConfiguration = createServiceFunction()
 							name: provider.getTitle(),
 							providerId: input.providerId,
 							projectId: input.projectId,
+							paymentProviderKey: "empty",
 						});
 
 						return ok({ id: id });
 					});
 				},
-				catch: (error) => {
+				(error) => {
 					return fromUnknownThrow(error);
-				},
-			});
+				}
+			);
 
 			return res;
 		}

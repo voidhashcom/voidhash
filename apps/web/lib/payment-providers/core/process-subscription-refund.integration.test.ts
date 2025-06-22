@@ -4,7 +4,7 @@ import { createTestServiceContext } from "@/lib/testing/create-test-service-cont
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import {
 	and,
-	charges,
+	transactions,
 	customers,
 	eq,
 	InsertCustomer,
@@ -13,16 +13,20 @@ import {
 	paymentProviderConfigurationProducts,
 	products,
 	purchases,
+	subscriptions,
+	customersUnlockedPerks,
+	InsertProductPerk,
+	productPerks,
 } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
-import { createPaymentProviderCoreService } from "./payment-provider-core-service";
+import { processSubscriptionCreation } from "./process-subscription-creation";
 
-describe.sequential("payment-provider-core-service", async () => {
-	test("process subscription purchase successfully", async (t) => {
+describe.sequential("process-subscription-refund", async () => {
+	test("process subscription refund successfully", async (t) => {
 		const h = await IntegrationHarness.init(t);
 		const ctx = await createTestServiceContext();
-		const service = createPaymentProviderCoreService();
 
+		// Prepare resources
 		const productInsert = {
 			id: generateId("test"),
 			projectId: h.resources.project.id,
@@ -66,77 +70,85 @@ describe.sequential("payment-provider-core-service", async () => {
 
 		await h.db.primary.insert(customers).values(customerInsert);
 
-		const paymentProviderConfigurationProductResult =
-			await service.getPaymentProviderConfigurationProductById(
-				ctx,
-				paymentProviderConfigurationProductInsert.id
-			);
+		const paymentProviderConfigurationProduct =
+			await h.db.primary.query.paymentProviderConfigurationProducts.findFirst({
+				where: and(
+					eq(
+						paymentProviderConfigurationProducts.id,
+						paymentProviderConfigurationProductInsert.id
+					)
+				),
+				with: {
+					product: true,
+				},
+			});
 
-		if (paymentProviderConfigurationProductResult.isErr()) {
-			throw paymentProviderConfigurationProductResult.error;
+		if (!paymentProviderConfigurationProduct) {
+			throw new Error("Payment provider configuration product not found");
 		}
 
-		const paymentProviderConfigurationProduct =
-			paymentProviderConfigurationProductResult.value;
+		const productPerkInsert = {
+			id: generateId("test"),
+			productId: productInsert.id,
+			perkId: productInsert.id,
+		} satisfies InsertProductPerk;
+
+		await h.db.primary.insert(productPerks).values(productPerkInsert);
 
 		const purchseKey = generateId("test");
-		const processSubscriptionPurchaseResult =
-			await service.processSubscriptionPurchase(
-				ctx,
-				"production",
-				paymentProviderConfigurationProduct,
-				{
-					customerId: customerInsert.id,
-					status: "active",
-					purchasedAt: new Date(),
-					startsAt: new Date(),
-					canceledAt: null,
-					cancelAtPeriodEnd: false,
-					expiresAt: new Date(),
-					providerKey: purchseKey,
-					charge: {
-						amount: 1000,
-						currency: "USD",
-					},
-				}
-			);
+
+		// Process subscription creation
+		const processSubscriptionPurchaseResult = await processSubscriptionCreation(
+			ctx,
+			paymentProviderConfigurationProduct,
+			{
+				customerId: customerInsert.id,
+				purchasedAt: new Date(),
+				startsAt: new Date(),
+				canceledAt: null,
+				cancelAtPeriodEnd: false,
+				expiresAt: new Date(),
+				storeSubscriptionId: purchseKey,
+				isTrial: false,
+				providerEnvironment: "production",
+				transaction: {
+					amount: 1000,
+					currency: "USD",
+				},
+			}
+		);
 
 		if (processSubscriptionPurchaseResult.isErr()) {
 			throw processSubscriptionPurchaseResult.error;
 		}
 
-		const purchase = await h.db.primary.query.purchases.findFirst({
+		// Verify resources
+		const subscription = await h.db.primary.query.subscriptions.findFirst({
 			where: and(
-				eq(purchases.providerKey, purchseKey),
-				eq(purchases.customerId, customerInsert.id)
+				eq(subscriptions.storeSubscriptionId, purchseKey),
+				eq(subscriptions.customerId, customerInsert.id)
 			),
 		});
 
-		const charge = await h.db.primary.query.charges.findFirst({
+		const charge = await h.db.primary.query.transactions.findFirst({
 			where: and(
-				eq(charges.customerId, customerInsert.id),
+				eq(transactions.customerId, customerInsert.id),
 				eq(
-					charges.paymentProviderConfigurationProductId,
+					transactions.paymentProviderConfigurationProductId,
 					paymentProviderConfigurationProduct.id
 				),
-				eq(charges.purchaseEnvironment, "production")
+				eq(transactions.providerEnvironment, "production")
 			),
 		});
 
-		expect(purchase).toBeDefined();
-		expect(purchase?.status).toBe("active");
-		expect(purchase?.type).toBe("subscription");
-		expect(purchase?.customerId).toBe(customerInsert.id);
-		expect(purchase?.paymentProviderConfigurationProductId).toBe(
+		expect(subscription).toBeDefined();
+		expect(subscription?.customerId).toBe(customerInsert.id);
+		expect(subscription?.paymentProviderConfigurationProductId).toBe(
 			paymentProviderConfigurationProduct.id
 		);
-		expect(purchase?.startsAt).toBeDefined();
-		expect(purchase?.canceledAt).toBeNull();
-		expect(purchase?.cancelAtPeriodEnd).toBe(false);
-		expect(purchase?.purchaseEnvironment).toBe("production");
-		expect(purchase?.purchasedAt).toBeDefined();
-		expect(purchase?.expiresAt).toBeDefined();
-		expect(purchase?.providerKey).toBe(purchseKey);
+		expect(subscription?.providerEnvironment).toBe("production");
+		expect(subscription?.storeSubscriptionId).toBe(purchseKey);
+		expect(subscription?.startsAt).toBeDefined();
 
 		expect(charge).toBeDefined();
 		expect(charge?.amount).toBe(1000);
@@ -144,9 +156,25 @@ describe.sequential("payment-provider-core-service", async () => {
 		expect(charge?.paymentProviderConfigurationProductId).toBe(
 			paymentProviderConfigurationProduct.id
 		);
-		expect(charge?.purchaseEnvironment).toBe("production");
+		expect(charge?.providerEnvironment).toBe("production");
 		expect(charge?.customerId).toBe(customerInsert.id);
-		expect(charge?.purchaseId).toBe(purchase?.id);
+
+		// Verify perks
+		const customerUnlockedPerks =
+			await h.db.primary.query.customersUnlockedPerks.findMany({
+				where: and(
+					eq(customersUnlockedPerks.customerId, customerInsert.id),
+					eq(customersUnlockedPerks.unlockedBySubscriptionId, subscription!.id)
+				),
+			});
+
+		expect(customerUnlockedPerks).toBeDefined();
+		expect(customerUnlockedPerks.length).toBe(1);
+		expect(customerUnlockedPerks[0]!.customerId).toBe(customerInsert.id);
+		expect(customerUnlockedPerks[0]!.unlockedBySubscriptionId).toBe(
+			subscription!.id
+		);
+		expect(customerUnlockedPerks[0]!.perkId).toBe(productInsert.id);
 
 		t.onTestFinished(async () => {
 			await h.db.primary

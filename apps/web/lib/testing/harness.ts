@@ -23,7 +23,10 @@ import {
 	stripe,
 	stripePaymentProviderId,
 } from "../payment-providers/stripe/stripe";
-import { devCheckoutPaymentProviderId } from "../payment-providers/dev-checkout/dev-checkout";
+import {
+	devCheckout,
+	devCheckoutPaymentProviderId,
+} from "../payment-providers/dev-checkout/dev-checkout";
 
 export type Resources = {
 	user: User;
@@ -169,13 +172,17 @@ export abstract class Harness {
 			organizationId: organization.id,
 		};
 
+		const devCheckoutConfigurationId = generateId("test");
 		const devCheckoutPaymentProviderConfiguration: PaymentProviderConfiguration =
 			{
-				id: generateId("test"),
+				id: devCheckoutConfigurationId,
 				projectId: project.id,
 				providerId: devCheckoutPaymentProviderId,
 				name: "DevCheckout",
 				enabled: true,
+				paymentProviderKey: devCheckout.createGlobalKey({
+					paymentProviderConfigurationId: devCheckoutConfigurationId,
+				}),
 				configuration: {},
 				createdAt: new Date(),
 				updatedAt: new Date(),
@@ -188,6 +195,10 @@ export abstract class Harness {
 			providerId: stripePaymentProviderId,
 			name: "Stripe",
 			enabled: true,
+			paymentProviderKey: stripe.createGlobalKey({
+				secretKey: "sk_test_123",
+				webhookSecret: "whsec_123",
+			}),
 			configuration: {
 				secretKey: "sk_test_123",
 				webhookSecret: "whsec_123",

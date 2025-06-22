@@ -5,6 +5,7 @@ import { ServiceContext } from "@/lib/service-function";
 import { db } from "@voidhash/db";
 import { ConsoleLogger } from "@/lib/logger/console";
 import { env } from "@/lib/env";
+import { PinoLogger } from "@/lib/logger/pino";
 
 export const createNextServiceContext = async (): Promise<ServiceContext> => {
 	return {
@@ -13,10 +14,17 @@ export const createNextServiceContext = async (): Promise<ServiceContext> => {
 		cache: new NextUnstableCacheAdapter(),
 		cookies: new NextCookiesAdapter(),
 		db: db,
-		logger: new ConsoleLogger({
-			requestId: "",
-			environment: env.VERCEL_ENV ?? "unknown",
-			application: "web",
-		}),
+		logger:
+			env.VERCEL_ENV !== "development"
+				? new PinoLogger({
+						requestId: "",
+						environment: env.VERCEL_ENV ?? "unknown",
+						application: "web",
+					})
+				: new ConsoleLogger({
+						requestId: "",
+						environment: env.VERCEL_ENV ?? "unknown",
+						application: "web",
+					}),
 	};
 };

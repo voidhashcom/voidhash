@@ -36,6 +36,7 @@ export const stripePaymentProviderId = "stripe" as const;
 export class StripePaymentProvider
 	extends BasePaymentProvider<
 		typeof stripePaymentProviderId,
+		typeof stripeGlobalConfigurationSchema,
 		typeof stripeProductConfigurationSchema
 	>
 	implements
@@ -50,6 +51,7 @@ export class StripePaymentProvider
 			stripePaymentProviderId,
 			"Stripe",
 			["production"],
+			["secretKey"],
 			["productId", "priceId"],
 			"web-checkout"
 		);

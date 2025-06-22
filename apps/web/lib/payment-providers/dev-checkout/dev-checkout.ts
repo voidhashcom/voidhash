@@ -8,7 +8,9 @@ import {
 
 export const devCheckoutPaymentProviderId = "dev-checkout" as const;
 
-const devCheckoutGlobalConfigurationSchema = z.object({});
+const devCheckoutGlobalConfigurationSchema = z.object({
+	paymentProviderConfigurationId: z.string().min(1),
+});
 
 const devCheckoutProductConfigurationSchema = z.object({
 	productId: z.string().min(1),
@@ -17,6 +19,7 @@ const devCheckoutProductConfigurationSchema = z.object({
 export class DevCheckoutPaymentProvider
 	extends BasePaymentProvider<
 		typeof devCheckoutPaymentProviderId,
+		typeof devCheckoutGlobalConfigurationSchema,
 		typeof devCheckoutProductConfigurationSchema
 	>
 	implements
@@ -31,6 +34,7 @@ export class DevCheckoutPaymentProvider
 			devCheckoutPaymentProviderId,
 			"Dev Checkout",
 			["testing"],
+			["paymentProviderConfigurationId"],
 			["productId"],
 			"web-checkout"
 		);
@@ -41,7 +45,9 @@ export class DevCheckoutPaymentProvider
 	getDefaultGlobalConfiguration(): Partial<
 		z.infer<typeof devCheckoutGlobalConfigurationSchema>
 	> {
-		return {};
+		return {
+			paymentProviderConfigurationId: "",
+		};
 	}
 	getGlobalConfigurationSchema(): typeof devCheckoutGlobalConfigurationSchema {
 		return devCheckoutGlobalConfigurationSchema;

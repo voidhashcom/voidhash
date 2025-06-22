@@ -1,10 +1,8 @@
-import { VoidhashInternalServerError } from "@voidhash/lib/constants";
-import { Result, ok, err } from "neverthrow";
-
-type TryOptions<Ok, SpecificError> = {
-	try: () => Ok;
-	catch: (error: unknown) => SpecificError;
-};
+import {
+	fromUnknownThrow,
+	VoidhashInternalServerError,
+} from "@voidhash/lib/constants";
+import { Result, ok, err, Ok, Err } from "neverthrow";
 
 /**
  * A safe way to execute a function that may throw.
@@ -13,28 +11,47 @@ type TryOptions<Ok, SpecificError> = {
  * Cannot be named `try` as it is a reserved keyword in JS/TS.
  *
  * @example
- * const result = safeTry({
- *   try: () => JSON.parse('{ "a": 1 }'),
- *   catch: (e) => new Error('Failed to parse JSON', { cause: e }),
- * });
+ * const result = safeTry(() => JSON.parse('{ "a": 1 }'));
  *
  * if (result.isOk()) {
  *   console.log(result.value);
  * } else {
  *   console.error(result.error);
  * }
+ *
+ * // With custom error handler
+ * const result2 = safeTry(
+ *   () => JSON.parse('{ "a": 1 }'),
+ *   (e) => new Error('Failed to parse JSON', { cause: e })
+ * );
  */
-export function safeTry<Ok, SpecificError>({
-	try: fn,
-	catch: errorFn,
-}: TryOptions<Ok, SpecificError>): Result<Ok, SpecificError> {
-	return Result.fromThrowable(fn, errorFn)();
-}
+export function safeTry<TOk, SpecificError>(
+	fn: () => Result<TOk, SpecificError> | TOk
+): Result<TOk, SpecificError | VoidhashInternalServerError>;
+export function safeTry<TOk, SpecificError>(
+	fn: () => Result<TOk, SpecificError> | TOk,
+	errorFn: (error: unknown) => SpecificError
+): Result<TOk, SpecificError>;
+export function safeTry<TOk, SpecificError>(
+	fn: () => Result<TOk, SpecificError> | TOk,
+	errorFn?: (error: unknown) => SpecificError
+): Result<TOk, SpecificError | VoidhashInternalServerError> {
+	try {
+		const result = fn();
 
-type TryPromiseOptions<Ok, TryError, SpecificError> = {
-	try: () => Promise<Result<Ok, TryError>>;
-	catch: (error: unknown) => SpecificError;
-};
+		if (result instanceof Ok) {
+			return ok(result.value);
+		}
+
+		if (result instanceof Err) {
+			return err(result.error);
+		}
+
+		return ok(result);
+	} catch (error) {
+		return err(errorFn ? errorFn(error) : fromUnknownThrow(error));
+	}
+}
 
 /**
  * A safe way to execute an async function that may throw or reject.
@@ -56,33 +73,46 @@ type TryPromiseOptions<Ok, TryError, SpecificError> = {
  *   console.error(result.error);
  * }
  */
-export async function safeTryPromise<Ok, TryError, SpecificError>({
-	try: fn,
-	catch: errorFn,
-}: TryPromiseOptions<Ok, TryError, SpecificError>): Promise<
-	Result<Ok, SpecificError | TryError>
+export async function safeTryPromise<TOk, TryError>(
+	fn: () => Promise<Result<TOk, TryError> | TOk>
+): Promise<Result<TOk, VoidhashInternalServerError | TryError>>;
+export async function safeTryPromise<TOk, TryError, SpecificError>(
+	fn: () => Promise<Result<TOk, TryError> | TOk>,
+	errorFn: (error: unknown) => SpecificError
+): Promise<Result<TOk, SpecificError | TryError>>;
+export async function safeTryPromise<TOk, TryError, SpecificError>(
+	fn: () => Promise<Result<TOk, TryError> | TOk>,
+	errorFn?: (error: unknown) => SpecificError
+): Promise<
+	Result<TOk, SpecificError | TryError | VoidhashInternalServerError>
 > {
 	try {
 		const res = await fn();
-		if (res.isErr()) {
+
+		if (res instanceof Ok) {
+			return ok(res.value);
+		}
+
+		if (res instanceof Err) {
 			return err(res.error);
 		}
-		return ok(res.value);
+
+		return ok(res);
 	} catch (error) {
-		return err(errorFn(error));
+		return err(errorFn ? errorFn(error) : fromUnknownThrow(error));
 	}
 }
 
-class SfnError<TError> extends Error {
-	originalError: TError;
+// class SfnError<TError> extends Error {
+// 	originalError: TError;
 
-	constructor(originalError: TError) {
-		super("SfnError");
-		this.originalError = originalError;
-	}
-}
+// 	constructor(originalError: TError) {
+// 		super("SfnError");
+// 		this.originalError = originalError;
+// 	}
+// }
 
-type AssertFn<E> = <T>(result: Result<T, E>) => T;
+// type AssertFn<E> = <T>(result: Result<T, E> | E) => T;
 
 /**
  * A utility for writing functions that use `neverthrow`'s `Result` type in a more synchronous-looking style.
@@ -108,36 +138,44 @@ type AssertFn<E> = <T>(result: Result<T, E>) => T;
  * const result = safeConcat("hello", " world"); // ok("hello world")
  * const result2 = safeConcat("hello"); // err({ type: "missing-string" })
  */
-export function sfn<TError>() {
-	return function <TArgs extends unknown[], TResult>(
-		fn: (assert: AssertFn<TError>) => (...args: TArgs) => TResult
-	): (...args: TArgs) => Result<TResult, TError | VoidhashInternalServerError> {
-		const assert: AssertFn<TError> = (result) => {
-			if (result.isErr()) {
-				throw new SfnError(result.error);
-			}
-			return result.value;
-		};
+// export function sfn<TError>() {
+// 	return function <TArgs extends unknown[], TResult>(
+// 		fn: (assert: AssertFn<TError>) => (...args: TArgs) => TResult
+// 	): (...args: TArgs) => Result<TResult, TError | VoidhashInternalServerError> {
+// 		const assert: AssertFn<TError> = (result) => {
+// 			if (result instanceof Err) {
+// 				throw new SfnError(result.error);
+// 			}
 
-		const innerFn = fn(assert);
+// 			if (result instanceof Ok) {
+// 				return result.value;
+// 			}
 
-		return (...args: TArgs) => {
-			try {
-				const result = innerFn(...args);
-				return ok(result);
-			} catch (error) {
-				if (error instanceof SfnError) {
-					return err(error.originalError as TError);
-				}
-				return err({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "An unexpected error occurred",
-					originalError: error,
-				} satisfies VoidhashInternalServerError);
-			}
-		};
-	};
-}
+// 			throw new SfnError(result);
+// 		};
+
+// 		const innerFn = fn(assert);
+
+// 		return (...args: TArgs) => {
+// 			try {
+// 				const result = innerFn(...args);
+// 				if (result instanceof Err) {
+// 					throw new SfnError(result.error);
+// 				}
+// 				return ok(result);
+// 			} catch (error) {
+// 				if (error instanceof SfnError) {
+// 					return err(error.originalError as TError);
+// 				}
+// 				return err({
+// 					code: "INTERNAL_SERVER_ERROR",
+// 					message: "An unexpected error occurred",
+// 					originalError: error,
+// 				} satisfies VoidhashInternalServerError);
+// 			}
+// 		};
+// 	};
+// }
 
 /**
  * A utility for writing async functions that use `neverthrow`'s `Result` type in a more synchronous-looking style.
@@ -167,35 +205,43 @@ export function sfn<TError>() {
  * const result = await safeDivide(10, 2); // ok(5)
  * const result2 = await safeDivide(10, 0); // err({ type: "division-by-zero" })
  */
-export function asfn<TError>() {
-	return function <TArgs extends unknown[], TResult>(
-		fn: (assert: AssertFn<TError>) => (...args: TArgs) => Promise<TResult>
-	): (
-		...args: TArgs
-	) => Promise<Result<TResult, TError | VoidhashInternalServerError>> {
-		const assert: AssertFn<TError> = (result) => {
-			if (result.isErr()) {
-				throw new SfnError(result.error);
-			}
-			return result.value;
-		};
+// export function asfn<TError>() {
+// 	return function <TArgs extends unknown[], TResult>(
+// 		fn: (assert: AssertFn<TError>) => (...args: TArgs) => Promise<TResult>
+// 	): (
+// 		...args: TArgs
+// 	) => Promise<Result<TResult, TError | VoidhashInternalServerError>> {
+// 		const assert: AssertFn<TError> = (result) => {
+// 			if (result instanceof Err) {
+// 				throw new SfnError(result.error);
+// 			}
 
-		const innerFn = fn(assert);
+// 			if (result instanceof Ok) {
+// 				return result.value;
+// 			}
 
-		return async (...args: TArgs) => {
-			try {
-				const result = await innerFn(...args);
-				return ok(result);
-			} catch (error) {
-				if (error instanceof SfnError) {
-					return err(error.originalError as TError);
-				}
-				return err({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "An unexpected error occurred",
-					originalError: error,
-				} satisfies VoidhashInternalServerError);
-			}
-		};
-	};
-}
+// 			throw new SfnError(result);
+// 		};
+
+// 		const innerFn = fn(assert);
+
+// 		return async (...args: TArgs) => {
+// 			try {
+// 				const result = await innerFn(...args);
+// 				if (result instanceof Err) {
+// 					throw new SfnError(result.error);
+// 				}
+// 				return ok(result);
+// 			} catch (error) {
+// 				if (error instanceof SfnError) {
+// 					return err(error.originalError as TError);
+// 				}
+// 				return err({
+// 					code: "INTERNAL_SERVER_ERROR",
+// 					message: "An unexpected error occurred",
+// 					originalError: error,
+// 				} satisfies VoidhashInternalServerError);
+// 			}
+// 		};
+// 	};
+// }
