@@ -6,7 +6,6 @@ import { z } from "zod";
 import { paymentProviderConfigurations } from "@voidhash/db";
 import { eq } from "drizzle-orm";
 import {
-	fromUnknownThrow,
 	VoidhashForbiddenError,
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
@@ -62,25 +61,20 @@ export const deletePaymentProviderConfiguration = createServiceFunction()
 				});
 			}
 
-			return await safeTryPromise({
-				try: async () => {
-					await ctx.db
-						.update(paymentProviderConfigurations)
-						.set({
-							deletedAt: new Date(),
-						})
-						.where(
-							eq(
-								paymentProviderConfigurations.id,
-								paymentProviderConfiguration.id
-							)
-						);
+			return await safeTryPromise(async () => {
+				await ctx.db
+					.update(paymentProviderConfigurations)
+					.set({
+						deletedAt: new Date(),
+					})
+					.where(
+						eq(
+							paymentProviderConfigurations.id,
+							paymentProviderConfiguration.id
+						)
+					);
 
-					return ok(undefined);
-				},
-				catch: (error) => {
-					return fromUnknownThrow(error);
-				},
+				return ok(undefined);
 			});
 		}
 	);

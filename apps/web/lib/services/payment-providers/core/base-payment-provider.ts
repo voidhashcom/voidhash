@@ -3,11 +3,13 @@ import { z } from "zod";
 
 export class BasePaymentProvider<
 	TKey extends string,
+	TGlobalConfigurationSchema extends z.ZodSchema,
 	TProductConfigurationSchema extends z.ZodSchema,
 > {
 	private _id: TKey;
 	private _title: string;
 	private _environments: Environment[];
+	private _globalConfigurationKeyProperties: (keyof z.infer<TGlobalConfigurationSchema>)[];
 	private _productKeyProperties: (keyof z.infer<TProductConfigurationSchema>)[];
 	private _type: "native" | "web-checkout";
 	// Configuration is optional for payment providers that don't require configuration - e.g. Dev Checkout
@@ -16,12 +18,14 @@ export class BasePaymentProvider<
 		id: TKey,
 		title: string,
 		environments: Environment[],
+		globalConfigurationKeyProperties: (keyof z.infer<TGlobalConfigurationSchema>)[],
 		productKeyProperties: (keyof z.infer<TProductConfigurationSchema>)[],
 		type: "native" | "web-checkout"
 	) {
 		this._id = id;
 		this._title = title;
 		this._environments = environments;
+		this._globalConfigurationKeyProperties = globalConfigurationKeyProperties;
 		this._productKeyProperties = productKeyProperties;
 		this._type = type;
 	}
@@ -40,6 +44,14 @@ export class BasePaymentProvider<
 
 	public isAvailableInEnvironment(environment: Environment) {
 		return this._environments.includes(environment);
+	}
+
+	public createGlobalKey(
+		configuration: Partial<z.infer<TGlobalConfigurationSchema>>
+	): string {
+		return this._globalConfigurationKeyProperties
+			.map((key) => configuration[key])
+			.join(":");
 	}
 
 	public createProductKey(

@@ -91,7 +91,7 @@ describe.sequential(
 			);
 			expect(responseBody.paywallProducts[0]?.price).toBe(100);
 			expect(responseBody.paywallProducts[0]?.nativePurchaseAvailable).toBe(
-				true
+				false
 			);
 			expect(responseBody.paywallProducts[0]?.webCheckoutAvailable).toBe(true);
 

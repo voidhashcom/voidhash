@@ -9,7 +9,7 @@ export const mapSubscriptionStatus = (
 			return "active";
 
 		case "trialing":
-			return "trialing";
+			return "active";
 
 		default:
 			return "canceled";

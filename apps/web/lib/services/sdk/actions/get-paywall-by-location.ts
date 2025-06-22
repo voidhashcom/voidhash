@@ -4,12 +4,12 @@ import {
 	VoidhashNotFoundError,
 	VoidhashUnauthorizedError,
 } from "@voidhash/lib/constants";
-import { err } from "neverthrow";
+import { err, ok, Result } from "neverthrow";
 import { getPaywallWithProductsByLocationSlugQuery } from "../raw-queries";
 import { z } from "zod";
 import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 import { PaywallProduct } from "@voidhash/db";
-import { asfn } from "@/lib/neverthrow";
+import { safeTryPromise } from "@/lib/neverthrow";
 
 type GetPaywallByLocationError =
 	| VoidhashInternalServerError
@@ -39,37 +39,41 @@ export const sdkGetPaywallByLocation = createServiceFunction()
 	.use(isAuthenticated)
 	.use(hasEnvironment)
 	.function(
-		asfn<GetPaywallByLocationError>()((assert) => async ({ input, ctx }) => {
+		async ({
+			input,
+			ctx,
+		}): Promise<Result<PaywallResponse, GetPaywallByLocationError>> => {
 			const appUserId = ctx.session?.customer?.appUserId;
 			if (!appUserId) {
-				assert(
-					err({
-						code: "UNAUTHORIZED",
-						message: "App user ID not found",
-					})
-				);
+				return err({
+					code: "UNAUTHORIZED",
+					message: "App user ID not found",
+				});
 			}
 
 			const projectId = ctx.session?.projects[0]?.id;
 			if (!projectId) {
-				assert(
-					err({
-						code: "INTERNAL_SERVER_ERROR",
-						message: "Project ID not found after authentication",
-						originalError: new Error(
-							"Project ID not found after authentication"
-						),
-					})
-				);
+				return err({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Project ID not found after authentication",
+					originalError: new Error("Project ID not found after authentication"),
+				});
 			}
 
-			const paywall = assert(
-				await getPaywallWithProductsByLocationSlugQuery(
-					ctx,
-					input.locationSlug,
-					ctx.session.environment
-				)
+			const paywallResult = await safeTryPromise(
+				async () =>
+					await getPaywallWithProductsByLocationSlugQuery(
+						ctx,
+						input.locationSlug,
+						ctx.session.environment
+					)
 			);
+
+			if (paywallResult.isErr()) {
+				return err(paywallResult.error);
+			}
+
+			const paywall = paywallResult.value;
 
 			const environment = ctx.session.environment;
 
@@ -106,8 +110,8 @@ export const sdkGetPaywallByLocation = createServiceFunction()
 				paywallProducts,
 			};
 
-			return response;
-		})
+			return ok(response);
+		}
 	);
 
 const checkNativePurchaseAvailability = (options: {

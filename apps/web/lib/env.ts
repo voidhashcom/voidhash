@@ -28,6 +28,11 @@ export const env = createEnv({
 		GITHUB_CLIENT_ID: z.string(),
 		GITHUB_CLIENT_SECRET: z.string(),
 		POLAR_ACCESS_TOKEN: z.string(),
+		AXIOM_LOGS_DATASET: z.string(),
+		AXIOM_TOKEN: z.string(),
+		AXIOM_LOG_LEVEL: z
+			.enum(["debug", "info", "warn", "error", "fatal"])
+			.default("info"),
 	},
 
 	/**

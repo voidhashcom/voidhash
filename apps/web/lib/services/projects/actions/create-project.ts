@@ -27,7 +27,10 @@ import { err, ok, Result } from "neverthrow";
 import { z } from "zod";
 import { getProjectBySlugQuery } from "../raw-queries";
 import { isAuthenticated } from "@/lib/middlewares";
-import { devCheckoutPaymentProviderId } from "@/lib/payment-providers/dev-checkout/dev-checkout";
+import {
+	devCheckout,
+	devCheckoutPaymentProviderId,
+} from "@/lib/payment-providers/dev-checkout/dev-checkout";
 
 export const createProjectInputSchema = z.object({
 	name: z.string().min(1).max(32),
@@ -127,11 +130,17 @@ export const createProject = createServiceFunction()
 					});
 
 					// Create dev checkout payment provider configuration
+					const devCheckoutConfigurationId = generateId(
+						"paymentProviderConfiguration"
+					);
 					await tx.insert(paymentProviderConfigurations).values({
-						id: generateId("paymentProviderConfiguration"),
+						id: devCheckoutConfigurationId,
 						projectId: id,
 						name: "Dev Checkout",
 						providerId: devCheckoutPaymentProviderId,
+						paymentProviderKey: devCheckout.createGlobalKey({
+							paymentProviderConfigurationId: devCheckoutConfigurationId,
+						}),
 						enabled: true,
 						configuration: {},
 					} satisfies InsertPaymentProviderConfiguration);

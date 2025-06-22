@@ -16,6 +16,7 @@
     "with-env": "dotenv -e .env --"
   },
   "dependencies": {
+    "@axiomhq/pino": "^1.3.1",
     "@chronark/zod-bird": "^0.3.10",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
@@ -39,9 +40,11 @@
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
     "@voidhash/ui": "workspace:*",
+    "app-store-server-api": "^0.17.1",
     "better-auth": "^1.2.4",
     "cross-fetch": "^4.1.0",
     "drizzle-orm": "^0.41.0",
+    "effect": "^3.16.8",
     "hono": "^4.7.6",
     "hono-openapi": "^0.4.6",
     "lucide-react": "^0.483.0",
@@ -49,6 +52,7 @@
     "next": "15.2.5",
     "next-safe-action": "^7.10.5",
     "next13-progressbar": "^1.2.2",
+    "pino": "^9.7.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",

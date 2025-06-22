@@ -48,22 +48,22 @@ export const deleteSecretKey = createServiceFunction()
 				});
 			}
 
-			const res = await safeTryPromise({
-				try: async () => {
+			const res = await safeTryPromise(
+				async () => {
 					await ctx.db
 						.delete(apiKeys)
 						.where(eq(apiKeys.id, existingKey.value.id));
 
 					return ok(undefined);
 				},
-				catch: (error) => {
+				(error) => {
 					return err({
 						code: "INTERNAL_SERVER_ERROR",
 						message: "Failed to delete api key",
 						originalError: error as Error,
 					} satisfies VoidhashInternalServerError);
-				},
-			});
+				}
+			);
 
 			if (res.isErr()) {
 				return res.error;

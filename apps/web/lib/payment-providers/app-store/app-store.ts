@@ -32,6 +32,7 @@ const appStoreProductConfigurationSchema = z.object({
 export class AppStorePaymentProvider
 	extends BasePaymentProvider<
 		typeof appStorePaymentProviderId,
+		typeof appStoreGlobalConfigurationSchema,
 		typeof appStoreProductConfigurationSchema
 	>
 	implements
@@ -46,7 +47,8 @@ export class AppStorePaymentProvider
 			appStorePaymentProviderId,
 			"App Store",
 			["production"],
-			["productId"],
+			["bundleId"] as const,
+			["productId"] as const,
 			"native"
 		);
 	}

@@ -11,6 +11,7 @@ const nextConfig = {
 		"@voidhash/lib",
 		"@voidhash/emails",
 	],
+	serverExternalPackages: ["pino", "@axiomhq/pino"],
 	async rewrites() {
 		return [
 			{

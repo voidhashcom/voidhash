@@ -1,11 +1,12 @@
 import {
 	createServiceFunction,
 	hasProjectPermission,
+	ServiceContext,
 } from "@/lib/service-function";
 import { z } from "zod";
 import { paymentProviderConfigurations, Transaction } from "@voidhash/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { eq } from "drizzle-orm";
+import { eq, and, isNotNull } from "drizzle-orm";
 import {
 	fromUnknownThrow,
 	VoidhashBadRequestError,
@@ -91,48 +92,63 @@ export const updatePaymentProviderConfiguration = createServiceFunction()
 				} satisfies VoidhashBadRequestError);
 			}
 
-			const parsedConfiguration = safeTry({
-				try: () => {
+			const parsedConfiguration = safeTry(
+				() => {
 					if (requireValidation && configurationSchema) {
 						return configurationSchema.parse(input.configuration);
 					}
 					return input.configuration;
 				},
-				catch: (error) => {
+				(error) => {
 					if (error instanceof z.ZodError) {
-						return err({
+						return {
 							code: "BAD_REQUEST",
 							message: "Validation error",
 							validationErrors: error,
-						} satisfies VoidhashBadRequestError);
+						} satisfies VoidhashBadRequestError;
 					}
 
-					return err(fromUnknownThrow(error));
-				},
-			});
+					return fromUnknownThrow(error);
+				}
+			);
 
 			if (parsedConfiguration.isErr()) {
-				return parsedConfiguration.error;
+				return err(parsedConfiguration.error);
 			}
 
-			const res = await safeTryPromise({
-				try: async () => {
-					return await ctx.db.transaction(async (tx: Transaction) => {
-						await tx
-							.update(paymentProviderConfigurations)
-							.set({
-								configuration: parsedConfiguration.value,
-								enabled: input.enabled,
-								name: input.name,
-							})
-							.where(eq(paymentProviderConfigurations.id, input.id!));
+			const res = await safeTryPromise(async () => {
+				return await ctx.db.transaction(async (tx: Transaction) => {
+					const key = provider.createGlobalKey(
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						parsedConfiguration.value as any
+					);
+					// Check key only when enabling the configuration
+					if (input.enabled) {
+						const isKeyAvailable = await checkIfPaymentProviderKeyIsAvailable(
+							ctx,
+							key,
+							provider.getId(),
+							existingConfiguration.value.projectId
+						);
+						if (!isKeyAvailable) {
+							return err({
+								code: "BAD_REQUEST",
+								message:
+									"Payment provider with similar configuration already exists.",
+							} satisfies VoidhashBadRequestError);
+						}
+					}
+					await tx
+						.update(paymentProviderConfigurations)
+						.set({
+							configuration: parsedConfiguration.value,
+							enabled: input.enabled,
+							name: input.name,
+						})
+						.where(eq(paymentProviderConfigurations.id, input.id!));
 
-						return ok({ id: input.id });
-					});
-				},
-				catch: (error) => {
-					return fromUnknownThrow(error);
-				},
+					return ok({ id: input.id });
+				});
 			});
 
 			if (res.isErr()) {
@@ -142,3 +158,29 @@ export const updatePaymentProviderConfiguration = createServiceFunction()
 			return ok({ id: input.id });
 		}
 	);
+
+async function checkIfPaymentProviderKeyIsAvailable(
+	context: ServiceContext,
+	key: string,
+	providerId: string,
+	projectId: string
+) {
+	const tx = context.tx ?? context.db;
+	const existingConfigurations = await tx
+		.select()
+		.from(paymentProviderConfigurations)
+		.where(
+			and(
+				eq(paymentProviderConfigurations.projectId, projectId),
+				eq(paymentProviderConfigurations.providerId, providerId),
+				eq(paymentProviderConfigurations.paymentProviderKey, key),
+				isNotNull(paymentProviderConfigurations.deletedAt)
+			)
+		);
+
+	if (existingConfigurations.length > 0) {
+		return false;
+	}
+
+	return true;
+}

@@ -6,6 +6,7 @@ import { Context } from "hono";
 import { db } from "@voidhash/db";
 import { ConsoleLogger } from "@/lib/logger/console";
 import { env } from "@/lib/env";
+import { PinoLogger } from "@/lib/logger/pino";
 
 export const createServerServiceContext = async (
 	honoContext: Context
@@ -16,10 +17,17 @@ export const createServerServiceContext = async (
 		cache: new NextUnstableCacheAdapter(),
 		cookies: new HonoCookiesAdapter(honoContext),
 		db: db,
-		logger: new ConsoleLogger({
-			requestId: honoContext.get("requestId"),
-			environment: env.VERCEL_ENV ?? "unknown",
-			application: "api",
-		}),
+		logger:
+			env.VERCEL_ENV !== "development"
+				? new PinoLogger({
+						requestId: honoContext.get("requestId"),
+						environment: env.VERCEL_ENV ?? "unknown",
+						application: "api",
+					})
+				: new ConsoleLogger({
+						requestId: honoContext.get("requestId"),
+						environment: env.VERCEL_ENV ?? "unknown",
+						application: "api",
+					}),
 	};
 };
