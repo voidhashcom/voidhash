@@ -1,3 +1,5 @@
+import { Result, err, ok } from "neverthrow";
+
 export const CURRENCIES = {
 	AED: "United Arab Emirates Dirham",
 	AFN: "Afghanistan Afghani",
@@ -190,3 +192,20 @@ export const CURRENCIES = {
 } as const;
 
 export type ISO4217CurrencyCode = keyof typeof CURRENCIES;
+
+export type InvalidISO4217CurrencyCodeError = {
+	code: "INVALID_ISO_4217_CURRENCY_CODE";
+	message: string;
+};
+export const parseISO4217CurrencyCode = (
+	currency: string
+): Result<ISO4217CurrencyCode, InvalidISO4217CurrencyCodeError> => {
+	if (currency in CURRENCIES) {
+		return ok(currency as ISO4217CurrencyCode);
+	}
+
+	return err({
+		code: "INVALID_ISO_4217_CURRENCY_CODE",
+		message: `Invalid ISO 4217 currency code: ${currency}`,
+	});
+};
