@@ -20,7 +20,7 @@
         ],
         "module": "esnext",
         "resolveJsonModule": true,
-        "strict": false
+        "strict": true
     },
     "include": [
         "src",

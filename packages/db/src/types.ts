@@ -81,7 +81,13 @@ export type InsertPaywallLocation = InferInsertModel<
 export type Purchase = InferSelectModel<typeof schema.purchases>;
 export type InsertPurchase = InferInsertModel<typeof schema.purchases>;
 
+export type Subscription = InferSelectModel<typeof schema.subscriptions>;
+export type InsertSubscription = InferInsertModel<typeof schema.subscriptions>;
+
 export type CheckoutSession = InferSelectModel<typeof schema.checkoutSessions>;
 export type InsertCheckoutSession = InferInsertModel<
 	typeof schema.checkoutSessions
 >;
+
+export type Transaction = InferSelectModel<typeof schema.transactions>;
+export type InsertTransaction = InferInsertModel<typeof schema.transactions>;

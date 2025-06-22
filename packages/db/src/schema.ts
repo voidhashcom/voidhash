@@ -14,6 +14,7 @@ import { organization } from "./auth-schema";
 import {
 	ENVIRONMENTS,
 	PRODUCT_TYPES,
+	PURCHASE_TYPES,
 	SUBSCRIPTION_STATUSES,
 } from "@voidhash/lib";
 export * from "./auth-schema";
@@ -136,12 +137,17 @@ export const customersUnlockedPerks = mysqlTable(
 	"customer_unlocked_perk",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
+		status: mysqlEnum("status", ["active", "expired"]).default("active"),
 		customerId: varchar("customer_id", { length: 255 }).notNull(),
 		perkId: varchar("perk_id", { length: 255 }).notNull(),
 		// Controls the lifetime of the perk
 		unlockedByPurchaseId: varchar("unlocked_by_purchase_id", {
 			length: 255,
-		}).notNull(),
+		}),
+		unlockedBySubscriptionId: varchar("unlocked_by_subscription_id", {
+			length: 255,
+		}),
+		expiresAt: timestamp("expires_at"),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
@@ -149,89 +155,6 @@ export const customersUnlockedPerks = mysqlTable(
 		uniqueIndex("customer_id_perk_id_idx").on(table.customerId, table.perkId),
 	]
 );
-
-export const purchases = mysqlTable(
-	"purchase",
-	{
-		id: varchar("id", { length: 255 }).primaryKey(),
-		customerId: varchar("customer_id", { length: 255 }).notNull(),
-
-		providerKey: varchar("provider_key", { length: 255 }).notNull(),
-
-		/**
-		 * Subscription status - can be active, trialing, or canceled
-		 */
-		type: mysqlEnum("type", PRODUCT_TYPES).default("subscription").notNull(),
-
-		status: mysqlEnum("status", SUBSCRIPTION_STATUSES).default("active"),
-
-		paymentProviderConfigurationProductId: varchar(
-			"payment_provider_configuration_product_id",
-			{
-				length: 255,
-			}
-		).notNull(),
-
-		/**
-		 * The environment the subscription was purchased in
-		 */
-		purchaseEnvironment: mysqlEnum("purchase_environment", [
-			"production",
-			"sandbox",
-		])
-			.default("production")
-			.notNull(),
-		/**
-		 * The date the subscription started
-		 */
-		startsAt: timestamp("starts_at").notNull(),
-		/**
-		 * The date the subscription expires. Null if the subscription is not set to expire or if it is a one-time purchase
-		 */
-		expiresAt: timestamp("expires_at"),
-		/**
-		 * The date the subscription was purchased
-		 */
-		purchasedAt: timestamp("purchased_at").notNull(),
-		/**
-		 * Whether the subscription is set to cancel at the end of the current period
-		 */
-		cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
-		/**
-		 * The date the subscription was canceled
-		 */
-		canceledAt: timestamp("canceled_at"),
-
-		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-		updatedAt: timestamp("updated_at").onUpdateNow(),
-	},
-	(table) => [uniqueIndex("provider_key_idx").on(table.providerKey)]
-);
-
-export const charges = mysqlTable("charge", {
-	id: varchar("id", { length: 255 }).primaryKey(),
-	customerId: varchar("customer_id", { length: 255 }).notNull(),
-	amount: int("amount").notNull(),
-	currency: varchar("currency", { length: 3 }).notNull(),
-	paymentProviderConfigurationProductId: varchar(
-		"payment_provider_product_configuration_id",
-		{
-			length: 255,
-		}
-	).notNull(),
-	purchaseId: varchar("purchase_id", { length: 255 }).notNull(),
-	environment: mysqlEnum("environment", ENVIRONMENTS)
-		.default("production")
-		.notNull(),
-	purchaseEnvironment: mysqlEnum("purchase_environment", [
-		"production",
-		"sandbox",
-	])
-		.default("production")
-		.notNull(),
-	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at").onUpdateNow(),
-});
 
 export const externalCustomerIdentifiers = mysqlTable(
 	"external_customer_identifier",
@@ -268,6 +191,10 @@ export const paymentProviderConfigurations = mysqlTable(
 		id: varchar("id", { length: 255 }).primaryKey(),
 		providerId: varchar("provider_id", { length: 255 }).notNull(),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
+		/** Key generated based on configuration. Used as an external identifier for the payment provider configuration. For example, for App Store, it is the bundleId. */
+		paymentProviderKey: varchar("payment_provider_key", {
+			length: 255,
+		}).notNull(),
 		enabled: boolean("enabled").notNull().default(false),
 		name: varchar("name", { length: 255 }).notNull().default("Unknown"),
 		configuration: json("configuration").$type<object>(),
@@ -402,7 +329,7 @@ export const paymentProviderConfigurationProducts = mysqlTable(
 	]
 );
 
-export const PaymentProviderConfigurationProductRelations = relations(
+export const paymentProviderConfigurationProductRelations = relations(
 	paymentProviderConfigurationProducts,
 	({ one }) => ({
 		product: one(products, {
@@ -566,3 +493,189 @@ export const outbox = mysqlTable("outbox", {
 	publishedAt: timestamp("published_at"),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
+
+// App Store
+
+export const purchases = mysqlTable(
+	"purchase",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		customerId: varchar("customer_id", { length: 255 }).notNull(),
+		providerKey: varchar("provider_key", { length: 255 }).notNull(),
+		type: mysqlEnum("type", PURCHASE_TYPES).notNull(),
+		paymentProviderConfigurationProductId: varchar(
+			"payment_provider_configuration_product_id",
+			{
+				length: 255,
+			}
+		).notNull(),
+
+		/**
+		 * The environment the subscription was purchased in
+		 */
+		providerEnvironment: mysqlEnum("purchase_environment", [
+			"production",
+			"sandbox",
+		])
+			.default("production")
+			.notNull(),
+
+		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+		updatedAt: timestamp("updated_at").onUpdateNow(),
+	},
+	(table) => [uniqueIndex("provider_key_idx").on(table.providerKey)]
+);
+
+export const subscriptions = mysqlTable("subscription", {
+	id: varchar("id", { length: 255 }).primaryKey(),
+	customerId: varchar("customer_id", { length: 255 }).notNull(),
+	status: mysqlEnum("status", SUBSCRIPTION_STATUSES).default("active"),
+	initialTransactionId: varchar("initial_transaction_id", {
+		length: 255,
+	}).notNull(),
+	latestTransactionId: varchar("latest_transaction_id", {
+		length: 255,
+	}).notNull(),
+	/**
+	 * - This is the 'original_transaction_id' for Apple, or 'subscription_id' for Google
+	 */
+	storeSubscriptionId: varchar("store_subscription_id", {
+		length: 255,
+	}).notNull(),
+
+	paymentProviderConfigurationProductId: varchar(
+		"payment_provider_configuration_product_id",
+		{
+			length: 255,
+		}
+	).notNull(),
+
+	/**
+	 * The environment the subscription was purchased in
+	 */
+	providerEnvironment: mysqlEnum("purchase_environment", [
+		"production",
+		"sandbox",
+	])
+		.default("production")
+		.notNull(),
+
+	isTrial: boolean("is_trial").notNull().default(false),
+
+	/**
+	 * The date the subscription started
+	 */
+	startsAt: timestamp("starts_at").notNull(),
+	/**
+	 * The date the subscription expires. Null if the subscription is not set to expire or if it is a one-time purchase
+	 */
+	expiresAt: timestamp("expires_at"),
+	/**
+	 * The date the subscription was purchased
+	 */
+	purchasedAt: timestamp("purchased_at").notNull(),
+	/**
+	 * Whether the subscription is set to cancel at the end of the current period
+	 */
+	cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+	/**
+	 * The date the subscription was canceled
+	 */
+	canceledAt: timestamp("canceled_at"),
+
+	cancellationReason: varchar("cancellation_reason", { length: 255 }),
+});
+
+export const transactions = mysqlTable("transaction", {
+	id: varchar("id", { length: 255 }).primaryKey(),
+	customerId: varchar("customer_id", { length: 255 }).notNull(),
+	amount: int("amount").notNull(),
+	currency: varchar("currency", { length: 3 }).notNull(),
+
+	paymentProviderConfigurationProductId: varchar(
+		"payment_provider_product_configuration_id",
+		{
+			length: 255,
+		}
+	).notNull(),
+	environment: mysqlEnum("environment", ENVIRONMENTS)
+		.default("production")
+		.notNull(),
+	providerEnvironment: mysqlEnum("purchase_environment", [
+		"production",
+		"sandbox",
+	])
+		.default("production")
+		.notNull(),
+	storeTransactionId: varchar("store_transaction_id", {
+		length: 255,
+	}),
+	occurredAt: timestamp("occurred_at").notNull(),
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at").onUpdateNow(),
+});
+
+export const appStoreTransactions = mysqlTable(
+	"app_store_transaction",
+	{
+		id: varchar("id", { length: 255 }).primaryKey(),
+		transactionId: varchar("transaction_id", { length: 255 }).notNull(),
+		currency: varchar("currency", { length: 3 }).notNull(),
+		// Equivalent to providerEnvironment
+		environment: mysqlEnum("environment", ["production", "sandbox"]).notNull(),
+		expireDate: timestamp("expire_date"),
+		inAppOwnershipType: mysqlEnum("is_app_ownership_type", [
+			"FAMILY_SHARED",
+			"PURCHASED",
+		]).notNull(),
+		isUpgraded: boolean("is_upgraded"),
+		offerDiscountType: mysqlEnum("offer_disount_type", [
+			"FREE_TRIAL",
+			"PAY_AS_YOU_GO",
+			"PAY_UP_FRONT",
+		]),
+		offerIdentifier: varchar("offer_identifier", { length: 255 }),
+		offerPeriod: varchar("offer_period", { length: 255 }), //ISO 8601 duration string
+		offerType: mysqlEnum("offer_type", [
+			"INTRODUCTORY_OFFER",
+			"PROMOTIONAL_OFFER",
+			"OFFER_WITH_SUBSCRIPTION_OFFER_CODE",
+			"WIN_BACK_OFFER",
+		]),
+		originalPurchaseDate: timestamp("original_purchase_date").notNull(),
+		originalTransactionId: varchar("original_transaction_id", {
+			length: 255,
+		}).notNull(),
+		/**
+		 * An integer value that represents the price multiplied by 1000 of the in-app purchase or subscription offer you configured in App Store Connect and that the system records at the time of the purchase.
+		 */
+		price: int("price").notNull(),
+		productId: varchar("product_id", { length: 255 }).notNull(),
+		purchaseDate: timestamp("purchase_date").notNull(),
+		quantity: int("quantity").notNull(),
+		revocationDate: timestamp("revocation_date"),
+		revocationReason: mysqlEnum("revocation_reason", [
+			"OTHER_REASON",
+			"PERCEIVED_ISSUE",
+		]),
+		/**
+		 * The three-letter code that represents the country or region associated with the App Store storefront for the purchase.
+		 */
+		storefront: varchar("storefront", { length: 3 }).notNull(),
+		storefrontId: varchar("storefront_id", { length: 255 }).notNull(),
+		subscriptionGroupIdentifier: varchar("subscription_group_identifier", {
+			length: 255,
+		}),
+		transactionReason: mysqlEnum("transaction_reason", ["PURCHASE", "RENEWAL"]),
+		type: mysqlEnum("type", [
+			"AUTO_RENEWABLE_SUBSCRIPTION",
+			"NON_CONSUMABLE",
+			"CONSUMABLE",
+			"NON_RENEWING_SUBSCRIPTION",
+		]).notNull(),
+		webOrderLineItemId: varchar("web_order_line_item_id", {
+			length: 255,
+		}),
+	},
+	(table) => [uniqueIndex("transaction_id_idx").on(table.transactionId)]
+);
