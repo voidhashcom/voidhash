@@ -9,6 +9,9 @@ import { PerkService } from "@/lib/services/perks/perk-service";
 import { err, ok, Result } from "neverthrow";
 import { VoidhashInternalServerError } from "@voidhash/lib/constants";
 import { PerkRepository } from "@/lib/services/perks/perk-repository";
+import { PaywallLocationService } from "@/lib/services/paywall-locations/paywall-location-service";
+import { PaywallLocationRepository } from "@/lib/services/paywall-locations/paywall-location-repository";
+import { PaywallRepository } from "@/lib/services/paywalls/paywall-repository";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -50,6 +53,9 @@ const DbLive = Db.Default;
 const RuntimeLayer = pipe(
 	PerkService.Default,
 	Layer.provideMerge(PerkRepository.Default),
+	Layer.provideMerge(PaywallLocationRepository.Default),
+	Layer.provideMerge(PaywallLocationService.Default),
+	Layer.provideMerge(PaywallRepository.Default),
 	Layer.provideMerge(Auth.Default),
 	Layer.provideMerge(BetterAuth.Default),
 	Layer.provideMerge(DbLive),

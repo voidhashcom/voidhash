@@ -89,14 +89,8 @@ import {
 } from "../services/paywalls/actions/create-paywall";
 import { deletePerkInputSchema } from "../services/perks/actions/delete-perk";
 import { createPerkInputSchema } from "../services/perks/actions/create-perk";
-import {
-	createPaywallLocationInputSchema,
-	createPaywallLocation,
-} from "../services/paywall-locations/actions/create-paywall-location";
-import {
-	deletePaywallLocationInputSchema,
-	deletePaywallLocation,
-} from "../services/paywall-locations/actions/delete-paywall-location";
+import { createPaywallLocationInputSchema } from "../services/paywall-locations/actions/create-paywall-location";
+import { deletePaywallLocationInputSchema } from "../services/paywall-locations/actions/delete-paywall-location";
 import {
 	createProductPerk,
 	createProductPerkInputSchema,
@@ -125,6 +119,7 @@ import {
 import { NextjsRuntime, toNeverthrow } from "../effect/runtimes/nextjs";
 import { Effect, pipe, Schema } from "effect";
 import { PerkService } from "../services/perks/perk-service";
+import { PaywallLocationService } from "../services/paywall-locations/paywall-location-service";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -531,12 +526,17 @@ export const deletePaywallAction = actionClient
 
 // Paywall locations
 export const createPaywallLocationAction = actionClient
-	.inputSchema(createPaywallLocationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createPaywallLocation.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createPaywallLocationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				PaywallLocationService,
+				Effect.flatMap((paywallLocationService) =>
+					paywallLocationService.createPaywallLocation(parsedInput)
+				),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -546,12 +546,19 @@ export const createPaywallLocationAction = actionClient
 	});
 
 export const deletePaywallLocationAction = actionClient
-	.inputSchema(deletePaywallLocationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deletePaywallLocation.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deletePaywallLocationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				PaywallLocationService,
+				Effect.flatMap((paywallLocationService) =>
+					paywallLocationService.deletePaywallLocation({
+						paywallLocationId: parsedInput.paywallLocationId,
+					})
+				),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);

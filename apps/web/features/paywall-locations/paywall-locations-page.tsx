@@ -1,12 +1,15 @@
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { Card } from "@voidhash/ui";
-import { getPaywallLocations } from "@/lib/services/paywall-locations/queries";
 import { CreatePaywallLocationModalButton } from "./create-paywall-location-modal-button";
 import { PaywallLocationsPageEmptyState } from "./paywall-locations-page-empty-state";
 import { PaywallLocationRecord } from "./paywall-location-record";
 import { getPaywalls } from "@/lib/services/paywalls/queries";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { tryCatch } from "@/lib/try-catch";
+import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
+import { PaywallLocationService } from "@/lib/services/paywall-locations/paywall-location-service";
+import { Effect } from "effect";
 
 export async function PaywallLocationsPage({
 	organizationSlug,
@@ -33,10 +36,15 @@ export async function PaywallLocationsPage({
 		input: { projectId: project.id },
 	});
 
-	const paywallLocationsPromise = getPaywallLocations({
-		ctx: serviceContext,
-		input: { projectId: project.id },
-	});
+	const paywallLocationsPromise = await tryCatch(
+		NextjsRuntime.runPromise(
+			PaywallLocationService.pipe(
+				Effect.flatMap((paywallLocationService) =>
+					paywallLocationService.getPaywallLocations(project.id)
+				)
+			)
+		)
+	);
 
 	const [paywallsResult, paywallLocationsResult] = await Promise.all([
 		paywallsPromise,
@@ -48,13 +56,12 @@ export async function PaywallLocationsPage({
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	if (paywallLocationsResult.isErr()) {
-		const error = paywallLocationsResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
+	if (paywallLocationsResult.error) {
+		return <VoidhashErrorCard error={paywallLocationsResult.error} />;
 	}
 
 	const paywalls = paywallsResult.value;
-	const paywallLocations = paywallLocationsResult.value;
+	const paywallLocations = paywallLocationsResult.data;
 
 	return (
 		<div>

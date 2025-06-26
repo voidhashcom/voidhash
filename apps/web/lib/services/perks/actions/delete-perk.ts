@@ -4,42 +4,6 @@ import { PerkRepository } from "../perk-repository";
 import { hasProjectPermission } from "@/lib/effect/permissions";
 import { ForbiddenError } from "@/lib/effect/errors";
 
-// export const deletePerkInputSchema = z.object({
-// 	perkId: z.string(),
-// });
-
-// type DeletePerkError =
-// 	| VoidhashUnauthorizedError
-// 	| VoidhashForbiddenError
-// 	| VoidhashInternalServerError
-// 	| VoidhashNotFoundError;
-
-// export const deletePerk = createServiceFunction()
-// 	.input(deletePerkInputSchema)
-// 	.use(isAuthenticated)
-// 	.function(async ({ input, ctx }): Promise<Result<void, DeletePerkError>> => {
-// 		const existingPerk = await getPerkByIdQuery(ctx, input.perkId);
-// 		if (existingPerk.isErr()) {
-// 			return err(existingPerk.error);
-// 		}
-
-// 		if (
-// 			!hasProjectPermission(ctx, existingPerk.value.projectId, "project:all")
-// 		) {
-// 			return err({
-// 				code: "FORBIDDEN",
-// 				message: "You are not authorized to delete this perk",
-// 			});
-// 		}
-
-// 		try {
-// 			await ctx.db.delete(perks).where(eq(perks.id, input.perkId));
-// 			return ok(undefined);
-// 		} catch (error) {
-// 			return err(fromUnknownThrow(error));
-// 		}
-// 	});
-
 export class PerkNotFound extends Data.TaggedError("PerkNotFound")<{
 	readonly cause?: unknown;
 	readonly message: string;
