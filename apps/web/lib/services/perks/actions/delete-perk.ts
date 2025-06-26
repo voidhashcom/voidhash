@@ -1,8 +1,7 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { Data, Effect, pipe, Schema } from "effect";
 import { PerkRepository } from "../perk-repository";
-import { hasProjectPermission } from "@/lib/effect/permissions";
-import { ForbiddenError } from "@/lib/effect/errors";
+import { checkProjectPermission } from "@/lib/effect/permissions";
 
 export class PerkNotFound extends Data.TaggedError("PerkNotFound")<{
 	readonly cause?: unknown;
@@ -32,16 +31,12 @@ export const deletePerk = (inputUnsafe: DeletePerkInput) =>
 				);
 			}
 
-			if (!hasProjectPermission(perk.projectId, "project:all")) {
-				yield* Effect.logWarning(
-					`User ${session?.user?.id} is not authorized to delete perk ${input.perkId}`
-				);
-				return yield* Effect.fail(
-					new ForbiddenError({
-						message: "You are not authorized to delete this perk",
-					})
-				);
-			}
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				perk.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to delete perk ${input.perkId}`
+			);
 
 			yield* perkRepository.deletePerk(input.perkId);
 		}),

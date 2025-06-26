@@ -11,3 +11,8 @@ export class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
 	readonly cause?: unknown;
 	readonly message: string;
 }> {}
+
+export class NotFoundError extends Data.TaggedError("NotFoundError")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}

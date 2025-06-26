@@ -1,7 +1,6 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { Data, Effect, pipe, Schema } from "effect";
-import { hasProjectPermission } from "@/lib/effect/permissions";
-import { ForbiddenError } from "@/lib/effect/errors";
+import { checkProjectPermission } from "@/lib/effect/permissions";
 import { PaywallLocationRepository } from "../paywall-location-repository";
 
 export class PaywallLocationNotFound extends Data.TaggedError(
@@ -41,16 +40,12 @@ export const deletePaywallLocation = (
 				);
 			}
 
-			if (!hasProjectPermission(paywallLocation.projectId, "project:all")) {
-				yield* Effect.logWarning(
-					`User ${session?.user?.id} is not authorized to delete paywall location ${input.paywallLocationId}`
-				);
-				return yield* Effect.fail(
-					new ForbiddenError({
-						message: "You are not authorized to delete this paywall location",
-					})
-				);
-			}
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				paywallLocation.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to delete paywall location ${input.paywallLocationId}`
+			);
 
 			yield* paywallLocationRepository.deletePaywallLocation(
 				input.paywallLocationId

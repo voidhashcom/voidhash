@@ -1,7 +1,6 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
-import { ForbiddenError } from "@/lib/effect/errors";
-import { hasProjectPermission } from "@/lib/effect/permissions";
+import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Data, Effect, pipe, Schema } from "effect";
 import { PerkRepository } from "../perk-repository";
 import { generateId } from "@/lib/id/generate";
@@ -31,21 +30,16 @@ export const createPerk = (inputUnsafe: CreatePerkInput) =>
 			const session = yield* AuthSession;
 			const environment = yield* Environment;
 			const perkRepository = yield* PerkRepository;
-
 			const input = Schema.decodeUnknownSync(createPerkInputSchema)(
 				inputUnsafe
 			);
 
-			if (!hasProjectPermission(input.projectId, "project:all")) {
-				yield* Effect.logWarning(
-					`User ${session?.user?.id} is not authorized to create perks for project ${input.projectId}`
-				);
-				return yield* Effect.fail(
-					new ForbiddenError({
-						message: "You are not authorized to create perks",
-					})
-				);
-			}
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				input.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to create perks for project ${input.projectId}`
+			);
 
 			const perk = yield* perkRepository.getPerkBySlug({
 				slug: input.slug,
