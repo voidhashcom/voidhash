@@ -32,8 +32,8 @@ import { InfoTooltip } from "@voidhash/ui";
 // Extract the relevant parts from createCustomerInputSchema for the form
 const createCustomerFormSchema = z.object({
 	appUserId: z.string().min(1),
-	name: z.string().optional(),
-	email: z.string().optional(),
+	name: z.string(),
+	email: z.string(),
 });
 
 type CreateCustomerForm = z.infer<typeof createCustomerFormSchema>;

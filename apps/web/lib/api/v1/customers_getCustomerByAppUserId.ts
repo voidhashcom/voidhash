@@ -4,9 +4,12 @@ import { openApiErrorResponses } from "../errors/openapi_responses";
 import { customerResponseSchema } from "./schema";
 import { App } from "../hono/app";
 import { authenticateContext } from "@/lib/service-function";
-import { getCustomerByAppUserId } from "@/lib/services/customers/queries";
 import { z } from "zod";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
+import { tryCatch } from "@/lib/try-catch";
+import { CustomerService } from "@/lib/services/customers/customer-service";
+import { Effect, pipe } from "effect";
 
 const route = describeRoute({
 	description: "Get a customer by app user ID",
@@ -39,20 +42,27 @@ export const registerCustomersGetCustomerByAppUserId = (app: App) =>
 		}
 		const appUserId = c.req.param("appUserId");
 
-		const customer = await getCustomerByAppUserId({
-			ctx: authenticatedContext.value,
-			input: { appUserId },
-		});
+		const runtime = createHonoRuntime(c);
+		const customer = await tryCatch(
+			runtime.runPromise(
+				pipe(
+					CustomerService,
+					Effect.flatMap((customerService) =>
+						customerService.getCustomerByAppUserId(appUserId)
+					)
+				)
+			)
+		);
 
-		if (customer.isErr()) {
+		if (customer.error) {
 			throw toVoidhashHTTPError(customer.error);
 		}
 
 		return c.json<z.infer<typeof customerResponseSchema>>({
-			customerId: customer.value.id,
-			name: customer.value.name ?? null,
-			email: customer.value.email,
-			appUserId: customer.value.appUserId ?? null,
+			customerId: customer.data.id,
+			name: customer.data.name ?? null,
+			email: customer.data.email,
+			appUserId: customer.data.appUserId ?? null,
 			// origin: customer.value.origin,
 		});
 	});

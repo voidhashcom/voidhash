@@ -4,9 +4,12 @@ import { openApiErrorResponses } from "../errors/openapi_responses";
 import { customerResponseSchema } from "./schema";
 import { App } from "../hono/app";
 import { authenticateContext } from "@/lib/service-function";
-import { getCustomers } from "@/lib/services/customers/queries";
 import { z } from "zod";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
+import { tryCatch } from "@/lib/try-catch";
+import { CustomerService } from "@/lib/services/customers/customer-service";
+import { Effect, pipe } from "effect";
 
 const route = describeRoute({
 	description: "List customers",
@@ -45,19 +48,28 @@ export const registerCustomersListCustomers = (app: App) =>
 			return c.json({ error: "Project not found" }, 404);
 		}
 
-		const customers = await getCustomers({
-			ctx: authenticatedContext.value,
-			input: {
-				projectId,
-			},
-		});
+		const runtime = createHonoRuntime(c);
 
-		if (customers.isErr()) {
+		const customers = await tryCatch(
+			runtime.runPromise(
+				pipe(
+					CustomerService,
+					Effect.flatMap((customerService) =>
+						customerService.getCustomers({
+							projectId,
+							type: "identified",
+						})
+					)
+				)
+			)
+		);
+
+		if (customers.error) {
 			throw toVoidhashHTTPError(customers.error);
 		}
 
 		return c.json<z.infer<typeof customerResponseSchema>[]>(
-			customers.value.map((customer) => ({
+			customers.data.map((customer) => ({
 				customerId: customer.id,
 				name: customer.name ?? null,
 				email: customer.email,

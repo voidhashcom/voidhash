@@ -14,6 +14,8 @@ import { PaywallLocationRepository } from "@/lib/services/paywall-locations/payw
 import { PaywallRepository } from "@/lib/services/paywalls/paywall-repository";
 import { ApiKeyRepository } from "@/lib/services/api-keys/api-key-repository";
 import { ApiKeyService } from "@/lib/services/api-keys/api-key-service";
+import { CustomerRepository } from "@/lib/services/customers/customer-repository";
+import { CustomerService } from "@/lib/services/customers/customer-service";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -60,6 +62,8 @@ const RuntimeLayer = pipe(
 	Layer.provideMerge(ApiKeyRepository.Default),
 	Layer.provideMerge(ApiKeyService.Default),
 	Layer.provideMerge(PaywallRepository.Default),
+	Layer.provideMerge(CustomerRepository.Default),
+	Layer.provideMerge(CustomerService.Default),
 	Layer.provideMerge(Auth.Default),
 	Layer.provideMerge(BetterAuth.Default),
 	Layer.provideMerge(DbLive),

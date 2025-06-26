@@ -5,12 +5,15 @@ import { createCustomerBodySchema, customerResponseSchema } from "./schema";
 import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
 import { authenticateContext } from "@/lib/service-function";
-import { createCustomer } from "@/lib/services/customers/actions/create-customer";
 import { z } from "zod";
 import {
 	toVoidhashHTTPError,
 	VoidhashHTTPError,
 } from "@voidhash/lib/constants";
+import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
+import { tryCatch } from "@/lib/try-catch";
+import { CustomerService } from "@/lib/services/customers/customer-service";
+import { pipe, Effect } from "effect";
 
 const route = describeRoute({
 	description: "Create a new customer",
@@ -54,26 +57,34 @@ export const registerCustomersCreateCustomer = (app: App) =>
 				});
 			}
 
-			const createdCustomer = await createCustomer.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					email: c.req.valid("json").email,
-					name: c.req.valid("json").name,
-					appUserId: c.req.valid("json").appUserId,
-					origin: "api",
-					projectId,
-				},
-			});
-			if (createdCustomer.isErr()) {
-				throw toVoidhashHTTPError(createdCustomer.error);
+			const runtime = createHonoRuntime(c);
+			const createdCusomer = await tryCatch(
+				runtime.runPromise(
+					pipe(
+						CustomerService,
+						Effect.flatMap((customerService) =>
+							customerService.createCustomer({
+								email: c.req.valid("json").email,
+								name: c.req.valid("json").name,
+								appUserId: c.req.valid("json").appUserId,
+								origin: "api",
+								projectId,
+							})
+						)
+					)
+				)
+			);
+
+			if (createdCusomer.error) {
+				throw toVoidhashHTTPError(createdCusomer.error);
 			}
 
 			return c.json<z.infer<typeof customerResponseSchema>>({
-				customerId: createdCustomer.value.id,
-				name: createdCustomer.value.name ?? null,
-				email: createdCustomer.value.email ?? null,
-				appUserId: createdCustomer.value.appUserId ?? null,
-				// origin: createdCustomer.value.origin,
+				customerId: createdCusomer.data.id,
+				name: createdCusomer.data.name ?? null,
+				email: createdCusomer.data.email ?? null,
+				appUserId: createdCusomer.data.appUserId ?? null,
+				// origin: createdCusomer.data.origin,
 			});
 		}
 	);

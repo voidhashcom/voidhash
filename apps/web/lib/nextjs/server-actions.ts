@@ -25,15 +25,9 @@ import {
 	updateProject,
 	updateProjectInputSchema,
 } from "@/lib/services/projects/actions/update-project";
-import {
-	rotateSecretKeyInputSchema,
-} from "@/lib/services/api-keys/actions/rotate-secret-key";
-import {
-	createSecretKeyInputSchema,
-} from "@/lib/services/api-keys/actions/create-secret-key";
-import {
-	deleteSecretKeyInputSchema,
-} from "@/lib/services/api-keys/actions/delete-secret-key";
+import { rotateSecretKeyInputSchema } from "@/lib/services/api-keys/actions/rotate-secret-key";
+import { createSecretKeyInputSchema } from "@/lib/services/api-keys/actions/create-secret-key";
+import { deleteSecretKeyInputSchema } from "@/lib/services/api-keys/actions/delete-secret-key";
 import {
 	switchEnvironment,
 	switchEnvironmentInputSchema,
@@ -68,10 +62,7 @@ import {
 	deleteProductInputSchema,
 	deleteProduct,
 } from "../services/products/actions/delete-product";
-import {
-	createCustomer,
-	createCustomerInputSchema,
-} from "../services/customers/actions/create-customer";
+import { createCustomerInputSchema } from "../services/customers/actions/create-customer";
 import {
 	setActivePaymentProviderProductInputSchema,
 	setActivePaymentProviderProduct,
@@ -118,6 +109,7 @@ import { Effect, pipe, Schema } from "effect";
 import { PerkService } from "../services/perks/perk-service";
 import { PaywallLocationService } from "../services/paywall-locations/paywall-location-service";
 import { ApiKeyService } from "../services/api-keys/api-key-service";
+import { CustomerService } from "../services/customers/customer-service";
 
 // Api keys
 export const createSecretKeyAction = actionClient
@@ -126,7 +118,9 @@ export const createSecretKeyAction = actionClient
 		const res = await NextjsRuntime.runPromise(
 			pipe(
 				ApiKeyService,
-				Effect.flatMap((apiKeyService) => apiKeyService.createSecretKey(parsedInput)),
+				Effect.flatMap((apiKeyService) =>
+					apiKeyService.createSecretKey(parsedInput)
+				),
 				toNeverthrow
 			)
 		);
@@ -144,7 +138,9 @@ export const rotateSecretKeyAction = actionClient
 		const res = await NextjsRuntime.runPromise(
 			pipe(
 				ApiKeyService,
-				Effect.flatMap((apiKeyService) => apiKeyService.rotateSecretKey(parsedInput)),
+				Effect.flatMap((apiKeyService) =>
+					apiKeyService.rotateSecretKey(parsedInput)
+				),
 				toNeverthrow
 			)
 		);
@@ -162,7 +158,9 @@ export const deleteSecretKeyAction = actionClient
 		const res = await NextjsRuntime.runPromise(
 			pipe(
 				ApiKeyService,
-				Effect.flatMap((apiKeyService) => apiKeyService.deleteSecretKey(parsedInput)),
+				Effect.flatMap((apiKeyService) =>
+					apiKeyService.deleteSecretKey(parsedInput)
+				),
 				toNeverthrow
 			)
 		);
@@ -468,15 +466,22 @@ export const deletePaymentProviderProductAction = actionClient
 
 // Customers
 export const createCustomerAction = actionClient
-	.inputSchema(createCustomerInputSchema.omit({ origin: true }))
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createCustomer.invoke({
-			ctx: ctx.serviceContext,
-			input: {
-				...parsedInput,
-				origin: "dashboard",
-			},
-		});
+	.inputSchema(
+		Schema.standardSchemaV1(createCustomerInputSchema.omit("origin"))
+	)
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				CustomerService,
+				Effect.flatMap((customerService) =>
+					customerService.createCustomer({
+						...parsedInput,
+						origin: "dashboard",
+					})
+				),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);

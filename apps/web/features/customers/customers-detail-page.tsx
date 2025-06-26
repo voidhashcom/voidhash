@@ -1,15 +1,15 @@
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { Page } from "../shell";
-import {
-	getCustomerById,
-	getCustomersUnlockedPerks,
-} from "@/lib/services/customers/queries";
 import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { getPurchases } from "@/lib/services/purchases/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@voidhash/ui";
 import { format } from "date-fns";
 import { Clock4Icon } from "lucide-react";
 import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
+import { tryCatch } from "@/lib/try-catch";
+import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
+import { CustomerService } from "@/lib/services/customers/customer-service";
+import { Effect, pipe } from "effect";
 
 export async function CustomerDetailPage({
 	customerId,
@@ -31,20 +31,32 @@ export async function CustomerDetailPage({
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const customerPromise = getCustomerById({
-		ctx: serviceContext,
-		input: { id: customerId },
-	});
+	const customerPromise = tryCatch(
+		NextjsRuntime.runPromise(
+			pipe(
+				CustomerService,
+				Effect.flatMap((customerService) =>
+					customerService.getCustomerById(customerId)
+				)
+			)
+		)
+	);
 
 	const customerPurchasesPromise = getPurchases({
 		ctx: serviceContext,
 		input: { projectId: project.value.id, customerId },
 	});
 
-	const customerUnlockedPerksPromise = getCustomersUnlockedPerks({
-		ctx: serviceContext,
-		input: { customerId },
-	});
+	const customerUnlockedPerksPromise = tryCatch(
+		NextjsRuntime.runPromise(
+			pipe(
+				CustomerService,
+				Effect.flatMap((customerService) =>
+					customerService.getCustomersUnlockedPerks(customerId)
+				)
+			)
+		)
+	);
 
 	const [customerResult, customerPurchasesResult, customerUnlockedPerksResult] =
 		await Promise.all([
@@ -53,9 +65,8 @@ export async function CustomerDetailPage({
 			customerUnlockedPerksPromise,
 		]);
 
-	if (customerResult.isErr()) {
-		const error = customerResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
+	if (customerResult.error) {
+		return <VoidhashErrorCard error={customerResult.error} />;
 	}
 
 	if (customerPurchasesResult.isErr()) {
@@ -63,14 +74,13 @@ export async function CustomerDetailPage({
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	if (customerUnlockedPerksResult.isErr()) {
-		const error = customerUnlockedPerksResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
+	if (customerUnlockedPerksResult.error) {
+		return <VoidhashErrorCard error={customerUnlockedPerksResult.error} />;
 	}
 
-	const customer = customerResult.value;
+	const customer = customerResult.data;
 	const customerPurchases = customerPurchasesResult.value;
-	const customerUnlockedPerks = customerUnlockedPerksResult.value;
+	const customerUnlockedPerks = customerUnlockedPerksResult.data;
 
 	const title =
 		customer.name ?? customer.email ?? customer.appUserId ?? customer.id;
