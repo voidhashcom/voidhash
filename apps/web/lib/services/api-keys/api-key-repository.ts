@@ -32,7 +32,7 @@ export class ApiKeyRepository extends Effect.Service<ApiKeyRepository>()(
 				),
 
 				updateApiKey: dbService.makeQuery((execute, apiKey: Omit<Partial<ApiKey>, "id"> & {id: string}) =>
-					execute(async (db) => await db.update(apiKeys).set(apiKey))
+					execute(async (db) => await db.update(apiKeys).set(apiKey).where(eq(apiKeys.id, apiKey.id)))
 				),
 
 				deleteApiKey: dbService.makeQuery((execute, id: string) =>
