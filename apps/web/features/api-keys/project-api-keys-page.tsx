@@ -4,8 +4,11 @@ import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/que
 import { getEnvironment } from "@/lib/services/environments/utils";
 import { CreateSecretKeyModalButton } from "./create-secret-key-modal-button";
 import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { getApiKeys } from "@/lib/services/api-keys/queries";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { tryCatch } from "@/lib/try-catch";
+import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
+import { ApiKeyService } from "@/lib/services/api-keys/api-key-service";
+import { Effect, pipe } from "effect";
 
 export async function ProjectApiKeysPage({
 	organizationSlug,
@@ -38,22 +41,20 @@ export async function ProjectApiKeysPage({
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const environment = environmentResult.value;
-
-	const apiKeysResult = await getApiKeys({
-		ctx: serviceContext,
-		input: {
-			projectId: project.id,
-			environment,
-		},
-	});
-
-	if (apiKeysResult.isErr()) {
-		const error = apiKeysResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
+	const apiKeysResult = await tryCatch(
+		NextjsRuntime.runPromise(
+			pipe(
+				ApiKeyService,
+				Effect.flatMap((apiKeyService) => apiKeyService.getApiKeys(project.id))
+			)
+		)
+	);
+	
+	if (apiKeysResult.error) {
+		return <VoidhashErrorCard error={apiKeysResult.error} />;
 	}
 
-	const apiKeys = apiKeysResult.value;
+	const apiKeys = apiKeysResult.data;
 
 	return (
 		<div>

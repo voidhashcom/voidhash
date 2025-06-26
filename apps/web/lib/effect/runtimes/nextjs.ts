@@ -12,6 +12,8 @@ import { PerkRepository } from "@/lib/services/perks/perk-repository";
 import { PaywallLocationService } from "@/lib/services/paywall-locations/paywall-location-service";
 import { PaywallLocationRepository } from "@/lib/services/paywall-locations/paywall-location-repository";
 import { PaywallRepository } from "@/lib/services/paywalls/paywall-repository";
+import { ApiKeyRepository } from "@/lib/services/api-keys/api-key-repository";
+import { ApiKeyService } from "@/lib/services/api-keys/api-key-service";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -55,6 +57,8 @@ const RuntimeLayer = pipe(
 	Layer.provideMerge(PerkRepository.Default),
 	Layer.provideMerge(PaywallLocationRepository.Default),
 	Layer.provideMerge(PaywallLocationService.Default),
+	Layer.provideMerge(ApiKeyRepository.Default),
+	Layer.provideMerge(ApiKeyService.Default),
 	Layer.provideMerge(PaywallRepository.Default),
 	Layer.provideMerge(Auth.Default),
 	Layer.provideMerge(BetterAuth.Default),

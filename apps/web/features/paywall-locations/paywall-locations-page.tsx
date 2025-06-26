@@ -36,7 +36,7 @@ export async function PaywallLocationsPage({
 		input: { projectId: project.id },
 	});
 
-	const paywallLocationsPromise = await tryCatch(
+	const paywallLocationsPromise = tryCatch(
 		NextjsRuntime.runPromise(
 			PaywallLocationService.pipe(
 				Effect.flatMap((paywallLocationService) =>

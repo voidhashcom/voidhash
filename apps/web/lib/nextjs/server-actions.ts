@@ -26,17 +26,14 @@ import {
 	updateProjectInputSchema,
 } from "@/lib/services/projects/actions/update-project";
 import {
-	rotateSecretKey,
 	rotateSecretKeyInputSchema,
-} from "@/lib/services/api-keys/rotate-secret-key";
+} from "@/lib/services/api-keys/actions/rotate-secret-key";
 import {
-	createSecretKey,
 	createSecretKeyInputSchema,
-} from "../services/api-keys/create-secret-key";
+} from "@/lib/services/api-keys/actions/create-secret-key";
 import {
-	deleteSecretKey,
 	deleteSecretKeyInputSchema,
-} from "../services/api-keys/delete-secret-key";
+} from "@/lib/services/api-keys/actions/delete-secret-key";
 import {
 	switchEnvironment,
 	switchEnvironmentInputSchema,
@@ -120,15 +117,19 @@ import { NextjsRuntime, toNeverthrow } from "../effect/runtimes/nextjs";
 import { Effect, pipe, Schema } from "effect";
 import { PerkService } from "../services/perks/perk-service";
 import { PaywallLocationService } from "../services/paywall-locations/paywall-location-service";
+import { ApiKeyService } from "../services/api-keys/api-key-service";
 
 // Api keys
 export const createSecretKeyAction = actionClient
-	.inputSchema(createSecretKeyInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createSecretKey.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createSecretKeyInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				ApiKeyService,
+				Effect.flatMap((apiKeyService) => apiKeyService.createSecretKey(parsedInput)),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -138,12 +139,15 @@ export const createSecretKeyAction = actionClient
 	});
 
 export const rotateSecretKeyAction = actionClient
-	.inputSchema(rotateSecretKeyInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await rotateSecretKey.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(rotateSecretKeyInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				ApiKeyService,
+				Effect.flatMap((apiKeyService) => apiKeyService.rotateSecretKey(parsedInput)),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -153,12 +157,15 @@ export const rotateSecretKeyAction = actionClient
 	});
 
 export const deleteSecretKeyAction = actionClient
-	.inputSchema(deleteSecretKeyInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deleteSecretKey.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deleteSecretKeyInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				ApiKeyService,
+				Effect.flatMap((apiKeyService) => apiKeyService.deleteSecretKey(parsedInput)),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
