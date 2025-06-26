@@ -4,8 +4,11 @@ import { Card } from "@voidhash/ui";
 import { PerkRecord } from "./perk-record";
 import { PerksPageEmptyState } from "./perks-page-empty-state";
 import { CreatePerkModalButton } from "./create-perk-modal-button";
-import { getPerks } from "@/lib/services/perks/queries";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
+import { Effect, pipe } from "effect";
+import { PerkService } from "@/lib/services/perks/perk-service";
+import { tryCatch } from "@/lib/try-catch";
 
 export async function PerksPage({
 	organizationSlug,
@@ -27,17 +30,19 @@ export async function PerksPage({
 
 	const project = projectResult.value;
 
-	const perksResult = await getPerks({
-		ctx: serviceContext,
-		input: { projectId: project.id },
-	});
+	const perksResult = await tryCatch(
+		NextjsRuntime.runPromise(
+			pipe(
+				PerkService,
+				Effect.flatMap((perkService) => perkService.getPerks(project.id))
+			)
+		)
+	);
 
-	if (perksResult.isErr()) {
-		const error = perksResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
+	if (perksResult.error) {
+		return <VoidhashErrorCard error={perksResult.error} />;
 	}
-
-	const perks = perksResult.value;
+	const perks = perksResult.data;
 
 	return (
 		<div>

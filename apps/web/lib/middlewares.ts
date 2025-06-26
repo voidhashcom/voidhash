@@ -127,23 +127,6 @@ export const hasEnvironment = createMiddleware(
 					}
 				}
 			}
-
-			if (projectId && organizationSlug) {
-				const project = ctx.session.projects.find((p) => p.id === projectId);
-				const organization = ctx.session.organizations.find(
-					(o) => o.slug === organizationSlug && project?.organizationId === o.id
-				);
-				if (project && organization) {
-					const environment = await getEnvironment(
-						ctx.cookies,
-						organization.slug,
-						project.slug
-					);
-					if (environment.isOk()) {
-						return ok(setSessionEnvironment(ctx, environment.value));
-					}
-				}
-			}
 		}
 
 		return err({

@@ -1,81 +1,64 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashConflictError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { and, eq, perks } from "@voidhash/db";
+import { AuthSession } from "@/lib/effect/auth";
+import { Environment } from "@/lib/effect/environment";
+import { ForbiddenError } from "@/lib/effect/errors";
+import { hasProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
+import { PerkRepository } from "../perk-repository";
 import { generateId } from "@/lib/id/generate";
-import { err, ok, Result, ResultAsync } from "neverthrow";
-import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
 
-export const createPerkInputSchema = z.object({
-	projectId: z.string(),
-	name: z
-		.string()
-		.min(3, "Name must be at least 3 characters long")
-		.max(32, "Name must be less than 32 characters"),
-	slug: z
-		.string()
-		.min(3, "Slug must be at least 3 characters long")
-		.max(32, "Slug must be less than 32 characters")
-		.regex(
-			/^[a-z0-9_-]+$/,
-			"Slug must contain only lowercase letters, numbers, underscores, and hyphens"
-		),
+export class SlugAlreadyExistsError extends Data.TaggedError(
+	"SlugAlreadyExistsError"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const createPerkInputSchema = Schema.Struct({
+	projectId: Schema.String,
+	name: Schema.String.pipe(Schema.minLength(3), Schema.maxLength(32)),
+	slug: Schema.String.pipe(
+		Schema.minLength(3),
+		Schema.maxLength(32),
+		Schema.pattern(/^[a-z0-9_-]+$/)
+	),
 });
 
-type CreatePerkError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashConflictError;
+type CreatePerkInput = Schema.Schema.Type<typeof createPerkInputSchema>;
 
-export const createPerk = createServiceFunction()
-	.input(createPerkInputSchema)
-	.use(isAuthenticated)
-	.use(hasEnvironment)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<{ id: string }, CreatePerkError>> => {
-			if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to create perks",
-				});
-			}
+export const createPerk = (inputUnsafe: CreatePerkInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const environment = yield* Environment;
+			const perkRepository = yield* PerkRepository;
 
-			const res = await ResultAsync.fromPromise(
-				ctx.db.query.perks.findFirst({
-					where: and(
-						eq(perks.slug, input.slug),
-						eq(perks.projectId, input.projectId),
-						eq(perks.environment, ctx.session.environment)
-					),
-				}),
-				(e) => fromUnknownThrow(e)
+			const input = Schema.decodeUnknownSync(createPerkInputSchema)(
+				inputUnsafe
 			);
 
-			if (res.isErr()) {
-				return err(res.error);
+			if (!hasProjectPermission(input.projectId, "project:all")) {
+				yield* Effect.logWarning(
+					`User ${session?.user?.id} is not authorized to create perks for project ${input.projectId}`
+				);
+				return yield* Effect.fail(
+					new ForbiddenError({
+						message: "You are not authorized to create perks",
+					})
+				);
 			}
 
-			if (res.value) {
-				return err({
-					code: "CONFLICT",
-					message:
-						"Perk with this slug already exists. Please choose a different slug.",
-					resource: "perk",
-					payload: { slug: input.slug },
-				});
+			const perk = yield* perkRepository.getPerkBySlug({
+				slug: input.slug,
+				projectId: input.projectId,
+				environment: environment,
+			});
+			if (perk) {
+				return yield* Effect.fail(
+					new SlugAlreadyExistsError({
+						message:
+							"Perk with this slug already exists. Please choose a different slug.",
+					})
+				);
 			}
 
 			const newPerk = {
@@ -83,19 +66,22 @@ export const createPerk = createServiceFunction()
 				slug: input.slug,
 				projectId: input.projectId,
 				name: input.name,
-				environment: ctx.session.environment,
+				environment: environment,
 			};
 
-			try {
-				await ctx.db.insert(perks).values(newPerk);
-			} catch (error) {
-				return err(fromUnknownThrow(error));
-			}
+			yield* perkRepository.createPerk(newPerk);
+			yield* Effect.log(
+				`Created perk ${newPerk.id} for project ${input.projectId}`
+			);
 
 			// TODO: Adding a perk should unlock it for existing users?
 
-			return ok({
+			return yield* Effect.succeed({
 				id: newPerk.id,
 			});
-		}
+		}),
+		Environment.withEnvironment({
+			projectId: inputUnsafe.projectId,
+		}),
+		AuthSession.withAuthSession()
 	);

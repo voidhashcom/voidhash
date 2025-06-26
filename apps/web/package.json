@@ -50,7 +50,7 @@
     "lucide-react": "^0.483.0",
     "neverthrow": "^8.2.0",
     "next": "15.2.5",
-    "next-safe-action": "^7.10.5",
+    "next-safe-action": "^8.0.4",
     "next13-progressbar": "^1.2.2",
     "pino": "^9.7.0",
     "react": "^19.0.0",
@@ -68,6 +68,7 @@
     "zod-openapi": "^4.2.4"
   },
   "devDependencies": {
+    "@effect/language-service": "^0.21.8",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@trigger.dev/build": "^3.3.17",

@@ -2,12 +2,9 @@ import { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 import { Client } from "@planetscale/database";
 import { drizzle as drizzlePlanetscale } from "drizzle-orm/planetscale-serverless";
-import type { MySql2Database, MySql2Transaction } from "drizzle-orm/mysql2";
+import type { MySql2Transaction } from "drizzle-orm/mysql2";
 import * as schema from "./schema";
-import type {
-	PlanetScaleDatabase,
-	PlanetScaleTransaction,
-} from "drizzle-orm/planetscale-serverless";
+import type { PlanetScaleTransaction } from "drizzle-orm/planetscale-serverless";
 import { reset } from "drizzle-seed";
 import { ExtractTablesWithRelations } from "drizzle-orm";
 

@@ -19,11 +19,14 @@ import { PaymentProviderLogo } from "../projects/settings/payment-providers/paym
 import { ProductDetailAddProductButton } from "./product-detail-add-product-button";
 import { ProductDetailProviderProductRecord } from "./product-detail-provider-product-record";
 import { ProductDetailPerksEmptyState } from "./product-detail-perks-empty-state";
-import { getPerks } from "@/lib/services/perks/queries";
 import { ProductDetailPerkRecord } from "./product-detail-product-perk-record";
 import { ProductDetailAddPerkButton } from "./product-detail-add-perk-button";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { getEnvironment } from "@/lib/services/environments/utils";
+import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
+import { PerkService } from "@/lib/services/perks/perk-service";
+import { Effect, pipe } from "effect";
+import { tryCatch } from "@/lib/try-catch";
 
 export async function ProductDetailPage({
 	organizationSlug,
@@ -65,10 +68,14 @@ export async function ProductDetailPage({
 		}
 	);
 
-	const perksPromise = getPerks({
-		ctx: serviceContext,
-		input: { projectId: product.projectId },
-	});
+	const perksPromise = tryCatch(
+		NextjsRuntime.runPromise(
+			pipe(
+				PerkService,
+				Effect.flatMap((perkService) => perkService.getPerks(product.projectId))
+			)
+		)
+	);
 
 	const productPerksPromise = getProductPerksByProductId({
 		ctx: serviceContext,
@@ -104,12 +111,11 @@ export async function ProductDetailPage({
 	const paymentProviderConfigurations =
 		paymentProviderConfigurationsResult.value;
 
-	if (perksResult.isErr()) {
-		const error = perksResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
+	if (perksResult.error) {
+		return <VoidhashErrorCard error={perksResult.error} />;
 	}
 
-	const perks = perksResult.value;
+	const perks = perksResult.data;
 
 	if (productPerksResult.isErr()) {
 		const error = productPerksResult._unsafeUnwrapErr();

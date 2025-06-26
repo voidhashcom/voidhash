@@ -12,10 +12,12 @@ import {
 import { z } from "zod";
 import { productPerks } from "@voidhash/db";
 import { generateId } from "@/lib/id/generate";
-import { getPerkByIdQuery } from "../../perks/raw-queries";
 import { err, ok, Result } from "neverthrow";
 import { getProductByIdQuery } from "../raw-queries";
 import { isAuthenticated } from "@/lib/middlewares";
+import { NextjsRuntime, toNeverthrow } from "@/lib/effect/runtimes/nextjs";
+import { PerkService } from "../../perks/perk-service";
+import { Effect, pipe } from "effect";
 
 export const createProductPerkInputSchema = z.object({
 	productId: z.string(),
@@ -49,7 +51,15 @@ export const createProductPerk = createServiceFunction()
 				});
 			}
 
-			const perk = await getPerkByIdQuery(ctx, input.perkId);
+			const perk = await NextjsRuntime.runPromise(
+				pipe(
+					PerkService,
+					Effect.flatMap((perkService) =>
+						perkService.getPerkById(input.perkId)
+					),
+					toNeverthrow
+				)
+			);
 			if (perk.isErr()) {
 				return err(perk.error);
 			}
