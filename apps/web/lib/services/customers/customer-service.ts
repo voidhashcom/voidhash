@@ -18,7 +18,7 @@ export class CustomerService extends Effect.Service<CustomerService>()(
 					type,
 				}: {
 					projectId: string;
-					type: "identified" | "anonymous" | null;
+					type?: "identified" | "anonymous";
 				}) =>
 					pipe(
 						Effect.gen(function* () {
@@ -32,7 +32,7 @@ export class CustomerService extends Effect.Service<CustomerService>()(
 							return yield* customerRepository.getCustomers({
 								projectId,
 								environment,
-								type,
+								type: type ?? null,
 							});
 						}),
 						Environment.withEnvironment({

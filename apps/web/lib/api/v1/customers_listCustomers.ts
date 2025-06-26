@@ -57,7 +57,6 @@ export const registerCustomersListCustomers = (app: App) =>
 					Effect.flatMap((customerService) =>
 						customerService.getCustomers({
 							projectId,
-							type: "identified",
 						})
 					)
 				)

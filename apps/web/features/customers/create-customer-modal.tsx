@@ -32,8 +32,8 @@ import { InfoTooltip } from "@voidhash/ui";
 // Extract the relevant parts from createCustomerInputSchema for the form
 const createCustomerFormSchema = z.object({
 	appUserId: z.string().min(1),
-	name: z.string(),
-	email: z.string(),
+	name: z.string().optional(),
+	email: z.string().email().optional(),
 });
 
 type CreateCustomerForm = z.infer<typeof createCustomerFormSchema>;
@@ -88,6 +88,8 @@ export function CreateCustomerModal({
 	const onSubmit = (data: CreateCustomerForm) => {
 		execute({
 			...data,
+			name: data.name ?? null,
+			email: data.email ?? null,
 			projectId, // Add the projectId required by the action
 		});
 	};
