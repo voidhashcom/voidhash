@@ -17,6 +17,9 @@ import { CustomerRepository } from "@/lib/services/customers/customer-repository
 import { CustomerService } from "@/lib/services/customers/customer-service";
 import { Context as HonoContextType } from "../../api/hono/app";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { ProjectRepository } from "@/lib/services/projects/project-repository";
+import { OrganizationRepository } from "@/lib/services/organizations/organization-repository";
+import { EnvironmentService } from "@/lib/services/environments/environment-service";
 
 export class HonoContext extends Context.Tag("app/HonoContext")<
 	HonoContext,
@@ -70,16 +73,24 @@ const DbLive = Db.Default;
 const RuntimeLayer = (context: HonoContextType) =>
 	pipe(
 		PerkService.Default,
-		Layer.provideMerge(PerkRepository.Default),
-		Layer.provideMerge(PaywallLocationRepository.Default),
-		Layer.provideMerge(PaywallLocationService.Default),
-		Layer.provideMerge(ApiKeyRepository.Default),
-		Layer.provideMerge(ApiKeyService.Default),
-		Layer.provideMerge(PaywallRepository.Default),
-		Layer.provideMerge(CustomerRepository.Default),
-		Layer.provideMerge(CustomerService.Default),
 		Layer.provideMerge(Auth.Default),
 		Layer.provideMerge(BetterAuth.Default),
+
+		// Services
+		Layer.provideMerge(ApiKeyService.Default),
+		Layer.provideMerge(CustomerService.Default),
+		Layer.provideMerge(EnvironmentService.Default),
+		Layer.provideMerge(PaywallLocationService.Default),
+		
+		// Repositories
+		Layer.provideMerge(ApiKeyRepository.Default),
+		Layer.provideMerge(CustomerRepository.Default),
+		Layer.provideMerge(OrganizationRepository.Default),
+		Layer.provideMerge(PaywallLocationRepository.Default),
+		Layer.provideMerge(PaywallRepository.Default),
+		Layer.provideMerge(PerkRepository.Default),
+		Layer.provideMerge(ProjectRepository.Default),
+	
 		Layer.provideMerge(DbLive),
 		Layer.provideMerge(CookiesLive),
 		Layer.provideMerge(RequestLive),

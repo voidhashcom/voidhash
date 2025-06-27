@@ -28,10 +28,7 @@ import {
 import { rotateSecretKeyInputSchema } from "@/lib/services/api-keys/actions/rotate-secret-key";
 import { createSecretKeyInputSchema } from "@/lib/services/api-keys/actions/create-secret-key";
 import { deleteSecretKeyInputSchema } from "@/lib/services/api-keys/actions/delete-secret-key";
-import {
-	switchEnvironment,
-	switchEnvironmentInputSchema,
-} from "@/lib/services/environments/actions/switch-environment";
+import { EnvironmentService, switchEnvironmentInputSchema } from "@/lib/services/environments/environment-service";
 import {
 	createProduct,
 	createProductInputSchema,
@@ -266,12 +263,17 @@ export const deleteProjectAction = actionClient
 
 // Environment
 export const switchEnvironmentAction = actionClient
-	.inputSchema(switchEnvironmentInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await switchEnvironment.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(switchEnvironmentInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				EnvironmentService,
+				Effect.flatMap((environmentService) =>
+					environmentService.switchEnvironment(parsedInput)
+				),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);

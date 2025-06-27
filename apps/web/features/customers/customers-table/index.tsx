@@ -24,7 +24,7 @@ export async function CustomersTable({
 				Effect.flatMap((customerService) =>
 					customerService.getCustomers({
 						projectId,
-						type: type ?? null,
+						type: type,
 					})
 				)
 			)

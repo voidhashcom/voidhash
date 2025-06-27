@@ -226,6 +226,19 @@ export const getEnvironmentFromCookie = (
 		return yield* validateEnvironment(projectEnvironmentCookie);
 	});
 
+export const setEnvironmentCookie = (
+	organizationSlug: string,
+	projectSlug: string,
+	environment: EnvironmentType
+) =>
+	Effect.gen(function* () {
+		const cookies = yield* Cookies;
+		yield* cookies.setCookie(
+			`project_environment_${organizationSlug}:${projectSlug}`,
+			environment
+		);
+	});
+
 const validateEnvironment = (environment: string) =>
 	Effect.gen(function* () {
 		if (environment !== "production" && environment !== "testing") {

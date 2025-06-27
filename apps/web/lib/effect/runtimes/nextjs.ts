@@ -16,6 +16,9 @@ import { ApiKeyRepository } from "@/lib/services/api-keys/api-key-repository";
 import { ApiKeyService } from "@/lib/services/api-keys/api-key-service";
 import { CustomerRepository } from "@/lib/services/customers/customer-repository";
 import { CustomerService } from "@/lib/services/customers/customer-service";
+import { EnvironmentService } from "@/lib/services/environments/environment-service";
+import { OrganizationRepository } from "@/lib/services/organizations/organization-repository";
+import { ProjectRepository } from "@/lib/services/projects/project-repository";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -56,16 +59,25 @@ const DbLive = Db.Default;
 
 const RuntimeLayer = pipe(
 	PerkService.Default,
-	Layer.provideMerge(PerkRepository.Default),
-	Layer.provideMerge(PaywallLocationRepository.Default),
-	Layer.provideMerge(PaywallLocationService.Default),
-	Layer.provideMerge(ApiKeyRepository.Default),
-	Layer.provideMerge(ApiKeyService.Default),
-	Layer.provideMerge(PaywallRepository.Default),
-	Layer.provideMerge(CustomerRepository.Default),
-	Layer.provideMerge(CustomerService.Default),
+
 	Layer.provideMerge(Auth.Default),
 	Layer.provideMerge(BetterAuth.Default),
+
+	// Services
+	Layer.provideMerge(ApiKeyService.Default),
+	Layer.provideMerge(CustomerService.Default),
+	Layer.provideMerge(EnvironmentService.Default),
+	Layer.provideMerge(PaywallLocationService.Default),
+	
+	// Repositories
+	Layer.provideMerge(ApiKeyRepository.Default),
+	Layer.provideMerge(CustomerRepository.Default),
+	Layer.provideMerge(OrganizationRepository.Default),
+	Layer.provideMerge(PaywallLocationRepository.Default),
+	Layer.provideMerge(PaywallRepository.Default),
+	Layer.provideMerge(PerkRepository.Default),
+	Layer.provideMerge(ProjectRepository.Default),
+	
 	Layer.provideMerge(DbLive),
 	Layer.provideMerge(CookiesLive),
 	Layer.provideMerge(RequestLive)
