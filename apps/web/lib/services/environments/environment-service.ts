@@ -54,7 +54,7 @@ export class EnvironmentService extends Effect.Service<EnvironmentService>()(
 							const project =
 								yield* projectRepository.getProjectById(input.projectId);
 							if (!project) {
-								return Effect.fail(
+								return yield* Effect.fail(
 									new ProjectNotFoundError({
 										message: `Project ${input.projectId} not found`,
 									})
@@ -65,14 +65,14 @@ export class EnvironmentService extends Effect.Service<EnvironmentService>()(
 									id: project.organizationId,
 								});
 							if (!organization) {
-								return Effect.fail(
+								return yield* Effect.fail(
 									new OrganizationNotFoundError({
 										message: `Organization ${project.organizationId} not found`,
 									})
 								);
 							}
 							if (!organization.slug) {
-								return Effect.fail(
+								return yield* Effect.fail(
 									new OrganizationWithoutSlugError({
 										message: `Organization ${project.organizationId} has no slug`,
 									})
