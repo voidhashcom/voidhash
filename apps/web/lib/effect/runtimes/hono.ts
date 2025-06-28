@@ -20,6 +20,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { ProjectRepository } from "@/lib/services/projects/project-repository";
 import { OrganizationRepository } from "@/lib/services/organizations/organization-repository";
 import { EnvironmentService } from "@/lib/services/environments/environment-service";
+import { ProjectService } from "@/lib/services/projects/project-service";
 
 export class HonoContext extends Context.Tag("app/HonoContext")<
 	HonoContext,
@@ -81,7 +82,8 @@ const RuntimeLayer = (context: HonoContextType) =>
 		Layer.provideMerge(CustomerService.Default),
 		Layer.provideMerge(EnvironmentService.Default),
 		Layer.provideMerge(PaywallLocationService.Default),
-		
+		Layer.provideMerge(ProjectService.Default),
+
 		// Repositories
 		Layer.provideMerge(ApiKeyRepository.Default),
 		Layer.provideMerge(CustomerRepository.Default),
@@ -90,7 +92,7 @@ const RuntimeLayer = (context: HonoContextType) =>
 		Layer.provideMerge(PaywallRepository.Default),
 		Layer.provideMerge(PerkRepository.Default),
 		Layer.provideMerge(ProjectRepository.Default),
-	
+
 		Layer.provideMerge(DbLive),
 		Layer.provideMerge(CookiesLive),
 		Layer.provideMerge(RequestLive),

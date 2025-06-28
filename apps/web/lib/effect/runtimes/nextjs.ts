@@ -19,6 +19,7 @@ import { CustomerService } from "@/lib/services/customers/customer-service";
 import { EnvironmentService } from "@/lib/services/environments/environment-service";
 import { OrganizationRepository } from "@/lib/services/organizations/organization-repository";
 import { ProjectRepository } from "@/lib/services/projects/project-repository";
+import { ProjectService } from "@/lib/services/projects/project-service";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -68,7 +69,8 @@ const RuntimeLayer = pipe(
 	Layer.provideMerge(CustomerService.Default),
 	Layer.provideMerge(EnvironmentService.Default),
 	Layer.provideMerge(PaywallLocationService.Default),
-	
+	Layer.provideMerge(ProjectService.Default),
+
 	// Repositories
 	Layer.provideMerge(ApiKeyRepository.Default),
 	Layer.provideMerge(CustomerRepository.Default),
@@ -77,7 +79,7 @@ const RuntimeLayer = pipe(
 	Layer.provideMerge(PaywallRepository.Default),
 	Layer.provideMerge(PerkRepository.Default),
 	Layer.provideMerge(ProjectRepository.Default),
-	
+
 	Layer.provideMerge(DbLive),
 	Layer.provideMerge(CookiesLive),
 	Layer.provideMerge(RequestLive)

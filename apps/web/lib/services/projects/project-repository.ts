@@ -1,5 +1,5 @@
 import { Db } from "@/lib/effect/db";
-import { and, eq, projects } from "@voidhash/db";
+import { and, eq, projects, InsertProject } from "@voidhash/db";
 import { Effect } from "effect";
 
 export class ProjectRepository extends Effect.Service<ProjectRepository>()(
@@ -8,6 +8,10 @@ export class ProjectRepository extends Effect.Service<ProjectRepository>()(
 		effect: Effect.gen(function* () {
 			const dbService = yield* Db;
 			return {
+				createProject: dbService.makeQuery((execute, project: InsertProject) =>
+					execute(async (db) => await db.insert(projects).values(project))
+				),
+
 				getProjectBySlug: dbService.makeQuery(
 					(
 						execute,
@@ -42,6 +46,23 @@ export class ProjectRepository extends Effect.Service<ProjectRepository>()(
 							await db.query.projects.findMany({
 								where: eq(projects.organizationId, organizationId),
 							})
+					)
+				),
+
+				updateProject: dbService.makeQuery(
+					(execute, { id, name }: { id: string; name: string }) =>
+						execute(
+							async (db) =>
+								await db
+									.update(projects)
+									.set({ name })
+									.where(eq(projects.id, id))
+						)
+				),
+
+				deleteProject: dbService.makeQuery((execute, id: string) =>
+					execute(
+						async (db) => await db.delete(projects).where(eq(projects.id, id))
 					)
 				),
 			};

@@ -1,76 +1,61 @@
+import { AuthSession } from "@/lib/effect/auth";
+import { checkOrganizationPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import {
-	createServiceFunction,
-	hasOrganizationPermission,
-} from "@/lib/service-function";
-import { createPublishableKey } from "@/lib/services/api-keys/utils";
-import { Environments } from "@/lib/services/environments/types";
-import {
-	projects,
-	apiKeys,
-	paymentProviderConfigurations,
-	InsertPaymentProviderConfiguration,
-	Transaction,
-} from "@voidhash/db";
-import {
-	fromUnknownThrow,
-	SLUG_BLACKLIST,
-	VoidhashBadRequestError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib/constants";
+import { ProjectRepository } from "../project-repository";
 import { createSlug, createShortId } from "@voidhash/lib/functions";
+import { SLUG_BLACKLIST } from "@voidhash/lib/constants";
 import { randomUUID } from "crypto";
-import { err, ok, Result } from "neverthrow";
-import { z } from "zod";
-import { getProjectBySlugQuery } from "../raw-queries";
-import { isAuthenticated } from "@/lib/middlewares";
+import { Environments } from "@/lib/services/environments/types";
+import { ApiKeyRepository } from "@/lib/services/api-keys/api-key-repository";
 import {
 	devCheckout,
 	devCheckoutPaymentProviderId,
 } from "@/lib/payment-providers/dev-checkout/dev-checkout";
+import { Db, TransactionContext } from "@/lib/effect/db";
+import { UnauthenticatedError } from "@/lib/effect/errors";
+import { paymentProviderConfigurations } from "@voidhash/db";
+import { createPublishableKey } from "../../api-keys/effect/utils";
 
-export const createProjectInputSchema = z.object({
-	name: z.string().min(1).max(32),
-	organizationId: z.string(),
+export class SlugAlreadyExistsError extends Data.TaggedError(
+	"SlugAlreadyExistsError"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const createProjectInputSchema = Schema.Struct({
+	name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(32)),
+	organizationId: Schema.String,
 });
 
-type CreateProjectError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashBadRequestError;
+type CreateProjectInput = Schema.Schema.Type<typeof createProjectInputSchema>;
 
-export const createProject = createServiceFunction()
-	.input(createProjectInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<{ id: string; slug: string }, CreateProjectError>> => {
-			if (
-				!hasOrganizationPermission(
-					ctx,
-					input.organizationId,
-					"organization:all"
-				)
-			) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to create a projects",
-				});
-			}
+export const createProject = (inputUnsafe: CreateProjectInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const projectRepository = yield* ProjectRepository;
+			const apiKeyRepository = yield* ApiKeyRepository;
+			const db = yield* Db;
+			const input = Schema.decodeUnknownSync(createProjectInputSchema)(
+				inputUnsafe
+			);
 
-			const userId = ctx.session?.user?.id;
+			// SECURITY: Authorization check
+			yield* checkOrganizationPermission(
+				input.organizationId,
+				"organization:all",
+				`User ${session?.user?.id} is not authorized to create projects for organization ${input.organizationId}`
+			);
+
+			const userId = session?.user?.id;
 			if (!userId) {
-				return err({
-					code: "UNAUTHORIZED",
-					message: "You are not authorized to create a projects",
-				});
+				return yield* Effect.fail(
+					new UnauthenticatedError({
+						message: "You are not authorized to create projects",
+					})
+				);
 			}
 
 			const id = generateId("project");
@@ -80,26 +65,19 @@ export const createProject = createServiceFunction()
 				slug = slug + "-" + createShortId();
 			}
 
-			const existingProject = await getProjectBySlugQuery(
-				ctx,
-				input.organizationId,
-				slug
-			);
+			const existingProject = yield* projectRepository.getProjectBySlug({
+					projectSlug: slug,
+					organizationId: input.organizationId,
+				})
 
-			// Project exists
-			if (existingProject.isOk()) {
+			if (existingProject) {
 				slug = slug + "-" + randomUUID();
 			}
 
-			if (existingProject.isErr()) {
-				if (existingProject.error.code !== "NOT_FOUND") {
-					return err(existingProject.error);
-				}
-			}
-
-			try {
-				await ctx.db.transaction(async (tx: Transaction) => {
-					await tx.insert(projects).values({
+			yield* db.transaction((tx) =>
+				Effect.gen(function* () {
+					TransactionContext.provide(tx);
+					yield* projectRepository.createProject({
 						id,
 						name: input.name,
 						slug,
@@ -107,55 +85,56 @@ export const createProject = createServiceFunction()
 						createdByUserId: userId,
 					});
 
-					// Save production publishable key
-					const productionPublishableKey = await createPublishableKey(
+					// Create production publishable key
+					const productionPublishableKey = yield* createPublishableKey(
 						Environments.Production
 					);
-					await tx.insert(apiKeys).values({
+					yield* apiKeyRepository.createApiKey({
 						id: generateId("apiPublishableKey"),
 						projectId: id,
 						name: "Publishable key",
 						...productionPublishableKey,
 					});
 
-					// Save testing publishable key
-					const testingPublishableKey = await createPublishableKey(
+					// Create testing publishable key
+					const testingPublishableKey = yield* createPublishableKey(
 						Environments.Testing
 					);
-					await tx.insert(apiKeys).values({
+					yield* apiKeyRepository.createApiKey({
 						id: generateId("apiPublishableKeyTesting"),
 						projectId: id,
 						name: "Publishable key",
 						...testingPublishableKey,
 					});
 
-					// Create dev checkout payment provider configuration
+					// Create dev checkout payment provider configuration using db directly since no repository exists
 					const devCheckoutConfigurationId = generateId(
 						"paymentProviderConfiguration"
 					);
-					await tx.insert(paymentProviderConfigurations).values({
-						id: devCheckoutConfigurationId,
-						projectId: id,
-						name: "Dev Checkout",
-						providerId: devCheckoutPaymentProviderId,
-						paymentProviderKey: devCheckout.createGlobalKey({
-							paymentProviderConfigurationId: devCheckoutConfigurationId,
-						}),
-						enabled: true,
-						configuration: {},
-					} satisfies InsertPaymentProviderConfiguration);
-				});
+					yield* tx(async (dbTx) => {
+						await dbTx.insert(paymentProviderConfigurations).values({
+							id: devCheckoutConfigurationId,
+							projectId: id,
+							name: "Dev Checkout",
+							providerId: devCheckoutPaymentProviderId,
+							paymentProviderKey: devCheckout.createGlobalKey({
+								paymentProviderConfigurationId: devCheckoutConfigurationId,
+							}),
+							enabled: true,
+							configuration: {},
+						});
+					});
+				})
+			);
 
-				ctx.cache.invalidate(`project_${id}`);
-				ctx.cache.invalidate(`project_${input.organizationId}_slug:${slug}`);
-				ctx.cache.invalidate(`projects_${input.organizationId}`);
+			yield* Effect.log(
+				`Created project ${id} for organization ${input.organizationId}`
+			);
 
-				return ok({
-					id,
-					slug,
-				});
-			} catch (e) {
-				return err(fromUnknownThrow(e));
-			}
-		}
+			return yield* Effect.succeed({
+				id,
+				slug,
+			});
+		}),
+		AuthSession.withAuthSession()
 	);
