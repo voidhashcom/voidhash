@@ -1,76 +1,63 @@
-import { auth } from "@voidhash/auth";
-import { headers } from "next/headers";
-import { z } from "zod";
-import {
-	createServiceFunction,
-	hasOrganizationPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { err, ok, Result } from "neverthrow";
-import { getOrganizationByIdQuery } from "../raw-queries";
-import { isAuthenticated } from "@/lib/middlewares";
+import { AuthSession } from "@/lib/effect/auth";
+import { Data, Effect, pipe, Schema } from "effect";
+import { checkOrganizationPermission } from "@/lib/effect/permissions";
+import { BetterAuth } from "@/lib/effect/better-auth";
+import { Request } from "@/lib/effect/request";
+import { OrganizationRepository } from "../organization-repository";
 
-export const updateOrganizationInputSchema = z.object({
-	organizationId: z.string(),
-	name: z.string().min(1).max(32),
+export class OrganizationNotFound extends Data.TaggedError("OrganizationNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const updateOrganizationInputSchema = Schema.Struct({
+	organizationId: Schema.String,
+	name: Schema.String,
 });
 
-type UpdateOrganizationError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError;
+type UpdateOrganizationInput = Schema.Schema.Type<typeof updateOrganizationInputSchema>;
 
-export const updateOrganization = createServiceFunction()
-	.input(updateOrganizationInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({ input, ctx }): Promise<Result<void, UpdateOrganizationError>> => {
-			if (
-				!hasOrganizationPermission(
-					ctx,
-					input.organizationId,
-					"organization:all"
-				)
-			) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to update this organization",
-				});
-			}
-
-			const organization = await getOrganizationByIdQuery(
-				ctx,
-				input.organizationId
+export const updateOrganization = (inputUnsafe: UpdateOrganizationInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const request = yield* Request;
+			const organizationRepository = yield* OrganizationRepository;
+		
+			const input = Schema.decodeUnknownSync(updateOrganizationInputSchema)(
+				inputUnsafe
 			);
 
-			if (organization.isErr()) {
-				return err(organization.error);
+			// SECURITY: Authorization check
+			yield* checkOrganizationPermission(
+				input.organizationId,
+				"organization:all",
+				`User ${session?.user?.id} is not authorized to update organization ${input.organizationId}`
+			);
+
+			const organization = yield* organizationRepository.getOrganizationById(input.organizationId);
+			if (!organization) {
+				return yield* Effect.fail(
+					new OrganizationNotFound({
+						message: `Organization with id ${input.organizationId} not found`,
+					})
+				);
 			}
 
-			try {
-				await auth.api.updateOrganization({
-					headers: await headers(),
+			const betterAuth = yield* BetterAuth;
+			yield* betterAuth.use(async (client) =>
+				client.api.updateOrganization({
+					headers: yield* request.getHeaders(),
 					body: {
 						organizationId: input.organizationId,
 						data: {
 							name: input.name,
 						},
 					},
-				});
+				})
+			);
 
-				ctx.cache.invalidate(`organization_slug:${organization.value.slug}`);
-				ctx.cache.invalidate(`organization_${organization.value.id}`);
-
-				return ok(undefined);
-			} catch (error) {
-				return err(fromUnknownThrow(error));
-			}
-		}
+			return yield* Effect.succeed(undefined);
+		}),
+		AuthSession.withAuthSession()
 	);

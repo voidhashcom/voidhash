@@ -1,0 +1,42 @@
+import { Effect, pipe } from "effect";
+import { AuthSession } from "@/lib/effect/auth";
+import { BetterAuth } from "@/lib/effect/better-auth";
+import { Request } from "@/lib/effect/request";
+
+export class UserService extends Effect.Service<UserService>()("UserService", {
+	effect: Effect.gen(function* () {
+		return {
+			getUser: () =>
+				pipe(
+					Effect.gen(function* () {
+						const session = yield* AuthSession;
+						const betterAuth = yield* BetterAuth;
+						const request = yield* Request;
+
+						const headers = yield* request.getHeaders;
+						const organizations = yield* betterAuth.use(async (client) =>
+							client.api.listOrganizations({
+								headers,
+							})
+						);
+
+						return {
+							...session?.user,
+							organizations: organizations.map((o) => ({
+								id: o.id,
+								name: o.name,
+								slug: o.slug,
+								logo: o.logo ?? null,
+								createdAt: o.createdAt,
+								metadata: o.metadata ?? null,
+							})),
+						};
+					}),
+					AuthSession.withAuthSession()
+				),
+		};
+	}),
+
+	// Specify dependencies
+	dependencies: [],
+}) {}

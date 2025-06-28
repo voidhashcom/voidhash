@@ -9,7 +9,7 @@ export class OrganizationRepository extends Effect.Service<OrganizationRepositor
 			const dbService = yield* Db;
 			return {
 				getOrganizationBySlug: dbService.makeQuery(
-					(execute, { slug }: { slug: string }) =>
+					(execute, slug: string) =>
 						execute(
 							async (db) =>
 								await db.query.organization.findFirst({
@@ -19,7 +19,7 @@ export class OrganizationRepository extends Effect.Service<OrganizationRepositor
 				),
 
 				getOrganizationById: dbService.makeQuery(
-					(execute, { id }: { id: string }) =>
+					(execute, id: string ) =>
 						execute(
 							async (db) =>
 								await db.query.organization.findFirst({
