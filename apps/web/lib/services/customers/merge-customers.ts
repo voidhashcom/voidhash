@@ -1,24 +1,14 @@
-import { ServiceContext } from "@/lib/service-function";
-import { customers, eq, Transaction } from "@voidhash/db";
-import { VoidhashInternalServerError } from "@voidhash/lib/constants";
-import { ok, Result } from "neverthrow";
+import { Effect } from "effect";
+import { CustomerRepository } from "./customer-repository";
 
-export async function mergeCustomers(
-	ctx: ServiceContext,
-	fromCustomerId: string,
-	toCustomerId: string
-): Promise<Result<null, VoidhashInternalServerError>> {
-	await ctx.db.transaction(async (tx: Transaction) => {
-		// Archive the from customer and reparent
-		await tx
-			.update(customers)
-			.set({
-				archivedAt: new Date(),
+export const mergeCustomers = (fromCustomerId: string, toCustomerId: string) =>
+		Effect.gen(function* () {
+			const customerRepository = yield* CustomerRepository;
+			return yield* customerRepository.updateCustomer({
+				id: fromCustomerId,
 				parentCustomerId: toCustomerId,
-			})
-			.where(eq(customers.id, fromCustomerId));
+				archivedAt: new Date(),
+			});
+		})
 
-		// TODO: Transfer all the data from the from customer to the to customer
-	});
-	return ok(null);
-}
+	

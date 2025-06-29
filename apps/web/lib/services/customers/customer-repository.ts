@@ -1,6 +1,7 @@
 import { Db } from "@/lib/effect/db";
 import {
 	and,
+	Customer,
 	customers,
 	customersUnlockedPerks,
 	eq,
@@ -123,6 +124,11 @@ export class CustomerRepository extends Effect.Service<CustomerRepository>()(
 									where: eq(customersUnlockedPerks.customerId, customerId),
 								})
 						)
+				),
+
+				updateCustomer: dbService.makeQuery(
+					(execute, {id, ...customer}: Partial<Customer> & {id: string}) =>
+						execute(async (db) => await db.update(customers).set(customer).where(eq(customers.id, id)))
 				),
 			};
 		}),

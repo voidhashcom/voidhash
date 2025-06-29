@@ -22,6 +22,37 @@ export class PaywallRepository extends Effect.Service<PaywallRepository>()(
 					)
 				),
 
+				getPaywallWithProductsByLocationSlug: dbService.makeQuery(
+					(
+						execute,
+						input: {
+							locationSlug: string;
+							environment: Environment;
+						}
+					) =>
+						execute(
+							async (db) =>
+								await db.query.paywallLocations.findFirst({
+									where: and(
+										eq(paywallLocations.slug, input.locationSlug),
+										eq(paywallLocations.environment, input.environment)
+									),
+									with: {
+										defaultPaywall: {
+											with: {
+												paywallProducts: {
+													with: {
+														product: true,
+													},
+													orderBy: [asc(paywallProducts.order)],
+												},
+											},
+										},
+									},
+								})
+						)
+				),
+
 				getPaywalls: dbService.makeQuery(
 					(execute, input: { projectId: string; environment: Environment }) =>
 						execute(
@@ -67,6 +98,19 @@ export class PaywallRepository extends Effect.Service<PaywallRepository>()(
 								orderBy: [asc(paywallProducts.order)],
 							})
 					)
+				),
+
+				getPaywallProductById: dbService.makeQuery(
+					(execute, paywallProductId: string) =>
+						execute(
+							async (db) =>
+								await db.query.paywallProducts.findFirst({
+									where: eq(paywallProducts.id, paywallProductId),
+									with: {
+										product: true,
+									},
+								})
+						)
 				),
 
 				createPaywallProduct: dbService.makeQuery((execute, paywallProduct: InsertPaywallProduct) =>

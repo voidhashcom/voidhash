@@ -217,6 +217,16 @@ export class ProductRepository extends Effect.Service<ProductRepository>()(
 						)
 				),
 
+                getProviderProductById: dbService.makeQuery(
+                    (execute, id: string) =>
+                        execute(
+                            async (db) =>
+                                await db.query.paymentProviderConfigurationProducts.findFirst({
+                                    where: eq(paymentProviderConfigurationProducts.id, id),
+                                })
+                        )
+                ),
+
 				getProviderProductByPrimaryKey: dbService.makeQuery(
 					(execute, {
 						paymentProviderConfigurationId,

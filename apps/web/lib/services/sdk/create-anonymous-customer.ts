@@ -1,48 +1,53 @@
+import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { ServiceContext } from "@/lib/service-function";
-import { Customer, InsertCustomer, customers } from "@voidhash/db";
-import {
-	Environment,
-	VoidhashInternalServerError,
-} from "@voidhash/lib/constants";
-import { Result, err, ok } from "neverthrow";
+import { Environment } from "@voidhash/lib/constants";
+import { CustomerRepository } from "../customers/customer-repository";
 
-export async function createAnonymousCustomer(
-	ctx: ServiceContext,
-	input: {
-		projectId: string;
-		appUserId: string;
-		origin: "ios" | "android";
-		environment: Environment;
-	}
-): Promise<Result<Customer, VoidhashInternalServerError>> {
-	const tx = ctx.tx ?? ctx.db;
-	try {
-		const newCustomer = {
-			id: generateId("customer"),
-			type: "anonymous",
-			parentCustomerId: null,
-			projectId: input.projectId,
-			appUserId: input.appUserId,
-			origin: input.origin,
-			environment: input.environment,
-		} satisfies InsertCustomer;
+export class CustomerCreationError extends Data.TaggedError("CustomerCreationError")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
 
-		await tx.insert(customers).values(newCustomer);
+export const createAnonymousCustomerInputSchema = Schema.Struct({
+	projectId: Schema.String,
+	appUserId: Schema.String,
+	origin: Schema.Literal("ios", "android"),
+	environment: Schema.String,
+});
 
-		return ok({
-			...newCustomer,
-			name: null,
-			email: null,
-			archivedAt: null,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		});
-	} catch (error) {
-		return err({
-			code: "INTERNAL_SERVER_ERROR",
-			message: "Failed to create customer",
-			originalError: error,
-		});
-	}
-}
+type CreateAnonymousCustomerInput = Schema.Schema.Type<typeof createAnonymousCustomerInputSchema>;
+
+export const createAnonymousCustomer = (inputUnsafe: CreateAnonymousCustomerInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const customerRepository = yield* CustomerRepository;
+			const input = Schema.decodeUnknownSync(createAnonymousCustomerInputSchema)(
+				inputUnsafe
+			);
+
+			const newCustomer = {
+				id: generateId("customer"),
+				type: "anonymous" as const,
+				parentCustomerId: null,
+				projectId: input.projectId,
+				appUserId: input.appUserId,
+				origin: input.origin,
+				environment: input.environment as Environment,
+				name: null,
+				email: null,
+			};
+
+			yield* customerRepository.createCustomer(newCustomer);
+
+			yield* Effect.log(
+				`Created anonymous customer ${newCustomer.id} for app user ${input.appUserId}`
+			);
+
+			return yield* Effect.succeed({
+				...newCustomer,
+				archivedAt: null,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			});
+		})
+	); 
