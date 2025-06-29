@@ -1,61 +1,55 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { paywalls } from "@voidhash/db";
+import { AuthSession } from "@/lib/effect/auth";
+import { Environment } from "@/lib/effect/environment";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { err, ok, Result } from "neverthrow";
-import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { PaywallRepository } from "../paywall-repository";
 
-export const createPaywallInputSchema = z.object({
-	projectId: z.string(),
-	name: z
-		.string()
-		.min(3, "Name must be at least 3 characters long")
-		.max(32, "Name must be less than 32 characters"),
+export const createPaywallInputSchema = Schema.Struct({
+	projectId: Schema.String,
+	name: Schema.String.pipe(
+		Schema.minLength(3),
+		Schema.maxLength(32)
+	),
 });
 
-type CreatePaywallError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError;
+type CreatePaywallInput = Schema.Schema.Type<typeof createPaywallInputSchema>;
 
-export const createPaywall = createServiceFunction()
-	.input(createPaywallInputSchema)
-	.use(isAuthenticated)
-	.use(hasEnvironment)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<{ id: string }, CreatePaywallError>> => {
-			if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to create paywalls",
-				});
-			}
+export const createPaywall = (inputUnsafe: CreatePaywallInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const environment = yield* Environment;
+			const paywallRepository = yield* PaywallRepository;
+			const input = Schema.decodeUnknownSync(createPaywallInputSchema)(
+				inputUnsafe
+			);
+
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				input.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to create paywalls for project ${input.projectId}`
+			);
 
 			const newPaywall = {
 				id: generateId("paywall"),
 				projectId: input.projectId,
 				name: input.name,
-				environment: ctx.session.environment,
+				environment: environment,
 			};
-			try {
-				await ctx.db.insert(paywalls).values(newPaywall);
-				return ok({
-					id: newPaywall.id,
-				});
-			} catch (error) {
-				return err(fromUnknownThrow(error));
-			}
-		}
+
+			yield* paywallRepository.createPaywall(newPaywall);
+			yield* Effect.log(
+				`Created paywall ${newPaywall.id} for project ${input.projectId}`
+			);
+
+			return yield* Effect.succeed({
+				id: newPaywall.id,
+			});
+		}),
+		Environment.withEnvironment({
+			projectId: inputUnsafe.projectId,
+		}),
+		AuthSession.withAuthSession()
 	);

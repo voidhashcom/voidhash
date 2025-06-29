@@ -11,6 +11,7 @@ import { PerkRepository } from "@/lib/services/perks/perk-repository";
 import { PaywallLocationService } from "@/lib/services/paywall-locations/paywall-location-service";
 import { PaywallLocationRepository } from "@/lib/services/paywall-locations/paywall-location-repository";
 import { PaywallRepository } from "@/lib/services/paywalls/paywall-repository";
+import { PaywallService } from "@/lib/services/paywalls/paywall-service";
 import { ApiKeyRepository } from "@/lib/services/api-keys/api-key-repository";
 import { ApiKeyService } from "@/lib/services/api-keys/api-key-service";
 import { CustomerRepository } from "@/lib/services/customers/customer-repository";
@@ -82,6 +83,7 @@ const RuntimeLayer = (context: HonoContextType) =>
 		Layer.provideMerge(CustomerService.Default),
 		Layer.provideMerge(EnvironmentService.Default),
 		Layer.provideMerge(PaywallLocationService.Default),
+		Layer.provideMerge(PaywallService.Default),
 		Layer.provideMerge(ProjectService.Default),
 
 		// Repositories

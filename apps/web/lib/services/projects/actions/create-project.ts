@@ -75,8 +75,7 @@ export const createProject = (inputUnsafe: CreateProjectInput) =>
 			}
 
 			yield* db.transaction((tx) =>
-				Effect.gen(function* () {
-					TransactionContext.provide(tx);
+				TransactionContext.provide(tx)(Effect.gen(function* () {
 					yield* projectRepository.createProject({
 						id,
 						name: input.name,
@@ -124,7 +123,7 @@ export const createProject = (inputUnsafe: CreateProjectInput) =>
 							configuration: {},
 						});
 					});
-				})
+				}))
 			);
 
 			yield* Effect.log(
