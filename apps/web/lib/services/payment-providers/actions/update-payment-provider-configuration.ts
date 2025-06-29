@@ -1,7 +1,7 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Data, Effect, pipe, Schema } from "effect";
-import { PaymentProviderRepository } from "../payment-provider-repository";
+import { PaymentProviderRepository } from "../payment-provider.repository";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 
 

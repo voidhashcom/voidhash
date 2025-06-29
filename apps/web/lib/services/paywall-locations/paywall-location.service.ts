@@ -1,5 +1,5 @@
 import { Effect, pipe } from "effect";
-import { PaywallLocationRepository } from "./paywall-location-repository";
+import { PaywallLocationRepository } from "./paywall-location.repository";
 import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { createPaywallLocation } from "./actions/create-paywall-location";

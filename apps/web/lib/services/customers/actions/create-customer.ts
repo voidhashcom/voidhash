@@ -3,7 +3,7 @@ import { Environment } from "@/lib/effect/environment";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { CustomerRepository } from "../customer-repository";
+import { CustomerRepository } from "../customer.repository";
 import { InsertCustomer } from "@voidhash/db";
 
 export const createCustomerInputSchema = Schema.Struct({

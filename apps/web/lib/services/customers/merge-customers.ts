@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { CustomerRepository } from "./customer-repository";
+import { CustomerRepository } from "./customer.repository";
 
 export const mergeCustomers = (fromCustomerId: string, toCustomerId: string) =>
 		Effect.gen(function* () {

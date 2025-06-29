@@ -3,7 +3,7 @@ import { Data, Effect, pipe, Schema } from "effect";
 import { checkOrganizationPermission } from "@/lib/effect/permissions";
 import { BetterAuth } from "@/lib/effect/better-auth";
 import { Request } from "@/lib/effect/request";
-import { OrganizationRepository } from "../organization-repository";
+import { OrganizationRepository } from "../organization.repository";
 
 export class OrganizationNotFound extends Data.TaggedError("OrganizationNotFound")<{
 	readonly cause?: unknown;

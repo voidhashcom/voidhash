@@ -1,5 +1,5 @@
 import { Effect, pipe } from "effect";
-import { CustomerRepository } from "./customer-repository";
+import { CustomerRepository } from "./customer.repository";
 import { createCustomer } from "./actions/create-customer";
 import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";

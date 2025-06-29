@@ -7,7 +7,7 @@ import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { tryCatch } from "@/lib/try-catch";
 import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
-import { ApiKeyService } from "@/lib/services/api-keys/api-key-service";
+import { ApiKeyService } from "@/lib/services/api-keys/api-key.service";
 import { Effect, pipe } from "effect";
 
 export async function ProjectApiKeysPage({

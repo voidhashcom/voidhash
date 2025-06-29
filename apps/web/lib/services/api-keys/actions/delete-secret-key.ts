@@ -1,7 +1,7 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Data, Effect, pipe, Schema } from "effect";
-import { ApiKeyRepository } from "../api-key-repository";
+import { ApiKeyRepository } from "../api-key.repository";
 
 export class ApiKeyNotFoundError extends Data.TaggedError(
 	"ApiKeyNotFoundError"

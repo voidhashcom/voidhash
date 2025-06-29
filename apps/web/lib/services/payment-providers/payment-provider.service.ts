@@ -1,5 +1,5 @@
 import { Effect, pipe } from "effect";
-import { PaymentProviderRepository } from "./payment-provider-repository";
+import { PaymentProviderRepository } from "./payment-provider.repository";
 import { AuthSession } from "@/lib/effect/auth";
 import { createPaymentProviderConfiguration } from "./actions/create-payment-provider-configuration";
 import { updatePaymentProviderConfiguration } from "./actions/update-payment-provider-configuration";

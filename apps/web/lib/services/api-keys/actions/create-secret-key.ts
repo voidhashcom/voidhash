@@ -2,7 +2,7 @@ import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Data, Effect, pipe, Schema } from "effect";
-import { ApiKeyRepository } from "../api-key-repository";
+import { ApiKeyRepository } from "../api-key.repository";
 import { createSecretKey as generateSecretKeyFn } from "../effect/utils";
 import { generateId } from "@/lib/id/generate";
 

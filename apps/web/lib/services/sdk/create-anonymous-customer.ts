@@ -1,7 +1,7 @@
 import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
 import { Environment } from "@voidhash/lib/constants";
-import { CustomerRepository } from "../customers/customer-repository";
+import { CustomerRepository } from "../customers/customer.repository";
 
 export class CustomerCreationError extends Data.TaggedError("CustomerCreationError")<{
 	readonly cause?: unknown;

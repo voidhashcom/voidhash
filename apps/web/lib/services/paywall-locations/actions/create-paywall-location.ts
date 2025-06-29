@@ -3,8 +3,8 @@ import { Environment } from "@/lib/effect/environment";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { PaywallLocationRepository } from "../paywall-location-repository";
-import { PaywallRepository } from "../../paywalls/paywall-repository";
+import { PaywallLocationRepository } from "../paywall-location.repository";
+import { PaywallRepository } from "../../paywalls/paywall.repository";
 
 export class SlugAlreadyExistsError extends Data.TaggedError(
 	"SlugAlreadyExistsError"

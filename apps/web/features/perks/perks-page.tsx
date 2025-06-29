@@ -7,7 +7,7 @@ import { CreatePerkModalButton } from "./create-perk-modal-button";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
 import { Effect, pipe } from "effect";
-import { PerkService } from "@/lib/services/perks/perk-service";
+import { PerkService } from "@/lib/services/perks/perk.service";
 import { tryCatch } from "@/lib/try-catch";
 
 export async function PerksPage({

@@ -5,7 +5,7 @@ import { UnauthenticatedError, NotFoundError } from "@/lib/effect/errors";
 import { isAnonymousId } from "../utils";
 import { createAnonymousCustomer } from "../create-anonymous-customer";
 import { Db, TransactionContext } from "@/lib/effect/db";
-import { CustomerRepository } from "../../customers/customer-repository";
+import { CustomerRepository } from "../../customers/customer.repository";
 
 export const getCustomerOrCreateAnonymous = () =>
 	pipe(

@@ -1,7 +1,7 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Data, Effect, pipe, Schema } from "effect";
-import { PaywallRepository } from "../paywall-repository";
+import { PaywallRepository } from "../paywall.repository";
 import { Db, TransactionContext } from "@/lib/effect/db";
 
 export class PaywallNotFound extends Data.TaggedError("PaywallNotFound")<{

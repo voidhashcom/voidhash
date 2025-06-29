@@ -3,7 +3,7 @@ import { Environment } from "@/lib/effect/environment";
 import { Data, Effect, pipe, Schema } from "effect";
 import { NotFoundError, UnauthenticatedError } from "@/lib/effect/errors";
 import { PaywallProduct } from "@voidhash/db";
-import { PaywallRepository } from "../../paywalls/paywall-repository";
+import { PaywallRepository } from "../../paywalls/paywall.repository";
 
 export class PaywallNotFound extends Data.TaggedError("PaywallNotFound")<{
 	readonly cause?: unknown;

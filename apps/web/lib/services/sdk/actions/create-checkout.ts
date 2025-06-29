@@ -2,15 +2,15 @@ import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { ProductRepository } from "../../products/product-repository";
-import { PaymentProviderRepository } from "../../payment-providers/payment-provider-repository";
+import { ProductRepository } from "../../products/product.repository";
+import { PaymentProviderRepository } from "../../payment-providers/payment-provider.repository";
 import { devCheckoutPaymentProviderId } from "@/lib/payment-providers/dev-checkout/dev-checkout";
 import { isAnonymousId } from "../utils";
 import { NotFoundError, UnauthenticatedError } from "@/lib/effect/errors";
 import { CHECKOUT_DOMAIN } from "@voidhash/lib";
 import { Db, TransactionContext } from "@/lib/effect/db";
-import { CustomerRepository } from "../../customers/customer-repository";
-import { CheckoutSessionRepository } from "../../checkout-session/checkout-session-repository";
+import { CustomerRepository } from "../../customers/customer.repository";
+import { CheckoutSessionRepository } from "../../checkout-session/checkout-session.repository";
 import { createAnonymousCustomer } from "../create-anonymous-customer";
 
 export class PaymentProviderConfigurationNotFound extends Data.TaggedError(

@@ -1,5 +1,5 @@
 import { Effect, pipe } from "effect";
-import { PerkRepository } from "./perk-repository";
+import { PerkRepository } from "./perk.repository";
 import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { createPerk } from "./actions/create-perk";

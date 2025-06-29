@@ -7,7 +7,7 @@ import { mergeCustomers } from "../../customers/merge-customers";
 import { ID_BLACKLIST } from "@voidhash/lib/constants/id-blacklist";
 import { ANONYMOUS_USER_ID_PREFIX } from "../constants";
 import { Db, TransactionContext } from "@/lib/effect/db";
-import { CustomerRepository } from "../../customers/customer-repository";
+import { CustomerRepository } from "../../customers/customer.repository";
 import { Customer } from "@voidhash/db";
 
 export class CustomerConflictError extends Data.TaggedError("CustomerConflictError")<{

@@ -28,7 +28,7 @@ import {
 import { rotateSecretKeyInputSchema } from "@/lib/services/api-keys/actions/rotate-secret-key";
 import { createSecretKeyInputSchema } from "@/lib/services/api-keys/actions/create-secret-key";
 import { deleteSecretKeyInputSchema } from "@/lib/services/api-keys/actions/delete-secret-key";
-import { EnvironmentService, switchEnvironmentInputSchema } from "@/lib/services/environments/environment-service";
+import { EnvironmentService, switchEnvironmentInputSchema } from "@/lib/services/environments/environment.service";
 import {
 	createProduct,
 	createProductInputSchema,
@@ -103,10 +103,10 @@ import {
 } from "../services/payment-providers/actions/delete-payment-provider-configuration";
 import { NextjsRuntime, toNeverthrow } from "../effect/runtimes/nextjs";
 import { Effect, pipe, Schema } from "effect";
-import { PerkService } from "../services/perks/perk-service";
-import { PaywallLocationService } from "../services/paywall-locations/paywall-location-service";
-import { ApiKeyService } from "../services/api-keys/api-key-service";
-import { CustomerService } from "../services/customers/customer-service";
+import { PerkService } from "../services/perks/perk.service";
+import { PaywallLocationService } from "../services/paywall-locations/paywall-location.service";
+import { ApiKeyService } from "../services/api-keys/api-key.service";
+import { CustomerService } from "../services/customers/customer.service";
 
 // Api keys
 export const createSecretKeyAction = actionClient

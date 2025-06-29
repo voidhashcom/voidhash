@@ -24,7 +24,7 @@ import { ProductDetailAddPerkButton } from "./product-detail-add-perk-button";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { getEnvironment } from "@/lib/services/environments/utils";
 import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
-import { PerkService } from "@/lib/services/perks/perk-service";
+import { PerkService } from "@/lib/services/perks/perk.service";
 import { Effect, pipe } from "effect";
 import { tryCatch } from "@/lib/try-catch";
 

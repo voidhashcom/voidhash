@@ -2,12 +2,12 @@ import { AuthSession } from "@/lib/effect/auth";
 import { checkOrganizationPermission } from "@/lib/effect/permissions";
 import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { ProjectRepository } from "../project-repository";
+import { ProjectRepository } from "../project.repository";
 import { createSlug, createShortId } from "@voidhash/lib/functions";
 import { SLUG_BLACKLIST } from "@voidhash/lib/constants";
 import { randomUUID } from "crypto";
 import { Environments } from "@/lib/services/environments/types";
-import { ApiKeyRepository } from "@/lib/services/api-keys/api-key-repository";
+import { ApiKeyRepository } from "@/lib/services/api-keys/api-key.repository";
 import {
 	devCheckout,
 	devCheckoutPaymentProviderId,

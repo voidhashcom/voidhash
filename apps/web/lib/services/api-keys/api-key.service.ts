@@ -1,5 +1,5 @@
 import { Effect, pipe } from "effect";
-import { ApiKeyRepository } from "./api-key-repository";
+import { ApiKeyRepository } from "./api-key.repository";
 import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { checkProjectPermission } from "@/lib/effect/permissions";

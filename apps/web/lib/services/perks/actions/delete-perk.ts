@@ -1,6 +1,6 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { Data, Effect, pipe, Schema } from "effect";
-import { PerkRepository } from "../perk-repository";
+import { PerkRepository } from "../perk.repository";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 
 export class PerkNotFound extends Data.TaggedError("PerkNotFound")<{

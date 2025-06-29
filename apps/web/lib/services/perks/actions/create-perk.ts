@@ -2,7 +2,7 @@ import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Data, Effect, pipe, Schema } from "effect";
-import { PerkRepository } from "../perk-repository";
+import { PerkRepository } from "../perk.repository";
 import { generateId } from "@/lib/id/generate";
 
 export class SlugAlreadyExistsError extends Data.TaggedError(

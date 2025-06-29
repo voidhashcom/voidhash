@@ -1,5 +1,5 @@
 import { Effect, pipe } from "effect";
-import { ProjectRepository } from "./project-repository";
+import { ProjectRepository } from "./project.repository";
 import { AuthSession } from "@/lib/effect/auth";
 import { createProject } from "./actions/create-project";
 import { deleteProject } from "./actions/delete-project";
@@ -8,7 +8,7 @@ import {
 	checkProjectPermission,
 	checkOrganizationPermission,
 } from "@/lib/effect/permissions";
-import { OrganizationRepository } from "../organizations/organization-repository";
+import { OrganizationRepository } from "../organizations/organization.repository";
 
 export class ProjectService extends Effect.Service<ProjectService>()(
 	"ProjectService",

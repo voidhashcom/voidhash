@@ -12,7 +12,7 @@ import {
 } from "@voidhash/lib/constants";
 import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
 import { tryCatch } from "@/lib/try-catch";
-import { CustomerService } from "@/lib/services/customers/customer-service";
+import { CustomerService } from "@/lib/services/customers/customer.service";
 import { pipe, Effect } from "effect";
 
 const route = describeRoute({

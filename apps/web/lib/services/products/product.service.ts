@@ -1,5 +1,5 @@
 import { Effect, pipe } from "effect";
-import { ProductRepository } from "./product-repository";
+import { ProductRepository } from "./product.repository";
 import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { checkProjectPermission } from "@/lib/effect/permissions";
@@ -12,7 +12,7 @@ import { createProductPerk } from "./actions/create-product-perk";
 import { updatePaymentProviderProduct } from "./actions/update-payment-provider-product";
 import { setActivePaymentProviderProduct } from "./actions/set-active-payment-provider-product";
 import { deleteProductPerk as deleteProductPerkAction } from "./actions/delete-product-perk";
-import { PerkRepository } from "../perks/perk-repository";
+import { PerkRepository } from "../perks/perk.repository";
 
 export class ProductService extends Effect.Service<ProductService>()(
 	"ProductService",

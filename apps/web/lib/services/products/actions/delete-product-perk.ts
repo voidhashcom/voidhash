@@ -1,7 +1,7 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Data, Effect, pipe, Schema } from "effect";
-import { ProductRepository } from "../product-repository";
+import { ProductRepository } from "../product.repository";
 
 export class ProductNotFound extends Data.TaggedError("ProductNotFound")<{
 	readonly cause?: unknown;

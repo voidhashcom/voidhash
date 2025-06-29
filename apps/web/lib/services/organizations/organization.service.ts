@@ -4,7 +4,7 @@ import { createOrganization } from "./actions/create-organization";
 import { deleteOrganization } from "./actions/delete-organization";
 import { updateOrganization } from "./actions/update-organization";
 import { AuthSession } from "@/lib/effect/auth";
-import { OrganizationRepository } from "./organization-repository";
+import { OrganizationRepository } from "./organization.repository";
 import { checkOrganizationPermission } from "@/lib/effect/permissions";
 
 

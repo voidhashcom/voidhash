@@ -3,7 +3,7 @@ import { Environment } from "@/lib/effect/environment";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { PaywallRepository } from "../paywall-repository";
+import { PaywallRepository } from "../paywall.repository";
 
 export const createPaywallInputSchema = Schema.Struct({
 	projectId: Schema.String,

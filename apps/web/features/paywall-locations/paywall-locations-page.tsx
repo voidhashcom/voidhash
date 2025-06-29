@@ -8,7 +8,7 @@ import { getPaywalls } from "@/lib/services/paywalls/queries";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { tryCatch } from "@/lib/try-catch";
 import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
-import { PaywallLocationService } from "@/lib/services/paywall-locations/paywall-location-service";
+import { PaywallLocationService } from "@/lib/services/paywall-locations/paywall-location.service";
 import { Effect } from "effect";
 
 export async function PaywallLocationsPage({

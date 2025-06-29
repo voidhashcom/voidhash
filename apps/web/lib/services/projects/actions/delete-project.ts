@@ -1,7 +1,7 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Data, Effect, pipe, Schema } from "effect";
-import { ProjectRepository } from "../project-repository";
+import { ProjectRepository } from "../project.repository";
 
 export class ProjectNotFound extends Data.TaggedError("ProjectNotFound")<{
 	readonly cause?: unknown;

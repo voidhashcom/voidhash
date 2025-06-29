@@ -2,8 +2,8 @@ import { Data, Effect, pipe, Schema } from "effect";
 
 import { AuthSession } from "@/lib/effect/auth";
 import { checkProjectPermission } from "@/lib/effect/permissions";
-import { ProjectRepository } from "../projects/project-repository";
-import { OrganizationRepository } from "../organizations/organization-repository";
+import { ProjectRepository } from "../projects/project.repository";
+import { OrganizationRepository } from "../organizations/organization.repository";
 import { setEnvironmentCookie } from "@/lib/effect/environment";
 
 export class ProjectNotFoundError extends Data.TaggedError(

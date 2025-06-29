@@ -8,7 +8,7 @@ import { z } from "zod";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
 import { tryCatch } from "@/lib/try-catch";
-import { CustomerService } from "@/lib/services/customers/customer-service";
+import { CustomerService } from "@/lib/services/customers/customer.service";
 import { Effect, pipe } from "effect";
 
 const route = describeRoute({
