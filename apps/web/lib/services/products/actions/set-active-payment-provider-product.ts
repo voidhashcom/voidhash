@@ -1,147 +1,128 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashBadRequestError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { paymentProviderConfigurationProducts } from "@voidhash/db";
+import { AuthSession } from "@/lib/effect/auth";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
+import { ProductRepository } from "../product-repository";
+import { Environment } from "@/lib/effect/environment";
+import { Db, TransactionContext } from "@/lib/effect/db";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { and, eq, not } from "drizzle-orm";
-import { err, ok, Result } from "neverthrow";
-import { getProductByIdQuery } from "../raw-queries";
-import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
-import { getPaymentProviderConfigurationByIdQuery } from "../../payment-providers/raw-queries";
 
-export const setActivePaymentProviderProductInputSchema = z.object({
-	productId: z.string(),
-	providerProductKey: z.string(),
-	paymentProviderConfigurationId: z.string(),
+export class ProductNotFound extends Data.TaggedError("ProductNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class PaymentProviderConfigurationNotFound extends Data.TaggedError(
+	"PaymentProviderConfigurationNotFound"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class PaymentProviderNotFound extends Data.TaggedError(
+	"PaymentProviderNotFound"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const setActivePaymentProviderProductInputSchema = Schema.Struct({
+	productId: Schema.String,
+	providerProductKey: Schema.String,
+	paymentProviderConfigurationId: Schema.String,
 });
 
-type SetActivePaymentProviderProductError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashBadRequestError;
+type SetActivePaymentProviderProductInput = Schema.Schema.Type<
+	typeof setActivePaymentProviderProductInputSchema
+>;
 
-export const setActivePaymentProviderProduct = createServiceFunction()
-	.input(setActivePaymentProviderProductInputSchema)
-	.use(isAuthenticated)
-	.use(hasEnvironment)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<void, SetActivePaymentProviderProductError>> => {
-			const productQuery = getProductByIdQuery(ctx, input.productId);
-			const providerConfigurationQuery =
-				getPaymentProviderConfigurationByIdQuery(
-					ctx,
-					input.paymentProviderConfigurationId
-				);
+export const setActivePaymentProviderProduct = (
+	inputUnsafe: SetActivePaymentProviderProductInput
+) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const productRepository = yield* ProductRepository;
+			const db = yield* Db;
+			const input = Schema.decodeUnknownSync(
+				setActivePaymentProviderProductInputSchema
+			)(inputUnsafe);
 
-			const [productResult, providerConfigurationResult] = await Promise.all([
-				productQuery,
-				providerConfigurationQuery,
+			// Get product and provider configuration in parallel
+			const [product, providerConfiguration] = yield* Effect.all([
+				productRepository.getProductById(input.productId),
+				db.use(async (dbInstance) => {
+					return await dbInstance.query.paymentProviderConfigurations.findFirst({
+						where: (configs, { eq }) =>
+							eq(configs.id, input.paymentProviderConfigurationId),
+					});
+				}),
 			]);
 
-			if (productResult.isErr()) {
-				return err(productResult.error);
+			if (!product) {
+				return yield* Effect.fail(
+					new ProductNotFound({
+						message: `Product ${input.productId} not found`,
+					})
+				);
 			}
 
-			if (providerConfigurationResult.isErr()) {
-				return err(providerConfigurationResult.error);
+			if (!providerConfiguration) {
+				return yield* Effect.fail(
+					new PaymentProviderConfigurationNotFound({
+						message: `Payment provider configuration ${input.paymentProviderConfigurationId} not found`,
+					})
+				);
 			}
 
-			if (
-				!hasProjectPermission(
-					ctx,
-					productResult.value.projectId,
-					"project:all"
-				) ||
-				!hasProjectPermission(
-					ctx,
-					providerConfigurationResult.value.projectId,
-					"project:all"
-				)
-			) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to update this product",
-				});
-			}
+			// SECURITY: Authorization checks
+			yield* checkProjectPermission(
+				product.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to update payment provider products for project ${product.projectId}`
+			);
 
+			yield* checkProjectPermission(
+				providerConfiguration.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to access payment provider configuration for project ${providerConfiguration.projectId}`
+			);
+
+			// Find the payment provider
 			const provider = paymentProviders.find(
-				(p) => p.getId() === providerConfigurationResult.value.providerId
+				(p) => p.getId() === providerConfiguration.providerId
 			);
 			if (!provider) {
-				return err({
-					code: "NOT_FOUND",
-					message: "Provider not found",
-					resource: "provider",
-					payload: {
-						id: providerConfigurationResult.value.providerId,
-					},
-				});
-			}
-
-			// Disable other provider products for this product
-			try {
-				await ctx.db
-					.update(paymentProviderConfigurationProducts)
-					.set({ isActive: false })
-					.where(
-						and(
-							eq(
-								paymentProviderConfigurationProducts.productId,
-								productResult.value.id
-							),
-							eq(
-								paymentProviderConfigurationProducts.paymentProviderConfigurationId,
-								providerConfigurationResult.value.id
-							),
-							not(
-								eq(
-									paymentProviderConfigurationProducts.providerProductKey,
-									input.providerProductKey
-								)
-							)
-						)
-					);
-
-				await ctx.db
-					.update(paymentProviderConfigurationProducts)
-					.set({
-						isActive: true,
+				return yield* Effect.fail(
+					new PaymentProviderNotFound({
+						message: `Payment provider ${providerConfiguration.providerId} not found`,
 					})
-					.where(
-						and(
-							eq(
-								paymentProviderConfigurationProducts.productId,
-								productResult.value.id
-							),
-							eq(
-								paymentProviderConfigurationProducts.paymentProviderConfigurationId,
-								providerConfigurationResult.value.id
-							),
-							eq(
-								paymentProviderConfigurationProducts.providerProductKey,
-								input.providerProductKey
-							)
-						)
+				);
+			}
+
+			return yield* db.transaction((tx) =>
+				TransactionContext.provide(tx)(Effect.gen(function* () {
+					// Deactivate other provider products for this product/configuration
+					yield* productRepository.deactivateOtherProviderProducts({
+						productId: input.productId,
+						paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+						excludeProviderProductKey: input.providerProductKey,
+					});
+
+					// Activate the selected provider product
+					yield* productRepository.setActivePaymentProviderProduct({
+						productId: input.productId,
+						paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+						providerProductKey: input.providerProductKey,
+					});
+
+					yield* Effect.log(
+						`Set active payment provider product ${input.providerProductKey} for product ${input.productId}`
 					);
 
-				return ok(undefined);
-			} catch (e) {
-				return err(fromUnknownThrow(e));
-			}
-		}
+					return yield* Effect.succeed(undefined);
+				}))
+			);
+		}),
+		Environment.withEnvironment(),
+		AuthSession.withAuthSession()
 	);

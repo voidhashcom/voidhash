@@ -1,80 +1,84 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { productPerks } from "@voidhash/db";
+import { AuthSession } from "@/lib/effect/auth";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { err, ok, Result } from "neverthrow";
-import { getProductByIdQuery } from "../raw-queries";
-import { isAuthenticated } from "@/lib/middlewares";
-import { NextjsRuntime, toNeverthrow } from "@/lib/effect/runtimes/nextjs";
-import { PerkService } from "../../perks/perk-service";
-import { Effect, pipe } from "effect";
+import { ProductRepository } from "../product-repository";
+import { PerkRepository } from "../../perks/perk-repository";
 
-export const createProductPerkInputSchema = z.object({
-	productId: z.string(),
-	perkId: z.string(),
+export class ProductNotFound extends Data.TaggedError("ProductNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class PerkNotFound extends Data.TaggedError("PerkNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const createProductPerkInputSchema = Schema.Struct({
+	productId: Schema.String,
+	perkId: Schema.String,
 });
 
-type CreateProductPerkError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError;
+type CreateProductPerkInput = Schema.Schema.Type<typeof createProductPerkInputSchema>;
 
-export const createProductPerk = createServiceFunction()
-	.input(createProductPerkInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<{ id: string }, CreateProductPerkError>> => {
-			const product = await getProductByIdQuery(ctx, input.productId);
-
-			if (product.isErr()) {
-				return err(product.error);
-			}
-
-			if (!hasProjectPermission(ctx, product.value.projectId, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to create payment provider products",
-				});
-			}
-
-			const perk = await NextjsRuntime.runPromise(
-				pipe(
-					PerkService,
-					Effect.flatMap((perkService) =>
-						perkService.getPerkById(input.perkId)
-					),
-					toNeverthrow
-				)
+export const createProductPerk = (inputUnsafe: CreateProductPerkInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const productRepository = yield* ProductRepository;
+			const perkRepository = yield* PerkRepository;
+			const input = Schema.decodeUnknownSync(createProductPerkInputSchema)(
+				inputUnsafe
 			);
-			if (perk.isErr()) {
-				return err(perk.error);
+
+			// Get product to check authorization
+			const product = yield* productRepository.getProductById(input.productId);
+			if (!product) {
+				return yield* Effect.fail(
+					new ProductNotFound({
+						message: `Product ${input.productId} not found`,
+					})
+				);
 			}
+
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				product.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to create product perks for project ${product.projectId}`
+			);
+
+			// Validate perk exists (this also checks authorization)
+			const perk = yield* perkRepository.getPerkById(input.perkId);
+			if (!perk) {
+				return yield* Effect.fail(
+					new PerkNotFound({
+						message: `Perk ${input.perkId} not found`,
+					})
+				);
+			}
+
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				perk.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to create product perks in project ${product.projectId}`
+			);
 
 			const newProductPerk = {
 				id: generateId("productPerk"),
-				productId: product.value.id,
+				productId: input.productId,
 				perkId: input.perkId,
-			} satisfies typeof productPerks.$inferInsert;
+			};
 
-			try {
-				await ctx.db.insert(productPerks).values(newProductPerk);
-				return ok({ id: newProductPerk.id });
-			} catch (e) {
-				return err(fromUnknownThrow(e));
-			}
-		}
+			yield* productRepository.createProductPerk(newProductPerk);
+
+			yield* Effect.log(
+				`Created product perk ${newProductPerk.id} for product ${input.productId}`
+			);
+
+			return yield* Effect.succeed({ id: newProductPerk.id });
+		}),
+		AuthSession.withAuthSession()
 	);

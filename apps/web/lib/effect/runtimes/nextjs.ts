@@ -21,6 +21,8 @@ import { EnvironmentService } from "@/lib/services/environments/environment-serv
 import { OrganizationRepository } from "@/lib/services/organizations/organization-repository";
 import { ProjectRepository } from "@/lib/services/projects/project-repository";
 import { ProjectService } from "@/lib/services/projects/project-service";
+import { ProductRepository } from "@/lib/services/products/product-repository";
+import { ProductService } from "@/lib/services/products/product-service";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -59,32 +61,40 @@ const RequestLive = Layer.succeed(
 
 const DbLive = Db.Default;
 
-const RuntimeLayer = pipe(
-	PerkService.Default,
-
-	Layer.provideMerge(Auth.Default),
+const CoreLayer = pipe(
+	Auth.Default,
 	Layer.provideMerge(BetterAuth.Default),
+	Layer.provideMerge(DbLive),
+	Layer.provideMerge(CookiesLive),
+	Layer.provideMerge(RequestLive)
+);
 
-	// Services
-	Layer.provideMerge(ApiKeyService.Default),
-	Layer.provideMerge(CustomerService.Default),
-	Layer.provideMerge(EnvironmentService.Default),
-	Layer.provideMerge(PaywallLocationService.Default),
-	Layer.provideMerge(PaywallService.Default),
-	Layer.provideMerge(ProjectService.Default),
-
-	// Repositories
-	Layer.provideMerge(ApiKeyRepository.Default),
+const RepositoryLayer = pipe(
+	ApiKeyRepository.Default,
 	Layer.provideMerge(CustomerRepository.Default),
 	Layer.provideMerge(OrganizationRepository.Default),
 	Layer.provideMerge(PaywallLocationRepository.Default),
 	Layer.provideMerge(PaywallRepository.Default),
 	Layer.provideMerge(PerkRepository.Default),
-	Layer.provideMerge(ProjectRepository.Default),
+	Layer.provideMerge(ProductRepository.Default),
+	Layer.provideMerge(ProjectRepository.Default)
+);
 
-	Layer.provideMerge(DbLive),
-	Layer.provideMerge(CookiesLive),
-	Layer.provideMerge(RequestLive)
+const ServiceLayer = pipe(
+	PerkService.Default,
+	Layer.provideMerge(ApiKeyService.Default),
+	Layer.provideMerge(CustomerService.Default),
+	Layer.provideMerge(EnvironmentService.Default),
+	Layer.provideMerge(PaywallLocationService.Default),
+	Layer.provideMerge(PaywallService.Default),
+	Layer.provideMerge(ProductService.Default),
+	Layer.provideMerge(ProjectService.Default)
+);
+
+const RuntimeLayer = pipe(
+	ServiceLayer,
+	Layer.provideMerge(RepositoryLayer),
+	Layer.provideMerge(CoreLayer)
 );
 
 export const NextjsRuntime = ManagedRuntime.make(RuntimeLayer);

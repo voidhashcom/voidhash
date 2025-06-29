@@ -22,6 +22,8 @@ import { ProjectRepository } from "@/lib/services/projects/project-repository";
 import { OrganizationRepository } from "@/lib/services/organizations/organization-repository";
 import { EnvironmentService } from "@/lib/services/environments/environment-service";
 import { ProjectService } from "@/lib/services/projects/project-service";
+import { ProductRepository } from "@/lib/services/products/product-repository";
+import { ProductService } from "@/lib/services/products/product-service";
 
 export class HonoContext extends Context.Tag("app/HonoContext")<
 	HonoContext,
@@ -72,34 +74,44 @@ const RequestLive = Layer.effect(
 
 const DbLive = Db.Default;
 
-const RuntimeLayer = (context: HonoContextType) =>
-	pipe(
-		PerkService.Default,
-		Layer.provideMerge(Auth.Default),
+const RuntimeLayer = (context: HonoContextType) => {
+	const CoreLayer = pipe(
+		Auth.Default,
 		Layer.provideMerge(BetterAuth.Default),
-
-		// Services
-		Layer.provideMerge(ApiKeyService.Default),
-		Layer.provideMerge(CustomerService.Default),
-		Layer.provideMerge(EnvironmentService.Default),
-		Layer.provideMerge(PaywallLocationService.Default),
-		Layer.provideMerge(PaywallService.Default),
-		Layer.provideMerge(ProjectService.Default),
-
-		// Repositories
-		Layer.provideMerge(ApiKeyRepository.Default),
-		Layer.provideMerge(CustomerRepository.Default),
-		Layer.provideMerge(OrganizationRepository.Default),
-		Layer.provideMerge(PaywallLocationRepository.Default),
-		Layer.provideMerge(PaywallRepository.Default),
-		Layer.provideMerge(PerkRepository.Default),
-		Layer.provideMerge(ProjectRepository.Default),
-
 		Layer.provideMerge(DbLive),
 		Layer.provideMerge(CookiesLive),
 		Layer.provideMerge(RequestLive),
 		Layer.provideMerge(Layer.succeed(HonoContext, context))
 	);
+
+	const RepositoryLayer = pipe(
+		ApiKeyRepository.Default,
+		Layer.provideMerge(CustomerRepository.Default),
+		Layer.provideMerge(OrganizationRepository.Default),
+		Layer.provideMerge(PaywallLocationRepository.Default),
+		Layer.provideMerge(PaywallRepository.Default),
+		Layer.provideMerge(PerkRepository.Default),
+		Layer.provideMerge(ProductRepository.Default),
+		Layer.provideMerge(ProjectRepository.Default)
+	);
+
+	const ServiceLayer = pipe(
+		PerkService.Default,
+		Layer.provideMerge(ApiKeyService.Default),
+		Layer.provideMerge(CustomerService.Default),
+		Layer.provideMerge(EnvironmentService.Default),
+		Layer.provideMerge(PaywallLocationService.Default),
+		Layer.provideMerge(PaywallService.Default),
+		Layer.provideMerge(ProductService.Default),
+		Layer.provideMerge(ProjectService.Default)
+	);
+
+	return pipe(
+		ServiceLayer,
+		Layer.provideMerge(RepositoryLayer),
+		Layer.provideMerge(CoreLayer)
+	);
+};
 
 export const createHonoRuntime = (context: HonoContextType) =>
 	ManagedRuntime.make(RuntimeLayer(context));
