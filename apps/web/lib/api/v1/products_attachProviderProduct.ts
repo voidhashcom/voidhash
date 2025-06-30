@@ -9,11 +9,9 @@ import { z } from "zod";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
-import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
-import { tryCatch } from "@/lib/try-catch";
+import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/products/product.service";
-import { pipe, Effect } from "effect";
+import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
@@ -46,42 +44,27 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 		route,
 		zValidator("param", attachProviderProductParamsSchema),
 		zValidator("json", attachProviderProductBodySchema),
-		async (c) => {
-			const runtime = createHonoRuntime(c);
-			const productId = c.req.param("productId");
-
-			const result = await tryCatch(
-				runtime.runPromise(Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate;
-					
-					return yield* AuthSession.provide(authSession)(pipe(
-						ProductService,
-						Effect.flatMap((productService) =>
-							productService.createPaymentProviderProduct({
-								productId,
-								paymentProviderConfigurationId:
-									c.req.valid("json").paymentProviderConfigurationId,
-								configuration: c.req.valid("json").configuration,
-							})
-						)
-					))
-				}))
+		async (c) => createEffectHandler(c)(Effect.gen(function* () {
+			const authService = yield* Auth;
+			const authSession = yield* authService.authenticate;
+			
+			const productService = yield* ProductService;
+			const result = yield* AuthSession.provide(authSession)(
+				productService.createPaymentProviderProduct({
+					productId: c.req.param("productId"),
+					paymentProviderConfigurationId: c.req.valid("json").paymentProviderConfigurationId,
+					configuration: c.req.valid("json").configuration,
+				})
 			);
 
-			if (result.error) {
-				throw toVoidhashHTTPError(result.error);
-			}
-
 			return c.json<z.infer<typeof providerProductResponseSchema>>({
-				providerProductKey: result.data.providerProductKey,
+				providerProductKey: result.providerProductKey,
 				providerConfiguration: {
-					paymentProviderConfigurationId:
-						result.data.paymentProviderConfigurationId,
-					configuration: result.data.configuration,
+					paymentProviderConfigurationId: result.paymentProviderConfigurationId,
+					configuration: result.configuration,
 				},
 			});
-		}
+		}))
 	);
 
 export type RouteResponse = z.infer<typeof providerProductResponseSchema>;

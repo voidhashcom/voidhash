@@ -5,11 +5,9 @@ import { getProductByIdParamsSchema, productResponseSchema } from "./schema";
 import { z } from "zod";
 import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
-import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
-import { tryCatch } from "@/lib/try-catch";
+import { createEffectHandler, HonoErrorResponse } from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/products/product.service";
-import { pipe, Effect } from "effect";
+import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
@@ -39,33 +37,27 @@ export const registerProductsGetProductById = (app: App) =>
 		"/v1/products/:productId",
 		route,
 		zValidator("param", getProductByIdParamsSchema),
-		async (c) => {
-			const runtime = createHonoRuntime(c);
-			const productId = c.req.param("productId");
-
-			const result = await tryCatch(
-				runtime.runPromise(Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate;
-					
-					return yield* AuthSession.provide(authSession)(pipe(
-						ProductService,
-						Effect.flatMap((productService) =>
-							productService.getProductById(productId)
-						)
-					))
-				}))
+		async (c) => createEffectHandler(c)(Effect.gen(function* () {
+			const authService = yield* Auth;
+			const authSession = yield* authService.authenticate;
+			
+			const productService = yield* ProductService;
+			const product = yield* AuthSession.provide(authSession)(
+				productService.getProductById(c.req.param("productId"))
 			);
 
-			if (result.error) {
-				throw toVoidhashHTTPError(result.error);
+			if (!product) {
+				return yield* Effect.die(new HonoErrorResponse({
+					code: "NOT_FOUND",
+					message: "Product not found",
+				}));
 			}
 
 			return c.json<z.infer<typeof productResponseSchema>>({
-				productId: result.data.id,
-				name: result.data.name,
+				productId: product.id,
+				name: product.name,
 			});
-		}
+		}))
 	);
 
 export type RouteResponse = z.infer<typeof productResponseSchema>;

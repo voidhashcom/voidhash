@@ -9,11 +9,9 @@ import { z } from "zod";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
-import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
-import { tryCatch } from "@/lib/try-catch";
+import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/products/product.service";
-import { pipe, Effect } from "effect";
+import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
@@ -44,56 +42,31 @@ export const registerProductsUpdateProduct = (app: App) =>
 		route,
 		zValidator("param", updateProductParamsSchema),
 		zValidator("json", updateProductBodySchema),
-		async (c) => {
-			const runtime = createHonoRuntime(c);
+		async (c) => createEffectHandler(c)(Effect.gen(function* () {
+			const authService = yield* Auth;
+			const authSession = yield* authService.authenticate;
+			
+			const productService = yield* ProductService;
 			const productId = c.req.param("productId");
 			const name = c.req.valid("json").name;
 
-			const result = await tryCatch(
-				runtime.runPromise(Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate;
-					
-					return yield* AuthSession.provide(authSession)(pipe(
-						ProductService,
-						Effect.flatMap((productService) =>
-							productService.updateProduct({
-								productId: productId,
-								name,
-							})
-						)
-					))
-				}))
+			yield* AuthSession.provide(authSession)(
+				productService.updateProduct({
+					productId: productId,
+					name,
+				})
 			);
-
-			if (result.error) {
-				throw toVoidhashHTTPError(result.error);
-			}
 
 			// Get the updated product to return full details
-			const getResult = await tryCatch(
-				runtime.runPromise(Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate;
-					
-					return yield* AuthSession.provide(authSession)(pipe(
-						ProductService,
-						Effect.flatMap((productService) =>
-							productService.getProductById(productId)
-						)
-					))
-				}))
+			const product = yield* AuthSession.provide(authSession)(
+				productService.getProductById(productId)
 			);
 
-			if (getResult.error) {
-				throw toVoidhashHTTPError(getResult.error);
-			}
-
 			return c.json<z.infer<typeof productResponseSchema>>({
-				productId: getResult.data.id,
-				name: getResult.data.name,
+				productId: product.id,
+				name: product.name,
 			});
-		}
+		}))
 	);
 
 export type RouteResponse = z.infer<typeof productResponseSchema>;

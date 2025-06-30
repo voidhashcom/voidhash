@@ -4,11 +4,9 @@ import { openApiErrorResponses } from "../errors/openapi_responses";
 import { productResponseSchema } from "./schema";
 import { z } from "zod";
 import { App } from "../hono/app";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
-import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
-import { tryCatch } from "@/lib/try-catch";
+import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/products/product.service";
-import { pipe, Effect } from "effect";
+import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
@@ -36,36 +34,25 @@ const route = describeRoute({
 export type Route = typeof route;
 
 export const registerProductsListProducts = (app: App) =>
-	app.get("/v1/products", route, async (c) => {
-		const runtime = createHonoRuntime(c);
-		const result = await tryCatch(
-			runtime.runPromise(Effect.gen(function* () {
-				const authService = yield* Auth;
-				const authSession = yield* authService.authenticate;
-				const projectId = authSession.projects[0]?.id;
-				if (!projectId) {
-					return yield* Effect.die(new Error("Project not found"));
-				}
-				
-				return yield* AuthSession.provide(authSession)(pipe(
-					ProductService,
-					Effect.flatMap((productService) =>
-						productService.getProducts(projectId)
-					)
-				))
-			}))
+	app.get("/v1/products", route, async (c) => createEffectHandler(c)(Effect.gen(function* () {
+		const authService = yield* Auth;
+		const authSession = yield* authService.authenticate;
+		const projectId = authSession.projects[0]?.id;
+		if (!projectId) {
+			return yield* Effect.die(new Error("Project not found"));
+		}
+		
+		const productService = yield* ProductService;
+		const products = yield* AuthSession.provide(authSession)(
+			productService.getProducts(projectId)
 		);
 
-		if (result.error) {
-			throw toVoidhashHTTPError(result.error);
-		}
-
 		return c.json<z.infer<typeof productResponseSchema>[]>(
-			result.data.map((product) => ({
+			products.map((product) => ({
 				productId: product.id,
 				name: product.name,
 			}))
 		);
-	});
+	})));
 
 export type RouteResponse = z.infer<typeof productResponseSchema>[];
