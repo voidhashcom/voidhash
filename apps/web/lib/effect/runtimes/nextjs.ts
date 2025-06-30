@@ -23,6 +23,7 @@ import { ProjectRepository } from "@/lib/services/projects/project.repository";
 import { ProjectService } from "@/lib/services/projects/project.service";
 import { ProductRepository } from "@/lib/services/products/product.repository";
 import { ProductService } from "@/lib/services/products/product.service";
+import { PaymentProviderRepository } from "@/lib/services/payment-providers/payment-provider.repository";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -77,7 +78,8 @@ const RepositoryLayer = pipe(
 	Layer.provideMerge(PaywallRepository.Default),
 	Layer.provideMerge(PerkRepository.Default),
 	Layer.provideMerge(ProductRepository.Default),
-	Layer.provideMerge(ProjectRepository.Default)
+	Layer.provideMerge(ProjectRepository.Default),
+	Layer.provideMerge(PaymentProviderRepository.Default)
 );
 
 const ServiceLayer = pipe(

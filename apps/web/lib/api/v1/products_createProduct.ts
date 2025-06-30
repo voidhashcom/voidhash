@@ -1,16 +1,16 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { authenticateContext } from "@/lib/service-function";
-import { createProductBodySchema, productResponseSchema } from "./schema";
+import { resolver } from "hono-openapi/zod";
 import { z } from "zod";
-import { createProduct } from "@/lib/services/products/actions/create-product";
 import { openApiErrorResponses } from "../errors/openapi_responses";
+import { createProductBodySchema, productResponseSchema } from "./schema";
 import { App } from "../hono/app";
-import {
-	toVoidhashHTTPError,
-	VoidhashHTTPError,
-} from "@voidhash/lib/constants";
-import { getProductById } from "@/lib/services/products/queries";
+import { zValidator } from "@hono/zod-validator";
+import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
+import { tryCatch } from "@/lib/try-catch";
+import { ProductService } from "@/lib/services/products/product.service";
+import { pipe, Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Create a new product",
@@ -40,46 +40,54 @@ export const registerProductsCreateProduct = (app: App) =>
 		route,
 		zValidator("json", createProductBodySchema),
 		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
+			const runtime = createHonoRuntime(c);
+			const result = await tryCatch(
+				runtime.runPromise(Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate;
+					const projectId = authSession.projects[0]?.id;
+					if (!projectId) {
+						return yield* Effect.die(new Error("Project not found"));
+					}
+					
+					return yield* AuthSession.provide(authSession)(pipe(
+						ProductService,
+						Effect.flatMap((productService) =>
+							productService.createProduct({
+								name: c.req.valid("json").name,
+								projectId,
+							})
+						)
+					))
+				}))
+			);
 
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
+			if (result.error) {
+				throw toVoidhashHTTPError(result.error);
 			}
 
-			const projectId = authenticatedContext.value.session?.projects[0]?.id;
+			// Get the created product to return full details
+			const getResult = await tryCatch(
+				runtime.runPromise(Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate;
+					
+					return yield* AuthSession.provide(authSession)(pipe(
+						ProductService,
+						Effect.flatMap((productService) =>
+							productService.getProductById(result.data.id)
+						)
+					))
+				}))
+			);
 
-			if (!projectId) {
-				throw new VoidhashHTTPError({
-					code: "NOT_FOUND",
-					message: "Project not found",
-				});
-			}
-
-			const createdProduct = await createProduct.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					name: c.req.valid("json").name,
-					projectId,
-				},
-			});
-
-			if (createdProduct.isErr()) {
-				throw toVoidhashHTTPError(createdProduct.error);
-			}
-
-			const product = await getProductById({
-				ctx: authenticatedContext.value,
-				input: { id: createdProduct.value.id },
-			});
-
-			if (product.isErr()) {
-				throw toVoidhashHTTPError(product.error);
+			if (getResult.error) {
+				throw toVoidhashHTTPError(getResult.error);
 			}
 
 			return c.json<z.infer<typeof productResponseSchema>>({
-				productId: product.value.id,
-				name: product.value.name,
+				productId: getResult.data.id,
+				name: getResult.data.name,
 			});
 		}
 	);

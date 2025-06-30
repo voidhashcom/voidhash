@@ -13,6 +13,7 @@ import { updatePaymentProviderProduct } from "./actions/update-payment-provider-
 import { setActivePaymentProviderProduct } from "./actions/set-active-payment-provider-product";
 import { deleteProductPerk as deleteProductPerkAction } from "./actions/delete-product-perk";
 import { PerkRepository } from "../perks/perk.repository";
+import { deletePaymentProviderProduct } from "./actions/delete-payment-provider-product";
 
 export class ProductService extends Effect.Service<ProductService>()(
 	"ProductService",
@@ -171,6 +172,7 @@ export class ProductService extends Effect.Service<ProductService>()(
 
 				createProductPerk,
 				deleteProductPerk: deleteProductPerkAction,
+				deletePaymentProviderProduct,
 			};
 		}),
 

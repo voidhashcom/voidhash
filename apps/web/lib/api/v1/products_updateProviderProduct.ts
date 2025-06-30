@@ -1,20 +1,22 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { authenticateContext } from "@/lib/service-function";
+import { resolver } from "hono-openapi/zod";
 import {
 	providerProductResponseSchema,
 	updateProviderProductBodySchema,
 	updateProviderProductParamsSchema,
 } from "./schema";
 import { z } from "zod";
-import { updatePaymentProviderProduct } from "@/lib/services/products/actions/update-payment-provider-product";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
+import { zValidator } from "@hono/zod-validator";
 import {
 	toVoidhashHTTPError,
-	VoidhashHTTPError,
 } from "@voidhash/lib/constants";
-import { getProviderProductByPrimaryKey } from "@/lib/services/products/queries";
+import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
+import { tryCatch } from "@/lib/try-catch";
+import { ProductService } from "@/lib/services/products/product.service";
+import { pipe, Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Update a provider product",
@@ -47,12 +49,7 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 		zValidator("param", updateProviderProductParamsSchema),
 		zValidator("json", updateProviderProductBodySchema),
 		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
-
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
+			const runtime = createHonoRuntime(c);
 			const productId = c.req.param("productId");
 			const paymentProviderConfigurationId = c.req.param(
 				"paymentProviderConfigurationId"
@@ -60,49 +57,58 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 			const providerProductKey = c.req.param("providerProductKey");
 			const configuration = c.req.valid("json");
 
-			const projectId = authenticatedContext.value.session?.projects[0]?.id;
-			if (!projectId) {
-				throw new VoidhashHTTPError({
-					code: "NOT_FOUND",
-					message: "Project not found",
-				});
+			const result = await tryCatch(
+				runtime.runPromise(Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate;
+					
+					return yield* AuthSession.provide(authSession)(pipe(
+						ProductService,
+						Effect.flatMap((productService) =>
+							productService.updatePaymentProviderProduct({
+								productId,
+								paymentProviderConfigurationId: paymentProviderConfigurationId,
+								configuration: configuration.configuration,
+								providerProductKey,
+							})
+						)
+					))
+				}))
+			);
+
+			if (result.error) {
+				throw toVoidhashHTTPError(result.error);
 			}
 
-			const updatedProviderProduct = await updatePaymentProviderProduct.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					productId,
-					paymentProviderConfigurationId: paymentProviderConfigurationId,
-					configuration: configuration.configuration,
-					providerProductKey,
-				},
-			});
+			// Get the updated provider product to return full details
+			const getResult = await tryCatch(
+				runtime.runPromise(Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate;
+					
+					return yield* AuthSession.provide(authSession)(pipe(
+						ProductService,
+						Effect.flatMap((productService) =>
+							productService.getProviderProductByPrimaryKey({
+								paymentProviderConfigurationId: paymentProviderConfigurationId,
+								providerProductKey: providerProductKey,
+							})
+						)
+					))
+				}))
+			);
 
-			if (updatedProviderProduct.isErr()) {
-				throw toVoidhashHTTPError(updatedProviderProduct.error);
+			if (getResult.error) {
+				throw toVoidhashHTTPError(getResult.error);
 			}
 
-			const providerProduct = await getProviderProductByPrimaryKey({
-				ctx: authenticatedContext.value,
-				input: {
-					paymentProviderConfigurationId: paymentProviderConfigurationId,
-					productProviderKey: providerProductKey,
-				},
-			});
-
-			if (providerProduct.isErr()) {
-				throw toVoidhashHTTPError(providerProduct.error);
-			}
-
-			const responseBody: z.infer<typeof providerProductResponseSchema> = {
-				providerProductKey: providerProduct.value.providerProductKey,
+			return c.json<z.infer<typeof providerProductResponseSchema>>({
+				providerProductKey: getResult.data.providerProductKey,
 				providerConfiguration: {
-					configuration: providerProduct.value.configuration,
-					providerId: providerProduct.value.providerId,
+					configuration: getResult.data.configuration,
+					paymentProviderConfigurationId: getResult.data.paymentProviderConfigurationId,
 				},
-			};
-
-			return c.json(responseBody);
+			});
 		}
 	);
 

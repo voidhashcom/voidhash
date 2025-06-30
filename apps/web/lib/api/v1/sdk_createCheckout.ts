@@ -6,11 +6,14 @@ import {
 	sdkCreateCheckoutBodySchema,
 } from "./schema";
 import { App } from "../hono/app";
-import { authenticateContext } from "@/lib/service-function";
 import { z } from "zod";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 import { zValidator } from "@hono/zod-validator";
-import { createCheckoutSession } from "@/lib/services/sdk/actions/create-checkout";
+import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
+import { tryCatch } from "@/lib/try-catch";
+import { SdkService } from "@/lib/services/sdk/sdk.service";
+import { pipe, Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Creates a new checkout session",
@@ -40,32 +43,34 @@ export const registerSdkCreateCheckout = (app: App) =>
 		route,
 		zValidator("json", sdkCreateCheckoutBodySchema),
 		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
+			const runtime = createHonoRuntime(c);
+			
+			const result = await tryCatch(
+				runtime.runPromise(Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate;
+					
+					return yield* AuthSession.provide(authSession)(pipe(
+						SdkService,
+						Effect.flatMap((sdkService) =>
+							sdkService.createCheckout({
+								paymentProviderConfigurationProductId:
+									c.req.valid("json").paymentProviderConfigurationProductId,
+								successCallbackUrl: c.req.valid("json").successCallbackUrl,
+								errorCallbackUrl: c.req.valid("json").errorCallbackUrl,
+							})
+						)
+					))
+				}))
+			);
 
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
+			if (result.error) {
+				throw toVoidhashHTTPError(result.error);
 			}
-
-			const checkoutResult = await createCheckoutSession.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					paymentProviderConfigurationProductId:
-						c.req.valid("json").paymentProviderConfigurationProductId,
-					successCallbackUrl: c.req.valid("json").successCallbackUrl,
-					errorCallbackUrl: c.req.valid("json").errorCallbackUrl,
-				},
-			});
-
-			if (checkoutResult.isErr()) {
-				throw toVoidhashHTTPError(checkoutResult.error);
-			}
-
-			const checkout = checkoutResult.value;
 
 			return c.json<z.infer<typeof sdkCheckoutResponseSchema>>({
-				checkoutSessionId: checkout.checkoutSessionId,
-				checkoutUrl: checkout.checkoutUrl,
+				checkoutSessionId: result.data.checkoutSessionId,
+				checkoutUrl: result.data.checkoutUrl,
 			});
 		}
 	);

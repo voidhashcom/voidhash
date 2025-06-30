@@ -1,8 +1,8 @@
-import { Context, Effect, Layer, ManagedRuntime, pipe } from "effect";
-import { Cookies } from "../cookies";
-import { Db } from "../db";
-import { Auth } from "../auth";
-import { BetterAuth } from "../better-auth";
+import { Context, Data, Effect, Layer, ManagedRuntime, pipe } from "effect";
+import { Cookies, CookiesError } from "../cookies";
+import { DatabaseError, Db } from "../db";
+import { Auth, InvalidPublishableKeyError, InvalidSecretKeyError, InvalidSourceError, MissingAppUserIdError, MissingPublishableKeyError, MissingSecretKeyError } from "../auth";
+import { BetterAuth, BetterAuthError } from "../better-auth";
 import { Request } from "../request";
 import { PerkService } from "@/lib/services/perks/perk.service";
 import { err, ok, Result } from "neverthrow";
@@ -24,6 +24,11 @@ import { EnvironmentService } from "@/lib/services/environments/environment.serv
 import { ProjectService } from "@/lib/services/projects/project.service";
 import { ProductRepository } from "@/lib/services/products/product.repository";
 import { ProductService } from "@/lib/services/products/product.service";
+import { SdkService } from "@/lib/services/sdk/sdk.service";
+import { PaymentProviderRepository } from "@/lib/services/payment-providers/payment-provider.repository";
+import { CheckoutSessionRepository } from "@/lib/services/checkout-session/checkout-session.repository";
+import { ForbiddenError, NotFoundError, UnauthenticatedError } from "../errors";
+import { MissingEnvironmentError } from "../environment";
 
 export class HonoContext extends Context.Tag("app/HonoContext")<
 	HonoContext,
@@ -92,7 +97,9 @@ const RuntimeLayer = (context: HonoContextType) => {
 		Layer.provideMerge(PaywallRepository.Default),
 		Layer.provideMerge(PerkRepository.Default),
 		Layer.provideMerge(ProductRepository.Default),
-		Layer.provideMerge(ProjectRepository.Default)
+		Layer.provideMerge(ProjectRepository.Default),
+		Layer.provideMerge(PaymentProviderRepository.Default),
+		Layer.provideMerge(CheckoutSessionRepository.Default)
 	);
 
 	const ServiceLayer = pipe(
@@ -103,7 +110,8 @@ const RuntimeLayer = (context: HonoContextType) => {
 		Layer.provideMerge(PaywallLocationService.Default),
 		Layer.provideMerge(PaywallService.Default),
 		Layer.provideMerge(ProductService.Default),
-		Layer.provideMerge(ProjectService.Default)
+		Layer.provideMerge(ProjectService.Default),
+		Layer.provideMerge(SdkService.Default)
 	);
 
 	return pipe(
@@ -138,6 +146,110 @@ export const toNeverthrow = <
 					originalError: error.cause as Error,
 				} satisfies VoidhashInternalServerError)
 			);
+		})
+	);
+};
+
+export class HonoErrorResponse extends Data.TaggedError("HonoErrorResponse")<{
+	code: string;
+	message: string;
+	originalError?: Error;
+}> {}
+
+// export const createEffectHandler = (context: HonoContextType) => <T, S>(effect: Effect.Effect<T, HonoErrorResponse, S>):  => {
+	
+// 		const runtime = createHonoRuntime(context);
+// 		const result = yield* runtime.runPromise(effect);
+// 		if (result.isErr()) {
+// 			return result.error;
+// 		}
+// 		return result.value;
+	
+// };
+
+type GenericErrors = NotFoundError | ForbiddenError | UnauthenticatedError;
+type SystemErrors = CookiesError | DatabaseError | BetterAuthError | InvalidSourceError
+type AcceptableErrorTypes = HonoErrorResponse | GenericErrors | SystemErrors | MissingSecretKeyError | MissingPublishableKeyError | InvalidSecretKeyError | InvalidPublishableKeyError | MissingAppUserIdError | MissingEnvironmentError;
+
+export const createEffectHandler = (context: HonoContextType) => 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	<T, E extends AcceptableErrorTypes>(effect: Effect.Effect<T, E, any>) => {
+		const runtime = createHonoRuntime(context);
+		return runtime.runPromise(effect.pipe(
+			handleGlobalErrors
+		));
+	};
+
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const handleGlobalErrors = (effect: Effect.Effect<any, AcceptableErrorTypes, any>): Effect.Effect<any, HonoErrorResponse, any> => {
+	return effect.pipe(
+		Effect.catchTags({
+			'NotFoundError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "NOT_FOUND",
+				message: error.message,
+				originalError: error,
+			})),
+			'ForbiddenError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "FORBIDDEN",
+				message: error.message,
+				originalError: error,
+			})),
+			'UnauthenticatedError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "UNAUTHENTICATED",
+				message: error.message,
+				originalError: error,
+			})),
+			'CookiesError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "INTERNAL_SERVER_ERROR",
+				message: error.message,
+				originalError: error,
+			})),
+			'DatabaseError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "INTERNAL_SERVER_ERROR",
+				message: error.message,
+				originalError: error,
+			})),
+			'BetterAuthError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "INTERNAL_SERVER_ERROR",
+				message: error.message,
+				originalError: error,
+			})),
+			'InvalidSourceError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "INTERNAL_SERVER_ERROR",
+				message: error.message,
+				originalError: error,
+			})),
+			'MissingEnvironmentError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "INTERNAL_SERVER_ERROR",
+				message: error.message,
+				originalError: error,
+			})),
+			'MissingSecretKeyError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "UNAUTHORIZED",
+				message: error.message,
+				originalError: error,
+			})),
+			'MissingPublishableKeyError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "UNAUTHORIZED",
+				message: error.message,
+				originalError: error,
+			})),
+			'InvalidSecretKeyError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "UNAUTHORIZED",
+				message: error.message,
+				originalError: error,
+			})),
+			'InvalidPublishableKeyError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "UNAUTHORIZED",
+				message: error.message,
+				originalError: error,
+			})),
+			'MissingAppUserIdError': (error) => Effect.succeed(new HonoErrorResponse({
+				code: "UNAUTHORIZED",
+				message: error.message,
+				originalError: error,
+			})),
 		})
 	);
 };

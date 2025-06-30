@@ -1,12 +1,16 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { authenticateContext } from "@/lib/service-function";
+import { resolver } from "hono-openapi/zod";
+import { openApiErrorResponses } from "../errors/openapi_responses";
 import { getProductByIdParamsSchema, productResponseSchema } from "./schema";
 import { z } from "zod";
-import { getProductById } from "@/lib/services/products/queries";
-import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
+import { zValidator } from "@hono/zod-validator";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
+import { tryCatch } from "@/lib/try-catch";
+import { ProductService } from "@/lib/services/products/product.service";
+import { pipe, Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Get a product",
@@ -36,29 +40,30 @@ export const registerProductsGetProductById = (app: App) =>
 		route,
 		zValidator("param", getProductByIdParamsSchema),
 		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
-
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
-
+			const runtime = createHonoRuntime(c);
 			const productId = c.req.param("productId");
 
-			const product = await getProductById({
-				ctx: authenticatedContext.value,
-				input: {
-					id: productId,
-				},
-			});
+			const result = await tryCatch(
+				runtime.runPromise(Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate;
+					
+					return yield* AuthSession.provide(authSession)(pipe(
+						ProductService,
+						Effect.flatMap((productService) =>
+							productService.getProductById(productId)
+						)
+					))
+				}))
+			);
 
-			if (product.isErr()) {
-				throw toVoidhashHTTPError(product.error);
+			if (result.error) {
+				throw toVoidhashHTTPError(result.error);
 			}
 
 			return c.json<z.infer<typeof productResponseSchema>>({
-				productId: product.value.id,
-				name: product.value.name,
+				productId: result.data.id,
+				name: result.data.name,
 			});
 		}
 	);

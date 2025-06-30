@@ -61,9 +61,7 @@ export class EnvironmentService extends Effect.Service<EnvironmentService>()(
 								);
 							}
 							const organization =
-								yield* organizationRepository.getOrganizationById({
-									id: project.organizationId,
-								});
+								yield* organizationRepository.getOrganizationById(project.organizationId);
 							if (!organization) {
 								return yield* Effect.fail(
 									new OrganizationNotFoundError({

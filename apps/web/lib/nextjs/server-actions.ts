@@ -89,14 +89,14 @@ import {
 	updatePaywall,
 	updatePaywallInputSchema,
 } from "../services/paywalls/actions/update-paywall";
-import {
-	confirmDevCheckoutPurchase,
-	confirmDevCheckoutPurchaseInputSchema,
-} from "../payment-providers/dev-checkout/actions/confirm-purchase";
-import {
-	cancelDevCheckoutPurchase,
-	cancelDevCheckoutPurchaseInputSchema,
-} from "../payment-providers/dev-checkout/actions/cancel-purchase";
+// import {
+// 	confirmDevCheckoutPurchase,
+// 	confirmDevCheckoutPurchaseInputSchema,
+// } from "../payment-providers/dev-checkout/actions/confirm-purchase";
+// import {
+// 	cancelDevCheckoutPurchase,
+// 	cancelDevCheckoutPurchaseInputSchema,
+// } from "../payment-providers/dev-checkout/actions/cancel-purchase";
 import {
 	deletePaymentProviderConfiguration,
 	deletePaymentProviderConfigurationInputSchema,
@@ -107,7 +107,6 @@ import { PerkService } from "../services/perks/perk.service";
 import { PaywallLocationService } from "../services/paywall-locations/paywall-location.service";
 import { ApiKeyService } from "../services/api-keys/api-key.service";
 import { CustomerService } from "../services/customers/customer.service";
-
 // Api keys
 export const createSecretKeyAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createSecretKeyInputSchema))
@@ -171,12 +170,14 @@ export const deleteSecretKeyAction = actionClient
 
 // Organization
 export const createOrganizationAction = actionClient
-	.inputSchema(createOrganizationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createOrganization.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createOrganizationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				createOrganization(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -186,12 +187,14 @@ export const createOrganizationAction = actionClient
 	});
 
 export const updateOrganizationAction = actionClient
-	.inputSchema(updateOrganizationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updateOrganization.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updateOrganizationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				updateOrganization(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -201,12 +204,14 @@ export const updateOrganizationAction = actionClient
 	});
 
 export const deleteOrganizationAction = actionClient
-	.inputSchema(deleteOrganizationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deleteOrganization.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deleteOrganizationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				deleteOrganization(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -217,12 +222,14 @@ export const deleteOrganizationAction = actionClient
 
 // Project
 export const createProjectAction = actionClient
-	.inputSchema(createProjectInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createProject.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createProjectInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				createProject(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -232,12 +239,14 @@ export const createProjectAction = actionClient
 	});
 
 export const updateProjectAction = actionClient
-	.inputSchema(updateProjectInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updateProject.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updateProjectInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				updateProject(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -247,12 +256,14 @@ export const updateProjectAction = actionClient
 	});
 
 export const deleteProjectAction = actionClient
-	.inputSchema(deleteProjectInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deleteProject.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deleteProjectInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				deleteProject(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -284,12 +295,14 @@ export const switchEnvironmentAction = actionClient
 
 // Payment providers
 export const createPaymentProviderConfigurationAction = actionClient
-	.inputSchema(createPaymentProviderConfigurationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createPaymentProviderConfiguration.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createPaymentProviderConfigurationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				createPaymentProviderConfiguration(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -299,12 +312,14 @@ export const createPaymentProviderConfigurationAction = actionClient
 	});
 
 export const updatePaymentProviderConfigurationAction = actionClient
-	.inputSchema(updatePaymentProviderConfigurationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updatePaymentProviderConfiguration.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updatePaymentProviderConfigurationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				updatePaymentProviderConfiguration(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -314,12 +329,14 @@ export const updatePaymentProviderConfigurationAction = actionClient
 	});
 
 export const deletePaymentProviderConfigurationAction = actionClient
-	.inputSchema(deletePaymentProviderConfigurationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deletePaymentProviderConfiguration.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deletePaymentProviderConfigurationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				deletePaymentProviderConfiguration(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -330,12 +347,14 @@ export const deletePaymentProviderConfigurationAction = actionClient
 
 // Products
 export const createProductAction = actionClient
-	.inputSchema(createProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				createProduct(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -345,12 +364,14 @@ export const createProductAction = actionClient
 	});
 
 export const updateProductAction = actionClient
-	.inputSchema(updateProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updateProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updateProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				updateProduct(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -360,12 +381,14 @@ export const updateProductAction = actionClient
 	});
 
 export const deleteProductAction = actionClient
-	.inputSchema(deleteProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deleteProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deleteProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				deleteProduct(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -376,12 +399,14 @@ export const deleteProductAction = actionClient
 
 // Product perks
 export const createProductPerkAction = actionClient
-	.inputSchema(createProductPerkInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createProductPerk.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createProductPerkInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				createProductPerk(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -391,12 +416,14 @@ export const createProductPerkAction = actionClient
 	});
 
 export const deleteProductPerkAction = actionClient
-	.inputSchema(deleteProductPerkInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deleteProductPerk.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deleteProductPerkInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				deleteProductPerk(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -407,12 +434,14 @@ export const deleteProductPerkAction = actionClient
 
 // Payment provider products
 export const createPaymentProviderProductAction = actionClient
-	.inputSchema(createPaymentProviderProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createPaymentProviderProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createPaymentProviderProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				createPaymentProviderProduct(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -422,12 +451,14 @@ export const createPaymentProviderProductAction = actionClient
 	});
 
 export const updatePaymentProviderProductAction = actionClient
-	.inputSchema(updatePaymentProviderProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updatePaymentProviderProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updatePaymentProviderProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				updatePaymentProviderProduct(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -437,12 +468,14 @@ export const updatePaymentProviderProductAction = actionClient
 	});
 
 export const setActivePaymentProviderProductAction = actionClient
-	.inputSchema(setActivePaymentProviderProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await setActivePaymentProviderProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(setActivePaymentProviderProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				setActivePaymentProviderProduct(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -452,12 +485,14 @@ export const setActivePaymentProviderProductAction = actionClient
 	});
 
 export const deletePaymentProviderProductAction = actionClient
-	.inputSchema(deletePaymentProviderProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deletePaymentProviderProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deletePaymentProviderProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				deletePaymentProviderProduct(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -494,12 +529,14 @@ export const createCustomerAction = actionClient
 
 // Paywalls
 export const createPaywallAction = actionClient
-	.inputSchema(createPaywallInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createPaywall.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createPaywallInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				createPaywall(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -509,12 +546,14 @@ export const createPaywallAction = actionClient
 	});
 
 export const updatePaywallAction = actionClient
-	.inputSchema(updatePaywallInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updatePaywall.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updatePaywallInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				updatePaywall(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -524,12 +563,14 @@ export const updatePaywallAction = actionClient
 	});
 
 export const deletePaywallAction = actionClient
-	.inputSchema(deletePaywallInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deletePaywall.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deletePaywallInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await NextjsRuntime.runPromise(
+			pipe(
+				deletePaywall(parsedInput),
+				toNeverthrow
+			)
+		);
 
 		if (res.isErr()) {
 			throw toVoidhashHTTPError(res.error);
@@ -620,32 +661,32 @@ export const deletePerkAction = actionClient
 	});
 
 // Dev checkout
-export const confirmDevCheckoutPurchaseAction = actionClient
-	.inputSchema(confirmDevCheckoutPurchaseInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await confirmDevCheckoutPurchase.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+// export const confirmDevCheckoutPurchaseAction = actionClient
+// 	.inputSchema(confirmDevCheckoutPurchaseInputSchema)
+// 	.action(async ({ parsedInput, ctx }) => {
+// 		const res = await confirmDevCheckoutPurchase.invoke({
+// 			ctx: ctx.serviceContext,
+// 			input: parsedInput,
+// 		});
 
-		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
-		}
+// 		if (res.isErr()) {
+// 			throw toVoidhashHTTPError(res.error);
+// 		}
 
-		return res.value;
-	});
+// 		return res.value;
+// 	});
 
-export const cancelDevCheckoutPurchaseAction = actionClient
-	.inputSchema(cancelDevCheckoutPurchaseInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await cancelDevCheckoutPurchase.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+// export const cancelDevCheckoutPurchaseAction = actionClient
+// 	.inputSchema(cancelDevCheckoutPurchaseInputSchema)
+// 	.action(async ({ parsedInput, ctx }) => {
+// 		const res = await cancelDevCheckoutPurchase.invoke({
+// 			ctx: ctx.serviceContext,
+// 			input: parsedInput,
+// 		});
 
-		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
-		}
+// 		if (res.isErr()) {
+// 			throw toVoidhashHTTPError(res.error);
+// 		}
 
-		return res.value;
-	});
+// 		return res.value;
+// 	});

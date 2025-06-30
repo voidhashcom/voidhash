@@ -96,7 +96,7 @@ const withAuthSession = <T, E, D>(effect: Effect.Effect<T, E, D>) =>
 		const session = Option.isNone(maybeSession)
 			? yield* authService.authenticate
 			: maybeSession.value;
-		return yield* Effect.provideService(effect, AuthSession, session);
+		return yield* AuthSession.provide(session)(effect);
 	});
 
 export class AuthSession extends Context.Tag("app/AuthSession")<
@@ -104,14 +104,25 @@ export class AuthSession extends Context.Tag("app/AuthSession")<
 	UserSession | ApiKeySession | PublishableApiKeySession
 >() {
 	static withAuthSession = () => withAuthSession;
+	public static readonly provide = (
+		session: UserSession | ApiKeySession | PublishableApiKeySession
+	): (<A, E, R>(
+		self: Effect.Effect<A, E, R>
+	) => Effect.Effect<A, E, Exclude<R, AuthSession>>) =>
+		Effect.provideService(this, session);
 }
 
 export class Auth extends Effect.Service<Auth>()("app/AuthService", {
 	dependencies: [Db.Default],
+	
 	effect: Effect.gen(function* () {
 		return {
 			authenticate: Effect.gen(function* () {
 				const request = yield* Request;
+				const existingSession = yield* Effect.serviceOption(AuthSession);
+				if (Option.isSome(existingSession)) {
+					return existingSession.value;
+				}
 				const source = yield* request.getSource;
 
 				switch (source) {

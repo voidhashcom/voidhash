@@ -1,5 +1,4 @@
 import { Effect } from "effect";
-import { SdkRepository } from "./sdk-repository";
 import { createCheckout } from "./actions/create-checkout";
 import { getPaywallByLocation } from "./actions/get-paywall-by-location";
 import { identifyCustomer } from "./actions/identify-customer";
@@ -18,6 +17,6 @@ export class SdkService extends Effect.Service<SdkService>()(
 		}),
 
 		// Specify dependencies
-		dependencies: [SdkRepository.Default],
+		dependencies: [],
 	}
 ) {}

@@ -1,16 +1,14 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { z } from "zod";
-import { authenticateContext } from "@/lib/service-function";
-import { createPaywallBodySchema, paywallResponseSchema } from "./schema";
-import { createPaywall } from "@/lib/services/paywalls/actions/create-paywall";
+import { resolver } from "hono-openapi/zod";
 import { openApiErrorResponses } from "../errors/openapi_responses";
+import { createPaywallBodySchema, paywallResponseSchema } from "./schema";
 import { App } from "../hono/app";
-import {
-	toVoidhashHTTPError,
-	VoidhashHTTPError,
-} from "@voidhash/lib/constants";
-import { getPaywallById } from "@/lib/services/paywalls/queries";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import { createEffectHandler } from "@/lib/effect/runtimes/hono";
+import { PaywallService } from "@/lib/services/paywalls/paywall.service";
+import { Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Create a new paywall",
@@ -39,46 +37,27 @@ export const registerPaywallsCreatePaywall = (app: App) =>
 		"/v1/paywalls",
 		route,
 		zValidator("json", createPaywallBodySchema),
-		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
-			const projectId = authenticatedContext.value.session?.projects[0]?.id;
-
+		async (c) => createEffectHandler(c)(Effect.gen(function* () {
+			const authService = yield* Auth;
+			const authSession = yield* authService.authenticate;
+			const projectId = authSession.projects[0]?.id;
 			if (!projectId) {
-				throw new VoidhashHTTPError({
-					code: "NOT_FOUND",
-					message: "Project not found",
-				});
+				return yield* Effect.die(new Error("Project not found"));
+			}
+			const paywallService = yield* PaywallService;
+			const createdPaywall = yield* AuthSession.provide(authSession)(paywallService.createPaywall({
+				name: c.req.valid("json").name,
+				projectId,
+			}));
+
+			const refreshedPaywall = yield* AuthSession.provide(authSession)(paywallService.getPaywallById(createdPaywall.id));
+			if (!refreshedPaywall) {
+				return yield* Effect.die(new Error("Paywall not found"));
 			}
 
-			const createdPaywall = await createPaywall.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					name: c.req.valid("json").name,
-					projectId,
-				},
+			return c.json<z.infer<typeof paywallResponseSchema>>({
+				paywallId: refreshedPaywall.id,
+				name: refreshedPaywall.name,
 			});
-			if (createdPaywall.isErr()) {
-				throw toVoidhashHTTPError(createdPaywall.error);
-			}
-
-			const paywall = await getPaywallById({
-				ctx: authenticatedContext.value,
-				input: {
-					id: createdPaywall.value.id,
-				},
-			});
-			if (paywall.isErr()) {
-				throw toVoidhashHTTPError(paywall.error);
-			}
-
-			const response: z.infer<typeof paywallResponseSchema> = {
-				paywallId: paywall.value.id,
-				name: paywall.value.name,
-			};
-			return c.json(response);
-		}
+		}))
 	);

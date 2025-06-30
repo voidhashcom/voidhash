@@ -7,11 +7,14 @@ import {
 	sdkIdentifyCustomerBodySchema,
 } from "./schema";
 import { App } from "../hono/app";
-import { authenticateContext } from "@/lib/service-function";
 import { z } from "zod";
 import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 import { zValidator } from "@hono/zod-validator";
-import { identifyCustomer } from "@/lib/services/sdk/actions/identify-customer";
+import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
+import { tryCatch } from "@/lib/try-catch";
+import { SdkService } from "@/lib/services/sdk/sdk.service";
+import { pipe, Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description:
@@ -42,37 +45,36 @@ export const registerSdkIdentify = (app: App) =>
 		route,
 		zValidator("json", sdkIdentifyCustomerBodySchema),
 		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
+			const runtime = createHonoRuntime(c);
+			
+			const result = await tryCatch(
+				runtime.runPromise(Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate;
+					
+					return yield* AuthSession.provide(authSession)(pipe(
+						SdkService,
+						Effect.flatMap((sdkService) =>
+							sdkService.identifyCustomer({
+								appUserId: c.req.valid("json").appUserId,
+								name: c.req.valid("json").name,
+								email: c.req.valid("json").email,
+							})
+						)
+					))
+				}))
+			);
 
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
+			if (result.error) {
+				throw toVoidhashHTTPError(result.error);
 			}
-
-			console.log(c.req.valid("json"));
-
-			const customerResultResult = await identifyCustomer.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					appUserId: c.req.valid("json").appUserId,
-					name: c.req.valid("json").name,
-					email: c.req.valid("json").email,
-				},
-			});
-
-			if (customerResultResult.isErr()) {
-				throw toVoidhashHTTPError(customerResultResult.error);
-			}
-
-			const customer = customerResultResult.value;
-			console.log(customer);
 
 			return c.json<z.infer<typeof customerResponseSchema>>({
-				customerId: customer.id,
-				name: customer.name ?? null,
-				email: customer.email,
-				appUserId: customer.appUserId ?? null,
-				// origin: customer.origin,
+				customerId: result.data.id,
+				name: result.data.name ?? null,
+				email: result.data.email,
+				appUserId: result.data.appUserId ?? null,
+				// origin: result.data.origin,
 			});
 		}
 	);

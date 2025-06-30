@@ -6,6 +6,7 @@ import { createPaywall } from "./actions/create-paywall";
 import { deletePaywall } from "./actions/delete-paywall";
 import { updatePaywall } from "./actions/update-paywall";
 import { checkProjectPermission } from "@/lib/effect/permissions";
+import { NotFoundError } from "@/lib/effect/errors";
 
 export class PaywallService extends Effect.Service<PaywallService>()(
 	"PaywallService",
@@ -62,7 +63,9 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 							
 							// First get the paywall to check permissions
 							const paywall = yield* paywallRepository.getPaywallById(paywallId);
-							if (!paywall) return null;
+							if (!paywall) return yield* Effect.fail(new NotFoundError({
+								message: `Paywall ${paywallId} not found`,
+							}));
 
 							// SECURITY: Authorization check
 							yield* checkProjectPermission(

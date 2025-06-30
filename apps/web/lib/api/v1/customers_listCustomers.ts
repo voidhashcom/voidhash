@@ -3,13 +3,11 @@ import { resolver } from "hono-openapi/zod";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { customerResponseSchema } from "./schema";
 import { App } from "../hono/app";
-import { authenticateContext } from "@/lib/service-function";
 import { z } from "zod";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
-import { createHonoRuntime } from "@/lib/effect/runtimes/hono";
-import { tryCatch } from "@/lib/try-catch";
+import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { CustomerService } from "@/lib/services/customers/customer.service";
 import { Effect, pipe } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "List customers",
@@ -36,39 +34,25 @@ const route = describeRoute({
 export type Route = typeof route;
 
 export const registerCustomersListCustomers = (app: App) =>
-	app.get("/v1/customers", route, async (c) => {
-		const context = c.get("services");
-		const authenticatedContext = await authenticateContext(context);
-		if (authenticatedContext.isErr()) {
-			throw toVoidhashHTTPError(authenticatedContext.error);
-		}
-		const projectId = authenticatedContext.value.session?.projects[0]?.id;
-
+	app.get("/v1/customers", route, 
+	async (c) => createEffectHandler(c)(Effect.gen(function* () {
+		const authService = yield* Auth;
+		const authSession = yield* authService.authenticate;
+		const projectId = authSession.projects[0]?.id;
 		if (!projectId) {
-			return c.json({ error: "Project not found" }, 404);
+			return yield* Effect.die(new Error("Project not found"));
 		}
-
-		const runtime = createHonoRuntime(c);
-
-		const customers = await tryCatch(
-			runtime.runPromise(
-				pipe(
-					CustomerService,
-					Effect.flatMap((customerService) =>
-						customerService.getCustomers({
-							projectId,
-						})
-					)
-				)
+		const customers = yield* AuthSession.provide(authSession)(pipe(
+			CustomerService,
+			Effect.flatMap((customerService) =>
+				customerService.getCustomers({
+					projectId,
+				})
 			)
-		);
-
-		if (customers.error) {
-			throw toVoidhashHTTPError(customers.error);
-		}
-
+		))
+	
 		return c.json<z.infer<typeof customerResponseSchema>[]>(
-			customers.data.map((customer) => ({
+			customers.map((customer) => ({
 				customerId: customer.id,
 				name: customer.name ?? null,
 				email: customer.email,
@@ -76,4 +60,5 @@ export const registerCustomersListCustomers = (app: App) =>
 				origin: customer.origin,
 			}))
 		);
-	});
+	}))
+);
