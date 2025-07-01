@@ -13,7 +13,7 @@ import {
 	devCheckoutPaymentProviderId,
 } from "@/lib/payment-providers/dev-checkout/dev-checkout";
 import { Db, TransactionContext } from "@/lib/effect/db";
-import { UnauthenticatedError } from "@/lib/effect/errors";
+import { UnauthorizedError } from "@/lib/effect/errors";
 import { paymentProviderConfigurations } from "@voidhash/db";
 import { createPublishableKey } from "../../api-keys/effect/utils";
 
@@ -52,7 +52,7 @@ export const createProject = (inputUnsafe: CreateProjectInput) =>
 			const userId = session?.user?.id;
 			if (!userId) {
 				return yield* Effect.fail(
-					new UnauthenticatedError({
+					new UnauthorizedError({
 						message: "You are not authorized to create projects",
 					})
 				);

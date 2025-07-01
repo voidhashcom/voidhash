@@ -37,29 +37,33 @@ export const registerCustomersCreateCustomer = (app: App) =>
 		"/v1/customers",
 		route,
 		zValidator("json", createCustomerBodySchema),
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			const projectId = authSession.projects[0]?.id;
-			if (!projectId) {
-				return yield* Effect.die(new Error("Project not found"));
-			}
-			const customerService = yield* CustomerService;
-			const customer = yield* AuthSession.provide(authSession)(customerService.createCustomer({
-				email: c.req.valid("json").email,
-				name: c.req.valid("json").name,
-				appUserId: c.req.valid("json").appUserId,
-				origin: "api",
-				projectId,
-			}));
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const customerService = yield* CustomerService;
+					const projectId = yield* AuthSession.provide(authSession)(
+						authService.getAuthorizedProjectId()
+					);
+					const customer = yield* AuthSession.provide(authSession)(
+						customerService.createCustomer({
+							email: c.req.valid("json").email,
+							name: c.req.valid("json").name,
+							appUserId: c.req.valid("json").appUserId,
+							origin: "api",
+							projectId,
+						})
+					);
 
-			return c.json<z.infer<typeof customerResponseSchema>>({
-				customerId: customer.id,
-				name: customer.name ?? null,
-				email: customer.email ?? null,
-				appUserId: customer.appUserId ?? null,
-			});
-		}))
+					return c.json<z.infer<typeof customerResponseSchema>>({
+						customerId: customer.id,
+						name: customer.name ?? null,
+						email: customer.email ?? null,
+						appUserId: customer.appUserId ?? null,
+					});
+				})
+			)
 	);
 
 export type CustomersCreateCustomerRequestBody = z.infer<

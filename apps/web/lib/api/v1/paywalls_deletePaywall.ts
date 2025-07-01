@@ -5,7 +5,10 @@ import { openApiErrorResponses } from "../errors/openapi_responses";
 import { deletePaywallParamsSchema } from "./schema";
 import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
-import { createEffectHandler, HonoErrorResponse } from "@/lib/effect/runtimes/hono";
+import {
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
 import { PaywallService } from "@/lib/services/paywalls/paywall.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
@@ -39,31 +42,38 @@ export const registerPaywallsDeletePaywall = (app: App) =>
 		"/v1/paywalls/:paywallId",
 		route,
 		zValidator("param", deletePaywallParamsSchema),
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			const projectId = authSession.projects[0]?.id;
-			if (!projectId) {
-				return yield* Effect.die(new Error("Project not found"));
-			}
-			const paywallService = yield* PaywallService;
-			yield* AuthSession.provide(authSession)(paywallService.deletePaywall({
-				paywallId: c.req.param("paywallId"),
-			})).pipe(
-				Effect.catchTags({
-					'PaywallNotFound': (error) => Effect.fail(new HonoErrorResponse({
-						code: "NOT_FOUND",
-						message: error.message,
-						originalError: error,
-					})),
-					'PaywallInUseError': (error) => Effect.fail(new HonoErrorResponse({
-						code: "BAD_REQUEST",
-						message: error.message,
-						originalError: error,
-					})),
-				})
-			);
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const paywallService = yield* PaywallService;
+					yield* AuthSession.provide(authSession)(
+						paywallService.deletePaywall({
+							paywallId: c.req.param("paywallId"),
+						})
+					).pipe(
+						Effect.catchTags({
+							PaywallNotFound: (error) =>
+								Effect.fail(
+									new HonoErrorResponse({
+										code: "NOT_FOUND",
+										message: error.message,
+										originalError: error,
+									})
+								),
+							PaywallInUseError: (error) =>
+								Effect.fail(
+									new HonoErrorResponse({
+										code: "BAD_REQUEST",
+										message: error.message,
+										originalError: error,
+									})
+								),
+						})
+					);
 
-			return c.json({ message: "Paywall deleted" });
-		}))
+					return c.json({ message: "Paywall deleted" });
+				})
+			)
 	);

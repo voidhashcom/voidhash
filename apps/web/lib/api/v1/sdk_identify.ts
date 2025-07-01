@@ -9,9 +9,12 @@ import {
 import { App } from "../hono/app";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { createEffectHandler } from "@/lib/effect/runtimes/hono";
+import {
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
 import { SdkService } from "@/lib/services/sdk/sdk.service";
-import { Effect } from "effect";
+import { Console, Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
@@ -42,25 +45,52 @@ export const registerSdkIdentify = (app: App) =>
 		"/v1/sdk/identify",
 		route,
 		zValidator("json", sdkIdentifyCustomerBodySchema),
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			
-			const sdkService = yield* SdkService;
-			const customer = yield* AuthSession.provide(authSession)(
-				sdkService.identifyCustomer({
-					appUserId: c.req.valid("json").appUserId,
-					name: c.req.valid("json").name,
-					email: c.req.valid("json").email,
-				})
-			);
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const sdkService = yield* SdkService;
+					const customer = yield* AuthSession.provide(authSession)(
+						sdkService.identifyCustomer({
+							appUserId: c.req.valid("json").appUserId,
+							name: c.req.valid("json").name,
+							email: c.req.valid("json").email,
+						})
+					).pipe(
+						Effect.tapBoth({
+							onSuccess: (value) => Console.log("=== SUCCESS 0 ====", value),
+							onFailure: (error) => Console.log("=== FAILURE 0 ====", error),
+						}),
+						Effect.catchTags({
+							CustomerConflict: (error) =>
+								Effect.fail(
+									new HonoErrorResponse({
+										code: "CONFLICT",
+										message: error.message,
+									})
+								),
+							CustomerCreation: (error) =>
+								Effect.fail(
+									new HonoErrorResponse({
+										code: "BAD_REQUEST",
+										message: error.message,
+									})
+								),
+						}),
+						Effect.tapBoth({
+							onSuccess: (value) => Console.log("=== SUCCESS 1 ====", value),
+							onFailure: (error) => Console.log("=== FAILURE 1 ====", error),
+						})
+					);
 
-			return c.json<z.infer<typeof customerResponseSchema>>({
-				customerId: customer.id,
-				name: customer.name ?? null,
-				email: customer.email,
-				appUserId: customer.appUserId ?? null,
-				// origin: customer.origin,
-			});
-		}))
+					return c.json<z.infer<typeof customerResponseSchema>>({
+						customerId: customer.id,
+						name: customer.name ?? null,
+						email: customer.email,
+						appUserId: customer.appUserId ?? null,
+						// origin: customer.origin,
+					});
+				})
+			)
 	);

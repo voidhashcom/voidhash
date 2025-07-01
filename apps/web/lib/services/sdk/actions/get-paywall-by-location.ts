@@ -1,7 +1,7 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { Data, Effect, pipe, Schema } from "effect";
-import { NotFoundError, UnauthenticatedError } from "@/lib/effect/errors";
+import { NotFoundError, UnauthorizedError } from "@/lib/effect/errors";
 import { PaywallProduct } from "@voidhash/db";
 import { PaywallRepository } from "../../paywalls/paywall.repository";
 
@@ -44,7 +44,7 @@ export const getPaywallByLocation = (inputUnsafe: GetPaywallByLocationInput) =>
 			const appUserId = session?.customer?.appUserId;
 			if (!appUserId) {
 				return yield* Effect.fail(
-					new UnauthenticatedError({
+					new UnauthorizedError({
 						message: "App user ID not found",
 					})
 				);

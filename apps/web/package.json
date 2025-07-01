@@ -44,7 +44,7 @@
     "better-auth": "^1.2.4",
     "cross-fetch": "^4.1.0",
     "drizzle-orm": "^0.41.0",
-    "effect": "^3.16.8",
+    "effect": "^3.16.10",
     "hono": "^4.7.6",
     "hono-openapi": "^0.4.6",
     "lucide-react": "^0.483.0",

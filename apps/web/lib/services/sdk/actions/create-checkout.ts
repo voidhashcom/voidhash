@@ -6,7 +6,7 @@ import { ProductRepository } from "../../products/product.repository";
 import { PaymentProviderRepository } from "../../payment-providers/payment-provider.repository";
 import { devCheckoutPaymentProviderId } from "@/lib/payment-providers/dev-checkout/dev-checkout";
 import { isAnonymousId } from "../utils";
-import { NotFoundError, UnauthenticatedError } from "@/lib/effect/errors";
+import { NotFoundError, UnauthorizedError } from "@/lib/effect/errors";
 import { CHECKOUT_DOMAIN } from "@voidhash/lib";
 import { Db, TransactionContext } from "@/lib/effect/db";
 import { CustomerRepository } from "../../customers/customer.repository";
@@ -56,7 +56,7 @@ export const createCheckout = (inputUnsafe: CreateCheckoutInput) =>
 			const appUserId = session?.customer?.appUserId;
 			if (!appUserId) {
 				return yield* Effect.fail(
-					new UnauthenticatedError({
+					new UnauthorizedError({
 						message: "App user ID not found",
 					})
 				);

@@ -34,25 +34,27 @@ const route = describeRoute({
 export type Route = typeof route;
 
 export const registerProductsListProducts = (app: App) =>
-	app.get("/v1/products", route, async (c) => createEffectHandler(c)(Effect.gen(function* () {
-		const authService = yield* Auth;
-		const authSession = yield* authService.authenticate;
-		const projectId = authSession.projects[0]?.id;
-		if (!projectId) {
-			return yield* Effect.die(new Error("Project not found"));
-		}
-		
-		const productService = yield* ProductService;
-		const products = yield* AuthSession.provide(authSession)(
-			productService.getProducts(projectId)
-		);
+	app.get("/v1/products", route, async (c) =>
+		createEffectHandler(c)(
+			Effect.gen(function* () {
+				const authService = yield* Auth;
+				const authSession = yield* authService.authenticate();
+				const productService = yield* ProductService;
+				const projectId = yield* AuthSession.provide(authSession)(
+					authService.getAuthorizedProjectId()
+				);
+				const products = yield* AuthSession.provide(authSession)(
+					productService.getProducts(projectId)
+				);
 
-		return c.json<z.infer<typeof productResponseSchema>[]>(
-			products.map((product) => ({
-				productId: product.id,
-				name: product.name,
-			}))
-		);
-	})));
+				return c.json<z.infer<typeof productResponseSchema>[]>(
+					products.map((product) => ({
+						productId: product.id,
+						name: product.name,
+					}))
+				);
+			})
+		)
+	);
 
 export type RouteResponse = z.infer<typeof productResponseSchema>[];

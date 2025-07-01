@@ -34,22 +34,26 @@ const route = describeRoute({
 export type Route = typeof route;
 
 export const registerPaywallsListPaywalls = (app: App) =>
-	app.get("/v1/paywalls", route, async (c) => createEffectHandler(c)(Effect.gen(function* () {
-		const authService = yield* Auth;
-		const authSession = yield* authService.authenticate;
-		const projectId = authSession.projects[0]?.id;
-		if (!projectId) {
-			return yield* Effect.die(new Error("Project not found"));
-		}
-		
-		const paywallService = yield* PaywallService;
-		const paywalls = yield* AuthSession.provide(authSession)(paywallService.getPaywalls(projectId));
+	app.get("/v1/paywalls", route, async (c) =>
+		createEffectHandler(c)(
+			Effect.gen(function* () {
+				const authService = yield* Auth;
+				const authSession = yield* authService.authenticate();
+				const paywallService = yield* PaywallService;
+				const projectId = yield* AuthSession.provide(authSession)(
+					authService.getAuthorizedProjectId()
+				);
+				const paywalls = yield* AuthSession.provide(authSession)(
+					paywallService.getPaywalls(projectId)
+				);
 
-		return c.json<z.infer<typeof paywallResponseSchema>[]>(
-			paywalls.map((paywall) => ({
-				paywallId: paywall.id,
-				name: paywall.name,
-				projectId: paywall.projectId,
-			}))
-		);
-	})));
+				return c.json<z.infer<typeof paywallResponseSchema>[]>(
+					paywalls.map((paywall) => ({
+						paywallId: paywall.id,
+						name: paywall.name,
+						projectId: paywall.projectId,
+					}))
+				);
+			})
+		)
+	);

@@ -11,7 +11,7 @@ import { extendZodWithOpenApi } from "zod-openapi";
 
 extendZodWithOpenApi(z);
 
-const ErrorCode = z.enum([
+export const ErrorCode = z.enum([
 	"BAD_REQUEST",
 	"FORBIDDEN",
 	"INTERNAL_SERVER_ERROR",

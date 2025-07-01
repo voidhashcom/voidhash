@@ -1,7 +1,7 @@
 import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { Effect, pipe } from "effect";
-import { UnauthenticatedError, NotFoundError } from "@/lib/effect/errors";
+import { UnauthorizedError, NotFoundError } from "@/lib/effect/errors";
 import { isAnonymousId } from "../utils";
 import { createAnonymousCustomer } from "../create-anonymous-customer";
 import { Db, TransactionContext } from "@/lib/effect/db";
@@ -18,7 +18,7 @@ export const getCustomerOrCreateAnonymous = () =>
 			const appUserId = session?.customer?.appUserId;
 			if (!appUserId) {
 				return yield* Effect.fail(
-					new UnauthenticatedError({
+					new UnauthorizedError({
 						message: "App user ID not found",
 					})
 				);

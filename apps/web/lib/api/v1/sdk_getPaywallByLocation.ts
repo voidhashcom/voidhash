@@ -8,7 +8,10 @@ import {
 } from "./schema";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { createEffectHandler } from "@/lib/effect/runtimes/hono";
+import {
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
 import { SdkService } from "@/lib/services/sdk/sdk.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
@@ -40,18 +43,33 @@ export const registerSdkGetPaywallByLocation = (app: App) =>
 		"/v1/sdk/get-paywall-by-location/:locationSlug",
 		route,
 		zValidator("param", sdkGetPaywallByLocationParamsSchema),
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			
-			const sdkService = yield* SdkService;
-			const paywall = yield* AuthSession.provide(authSession)(
-				sdkService.getPaywallByLocation({
-					locationSlug: c.req.param("locationSlug"),
-					nativePaymentProviderId: undefined, // You may need to get this from query params if needed
-				})
-			);
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const sdkService = yield* SdkService;
+					const paywall = yield* AuthSession.provide(authSession)(
+						sdkService
+							.getPaywallByLocation({
+								locationSlug: c.req.param("locationSlug"),
+								nativePaymentProviderId: undefined, // You may need to get this from query params if needed
+							})
+							.pipe(
+								Effect.catchTags({
+									PaywallNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+								})
+							)
+					);
 
-			return c.json<z.infer<typeof sdkPaywallResponseSchema>>(paywall);
-		}))
+					return c.json<z.infer<typeof sdkPaywallResponseSchema>>(paywall);
+				})
+			)
 	);

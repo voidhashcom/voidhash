@@ -5,7 +5,10 @@ import { deleteProductParamsSchema } from "./schema";
 import { z } from "zod";
 import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
-import { createEffectHandler } from "@/lib/effect/runtimes/hono";
+import {
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/products/product.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
@@ -39,17 +42,32 @@ export const registerProductsDeleteProduct = (app: App) =>
 		"/v1/products/:productId",
 		route,
 		zValidator("param", deleteProductParamsSchema),
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			
-			const productService = yield* ProductService;
-			yield* AuthSession.provide(authSession)(
-				productService.deleteProduct({
-					productId: c.req.param("productId"),
-				})
-			);
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const productService = yield* ProductService;
+					yield* AuthSession.provide(authSession)(
+						productService
+							.deleteProduct({
+								productId: c.req.param("productId"),
+							})
+							.pipe(
+								Effect.catchTags({
+									ProductNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+								})
+							)
+					);
 
-			return c.json({ message: "Product deleted" });
-		}))
+					return c.json({ message: "Product deleted" });
+				})
+			)
 	);

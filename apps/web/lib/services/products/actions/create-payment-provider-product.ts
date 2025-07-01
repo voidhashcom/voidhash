@@ -27,7 +27,7 @@ export class PaymentProviderNotFound extends Data.TaggedError(
 }> {}
 
 export class InvalidConfigurationError extends Data.TaggedError(
-	"InvalidConfigurationError"
+	"InvalidConfiguration"
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
@@ -60,10 +60,12 @@ export const createPaymentProviderProduct = (
 			const [product, providerConfiguration] = yield* Effect.all([
 				productRepository.getProductById(input.productId),
 				db.use(async (dbInstance) => {
-					return await dbInstance.query.paymentProviderConfigurations.findFirst({
-						where: (configs, { eq }) =>
-							eq(configs.id, input.paymentProviderConfigurationId),
-					});
+					return await dbInstance.query.paymentProviderConfigurations.findFirst(
+						{
+							where: (configs, { eq }) =>
+								eq(configs.id, input.paymentProviderConfigurationId),
+						}
+					);
 				}),
 			]);
 
@@ -110,7 +112,8 @@ export const createPaymentProviderProduct = (
 
 			// Validate configuration
 			const parsedConfiguration = yield* Effect.try({
-				try: () => provider.getProductConfigurationSchema().parse(input.configuration),
+				try: () =>
+					provider.getProductConfigurationSchema().parse(input.configuration),
 				catch: (error) =>
 					new InvalidConfigurationError({
 						message: `Invalid configuration for provider ${providerConfiguration.providerId}: ${error}`,
@@ -118,33 +121,41 @@ export const createPaymentProviderProduct = (
 					}),
 			});
 
-			return yield* db.transaction((tx) => TransactionContext.provide(tx)(Effect.gen(function* () {
-			// Deactivate other provider products for this product
-			yield* productRepository.deactivateOtherProviderProducts({
-				productId: product.id,
-				paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-			});
+			return yield* db.transaction((tx) =>
+				TransactionContext.provide(tx)(
+					Effect.gen(function* () {
+						// Deactivate other provider products for this product
+						yield* productRepository.deactivateOtherProviderProducts({
+							productId: product.id,
+							paymentProviderConfigurationId:
+								input.paymentProviderConfigurationId,
+						});
 
-			// Create new provider product
-			const newProviderProduct = {
-				id: generateId("paymentProviderProduct"),
-				productId: product.id,
-				paymentProviderConfigurationId: providerConfiguration.id,
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				providerProductKey: provider.createProductKey(parsedConfiguration as any),
-				environment,
-				configuration: parsedConfiguration,
-				isActive: true,
-			};
+						// Create new provider product
+						const newProviderProduct = {
+							id: generateId("paymentProviderProduct"),
+							productId: product.id,
+							paymentProviderConfigurationId: providerConfiguration.id,
+							providerProductKey: provider.createProductKey(
+								// eslint-disable-next-line @typescript-eslint/no-explicit-any
+								parsedConfiguration as any
+							),
+							environment,
+							configuration: parsedConfiguration,
+							isActive: true,
+						};
 
-			yield* productRepository.createPaymentProviderProduct(newProviderProduct);
-			yield* Effect.log(
-				`Created payment provider product ${newProviderProduct.id} for product ${product.id}`
+						yield* productRepository.createPaymentProviderProduct(
+							newProviderProduct
+						);
+						yield* Effect.log(
+							`Created payment provider product ${newProviderProduct.id} for product ${product.id}`
+						);
+
+						return yield* Effect.succeed(newProviderProduct);
+					})
+				)
 			);
-	
-			return yield* Effect.succeed(newProviderProduct);
-		})))
-
 		}),
 		Environment.withEnvironment(),
 		AuthSession.withAuthSession()

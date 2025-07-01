@@ -32,22 +32,22 @@ const route = describeRoute({
 export type Route = typeof route;
 
 export const registerCustomersGetCustomerByAppUserId = (app: App) =>
-	app.get("/v1/customers/by-app-user-id/:appUserId", route,
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			const projectId = authSession.projects[0]?.id;
-			if (!projectId) {
-				return yield* Effect.die(new Error("Project not found"));
-			}
-			const customerService = yield* CustomerService;
-			const customer = yield* AuthSession.provide(authSession)(customerService.getCustomerByAppUserId(c.req.param("appUserId")));
+	app.get("/v1/customers/by-app-user-id/:appUserId", route, async (c) =>
+		createEffectHandler(c)(
+			Effect.gen(function* () {
+				const authService = yield* Auth;
+				const authSession = yield* authService.authenticate();
+				const customerService = yield* CustomerService;
+				const customer = yield* AuthSession.provide(authSession)(
+					customerService.getCustomerByAppUserId(c.req.param("appUserId"))
+				);
 
-			return c.json<z.infer<typeof customerResponseSchema>>({
-				customerId: customer.id,
-				name: customer.name ?? null,
-				email: customer.email ?? null,
-				appUserId: customer.appUserId ?? null,
-			});
-		}))
+				return c.json<z.infer<typeof customerResponseSchema>>({
+					customerId: customer.id,
+					name: customer.name ?? null,
+					email: customer.email ?? null,
+					appUserId: customer.appUserId ?? null,
+				});
+			})
+		)
 	);

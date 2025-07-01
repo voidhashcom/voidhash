@@ -8,7 +8,10 @@ import {
 import { App } from "../hono/app";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
-import { createEffectHandler } from "@/lib/effect/runtimes/hono";
+import {
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
 import { SdkService } from "@/lib/services/sdk/sdk.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
@@ -40,23 +43,46 @@ export const registerSdkCreateCheckout = (app: App) =>
 		"/v1/sdk/create-checkout",
 		route,
 		zValidator("json", sdkCreateCheckoutBodySchema),
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			
-			const sdkService = yield* SdkService;
-			const checkout = yield* AuthSession.provide(authSession)(
-				sdkService.createCheckout({
-					paymentProviderConfigurationProductId:
-						c.req.valid("json").paymentProviderConfigurationProductId,
-					successCallbackUrl: c.req.valid("json").successCallbackUrl,
-					errorCallbackUrl: c.req.valid("json").errorCallbackUrl,
-				})
-			);
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const sdkService = yield* SdkService;
+					const checkout = yield* AuthSession.provide(authSession)(
+						sdkService
+							.createCheckout({
+								paymentProviderConfigurationProductId:
+									c.req.valid("json").paymentProviderConfigurationProductId,
+								successCallbackUrl: c.req.valid("json").successCallbackUrl,
+								errorCallbackUrl: c.req.valid("json").errorCallbackUrl,
+							})
+							.pipe(
+								Effect.catchTags({
+									ProductNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+									PaymentProviderConfigurationNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+								})
+							)
+					);
 
-			return c.json<z.infer<typeof sdkCheckoutResponseSchema>>({
-				checkoutSessionId: checkout.checkoutSessionId,
-				checkoutUrl: checkout.checkoutUrl,
-			});
-		}))
+					return c.json<z.infer<typeof sdkCheckoutResponseSchema>>({
+						checkoutSessionId: checkout.checkoutSessionId,
+						checkoutUrl: checkout.checkoutUrl,
+					});
+				})
+			)
 	);

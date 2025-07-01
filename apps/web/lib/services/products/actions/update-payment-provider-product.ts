@@ -33,7 +33,7 @@ export class ProviderProductNotFound extends Data.TaggedError(
 }> {}
 
 export class InvalidConfigurationError extends Data.TaggedError(
-	"InvalidConfigurationError"
+	"InvalidConfiguration"
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
@@ -67,10 +67,12 @@ export const updatePaymentProviderProduct = (
 			const [product, providerConfiguration] = yield* Effect.all([
 				productRepository.getProductById(input.productId),
 				db.use(async (dbInstance) => {
-					return await dbInstance.query.paymentProviderConfigurations.findFirst({
-						where: (configs, { eq }) =>
-							eq(configs.id, input.paymentProviderConfigurationId),
-					});
+					return await dbInstance.query.paymentProviderConfigurations.findFirst(
+						{
+							where: (configs, { eq }) =>
+								eq(configs.id, input.paymentProviderConfigurationId),
+						}
+					);
 				}),
 			]);
 
@@ -117,7 +119,8 @@ export const updatePaymentProviderProduct = (
 
 			// Validate configuration
 			const parsedConfiguration = yield* Effect.try({
-				try: () => provider.getProductConfigurationSchema().parse(input.configuration),
+				try: () =>
+					provider.getProductConfigurationSchema().parse(input.configuration),
 				catch: (error) =>
 					new InvalidConfigurationError({
 						message: `Invalid configuration for provider ${providerConfiguration.providerId}: ${error}`,
@@ -126,11 +129,12 @@ export const updatePaymentProviderProduct = (
 			});
 
 			// Get existing provider product
-			const providerProduct = yield* productRepository.getProviderProductByPrimaryKey({
-				paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-				providerProductKey: input.providerProductKey,
-				environment,
-			});
+			const providerProduct =
+				yield* productRepository.getProviderProductByPrimaryKey({
+					paymentProviderConfigurationId: input.paymentProviderConfigurationId,
+					providerProductKey: input.providerProductKey,
+					environment,
+				});
 
 			if (!providerProduct) {
 				return yield* Effect.fail(
@@ -146,21 +150,24 @@ export const updatePaymentProviderProduct = (
 			);
 
 			return yield* db.transaction((tx) =>
-				TransactionContext.provide(tx)(Effect.gen(function* () {
-					yield* productRepository.updatePaymentProviderProduct({
-						productId: input.productId,
-						paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-						providerProductKey: input.providerProductKey,
-						newProviderProductKey,
-						configuration: parsedConfiguration,
-					});
+				TransactionContext.provide(tx)(
+					Effect.gen(function* () {
+						yield* productRepository.updatePaymentProviderProduct({
+							productId: input.productId,
+							paymentProviderConfigurationId:
+								input.paymentProviderConfigurationId,
+							providerProductKey: input.providerProductKey,
+							newProviderProductKey,
+							configuration: parsedConfiguration,
+						});
 
-					yield* Effect.log(
-						`Updated payment provider product for product ${input.productId}`
-					);
+						yield* Effect.log(
+							`Updated payment provider product for product ${input.productId}`
+						);
 
-					return yield* Effect.succeed(undefined);
-				}))
+						return yield* Effect.succeed(undefined);
+					})
+				)
 			);
 		}),
 		Environment.withEnvironment(),

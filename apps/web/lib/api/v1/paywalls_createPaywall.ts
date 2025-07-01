@@ -37,27 +37,34 @@ export const registerPaywallsCreatePaywall = (app: App) =>
 		"/v1/paywalls",
 		route,
 		zValidator("json", createPaywallBodySchema),
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			const projectId = authSession.projects[0]?.id;
-			if (!projectId) {
-				return yield* Effect.die(new Error("Project not found"));
-			}
-			const paywallService = yield* PaywallService;
-			const createdPaywall = yield* AuthSession.provide(authSession)(paywallService.createPaywall({
-				name: c.req.valid("json").name,
-				projectId,
-			}));
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const paywallService = yield* PaywallService;
+					const projectId = yield* AuthSession.provide(authSession)(
+						authService.getAuthorizedProjectId()
+					);
+					const createdPaywall = yield* AuthSession.provide(authSession)(
+						paywallService.createPaywall({
+							name: c.req.valid("json").name,
+							projectId,
+						})
+					);
 
-			const refreshedPaywall = yield* AuthSession.provide(authSession)(paywallService.getPaywallById(createdPaywall.id));
-			if (!refreshedPaywall) {
-				return yield* Effect.die(new Error("Paywall not found"));
-			}
+					const refreshedPaywall = yield* AuthSession.provide(authSession)(
+						paywallService.getPaywallById(createdPaywall.id)
+					);
+					if (!refreshedPaywall) {
+						// Should never happen, because the paywall was created above
+						return yield* Effect.die(new Error("Paywall not found"));
+					}
 
-			return c.json<z.infer<typeof paywallResponseSchema>>({
-				paywallId: refreshedPaywall.id,
-				name: refreshedPaywall.name,
-			});
-		}))
+					return c.json<z.infer<typeof paywallResponseSchema>>({
+						paywallId: refreshedPaywall.id,
+						name: refreshedPaywall.name,
+					});
+				})
+			)
 	);

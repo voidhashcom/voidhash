@@ -1,7 +1,7 @@
 import { Data } from "effect";
 
-export class UnauthenticatedError extends Data.TaggedError(
-	"UnauthenticatedError"
+export class UnauthorizedError extends Data.TaggedError(
+	"UnauthorizedError"
 )<{
 	readonly cause?: unknown;
 	readonly message: string;

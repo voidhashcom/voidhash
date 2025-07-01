@@ -6,7 +6,7 @@ import { eq, inArray } from "drizzle-orm";
 import { Db } from "./db";
 import { Request } from "./request";
 import { BetterAuth } from "./better-auth";
-import { UnauthenticatedError } from "./errors";
+import { UnauthorizedError } from "./errors";
 
 export class InvalidSourceError extends Data.TaggedError("InvalidSourceError")<{
 	readonly cause?: unknown;
@@ -43,6 +43,13 @@ export class MissingAppUserIdError extends Data.TaggedError(
 
 export class InvalidPublishableKeyError extends Data.TaggedError(
 	"InvalidPublishableKeyError"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class MissingProjectIdError extends Data.TaggedError(
+	"MissingProjectIdError"
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
@@ -94,7 +101,7 @@ const withAuthSession = <T, E, D>(effect: Effect.Effect<T, E, D>) =>
 		const maybeSession = yield* Effect.serviceOption(AuthSession);
 		const authService = yield* Auth;
 		const session = Option.isNone(maybeSession)
-			? yield* authService.authenticate
+			? yield* authService.authenticate()
 			: maybeSession.value;
 		return yield* AuthSession.provide(session)(effect);
 	});
@@ -114,36 +121,51 @@ export class AuthSession extends Context.Tag("app/AuthSession")<
 
 export class Auth extends Effect.Service<Auth>()("app/AuthService", {
 	dependencies: [Db.Default],
-	
+
 	effect: Effect.gen(function* () {
 		return {
-			authenticate: Effect.gen(function* () {
-				const request = yield* Request;
-				const existingSession = yield* Effect.serviceOption(AuthSession);
-				if (Option.isSome(existingSession)) {
-					return existingSession.value;
-				}
-				const source = yield* request.getSource;
+			authenticate: () =>
+				Effect.gen(function* () {
+					const request = yield* Request;
+					const existingSession = yield* Effect.serviceOption(AuthSession);
+					if (Option.isSome(existingSession)) {
+						return existingSession.value;
+					}
+					const source = yield* request.getSource;
 
-				switch (source) {
-					case "nextjs":
-						const userAuthSession = yield* getUserAuthSession;
-						return userAuthSession;
-					case "api-server":
-						const secretApiKeyAuthSession = yield* getSecretApiKeyAuthSession;
-						return secretApiKeyAuthSession;
-					case "api-sdk":
-						const publishableApiKeyAuthSession =
-							yield* getPublishableApiKeyAuthSession;
-						return publishableApiKeyAuthSession;
-					default:
+					switch (source) {
+						case "nextjs":
+							const userAuthSession = yield* getUserAuthSession;
+							return userAuthSession;
+						case "api-server":
+							const secretApiKeyAuthSession = yield* getSecretApiKeyAuthSession;
+							return secretApiKeyAuthSession;
+						case "api-sdk":
+							const publishableApiKeyAuthSession =
+								yield* getPublishableApiKeyAuthSession;
+							return publishableApiKeyAuthSession;
+						default:
+							return yield* Effect.fail(
+								new InvalidSourceError({
+									message: "Invalid source",
+								})
+							);
+					}
+				}),
+
+			getAuthorizedProjectId: () =>
+				Effect.gen(function* () {
+					const authSession = yield* AuthSession;
+					const projectId = authSession.projects[0]?.id;
+					if (!projectId) {
 						return yield* Effect.fail(
-							new InvalidSourceError({
-								message: "Invalid source",
+							new MissingProjectIdError({
+								message: "No project id found in session",
 							})
 						);
-				}
-			}),
+					}
+					return projectId;
+				}),
 		};
 	}),
 }) {}
@@ -160,7 +182,7 @@ const getUserAuthSession = Effect.gen(function* () {
 
 	if (!session?.user) {
 		return yield* Effect.fail(
-			new UnauthenticatedError({
+			new UnauthorizedError({
 				message: "You are not authenticated",
 			})
 		);

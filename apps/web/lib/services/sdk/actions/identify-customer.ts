@@ -2,7 +2,7 @@ import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { UnauthenticatedError } from "@/lib/effect/errors";
+import { UnauthorizedError } from "@/lib/effect/errors";
 import { mergeCustomers } from "../../customers/merge-customers";
 import { ID_BLACKLIST } from "@voidhash/lib/constants/id-blacklist";
 import { ANONYMOUS_USER_ID_PREFIX } from "../constants";
@@ -10,12 +10,12 @@ import { Db, TransactionContext } from "@/lib/effect/db";
 import { CustomerRepository } from "../../customers/customer.repository";
 import { Customer } from "@voidhash/db";
 
-export class CustomerConflictError extends Data.TaggedError("CustomerConflictError")<{
+export class CustomerConflictError extends Data.TaggedError("CustomerConflict")<{
 	readonly cause?: unknown;
 	readonly message: string;
 }> {}
 
-export class CustomerCreationError extends Data.TaggedError("CustomerCreationError")<{
+export class CustomerCreationError extends Data.TaggedError("CustomerCreation")<{
 	readonly cause?: unknown;
 	readonly message: string;
 }> {}
@@ -51,7 +51,7 @@ export const identifyCustomer = (inputUnsafe: IdentifyCustomerInput) =>
 			const projectId = session?.projects[0]?.id;
 			if (!projectId) {
 				return yield* Effect.fail(
-					new UnauthenticatedError({
+					new UnauthorizedError({
 						message: "Project ID not found after authentication",
 					})
 				);

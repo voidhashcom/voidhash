@@ -34,31 +34,34 @@ const route = describeRoute({
 export type Route = typeof route;
 
 export const registerCustomersListCustomers = (app: App) =>
-	app.get("/v1/customers", route, 
-	async (c) => createEffectHandler(c)(Effect.gen(function* () {
-		const authService = yield* Auth;
-		const authSession = yield* authService.authenticate;
-		const projectId = authSession.projects[0]?.id;
-		if (!projectId) {
-			return yield* Effect.die(new Error("Project not found"));
-		}
-		const customers = yield* AuthSession.provide(authSession)(pipe(
-			CustomerService,
-			Effect.flatMap((customerService) =>
-				customerService.getCustomers({
-					projectId,
-				})
-			)
-		))
-	
-		return c.json<z.infer<typeof customerResponseSchema>[]>(
-			customers.map((customer) => ({
-				customerId: customer.id,
-				name: customer.name ?? null,
-				email: customer.email,
-				appUserId: customer.appUserId ?? null,
-				origin: customer.origin,
-			}))
-		);
-	}))
-);
+	app.get("/v1/customers", route, async (c) =>
+		createEffectHandler(c)(
+			Effect.gen(function* () {
+				const authService = yield* Auth;
+				const authSession = yield* authService.authenticate();
+				const projectId = yield* AuthSession.provide(authSession)(
+					authService.getAuthorizedProjectId()
+				);
+				const customers = yield* AuthSession.provide(authSession)(
+					pipe(
+						CustomerService,
+						Effect.flatMap((customerService) =>
+							customerService.getCustomers({
+								projectId,
+							})
+						)
+					)
+				);
+
+				return c.json<z.infer<typeof customerResponseSchema>[]>(
+					customers.map((customer) => ({
+						customerId: customer.id,
+						name: customer.name ?? null,
+						email: customer.email,
+						appUserId: customer.appUserId ?? null,
+						origin: customer.origin,
+					}))
+				);
+			})
+		)
+	);

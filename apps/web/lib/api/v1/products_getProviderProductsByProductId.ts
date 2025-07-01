@@ -42,26 +42,30 @@ export const registerProductsGetProviderProductsByProductId = (app: App) =>
 		"/v1/products/:productId/provider-products",
 		route,
 		zValidator("param", getProviderProductsParamsSchema),
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			
-			const productService = yield* ProductService;
-			const providerProducts = yield* AuthSession.provide(authSession)(
-				productService.getProviderProductsByProductId(c.req.param("productId"))
-			);
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const productService = yield* ProductService;
+					const providerProducts = yield* AuthSession.provide(authSession)(
+						productService.getProviderProductsByProductId(
+							c.req.param("productId")
+						)
+					);
 
-			return c.json<z.infer<typeof providerProductResponseSchema>[]>(
-				providerProducts.map((providerProduct) => ({
-					providerProductKey: providerProduct.providerProductKey,
-					providerConfiguration: {
-						paymentProviderConfigurationId:
-							providerProduct.paymentProviderConfigurationId,
-						configuration: providerProduct.configuration,
-					},
-				}))
-			);
-		}))
+					return c.json<z.infer<typeof providerProductResponseSchema>[]>(
+						providerProducts.map((providerProduct) => ({
+							providerProductKey: providerProduct.providerProductKey,
+							providerConfiguration: {
+								paymentProviderConfigurationId:
+									providerProduct.paymentProviderConfigurationId,
+								configuration: providerProduct.configuration,
+							},
+						}))
+					);
+				})
+			)
 	);
 
 export type RouteResponse = z.infer<typeof providerProductResponseSchema>[];

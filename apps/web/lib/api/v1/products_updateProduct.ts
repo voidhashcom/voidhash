@@ -9,7 +9,10 @@ import { z } from "zod";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
-import { createEffectHandler } from "@/lib/effect/runtimes/hono";
+import {
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/products/product.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
@@ -42,31 +45,45 @@ export const registerProductsUpdateProduct = (app: App) =>
 		route,
 		zValidator("param", updateProductParamsSchema),
 		zValidator("json", updateProductBodySchema),
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			
-			const productService = yield* ProductService;
-			const productId = c.req.param("productId");
-			const name = c.req.valid("json").name;
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const productService = yield* ProductService;
+					const productId = c.req.param("productId");
+					const name = c.req.valid("json").name;
+					yield* AuthSession.provide(authSession)(
+						productService
+							.updateProduct({
+								productId: productId,
+								name,
+							})
+							.pipe(
+								Effect.catchTags({
+									ProductNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+								})
+							)
+					);
 
-			yield* AuthSession.provide(authSession)(
-				productService.updateProduct({
-					productId: productId,
-					name,
+					// Get the updated product to return full details
+					const product = yield* AuthSession.provide(authSession)(
+						productService.getProductById(productId)
+					);
+
+					return c.json<z.infer<typeof productResponseSchema>>({
+						productId: product.id,
+						name: product.name,
+					});
 				})
-			);
-
-			// Get the updated product to return full details
-			const product = yield* AuthSession.provide(authSession)(
-				productService.getProductById(productId)
-			);
-
-			return c.json<z.infer<typeof productResponseSchema>>({
-				productId: product.id,
-				name: product.name,
-			});
-		}))
+			)
 	);
 
 export type RouteResponse = z.infer<typeof productResponseSchema>;

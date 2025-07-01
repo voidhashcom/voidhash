@@ -31,6 +31,6 @@
         "typescript": "5.6.1-rc"
     },
     "peerDependencies": {
-        "effect": "^3.16.8"
+        "effect": "^3.16.10"
     }
 }

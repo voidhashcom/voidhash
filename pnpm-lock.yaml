@@ -206,14 +206,14 @@ importers:
         specifier: ^0.41.0
         version: 0.41.0(@opentelemetry/api@1.9.0)(@planetscale/database@1.19.0)(gel@2.0.1)(kysely@0.27.6)(mysql2@3.13.0)
       effect:
-        specifier: ^3.16.8
-        version: 3.16.8
+        specifier: ^3.16.10
+        version: 3.16.10
       hono:
         specifier: ^4.7.6
         version: 4.7.6
       hono-openapi:
         specifier: ^0.4.6
-        version: 0.4.6(@hono/zod-validator@0.4.3(hono@4.7.6)(zod@3.24.2))(effect@3.16.8)(hono@4.7.6)(valibot@1.0.0-beta.15(typescript@5.8.3))(zod-openapi@4.2.4(zod@3.24.2))(zod@3.24.2)
+        version: 0.4.6(@hono/zod-validator@0.4.3(hono@4.7.6)(zod@3.24.2))(effect@3.16.10)(hono@4.7.6)(valibot@1.0.0-beta.15(typescript@5.8.3))(zod-openapi@4.2.4(zod@3.24.2))(zod@3.24.2)
       lucide-react:
         specifier: ^0.483.0
         version: 0.483.0(react@19.0.0)
@@ -373,8 +373,8 @@ importers:
         specifier: ^0.3.1
         version: 0.3.1(drizzle-orm@0.41.0(@opentelemetry/api@1.9.0)(@planetscale/database@1.19.0)(gel@2.0.1)(kysely@0.27.6)(mysql2@3.13.0))
       effect:
-        specifier: ^3.16.8
-        version: 3.16.8
+        specifier: ^3.16.10
+        version: 3.16.10
       mysql2:
         specifier: ^3.13.0
         version: 3.13.0
@@ -423,8 +423,8 @@ importers:
         specifier: ^2.2.2
         version: 2.2.2
       effect:
-        specifier: ^3.16.8
-        version: 3.16.8
+        specifier: ^3.16.10
+        version: 3.16.10
       nanoid:
         specifier: ^5.1.5
         version: 5.1.5
@@ -5620,8 +5620,8 @@ packages:
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
 
-  effect@3.16.8:
-    resolution: {integrity: sha512-E4U0MZFBun99myxOogy9ZZ1c3IYR47L/A5GqCP9Lp+6ORag0YLmGHOrYxQ3agN1FOMTrElgtJmciicwnHdE+Ug==}
+  effect@3.16.10:
+    resolution: {integrity: sha512-F0hDCOLax7i3SOy5wQnJZTzKP9aGg8OQNUJ2s8YoL5fVcCgRCgE+Ky+Hfz5qC7LgVVOWDDbRpCh5MPB20wRI8Q==}
 
   electron-to-chromium@1.5.120:
     resolution: {integrity: sha512-oTUp3gfX1gZI+xfD2djr2rzQdHCwHzPQrrK0CD7WpTdF0nPdQ/INcRVjWgLdCT4a9W3jFObR9DAfsuyFQnI8CQ==}
@@ -13566,7 +13566,7 @@ snapshots:
 
   eastasianwidth@0.2.0: {}
 
-  effect@3.16.8:
+  effect@3.16.10:
     dependencies:
       '@standard-schema/spec': 1.0.0
       fast-check: 3.23.2
@@ -14870,12 +14870,12 @@ snapshots:
 
   hls.js@1.6.4: {}
 
-  hono-openapi@0.4.6(@hono/zod-validator@0.4.3(hono@4.7.6)(zod@3.24.2))(effect@3.16.8)(hono@4.7.6)(valibot@1.0.0-beta.15(typescript@5.8.3))(zod-openapi@4.2.4(zod@3.24.2))(zod@3.24.2):
+  hono-openapi@0.4.6(@hono/zod-validator@0.4.3(hono@4.7.6)(zod@3.24.2))(effect@3.16.10)(hono@4.7.6)(valibot@1.0.0-beta.15(typescript@5.8.3))(zod-openapi@4.2.4(zod@3.24.2))(zod@3.24.2):
     dependencies:
       json-schema-walker: 2.0.0
     optionalDependencies:
       '@hono/zod-validator': 0.4.3(hono@4.7.6)(zod@3.24.2)
-      effect: 3.16.8
+      effect: 3.16.10
       hono: 4.7.6
       valibot: 1.0.0-beta.15(typescript@5.8.3)
       zod: 3.24.2

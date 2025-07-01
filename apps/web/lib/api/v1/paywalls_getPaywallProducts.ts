@@ -42,22 +42,23 @@ export const registerPaywallsGetPaywallProducts = (app: App) =>
 		"/v1/paywalls/:paywallId/products",
 		route,
 		zValidator("param", getPaywallProductsParamsSchema),
-		async (c) => createEffectHandler(c)(Effect.gen(function* () {
-			const authService = yield* Auth;
-			const authSession = yield* authService.authenticate;
-			const projectId = authSession.projects[0]?.id;
-			if (!projectId) {
-				return yield* Effect.die(new Error("Project not found"));
-			}
-			const paywallService = yield* PaywallService;
-			const paywallProducts = yield* AuthSession.provide(authSession)(paywallService.getPaywallProducts(c.req.param("paywallId")));
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const paywallService = yield* PaywallService;
+					const paywallProducts = yield* AuthSession.provide(authSession)(
+						paywallService.getPaywallProducts(c.req.param("paywallId"))
+					);
 
-			return c.json<z.infer<typeof paywallProductResponseSchema>[]>(
-				paywallProducts.map((pp) => ({
-					paywallId: pp.paywallId,
-					productId: pp.productId,
-					productName: pp.product.name ?? null,
-				}))
-			);
-		}))
+					return c.json<z.infer<typeof paywallProductResponseSchema>[]>(
+						paywallProducts.map((pp) => ({
+							paywallId: pp.paywallId,
+							productId: pp.productId,
+							productName: pp.product.name ?? null,
+						}))
+					);
+				})
+			)
 	);

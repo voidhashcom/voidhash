@@ -6,10 +6,13 @@ import { ProductRepository } from "../product.repository";
 import { Environment } from "@/lib/effect/environment";
 import { Db, TransactionContext } from "@/lib/effect/db";
 
-import { devCheckout, devCheckoutPaymentProviderId } from "@/lib/payment-providers/dev-checkout/dev-checkout";
+import {
+	devCheckout,
+	devCheckoutPaymentProviderId,
+} from "@/lib/payment-providers/dev-checkout/dev-checkout";
 
 export class PaymentProviderConfigurationNotFoundError extends Data.TaggedError(
-	"PaymentProviderConfigurationNotFoundError"
+	"PaymentProviderConfigurationNotFound"
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
@@ -49,45 +52,49 @@ export const createProduct = (inputUnsafe: CreateProductInput) =>
 			};
 
 			yield* db.transaction((tx) =>
-				TransactionContext.provide(tx)(Effect.gen(function* () {
-					// Create the product
-					yield* productRepository.createProduct(newProduct);
+				TransactionContext.provide(tx)(
+					Effect.gen(function* () {
+						// Create the product
+						yield* productRepository.createProduct(newProduct);
 
-					// For testing environment, create dev checkout configuration
-					if (environment === "testing") {
-						const devCheckoutConfig = yield* tx(async (dbTx) => {
-							return await dbTx.query.paymentProviderConfigurations.findFirst({
-								where: (configs, { eq, and }) =>
-									and(
-										eq(configs.projectId, input.projectId),
-										eq(configs.providerId, devCheckoutPaymentProviderId)
-									),
+						// For testing environment, create dev checkout configuration
+						if (environment === "testing") {
+							const devCheckoutConfig = yield* tx(async (dbTx) => {
+								return await dbTx.query.paymentProviderConfigurations.findFirst(
+									{
+										where: (configs, { eq, and }) =>
+											and(
+												eq(configs.projectId, input.projectId),
+												eq(configs.providerId, devCheckoutPaymentProviderId)
+											),
+									}
+								);
 							});
-						});
 
-						if (!devCheckoutConfig) {
-							return yield* Effect.fail(
-								new PaymentProviderConfigurationNotFoundError({
-									message: "Dev Checkout configuration not found",
-								})
-							);
+							if (!devCheckoutConfig) {
+								return yield* Effect.fail(
+									new PaymentProviderConfigurationNotFoundError({
+										message: "Dev Checkout configuration not found",
+									})
+								);
+							}
+
+							yield* productRepository.createPaymentProviderProduct({
+								id: generateId("paymentProviderProduct"),
+								productId: productId,
+								paymentProviderConfigurationId: devCheckoutConfig.id,
+								providerProductKey: devCheckout.createProductKey({
+									productId: productId,
+								}),
+								configuration: {
+									productId: productId,
+								},
+								environment,
+								isActive: true,
+							});
 						}
-
-						yield* productRepository.createPaymentProviderProduct({
-							id: generateId("paymentProviderProduct"),
-							productId: productId,
-							paymentProviderConfigurationId: devCheckoutConfig.id,
-							providerProductKey: devCheckout.createProductKey({
-								productId: productId,
-							}),
-							configuration: {
-								productId: productId,
-							},
-							environment,
-							isActive: true,
-						});
-					}
-				}))
+					})
+				)
 			);
 
 			yield* Effect.log(
