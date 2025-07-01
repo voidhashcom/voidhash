@@ -64,8 +64,8 @@ export class Db extends Effect.Service<Db>()("app/Db", {
 										resume(Effect.succeed(value));
 									},
 									onFailure: (cause) => {
-										if (Cause.isFailure(cause)) {
-											resume(Effect.fail(Cause.originalError(cause) as E));
+										if (Cause.isFailType(cause)) {
+											resume(Effect.fail(cause.error));
 										} else {
 											resume(Effect.die(cause));
 										}

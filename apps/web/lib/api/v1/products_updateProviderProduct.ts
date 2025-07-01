@@ -74,7 +74,7 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 									ProductNotFound: (error) =>
 										Effect.fail(
 											new HonoErrorResponse({
-												code: "BAD_REQUEST",
+												code: "NOT_FOUND",
 												message: error.message,
 												originalError: error,
 											})
@@ -82,7 +82,7 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 									PaymentProviderConfigurationNotFound: (error) =>
 										Effect.fail(
 											new HonoErrorResponse({
-												code: "BAD_REQUEST",
+												code: "NOT_FOUND",
 												message: error.message,
 												originalError: error,
 											})
@@ -98,7 +98,7 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 									ProviderProductNotFound: (error) =>
 										Effect.fail(
 											new HonoErrorResponse({
-												code: "BAD_REQUEST",
+												code: "NOT_FOUND",
 												message: error.message,
 												originalError: error,
 											})

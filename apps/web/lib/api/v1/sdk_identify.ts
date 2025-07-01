@@ -14,7 +14,7 @@ import {
 	HonoErrorResponse,
 } from "@/lib/effect/runtimes/hono";
 import { SdkService } from "@/lib/services/sdk/sdk.service";
-import { Console, Effect } from "effect";
+import { Console, Effect, pipe } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
@@ -52,36 +52,51 @@ export const registerSdkIdentify = (app: App) =>
 					const authSession = yield* authService.authenticate();
 					const sdkService = yield* SdkService;
 					const customer = yield* AuthSession.provide(authSession)(
-						sdkService.identifyCustomer({
-							appUserId: c.req.valid("json").appUserId,
-							name: c.req.valid("json").name,
-							email: c.req.valid("json").email,
-						})
-					).pipe(
-						Effect.tapBoth({
-							onSuccess: (value) => Console.log("=== SUCCESS 0 ====", value),
-							onFailure: (error) => Console.log("=== FAILURE 0 ====", error),
-						}),
-						Effect.catchTags({
-							CustomerConflict: (error) =>
-								Effect.fail(
-									new HonoErrorResponse({
-										code: "CONFLICT",
-										message: error.message,
-									})
-								),
-							CustomerCreation: (error) =>
-								Effect.fail(
-									new HonoErrorResponse({
-										code: "BAD_REQUEST",
-										message: error.message,
-									})
-								),
-						}),
-						Effect.tapBoth({
-							onSuccess: (value) => Console.log("=== SUCCESS 1 ====", value),
-							onFailure: (error) => Console.log("=== FAILURE 1 ====", error),
-						})
+						pipe(
+							sdkService.identifyCustomer({
+								appUserId: c.req.valid("json").appUserId,
+								name: c.req.valid("json").name,
+								email: c.req.valid("json").email,
+							}),
+							Effect.tapBoth({
+								onSuccess: (value) => Console.log("=== SUCCESS 0 ====", value),
+								onFailure: (error) =>
+									Console.log("=== FAILURE 0 ====", error._tag),
+							}),
+							Effect.catchTags({
+								CustomerConflict: (error) =>
+									Effect.fail(
+										new HonoErrorResponse({
+											code: "CONFLICT",
+											message: error.message,
+											originalError: error,
+										})
+									),
+								CustomerCreation: (error) =>
+									Effect.fail(
+										new HonoErrorResponse({
+											code: "INTERNAL_SERVER_ERROR",
+											message: error.message,
+											originalError: error,
+										})
+									),
+							}),
+							// Effect.catchAll((error) => {
+							// 	Console.log("=== DEFECT 1 ====", error._tag);
+							// 	return Effect.fail(
+							// 		new HonoErrorResponse({
+							// 			code: "INTERNAL_SERVER_ERROR",
+							// 			message: "ERROR",
+							// 			originalError: new Error("ERROR"),
+							// 		})
+							// 	);
+							// }),
+							Effect.tapBoth({
+								onSuccess: (value) => Console.log("=== SUCCESS 1 ====", value),
+								onFailure: (error) =>
+									Console.log("=== FAILURE 1 ====", error._tag),
+							})
+						)
 					);
 
 					return c.json<z.infer<typeof customerResponseSchema>>({

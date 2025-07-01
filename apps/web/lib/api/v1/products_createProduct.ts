@@ -46,13 +46,15 @@ export const registerProductsCreateProduct = (app: App) =>
 					const authService = yield* Auth;
 					const authSession = yield* authService.authenticate();
 					const productService = yield* ProductService;
-					const createdProduct = yield* AuthSession.provide(authSession)(
+					const projectId = yield* AuthSession.provide(authSession)(authService.getAuthorizedProjectId());
+					const product = yield* AuthSession.provide(authSession)(
 						productService
 							.createProduct({
 								name: c.req.valid("json").name,
-								projectId: yield* authService.getAuthorizedProjectId(),
+								projectId,
 							})
 							.pipe(
+								Effect.flatMap((createdProduct) => productService.getProductById(createdProduct.id)),
 								Effect.catchTags({
 									PaymentProviderConfigurationNotFound: (error) =>
 										Effect.fail(
@@ -64,11 +66,6 @@ export const registerProductsCreateProduct = (app: App) =>
 										),
 								})
 							)
-					);
-
-					// Get the created product to return full details
-					const product = yield* AuthSession.provide(authSession)(
-						productService.getProductById(createdProduct.id)
 					);
 
 					return c.json<z.infer<typeof productResponseSchema>>({
