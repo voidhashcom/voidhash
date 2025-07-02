@@ -1,12 +1,17 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
+import { resolver } from "hono-openapi/zod";
 import { z } from "zod";
-import { authenticateContext } from "@/lib/service-function";
-import { deletePaywallParamsSchema } from "./schema";
-import { deletePaywall } from "@/lib/services/paywalls/actions/delete-paywall";
 import { openApiErrorResponses } from "../errors/openapi_responses";
+import { deletePaywallParamsSchema } from "./schema";
 import { App } from "../hono/app";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { zValidator } from "@hono/zod-validator";
+import {
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
+import { PaywallService } from "@/lib/services/paywalls/paywall.service";
+import { Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Delete a paywall",
@@ -37,25 +42,38 @@ export const registerPaywallsDeletePaywall = (app: App) =>
 		"/v1/paywalls/:paywallId",
 		route,
 		zValidator("param", deletePaywallParamsSchema),
-		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
-			const paywallId = c.req.param("paywallId");
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const paywallService = yield* PaywallService;
+					yield* AuthSession.provide(authSession)(
+						paywallService.deletePaywall({
+							paywallId: c.req.param("paywallId"),
+						})
+					).pipe(
+						Effect.catchTags({
+							PaywallNotFound: (error) =>
+								Effect.fail(
+									new HonoErrorResponse({
+										code: "NOT_FOUND",
+										message: error.message,
+										originalError: error,
+									})
+								),
+							PaywallInUseError: (error) =>
+								Effect.fail(
+									new HonoErrorResponse({
+										code: "BAD_REQUEST",
+										message: error.message,
+										originalError: error,
+									})
+								),
+						})
+					);
 
-			const deletedPaywall = await deletePaywall.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					paywallId,
-				},
-			});
-
-			if (deletedPaywall.isErr()) {
-				throw toVoidhashHTTPError(deletedPaywall.error);
-			}
-
-			return c.json({ message: "Paywall deleted" });
-		}
+					return c.json({ message: "Paywall deleted" });
+				})
+			)
 	);

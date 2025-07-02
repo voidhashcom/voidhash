@@ -1,8 +1,11 @@
-import { getEnvironment } from "@/lib/services/environments/utils";
 import { NavProjectEnvironmentToggle } from "./nav-project-environment-toggle";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { Suspense } from "react";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { Effect } from "effect";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { NotFoundError } from "@/lib/effect/errors";
+import { Environment } from "@/lib/effect/environment";
+import { AuthSession } from "@/lib/effect/auth";
 
 export async function NavProjectEnvironmentContent({
 	organizationSlug,
@@ -11,25 +14,30 @@ export async function NavProjectEnvironmentContent({
 	if (!organizationSlug || !projectSlug) {
 		return null;
 	}
-	const serviceContext = await createNextServiceContext();
+	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
+		organizationSlug,
+		projectSlug,
+	})(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const environment = yield* Environment
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		return { project, environment };
+	}))));
 
-	const [environmentResult, projectResult] = await Promise.all([
-		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),
-		getProjectBySlugAndOrganizationSlug({
-			ctx: serviceContext,
-			input: {
-				organizationSlug: organizationSlug,
-				projectSlug: projectSlug,
-			},
-		}),
-	]);
 
-	if (projectResult.isErr() || environmentResult.isErr()) {
+	if (data.isErr()) {
 		return null;
 	}
 
-	const project = projectResult.value;
-	const environment = environmentResult.value;
+	const { project, environment } = data.value;
 
 	return (
 		<div>

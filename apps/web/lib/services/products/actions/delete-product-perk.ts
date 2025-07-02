@@ -1,67 +1,60 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashBadRequestError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { productPerks } from "@voidhash/db";
-import { and, eq } from "drizzle-orm";
-import { err, ok, Result } from "neverthrow";
-import { getProductByIdQuery } from "../raw-queries";
-import { isAuthenticated } from "@/lib/middlewares";
+import { AuthSession } from "@/lib/effect/auth";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
+import { ProductRepository } from "../product.repository";
 
-export const deleteProductPerkInputSchema = z.object({
-	productId: z.string(),
-	perkId: z.string(),
+export class ProductNotFound extends Data.TaggedError("ProductNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const deleteProductPerkInputSchema = Schema.Struct({
+	productId: Schema.String,
+	perkId: Schema.String,
 });
 
-type DeleteProductPerkError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashBadRequestError;
+type DeleteProductPerkInput = Schema.Schema.Type<
+	typeof deleteProductPerkInputSchema
+>;
 
-export const deleteProductPerk = createServiceFunction()
-	.input(deleteProductPerkInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({ input, ctx }): Promise<Result<void, DeleteProductPerkError>> => {
-			const product = await getProductByIdQuery(ctx, input.productId);
+export const deleteProductPerk = (inputUnsafe: DeleteProductPerkInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const productRepository = yield* ProductRepository;
+			const input = Schema.decodeUnknownSync(deleteProductPerkInputSchema)(
+				inputUnsafe
+			);
 
-			if (product.isErr()) {
-				return err(product.error);
+			const product = yield* productRepository.getProductById(input.productId);
+
+			if (!product) {
+				return yield* Effect.fail(
+					new ProductNotFound({
+						message: `Product ${input.productId} not found`,
+					})
+				);
 			}
 
-			if (!hasProjectPermission(ctx, product.value.projectId, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message:
-						"You are not authorized to delete this payment provider product",
-				});
-			}
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				product.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to delete product perks for product ${input.productId}`
+			);
 
-			try {
-				await ctx.db
-					.delete(productPerks)
-					.where(
-						and(
-							eq(productPerks.productId, product.value.id),
-							eq(productPerks.perkId, input.perkId)
-						)
-					);
-				return ok(undefined);
-			} catch (e) {
-				return err(fromUnknownThrow(e));
-			}
+			yield* productRepository.deleteProductPerk({
+				productId: input.productId,
+				perkId: input.perkId,
+			});
+
+			yield* Effect.log(
+				`Deleted product perk ${input.perkId} from product ${input.productId}`
+			);
+
+			return yield* Effect.succeed(undefined);
 
 			// TODO: Think about deleting already granted perks.
-		}
+		}),
+		AuthSession.withAuthSession()
 	);

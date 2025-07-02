@@ -1,90 +1,84 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashConflictError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { and, eq, PaywallLocation, paywallLocations } from "@voidhash/db";
+import { AuthSession } from "@/lib/effect/auth";
+import { Environment } from "@/lib/effect/environment";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { getPaywallByIdQuery } from "../../paywalls/raw-queries";
-import { err, ok, Result } from "neverthrow";
-import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { PaywallLocationRepository } from "../paywall-location.repository";
+import { PaywallRepository } from "../../paywalls/paywall.repository";
 
-export const createPaywallLocationInputSchema = z.object({
-	projectId: z.string(),
-	name: z
-		.string()
-		.min(3, "Name must be at least 3 characters long")
-		.max(32, "Name must be less than 32 characters"),
-	slug: z
-		.string()
-		.min(3, "Slug must be at least 3 characters long")
-		.max(32, "Slug must be less than 32 characters")
-		.regex(
-			/^[a-z0-9_-]+$/,
-			"Slug must contain only lowercase letters, numbers, underscores, and hyphens"
-		),
-	defaultPaywallId: z.string(),
+export class SlugAlreadyExistsError extends Data.TaggedError(
+	"SlugAlreadyExistsError"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class DefaultPaywallNotFoundError extends Data.TaggedError(
+	"DefaultPaywallNotFoundError"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const createPaywallLocationInputSchema = Schema.Struct({
+	projectId: Schema.String,
+	name: Schema.String.pipe(Schema.minLength(3), Schema.maxLength(32)),
+	slug: Schema.String.pipe(
+		Schema.minLength(3),
+		Schema.maxLength(32),
+		Schema.pattern(/^[a-z0-9_-]+$/)
+	),
+	defaultPaywallId: Schema.String,
 });
 
-type CreatePaywallLocationError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashConflictError;
+type CreatePaywallLocationInput = Schema.Schema.Type<
+	typeof createPaywallLocationInputSchema
+>;
 
-export const createPaywallLocation = createServiceFunction()
-	.input(createPaywallLocationInputSchema)
-	.use(isAuthenticated)
-	.use(hasEnvironment)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<PaywallLocation, CreatePaywallLocationError>> => {
-			if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to create paywall locations",
-				});
-			}
-
-			const existingPaywallLocation =
-				await ctx.db.query.paywallLocations.findFirst({
-					where: and(
-						eq(paywallLocations.slug, input.slug),
-						eq(paywallLocations.projectId, input.projectId),
-						eq(paywallLocations.environment, ctx.session.environment)
-					),
-				});
-
-			if (existingPaywallLocation) {
-				return err({
-					code: "CONFLICT",
-					message:
-						"Paywall location with this slug already exists. Please choose a different slug.",
-					resource: "paywall_location",
-					payload: {
-						slug: input.slug,
-					},
-				});
-			}
-
-			const defaultPaywall = await getPaywallByIdQuery(
-				ctx,
-				input.defaultPaywallId
+export const createPaywallLocation = (
+	inputUnsafe: CreatePaywallLocationInput
+) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const environment = yield* Environment;
+			const paywallLocationRepository = yield* PaywallLocationRepository;
+			const paywallRepository = yield* PaywallRepository;
+			const input = Schema.decodeUnknownSync(createPaywallLocationInputSchema)(
+				inputUnsafe
 			);
 
-			if (defaultPaywall.isErr()) {
-				return err(defaultPaywall.error);
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				input.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to create paywall locations for project ${input.projectId}`
+			);
+
+			const paywallLocation =
+				yield* paywallLocationRepository.getPaywallLocationBySlug({
+					slug: input.slug,
+					projectId: input.projectId,
+					environment: environment,
+				});
+			if (paywallLocation) {
+				return yield* Effect.fail(
+					new SlugAlreadyExistsError({
+						message:
+							"Paywall location with this slug already exists. Please choose a different slug.",
+					})
+				);
+			}
+
+			const defaultPaywall = yield* paywallRepository.getPaywallById(
+				input.defaultPaywallId
+			);
+			if (!defaultPaywall) {
+				return yield* Effect.fail(
+					new DefaultPaywallNotFoundError({
+						message: "Default paywall not found",
+					})
+				);
 			}
 
 			const newPaywallLocation = {
@@ -92,18 +86,25 @@ export const createPaywallLocation = createServiceFunction()
 				slug: input.slug,
 				projectId: input.projectId,
 				name: input.name,
-				defaultPaywallId: input.defaultPaywallId,
-				environment: ctx.session.environment,
+				environment: environment,
+				defaultPaywallId: defaultPaywall.id,
 			};
-			try {
-				await ctx.db.insert(paywallLocations).values(newPaywallLocation);
-				return ok({
-					...newPaywallLocation,
-					createdAt: new Date(),
-					updatedAt: new Date(),
-				});
-			} catch (e) {
-				return err(fromUnknownThrow(e));
-			}
-		}
+
+			yield* paywallLocationRepository.createPaywallLocation(
+				newPaywallLocation
+			);
+			yield* Effect.log(
+				`Created paywall location ${newPaywallLocation.id} for project ${input.projectId}`
+			);
+
+			// TODO: Adding a perk should unlock it for existing users?
+
+			return yield* Effect.succeed({
+				id: newPaywallLocation.id,
+			});
+		}),
+		Environment.withEnvironment({
+			projectId: inputUnsafe.projectId,
+		}),
+		AuthSession.withAuthSession()
 	);

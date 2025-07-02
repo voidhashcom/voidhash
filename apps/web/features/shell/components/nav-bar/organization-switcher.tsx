@@ -2,11 +2,13 @@ import { GradientAvatar } from "@voidhash/ui/gradient-avatar";
 
 import { OrganizationProjectSwitcher } from "./organization-project-switcher";
 import Link from "next/link";
-import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { Suspense } from "react";
 import { Skeleton } from "@voidhash/ui";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { getUser } from "@/lib/services/users/queries";
+import { OrganizationService } from "@/lib/services/organizations/organization.service";
+import { UserService } from "@/lib/services/users/user.service";
+import { Effect } from "effect";
+import { NotFoundError } from "@/lib/effect/errors";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 
 const OrganizationSwitcherComponent = async ({
 	organizationSlug,
@@ -15,28 +17,26 @@ const OrganizationSwitcherComponent = async ({
 		return null;
 	}
 
-	const serviceContext = await createNextServiceContext();
-	const userPromise = getUser({
-		ctx: serviceContext,
-	});
-	const activeOrganizationPromise = getOrganizationBySlug({
-		ctx: serviceContext,
-		input: {
-			slug: organizationSlug,
-		},
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const userService = yield* UserService;
+		const organizationService = yield* OrganizationService;
+		const [user, activeOrganization] = yield* Effect.all([
+			userService.getUser(),
+			organizationService.getOrganizationBySlug(organizationSlug),
+		]);
+		if (!activeOrganization) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Organization not found",
+			}));
+		}
+		return { user, activeOrganization };
+	}));
 
-	const [userResult, activeOrganizationResult] = await Promise.all([
-		userPromise,
-		activeOrganizationPromise,
-	]);
-
-	if (userResult.isErr() || activeOrganizationResult.isErr()) {
+	if (data.isErr()) {
 		return null;
 	}
 
-	const user = userResult.value;
-	const activeOrganization = activeOrganizationResult.value;
+	const { user, activeOrganization } = data.value;
 
 	return (
 		<div className="flex items-center gap-2">

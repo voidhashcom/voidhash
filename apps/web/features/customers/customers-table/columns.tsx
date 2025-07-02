@@ -1,10 +1,7 @@
 "use client";
 import { ColumnDef } from "@tanstack/react-table";
-import { type GetCustomersSuccess } from "@/lib/services/customers/queries";
 import { format } from "date-fns";
-// import { RouterOutputs } from "@/lib/trpc";
-
-type Customer = GetCustomersSuccess[number];
+import { type Customer } from "@voidhash/db";
 
 export const columns: ColumnDef<Customer>[] = [
 	{

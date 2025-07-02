@@ -1,9 +1,12 @@
-import { getEnvironment } from "@/lib/services/environments/utils";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
+
 import { Suspense } from "react";
 import { cn } from "@voidhash/ui";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { Environment } from "@/lib/effect/environment";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { Effect } from "effect";
+import { NotFoundError } from "@/lib/effect/errors";
+import { AuthSession } from "@/lib/effect/auth";
 
 export async function EnviromentBarContent({
 	organizationSlug,
@@ -12,33 +15,30 @@ export async function EnviromentBarContent({
 	if (!organizationSlug || !projectSlug) {
 		return null;
 	}
-	const serviceContext = await createNextServiceContext();
-	const organization = await getOrganizationBySlug({
-		ctx: serviceContext,
-		input: {
-			slug: organizationSlug,
-		},
-	});
-	if (!organization) {
-		return null;
-	}
-	const [environmentResult, projectResult] = await Promise.all([
-		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),
-		getProjectBySlugAndOrganizationSlug({
-			ctx: serviceContext,
-			input: {
-				organizationSlug: organizationSlug,
-				projectSlug: projectSlug,
-			},
-		}),
-	]);
 
-	if (projectResult.isErr() || environmentResult.isErr()) {
+	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
+		organizationSlug,
+		projectSlug,
+	})(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const environment = yield* Environment;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		return { project, environment };
+	}))));
+
+	if (data.isErr()) {
 		return null;
 	}
 
-	const project = projectResult.value;
-	const environment = environmentResult.value;
+	const { project, environment } = data.value;
 
 	const showBar = project && environment && environment === "testing";
 

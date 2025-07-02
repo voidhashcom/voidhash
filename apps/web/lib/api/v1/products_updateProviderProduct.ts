@@ -1,20 +1,21 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { authenticateContext } from "@/lib/service-function";
+import { resolver } from "hono-openapi/zod";
 import {
 	providerProductResponseSchema,
 	updateProviderProductBodySchema,
 	updateProviderProductParamsSchema,
 } from "./schema";
 import { z } from "zod";
-import { updatePaymentProviderProduct } from "@/lib/services/products/actions/update-payment-provider-product";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
+import { zValidator } from "@hono/zod-validator";
 import {
-	toVoidhashHTTPError,
-	VoidhashHTTPError,
-} from "@voidhash/lib/constants";
-import { getProviderProductByPrimaryKey } from "@/lib/services/products/queries";
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
+import { ProductService } from "@/lib/services/products/product.service";
+import { Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Update a provider product",
@@ -46,64 +47,92 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
 		route,
 		zValidator("param", updateProviderProductParamsSchema),
 		zValidator("json", updateProviderProductBodySchema),
-		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
 
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
-			const productId = c.req.param("productId");
-			const paymentProviderConfigurationId = c.req.param(
-				"paymentProviderConfigurationId"
-			);
-			const providerProductKey = c.req.param("providerProductKey");
-			const configuration = c.req.valid("json");
+					const productService = yield* ProductService;
+					const productId = c.req.param("productId");
+					const paymentProviderConfigurationId = c.req.param(
+						"paymentProviderConfigurationId"
+					);
+					const providerProductKey = c.req.param("providerProductKey");
+					const configuration = c.req.valid("json");
 
-			const projectId = authenticatedContext.value.session?.projects[0]?.id;
-			if (!projectId) {
-				throw new VoidhashHTTPError({
-					code: "NOT_FOUND",
-					message: "Project not found",
-				});
-			}
+					yield* AuthSession.provide(authSession)(
+						productService
+							.updatePaymentProviderProduct({
+								productId,
+								paymentProviderConfigurationId: paymentProviderConfigurationId,
+								configuration: configuration.configuration,
+								providerProductKey,
+							})
+							.pipe(
+								Effect.catchTags({
+									ProductNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+									PaymentProviderConfigurationNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+									PaymentProviderNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "BAD_REQUEST",
+												message: error.message,
+												originalError: error,
+											})
+										),
+									ProviderProductNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+									InvalidConfiguration: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "BAD_REQUEST",
+												message: error.message,
+												originalError: error,
+											})
+										),
+								})
+							)
+					);
 
-			const updatedProviderProduct = await updatePaymentProviderProduct.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					productId,
-					paymentProviderConfigurationId: paymentProviderConfigurationId,
-					configuration: configuration.configuration,
-					providerProductKey,
-				},
-			});
+					// Get the updated provider product to return full details
+					const providerProduct = yield* AuthSession.provide(authSession)(
+						productService.getProviderProductByPrimaryKey({
+							paymentProviderConfigurationId: paymentProviderConfigurationId,
+							providerProductKey: providerProductKey,
+						})
+					);
 
-			if (updatedProviderProduct.isErr()) {
-				throw toVoidhashHTTPError(updatedProviderProduct.error);
-			}
-
-			const providerProduct = await getProviderProductByPrimaryKey({
-				ctx: authenticatedContext.value,
-				input: {
-					paymentProviderConfigurationId: paymentProviderConfigurationId,
-					productProviderKey: providerProductKey,
-				},
-			});
-
-			if (providerProduct.isErr()) {
-				throw toVoidhashHTTPError(providerProduct.error);
-			}
-
-			const responseBody: z.infer<typeof providerProductResponseSchema> = {
-				providerProductKey: providerProduct.value.providerProductKey,
-				providerConfiguration: {
-					configuration: providerProduct.value.configuration,
-					providerId: providerProduct.value.providerId,
-				},
-			};
-
-			return c.json(responseBody);
-		}
+					return c.json<z.infer<typeof providerProductResponseSchema>>({
+						providerProductKey: providerProduct.providerProductKey,
+						providerConfiguration: {
+							configuration: providerProduct.configuration,
+							paymentProviderConfigurationId:
+								providerProduct.paymentProviderConfigurationId,
+						},
+					});
+				})
+			)
 	);
 
 export type RouteResponse = z.infer<typeof providerProductResponseSchema>;

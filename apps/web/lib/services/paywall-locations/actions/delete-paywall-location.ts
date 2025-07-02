@@ -1,66 +1,55 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { paywallLocations } from "@voidhash/db";
-import { getPaywallLocationByIdQuery } from "../raw-queries";
-import { eq } from "drizzle-orm";
-import { err, ok, Result } from "neverthrow";
-import { isAuthenticated } from "@/lib/middlewares";
+import { AuthSession } from "@/lib/effect/auth";
+import { Data, Effect, pipe, Schema } from "effect";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { PaywallLocationRepository } from "../paywall-location.repository";
 
-export const deletePaywallLocationInputSchema = z.object({
-	paywallLocationId: z.string(),
+export class PaywallLocationNotFound extends Data.TaggedError(
+	"PaywallLocationNotFound"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const deletePaywallLocationInputSchema = Schema.Struct({
+	paywallLocationId: Schema.String,
 });
 
-type DeletePaywallLocationError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError;
+type DeletePaywallLocationInput = Schema.Schema.Type<
+	typeof deletePaywallLocationInputSchema
+>;
 
-export const deletePaywallLocation = createServiceFunction()
-	.input(deletePaywallLocationInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<void, DeletePaywallLocationError>> => {
-			const existingPaywallLocation = await getPaywallLocationByIdQuery(
-				ctx,
+export const deletePaywallLocation = (
+	inputUnsafe: DeletePaywallLocationInput
+) =>
+	pipe(
+		Effect.gen(function* () {
+			const input = Schema.decodeUnknownSync(deletePaywallLocationInputSchema)(
+				inputUnsafe
+			);
+			const session = yield* AuthSession;
+			const paywallLocationRepository = yield* PaywallLocationRepository;
+			const paywallLocation =
+				yield* paywallLocationRepository.getPaywallLocationById(
+					input.paywallLocationId
+				);
+			if (!paywallLocation) {
+				return yield* Effect.fail(
+					new PaywallLocationNotFound({
+						message: `Paywall location with id ${input.paywallLocationId} not found`,
+					})
+				);
+			}
+
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				paywallLocation.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to delete paywall location ${input.paywallLocationId}`
+			);
+
+			yield* paywallLocationRepository.deletePaywallLocation(
 				input.paywallLocationId
 			);
-			if (existingPaywallLocation.isErr()) {
-				return err(existingPaywallLocation.error);
-			}
-			if (
-				!hasProjectPermission(
-					ctx,
-					existingPaywallLocation.value.projectId,
-					"project:all"
-				)
-			) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to delete this paywall location",
-				});
-			}
-
-			try {
-				await ctx.db
-					.delete(paywallLocations)
-					.where(eq(paywallLocations.id, input.paywallLocationId));
-				return ok(undefined);
-			} catch (e) {
-				return err(fromUnknownThrow(e));
-			}
-		}
+		}),
+		AuthSession.withAuthSession()
 	);

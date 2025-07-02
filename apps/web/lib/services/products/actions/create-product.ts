@@ -1,119 +1,110 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashBadRequestError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import {
-	and,
-	InsertPaymentProviderConfigurationProduct,
-	paymentProviderConfigurationProducts,
-	products,
-	Transaction,
-} from "@voidhash/db";
+import { AuthSession } from "@/lib/effect/auth";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { err, ok, Result } from "neverthrow";
-import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { ProductRepository } from "../product.repository";
+import { Environment } from "@/lib/effect/environment";
+import { Db, TransactionContext } from "@/lib/effect/db";
+
 import {
 	devCheckout,
 	devCheckoutPaymentProviderId,
 } from "@/lib/payment-providers/dev-checkout/dev-checkout";
 
-export const createProductInputSchema = z.object({
-	projectId: z.string(),
-	name: z
-		.string()
-		.min(3, "Name must be at least 3 characters long")
-		.max(32, "Name must be less than 32 characters"),
+export class PaymentProviderConfigurationNotFoundError extends Data.TaggedError(
+	"PaymentProviderConfigurationNotFound"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const createProductInputSchema = Schema.Struct({
+	projectId: Schema.String,
+	name: Schema.String.pipe(Schema.minLength(3), Schema.maxLength(32)),
 });
 
-type CreateProductError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashBadRequestError;
+type CreateProductInput = Schema.Schema.Type<typeof createProductInputSchema>;
 
-export const createProduct = createServiceFunction()
-	.input(createProductInputSchema)
-	.use(isAuthenticated)
-	.use(hasEnvironment)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<{ id: string }, CreateProductError>> => {
-			if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to create products",
-				});
-			}
+export const createProduct = (inputUnsafe: CreateProductInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const productRepository = yield* ProductRepository;
+			const environment = yield* Environment;
+			const db = yield* Db;
+			const input = Schema.decodeUnknownSync(createProductInputSchema)(
+				inputUnsafe
+			);
 
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				input.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to create products for project ${input.projectId}`
+			);
+
+			const productId = generateId("product");
 			const newProduct = {
-				id: generateId("product"),
+				id: productId,
 				projectId: input.projectId,
 				name: input.name,
-				environment: ctx.session.environment,
+				environment,
 			};
 
-			try {
-				return await ctx.db.transaction(async (tx: Transaction) => {
-					await tx.insert(products).values(newProduct);
+			yield* db.transaction((tx) =>
+				TransactionContext.provide(tx)(
+					Effect.gen(function* () {
+						// Create the product
+						yield* productRepository.createProduct(newProduct);
 
-					if (ctx.session.environment === "testing") {
-						const devCheckoutPaymentProviderConfiguration =
-							await ctx.db.query.paymentProviderConfigurations.findFirst({
-								where: (paymentProviderConfigurations, { eq }) =>
-									and(
-										eq(
-											paymentProviderConfigurations.projectId,
-											input.projectId
-										),
-										eq(
-											paymentProviderConfigurations.providerId,
-											devCheckoutPaymentProviderId
-										)
-									),
+						// For testing environment, create dev checkout configuration
+						if (environment === "testing") {
+							const devCheckoutConfig = yield* tx(async (dbTx) => {
+								return await dbTx.query.paymentProviderConfigurations.findFirst(
+									{
+										where: (configs, { eq, and }) =>
+											and(
+												eq(configs.projectId, input.projectId),
+												eq(configs.providerId, devCheckoutPaymentProviderId)
+											),
+									}
+								);
 							});
 
-						if (!devCheckoutPaymentProviderConfiguration) {
-							return err({
-								code: "INTERNAL_SERVER_ERROR",
-								message: "Dev Checkout configuration not found",
-								originalError: new Error(
-									"Dev Checkout configuration not found"
-								),
-							} satisfies VoidhashInternalServerError);
+							if (!devCheckoutConfig) {
+								return yield* Effect.fail(
+									new PaymentProviderConfigurationNotFoundError({
+										message: "Dev Checkout configuration not found",
+									})
+								);
+							}
+
+							yield* productRepository.createPaymentProviderProduct({
+								id: generateId("paymentProviderProduct"),
+								productId: productId,
+								paymentProviderConfigurationId: devCheckoutConfig.id,
+								providerProductKey: devCheckout.createProductKey({
+									productId: productId,
+								}),
+								configuration: {
+									productId: productId,
+								},
+								environment,
+								isActive: true,
+							});
 						}
+					})
+				)
+			);
 
-						await tx.insert(paymentProviderConfigurationProducts).values({
-							id: generateId("paymentProviderProduct"),
-							productId: newProduct.id,
-							paymentProviderConfigurationId:
-								devCheckoutPaymentProviderConfiguration.id,
-							providerProductKey: devCheckout.createProductKey({
-								productId: newProduct.id,
-							}),
-							configuration: {
-								productId: newProduct.id,
-							},
-							environment: ctx.session.environment,
-							isActive: true,
-						} satisfies InsertPaymentProviderConfigurationProduct);
-					}
+			yield* Effect.log(
+				`Created product ${productId} for project ${input.projectId}`
+			);
 
-					return ok({ id: newProduct.id });
-				});
-			} catch (e) {
-				return err(fromUnknownThrow(e));
-			}
-		}
+			return yield* Effect.succeed({ id: productId });
+		}),
+		Environment.withEnvironment({
+			projectId: inputUnsafe.projectId,
+		}),
+		AuthSession.withAuthSession()
 	);

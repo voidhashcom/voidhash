@@ -1,12 +1,17 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { authenticateContext } from "@/lib/service-function";
+import { resolver } from "hono-openapi/zod";
+import { openApiErrorResponses } from "../errors/openapi_responses";
 import { getProductByIdParamsSchema, productResponseSchema } from "./schema";
 import { z } from "zod";
-import { getProductById } from "@/lib/services/products/queries";
-import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { zValidator } from "@hono/zod-validator";
+import {
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
+import { ProductService } from "@/lib/services/products/product.service";
+import { Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Get a product",
@@ -35,32 +40,31 @@ export const registerProductsGetProductById = (app: App) =>
 		"/v1/products/:productId",
 		route,
 		zValidator("param", getProductByIdParamsSchema),
-		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const productService = yield* ProductService;
+					const product = yield* AuthSession.provide(authSession)(
+						productService.getProductById(c.req.param("productId"))
+					);
 
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
+					if (!product) {
+						return yield* Effect.fail(
+							new HonoErrorResponse({
+								code: "NOT_FOUND",
+								message: "Product not found",
+							})
+						);
+					}
 
-			const productId = c.req.param("productId");
-
-			const product = await getProductById({
-				ctx: authenticatedContext.value,
-				input: {
-					id: productId,
-				},
-			});
-
-			if (product.isErr()) {
-				throw toVoidhashHTTPError(product.error);
-			}
-
-			return c.json<z.infer<typeof productResponseSchema>>({
-				productId: product.value.id,
-				name: product.value.name,
-			});
-		}
+					return c.json<z.infer<typeof productResponseSchema>>({
+						productId: product.id,
+						name: product.name,
+					});
+				})
+			)
 	);
 
 export type RouteResponse = z.infer<typeof productResponseSchema>;

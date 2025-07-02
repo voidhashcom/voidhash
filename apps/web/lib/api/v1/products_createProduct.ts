@@ -1,16 +1,17 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { authenticateContext } from "@/lib/service-function";
-import { createProductBodySchema, productResponseSchema } from "./schema";
+import { resolver } from "hono-openapi/zod";
 import { z } from "zod";
-import { createProduct } from "@/lib/services/products/actions/create-product";
 import { openApiErrorResponses } from "../errors/openapi_responses";
+import { createProductBodySchema, productResponseSchema } from "./schema";
 import { App } from "../hono/app";
+import { zValidator } from "@hono/zod-validator";
 import {
-	toVoidhashHTTPError,
-	VoidhashHTTPError,
-} from "@voidhash/lib/constants";
-import { getProductById } from "@/lib/services/products/queries";
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
+import { ProductService } from "@/lib/services/products/product.service";
+import { Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Create a new product",
@@ -39,49 +40,40 @@ export const registerProductsCreateProduct = (app: App) =>
 		"/v1/products",
 		route,
 		zValidator("json", createProductBodySchema),
-		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const productService = yield* ProductService;
+					const projectId = yield* AuthSession.provide(authSession)(authService.getAuthorizedProjectId());
+					const product = yield* AuthSession.provide(authSession)(
+						productService
+							.createProduct({
+								name: c.req.valid("json").name,
+								projectId,
+							})
+							.pipe(
+								Effect.flatMap((createdProduct) => productService.getProductById(createdProduct.id)),
+								Effect.catchTags({
+									PaymentProviderConfigurationNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "BAD_REQUEST",
+												message: error.message,
+												originalError: error,
+											})
+										),
+								})
+							)
+					);
 
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
-
-			const projectId = authenticatedContext.value.session?.projects[0]?.id;
-
-			if (!projectId) {
-				throw new VoidhashHTTPError({
-					code: "NOT_FOUND",
-					message: "Project not found",
-				});
-			}
-
-			const createdProduct = await createProduct.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					name: c.req.valid("json").name,
-					projectId,
-				},
-			});
-
-			if (createdProduct.isErr()) {
-				throw toVoidhashHTTPError(createdProduct.error);
-			}
-
-			const product = await getProductById({
-				ctx: authenticatedContext.value,
-				input: { id: createdProduct.value.id },
-			});
-
-			if (product.isErr()) {
-				throw toVoidhashHTTPError(product.error);
-			}
-
-			return c.json<z.infer<typeof productResponseSchema>>({
-				productId: product.value.id,
-				name: product.value.name,
-			});
-		}
+					return c.json<z.infer<typeof productResponseSchema>>({
+						productId: product.id,
+						name: product.name,
+					});
+				})
+			)
 	);
 
 export type RouteResponse = z.infer<typeof productResponseSchema>;

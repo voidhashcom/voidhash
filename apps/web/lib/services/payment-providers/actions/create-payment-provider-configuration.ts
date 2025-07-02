@@ -1,114 +1,97 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import { z } from "zod";
-import { paymentProviderConfigurations, Transaction } from "@voidhash/db";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import {
-	fromUnknownThrow,
-	VoidhashBadRequestError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { getExistingPaymentProviderConfigurationByIdQuery } from "../raw-queries";
+import { AuthSession } from "@/lib/effect/auth";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
+import { PaymentProviderRepository } from "../payment-provider.repository";
 import { generateId } from "@/lib/id/generate";
-import { err, ok, Result } from "neverthrow";
-import { isAuthenticated } from "@/lib/middlewares";
-import { safeTryPromise } from "@/lib/neverthrow";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 
-export const createPaymentProviderConfigurationInputSchema = z.object({
-	providerId: z.enum(
-		paymentProviders.map((p) => p.getId()) as [string, ...string[]]
-	),
-	projectId: z.string(),
+export class PaymentProviderNotFoundError extends Data.TaggedError(
+	"PaymentProviderNotFoundError"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class PaymentProviderAlreadyExistsError extends Data.TaggedError(
+	"PaymentProviderAlreadyExistsError"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const createPaymentProviderConfigurationInputSchema = Schema.Struct({
+	projectId: Schema.String,
+	providerId: Schema.String,
 });
 
-type CreatePaymentProviderConfigurationError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashBadRequestError;
+type CreatePaymentProviderConfigurationInput = Schema.Schema.Type<typeof createPaymentProviderConfigurationInputSchema>;
 
-export const createPaymentProviderConfiguration = createServiceFunction()
-	.input(createPaymentProviderConfigurationInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<
-			Result<{ id: string }, CreatePaymentProviderConfigurationError>
-		> => {
-			if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message:
-						"You are not authorized to save this payment provider configuration",
-				});
-			}
+export const createPaymentProviderConfiguration = (inputUnsafe: CreatePaymentProviderConfigurationInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const paymentProviderRepository = yield* PaymentProviderRepository;
+			const input = Schema.decodeUnknownSync(createPaymentProviderConfigurationInputSchema)(
+				inputUnsafe
+			);
 
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				input.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to create payment provider configurations for project ${input.projectId}`
+			);
+
+			// Find the payment provider
 			const provider = paymentProviders.find(
 				(p) => p.getId() === input.providerId
 			);
 			if (!provider) {
-				return err({
-					code: "NOT_FOUND",
-					message: `Provider ${input.providerId} not found`,
-					resource: "payment_provider",
-					payload: {
-						providerId: input.providerId,
-					},
-				});
+				return yield* Effect.fail(
+					new PaymentProviderNotFoundError({
+						message: `Provider ${input.providerId} not found`,
+					})
+				);
 			}
 
 			const canHaveMultipleConfigurations = provider.getType() === "native";
 
-			const res = await safeTryPromise(
-				async () => {
-					return await ctx.db.transaction(async (tx: Transaction) => {
-						if (!canHaveMultipleConfigurations) {
-							const existingConfiguration =
-								await getExistingPaymentProviderConfigurationByIdQuery(
-									{
-										...ctx,
-										tx,
-									},
-									input.projectId,
-									input.providerId
-								);
-
-							if (existingConfiguration.isOk()) {
-								return err({
-									code: "BAD_REQUEST",
-									message: `Provider ${input.providerId} can only have one configuration`,
-								} satisfies VoidhashBadRequestError);
-							}
-						}
-
-						const id = generateId("paymentProviderConfiguration");
-
-						await ctx.db.insert(paymentProviderConfigurations).values({
-							id: id,
-							configuration: provider.getDefaultGlobalConfiguration(),
-							enabled: provider.getIsConfigurable() ? false : true,
-							name: provider.getTitle(),
-							providerId: input.providerId,
-							projectId: input.projectId,
-							paymentProviderKey: "empty",
-						});
-
-						return ok({ id: id });
-					});
-				},
-				(error) => {
-					return fromUnknownThrow(error);
+			// Check if configuration already exists for non-native providers
+			if (!canHaveMultipleConfigurations) {
+				const existingConfiguration = yield* paymentProviderRepository.getExistingPaymentProviderConfigurationByProviderId({
+					projectId: input.projectId,
+					providerId: input.providerId,
+				});
+				
+				if (existingConfiguration) {
+					return yield* Effect.fail(
+						new PaymentProviderAlreadyExistsError({
+							message: `Provider ${input.providerId} can only have one configuration`,
+						})
+					);
 				}
+			}
+
+			const id = generateId("paymentProviderConfiguration");
+
+			const newConfiguration = {
+				id,
+				configuration: provider.getDefaultGlobalConfiguration(),
+				enabled: provider.getIsConfigurable() ? false : true,
+				name: provider.getTitle(),
+				providerId: input.providerId,
+				projectId: input.projectId,
+				paymentProviderKey: "empty",
+			};
+
+			yield* paymentProviderRepository.createPaymentProviderConfiguration(newConfiguration);
+			yield* Effect.log(
+				`Created payment provider configuration ${id} for project ${input.projectId}`
 			);
 
-			return res;
-		}
+			return yield* Effect.succeed({
+				id,
+			});
+		}),
+		AuthSession.withAuthSession()
 	);

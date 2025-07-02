@@ -1,4 +1,4 @@
-import { getProjectsByOrganizationSlug } from "@/lib/services/projects/queries";
+
 import {
 	Card,
 	GradientAvatar,
@@ -10,46 +10,42 @@ import {
 } from "@voidhash/ui";
 import { EllipsisVerticalIcon } from "lucide-react";
 import Link from "next/link";
-import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
 import { EmptyState } from "./empty-state";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { Effect } from "effect";
+import { NotFoundError } from "@/lib/effect/errors";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { OrganizationService } from "@/lib/services/organizations/organization.service";
+import { ProjectService } from "@/lib/services/projects/project.service";
 
 export async function ProjectsList({
 	organizationSlug,
 }: {
 	organizationSlug: string;
 }) {
-	const serviceContext = await createNextServiceContext();
-	const activeOrganizationPromise = getOrganizationBySlug({
-		ctx: serviceContext,
-		input: {
-			slug: organizationSlug,
-		},
-	});
-	const organizationProjectsPromise = getProjectsByOrganizationSlug({
-		ctx: serviceContext,
-		input: {
-			slug: organizationSlug,
-		},
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const organizationService = yield* OrganizationService;
+		const projectService = yield* ProjectService;
+		const [activeOrganization, projects] = yield* Effect.all([
+			organizationService.getOrganizationBySlug(organizationSlug),
+			projectService.getProjectsByOrganizationSlug(organizationSlug),
+		]);
+		if (!activeOrganization) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Organization not found",
+			}));
+		}
+		
+		return { activeOrganization, organizationProjects: projects };
+	}));
 
-	const [activeOrganizationResult, organizationProjectsResult] =
-		await Promise.all([activeOrganizationPromise, organizationProjectsPromise]);
-
-	if (activeOrganizationResult.isErr()) {
-		const error = activeOrganizationResult._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const activeOrganization = activeOrganizationResult.value;
+	const { activeOrganization, organizationProjects } = data.value;
 
-	if (organizationProjectsResult.isErr()) {
-		const error = organizationProjectsResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const organizationProjects = organizationProjectsResult.value;
 
 	if (organizationProjects?.length === 0) {
 		return (

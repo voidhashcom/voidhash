@@ -1,15 +1,20 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
+import { resolver } from "hono-openapi/zod";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
 import {
 	sdkGetPaywallByLocationParamsSchema,
 	sdkPaywallResponseSchema,
 } from "./schema";
-import { authenticateContext } from "@/lib/service-function";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
-import { sdkGetPaywallByLocation } from "@/lib/services/sdk/actions/get-paywall-by-location";
 import { z } from "zod";
+import { zValidator } from "@hono/zod-validator";
+import {
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
+import { SdkService } from "@/lib/services/sdk/sdk.service";
+import { Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Get paywall by location",
@@ -38,27 +43,33 @@ export const registerSdkGetPaywallByLocation = (app: App) =>
 		"/v1/sdk/get-paywall-by-location/:locationSlug",
 		route,
 		zValidator("param", sdkGetPaywallByLocationParamsSchema),
-		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const sdkService = yield* SdkService;
+					const paywall = yield* AuthSession.provide(authSession)(
+						sdkService
+							.getPaywallByLocation({
+								locationSlug: c.req.param("locationSlug"),
+								nativePaymentProviderId: undefined, // You may need to get this from query params if needed
+							})
+							.pipe(
+								Effect.catchTags({
+									PaywallNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+								})
+							)
+					);
 
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
-
-			const paywallResult = await sdkGetPaywallByLocation.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					locationSlug: c.req.param("locationSlug"),
-				},
-			});
-
-			if (paywallResult.isErr()) {
-				throw toVoidhashHTTPError(paywallResult.error);
-			}
-
-			return c.json<z.infer<typeof sdkPaywallResponseSchema>>(
-				paywallResult.value
-			);
-		}
+					return c.json<z.infer<typeof sdkPaywallResponseSchema>>(paywall);
+				})
+			)
 	);

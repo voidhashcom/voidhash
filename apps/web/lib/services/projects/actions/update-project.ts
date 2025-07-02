@@ -1,68 +1,55 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import { z } from "zod";
-import {
-	fromUnknownThrow,
-	VoidhashBadRequestError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { projects } from "@voidhash/db";
-import { eq } from "drizzle-orm";
-import { err, ok, Result } from "neverthrow";
-import { getProjectByIdQuery } from "../raw-queries";
-import { isAuthenticated } from "@/lib/middlewares";
+import { AuthSession } from "@/lib/effect/auth";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
+import { ProjectRepository } from "../project.repository";
 
-export const updateProjectInputSchema = z.object({
-	id: z.string(),
-	name: z.string().min(1).max(32),
+export class ProjectNotFound extends Data.TaggedError("ProjectNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const updateProjectInputSchema = Schema.Struct({
+	id: Schema.String,
+	name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(32)),
 });
 
-type UpdateProjectError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashBadRequestError;
+type UpdateProjectInput = Schema.Schema.Type<typeof updateProjectInputSchema>;
 
-export const updateProject = createServiceFunction()
-	.input(updateProjectInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({ input, ctx }): Promise<Result<void, UpdateProjectError>> => {
-			const project = await getProjectByIdQuery(ctx, input.id);
-			if (project.isErr()) {
-				return err(project.error);
-			}
+export const updateProject = (inputUnsafe: UpdateProjectInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const projectRepository = yield* ProjectRepository;
+			const input = Schema.decodeUnknownSync(updateProjectInputSchema)(
+				inputUnsafe
+			);
 
-			if (!hasProjectPermission(ctx, project.value.id, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to update this project",
-				});
-			}
-
-			try {
-				await ctx.db
-					.update(projects)
-					.set({
-						name: input.name,
+			// First check if project exists
+			const project = yield* projectRepository.getProjectById(input.id);
+			if (!project) {
+				return yield* Effect.fail(
+					new ProjectNotFound({
+						message: `Project ${input.id} not found`,
 					})
-					.where(eq(projects.id, input.id));
-
-				ctx.cache.invalidate(`project_${project.value.id}`);
-				ctx.cache.invalidate(
-					`project_${project.value.organizationId}_slug:${project.value.slug}`
 				);
-				ctx.cache.invalidate(`projects_${project.value.organizationId}`);
-
-				return ok(undefined);
-			} catch (e) {
-				return err(fromUnknownThrow(e));
 			}
-		}
+
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				input.id,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to update project ${input.id}`
+			);
+
+			// Update the project
+			yield* projectRepository.updateProject({
+				id: input.id,
+				name: input.name,
+			});
+
+			yield* Effect.log(`Updated project ${input.id}`);
+
+			return yield* Effect.succeed(undefined);
+		}),
+		AuthSession.withAuthSession()
 	);

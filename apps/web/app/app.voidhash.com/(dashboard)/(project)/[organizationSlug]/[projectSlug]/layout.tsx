@@ -3,9 +3,10 @@ import { LayoutSidebar } from "./layout-sidebar";
 import { SidebarInset } from "@voidhash/ui";
 import { ProjectSidebar } from "@/features/shell/project-sidebar";
 import { ProjectSettingsSidebar } from "@/features/shell/project-settings-sidebar";
-import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { Suspense } from "react";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { Effect } from "effect";
+import { OrganizationService } from "@/lib/services/organizations/organization.service";
 
 async function ProjectLayoutSidebar({
 	organizationSlug,
@@ -14,18 +15,17 @@ async function ProjectLayoutSidebar({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const activeOrganizationResult = await getOrganizationBySlug({
-		ctx: await createNextServiceContext(),
-		input: {
-			slug: organizationSlug,
-		},
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const organizationService = yield* OrganizationService;
+		const activeOrganization = yield* organizationService.getOrganizationBySlug(organizationSlug);
+		return { activeOrganization };
+	}));
 
-	if (activeOrganizationResult.isErr()) {
+	if (data.isErr()) {
 		return null;
 	}
 
-	const activeOrganization = activeOrganizationResult.value;
+	const { activeOrganization } = data.value;
 
 	return (
 		<ProjectSettingsSidebar

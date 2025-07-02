@@ -1,6 +1,4 @@
 import { Page } from "@/features/shell";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { CustomersTable } from "./customers-table";
 import { CreateCustomerButton } from "./create-customer-button";
 import {
@@ -10,6 +8,10 @@ import {
 	UnderlineTabsTrigger,
 } from "@voidhash/ui";
 import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
+import { Effect } from "effect";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { NotFoundError } from "@/lib/effect/errors";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 export async function CustomersPage({
 	organizationSlug,
 	projectSlug,
@@ -17,18 +19,26 @@ export async function CustomersPage({
 	organizationSlug: string;
 	projectSlug;
 }) {
-	const serviceContext = await createNextServiceContext();
-	const projectResult = await getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: { projectSlug: projectSlug, organizationSlug },
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		return { project };
+	}));
 
-	if (projectResult.isErr()) {
-		const error = projectResult._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const project = projectResult.value;
+	const { project } = data.value;
 
 	return (
 		<Page className="p-0 py-8">

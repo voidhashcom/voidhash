@@ -1,45 +1,37 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { Customer, customers, InsertCustomer } from "@voidhash/db";
+import { AuthSession } from "@/lib/effect/auth";
+import { Environment } from "@/lib/effect/environment";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { err, ok, Result } from "neverthrow";
-import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { CustomerRepository } from "../customer.repository";
+import { InsertCustomer } from "@voidhash/db";
 
-export const createCustomerInputSchema = z.object({
-	projectId: z.string(),
-	appUserId: z.string(),
-	name: z.string().optional(),
-	email: z.string().email().optional(),
-	origin: z.enum(["dashboard", "ios", "android", "stripe", "api"]),
+export const createCustomerInputSchema = Schema.Struct({
+	projectId: Schema.String,
+	appUserId: Schema.String,
+	name: Schema.NullishOr(Schema.String.pipe(Schema.minLength(3), Schema.maxLength(32))),
+	email: Schema.NullishOr(Schema.String),
+	origin: Schema.Union(Schema.Literal("dashboard"), Schema.Literal("ios"), Schema.Literal("android"), Schema.Literal("stripe"), Schema.Literal("api")),
 });
 
-type CreateCustomerError =
-	| VoidhashUnauthorizedError
-	| VoidhashInternalServerError
-	| VoidhashForbiddenError;
+type CreateCustomerInput = Schema.Schema.Type<typeof createCustomerInputSchema>;
 
-export const createCustomer = createServiceFunction()
-	.input(createCustomerInputSchema)
-	.use(isAuthenticated)
-	.use(hasEnvironment)
-	.function(
-		async ({ input, ctx }): Promise<Result<Customer, CreateCustomerError>> => {
-			if (!hasProjectPermission(ctx, input.projectId, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to create customers",
-					resource: "customer",
-					payload: { projectId: input.projectId },
-				});
-			}
+export const createCustomer = (inputUnsafe: CreateCustomerInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const environment = yield* Environment;
+			const customerRepository = yield* CustomerRepository;
+			const input = Schema.decodeUnknownSync(createCustomerInputSchema)(
+				inputUnsafe
+			);
+
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				input.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to create customers for project ${input.projectId}`
+			);
 
 			const newCustomer = {
 				id: generateId("customer"),
@@ -50,23 +42,18 @@ export const createCustomer = createServiceFunction()
 				email: input.email ?? null,
 				parentCustomerId: null,
 				origin: input.origin,
-				environment: ctx.session.environment,
+				environment: environment,
 			} satisfies InsertCustomer;
 
-			try {
-				await ctx.db.insert(customers).values(newCustomer);
-				return ok({
-					...newCustomer,
-					archivedAt: null,
-					createdAt: new Date(),
-					updatedAt: new Date(),
-				});
-			} catch (error) {
-				return err({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Failed to create customer",
-					originalError: error,
-				});
-			}
-		}
+			yield* customerRepository.createCustomer(newCustomer);
+			return {
+				...newCustomer,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			};
+		}),
+		Environment.withEnvironment({
+			projectId: inputUnsafe.projectId,
+		}),
+		AuthSession.withAuthSession()
 	);

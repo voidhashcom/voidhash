@@ -1,147 +1,127 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashBadRequestError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import {
-	eq,
-	inArray,
-	paywallProducts,
-	paywalls,
-	products,
-	Transaction,
-} from "@voidhash/db";
+import { AuthSession } from "@/lib/effect/auth";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
+import { PaywallRepository } from "../paywall.repository";
 import { generateId } from "@/lib/id/generate";
-import { err, ok, Result } from "neverthrow";
-import { getPaywallByIdQuery } from "../raw-queries";
-import { isAuthenticated } from "@/lib/middlewares";
+import { Db, TransactionContext } from "@/lib/effect/db";
 
-export const updatePaywallInputSchema = z.object({
-	paywallId: z.string(),
-	name: z.string().min(3, "Name must be at least 3 characters long").optional(),
-	paywallProducts: z
-		.array(
-			z.object({
-				productId: z.string().min(1, "Product ID is required"),
-				displayName: z
-					.string()
-					.min(2, "Display name must be at least 2 characters long"),
-				enableNativePurchase: z.boolean(),
-				enableWebCheckout: z.boolean(),
-				webCheckoutPaymentProviderConfigurationProductId: z.string().nullable(),
-				order: z.number(),
+export class PaywallNotFound extends Data.TaggedError("PaywallNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class ProductNotFound extends Data.TaggedError("ProductNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class PaymentProviderConfigurationNotFound extends Data.TaggedError(
+	"PaymentProviderConfigurationNotFound"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const updatePaywallInputSchema = Schema.Struct({
+	paywallId: Schema.String,
+	name: Schema.optional(Schema.String.pipe(Schema.minLength(3))),
+	paywallProducts: Schema.optional(
+		Schema.Array(
+			Schema.Struct({
+				productId: Schema.String.pipe(Schema.minLength(1)),
+				displayName: Schema.String.pipe(Schema.minLength(2)),
+				enableNativePurchase: Schema.Boolean,
+				enableWebCheckout: Schema.Boolean,
+				webCheckoutPaymentProviderConfigurationProductId: Schema.NullOr(Schema.String),
+				order: Schema.Number,
 			})
 		)
-		.optional(),
+	),
 });
 
-type CreatePaywallProductError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashBadRequestError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError;
+type UpdatePaywallInput = Schema.Schema.Type<typeof updatePaywallInputSchema>;
 
-export const updatePaywall = createServiceFunction()
-	.input(updatePaywallInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<void, CreatePaywallProductError>> => {
-			const paywall = await getPaywallByIdQuery(ctx, input.paywallId);
-			if (paywall.isErr()) {
-				return err(paywall.error);
+export const updatePaywall = (inputUnsafe: UpdatePaywallInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const paywallRepository = yield* PaywallRepository;
+			const db = yield* Db;
+			const input = Schema.decodeUnknownSync(updatePaywallInputSchema)(
+				inputUnsafe
+			);
+
+			// First check if paywall exists
+			const paywall = yield* paywallRepository.getPaywallById(input.paywallId);
+			if (!paywall) {
+				return yield* Effect.fail(
+					new PaywallNotFound({
+						message: `Paywall ${input.paywallId} not found`,
+					})
+				);
 			}
 
-			if (!hasProjectPermission(ctx, paywall.value.projectId, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to create paywall products",
-				});
-			}
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				paywall.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to update paywall ${input.paywallId} for project ${paywall.projectId}`
+			);
 
-			try {
-				await ctx.db.transaction(async (tx: Transaction) => {
+			// Use transaction to update paywall and products
+			yield* db.transaction((tx) => TransactionContext.provide(tx)(
+				Effect.gen(function* () {
+					// Update paywall name if provided
 					if (input.name) {
-						await tx
-							.update(paywalls)
-							.set({
-								name: input.name,
-								updatedAt: new Date(),
-							})
-							.where(eq(paywalls.id, paywall.value.id));
-					}
-					if (input.paywallProducts) {
-						await tx
-							.delete(paywallProducts)
-							.where(eq(paywallProducts.paywallId, paywall.value.id));
-
-						// const productsFromDb = await tx
-						// 	.select()
-						// 	.from(products)
-						// 	.where(
-						// 		inArray(
-						// 			products.id,
-						// 			input.paywallProducts.map((p) => p.productId)
-						// 		)
-						// 	);
-
-						const productsFromDb = await tx.query.products.findMany({
-							where: inArray(
-								products.id,
-								input.paywallProducts?.map((p) => p.productId)
-							),
-							with: {
-								paymentProviderConfigurationProducts: true,
-							},
+						yield* paywallRepository.updatePaywall({
+							id: paywall.id,
+							name: input.name,
 						});
+					}
 
-						for (const product of input.paywallProducts.sort(
-							(a, b) => a.order - b.order
-						)) {
-							const existingProduct = productsFromDb.find(
-								(p) => p.id === product.productId
-							);
+					// Update paywall products if provided
+					if (input.paywallProducts) {
+						// Delete existing paywall products
+						yield* paywallRepository.deletePaywallProducts(paywall.id);
+
+						// Get products with configurations
+						const productIds = input.paywallProducts.map((p) => p.productId);
+						const productsFromDb = yield* paywallRepository.getProductsWithConfigurations(productIds);
+
+						// Validate products and insert new paywall products
+						const sortedProducts = [...input.paywallProducts].sort((a, b) => a.order - b.order);
+						for (const product of sortedProducts) {
+							const existingProduct = productsFromDb.find((p) => p.id === product.productId);
 
 							if (!existingProduct) {
-								return err({
-									code: "BAD_REQUEST",
-									message: `Product with id ${product.productId} not found`,
-								} satisfies VoidhashBadRequestError);
+								return yield* Effect.fail(
+									new ProductNotFound({
+										message: `Product with id ${product.productId} not found`,
+									})
+								);
 							}
 
 							const webCheckoutPaymentProviderConfigurationProduct =
 								existingProduct.paymentProviderConfigurationProducts.find(
-									(p) =>
-										p.id ===
-										product.webCheckoutPaymentProviderConfigurationProductId
+									(p) => p.id === product.webCheckoutPaymentProviderConfigurationProductId
 								);
 
 							if (
 								product.enableWebCheckout &&
 								!webCheckoutPaymentProviderConfigurationProduct
 							) {
-								return err({
-									code: "BAD_REQUEST",
-									message: `Web checkout payment provider product configuration does not exist`,
-								} satisfies VoidhashBadRequestError);
+								return yield* Effect.fail(
+									new PaymentProviderConfigurationNotFound({
+										message: "Web checkout payment provider product configuration does not exist",
+									})
+								);
 							}
 
-							await tx.insert(paywallProducts).values({
+							yield* paywallRepository.createPaywallProduct({
 								id: generateId("paywallProduct"),
 								displayName: product.displayName,
 								order: product.order,
-								paywallId: paywall.value.id,
+								paywallId: paywall.id,
 								productId: existingProduct.id,
 								enableNativePurchase: product.enableNativePurchase,
 								enableWebCheckout: product.enableWebCheckout,
@@ -150,11 +130,12 @@ export const updatePaywall = createServiceFunction()
 							});
 						}
 					}
-				});
+				}))
+			);
 
-				return ok(undefined);
-			} catch (error) {
-				return err(fromUnknownThrow(error));
-			}
-		}
+			yield* Effect.log(`Updated paywall ${input.paywallId}`);
+
+			return yield* Effect.succeed(undefined);
+		}),
+		AuthSession.withAuthSession()
 	);

@@ -3,31 +3,31 @@ import { OrganizationSidebar } from "@/features/shell/organization-sidebar";
 import { OrganizationSettingsSidebar } from "@/features/shell/organization-settings-sidebar";
 import { LayoutSidebar } from "./layout-sidebar";
 import { NavBar } from "@/features/shell";
-import { getProjectsByOrganizationSlug } from "@/lib/services/projects/queries";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { Suspense } from "react";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { Effect } from "effect";
+import { ProjectService } from "@/lib/services/projects/project.service";
 
 async function OrganizationSettingsLayoutSidebar({
 	organizationSlug,
 }: {
 	organizationSlug: string;
 }) {
-	const projectsResult = await getProjectsByOrganizationSlug({
-		ctx: await createNextServiceContext(),
-		input: {
-			slug: organizationSlug,
-		},
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const projects = yield* projectService.getProjectsByOrganizationSlug(organizationSlug);
+		return { projects };
+	}));
 
-	if (projectsResult.isErr()) {
+	if (data.isErr()) {
 		return null;
 	}
 
-	const projects = projectsResult.value;
+	const { projects } = data.value;
 
 	return (
 		<OrganizationSettingsSidebar
-			projects={projects}
+			projects={projects ?? []}
 			areProjectsLoading={false}
 		/>
 	);

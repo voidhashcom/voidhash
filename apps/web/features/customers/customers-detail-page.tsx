@@ -1,15 +1,11 @@
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { Page } from "../shell";
-import {
-	getCustomerById,
-	getCustomersUnlockedPerks,
-} from "@/lib/services/customers/queries";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { getPurchases } from "@/lib/services/purchases/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@voidhash/ui";
 import { format } from "date-fns";
 import { Clock4Icon } from "lucide-react";
 import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { CustomerService } from "@/lib/services/customers/customer.service";
+import { Effect } from "effect";
 
 export async function CustomerDetailPage({
 	customerId,
@@ -20,57 +16,20 @@ export async function CustomerDetailPage({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const serviceContext = await createNextServiceContext();
-	const project = await getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: { projectSlug: projectSlug, organizationSlug },
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const customerService = yield* CustomerService;
+		const customer = yield* customerService.getCustomerById(customerId);
+		const customerPurchases = yield* customerService.getCustomerPurchases(customerId);
+		const customerUnlockedPerks = yield* customerService.getCustomersUnlockedPerks(customerId);
+		return { customer, customerPurchases, customerUnlockedPerks };
+	}));
 
-	if (project.isErr()) {
-		const error = project._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
+
+	if (data.isErr()) {
+		return <VoidhashErrorCard error={data._unsafeUnwrapErr()} />;
 	}
 
-	const customerPromise = getCustomerById({
-		ctx: serviceContext,
-		input: { id: customerId },
-	});
-
-	const customerPurchasesPromise = getPurchases({
-		ctx: serviceContext,
-		input: { projectId: project.value.id, customerId },
-	});
-
-	const customerUnlockedPerksPromise = getCustomersUnlockedPerks({
-		ctx: serviceContext,
-		input: { customerId },
-	});
-
-	const [customerResult, customerPurchasesResult, customerUnlockedPerksResult] =
-		await Promise.all([
-			customerPromise,
-			customerPurchasesPromise,
-			customerUnlockedPerksPromise,
-		]);
-
-	if (customerResult.isErr()) {
-		const error = customerResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	if (customerPurchasesResult.isErr()) {
-		const error = customerPurchasesResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	if (customerUnlockedPerksResult.isErr()) {
-		const error = customerUnlockedPerksResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const customer = customerResult.value;
-	const customerPurchases = customerPurchasesResult.value;
-	const customerUnlockedPerks = customerUnlockedPerksResult.value;
+	const { customer, customerPurchases, customerUnlockedPerks } = data.value;
 
 	const title =
 		customer.name ?? customer.email ?? customer.appUserId ?? customer.id;
@@ -111,7 +70,7 @@ export async function CustomerDetailPage({
 								</CardHeader>
 								<CardContent className="border-t border-border divide-y divide-border px-0">
 									{/* Emtpy State */}
-									{customerPurchases.purchases.length === 0 && (
+									{customerPurchases.length === 0 && (
 										<div className="flex flex-col items-center justify-center h-full py-6">
 											<div className="text-muted-foreground">
 												Customer has not made any purchases.
@@ -119,7 +78,7 @@ export async function CustomerDetailPage({
 										</div>
 									)}
 
-									{customerPurchases.purchases.map((purchase) => (
+									{customerPurchases.map((purchase) => (
 										<div key={purchase.id}>{purchase.id}</div>
 									))}
 								</CardContent>
