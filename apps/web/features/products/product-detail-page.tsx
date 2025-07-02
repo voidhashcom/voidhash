@@ -22,6 +22,8 @@ import { ProductService } from "@/lib/services/products/product.service";
 import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
 import { Environment } from "@/lib/effect/environment";
 import { AuthSession } from "@/lib/effect/auth";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { NotFoundError } from "@/lib/effect/errors";
 
 export async function ProductDetailPage({
 	organizationSlug,
@@ -41,12 +43,25 @@ export async function ProductDetailPage({
 		const paymentProviderService = yield* PaymentProviderService;
 		const perkService = yield* PerkService;
 		const environment = yield* Environment;
+		const projectService = yield* ProjectService;
+
+
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
 
 		const [product, providerProducts, paymentProviderConfigurations, perks, productPerks] = yield* Effect.all([
 			productService.getProductById(id),
 			productService.getProviderProductsByProductId(id),
-			paymentProviderService.getPaymentProviderConfigurations(id),
-			perkService.getPerks(id),
+			paymentProviderService.getPaymentProviderConfigurations(project.id),
+			perkService.getPerks(project.id),
 			productService.getProductPerksByProductId(id),
 		]);
 

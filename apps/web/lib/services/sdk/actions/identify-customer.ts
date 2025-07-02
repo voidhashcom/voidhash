@@ -109,7 +109,6 @@ export const identifyCustomer = (inputUnsafe: IdentifyCustomerInput) =>
 								);
 
 							if (parentCustomer.appUserId !== input.appUserId) {
-								console.log("=== CONFLICT ====");
 								return yield* Effect.fail(
 									new CustomerConflictError({
 										message: "Anonymous customer is already identified",
