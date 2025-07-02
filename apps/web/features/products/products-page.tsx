@@ -1,14 +1,17 @@
 import { Page } from "@/features/shell";
 import { CreateProductModalButton } from "./create-product-modal-button";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { getProducts } from "@/lib/services/products/queries";
 import { Card } from "@voidhash/ui";
 import { ProductRecord } from "./product-record";
 import { ProductsPageEmptyState } from "./products-page-empty-state";
 import { ProductRecordConfigurationStateIndicator } from "./product-record-configuration-state-indicator";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { getEnvironment } from "@/lib/services/environments/utils";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { Effect } from "effect";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { Environment } from "@/lib/effect/environment";
+import { NotFoundError } from "@/lib/effect/errors";
+import { ProductService } from "@/lib/services/products/product.service";
+import { AuthSession } from "@/lib/effect/auth";
 
 export async function ProductsPage({
 	organizationSlug,
@@ -17,44 +20,33 @@ export async function ProductsPage({
 	organizationSlug: string;
 	projectSlug;
 }) {
-	const serviceContext = await createNextServiceContext();
-	const projectPromise = await getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: { projectSlug: projectSlug, organizationSlug },
-	});
-
-	const environmentPromise = getEnvironment(
-		serviceContext.cookies,
+	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
 		organizationSlug,
-		projectSlug
-	);
+		projectSlug,
+	})(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const productService = yield* ProductService;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		const products = yield* productService.getProducts(project.id);
+		return { project, products };
+	}))));
 
-	const [projectResult, environmentResult] = await Promise.all([
-		projectPromise,
-		environmentPromise,
-	]);
-
-	if (projectResult.isErr() || environmentResult.isErr()) {
-		const error = projectResult.isErr()
-			? projectResult._unsafeUnwrapErr()
-			: environmentResult._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const project = projectResult.value;
-	const environment = environmentResult.value;
+	const { project, products } = data.value;
 
-	const productsResult = await getProducts({
-		ctx: serviceContext,
-		input: { projectId: project.id },
-	});
 
-	if (productsResult.isErr()) {
-		const error = productsResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const products = productsResult.value;
 	return (
 		<Page>
 			{/* Key is used to reload the default form data when the organization slug changes */}
@@ -84,7 +76,6 @@ export async function ProductsPage({
 										<ProductRecordConfigurationStateIndicator
 											productId={product.id}
 											projectId={project.id}
-											environment={environment}
 										/>
 									}
 								/>

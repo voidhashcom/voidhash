@@ -4,13 +4,11 @@ import { openApiErrorResponses } from "../errors/openapi_responses";
 import { createCustomerBodySchema, customerResponseSchema } from "./schema";
 import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
-import { authenticateContext } from "@/lib/service-function";
-import { createCustomer } from "@/lib/services/customers/actions/create-customer";
 import { z } from "zod";
-import {
-	toVoidhashHTTPError,
-	VoidhashHTTPError,
-} from "@voidhash/lib/constants";
+import { createEffectHandler } from "@/lib/effect/runtimes/hono";
+import { CustomerService } from "@/lib/services/customers/customer.service";
+import { Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Create a new customer",
@@ -39,43 +37,33 @@ export const registerCustomersCreateCustomer = (app: App) =>
 		"/v1/customers",
 		route,
 		zValidator("json", createCustomerBodySchema),
-		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
-			const projectId = authenticatedContext.value.session?.projects[0]?.id;
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const customerService = yield* CustomerService;
+					const projectId = yield* AuthSession.provide(authSession)(
+						authService.getAuthorizedProjectId()
+					);
+					const customer = yield* AuthSession.provide(authSession)(
+						customerService.createCustomer({
+							email: c.req.valid("json").email,
+							name: c.req.valid("json").name,
+							appUserId: c.req.valid("json").appUserId,
+							origin: "api",
+							projectId,
+						})
+					);
 
-			if (!projectId) {
-				throw new VoidhashHTTPError({
-					code: "NOT_FOUND",
-					message: "Project not found",
-				});
-			}
-
-			const createdCustomer = await createCustomer.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					email: c.req.valid("json").email,
-					name: c.req.valid("json").name,
-					appUserId: c.req.valid("json").appUserId,
-					origin: "api",
-					projectId,
-				},
-			});
-			if (createdCustomer.isErr()) {
-				throw toVoidhashHTTPError(createdCustomer.error);
-			}
-
-			return c.json<z.infer<typeof customerResponseSchema>>({
-				customerId: createdCustomer.value.id,
-				name: createdCustomer.value.name ?? null,
-				email: createdCustomer.value.email ?? null,
-				appUserId: createdCustomer.value.appUserId ?? null,
-				// origin: createdCustomer.value.origin,
-			});
-		}
+					return c.json<z.infer<typeof customerResponseSchema>>({
+						customerId: customer.id,
+						name: customer.name ?? null,
+						email: customer.email ?? null,
+						appUserId: customer.appUserId ?? null,
+					});
+				})
+			)
 	);
 
 export type CustomersCreateCustomerRequestBody = z.infer<

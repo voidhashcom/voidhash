@@ -1,251 +1,193 @@
-import { createServiceFunction, ServiceContext } from "@/lib/service-function";
-import {
-	Environment,
-	fromUnknownThrow,
-	VoidhashConflictError,
-	VoidhashInternalServerError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { Customer, customers, InsertCustomer, Transaction } from "@voidhash/db";
+import { AuthSession } from "@/lib/effect/auth";
+import { Environment } from "@/lib/effect/environment";
+import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import { err, ok, Result } from "neverthrow";
-import { getCustomerWithParentByAppUserIdQuery } from "../raw-queries";
+import { UnauthorizedError } from "@/lib/effect/errors";
 import { mergeCustomers } from "../../customers/merge-customers";
 import { ID_BLACKLIST } from "@voidhash/lib/constants/id-blacklist";
 import { ANONYMOUS_USER_ID_PREFIX } from "../constants";
-import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { Db, TransactionContext } from "@/lib/effect/db";
+import { CustomerRepository } from "../../customers/customer.repository";
+import { Customer } from "@voidhash/db";
 
-export const identifyCustomerInputSchema = z.object({
-	appUserId: z
-		.string()
-		.min(5)
-		.refine((id) => {
-			return (
+export class CustomerConflictError extends Data.TaggedError(
+	"CustomerConflict"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class CustomerCreationError extends Data.TaggedError(
+	"CustomerCreation"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const identifyCustomerInputSchema = Schema.Struct({
+	appUserId: Schema.String.pipe(
+		Schema.minLength(5),
+		Schema.filter(
+			(id) =>
 				!ID_BLACKLIST.includes(id) &&
 				!id.includes("/") &&
-				!id.startsWith(ANONYMOUS_USER_ID_PREFIX)
-			);
-		}, "Invalid app user ID"),
-
-	name: z.string().optional(),
-	email: z.string().email().optional(),
+				!id.startsWith(ANONYMOUS_USER_ID_PREFIX),
+			{ message: () => "Invalid app user ID" }
+		)
+	),
+	name: Schema.optional(Schema.String),
+	email: Schema.optional(
+		Schema.String.pipe(Schema.pattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/))
+	),
 });
 
-type CreateAnonymousCustomerError =
-	| VoidhashUnauthorizedError
-	| VoidhashConflictError
-	| VoidhashInternalServerError;
+type IdentifyCustomerInput = Schema.Schema.Type<
+	typeof identifyCustomerInputSchema
+>;
 
-// | **Session’s current customer** | **`input.appUserId` already exists?** | **Expected behaviour**                                                  |
-// | ------------------------------ | ------------------------------------- | ----------------------------------------------------------------------- |
-// | `null`                         | no                                    | create new identified customer and return it                            |
-// | `null`                         | yes                                   | return existing identified customer                                     |
-// | anonymous (un-merged)          | no                                    | create new identified customer, merge anon → new, return identified     |
-// | anonymous (un-merged)          | yes                                   | merge anon → existing, return identified                                |
-// | anonymous (already merged)     | –                                     | no-op, just return the parent identified customer (idempotent)          |
-// | identified                     | same id                               | no-op, return self (idempotent)                                         |
-// | identified                     | different id                          | switch user (error)                                                     |
+export const identifyCustomer = (inputUnsafe: IdentifyCustomerInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const environment = yield* Environment;
+			const customerRepository = yield* CustomerRepository;
+			const db = yield* Db;
 
-export const identifyCustomer = createServiceFunction()
-	.input(identifyCustomerInputSchema)
-	.use(isAuthenticated)
-	.use(hasEnvironment)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<Customer, CreateAnonymousCustomerError>> => {
-			try {
-				return await ctx.db.transaction(async (tx: Transaction) => {
-					const authenticatedContextWithTx = {
-						...ctx,
-						tx: tx,
-					};
-					const projectId = ctx.session?.projects[0]?.id;
-					if (!projectId) {
-						return err({
-							code: "INTERNAL_SERVER_ERROR",
-							message: "Project ID not found after authentication",
-							originalError: new Error(
-								"Project ID not found after authentication"
-							),
-						} satisfies VoidhashInternalServerError);
-					}
-					const currentAppUserId = ctx.session?.customer?.appUserId;
-					const currentCustomerResult = currentAppUserId
-						? (
-								await getCustomerWithParentByAppUserIdQuery(
-									authenticatedContextWithTx,
-									currentAppUserId,
-									ctx.session.environment
-								)
-							).orElse((e) => {
-								if (e.code === "NOT_FOUND") {
-									return ok(null);
-								}
+			const input = Schema.decodeUnknownSync(identifyCustomerInputSchema)(
+				inputUnsafe
+			);
 
-								return err(e);
-							})
-						: ok(null);
+			const projectId = session?.projects[0]?.id;
+			if (!projectId) {
+				return yield* Effect.fail(
+					new UnauthorizedError({
+						message: "Project ID not found after authentication",
+					})
+				);
+			}
 
-					if (currentCustomerResult.isErr()) {
-						return err(currentCustomerResult.error);
-					}
+			const result = yield* db.transaction((tx) =>
+				TransactionContext.provide(tx)(
+					Effect.gen(function* () {
+						const currentAppUserId = session?.customer?.appUserId;
 
-					const identifyingAsCustomerResult = (
-						await getCustomerWithParentByAppUserIdQuery(
-							authenticatedContextWithTx,
-							input.appUserId,
-							ctx.session.environment
-						)
-					).orElse((e) => {
-						if (e.code === "NOT_FOUND") {
-							return ok(null);
+						// Get current customer if exists
+						let currentCustomer: Customer | undefined;
+						if (currentAppUserId) {
+							currentCustomer =
+								yield* customerRepository.getCustomerByAppUserId({
+									appUserId: currentAppUserId,
+									environment,
+									projectId,
+								});
 						}
 
-						return err(e);
-					});
+						// Get identifying as customer if exists
+						let identifyingAsCustomer =
+							yield* customerRepository.getCustomerByAppUserId({
+								appUserId: input.appUserId,
+								environment,
+								projectId,
+							});
 
-					if (identifyingAsCustomerResult.isErr()) {
-						return err(identifyingAsCustomerResult.error);
-					}
+						let identifyingAsCustomerId = identifyingAsCustomer?.id ?? null;
 
-					const identifyingAsCustomer = identifyingAsCustomerResult.value;
-					let identifyingAsCustomerId = identifyingAsCustomer?.id ?? null;
-					const currentCustomer = currentCustomerResult.value;
+						// Can't identify already identified anonymous customer.
+						if (
+							currentCustomer &&
+							currentCustomer.type === "anonymous" &&
+							currentCustomer.parentCustomerId
+						) {
+							const parentCustomer = yield* customerRepository.getCustomerById(
+								currentCustomer.parentCustomerId
+							);
+							if (!parentCustomer)
+								return yield* Effect.die(
+									new Error(
+										"parentCustomer is null event though it should exist"
+									)
+								);
 
-					// Can't identify already identified anonymous customer.
-					if (
-						currentCustomer &&
-						currentCustomer.type === "anonymous" &&
-						currentCustomer.parentCustomer
-					) {
-						if (currentCustomer.parentCustomer.appUserId !== input.appUserId) {
-							// This is a parented anonymous customer.
-							return err({
-								code: "CONFLICT",
-								message: "Anonymous customer is already identified",
-								resource: "customer",
-								payload: {
-									id: currentCustomer?.id,
-									appUserId: input.appUserId,
-								},
-							} satisfies VoidhashConflictError);
+							if (parentCustomer.appUserId !== input.appUserId) {
+								return yield* Effect.fail(
+									new CustomerConflictError({
+										message: "Anonymous customer is already identified",
+									})
+								);
+							}
+
+							return parentCustomer;
 						}
 
-						return ok(currentCustomer.parentCustomer);
-					}
-
-					// Identifying as customer is not found -> Create a new, unlinked customer. We link only anonymous customers.
-					if (!identifyingAsCustomer) {
-						const newCustomer = await createCustomer(
-							authenticatedContextWithTx,
-							{
+						// If identifying as customer doesn't exist, create a new one
+						if (!identifyingAsCustomer) {
+							const newCustomer = {
+								id: generateId("customer"),
 								projectId,
 								appUserId: input.appUserId,
 								parentCustomerId: null,
 								name: input.name ?? null,
 								email: input.email ?? null,
-								origin: "ios", // TODO: Make this dynamic
-								environment: ctx.session.environment,
-							}
-						);
+								origin: "ios" as const, // TODO: Make this dynamic
+								environment,
+								type: "identified" as const,
+							};
 
-						if (newCustomer.isErr()) {
-							return err(newCustomer.error);
+							yield* customerRepository.createCustomer(newCustomer);
+							identifyingAsCustomerId = newCustomer.id;
+
+							identifyingAsCustomer = {
+								...newCustomer,
+								archivedAt: null,
+								createdAt: new Date(),
+								updatedAt: new Date(),
+								parentCustomerId: null,
+							};
 						}
 
-						identifyingAsCustomerId = newCustomer.value.id;
-					}
-
-					if (!identifyingAsCustomerId) {
-						return err({
-							code: "INTERNAL_SERVER_ERROR",
-							message: "Failed to identify customer",
-							originalError: new Error("Failed to identify customer"),
-						} satisfies VoidhashInternalServerError);
-					}
-
-					// Merge customers if current customer is anonymous.
-					if (currentCustomer && currentCustomer.type === "anonymous") {
-						const res = await mergeCustomers(
-							authenticatedContextWithTx,
-							currentCustomer.id,
-							identifyingAsCustomerId
-						);
-						if (res.isErr()) {
-							return err(res.error);
+						if (!identifyingAsCustomerId) {
+							return yield* Effect.fail(
+								new CustomerCreationError({
+									message: "Failed to identify customer",
+								})
+							);
 						}
-					}
 
-					const updatedIdentifiedAsCustomer = (
-						await getCustomerWithParentByAppUserIdQuery(
-							authenticatedContextWithTx,
-							input.appUserId,
-							ctx.session.environment
-						)
-					).orElse((e) => {
-						if (e.code === "NOT_FOUND") {
-							return err({
-								code: "INTERNAL_SERVER_ERROR",
-								message: "Failed to get customer",
-								originalError: new Error("Failed to get customer"),
-							} satisfies VoidhashInternalServerError);
+						// Merge customers if current customer is anonymous
+						if (currentCustomer && currentCustomer.type === "anonymous") {
+							yield* mergeCustomers(
+								currentCustomer.id,
+								identifyingAsCustomerId
+							);
 						}
-						return err(e);
-					});
 
-					if (updatedIdentifiedAsCustomer.isErr()) {
-						return err(updatedIdentifiedAsCustomer.error);
-					}
+						// Get updated identified customer
+						const updatedCustomer =
+							yield* customerRepository.getCustomerByAppUserId({
+								appUserId: input.appUserId,
+								environment,
+								projectId,
+							});
 
-					return ok(updatedIdentifiedAsCustomer.value);
-				});
-			} catch (error) {
-				return err(fromUnknownThrow(error));
-			}
-		}
+						if (!updatedCustomer) {
+							return yield* Effect.fail(
+								new CustomerCreationError({
+									message: "Failed to get customer after identification",
+								})
+							);
+						}
+
+						return updatedCustomer;
+					})
+				)
+			);
+
+			yield* Effect.log(
+				`Identified customer ${result.id} for app user ${input.appUserId}`
+			);
+
+			return result;
+		}),
+		Environment.withEnvironment(),
+		AuthSession.withAuthSession()
 	);
-
-async function createCustomer(
-	ctx: ServiceContext,
-	input: {
-		projectId: string;
-		appUserId: string;
-		parentCustomerId: string | null;
-		origin: "ios" | "android";
-		name: string | null;
-		email: string | null;
-		environment: Environment;
-	}
-): Promise<Result<Customer, CreateAnonymousCustomerError>> {
-	const tx = ctx.tx ?? ctx.db;
-	const newCustomer = {
-		id: generateId("customer"),
-		projectId: input.projectId,
-		appUserId: input.appUserId,
-		name: input.name ?? null,
-		email: input.email ?? null,
-		origin: "ios", // TODO: Make this dynamic
-		type: "identified",
-		parentCustomerId: input.parentCustomerId,
-		environment: input.environment,
-	} satisfies InsertCustomer;
-
-	try {
-		await tx.insert(customers).values(newCustomer);
-		return ok({
-			...newCustomer,
-			archivedAt: null,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-		});
-	} catch (error) {
-		return err({
-			code: "INTERNAL_SERVER_ERROR",
-			message: "Failed to create customer",
-			originalError: error,
-		});
-	}
-}

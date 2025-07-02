@@ -1,72 +1,56 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashBadRequestError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
+import { AuthSession } from "@/lib/effect/auth";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
+import { ProductRepository } from "../product.repository";
 
-import { products } from "@voidhash/db";
-import { getProductByIdQuery } from "../raw-queries";
-import { eq } from "drizzle-orm";
-import { err, ok, Result } from "neverthrow";
-import { isAuthenticated } from "@/lib/middlewares";
+export class ProductNotFound extends Data.TaggedError("ProductNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
 
-export const updateProductInputSchema = z.object({
-	productId: z.string(),
-	name: z
-		.string()
-		.min(3, "Name must be at least 3 characters long")
-		.max(32, "Name must be less than 32 characters"),
+export const updateProductInputSchema = Schema.Struct({
+	productId: Schema.String,
+	name: Schema.String.pipe(Schema.minLength(3), Schema.maxLength(32)),
 });
 
-type UpdateProductError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashBadRequestError;
+type UpdateProductInput = Schema.Schema.Type<typeof updateProductInputSchema>;
 
-export const updateProduct = createServiceFunction()
-	.input(updateProductInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({ input, ctx }): Promise<Result<void, UpdateProductError>> => {
-			const existingProduct = await getProductByIdQuery(ctx, input.productId);
-			if (existingProduct.isErr()) {
-				return err(existingProduct.error);
-			}
+export const updateProduct = (inputUnsafe: UpdateProductInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const productRepository = yield* ProductRepository;
+			const input = Schema.decodeUnknownSync(updateProductInputSchema)(
+				inputUnsafe
+			);
 
-			if (
-				!hasProjectPermission(
-					ctx,
-					existingProduct.value.projectId,
-					"project:all"
-				)
-			) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to update this product",
-				});
-			}
-
-			try {
-				await ctx.db
-					.update(products)
-					.set({
-						name: input.name,
+			// Get the product to check authorization
+			const existingProduct = yield* productRepository.getProductById(input.productId);
+			if (!existingProduct) {
+				return yield* Effect.fail(
+					new ProductNotFound({
+						message: `Product ${input.productId} not found`,
 					})
-					.where(eq(products.id, input.productId));
-
-				return ok(undefined);
-			} catch (e) {
-				return err(fromUnknownThrow(e));
+				);
 			}
-		}
+
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				existingProduct.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to update product ${input.productId} for project ${existingProduct.projectId}`
+			);
+
+			yield* productRepository.updateProduct({
+				id: input.productId,
+				name: input.name,
+			});
+
+			yield* Effect.log(
+				`Updated product ${input.productId} for project ${existingProduct.projectId}`
+			);
+
+			return yield* Effect.succeed(undefined);
+		}),
+		AuthSession.withAuthSession()
 	);

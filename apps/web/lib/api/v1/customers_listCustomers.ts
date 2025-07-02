@@ -3,10 +3,11 @@ import { resolver } from "hono-openapi/zod";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { customerResponseSchema } from "./schema";
 import { App } from "../hono/app";
-import { authenticateContext } from "@/lib/service-function";
-import { getCustomers } from "@/lib/services/customers/queries";
 import { z } from "zod";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { createEffectHandler } from "@/lib/effect/runtimes/hono";
+import { CustomerService } from "@/lib/services/customers/customer.service";
+import { Effect, pipe } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "List customers",
@@ -33,36 +34,34 @@ const route = describeRoute({
 export type Route = typeof route;
 
 export const registerCustomersListCustomers = (app: App) =>
-	app.get("/v1/customers", route, async (c) => {
-		const context = c.get("services");
-		const authenticatedContext = await authenticateContext(context);
-		if (authenticatedContext.isErr()) {
-			throw toVoidhashHTTPError(authenticatedContext.error);
-		}
-		const projectId = authenticatedContext.value.session?.projects[0]?.id;
+	app.get("/v1/customers", route, async (c) =>
+		createEffectHandler(c)(
+			Effect.gen(function* () {
+				const authService = yield* Auth;
+				const authSession = yield* authService.authenticate();
+				const projectId = yield* AuthSession.provide(authSession)(
+					authService.getAuthorizedProjectId()
+				);
+				const customers = yield* AuthSession.provide(authSession)(
+					pipe(
+						CustomerService,
+						Effect.flatMap((customerService) =>
+							customerService.getCustomers({
+								projectId,
+							})
+						)
+					)
+				);
 
-		if (!projectId) {
-			return c.json({ error: "Project not found" }, 404);
-		}
-
-		const customers = await getCustomers({
-			ctx: authenticatedContext.value,
-			input: {
-				projectId,
-			},
-		});
-
-		if (customers.isErr()) {
-			throw toVoidhashHTTPError(customers.error);
-		}
-
-		return c.json<z.infer<typeof customerResponseSchema>[]>(
-			customers.value.map((customer) => ({
-				customerId: customer.id,
-				name: customer.name ?? null,
-				email: customer.email,
-				appUserId: customer.appUserId ?? null,
-				origin: customer.origin,
-			}))
-		);
-	});
+				return c.json<z.infer<typeof customerResponseSchema>[]>(
+					customers.map((customer) => ({
+						customerId: customer.id,
+						name: customer.name ?? null,
+						email: customer.email,
+						appUserId: customer.appUserId ?? null,
+						origin: customer.origin,
+					}))
+				);
+			})
+		)
+	);

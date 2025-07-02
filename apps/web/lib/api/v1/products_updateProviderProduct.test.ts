@@ -96,9 +96,16 @@ describe.sequential(
 				paymentProviderConfigurationId,
 				...updatePayloadWithoutProviderConfigurationId
 			} = updatePayload;
-			expect(responseBody.providerConfiguration).toMatchObject(
-				updatePayloadWithoutProviderConfigurationId // The API returns the full wrapper
+			console.log("=== RESPONSE BODY ====", responseBody.providerConfiguration);
+			console.log(
+				"=== UPDATE PAYLOAD WITHOUT PROVIDER CONFIGURATION ID ====",
+				updatePayloadWithoutProviderConfigurationId
 			);
+			expect(responseBody.providerConfiguration).toMatchObject({
+				configuration: updatePayload.configuration,
+				paymentProviderConfigurationId:
+					h.resources.paymentProviderConfiguration.id,
+			});
 
 			// Verify in DB
 			const dbProviderProduct =

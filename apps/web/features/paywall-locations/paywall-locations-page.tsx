@@ -1,12 +1,15 @@
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+
 import { Card } from "@voidhash/ui";
-import { getPaywallLocations } from "@/lib/services/paywall-locations/queries";
 import { CreatePaywallLocationModalButton } from "./create-paywall-location-modal-button";
 import { PaywallLocationsPageEmptyState } from "./paywall-locations-page-empty-state";
 import { PaywallLocationRecord } from "./paywall-location-record";
-import { getPaywalls } from "@/lib/services/paywalls/queries";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { PaywallLocationService } from "@/lib/services/paywall-locations/paywall-location.service";
+import { Effect } from "effect";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { NotFoundError } from "@/lib/effect/errors";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { PaywallService } from "@/lib/services/paywalls/paywall.service";
 
 export async function PaywallLocationsPage({
 	organizationSlug,
@@ -15,46 +18,32 @@ export async function PaywallLocationsPage({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const serviceContext = await createNextServiceContext();
-	const projectResult = await getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: { projectSlug: projectSlug, organizationSlug },
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const paywallLocationService = yield* PaywallLocationService;
+		const paywallService = yield* PaywallService;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		const paywalls = yield* paywallService.getPaywalls(project.id);
+		const paywallLocations = yield* paywallLocationService.getPaywallLocations(project.id);
+		return { project, paywalls, paywallLocations };
+	}));
+	
 
-	if (projectResult.isErr()) {
-		const error = projectResult._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const project = projectResult.value;
+	const { project, paywalls, paywallLocations } = data.value;
 
-	const paywallsPromise = getPaywalls({
-		ctx: serviceContext,
-		input: { projectId: project.id },
-	});
-
-	const paywallLocationsPromise = getPaywallLocations({
-		ctx: serviceContext,
-		input: { projectId: project.id },
-	});
-
-	const [paywallsResult, paywallLocationsResult] = await Promise.all([
-		paywallsPromise,
-		paywallLocationsPromise,
-	]);
-
-	if (paywallsResult.isErr()) {
-		const error = paywallsResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	if (paywallLocationsResult.isErr()) {
-		const error = paywallLocationsResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const paywalls = paywallsResult.value;
-	const paywallLocations = paywallLocationsResult.value;
 
 	return (
 		<div>

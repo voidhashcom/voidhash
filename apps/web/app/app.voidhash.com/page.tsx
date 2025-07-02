@@ -1,15 +1,18 @@
-import { getUser } from "@/lib/services/users/queries";
 import { redirect } from "next/navigation";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { ErrorCard } from "@voidhash/ui";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { Effect } from "effect";
+import { UserService } from "@/lib/services/users/user.service";
 
 export default async function Index() {
-	const userRes = await getUser({
-		ctx: await createNextServiceContext(),
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const userService = yield* UserService;
+		const user = yield* userService.getUser();
+		return { user };
+	}));
 
-	if (userRes.isErr()) {
-		const err = userRes._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const err = data._unsafeUnwrapErr();
 
 		if (err.code === "NOT_FOUND" || err.code === "UNAUTHORIZED") {
 			return redirect("/login");
@@ -26,7 +29,7 @@ export default async function Index() {
 		);
 	}
 
-	const user = userRes.value;
+	const { user } = data.value;
 
 	if (user.organizations.length === 0) {
 		return redirect("/~/create-organization");

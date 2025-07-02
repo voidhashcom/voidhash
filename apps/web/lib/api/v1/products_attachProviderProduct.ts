@@ -1,16 +1,21 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { authenticateContext } from "@/lib/service-function";
+import { resolver } from "hono-openapi/zod";
 import {
 	attachProviderProductBodySchema,
 	attachProviderProductParamsSchema,
 	providerProductResponseSchema,
 } from "./schema";
 import { z } from "zod";
-import { createPaymentProviderProduct } from "@/lib/services/products/actions/create-payment-provider-product";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
+import { zValidator } from "@hono/zod-validator";
+import {
+	createEffectHandler,
+	HonoErrorResponse,
+} from "@/lib/effect/runtimes/hono";
+import { ProductService } from "@/lib/services/products/product.service";
+import { Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Attach a new provider product",
@@ -42,35 +47,68 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 		route,
 		zValidator("param", attachProviderProductParamsSchema),
 		zValidator("json", attachProviderProductBodySchema),
-		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
-			const productId = c.req.param("productId");
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const productService = yield* ProductService;
+					const result = yield* AuthSession.provide(authSession)(
+						productService
+							.createPaymentProviderProduct({
+								productId: c.req.param("productId"),
+								paymentProviderConfigurationId:
+									c.req.valid("json").paymentProviderConfigurationId,
+								configuration: c.req.valid("json").configuration,
+							})
+							.pipe(
+								Effect.catchTags({
+									ProductNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+									PaymentProviderConfigurationNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+									PaymentProviderNotFound: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "NOT_FOUND",
+												message: error.message,
+												originalError: error,
+											})
+										),
+									InvalidConfiguration: (error) =>
+										Effect.fail(
+											new HonoErrorResponse({
+												code: "BAD_REQUEST",
+												message: error.message,
+												originalError: error,
+											})
+										),
+								})
+							)
+					);
 
-			const providerProduct = await createPaymentProviderProduct.invoke({
-				ctx: authenticatedContext.value,
-				input: {
-					productId,
-					paymentProviderConfigurationId:
-						c.req.valid("json").paymentProviderConfigurationId,
-					configuration: c.req.valid("json").configuration,
-				},
-			});
-			if (providerProduct.isErr()) {
-				throw toVoidhashHTTPError(providerProduct.error);
-			}
-			return c.json<z.infer<typeof providerProductResponseSchema>>({
-				providerProductKey: providerProduct.value.providerProductKey,
-				providerConfiguration: {
-					paymentProviderConfigurationId:
-						providerProduct.value.paymentProviderConfigurationId,
-					configuration: providerProduct.value.configuration,
-				},
-			});
-		}
+					return c.json<z.infer<typeof providerProductResponseSchema>>({
+						providerProductKey: result.providerProductKey,
+						providerConfiguration: {
+							paymentProviderConfigurationId:
+								result.paymentProviderConfigurationId,
+							configuration: result.configuration,
+						},
+					});
+				})
+			)
 	);
 
 export type RouteResponse = z.infer<typeof providerProductResponseSchema>;

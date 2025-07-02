@@ -1,185 +1,157 @@
-import { createServiceFunction } from "@/lib/service-function";
-import {
-	CHECKOUT_DOMAIN,
-	fromUnknownThrow,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { err, ok, Result } from "neverthrow";
-import { hasEnvironment, isAuthenticated } from "@/lib/middlewares";
+import { AuthSession } from "@/lib/effect/auth";
+import { Environment } from "@/lib/effect/environment";
+import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
-import {
-	and,
-	checkoutSessions,
-	eq,
-	InsertCheckoutSession,
-	paymentProviderConfigurations,
-	Transaction,
-} from "@voidhash/db";
-import { getCustomerByAppUserIdQuery } from "../../customers/raw-queries";
+import { ProductRepository } from "../../products/product.repository";
+import { PaymentProviderRepository } from "../../payment-providers/payment-provider.repository";
 import { devCheckoutPaymentProviderId } from "@/lib/payment-providers/dev-checkout/dev-checkout";
 import { isAnonymousId } from "../utils";
+import { NotFoundError, UnauthorizedError } from "@/lib/effect/errors";
+import { CHECKOUT_DOMAIN } from "@voidhash/lib";
+import { Db, TransactionContext } from "@/lib/effect/db";
+import { CustomerRepository } from "../../customers/customer.repository";
+import { CheckoutSessionRepository } from "../../checkout-session/checkout-session.repository";
 import { createAnonymousCustomer } from "../create-anonymous-customer";
-import { getProviderProductByIdQuery } from "../../products/raw-queries";
 
-export const createCheckoutInputSchema = z.object({
-	paymentProviderConfigurationProductId: z.string().min(1),
-	successCallbackUrl: z.string().min(1).includes("://"),
-	errorCallbackUrl: z.string().min(1).includes("://"),
+export class PaymentProviderConfigurationNotFound extends Data.TaggedError(
+	"PaymentProviderConfigurationNotFound"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class ProductNotFound extends Data.TaggedError("ProductNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const createCheckoutInputSchema = Schema.Struct({
+	paymentProviderConfigurationProductId: Schema.String.pipe(Schema.minLength(1)),
+	successCallbackUrl: Schema.String.pipe(Schema.minLength(1)),
+	errorCallbackUrl: Schema.String.pipe(Schema.minLength(1)),
 });
 
-type CreateCheckoutError =
-	| VoidhashUnauthorizedError
-	| VoidhashNotFoundError
-	| VoidhashInternalServerError;
+type CreateCheckoutInput = Schema.Schema.Type<typeof createCheckoutInputSchema>;
 
 type CreateCheckoutResponse = {
 	checkoutSessionId: string;
 	checkoutUrl: string;
 };
 
-// TODO: Maybe add ratelimit?
-export const createCheckoutSession = createServiceFunction()
-	.input(createCheckoutInputSchema)
-	.use(isAuthenticated)
-	.use(hasEnvironment)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<Result<CreateCheckoutResponse, CreateCheckoutError>> => {
-			console.log("createCheckoutSession", input);
-			const appUserId = ctx.session?.customer?.appUserId;
+export const createCheckout = (inputUnsafe: CreateCheckoutInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const environment = yield* Environment;
+			const productRepository = yield* ProductRepository;
+			const customerRepository = yield* CustomerRepository;
+			const checkoutSessionRepository = yield* CheckoutSessionRepository;
+			const paymentProviderRepository = yield* PaymentProviderRepository;
+			const db = yield* Db;
 
+			const input = Schema.decodeUnknownSync(createCheckoutInputSchema)(
+				inputUnsafe
+			);
+
+			const appUserId = session?.customer?.appUserId;
 			if (!appUserId) {
-				return err({
-					code: "UNAUTHORIZED",
-					message: "App user ID not found",
-				});
+				return yield* Effect.fail(
+					new UnauthorizedError({
+						message: "App user ID not found",
+					})
+				);
 			}
 
-			const paymentProviderConfigurationProduct =
-				await getProviderProductByIdQuery(
-					ctx,
-					input.paymentProviderConfigurationProductId
-				);
-
-			if (paymentProviderConfigurationProduct.isErr()) {
-				console.log(
-					"paymentProviderConfigurationProduct error",
-					paymentProviderConfigurationProduct.error
-				);
-				return err(paymentProviderConfigurationProduct.error);
-			}
-
-			const projectId = ctx.session.projects[0]?.id;
+			const projectId = session?.projects[0]?.id;
 			if (!projectId) {
-				console.log("projectId not found");
-				return err({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Project not found",
-					originalError: new Error("Project not found"),
-				});
+				return yield* Effect.fail(
+					new NotFoundError({
+						message: "Project not found",
+					})
+				);
 			}
 
-			// TODO: Uncomment this when we have a way to get payment providers
-			// const paymentProviders = await getAvailablePaymentProviders(
+			// Get payment provider configuration product
+			const paymentProviderConfigurationProduct = yield* productRepository.getProviderProductById(
+				input.paymentProviderConfigurationProductId
+			);
+			if (!paymentProviderConfigurationProduct) {
+				return yield* Effect.fail(
+					new ProductNotFound({
+						message: "Payment provider configuration product not found",
+					})
+				);
+			}
 
-			try {
-				const devCheckoutPaymentProviderConfiguration =
-					await ctx.db.query.paymentProviderConfigurations.findFirst({
-						where: and(
-							eq(paymentProviderConfigurations.projectId, projectId),
-							eq(
-								paymentProviderConfigurations.providerId,
-								devCheckoutPaymentProviderId
-							)
-						),
-					});
-
-				if (!devCheckoutPaymentProviderConfiguration) {
-					return err({
-						code: "INTERNAL_SERVER_ERROR",
+			// Get dev checkout payment provider configuration
+			const devCheckoutConfiguration = yield* paymentProviderRepository.getExistingPaymentProviderConfigurationByProviderId({
+				projectId,
+				providerId: devCheckoutPaymentProviderId,
+			});
+			if (!devCheckoutConfiguration) {
+				return yield* Effect.fail(
+					new PaymentProviderConfigurationNotFound({
 						message: "Dev checkout payment provider configuration not found",
-						originalError: new Error(
-							"Dev checkout payment provider configuration not found"
-						),
-					});
-				}
+					})
+				);
+			}
 
-				return await ctx.db.transaction(async (tx: Transaction) => {
-					const customerResult = await getCustomerByAppUserIdQuery(
-						{
-							...ctx,
-							tx: tx,
-						},
+			const result = yield* db.transaction((tx) =>
+				TransactionContext.provide(tx)(Effect.gen(function* () {
+					// Get or create customer
+					let customer = yield* customerRepository.getCustomerByAppUserId({
+						projectId,
 						appUserId,
-						ctx.session.environment
-					);
+						environment,
+					});
 
-					let customer = customerResult.isOk() ? customerResult.value : null;
-
-					if (customerResult.isErr()) {
-						// When not found, we should check if the id is anonymous. If it is, we should create a new customer.
-						if (
-							customerResult.error.code === "NOT_FOUND" &&
-							isAnonymousId(appUserId)
-						) {
-							const createAnonymousCustomerResult =
-								await createAnonymousCustomer(
-									{
-										...ctx,
-										tx: tx,
-									},
-									{
-										projectId,
-										appUserId: appUserId,
-										origin: "ios", // TODO: Make this dynamic
-										environment: ctx.session.environment,
-									}
-								);
-
-							if (createAnonymousCustomerResult.isErr()) {
-								return err(createAnonymousCustomerResult.error);
-							}
-
-							customer = createAnonymousCustomerResult.value;
-						} else {
-							return err(customerResult.error);
-						}
+					if (!customer && isAnonymousId(appUserId)) {
+						const newCustomer = yield* createAnonymousCustomer({
+							projectId,
+							appUserId,
+							origin: "ios", // TODO: Make this dynamic
+							environment,
+						});
+						customer = newCustomer;
 					}
 
 					if (!customer) {
-						return err({
-							code: "INTERNAL_SERVER_ERROR",
-							message: "Customer not found",
-							originalError: new Error("Customer not found"),
-						} satisfies VoidhashInternalServerError);
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Customer not found",
+							})
+						);
 					}
 
-					const sessionInsert = {
-						id: generateId("checkoutSession"),
+					// Create checkout session
+					const sessionId = generateId("checkoutSession");
+					const sessionData = {
+						id: sessionId,
 						customerId: customer.id,
-						paymentProviderConfigurationProductId:
-							paymentProviderConfigurationProduct.value.id,
+						paymentProviderConfigurationProductId: paymentProviderConfigurationProduct.id,
 						successCallbackUrl: input.successCallbackUrl,
 						errorCallbackUrl: input.errorCallbackUrl,
 						createdAt: new Date(),
 						updatedAt: new Date(),
-					} satisfies InsertCheckoutSession;
+					};
 
-					await tx.insert(checkoutSessions).values(sessionInsert);
+					yield* checkoutSessionRepository.createCheckoutSession(sessionData);
 
-					return ok({
-						checkoutSessionId: sessionInsert.id,
-						// TODO: SHOULD BE DYNAMIC
-						checkoutUrl: `${CHECKOUT_DOMAIN}/dev-checkout/${sessionInsert.id}`,
-					});
-				});
-			} catch (e) {
-				return err(fromUnknownThrow(e));
-			}
-		}
+					return yield* Effect.succeed({
+						checkoutSessionId: sessionId,
+						checkoutUrl: `${CHECKOUT_DOMAIN}/dev-checkout/${sessionId}`,
+					} satisfies CreateCheckoutResponse);
+				}))
+			);
+
+			yield* Effect.log(
+				`Created checkout session ${result.checkoutSessionId} for customer ${appUserId}`
+			);
+
+			return result;
+		}),
+		Environment.withEnvironment({
+			projectId: inputUnsafe.paymentProviderConfigurationProductId, // TODO: Get from product
+		}),
+		AuthSession.withAuthSession()
 	);

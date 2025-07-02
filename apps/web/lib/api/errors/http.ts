@@ -11,7 +11,7 @@ import { extendZodWithOpenApi } from "zod-openapi";
 
 extendZodWithOpenApi(z);
 
-const ErrorCode = z.enum([
+export const ErrorCode = z.enum([
 	"BAD_REQUEST",
 	"FORBIDDEN",
 	"INTERNAL_SERVER_ERROR",
@@ -167,7 +167,7 @@ export function handleZodError(
 }
 
 export function handleError(err: Error, c: Context<HonoEnv>): Response {
-	const { logger } = c.get("services");
+	const logger = c.get("logger");
 
 	/**
 	 * We can handle this very well, as it is something we threw ourselves

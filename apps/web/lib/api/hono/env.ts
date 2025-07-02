@@ -1,4 +1,4 @@
-import { ServiceContext } from "@/lib/service-function";
+import { Logger } from "@/lib/logger/types";
 
 export type HonoEnv = {
 	Variables: {
@@ -11,7 +11,7 @@ export type HonoEnv = {
 			keyId?: string;
 			[key: string]: unknown;
 		};
-		services: ServiceContext;
+		logger: Logger;
 		/**
 		 * IP address or region information
 		 */

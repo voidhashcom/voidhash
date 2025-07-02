@@ -1,5 +1,4 @@
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { createProductInputSchema } from "@/lib/services/products/actions/create-product";
 import { z } from "zod";
 import { extendZodWithOpenApi } from "zod-openapi";
 
@@ -29,9 +28,8 @@ export const customerResponseSchema = z
 	});
 
 // Product
-export const createProductBodySchema = createProductInputSchema
-	.pick({
-		name: true,
+export const createProductBodySchema = z.object({
+		name: z.string(),
 	})
 	.openapi({
 		ref: "CreateProductBody",

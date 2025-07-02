@@ -1,73 +1,51 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import { z } from "zod";
-import {
-	fromUnknownThrow,
-	VoidhashBadRequestError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { projects } from "@voidhash/db";
-import { eq } from "drizzle-orm";
-import { err, ok, Result } from "neverthrow";
-import { getProjectByIdQuery } from "../raw-queries";
-import { getOrganizationByIdQuery } from "../../organizations/raw-queries";
-import { isAuthenticated } from "@/lib/middlewares";
+import { AuthSession } from "@/lib/effect/auth";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
+import { ProjectRepository } from "../project.repository";
 
-export const deleteProjectInputSchema = z.object({
-	id: z.string(),
+export class ProjectNotFound extends Data.TaggedError("ProjectNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const deleteProjectInputSchema = Schema.Struct({
+	id: Schema.String,
 });
 
-type DeleteProjectError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError
-	| VoidhashBadRequestError;
+type DeleteProjectInput = Schema.Schema.Type<typeof deleteProjectInputSchema>;
 
-export const deleteProject = createServiceFunction()
-	.input(deleteProjectInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({ input, ctx }): Promise<Result<void, DeleteProjectError>> => {
-			if (!hasProjectPermission(ctx, input.id, "project:all")) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to delete this project",
-				});
-			}
-
-			const project = await getProjectByIdQuery(ctx, input.id);
-
-			if (project.isErr()) {
-				return err(project.error);
-			}
-
-			const organization = await getOrganizationByIdQuery(
-				ctx,
-				project.value.organizationId
+export const deleteProject = (inputUnsafe: DeleteProjectInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const projectRepository = yield* ProjectRepository;
+			const input = Schema.decodeUnknownSync(deleteProjectInputSchema)(
+				inputUnsafe
 			);
 
-			if (organization.isErr()) {
-				return err(organization.error);
-			}
-
-			try {
-				await ctx.db.delete(projects).where(eq(projects.id, input.id));
-
-				ctx.cache.invalidate(`project_${project.value.id}`);
-				ctx.cache.invalidate(
-					`project_${organization.value.id}_slug:${project.value.slug}`
+			// First check if project exists
+			const project = yield* projectRepository.getProjectById(input.id);
+			if (!project) {
+				return yield* Effect.fail(
+					new ProjectNotFound({
+						message: `Project ${input.id} not found`,
+					})
 				);
-				ctx.cache.invalidate(`projects_${project.value.organizationId}`);
-
-				return ok(undefined);
-			} catch (e) {
-				return err(fromUnknownThrow(e));
 			}
-		}
+
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				input.id,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to delete project ${input.id}`
+			);
+
+			// Delete the project
+			yield* projectRepository.deleteProject(input.id);
+
+			yield* Effect.log(`Deleted project ${input.id}`);
+
+			return yield* Effect.succeed(undefined);
+		}),
+		AuthSession.withAuthSession()
 	);

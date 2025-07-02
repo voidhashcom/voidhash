@@ -1,6 +1,5 @@
 import { describeRoute } from "hono-openapi";
-import { resolver, validator as zValidator } from "hono-openapi/zod";
-import { authenticateContext } from "@/lib/service-function";
+import { resolver } from "hono-openapi/zod";
 import {
 	getProviderProductsParamsSchema,
 	providerProductResponseSchema,
@@ -8,8 +7,11 @@ import {
 import { z } from "zod";
 import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
-import { getProviderProductsByProductId } from "@/lib/services/products/queries";
+import { zValidator } from "@hono/zod-validator";
+import { createEffectHandler } from "@/lib/effect/runtimes/hono";
+import { ProductService } from "@/lib/services/products/product.service";
+import { Effect } from "effect";
+import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
 	description: "Get all provider products for a product",
@@ -40,36 +42,30 @@ export const registerProductsGetProviderProductsByProductId = (app: App) =>
 		"/v1/products/:productId/provider-products",
 		route,
 		zValidator("param", getProviderProductsParamsSchema),
-		async (c) => {
-			const context = c.get("services");
-			const authenticatedContext = await authenticateContext(context);
-			if (authenticatedContext.isErr()) {
-				throw toVoidhashHTTPError(authenticatedContext.error);
-			}
-			const productId = c.req.param("productId");
+		async (c) =>
+			createEffectHandler(c)(
+				Effect.gen(function* () {
+					const authService = yield* Auth;
+					const authSession = yield* authService.authenticate();
+					const productService = yield* ProductService;
+					const providerProducts = yield* AuthSession.provide(authSession)(
+						productService.getProviderProductsByProductId(
+							c.req.param("productId")
+						)
+					);
 
-			const providerProducts = await getProviderProductsByProductId({
-				ctx: authenticatedContext.value,
-				input: {
-					productId,
-				},
-			});
-
-			if (providerProducts.isErr()) {
-				throw toVoidhashHTTPError(providerProducts.error);
-			}
-
-			return c.json<z.infer<typeof providerProductResponseSchema>[]>(
-				providerProducts.value.map((providerProduct) => ({
-					providerProductKey: providerProduct.providerProductKey,
-					providerConfiguration: {
-						paymentProviderConfigurationId:
-							providerProduct.paymentProviderConfigurationId,
-						configuration: providerProduct.configuration,
-					},
-				}))
-			);
-		}
+					return c.json<z.infer<typeof providerProductResponseSchema>[]>(
+						providerProducts.map((providerProduct) => ({
+							providerProductKey: providerProduct.providerProductKey,
+							providerConfiguration: {
+								paymentProviderConfigurationId:
+									providerProduct.paymentProviderConfigurationId,
+								configuration: providerProduct.configuration,
+							},
+						}))
+					);
+				})
+			)
 	);
 
 export type RouteResponse = z.infer<typeof providerProductResponseSchema>[];

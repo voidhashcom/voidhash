@@ -44,13 +44,13 @@
     "better-auth": "^1.2.4",
     "cross-fetch": "^4.1.0",
     "drizzle-orm": "^0.41.0",
-    "effect": "^3.16.8",
+    "effect": "^3.16.10",
     "hono": "^4.7.6",
     "hono-openapi": "^0.4.6",
     "lucide-react": "^0.483.0",
     "neverthrow": "^8.2.0",
     "next": "15.2.5",
-    "next-safe-action": "^7.10.5",
+    "next-safe-action": "^8.0.4",
     "next13-progressbar": "^1.2.2",
     "pino": "^9.7.0",
     "react": "^19.0.0",
@@ -68,6 +68,7 @@
     "zod-openapi": "^4.2.4"
   },
   "devDependencies": {
+    "@effect/language-service": "^0.21.8",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@trigger.dev/build": "^3.3.17",

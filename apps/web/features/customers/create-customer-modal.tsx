@@ -33,7 +33,7 @@ import { InfoTooltip } from "@voidhash/ui";
 const createCustomerFormSchema = z.object({
 	appUserId: z.string().min(1),
 	name: z.string().optional(),
-	email: z.string().optional(),
+	email: z.string().email().optional(),
 });
 
 type CreateCustomerForm = z.infer<typeof createCustomerFormSchema>;
@@ -88,6 +88,8 @@ export function CreateCustomerModal({
 	const onSubmit = (data: CreateCustomerForm) => {
 		execute({
 			...data,
+			name: data.name ?? null,
+			email: data.email ?? null,
 			projectId, // Add the projectId required by the action
 		});
 	};

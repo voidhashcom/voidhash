@@ -25,22 +25,10 @@ import {
 	updateProject,
 	updateProjectInputSchema,
 } from "@/lib/services/projects/actions/update-project";
-import {
-	rotateSecretKey,
-	rotateSecretKeyInputSchema,
-} from "@/lib/services/api-keys/rotate-secret-key";
-import {
-	createSecretKey,
-	createSecretKeyInputSchema,
-} from "../services/api-keys/create-secret-key";
-import {
-	deleteSecretKey,
-	deleteSecretKeyInputSchema,
-} from "../services/api-keys/delete-secret-key";
-import {
-	switchEnvironment,
-	switchEnvironmentInputSchema,
-} from "@/lib/services/environments/actions/switch-environment";
+import { rotateSecretKeyInputSchema } from "@/lib/services/api-keys/actions/rotate-secret-key";
+import { createSecretKeyInputSchema } from "@/lib/services/api-keys/actions/create-secret-key";
+import { deleteSecretKeyInputSchema } from "@/lib/services/api-keys/actions/delete-secret-key";
+import { EnvironmentService, switchEnvironmentInputSchema } from "@/lib/services/environments/environment.service";
 import {
 	createProduct,
 	createProductInputSchema,
@@ -71,10 +59,7 @@ import {
 	deleteProductInputSchema,
 	deleteProduct,
 } from "../services/products/actions/delete-product";
-import {
-	createCustomer,
-	createCustomerInputSchema,
-} from "../services/customers/actions/create-customer";
+import { createCustomerInputSchema } from "../services/customers/actions/create-customer";
 import {
 	setActivePaymentProviderProductInputSchema,
 	setActivePaymentProviderProduct,
@@ -87,22 +72,10 @@ import {
 	createPaywall,
 	createPaywallInputSchema,
 } from "../services/paywalls/actions/create-paywall";
-import {
-	deletePerk,
-	deletePerkInputSchema,
-} from "../services/perks/actions/delete-perk";
-import {
-	createPerk,
-	createPerkInputSchema,
-} from "../services/perks/actions/create-perk";
-import {
-	createPaywallLocationInputSchema,
-	createPaywallLocation,
-} from "../services/paywall-locations/actions/create-paywall-location";
-import {
-	deletePaywallLocationInputSchema,
-	deletePaywallLocation,
-} from "../services/paywall-locations/actions/delete-paywall-location";
+import { deletePerkInputSchema } from "../services/perks/actions/delete-perk";
+import { createPerkInputSchema } from "../services/perks/actions/create-perk";
+import { createPaywallLocationInputSchema } from "../services/paywall-locations/actions/create-paywall-location";
+import { deletePaywallLocationInputSchema } from "../services/paywall-locations/actions/delete-paywall-location";
 import {
 	createProductPerk,
 	createProductPerkInputSchema,
@@ -111,65 +84,111 @@ import {
 	deleteProductPerk,
 	deleteProductPerkInputSchema,
 } from "../services/products/actions/delete-product-perk";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 import {
 	updatePaywall,
 	updatePaywallInputSchema,
 } from "../services/paywalls/actions/update-paywall";
-import {
-	confirmDevCheckoutPurchase,
-	confirmDevCheckoutPurchaseInputSchema,
-} from "../payment-providers/dev-checkout/actions/confirm-purchase";
-import {
-	cancelDevCheckoutPurchase,
-	cancelDevCheckoutPurchaseInputSchema,
-} from "../payment-providers/dev-checkout/actions/cancel-purchase";
+// import {
+// 	confirmDevCheckoutPurchase,
+// 	confirmDevCheckoutPurchaseInputSchema,
+// } from "../payment-providers/dev-checkout/actions/confirm-purchase";
+// import {
+// 	cancelDevCheckoutPurchase,
+// 	cancelDevCheckoutPurchaseInputSchema,
+// } from "../payment-providers/dev-checkout/actions/cancel-purchase";
 import {
 	deletePaymentProviderConfiguration,
 	deletePaymentProviderConfigurationInputSchema,
 } from "../services/payment-providers/actions/delete-payment-provider-configuration";
-
+import { NextjsErrorResponse, runServerEffect } from "../effect/runtimes/nextjs";
+import { Effect, pipe, Schema } from "effect";
+import { PerkService } from "../services/perks/perk.service";
+import { PaywallLocationService } from "../services/paywall-locations/paywall-location.service";
+import { ApiKeyService } from "../services/api-keys/api-key.service";
+import { CustomerService } from "../services/customers/customer.service";
+import { DevCheckoutService } from "../payment-providers/dev-checkout/dev-checkout.service";
+import { confirmDevCheckoutPurchaseInputSchema } from "../payment-providers/dev-checkout/actions/confirm-purchase";
+import { cancelDevCheckoutPurchaseInputSchema } from "../payment-providers/dev-checkout/actions/cancel-purchase";
 // Api keys
 export const createSecretKeyAction = actionClient
-	.schema(createSecretKeyInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createSecretKey.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createSecretKeyInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				ApiKeyService,
+				Effect.flatMap((apiKeyService) =>
+					apiKeyService.createSecretKey(parsedInput)
+				),
+				Effect.catchTags({
+					ApiKeyNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
 	});
 
 export const rotateSecretKeyAction = actionClient
-	.schema(rotateSecretKeyInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await rotateSecretKey.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(rotateSecretKeyInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				ApiKeyService,
+				Effect.flatMap((apiKeyService) =>
+					apiKeyService.rotateSecretKey(parsedInput)
+				),
+				Effect.catchTags({
+					ApiKeyNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
 	});
 
 export const deleteSecretKeyAction = actionClient
-	.schema(deleteSecretKeyInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deleteSecretKey.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deleteSecretKeyInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				ApiKeyService,
+				Effect.flatMap((apiKeyService) =>
+					apiKeyService.deleteSecretKey(parsedInput)
+				),
+				Effect.catchTags({
+					ApiKeyNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -177,45 +196,73 @@ export const deleteSecretKeyAction = actionClient
 
 // Organization
 export const createOrganizationAction = actionClient
-	.schema(createOrganizationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createOrganization.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createOrganizationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				createOrganization(parsedInput),
+				Effect.catchTags({
+					FailedToCreateOrganizationError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "INTERNAL_SERVER_ERROR",
+								message: error.message,
+							})
+						),
+					UserSessionNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "INTERNAL_SERVER_ERROR",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
 	});
 
 export const updateOrganizationAction = actionClient
-	.schema(updateOrganizationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updateOrganization.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updateOrganizationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				updateOrganization(parsedInput),
+				Effect.catchTags({
+					OrganizationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
 	});
 
 export const deleteOrganizationAction = actionClient
-	.schema(deleteOrganizationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deleteOrganization.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deleteOrganizationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				deleteOrganization(parsedInput),
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -223,45 +270,66 @@ export const deleteOrganizationAction = actionClient
 
 // Project
 export const createProjectAction = actionClient
-	.schema(createProjectInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createProject.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createProjectInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				createProject(parsedInput),
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
 	});
 
 export const updateProjectAction = actionClient
-	.schema(updateProjectInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updateProject.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updateProjectInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				updateProject(parsedInput),
+				Effect.catchTags({
+					ProjectNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
 	});
 
 export const deleteProjectAction = actionClient
-	.schema(deleteProjectInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deleteProject.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deleteProjectInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				deleteProject(parsedInput),
+				Effect.catchTags({
+					ProjectNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -269,15 +337,42 @@ export const deleteProjectAction = actionClient
 
 // Environment
 export const switchEnvironmentAction = actionClient
-	.schema(switchEnvironmentInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await switchEnvironment.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(switchEnvironmentInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				EnvironmentService,
+				Effect.flatMap((environmentService) =>
+					environmentService.switchEnvironment(parsedInput)
+				),
+				Effect.catchTags({
+					ProjectNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					OrganizationNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					OrganizationWithoutSlugError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "INTERNAL_SERVER_ERROR",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -285,45 +380,103 @@ export const switchEnvironmentAction = actionClient
 
 // Payment providers
 export const createPaymentProviderConfigurationAction = actionClient
-	.schema(createPaymentProviderConfigurationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createPaymentProviderConfiguration.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createPaymentProviderConfigurationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				createPaymentProviderConfiguration(parsedInput),	
+				Effect.catchTags({
+					PaymentProviderNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					PaymentProviderAlreadyExistsError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const updatePaymentProviderConfigurationAction = actionClient
-	.schema(updatePaymentProviderConfigurationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updatePaymentProviderConfiguration.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updatePaymentProviderConfigurationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				updatePaymentProviderConfiguration(parsedInput),
+				Effect.catchTags({
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					PaymentProviderNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					ValidationError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderKeyUnavailableError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const deletePaymentProviderConfigurationAction = actionClient
-	.schema(deletePaymentProviderConfigurationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deletePaymentProviderConfiguration.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deletePaymentProviderConfigurationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				deletePaymentProviderConfiguration(parsedInput),
+				Effect.catchTags({
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -331,45 +484,75 @@ export const deletePaymentProviderConfigurationAction = actionClient
 
 // Products
 export const createProductAction = actionClient
-	.schema(createProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				createProduct(parsedInput),
+				Effect.catchTags({
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "INTERNAL_SERVER_ERROR",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const updateProductAction = actionClient
-	.schema(updateProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updateProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updateProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				updateProduct(parsedInput),
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const deleteProductAction = actionClient
-	.schema(deleteProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deleteProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deleteProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				deleteProduct(parsedInput),
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -377,30 +560,58 @@ export const deleteProductAction = actionClient
 
 // Product perks
 export const createProductPerkAction = actionClient
-	.schema(createProductPerkInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createProductPerk.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createProductPerkInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				createProductPerk(parsedInput),
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PerkNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const deleteProductPerkAction = actionClient
-	.schema(deleteProductPerkInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deleteProductPerk.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deleteProductPerkInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				deleteProductPerk(parsedInput),
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -408,60 +619,163 @@ export const deleteProductPerkAction = actionClient
 
 // Payment provider products
 export const createPaymentProviderProductAction = actionClient
-	.schema(createPaymentProviderProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createPaymentProviderProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createPaymentProviderProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				createPaymentProviderProduct(parsedInput),
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					InvalidConfiguration: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const updatePaymentProviderProductAction = actionClient
-	.schema(updatePaymentProviderProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updatePaymentProviderProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updatePaymentProviderProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				updatePaymentProviderProduct(parsedInput),
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					ProviderProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					InvalidConfiguration: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const setActivePaymentProviderProductAction = actionClient
-	.schema(setActivePaymentProviderProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await setActivePaymentProviderProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(setActivePaymentProviderProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				setActivePaymentProviderProduct(parsedInput),
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const deletePaymentProviderProductAction = actionClient
-	.schema(deletePaymentProviderProductInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deletePaymentProviderProduct.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deletePaymentProviderProductInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				deletePaymentProviderProduct(parsedInput),
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -469,18 +783,24 @@ export const deletePaymentProviderProductAction = actionClient
 
 // Customers
 export const createCustomerAction = actionClient
-	.schema(createCustomerInputSchema.omit({ origin: true }))
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createCustomer.invoke({
-			ctx: ctx.serviceContext,
-			input: {
-				...parsedInput,
-				origin: "dashboard",
-			},
-		});
+	.inputSchema(
+		Schema.standardSchemaV1(createCustomerInputSchema.omit("origin"))
+	)
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				CustomerService,
+				Effect.flatMap((customerService) =>
+					customerService.createCustomer({
+						...parsedInput,
+						origin: "dashboard",
+					})
+				),
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -488,45 +808,87 @@ export const createCustomerAction = actionClient
 
 // Paywalls
 export const createPaywallAction = actionClient
-	.schema(createPaywallInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createPaywall.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createPaywallInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				createPaywall(parsedInput),
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const updatePaywallAction = actionClient
-	.schema(updatePaywallInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await updatePaywall.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(updatePaywallInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				updatePaywall(parsedInput),
+				Effect.catchTags({
+					PaywallNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const deletePaywallAction = actionClient
-	.schema(deletePaywallInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deletePaywall.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deletePaywallInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				deletePaywall(parsedInput),
+				Effect.catchTags({
+					PaywallNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					PaywallInUseError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -534,60 +896,119 @@ export const deletePaywallAction = actionClient
 
 // Paywall locations
 export const createPaywallLocationAction = actionClient
-	.schema(createPaywallLocationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createPaywallLocation.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createPaywallLocationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				PaywallLocationService,
+				Effect.flatMap((paywallLocationService) =>
+					paywallLocationService.createPaywallLocation(parsedInput)
+				),
+				Effect.catchTags({
+					SlugAlreadyExistsError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					DefaultPaywallNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const deletePaywallLocationAction = actionClient
-	.schema(deletePaywallLocationInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deletePaywallLocation.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deletePaywallLocationInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				PaywallLocationService,
+				Effect.flatMap((paywallLocationService) =>
+					paywallLocationService.deletePaywallLocation({
+						paywallLocationId: parsedInput.paywallLocationId,
+					})
+				),
+				Effect.catchTags({
+					PaywallLocationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 // Perks
 export const createPerkAction = actionClient
-	.schema(createPerkInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await createPerk.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(createPerkInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				PerkService,
+				Effect.flatMap((perkService) => perkService.createPerk(parsedInput)),
+				Effect.catchTags({
+					SlugAlreadyExistsError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const deletePerkAction = actionClient
-	.schema(deletePerkInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await deletePerk.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(deletePerkInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				PerkService,
+				Effect.flatMap((perkService) =>
+					perkService.deletePerk({ perkId: parsedInput.perkId })
+				),
+				Effect.catchTags({
+					PerkNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -595,30 +1016,71 @@ export const deletePerkAction = actionClient
 
 // Dev checkout
 export const confirmDevCheckoutPurchaseAction = actionClient
-	.schema(confirmDevCheckoutPurchaseInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await confirmDevCheckoutPurchase.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(confirmDevCheckoutPurchaseInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				DevCheckoutService,
+				Effect.flatMap((devCheckoutService) =>
+					devCheckoutService.confirmPurchase(parsedInput)
+				),
+				Effect.catchTags({
+					CheckoutSessionNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					CheckoutSessionWasAlreadyCancelled: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
 	});
 
 export const cancelDevCheckoutPurchaseAction = actionClient
-	.schema(cancelDevCheckoutPurchaseInputSchema)
-	.action(async ({ parsedInput, ctx }) => {
-		const res = await cancelDevCheckoutPurchase.invoke({
-			ctx: ctx.serviceContext,
-			input: parsedInput,
-		});
+	.inputSchema(Schema.standardSchemaV1(cancelDevCheckoutPurchaseInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				DevCheckoutService,
+				Effect.flatMap((devCheckoutService) =>
+					devCheckoutService.cancelPurchase(parsedInput)
+				),
+				Effect.catchTags({
+					CheckoutSessionNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					CheckoutSessionWasAlreadyConfirmed: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;

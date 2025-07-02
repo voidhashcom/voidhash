@@ -16,7 +16,6 @@ import { useTRPC } from "../../../trpc/react";
 import { CreateOrganizationModal } from "../../../organizations/create-organization-modal";
 import { CreateProjectModal } from "../../../projects/create-project-modal";
 import type { Organization, Project } from "@voidhash/db";
-import type { GetUserSuccess } from "@/lib/services/users/queries";
 
 function OrganizationProjectSwitcherProjects({
 	organizationId,
@@ -90,7 +89,9 @@ export function OrganizationProjectSwitcher({
 	activeProject,
 	activeOrganization,
 }: {
-	user: GetUserSuccess;
+	user: {
+		organizations: Organization[];
+	};
 	activeProject: Project | null;
 	activeOrganization: Organization;
 }) {

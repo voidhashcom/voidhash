@@ -1,116 +1,108 @@
-import { auth } from "@voidhash/auth";
-import {
-	createSlug,
-	createShortId,
-	SLUG_BLACKLIST,
-	VoidhashUnauthorizedError,
-	VoidhashInternalServerError,
-	fromUnknownThrow,
-	VoidhashNotFoundError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import { createServiceFunction } from "@/lib/service-function";
-import { createVoidhashCustomerTask } from "jobs/create-voidhash-customer-task";
-import { err, ok, Result, ResultAsync } from "neverthrow";
-import { isAuthenticated } from "@/lib/middlewares";
+import { AuthSession } from "@/lib/effect/auth";
+import { Data, Effect, Either, pipe, Schema } from "effect";
+import { createShortId, createSlug } from "@voidhash/lib/functions";
+import { SLUG_BLACKLIST } from "@voidhash/lib/constants";
+import { BetterAuth } from "@/lib/effect/better-auth";
+import { Request } from "@/lib/effect/request";
 
-export const createOrganizationInputSchema = z.object({
-	name: z.string().min(1).max(32),
+export class FailedToCreateOrganizationError extends Data.TaggedError(
+	"FailedToCreateOrganizationError"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class UserSessionNotFoundError extends Data.TaggedError(
+	"UserSessionNotFoundError"
+)<{
+	readonly message: string;
+}> {}
+
+export const createOrganizationInputSchema = Schema.Struct({
+	name: Schema.String.pipe(Schema.minLength(3), Schema.maxLength(32)),
 });
 
-type CreateOrganizationError =
-	| VoidhashUnauthorizedError
-	| VoidhashInternalServerError
-	| VoidhashNotFoundError;
+type CreateOrganizationInput = Schema.Schema.Type<typeof createOrganizationInputSchema>;
 
-export const createOrganization = createServiceFunction()
-	.input(createOrganizationInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({
-			input,
-			ctx,
-		}): Promise<
-			Result<
-				{
-					id: string;
-					name: string;
-					slug: string;
-				},
-				CreateOrganizationError
-			>
-		> => {
+export const createOrganization = (inputUnsafe: CreateOrganizationInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const betterAuth = yield* BetterAuth;
+			const request = yield* Request;
+			const session = yield* AuthSession;
+			const input = Schema.decodeUnknownSync(createOrganizationInputSchema)(
+				inputUnsafe
+			);
 			let slug = createSlug(input.name);
 			if (SLUG_BLACKLIST.includes(slug)) {
 				slug = slug + "-" + createShortId();
 			}
-			try {
-				await auth.api.checkOrganizationSlug({
-					headers: ctx.headers,
-					body: {
-						slug,
-					},
-				});
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			} catch (error: any) {
-				if (error.body?.code === "SLUG_IS_TAKEN") {
-					slug = slug + "-" + createShortId();
-				} else {
-					return err(fromUnknownThrow(error));
-				}
+
+			const slugIsAvailable = yield* checkSlugAvailable(slug);
+			if (!slugIsAvailable) {
+				slug = slug + "-" + createShortId();
 			}
 
-			const organization = await ResultAsync.fromPromise(
-				auth.api.createOrganization({
-					headers: ctx.headers,
+			const headers = yield* request.getHeaders;
+			const organization = yield* betterAuth.use(async (client) =>
+				client.api.createOrganization({
+					headers,
 					body: {
 						name: input.name,
 						slug,
 					},
-				}),
-				(e) => fromUnknownThrow(e)
+				})
 			);
-
-			if (organization.isErr()) {
-				return err(organization.error);
+			if (!organization) {
+				return yield* Effect.fail(
+					new FailedToCreateOrganizationError({
+						message: "Failed to create organization",
+					})
+				);
 			}
 
-			if (!organization.value) {
-				return err({
-					code: "INTERNAL_SERVER_ERROR",
-					message: "Failed to create organization",
-					originalError: new Error("Failed to create organization"),
-				});
-			}
-			const email = ctx.session?.user?.email;
+			const email = session?.user?.email;
 			if (!email) {
-				// Should not happen
-				return err({
-					code: "NOT_FOUND",
-					message: "User not found",
-					resource: "user",
-					payload: {
-						email,
-					},
-				} satisfies VoidhashNotFoundError);
+				return yield* Effect.fail(
+					new UserSessionNotFoundError({
+						message: "User session not found",
+					})
+				);
 			}
 
-			const res = await ResultAsync.fromPromise(
-				createVoidhashCustomerTask.trigger({
-					organizationId: organization.value.id,
-					name: organization.value.name,
-					email: email,
-				}),
-				(e) => fromUnknownThrow(e)
-			);
+			return yield* Effect.succeed({
+				id: organization.id,
+				name: organization.name,
+				slug,
+			});
 
-			if (res.isErr()) {
-				return err(res.error);
+		}),
+		AuthSession.withAuthSession()
+	);
+
+
+const checkSlugAvailable = (slug: string) =>
+	pipe(
+		Effect.gen(function* () {
+			const betterAuth = yield* BetterAuth;
+			const request = yield* Request;
+			const headers = yield* request.getHeaders;
+			const res = yield* Effect.either(betterAuth.use(async (client) =>
+				client.api.checkOrganizationSlug({
+					headers,
+					body: { slug },
+				})
+			));
+
+			if (Either.isLeft(res)) {
+				const error = res.left;
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				if (error.cause && error.cause && (error.cause as any).body?.code === "SLUG_IS_TAKEN") {
+					return yield* Effect.succeed(false);
+				}
+				return yield* Effect.fail(res.left);
 			}
 
-			ctx.cache.invalidate(`organization_slug:${slug}`);
-			ctx.cache.invalidate(`organization_${organization.value.id}`);
-
-			return ok(organization.value);
-		}
+			return yield* Effect.succeed(true);
+		})
 	);

@@ -1,84 +1,75 @@
-import {
-	createServiceFunction,
-	hasProjectPermission,
-} from "@/lib/service-function";
-import {
-	fromUnknownThrow,
-	VoidhashBadRequestError,
-	VoidhashForbiddenError,
-	VoidhashInternalServerError,
-	VoidhashNotFoundError,
-	VoidhashUnauthorizedError,
-} from "@voidhash/lib";
-import { z } from "zod";
-import {
-	paywallLocations,
-	paywallProducts,
-	paywalls,
-	Transaction,
-} from "@voidhash/db";
-import { eq } from "drizzle-orm";
-import { err, ok, Result } from "neverthrow";
-import { isAuthenticated } from "@/lib/middlewares";
-import { getPaywallByIdQuery } from "../raw-queries";
+import { AuthSession } from "@/lib/effect/auth";
+import { checkProjectPermission } from "@/lib/effect/permissions";
+import { Data, Effect, pipe, Schema } from "effect";
+import { PaywallRepository } from "../paywall.repository";
+import { Db, TransactionContext } from "@/lib/effect/db";
 
-export const deletePaywallInputSchema = z.object({
-	paywallId: z.string(),
+export class PaywallNotFound extends Data.TaggedError("PaywallNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class PaywallInUseError extends Data.TaggedError("PaywallInUseError")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const deletePaywallInputSchema = Schema.Struct({
+	paywallId: Schema.String,
 });
 
-type DeletePaywallError =
-	| VoidhashUnauthorizedError
-	| VoidhashForbiddenError
-	| VoidhashInternalServerError
-	| VoidhashBadRequestError
-	| VoidhashNotFoundError;
+type DeletePaywallInput = Schema.Schema.Type<typeof deletePaywallInputSchema>;
 
-export const deletePaywall = createServiceFunction()
-	.input(deletePaywallInputSchema)
-	.use(isAuthenticated)
-	.function(
-		async ({ input, ctx }): Promise<Result<void, DeletePaywallError>> => {
-			const existingPaywall = await getPaywallByIdQuery(ctx, input.paywallId);
-			if (existingPaywall.isErr()) {
-				return err(existingPaywall.error);
-			}
-			if (
-				!hasProjectPermission(
-					ctx,
-					existingPaywall.value.projectId,
-					"project:all"
-				)
-			) {
-				return err({
-					code: "FORBIDDEN",
-					message: "You are not authorized to delete this paywall",
-				});
+export const deletePaywall = (inputUnsafe: DeletePaywallInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const session = yield* AuthSession;
+			const paywallRepository = yield* PaywallRepository;
+			const db = yield* Db;
+			const input = Schema.decodeUnknownSync(deletePaywallInputSchema)(
+				inputUnsafe
+			);
+
+			// First check if paywall exists
+			const paywall = yield* paywallRepository.getPaywallById(input.paywallId);
+			if (!paywall) {
+				return yield* Effect.fail(
+					new PaywallNotFound({
+						message: `Paywall ${input.paywallId} not found`,
+					})
+				);
 			}
 
-			try {
-				const paywallLocationsWithSameDefaultPaywall =
-					await ctx.db.query.paywallLocations.findMany({
-						where: eq(paywallLocations.defaultPaywallId, input.paywallId),
-					});
+			// SECURITY: Authorization check
+			yield* checkProjectPermission(
+				paywall.projectId,
+				"project:all",
+				`User ${session?.user?.id} is not authorized to delete paywall ${input.paywallId} for project ${paywall.projectId}`
+			);
 
-				if (paywallLocationsWithSameDefaultPaywall.length > 0) {
-					return err({
-						code: "BAD_REQUEST",
-						message:
-							"You cannot delete this paywall, because some paywall locations are still using it. Please update the paywall locations to use a different paywall first, or delete the paywall locations.",
-					});
-				}
-
-				await ctx.db.transaction(async (tx: Transaction) => {
-					await tx
-						.delete(paywallProducts)
-						.where(eq(paywallProducts.paywallId, input.paywallId));
-					await tx.delete(paywalls).where(eq(paywalls.id, input.paywallId));
-				});
-
-				return ok(undefined);
-			} catch (error) {
-				return err(fromUnknownThrow(error));
+			// Check if paywall is being used by any paywall locations
+			const paywallLocationsUsingPaywall = yield* paywallRepository.getPaywallLocationsUsingPaywall(input.paywallId);
+			if (paywallLocationsUsingPaywall.length > 0) {
+				return yield* Effect.fail(
+					new PaywallInUseError({
+						message: "You cannot delete this paywall, because some paywall locations are still using it. Please update the paywall locations to use a different paywall first, or delete the paywall locations.",
+					})
+				);
 			}
-		}
+
+			// Use transaction to delete paywall products and paywall
+			yield* db.transaction((tx) => TransactionContext.provide(tx)(
+				Effect.gen(function* () {
+					// Delete paywall products first
+					yield* paywallRepository.deletePaywallProducts(input.paywallId);
+					// Then delete the paywall
+					yield* paywallRepository.deletePaywall(input.paywallId);
+				}))
+			);
+
+			yield* Effect.log(`Deleted paywall ${input.paywallId}`);
+
+			return yield* Effect.succeed(undefined);
+		}),
+		AuthSession.withAuthSession()
 	);

@@ -2,12 +2,14 @@ import { GradientAvatar, Skeleton } from "@voidhash/ui";
 import Link from "next/link";
 import { NavSlashSeparator } from "./nav-slash-separator";
 import { OrganizationProjectSwitcher } from "./organization-project-switcher";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { Suspense } from "react";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
-import { getUser } from "@/lib/services/users/queries";
 import { Project } from "@voidhash/db";
+import { UserService } from "@/lib/services/users/user.service";
+import { Effect } from "effect";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { OrganizationService } from "@/lib/services/organizations/organization.service";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { NotFoundError } from "@/lib/effect/errors";
 
 const ProjectTitle = async ({ project }: { project: Project }) => {
 	return (
@@ -44,45 +46,36 @@ export async function ProjectSwitcher({
 		return null;
 	}
 
-	const serviceContext = await createNextServiceContext();
-
-	const userPromise = getUser({
-		ctx: serviceContext,
-	});
-
-	const activeOrganizationPromise = getOrganizationBySlug({
-		ctx: serviceContext,
-		input: {
-			slug: organizationSlug,
-		},
-	});
-
-	const projectPromisePromise = getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: {
-			organizationSlug: organizationSlug,
-			projectSlug: projectSlug,
-		},
-	});
-
-	const [userResult, activeOrganizationResult, activeProjectResult] =
-		await Promise.all([
-			userPromise,
-			activeOrganizationPromise,
-			projectPromisePromise,
+	const data = await runServerEffect(Effect.gen(function* () {
+		const userService = yield* UserService;
+		const organizationService = yield* OrganizationService;
+		const projectService = yield* ProjectService;
+		const [user, activeOrganization, activeProject] = yield* Effect.all([
+			userService.getUser(),
+			organizationService.getOrganizationBySlug(organizationSlug),
+			projectService.getProjectBySlugAndOrganizationSlug({
+				organizationSlug,
+				projectSlug,
+			}),
 		]);
+		if (!activeOrganization) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Organization not found",
+			}));
+		}
+		if (!activeProject) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		return { user, activeOrganization, activeProject };
+	}));
 
-	if (
-		userResult.isErr() ||
-		activeOrganizationResult.isErr() ||
-		activeProjectResult.isErr()
-	) {
+	if (data.isErr()) {
 		return null;
 	}
 
-	const user = userResult.value;
-	const activeOrganization = activeOrganizationResult.value;
-	const activeProject = activeProjectResult.value;
+	const { user, activeOrganization, activeProject } = data.value;
 
 	return (
 		<>
