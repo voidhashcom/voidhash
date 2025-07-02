@@ -1,4 +1,4 @@
-import { Result, err, ok } from "neverthrow";
+import { Effect, Schema } from "effect";
 
 export const CURRENCIES = {
 	AED: "United Arab Emirates Dirham",
@@ -193,19 +193,18 @@ export const CURRENCIES = {
 
 export type ISO4217CurrencyCode = keyof typeof CURRENCIES;
 
-export type InvalidISO4217CurrencyCodeError = {
-	code: "INVALID_ISO_4217_CURRENCY_CODE";
-	message: string;
-};
-export const parseISO4217CurrencyCode = (
-	currency: string
-): Result<ISO4217CurrencyCode, InvalidISO4217CurrencyCodeError> => {
+export class InvalidISO4217CurrencyCodeError extends Schema.TaggedError<InvalidISO4217CurrencyCodeError>()("InvalidISO4217CurrencyCodeError", {
+	code: Schema.String,
+	message: Schema.String,
+}) {}
+
+export const parseISO4217CurrencyCode = (currency: string) => Effect.gen(function* () {
 	if (currency in CURRENCIES) {
-		return ok(currency as ISO4217CurrencyCode);
+		return currency as ISO4217CurrencyCode;
 	}
 
-	return err({
+	return Effect.fail(new InvalidISO4217CurrencyCodeError({
 		code: "INVALID_ISO_4217_CURRENCY_CODE",
 		message: `Invalid ISO 4217 currency code: ${currency}`,
-	});
-};
+	}));
+})

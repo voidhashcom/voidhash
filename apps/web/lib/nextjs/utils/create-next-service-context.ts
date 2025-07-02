@@ -1,30 +1,30 @@
-import { headers } from "next/headers";
-import { NextUnstableCacheAdapter } from "./next-unstable-cache-adapter";
-import { NextCookiesAdapter } from "./next-cookies-adapter";
-import { ServiceContext } from "@/lib/service-function";
-import { db } from "@voidhash/db";
-import { ConsoleLogger } from "@/lib/logger/console";
-import { env } from "@/lib/env";
-import { PinoLogger } from "@/lib/logger/pino";
+// import { headers } from "next/headers";
+// import { NextUnstableCacheAdapter } from "./next-unstable-cache-adapter";
+// import { NextCookiesAdapter } from "./next-cookies-adapter";
+// import { ServiceContext } from "@/lib/service-function";
+// import { db } from "@voidhash/db";
+// import { ConsoleLogger } from "@/lib/logger/console";
+// import { env } from "@/lib/env";
+// import { PinoLogger } from "@/lib/logger/pino";
 
-export const createNextServiceContext = async (): Promise<ServiceContext> => {
-	return {
-		source: "nextjs",
-		headers: await headers(),
-		cache: new NextUnstableCacheAdapter(),
-		cookies: new NextCookiesAdapter(),
-		db: db,
-		logger:
-			env.VERCEL_ENV !== "development"
-				? new PinoLogger({
-						requestId: "",
-						environment: env.VERCEL_ENV ?? "unknown",
-						application: "web",
-					})
-				: new ConsoleLogger({
-						requestId: "",
-						environment: env.VERCEL_ENV ?? "unknown",
-						application: "web",
-					}),
-	};
-};
+// export const createNextServiceContext = async (): Promise<ServiceContext> => {
+// 	return {
+// 		source: "nextjs",
+// 		headers: await headers(),
+// 		cache: new NextUnstableCacheAdapter(),
+// 		cookies: new NextCookiesAdapter(),
+// 		db: db,
+// 		logger:
+// 			env.VERCEL_ENV !== "development"
+// 				? new PinoLogger({
+// 						requestId: "",
+// 						environment: env.VERCEL_ENV ?? "unknown",
+// 						application: "web",
+// 					})
+// 				: new ConsoleLogger({
+// 						requestId: "",
+// 						environment: env.VERCEL_ENV ?? "unknown",
+// 						application: "web",
+// 					}),
+// 	};
+// };

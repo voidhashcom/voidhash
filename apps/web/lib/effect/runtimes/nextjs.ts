@@ -308,29 +308,3 @@ export const runServerEffect = async <T, E extends AcceptableErrorTypes>(
 		)
 	);
 }
-
-// export const toNeverthrow = <
-// 	TResult,
-// 	TError extends { cause?: unknown; message: string },
-// 	TContext,
-// >(
-// 	effect: Effect.Effect<TResult, TError, TContext>
-// ): Effect.Effect<
-// 	Result<TResult, VoidhashInternalServerError>,
-// 	never,
-// 	TContext
-// > => {
-// 	return Effect.map(effect, (e) =>
-// 		ok<TResult, VoidhashInternalServerError>(e)
-// 	).pipe(
-// 		Effect.catchAll((error: TError) => {
-// 			return Effect.succeed(
-// 				err({
-// 					code: "INTERNAL_SERVER_ERROR",
-// 					message: "Internal server error",
-// 					originalError: error.cause as Error,
-// 				} satisfies VoidhashInternalServerError)
-// 			);
-// 		})
-// 	);
-// };
