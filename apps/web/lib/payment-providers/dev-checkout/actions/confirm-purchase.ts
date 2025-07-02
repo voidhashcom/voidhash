@@ -1,37 +1,55 @@
-// import { createServiceFunction } from "@/lib/service-function";
-// import { z } from "zod";
-// import {
-// 	VoidhashBadRequestError,
-// 	VoidhashInternalServerError,
-// 	VoidhashNotFoundError,
-// } from "@voidhash/lib";
-// import { err, ok, Result } from "neverthrow";
-// import { createDevCheckoutPaymentProviderServer } from "../dev-checout-server";
+import { CheckoutSessionRepository } from "@/lib/services/checkout-session/checkout-session.repository";
+import { Data, Effect, pipe, Schema } from "effect";
 
-// export const confirmDevCheckoutPurchaseInputSchema = z.object({
-// 	checkoutSessionId: z.string(),
-// });
-// export const confirmDevCheckoutPurchase = createServiceFunction()
-// 	.input(confirmDevCheckoutPurchaseInputSchema)
-// 	.function(
-// 		async ({
-// 			input,
-// 			ctx,
-// 		}): Promise<
-// 			Result<
-// 				string,
-// 				| VoidhashInternalServerError
-// 				| VoidhashNotFoundError
-// 				| VoidhashBadRequestError
-// 			>
-// 		> => {
-// 			const devCheckoutServer = createDevCheckoutPaymentProviderServer();
-// 			const result = await devCheckoutServer.confirmPurchase(ctx, input);
+export const confirmDevCheckoutPurchaseInputSchema = Schema.Struct({
+	checkoutSessionId: Schema.String,
+});
 
-// 			if (result.isErr()) {
-// 				return err(result.error);
-// 			}
+type ConfirmDevCheckoutPurchaseInput = Schema.Schema.Type<typeof confirmDevCheckoutPurchaseInputSchema>;
 
-// 			return ok(result.value.redirectUrl);
-// 		}
-// 	);
+export class CheckoutSessionNotFound extends Data.TaggedError("CheckoutSessionNotFound")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class CheckoutSessionWasAlreadyCancelled extends Data.TaggedError("CheckoutSessionWasAlreadyCancelled")<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export const confirmPurchase = (inputUnsafe: ConfirmDevCheckoutPurchaseInput) =>
+	pipe(
+		Effect.gen(function* () {
+			const checkoutSessionRepository = yield* CheckoutSessionRepository;
+			const checkoutSession = yield* checkoutSessionRepository.getCheckoutSessionById(inputUnsafe.checkoutSessionId);
+
+			if (!checkoutSession) {
+				return yield* Effect.fail(new CheckoutSessionNotFound({
+					message: "Checkout session not found",
+				}));
+			}
+
+			if (checkoutSession.status === "success") {
+				return {
+                    redirectUrl: checkoutSession.successCallbackUrl,
+                };
+			}
+
+			if (checkoutSession.status === "error") {
+				return yield* Effect.fail(new CheckoutSessionWasAlreadyCancelled({
+					message: "Checkout session was already cancelled",
+				}));
+			}
+
+            // TODO: Process the purchase
+
+            yield* checkoutSessionRepository.updateCheckoutSession({
+                id: inputUnsafe.checkoutSessionId,
+                status: "success",
+            });
+
+            return {
+                redirectUrl: checkoutSession.successCallbackUrl,
+            };
+		}),
+	);

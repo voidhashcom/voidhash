@@ -29,6 +29,7 @@ import { MissingEnvironmentError } from "../environment";
 import { UserService } from "@/lib/services/users/user.service";
 import { OrganizationService } from "@/lib/services/organizations/organization.service";
 import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
+import { DevCheckoutService } from "@/lib/payment-providers/dev-checkout/dev-checkout.service";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -102,6 +103,7 @@ const RuntimeLayer = () => {
 		Layer.provideMerge(UserService.Default),
 		Layer.provideMerge(OrganizationService.Default),
 		Layer.provideMerge(PaymentProviderService.Default),
+		Layer.provideMerge(DevCheckoutService.Default),
 	);
 
 	return pipe(

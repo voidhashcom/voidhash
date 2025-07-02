@@ -1,5 +1,5 @@
 import { Db } from "@/lib/effect/db";
-import { checkoutSessions, InsertCheckoutSession } from "@voidhash/db";
+import { CheckoutSession, checkoutSessions, eq, InsertCheckoutSession } from "@voidhash/db";
 import { Effect } from "effect";
 
 export class CheckoutSessionRepository extends Effect.Service<CheckoutSessionRepository>()(
@@ -12,6 +12,18 @@ export class CheckoutSessionRepository extends Effect.Service<CheckoutSessionRep
 					(execute, session: InsertCheckoutSession) =>
 						execute(async (db) => 
 							await db.insert(checkoutSessions).values(session)
+						)
+				),
+				getCheckoutSessionById: dbService.makeQuery(
+					(execute, id: string) =>
+						execute(async (db) => 
+							await db.query.checkoutSessions.findFirst({ where: eq(checkoutSessions.id, id) })
+						)
+				),
+				updateCheckoutSession: dbService.makeQuery(
+					(execute, session: Omit<Partial<CheckoutSession>, "id"> & { id: string }) =>
+						execute(async (db) => 
+							await db.update(checkoutSessions).set(session).where(eq(checkoutSessions.id, session.id))
 						)
 				),
 			};

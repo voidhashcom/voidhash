@@ -106,6 +106,9 @@ import { PerkService } from "../services/perks/perk.service";
 import { PaywallLocationService } from "../services/paywall-locations/paywall-location.service";
 import { ApiKeyService } from "../services/api-keys/api-key.service";
 import { CustomerService } from "../services/customers/customer.service";
+import { DevCheckoutService } from "../payment-providers/dev-checkout/dev-checkout.service";
+import { confirmDevCheckoutPurchaseInputSchema } from "../payment-providers/dev-checkout/actions/confirm-purchase";
+import { cancelDevCheckoutPurchaseInputSchema } from "../payment-providers/dev-checkout/actions/cancel-purchase";
 // Api keys
 export const createSecretKeyAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createSecretKeyInputSchema))
@@ -1012,32 +1015,73 @@ export const deletePerkAction = actionClient
 	});
 
 // Dev checkout
-// export const confirmDevCheckoutPurchaseAction = actionClient
-// 	.inputSchema(confirmDevCheckoutPurchaseInputSchema)
-// 	.action(async ({ parsedInput, ctx }) => {
-// 		const res = await confirmDevCheckoutPurchase.invoke({
-// 			ctx: ctx.serviceContext,
-// 			input: parsedInput,
-// 		});
+export const confirmDevCheckoutPurchaseAction = actionClient
+	.inputSchema(Schema.standardSchemaV1(confirmDevCheckoutPurchaseInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				DevCheckoutService,
+				Effect.flatMap((devCheckoutService) =>
+					devCheckoutService.confirmPurchase(parsedInput)
+				),
+				Effect.catchTags({
+					CheckoutSessionNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					CheckoutSessionWasAlreadyCancelled: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
 
-// 		if (res.isErr()) {
-// 			throw res.error
-// 		}
+				})
+			)
+		);
 
-// 		return res.value;
-// 	});
+		if (res.isErr()) {
+			throw res.error
+		}
 
-// export const cancelDevCheckoutPurchaseAction = actionClient
-// 	.inputSchema(cancelDevCheckoutPurchaseInputSchema)
-// 	.action(async ({ parsedInput, ctx }) => {
-// 		const res = await cancelDevCheckoutPurchase.invoke({
-// 			ctx: ctx.serviceContext,
-// 			input: parsedInput,
-// 		});
+		return res.value;
+	});
 
-// 		if (res.isErr()) {
-// 			throw res.error
-// 		}
+export const cancelDevCheckoutPurchaseAction = actionClient
+	.inputSchema(Schema.standardSchemaV1(cancelDevCheckoutPurchaseInputSchema))
+	.action(async ({ parsedInput }) => {
+		const res = await runServerEffect(
+			pipe(
+				DevCheckoutService,
+				Effect.flatMap((devCheckoutService) =>
+					devCheckoutService.cancelPurchase(parsedInput)
+				),
+				Effect.catchTags({
+					CheckoutSessionNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					CheckoutSessionWasAlreadyConfirmed: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+			)
+		);
 
-// 		return res.value;
-// 	});
+		if (res.isErr()) {
+			throw res.error
+		}
+
+		return res.value;
+	});
