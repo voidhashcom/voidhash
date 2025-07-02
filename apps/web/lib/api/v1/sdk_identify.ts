@@ -14,7 +14,7 @@ import {
 	HonoErrorResponse,
 } from "@/lib/effect/runtimes/hono";
 import { SdkService } from "@/lib/services/sdk/sdk.service";
-import { Console, Effect, pipe } from "effect";
+import { Effect, pipe } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 
 const route = describeRoute({
@@ -58,11 +58,6 @@ export const registerSdkIdentify = (app: App) =>
 								name: c.req.valid("json").name,
 								email: c.req.valid("json").email,
 							}),
-							Effect.tapBoth({
-								onSuccess: (value) => Console.log("=== SUCCESS 0 ====", value),
-								onFailure: (error) =>
-									Console.log("=== FAILURE 0 ====", error._tag),
-							}),
 							Effect.catchTags({
 								CustomerConflict: (error) =>
 									Effect.fail(
@@ -81,21 +76,6 @@ export const registerSdkIdentify = (app: App) =>
 										})
 									),
 							}),
-							// Effect.catchAll((error) => {
-							// 	Console.log("=== DEFECT 1 ====", error._tag);
-							// 	return Effect.fail(
-							// 		new HonoErrorResponse({
-							// 			code: "INTERNAL_SERVER_ERROR",
-							// 			message: "ERROR",
-							// 			originalError: new Error("ERROR"),
-							// 		})
-							// 	);
-							// }),
-							Effect.tapBoth({
-								onSuccess: (value) => Console.log("=== SUCCESS 1 ====", value),
-								onFailure: (error) =>
-									Console.log("=== FAILURE 1 ====", error._tag),
-							})
 						)
 					);
 
