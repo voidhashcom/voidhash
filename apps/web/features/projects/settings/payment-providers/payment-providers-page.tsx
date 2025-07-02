@@ -5,20 +5,17 @@ import { PaymentProviderLogo } from "./payment-provider-logo";
 import { ChevronRightIcon } from "lucide-react";
 // import { StripeConfigurationSheet } from "./stripe/stripe-configuration-sheet";
 // import { AppStoreConfigurationSheet } from "./app-store/app-store-configuration-sheet";
-import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { EnvironmentFilterNotification } from "@/features/shell/components/environment-filter-notification";
-import { getEnvironment } from "@/lib/services/environments/utils";
 import { PaymentProvidersNewStoreDropdown } from "./payment-providers-new-store-dropdown";
 import { SetupPaymentProviderButton } from "./setup-payment-provider-button";
-
-// const paymentProvidersConfigurationSheetComponents = {
-// 	stripe: StripeConfigurationSheet,
-// 	"app-store": AppStoreConfigurationSheet,
-// } as const;
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { Effect } from "effect";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { Environment } from "@/lib/effect/environment";
+import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
+import { NotFoundError } from "@/lib/effect/errors";
 
 export async function PaymentProvidersPage({
 	paramsPromise,
@@ -29,51 +26,38 @@ export async function PaymentProvidersPage({
 	}>;
 }) {
 	const { organizationSlug, projectSlug } = await paramsPromise;
-
-	const serviceContext = await createNextServiceContext();
-	const projectPromise = getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: {
-			organizationSlug: organizationSlug,
-			projectSlug: projectSlug,
-		},
-	});
-	const environmentPromise = getEnvironment(
-		serviceContext.cookies,
+	
+	const data = await runServerEffect(Environment.withEnvironment({
 		organizationSlug,
-		projectSlug
-	);
-	const [projectResult, environmentResult] = await Promise.all([
-		projectPromise,
-		environmentPromise,
-	]);
-	if (projectResult.isErr() || environmentResult.isErr()) {
-		const error = projectResult.isErr()
-			? projectResult._unsafeUnwrapErr()
-			: environmentResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const project = projectResult.value;
-	const environment = environmentResult.value;
-
-	const paymentProvidersConfigurationsResult =
-		await getPaymentProviderConfigurations({
-			ctx: serviceContext,
-			input: {
-				projectId: project.id,
-			},
+		projectSlug,
+	})(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const paymentProviderService = yield* PaymentProviderService;
+		const environment = yield* Environment;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
 		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		const paymentProviderConfigurations = yield* paymentProviderService.getPaymentProviderConfigurations(project.id);
 
-	if (paymentProvidersConfigurationsResult.isErr()) {
-		const error = paymentProvidersConfigurationsResult._unsafeUnwrapErr();
+		return { project, environment, paymentProviderConfigurations };
+	})));
+
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const paymentProvidersConfigurations =
-		paymentProvidersConfigurationsResult.value;
+	const { project, environment, paymentProviderConfigurations } = data.value;
+	
 
-	const applicationsWithConfiguration = paymentProvidersConfigurations
+
+	const applicationsWithConfiguration = paymentProviderConfigurations
 		.map((p) => {
 			const paymentProvider = paymentProviders.find(
 				(pp) => pp.getId() === p.providerId
@@ -92,7 +76,7 @@ export async function PaymentProvidersPage({
 		.filter((p) => p.getType() === "web-checkout" && p.getIsConfigurable())
 		.map((paymentProvider) => {
 			const paymentProvidersConfiguration =
-				paymentProvidersConfigurations?.find(
+				paymentProviderConfigurations?.find(
 					(p) => p.providerId === paymentProvider.getId()
 				);
 			return {

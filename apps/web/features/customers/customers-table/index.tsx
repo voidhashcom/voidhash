@@ -1,8 +1,7 @@
 import { columns } from "./columns";
 import { DataTable } from "./data-table";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { tryCatch } from "@/lib/try-catch";
-import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { CustomerService } from "@/lib/services/customers/customer.service";
 import { Effect, pipe } from "effect";
 
@@ -17,8 +16,7 @@ export async function CustomersTable({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const customersResult = await tryCatch(
-		NextjsRuntime.runPromise(
+	const customersResult = await runServerEffect(
 			pipe(
 				CustomerService,
 				Effect.flatMap((customerService) =>
@@ -27,15 +25,14 @@ export async function CustomersTable({
 						type: type,
 					})
 				)
-			)
 		)
 	);
 
-	if (customersResult.error) {
-		return <VoidhashErrorCard error={customersResult.error} />;
+	if (customersResult.isErr()) {
+		return <VoidhashErrorCard error={customersResult._unsafeUnwrapErr()} />;
 	}
 
-	const customers = customersResult.data;
+	const customers = customersResult.value;
 
 	return (
 		<DataTable

@@ -1,9 +1,11 @@
 import { Page } from "@/features/shell";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { getPaymentProviderConfigurationById } from "@/lib/services/payment-providers/queries";
 import { PaymentProviderDetailConfiguration } from "./payment-provider-detail-configuration";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { Effect } from "effect";
+import { NotFoundError } from "@/lib/effect/errors";
 
 export async function PaymentProviderDetailPage({
 	paramsPromise,
@@ -17,38 +19,28 @@ export async function PaymentProviderDetailPage({
 	const { organizationSlug, projectSlug, paymentProviderConfigurationId } =
 		await paramsPromise;
 
-	const serviceContext = await createNextServiceContext();
-	const paymentProviderConfigurationPromise =
-		getPaymentProviderConfigurationById({
-			ctx: serviceContext,
-			input: {
-				id: paymentProviderConfigurationId,
-			},
+	const data = await runServerEffect(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const paymentProviderService = yield* PaymentProviderService;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
 		});
-	const projectPromise = getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: {
-			organizationSlug: organizationSlug,
-			projectSlug: projectSlug,
-		},
-	});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		const paymentProviderConfiguration = yield* paymentProviderService.getPaymentProviderConfigurationById(paymentProviderConfigurationId);
+		return { project, paymentProviderConfiguration };
+	}));
 
-	const [projectResult, paymentProviderConfigurationResult] = await Promise.all(
-		[
-			projectPromise,
-
-			paymentProviderConfigurationPromise,
-		]
-	);
-	if (projectResult.isErr() || paymentProviderConfigurationResult.isErr()) {
-		const error = projectResult.isErr()
-			? projectResult._unsafeUnwrapErr()
-			: paymentProviderConfigurationResult._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const project = projectResult.value;
-	const paymentProviderConfiguration = paymentProviderConfigurationResult.value;
+	const { project, paymentProviderConfiguration } = data.value;
 
 	return (
 		<Page

@@ -1,52 +1,34 @@
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
-import { getProviderProductsByProductId } from "@/lib/services/products/queries";
 import { Badge } from "@voidhash/ui";
 import { PaymentProviderLogo } from "../projects/settings/payment-providers/payment-provider-logo";
-import { Environment } from "@voidhash/lib/constants";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { Effect } from "effect";
+import { ProductService } from "@/lib/services/products/product.service";
+import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
 
 export async function ProductRecordConfigurationStateIndicator({
 	productId,
 	projectId,
-	environment,
 }: {
 	productId: string;
 	projectId: string;
-	environment: Environment;
+
 }) {
-	if (environment === "testing") {
-		return null;
-	}
-
-	const serviceContext = await createNextServiceContext();
-	const providerProductsPromise = getProviderProductsByProductId({
-		ctx: serviceContext,
-		input: { productId: productId },
-	});
-
-	const paymentProviderConfigurationsPromise = getPaymentProviderConfigurations(
-		{
-			ctx: serviceContext,
-			input: { projectId: projectId },
-		}
-	);
-
-	const [providerProductsResult, paymentProviderConfigurationsResult] =
-		await Promise.all([
-			providerProductsPromise,
-			paymentProviderConfigurationsPromise,
+	const data = await runServerEffect(Effect.gen(function* () {
+		const productService = yield* ProductService;
+		const paymentProviderService = yield* PaymentProviderService;
+	
+		const [providerProducts, paymentProviderConfigurations] = yield* Effect.all([
+			productService.getProviderProductsByProductId(productId),
+			paymentProviderService.getPaymentProviderConfigurations(projectId),
 		]);
+		return { providerProducts, paymentProviderConfigurations };
+	}));
 
-	if (
-		providerProductsResult.isErr() ||
-		paymentProviderConfigurationsResult.isErr()
-	) {
+	if (data.isErr()) {
 		return <Badge>Loading error</Badge>;
 	}
 
-	const providerProducts = providerProductsResult.value;
-	const paymentProviderConfigurations =
-		paymentProviderConfigurationsResult.value;
+	const { providerProducts, paymentProviderConfigurations } = data.value;
 
 	if (providerProducts.length === 0) {
 		return <Badge>Configuration required</Badge>;

@@ -7,6 +7,7 @@ import {
 	eq,
 	externalCustomerIdentifiers,
 	InsertCustomer,
+	purchases,
 } from "@voidhash/db";
 import { Environment } from "@voidhash/lib/constants";
 import { Effect } from "effect";
@@ -124,6 +125,13 @@ export class CustomerRepository extends Effect.Service<CustomerRepository>()(
 									where: eq(customersUnlockedPerks.customerId, customerId),
 								})
 						)
+				),
+
+				getCustomerPurchases: dbService.makeQuery(
+					(execute, customerId: string) =>
+						execute(async (db) => await db.query.purchases.findMany({
+							where: eq(purchases.customerId, customerId),
+						}))
 				),
 
 				updateCustomer: dbService.makeQuery(

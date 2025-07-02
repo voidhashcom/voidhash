@@ -1,12 +1,5 @@
 import { Page } from "@/features/shell";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { getPaymentProviderConfigurations } from "@/lib/services/payment-providers/queries";
-import {
-	getProductById,
-	getProductPerksByProductId,
-	getProviderProductsByProductId,
-} from "@/lib/services/products/queries";
 import { ProductDetailPaymentProvidersEmptyState } from "./product-detail-payment-providers-empty-state";
 import {
 	Card,
@@ -22,11 +15,12 @@ import { ProductDetailPerksEmptyState } from "./product-detail-perks-empty-state
 import { ProductDetailPerkRecord } from "./product-detail-product-perk-record";
 import { ProductDetailAddPerkButton } from "./product-detail-add-perk-button";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { getEnvironment } from "@/lib/services/environments/utils";
-import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
 import { PerkService } from "@/lib/services/perks/perk.service";
-import { Effect, pipe } from "effect";
-import { tryCatch } from "@/lib/try-catch";
+import { Effect } from "effect";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { ProductService } from "@/lib/services/products/product.service";
+import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
+import { Environment } from "@/lib/effect/environment";
 
 export async function ProductDetailPage({
 	organizationSlug,
@@ -37,99 +31,40 @@ export async function ProductDetailPage({
 	projectSlug: string;
 	id: string;
 }) {
-	const productResult = await getProductById({
-		ctx: await createNextServiceContext(),
-		input: { id },
-	});
 
-	if (productResult.isErr()) {
-		const error = productResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const product = productResult.value;
-
-	const serviceContext = await createNextServiceContext();
-	const providerProductsPromise = getProviderProductsByProductId({
-		ctx: serviceContext,
-		input: { productId: product.id },
-	});
-
-	const environmentPromise = getEnvironment(
-		serviceContext.cookies,
+	const data = await runServerEffect(Environment.withEnvironment({
 		organizationSlug,
-		projectSlug
-	);
+		projectSlug,
+	})(Effect.gen(function* () {
+		const productService = yield* ProductService;
+		const paymentProviderService = yield* PaymentProviderService;
+		const perkService = yield* PerkService;
+		const environment = yield* Environment;
 
-	const paymentProviderConfigurationsPromise = getPaymentProviderConfigurations(
-		{
-			ctx: serviceContext,
-			input: { projectId: product.projectId },
-		}
-	);
+		const [product, providerProducts, paymentProviderConfigurations, perks, productPerks] = yield* Effect.all([
+			productService.getProductById(id),
+			productService.getProviderProductsByProductId(id),
+			paymentProviderService.getPaymentProviderConfigurations(id),
+			perkService.getPerks(id),
+			productService.getProductPerksByProductId(id),
+		]);
 
-	const perksPromise = tryCatch(
-		NextjsRuntime.runPromise(
-			pipe(
-				PerkService,
-				Effect.flatMap((perkService) => perkService.getPerks(product.projectId))
-			)
-		)
-	);
+		return {
+			product,
+			providerProducts,
+			paymentProviderConfigurations,
+			environment,
+			perks,
+			productPerks,
+		};
+	})));
 
-	const productPerksPromise = getProductPerksByProductId({
-		ctx: serviceContext,
-		input: { productId: product.id },
-	});
-
-	const [
-		providerProductsResult,
-		paymentProviderConfigurationsResult,
-		perksResult,
-		productPerksResult,
-		environmentResult,
-	] = await Promise.all([
-		providerProductsPromise,
-		paymentProviderConfigurationsPromise,
-		perksPromise,
-		productPerksPromise,
-		environmentPromise,
-	]);
-
-	if (providerProductsResult.isErr()) {
-		const error = providerProductsResult._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const providerProducts = providerProductsResult.value;
-
-	if (paymentProviderConfigurationsResult.isErr()) {
-		const error = paymentProviderConfigurationsResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const paymentProviderConfigurations =
-		paymentProviderConfigurationsResult.value;
-
-	if (perksResult.error) {
-		return <VoidhashErrorCard error={perksResult.error} />;
-	}
-
-	const perks = perksResult.data;
-
-	if (productPerksResult.isErr()) {
-		const error = productPerksResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const productPerks = productPerksResult.value;
-
-	if (environmentResult.isErr()) {
-		const error = environmentResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const environment = environmentResult.value;
+	const { product, providerProducts, paymentProviderConfigurations, environment, perks, productPerks } = data.value;
 
 	const enabledPaymentProviderConfigurations = paymentProviderConfigurations
 		.map((paymentProviderConfiguration) => {

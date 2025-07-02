@@ -1,14 +1,12 @@
 import { Card } from "@voidhash/ui";
 import { ApiKeyRecord } from "./api-key-record";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { getEnvironment } from "@/lib/services/environments/utils";
 import { CreateSecretKeyModalButton } from "./create-secret-key-modal-button";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { tryCatch } from "@/lib/try-catch";
-import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { ApiKeyService } from "@/lib/services/api-keys/api-key.service";
 import { Effect, pipe } from "effect";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { NotFoundError } from "@/lib/effect/errors";
 
 export async function ProjectApiKeysPage({
 	organizationSlug,
@@ -17,44 +15,40 @@ export async function ProjectApiKeysPage({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const serviceContext = await createNextServiceContext();
-	const [projectResult, environmentResult] = await Promise.all([
-		getProjectBySlugAndOrganizationSlug({
-			ctx: serviceContext,
-			input: {
-				organizationSlug: organizationSlug,
-				projectSlug: projectSlug,
-			},
-		}),
-		getEnvironment(serviceContext.cookies, organizationSlug, projectSlug),
-	]);
+	const data = await runServerEffect(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		return { project };
+	}));
 
-	if (projectResult.isErr()) {
-		const error = projectResult._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const project = projectResult.value;
+	const { project } = data.value;
 
-	if (environmentResult.isErr()) {
-		const error = environmentResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const apiKeysResult = await tryCatch(
-		NextjsRuntime.runPromise(
+	const apiKeysResult = await runServerEffect(
 			pipe(
 				ApiKeyService,
 				Effect.flatMap((apiKeyService) => apiKeyService.getApiKeys(project.id))
 			)
 		)
-	);
 	
-	if (apiKeysResult.error) {
-		return <VoidhashErrorCard error={apiKeysResult.error} />;
+	
+	if (apiKeysResult.isErr()) {
+		return <VoidhashErrorCard error={apiKeysResult._unsafeUnwrapErr()} />;
 	}
 
-	const apiKeys = apiKeysResult.data;
+	const apiKeys = apiKeysResult.value;
 
 	return (
 		<div>

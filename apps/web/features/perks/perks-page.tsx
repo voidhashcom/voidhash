@@ -1,14 +1,14 @@
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+
 import { Card } from "@voidhash/ui";
 import { PerkRecord } from "./perk-record";
 import { PerksPageEmptyState } from "./perks-page-empty-state";
 import { CreatePerkModalButton } from "./create-perk-modal-button";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { NextjsRuntime } from "@/lib/effect/runtimes/nextjs";
-import { Effect, pipe } from "effect";
+import { Effect } from "effect";
 import { PerkService } from "@/lib/services/perks/perk.service";
-import { tryCatch } from "@/lib/try-catch";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { NotFoundError } from "@/lib/effect/errors";
 
 export async function PerksPage({
 	organizationSlug,
@@ -17,32 +17,28 @@ export async function PerksPage({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const serviceContext = await createNextServiceContext();
-	const projectResult = await getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: { projectSlug: projectSlug, organizationSlug },
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const perkService = yield* PerkService;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		const perks = yield* perkService.getPerks(project.id);
+		return { project, perks };
+	}));
 
-	if (projectResult.isErr()) {
-		const error = projectResult._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const project = projectResult.value;
-
-	const perksResult = await tryCatch(
-		NextjsRuntime.runPromise(
-			pipe(
-				PerkService,
-				Effect.flatMap((perkService) => perkService.getPerks(project.id))
-			)
-		)
-	);
-
-	if (perksResult.error) {
-		return <VoidhashErrorCard error={perksResult.error} />;
-	}
-	const perks = perksResult.data;
+	const { project, perks } = data.value;
 
 	return (
 		<div>

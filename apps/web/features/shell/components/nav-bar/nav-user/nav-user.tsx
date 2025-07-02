@@ -1,24 +1,27 @@
 import { GradientAvatar, Skeleton } from "@voidhash/ui";
 import { DropdownMenu, DropdownMenuTrigger } from "@voidhash/ui";
-import { getUser } from "@/lib/services/users/queries";
 import { Suspense } from "react";
 import { NavUserDropdown } from "./nav-user-dropdown";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { UserService } from "@/lib/services/users/user.service";
+import { Effect } from "effect";
 
 function NavUserSkeleton() {
 	return <Skeleton className="h-8 w-8 rounded-full" />;
 }
 
 export async function NavUserContent() {
-	const userResult = await getUser({
-		ctx: await createNextServiceContext(),
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const userService = yield* UserService;
+		const user = yield* userService.getUser();
+		return { user };
+	}));
 
-	if (userResult.isErr()) {
+	if (data.isErr()) {
 		return <div>Error loading user</div>;
 	}
 
-	const user = userResult.value;
+	const { user } = data.value;
 
 	return (
 		<div>

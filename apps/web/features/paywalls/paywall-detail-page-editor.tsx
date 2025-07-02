@@ -5,16 +5,10 @@ import { PaywallDetailAddProductButton } from "./paywall-detail-add-product-butt
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
-import type {
-	GetPaywallByIdResult,
-	GetPaywallProductsResult,
-} from "@/lib/services/paywalls/queries";
-import { GetProductsResult } from "@/lib/services/products/queries";
 import { updatePaywallAction } from "@/lib/nextjs/server-actions";
 
 import { useState } from "react";
-import type { updatePaywallInputSchema } from "@/lib/services/paywalls/actions/update-paywall";
-import { z } from "zod";
+import type { updatePaywallInputSchema } from "@/lib/services/paywalls/actions/update-paywall"
 import {
 	DndContext,
 	closestCenter,
@@ -31,8 +25,10 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { PaywallDetailProductRecord } from "./paywall-detail-product-record";
+import { Schema } from "effect";
+import type { Paywall, PaywallProduct, Product } from "@voidhash/db";
 
-type UpdatePaywallInput = z.infer<typeof updatePaywallInputSchema>;
+type UpdatePaywallInput = Schema.Schema.Type<typeof updatePaywallInputSchema>;
 
 type UpdatePaywallProduct = NonNullable<
 	UpdatePaywallInput["paywallProducts"]
@@ -49,9 +45,9 @@ export function PaywallDetailPageEditor({
 	initialPaywallProducts,
 	products,
 }: {
-	paywall: GetPaywallByIdResult;
-	initialPaywallProducts: GetPaywallProductsResult;
-	products: GetProductsResult;
+	paywall: Paywall;
+	initialPaywallProducts: PaywallProduct[];
+	products: Product[];
 }) {
 	const router = useRouter();
 

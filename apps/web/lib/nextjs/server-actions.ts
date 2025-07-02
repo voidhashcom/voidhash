@@ -84,7 +84,6 @@ import {
 	deleteProductPerk,
 	deleteProductPerkInputSchema,
 } from "../services/products/actions/delete-product-perk";
-import { toVoidhashHTTPError } from "@voidhash/lib/constants";
 import {
 	updatePaywall,
 	updatePaywallInputSchema,
@@ -101,7 +100,7 @@ import {
 	deletePaymentProviderConfiguration,
 	deletePaymentProviderConfigurationInputSchema,
 } from "../services/payment-providers/actions/delete-payment-provider-configuration";
-import { NextjsRuntime, toNeverthrow } from "../effect/runtimes/nextjs";
+import { NextjsErrorResponse, runServerEffect } from "../effect/runtimes/nextjs";
 import { Effect, pipe, Schema } from "effect";
 import { PerkService } from "../services/perks/perk.service";
 import { PaywallLocationService } from "../services/paywall-locations/paywall-location.service";
@@ -111,18 +110,26 @@ import { CustomerService } from "../services/customers/customer.service";
 export const createSecretKeyAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createSecretKeyInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				ApiKeyService,
 				Effect.flatMap((apiKeyService) =>
 					apiKeyService.createSecretKey(parsedInput)
 				),
-				toNeverthrow
+				Effect.catchTags({
+					ApiKeyNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -131,18 +138,26 @@ export const createSecretKeyAction = actionClient
 export const rotateSecretKeyAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(rotateSecretKeyInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				ApiKeyService,
 				Effect.flatMap((apiKeyService) =>
 					apiKeyService.rotateSecretKey(parsedInput)
 				),
-				toNeverthrow
+				Effect.catchTags({
+					ApiKeyNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -151,18 +166,26 @@ export const rotateSecretKeyAction = actionClient
 export const deleteSecretKeyAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deleteSecretKeyInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				ApiKeyService,
 				Effect.flatMap((apiKeyService) =>
 					apiKeyService.deleteSecretKey(parsedInput)
 				),
-				toNeverthrow
+				Effect.catchTags({
+					ApiKeyNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -172,15 +195,30 @@ export const deleteSecretKeyAction = actionClient
 export const createOrganizationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createOrganizationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				createOrganization(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					FailedToCreateOrganizationError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "INTERNAL_SERVER_ERROR",
+								message: error.message,
+							})
+						),
+					UserSessionNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "INTERNAL_SERVER_ERROR",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -189,15 +227,23 @@ export const createOrganizationAction = actionClient
 export const updateOrganizationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(updateOrganizationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				updateOrganization(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					OrganizationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -206,15 +252,14 @@ export const updateOrganizationAction = actionClient
 export const deleteOrganizationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deleteOrganizationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				deleteOrganization(parsedInput),
-				toNeverthrow
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -224,15 +269,14 @@ export const deleteOrganizationAction = actionClient
 export const createProjectAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createProjectInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				createProject(parsedInput),
-				toNeverthrow
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -241,15 +285,23 @@ export const createProjectAction = actionClient
 export const updateProjectAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(updateProjectInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				updateProject(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					ProjectNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -258,15 +310,23 @@ export const updateProjectAction = actionClient
 export const deleteProjectAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deleteProjectInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				deleteProject(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					ProjectNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error;
 		}
 
 		return res.value;
@@ -276,18 +336,40 @@ export const deleteProjectAction = actionClient
 export const switchEnvironmentAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(switchEnvironmentInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				EnvironmentService,
 				Effect.flatMap((environmentService) =>
 					environmentService.switchEnvironment(parsedInput)
 				),
-				toNeverthrow
+				Effect.catchTags({
+					ProjectNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					OrganizationNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					OrganizationWithoutSlugError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "INTERNAL_SERVER_ERROR",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -297,15 +379,30 @@ export const switchEnvironmentAction = actionClient
 export const createPaymentProviderConfigurationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createPaymentProviderConfigurationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
-				createPaymentProviderConfiguration(parsedInput),
-				toNeverthrow
+				createPaymentProviderConfiguration(parsedInput),	
+				Effect.catchTags({
+					PaymentProviderNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					PaymentProviderAlreadyExistsError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -314,15 +411,44 @@ export const createPaymentProviderConfigurationAction = actionClient
 export const updatePaymentProviderConfigurationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(updatePaymentProviderConfigurationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				updatePaymentProviderConfiguration(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					PaymentProviderNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					ValidationError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderKeyUnavailableError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -331,15 +457,23 @@ export const updatePaymentProviderConfigurationAction = actionClient
 export const deletePaymentProviderConfigurationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deletePaymentProviderConfigurationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				deletePaymentProviderConfiguration(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -349,15 +483,23 @@ export const deletePaymentProviderConfigurationAction = actionClient
 export const createProductAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createProductInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				createProduct(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "INTERNAL_SERVER_ERROR",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -366,15 +508,23 @@ export const createProductAction = actionClient
 export const updateProductAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(updateProductInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				updateProduct(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -383,15 +533,23 @@ export const updateProductAction = actionClient
 export const deleteProductAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deleteProductInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				deleteProduct(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -401,15 +559,31 @@ export const deleteProductAction = actionClient
 export const createProductPerkAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createProductPerkInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				createProductPerk(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PerkNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
+
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -418,15 +592,23 @@ export const createProductPerkAction = actionClient
 export const deleteProductPerkAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deleteProductPerkInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				deleteProductPerk(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -436,15 +618,44 @@ export const deleteProductPerkAction = actionClient
 export const createPaymentProviderProductAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createPaymentProviderProductInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				createPaymentProviderProduct(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					InvalidConfiguration: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -453,15 +664,51 @@ export const createPaymentProviderProductAction = actionClient
 export const updatePaymentProviderProductAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(updatePaymentProviderProductInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				updatePaymentProviderProduct(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					ProviderProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					InvalidConfiguration: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -470,15 +717,37 @@ export const updatePaymentProviderProductAction = actionClient
 export const setActivePaymentProviderProductAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(setActivePaymentProviderProductInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				setActivePaymentProviderProduct(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -487,15 +756,23 @@ export const setActivePaymentProviderProductAction = actionClient
 export const deletePaymentProviderProductAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deletePaymentProviderProductInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				deletePaymentProviderProduct(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -507,7 +784,7 @@ export const createCustomerAction = actionClient
 		Schema.standardSchemaV1(createCustomerInputSchema.omit("origin"))
 	)
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				CustomerService,
 				Effect.flatMap((customerService) =>
@@ -516,12 +793,11 @@ export const createCustomerAction = actionClient
 						origin: "dashboard",
 					})
 				),
-				toNeverthrow
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -531,15 +807,14 @@ export const createCustomerAction = actionClient
 export const createPaywallAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createPaywallInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				createPaywall(parsedInput),
-				toNeverthrow
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -548,15 +823,37 @@ export const createPaywallAction = actionClient
 export const updatePaywallAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(updatePaywallInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				updatePaywall(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					PaywallNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					ProductNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -565,15 +862,30 @@ export const updatePaywallAction = actionClient
 export const deletePaywallAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deletePaywallInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				deletePaywall(parsedInput),
-				toNeverthrow
+				Effect.catchTags({
+					PaywallNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+					PaywallInUseError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -583,18 +895,33 @@ export const deletePaywallAction = actionClient
 export const createPaywallLocationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createPaywallLocationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				PaywallLocationService,
 				Effect.flatMap((paywallLocationService) =>
 					paywallLocationService.createPaywallLocation(parsedInput)
 				),
-				toNeverthrow
+				Effect.catchTags({
+					SlugAlreadyExistsError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+					DefaultPaywallNotFoundError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -603,7 +930,7 @@ export const createPaywallLocationAction = actionClient
 export const deletePaywallLocationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deletePaywallLocationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				PaywallLocationService,
 				Effect.flatMap((paywallLocationService) =>
@@ -611,12 +938,20 @@ export const deletePaywallLocationAction = actionClient
 						paywallLocationId: parsedInput.paywallLocationId,
 					})
 				),
-				toNeverthrow
+				Effect.catchTags({
+					PaywallLocationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -625,16 +960,24 @@ export const deletePaywallLocationAction = actionClient
 export const createPerkAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createPerkInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				PerkService,
 				Effect.flatMap((perkService) => perkService.createPerk(parsedInput)),
-				toNeverthrow
+				Effect.catchTags({
+					SlugAlreadyExistsError: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -643,18 +986,26 @@ export const createPerkAction = actionClient
 export const deletePerkAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deletePerkInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await NextjsRuntime.runPromise(
+		const res = await runServerEffect(
 			pipe(
 				PerkService,
 				Effect.flatMap((perkService) =>
 					perkService.deletePerk({ perkId: parsedInput.perkId })
 				),
-				toNeverthrow
+				Effect.catchTags({
+					PerkNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "NOT_FOUND",
+								message: error.message,
+							})
+						),
+				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw toVoidhashHTTPError(res.error);
+			throw res.error
 		}
 
 		return res.value;
@@ -670,7 +1021,7 @@ export const deletePerkAction = actionClient
 // 		});
 
 // 		if (res.isErr()) {
-// 			throw toVoidhashHTTPError(res.error);
+// 			throw res.error
 // 		}
 
 // 		return res.value;
@@ -685,7 +1036,7 @@ export const deletePerkAction = actionClient
 // 		});
 
 // 		if (res.isErr()) {
-// 			throw toVoidhashHTTPError(res.error);
+// 			throw res.error
 // 		}
 
 // 		return res.value;

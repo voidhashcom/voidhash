@@ -5,7 +5,6 @@ import {
 	Layer,
 	ManagedRuntime,
 	pipe,
-	Console,
 } from "effect";
 import { Cookies, CookiesError } from "../cookies";
 import { DatabaseError, Db } from "../db";
@@ -315,17 +314,9 @@ export const createEffectHandler =
 			pipe(
 				effect,
 				handleGlobalErrors,
-				Effect.tapBoth({
-					onSuccess: (value) => Console.log("=== SUCCESS 1 ====", value),
-					onFailure: (error) => Console.log("=== FAILURE 1 ====", error),
-				}),
 				Effect.catchTags({
 					HonoErrorResponse: (error) =>
 						Effect.succeed(toHonoErrorResponse(context, error)),
-				}),
-				Effect.tapBoth({
-					onSuccess: (value) => Console.log("=== SUCCESS 2 ====", value),
-					onFailure: (error) => Console.log("=== FAILURE 2 ====", error),
 				}),
 				Effect.catchAll((error) => {
 					return Effect.succeed(
@@ -339,11 +330,6 @@ export const createEffectHandler =
 						)
 					);
 				}),
-				Effect.mapError((error) => {
-					console.log("=== ERR 3 ====");
-					console.log(error);
-					return error;
-				}),
 				Effect.catchAllDefect((error) => {
 					console.log(error);
 					return Effect.succeed(
@@ -355,11 +341,6 @@ export const createEffectHandler =
 							})
 						)
 					);
-				}),
-				Effect.mapError((error) => {
-					console.log("=== ERR 4 ====");
-					console.log(error);
-					return error;
 				})
 			)
 		);

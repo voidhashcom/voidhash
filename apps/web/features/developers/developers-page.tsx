@@ -1,7 +1,9 @@
 import { Page } from "@/features/shell";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { Effect } from "effect";
+import { NotFoundError } from "@/lib/effect/errors";
+import { ProjectService } from "@/lib/services/projects/project.service";
 export async function DevelopersPage({
 	organizationSlug,
 	projectSlug,
@@ -9,16 +11,30 @@ export async function DevelopersPage({
 	organizationSlug: string;
 	projectSlug;
 }) {
-	const serviceContext = await createNextServiceContext();
-	const projectResult = await getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: { projectSlug: projectSlug, organizationSlug },
-	});
+	const data = await runServerEffect(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		return { project };
+	}));
 
-	if (projectResult.isErr()) {
-		const error = projectResult._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	return <Page></Page>;
+	const {  } = data.value;
+
+	return <Page>
+		<div className="max-w-4xl mx-auto">
+			<h1 className="text-3xl font-normal tracking-right">Developers</h1>
+		</div>
+	</Page>;
 }

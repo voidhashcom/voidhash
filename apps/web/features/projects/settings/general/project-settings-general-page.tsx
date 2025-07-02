@@ -1,10 +1,11 @@
 import { ProjectNameForm } from "./project-name";
 import { ProjectDelete } from "./project-delete";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
-
 import { ProjectSettingsGeneralLayout } from "./project-settings-general-layout";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { ProjectService } from "@/lib/services/projects/project.service";
+import { Effect } from "effect";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { NotFoundError } from "@/lib/effect/errors";
 
 export async function ProjectSettingsGeneralPage({
 	organizationSlug,
@@ -13,22 +14,26 @@ export async function ProjectSettingsGeneralPage({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const serviceContext = await createNextServiceContext();
+	const data = await runServerEffect(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		return { project };
+	}));
 
-	const projectResult = await getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: {
-			organizationSlug: organizationSlug,
-			projectSlug: projectSlug,
-		},
-	});
-
-	if (projectResult.isErr()) {
-		const error = projectResult._unsafeUnwrapErr();
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const project = projectResult.value;
+	const { project } = data.value;
 
 	return (
 		<ProjectSettingsGeneralLayout>

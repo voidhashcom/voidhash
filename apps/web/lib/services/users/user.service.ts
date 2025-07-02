@@ -2,6 +2,7 @@ import { Effect, pipe } from "effect";
 import { AuthSession } from "@/lib/effect/auth";
 import { BetterAuth } from "@/lib/effect/better-auth";
 import { Request } from "@/lib/effect/request";
+import { NotFoundError } from "@/lib/effect/errors";
 
 export class UserService extends Effect.Service<UserService>()("UserService", {
 	effect: Effect.gen(function* () {
@@ -20,8 +21,14 @@ export class UserService extends Effect.Service<UserService>()("UserService", {
 							})
 						);
 
+						if (!session?.user) {
+							return yield* Effect.fail(new NotFoundError({
+								message: "User not found",
+							}));
+						}
+
 						return {
-							...session?.user,
+							...session.user,
 							organizations: organizations.map((o) => ({
 								id: o.id,
 								name: o.name,

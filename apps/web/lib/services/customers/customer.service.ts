@@ -127,6 +127,27 @@ export class CustomerService extends Effect.Service<CustomerService>()(
 						Environment.withEnvironment(),
 						AuthSession.withAuthSession()
 					),
+
+				getCustomerPurchases: (customerId: string) =>
+					pipe(
+						Effect.gen(function* () {
+							const session = yield* AuthSession;
+							const customer = yield* customerRepository.getCustomerById(customerId);
+							if (!customer) {
+								return yield* Effect.fail(
+									new NotFoundError({
+										message: "Customer not found",
+									})
+								);
+							}
+							yield* checkProjectPermission(
+								customer.projectId,
+								"project:all",
+								`User ${session?.user?.id} is not authorized to access customer ${customerId} for project ${customer.projectId}`
+							);
+							return yield* customerRepository.getCustomerPurchases(customerId);
+						})
+					),
 			};
 		}),
 

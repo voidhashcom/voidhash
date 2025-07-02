@@ -1,13 +1,12 @@
 import { Page } from "@/features/shell";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import {
-	getPaywallById,
-	getPaywallProducts,
-} from "@/lib/services/paywalls/queries";
-import { getProducts } from "@/lib/services/products/queries";
-import { getProjectBySlugAndOrganizationSlug } from "@/lib/services/projects/queries";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { PaywallDetailPageEditor } from "./paywall-detail-page-editor";
+import { Effect } from "effect";
+import { NotFoundError } from "@/lib/effect/errors";
+import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { PaywallService } from "@/lib/services/paywalls/paywall.service";
+import { ProductService } from "@/lib/services/products/product.service";
+import { ProjectService } from "@/lib/services/projects/project.service";
 
 export async function PaywallsDetailPage({
 	organizationSlug,
@@ -18,56 +17,38 @@ export async function PaywallsDetailPage({
 	projectSlug: string;
 	id: string;
 }) {
-	const serviceContext = await createNextServiceContext();
-	const projectResult = await getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: { organizationSlug: organizationSlug, projectSlug: projectSlug },
-	});
-	if (projectResult.isErr()) {
-		const error = projectResult._unsafeUnwrapErr();
+	
+	const data = await runServerEffect(Effect.gen(function* () {
+		const projectService = yield* ProjectService;
+		const paywallService = yield* PaywallService;
+		const productService = yield* ProductService;
+		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
+			organizationSlug,
+			projectSlug,
+		});
+		if (!project) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Project not found",
+			}));
+		}
+		const paywall = yield* paywallService.getPaywallById(id);
+		if (!paywall) {
+			return yield* Effect.fail(new NotFoundError({
+				message: "Paywall not found",
+			}));
+		}
+		const paywallProducts = yield* paywallService.getPaywallProducts(id);
+		const products = yield* productService.getProducts(project.id);
+		return { project, paywall, paywallProducts, products };
+	}));
+
+	if (data.isErr()) {
+		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const project = projectResult.value;
+	const {  paywall, paywallProducts, products } = data.value;
 
-	const paywallPromise = getPaywallById({
-		ctx: serviceContext,
-		input: { id },
-	});
-	const paywallProductsPromise = getPaywallProducts({
-		ctx: serviceContext,
-		input: { paywallId: id },
-	});
-	const productsPromise = getProducts({
-		ctx: serviceContext,
-		input: { projectId: project.id },
-	});
-
-	const [paywallResult, paywallProductsResult, productsResult] =
-		await Promise.all([
-			paywallPromise,
-			paywallProductsPromise,
-			productsPromise,
-		]);
-
-	if (paywallResult.isErr()) {
-		const error = paywallResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	if (paywallProductsResult.isErr()) {
-		const error = paywallProductsResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	if (productsResult.isErr()) {
-		const error = productsResult._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
-
-	const paywall = paywallResult.value;
-	const paywallProducts = paywallProductsResult.value;
-	const products = productsResult.value;
 
 	return (
 		<Page
