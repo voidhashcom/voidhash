@@ -43,9 +43,10 @@ export const createOrganization = (inputUnsafe: CreateOrganizationInput) =>
 				slug = slug + "-" + createShortId();
 			}
 
+			const headers = yield* request.getHeaders;
 			const organization = yield* betterAuth.use(async (client) =>
 				client.api.createOrganization({
-					headers: yield* request.getHeaders(),
+					headers,
 					body: {
 						name: input.name,
 						slug,
@@ -85,9 +86,10 @@ const checkSlugAvailable = (slug: string) =>
 		Effect.gen(function* () {
 			const betterAuth = yield* BetterAuth;
 			const request = yield* Request;
+			const headers = yield* request.getHeaders;
 			const res = yield* Effect.either(betterAuth.use(async (client) =>
 				client.api.checkOrganizationSlug({
-					headers: yield* request.getHeaders(),
+					headers,
 					body: { slug },
 				})
 			));

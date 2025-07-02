@@ -6,6 +6,7 @@ import { PaymentProviderService } from "@/lib/services/payment-providers/payment
 import { ProjectService } from "@/lib/services/projects/project.service";
 import { Effect } from "effect";
 import { NotFoundError } from "@/lib/effect/errors";
+import { AuthSession } from "@/lib/effect/auth";
 
 export async function PaymentProviderDetailPage({
 	paramsPromise,
@@ -19,7 +20,7 @@ export async function PaymentProviderDetailPage({
 	const { organizationSlug, projectSlug, paymentProviderConfigurationId } =
 		await paramsPromise;
 
-	const data = await runServerEffect(Effect.gen(function* () {
+	const data = await runServerEffect(AuthSession.withAuthSession()(Effect.gen(function* () {
 		const projectService = yield* ProjectService;
 		const paymentProviderService = yield* PaymentProviderService;
 		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
@@ -33,7 +34,7 @@ export async function PaymentProviderDetailPage({
 		}
 		const paymentProviderConfiguration = yield* paymentProviderService.getPaymentProviderConfigurationById(paymentProviderConfigurationId);
 		return { project, paymentProviderConfiguration };
-	}));
+	})));
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();

@@ -124,7 +124,6 @@ export class CustomerService extends Effect.Service<CustomerService>()(
 							);
 							return perks;
 						}),
-						Environment.withEnvironment(),
 						AuthSession.withAuthSession()
 					),
 
@@ -146,7 +145,8 @@ export class CustomerService extends Effect.Service<CustomerService>()(
 								`User ${session?.user?.id} is not authorized to access customer ${customerId} for project ${customer.projectId}`
 							);
 							return yield* customerRepository.getCustomerPurchases(customerId);
-						})
+						}),
+						AuthSession.withAuthSession()
 					),
 			};
 		}),

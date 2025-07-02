@@ -303,11 +303,12 @@ const toHonoErrorResponse = (c: HonoContextType, error: HonoErrorResponse) => {
 	return errorResponse(c, error.code, error.message);
 };
 
+type AvailableServices = Layer.Layer.Success<ReturnType<typeof RuntimeLayer>>;
+
 export const createEffectHandler =
 	(context: HonoContextType) =>
-	async <T, E extends AcceptableErrorTypes>(
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		effect: Effect.Effect<T, E, any>
+	async <T, E extends AcceptableErrorTypes, C extends AvailableServices>(
+		effect: Effect.Effect<T, E, C>
 	) => {
 		const runtime = createHonoRuntime(context);
 		return await runtime.runPromise(

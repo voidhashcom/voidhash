@@ -45,9 +45,10 @@ export const updateOrganization = (inputUnsafe: UpdateOrganizationInput) =>
 			}
 
 			const betterAuth = yield* BetterAuth;
+			const headers = yield* request.getHeaders;
 			yield* betterAuth.use(async (client) =>
 				client.api.updateOrganization({
-					headers: yield* request.getHeaders(),
+					headers,
 					body: {
 						organizationId: input.organizationId,
 						data: {

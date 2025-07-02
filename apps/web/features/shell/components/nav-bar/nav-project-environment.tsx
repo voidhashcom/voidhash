@@ -5,6 +5,7 @@ import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { ProjectService } from "@/lib/services/projects/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { Environment } from "@/lib/effect/environment";
+import { AuthSession } from "@/lib/effect/auth";
 
 export async function NavProjectEnvironmentContent({
 	organizationSlug,
@@ -13,7 +14,7 @@ export async function NavProjectEnvironmentContent({
 	if (!organizationSlug || !projectSlug) {
 		return null;
 	}
-	const data = await runServerEffect(Environment.withEnvironment({
+	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
 		organizationSlug,
 		projectSlug,
 	})(Effect.gen(function* () {
@@ -29,7 +30,7 @@ export async function NavProjectEnvironmentContent({
 			}));
 		}
 		return { project, environment };
-	})));
+	}))));
 
 
 	if (data.isErr()) {

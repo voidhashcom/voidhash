@@ -11,6 +11,7 @@ import { ProjectService } from "@/lib/services/projects/project.service";
 import { Environment } from "@/lib/effect/environment";
 import { NotFoundError } from "@/lib/effect/errors";
 import { ProductService } from "@/lib/services/products/product.service";
+import { AuthSession } from "@/lib/effect/auth";
 
 export async function ProductsPage({
 	organizationSlug,
@@ -19,7 +20,7 @@ export async function ProductsPage({
 	organizationSlug: string;
 	projectSlug;
 }) {
-	const data = await runServerEffect(Environment.withEnvironment({
+	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
 		organizationSlug,
 		projectSlug,
 	})(Effect.gen(function* () {
@@ -36,7 +37,7 @@ export async function ProductsPage({
 		}
 		const products = yield* productService.getProducts(project.id);
 		return { project, products };
-	})))
+	}))));
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();

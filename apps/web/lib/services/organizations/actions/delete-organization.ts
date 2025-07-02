@@ -27,9 +27,10 @@ export const deleteOrganization = (inputUnsafe: DeleteOrganizationInput) =>
 			);
 
 			const betterAuth = yield* BetterAuth;
+			const headers = yield* request.getHeaders;
 			yield* betterAuth.use(async (client) =>
 				client.api.deleteOrganization({
-					headers: yield* request.getHeaders(),
+					headers,
 					body: { organizationId: input.organizationId },
 				})
 			);

@@ -26,6 +26,9 @@ import { PaymentProviderRepository } from "@/lib/services/payment-providers/paym
 import { CheckoutSessionRepository } from "@/lib/services/checkout-session/checkout-session.repository";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "../errors";
 import { MissingEnvironmentError } from "../environment";
+import { UserService } from "@/lib/services/users/user.service";
+import { OrganizationService } from "@/lib/services/organizations/organization.service";
+import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -84,7 +87,7 @@ const RuntimeLayer = () => {
 		Layer.provideMerge(ProductRepository.Default),
 		Layer.provideMerge(ProjectRepository.Default),
 		Layer.provideMerge(PaymentProviderRepository.Default),
-		Layer.provideMerge(CheckoutSessionRepository.Default)
+		Layer.provideMerge(CheckoutSessionRepository.Default),
 	);
 
 	const ServiceLayer = pipe(
@@ -96,6 +99,9 @@ const RuntimeLayer = () => {
 		Layer.provideMerge(PaywallService.Default),
 		Layer.provideMerge(ProductService.Default),
 		Layer.provideMerge(ProjectService.Default),
+		Layer.provideMerge(UserService.Default),
+		Layer.provideMerge(OrganizationService.Default),
+		Layer.provideMerge(PaymentProviderService.Default),
 	);
 
 	return pipe(
@@ -145,11 +151,13 @@ type AcceptableErrorTypes =
 	| MissingEnvironmentError
 	| MissingProjectIdError;
 
+	type AvailableServices = Layer.Layer.Success<ReturnType<typeof RuntimeLayer>>;
+
 const handleGlobalErrors = (
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	effect: Effect.Effect<any, AcceptableErrorTypes, any>
+	effect: Effect.Effect<any, AcceptableErrorTypes, AvailableServices>
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Effect.Effect<any, NextjsErrorResponse, any> => {
+): Effect.Effect<any, NextjsErrorResponse, AvailableServices> => {
 	return pipe(
 		effect,
 		Effect.catchTags({
@@ -256,9 +264,10 @@ const handleGlobalErrors = (
 	);
 };
 
+
+
 export const runServerEffect = async <T, E extends AcceptableErrorTypes>(
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	effect: Effect.Effect<T, E, any>
+	effect: Effect.Effect<T, E, AvailableServices>
 ): Promise<Result<T, NextjsErrorResponse>> => {
 	const runtime = createNextjsRuntime();
 	return await runtime.runPromise(

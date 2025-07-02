@@ -6,6 +6,7 @@ import { Environment } from "@/lib/effect/environment";
 import { ProjectService } from "@/lib/services/projects/project.service";
 import { Effect } from "effect";
 import { NotFoundError } from "@/lib/effect/errors";
+import { AuthSession } from "@/lib/effect/auth";
 
 export async function EnviromentBarContent({
 	organizationSlug,
@@ -15,7 +16,10 @@ export async function EnviromentBarContent({
 		return null;
 	}
 
-	const data = await runServerEffect(Effect.gen(function* () {
+	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
+		organizationSlug,
+		projectSlug,
+	})(Effect.gen(function* () {
 		const projectService = yield* ProjectService;
 		const environment = yield* Environment;
 		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
@@ -28,7 +32,7 @@ export async function EnviromentBarContent({
 			}));
 		}
 		return { project, environment };
-	}));
+	}))));
 
 	if (data.isErr()) {
 		return null;

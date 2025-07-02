@@ -16,6 +16,7 @@ import { ProjectService } from "@/lib/services/projects/project.service";
 import { Environment } from "@/lib/effect/environment";
 import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
 import { NotFoundError } from "@/lib/effect/errors";
+import { AuthSession } from "@/lib/effect/auth";
 
 export async function PaymentProvidersPage({
 	paramsPromise,
@@ -27,7 +28,7 @@ export async function PaymentProvidersPage({
 }) {
 	const { organizationSlug, projectSlug } = await paramsPromise;
 	
-	const data = await runServerEffect(Environment.withEnvironment({
+	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
 		organizationSlug,
 		projectSlug,
 	})(Effect.gen(function* () {
@@ -46,7 +47,7 @@ export async function PaymentProvidersPage({
 		const paymentProviderConfigurations = yield* paymentProviderService.getPaymentProviderConfigurations(project.id);
 
 		return { project, environment, paymentProviderConfigurations };
-	})));
+	}))));
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();

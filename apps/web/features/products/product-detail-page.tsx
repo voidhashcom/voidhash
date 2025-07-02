@@ -21,6 +21,7 @@ import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { ProductService } from "@/lib/services/products/product.service";
 import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
 import { Environment } from "@/lib/effect/environment";
+import { AuthSession } from "@/lib/effect/auth";
 
 export async function ProductDetailPage({
 	organizationSlug,
@@ -32,7 +33,7 @@ export async function ProductDetailPage({
 	id: string;
 }) {
 
-	const data = await runServerEffect(Environment.withEnvironment({
+	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
 		organizationSlug,
 		projectSlug,
 	})(Effect.gen(function* () {
@@ -57,7 +58,7 @@ export async function ProductDetailPage({
 			perks,
 			productPerks,
 		};
-	})));
+	}))));
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();
