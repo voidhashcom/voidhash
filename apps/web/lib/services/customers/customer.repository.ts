@@ -4,12 +4,13 @@ import {
 	Customer,
 	customers,
 	customersUnlockedPerks,
+	CustomerTypeValue,
 	eq,
 	externalCustomerIdentifiers,
 	InsertCustomer,
 	purchases,
 } from "@voidhash/db";
-import { Environment } from "@voidhash/lib/constants";
+import { EnvironmentValue } from "@voidhash/lib/constants";
 import { Effect } from "effect";
 
 export class CustomerRepository extends Effect.Service<CustomerRepository>()(
@@ -32,8 +33,8 @@ export class CustomerRepository extends Effect.Service<CustomerRepository>()(
 							type,
 						}: {
 							projectId: string;
-							environment: Environment;
-							type: "identified" | "anonymous" | null;
+							environment: EnvironmentValue;
+							type: CustomerTypeValue | null;
 						}
 					) =>
 						execute(
@@ -67,7 +68,7 @@ export class CustomerRepository extends Effect.Service<CustomerRepository>()(
 						}: {
 							projectId: string;
 							appUserId: string;
-							environment: Environment;
+							environment: EnvironmentValue;
 						}
 					) =>
 						execute(
@@ -94,7 +95,7 @@ export class CustomerRepository extends Effect.Service<CustomerRepository>()(
 							projectId: string;
 							serviceId: string;
 							identifier: string;
-							environment: Environment;
+							environment: EnvironmentValue;
 						}
 					) =>
 						execute(
@@ -129,14 +130,23 @@ export class CustomerRepository extends Effect.Service<CustomerRepository>()(
 
 				getCustomerPurchases: dbService.makeQuery(
 					(execute, customerId: string) =>
-						execute(async (db) => await db.query.purchases.findMany({
-							where: eq(purchases.customerId, customerId),
-						}))
+						execute(
+							async (db) =>
+								await db.query.purchases.findMany({
+									where: eq(purchases.customerId, customerId),
+								})
+						)
 				),
 
 				updateCustomer: dbService.makeQuery(
-					(execute, {id, ...customer}: Partial<Customer> & {id: string}) =>
-						execute(async (db) => await db.update(customers).set(customer).where(eq(customers.id, id)))
+					(execute, { id, ...customer }: Partial<Customer> & { id: string }) =>
+						execute(
+							async (db) =>
+								await db
+									.update(customers)
+									.set(customer)
+									.where(eq(customers.id, id))
+						)
 				),
 			};
 		}),

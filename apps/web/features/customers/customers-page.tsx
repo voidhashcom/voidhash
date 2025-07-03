@@ -12,6 +12,7 @@ import { Effect } from "effect";
 import { ProjectService } from "@/lib/services/projects/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { CustomerType } from "@voidhash/db";
 export async function CustomersPage({
 	organizationSlug,
 	projectSlug,
@@ -19,19 +20,25 @@ export async function CustomersPage({
 	organizationSlug: string;
 	projectSlug;
 }) {
-	const data = await runServerEffect(Effect.gen(function* () {
-		const projectService = yield* ProjectService;
-		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
-			organizationSlug,
-			projectSlug,
-		});
-		if (!project) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Project not found",
-			}));
-		}
-		return { project };
-	}));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const projectService = yield* ProjectService;
+			const project = yield* projectService.getProjectBySlugAndOrganizationSlug(
+				{
+					organizationSlug,
+					projectSlug,
+				}
+			);
+			if (!project) {
+				return yield* Effect.fail(
+					new NotFoundError({
+						message: "Project not found",
+					})
+				);
+			}
+			return { project };
+		})
+	);
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();
@@ -76,7 +83,7 @@ export async function CustomersPage({
 						<div className="max-w-4xl mx-auto">
 							<CustomersTable
 								projectId={project.id}
-								type="identified"
+								type={CustomerType.Identified}
 								organizationSlug={organizationSlug}
 								projectSlug={projectSlug}
 							/>
@@ -86,7 +93,7 @@ export async function CustomersPage({
 						<div className="max-w-4xl mx-auto">
 							<CustomersTable
 								projectId={project.id}
-								type="anonymous"
+								type={CustomerType.Anonymous}
 								organizationSlug={organizationSlug}
 								projectSlug={projectSlug}
 							/>

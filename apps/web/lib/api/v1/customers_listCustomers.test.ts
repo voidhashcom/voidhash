@@ -1,16 +1,17 @@
 import { generateId } from "@/lib/id/generate";
 import { eq } from "drizzle-orm";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
-import { InsertCustomer, customers } from "@voidhash/db";
+import { InsertCustomer, customers, CustomerOrigin } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
+import { Environment } from "@voidhash/lib/constants";
 
 const customerInput: Omit<InsertCustomer, "projectId"> = {
 	id: generateId("test"),
 	email: "test@test.com",
 	name: "Test Customer",
 	appUserId: "test-app-user-id",
-	origin: "api",
-	environment: "production",
+	origin: CustomerOrigin.API,
+	environment: Environment.Production,
 };
 
 const expectedCustomer = {

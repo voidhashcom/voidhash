@@ -5,7 +5,7 @@ import {
 	PaymentProviderConfigurationSheetSection,
 	PaymentProviderProductEditorSheetSection,
 } from "../../services/payment-providers/core/types";
-import { API_DOMAIN } from "@voidhash/lib/constants";
+import { API_DOMAIN, Environment } from "@voidhash/lib/constants";
 
 const stripeGlobalConfigurationSchema = z.object({
 	secretKey: z.string().min(1),
@@ -50,7 +50,7 @@ export class StripePaymentProvider
 		super(
 			stripePaymentProviderId,
 			"Stripe",
-			["production"],
+			[Environment.Production],
 			["secretKey"],
 			["productId", "priceId"],
 			"web-checkout"

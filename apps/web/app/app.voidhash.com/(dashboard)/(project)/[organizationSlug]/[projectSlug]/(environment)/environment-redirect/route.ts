@@ -2,6 +2,7 @@ import { setEnvironment } from "@/lib/services/environments/utils";
 import { NextCookiesAdapter } from "@/lib/nextjs/utils/next-cookies-adapter";
 import { redirect } from "next/navigation";
 import { NextRequest } from "next/server";
+import { Environment as EnvironmentEnum } from "@voidhash/lib/index";
 
 export async function GET(
 	request: NextRequest,
@@ -18,7 +19,7 @@ export async function GET(
 		new NextCookiesAdapter(),
 		organizationSlug,
 		projectSlug,
-		"production"
+		EnvironmentEnum.Production
 	);
 
 	const next = searchParams.get("next");

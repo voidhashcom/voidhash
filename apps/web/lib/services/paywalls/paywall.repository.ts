@@ -1,7 +1,18 @@
 import { Db } from "@/lib/effect/db";
-import { eq, and, asc, paywalls, paywallProducts, InsertPaywall, InsertPaywallProduct, paywallLocations, inArray, products } from "@voidhash/db";
+import {
+	eq,
+	and,
+	asc,
+	paywalls,
+	paywallProducts,
+	InsertPaywall,
+	InsertPaywallProduct,
+	paywallLocations,
+	inArray,
+	products,
+} from "@voidhash/db";
 import { Effect } from "effect";
-import { Environment } from "@voidhash/lib/constants";
+import { EnvironmentValue } from "@voidhash/lib/constants";
 
 export class PaywallRepository extends Effect.Service<PaywallRepository>()(
 	"PaywallRepository",
@@ -27,7 +38,7 @@ export class PaywallRepository extends Effect.Service<PaywallRepository>()(
 						execute,
 						input: {
 							locationSlug: string;
-							environment: Environment;
+							environment: EnvironmentValue;
 						}
 					) =>
 						execute(
@@ -54,7 +65,10 @@ export class PaywallRepository extends Effect.Service<PaywallRepository>()(
 				),
 
 				getPaywalls: dbService.makeQuery(
-					(execute, input: { projectId: string; environment: Environment }) =>
+					(
+						execute,
+						input: { projectId: string; environment: EnvironmentValue }
+					) =>
 						execute(
 							async (db) =>
 								await db.query.paywalls.findMany({
@@ -70,16 +84,19 @@ export class PaywallRepository extends Effect.Service<PaywallRepository>()(
 					(execute, { id, name }: { id: string; name: string }) =>
 						execute(
 							async (db) =>
-								await db.update(paywalls).set({ 
-									name, 
-									updatedAt: new Date() 
-								}).where(eq(paywalls.id, id))
+								await db
+									.update(paywalls)
+									.set({
+										name,
+										updatedAt: new Date(),
+									})
+									.where(eq(paywalls.id, id))
 						)
 				),
 
 				deletePaywall: dbService.makeQuery((execute, id: string) =>
-					execute(async (db) => 
-						await db.delete(paywalls).where(eq(paywalls.id, id))
+					execute(
+						async (db) => await db.delete(paywalls).where(eq(paywalls.id, id))
 					)
 				),
 
@@ -113,33 +130,45 @@ export class PaywallRepository extends Effect.Service<PaywallRepository>()(
 						)
 				),
 
-				createPaywallProduct: dbService.makeQuery((execute, paywallProduct: InsertPaywallProduct) =>
-					execute(async (db) => await db.insert(paywallProducts).values(paywallProduct))
+				createPaywallProduct: dbService.makeQuery(
+					(execute, paywallProduct: InsertPaywallProduct) =>
+						execute(
+							async (db) =>
+								await db.insert(paywallProducts).values(paywallProduct)
+						)
 				),
 
-				deletePaywallProducts: dbService.makeQuery((execute, paywallId: string) =>
-					execute(async (db) =>
-						await db.delete(paywallProducts).where(eq(paywallProducts.paywallId, paywallId))
-					)
+				deletePaywallProducts: dbService.makeQuery(
+					(execute, paywallId: string) =>
+						execute(
+							async (db) =>
+								await db
+									.delete(paywallProducts)
+									.where(eq(paywallProducts.paywallId, paywallId))
+						)
 				),
 
-				getPaywallLocationsUsingPaywall: dbService.makeQuery((execute, paywallId: string) =>
-					execute(async (db) =>
-						await db.query.paywallLocations.findMany({
-							where: eq(paywallLocations.defaultPaywallId, paywallId),
-						})
-					)
+				getPaywallLocationsUsingPaywall: dbService.makeQuery(
+					(execute, paywallId: string) =>
+						execute(
+							async (db) =>
+								await db.query.paywallLocations.findMany({
+									where: eq(paywallLocations.defaultPaywallId, paywallId),
+								})
+						)
 				),
 
-				getProductsWithConfigurations: dbService.makeQuery((execute, productIds: string[]) =>
-					execute(async (db) =>
-						await db.query.products.findMany({
-							where: inArray(products.id, productIds),
-							with: {
-								paymentProviderConfigurationProducts: true,
-							},
-						})
-					)
+				getProductsWithConfigurations: dbService.makeQuery(
+					(execute, productIds: string[]) =>
+						execute(
+							async (db) =>
+								await db.query.products.findMany({
+									where: inArray(products.id, productIds),
+									with: {
+										paymentProviderConfigurationProducts: true,
+									},
+								})
+						)
 				),
 			};
 		}),

@@ -5,11 +5,12 @@ import { InsertPaywall, paywalls } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { paywallResponseSchema } from "./schema";
+import { Environment } from "@voidhash/lib/constants";
 
 const paywallInput: Omit<InsertPaywall, "projectId"> = {
 	id: generateId("test"),
 	name: "Test Paywall for List",
-	environment: "production",
+	environment: Environment.Production,
 };
 
 const expectedPaywall: z.infer<typeof paywallResponseSchema> = {

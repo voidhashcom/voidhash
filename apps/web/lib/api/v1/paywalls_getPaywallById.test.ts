@@ -5,6 +5,7 @@ import { InsertPaywall, paywalls } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { paywallResponseSchema } from "./schema";
+import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential("/v1/paywalls/:paywallId", async () => {
 	test("GET /v1/paywalls/:paywallId - success", async (t) => {
@@ -14,7 +15,7 @@ describe.sequential("/v1/paywalls/:paywallId", async () => {
 		const paywallInput: Omit<InsertPaywall, "projectId"> = {
 			id: generateId("test"),
 			name: "Get Paywall By ID Test",
-			environment: "production",
+			environment: Environment.Production,
 		};
 
 		await h.db.primary.insert(paywalls).values({

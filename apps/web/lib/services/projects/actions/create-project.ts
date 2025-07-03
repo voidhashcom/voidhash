@@ -4,9 +4,8 @@ import { Data, Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
 import { ProjectRepository } from "../project.repository";
 import { createSlug, createShortId } from "@voidhash/lib/functions";
-import { SLUG_BLACKLIST } from "@voidhash/lib/constants";
+import { Environment, SLUG_BLACKLIST } from "@voidhash/lib/constants";
 import { randomUUID } from "crypto";
-import { Environments } from "@/lib/services/environments/types";
 import { ApiKeyRepository } from "@/lib/services/api-keys/api-key.repository";
 import {
 	devCheckout,
@@ -66,64 +65,66 @@ export const createProject = (inputUnsafe: CreateProjectInput) =>
 			}
 
 			const existingProject = yield* projectRepository.getProjectBySlug({
-					projectSlug: slug,
-					organizationId: input.organizationId,
-				})
+				projectSlug: slug,
+				organizationId: input.organizationId,
+			});
 
 			if (existingProject) {
 				slug = slug + "-" + randomUUID();
 			}
 
 			yield* db.transaction((tx) =>
-				TransactionContext.provide(tx)(Effect.gen(function* () {
-					yield* projectRepository.createProject({
-						id,
-						name: input.name,
-						slug,
-						organizationId: input.organizationId,
-						createdByUserId: userId,
-					});
-
-					// Create production publishable key
-					const productionPublishableKey = yield* createPublishableKey(
-						Environments.Production
-					);
-					yield* apiKeyRepository.createApiKey({
-						id: generateId("apiPublishableKey"),
-						projectId: id,
-						name: "Publishable key",
-						...productionPublishableKey,
-					});
-
-					// Create testing publishable key
-					const testingPublishableKey = yield* createPublishableKey(
-						Environments.Testing
-					);
-					yield* apiKeyRepository.createApiKey({
-						id: generateId("apiPublishableKeyTesting"),
-						projectId: id,
-						name: "Publishable key",
-						...testingPublishableKey,
-					});
-
-					// Create dev checkout payment provider configuration using db directly since no repository exists
-					const devCheckoutConfigurationId = generateId(
-						"paymentProviderConfiguration"
-					);
-					yield* tx(async (dbTx) => {
-						await dbTx.insert(paymentProviderConfigurations).values({
-							id: devCheckoutConfigurationId,
-							projectId: id,
-							name: "Dev Checkout",
-							providerId: devCheckoutPaymentProviderId,
-							paymentProviderKey: devCheckout.createGlobalKey({
-								paymentProviderConfigurationId: devCheckoutConfigurationId,
-							}),
-							enabled: true,
-							configuration: {},
+				TransactionContext.provide(tx)(
+					Effect.gen(function* () {
+						yield* projectRepository.createProject({
+							id,
+							name: input.name,
+							slug,
+							organizationId: input.organizationId,
+							createdByUserId: userId,
 						});
-					});
-				}))
+
+						// Create production publishable key
+						const productionPublishableKey = yield* createPublishableKey(
+							Environment.Production
+						);
+						yield* apiKeyRepository.createApiKey({
+							id: generateId("apiPublishableKey"),
+							projectId: id,
+							name: "Publishable key",
+							...productionPublishableKey,
+						});
+
+						// Create testing publishable key
+						const testingPublishableKey = yield* createPublishableKey(
+							Environment.Testing
+						);
+						yield* apiKeyRepository.createApiKey({
+							id: generateId("apiPublishableKeyTesting"),
+							projectId: id,
+							name: "Publishable key",
+							...testingPublishableKey,
+						});
+
+						// Create dev checkout payment provider configuration using db directly since no repository exists
+						const devCheckoutConfigurationId = generateId(
+							"paymentProviderConfiguration"
+						);
+						yield* tx(async (dbTx) => {
+							await dbTx.insert(paymentProviderConfigurations).values({
+								id: devCheckoutConfigurationId,
+								projectId: id,
+								name: "Dev Checkout",
+								providerId: devCheckoutPaymentProviderId,
+								paymentProviderKey: devCheckout.createGlobalKey({
+									paymentProviderConfigurationId: devCheckoutConfigurationId,
+								}),
+								enabled: true,
+								configuration: {},
+							});
+						});
+					})
+				)
 			);
 
 			yield* Effect.log(

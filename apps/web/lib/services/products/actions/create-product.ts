@@ -5,6 +5,7 @@ import { generateId } from "@/lib/id/generate";
 import { ProductRepository } from "../product.repository";
 import { Environment } from "@/lib/effect/environment";
 import { Db, TransactionContext } from "@/lib/effect/db";
+import { Environment as EnvironmentEnum } from "@voidhash/lib/index";
 
 import {
 	devCheckout,
@@ -58,7 +59,7 @@ export const createProduct = (inputUnsafe: CreateProductInput) =>
 						yield* productRepository.createProduct(newProduct);
 
 						// For testing environment, create dev checkout configuration
-						if (environment === "testing") {
+						if (environment === EnvironmentEnum.Testing) {
 							const devCheckoutConfig = yield* tx(async (dbTx) => {
 								return await dbTx.query.paymentProviderConfigurations.findFirst(
 									{

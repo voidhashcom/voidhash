@@ -5,6 +5,7 @@ import { InsertProduct, products } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { productResponseSchema, updateProductBodySchema } from "./schema";
+import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential("/v1/products/:productId", async () => {
 	test("PUT /v1/products/:productId - success", async (t) => {
@@ -14,7 +15,7 @@ describe.sequential("/v1/products/:productId", async () => {
 		const productInput: Omit<InsertProduct, "projectId"> = {
 			id: generateId("test"),
 			name: "Original Product Name",
-			environment: "production",
+			environment: Environment.Production,
 		};
 
 		await h.db.primary.insert(products).values({

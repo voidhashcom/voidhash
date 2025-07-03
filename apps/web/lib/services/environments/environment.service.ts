@@ -5,6 +5,7 @@ import { checkProjectPermission } from "@/lib/effect/permissions";
 import { ProjectRepository } from "../projects/project.repository";
 import { OrganizationRepository } from "../organizations/organization.repository";
 import { setEnvironmentCookie } from "@/lib/effect/environment";
+import { Environment } from "@voidhash/lib/index";
 
 export class ProjectNotFoundError extends Data.TaggedError(
 	"ProjectNotFoundError"
@@ -29,10 +30,15 @@ export class OrganizationWithoutSlugError extends Data.TaggedError(
 
 export const switchEnvironmentInputSchema = Schema.Struct({
 	projectId: Schema.String,
-	environment: Schema.Union(Schema.Literal("production"), Schema.Literal("testing")),
+	environment: Schema.Union(
+		Schema.Literal(Environment.Production),
+		Schema.Literal(Environment.Testing)
+	),
 });
 
-type SwitchEnvironmentInput = Schema.Schema.Type<typeof switchEnvironmentInputSchema>;
+type SwitchEnvironmentInput = Schema.Schema.Type<
+	typeof switchEnvironmentInputSchema
+>;
 
 export class EnvironmentService extends Effect.Service<EnvironmentService>()(
 	"EnvironmentService",
@@ -42,7 +48,9 @@ export class EnvironmentService extends Effect.Service<EnvironmentService>()(
 				switchEnvironment: (inputUnsafe: SwitchEnvironmentInput) =>
 					pipe(
 						Effect.gen(function* () {
-                            const input = Schema.decodeUnknownSync(switchEnvironmentInputSchema)(inputUnsafe);
+							const input = Schema.decodeUnknownSync(
+								switchEnvironmentInputSchema
+							)(inputUnsafe);
 							const session = yield* AuthSession;
 							const projectRepository = yield* ProjectRepository;
 							const organizationRepository = yield* OrganizationRepository;
@@ -51,8 +59,9 @@ export class EnvironmentService extends Effect.Service<EnvironmentService>()(
 								"project:all",
 								`User ${session?.user?.id} is not authorized to switch environment for project ${input.projectId}`
 							);
-							const project =
-								yield* projectRepository.getProjectById(input.projectId);
+							const project = yield* projectRepository.getProjectById(
+								input.projectId
+							);
 							if (!project) {
 								return yield* Effect.fail(
 									new ProjectNotFoundError({
@@ -61,7 +70,9 @@ export class EnvironmentService extends Effect.Service<EnvironmentService>()(
 								);
 							}
 							const organization =
-								yield* organizationRepository.getOrganizationById(project.organizationId);
+								yield* organizationRepository.getOrganizationById(
+									project.organizationId
+								);
 							if (!organization) {
 								return yield* Effect.fail(
 									new OrganizationNotFoundError({

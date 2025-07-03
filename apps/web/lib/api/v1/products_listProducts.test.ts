@@ -5,11 +5,12 @@ import { InsertProduct, products } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { productResponseSchema } from "./schema";
+import { Environment } from "@voidhash/lib/constants";
 
 const productInput: Omit<InsertProduct, "projectId"> = {
 	id: generateId("test"),
 	name: "Test Product for List",
-	environment: "production",
+	environment: Environment.Production,
 };
 
 const expectedProduct: z.infer<typeof productResponseSchema> = {

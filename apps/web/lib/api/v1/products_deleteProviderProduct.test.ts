@@ -10,6 +10,7 @@ import {
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { stripe } from "@/lib/payment-providers/stripe/stripe";
+import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential(
 	"/v1/products/:productId/provider-products/:providerId/:providerProductKey",
@@ -21,7 +22,7 @@ describe.sequential(
 			const productInput: Omit<InsertProduct, "projectId"> = {
 				id: generateId("test"),
 				name: "Base Product for Delete Provider",
-				environment: "production",
+				environment: Environment.Production,
 			};
 			await h.db.primary.insert(products).values({
 				...productInput,

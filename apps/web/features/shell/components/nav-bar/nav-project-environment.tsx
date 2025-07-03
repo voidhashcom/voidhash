@@ -6,6 +6,7 @@ import { ProjectService } from "@/lib/services/projects/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { Environment } from "@/lib/effect/environment";
 import { AuthSession } from "@/lib/effect/auth";
+import { Environment as EnvironmentEnum } from "@voidhash/lib/index";
 
 export async function NavProjectEnvironmentContent({
 	organizationSlug,
@@ -14,24 +15,32 @@ export async function NavProjectEnvironmentContent({
 	if (!organizationSlug || !projectSlug) {
 		return null;
 	}
-	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
-		organizationSlug,
-		projectSlug,
-	})(Effect.gen(function* () {
-		const projectService = yield* ProjectService;
-		const environment = yield* Environment
-		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
-			organizationSlug,
-			projectSlug,
-		});
-		if (!project) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Project not found",
-			}));
-		}
-		return { project, environment };
-	}))));
-
+	const data = await runServerEffect(
+		AuthSession.withAuthSession()(
+			Environment.withEnvironment({
+				organizationSlug,
+				projectSlug,
+			})(
+				Effect.gen(function* () {
+					const projectService = yield* ProjectService;
+					const environment = yield* Environment;
+					const project =
+						yield* projectService.getProjectBySlugAndOrganizationSlug({
+							organizationSlug,
+							projectSlug,
+						});
+					if (!project) {
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Project not found",
+							})
+						);
+					}
+					return { project, environment };
+				})
+			)
+		)
+	);
 
 	if (data.isErr()) {
 		return null;
@@ -42,7 +51,7 @@ export async function NavProjectEnvironmentContent({
 	return (
 		<div>
 			<NavProjectEnvironmentToggle
-				environment={environment ?? "testing"}
+				environment={environment ?? EnvironmentEnum.Testing}
 				projectId={project.id}
 			/>
 		</div>

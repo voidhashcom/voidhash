@@ -10,6 +10,7 @@ import {
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { providerProductResponseSchema } from "./schema";
+import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential("/v1/products/:productId/provider-products", async () => {
 	test("GET /v1/products/:productId/provider-products - success", async (t) => {
@@ -19,7 +20,7 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 		const productInput: Omit<InsertProduct, "projectId"> = {
 			id: generateId("test"),
 			name: "Base Product for Get Provider List",
-			environment: "production",
+			environment: Environment.Production,
 		};
 		await h.db.primary.insert(products).values({
 			...productInput,
@@ -89,7 +90,7 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 		const productInput: Omit<InsertProduct, "projectId"> = {
 			id: generateId("test"),
 			name: "Base Product Empty List",
-			environment: "production",
+			environment: Environment.Production,
 		};
 		await h.db.primary.insert(products).values({
 			...productInput,
