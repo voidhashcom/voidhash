@@ -1,8 +1,25 @@
-import { Effect, Layer, ManagedRuntime, pipe, Schema } from "effect";
+import {
+	Cause,
+	Effect,
+	Exit,
+	Layer,
+	ManagedRuntime,
+	pipe,
+	Schema,
+} from "effect";
 import { Cookies, CookiesError } from "../cookies";
 import { cookies, headers } from "next/headers";
 import { DatabaseError, Db } from "../db";
-import { Auth, InvalidPublishableKeyError, InvalidSecretKeyError, InvalidSourceError, MissingAppUserIdError, MissingProjectIdError, MissingPublishableKeyError, MissingSecretKeyError } from "../auth";
+import {
+	Auth,
+	InvalidPublishableKeyError,
+	InvalidSecretKeyError,
+	InvalidSourceError,
+	MissingAppUserIdError,
+	MissingProjectIdError,
+	MissingPublishableKeyError,
+	MissingSecretKeyError,
+} from "../auth";
 import { BetterAuth, BetterAuthError } from "../better-auth";
 import { Request } from "../request";
 import { PerkService } from "@/lib/services/perks/perk.service";
@@ -30,6 +47,8 @@ import { UserService } from "@/lib/services/users/user.service";
 import { OrganizationService } from "@/lib/services/organizations/organization.service";
 import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
 import { DevCheckoutService } from "@/lib/payment-providers/dev-checkout/dev-checkout.service";
+import { isDynamicServerError } from "next/dist/client/components/hooks-server-context";
+import { unstable_rethrow } from "next/navigation";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -74,8 +93,7 @@ const RuntimeLayer = () => {
 		Layer.provideMerge(BetterAuth.Default),
 		Layer.provideMerge(DbLive),
 		Layer.provideMerge(CookiesLive),
-		Layer.provideMerge(RequestLive),
-		
+		Layer.provideMerge(RequestLive)
 	);
 
 	const RepositoryLayer = pipe(
@@ -88,7 +106,7 @@ const RuntimeLayer = () => {
 		Layer.provideMerge(ProductRepository.Default),
 		Layer.provideMerge(ProjectRepository.Default),
 		Layer.provideMerge(PaymentProviderRepository.Default),
-		Layer.provideMerge(CheckoutSessionRepository.Default),
+		Layer.provideMerge(CheckoutSessionRepository.Default)
 	);
 
 	const ServiceLayer = pipe(
@@ -103,7 +121,7 @@ const RuntimeLayer = () => {
 		Layer.provideMerge(UserService.Default),
 		Layer.provideMerge(OrganizationService.Default),
 		Layer.provideMerge(PaymentProviderService.Default),
-		Layer.provideMerge(DevCheckoutService.Default),
+		Layer.provideMerge(DevCheckoutService.Default)
 	);
 
 	return pipe(
@@ -118,11 +136,13 @@ const createNextjsRuntime = () => {
 	return ManagedRuntime.make(RuntimeLayer());
 };
 
-export class NextjsErrorResponse extends Schema.TaggedError<NextjsErrorResponse>()("NextjsErrorResponse", {
-	code: Schema.String,
-	message: Schema.String,
-}) {}
-
+export class NextjsErrorResponse extends Schema.TaggedError<NextjsErrorResponse>()(
+	"NextjsErrorResponse",
+	{
+		code: Schema.String,
+		message: Schema.String,
+	}
+) {}
 
 // export const createEffectHandler = (context: HonoContextType) => <T, S>(effect: Effect.Effect<T, HonoErrorResponse, S>):  => {
 
@@ -153,7 +173,7 @@ type AcceptableErrorTypes =
 	| MissingEnvironmentError
 	| MissingProjectIdError;
 
-	type AvailableServices = Layer.Layer.Success<ReturnType<typeof RuntimeLayer>>;
+type AvailableServices = Layer.Layer.Success<ReturnType<typeof RuntimeLayer>>;
 
 const handleGlobalErrors = (
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -261,18 +281,15 @@ const handleGlobalErrors = (
 						message: error.message,
 					})
 				),
-			
 		})
 	);
 };
-
-
 
 export const runServerEffect = async <T, E extends AcceptableErrorTypes>(
 	effect: Effect.Effect<T, E, AvailableServices>
 ): Promise<Result<T, NextjsErrorResponse>> => {
 	const runtime = createNextjsRuntime();
-	return await runtime.runPromise(
+	const result = await runtime.runPromiseExit(
 		pipe(
 			effect,
 			Effect.flatMap((result) => {
@@ -280,21 +297,9 @@ export const runServerEffect = async <T, E extends AcceptableErrorTypes>(
 			}),
 			handleGlobalErrors,
 			Effect.catchTags({
-				NextjsErrorResponse: (error) =>
-					Effect.succeed(err(error)),
+				NextjsErrorResponse: (error) => Effect.succeed(err(error)),
 			}),
 			Effect.catchAll((error) => {
-				console.error(error);
-				return Effect.succeed(
-					err(
-						new NextjsErrorResponse({
-							code: "INTERNAL_SERVER_ERROR",
-							message: "Internal server error",
-						})
-					)
-				);
-			}),
-			Effect.catchAllDefect((error) => {
 				console.error(error);
 				return Effect.succeed(
 					err(
@@ -307,4 +312,25 @@ export const runServerEffect = async <T, E extends AcceptableErrorTypes>(
 			})
 		)
 	);
-}
+
+	return Exit.match(result, {
+		onSuccess: (value) => value,
+		onFailure: (error) => {
+			if (Cause.isDie(error)) {
+				const defects = Cause.defects(error);
+				for (const defect of defects) {
+					if (isDynamicServerError(defect)) {
+						unstable_rethrow(defect);
+					}
+				}
+			}
+
+			return err(
+				new NextjsErrorResponse({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Internal server error",
+				})
+			);
+		},
+	});
+};
