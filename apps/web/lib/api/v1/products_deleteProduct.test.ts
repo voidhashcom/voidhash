@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import { InsertProduct, products } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
+import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential("/v1/products/:productId", async () => {
 	test("DELETE /v1/products/:productId - success", async (t) => {
@@ -12,7 +13,7 @@ describe.sequential("/v1/products/:productId", async () => {
 		const productInput: Omit<InsertProduct, "projectId"> = {
 			id: generateId("test"),
 			name: "Product To Delete",
-			environment: "production",
+			environment: Environment.Production,
 		};
 
 		await h.db.primary.insert(products).values({

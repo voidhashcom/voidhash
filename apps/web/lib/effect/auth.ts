@@ -1,7 +1,7 @@
 import { Context, Data, Effect, Option } from "effect";
 import { hashKey } from "@/lib/services/api-keys/effect/utils";
 import { apiKeys, projects, User } from "@voidhash/db";
-import { Environment } from "@voidhash/lib";
+import { EnvironmentValue } from "@voidhash/lib/constants";
 import { eq, inArray } from "drizzle-orm";
 import { Db } from "./db";
 import { Request } from "./request";
@@ -80,7 +80,7 @@ export type ApiKeySession = VoidhashBaseSession & {
 	readonly method: "api-key";
 	readonly user: null;
 	readonly customer: null;
-	readonly environment: Environment;
+	readonly environment: EnvironmentValue;
 };
 
 export type PublishableApiKeySession = VoidhashBaseSession & {
@@ -93,7 +93,7 @@ export type PublishableApiKeySession = VoidhashBaseSession & {
 		readonly device: string | null;
 	};
 	readonly user: null;
-	readonly environment: Environment;
+	readonly environment: EnvironmentValue;
 };
 
 const withAuthSession = <T, E, D>(effect: Effect.Effect<T, E, D>) =>

@@ -4,6 +4,10 @@ import { Data, Effect, pipe, Schema } from "effect";
 import { NotFoundError, UnauthorizedError } from "@/lib/effect/errors";
 import { PaywallProduct } from "@voidhash/db";
 import { PaywallRepository } from "../../paywalls/paywall.repository";
+import {
+	EnvironmentValue,
+	Environment as EnvironmentEnum,
+} from "@voidhash/lib/index";
 
 export class PaywallNotFound extends Data.TaggedError("PaywallNotFound")<{
 	readonly cause?: unknown;
@@ -15,7 +19,9 @@ export const getPaywallByLocationInputSchema = Schema.Struct({
 	nativePaymentProviderId: Schema.optional(Schema.String),
 });
 
-type GetPaywallByLocationInput = Schema.Schema.Type<typeof getPaywallByLocationInputSchema>;
+type GetPaywallByLocationInput = Schema.Schema.Type<
+	typeof getPaywallByLocationInputSchema
+>;
 
 type PaywallResponse = {
 	paywallId: string;
@@ -36,7 +42,7 @@ export const getPaywallByLocation = (inputUnsafe: GetPaywallByLocationInput) =>
 			const session = yield* AuthSession;
 			const environment = yield* Environment;
 			const paywallRepository = yield* PaywallRepository;
-			
+
 			const input = Schema.decodeUnknownSync(getPaywallByLocationInputSchema)(
 				inputUnsafe
 			);
@@ -60,10 +66,11 @@ export const getPaywallByLocation = (inputUnsafe: GetPaywallByLocationInput) =>
 			}
 
 			// Get paywall with products by location slug
-			const paywallLocation = yield* paywallRepository.getPaywallWithProductsByLocationSlug({
-				locationSlug: input.locationSlug,
-				environment,
-			});
+			const paywallLocation =
+				yield* paywallRepository.getPaywallWithProductsByLocationSlug({
+					locationSlug: input.locationSlug,
+					environment,
+				});
 
 			if (!paywallLocation?.defaultPaywall) {
 				return yield* Effect.fail(
@@ -119,17 +126,17 @@ export const getPaywallByLocation = (inputUnsafe: GetPaywallByLocationInput) =>
 	);
 
 const checkNativePurchaseAvailability = (options: {
-	environment: string;
+	environment: EnvironmentValue;
 	paywallProduct: PaywallProduct;
 }) => {
 	return options.paywallProduct.enableNativePurchase;
 };
 
 const checkWebCheckoutAvailability = (options: {
-	environment: string;
+	environment: EnvironmentValue;
 	paywallProduct: PaywallProduct;
 }) => {
-	if (options.environment === "testing") {
+	if (options.environment === EnvironmentEnum.Testing) {
 		return true;
 	}
 

@@ -12,6 +12,7 @@ import { Db, TransactionContext } from "@/lib/effect/db";
 import { CustomerRepository } from "../../customers/customer.repository";
 import { CheckoutSessionRepository } from "../../checkout-session/checkout-session.repository";
 import { createAnonymousCustomer } from "../create-anonymous-customer";
+import { CustomerOrigin } from "@voidhash/db";
 
 export class PaymentProviderConfigurationNotFound extends Data.TaggedError(
 	"PaymentProviderConfigurationNotFound"
@@ -26,7 +27,9 @@ export class ProductNotFound extends Data.TaggedError("ProductNotFound")<{
 }> {}
 
 export const createCheckoutInputSchema = Schema.Struct({
-	paymentProviderConfigurationProductId: Schema.String.pipe(Schema.minLength(1)),
+	paymentProviderConfigurationProductId: Schema.String.pipe(
+		Schema.minLength(1)
+	),
 	successCallbackUrl: Schema.String.pipe(Schema.minLength(1)),
 	errorCallbackUrl: Schema.String.pipe(Schema.minLength(1)),
 });
@@ -72,9 +75,10 @@ export const createCheckout = (inputUnsafe: CreateCheckoutInput) =>
 			}
 
 			// Get payment provider configuration product
-			const paymentProviderConfigurationProduct = yield* productRepository.getProviderProductById(
-				input.paymentProviderConfigurationProductId
-			);
+			const paymentProviderConfigurationProduct =
+				yield* productRepository.getProviderProductById(
+					input.paymentProviderConfigurationProductId
+				);
 			if (!paymentProviderConfigurationProduct) {
 				return yield* Effect.fail(
 					new ProductNotFound({
@@ -84,10 +88,13 @@ export const createCheckout = (inputUnsafe: CreateCheckoutInput) =>
 			}
 
 			// Get dev checkout payment provider configuration
-			const devCheckoutConfiguration = yield* paymentProviderRepository.getExistingPaymentProviderConfigurationByProviderId({
-				projectId,
-				providerId: devCheckoutPaymentProviderId,
-			});
+			const devCheckoutConfiguration =
+				yield* paymentProviderRepository.getExistingPaymentProviderConfigurationByProviderId(
+					{
+						projectId,
+						providerId: devCheckoutPaymentProviderId,
+					}
+				);
 			if (!devCheckoutConfiguration) {
 				return yield* Effect.fail(
 					new PaymentProviderConfigurationNotFound({
@@ -97,51 +104,54 @@ export const createCheckout = (inputUnsafe: CreateCheckoutInput) =>
 			}
 
 			const result = yield* db.transaction((tx) =>
-				TransactionContext.provide(tx)(Effect.gen(function* () {
-					// Get or create customer
-					let customer = yield* customerRepository.getCustomerByAppUserId({
-						projectId,
-						appUserId,
-						environment,
-					});
-
-					if (!customer && isAnonymousId(appUserId)) {
-						const newCustomer = yield* createAnonymousCustomer({
+				TransactionContext.provide(tx)(
+					Effect.gen(function* () {
+						// Get or create customer
+						let customer = yield* customerRepository.getCustomerByAppUserId({
 							projectId,
 							appUserId,
-							origin: "ios", // TODO: Make this dynamic
 							environment,
 						});
-						customer = newCustomer;
-					}
 
-					if (!customer) {
-						return yield* Effect.fail(
-							new NotFoundError({
-								message: "Customer not found",
-							})
-						);
-					}
+						if (!customer && isAnonymousId(appUserId)) {
+							const newCustomer = yield* createAnonymousCustomer({
+								projectId,
+								appUserId,
+								origin: CustomerOrigin.IOS, // TODO: Make this dynamic
+								environment,
+							});
+							customer = newCustomer;
+						}
 
-					// Create checkout session
-					const sessionId = generateId("checkoutSession");
-					const sessionData = {
-						id: sessionId,
-						customerId: customer.id,
-						paymentProviderConfigurationProductId: paymentProviderConfigurationProduct.id,
-						successCallbackUrl: input.successCallbackUrl,
-						errorCallbackUrl: input.errorCallbackUrl,
-						createdAt: new Date(),
-						updatedAt: new Date(),
-					};
+						if (!customer) {
+							return yield* Effect.fail(
+								new NotFoundError({
+									message: "Customer not found",
+								})
+							);
+						}
 
-					yield* checkoutSessionRepository.createCheckoutSession(sessionData);
+						// Create checkout session
+						const sessionId = generateId("checkoutSession");
+						const sessionData = {
+							id: sessionId,
+							customerId: customer.id,
+							paymentProviderConfigurationProductId:
+								paymentProviderConfigurationProduct.id,
+							successCallbackUrl: input.successCallbackUrl,
+							errorCallbackUrl: input.errorCallbackUrl,
+							createdAt: new Date(),
+							updatedAt: new Date(),
+						};
 
-					return yield* Effect.succeed({
-						checkoutSessionId: sessionId,
-						checkoutUrl: `${CHECKOUT_DOMAIN}/dev-checkout/${sessionId}`,
-					} satisfies CreateCheckoutResponse);
-				}))
+						yield* checkoutSessionRepository.createCheckoutSession(sessionData);
+
+						return yield* Effect.succeed({
+							checkoutSessionId: sessionId,
+							checkoutUrl: `${CHECKOUT_DOMAIN}/dev-checkout/${sessionId}`,
+						} satisfies CreateCheckoutResponse);
+					})
+				)
 			);
 
 			yield* Effect.log(

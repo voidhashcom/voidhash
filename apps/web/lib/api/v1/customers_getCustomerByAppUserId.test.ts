@@ -1,10 +1,11 @@
 import { generateId } from "@/lib/id/generate";
 import { eq } from "drizzle-orm";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
-import { InsertCustomer, customers } from "@voidhash/db";
+import { InsertCustomer, customers, CustomerOrigin } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { customerResponseSchema } from "./schema";
 import { z } from "zod";
+import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential("/v1/customers/**", async () => {
 	test("GET /v1/customers/by-app-user-id/:appUserId - success", async (t) => {
@@ -17,8 +18,8 @@ describe.sequential("/v1/customers/**", async () => {
 			email: "getbyappid@test.com",
 			name: "Get By App User ID Test",
 			appUserId: testAppUserId,
-			origin: "api",
-			environment: "production",
+			origin: CustomerOrigin.API,
+			environment: Environment.Production,
 		};
 
 		await h.db.primary.insert(customers).values({

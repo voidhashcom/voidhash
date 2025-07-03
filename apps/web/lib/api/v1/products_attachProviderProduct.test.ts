@@ -13,6 +13,7 @@ import {
 	providerProductResponseSchema,
 } from "./schema";
 import { stripe } from "@/lib/payment-providers/stripe/stripe";
+import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential("/v1/products/:productId/provider-products", async () => {
 	test("POST /v1/products/:productId/provider-products - success", async (t) => {
@@ -22,7 +23,7 @@ describe.sequential("/v1/products/:productId/provider-products", async () => {
 		const productInput: Omit<InsertProduct, "projectId"> = {
 			id: generateId("test"),
 			name: "Base Product for Provider",
-			environment: "production",
+			environment: Environment.Production,
 		};
 		await h.db.primary.insert(products).values({
 			...productInput,

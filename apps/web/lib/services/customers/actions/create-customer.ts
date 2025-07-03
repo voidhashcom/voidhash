@@ -4,14 +4,22 @@ import { checkProjectPermission } from "@/lib/effect/permissions";
 import { Effect, pipe, Schema } from "effect";
 import { generateId } from "@/lib/id/generate";
 import { CustomerRepository } from "../customer.repository";
-import { InsertCustomer } from "@voidhash/db";
+import { CustomerOrigin, CustomerType, InsertCustomer } from "@voidhash/db";
 
 export const createCustomerInputSchema = Schema.Struct({
 	projectId: Schema.String,
 	appUserId: Schema.String,
-	name: Schema.NullishOr(Schema.String.pipe(Schema.minLength(3), Schema.maxLength(32))),
+	name: Schema.NullishOr(
+		Schema.String.pipe(Schema.minLength(3), Schema.maxLength(32))
+	),
 	email: Schema.NullishOr(Schema.String),
-	origin: Schema.Union(Schema.Literal("dashboard"), Schema.Literal("ios"), Schema.Literal("android"), Schema.Literal("stripe"), Schema.Literal("api")),
+	origin: Schema.Union(
+		Schema.Literal(CustomerOrigin.Dashboard),
+		Schema.Literal(CustomerOrigin.IOS),
+		Schema.Literal(CustomerOrigin.Android),
+		Schema.Literal(CustomerOrigin.Stripe),
+		Schema.Literal(CustomerOrigin.API)
+	),
 });
 
 type CreateCustomerInput = Schema.Schema.Type<typeof createCustomerInputSchema>;
@@ -37,7 +45,7 @@ export const createCustomer = (inputUnsafe: CreateCustomerInput) =>
 				id: generateId("customer"),
 				projectId: input.projectId,
 				appUserId: input.appUserId,
-				type: "identified",
+				type: CustomerType.Identified,
 				name: input.name ?? null,
 				email: input.email ?? null,
 				parentCustomerId: null,

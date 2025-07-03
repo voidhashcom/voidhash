@@ -27,6 +27,7 @@ import {
 	devCheckout,
 	devCheckoutPaymentProviderId,
 } from "../payment-providers/dev-checkout/dev-checkout";
+import { Environment } from "@voidhash/lib/index";
 
 export type Resources = {
 	user: User;
@@ -223,7 +224,7 @@ export abstract class Harness {
 			prefix: "test_",
 			end: "1234",
 			isPublic: false,
-			environment: "production",
+			environment: Environment.Production,
 			projectId: project.id,
 		};
 
@@ -238,7 +239,7 @@ export abstract class Harness {
 			prefix: "test_",
 			end: "1234",
 			isPublic: true,
-			environment: "production",
+			environment: Environment.Production,
 			projectId: project.id,
 		};
 

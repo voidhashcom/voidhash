@@ -8,7 +8,12 @@ import { ID_BLACKLIST } from "@voidhash/lib/constants/id-blacklist";
 import { ANONYMOUS_USER_ID_PREFIX } from "../constants";
 import { Db, TransactionContext } from "@/lib/effect/db";
 import { CustomerRepository } from "../../customers/customer.repository";
-import { Customer } from "@voidhash/db";
+import {
+	Customer,
+	CustomerOrigin,
+	CustomerType,
+	InsertCustomer,
+} from "@voidhash/db";
 
 export class CustomerConflictError extends Data.TaggedError(
 	"CustomerConflict"
@@ -95,7 +100,7 @@ export const identifyCustomer = (inputUnsafe: IdentifyCustomerInput) =>
 						// Can't identify already identified anonymous customer.
 						if (
 							currentCustomer &&
-							currentCustomer.type === "anonymous" &&
+							currentCustomer.type === CustomerType.Anonymous &&
 							currentCustomer.parentCustomerId
 						) {
 							const parentCustomer = yield* customerRepository.getCustomerById(
@@ -128,10 +133,10 @@ export const identifyCustomer = (inputUnsafe: IdentifyCustomerInput) =>
 								parentCustomerId: null,
 								name: input.name ?? null,
 								email: input.email ?? null,
-								origin: "ios" as const, // TODO: Make this dynamic
+								origin: CustomerOrigin.IOS, // TODO: Make this dynamic
 								environment,
-								type: "identified" as const,
-							};
+								type: CustomerType.Identified,
+							} satisfies InsertCustomer;
 
 							yield* customerRepository.createCustomer(newCustomer);
 							identifyingAsCustomerId = newCustomer.id;
@@ -154,7 +159,10 @@ export const identifyCustomer = (inputUnsafe: IdentifyCustomerInput) =>
 						}
 
 						// Merge customers if current customer is anonymous
-						if (currentCustomer && currentCustomer.type === "anonymous") {
+						if (
+							currentCustomer &&
+							currentCustomer.type === CustomerType.Anonymous
+						) {
 							yield* mergeCustomers(
 								currentCustomer.id,
 								identifyingAsCustomerId

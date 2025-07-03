@@ -1,10 +1,16 @@
 import { generateId } from "@/lib/id/generate";
 import { IntegrationHarness } from "@/lib/testing/integration-harness";
-import { customers, InsertCustomer } from "@voidhash/db";
+import {
+	CustomerOrigin,
+	customers,
+	CustomerType,
+	InsertCustomer,
+} from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { sdkCustomerResponseSchema } from "./schema";
 import { eq } from "drizzle-orm";
 import { ANONYMOUS_USER_ID_PREFIX } from "@/lib/services/sdk/constants";
+import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential("/v1/sdk/identify", async () => {
 	test("POST /v1/sdk/identify - existing anonymous customer - success", async (t) => {
@@ -18,9 +24,9 @@ describe.sequential("/v1/sdk/identify", async () => {
 			projectId: h.resources.project.id,
 			appUserId: `${ANONYMOUS_USER_ID_PREFIX}${generateId("test")}`,
 			email: "initial@example.com",
-			type: "anonymous",
-			origin: "ios",
-			environment: "production",
+			type: CustomerType.Anonymous,
+			origin: CustomerOrigin.IOS,
+			environment: Environment.Production,
 		} as const;
 		// Ensure anonymous customer exists
 		await h.db.primary.insert(customers).values(anonymousCustomer);
@@ -64,7 +70,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 		expect(retrievedNewCustomer).toBeDefined();
 		expect(retrievedNewCustomer?.name).toBe(name);
 		expect(retrievedNewCustomer?.email).toBe(email);
-		expect(retrievedNewCustomer?.type).toBe("identified");
+		expect(retrievedNewCustomer?.type).toBe(CustomerType.Identified);
 
 		// Verify the anonymous customer is archived
 		const retrievedAnonymousCustomer =
@@ -72,7 +78,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 				where: eq(customers.appUserId, anonymousCustomer.appUserId),
 			});
 		expect(retrievedAnonymousCustomer).toBeDefined();
-		expect(retrievedAnonymousCustomer?.type).toBe("anonymous");
+		expect(retrievedAnonymousCustomer?.type).toBe(CustomerType.Anonymous);
 		expect(retrievedAnonymousCustomer?.parentCustomerId).toBe(
 			retrievedNewCustomer?.id
 		);
@@ -125,7 +131,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 		expect(retrievedNewCustomer).toBeDefined();
 		expect(retrievedNewCustomer?.name).toBe(name);
 		expect(retrievedNewCustomer?.email).toBe(email);
-		expect(retrievedNewCustomer?.type).toBe("identified");
+		expect(retrievedNewCustomer?.type).toBe(CustomerType.Identified);
 
 		// Verify the anonymous customer is archived
 		const retrievedAnonymousCustomer =
@@ -146,10 +152,10 @@ describe.sequential("/v1/sdk/identify", async () => {
 			id: generateId("test"),
 			projectId: h.resources.project.id,
 			appUserId: appUserId,
-			type: "identified",
+			type: CustomerType.Identified,
 			email: "initial@example.com",
-			origin: "ios",
-			environment: "production",
+			origin: CustomerOrigin.IOS,
+			environment: Environment.Production,
 		});
 
 		const res = await h.post({
@@ -242,9 +248,9 @@ describe.sequential("/v1/sdk/identify", async () => {
 			appUserId: parentAppUserId,
 			email: parentCustomerEmail,
 			name: parentName,
-			type: "identified",
-			origin: "ios",
-			environment: "production",
+			type: CustomerType.Identified,
+			origin: CustomerOrigin.IOS,
+			environment: Environment.Production,
 		};
 		await h.db.primary.insert(customers).values(parentCustomerValues);
 
@@ -254,10 +260,10 @@ describe.sequential("/v1/sdk/identify", async () => {
 			id: anonymousCustId,
 			projectId: h.resources.project.id,
 			appUserId: anonymousAppUserId,
-			type: "anonymous",
+			type: CustomerType.Anonymous,
 			parentCustomerId: parentCustomerValues.id,
-			origin: "ios",
-			environment: "production",
+			origin: CustomerOrigin.IOS,
+			environment: Environment.Production,
 		});
 
 		const res = await h.post({
@@ -295,9 +301,9 @@ describe.sequential("/v1/sdk/identify", async () => {
 			appUserId: parentAppUserId,
 			email: "p@p.com",
 			name: "P",
-			type: "identified",
-			origin: "api",
-			environment: "production",
+			type: CustomerType.Identified,
+			origin: CustomerOrigin.API,
+			environment: Environment.Production,
 		};
 		await h.db.primary.insert(customers).values(parentCustomerValues);
 
@@ -307,10 +313,10 @@ describe.sequential("/v1/sdk/identify", async () => {
 			id: anonymousCustId,
 			projectId: h.resources.project.id,
 			appUserId: anonymousAppUserId,
-			type: "anonymous",
+			type: CustomerType.Anonymous,
 			parentCustomerId: parentCustomerValues.id,
-			origin: "api",
-			environment: "production",
+			origin: CustomerOrigin.API,
+			environment: Environment.Production,
 		});
 
 		const differentAppUserId = generateId("test");
@@ -343,9 +349,9 @@ describe.sequential("/v1/sdk/identify", async () => {
 			appUserId: initialAppUserId,
 			email: "i@i.com",
 			name: "Initial",
-			type: "identified",
-			origin: "api",
-			environment: "production",
+			type: CustomerType.Identified,
+			origin: CustomerOrigin.API,
+			environment: Environment.Production,
 		};
 		await h.db.primary.insert(customers).values(initialCustomerValues);
 
@@ -369,7 +375,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 			where: eq(customers.appUserId, initialAppUserId),
 		});
 		expect(previousCustomer).toBeDefined();
-		expect(previousCustomer?.type).toBe("identified");
+		expect(previousCustomer?.type).toBe(CustomerType.Identified);
 		expect(previousCustomer?.appUserId).toBe(initialAppUserId);
 		expect(previousCustomer?.email).toBe(initialCustomerValues.email);
 		expect(previousCustomer?.parentCustomerId).toBeNull();
@@ -379,7 +385,7 @@ describe.sequential("/v1/sdk/identify", async () => {
 			where: eq(customers.appUserId, differentAppUserId),
 		});
 		expect(newCustomer).toBeDefined();
-		expect(newCustomer?.type).toBe("identified");
+		expect(newCustomer?.type).toBe(CustomerType.Identified);
 		expect(newCustomer?.appUserId).toBe(differentAppUserId);
 		expect(newCustomer?.parentCustomerId).toBeNull();
 		expect(newCustomer?.archivedAt).toBeNull();

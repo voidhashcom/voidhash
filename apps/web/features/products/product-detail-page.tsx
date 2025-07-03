@@ -24,6 +24,7 @@ import { Environment } from "@/lib/effect/environment";
 import { AuthSession } from "@/lib/effect/auth";
 import { ProjectService } from "@/lib/services/projects/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
+import { Environment as EnvironmentEnum } from "@voidhash/lib/index";
 
 export async function ProductDetailPage({
 	organizationSlug,
@@ -34,53 +35,73 @@ export async function ProductDetailPage({
 	projectSlug: string;
 	id: string;
 }) {
+	const data = await runServerEffect(
+		AuthSession.withAuthSession()(
+			Environment.withEnvironment({
+				organizationSlug,
+				projectSlug,
+			})(
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const paymentProviderService = yield* PaymentProviderService;
+					const perkService = yield* PerkService;
+					const environment = yield* Environment;
+					const projectService = yield* ProjectService;
 
-	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
-		organizationSlug,
-		projectSlug,
-	})(Effect.gen(function* () {
-		const productService = yield* ProductService;
-		const paymentProviderService = yield* PaymentProviderService;
-		const perkService = yield* PerkService;
-		const environment = yield* Environment;
-		const projectService = yield* ProjectService;
+					const project =
+						yield* projectService.getProjectBySlugAndOrganizationSlug({
+							organizationSlug,
+							projectSlug,
+						});
 
+					if (!project) {
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Project not found",
+							})
+						);
+					}
 
-		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
-			organizationSlug,
-			projectSlug,
-		});
+					const [
+						product,
+						providerProducts,
+						paymentProviderConfigurations,
+						perks,
+						productPerks,
+					] = yield* Effect.all([
+						productService.getProductById(id),
+						productService.getProviderProductsByProductId(id),
+						paymentProviderService.getPaymentProviderConfigurations(project.id),
+						perkService.getPerks(project.id),
+						productService.getProductPerksByProductId(id),
+					]);
 
-		if (!project) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Project not found",
-			}));
-		}
-
-		const [product, providerProducts, paymentProviderConfigurations, perks, productPerks] = yield* Effect.all([
-			productService.getProductById(id),
-			productService.getProviderProductsByProductId(id),
-			paymentProviderService.getPaymentProviderConfigurations(project.id),
-			perkService.getPerks(project.id),
-			productService.getProductPerksByProductId(id),
-		]);
-
-		return {
-			product,
-			providerProducts,
-			paymentProviderConfigurations,
-			environment,
-			perks,
-			productPerks,
-		};
-	}))));
+					return {
+						product,
+						providerProducts,
+						paymentProviderConfigurations,
+						environment,
+						perks,
+						productPerks,
+					};
+				})
+			)
+		)
+	);
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();
 		return <VoidhashErrorCard error={error} />;
 	}
 
-	const { product, providerProducts, paymentProviderConfigurations, environment, perks, productPerks } = data.value;
+	const {
+		product,
+		providerProducts,
+		paymentProviderConfigurations,
+		environment,
+		perks,
+		productPerks,
+	} = data.value;
 
 	const enabledPaymentProviderConfigurations = paymentProviderConfigurations
 		.map((paymentProviderConfiguration) => {
@@ -179,7 +200,7 @@ export async function ProductDetailPage({
 						)}
 					</div>
 				</div>
-				{environment !== "testing" && (
+				{environment !== EnvironmentEnum.Testing && (
 					<div className="mt-16">
 						<h2 className="text-2xl font-normal tracking-right">
 							Payment Providers

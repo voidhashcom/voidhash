@@ -28,7 +28,10 @@ import {
 import { rotateSecretKeyInputSchema } from "@/lib/services/api-keys/actions/rotate-secret-key";
 import { createSecretKeyInputSchema } from "@/lib/services/api-keys/actions/create-secret-key";
 import { deleteSecretKeyInputSchema } from "@/lib/services/api-keys/actions/delete-secret-key";
-import { EnvironmentService, switchEnvironmentInputSchema } from "@/lib/services/environments/environment.service";
+import {
+	EnvironmentService,
+	switchEnvironmentInputSchema,
+} from "@/lib/services/environments/environment.service";
 import {
 	createProduct,
 	createProductInputSchema,
@@ -100,7 +103,10 @@ import {
 	deletePaymentProviderConfiguration,
 	deletePaymentProviderConfigurationInputSchema,
 } from "../services/payment-providers/actions/delete-payment-provider-configuration";
-import { NextjsErrorResponse, runServerEffect } from "../effect/runtimes/nextjs";
+import {
+	NextjsErrorResponse,
+	runServerEffect,
+} from "../effect/runtimes/nextjs";
 import { Effect, pipe, Schema } from "effect";
 import { PerkService } from "../services/perks/perk.service";
 import { PaywallLocationService } from "../services/paywall-locations/paywall-location.service";
@@ -109,6 +115,7 @@ import { CustomerService } from "../services/customers/customer.service";
 import { DevCheckoutService } from "../payment-providers/dev-checkout/dev-checkout.service";
 import { confirmDevCheckoutPurchaseInputSchema } from "../payment-providers/dev-checkout/actions/confirm-purchase";
 import { cancelDevCheckoutPurchaseInputSchema } from "../payment-providers/dev-checkout/actions/cancel-purchase";
+import { CustomerOrigin } from "@voidhash/db";
 // Api keys
 export const createSecretKeyAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createSecretKeyInputSchema))
@@ -255,11 +262,7 @@ export const updateOrganizationAction = actionClient
 export const deleteOrganizationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deleteOrganizationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await runServerEffect(
-			pipe(
-				deleteOrganization(parsedInput),
-			)
-		);
+		const res = await runServerEffect(pipe(deleteOrganization(parsedInput)));
 
 		if (res.isErr()) {
 			throw res.error;
@@ -272,11 +275,7 @@ export const deleteOrganizationAction = actionClient
 export const createProjectAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createProjectInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await runServerEffect(
-			pipe(
-				createProject(parsedInput),
-			)
-		);
+		const res = await runServerEffect(pipe(createProject(parsedInput)));
 
 		if (res.isErr()) {
 			throw res.error;
@@ -372,7 +371,7 @@ export const switchEnvironmentAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -380,11 +379,13 @@ export const switchEnvironmentAction = actionClient
 
 // Payment providers
 export const createPaymentProviderConfigurationAction = actionClient
-	.inputSchema(Schema.standardSchemaV1(createPaymentProviderConfigurationInputSchema))
+	.inputSchema(
+		Schema.standardSchemaV1(createPaymentProviderConfigurationInputSchema)
+	)
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				createPaymentProviderConfiguration(parsedInput),	
+				createPaymentProviderConfiguration(parsedInput),
 				Effect.catchTags({
 					PaymentProviderNotFoundError: (error) =>
 						Effect.fail(
@@ -405,14 +406,16 @@ export const createPaymentProviderConfigurationAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
 	});
 
 export const updatePaymentProviderConfigurationAction = actionClient
-	.inputSchema(Schema.standardSchemaV1(updatePaymentProviderConfigurationInputSchema))
+	.inputSchema(
+		Schema.standardSchemaV1(updatePaymentProviderConfigurationInputSchema)
+	)
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
@@ -451,14 +454,16 @@ export const updatePaymentProviderConfigurationAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
 	});
 
 export const deletePaymentProviderConfigurationAction = actionClient
-	.inputSchema(Schema.standardSchemaV1(deletePaymentProviderConfigurationInputSchema))
+	.inputSchema(
+		Schema.standardSchemaV1(deletePaymentProviderConfigurationInputSchema)
+	)
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
@@ -476,7 +481,7 @@ export const deletePaymentProviderConfigurationAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -502,7 +507,7 @@ export const createProductAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -527,7 +532,7 @@ export const updateProductAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -552,7 +557,7 @@ export const deleteProductAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -581,12 +586,11 @@ export const createProductPerkAction = actionClient
 							})
 						),
 				})
-
 			)
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -611,7 +615,7 @@ export const deleteProductPerkAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -658,7 +662,7 @@ export const createPaymentProviderProductAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -711,14 +715,16 @@ export const updatePaymentProviderProductAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
 	});
 
 export const setActivePaymentProviderProductAction = actionClient
-	.inputSchema(Schema.standardSchemaV1(setActivePaymentProviderProductInputSchema))
+	.inputSchema(
+		Schema.standardSchemaV1(setActivePaymentProviderProductInputSchema)
+	)
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
@@ -750,7 +756,7 @@ export const setActivePaymentProviderProductAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -775,7 +781,7 @@ export const deletePaymentProviderProductAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -793,14 +799,14 @@ export const createCustomerAction = actionClient
 				Effect.flatMap((customerService) =>
 					customerService.createCustomer({
 						...parsedInput,
-						origin: "dashboard",
+						origin: CustomerOrigin.Dashboard,
 					})
-				),
+				)
 			)
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -810,14 +816,10 @@ export const createCustomerAction = actionClient
 export const createPaywallAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createPaywallInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await runServerEffect(
-			pipe(
-				createPaywall(parsedInput),
-			)
-		);
+		const res = await runServerEffect(pipe(createPaywall(parsedInput)));
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -856,7 +858,7 @@ export const updatePaywallAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -888,7 +890,7 @@ export const deletePaywallAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -924,7 +926,7 @@ export const createPaywallLocationAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -954,7 +956,7 @@ export const deletePaywallLocationAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -980,7 +982,7 @@ export const createPerkAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -1008,7 +1010,7 @@ export const deletePerkAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -1039,13 +1041,12 @@ export const confirmDevCheckoutPurchaseAction = actionClient
 								message: error.message,
 							})
 						),
-
 				})
 			)
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;
@@ -1080,7 +1081,7 @@ export const cancelDevCheckoutPurchaseAction = actionClient
 		);
 
 		if (res.isErr()) {
-			throw res.error
+			throw res.error;
 		}
 
 		return res.value;

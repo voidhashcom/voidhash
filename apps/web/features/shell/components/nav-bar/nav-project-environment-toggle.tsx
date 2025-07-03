@@ -1,20 +1,23 @@
 "use client";
 
 import { switchEnvironmentAction } from "@/lib/nextjs/server-actions";
-import { Environment } from "@/lib/services/environments/types";
 import { cn, Label, Switch } from "@voidhash/ui";
 import { useAction } from "next-safe-action/hooks";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import {
+	Environment as EnvironmentEnum,
+	EnvironmentValue,
+} from "@voidhash/lib/index";
 
 export function NavProjectEnvironmentToggle({
 	environment,
 	projectId,
-}: { environment: Environment; projectId: string }) {
+}: { environment: EnvironmentValue; projectId: string }) {
 	const router = useRouter();
 	const { execute, isExecuting } = useAction(switchEnvironmentAction, {
 		onSuccess: ({ input }) => {
-			if (input.environment === "testing") {
+			if (input.environment === EnvironmentEnum.Testing) {
 				toast.success("Switched to testing environment");
 			} else {
 				toast.success("Switched to production environment");
@@ -31,7 +34,10 @@ export function NavProjectEnvironmentToggle({
 	const handleSwitch = () => {
 		execute({
 			projectId: projectId,
-			environment: environment === "testing" ? "production" : "testing",
+			environment:
+				environment === EnvironmentEnum.Testing
+					? EnvironmentEnum.Production
+					: EnvironmentEnum.Testing,
 		});
 	};
 
@@ -39,13 +45,15 @@ export function NavProjectEnvironmentToggle({
 		<div className="flex items-center gap-2">
 			<Label
 				htmlFor="test-mode-switch"
-				className={cn(environment === "testing" && "text-primary")}
+				className={cn(
+					environment === EnvironmentEnum.Testing && "text-primary"
+				)}
 			>
 				Dev Mode
 			</Label>
 			<Switch
 				id="test-mode-switch"
-				checked={environment === "testing"}
+				checked={environment === EnvironmentEnum.Testing}
 				disabled={isExecuting}
 				className="data-[state=checked]:bg-primary"
 				onCheckedChange={handleSwitch}

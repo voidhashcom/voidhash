@@ -5,6 +5,7 @@ import {
 	PaymentProviderConfigurationSheetSection,
 	PaymentProviderProductEditorSheetSection,
 } from "../../services/payment-providers/core/types";
+import { Environment } from "@voidhash/lib/index";
 
 export const appStorePaymentProviderId = "app-store" as const;
 
@@ -46,7 +47,7 @@ export class AppStorePaymentProvider
 		super(
 			appStorePaymentProviderId,
 			"App Store",
-			["production"],
+			[Environment.Production],
 			["bundleId"] as const,
 			["productId"] as const,
 			"native"

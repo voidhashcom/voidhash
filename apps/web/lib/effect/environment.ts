@@ -1,7 +1,10 @@
 import { Context, Data, Effect } from "effect";
 import { AuthSession } from "./auth";
 import { Cookies } from "./cookies";
-import { Environment as EnvironmentType } from "@voidhash/lib/constants";
+import {
+	Environment as EnvironmentEnum,
+	EnvironmentValue,
+} from "@voidhash/lib/constants";
 
 export class MissingEnvironmentError extends Data.TaggedError(
 	"MissingEnvironmentError"
@@ -88,7 +91,7 @@ const withEnvironment =
 
 export class Environment extends Context.Tag("app/Environment")<
 	Environment,
-	EnvironmentType
+	EnvironmentValue
 >() {
 	static withEnvironment = withEnvironment;
 }
@@ -223,30 +226,35 @@ export const getEnvironmentFromCookie = (
 				})
 			);
 		}
-		return yield* validateEnvironment(projectEnvironmentCookie);
+		return yield* validateEnvironment(
+			Number.parseInt(projectEnvironmentCookie)
+		);
 	});
 
 export const setEnvironmentCookie = (
 	organizationSlug: string,
 	projectSlug: string,
-	environment: EnvironmentType
+	environment: EnvironmentValue
 ) =>
 	Effect.gen(function* () {
 		const cookies = yield* Cookies;
 		yield* cookies.setCookie(
 			`project_environment_${organizationSlug}:${projectSlug}`,
-			environment
+			environment.toString()
 		);
 	});
 
-const validateEnvironment = (environment: string) =>
+const validateEnvironment = (environment: number) =>
 	Effect.gen(function* () {
-		if (environment !== "production" && environment !== "testing") {
+		if (
+			environment !== EnvironmentEnum.Production &&
+			environment !== EnvironmentEnum.Testing
+		) {
 			return yield* Effect.fail(
 				new InvalidEnvironmentError({
 					message: `Invalid environment: ${environment}`,
 				})
 			);
 		}
-		return environment satisfies EnvironmentType;
+		return environment satisfies EnvironmentValue;
 	});

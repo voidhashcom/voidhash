@@ -5,6 +5,7 @@ import { AuthSession } from "@/lib/effect/auth";
 import { Environment } from "@/lib/effect/environment";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { NotFoundError } from "@/lib/effect/errors";
+import { CustomerTypeValue } from "@voidhash/db";
 
 export class CustomerService extends Effect.Service<CustomerService>()(
 	"CustomerService",
@@ -18,7 +19,7 @@ export class CustomerService extends Effect.Service<CustomerService>()(
 					type,
 				}: {
 					projectId: string;
-					type?: "identified" | "anonymous";
+					type?: CustomerTypeValue;
 				}) =>
 					pipe(
 						Effect.gen(function* () {
@@ -131,7 +132,8 @@ export class CustomerService extends Effect.Service<CustomerService>()(
 					pipe(
 						Effect.gen(function* () {
 							const session = yield* AuthSession;
-							const customer = yield* customerRepository.getCustomerById(customerId);
+							const customer =
+								yield* customerRepository.getCustomerById(customerId);
 							if (!customer) {
 								return yield* Effect.fail(
 									new NotFoundError({

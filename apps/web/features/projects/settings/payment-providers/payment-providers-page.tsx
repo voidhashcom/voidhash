@@ -17,6 +17,7 @@ import { Environment } from "@/lib/effect/environment";
 import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { AuthSession } from "@/lib/effect/auth";
+import { Environment as EnvironmentEnum } from "@voidhash/lib/index";
 
 export async function PaymentProvidersPage({
 	paramsPromise,
@@ -27,27 +28,39 @@ export async function PaymentProvidersPage({
 	}>;
 }) {
 	const { organizationSlug, projectSlug } = await paramsPromise;
-	
-	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
-		organizationSlug,
-		projectSlug,
-	})(Effect.gen(function* () {
-		const projectService = yield* ProjectService;
-		const paymentProviderService = yield* PaymentProviderService;
-		const environment = yield* Environment;
-		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
-			organizationSlug,
-			projectSlug,
-		});
-		if (!project) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Project not found",
-			}));
-		}
-		const paymentProviderConfigurations = yield* paymentProviderService.getPaymentProviderConfigurations(project.id);
 
-		return { project, environment, paymentProviderConfigurations };
-	}))));
+	const data = await runServerEffect(
+		AuthSession.withAuthSession()(
+			Environment.withEnvironment({
+				organizationSlug,
+				projectSlug,
+			})(
+				Effect.gen(function* () {
+					const projectService = yield* ProjectService;
+					const paymentProviderService = yield* PaymentProviderService;
+					const environment = yield* Environment;
+					const project =
+						yield* projectService.getProjectBySlugAndOrganizationSlug({
+							organizationSlug,
+							projectSlug,
+						});
+					if (!project) {
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Project not found",
+							})
+						);
+					}
+					const paymentProviderConfigurations =
+						yield* paymentProviderService.getPaymentProviderConfigurations(
+							project.id
+						);
+
+					return { project, environment, paymentProviderConfigurations };
+				})
+			)
+		)
+	);
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();
@@ -55,8 +68,6 @@ export async function PaymentProvidersPage({
 	}
 
 	const { project, environment, paymentProviderConfigurations } = data.value;
-	
-
 
 	const applicationsWithConfiguration = paymentProviderConfigurations
 		.map((p) => {
@@ -76,10 +87,9 @@ export async function PaymentProvidersPage({
 	const webCheckoutProvidersWithConfigurations = paymentProviders
 		.filter((p) => p.getType() === "web-checkout" && p.getIsConfigurable())
 		.map((paymentProvider) => {
-			const paymentProvidersConfiguration =
-				paymentProviderConfigurations?.find(
-					(p) => p.providerId === paymentProvider.getId()
-				);
+			const paymentProvidersConfiguration = paymentProviderConfigurations?.find(
+				(p) => p.providerId === paymentProvider.getId()
+			);
 			return {
 				...paymentProvidersConfiguration,
 				provider: paymentProvider,
@@ -97,7 +107,7 @@ export async function PaymentProvidersPage({
 					Configure your payment providers.
 				</p>
 
-				{environment === "testing" && (
+				{environment === EnvironmentEnum.Testing && (
 					<EnvironmentFilterNotification
 						message="Payment providers configured here are shared between development and production environments. Please proceed with caution."
 						className="mt-6"

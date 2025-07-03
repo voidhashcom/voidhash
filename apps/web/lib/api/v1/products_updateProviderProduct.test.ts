@@ -12,6 +12,7 @@ import { z } from "zod";
 import { stripe } from "@/lib/payment-providers/stripe/stripe";
 import { RouteResponse, RouteRequest } from "./products_updateProviderProduct";
 import { createPaymentProviderKey } from "@/lib/services/products/lib";
+import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential(
 	"/v1/products/:productId/provider-products/:providerId/:providerProductKey",
@@ -23,7 +24,7 @@ describe.sequential(
 			const productInput: Omit<InsertProduct, "projectId"> = {
 				id: generateId("test"),
 				name: "Base Product for Update Provider",
-				environment: "production",
+				environment: Environment.Production,
 			};
 			await h.db.primary.insert(products).values({
 				...productInput,

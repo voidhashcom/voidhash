@@ -3,7 +3,7 @@ import {
 	VoidhashInternalServerError,
 	VoidhashNotFoundError,
 } from "@voidhash/lib/constants";
-import { type Environment } from "./types";
+import { type EnvironmentValue } from "@voidhash/lib/index";
 import { CookiesAdapter } from "@/lib/cookies-adapter";
 import { err, ok, Result, ResultAsync } from "neverthrow";
 import { cache } from "react";
@@ -14,7 +14,10 @@ export const getEnvironment = cache(
 		organizationSlug: string,
 		projectSlug: string
 	): Promise<
-		Result<Environment, VoidhashInternalServerError | VoidhashNotFoundError>
+		Result<
+			EnvironmentValue,
+			VoidhashInternalServerError | VoidhashNotFoundError
+		>
 	> => {
 		const projectEnvironmentCookie = await ResultAsync.fromPromise(
 			cookies.get(`project_environment_${organizationSlug}:${projectSlug}`),
@@ -34,7 +37,7 @@ export const getEnvironment = cache(
 			});
 		}
 
-		return ok(projectEnvironmentCookie.value as Environment);
+		return ok(parseInt(projectEnvironmentCookie.value) as EnvironmentValue);
 	}
 );
 
@@ -42,12 +45,12 @@ export async function setEnvironment(
 	cookies: CookiesAdapter,
 	organizationSlug: string,
 	projectSlug: string,
-	environment: Environment
+	environment: EnvironmentValue
 ): Promise<Result<void, VoidhashInternalServerError>> {
 	const res = await ResultAsync.fromPromise(
 		cookies.set(
 			`project_environment_${organizationSlug}:${projectSlug}`,
-			environment
+			environment.toString()
 		),
 		(e) => fromUnknownThrow(e)
 	);

@@ -12,6 +12,7 @@ import {
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { paywallProductResponseSchema } from "./schema";
+import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential("/v1/paywalls/:paywallId/products", async () => {
 	test("GET /v1/paywalls/:paywallId/products - success", async (t) => {
@@ -21,7 +22,7 @@ describe.sequential("/v1/paywalls/:paywallId/products", async () => {
 		const paywallInput: Omit<InsertPaywall, "projectId"> = {
 			id: generateId("test"),
 			name: "Paywall for Get Products",
-			environment: "production",
+			environment: Environment.Production,
 		};
 		await h.db.primary.insert(paywalls).values({
 			...paywallInput,
@@ -32,7 +33,7 @@ describe.sequential("/v1/paywalls/:paywallId/products", async () => {
 		const productInput: Omit<InsertProduct, "projectId"> = {
 			id: generateId("test"),
 			name: "Product Attached to Paywall",
-			environment: "production",
+			environment: Environment.Production,
 		};
 		await h.db.primary.insert(products).values({
 			...productInput,
@@ -88,7 +89,7 @@ describe.sequential("/v1/paywalls/:paywallId/products", async () => {
 		const paywallInput: Omit<InsertPaywall, "projectId"> = {
 			id: generateId("test"),
 			name: "Empty Paywall",
-			environment: "production",
+			environment: Environment.Production,
 		};
 		await h.db.primary.insert(paywalls).values({
 			...paywallInput,

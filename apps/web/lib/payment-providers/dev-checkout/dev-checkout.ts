@@ -5,6 +5,7 @@ import {
 	PaymentProviderConfigurationSheetSection,
 	PaymentProviderProductEditorSheetSection,
 } from "../../services/payment-providers/core/types";
+import { Environment } from "@voidhash/lib/index";
 
 export const devCheckoutPaymentProviderId = "dev-checkout" as const;
 
@@ -33,7 +34,7 @@ export class DevCheckoutPaymentProvider
 		super(
 			devCheckoutPaymentProviderId,
 			"Dev Checkout",
-			["testing"],
+			[Environment.Testing],
 			["paymentProviderConfigurationId"],
 			["productId"],
 			"web-checkout"

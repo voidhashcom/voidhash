@@ -3,6 +3,7 @@ import { DataTable } from "./data-table";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { CustomerService } from "@/lib/services/customers/customer.service";
+import { CustomerTypeValue } from "@voidhash/db";
 import { Effect, pipe } from "effect";
 
 export async function CustomersTable({
@@ -12,19 +13,19 @@ export async function CustomersTable({
 	projectSlug,
 }: {
 	projectId: string;
-	type?: "identified" | "anonymous";
+	type?: CustomerTypeValue;
 	organizationSlug: string;
 	projectSlug: string;
 }) {
 	const customersResult = await runServerEffect(
-			pipe(
-				CustomerService,
-				Effect.flatMap((customerService) =>
-					customerService.getCustomers({
-						projectId,
-						type: type,
-					})
-				)
+		pipe(
+			CustomerService,
+			Effect.flatMap((customerService) =>
+				customerService.getCustomers({
+					projectId,
+					type: type,
+				})
+			)
 		)
 	);
 

@@ -9,6 +9,7 @@ import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { CustomerService } from "@/lib/services/customers/customer.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
+import { CustomerOrigin } from "@voidhash/db";
 
 const route = describeRoute({
 	description: "Create a new customer",
@@ -51,7 +52,7 @@ export const registerCustomersCreateCustomer = (app: App) =>
 							email: c.req.valid("json").email,
 							name: c.req.valid("json").name,
 							appUserId: c.req.valid("json").appUserId,
-							origin: "api",
+							origin: CustomerOrigin.API,
 							projectId,
 						})
 					);

@@ -1,5 +1,8 @@
 import { base64Url } from "@voidhash/lib/functions";
-import { Environment, Environments } from "../environments/types";
+import {
+	EnvironmentValue,
+	Environment as EnvironmentEnum,
+} from "@voidhash/lib/index";
 import { createHash } from "@voidhash/lib";
 import { ApiKey } from "./types";
 
@@ -23,7 +26,7 @@ export type SecretKey = {
 	isPublic: false;
 	end: string;
 	prefix: string;
-	environment: Environment;
+	environment: EnvironmentValue;
 };
 
 export type PublishableKey = {
@@ -32,7 +35,7 @@ export type PublishableKey = {
 	isPublic: true;
 	end: string;
 	prefix: string;
-	environment: Environment;
+	environment: EnvironmentValue;
 };
 
 export const PRODUCTION_SECRET_KEY_PREFIX = "vh_sk_";
@@ -40,11 +43,11 @@ export const TESTING_SECRET_KEY_PREFIX = "vh_sk_test_";
 export const PRODUCTION_PUBLISHABLE_KEY_PREFIX = "vh_pk_";
 export const TESTING_PUBLISHABLE_KEY_PREFIX = "vh_pk_test_";
 
-async function generateSecretKey(environment: Environment) {
+async function generateSecretKey(environment: EnvironmentValue) {
 	const key = await keyGenerator({
 		length: 32,
 		prefix:
-			environment === Environments.Production
+			environment === EnvironmentEnum.Production
 				? PRODUCTION_SECRET_KEY_PREFIX
 				: TESTING_SECRET_KEY_PREFIX,
 	});
@@ -52,11 +55,11 @@ async function generateSecretKey(environment: Environment) {
 	return key;
 }
 
-async function generatePublishableKey(environment: Environment) {
+async function generatePublishableKey(environment: EnvironmentValue) {
 	const key = await keyGenerator({
 		length: 32,
 		prefix:
-			environment === Environments.Production
+			environment === EnvironmentEnum.Production
 				? PRODUCTION_PUBLISHABLE_KEY_PREFIX
 				: TESTING_PUBLISHABLE_KEY_PREFIX,
 	});
@@ -65,7 +68,7 @@ async function generatePublishableKey(environment: Environment) {
 }
 
 export const createPublishableKey = async (
-	environment: Environment
+	environment: EnvironmentValue
 ): Promise<ApiKey> => {
 	const key = await generatePublishableKey(environment);
 	return {
@@ -75,14 +78,14 @@ export const createPublishableKey = async (
 		isPublic: true,
 		end: key.slice(-KEY_END_LENGTH),
 		prefix:
-			environment === Environments.Production
+			environment === EnvironmentEnum.Production
 				? PRODUCTION_PUBLISHABLE_KEY_PREFIX
 				: TESTING_PUBLISHABLE_KEY_PREFIX,
 	};
 };
 
 export const createSecretKey = async (
-	environment: Environment
+	environment: EnvironmentValue
 ): Promise<ApiKey> => {
 	const key = await generateSecretKey(environment);
 	const hashed = await hashKey(key);
@@ -96,7 +99,7 @@ export const createSecretKey = async (
 		isPublic: false,
 		end: end,
 		prefix:
-			environment === Environments.Production
+			environment === EnvironmentEnum.Production
 				? PRODUCTION_SECRET_KEY_PREFIX
 				: TESTING_SECRET_KEY_PREFIX,
 	};

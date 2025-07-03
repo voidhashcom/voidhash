@@ -1,6 +1,6 @@
 import { Db } from "@/lib/effect/db";
 import { and, eq, InsertPaywallLocation, paywallLocations } from "@voidhash/db";
-import { Environment } from "@voidhash/lib/constants";
+import { EnvironmentValue } from "@voidhash/lib/constants";
 import { Effect } from "effect";
 
 export class PaywallLocationRepository extends Effect.Service<PaywallLocationRepository>()(
@@ -18,7 +18,10 @@ export class PaywallLocationRepository extends Effect.Service<PaywallLocationRep
 				),
 
 				getPaywallLocations: dbService.makeQuery(
-					(execute, input: { projectId: string; environment: Environment }) =>
+					(
+						execute,
+						input: { projectId: string; environment: EnvironmentValue }
+					) =>
 						execute(
 							async (db) =>
 								await db.query.paywallLocations.findMany({
@@ -45,7 +48,7 @@ export class PaywallLocationRepository extends Effect.Service<PaywallLocationRep
 						input: {
 							slug: string;
 							projectId: string;
-							environment: Environment;
+							environment: EnvironmentValue;
 						}
 					) =>
 						execute(

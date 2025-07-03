@@ -1,4 +1,4 @@
-import { Environment } from "@voidhash/lib/constants";
+import { EnvironmentValue } from "@voidhash/lib/constants";
 import { z } from "zod";
 
 export class BasePaymentProvider<
@@ -8,7 +8,7 @@ export class BasePaymentProvider<
 > {
 	private _id: TKey;
 	private _title: string;
-	private _environments: Environment[];
+	private _environments: EnvironmentValue[];
 	private _globalConfigurationKeyProperties: (keyof z.infer<TGlobalConfigurationSchema>)[];
 	private _productKeyProperties: (keyof z.infer<TProductConfigurationSchema>)[];
 	private _type: "native" | "web-checkout";
@@ -17,7 +17,7 @@ export class BasePaymentProvider<
 	constructor(
 		id: TKey,
 		title: string,
-		environments: Environment[],
+		environments: EnvironmentValue[],
 		globalConfigurationKeyProperties: (keyof z.infer<TGlobalConfigurationSchema>)[],
 		productKeyProperties: (keyof z.infer<TProductConfigurationSchema>)[],
 		type: "native" | "web-checkout"
@@ -42,7 +42,7 @@ export class BasePaymentProvider<
 		return this._type;
 	}
 
-	public isAvailableInEnvironment(environment: Environment) {
+	public isAvailableInEnvironment(environment: EnvironmentValue) {
 		return this._environments.includes(environment);
 	}
 

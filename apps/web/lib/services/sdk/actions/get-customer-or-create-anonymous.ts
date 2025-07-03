@@ -6,6 +6,7 @@ import { isAnonymousId } from "../utils";
 import { createAnonymousCustomer } from "../create-anonymous-customer";
 import { Db, TransactionContext } from "@/lib/effect/db";
 import { CustomerRepository } from "../../customers/customer.repository";
+import { CustomerOrigin } from "@voidhash/db";
 
 export const getCustomerOrCreateAnonymous = () =>
 	pipe(
@@ -34,41 +35,46 @@ export const getCustomerOrCreateAnonymous = () =>
 			}
 
 			const result = yield* db.transaction((tx) =>
-				TransactionContext.provide(tx)(Effect.gen(function* () {
-					// Try to get existing customer
-					const customer = yield* customerRepository.getCustomerByAppUserId({
-						appUserId,
-						environment,
-						projectId,
-					})
-
-					if (customer) {
-						// Return parent if it exists, otherwise return the customer itself
-						if (customer.parentCustomerId) {
-							const parentCustomer = yield* customerRepository.getCustomerById(customer.parentCustomerId);
-							return parentCustomer;
-						}
-						return customer;
-					}
-
-					// Customer not found, check if we should create anonymous customer
-					if (isAnonymousId(appUserId)) {
-						const newCustomer = yield* createAnonymousCustomer({
-							projectId,
+				TransactionContext.provide(tx)(
+					Effect.gen(function* () {
+						// Try to get existing customer
+						const customer = yield* customerRepository.getCustomerByAppUserId({
 							appUserId,
-							origin: "ios", // TODO: Make this dynamic
 							environment,
+							projectId,
 						});
-						return newCustomer;
-					}
 
-					// Customer not found and not anonymous ID
-					return yield* Effect.fail(
-						new NotFoundError({
-							message: "Customer not found",
-						})
-					);
-				}))
+						if (customer) {
+							// Return parent if it exists, otherwise return the customer itself
+							if (customer.parentCustomerId) {
+								const parentCustomer =
+									yield* customerRepository.getCustomerById(
+										customer.parentCustomerId
+									);
+								return parentCustomer;
+							}
+							return customer;
+						}
+
+						// Customer not found, check if we should create anonymous customer
+						if (isAnonymousId(appUserId)) {
+							const newCustomer = yield* createAnonymousCustomer({
+								projectId,
+								appUserId,
+								origin: CustomerOrigin.IOS, // TODO: Make this dynamic
+								environment,
+							});
+							return newCustomer;
+						}
+
+						// Customer not found and not anonymous ID
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Customer not found",
+							})
+						);
+					})
+				)
 			);
 
 			return result;

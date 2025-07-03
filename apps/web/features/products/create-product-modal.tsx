@@ -27,7 +27,7 @@ import { useAction } from "next-safe-action/hooks";
 import { createProductAction } from "@/lib/nextjs/server-actions";
 import { useRouter } from "next/navigation";
 import { Badge, InfoTooltip, RadioGroup, RadioGroupItem } from "@voidhash/ui";
-import { PRODUCT_TYPE_LABELS, PRODUCT_TYPES } from "@voidhash/lib/constants";
+import { ProductTypeLabels, ProductType } from "@voidhash/lib/index";
 
 const createProductSchema = z.object({
 	name: z
@@ -35,7 +35,7 @@ const createProductSchema = z.object({
 		.min(3, "Name must be at least 3 characters long")
 		.max(32, "Name must be less than 32 characters"),
 
-	type: z.enum(PRODUCT_TYPES),
+	type: z.nativeEnum(ProductType),
 });
 
 type CreateProductForm = z.infer<typeof createProductSchema>;
@@ -71,7 +71,7 @@ export function CreateProductModal({
 		resolver: zodResolver(createProductSchema),
 		defaultValues: {
 			name: "",
-			type: PRODUCT_TYPES[0],
+			type: ProductType.Subscription,
 		},
 	});
 
@@ -137,24 +137,33 @@ export function CreateProductModal({
 									<FormControl>
 										<RadioGroup
 											onValueChange={field.onChange}
-											defaultValue={field.value}
+											defaultValue={field.value.toString()}
 											className="flex flex-col space-y-1"
 										>
 											<FormItem className="flex items-center space-x-3 space-y-0">
 												<FormControl>
-													<RadioGroupItem value="subscription" />
+													<RadioGroupItem
+														value={ProductType.Subscription.toString()}
+													/>
 												</FormControl>
 												<FormLabel className="font-normal">
-													<span>{PRODUCT_TYPE_LABELS["subscription"]}</span>
+													<span>
+														{ProductTypeLabels[ProductType.Subscription]}
+													</span>
 												</FormLabel>
 											</FormItem>
 											<FormItem className="flex items-center space-x-3 space-y-0 opacity-50">
 												<FormControl>
-													<RadioGroupItem disabled={true} value="one_time" />
+													<RadioGroupItem
+														disabled={true}
+														value={ProductType.OneTime.toString()}
+													/>
 												</FormControl>
 												<FormLabel className="font-normal">
 													<span className="flex items-center gap-2">
-														<span>{PRODUCT_TYPE_LABELS["one_time"]}</span>
+														<span>
+															{ProductTypeLabels[ProductType.OneTime]}
+														</span>
 														<Badge variant="outline">Coming Soon</Badge>
 													</span>
 													<InfoTooltip info="One-time products can only be purchased once per customer. For example: Lifetime access to a course." />
@@ -164,13 +173,13 @@ export function CreateProductModal({
 												<FormControl>
 													<RadioGroupItem
 														disabled={true}
-														value={PRODUCT_TYPES[2]}
+														value={ProductType.OneTimeConsumable.toString()}
 													/>
 												</FormControl>
 												<FormLabel className="font-normal">
 													<span className="flex items-center gap-2">
 														<span>
-															{PRODUCT_TYPE_LABELS["one_time_consumable"]}
+															{ProductTypeLabels[ProductType.OneTimeConsumable]}
 														</span>
 														<Badge variant="outline">Coming Soon</Badge>
 													</span>

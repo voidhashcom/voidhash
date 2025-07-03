@@ -1,6 +1,6 @@
 import { Db } from "@/lib/effect/db";
 import { and, eq, InsertPerk, perks } from "@voidhash/db";
-import { Environment } from "@voidhash/lib/constants";
+import { EnvironmentValue } from "@voidhash/lib/constants";
 import { Effect } from "effect";
 
 export class PerkRepository extends Effect.Service<PerkRepository>()(
@@ -14,7 +14,10 @@ export class PerkRepository extends Effect.Service<PerkRepository>()(
 				),
 
 				getPerks: dbService.makeQuery(
-					(execute, input: { projectId: string; environment: Environment }) =>
+					(
+						execute,
+						input: { projectId: string; environment: EnvironmentValue }
+					) =>
 						execute(
 							async (db) =>
 								await db.query.perks.findMany({
@@ -39,7 +42,7 @@ export class PerkRepository extends Effect.Service<PerkRepository>()(
 						input: {
 							slug: string;
 							projectId: string;
-							environment: Environment;
+							environment: EnvironmentValue;
 						}
 					) =>
 						execute(

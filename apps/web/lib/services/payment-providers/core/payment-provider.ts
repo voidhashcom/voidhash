@@ -1,4 +1,4 @@
-import { Environment } from "@voidhash/lib/constants";
+import { EnvironmentValue } from "@voidhash/lib/constants";
 import {
 	PaymentProviderConfigurationSheetSection,
 	PaymentProviderProductEditorSheetSection,
@@ -12,7 +12,7 @@ export interface PaymentProvider<
 > {
 	getId(): TKey;
 	getTitle(): string;
-	isAvailableInEnvironment(environment: Environment): boolean;
+	isAvailableInEnvironment(environment: EnvironmentValue): boolean;
 	getType(): "native" | "web-checkout";
 
 	// Global configuration

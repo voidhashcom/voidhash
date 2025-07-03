@@ -14,6 +14,7 @@ import {
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { sdkPaywallResponseSchema } from "./schema";
+import { Environment, ProductType } from "@voidhash/lib/index";
 
 describe.sequential(
 	"/v1/sdk/get-paywall-by-location/:locationSlug",
@@ -24,8 +25,8 @@ describe.sequential(
 			const productInput: Omit<InsertProduct, "projectId"> = {
 				id: generateId("test"),
 				name: "Test Product for Paywall",
-				type: "subscription",
-				environment: "production",
+				type: ProductType.Subscription,
+				environment: Environment.Production,
 			};
 			await h.db.primary.insert(products).values({
 				...productInput,
@@ -35,7 +36,7 @@ describe.sequential(
 			const paywallInput: Omit<InsertPaywall, "projectId"> = {
 				id: generateId("test"),
 				name: "Test Paywall",
-				environment: "production",
+				environment: Environment.Production,
 			};
 			await h.db.primary.insert(paywalls).values({
 				...paywallInput,
@@ -59,7 +60,7 @@ describe.sequential(
 				name: "Test Location",
 				slug: locationSlug,
 				defaultPaywallId: paywallInput.id,
-				environment: "production",
+				environment: Environment.Production,
 			};
 			await h.db.primary.insert(paywallLocations).values({
 				...paywallLocationInput,
