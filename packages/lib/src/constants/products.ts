@@ -1,14 +1,13 @@
-export const PRODUCT_TYPES = [
-	"subscription",
-	"one_time",
-	"one_time_consumable",
-] as const;
+export const ProductType = {
+	Subscription: 1,
+	OneTime: 2,
+	OneTimeConsumable: 3,
+} as const;
 
-export const PRODUCT_TYPE_LABELS: Record<
-	(typeof PRODUCT_TYPES)[number],
-	string
-> = {
-	subscription: "Subscription",
-	one_time: "Non-consumable",
-	one_time_consumable: "Consumable",
+export type ProductTypeValue = (typeof ProductType)[keyof typeof ProductType];
+
+export const ProductTypeLabels: Record<ProductTypeValue, string> = {
+	[ProductType.Subscription]: "Subscription",
+	[ProductType.OneTime]: "Non-consumable",
+	[ProductType.OneTimeConsumable]: "Consumable",
 } as const;

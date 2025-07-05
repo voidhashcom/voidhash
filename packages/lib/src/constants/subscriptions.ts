@@ -1,3 +1,7 @@
-export const SUBSCRIPTION_STATUSES = ["active", "canceled"] as const;
+export const SubscriptionStatus = {
+	Active: 1,
+	Canceled: 2,
+} as const;
 
-export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+export type SubscriptionStatusValue =
+	(typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
