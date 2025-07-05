@@ -4,11 +4,11 @@ import { NavSlashSeparator } from "./nav-slash-separator";
 import { OrganizationProjectSwitcher } from "./organization-project-switcher";
 import { Suspense } from "react";
 import { Project } from "@voidhash/db";
-import { UserService } from "@/lib/services/users/user.service";
+import { UserService } from "@/lib/services/user.service";
 import { Effect } from "effect";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { OrganizationService } from "@/lib/services/organizations/organization.service";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { OrganizationService } from "@/lib/services/organization.service";
+import { ProjectService } from "@/lib/services/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 
 const ProjectTitle = async ({ project }: { project: Project }) => {

@@ -6,7 +6,7 @@ import { ProjectSettingsSidebar } from "@/features/shell/project-settings-sideba
 import { Suspense } from "react";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
-import { OrganizationService } from "@/lib/services/organizations/organization.service";
+import { OrganizationService } from "@/lib/services/organization.service";
 
 async function ProjectLayoutSidebar({
 	organizationSlug,

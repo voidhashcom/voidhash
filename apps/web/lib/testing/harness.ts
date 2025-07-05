@@ -18,7 +18,7 @@ import type {
 import { generateId } from "../id/generate";
 import { env, integrationTestEnv } from "./env";
 import { z } from "zod";
-import { hashKey } from "../services/api-keys/utils";
+import { hashKey } from "../core/api-keys/utils";
 import {
 	stripe,
 	stripePaymentProviderId,

@@ -6,7 +6,7 @@ import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { createEffectHandler } from "@/lib/effect/runtimes/hono";
-import { CustomerService } from "@/lib/services/customers/customer.service";
+import { CustomerService } from "@/lib/services/customer.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 import { CustomerOrigin } from "@voidhash/db";

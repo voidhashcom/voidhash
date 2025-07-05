@@ -15,14 +15,14 @@ import { ProductDetailPerksEmptyState } from "./product-detail-perks-empty-state
 import { ProductDetailPerkRecord } from "./product-detail-product-perk-record";
 import { ProductDetailAddPerkButton } from "./product-detail-add-perk-button";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { PerkService } from "@/lib/services/perks/perk.service";
+import { PerkService } from "@/lib/services/perk.service";
 import { Effect } from "effect";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { ProductService } from "@/lib/services/products/product.service";
-import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
+import { ProductService } from "@/lib/services/product.service";
+import { PaymentProviderService } from "@/lib/services/payment-provider.service";
 import { Environment } from "@/lib/effect/environment";
 import { AuthSession } from "@/lib/effect/auth";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { Environment as EnvironmentEnum } from "@voidhash/lib/index";
 

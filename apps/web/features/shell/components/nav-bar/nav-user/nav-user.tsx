@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuTrigger } from "@voidhash/ui";
 import { Suspense } from "react";
 import { NavUserDropdown } from "./nav-user-dropdown";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { UserService } from "@/lib/services/users/user.service";
+import { UserService } from "@/lib/services/user.service";
 import { Effect } from "effect";
 
 function NavUserSkeleton() {

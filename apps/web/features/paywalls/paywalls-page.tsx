@@ -4,11 +4,11 @@ import { PaywallRecord } from "./paywall-record";
 import { PaywallsPageEmptyState } from "./paywalls-page-empty-state";
 import { CreatePaywallModalButton } from "./create-paywall-modal-button";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 import { Effect } from "effect";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { NotFoundError } from "@/lib/effect/errors";
-import { PaywallService } from "@/lib/services/paywalls/paywall.service";
+import { PaywallService } from "@/lib/services/paywall.service";
 
 export async function PaywallsPage({
 	organizationSlug,

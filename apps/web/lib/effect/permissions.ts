@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import { OrganizationPermission } from "../services/organizations/permissions";
-import { ProjectPermission } from "../services/projects/permissions";
+import { OrganizationPermission } from "../core/organizations/permissions";
+import { ProjectPermission } from "../core/projects/permissions";
 import { AuthSession } from "./auth";
 import { ForbiddenError } from "./errors";
 

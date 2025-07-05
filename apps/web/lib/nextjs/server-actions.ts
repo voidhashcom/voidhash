@@ -1,121 +1,27 @@
 "use server";
 
 import { actionClient } from "@/lib/safe-action";
-import {
-	createOrganizationInputSchema,
-	createOrganization,
-} from "../services/organizations/actions/create-organization";
-import {
-	deleteOrganizationInputSchema,
-	deleteOrganization,
-} from "../services/organizations/actions/delete-organization";
-import {
-	updateOrganizationInputSchema,
-	updateOrganization,
-} from "../services/organizations/actions/update-organization";
-import {
-	createProject,
-	createProjectInputSchema,
-} from "../services/projects/actions/create-project";
-import {
-	deleteProject,
-	deleteProjectInputSchema,
-} from "../services/projects/actions/delete-project";
-import {
-	updateProject,
-	updateProjectInputSchema,
-} from "@/lib/services/projects/actions/update-project";
-import { rotateSecretKeyInputSchema } from "@/lib/services/api-keys/actions/rotate-secret-key";
-import { createSecretKeyInputSchema } from "@/lib/services/api-keys/actions/create-secret-key";
-import { deleteSecretKeyInputSchema } from "@/lib/services/api-keys/actions/delete-secret-key";
-import {
-	EnvironmentService,
-	switchEnvironmentInputSchema,
-} from "@/lib/services/environments/environment.service";
-import {
-	createProduct,
-	createProductInputSchema,
-} from "@/lib/services/products/actions/create-product";
-import {
-	createPaymentProviderConfiguration,
-	createPaymentProviderConfigurationInputSchema,
-} from "../services/payment-providers/actions/create-payment-provider-configuration";
-import { updatePaymentProviderConfigurationInputSchema } from "../services/payment-providers/actions/update-payment-provider-configuration";
-import { updatePaymentProviderConfiguration } from "../services/payment-providers/actions/update-payment-provider-configuration";
-import {
-	createPaymentProviderProductInputSchema,
-	createPaymentProviderProduct,
-} from "../services/products/actions/create-payment-provider-product";
-import {
-	updatePaymentProviderProductInputSchema,
-	updatePaymentProviderProduct,
-} from "../services/products/actions/update-payment-provider-product";
-import {
-	deletePaymentProviderProductInputSchema,
-	deletePaymentProviderProduct,
-} from "../services/products/actions/delete-payment-provider-product";
-import {
-	updateProduct,
-	updateProductInputSchema,
-} from "../services/products/actions/update-product";
-import {
-	deleteProductInputSchema,
-	deleteProduct,
-} from "../services/products/actions/delete-product";
-import { createCustomerInputSchema } from "../services/customers/actions/create-customer";
-import {
-	setActivePaymentProviderProductInputSchema,
-	setActivePaymentProviderProduct,
-} from "../services/products/actions/set-active-payment-provider-product";
-import {
-	deletePaywall,
-	deletePaywallInputSchema,
-} from "../services/paywalls/actions/delete-paywall";
-import {
-	createPaywall,
-	createPaywallInputSchema,
-} from "../services/paywalls/actions/create-paywall";
-import { deletePerkInputSchema } from "../services/perks/actions/delete-perk";
-import { createPerkInputSchema } from "../services/perks/actions/create-perk";
-import { createPaywallLocationInputSchema } from "../services/paywall-locations/actions/create-paywall-location";
-import { deletePaywallLocationInputSchema } from "../services/paywall-locations/actions/delete-paywall-location";
-import {
-	createProductPerk,
-	createProductPerkInputSchema,
-} from "../services/products/actions/create-product-perk";
-import {
-	deleteProductPerk,
-	deleteProductPerkInputSchema,
-} from "../services/products/actions/delete-product-perk";
-import {
-	updatePaywall,
-	updatePaywallInputSchema,
-} from "../services/paywalls/actions/update-paywall";
-// import {
-// 	confirmDevCheckoutPurchase,
-// 	confirmDevCheckoutPurchaseInputSchema,
-// } from "../payment-providers/dev-checkout/actions/confirm-purchase";
-// import {
-// 	cancelDevCheckoutPurchase,
-// 	cancelDevCheckoutPurchaseInputSchema,
-// } from "../payment-providers/dev-checkout/actions/cancel-purchase";
-import {
-	deletePaymentProviderConfiguration,
-	deletePaymentProviderConfigurationInputSchema,
-} from "../services/payment-providers/actions/delete-payment-provider-configuration";
+
 import {
 	NextjsErrorResponse,
 	runServerEffect,
 } from "../effect/runtimes/nextjs";
 import { Effect, pipe, Schema } from "effect";
-import { PerkService } from "../services/perks/perk.service";
-import { PaywallLocationService } from "../services/paywall-locations/paywall-location.service";
-import { ApiKeyService } from "../services/api-keys/api-key.service";
-import { CustomerService } from "../services/customers/customer.service";
+import { PerkService } from "../services/perk.service";
+import { PaywallLocationService } from "../services/paywall-location.service";
+import { ApiKeyService } from "../services/api-key.service";
+import { CustomerService } from "../services/customer.service";
 import { DevCheckoutService } from "../payment-providers/dev-checkout/dev-checkout.service";
 import { confirmDevCheckoutPurchaseInputSchema } from "../payment-providers/dev-checkout/actions/confirm-purchase";
 import { cancelDevCheckoutPurchaseInputSchema } from "../payment-providers/dev-checkout/actions/cancel-purchase";
 import { CustomerOrigin } from "@voidhash/db";
+import { switchEnvironmentInputSchema, EnvironmentService } from "../services/environment.service";
+import { createSecretKeyInputSchema, rotateSecretKeyInputSchema, deleteSecretKeyInputSchema, createOrganizationInputSchema, updateOrganizationInputSchema, deleteOrganizationInputSchema, createProjectInputSchema, updateProjectInputSchema, deleteProjectInputSchema, createPaymentProviderConfigurationInputSchema, updatePaymentProviderConfigurationInputSchema, deletePaymentProviderConfigurationInputSchema, createProductInputSchema, updateProductInputSchema, deleteProductInputSchema, createProductPerkInputSchema, deleteProductPerkInputSchema, createPaymentProviderProductInputSchema, updatePaymentProviderProductInputSchema, setActivePaymentProviderProductInputSchema, deletePaymentProviderProductInputSchema, createCustomerInputSchema, createPaywallInputSchema, updatePaywallInputSchema, deletePaywallInputSchema, createPaywallLocationInputSchema, deletePaywallLocationInputSchema, createPerkInputSchema, deletePerkInputSchema } from "./schema";
+import { OrganizationService } from "../services/organization.service";
+import { ProjectService } from "../services/project.service";
+import { PaymentProviderService } from "../services/payment-provider.service";
+import { ProductService } from "../services/product.service";
+import { PaywallService } from "../services/paywall.service";
 // Api keys
 export const createSecretKeyAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createSecretKeyInputSchema))
@@ -207,7 +113,10 @@ export const createOrganizationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				createOrganization(parsedInput),
+				OrganizationService,
+				Effect.flatMap((organizationService) =>
+					organizationService.createOrganization(parsedInput)
+				),
 				Effect.catchTags({
 					FailedToCreateOrganizationError: (error) =>
 						Effect.fail(
@@ -239,7 +148,10 @@ export const updateOrganizationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				updateOrganization(parsedInput),
+				OrganizationService,
+				Effect.flatMap((organizationService) =>
+					organizationService.updateOrganization(parsedInput)
+				),
 				Effect.catchTags({
 					OrganizationNotFound: (error) =>
 						Effect.fail(
@@ -262,7 +174,12 @@ export const updateOrganizationAction = actionClient
 export const deleteOrganizationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deleteOrganizationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await runServerEffect(pipe(deleteOrganization(parsedInput)));
+		const res = await runServerEffect(pipe(
+			OrganizationService,
+			Effect.flatMap((organizationService) =>
+				organizationService.deleteOrganization(parsedInput)
+			),
+		));
 
 		if (res.isErr()) {
 			throw res.error;
@@ -275,7 +192,12 @@ export const deleteOrganizationAction = actionClient
 export const createProjectAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createProjectInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await runServerEffect(pipe(createProject(parsedInput)));
+		const res = await runServerEffect(pipe(
+			ProjectService,
+			Effect.flatMap((projectService) =>
+				projectService.createProject(parsedInput)
+			),
+		));
 
 		if (res.isErr()) {
 			throw res.error;
@@ -289,7 +211,10 @@ export const updateProjectAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				updateProject(parsedInput),
+				ProjectService,
+				Effect.flatMap((projectService) =>
+					projectService.updateProject(parsedInput)
+				),
 				Effect.catchTags({
 					ProjectNotFound: (error) =>
 						Effect.fail(
@@ -314,7 +239,10 @@ export const deleteProjectAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				deleteProject(parsedInput),
+				ProjectService,
+				Effect.flatMap((projectService) =>
+					projectService.deleteProject(parsedInput)
+				),
 				Effect.catchTags({
 					ProjectNotFound: (error) =>
 						Effect.fail(
@@ -385,7 +313,10 @@ export const createPaymentProviderConfigurationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				createPaymentProviderConfiguration(parsedInput),
+				PaymentProviderService,
+				Effect.flatMap((paymentProviderConfigurationService) =>
+					paymentProviderConfigurationService.createPaymentProviderConfiguration(parsedInput)
+				),
 				Effect.catchTags({
 					PaymentProviderNotFoundError: (error) =>
 						Effect.fail(
@@ -419,7 +350,10 @@ export const updatePaymentProviderConfigurationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				updatePaymentProviderConfiguration(parsedInput),
+				PaymentProviderService,
+				Effect.flatMap((paymentProviderConfigurationService) =>
+					paymentProviderConfigurationService.updatePaymentProviderConfiguration(parsedInput)
+				),
 				Effect.catchTags({
 					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
@@ -467,7 +401,10 @@ export const deletePaymentProviderConfigurationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				deletePaymentProviderConfiguration(parsedInput),
+				PaymentProviderService,
+				Effect.flatMap((paymentProviderConfigurationService) =>
+					paymentProviderConfigurationService.deletePaymentProviderConfiguration(parsedInput)
+				),
 				Effect.catchTags({
 					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
@@ -493,7 +430,10 @@ export const createProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				createProduct(parsedInput),
+				ProductService,
+				Effect.flatMap((productService) =>
+					productService.createProduct(parsedInput)
+				),
 				Effect.catchTags({
 					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
@@ -518,7 +458,10 @@ export const updateProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				updateProduct(parsedInput),
+				ProductService,
+				Effect.flatMap((productService) =>
+					productService.updateProduct(parsedInput)
+				),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -543,7 +486,10 @@ export const deleteProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				deleteProduct(parsedInput),
+				ProductService,
+				Effect.flatMap((productService) =>
+					productService.deleteProduct(parsedInput)
+				),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -569,7 +515,10 @@ export const createProductPerkAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				createProductPerk(parsedInput),
+				ProductService,
+				Effect.flatMap((productService) =>
+					productService.createProductPerk(parsedInput)
+				),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -601,7 +550,10 @@ export const deleteProductPerkAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				deleteProductPerk(parsedInput),
+				ProductService,
+				Effect.flatMap((productService) =>
+					productService.deleteProductPerk(parsedInput)
+				),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -627,7 +579,10 @@ export const createPaymentProviderProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				createPaymentProviderProduct(parsedInput),
+				ProductService,
+				Effect.flatMap((productService) =>
+					productService.createPaymentProviderProduct(parsedInput)
+				),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -673,7 +628,10 @@ export const updatePaymentProviderProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				updatePaymentProviderProduct(parsedInput),
+				ProductService,
+				Effect.flatMap((productService) =>
+					productService.updatePaymentProviderProduct(parsedInput)
+				),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -728,7 +686,10 @@ export const setActivePaymentProviderProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				setActivePaymentProviderProduct(parsedInput),
+				ProductService,
+				Effect.flatMap((productService) =>
+					productService.setActivePaymentProviderProduct(parsedInput)
+				),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -767,7 +728,10 @@ export const deletePaymentProviderProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				deletePaymentProviderProduct(parsedInput),
+				ProductService,
+				Effect.flatMap((productService) =>
+					productService.deletePaymentProviderProduct(parsedInput)
+				),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -816,7 +780,12 @@ export const createCustomerAction = actionClient
 export const createPaywallAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createPaywallInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await runServerEffect(pipe(createPaywall(parsedInput)));
+		const res = await runServerEffect(pipe(
+			PaywallService,
+			Effect.flatMap((paywallService) =>
+				paywallService.createPaywall(parsedInput)
+			)
+		));
 
 		if (res.isErr()) {
 			throw res.error;
@@ -830,7 +799,13 @@ export const updatePaywallAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				updatePaywall(parsedInput),
+				PaywallService,
+				Effect.flatMap((paywallService) =>
+					paywallService.updatePaywall({
+						...parsedInput,
+						paywallProducts: [...parsedInput.paywallProducts]
+					})
+				),
 				Effect.catchTags({
 					PaywallNotFound: (error) =>
 						Effect.fail(
@@ -869,7 +844,10 @@ export const deletePaywallAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				deletePaywall(parsedInput),
+				PaywallService,
+				Effect.flatMap((paywallService) =>
+					paywallService.deletePaywall(parsedInput)
+				),
 				Effect.catchTags({
 					PaywallNotFound: (error) =>
 						Effect.fail(

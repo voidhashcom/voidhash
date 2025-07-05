@@ -11,7 +11,7 @@ import {
 } from "@/lib/effect/runtimes/hono";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
-import { ProductService } from "@/lib/services/products/product.service";
+import { ProductService } from "@/lib/services/product.service";
 
 const route = describeRoute({
 	description: "Delete a provider product",

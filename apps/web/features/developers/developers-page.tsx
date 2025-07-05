@@ -3,7 +3,7 @@ import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
 import { NotFoundError } from "@/lib/effect/errors";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 export async function DevelopersPage({
 	organizationSlug,
 	projectSlug,

@@ -13,7 +13,7 @@ import {
 	createEffectHandler,
 	HonoErrorResponse,
 } from "@/lib/effect/runtimes/hono";
-import { SdkService } from "@/lib/services/sdk/sdk.service";
+import { SdkService } from "@/lib/services/sdk.service";
 import { Effect, pipe } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 
@@ -55,8 +55,8 @@ export const registerSdkIdentify = (app: App) =>
 						pipe(
 							sdkService.identifyCustomer({
 								appUserId: c.req.valid("json").appUserId,
-								name: c.req.valid("json").name,
-								email: c.req.valid("json").email,
+								name: c.req.valid("json").name ?? null,
+								email: c.req.valid("json").email ?? null,
 							}),
 							Effect.catchTags({
 								CustomerConflict: (error) =>

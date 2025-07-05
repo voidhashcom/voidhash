@@ -5,7 +5,7 @@ import { customerResponseSchema } from "./schema";
 import { App } from "../hono/app";
 import { z } from "zod";
 import { createEffectHandler } from "@/lib/effect/runtimes/hono";
-import { CustomerService } from "@/lib/services/customers/customer.service";
+import { CustomerService } from "@/lib/services/customer.service";
 import { Effect, pipe } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 

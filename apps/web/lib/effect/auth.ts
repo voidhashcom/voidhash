@@ -1,5 +1,5 @@
 import { Context, Data, Effect, Option } from "effect";
-import { hashKey } from "@/lib/services/api-keys/effect/utils";
+import { hashKey } from "@/lib/core/api-keys/effect/utils";
 import { apiKeys, projects, User } from "@voidhash/db";
 import { EnvironmentValue } from "@voidhash/lib/constants";
 import { eq, inArray } from "drizzle-orm";

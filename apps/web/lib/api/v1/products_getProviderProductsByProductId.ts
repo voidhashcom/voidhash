@@ -9,7 +9,7 @@ import { openApiErrorResponses } from "../errors/openapi_responses";
 import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
 import { createEffectHandler } from "@/lib/effect/runtimes/hono";
-import { ProductService } from "@/lib/services/products/product.service";
+import { ProductService } from "@/lib/services/product.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 

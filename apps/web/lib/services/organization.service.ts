@@ -1,0 +1,243 @@
+import { Data, Effect, Either, pipe } from "effect";
+
+import { AuthSession } from "@/lib/effect/auth";
+import { OrganizationRepository } from "../repositories/organization.repository";
+import { checkOrganizationPermission } from "@/lib/effect/permissions";
+import { BetterAuth } from "@/lib/effect/better-auth";
+import { Request } from "@/lib/effect/request";
+import { createShortId, createSlug } from "@voidhash/lib/functions";
+import { SLUG_BLACKLIST } from "@voidhash/lib/constants";
+
+export class FailedToCreateOrganizationError extends Data.TaggedError(
+	"FailedToCreateOrganizationError"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class UserSessionNotFoundError extends Data.TaggedError(
+	"UserSessionNotFoundError"
+)<{
+	readonly message: string;
+}> {}
+
+export class OrganizationNotFound extends Data.TaggedError(
+	"OrganizationNotFound"
+)<{
+	readonly cause?: unknown;
+	readonly message: string;
+}> {}
+
+export class OrganizationService extends Effect.Service<OrganizationService>()(
+	"OrganizationService",
+	{
+		effect: Effect.gen(function* () {
+            
+            const checkSlugAvailable = (slug: string) =>
+                pipe(
+                    Effect.gen(function* () {
+                        const betterAuth = yield* BetterAuth;
+                        const request = yield* Request;
+                        const headers = yield* request.getHeaders;
+                        const res = yield* Effect.either(
+                            betterAuth.use(async (client) =>
+                                client.api.checkOrganizationSlug({
+                                    headers,
+                                    body: { slug },
+                                })
+                            )
+                        );
+            
+                        if (Either.isLeft(res)) {
+                            const error = res.left;
+                            if (
+                                error.cause &&
+                                error.cause &&
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                (error.cause as any).body?.code === "SLUG_IS_TAKEN"
+                            ) {
+                                return yield* Effect.succeed(false);
+                            }
+                            return yield* Effect.fail(res.left);
+                        }
+            
+                        return yield* Effect.succeed(true);
+                    })
+                );
+
+                
+			return {
+                createOrganization: (input: {
+                    name: string;
+                }) =>
+                    pipe(
+                        Effect.gen(function* () {
+                            const betterAuth = yield* BetterAuth;
+                            const request = yield* Request;
+                            const session = yield* AuthSession;
+                
+                            let slug = createSlug(input.name);
+                            if (SLUG_BLACKLIST.includes(slug)) {
+                                slug = slug + "-" + createShortId();
+                            }
+                
+                            const slugIsAvailable = yield* checkSlugAvailable(slug);
+                            if (!slugIsAvailable) {
+                                slug = slug + "-" + createShortId();
+                            }
+                
+                            const headers = yield* request.getHeaders;
+                            const organization = yield* betterAuth.use(async (client) =>
+                                client.api.createOrganization({
+                                    headers,
+                                    body: {
+                                        name: input.name,
+                                        slug,
+                                    },
+                                })
+                            );
+                            if (!organization) {
+                                return yield* Effect.fail(
+                                    new FailedToCreateOrganizationError({
+                                        message: "Failed to create organization",
+                                    })
+                                );
+                            }
+                
+                            const email = session?.user?.email;
+                            if (!email) {
+                                return yield* Effect.fail(
+                                    new UserSessionNotFoundError({
+                                        message: "User session not found",
+                                    })
+                                );
+                            }
+                
+                            return yield* Effect.succeed({
+                                id: organization.id,
+                                name: organization.name,
+                                slug,
+                            });
+                        }),
+                        AuthSession.withAuthSession()
+                    ),
+                getOrganizationBySlug: (slug: string) =>
+                    pipe(
+                        Effect.gen(function* () {
+                            const session = yield* AuthSession;
+                            const organizationRepository = yield* OrganizationRepository;
+                            const organization = yield* organizationRepository.getOrganizationBySlug(slug);
+                            if (!organization) {
+                                return null;
+                            }
+                            // SECURITY: Authorization check
+                            yield* checkOrganizationPermission(
+                                organization.id,
+                                "organization:all",
+                                `User ${session?.user?.id} is not authorized to access organization ${organization.id}`
+                            );
+    
+                            return organization;
+                        }),
+                        AuthSession.withAuthSession()
+                    ),
+
+                getOrganizationById: (id: string) =>
+                    pipe(
+                        Effect.gen(function* () {
+                            const session = yield* AuthSession;
+                            const organizationRepository = yield* OrganizationRepository;
+
+                             // SECURITY: Authorization check
+                             yield* checkOrganizationPermission(
+                                id,
+                                "organization:all",
+                                `User ${session?.user?.id} is not authorized to access organization ${id}`
+                            );
+
+                            return yield* organizationRepository.getOrganizationById(id);
+                        }),
+                        AuthSession.withAuthSession()
+                    ),
+
+                deleteOrganization: (input: {
+                    organizationId: string;
+                }) =>
+                    pipe(
+                        Effect.gen(function* () {
+                            const session = yield* AuthSession;
+                            const request = yield* Request;
+                
+                            // SECURITY: Authorization check
+                            yield* checkOrganizationPermission(
+                                input.organizationId,
+                                "organization:all",
+                                `User ${session?.user?.id} is not authorized to delete organization ${input.organizationId}`
+                            );
+                
+                            const betterAuth = yield* BetterAuth;
+                            const headers = yield* request.getHeaders;
+                            yield* betterAuth.use(async (client) =>
+                                client.api.deleteOrganization({
+                                    headers,
+                                    body: { organizationId: input.organizationId },
+                                })
+                            );
+                
+                            return yield* Effect.succeed(undefined);
+                        }),
+                        AuthSession.withAuthSession()
+                    ),   
+                updateOrganization: (input: {
+                    organizationId: string;
+                    name: string;
+                }) =>
+                    pipe(
+                        Effect.gen(function* () {
+                            const session = yield* AuthSession;
+                            const request = yield* Request;
+                            const organizationRepository = yield* OrganizationRepository;
+                
+                            // SECURITY: Authorization check
+                            yield* checkOrganizationPermission(
+                                input.organizationId,
+                                "organization:all",
+                                `User ${session?.user?.id} is not authorized to update organization ${input.organizationId}`
+                            );
+                
+                            const organization = yield* organizationRepository.getOrganizationById(
+                                input.organizationId
+                            );
+                            if (!organization) {
+                                return yield* Effect.fail(
+                                    new OrganizationNotFound({
+                                        message: `Organization with id ${input.organizationId} not found`,
+                                    })
+                                );
+                            }
+                
+                            const betterAuth = yield* BetterAuth;
+                            const headers = yield* request.getHeaders;
+                            yield* betterAuth.use(async (client) =>
+                                client.api.updateOrganization({
+                                    headers,
+                                    body: {
+                                        organizationId: input.organizationId,
+                                        data: {
+                                            name: input.name,
+                                        },
+                                    },
+                                })
+                            );
+                
+                            return yield* Effect.succeed(undefined);
+                        }),
+                        AuthSession.withAuthSession()
+                    )                
+			};
+		}),
+
+		// Specify dependencies
+		dependencies: [],
+	}
+) {}

@@ -1,4 +1,4 @@
-import { setEnvironment } from "@/lib/services/environments/utils";
+import { setEnvironment } from "@/lib/core/environments/utils";
 import { NextCookiesAdapter } from "@/lib/nextjs/utils/next-cookies-adapter";
 import { redirect } from "next/navigation";
 import { NextRequest } from "next/server";

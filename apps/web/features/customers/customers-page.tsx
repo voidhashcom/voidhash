@@ -9,7 +9,7 @@ import {
 } from "@voidhash/ui";
 import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
 import { Effect } from "effect";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { CustomerType } from "@voidhash/db";

@@ -25,7 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useAction } from "next-safe-action/hooks";
 import { createSecretKeyAction } from "@/lib/nextjs/server-actions";
-import { ApiKey } from "@/lib/services/api-keys/types";
+import { ApiKey } from "@/lib/core/api-keys/types";
 
 const createSecretKeySchema = z.object({
 	name: z

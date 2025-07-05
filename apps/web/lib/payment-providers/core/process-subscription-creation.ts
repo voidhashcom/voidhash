@@ -1,11 +1,9 @@
 // import { generateId } from "@/lib/id/generate";
 // import { safeTryPromise } from "@/lib/neverthrow";
-// import { ServiceContext } from "@/lib/service-function";
 // // import { getCustomerByIdQuery } from "@/lib/services/customers/raw-queries";
-// import { getProductPerksByProductIdQuery } from "@/lib/services/products/raw-queries";
 // import {
 // 	Transaction,
-// 	customersUnlockedPerks,
+// 	customerUnlockedPerks,
 // 	transactions,
 // 	Product,
 // 	PaymentProviderConfigurationProduct,
@@ -186,7 +184,7 @@
 
 // 	// Add grants
 // 	for (const productPerk of productPerksResult.value) {
-// 		await tx.insert(customersUnlockedPerks).values({
+// 		await tx.insert(customerUnlockedPerks).values({
 // 			id: generateId("customerUnlockedPerk"),
 // 			customerId: options.customerId,
 // 			perkId: productPerk.perkId,

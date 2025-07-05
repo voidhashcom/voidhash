@@ -4,9 +4,9 @@ import { PaywallDetailPageEditor } from "./paywall-detail-page-editor";
 import { Effect } from "effect";
 import { NotFoundError } from "@/lib/effect/errors";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { PaywallService } from "@/lib/services/paywalls/paywall.service";
-import { ProductService } from "@/lib/services/products/product.service";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { PaywallService } from "@/lib/services/paywall.service";
+import { ProductService } from "@/lib/services/product.service";
+import { ProjectService } from "@/lib/services/project.service";
 
 export async function PaywallsDetailPage({
 	organizationSlug,

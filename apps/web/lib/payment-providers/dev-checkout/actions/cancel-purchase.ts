@@ -1,4 +1,4 @@
-import { CheckoutSessionRepository } from "@/lib/services/checkout-session/checkout-session.repository";
+import { CheckoutSessionRepository } from "@/lib/repositories/checkout-session.repository";
 import { Data, Effect, pipe, Schema } from "effect";
 import { CheckoutSessionStatus } from "@voidhash/db";
 

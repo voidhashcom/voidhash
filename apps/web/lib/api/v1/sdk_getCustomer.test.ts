@@ -4,7 +4,7 @@ import { IntegrationHarness } from "@/lib/testing/integration-harness";
 import { customers } from "@voidhash/db";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
-import { ANONYMOUS_USER_ID_PREFIX } from "@/lib/services/sdk/constants";
+import { ANONYMOUS_USER_ID_PREFIX } from "@/lib/core/sdk/constants";
 import { sdkCustomerResponseSchema } from "./schema";
 
 describe.sequential("/v1/sdk/customers/**", async () => {

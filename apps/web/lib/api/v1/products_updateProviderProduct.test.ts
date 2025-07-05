@@ -11,7 +11,7 @@ import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { stripe } from "@/lib/payment-providers/stripe/stripe";
 import { RouteResponse, RouteRequest } from "./products_updateProviderProduct";
-import { createPaymentProviderKey } from "@/lib/services/products/lib";
+import { createPaymentProviderKey } from "@/lib/core/products/lib";
 import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential(

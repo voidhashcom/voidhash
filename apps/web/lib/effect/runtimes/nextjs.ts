@@ -22,33 +22,36 @@ import {
 } from "../auth";
 import { BetterAuth, BetterAuthError } from "../better-auth";
 import { Request } from "../request";
-import { PerkService } from "@/lib/services/perks/perk.service";
+import { PerkService } from "@/lib/services/perk.service";
 import { err, ok, Result } from "neverthrow";
-import { PerkRepository } from "@/lib/services/perks/perk.repository";
-import { PaywallLocationService } from "@/lib/services/paywall-locations/paywall-location.service";
-import { PaywallLocationRepository } from "@/lib/services/paywall-locations/paywall-location.repository";
-import { PaywallRepository } from "@/lib/services/paywalls/paywall.repository";
-import { PaywallService } from "@/lib/services/paywalls/paywall.service";
-import { ApiKeyRepository } from "@/lib/services/api-keys/api-key.repository";
-import { ApiKeyService } from "@/lib/services/api-keys/api-key.service";
-import { CustomerRepository } from "@/lib/services/customers/customer.repository";
-import { CustomerService } from "@/lib/services/customers/customer.service";
-import { EnvironmentService } from "@/lib/services/environments/environment.service";
-import { OrganizationRepository } from "@/lib/services/organizations/organization.repository";
-import { ProjectRepository } from "@/lib/services/projects/project.repository";
-import { ProjectService } from "@/lib/services/projects/project.service";
-import { ProductRepository } from "@/lib/services/products/product.repository";
-import { ProductService } from "@/lib/services/products/product.service";
-import { PaymentProviderRepository } from "@/lib/services/payment-providers/payment-provider.repository";
-import { CheckoutSessionRepository } from "@/lib/services/checkout-session/checkout-session.repository";
+import { PerkRepository } from "@/lib/repositories/perk.repository";
+import { PaywallLocationService } from "@/lib/services/paywall-location.service";
+import { PaywallLocationRepository } from "@/lib/repositories/paywall-location.repository";
+import { PaywallRepository } from "@/lib/repositories/paywall.repository";
+import { PaywallService } from "@/lib/services/paywall.service";
+import { ApiKeyRepository } from "@/lib/repositories/api-key.repository";
+import { ApiKeyService } from "@/lib/services/api-key.service";
+import { CustomerRepository } from "@/lib/repositories/customer.repository";
+import { CustomerService } from "@/lib/services/customer.service";
+import { EnvironmentService } from "@/lib/services/environment.service";
+import { OrganizationRepository } from "@/lib/repositories/organization.repository";
+import { ProjectRepository } from "@/lib/repositories/project.repository";
+import { ProjectService } from "@/lib/services/project.service";
+import { ProductRepository } from "@/lib/repositories/product.repository";
+import { ProductService } from "@/lib/services/product.service";
+import { PaymentProviderRepository } from "@/lib/repositories/payment-provider.repository";
+import { CheckoutSessionRepository } from "@/lib/repositories/checkout-session.repository";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "../errors";
 import { MissingEnvironmentError } from "../environment";
-import { UserService } from "@/lib/services/users/user.service";
-import { OrganizationService } from "@/lib/services/organizations/organization.service";
-import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
+import { UserService } from "@/lib/services/user.service";
+import { OrganizationService } from "@/lib/services/organization.service";
+import { PaymentProviderService } from "@/lib/services/payment-provider.service";
 import { DevCheckoutService } from "@/lib/payment-providers/dev-checkout/dev-checkout.service";
 import { isDynamicServerError } from "next/dist/client/components/hooks-server-context";
 import { unstable_rethrow } from "next/navigation";
+import { PaymentProviderConfigurationProductRepository } from "@/lib/repositories/payment-provider-configuration-product.repository";
+import { SdkService } from "@/lib/services/sdk.service";
+import { ProductPerkRepository } from "@/lib/repositories/product-perk.repository";
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -99,28 +102,31 @@ const RuntimeLayer = () => {
 	const RepositoryLayer = pipe(
 		ApiKeyRepository.Default,
 		Layer.provideMerge(CustomerRepository.Default),
+		Layer.provideMerge(CheckoutSessionRepository.Default),
 		Layer.provideMerge(OrganizationRepository.Default),
+		Layer.provideMerge(PaymentProviderConfigurationProductRepository.Default),
+		Layer.provideMerge(PaymentProviderRepository.Default),
 		Layer.provideMerge(PaywallLocationRepository.Default),
 		Layer.provideMerge(PaywallRepository.Default),
 		Layer.provideMerge(PerkRepository.Default),
+		Layer.provideMerge(ProductPerkRepository.Default),
 		Layer.provideMerge(ProductRepository.Default),
 		Layer.provideMerge(ProjectRepository.Default),
-		Layer.provideMerge(PaymentProviderRepository.Default),
-		Layer.provideMerge(CheckoutSessionRepository.Default)
 	);
 
 	const ServiceLayer = pipe(
-		PerkService.Default,
-		Layer.provideMerge(ApiKeyService.Default),
+	    ApiKeyService.Default,
 		Layer.provideMerge(CustomerService.Default),
 		Layer.provideMerge(EnvironmentService.Default),
-		Layer.provideMerge(PaywallLocationService.Default),
-		Layer.provideMerge(PaywallService.Default),
-		Layer.provideMerge(ProductService.Default),
-		Layer.provideMerge(ProjectService.Default),
-		Layer.provideMerge(UserService.Default),
 		Layer.provideMerge(OrganizationService.Default),
 		Layer.provideMerge(PaymentProviderService.Default),
+		Layer.provideMerge(PaywallLocationService.Default),
+		Layer.provideMerge(PaywallService.Default),
+		Layer.provideMerge(PerkService.Default),
+		Layer.provideMerge(ProductService.Default),
+		Layer.provideMerge(ProjectService.Default),
+		Layer.provideMerge(SdkService.Default),
+		Layer.provideMerge(UserService.Default),
 		Layer.provideMerge(DevCheckoutService.Default)
 	);
 

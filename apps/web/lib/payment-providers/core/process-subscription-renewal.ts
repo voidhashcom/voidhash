@@ -3,7 +3,7 @@
 // import { ServiceContext } from "@/lib/service-function";
 // import {
 // 	Transaction,
-// 	customersUnlockedPerks,
+// 	customerUnlockedPerks,
 // 	transactions,
 // 	subscriptions,
 // 	InsertTransaction,
@@ -109,10 +109,10 @@
 
 // 	const customerUnlockedPerksResult = await safeTryPromise(async () => {
 // 		return ok(
-// 			await tx.query.customersUnlockedPerks.findMany({
+// 			await tx.query.customerUnlockedPerks.findMany({
 // 				where: and(
-// 					eq(customersUnlockedPerks.customerId, subscription.customerId),
-// 					eq(customersUnlockedPerks.unlockedBySubscriptionId, subscription.id)
+// 					eq(customerUnlockedPerks.customerId, subscription.customerId),
+// 					eq(customerUnlockedPerks.unlockedBySubscriptionId, subscription.id)
 // 				),
 // 			})
 // 		);
@@ -125,12 +125,12 @@
 // 	// Update unlocked perks
 // 	for (const customerUnlockedPerk of customerUnlockedPerksResult.value) {
 // 		await tx
-// 			.update(customersUnlockedPerks)
+// 			.update(customerUnlockedPerks)
 // 			.set({
 // 				expiresAt: options.expiresAt,
 // 				status: "active",
 // 			})
-// 			.where(eq(customersUnlockedPerks.id, customerUnlockedPerk.id));
+// 			.where(eq(customerUnlockedPerks.id, customerUnlockedPerk.id));
 // 	}
 
 // 	// TODO: Send outbox message

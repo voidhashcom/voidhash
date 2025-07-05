@@ -3,9 +3,9 @@ import { ApiKeyRecord } from "./api-key-record";
 import { CreateSecretKeyModalButton } from "./create-secret-key-modal-button";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { ApiKeyService } from "@/lib/services/api-keys/api-key.service";
+import { ApiKeyService } from "@/lib/services/api-key.service";
 import { Effect, pipe } from "effect";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 
 export async function ProjectApiKeysPage({
