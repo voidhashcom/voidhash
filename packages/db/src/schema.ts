@@ -3,19 +3,19 @@ import {
 	boolean,
 	varchar,
 	index,
-	mysqlEnum,
 	timestamp,
 	json,
 	uniqueIndex,
 	int,
+	tinyint,
 } from "drizzle-orm/mysql-core";
 import { mysqlTable } from "drizzle-orm/mysql-core";
 import { organization } from "./auth-schema";
 import {
-	ENVIRONMENTS,
-	PRODUCT_TYPES,
-	PURCHASE_TYPES,
-	SUBSCRIPTION_STATUSES,
+	Environment,
+	PurchaseType,
+	ProductType,
+	SubscriptionStatus,
 } from "@voidhash/lib";
 export * from "./auth-schema";
 
@@ -71,9 +71,7 @@ export const apiKeys = mysqlTable("api_key", {
 	/**
 	 * The environment of the API key.
 	 */
-	environment: mysqlEnum("environment", ENVIRONMENTS)
-		.default("production")
-		.notNull(),
+	environment: tinyint("environment").notNull().default(Environment.Production),
 	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -86,13 +84,30 @@ export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
 	}),
 }));
 
+export const CustomerType = {
+	Anonymous: 1,
+	Identified: 2,
+} as const;
+
+export type CustomerTypeValue =
+	(typeof CustomerType)[keyof typeof CustomerType];
+
+export const CustomerOrigin = {
+	Dashboard: 1,
+	IOS: 2,
+	Android: 3,
+	Stripe: 4,
+	API: 5,
+} as const;
+
+export type CustomerOriginValue =
+	(typeof CustomerOrigin)[keyof typeof CustomerOrigin];
+
 export const customers = mysqlTable(
 	"customer",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
-		type: mysqlEnum("type", ["anonymous", "identified"])
-			.default("anonymous")
-			.notNull(),
+		type: tinyint("type").notNull().default(CustomerType.Anonymous),
 		name: varchar("name", { length: 255 }),
 		// Connecting customer to user in app
 		appUserId: varchar("app_user_id", { length: 255 }).notNull(),
@@ -100,16 +115,10 @@ export const customers = mysqlTable(
 		/**
 		 * From where the customer was created
 		 */
-		origin: mysqlEnum("origin", [
-			"dashboard",
-			"ios",
-			"android",
-			"stripe",
-			"api",
-		]).notNull(),
-		environment: mysqlEnum("environment", ENVIRONMENTS)
-			.default("production")
-			.notNull(),
+		origin: tinyint("origin").notNull().default(CustomerOrigin.Dashboard),
+		environment: tinyint("environment")
+			.notNull()
+			.default(Environment.Production),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		parentCustomerId: varchar("parent_customer_id", { length: 255 }), // When Identified, we store the parent customer id
 		archivedAt: timestamp("archived_at"),
@@ -133,11 +142,21 @@ export const customerRelations = relations(customers, ({ many, one }) => ({
 	}),
 }));
 
-export const customersUnlockedPerks = mysqlTable(
+export const CustomerUnlockedPerkStatus = {
+	Active: 1,
+	Expired: 2,
+} as const;
+
+export type CustomerUnlockedPerkStatusValue =
+	(typeof CustomerUnlockedPerkStatus)[keyof typeof CustomerUnlockedPerkStatus];
+
+export const customerUnlockedPerks = mysqlTable(
 	"customer_unlocked_perk",
 	{
 		id: varchar("id", { length: 255 }).primaryKey(),
-		status: mysqlEnum("status", ["active", "expired"]).default("active"),
+		status: tinyint("status")
+			.notNull()
+			.default(CustomerUnlockedPerkStatus.Active),
 		customerId: varchar("customer_id", { length: 255 }).notNull(),
 		perkId: varchar("perk_id", { length: 255 }).notNull(),
 		// Controls the lifetime of the perk
@@ -228,9 +247,9 @@ export const perks = mysqlTable(
 		id: varchar("id", { length: 255 }).primaryKey(),
 		slug: varchar("slug", { length: 255 }).notNull(),
 		name: varchar("name", { length: 255 }).notNull(),
-		environment: mysqlEnum("environment", ENVIRONMENTS)
-			.default("production")
-			.notNull(),
+		environment: tinyint("environment")
+			.notNull()
+			.default(Environment.Production),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -250,11 +269,9 @@ export const perkRelations = relations(perks, ({ many }) => ({
 
 export const products = mysqlTable("product", {
 	id: varchar("id", { length: 255 }).primaryKey(),
-	type: mysqlEnum("type", PRODUCT_TYPES).default("subscription").notNull(),
+	type: tinyint("type").notNull().default(ProductType.Subscription),
 	name: varchar("name", { length: 255 }).notNull(),
-	environment: mysqlEnum("environment", ENVIRONMENTS)
-		.default("production")
-		.notNull(),
+	environment: tinyint("environment").notNull().default(Environment.Production),
 	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -308,9 +325,9 @@ export const paymentProviderConfigurationProducts = mysqlTable(
 			length: 255,
 		}).notNull(),
 		productId: varchar("product_id", { length: 255 }).notNull(),
-		environment: mysqlEnum("environment", ENVIRONMENTS)
-			.default("production")
-			.notNull(),
+		environment: tinyint("environment")
+			.notNull()
+			.default(Environment.Production),
 		isActive: boolean("is_active").notNull().default(true),
 		configuration: json("configuration").$type<object>(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
@@ -331,7 +348,7 @@ export const paymentProviderConfigurationProducts = mysqlTable(
 
 export const paymentProviderConfigurationProductRelations = relations(
 	paymentProviderConfigurationProducts,
-	({ one }) => ({
+	({ one, many }) => ({
 		product: one(products, {
 			fields: [paymentProviderConfigurationProducts.productId],
 			references: [products.id],
@@ -342,6 +359,7 @@ export const paymentProviderConfigurationProductRelations = relations(
 			],
 			references: [paymentProviderConfigurations.id],
 		}),
+		subscriptions: many(subscriptions),
 	})
 );
 
@@ -349,9 +367,7 @@ export const paymentProviderConfigurationProductRelations = relations(
 export const paywalls = mysqlTable("paywall", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	name: varchar("name", { length: 255 }).notNull(),
-	environment: mysqlEnum("environment", ENVIRONMENTS)
-		.default("production")
-		.notNull(),
+	environment: tinyint("environment").notNull().default(Environment.Production),
 	projectId: varchar("project_id", { length: 255 }).notNull(),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -419,9 +435,9 @@ export const paywallLocations = mysqlTable(
 		defaultPaywallId: varchar("default_paywall_id", {
 			length: 255,
 		}).notNull(),
-		environment: mysqlEnum("environment", ENVIRONMENTS)
-			.default("production")
-			.notNull(),
+		environment: tinyint("environment")
+			.notNull()
+			.default(Environment.Production),
 		projectId: varchar("project_id", { length: 255 }).notNull(),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -445,6 +461,14 @@ export const paywallLocationRelations = relations(
 	})
 );
 
+export const CheckoutSessionStatus = {
+	Pending: 1,
+	Processing: 2,
+	Success: 3,
+	Error: 4,
+	Cancelled: 5,
+};
+
 export const checkoutSessions = mysqlTable("checkout_session", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	customerId: varchar("customer_id", { length: 255 }).notNull(),
@@ -454,9 +478,7 @@ export const checkoutSessions = mysqlTable("checkout_session", {
 			length: 255,
 		}
 	).notNull(),
-	status: mysqlEnum("status", ["pending", "success", "error", "cancelled"])
-		.notNull()
-		.default("pending"),
+	status: tinyint("status").notNull().default(CheckoutSessionStatus.Pending),
 	successCallbackUrl: varchar("success_callback_url", {
 		length: 255,
 	})
@@ -495,6 +517,13 @@ export const outbox = mysqlTable("outbox", {
 });
 
 // App Store
+export const ProviderEnvironment = {
+	Production: 1,
+	Sandbox: 2,
+} as const;
+
+export type ProviderEnvironmentValue =
+	(typeof ProviderEnvironment)[keyof typeof ProviderEnvironment];
 
 export const purchases = mysqlTable(
 	"purchase",
@@ -502,7 +531,7 @@ export const purchases = mysqlTable(
 		id: varchar("id", { length: 255 }).primaryKey(),
 		customerId: varchar("customer_id", { length: 255 }).notNull(),
 		providerKey: varchar("provider_key", { length: 255 }).notNull(),
-		type: mysqlEnum("type", PURCHASE_TYPES).notNull(),
+		type: tinyint("type").notNull().default(PurchaseType.OneTime),
 		paymentProviderConfigurationProductId: varchar(
 			"payment_provider_configuration_product_id",
 			{
@@ -513,12 +542,9 @@ export const purchases = mysqlTable(
 		/**
 		 * The environment the subscription was purchased in
 		 */
-		providerEnvironment: mysqlEnum("purchase_environment", [
-			"production",
-			"sandbox",
-		])
-			.default("production")
-			.notNull(),
+		providerEnvironment: tinyint("provider_environment")
+			.notNull()
+			.default(ProviderEnvironment.Production),
 
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
@@ -529,7 +555,7 @@ export const purchases = mysqlTable(
 export const subscriptions = mysqlTable("subscription", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	customerId: varchar("customer_id", { length: 255 }).notNull(),
-	status: mysqlEnum("status", SUBSCRIPTION_STATUSES).default("active"),
+	status: tinyint("status").notNull().default(SubscriptionStatus.Active),
 	initialTransactionId: varchar("initial_transaction_id", {
 		length: 255,
 	}).notNull(),
@@ -553,12 +579,9 @@ export const subscriptions = mysqlTable("subscription", {
 	/**
 	 * The environment the subscription was purchased in
 	 */
-	providerEnvironment: mysqlEnum("purchase_environment", [
-		"production",
-		"sandbox",
-	])
-		.default("production")
-		.notNull(),
+	providerEnvironment: tinyint("provider_environment")
+		.notNull()
+		.default(ProviderEnvironment.Production),
 
 	isTrial: boolean("is_trial").notNull().default(false),
 
@@ -586,6 +609,16 @@ export const subscriptions = mysqlTable("subscription", {
 	cancellationReason: varchar("cancellation_reason", { length: 255 }),
 });
 
+export const subscriptionRelations = relations(subscriptions, ({ one }) => ({
+	paymentProviderConfigurationProduct: one(
+		paymentProviderConfigurationProducts,
+		{
+			fields: [subscriptions.paymentProviderConfigurationProductId],
+			references: [paymentProviderConfigurationProducts.id],
+		}
+	),
+}));
+
 export const transactions = mysqlTable("transaction", {
 	id: varchar("id", { length: 255 }).primaryKey(),
 	customerId: varchar("customer_id", { length: 255 }).notNull(),
@@ -598,15 +631,10 @@ export const transactions = mysqlTable("transaction", {
 			length: 255,
 		}
 	).notNull(),
-	environment: mysqlEnum("environment", ENVIRONMENTS)
-		.default("production")
-		.notNull(),
-	providerEnvironment: mysqlEnum("purchase_environment", [
-		"production",
-		"sandbox",
-	])
-		.default("production")
-		.notNull(),
+	environment: tinyint("environment").notNull().default(Environment.Production),
+	providerEnvironment: tinyint("provider_environment")
+		.notNull()
+		.default(ProviderEnvironment.Production),
 	storeTransactionId: varchar("store_transaction_id", {
 		length: 255,
 	}),
@@ -615,6 +643,58 @@ export const transactions = mysqlTable("transaction", {
 	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
 
+export const InAppOwnershipType = {
+	FamilyShared: 1,
+	Purchased: 2,
+} as const;
+
+export type InAppOwnershipTypeValue =
+	(typeof InAppOwnershipType)[keyof typeof InAppOwnershipType];
+
+export const OfferDiscountType = {
+	FreeTrial: 1,
+	PayAsYouGo: 2,
+	PayUpFront: 3,
+} as const;
+
+export type OfferDiscountTypeValue =
+	(typeof OfferDiscountType)[keyof typeof OfferDiscountType];
+
+export const OfferType = {
+	IntroductoryOffer: 1,
+	PromotionalOffer: 2,
+	OfferWithSubscriptionOfferCode: 3,
+	WinBackOffer: 4,
+} as const;
+
+export type OfferTypeValue = (typeof OfferType)[keyof typeof OfferType];
+
+export const RevocationReason = {
+	OtherReason: 1,
+	PerceivedIssue: 2,
+} as const;
+
+export type RevocationReasonValue =
+	(typeof RevocationReason)[keyof typeof RevocationReason];
+
+export const TransactionReason = {
+	Purchase: 1,
+	Renewal: 2,
+} as const;
+
+export type TransactionReasonValue =
+	(typeof TransactionReason)[keyof typeof TransactionReason];
+
+export const TransactionType = {
+	AutoRenewableSubscription: 1,
+	NonConsumable: 2,
+	Consumable: 3,
+	NonRenewingSubscription: 4,
+} as const;
+
+export type TransactionTypeValue =
+	(typeof TransactionType)[keyof typeof TransactionType];
+
 export const appStoreTransactions = mysqlTable(
 	"app_store_transaction",
 	{
@@ -622,26 +702,22 @@ export const appStoreTransactions = mysqlTable(
 		transactionId: varchar("transaction_id", { length: 255 }).notNull(),
 		currency: varchar("currency", { length: 3 }).notNull(),
 		// Equivalent to providerEnvironment
-		environment: mysqlEnum("environment", ["production", "sandbox"]).notNull(),
+		environment: tinyint("environment")
+			.notNull()
+			.default(ProviderEnvironment.Production),
 		expireDate: timestamp("expire_date"),
-		inAppOwnershipType: mysqlEnum("is_app_ownership_type", [
-			"FAMILY_SHARED",
-			"PURCHASED",
-		]).notNull(),
+		inAppOwnershipType: tinyint("in_app_ownership_type")
+			.notNull()
+			.default(InAppOwnershipType.Purchased),
 		isUpgraded: boolean("is_upgraded"),
-		offerDiscountType: mysqlEnum("offer_disount_type", [
-			"FREE_TRIAL",
-			"PAY_AS_YOU_GO",
-			"PAY_UP_FRONT",
-		]),
+		offerDiscountType: tinyint("offer_discount_type")
+			.notNull()
+			.default(OfferDiscountType.PayAsYouGo),
 		offerIdentifier: varchar("offer_identifier", { length: 255 }),
 		offerPeriod: varchar("offer_period", { length: 255 }), //ISO 8601 duration string
-		offerType: mysqlEnum("offer_type", [
-			"INTRODUCTORY_OFFER",
-			"PROMOTIONAL_OFFER",
-			"OFFER_WITH_SUBSCRIPTION_OFFER_CODE",
-			"WIN_BACK_OFFER",
-		]),
+		offerType: tinyint("offer_type")
+			.notNull()
+			.default(OfferType.IntroductoryOffer),
 		originalPurchaseDate: timestamp("original_purchase_date").notNull(),
 		originalTransactionId: varchar("original_transaction_id", {
 			length: 255,
@@ -654,10 +730,9 @@ export const appStoreTransactions = mysqlTable(
 		purchaseDate: timestamp("purchase_date").notNull(),
 		quantity: int("quantity").notNull(),
 		revocationDate: timestamp("revocation_date"),
-		revocationReason: mysqlEnum("revocation_reason", [
-			"OTHER_REASON",
-			"PERCEIVED_ISSUE",
-		]),
+		revocationReason: tinyint("revocation_reason")
+			.notNull()
+			.default(RevocationReason.OtherReason),
 		/**
 		 * The three-letter code that represents the country or region associated with the App Store storefront for the purchase.
 		 */
@@ -666,13 +741,12 @@ export const appStoreTransactions = mysqlTable(
 		subscriptionGroupIdentifier: varchar("subscription_group_identifier", {
 			length: 255,
 		}),
-		transactionReason: mysqlEnum("transaction_reason", ["PURCHASE", "RENEWAL"]),
-		type: mysqlEnum("type", [
-			"AUTO_RENEWABLE_SUBSCRIPTION",
-			"NON_CONSUMABLE",
-			"CONSUMABLE",
-			"NON_RENEWING_SUBSCRIPTION",
-		]).notNull(),
+		transactionReason: tinyint("transaction_reason")
+			.notNull()
+			.default(TransactionReason.Purchase),
+		type: tinyint("type")
+			.notNull()
+			.default(TransactionType.AutoRenewableSubscription),
 		webOrderLineItemId: varchar("web_order_line_item_id", {
 			length: 255,
 		}),

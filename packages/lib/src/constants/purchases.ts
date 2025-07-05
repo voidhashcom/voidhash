@@ -1,1 +1,7 @@
-export const PURCHASE_TYPES = ["one_time", "one_time_consumable"] as const;
+export const PurchaseType = {
+	OneTime: 1,
+	OneTimeConsumable: 2,
+} as const;
+
+export type PurchaseTypeValue =
+	(typeof PurchaseType)[keyof typeof PurchaseType];

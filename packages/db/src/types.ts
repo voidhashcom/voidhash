@@ -11,10 +11,10 @@ export type Customer = InferSelectModel<typeof schema.customers>;
 export type InsertCustomer = InferInsertModel<typeof schema.customers>;
 
 export type CustomerUnlockedPerk = InferSelectModel<
-	typeof schema.customersUnlockedPerks
+	typeof schema.customerUnlockedPerks
 >;
 export type InsertCustomerUnlockedPerk = InferInsertModel<
-	typeof schema.customersUnlockedPerks
+	typeof schema.customerUnlockedPerks
 >;
 
 export type PaymentProviderConfiguration = InferSelectModel<

@@ -1,2 +1,6 @@
-export const ENVIRONMENTS = ["production", "testing"] as const;
-export type Environment = (typeof ENVIRONMENTS)[number];
+export const Environment = {
+	Production: 1,
+	Testing: 2,
+};
+
+export type EnvironmentValue = (typeof Environment)[keyof typeof Environment];
