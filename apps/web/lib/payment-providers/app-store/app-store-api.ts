@@ -1,4 +1,4 @@
-import { createPaymentProviderApi } from "@/lib/core/payment-providers/core/payment-provider-api";
+import { createPaymentProviderApi } from "@/lib/core/payment-providers/payment-provider-api";
 import { App } from "@/lib/api/hono/app";
 // import { registerAppStoreValidateTransaction } from "./api/app-store_validateTransaction";
 
