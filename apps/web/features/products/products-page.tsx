@@ -7,10 +7,10 @@ import { ProductRecordConfigurationStateIndicator } from "./product-record-confi
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 import { Environment } from "@/lib/effect/environment";
 import { NotFoundError } from "@/lib/effect/errors";
-import { ProductService } from "@/lib/services/products/product.service";
+import { ProductService } from "@/lib/services/product.service";
 import { AuthSession } from "@/lib/effect/auth";
 
 export async function ProductsPage({

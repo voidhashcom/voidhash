@@ -1,4 +1,4 @@
-import { createPaymentProviderApi } from "@/lib/services/payment-providers/core/payment-provider-api";
+import { createPaymentProviderApi } from "@/lib/core/payment-providers/core/payment-provider-api";
 // import { registerStripeWebhook } from "./api/webhook";
 import { App } from "@/lib/api/hono/app";
 

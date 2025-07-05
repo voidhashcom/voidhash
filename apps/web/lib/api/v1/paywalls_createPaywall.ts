@@ -6,7 +6,7 @@ import { App } from "../hono/app";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { createEffectHandler } from "@/lib/effect/runtimes/hono";
-import { PaywallService } from "@/lib/services/paywalls/paywall.service";
+import { PaywallService } from "@/lib/services/paywall.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 

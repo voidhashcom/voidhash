@@ -3,7 +3,7 @@ import { TeamDelete } from "./team-delete";
 import { SettingsGeneralLayout } from "./settings-general-layout";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { OrganizationService } from "@/lib/services/organizations/organization.service";
+import { OrganizationService } from "@/lib/services/organization.service";
 import { Effect } from "effect";
 import { NotFoundError } from "@/lib/effect/errors";
 

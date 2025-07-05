@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { updatePaywallAction } from "@/lib/nextjs/server-actions";
 
 import { useState } from "react";
-import type { updatePaywallInputSchema } from "@/lib/services/paywalls/actions/update-paywall"
 import {
 	DndContext,
 	closestCenter,
@@ -27,6 +26,7 @@ import {
 import { PaywallDetailProductRecord } from "./paywall-detail-product-record";
 import { Schema } from "effect";
 import type { Paywall, PaywallProduct, Product } from "@voidhash/db";
+import { updatePaywallInputSchema } from "@/lib/nextjs/schema";
 
 type UpdatePaywallInput = Schema.Schema.Type<typeof updatePaywallInputSchema>;
 

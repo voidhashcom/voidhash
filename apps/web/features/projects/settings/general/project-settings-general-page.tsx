@@ -2,7 +2,7 @@ import { ProjectNameForm } from "./project-name";
 import { ProjectDelete } from "./project-delete";
 import { ProjectSettingsGeneralLayout } from "./project-settings-general-layout";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 import { Effect } from "effect";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { NotFoundError } from "@/lib/effect/errors";

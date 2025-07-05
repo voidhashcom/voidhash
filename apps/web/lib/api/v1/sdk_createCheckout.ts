@@ -12,7 +12,7 @@ import {
 	createEffectHandler,
 	HonoErrorResponse,
 } from "@/lib/effect/runtimes/hono";
-import { SdkService } from "@/lib/services/sdk/sdk.service";
+import { SdkService } from "@/lib/services/sdk.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 

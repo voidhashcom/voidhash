@@ -5,9 +5,9 @@ import { PerksPageEmptyState } from "./perks-page-empty-state";
 import { CreatePerkModalButton } from "./create-perk-modal-button";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { Effect } from "effect";
-import { PerkService } from "@/lib/services/perks/perk.service";
+import { PerkService } from "@/lib/services/perk.service";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 
 export async function PerksPage({

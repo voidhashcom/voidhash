@@ -20,31 +20,37 @@ import {
 } from "../auth";
 import { BetterAuth, BetterAuthError } from "../better-auth";
 import { Request } from "../request";
-import { PerkService } from "@/lib/services/perks/perk.service";
-import { PerkRepository } from "@/lib/services/perks/perk.repository";
-import { PaywallLocationService } from "@/lib/services/paywall-locations/paywall-location.service";
-import { PaywallLocationRepository } from "@/lib/services/paywall-locations/paywall-location.repository";
-import { PaywallRepository } from "@/lib/services/paywalls/paywall.repository";
-import { PaywallService } from "@/lib/services/paywalls/paywall.service";
-import { ApiKeyRepository } from "@/lib/services/api-keys/api-key.repository";
-import { ApiKeyService } from "@/lib/services/api-keys/api-key.service";
-import { CustomerRepository } from "@/lib/services/customers/customer.repository";
-import { CustomerService } from "@/lib/services/customers/customer.service";
+import { PerkService } from "@/lib/services/perk.service";
+import { PerkRepository } from "@/lib/repositories/perk.repository";
+import { PaywallLocationService } from "@/lib/services/paywall-location.service";
+import { PaywallLocationRepository } from "@/lib/repositories/paywall-location.repository";
+import { PaywallRepository } from "@/lib/repositories/paywall.repository";
+import { PaywallService } from "@/lib/services/paywall.service";
+import { ApiKeyRepository } from "@/lib/repositories/api-key.repository";
+import { ApiKeyService } from "@/lib/services/api-key.service";
+import { CustomerRepository } from "@/lib/repositories/customer.repository";
+import { CustomerService } from "@/lib/services/customer.service";
 import { Context as HonoContextType } from "../../api/hono/app";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { ProjectRepository } from "@/lib/services/projects/project.repository";
-import { OrganizationRepository } from "@/lib/services/organizations/organization.repository";
-import { EnvironmentService } from "@/lib/services/environments/environment.service";
-import { ProjectService } from "@/lib/services/projects/project.service";
-import { ProductRepository } from "@/lib/services/products/product.repository";
-import { ProductService } from "@/lib/services/products/product.service";
-import { SdkService } from "@/lib/services/sdk/sdk.service";
-import { PaymentProviderRepository } from "@/lib/services/payment-providers/payment-provider.repository";
-import { CheckoutSessionRepository } from "@/lib/services/checkout-session/checkout-session.repository";
+import { ProjectRepository } from "@/lib/repositories/project.repository";
+import { OrganizationRepository } from "@/lib/repositories/organization.repository";
+import { EnvironmentService } from "@/lib/services/environment.service";
+import { ProjectService } from "@/lib/services/project.service";
+import { ProductRepository } from "@/lib/repositories/product.repository";
+import { ProductService } from "@/lib/services/product.service";
+import { SdkService } from "@/lib/services/sdk.service";
+import { PaymentProviderRepository } from "@/lib/repositories/payment-provider.repository";
+import { CheckoutSessionRepository } from "@/lib/repositories/checkout-session.repository";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "../errors";
 import { MissingEnvironmentError } from "../environment";
 import { ErrorCode, errorResponse } from "@/lib/api/errors/http";
 import { z } from "zod";
+import { DevCheckoutService } from "@/lib/payment-providers/dev-checkout/dev-checkout.service";
+import { PaymentProviderConfigurationProductRepository } from "@/lib/repositories/payment-provider-configuration-product.repository";
+import { ProductPerkRepository } from "@/lib/repositories/product-perk.repository";
+import { OrganizationService } from "@/lib/services/organization.service";
+import { PaymentProviderService } from "@/lib/services/payment-provider.service";
+import { UserService } from "@/lib/services/user.service";
 
 export class HonoContext extends Context.Tag("app/HonoContext")<
 	HonoContext,
@@ -108,26 +114,32 @@ const RuntimeLayer = (context: HonoContextType) => {
 	const RepositoryLayer = pipe(
 		ApiKeyRepository.Default,
 		Layer.provideMerge(CustomerRepository.Default),
+		Layer.provideMerge(CheckoutSessionRepository.Default),
 		Layer.provideMerge(OrganizationRepository.Default),
+		Layer.provideMerge(PaymentProviderConfigurationProductRepository.Default),
+		Layer.provideMerge(PaymentProviderRepository.Default),
 		Layer.provideMerge(PaywallLocationRepository.Default),
 		Layer.provideMerge(PaywallRepository.Default),
 		Layer.provideMerge(PerkRepository.Default),
+		Layer.provideMerge(ProductPerkRepository.Default),
 		Layer.provideMerge(ProductRepository.Default),
 		Layer.provideMerge(ProjectRepository.Default),
-		Layer.provideMerge(PaymentProviderRepository.Default),
-		Layer.provideMerge(CheckoutSessionRepository.Default)
 	);
 
 	const ServiceLayer = pipe(
-		PerkService.Default,
-		Layer.provideMerge(ApiKeyService.Default),
+	    ApiKeyService.Default,
 		Layer.provideMerge(CustomerService.Default),
 		Layer.provideMerge(EnvironmentService.Default),
+		Layer.provideMerge(OrganizationService.Default),
+		Layer.provideMerge(PaymentProviderService.Default),
 		Layer.provideMerge(PaywallLocationService.Default),
 		Layer.provideMerge(PaywallService.Default),
+		Layer.provideMerge(PerkService.Default),
 		Layer.provideMerge(ProductService.Default),
 		Layer.provideMerge(ProjectService.Default),
-		Layer.provideMerge(SdkService.Default)
+		Layer.provideMerge(SdkService.Default),
+		Layer.provideMerge(UserService.Default),
+		Layer.provideMerge(DevCheckoutService.Default)
 	);
 
 	return pipe(

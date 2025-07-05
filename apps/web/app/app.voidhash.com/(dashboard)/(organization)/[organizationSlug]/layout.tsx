@@ -6,7 +6,7 @@ import { NavBar } from "@/features/shell";
 import { Suspense } from "react";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 
 async function OrganizationSettingsLayoutSidebar({
 	organizationSlug,

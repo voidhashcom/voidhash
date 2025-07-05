@@ -2,7 +2,7 @@ import { NavProjectEnvironmentToggle } from "./nav-project-environment-toggle";
 import { Suspense } from "react";
 import { Effect } from "effect";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { Environment } from "@/lib/effect/environment";
 import { AuthSession } from "@/lib/effect/auth";

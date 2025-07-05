@@ -12,9 +12,9 @@ import { PaymentProvidersNewStoreDropdown } from "./payment-providers-new-store-
 import { SetupPaymentProviderButton } from "./setup-payment-provider-button";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { ProjectService } from "@/lib/services/project.service";
 import { Environment } from "@/lib/effect/environment";
-import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
+import { PaymentProviderService } from "@/lib/services/payment-provider.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { AuthSession } from "@/lib/effect/auth";
 import { Environment as EnvironmentEnum } from "@voidhash/lib/index";

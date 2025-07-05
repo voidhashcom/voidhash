@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { Clock4Icon } from "lucide-react";
 import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { CustomerService } from "@/lib/services/customers/customer.service";
+import { CustomerService } from "@/lib/services/customer.service";
 import { Effect } from "effect";
 
 export async function CustomerDetailPage({

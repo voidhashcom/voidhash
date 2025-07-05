@@ -4,12 +4,12 @@ import { CreatePaywallLocationModalButton } from "./create-paywall-location-moda
 import { PaywallLocationsPageEmptyState } from "./paywall-locations-page-empty-state";
 import { PaywallLocationRecord } from "./paywall-location-record";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { PaywallLocationService } from "@/lib/services/paywall-locations/paywall-location.service";
+import { PaywallLocationService } from "@/lib/services/paywall-location.service";
 import { Effect } from "effect";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { NotFoundError } from "@/lib/effect/errors";
-import { ProjectService } from "@/lib/services/projects/project.service";
-import { PaywallService } from "@/lib/services/paywalls/paywall.service";
+import { ProjectService } from "@/lib/services/project.service";
+import { PaywallService } from "@/lib/services/paywall.service";
 
 export async function PaywallLocationsPage({
 	organizationSlug,

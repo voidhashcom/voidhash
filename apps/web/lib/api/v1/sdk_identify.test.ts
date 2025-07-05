@@ -9,7 +9,7 @@ import {
 import { describe, expect, test } from "vitest";
 import { sdkCustomerResponseSchema } from "./schema";
 import { eq } from "drizzle-orm";
-import { ANONYMOUS_USER_ID_PREFIX } from "@/lib/services/sdk/constants";
+import { ANONYMOUS_USER_ID_PREFIX } from "@/lib/core/sdk/constants";
 import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential("/v1/sdk/identify", async () => {

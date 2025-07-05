@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { BasePaymentProvider } from "../../services/payment-providers/core/base-payment-provider";
-import { PaymentProvider } from "../../services/payment-providers/core/payment-provider";
+import { BasePaymentProvider } from "../../core/payment-providers/core/base-payment-provider";
+import { PaymentProvider } from "../../core/payment-providers/core/payment-provider";
 import {
 	PaymentProviderConfigurationSheetSection,
 	PaymentProviderProductEditorSheetSection,
-} from "../../services/payment-providers/core/types";
+} from "../../core/payment-providers/core/types";
 import { API_DOMAIN, Environment } from "@voidhash/lib/constants";
 
 const stripeGlobalConfigurationSchema = z.object({

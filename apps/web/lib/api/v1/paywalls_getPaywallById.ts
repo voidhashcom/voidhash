@@ -9,7 +9,7 @@ import {
 	createEffectHandler,
 	HonoErrorResponse,
 } from "@/lib/effect/runtimes/hono";
-import { PaywallService } from "@/lib/services/paywalls/paywall.service";
+import { PaywallService } from "@/lib/services/paywall.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 

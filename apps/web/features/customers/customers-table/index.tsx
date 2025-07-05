@@ -2,7 +2,7 @@ import { columns } from "./columns";
 import { DataTable } from "./data-table";
 import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { CustomerService } from "@/lib/services/customers/customer.service";
+import { CustomerService } from "@/lib/services/customer.service";
 import { CustomerTypeValue } from "@voidhash/db";
 import { Effect, pipe } from "effect";
 

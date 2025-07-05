@@ -14,7 +14,7 @@
 // 	products,
 // 	purchases,
 // 	subscriptions,
-// 	customersUnlockedPerks,
+// 	customerUnlockedPerks,
 // 	InsertProductPerk,
 // 	productPerks,
 // } from "@voidhash/db";
@@ -163,10 +163,10 @@
 
 // 		// Verify perks
 // 		const customerUnlockedPerks =
-// 			await h.db.primary.query.customersUnlockedPerks.findMany({
+// 			await h.db.primary.query.customerUnlockedPerks.findMany({
 // 				where: and(
-// 					eq(customersUnlockedPerks.customerId, customerInsert.id),
-// 					eq(customersUnlockedPerks.unlockedBySubscriptionId, subscription!.id)
+// 					eq(customerUnlockedPerks.customerId, customerInsert.id),
+// 					eq(customerUnlockedPerks.unlockedBySubscriptionId, subscription!.id)
 // 				),
 // 			});
 

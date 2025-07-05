@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { ErrorCard } from "@voidhash/ui";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
-import { UserService } from "@/lib/services/users/user.service";
+import { UserService } from "@/lib/services/user.service";
 
 export default async function Index() {
 	const data = await runServerEffect(Effect.gen(function* () {

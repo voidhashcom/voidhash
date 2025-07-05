@@ -2,8 +2,8 @@ import { Badge } from "@voidhash/ui";
 import { PaymentProviderLogo } from "../projects/settings/payment-providers/payment-provider-logo";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
-import { ProductService } from "@/lib/services/products/product.service";
-import { PaymentProviderService } from "@/lib/services/payment-providers/payment-provider.service";
+import { ProductService } from "@/lib/services/product.service";
+import { PaymentProviderService } from "@/lib/services/payment-provider.service";
 import { AuthSession } from "@/lib/effect/auth";
 
 export async function ProductRecordConfigurationStateIndicator({

@@ -1,8 +1,7 @@
-import { CheckoutSessionRepository } from "@/lib/services/checkout-session/checkout-session.repository";
+import { CheckoutSessionRepository } from "@/lib/repositories/checkout-session.repository";
 import { CheckoutSession, CheckoutSessionStatus } from "@voidhash/db";
 import { Data, Effect, pipe, Schema } from "effect";
-import { PaymentProviderCoreService } from "../../core/payment-provider-core.service";
-import { ProductRepository } from "@/lib/services/products/product.repository";
+import { PaymentProviderConfigurationProductRepository } from "@/lib/repositories/payment-provider-configuration-product.repository";
 
 export const confirmDevCheckoutPurchaseInputSchema = Schema.Struct({
 	checkoutSessionId: Schema.String,
@@ -30,8 +29,7 @@ export const confirmPurchase = (inputUnsafe: ConfirmDevCheckoutPurchaseInput) =>
 	pipe(
 		Effect.gen(function* () {
 			const checkoutSessionRepository = yield* CheckoutSessionRepository;
-			const paymentProviderCoreService = yield* PaymentProviderCoreService;
-			const productRepository = yield* ProductRepository;
+			const paymentProviderConfigurationProductRepository = yield* PaymentProviderConfigurationProductRepository;
 
 			// Load the checkout session
 			const checkoutSession =
@@ -52,7 +50,7 @@ export const confirmPurchase = (inputUnsafe: ConfirmDevCheckoutPurchaseInput) =>
 			// Process the purchase
 			// TODO: Process the purchase
 			const paymentProviderConfigurationProduct =
-				yield* productRepository.getProviderProductById(
+				yield* paymentProviderConfigurationProductRepository.getProviderProductById(
 					checkoutSession.paymentProviderConfigurationProductId
 				);
 			if (!paymentProviderConfigurationProduct)

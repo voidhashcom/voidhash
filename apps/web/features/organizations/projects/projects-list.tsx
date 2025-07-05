@@ -15,8 +15,8 @@ import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-ca
 import { Effect } from "effect";
 import { NotFoundError } from "@/lib/effect/errors";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { OrganizationService } from "@/lib/services/organizations/organization.service";
-import { ProjectService } from "@/lib/services/projects/project.service";
+import { OrganizationService } from "@/lib/services/organization.service";
+import { ProjectService } from "@/lib/services/project.service";
 
 export async function ProjectsList({
 	organizationSlug,

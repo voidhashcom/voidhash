@@ -5,7 +5,7 @@ import { productResponseSchema } from "./schema";
 import { z } from "zod";
 import { App } from "../hono/app";
 import { createEffectHandler } from "@/lib/effect/runtimes/hono";
-import { ProductService } from "@/lib/services/products/product.service";
+import { ProductService } from "@/lib/services/product.service";
 import { Effect } from "effect";
 import { Auth, AuthSession } from "@/lib/effect/auth";
 
