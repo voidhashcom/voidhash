@@ -7,17 +7,29 @@ import { Suspense } from "react";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
 import { ProjectService } from "@/lib/services/project.service";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 async function OrganizationSettingsLayoutSidebar({
 	organizationSlug,
 }: {
 	organizationSlug: string;
 }) {
-	const data = await runServerEffect(Effect.gen(function* () {
-		const projectService = yield* ProjectService;
-		const projects = yield* projectService.getProjectsByOrganizationSlug(organizationSlug);
-		return { projects };
-	}));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const projectService = yield* ProjectService;
+					const projects =
+						yield* projectService.getProjectsByOrganizationSlug(
+							organizationSlug
+						);
+					return { projects };
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		return null;

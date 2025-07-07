@@ -3,13 +3,22 @@ import { ErrorCard } from "@voidhash/ui";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
 import { UserService } from "@/lib/services/user.service";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 export default async function Index() {
-	const data = await runServerEffect(Effect.gen(function* () {
-		const userService = yield* UserService;
-		const user = yield* userService.getUser();
-		return { user };
-	}));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const userService = yield* UserService;
+					const user = yield* userService.getUser();
+					return { user };
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		const err = data._unsafeUnwrapErr();

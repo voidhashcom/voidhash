@@ -1,4 +1,3 @@
-
 import { Card } from "@voidhash/ui";
 import { PerkRecord } from "./perk-record";
 import { PerksPageEmptyState } from "./perks-page-empty-state";
@@ -9,6 +8,11 @@ import { PerkService } from "@/lib/services/perk.service";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { ProjectService } from "@/lib/services/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
+import {
+	Environment,
+	EnvironmentService,
+} from "@/lib/services/environment.service";
 
 export async function PerksPage({
 	organizationSlug,
@@ -17,21 +21,42 @@ export async function PerksPage({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const data = await runServerEffect(Effect.gen(function* () {
-		const projectService = yield* ProjectService;
-		const perkService = yield* PerkService;
-		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
-			organizationSlug,
-			projectSlug,
-		});
-		if (!project) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Project not found",
-			}));
-		}
-		const perks = yield* perkService.getPerks(project.id);
-		return { project, perks };
-	}));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const environmentService = yield* EnvironmentService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const environment =
+						yield* environmentService.getEnvironmentFromCookie({
+							organizationSlug,
+							projectSlug,
+						});
+					return yield* Environment.provide(environment)(
+						Effect.gen(function* () {
+							const projectService = yield* ProjectService;
+							const perkService = yield* PerkService;
+							const project =
+								yield* projectService.getProjectBySlugAndOrganizationSlug({
+									organizationSlug,
+									projectSlug,
+								});
+							if (!project) {
+								return yield* Effect.fail(
+									new NotFoundError({
+										message: "Project not found",
+									})
+								);
+							}
+							const perks = yield* perkService.getPerks(project.id);
+							return { project, perks };
+						})
+					);
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();

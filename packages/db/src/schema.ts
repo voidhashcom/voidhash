@@ -607,6 +607,9 @@ export const subscriptions = mysqlTable("subscription", {
 	canceledAt: timestamp("canceled_at"),
 
 	cancellationReason: varchar("cancellation_reason", { length: 255 }),
+
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at").onUpdateNow(),
 });
 
 export const subscriptionRelations = relations(subscriptions, ({ one }) => ({

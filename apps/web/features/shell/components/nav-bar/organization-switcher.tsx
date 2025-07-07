@@ -9,6 +9,7 @@ import { UserService } from "@/lib/services/user.service";
 import { Effect } from "effect";
 import { NotFoundError } from "@/lib/effect/errors";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 const OrganizationSwitcherComponent = async ({
 	organizationSlug,
@@ -17,20 +18,32 @@ const OrganizationSwitcherComponent = async ({
 		return null;
 	}
 
-	const data = await runServerEffect(Effect.gen(function* () {
-		const userService = yield* UserService;
-		const organizationService = yield* OrganizationService;
-		const [user, activeOrganization] = yield* Effect.all([
-			userService.getUser(),
-			organizationService.getOrganizationBySlug(organizationSlug),
-		]);
-		if (!activeOrganization) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Organization not found",
-			}));
-		}
-		return { user, activeOrganization };
-	}));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const userService = yield* UserService;
+					const organizationService = yield* OrganizationService;
+					const [user, activeOrganization] = yield* Effect.all([
+						userService.getUser(),
+						organizationService.getOrganizationBySlug(organizationSlug),
+					], {
+						concurrency: "unbounded"
+					});
+					if (!activeOrganization) {
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Organization not found",
+							})
+						);
+					}
+					return { user, activeOrganization };
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		return null;

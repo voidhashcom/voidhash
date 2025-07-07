@@ -3,10 +3,11 @@ import { hashKey } from "@/lib/core/api-keys/effect/utils";
 import { apiKeys, projects, User } from "@voidhash/db";
 import { EnvironmentValue } from "@voidhash/lib/constants";
 import { eq, inArray } from "drizzle-orm";
-import { Db } from "./db";
-import { Request } from "./request";
-import { BetterAuth } from "./better-auth";
-import { UnauthorizedError } from "./errors";
+import { Db } from "../effect/db";
+import { Request } from "../effect/request";
+import { BetterAuth } from "../effect/better-auth";
+import { UnauthorizedError } from "../effect/errors";
+import { NextjsRuntimeTag, HonoRuntimeTag } from "../effect/runtimes/tags";
 
 export class InvalidSourceError extends Data.TaggedError("InvalidSourceError")<{
 	readonly cause?: unknown;
@@ -96,21 +97,10 @@ export type PublishableApiKeySession = VoidhashBaseSession & {
 	readonly environment: EnvironmentValue;
 };
 
-const withAuthSession = <T, E, D>(effect: Effect.Effect<T, E, D>) =>
-	Effect.gen(function* () {
-		const maybeSession = yield* Effect.serviceOption(AuthSession);
-		const authService = yield* Auth;
-		const session = Option.isNone(maybeSession)
-			? yield* authService.authenticate()
-			: maybeSession.value;
-		return yield* AuthSession.provide(session)(effect);
-	});
-
 export class AuthSession extends Context.Tag("app/AuthSession")<
 	AuthSession,
 	UserSession | ApiKeySession | PublishableApiKeySession
 >() {
-	static withAuthSession = () => withAuthSession;
 	public static readonly provide = (
 		session: UserSession | ApiKeySession | PublishableApiKeySession
 	): (<A, E, R>(
@@ -119,56 +109,67 @@ export class AuthSession extends Context.Tag("app/AuthSession")<
 		Effect.provideService(this, session);
 }
 
-export class Auth extends Effect.Service<Auth>()("app/AuthService", {
-	dependencies: [Db.Default],
+export class AuthService extends Effect.Service<AuthService>()(
+	"app/AuthService",
+	{
+		dependencies: [Db.Default],
 
-	effect: Effect.gen(function* () {
-		return {
-			authenticate: () =>
-				Effect.gen(function* () {
-					const request = yield* Request;
-					const existingSession = yield* Effect.serviceOption(AuthSession);
-					if (Option.isSome(existingSession)) {
-						return existingSession.value;
-					}
-					const source = yield* request.getSource;
+		effect: Effect.gen(function* () {
+			return {
+				authenticateWithSession: () =>
+					Effect.gen(function* () {
+						// Works only in Next.js runtime
+						yield* NextjsRuntimeTag;
+						const existingSession = yield* Effect.serviceOption(AuthSession);
+						if (Option.isSome(existingSession)) {
+							return existingSession.value;
+						}
+						const userAuthSession = yield* getUserAuthSession;
+						return userAuthSession;
+					}),
 
-					switch (source) {
-						case "nextjs":
-							const userAuthSession = yield* getUserAuthSession;
-							return userAuthSession;
-						case "api-server":
-							const secretApiKeyAuthSession = yield* getSecretApiKeyAuthSession;
-							return secretApiKeyAuthSession;
-						case "api-sdk":
-							const publishableApiKeyAuthSession =
-								yield* getPublishableApiKeyAuthSession;
-							return publishableApiKeyAuthSession;
-						default:
+				authenticateWithSecretKey: () =>
+					Effect.gen(function* () {
+						// Works only in Next.js runtime
+						yield* HonoRuntimeTag;
+						const existingSession = yield* Effect.serviceOption(AuthSession);
+						if (Option.isSome(existingSession)) {
+							return existingSession.value;
+						}
+						const secretApiKeyAuthSession = yield* getSecretApiKeyAuthSession;
+						return secretApiKeyAuthSession;
+					}),
+
+				authenticateWithPublishableKey: () =>
+					Effect.gen(function* () {
+						// Works only in Next.js runtime
+						yield* HonoRuntimeTag;
+						const existingSession = yield* Effect.serviceOption(AuthSession);
+						if (Option.isSome(existingSession)) {
+							return existingSession.value;
+						}
+						const publishableApiKeyAuthSession =
+							yield* getPublishableApiKeyAuthSession;
+						return publishableApiKeyAuthSession;
+					}),
+
+				getAuthorizedProjectId: () =>
+					Effect.gen(function* () {
+						const authSession = yield* AuthSession;
+						const projectId = authSession.projects[0]?.id;
+						if (!projectId) {
 							return yield* Effect.fail(
-								new InvalidSourceError({
-									message: "Invalid source",
+								new MissingProjectIdError({
+									message: "No project id found in session",
 								})
 							);
-					}
-				}),
-
-			getAuthorizedProjectId: () =>
-				Effect.gen(function* () {
-					const authSession = yield* AuthSession;
-					const projectId = authSession.projects[0]?.id;
-					if (!projectId) {
-						return yield* Effect.fail(
-							new MissingProjectIdError({
-								message: "No project id found in session",
-							})
-						);
-					}
-					return projectId;
-				}),
-		};
-	}),
-}) {}
+						}
+						return projectId;
+					}),
+			};
+		}),
+	}
+) {}
 
 const getUserAuthSession = Effect.gen(function* () {
 	const betterAuth = yield* BetterAuth;

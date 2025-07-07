@@ -8,8 +8,12 @@ import { z } from "zod";
 import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { CustomerService } from "@/lib/services/customer.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 import { CustomerOrigin } from "@voidhash/db";
+import {
+	Environment,
+	EnvironmentService,
+} from "@/lib/services/environment.service";
 
 const route = describeRoute({
 	description: "Create a new customer",
@@ -41,28 +45,34 @@ export const registerCustomersCreateCustomer = (app: App) =>
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
+					const authService = yield* AuthService;
 					const customerService = yield* CustomerService;
-					const projectId = yield* AuthSession.provide(authSession)(
-						authService.getAuthorizedProjectId()
-					);
-					const customer = yield* AuthSession.provide(authSession)(
-						customerService.createCustomer({
-							email: c.req.valid("json").email,
-							name: c.req.valid("json").name,
-							appUserId: c.req.valid("json").appUserId,
-							origin: CustomerOrigin.API,
-							projectId,
+					const environmentService = yield* EnvironmentService;
+					const authSession = yield* authService.authenticateWithSecretKey();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environment =
+								yield* environmentService.getEnvironmentFromApiAuthSession();
+
+							const projectId = yield* authService.getAuthorizedProjectId();
+							const customer = yield* Environment.provide(environment)(
+								customerService.createCustomer({
+									email: c.req.valid("json").email,
+									name: c.req.valid("json").name,
+									appUserId: c.req.valid("json").appUserId,
+									origin: CustomerOrigin.API,
+									projectId,
+								})
+							);
+
+							return c.json<z.infer<typeof customerResponseSchema>>({
+								customerId: customer.id,
+								name: customer.name ?? null,
+								email: customer.email ?? null,
+								appUserId: customer.appUserId ?? null,
+							});
 						})
 					);
-
-					return c.json<z.infer<typeof customerResponseSchema>>({
-						customerId: customer.id,
-						name: customer.name ?? null,
-						email: customer.email ?? null,
-						appUserId: customer.appUserId ?? null,
-					});
 				})
 			)
 	);

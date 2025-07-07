@@ -2,6 +2,7 @@ import { Schema } from "effect";
 import { CustomerOrigin } from "@voidhash/db";
 import { ID_BLACKLIST } from "@voidhash/lib/constants/id-blacklist";
 import { ANONYMOUS_USER_ID_PREFIX } from "../core/sdk/constants";
+import { Environment } from "@voidhash/lib/constants";
 
 // Api Keys
 export const createSecretKeyInputSchema = Schema.Struct({
@@ -31,6 +32,15 @@ export const createCustomerInputSchema = Schema.Struct({
 		Schema.Literal(CustomerOrigin.Android),
 		Schema.Literal(CustomerOrigin.Stripe),
 		Schema.Literal(CustomerOrigin.API)
+	),
+});
+
+// Environments
+export const switchEnvironmentInputSchema = Schema.Struct({
+	projectId: Schema.String,
+	environment: Schema.Union(
+		Schema.Literal(Environment.Production),
+		Schema.Literal(Environment.Testing)
 	),
 });
 
@@ -92,19 +102,18 @@ export const createPaywallInputSchema = Schema.Struct({
 export const updatePaywallInputSchema = Schema.Struct({
 	paywallId: Schema.String,
 	name: Schema.optional(Schema.String.pipe(Schema.minLength(3))),
-	paywallProducts: 
-		Schema.Array(
-			Schema.Struct({
-				productId: Schema.String.pipe(Schema.minLength(1)),
-				displayName: Schema.String.pipe(Schema.minLength(2)),
-				enableNativePurchase: Schema.Boolean,
-				enableWebCheckout: Schema.Boolean,
-				webCheckoutPaymentProviderConfigurationProductId: Schema.NullOr(
-					Schema.String
-				),
-				order: Schema.Number,
-			})
-		)
+	paywallProducts: Schema.Array(
+		Schema.Struct({
+			productId: Schema.String.pipe(Schema.minLength(1)),
+			displayName: Schema.String.pipe(Schema.minLength(2)),
+			enableNativePurchase: Schema.Boolean,
+			enableWebCheckout: Schema.Boolean,
+			webCheckoutPaymentProviderConfigurationProductId: Schema.NullOr(
+				Schema.String
+			),
+			order: Schema.Number,
+		})
+	),
 });
 
 export const deletePaywallInputSchema = Schema.Struct({
@@ -160,9 +169,7 @@ export const createPaymentProviderProductInputSchema = Schema.Struct({
 });
 
 export const updatePaymentProviderProductInputSchema = Schema.Struct({
-	productId: Schema.String,
-	providerProductKey: Schema.String,
-	paymentProviderConfigurationId: Schema.String,
+	paymentProviderConfigurationProductId: Schema.String,
 	configuration: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
 });
 

@@ -14,7 +14,11 @@ import {
 } from "@/lib/effect/runtimes/hono";
 import { SdkService } from "@/lib/services/sdk.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
+import {
+	Environment,
+	EnvironmentService,
+} from "@/lib/services/environment.service";
 
 const route = describeRoute({
 	description: "Get paywall by location",
@@ -46,30 +50,35 @@ export const registerSdkGetPaywallByLocation = (app: App) =>
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
+					const authService = yield* AuthService;
 					const sdkService = yield* SdkService;
-					const paywall = yield* AuthSession.provide(authSession)(
-						sdkService
-							.getPaywallByLocation({
-								locationSlug: c.req.param("locationSlug"),
-								nativePaymentProviderId: undefined, // You may need to get this from query params if needed
-							})
-							.pipe(
-								Effect.catchTags({
-									PaywallNotFound: (error) =>
-										Effect.fail(
-											new HonoErrorResponse({
-												code: "NOT_FOUND",
-												message: error.message,
-												originalError: error,
-											})
-										),
+					const environmentService = yield* EnvironmentService;
+					const authSession =
+						yield* authService.authenticateWithPublishableKey();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environment =
+								yield* environmentService.getEnvironmentFromApiAuthSession();
+							const paywall = yield* Environment.provide(environment)(
+								sdkService.getPaywallByLocation({
+									locationSlug: c.req.param("locationSlug"),
+									nativePaymentProviderId: undefined, // You may need to get this from query params if needed
 								})
-							)
+							);
+							return c.json<z.infer<typeof sdkPaywallResponseSchema>>(paywall);
+						}).pipe(
+							Effect.catchTags({
+								PaywallNotFound: (error) =>
+									Effect.fail(
+										new HonoErrorResponse({
+											code: "NOT_FOUND",
+											message: error.message,
+											originalError: error,
+										})
+									),
+							})
+						)
 					);
-
-					return c.json<z.infer<typeof sdkPaywallResponseSchema>>(paywall);
 				})
 			)
 	);

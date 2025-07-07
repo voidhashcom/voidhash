@@ -11,7 +11,7 @@ import {
 } from "@/lib/effect/runtimes/hono";
 import { PaywallService } from "@/lib/services/paywall.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 const route = describeRoute({
 	description: "Delete a paywall",
@@ -45,12 +45,15 @@ export const registerPaywallsDeletePaywall = (app: App) =>
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
+					const authService = yield* AuthService;
 					const paywallService = yield* PaywallService;
-					yield* AuthSession.provide(authSession)(
-						paywallService.deletePaywall({
-							paywallId: c.req.param("paywallId"),
+					const authSession = yield* authService.authenticateWithSecretKey();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							yield* paywallService.deletePaywall({
+								paywallId: c.req.param("paywallId"),
+							});
+							return c.json({ message: "Paywall deleted" });
 						})
 					).pipe(
 						Effect.catchTags({
@@ -72,8 +75,6 @@ export const registerPaywallsDeletePaywall = (app: App) =>
 								),
 						})
 					);
-
-					return c.json({ message: "Paywall deleted" });
 				})
 			)
 	);

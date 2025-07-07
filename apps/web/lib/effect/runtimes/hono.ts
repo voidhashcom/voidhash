@@ -1,15 +1,8 @@
-import {
-	Context,
-	Data,
-	Effect,
-	Layer,
-	ManagedRuntime,
-	pipe,
-} from "effect";
+import { Context, Data, Effect, Layer, ManagedRuntime, Option, pipe } from "effect";
 import { Cookies, CookiesError } from "../cookies";
 import { DatabaseError, Db } from "../db";
 import {
-	Auth,
+	AuthService,
 	InvalidPublishableKeyError,
 	InvalidSecretKeyError,
 	InvalidSourceError,
@@ -17,7 +10,7 @@ import {
 	MissingProjectIdError,
 	MissingPublishableKeyError,
 	MissingSecretKeyError,
-} from "../auth";
+} from "../../services/auth.service";
 import { BetterAuth, BetterAuthError } from "../better-auth";
 import { Request } from "../request";
 import { PerkService } from "@/lib/services/perk.service";
@@ -34,7 +27,12 @@ import { Context as HonoContextType } from "../../api/hono/app";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { ProjectRepository } from "@/lib/repositories/project.repository";
 import { OrganizationRepository } from "@/lib/repositories/organization.repository";
-import { EnvironmentService } from "@/lib/services/environment.service";
+import {
+	EnvironmentService,
+	InvalidEnvironmentError,
+	OrganizationNotFoundInSessionError,
+	ProjectNotFoundInSessionError,
+} from "@/lib/services/environment.service";
 import { ProjectService } from "@/lib/services/project.service";
 import { ProductRepository } from "@/lib/repositories/product.repository";
 import { ProductService } from "@/lib/services/product.service";
@@ -42,7 +40,7 @@ import { SdkService } from "@/lib/services/sdk.service";
 import { PaymentProviderRepository } from "@/lib/repositories/payment-provider.repository";
 import { CheckoutSessionRepository } from "@/lib/repositories/checkout-session.repository";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "../errors";
-import { MissingEnvironmentError } from "../environment";
+import { MissingEnvironmentError } from "../../services/environment.service";
 import { ErrorCode, errorResponse } from "@/lib/api/errors/http";
 import { z } from "zod";
 import { DevCheckoutService } from "@/lib/payment-providers/dev-checkout/dev-checkout.service";
@@ -51,29 +49,60 @@ import { ProductPerkRepository } from "@/lib/repositories/product-perk.repositor
 import { OrganizationService } from "@/lib/services/organization.service";
 import { PaymentProviderService } from "@/lib/services/payment-provider.service";
 import { UserService } from "@/lib/services/user.service";
+import { HonoRuntimeTag } from "./tags";
 
 export class HonoContext extends Context.Tag("app/HonoContext")<
 	HonoContext,
 	HonoContextType
 >() {}
 
+
+const HonoRuntimeTagLive = Layer.succeed(
+	HonoRuntimeTag,
+	HonoRuntimeTag.of("hono")
+);
+
 const CookiesLive = Layer.effect(
 	Cookies,
 	Effect.gen(function* () {
-		const honoContext = yield* HonoContext;
 		return {
 			getCookie: (name) =>
 				Effect.gen(function* () {
-					return getCookie(honoContext, name) ?? null;
+					const honoContext = yield* Effect.serviceOption(HonoContext);
+					if (Option.isNone(honoContext)) {
+						return yield* Effect.fail(
+							new CookiesError({
+								message: "Hono context not found",
+							})
+						);
+					}
+					return getCookie(honoContext.value, name) ?? null;
 				}),
 			setCookie: (name, value) =>
 				Effect.gen(function* () {
-					setCookie(honoContext, name, value);
+					console.log("setCookie", name, value);
+					const honoContext = yield* Effect.serviceOption(HonoContext);
+					if (Option.isNone(honoContext)) {
+						return yield* Effect.fail(
+							new CookiesError({
+								message: "Hono context not found",
+							})
+						);
+					}
+					setCookie(honoContext.value, name, value);
 					return;
 				}),
 			deleteCookie: (name) =>
 				Effect.gen(function* () {
-					deleteCookie(honoContext, name);
+					const honoContext = yield* Effect.serviceOption(HonoContext);
+					if (Option.isNone(honoContext)) {
+						return yield* Effect.fail(
+							new CookiesError({
+								message: "Hono context not found",
+							})
+						);
+					}
+					deleteCookie(honoContext.value, name);
 					return;
 				}),
 		};
@@ -103,12 +132,13 @@ const DbLive = Db.Default;
 
 const RuntimeLayer = (context: HonoContextType) => {
 	const CoreLayer = pipe(
-		Auth.Default,
+		AuthService.Default,
 		Layer.provideMerge(BetterAuth.Default),
 		Layer.provideMerge(DbLive),
 		Layer.provideMerge(CookiesLive),
 		Layer.provideMerge(RequestLive),
-		Layer.provideMerge(Layer.succeed(HonoContext, context))
+		Layer.provideMerge(Layer.succeed(HonoContext, context)),
+		Layer.provideMerge(HonoRuntimeTagLive)
 	);
 
 	const RepositoryLayer = pipe(
@@ -123,11 +153,11 @@ const RuntimeLayer = (context: HonoContextType) => {
 		Layer.provideMerge(PerkRepository.Default),
 		Layer.provideMerge(ProductPerkRepository.Default),
 		Layer.provideMerge(ProductRepository.Default),
-		Layer.provideMerge(ProjectRepository.Default),
+		Layer.provideMerge(ProjectRepository.Default)
 	);
 
 	const ServiceLayer = pipe(
-	    ApiKeyService.Default,
+		ApiKeyService.Default,
 		Layer.provideMerge(CustomerService.Default),
 		Layer.provideMerge(EnvironmentService.Default),
 		Layer.provideMerge(OrganizationService.Default),
@@ -185,7 +215,10 @@ type AcceptableErrorTypes =
 	| InvalidPublishableKeyError
 	| MissingAppUserIdError
 	| MissingEnvironmentError
-	| MissingProjectIdError;
+	| MissingProjectIdError
+	| ProjectNotFoundInSessionError
+	| OrganizationNotFoundInSessionError
+	| InvalidEnvironmentError;
 
 const handleGlobalErrors = (
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -300,6 +333,30 @@ const handleGlobalErrors = (
 					})
 				),
 			MissingProjectIdError: (error) =>
+				Effect.fail(
+					new HonoErrorResponse({
+						code: "INTERNAL_SERVER_ERROR",
+						message: error.message,
+						originalError: error,
+					})
+				),
+			ProjectNotFoundInSessionError: (error) =>
+				Effect.fail(
+					new HonoErrorResponse({
+						code: "INTERNAL_SERVER_ERROR",
+						message: error.message,
+						originalError: error,
+					})
+				),
+			OrganizationNotFoundInSessionError: (error) =>
+				Effect.fail(
+					new HonoErrorResponse({
+						code: "INTERNAL_SERVER_ERROR",
+						message: error.message,
+						originalError: error,
+					})
+				),
+			InvalidEnvironmentError: (error) =>
 				Effect.fail(
 					new HonoErrorResponse({
 						code: "INTERNAL_SERVER_ERROR",

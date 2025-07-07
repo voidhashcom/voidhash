@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
 import { OrganizationService } from "@/lib/services/organization.service";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 async function ProjectLayoutSidebar({
 	organizationSlug,
@@ -15,11 +16,20 @@ async function ProjectLayoutSidebar({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const data = await runServerEffect(Effect.gen(function* () {
-		const organizationService = yield* OrganizationService;
-		const activeOrganization = yield* organizationService.getOrganizationBySlug(organizationSlug);
-		return { activeOrganization };
-	}));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const organizationService = yield* OrganizationService;
+					const activeOrganization =
+						yield* organizationService.getOrganizationBySlug(organizationSlug);
+					return { activeOrganization };
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		return null;

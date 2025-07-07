@@ -15,7 +15,11 @@ import {
 } from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/product.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
+import {
+	Environment,
+	EnvironmentService,
+} from "@/lib/services/environment.service";
 
 const route = describeRoute({
 	description: "Attach a new provider product",
@@ -50,18 +54,22 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
+					const authService = yield* AuthService;
 					const productService = yield* ProductService;
-					const result = yield* AuthSession.provide(authSession)(
-						productService
-							.createPaymentProviderProduct({
-								productId: c.req.param("productId"),
-								paymentProviderConfigurationId:
-									c.req.valid("json").paymentProviderConfigurationId,
-								configuration: c.req.valid("json").configuration,
-							})
-							.pipe(
+					const authSession = yield* authService.authenticateWithSecretKey();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environmentService = yield* EnvironmentService;
+							const environment =
+								yield* environmentService.getEnvironmentFromApiAuthSession();
+							const result = yield* Environment.provide(environment)(
+								productService.createPaymentProviderProduct({
+									productId: c.req.param("productId"),
+									paymentProviderConfigurationId:
+										c.req.valid("json").paymentProviderConfigurationId,
+									configuration: c.req.valid("json").configuration,
+								})
+							).pipe(
 								Effect.catchTags({
 									ProductNotFound: (error) =>
 										Effect.fail(
@@ -96,17 +104,17 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 											})
 										),
 								})
-							)
+							);
+							return c.json<z.infer<typeof providerProductResponseSchema>>({
+								providerProductKey: result.providerProductKey,
+								providerConfiguration: {
+									paymentProviderConfigurationId:
+										result.paymentProviderConfigurationId,
+									configuration: result.configuration,
+								},
+							});
+						})
 					);
-
-					return c.json<z.infer<typeof providerProductResponseSchema>>({
-						providerProductKey: result.providerProductKey,
-						providerConfiguration: {
-							paymentProviderConfigurationId:
-								result.paymentProviderConfigurationId,
-							configuration: result.configuration,
-						},
-					});
 				})
 			)
 	);

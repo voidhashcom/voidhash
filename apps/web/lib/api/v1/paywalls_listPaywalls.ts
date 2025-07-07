@@ -7,7 +7,11 @@ import { App } from "../hono/app";
 import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { PaywallService } from "@/lib/services/paywall.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
+import {
+	Environment,
+	EnvironmentService,
+} from "@/lib/services/environment.service";
 
 const route = describeRoute({
 	description: "List paywalls",
@@ -37,22 +41,27 @@ export const registerPaywallsListPaywalls = (app: App) =>
 	app.get("/v1/paywalls", route, async (c) =>
 		createEffectHandler(c)(
 			Effect.gen(function* () {
-				const authService = yield* Auth;
-				const authSession = yield* authService.authenticate();
+				const authService = yield* AuthService;
 				const paywallService = yield* PaywallService;
-				const projectId = yield* AuthSession.provide(authSession)(
-					authService.getAuthorizedProjectId()
-				);
-				const paywalls = yield* AuthSession.provide(authSession)(
-					paywallService.getPaywalls(projectId)
-				);
+				const environmentService = yield* EnvironmentService;
+				const authSession = yield* authService.authenticateWithSecretKey();
+				return yield* AuthSession.provide(authSession)(
+					Effect.gen(function* () {
+						const environment =
+							yield* environmentService.getEnvironmentFromApiAuthSession();
+						const projectId = yield* authService.getAuthorizedProjectId();
+						const paywalls = yield* Environment.provide(environment)(
+							paywallService.getPaywalls(projectId)
+						);
 
-				return c.json<z.infer<typeof paywallResponseSchema>[]>(
-					paywalls.map((paywall) => ({
-						paywallId: paywall.id,
-						name: paywall.name,
-						projectId: paywall.projectId,
-					}))
+						return c.json<z.infer<typeof paywallResponseSchema>[]>(
+							paywalls.map((paywall) => ({
+								paywallId: paywall.id,
+								name: paywall.name,
+								projectId: paywall.projectId,
+							}))
+						);
+					})
 				);
 			})
 		)

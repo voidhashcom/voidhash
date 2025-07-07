@@ -6,7 +6,7 @@ import { PaymentProviderService } from "@/lib/services/payment-provider.service"
 import { ProjectService } from "@/lib/services/project.service";
 import { Effect } from "effect";
 import { NotFoundError } from "@/lib/effect/errors";
-import { AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 export async function PaymentProviderDetailPage({
 	paramsPromise,
@@ -20,21 +20,35 @@ export async function PaymentProviderDetailPage({
 	const { organizationSlug, projectSlug, paymentProviderConfigurationId } =
 		await paramsPromise;
 
-	const data = await runServerEffect(AuthSession.withAuthSession()(Effect.gen(function* () {
-		const projectService = yield* ProjectService;
-		const paymentProviderService = yield* PaymentProviderService;
-		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
-			organizationSlug,
-			projectSlug,
-		});
-		if (!project) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Project not found",
-			}));
-		}
-		const paymentProviderConfiguration = yield* paymentProviderService.getPaymentProviderConfigurationById(paymentProviderConfigurationId);
-		return { project, paymentProviderConfiguration };
-	})));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const projectService = yield* ProjectService;
+					const paymentProviderService = yield* PaymentProviderService;
+					const project =
+						yield* projectService.getProjectBySlugAndOrganizationSlug({
+							organizationSlug,
+							projectSlug,
+						});
+					if (!project) {
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Project not found",
+							})
+						);
+					}
+					const paymentProviderConfiguration =
+						yield* paymentProviderService.getPaymentProviderConfigurationById(
+							paymentProviderConfigurationId
+						);
+					return { project, paymentProviderConfiguration };
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();

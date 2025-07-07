@@ -13,6 +13,7 @@ import { ProjectService } from "@/lib/services/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { CustomerType } from "@voidhash/db";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 export async function CustomersPage({
 	organizationSlug,
 	projectSlug,
@@ -22,21 +23,26 @@ export async function CustomersPage({
 }) {
 	const data = await runServerEffect(
 		Effect.gen(function* () {
-			const projectService = yield* ProjectService;
-			const project = yield* projectService.getProjectBySlugAndOrganizationSlug(
-				{
-					organizationSlug,
-					projectSlug,
-				}
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const projectService = yield* ProjectService;
+					const project =
+						yield* projectService.getProjectBySlugAndOrganizationSlug({
+							organizationSlug,
+							projectSlug,
+						});
+					if (!project) {
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Project not found",
+							})
+						);
+					}
+					return { project };
+				})
 			);
-			if (!project) {
-				return yield* Effect.fail(
-					new NotFoundError({
-						message: "Project not found",
-					})
-				);
-			}
-			return { project };
 		})
 	);
 

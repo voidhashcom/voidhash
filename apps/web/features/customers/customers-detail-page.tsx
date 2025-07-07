@@ -6,6 +6,7 @@ import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { CustomerService } from "@/lib/services/customer.service";
 import { Effect } from "effect";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 export async function CustomerDetailPage({
 	customerId,
@@ -16,14 +17,23 @@ export async function CustomerDetailPage({
 	organizationSlug: string;
 	projectSlug: string;
 }) {
-	const data = await runServerEffect(Effect.gen(function* () {
-		const customerService = yield* CustomerService;
-		const customer = yield* customerService.getCustomerById(customerId);
-		const customerPurchases = yield* customerService.getCustomerPurchases(customerId);
-		const customerUnlockedPerks = yield* customerService.getCustomersUnlockedPerks(customerId);
-		return { customer, customerPurchases, customerUnlockedPerks };
-	}));
-
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const customerService = yield* CustomerService;
+					const customer = yield* customerService.getCustomerById(customerId);
+					const customerPurchases =
+						yield* customerService.getCustomerPurchases(customerId);
+					const customerUnlockedPerks =
+						yield* customerService.getCustomersUnlockedPerks(customerId);
+					return { customer, customerPurchases, customerUnlockedPerks };
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		return <VoidhashErrorCard error={data._unsafeUnwrapErr()} />;

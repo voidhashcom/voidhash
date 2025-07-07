@@ -11,7 +11,7 @@ import {
 } from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/product.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 const route = describeRoute({
 	description: "Get a product",
@@ -43,26 +43,30 @@ export const registerProductsGetProductById = (app: App) =>
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
+					const authService = yield* AuthService;
 					const productService = yield* ProductService;
-					const product = yield* AuthSession.provide(authSession)(
-						productService.getProductById(c.req.param("productId"))
+					const authSession = yield* authService.authenticateWithSecretKey();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const product = yield* productService.getProductById(
+								c.req.param("productId")
+							);
+
+							if (!product) {
+								return yield* Effect.fail(
+									new HonoErrorResponse({
+										code: "NOT_FOUND",
+										message: "Product not found",
+									})
+								);
+							}
+
+							return c.json<z.infer<typeof productResponseSchema>>({
+								productId: product.id,
+								name: product.name,
+							});
+						})
 					);
-
-					if (!product) {
-						return yield* Effect.fail(
-							new HonoErrorResponse({
-								code: "NOT_FOUND",
-								message: "Product not found",
-							})
-						);
-					}
-
-					return c.json<z.infer<typeof productResponseSchema>>({
-						productId: product.id,
-						name: product.name,
-					});
 				})
 			)
 	);

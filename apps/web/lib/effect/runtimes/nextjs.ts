@@ -11,7 +11,7 @@ import { Cookies, CookiesError } from "../cookies";
 import { cookies, headers } from "next/headers";
 import { DatabaseError, Db } from "../db";
 import {
-	Auth,
+	AuthService,
 	InvalidPublishableKeyError,
 	InvalidSecretKeyError,
 	InvalidSourceError,
@@ -19,7 +19,7 @@ import {
 	MissingProjectIdError,
 	MissingPublishableKeyError,
 	MissingSecretKeyError,
-} from "../auth";
+} from "../../services/auth.service";
 import { BetterAuth, BetterAuthError } from "../better-auth";
 import { Request } from "../request";
 import { PerkService } from "@/lib/services/perk.service";
@@ -33,7 +33,13 @@ import { ApiKeyRepository } from "@/lib/repositories/api-key.repository";
 import { ApiKeyService } from "@/lib/services/api-key.service";
 import { CustomerRepository } from "@/lib/repositories/customer.repository";
 import { CustomerService } from "@/lib/services/customer.service";
-import { EnvironmentService } from "@/lib/services/environment.service";
+import {
+	EnvironmentCookieNotFoundError,
+	EnvironmentService,
+	InvalidEnvironmentError,
+	OrganizationNotFoundInSessionError,
+	ProjectNotFoundInSessionError,
+} from "@/lib/services/environment.service";
 import { OrganizationRepository } from "@/lib/repositories/organization.repository";
 import { ProjectRepository } from "@/lib/repositories/project.repository";
 import { ProjectService } from "@/lib/services/project.service";
@@ -42,7 +48,7 @@ import { ProductService } from "@/lib/services/product.service";
 import { PaymentProviderRepository } from "@/lib/repositories/payment-provider.repository";
 import { CheckoutSessionRepository } from "@/lib/repositories/checkout-session.repository";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "../errors";
-import { MissingEnvironmentError } from "../environment";
+import { MissingEnvironmentError } from "../../services/environment.service";
 import { UserService } from "@/lib/services/user.service";
 import { OrganizationService } from "@/lib/services/organization.service";
 import { PaymentProviderService } from "@/lib/services/payment-provider.service";
@@ -52,6 +58,13 @@ import { unstable_rethrow } from "next/navigation";
 import { PaymentProviderConfigurationProductRepository } from "@/lib/repositories/payment-provider-configuration-product.repository";
 import { SdkService } from "@/lib/services/sdk.service";
 import { ProductPerkRepository } from "@/lib/repositories/product-perk.repository";
+import { NextjsRuntimeTag } from "./tags";
+
+
+const NextjsRuntimeTagLive = Layer.succeed(
+	NextjsRuntimeTag,
+	NextjsRuntimeTag.of("nextjs")
+);
 
 const CookiesLive = Layer.succeed(
 	Cookies,
@@ -92,11 +105,11 @@ const DbLive = Db.Default;
 
 const RuntimeLayer = () => {
 	const CoreLayer = pipe(
-		Auth.Default,
-		Layer.provideMerge(BetterAuth.Default),
+		BetterAuth.Default,
 		Layer.provideMerge(DbLive),
 		Layer.provideMerge(CookiesLive),
-		Layer.provideMerge(RequestLive)
+		Layer.provideMerge(RequestLive),
+		Layer.provideMerge(NextjsRuntimeTagLive)
 	);
 
 	const RepositoryLayer = pipe(
@@ -111,11 +124,12 @@ const RuntimeLayer = () => {
 		Layer.provideMerge(PerkRepository.Default),
 		Layer.provideMerge(ProductPerkRepository.Default),
 		Layer.provideMerge(ProductRepository.Default),
-		Layer.provideMerge(ProjectRepository.Default),
+		Layer.provideMerge(ProjectRepository.Default)
 	);
 
 	const ServiceLayer = pipe(
-	    ApiKeyService.Default,
+		ApiKeyService.Default,
+		Layer.provideMerge(AuthService.Default),
 		Layer.provideMerge(CustomerService.Default),
 		Layer.provideMerge(EnvironmentService.Default),
 		Layer.provideMerge(OrganizationService.Default),
@@ -177,7 +191,11 @@ type AcceptableErrorTypes =
 	| InvalidPublishableKeyError
 	| MissingAppUserIdError
 	| MissingEnvironmentError
-	| MissingProjectIdError;
+	| MissingProjectIdError
+	| ProjectNotFoundInSessionError
+	| OrganizationNotFoundInSessionError
+	| InvalidEnvironmentError
+	| EnvironmentCookieNotFoundError;
 
 type AvailableServices = Layer.Layer.Success<ReturnType<typeof RuntimeLayer>>;
 
@@ -281,6 +299,34 @@ const handleGlobalErrors = (
 					})
 				),
 			MissingProjectIdError: (error) =>
+				Effect.fail(
+					new NextjsErrorResponse({
+						code: "INTERNAL_SERVER_ERROR",
+						message: error.message,
+					})
+				),
+			ProjectNotFoundInSessionError: (error) =>
+				Effect.fail(
+					new NextjsErrorResponse({
+						code: "INTERNAL_SERVER_ERROR",
+						message: error.message,
+					})
+				),
+			InvalidEnvironmentError: (error) =>
+				Effect.fail(
+					new NextjsErrorResponse({
+						code: "INTERNAL_SERVER_ERROR",
+						message: error.message,
+					})
+				),
+			EnvironmentCookieNotFoundError: (error) =>
+				Effect.fail(
+					new NextjsErrorResponse({
+						code: "INTERNAL_SERVER_ERROR",
+						message: error.message,
+					})
+				),
+			OrganizationNotFoundInSessionError: (error) =>
 				Effect.fail(
 					new NextjsErrorResponse({
 						code: "INTERNAL_SERVER_ERROR",

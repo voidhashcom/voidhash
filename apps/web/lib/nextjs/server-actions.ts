@@ -15,23 +15,69 @@ import { DevCheckoutService } from "../payment-providers/dev-checkout/dev-checko
 import { confirmDevCheckoutPurchaseInputSchema } from "../payment-providers/dev-checkout/actions/confirm-purchase";
 import { cancelDevCheckoutPurchaseInputSchema } from "../payment-providers/dev-checkout/actions/cancel-purchase";
 import { CustomerOrigin } from "@voidhash/db";
-import { switchEnvironmentInputSchema, EnvironmentService } from "../services/environment.service";
-import { createSecretKeyInputSchema, rotateSecretKeyInputSchema, deleteSecretKeyInputSchema, createOrganizationInputSchema, updateOrganizationInputSchema, deleteOrganizationInputSchema, createProjectInputSchema, updateProjectInputSchema, deleteProjectInputSchema, createPaymentProviderConfigurationInputSchema, updatePaymentProviderConfigurationInputSchema, deletePaymentProviderConfigurationInputSchema, createProductInputSchema, updateProductInputSchema, deleteProductInputSchema, createProductPerkInputSchema, deleteProductPerkInputSchema, createPaymentProviderProductInputSchema, updatePaymentProviderProductInputSchema, setActivePaymentProviderProductInputSchema, deletePaymentProviderProductInputSchema, createCustomerInputSchema, createPaywallInputSchema, updatePaywallInputSchema, deletePaywallInputSchema, createPaywallLocationInputSchema, deletePaywallLocationInputSchema, createPerkInputSchema, deletePerkInputSchema } from "./schema";
+import { EnvironmentService } from "../services/environment.service";
+import {
+	createSecretKeyInputSchema,
+	rotateSecretKeyInputSchema,
+	deleteSecretKeyInputSchema,
+	createOrganizationInputSchema,
+	updateOrganizationInputSchema,
+	deleteOrganizationInputSchema,
+	createProjectInputSchema,
+	updateProjectInputSchema,
+	deleteProjectInputSchema,
+	createPaymentProviderConfigurationInputSchema,
+	updatePaymentProviderConfigurationInputSchema,
+	deletePaymentProviderConfigurationInputSchema,
+	createProductInputSchema,
+	updateProductInputSchema,
+	deleteProductInputSchema,
+	createProductPerkInputSchema,
+	deleteProductPerkInputSchema,
+	createPaymentProviderProductInputSchema,
+	updatePaymentProviderProductInputSchema,
+	setActivePaymentProviderProductInputSchema,
+	deletePaymentProviderProductInputSchema,
+	createCustomerInputSchema,
+	createPaywallInputSchema,
+	updatePaywallInputSchema,
+	deletePaywallInputSchema,
+	createPaywallLocationInputSchema,
+	deletePaywallLocationInputSchema,
+	createPerkInputSchema,
+	deletePerkInputSchema,
+	switchEnvironmentInputSchema,
+} from "./schema";
 import { OrganizationService } from "../services/organization.service";
 import { ProjectService } from "../services/project.service";
 import { PaymentProviderService } from "../services/payment-provider.service";
 import { ProductService } from "../services/product.service";
 import { PaywallService } from "../services/paywall.service";
+import { AuthService, AuthSession } from "../services/auth.service";
+import { Environment } from "../services/environment.service";
 // Api keys
 export const createSecretKeyAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createSecretKeyInputSchema))
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ApiKeyService,
-				Effect.flatMap((apiKeyService) =>
-					apiKeyService.createSecretKey(parsedInput)
-				),
+				Effect.gen(function* () {
+					const apiKeyService = yield* ApiKeyService;
+					const authService = yield* AuthService;
+					const environmentService = yield* EnvironmentService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environment =
+								yield* environmentService.getEnvironmentFromCookie({
+									projectId: parsedInput.projectId,
+								});
+							return yield* Environment.provide(environment)(
+								apiKeyService.createSecretKey(parsedInput)
+							);
+						})
+					);
+				}),
 				Effect.catchTags({
 					ApiKeyNotFoundError: (error) =>
 						Effect.fail(
@@ -56,10 +102,14 @@ export const rotateSecretKeyAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ApiKeyService,
-				Effect.flatMap((apiKeyService) =>
-					apiKeyService.rotateSecretKey(parsedInput)
-				),
+				Effect.gen(function* () {
+					const apiKeyService = yield* ApiKeyService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						apiKeyService.rotateSecretKey(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ApiKeyNotFoundError: (error) =>
 						Effect.fail(
@@ -84,10 +134,14 @@ export const deleteSecretKeyAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ApiKeyService,
-				Effect.flatMap((apiKeyService) =>
-					apiKeyService.deleteSecretKey(parsedInput)
-				),
+				Effect.gen(function* () {
+					const apiKeyService = yield* ApiKeyService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						apiKeyService.deleteSecretKey(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ApiKeyNotFoundError: (error) =>
 						Effect.fail(
@@ -113,10 +167,14 @@ export const createOrganizationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				OrganizationService,
-				Effect.flatMap((organizationService) =>
-					organizationService.createOrganization(parsedInput)
-				),
+				Effect.gen(function* () {
+					const organizationService = yield* OrganizationService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						organizationService.createOrganization(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					FailedToCreateOrganizationError: (error) =>
 						Effect.fail(
@@ -148,10 +206,14 @@ export const updateOrganizationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				OrganizationService,
-				Effect.flatMap((organizationService) =>
-					organizationService.updateOrganization(parsedInput)
-				),
+				Effect.gen(function* () {
+					const organizationService = yield* OrganizationService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						organizationService.updateOrganization(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					OrganizationNotFound: (error) =>
 						Effect.fail(
@@ -174,12 +236,18 @@ export const updateOrganizationAction = actionClient
 export const deleteOrganizationAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(deleteOrganizationInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await runServerEffect(pipe(
-			OrganizationService,
-			Effect.flatMap((organizationService) =>
-				organizationService.deleteOrganization(parsedInput)
-			),
-		));
+		const res = await runServerEffect(
+			pipe(
+				Effect.gen(function* () {
+					const organizationService = yield* OrganizationService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						organizationService.deleteOrganization(parsedInput)
+					);
+				})
+			)
+		);
 
 		if (res.isErr()) {
 			throw res.error;
@@ -192,12 +260,18 @@ export const deleteOrganizationAction = actionClient
 export const createProjectAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createProjectInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await runServerEffect(pipe(
-			ProjectService,
-			Effect.flatMap((projectService) =>
-				projectService.createProject(parsedInput)
-			),
-		));
+		const res = await runServerEffect(
+			pipe(
+				Effect.gen(function* () {
+					const projectService = yield* ProjectService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						projectService.createProject(parsedInput)
+					);
+				})
+			)
+		);
 
 		if (res.isErr()) {
 			throw res.error;
@@ -211,10 +285,14 @@ export const updateProjectAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProjectService,
-				Effect.flatMap((projectService) =>
-					projectService.updateProject(parsedInput)
-				),
+				Effect.gen(function* () {
+					const projectService = yield* ProjectService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						projectService.updateProject(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProjectNotFound: (error) =>
 						Effect.fail(
@@ -239,10 +317,14 @@ export const deleteProjectAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProjectService,
-				Effect.flatMap((projectService) =>
-					projectService.deleteProject(parsedInput)
-				),
+				Effect.gen(function* () {
+					const projectService = yield* ProjectService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						projectService.deleteProject(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProjectNotFound: (error) =>
 						Effect.fail(
@@ -268,10 +350,14 @@ export const switchEnvironmentAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				EnvironmentService,
-				Effect.flatMap((environmentService) =>
-					environmentService.switchEnvironment(parsedInput)
-				),
+				Effect.gen(function* () {
+					const environmentService = yield* EnvironmentService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						environmentService.switchEnvironment(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProjectNotFoundError: (error) =>
 						Effect.fail(
@@ -313,10 +399,16 @@ export const createPaymentProviderConfigurationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				PaymentProviderService,
-				Effect.flatMap((paymentProviderConfigurationService) =>
-					paymentProviderConfigurationService.createPaymentProviderConfiguration(parsedInput)
-				),
+				Effect.gen(function* () {
+					const paymentProviderService = yield* PaymentProviderService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						paymentProviderService.createPaymentProviderConfiguration(
+							parsedInput
+						)
+					);
+				}),
 				Effect.catchTags({
 					PaymentProviderNotFoundError: (error) =>
 						Effect.fail(
@@ -350,10 +442,16 @@ export const updatePaymentProviderConfigurationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				PaymentProviderService,
-				Effect.flatMap((paymentProviderConfigurationService) =>
-					paymentProviderConfigurationService.updatePaymentProviderConfiguration(parsedInput)
-				),
+				Effect.gen(function* () {
+					const paymentProviderService = yield* PaymentProviderService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						paymentProviderService.updatePaymentProviderConfiguration(
+							parsedInput
+						)
+					);
+				}),
 				Effect.catchTags({
 					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
@@ -401,10 +499,16 @@ export const deletePaymentProviderConfigurationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				PaymentProviderService,
-				Effect.flatMap((paymentProviderConfigurationService) =>
-					paymentProviderConfigurationService.deletePaymentProviderConfiguration(parsedInput)
-				),
+				Effect.gen(function* () {
+					const paymentProviderService = yield* PaymentProviderService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						paymentProviderService.deletePaymentProviderConfiguration(
+							parsedInput
+						)
+					);
+				}),
 				Effect.catchTags({
 					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
@@ -430,10 +534,23 @@ export const createProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProductService,
-				Effect.flatMap((productService) =>
-					productService.createProduct(parsedInput)
-				),
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const authService = yield* AuthService;
+					const environmentService = yield* EnvironmentService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environment =
+								yield* environmentService.getEnvironmentFromCookie({
+									projectId: parsedInput.projectId,
+								});
+							return yield* Environment.provide(environment)(
+								productService.createProduct(parsedInput)
+							);
+						})
+					);
+				}),
 				Effect.catchTags({
 					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
@@ -458,10 +575,14 @@ export const updateProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProductService,
-				Effect.flatMap((productService) =>
-					productService.updateProduct(parsedInput)
-				),
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						productService.updateProduct(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -486,10 +607,14 @@ export const deleteProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProductService,
-				Effect.flatMap((productService) =>
-					productService.deleteProduct(parsedInput)
-				),
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						productService.deleteProduct(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -515,10 +640,14 @@ export const createProductPerkAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProductService,
-				Effect.flatMap((productService) =>
-					productService.createProductPerk(parsedInput)
-				),
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						productService.createProductPerk(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -550,10 +679,14 @@ export const deleteProductPerkAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProductService,
-				Effect.flatMap((productService) =>
-					productService.deleteProductPerk(parsedInput)
-				),
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						productService.deleteProductPerk(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -579,10 +712,14 @@ export const createPaymentProviderProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProductService,
-				Effect.flatMap((productService) =>
-					productService.createPaymentProviderProduct(parsedInput)
-				),
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						productService.createPaymentProviderProduct(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -628,19 +765,16 @@ export const updatePaymentProviderProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProductService,
-				Effect.flatMap((productService) =>
-					productService.updatePaymentProviderProduct(parsedInput)
-				),
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						productService.updatePaymentProviderProduct(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
-						Effect.fail(
-							new NextjsErrorResponse({
-								code: "BAD_REQUEST",
-								message: error.message,
-							})
-						),
-					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
@@ -686,10 +820,14 @@ export const setActivePaymentProviderProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProductService,
-				Effect.flatMap((productService) =>
-					productService.setActivePaymentProviderProduct(parsedInput)
-				),
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						productService.setActivePaymentProviderProduct(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -728,10 +866,14 @@ export const deletePaymentProviderProductAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				ProductService,
-				Effect.flatMap((productService) =>
-					productService.deletePaymentProviderProduct(parsedInput)
-				),
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						productService.deletePaymentProviderProduct(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					ProductNotFound: (error) =>
 						Effect.fail(
@@ -759,13 +901,26 @@ export const createCustomerAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				CustomerService,
-				Effect.flatMap((customerService) =>
-					customerService.createCustomer({
-						...parsedInput,
-						origin: CustomerOrigin.Dashboard,
-					})
-				)
+				Effect.gen(function* () {
+					const customerService = yield* CustomerService;
+					const authService = yield* AuthService;
+					const environmentService = yield* EnvironmentService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environment =
+								yield* environmentService.getEnvironmentFromCookie({
+									projectId: parsedInput.projectId,
+								});
+							return yield* Environment.provide(environment)(
+								customerService.createCustomer({
+									...parsedInput,
+									origin: CustomerOrigin.Dashboard,
+								})
+							);
+						})
+					);
+				})
 			)
 		);
 
@@ -780,12 +935,27 @@ export const createCustomerAction = actionClient
 export const createPaywallAction = actionClient
 	.inputSchema(Schema.standardSchemaV1(createPaywallInputSchema))
 	.action(async ({ parsedInput }) => {
-		const res = await runServerEffect(pipe(
-			PaywallService,
-			Effect.flatMap((paywallService) =>
-				paywallService.createPaywall(parsedInput)
+		const res = await runServerEffect(
+			pipe(
+				Effect.gen(function* () {
+					const paywallService = yield* PaywallService;
+					const authService = yield* AuthService;
+					const environmentService = yield* EnvironmentService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environment =
+								yield* environmentService.getEnvironmentFromCookie({
+									projectId: parsedInput.projectId,
+								});
+							return yield* Environment.provide(environment)(
+								paywallService.createPaywall(parsedInput)
+							);
+						})
+					);
+				})
 			)
-		));
+		);
 
 		if (res.isErr()) {
 			throw res.error;
@@ -799,13 +969,17 @@ export const updatePaywallAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				PaywallService,
-				Effect.flatMap((paywallService) =>
-					paywallService.updatePaywall({
-						...parsedInput,
-						paywallProducts: [...parsedInput.paywallProducts]
-					})
-				),
+				Effect.gen(function* () {
+					const paywallService = yield* PaywallService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						paywallService.updatePaywall({
+							...parsedInput,
+							paywallProducts: [...parsedInput.paywallProducts],
+						})
+					);
+				}),
 				Effect.catchTags({
 					PaywallNotFound: (error) =>
 						Effect.fail(
@@ -844,10 +1018,14 @@ export const deletePaywallAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				PaywallService,
-				Effect.flatMap((paywallService) =>
-					paywallService.deletePaywall(parsedInput)
-				),
+				Effect.gen(function* () {
+					const paywallService = yield* PaywallService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						paywallService.deletePaywall(parsedInput)
+					);
+				}),
 				Effect.catchTags({
 					PaywallNotFound: (error) =>
 						Effect.fail(
@@ -880,10 +1058,23 @@ export const createPaywallLocationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				PaywallLocationService,
-				Effect.flatMap((paywallLocationService) =>
-					paywallLocationService.createPaywallLocation(parsedInput)
-				),
+				Effect.gen(function* () {
+					const paywallLocationService = yield* PaywallLocationService;
+					const authService = yield* AuthService;
+					const environmentService = yield* EnvironmentService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environment =
+								yield* environmentService.getEnvironmentFromCookie({
+									projectId: parsedInput.projectId,
+								});
+							return yield* Environment.provide(environment)(
+								paywallLocationService.createPaywallLocation(parsedInput)
+							);
+						})
+					);
+				}),
 				Effect.catchTags({
 					SlugAlreadyExistsError: (error) =>
 						Effect.fail(
@@ -915,12 +1106,16 @@ export const deletePaywallLocationAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				PaywallLocationService,
-				Effect.flatMap((paywallLocationService) =>
-					paywallLocationService.deletePaywallLocation({
-						paywallLocationId: parsedInput.paywallLocationId,
-					})
-				),
+				Effect.gen(function* () {
+					const paywallLocationService = yield* PaywallLocationService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						paywallLocationService.deletePaywallLocation({
+							paywallLocationId: parsedInput.paywallLocationId,
+						})
+					);
+				}),
 				Effect.catchTags({
 					PaywallLocationNotFound: (error) =>
 						Effect.fail(
@@ -945,8 +1140,23 @@ export const createPerkAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				PerkService,
-				Effect.flatMap((perkService) => perkService.createPerk(parsedInput)),
+				Effect.gen(function* () {
+					const perkService = yield* PerkService;
+					const authService = yield* AuthService;
+					const environmentService = yield* EnvironmentService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environment =
+								yield* environmentService.getEnvironmentFromCookie({
+									projectId: parsedInput.projectId,
+								});
+							return yield* Environment.provide(environment)(
+								perkService.createPerk(parsedInput)
+							);
+						})
+					);
+				}),
 				Effect.catchTags({
 					SlugAlreadyExistsError: (error) =>
 						Effect.fail(
@@ -971,10 +1181,14 @@ export const deletePerkAction = actionClient
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
 			pipe(
-				PerkService,
-				Effect.flatMap((perkService) =>
-					perkService.deletePerk({ perkId: parsedInput.perkId })
-				),
+				Effect.gen(function* () {
+					const perkService = yield* PerkService;
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSession();
+					return yield* AuthSession.provide(authSession)(
+						perkService.deletePerk({ perkId: parsedInput.perkId })
+					);
+				}),
 				Effect.catchTags({
 					PerkNotFound: (error) =>
 						Effect.fail(

@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { OrganizationPermission } from "../core/organizations/permissions";
 import { ProjectPermission } from "../core/projects/permissions";
-import { AuthSession } from "./auth";
+import { AuthSession } from "../services/auth.service";
 import { ForbiddenError } from "./errors";
 
 export const checkProjectPermission = (

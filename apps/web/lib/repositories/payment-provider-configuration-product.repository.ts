@@ -34,15 +34,11 @@ export class PaymentProviderConfigurationProductRepository extends Effect.Servic
 					(
 						execute,
 						{
-							productId,
-							paymentProviderConfigurationId,
-							providerProductKey,
+							id,
 							newProviderProductKey,
 							configuration,
 						}: {
-							productId: string;
-							paymentProviderConfigurationId: string;
-							providerProductKey: string;
+							id: string;
 							newProviderProductKey: string;
 							configuration: object;
 						}
@@ -55,22 +51,7 @@ export class PaymentProviderConfigurationProductRepository extends Effect.Servic
 										providerProductKey: newProviderProductKey,
 										configuration: configuration,
 									})
-									.where(
-										and(
-											eq(
-												paymentProviderConfigurationProducts.productId,
-												productId
-											),
-											eq(
-												paymentProviderConfigurationProducts.paymentProviderConfigurationId,
-												paymentProviderConfigurationId
-											),
-											eq(
-												paymentProviderConfigurationProducts.providerProductKey,
-												providerProductKey
-											)
-										)
-									)
+									.where(and(eq(paymentProviderConfigurationProducts.id, id)))
 						)
 				),
 
@@ -264,8 +245,6 @@ export class PaymentProviderConfigurationProductRepository extends Effect.Servic
 							};
 						})
 				),
-
-
 			};
 		}),
 
