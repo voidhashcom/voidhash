@@ -20,8 +20,11 @@ import { Effect } from "effect";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { ProductService } from "@/lib/services/product.service";
 import { PaymentProviderService } from "@/lib/services/payment-provider.service";
-import { Environment } from "@/lib/effect/environment";
-import { AuthSession } from "@/lib/effect/auth";
+import {
+	Environment,
+	EnvironmentService,
+} from "@/lib/services/environment.service";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 import { ProjectService } from "@/lib/services/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { Environment as EnvironmentEnum } from "@voidhash/lib/index";
@@ -36,57 +39,70 @@ export async function ProductDetailPage({
 	id: string;
 }) {
 	const data = await runServerEffect(
-		AuthSession.withAuthSession()(
-			Environment.withEnvironment({
-				organizationSlug,
-				projectSlug,
-			})(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
 				Effect.gen(function* () {
-					const productService = yield* ProductService;
-					const paymentProviderService = yield* PaymentProviderService;
-					const perkService = yield* PerkService;
-					const environment = yield* Environment;
-					const projectService = yield* ProjectService;
-
-					const project =
-						yield* projectService.getProjectBySlugAndOrganizationSlug({
+					const environmentService = yield* EnvironmentService;
+					const environment =
+						yield* environmentService.getEnvironmentFromCookie({
 							organizationSlug,
 							projectSlug,
 						});
+					return yield* Environment.provide(environment)(
+						Effect.gen(function* () {
+							const productService = yield* ProductService;
+							const paymentProviderService = yield* PaymentProviderService;
+							const perkService = yield* PerkService;
+							const environment = yield* Environment;
+							const projectService = yield* ProjectService;
 
-					if (!project) {
-						return yield* Effect.fail(
-							new NotFoundError({
-								message: "Project not found",
-							})
-						);
-					}
+							const project =
+								yield* projectService.getProjectBySlugAndOrganizationSlug({
+									organizationSlug,
+									projectSlug,
+								});
 
-					const [
-						product,
-						providerProducts,
-						paymentProviderConfigurations,
-						perks,
-						productPerks,
-					] = yield* Effect.all([
-						productService.getProductById(id),
-						productService.getProviderProductsByProductId(id),
-						paymentProviderService.getPaymentProviderConfigurations(project.id),
-						perkService.getPerks(project.id),
-						productService.getProductPerksByProductId(id),
-					]);
+							if (!project) {
+								return yield* Effect.fail(
+									new NotFoundError({
+										message: "Project not found",
+									})
+								);
+							}
 
-					return {
-						product,
-						providerProducts,
-						paymentProviderConfigurations,
-						environment,
-						perks,
-						productPerks,
-					};
+							const [
+								product,
+								providerProducts,
+								paymentProviderConfigurations,
+								perks,
+								productPerks,
+							] = yield* Effect.all([
+								productService.getProductById(id),
+								productService.getProviderProductsByProductId(id),
+								paymentProviderService.getPaymentProviderConfigurations(
+									project.id
+								),
+								perkService.getPerks(project.id),
+								productService.getProductPerksByProductId(id),
+							], {
+								concurrency: "unbounded"
+							});
+
+							return {
+								product,
+								providerProducts,
+								paymentProviderConfigurations,
+								environment,
+								perks,
+								productPerks,
+							};
+						})
+					);
 				})
-			)
-		)
+			);
+		})
 	);
 
 	if (data.isErr()) {

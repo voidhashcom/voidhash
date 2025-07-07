@@ -22,7 +22,10 @@ export class CustomerRepository extends Effect.Service<CustomerRepository>()(
 			return {
 				createCustomer: dbService.makeQuery(
 					(execute, customer: InsertCustomer) =>
-						execute(async (db) => await db.insert(customers).values(customer))
+						execute(async (db) => {
+							await db.insert(customers).values(customer);
+							return { id: customer.id };
+						})
 				),
 
 				getCustomers: dbService.makeQuery(
@@ -121,9 +124,10 @@ export class CustomerRepository extends Effect.Service<CustomerRepository>()(
 
 				createCustomerUnlockedPerks: dbService.makeQuery(
 					(execute, input: InsertCustomerUnlockedPerk[]) =>
-						execute(
-							async (db) => await db.insert(customerUnlockedPerks).values(input)
-						)
+						execute(async (db) => {
+							await db.insert(customerUnlockedPerks).values(input);
+							return { ids: input.map((perk) => perk.id) };
+						})
 				),
 
 				getCustomersUnlockedPerks: dbService.makeQuery(
@@ -148,13 +152,13 @@ export class CustomerRepository extends Effect.Service<CustomerRepository>()(
 
 				updateCustomer: dbService.makeQuery(
 					(execute, { id, ...customer }: Partial<Customer> & { id: string }) =>
-						execute(
-							async (db) =>
-								await db
-									.update(customers)
-									.set(customer)
-									.where(eq(customers.id, id))
-						)
+						execute(async (db) => {
+							await db
+								.update(customers)
+								.set(customer)
+								.where(eq(customers.id, id));
+							return { id };
+						})
 				),
 			};
 		}),

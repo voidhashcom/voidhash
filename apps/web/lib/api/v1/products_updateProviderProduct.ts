@@ -15,7 +15,11 @@ import {
 } from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/product.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
+import {
+	Environment,
+	EnvironmentService,
+} from "@/lib/services/environment.service";
 
 const route = describeRoute({
 	description: "Update a provider product",
@@ -43,94 +47,99 @@ export type Route = typeof route;
 
 export const registerProductsUpdateProviderProduct = (app: App) =>
 	app.put(
-		"/v1/products/:productId/provider-products/:paymentProviderConfigurationId/:providerProductKey",
+		"/v1/products/:productId/provider-products/:paymentProviderConfigurationProductId",
 		route,
 		zValidator("param", updateProviderProductParamsSchema),
 		zValidator("json", updateProviderProductBodySchema),
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
-
+					const authService = yield* AuthService;
 					const productService = yield* ProductService;
-					const productId = c.req.param("productId");
-					const paymentProviderConfigurationId = c.req.param(
-						"paymentProviderConfigurationId"
+					const environmentService = yield* EnvironmentService;
+					const authSession = yield* authService.authenticateWithSecretKey();
+
+					const paymentProviderConfigurationProductId = c.req.param(
+						"paymentProviderConfigurationProductId"
 					);
-					const providerProductKey = c.req.param("providerProductKey");
 					const configuration = c.req.valid("json");
 
-					yield* AuthSession.provide(authSession)(
-						productService
-							.updatePaymentProviderProduct({
-								productId,
-								paymentProviderConfigurationId: paymentProviderConfigurationId,
-								configuration: configuration.configuration,
-								providerProductKey,
-							})
-							.pipe(
-								Effect.catchTags({
-									ProductNotFound: (error) =>
-										Effect.fail(
-											new HonoErrorResponse({
-												code: "NOT_FOUND",
-												message: error.message,
-												originalError: error,
-											})
-										),
-									PaymentProviderConfigurationNotFound: (error) =>
-										Effect.fail(
-											new HonoErrorResponse({
-												code: "NOT_FOUND",
-												message: error.message,
-												originalError: error,
-											})
-										),
-									PaymentProviderNotFound: (error) =>
-										Effect.fail(
-											new HonoErrorResponse({
-												code: "BAD_REQUEST",
-												message: error.message,
-												originalError: error,
-											})
-										),
-									ProviderProductNotFound: (error) =>
-										Effect.fail(
-											new HonoErrorResponse({
-												code: "NOT_FOUND",
-												message: error.message,
-												originalError: error,
-											})
-										),
-									InvalidConfiguration: (error) =>
-										Effect.fail(
-											new HonoErrorResponse({
-												code: "BAD_REQUEST",
-												message: error.message,
-												originalError: error,
-											})
-										),
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environment =
+								yield* environmentService.getEnvironmentFromApiAuthSession();
+							return yield* Environment.provide(environment)(
+								Effect.gen(function* () {
+									yield* productService.updatePaymentProviderProduct({
+										paymentProviderConfigurationProductId:
+											paymentProviderConfigurationProductId,
+										configuration: configuration.configuration,
+									});
+
+									
+									// Get the updated provider product to return full details
+									const providerProduct =
+										yield* productService.getProviderProductById(
+											paymentProviderConfigurationProductId
+										);
+
+										console.log("updatePaymentProviderProduct!");
+
+									return c.json<z.infer<typeof providerProductResponseSchema>>({
+										providerProductKey: providerProduct.providerProductKey,
+										providerConfiguration: {
+											configuration: providerProduct.configuration,
+											paymentProviderConfigurationId:
+												providerProduct.paymentProviderConfigurationId,
+										},
+									});
 								})
-							)
+							);
+						}).pipe(
+							Effect.catchTags({
+								ProductNotFound: (error) =>
+									Effect.fail(
+										new HonoErrorResponse({
+											code: "NOT_FOUND",
+											message: error.message,
+											originalError: error,
+										})
+									),
+								PaymentProviderConfigurationNotFound: (error) =>
+									Effect.fail(
+										new HonoErrorResponse({
+											code: "BAD_REQUEST",
+											message: error.message,
+											originalError: error,
+										})
+									),
+								PaymentProviderNotFound: (error) =>
+									Effect.fail(
+										new HonoErrorResponse({
+											code: "BAD_REQUEST",
+											message: error.message,
+											originalError: error,
+										})
+									),
+								ProviderProductNotFound: (error) =>
+									Effect.fail(
+										new HonoErrorResponse({
+											code: "NOT_FOUND",
+											message: error.message,
+											originalError: error,
+										})
+									),
+								InvalidConfiguration: (error) =>
+									Effect.fail(
+										new HonoErrorResponse({
+											code: "BAD_REQUEST",
+											message: error.message,
+											originalError: error,
+										})
+									),
+							})
+						)
 					);
-
-					// Get the updated provider product to return full details
-					const providerProduct = yield* AuthSession.provide(authSession)(
-						productService.getProviderProductByPrimaryKey({
-							paymentProviderConfigurationId: paymentProviderConfigurationId,
-							providerProductKey: providerProductKey,
-						})
-					);
-
-					return c.json<z.infer<typeof providerProductResponseSchema>>({
-						providerProductKey: providerProduct.providerProductKey,
-						providerConfiguration: {
-							configuration: providerProduct.configuration,
-							paymentProviderConfigurationId:
-								providerProduct.paymentProviderConfigurationId,
-						},
-					});
 				})
 			)
 	);

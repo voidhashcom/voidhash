@@ -9,7 +9,10 @@ export class ApiKeyRepository extends Effect.Service<ApiKeyRepository>()(
 			const dbService = yield* Db;
 			return {
 				createApiKey: dbService.makeQuery((execute, apiKey: InsertApiKey) =>
-					execute(async (db) => await db.insert(apiKeys).values(apiKey))
+					execute(async (db) => {
+						await db.insert(apiKeys).values(apiKey);
+						return { id: apiKey.id };
+					})
 				),
 
 				getApiKeyById: dbService.makeQuery((execute, id: string) =>
@@ -31,12 +34,22 @@ export class ApiKeyRepository extends Effect.Service<ApiKeyRepository>()(
 					)
 				),
 
-				updateApiKey: dbService.makeQuery((execute, apiKey: Omit<Partial<ApiKey>, "id"> & {id: string}) =>
-					execute(async (db) => await db.update(apiKeys).set(apiKey).where(eq(apiKeys.id, apiKey.id)))
+				updateApiKey: dbService.makeQuery(
+					(execute, apiKey: Omit<Partial<ApiKey>, "id"> & { id: string }) =>
+						execute(async (db) => {
+							await db
+								.update(apiKeys)
+								.set(apiKey)
+								.where(eq(apiKeys.id, apiKey.id));
+							return { id: apiKey.id };
+						})
 				),
 
 				deleteApiKey: dbService.makeQuery((execute, id: string) =>
-					execute(async (db) => await db.delete(apiKeys).where(eq(apiKeys.id, id)))
+					execute(async (db) => {
+						await db.delete(apiKeys).where(eq(apiKeys.id, id));
+						return { id };
+					})
 				),
 			};
 		}),

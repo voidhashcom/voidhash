@@ -105,9 +105,7 @@ export const getProviderProductsParamsSchema = z.object({
 });
 
 export const updateProviderProductParamsSchema = z.object({
-	productId: z.string(),
-	paymentProviderConfigurationId: z.string(),
-	providerProductKey: z.string(),
+	paymentProviderConfigurationProductId: z.string(),
 });
 
 export const updateProviderProductBodySchema =

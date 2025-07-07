@@ -69,6 +69,7 @@
   },
   "devDependencies": {
     "@effect/language-service": "^0.21.8",
+    "@effect/vitest": "^0.23.12",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@trigger.dev/build": "^3.3.17",
@@ -88,6 +89,6 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.2.4",
     "typescript": "^5.8.3",
-    "vitest": "^1.6.0"
+    "vitest": "^3.2.4"
   }
 }

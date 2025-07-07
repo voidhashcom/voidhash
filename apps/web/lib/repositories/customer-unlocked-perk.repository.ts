@@ -15,12 +15,12 @@ export class CustomerUnlockedPerkRepository extends Effect.Service<CustomerUnloc
 			return {
 				createCustomerUnlockedPerk: dbService.makeQuery(
 					(execute, customerUnlockedPerk: InsertCustomerUnlockedPerk) =>
-						execute(
-							async (db) =>
-								await db
-									.insert(customerUnlockedPerks)
-									.values(customerUnlockedPerk)
-						)
+						execute(async (db) => {
+							await db
+								.insert(customerUnlockedPerks)
+								.values(customerUnlockedPerk);
+							return { id: customerUnlockedPerk.id };
+						})
 				),
 				updateCustomerUnlockedPerk: dbService.makeQuery(
 					(
@@ -29,13 +29,13 @@ export class CustomerUnlockedPerkRepository extends Effect.Service<CustomerUnloc
 							id: string;
 						}
 					) =>
-						execute(
-							async (db) =>
-								await db
-									.update(customerUnlockedPerks)
-									.set(customerUnlockedPerk)
-									.where(eq(customerUnlockedPerks.id, customerUnlockedPerk.id))
-						)
+						execute(async (db) => {
+							await db
+								.update(customerUnlockedPerks)
+								.set(customerUnlockedPerk)
+								.where(eq(customerUnlockedPerks.id, customerUnlockedPerk.id));
+							return { id: customerUnlockedPerk.id };
+						})
 				),
 			};
 		}),

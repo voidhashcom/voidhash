@@ -33,10 +33,10 @@ import { z } from "zod";
 export function ProviderProductSheet({
 	open,
 	onClose,
+	paymentProviderConfigurationProductId,
 	productId,
 	paymentProviderConfigurationId,
 	providerId,
-	providerProductKey,
 	configuration,
 	mode,
 }: {
@@ -44,8 +44,8 @@ export function ProviderProductSheet({
 	onClose: () => void;
 	productId: string;
 	paymentProviderConfigurationId: string;
+	paymentProviderConfigurationProductId?: string;
 	providerId: string;
-	providerProductKey?: string;
 	mode: "add" | "edit";
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	configuration?: any;
@@ -107,19 +107,17 @@ export function ProviderProductSheet({
 	const onSubmit = async (data: any) => {
 		if (mode === "add") {
 			create({
-				paymentProviderConfigurationId: paymentProviderConfigurationId,
-				productId: productId,
+				productId,
+				paymentProviderConfigurationId,
 				configuration: data,
 			});
 		} else {
-			if (!providerProductKey) {
+			if (!paymentProviderConfigurationProductId) {
 				toast.error("An error occurred while saving the configuration");
 				return;
 			}
 			update({
-				paymentProviderConfigurationId: paymentProviderConfigurationId,
-				productId: productId,
-				providerProductKey: providerProductKey,
+				paymentProviderConfigurationProductId: paymentProviderConfigurationProductId,
 				configuration: data,
 			});
 		}

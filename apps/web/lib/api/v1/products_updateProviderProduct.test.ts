@@ -15,9 +15,9 @@ import { createPaymentProviderKey } from "@/lib/core/products/lib";
 import { Environment } from "@voidhash/lib/constants";
 
 describe.sequential(
-	"/v1/products/:productId/provider-products/:providerId/:providerProductKey",
+	"/v1/products/:productId/provider-products/:paymentProviderConfigurationProductId",
 	async () => {
-		test("PUT /v1/products/:productId/provider-products/:providerId/:providerProductKey - success", async (t) => {
+		test("PUT /v1/products/:productId/provider-products/:paymentProviderConfigurationProductId - success", async (t) => {
 			const h = await IntegrationHarness.init(t);
 
 			// Create a base product
@@ -73,7 +73,7 @@ describe.sequential(
 			};
 
 			const res = await h.put<RouteRequest, RouteResponse>({
-				url: `/v1/products/${productInput.id}/provider-products/${initialProviderConfig.paymentProviderConfigurationId}/${initialProviderConfig.providerProductKey}`,
+				url: `/v1/products/${productInput.id}/provider-products/${initialProviderConfig.id}`,
 				headers: {
 					"Content-Type": "application/json",
 					"x-secret-key": h.resources.secretKey.unhashedKey,
@@ -92,16 +92,7 @@ describe.sequential(
 				initialProviderConfig.providerProductKey
 			);
 
-			const {
-				// eslint-disable-next-line @typescript-eslint/no-unused-vars
-				paymentProviderConfigurationId,
-				...updatePayloadWithoutProviderConfigurationId
-			} = updatePayload;
-			console.log("=== RESPONSE BODY ====", responseBody.providerConfiguration);
-			console.log(
-				"=== UPDATE PAYLOAD WITHOUT PROVIDER CONFIGURATION ID ====",
-				updatePayloadWithoutProviderConfigurationId
-			);
+		
 			expect(responseBody.providerConfiguration).toMatchObject({
 				configuration: updatePayload.configuration,
 				paymentProviderConfigurationId:
@@ -139,7 +130,7 @@ describe.sequential(
 			});
 		});
 
-		test("PUT /v1/products/:productId/provider-products/:providerId/:providerProductKey - not found", async (t) => {
+		test("PUT /v1/products/:productId/provider-products/:paymentProviderConfigurationProductId - not found", async (t) => {
 			const h = await IntegrationHarness.init(t);
 			const productId = generateId("test");
 			const nonExistentKey = `ppk_nonexistent_${generateId("test")}`;
@@ -156,7 +147,7 @@ describe.sequential(
 			};
 
 			const res = await h.put<RouteRequest, RouteResponse>({
-				url: `/v1/products/${productId}/provider-products/${h.resources.paymentProviderConfiguration.id}/${nonExistentKey}`,
+				url: `/v1/products/${productId}/provider-products/${nonExistentKey}`,
 				headers: {
 					"Content-Type": "application/json",
 					"x-secret-key": h.resources.secretKey.unhashedKey,

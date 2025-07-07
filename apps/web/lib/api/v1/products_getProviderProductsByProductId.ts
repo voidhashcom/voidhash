@@ -11,7 +11,7 @@ import { zValidator } from "@hono/zod-validator";
 import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/product.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 const route = describeRoute({
 	description: "Get all provider products for a product",
@@ -45,24 +45,27 @@ export const registerProductsGetProviderProductsByProductId = (app: App) =>
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
+					const authService = yield* AuthService;
 					const productService = yield* ProductService;
-					const providerProducts = yield* AuthSession.provide(authSession)(
-						productService.getProviderProductsByProductId(
-							c.req.param("productId")
-						)
-					);
+					const authSession = yield* authService.authenticateWithSecretKey();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const providerProducts =
+								yield* productService.getProviderProductsByProductId(
+									c.req.param("productId")
+								);
 
-					return c.json<z.infer<typeof providerProductResponseSchema>[]>(
-						providerProducts.map((providerProduct) => ({
-							providerProductKey: providerProduct.providerProductKey,
-							providerConfiguration: {
-								paymentProviderConfigurationId:
-									providerProduct.paymentProviderConfigurationId,
-								configuration: providerProduct.configuration,
-							},
-						}))
+							return c.json<z.infer<typeof providerProductResponseSchema>[]>(
+								providerProducts.map((providerProduct) => ({
+									providerProductKey: providerProduct.providerProductKey,
+									providerConfiguration: {
+										paymentProviderConfigurationId:
+											providerProduct.paymentProviderConfigurationId,
+										configuration: providerProduct.configuration,
+									},
+								}))
+							);
+						})
 					);
 				})
 			)

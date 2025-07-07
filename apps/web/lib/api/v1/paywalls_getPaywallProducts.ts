@@ -11,7 +11,7 @@ import { zValidator } from "@hono/zod-validator";
 import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { PaywallService } from "@/lib/services/paywall.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 const route = describeRoute({
 	description: "Get all products for a paywall",
@@ -45,19 +45,22 @@ export const registerPaywallsGetPaywallProducts = (app: App) =>
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
-					const paywallService = yield* PaywallService;
-					const paywallProducts = yield* AuthSession.provide(authSession)(
-						paywallService.getPaywallProducts(c.req.param("paywallId"))
-					);
-
-					return c.json<z.infer<typeof paywallProductResponseSchema>[]>(
-						paywallProducts.map((pp) => ({
-							paywallId: pp.paywallId,
-							productId: pp.productId,
-							productName: pp.product.name ?? null,
-						}))
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSecretKey();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const paywallService = yield* PaywallService;
+							const paywallProducts = yield* paywallService.getPaywallProducts(
+								c.req.param("paywallId")
+							);
+							return c.json<z.infer<typeof paywallProductResponseSchema>[]>(
+								paywallProducts.map((pp) => ({
+									paywallId: pp.paywallId,
+									productId: pp.productId,
+									productName: pp.product.name ?? null,
+								}))
+							);
+						})
 					);
 				})
 			)

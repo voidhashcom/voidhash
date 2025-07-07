@@ -11,7 +11,7 @@ import {
 } from "@/lib/effect/runtimes/hono";
 import { PaywallService } from "@/lib/services/paywall.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 const route = describeRoute({
 	description: "Get a paywall",
@@ -43,26 +43,30 @@ export const registerPaywallsGetPaywallById = (app: App) =>
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
-					const paywallService = yield* PaywallService;
-					const paywall = yield* AuthSession.provide(authSession)(
-						paywallService.getPaywallById(c.req.param("paywallId"))
+					const authService = yield* AuthService;
+					const authSession = yield* authService.authenticateWithSecretKey();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							console.log("getPaywallById 2");
+							const paywallService = yield* PaywallService;
+							const paywall = yield* paywallService.getPaywallById(
+								c.req.param("paywallId")
+							);
+							if (!paywall) {
+								return yield* Effect.fail(
+									new HonoErrorResponse({
+										code: "NOT_FOUND",
+										message: "Paywall not found",
+									})
+								);
+							}
+
+							return c.json<z.infer<typeof paywallResponseSchema>>({
+								paywallId: paywall.id,
+								name: paywall.name,
+							});
+						})
 					);
-
-					if (!paywall) {
-						return yield* Effect.fail(
-							new HonoErrorResponse({
-								code: "NOT_FOUND",
-								message: "Paywall not found",
-							})
-						);
-					}
-
-					return c.json<z.infer<typeof paywallResponseSchema>>({
-						paywallId: paywall.id,
-						name: paywall.name,
-					});
 				})
 			)
 	);

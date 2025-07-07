@@ -1,4 +1,3 @@
-
 import {
 	Card,
 	GradientAvatar,
@@ -17,27 +16,39 @@ import { NotFoundError } from "@/lib/effect/errors";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { OrganizationService } from "@/lib/services/organization.service";
 import { ProjectService } from "@/lib/services/project.service";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 export async function ProjectsList({
 	organizationSlug,
 }: {
 	organizationSlug: string;
 }) {
-	const data = await runServerEffect(Effect.gen(function* () {
-		const organizationService = yield* OrganizationService;
-		const projectService = yield* ProjectService;
-		const [activeOrganization, projects] = yield* Effect.all([
-			organizationService.getOrganizationBySlug(organizationSlug),
-			projectService.getProjectsByOrganizationSlug(organizationSlug),
-		]);
-		if (!activeOrganization) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Organization not found",
-			}));
-		}
-		
-		return { activeOrganization, organizationProjects: projects };
-	}));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const organizationService = yield* OrganizationService;
+					const projectService = yield* ProjectService;
+					const [activeOrganization, projects] = yield* Effect.all([
+						organizationService.getOrganizationBySlug(organizationSlug),
+						projectService.getProjectsByOrganizationSlug(organizationSlug),
+					], {
+						concurrency: "unbounded"
+					});
+					if (!activeOrganization) {
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Organization not found",
+							})
+						);
+					}
+					return { activeOrganization, organizationProjects: projects };
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();
@@ -45,7 +56,6 @@ export async function ProjectsList({
 	}
 
 	const { activeOrganization, organizationProjects } = data.value;
-
 
 	if (organizationProjects?.length === 0) {
 		return (

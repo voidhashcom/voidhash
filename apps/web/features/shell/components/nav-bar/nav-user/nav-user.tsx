@@ -5,17 +5,26 @@ import { NavUserDropdown } from "./nav-user-dropdown";
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { UserService } from "@/lib/services/user.service";
 import { Effect } from "effect";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 function NavUserSkeleton() {
 	return <Skeleton className="h-8 w-8 rounded-full" />;
 }
 
 export async function NavUserContent() {
-	const data = await runServerEffect(Effect.gen(function* () {
-		const userService = yield* UserService;
-		const user = yield* userService.getUser();
-		return { user };
-	}));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const userService = yield* UserService;
+					const user = yield* userService.getUser();
+					return { user };
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		return <div>Error loading user</div>;

@@ -10,6 +10,7 @@ import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { OrganizationService } from "@/lib/services/organization.service";
 import { ProjectService } from "@/lib/services/project.service";
 import { NotFoundError } from "@/lib/effect/errors";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 const ProjectTitle = async ({ project }: { project: Project }) => {
 	return (
@@ -46,30 +47,44 @@ export async function ProjectSwitcher({
 		return null;
 	}
 
-	const data = await runServerEffect(Effect.gen(function* () {
-		const userService = yield* UserService;
-		const organizationService = yield* OrganizationService;
-		const projectService = yield* ProjectService;
-		const [user, activeOrganization, activeProject] = yield* Effect.all([
-			userService.getUser(),
-			organizationService.getOrganizationBySlug(organizationSlug),
-			projectService.getProjectBySlugAndOrganizationSlug({
-				organizationSlug,
-				projectSlug,
-			}),
-		]);
-		if (!activeOrganization) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Organization not found",
-			}));
-		}
-		if (!activeProject) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Project not found",
-			}));
-		}
-		return { user, activeOrganization, activeProject };
-	}));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const userService = yield* UserService;
+					const organizationService = yield* OrganizationService;
+					const projectService = yield* ProjectService;
+					const [user, activeOrganization, activeProject] = yield* Effect.all([
+						userService.getUser(),
+						organizationService.getOrganizationBySlug(organizationSlug),
+						projectService.getProjectBySlugAndOrganizationSlug({
+							organizationSlug,
+							projectSlug,
+						}),
+					], {
+						concurrency: "unbounded"
+					});
+					if (!activeOrganization) {
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Organization not found",
+							})
+						);
+					}
+					if (!activeProject) {
+						return yield* Effect.fail(
+							new NotFoundError({
+								message: "Project not found",
+							})
+						);
+					}
+					return { user, activeOrganization, activeProject };
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		return null;

@@ -4,7 +4,13 @@ import { CustomerUnlockedPerkRepository } from "@/lib/repositories/customer-unlo
 import { CustomerRepository } from "@/lib/repositories/customer.repository";
 import { ProductPerkRepository } from "@/lib/repositories/product-perk.repository";
 import { SubscriptionRepository } from "@/lib/repositories/subscription.repository";
-import { CustomerUnlockedPerk, CustomerUnlockedPerkStatus, PaymentProviderConfigurationProduct, ProductPerk, Subscription } from "@voidhash/db";
+import {
+	CustomerUnlockedPerk,
+	CustomerUnlockedPerkStatus,
+	PaymentProviderConfigurationProduct,
+	ProductPerk,
+	Subscription,
+} from "@voidhash/db";
 import { SubscriptionStatus } from "@voidhash/lib/constants";
 import { Effect } from "effect";
 
@@ -33,94 +39,97 @@ type PerkOperation =
 	| PerkOperationReactivation
 	| PerkOperationExpiration;
 
-export class PerkGrantService extends Effect.Service<PerkGrantService>()("PerkGrantService", {
-    dependencies: [],
-	effect: Effect.gen(function* () {
-		return {
-            syncUnlockedPerks: (customerId: string) =>
-                Effect.gen(function* () {
-                    const customerRepository = yield* CustomerRepository;
-                    const subscriptionRepository = yield* SubscriptionRepository;
-                    const productPerkRepository = yield* ProductPerkRepository;
-                    const customerUnlockedPerkRepository =
-                        yield* CustomerUnlockedPerkRepository;
-                    const db = yield* Db;
-                    const [unlockedPerks, customersSubscriptions] = yield* Effect.all([
-                        customerRepository.getCustomersUnlockedPerks(customerId),
-                        subscriptionRepository.getSubscriptionsByCustomerIdWithPaymentProviderConfigurationProduct(
-                            customerId
-                        ),
-                    ]);
-                    const unlockablePerks =
-                        yield* productPerkRepository.getProductPerksByPaymentProviderConfigurationProductIds(
-                            customersSubscriptions.map(
-                                (subscription) => subscription.paymentProviderConfigurationProductId
-                            )
-                        );
-            
-                    const perksFromSubscriptionsToUnlock =
-                        extractPerksToUnlockFromSubscriptions(
-                            unlockedPerks,
-                            unlockablePerks,
-                            customersSubscriptions
-                        );
-            
-                    const perksFromSubscriptionsToDeactivate =
-                        extractPerksToDeactivateFromSubscriptions(
-                            unlockedPerks,
-                            unlockablePerks,
-                            customersSubscriptions
-                        );
-            
-                    const operations = [
-                        ...perksFromSubscriptionsToUnlock,
-                        ...perksFromSubscriptionsToDeactivate,
-                    ];
-            
-                    yield* db.transaction((tx) =>
-                        TransactionContext.provide(tx)(
-                            Effect.all([
-                                ...operations.map((operation) => {
-                                    switch (operation.status) {
-                                        case "create":
-                                            return customerUnlockedPerkRepository.createCustomerUnlockedPerk(
-                                                {
-                                                    id: generateId("customerUnlockedPerk"),
-                                                    customerId,
-                                                    perkId: operation.perkId,
-                                                    unlockedBySubscriptionId:
-                                                        operation.unlockedBySubscriptionId,
-                                                    expiresAt: operation.expiresAt,
-                                                    status: CustomerUnlockedPerkStatus.Active,
-                                                }
-                                            );
-                                        case "reactivate":
-                                            return customerUnlockedPerkRepository.updateCustomerUnlockedPerk(
-                                                {
-                                                    id: operation.perkId,
-                                                    expiresAt: operation.expiresAt,
-                                                    updatedAt: new Date(),
-                                                    status: CustomerUnlockedPerkStatus.Active,
-                                                }
-                                            );
-                                        case "expire":
-                                            return customerUnlockedPerkRepository.updateCustomerUnlockedPerk(
-                                                {
-                                                    id: operation.perkId,
-                                                    updatedAt: new Date(),
-                                                    status: CustomerUnlockedPerkStatus.Expired,
-                                                }
-                                            );
-                                    }
-                                }),
-                            ])
-                        )
-                    );
-                })
-		};
-	}),
-}) {}
+export class PerkGrantService extends Effect.Service<PerkGrantService>()(
+	"PerkGrantService",
+	{
+		dependencies: [],
+		effect: Effect.gen(function* () {
+			return {
+				syncUnlockedPerks: (customerId: string) =>
+					Effect.gen(function* () {
+						const customerRepository = yield* CustomerRepository;
+						const subscriptionRepository = yield* SubscriptionRepository;
+						const productPerkRepository = yield* ProductPerkRepository;
+						const customerUnlockedPerkRepository =
+							yield* CustomerUnlockedPerkRepository;
+						const db = yield* Db;
+						const [unlockedPerks, customersSubscriptions] = yield* Effect.all([
+							customerRepository.getCustomersUnlockedPerks(customerId),
+							subscriptionRepository.getSubscriptionsByCustomerIdWithPaymentProviderConfigurationProduct(
+								customerId
+							),
+						]);
+						const unlockablePerks =
+							yield* productPerkRepository.getProductPerksByPaymentProviderConfigurationProductIds(
+								customersSubscriptions.map(
+									(subscription) =>
+										subscription.paymentProviderConfigurationProductId
+								)
+							);
 
+						const perksFromSubscriptionsToUnlock =
+							extractPerksToUnlockFromSubscriptions(
+								unlockedPerks,
+								unlockablePerks,
+								customersSubscriptions
+							);
+
+						const perksFromSubscriptionsToDeactivate =
+							extractPerksToDeactivateFromSubscriptions(
+								unlockedPerks,
+								unlockablePerks,
+								customersSubscriptions
+							);
+
+						const operations = [
+							...perksFromSubscriptionsToUnlock,
+							...perksFromSubscriptionsToDeactivate,
+						];
+
+						yield* db.transaction((tx) =>
+							TransactionContext.provide(tx)(
+								Effect.all([
+									...operations.map((operation) => {
+										switch (operation.status) {
+											case "create":
+												return customerUnlockedPerkRepository.createCustomerUnlockedPerk(
+													{
+														id: generateId("customerUnlockedPerk"),
+														customerId,
+														perkId: operation.perkId,
+														unlockedBySubscriptionId:
+															operation.unlockedBySubscriptionId,
+														expiresAt: operation.expiresAt,
+														status: CustomerUnlockedPerkStatus.Active,
+													}
+												);
+											case "reactivate":
+												return customerUnlockedPerkRepository.updateCustomerUnlockedPerk(
+													{
+														id: operation.perkId,
+														expiresAt: operation.expiresAt,
+														updatedAt: new Date(),
+														status: CustomerUnlockedPerkStatus.Active,
+													}
+												);
+											case "expire":
+												return customerUnlockedPerkRepository.updateCustomerUnlockedPerk(
+													{
+														id: operation.perkId,
+														updatedAt: new Date(),
+														status: CustomerUnlockedPerkStatus.Expired,
+													}
+												);
+										}
+									}),
+								])
+							)
+						);
+					}),
+			};
+		}),
+	}
+) {}
 
 /**
  * Extracts the perks that should be unlocked from the subscriptions and are not already unlocked.

@@ -7,7 +7,11 @@ import { z } from "zod";
 import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { CustomerService } from "@/lib/services/customer.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
+import {
+	Environment,
+	EnvironmentService,
+} from "@/lib/services/environment.service";
 
 const route = describeRoute({
 	description: "Get a customer by app user ID",
@@ -35,19 +39,27 @@ export const registerCustomersGetCustomerByAppUserId = (app: App) =>
 	app.get("/v1/customers/by-app-user-id/:appUserId", route, async (c) =>
 		createEffectHandler(c)(
 			Effect.gen(function* () {
-				const authService = yield* Auth;
-				const authSession = yield* authService.authenticate();
+				const authService = yield* AuthService;
 				const customerService = yield* CustomerService;
-				const customer = yield* AuthSession.provide(authSession)(
-					customerService.getCustomerByAppUserId(c.req.param("appUserId"))
-				);
+				const environmentService = yield* EnvironmentService;
+				const authSession = yield* authService.authenticateWithSecretKey();
+				return yield* AuthSession.provide(authSession)(
+					Effect.gen(function* () {
+						const environment =
+							yield* environmentService.getEnvironmentFromApiAuthSession();
 
-				return c.json<z.infer<typeof customerResponseSchema>>({
-					customerId: customer.id,
-					name: customer.name ?? null,
-					email: customer.email ?? null,
-					appUserId: customer.appUserId ?? null,
-				});
+						const customer = yield* Environment.provide(environment)(
+							customerService.getCustomerByAppUserId(c.req.param("appUserId"))
+						);
+
+						return c.json<z.infer<typeof customerResponseSchema>>({
+							customerId: customer.id,
+							name: customer.name ?? null,
+							email: customer.email ?? null,
+							appUserId: customer.appUserId ?? null,
+						});
+					})
+				);
 			})
 		)
 	);

@@ -4,7 +4,7 @@ import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
 import { ProductService } from "@/lib/services/product.service";
 import { PaymentProviderService } from "@/lib/services/payment-provider.service";
-import { AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 export async function ProductRecordConfigurationStateIndicator({
 	productId,
@@ -12,18 +12,30 @@ export async function ProductRecordConfigurationStateIndicator({
 }: {
 	productId: string;
 	projectId: string;
-
 }) {
-	const data = await runServerEffect(AuthSession.withAuthSession()(Effect.gen(function* () {
-		const productService = yield* ProductService;
-		const paymentProviderService = yield* PaymentProviderService;
-	
-		const [providerProducts, paymentProviderConfigurations] = yield* Effect.all([
-			productService.getProviderProductsByProductId(productId),
-			paymentProviderService.getPaymentProviderConfigurations(projectId),
-		]);
-		return { providerProducts, paymentProviderConfigurations };
-	})));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const productService = yield* ProductService;
+					const paymentProviderService = yield* PaymentProviderService;
+
+					const [providerProducts, paymentProviderConfigurations] =
+						yield* Effect.all([
+							productService.getProviderProductsByProductId(productId),
+							paymentProviderService.getPaymentProviderConfigurations(
+								projectId
+							),
+						], {
+							concurrency: "unbounded"
+						});
+					return { providerProducts, paymentProviderConfigurations };
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		return <Badge>Loading error</Badge>;

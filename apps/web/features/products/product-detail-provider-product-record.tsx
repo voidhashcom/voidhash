@@ -179,6 +179,7 @@ export function ProductDetailProviderProductRecord({
 				open={openEditSheet}
 				onClose={() => setOpenEditSheet(false)}
 				paymentProviderConfigurationId={paymentProviderConfigurationId}
+				paymentProviderConfigurationProductId={providerProduct.id}
 				providerId={paymentProviderId}
 				productId={providerProduct.productId}
 				mode={"edit"}

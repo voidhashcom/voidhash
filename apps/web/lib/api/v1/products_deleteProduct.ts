@@ -11,7 +11,7 @@ import {
 } from "@/lib/effect/runtimes/hono";
 import { ProductService } from "@/lib/services/product.service";
 import { Effect } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 const route = describeRoute({
 	description: "Delete a product",
@@ -45,29 +45,30 @@ export const registerProductsDeleteProduct = (app: App) =>
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
+					const authService = yield* AuthService;
 					const productService = yield* ProductService;
-					yield* AuthSession.provide(authSession)(
-						productService
-							.deleteProduct({
-								productId: c.req.param("productId"),
-							})
-							.pipe(
-								Effect.catchTags({
-									ProductNotFound: (error) =>
-										Effect.fail(
-											new HonoErrorResponse({
-												code: "NOT_FOUND",
-												message: error.message,
-												originalError: error,
-											})
-										),
+					const authSession = yield* authService.authenticateWithSecretKey();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							yield* productService
+								.deleteProduct({
+									productId: c.req.param("productId"),
 								})
-							)
+								.pipe(
+									Effect.catchTags({
+										ProductNotFound: (error) =>
+											Effect.fail(
+												new HonoErrorResponse({
+													code: "NOT_FOUND",
+													message: error.message,
+													originalError: error,
+												})
+											),
+									})
+								);
+							return c.json({ message: "Product deleted" });
+						})
 					);
-
-					return c.json({ message: "Product deleted" });
 				})
 			)
 	);

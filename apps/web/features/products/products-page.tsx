@@ -8,10 +8,13 @@ import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-ca
 import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { Effect } from "effect";
 import { ProjectService } from "@/lib/services/project.service";
-import { Environment } from "@/lib/effect/environment";
+import {
+	Environment,
+	EnvironmentService,
+} from "@/lib/services/environment.service";
 import { NotFoundError } from "@/lib/effect/errors";
 import { ProductService } from "@/lib/services/product.service";
-import { AuthSession } from "@/lib/effect/auth";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 export async function ProductsPage({
 	organizationSlug,
@@ -20,24 +23,42 @@ export async function ProductsPage({
 	organizationSlug: string;
 	projectSlug;
 }) {
-	const data = await runServerEffect(AuthSession.withAuthSession()(Environment.withEnvironment({
-		organizationSlug,
-		projectSlug,
-	})(Effect.gen(function* () {
-		const projectService = yield* ProjectService;
-		const productService = yield* ProductService;
-		const project = yield* projectService.getProjectBySlugAndOrganizationSlug({
-			organizationSlug,
-			projectSlug,
-		});
-		if (!project) {
-			return yield* Effect.fail(new NotFoundError({
-				message: "Project not found",
-			}));
-		}
-		const products = yield* productService.getProducts(project.id);
-		return { project, products };
-	}))));
+	const data = await runServerEffect(
+		Effect.gen(function* () {
+			const authService = yield* AuthService;
+			const environmentService = yield* EnvironmentService;
+			const authSession = yield* authService.authenticateWithSession();
+			return yield* AuthSession.provide(authSession)(
+				Effect.gen(function* () {
+					const environment =
+						yield* environmentService.getEnvironmentFromCookie({
+							organizationSlug,
+							projectSlug,
+						});
+					return yield* Environment.provide(environment)(
+						Effect.gen(function* () {
+							const projectService = yield* ProjectService;
+							const productService = yield* ProductService;
+							const project =
+								yield* projectService.getProjectBySlugAndOrganizationSlug({
+									organizationSlug,
+									projectSlug,
+								});
+							if (!project) {
+								return yield* Effect.fail(
+									new NotFoundError({
+										message: "Project not found",
+									})
+								);
+							}
+							const products = yield* productService.getProducts(project.id);
+							return { project, products };
+						})
+					);
+				})
+			);
+		})
+	);
 
 	if (data.isErr()) {
 		const error = data._unsafeUnwrapErr();
@@ -45,7 +66,6 @@ export async function ProductsPage({
 	}
 
 	const { project, products } = data.value;
-
 
 	return (
 		<Page>

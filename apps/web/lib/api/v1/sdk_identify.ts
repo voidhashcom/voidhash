@@ -14,8 +14,12 @@ import {
 	HonoErrorResponse,
 } from "@/lib/effect/runtimes/hono";
 import { SdkService } from "@/lib/services/sdk.service";
-import { Effect, pipe } from "effect";
-import { Auth, AuthSession } from "@/lib/effect/auth";
+import { Effect } from "effect";
+import { AuthService, AuthSession } from "@/lib/services/auth.service";
+import {
+	Environment,
+	EnvironmentService,
+} from "@/lib/services/environment.service";
 
 const route = describeRoute({
 	description:
@@ -48,16 +52,30 @@ export const registerSdkIdentify = (app: App) =>
 		async (c) =>
 			createEffectHandler(c)(
 				Effect.gen(function* () {
-					const authService = yield* Auth;
-					const authSession = yield* authService.authenticate();
+					const authService = yield* AuthService;
 					const sdkService = yield* SdkService;
-					const customer = yield* AuthSession.provide(authSession)(
-						pipe(
-							sdkService.identifyCustomer({
-								appUserId: c.req.valid("json").appUserId,
-								name: c.req.valid("json").name ?? null,
-								email: c.req.valid("json").email ?? null,
-							}),
+					const environmentService = yield* EnvironmentService;
+					const authSession =
+						yield* authService.authenticateWithPublishableKey();
+					return yield* AuthSession.provide(authSession)(
+						Effect.gen(function* () {
+							const environment =
+								yield* environmentService.getEnvironmentFromApiAuthSession();
+							const customer = yield* Environment.provide(environment)(
+								sdkService.identifyCustomer({
+									appUserId: c.req.valid("json").appUserId,
+									name: c.req.valid("json").name ?? null,
+									email: c.req.valid("json").email ?? null,
+								})
+							);
+							return c.json<z.infer<typeof customerResponseSchema>>({
+								customerId: customer.id,
+								name: customer.name ?? null,
+								email: customer.email,
+								appUserId: customer.appUserId ?? null,
+								// origin: customer.origin,
+							});
+						}).pipe(
 							Effect.catchTags({
 								CustomerConflict: (error) =>
 									Effect.fail(
@@ -75,17 +93,9 @@ export const registerSdkIdentify = (app: App) =>
 											originalError: error,
 										})
 									),
-							}),
+							})
 						)
 					);
-
-					return c.json<z.infer<typeof customerResponseSchema>>({
-						customerId: customer.id,
-						name: customer.name ?? null,
-						email: customer.email,
-						appUserId: customer.appUserId ?? null,
-						// origin: customer.origin,
-					});
 				})
 			)
 	);
