@@ -781,6 +781,13 @@ export const updatePaymentProviderProductAction = actionClient
 								message: error.message,
 							})
 						),
+					PaymentProviderConfigurationNotFound: (error) =>
+						Effect.fail(
+							new NextjsErrorResponse({
+								code: "BAD_REQUEST",
+								message: error.message,
+							})
+						),
 					PaymentProviderNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
