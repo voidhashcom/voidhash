@@ -34,7 +34,7 @@ export function errorSchemaFactory(code: z.ZodEnum<any>) {
 		error: z.object({
 			code: code.meta({
 				description: "A machine readable error code.",
-				example: code.def.entries.at(0),
+				example: code._zod.def.entries[0],
 			}),
 			docs: z.string().meta({
 				description:
@@ -148,7 +148,7 @@ export function handleZodError(
 				success: false;
 				error: ZodError;
 		  },
-	c: Context
+	c: Context,
 ) {
 	if (!result.success) {
 		return c.json<z.infer<typeof ErrorSchema>>(
@@ -161,7 +161,7 @@ export function handleZodError(
 					requestId: c.get("requestId"),
 				},
 			},
-			{ status: 400 }
+			{ status: 400 },
 		);
 	}
 }
@@ -192,7 +192,7 @@ export function handleError(err: Error, c: Context<HonoEnv>): Response {
 					requestId: c.get("requestId"),
 				},
 			},
-			{ status }
+			{ status },
 		);
 	}
 
@@ -219,7 +219,7 @@ export function handleError(err: Error, c: Context<HonoEnv>): Response {
 					requestId: c.get("requestId"),
 				},
 			},
-			{ status: err.status }
+			{ status: err.status },
 		);
 	}
 
@@ -243,14 +243,14 @@ export function handleError(err: Error, c: Context<HonoEnv>): Response {
 				requestId: c.get("requestId"),
 			},
 		},
-		{ status: 500 }
+		{ status: 500 },
 	);
 }
 
 export function errorResponse(
 	c: Context,
 	code: z.infer<typeof ErrorCode>,
-	message: string
+	message: string,
 ) {
 	return c.json<z.infer<typeof ErrorSchema>>(
 		{
@@ -262,6 +262,6 @@ export function errorResponse(
 				requestId: c.get("requestId"),
 			},
 		},
-		{ status: codeToStatus(code) }
+		{ status: codeToStatus(code) },
 	);
 }
