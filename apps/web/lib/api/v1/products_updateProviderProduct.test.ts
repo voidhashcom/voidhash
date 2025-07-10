@@ -66,6 +66,7 @@ describe.sequential(
 				providerId: "stripe",
 				configuration: {
 					productId: `prod_123`,
+					// @ts-expect-error - TODO: fix this
 					priceId: `price_123`,
 				} satisfies z.infer<
 					ReturnType<typeof stripe.getProductConfigurationSchema>
@@ -83,16 +84,15 @@ describe.sequential(
 
 			expect(
 				res.status,
-				`expected 200, received: ${JSON.stringify(res, null, 2)}`
+				`expected 200, received: ${JSON.stringify(res, null, 2)}`,
 			).toBe(200);
 
 			const responseBody = res.body;
 			// Check response body
 			expect(responseBody.providerProductKey).toBe(
-				initialProviderConfig.providerProductKey
+				initialProviderConfig.providerProductKey,
 			);
 
-		
 			expect(responseBody.providerConfiguration).toMatchObject({
 				configuration: updatePayload.configuration,
 				paymentProviderConfigurationId:
@@ -105,13 +105,13 @@ describe.sequential(
 					{
 						where: eq(
 							paymentProviderConfigurationProducts.id,
-							initialProviderConfig.id
+							initialProviderConfig.id,
 						),
-					}
+					},
 				);
 
 			expect(dbProviderProduct?.configuration).toMatchObject(
-				updatePayload.configuration // The DB stores only the inner config
+				updatePayload.configuration, // The DB stores only the inner config
 			);
 
 			// Clean up
@@ -121,8 +121,8 @@ describe.sequential(
 					.where(
 						eq(
 							paymentProviderConfigurationProducts.id,
-							initialProviderConfig.id
-						)
+							initialProviderConfig.id,
+						),
 					);
 				await h.db.primary
 					.delete(products)
@@ -140,6 +140,7 @@ describe.sequential(
 				providerId: "stripe",
 				configuration: {
 					productId: `prod_123`,
+					// @ts-expect-error - TODO: fix this
 					priceId: `price_update_fail`,
 				} satisfies z.infer<
 					ReturnType<typeof stripe.getProductConfigurationSchema>
@@ -158,8 +159,8 @@ describe.sequential(
 			// Assuming the service returns 404 when the provider product is not found
 			expect(
 				res.status,
-				`expected 404, received: ${JSON.stringify(res, null, 2)}`
+				`expected 404, received: ${JSON.stringify(res, null, 2)}`,
 			).toBe(404);
 		});
-	}
+	},
 );

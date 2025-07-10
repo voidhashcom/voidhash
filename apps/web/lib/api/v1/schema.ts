@@ -1,8 +1,5 @@
 import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import { z } from "zod";
-import { extendZodWithOpenApi } from "zod-openapi";
-
-extendZodWithOpenApi(z);
 
 // Customer
 export const createCustomerBodySchema = z
@@ -11,7 +8,7 @@ export const createCustomerBodySchema = z
 		name: z.string().optional(),
 		email: z.string().email().optional(),
 	})
-	.openapi({
+	.meta({
 		ref: "CreateCustomerBody",
 	});
 
@@ -23,15 +20,16 @@ export const customerResponseSchema = z
 		appUserId: z.string().nullable(),
 		// origin: z.enum(["dashboard", "ios", "android", "stripe", "api"]),
 	})
-	.openapi({
+	.meta({
 		ref: "Customer",
 	});
 
 // Product
-export const createProductBodySchema = z.object({
+export const createProductBodySchema = z
+	.object({
 		name: z.string(),
 	})
-	.openapi({
+	.meta({
 		ref: "CreateProductBody",
 	});
 
@@ -40,7 +38,7 @@ export const productResponseSchema = z
 		productId: z.string(),
 		name: z.string(),
 	})
-	.openapi({
+	.meta({
 		ref: "Product",
 	});
 
@@ -52,7 +50,7 @@ export const updateProductBodySchema = z
 	.object({
 		name: z.string(),
 	})
-	.openapi({
+	.meta({
 		ref: "UpdateProductBody",
 	});
 
@@ -65,20 +63,16 @@ export const deleteProductParamsSchema = z.object({
 });
 
 const paymentProviderConfigurationProductSchema = z
-
-	.discriminatedUnion("providerId", [
+	.union([
 		...paymentProviders.map((p) =>
 			z.object({
 				providerId: z.literal(p.getId()),
 				paymentProviderConfigurationId: z.string(),
 				configuration: p.getProductConfigurationSchema(),
-			})
+			}),
 		),
-	] as unknown as [
-		z.ZodDiscriminatedUnionOption<"providerId">,
-		...z.ZodDiscriminatedUnionOption<"providerId">[],
 	])
-	.openapi({
+	.meta({
 		ref: "PaymentProviderConfigurationProduct",
 	});
 
@@ -87,7 +81,7 @@ export const attachProviderProductParamsSchema = z.object({
 });
 
 export const attachProviderProductBodySchema =
-	paymentProviderConfigurationProductSchema.openapi({
+	paymentProviderConfigurationProductSchema.meta({
 		ref: "AttachProviderProductBody",
 	});
 
@@ -96,7 +90,7 @@ export const providerProductResponseSchema = z
 		providerProductKey: z.string(),
 		providerConfiguration: paymentProviderConfigurationProductSchema,
 	})
-	.openapi({
+	.meta({
 		ref: "ProviderProduct",
 	});
 
@@ -109,7 +103,7 @@ export const updateProviderProductParamsSchema = z.object({
 });
 
 export const updateProviderProductBodySchema =
-	paymentProviderConfigurationProductSchema.openapi({
+	paymentProviderConfigurationProductSchema.meta({
 		ref: "UpdateProviderProductBody",
 	});
 
@@ -124,7 +118,7 @@ export const createPaywallBodySchema = z
 	.object({
 		name: z.string(),
 	})
-	.openapi({
+	.meta({
 		ref: "CreatePaywallBody",
 	});
 
@@ -133,7 +127,7 @@ export const paywallResponseSchema = z
 		paywallId: z.string(),
 		name: z.string(),
 	})
-	.openapi({
+	.meta({
 		ref: "Paywall",
 	});
 
@@ -154,7 +148,7 @@ export const attachProductToPaywallBodySchema = z
 	.object({
 		productId: z.string(),
 	})
-	.openapi({
+	.meta({
 		ref: "AttachProductToPaywallBody",
 	});
 
@@ -164,7 +158,7 @@ export const paywallProductResponseSchema = z
 		productId: z.string(),
 		productName: z.string().nullable(),
 	})
-	.openapi({
+	.meta({
 		ref: "PaywallProduct",
 	});
 
@@ -194,10 +188,10 @@ export const sdkPaywallResponseSchema = z
 				nativePurchaseAvailable: z.boolean(),
 				webCheckoutAvailable: z.boolean(),
 				webCheckoutPaymentProviderConfigurationProductId: z.string().nullable(),
-			})
+			}),
 		),
 	})
-	.openapi({
+	.meta({
 		ref: "SdkPaywall",
 	});
 
@@ -207,7 +201,7 @@ export const sdkCreateCheckoutBodySchema = z
 		successCallbackUrl: z.string().min(1).includes("://"),
 		errorCallbackUrl: z.string().min(1).includes("://"),
 	})
-	.openapi({
+	.meta({
 		ref: "SdkCreateCheckoutBody",
 	});
 
@@ -216,7 +210,7 @@ export const sdkCheckoutResponseSchema = z
 		checkoutSessionId: z.string(),
 		checkoutUrl: z.string(),
 	})
-	.openapi({
+	.meta({
 		ref: "SdkCheckout",
 	});
 
@@ -227,7 +221,7 @@ export const sdkCustomerResponseSchema = z
 		email: z.string().nullable(),
 		appUserId: z.string().nullable(),
 	})
-	.openapi({
+	.meta({
 		ref: "SdkCustomer",
 	});
 
@@ -237,6 +231,6 @@ export const sdkIdentifyCustomerBodySchema = z
 		name: z.string().optional(),
 		email: z.string().email().optional(),
 	})
-	.openapi({
+	.meta({
 		ref: "SdkIdentifyCustomerBody",
 	});

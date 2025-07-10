@@ -56,10 +56,7 @@ export function PaymentProviderDetailConfiguration({
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const form = useForm<any>({
-		resolver: zodResolver(
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			paymentProvider?.getGlobalConfigurationSchema() as z.ZodType<any>
-		),
+		resolver: zodResolver(paymentProvider?.getGlobalConfigurationSchema()),
 		defaultValues: paymentProviderConfiguration.configuration,
 	});
 
