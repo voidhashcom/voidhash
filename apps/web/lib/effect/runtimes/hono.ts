@@ -1,4 +1,14 @@
-import { Context, Data, Effect, Layer, ManagedRuntime, Option, pipe } from "effect";
+import {
+	Cause,
+	Context,
+	Data,
+	Effect,
+	Exit,
+	Layer,
+	ManagedRuntime,
+	Option,
+	pipe,
+} from "effect";
 import { Cookies, CookiesError } from "../cookies";
 import { DatabaseError, Db } from "../db";
 import {
@@ -50,12 +60,13 @@ import { OrganizationService } from "@/lib/services/organization.service";
 import { PaymentProviderService } from "@/lib/services/payment-provider.service";
 import { UserService } from "@/lib/services/user.service";
 import { HonoRuntimeTag } from "./tags";
+import { isDynamicServerError } from "next/dist/client/components/hooks-server-context";
+import { unstable_rethrow } from "next/navigation";
 
 export class HonoContext extends Context.Tag("app/HonoContext")<
 	HonoContext,
 	HonoContextType
 >() {}
-
 
 const HonoRuntimeTagLive = Layer.succeed(
 	HonoRuntimeTag,
@@ -380,7 +391,7 @@ export const createEffectHandler =
 		effect: Effect.Effect<T, E, C>
 	) => {
 		const runtime = createHonoRuntime(context);
-		return await runtime.runPromise(
+		const result = await runtime.runPromiseExit(
 			pipe(
 				effect,
 				handleGlobalErrors,
@@ -399,19 +410,28 @@ export const createEffectHandler =
 							})
 						)
 					);
-				}),
-				Effect.catchAllDefect((error) => {
-					console.log(error);
-					return Effect.succeed(
-						toHonoErrorResponse(
-							context,
-							new HonoErrorResponse({
-								code: "INTERNAL_SERVER_ERROR",
-								message: "Internal server error",
-							})
-						)
-					);
 				})
 			)
 		);
+
+		return Exit.match(result, {
+			onSuccess: (value) => value,
+			onFailure: (error) => {
+				if (Cause.isDie(error)) {
+					const defects = Cause.defects(error);
+					for (const defect of defects) {
+						if (isDynamicServerError(defect)) {
+							unstable_rethrow(defect);
+						}
+					}
+				}
+				return toHonoErrorResponse(
+					context,
+					new HonoErrorResponse({
+						code: "INTERNAL_SERVER_ERROR",
+						message: "Internal server error",
+					})
+				);
+			},
+		});
 	};

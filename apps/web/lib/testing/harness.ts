@@ -28,6 +28,7 @@ import {
 	devCheckoutPaymentProviderId,
 } from "../payment-providers/dev-checkout/dev-checkout";
 import { Environment } from "@voidhash/lib/index";
+import { createMockUserAuthSession } from "./__mocks__/auth.mock";
 
 export type Resources = {
 	user: User;
@@ -252,6 +253,27 @@ export abstract class Harness {
 			devCheckoutPaymentProviderConfiguration,
 			paymentProviderConfiguration,
 		};
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	public createAuthSession(options: {type: "user" | "apiKey"}) {
+		// if (options.type === "user") {
+		// TODO: Improve this
+			return createMockUserAuthSession({
+				user: this.resources.user,
+				organizations: [{
+					id: this.resources.organization.id,
+					permissions: ["organization:all"],
+					slug: this.resources.organization.slug ?? "org-slug",
+				}],
+				projects: [{
+					id: this.resources.project.id,
+					permissions: ["project:all"],
+					organizationId: this.resources.organization.id,
+					slug: this.resources.project.slug ?? "project-slug",
+				}]
+			})
+		// }
 	}
 
 	protected async seed(): Promise<void> {
