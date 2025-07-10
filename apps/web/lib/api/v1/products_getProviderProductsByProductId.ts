@@ -52,10 +52,11 @@ export const registerProductsGetProviderProductsByProductId = (app: App) =>
 						Effect.gen(function* () {
 							const providerProducts =
 								yield* productService.getProviderProductsByProductId(
-									c.req.param("productId")
+									c.req.param("productId"),
 								);
 
 							return c.json<z.infer<typeof providerProductResponseSchema>[]>(
+								// @ts-expect-error - TODO: fix this
 								providerProducts.map((providerProduct) => ({
 									providerProductKey: providerProduct.providerProductKey,
 									providerConfiguration: {
@@ -63,12 +64,12 @@ export const registerProductsGetProviderProductsByProductId = (app: App) =>
 											providerProduct.paymentProviderConfigurationId,
 										configuration: providerProduct.configuration,
 									},
-								}))
+								})),
 							);
-						})
+						}),
 					);
-				})
-			)
+				}),
+			),
 	);
 
 export type RouteResponse = z.infer<typeof providerProductResponseSchema>[];

@@ -7,9 +7,9 @@ import type { ContentfulStatusCode, StatusCode } from "hono/utils/http-status";
 import { z, type ZodError } from "zod";
 import { HonoEnv } from "../hono/env";
 
-import { extendZodWithOpenApi } from "zod-openapi";
+// import { extendZodWithOpenApi } from "zod-openapi";
 
-extendZodWithOpenApi(z);
+// extendZodWithOpenApi(z);
 
 export const ErrorCode = z.enum([
 	"BAD_REQUEST",
@@ -32,20 +32,20 @@ export const ErrorCode = z.enum([
 export function errorSchemaFactory(code: z.ZodEnum<any>) {
 	return z.object({
 		error: z.object({
-			code: code.openapi({
+			code: code.meta({
 				description: "A machine readable error code.",
-				example: code._def.values.at(0),
+				example: code.def.entries.at(0),
 			}),
-			docs: z.string().openapi({
+			docs: z.string().meta({
 				description:
 					"A link to our documentation with more details about this error code",
 				// TODO: Add example link - example: `https://unkey.dev/docs/api-reference/errors/code/${code._def.values.at(0)}`,
 				example: "",
 			}),
-			message: z.string().openapi({
+			message: z.string().meta({
 				description: "A human readable explanation of what went wrong",
 			}),
-			requestId: z.string().openapi({
+			requestId: z.string().meta({
 				description: "Please always include the requestId in your error report",
 				example: "req_1234",
 			}),
@@ -55,20 +55,20 @@ export function errorSchemaFactory(code: z.ZodEnum<any>) {
 
 export const ErrorSchema = z.object({
 	error: z.object({
-		code: ErrorCode.openapi({
+		code: ErrorCode.meta({
 			description: "A machine readable error code.",
 			example: "INTERNAL_SERVER_ERROR",
 		}),
-		docs: z.string().openapi({
+		docs: z.string().meta({
 			description:
 				"A link to our documentation with more details about this error code",
 			// TODO: Add example link docs: `https://unkey.dev/docs/api-reference/errors/code/BAD_REQUEST`,
 			example: "",
 		}),
-		message: z.string().openapi({
+		message: z.string().meta({
 			description: "A human readable explanation of what went wrong",
 		}),
-		requestId: z.string().openapi({
+		requestId: z.string().meta({
 			description: "Please always include the requestId in your error report",
 			example: "req_1234",
 		}),

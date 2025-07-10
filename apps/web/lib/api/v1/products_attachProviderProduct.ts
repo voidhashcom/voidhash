@@ -68,7 +68,7 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 									paymentProviderConfigurationId:
 										c.req.valid("json").paymentProviderConfigurationId,
 									configuration: c.req.valid("json").configuration,
-								})
+								}),
 							).pipe(
 								Effect.catchTags({
 									ProductNotFound: (error) =>
@@ -77,7 +77,7 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 												code: "NOT_FOUND",
 												message: error.message,
 												originalError: error,
-											})
+											}),
 										),
 									PaymentProviderConfigurationNotFound: (error) =>
 										Effect.fail(
@@ -85,7 +85,7 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 												code: "NOT_FOUND",
 												message: error.message,
 												originalError: error,
-											})
+											}),
 										),
 									PaymentProviderNotFound: (error) =>
 										Effect.fail(
@@ -93,7 +93,7 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 												code: "NOT_FOUND",
 												message: error.message,
 												originalError: error,
-											})
+											}),
 										),
 									InvalidConfiguration: (error) =>
 										Effect.fail(
@@ -101,22 +101,23 @@ export const registerProductsAttachProviderProduct = (app: App) =>
 												code: "BAD_REQUEST",
 												message: error.message,
 												originalError: error,
-											})
+											}),
 										),
-								})
+								}),
 							);
 							return c.json<z.infer<typeof providerProductResponseSchema>>({
 								providerProductKey: result.providerProductKey,
+								// @ts-expect-error - TODO: fix this
 								providerConfiguration: {
 									paymentProviderConfigurationId:
 										result.paymentProviderConfigurationId,
 									configuration: result.configuration,
 								},
 							});
-						})
+						}),
 					);
-				})
-			)
+				}),
+			),
 	);
 
 export type RouteResponse = z.infer<typeof providerProductResponseSchema>;

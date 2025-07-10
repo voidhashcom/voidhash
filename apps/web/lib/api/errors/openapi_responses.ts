@@ -3,10 +3,6 @@ import { z } from "zod";
 import { errorSchemaFactory } from "./http";
 import { resolver } from "hono-openapi/zod";
 
-import { extendZodWithOpenApi } from "zod-openapi";
-
-extendZodWithOpenApi(z);
-
 export const openApiErrorResponses = {
 	400: {
 		description:
@@ -14,7 +10,7 @@ export const openApiErrorResponses = {
 		content: {
 			"application/json": {
 				schema: resolver(
-					errorSchemaFactory(z.enum(["BAD_REQUEST"])).openapi({
+					errorSchemaFactory(z.enum(["BAD_REQUEST"])).meta({
 						ref: "ErrBadRequest",
 					})
 				),
@@ -26,7 +22,7 @@ export const openApiErrorResponses = {
 		content: {
 			"application/json": {
 				schema: resolver(
-					errorSchemaFactory(z.enum(["UNAUTHORIZED"])).openapi({
+					errorSchemaFactory(z.enum(["UNAUTHORIZED"])).meta({
 						ref: "ErrUnauthorized",
 					})
 				),
@@ -39,7 +35,7 @@ export const openApiErrorResponses = {
 		content: {
 			"application/json": {
 				schema: resolver(
-					errorSchemaFactory(z.enum(["FORBIDDEN"])).openapi({
+					errorSchemaFactory(z.enum(["FORBIDDEN"])).meta({
 						ref: "ErrForbidden",
 					})
 				),
@@ -52,7 +48,7 @@ export const openApiErrorResponses = {
 		content: {
 			"application/json": {
 				schema: resolver(
-					errorSchemaFactory(z.enum(["NOT_FOUND"])).openapi({
+					errorSchemaFactory(z.enum(["NOT_FOUND"])).meta({
 						ref: "ErrNotFound",
 					})
 				),
@@ -65,7 +61,7 @@ export const openApiErrorResponses = {
 		content: {
 			"application/json": {
 				schema: resolver(
-					errorSchemaFactory(z.enum(["CONFLICT"])).openapi({
+					errorSchemaFactory(z.enum(["CONFLICT"])).meta({
 						ref: "ErrConflict",
 					})
 				),
@@ -78,7 +74,7 @@ export const openApiErrorResponses = {
 		content: {
 			"application/json": {
 				schema: resolver(
-					errorSchemaFactory(z.enum(["PRECONDITION_FAILED"])).openapi({
+					errorSchemaFactory(z.enum(["PRECONDITION_FAILED"])).meta({
 						ref: "ErrPreconditionFailed",
 					})
 				),
@@ -90,7 +86,7 @@ export const openApiErrorResponses = {
 		content: {
 			"application/json": {
 				schema: resolver(
-					errorSchemaFactory(z.enum(["TOO_MANY_REQUESTS"])).openapi({
+					errorSchemaFactory(z.enum(["TOO_MANY_REQUESTS"])).meta({
 						ref: "ErrTooManyRequests",
 					})
 				),
@@ -103,7 +99,7 @@ export const openApiErrorResponses = {
 		content: {
 			"application/json": {
 				schema: resolver(
-					errorSchemaFactory(z.enum(["INTERNAL_SERVER_ERROR"])).openapi({
+					errorSchemaFactory(z.enum(["INTERNAL_SERVER_ERROR"])).meta({
 						ref: "ErrInternalServerError",
 					})
 				),

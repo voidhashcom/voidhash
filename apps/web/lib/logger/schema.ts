@@ -26,14 +26,14 @@ export const logSchema = z.discriminatedUnion("type", [
 			type: z.literal("log"),
 			level: z.enum(["debug", "info", "warn", "error", "fatal"]),
 			message: z.string(),
-			context: z.record(z.any()),
-		})
+			context: z.record(z.string(), z.any()),
+		}),
 	),
 	commonFields.merge(
 		z.object({
 			type: z.literal("metric"),
 			metric: metricSchema,
-		})
+		}),
 	),
 ]);
 export type LogSchema = z.infer<typeof logSchema>;
