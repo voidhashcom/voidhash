@@ -51,7 +51,17 @@ export const registerSdkGetCustomer = (app: App) =>
 						const environment =
 							yield* environmentService.getEnvironmentFromApiAuthSession();
 						const customer = yield* Environment.provide(environment)(
-							sdkService.getCustomerOrCreateAnonymous()
+							sdkService.getCustomerOrCreateAnonymous(),
+						).pipe(
+							Effect.catchTags({
+								InvalidAnonymousIdError: (error) =>
+									Effect.fail(
+										new HonoErrorResponse({
+											code: "BAD_REQUEST",
+											message: error.message,
+										}),
+									),
+							}),
 						);
 
 						if (!customer) {
@@ -59,7 +69,7 @@ export const registerSdkGetCustomer = (app: App) =>
 								new HonoErrorResponse({
 									code: "NOT_FOUND",
 									message: "Customer not found",
-								})
+								}),
 							);
 						}
 
@@ -70,8 +80,8 @@ export const registerSdkGetCustomer = (app: App) =>
 							appUserId: customer.appUserId ?? null,
 							// origin: customer.origin,
 						});
-					})
+					}),
 				);
-			})
-		)
+			}),
+		),
 	);

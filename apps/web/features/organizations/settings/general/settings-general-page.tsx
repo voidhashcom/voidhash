@@ -10,7 +10,9 @@ import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 export default async function GeneralSettingsPage({
 	params,
-}: { params: { organizationSlug: string } }) {
+}: {
+	params: { organizationSlug: string };
+}) {
 	const { organizationSlug } = params;
 	const data = await runServerEffect(
 		Effect.gen(function* () {
@@ -19,19 +21,23 @@ export default async function GeneralSettingsPage({
 			return yield* AuthSession.provide(authSession)(
 				Effect.gen(function* () {
 					const organizationService = yield* OrganizationService;
-					const activeOrganization =
-						yield* organizationService.getOrganizationBySlug(organizationSlug);
-					if (!activeOrganization) {
-						return yield* Effect.fail(
-							new NotFoundError({
-								message: "Organization not found",
-							})
+					const activeOrganization = yield* organizationService
+						.getOrganizationBySlug(organizationSlug)
+						.pipe(
+							Effect.catchTags({
+								OrganizationNotFound: () =>
+									Effect.fail(
+										new NotFoundError({
+											message: "Organization not found",
+										}),
+									),
+							}),
 						);
-					}
+
 					return { activeOrganization };
-				})
+				}),
 			);
-		})
+		}),
 	);
 
 	if (data.isErr()) {

@@ -13,6 +13,7 @@ import {
 	Environment,
 	EnvironmentService,
 } from "@/lib/services/environment.service";
+import { NotFoundError } from "@/lib/effect/errors";
 
 const route = describeRoute({
 	description: "Create a new paywall",
@@ -58,12 +59,19 @@ export const registerPaywallsCreatePaywall = (app: App) =>
 								paywallService.createPaywall({
 									name: c.req.valid("json").name,
 									projectId,
-								})
+								}),
 							);
 
-							const refreshedPaywall = yield* paywallService.getPaywallById(
-								createdPaywall.id
-							);
+							const refreshedPaywall = yield* paywallService
+								.getPaywallById(createdPaywall.id)
+								.pipe(
+									Effect.catchTags({
+										PaywallNotFoundError: (error) =>
+											Effect.fail(
+												new NotFoundError({ message: error.message }),
+											),
+									}),
+								);
 
 							if (!refreshedPaywall) {
 								// Should never happen, because the paywall was created above
@@ -74,8 +82,8 @@ export const registerPaywallsCreatePaywall = (app: App) =>
 								paywallId: refreshedPaywall.id,
 								name: refreshedPaywall.name,
 							});
-						})
+						}),
 					);
-				})
-			)
+				}),
+			),
 	);

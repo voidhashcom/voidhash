@@ -40,7 +40,7 @@ export async function PaywallsDetailPage({
 						return yield* Effect.fail(
 							new NotFoundError({
 								message: "Project not found",
-							})
+							}),
 						);
 					}
 					const environmentService = yield* EnvironmentService;
@@ -51,23 +51,30 @@ export async function PaywallsDetailPage({
 						});
 					return yield* Environment.provide(environment)(
 						Effect.gen(function* () {
-							const paywall = yield* paywallService.getPaywallById(id);
-							if (!paywall) {
-								return yield* Effect.fail(
-									new NotFoundError({
-										message: "Paywall not found",
-									})
+							const paywall = yield* paywallService.getPaywallById(id).pipe(
+								Effect.catchTags({
+									PaywallNotFoundError: (error) =>
+										Effect.fail(new NotFoundError({ message: error.message })),
+								}),
+							);
+
+							const paywallProducts = yield* paywallService
+								.getPaywallProducts(id)
+								.pipe(
+									Effect.catchTags({
+										PaywallNotFoundError: (error) =>
+											Effect.fail(
+												new NotFoundError({ message: error.message }),
+											),
+									}),
 								);
-							}
-							const paywallProducts =
-								yield* paywallService.getPaywallProducts(id);
 							const products = yield* productService.getProducts(project.id);
 							return { project, paywall, paywallProducts, products };
-						})
+						}),
 					);
-				})
+				}),
 			);
-		})
+		}),
 	);
 
 	if (data.isErr()) {

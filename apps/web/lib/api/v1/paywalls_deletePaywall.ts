@@ -54,16 +54,16 @@ export const registerPaywallsDeletePaywall = (app: App) =>
 								paywallId: c.req.param("paywallId"),
 							});
 							return c.json({ message: "Paywall deleted" });
-						})
+						}),
 					).pipe(
 						Effect.catchTags({
-							PaywallNotFound: (error) =>
+							PaywallNotFoundError: (error) =>
 								Effect.fail(
 									new HonoErrorResponse({
 										code: "NOT_FOUND",
 										message: error.message,
 										originalError: error,
-									})
+									}),
 								),
 							PaywallInUseError: (error) =>
 								Effect.fail(
@@ -71,10 +71,10 @@ export const registerPaywallsDeletePaywall = (app: App) =>
 										code: "BAD_REQUEST",
 										message: error.message,
 										originalError: error,
-									})
+									}),
 								),
-						})
+						}),
 					);
-				})
-			)
+				}),
+			),
 	);

@@ -26,7 +26,7 @@ import {
 import { CustomerService } from "./customer.service";
 
 export class PaymentProviderConfigurationNotFound extends Data.TaggedError(
-	"PaymentProviderConfigurationNotFound"
+	"PaymentProviderConfigurationNotFound",
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
@@ -43,14 +43,14 @@ export class PaywallNotFound extends Data.TaggedError("PaywallNotFound")<{
 }> {}
 
 export class CustomerConflictError extends Data.TaggedError(
-	"CustomerConflict"
+	"CustomerConflict",
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
 }> {}
 
 export class CustomerCreationError extends Data.TaggedError(
-	"CustomerCreation"
+	"CustomerCreation",
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
@@ -117,7 +117,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 						return yield* Effect.fail(
 							new UnauthorizedError({
 								message: "App user ID not found",
-							})
+							}),
 						);
 					}
 
@@ -126,20 +126,20 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 						return yield* Effect.fail(
 							new NotFoundError({
 								message: "Project not found",
-							})
+							}),
 						);
 					}
 
 					// Get payment provider configuration product
 					const paymentProviderConfigurationProduct =
 						yield* paymentProviderConfigurationProductRepository.getProviderProductById(
-							input.paymentProviderConfigurationProductId
+							input.paymentProviderConfigurationProductId,
 						);
 					if (!paymentProviderConfigurationProduct) {
 						return yield* Effect.fail(
 							new ProductNotFound({
 								message: "Payment provider configuration product not found",
-							})
+							}),
 						);
 					}
 
@@ -149,14 +149,14 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 							{
 								projectId,
 								providerId: devCheckoutPaymentProviderId,
-							}
+							},
 						);
 					if (!devCheckoutConfiguration) {
 						return yield* Effect.fail(
 							new PaymentProviderConfigurationNotFound({
 								message:
 									"Dev checkout payment provider configuration not found",
-							})
+							}),
 						);
 					}
 
@@ -169,7 +169,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 										projectId,
 										appUserId,
 										environment,
-									}
+									},
 								);
 
 								if (!customer && isAnonymousId(appUserId)) {
@@ -187,7 +187,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 									return yield* Effect.fail(
 										new NotFoundError({
 											message: "Customer not found",
-										})
+										}),
 									);
 								}
 
@@ -205,19 +205,19 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 								};
 
 								yield* checkoutSessionRepository.createCheckoutSession(
-									sessionData
+									sessionData,
 								);
 
 								return yield* Effect.succeed({
 									checkoutSessionId: sessionId,
 									checkoutUrl: `${CHECKOUT_DOMAIN}/dev-checkout/${sessionId}`,
 								} satisfies CreateCheckoutResponse);
-							})
-						)
+							}),
+						),
 					);
 
 					yield* Effect.log(
-						`Created checkout session ${result.checkoutSessionId} for customer ${appUserId}`
+						`Created checkout session ${result.checkoutSessionId} for customer ${appUserId}`,
 					);
 
 					return result;
@@ -237,7 +237,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 						return yield* Effect.fail(
 							new UnauthorizedError({
 								message: "App user ID not found",
-							})
+							}),
 						);
 					}
 
@@ -246,7 +246,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 						return yield* Effect.fail(
 							new NotFoundError({
 								message: "Project ID not found after authentication",
-							})
+							}),
 						);
 					}
 
@@ -261,7 +261,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 						return yield* Effect.fail(
 							new PaywallNotFound({
 								message: "Paywall not found",
-							})
+							}),
 						);
 					}
 
@@ -295,7 +295,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 										? paywallProduct.webCheckoutPaymentProviderConfigurationProductId
 										: null,
 							};
-						}
+						},
 					);
 
 					const response: PaywallResponse = {
@@ -304,7 +304,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 					};
 
 					yield* Effect.log(
-						`Retrieved paywall ${paywall.id} for location ${input.locationSlug}`
+						`Retrieved paywall ${paywall.id} for location ${input.locationSlug}`,
 					);
 
 					return yield* Effect.succeed(response);
@@ -327,7 +327,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 						return yield* Effect.fail(
 							new UnauthorizedError({
 								message: "Project ID not found after authentication",
-							})
+							}),
 						);
 					}
 
@@ -365,20 +365,20 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 								) {
 									const parentCustomer =
 										yield* customerRepository.getCustomerById(
-											currentCustomer.parentCustomerId
+											currentCustomer.parentCustomerId,
 										);
 									if (!parentCustomer)
 										return yield* Effect.die(
 											new Error(
-												"parentCustomer is null event though it should exist"
-											)
+												"parentCustomer is null event though it should exist",
+											),
 										);
 
 									if (parentCustomer.appUserId !== input.appUserId) {
 										return yield* Effect.fail(
 											new CustomerConflictError({
 												message: "Anonymous customer is already identified",
-											})
+											}),
 										);
 									}
 
@@ -415,7 +415,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 									return yield* Effect.fail(
 										new CustomerCreationError({
 											message: "Failed to identify customer",
-										})
+										}),
 									);
 								}
 
@@ -426,7 +426,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 								) {
 									yield* customerService.mergeCustomers(
 										currentCustomer.id,
-										identifyingAsCustomerId
+										identifyingAsCustomerId,
 									);
 								}
 
@@ -442,17 +442,17 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 									return yield* Effect.fail(
 										new CustomerCreationError({
 											message: "Failed to get customer after identification",
-										})
+										}),
 									);
 								}
 
 								return updatedCustomer;
-							})
-						)
+							}),
+						),
 					);
 
 					yield* Effect.log(
-						`Identified customer ${result.id} for app user ${input.appUserId}`
+						`Identified customer ${result.id} for app user ${input.appUserId}`,
 					);
 
 					return result;
@@ -471,7 +471,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 						return yield* Effect.fail(
 							new UnauthorizedError({
 								message: "App user ID not found",
-							})
+							}),
 						);
 					}
 
@@ -480,7 +480,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 						return yield* Effect.fail(
 							new NotFoundError({
 								message: "Project ID not found after authentication",
-							})
+							}),
 						);
 					}
 
@@ -500,7 +500,7 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 									if (customer.parentCustomerId) {
 										const parentCustomer =
 											yield* customerRepository.getCustomerById(
-												customer.parentCustomerId
+												customer.parentCustomerId,
 											);
 										return parentCustomer;
 									}
@@ -523,10 +523,10 @@ export class SdkService extends Effect.Service<SdkService>()("SdkService", {
 								return yield* Effect.fail(
 									new NotFoundError({
 										message: "Customer not found",
-									})
+									}),
 								);
-							})
-						)
+							}),
+						),
 					);
 
 					return result;

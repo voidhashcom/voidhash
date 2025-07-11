@@ -73,9 +73,9 @@ export const createSecretKeyAction = actionClient
 									projectId: parsedInput.projectId,
 								});
 							return yield* Environment.provide(environment)(
-								apiKeyService.createSecretKey(parsedInput)
+								apiKeyService.createSecretKey(parsedInput),
 							);
-						})
+						}),
 					);
 				}),
 				Effect.catchTags({
@@ -84,10 +84,10 @@ export const createSecretKeyAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -107,7 +107,7 @@ export const rotateSecretKeyAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						apiKeyService.rotateSecretKey(parsedInput)
+						apiKeyService.rotateSecretKey(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -116,10 +116,10 @@ export const rotateSecretKeyAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -139,7 +139,7 @@ export const deleteSecretKeyAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						apiKeyService.deleteSecretKey(parsedInput)
+						apiKeyService.deleteSecretKey(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -148,10 +148,10 @@ export const deleteSecretKeyAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -172,7 +172,7 @@ export const createOrganizationAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						organizationService.createOrganization(parsedInput)
+						organizationService.createOrganization(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -181,17 +181,17 @@ export const createOrganizationAction = actionClient
 							new NextjsErrorResponse({
 								code: "INTERNAL_SERVER_ERROR",
 								message: error.message,
-							})
+							}),
 						),
 					UserSessionNotFoundError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "INTERNAL_SERVER_ERROR",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -211,7 +211,7 @@ export const updateOrganizationAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						organizationService.updateOrganization(parsedInput)
+						organizationService.updateOrganization(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -220,10 +220,10 @@ export const updateOrganizationAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -243,10 +243,10 @@ export const deleteOrganizationAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						organizationService.deleteOrganization(parsedInput)
+						organizationService.deleteOrganization(parsedInput),
 					);
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -267,10 +267,10 @@ export const createProjectAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						projectService.createProject(parsedInput)
+						projectService.createProject(parsedInput),
 					);
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -290,7 +290,7 @@ export const updateProjectAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						projectService.updateProject(parsedInput)
+						projectService.updateProject(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -299,10 +299,10 @@ export const updateProjectAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -322,7 +322,7 @@ export const deleteProjectAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						projectService.deleteProject(parsedInput)
+						projectService.deleteProject(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -331,10 +331,10 @@ export const deleteProjectAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -355,7 +355,7 @@ export const switchEnvironmentAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						environmentService.switchEnvironment(parsedInput)
+						environmentService.switchEnvironment(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -364,24 +364,24 @@ export const switchEnvironmentAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
 					OrganizationNotFoundError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
 					OrganizationWithoutSlugError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "INTERNAL_SERVER_ERROR",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -394,7 +394,7 @@ export const switchEnvironmentAction = actionClient
 // Payment providers
 export const createPaymentProviderConfigurationAction = actionClient
 	.inputSchema(
-		Schema.standardSchemaV1(createPaymentProviderConfigurationInputSchema)
+		Schema.standardSchemaV1(createPaymentProviderConfigurationInputSchema),
 	)
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
@@ -405,8 +405,8 @@ export const createPaymentProviderConfigurationAction = actionClient
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
 						paymentProviderService.createPaymentProviderConfiguration(
-							parsedInput
-						)
+							parsedInput,
+						),
 					);
 				}),
 				Effect.catchTags({
@@ -415,17 +415,17 @@ export const createPaymentProviderConfigurationAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
 					PaymentProviderAlreadyExistsError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -437,7 +437,7 @@ export const createPaymentProviderConfigurationAction = actionClient
 
 export const updatePaymentProviderConfigurationAction = actionClient
 	.inputSchema(
-		Schema.standardSchemaV1(updatePaymentProviderConfigurationInputSchema)
+		Schema.standardSchemaV1(updatePaymentProviderConfigurationInputSchema),
 	)
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
@@ -448,8 +448,8 @@ export const updatePaymentProviderConfigurationAction = actionClient
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
 						paymentProviderService.updatePaymentProviderConfiguration(
-							parsedInput
-						)
+							parsedInput,
+						),
 					);
 				}),
 				Effect.catchTags({
@@ -458,31 +458,31 @@ export const updatePaymentProviderConfigurationAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
 					PaymentProviderNotFoundError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
 					ValidationError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					PaymentProviderKeyUnavailableError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -494,7 +494,7 @@ export const updatePaymentProviderConfigurationAction = actionClient
 
 export const deletePaymentProviderConfigurationAction = actionClient
 	.inputSchema(
-		Schema.standardSchemaV1(deletePaymentProviderConfigurationInputSchema)
+		Schema.standardSchemaV1(deletePaymentProviderConfigurationInputSchema),
 	)
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
@@ -505,8 +505,8 @@ export const deletePaymentProviderConfigurationAction = actionClient
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
 						paymentProviderService.deletePaymentProviderConfiguration(
-							parsedInput
-						)
+							parsedInput,
+						),
 					);
 				}),
 				Effect.catchTags({
@@ -515,10 +515,10 @@ export const deletePaymentProviderConfigurationAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -546,9 +546,9 @@ export const createProductAction = actionClient
 									projectId: parsedInput.projectId,
 								});
 							return yield* Environment.provide(environment)(
-								productService.createProduct(parsedInput)
+								productService.createProduct(parsedInput),
 							);
-						})
+						}),
 					);
 				}),
 				Effect.catchTags({
@@ -557,10 +557,10 @@ export const createProductAction = actionClient
 							new NextjsErrorResponse({
 								code: "INTERNAL_SERVER_ERROR",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -580,7 +580,7 @@ export const updateProductAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						productService.updateProduct(parsedInput)
+						productService.updateProduct(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -589,10 +589,10 @@ export const updateProductAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -612,7 +612,7 @@ export const deleteProductAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						productService.deleteProduct(parsedInput)
+						productService.deleteProduct(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -621,10 +621,10 @@ export const deleteProductAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -645,7 +645,7 @@ export const createProductPerkAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						productService.createProductPerk(parsedInput)
+						productService.createProductPerk(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -654,17 +654,17 @@ export const createProductPerkAction = actionClient
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					PerkNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -684,7 +684,7 @@ export const deleteProductPerkAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						productService.deleteProductPerk(parsedInput)
+						productService.deleteProductPerk(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -693,10 +693,10 @@ export const deleteProductPerkAction = actionClient
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -717,7 +717,7 @@ export const createPaymentProviderProductAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						productService.createPaymentProviderProduct(parsedInput)
+						productService.createPaymentProviderProduct(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -726,31 +726,31 @@ export const createPaymentProviderProductAction = actionClient
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					PaymentProviderNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					InvalidConfiguration: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -770,7 +770,7 @@ export const updatePaymentProviderProductAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						productService.updatePaymentProviderProduct(parsedInput)
+						productService.updatePaymentProviderProduct(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -779,38 +779,38 @@ export const updatePaymentProviderProductAction = actionClient
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					PaymentProviderNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					ProviderProductNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					InvalidConfiguration: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -822,7 +822,7 @@ export const updatePaymentProviderProductAction = actionClient
 
 export const setActivePaymentProviderProductAction = actionClient
 	.inputSchema(
-		Schema.standardSchemaV1(setActivePaymentProviderProductInputSchema)
+		Schema.standardSchemaV1(setActivePaymentProviderProductInputSchema),
 	)
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
@@ -832,7 +832,7 @@ export const setActivePaymentProviderProductAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						productService.setActivePaymentProviderProduct(parsedInput)
+						productService.setActivePaymentProviderProduct(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -841,24 +841,24 @@ export const setActivePaymentProviderProductAction = actionClient
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					PaymentProviderNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -878,7 +878,7 @@ export const deletePaymentProviderProductAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						productService.deletePaymentProviderProduct(parsedInput)
+						productService.deletePaymentProviderProduct(parsedInput),
 					);
 				}),
 				Effect.catchTags({
@@ -887,10 +887,10 @@ export const deletePaymentProviderProductAction = actionClient
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -903,7 +903,7 @@ export const deletePaymentProviderProductAction = actionClient
 // Customers
 export const createCustomerAction = actionClient
 	.inputSchema(
-		Schema.standardSchemaV1(createCustomerInputSchema.omit("origin"))
+		Schema.standardSchemaV1(createCustomerInputSchema.omit("origin")),
 	)
 	.action(async ({ parsedInput }) => {
 		const res = await runServerEffect(
@@ -923,12 +923,12 @@ export const createCustomerAction = actionClient
 								customerService.createCustomer({
 									...parsedInput,
 									origin: CustomerOrigin.Dashboard,
-								})
+								}),
 							);
-						})
+						}),
 					);
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -956,12 +956,12 @@ export const createPaywallAction = actionClient
 									projectId: parsedInput.projectId,
 								});
 							return yield* Environment.provide(environment)(
-								paywallService.createPaywall(parsedInput)
+								paywallService.createPaywall(parsedInput),
 							);
-						})
+						}),
 					);
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -984,33 +984,33 @@ export const updatePaywallAction = actionClient
 						paywallService.updatePaywall({
 							...parsedInput,
 							paywallProducts: [...parsedInput.paywallProducts],
-						})
+						}),
 					);
 				}),
 				Effect.catchTags({
-					PaywallNotFound: (error) =>
+					PaywallNotFoundError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
 					ProductNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					PaymentProviderConfigurationNotFound: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -1030,26 +1030,26 @@ export const deletePaywallAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						paywallService.deletePaywall(parsedInput)
+						paywallService.deletePaywall(parsedInput),
 					);
 				}),
 				Effect.catchTags({
-					PaywallNotFound: (error) =>
+					PaywallNotFoundError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
 					PaywallInUseError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -1077,9 +1077,9 @@ export const createPaywallLocationAction = actionClient
 									projectId: parsedInput.projectId,
 								});
 							return yield* Environment.provide(environment)(
-								paywallLocationService.createPaywallLocation(parsedInput)
+								paywallLocationService.createPaywallLocation(parsedInput),
 							);
-						})
+						}),
 					);
 				}),
 				Effect.catchTags({
@@ -1088,17 +1088,17 @@ export const createPaywallLocationAction = actionClient
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
 					DefaultPaywallNotFoundError: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -1120,7 +1120,7 @@ export const deletePaywallLocationAction = actionClient
 					return yield* AuthSession.provide(authSession)(
 						paywallLocationService.deletePaywallLocation({
 							paywallLocationId: parsedInput.paywallLocationId,
-						})
+						}),
 					);
 				}),
 				Effect.catchTags({
@@ -1129,10 +1129,10 @@ export const deletePaywallLocationAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -1159,9 +1159,9 @@ export const createPerkAction = actionClient
 									projectId: parsedInput.projectId,
 								});
 							return yield* Environment.provide(environment)(
-								perkService.createPerk(parsedInput)
+								perkService.createPerk(parsedInput),
 							);
-						})
+						}),
 					);
 				}),
 				Effect.catchTags({
@@ -1170,10 +1170,10 @@ export const createPerkAction = actionClient
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -1193,7 +1193,7 @@ export const deletePerkAction = actionClient
 					const authService = yield* AuthService;
 					const authSession = yield* authService.authenticateWithSession();
 					return yield* AuthSession.provide(authSession)(
-						perkService.deletePerk({ perkId: parsedInput.perkId })
+						perkService.deletePerk({ perkId: parsedInput.perkId }),
 					);
 				}),
 				Effect.catchTags({
@@ -1202,10 +1202,10 @@ export const deletePerkAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -1223,7 +1223,7 @@ export const confirmDevCheckoutPurchaseAction = actionClient
 			pipe(
 				DevCheckoutService,
 				Effect.flatMap((devCheckoutService) =>
-					devCheckoutService.confirmPurchase(parsedInput)
+					devCheckoutService.confirmPurchase(parsedInput),
 				),
 				Effect.catchTags({
 					CheckoutSessionNotFound: (error) =>
@@ -1231,17 +1231,17 @@ export const confirmDevCheckoutPurchaseAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
 					CheckoutSessionWasAlreadyCancelled: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {
@@ -1258,7 +1258,7 @@ export const cancelDevCheckoutPurchaseAction = actionClient
 			pipe(
 				DevCheckoutService,
 				Effect.flatMap((devCheckoutService) =>
-					devCheckoutService.cancelPurchase(parsedInput)
+					devCheckoutService.cancelPurchase(parsedInput),
 				),
 				Effect.catchTags({
 					CheckoutSessionNotFound: (error) =>
@@ -1266,17 +1266,17 @@ export const cancelDevCheckoutPurchaseAction = actionClient
 							new NextjsErrorResponse({
 								code: "NOT_FOUND",
 								message: error.message,
-							})
+							}),
 						),
 					CheckoutSessionWasAlreadyConfirmed: (error) =>
 						Effect.fail(
 							new NextjsErrorResponse({
 								code: "BAD_REQUEST",
 								message: error.message,
-							})
+							}),
 						),
-				})
-			)
+				}),
+			),
 		);
 
 		if (res.isErr()) {

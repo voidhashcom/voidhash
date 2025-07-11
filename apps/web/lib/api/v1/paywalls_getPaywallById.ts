@@ -49,24 +49,26 @@ export const registerPaywallsGetPaywallById = (app: App) =>
 						Effect.gen(function* () {
 							console.log("getPaywallById 2");
 							const paywallService = yield* PaywallService;
-							const paywall = yield* paywallService.getPaywallById(
-								c.req.param("paywallId")
-							);
-							if (!paywall) {
-								return yield* Effect.fail(
-									new HonoErrorResponse({
-										code: "NOT_FOUND",
-										message: "Paywall not found",
-									})
+							const paywall = yield* paywallService
+								.getPaywallById(c.req.param("paywallId"))
+								.pipe(
+									Effect.catchTags({
+										PaywallNotFoundError: () =>
+											Effect.fail(
+												new HonoErrorResponse({
+													code: "NOT_FOUND",
+													message: "Paywall not found",
+												}),
+											),
+									}),
 								);
-							}
 
 							return c.json<z.infer<typeof paywallResponseSchema>>({
 								paywallId: paywall.id,
 								name: paywall.name,
 							});
-						})
+						}),
 					);
-				})
-			)
+				}),
+			),
 	);

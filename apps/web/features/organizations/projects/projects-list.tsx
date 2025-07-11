@@ -31,23 +31,29 @@ export async function ProjectsList({
 				Effect.gen(function* () {
 					const organizationService = yield* OrganizationService;
 					const projectService = yield* ProjectService;
-					const [activeOrganization, projects] = yield* Effect.all([
-						organizationService.getOrganizationBySlug(organizationSlug),
-						projectService.getProjectsByOrganizationSlug(organizationSlug),
-					], {
-						concurrency: "unbounded"
-					});
-					if (!activeOrganization) {
-						return yield* Effect.fail(
-							new NotFoundError({
-								message: "Organization not found",
-							})
-						);
-					}
+					const [activeOrganization, projects] = yield* Effect.all(
+						[
+							organizationService.getOrganizationBySlug(organizationSlug).pipe(
+								Effect.catchTags({
+									OrganizationNotFound: () =>
+										Effect.fail(
+											new NotFoundError({
+												message: "Organization not found",
+											}),
+										),
+								}),
+							),
+							projectService.getProjectsByOrganizationSlug(organizationSlug),
+						],
+						{
+							concurrency: "unbounded",
+						},
+					);
+
 					return { activeOrganization, organizationProjects: projects };
-				})
+				}),
 			);
-		})
+		}),
 	);
 
 	if (data.isErr()) {

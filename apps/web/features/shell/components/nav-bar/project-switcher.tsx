@@ -56,34 +56,40 @@ export async function ProjectSwitcher({
 					const userService = yield* UserService;
 					const organizationService = yield* OrganizationService;
 					const projectService = yield* ProjectService;
-					const [user, activeOrganization, activeProject] = yield* Effect.all([
-						userService.getUser(),
-						organizationService.getOrganizationBySlug(organizationSlug),
-						projectService.getProjectBySlugAndOrganizationSlug({
-							organizationSlug,
-							projectSlug,
-						}),
-					], {
-						concurrency: "unbounded"
-					});
-					if (!activeOrganization) {
-						return yield* Effect.fail(
-							new NotFoundError({
-								message: "Organization not found",
-							})
-						);
-					}
+					const [user, activeOrganization, activeProject] = yield* Effect.all(
+						[
+							userService.getUser(),
+							organizationService.getOrganizationBySlug(organizationSlug).pipe(
+								Effect.catchTags({
+									OrganizationNotFound: () =>
+										Effect.fail(
+											new NotFoundError({
+												message: "Organization not found",
+											}),
+										),
+								}),
+							),
+							projectService.getProjectBySlugAndOrganizationSlug({
+								organizationSlug,
+								projectSlug,
+							}),
+						],
+						{
+							concurrency: "unbounded",
+						},
+					);
+
 					if (!activeProject) {
 						return yield* Effect.fail(
 							new NotFoundError({
 								message: "Project not found",
-							})
+							}),
 						);
 					}
 					return { user, activeOrganization, activeProject };
-				})
+				}),
 			);
-		})
+		}),
 	);
 
 	if (data.isErr()) {

@@ -13,7 +13,9 @@ import { AuthService, AuthSession } from "@/lib/services/auth.service";
 
 const OrganizationSwitcherComponent = async ({
 	organizationSlug,
-}: { organizationSlug: string | null }) => {
+}: {
+	organizationSlug: string | null;
+}) => {
 	if (!organizationSlug) {
 		return null;
 	}
@@ -26,23 +28,29 @@ const OrganizationSwitcherComponent = async ({
 				Effect.gen(function* () {
 					const userService = yield* UserService;
 					const organizationService = yield* OrganizationService;
-					const [user, activeOrganization] = yield* Effect.all([
-						userService.getUser(),
-						organizationService.getOrganizationBySlug(organizationSlug),
-					], {
-						concurrency: "unbounded"
-					});
-					if (!activeOrganization) {
-						return yield* Effect.fail(
-							new NotFoundError({
-								message: "Organization not found",
-							})
-						);
-					}
+					const [user, activeOrganization] = yield* Effect.all(
+						[
+							userService.getUser(),
+							organizationService.getOrganizationBySlug(organizationSlug).pipe(
+								Effect.catchTags({
+									OrganizationNotFound: () =>
+										Effect.fail(
+											new NotFoundError({
+												message: "Organization not found",
+											}),
+										),
+								}),
+							),
+						],
+						{
+							concurrency: "unbounded",
+						},
+					);
+
 					return { user, activeOrganization };
-				})
+				}),
 			);
-		})
+		}),
 	);
 
 	if (data.isErr()) {
@@ -88,7 +96,9 @@ function OrganizationSwitcherSkeleton() {
 
 export async function OrganizationSwitcher({
 	organizationSlug,
-}: { organizationSlug: string | null }) {
+}: {
+	organizationSlug: string | null;
+}) {
 	return (
 		<Suspense fallback={<OrganizationSwitcherSkeleton />}>
 			<OrganizationSwitcherComponent organizationSlug={organizationSlug} />

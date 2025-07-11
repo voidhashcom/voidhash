@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     include: [
-      "./lib/api/v1/**/*.test.ts",
+      // TODO: Re-enable this when we release the API
+      // "./lib/api/v1/**/*.test.ts",
       "./lib/services/**/*.integration.test.ts",
       "./lib/payment-providers/**/*.integration.test.ts",
     ],

@@ -3,11 +3,12 @@ import { PaywallRepository } from "../repositories/paywall.repository";
 import { AuthSession } from "@/lib/services/auth.service";
 import { Environment } from "@/lib/services/environment.service";
 import { checkProjectPermission } from "@/lib/effect/permissions";
-import { NotFoundError } from "@/lib/effect/errors";
 import { generateId } from "@/lib/id/generate";
 import { Db, TransactionContext } from "@/lib/effect/db";
 
-export class PaywallNotFound extends Data.TaggedError("PaywallNotFound")<{
+export class PaywallNotFoundError extends Data.TaggedError(
+	"PaywallNotFoundError",
+)<{
 	readonly cause?: unknown;
 	readonly message: string;
 }> {}
@@ -23,7 +24,7 @@ export class ProductNotFound extends Data.TaggedError("ProductNotFound")<{
 }> {}
 
 export class PaymentProviderConfigurationNotFound extends Data.TaggedError(
-	"PaymentProviderConfigurationNotFound"
+	"PaymentProviderConfigurationNotFound",
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
@@ -36,10 +37,7 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 		effect: Effect.gen(function* () {
 			const paywallRepository = yield* PaywallRepository;
 			return {
-				createPaywall: (input: {
-					projectId: string;
-					name: string;
-				}) =>
+				createPaywall: (input: { projectId: string; name: string }) =>
 					Effect.gen(function* () {
 						const session = yield* AuthSession;
 						const environment = yield* Environment;
@@ -49,7 +47,7 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 						yield* checkProjectPermission(
 							input.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to create paywalls for project ${input.projectId}`
+							`User ${session?.user?.id} is not authorized to create paywalls for project ${input.projectId}`,
 						);
 
 						const newPaywall = {
@@ -61,7 +59,7 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 
 						yield* paywallRepository.createPaywall(newPaywall);
 						yield* Effect.log(
-							`Created paywall ${newPaywall.id} for project ${input.projectId}`
+							`Created paywall ${newPaywall.id} for project ${input.projectId}`,
 						);
 
 						return yield* Effect.succeed({
@@ -78,7 +76,7 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 						yield* checkProjectPermission(
 							projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to access paywalls for project ${projectId}`
+							`User ${session?.user?.id} is not authorized to access paywalls for project ${projectId}`,
 						);
 
 						return yield* paywallRepository.getPaywalls({
@@ -91,13 +89,18 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 					Effect.gen(function* () {
 						const session = yield* AuthSession;
 						const paywall = yield* paywallRepository.getPaywallById(id);
-						if (!paywall) return null;
+						if (!paywall)
+							return yield* Effect.fail(
+								new PaywallNotFoundError({
+									message: `Paywall ${id} not found`,
+								}),
+							);
 
 						// SECURITY: Authorization check
 						yield* checkProjectPermission(
 							paywall.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to access paywall ${id} for project ${paywall.projectId}`
+							`User ${session?.user?.id} is not authorized to access paywall ${id} for project ${paywall.projectId}`,
 						);
 
 						return paywall;
@@ -110,16 +113,16 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 						const paywall = yield* paywallRepository.getPaywallById(paywallId);
 						if (!paywall)
 							return yield* Effect.fail(
-								new NotFoundError({
+								new PaywallNotFoundError({
 									message: `Paywall ${paywallId} not found`,
-								})
+								}),
 							);
 
 						// SECURITY: Authorization check
 						yield* checkProjectPermission(
 							paywall.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to access paywall products for paywall ${paywallId} in project ${paywall.projectId}`
+							`User ${session?.user?.id} is not authorized to access paywall products for paywall ${paywallId} in project ${paywall.projectId}`,
 						);
 
 						return yield* paywallRepository.getPaywallProducts(paywallId);
@@ -144,13 +147,13 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 
 						// First check if paywall exists
 						const paywall = yield* paywallRepository.getPaywallById(
-							input.paywallId
+							input.paywallId,
 						);
 						if (!paywall) {
 							return yield* Effect.fail(
-								new PaywallNotFound({
+								new PaywallNotFoundError({
 									message: `Paywall ${input.paywallId} not found`,
-								})
+								}),
 							);
 						}
 
@@ -158,7 +161,7 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 						yield* checkProjectPermission(
 							paywall.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to update paywall ${input.paywallId} for project ${paywall.projectId}`
+							`User ${session?.user?.id} is not authorized to update paywall ${input.paywallId} for project ${paywall.projectId}`,
 						);
 
 						// Use transaction to update paywall and products
@@ -180,27 +183,27 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 
 										// Get products with configurations
 										const productIds = input.paywallProducts.map(
-											(p) => p.productId
+											(p) => p.productId,
 										);
 										const productsFromDb =
 											yield* paywallRepository.getProductsWithConfigurations(
-												productIds
+												productIds,
 											);
 
 										// Validate products and insert new paywall products
 										const sortedProducts = [...input.paywallProducts].sort(
-											(a, b) => a.order - b.order
+											(a, b) => a.order - b.order,
 										);
 										for (const product of sortedProducts) {
 											const existingProduct = productsFromDb.find(
-												(p) => p.id === product.productId
+												(p) => p.id === product.productId,
 											);
 
 											if (!existingProduct) {
 												return yield* Effect.fail(
 													new ProductNotFound({
 														message: `Product with id ${product.productId} not found`,
-													})
+													}),
 												);
 											}
 
@@ -208,7 +211,7 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 												existingProduct.paymentProviderConfigurationProducts.find(
 													(p) =>
 														p.id ===
-														product.webCheckoutPaymentProviderConfigurationProductId
+														product.webCheckoutPaymentProviderConfigurationProductId,
 												);
 
 											if (
@@ -219,7 +222,7 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 													new PaymentProviderConfigurationNotFound({
 														message:
 															"Web checkout payment provider product configuration does not exist",
-													})
+													}),
 												);
 											}
 
@@ -236,8 +239,8 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 											});
 										}
 									}
-								})
-							)
+								}),
+							),
 						);
 
 						yield* Effect.log(`Updated paywall ${input.paywallId}`);
@@ -245,9 +248,7 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 						return yield* Effect.succeed(undefined);
 					}),
 
-				deletePaywall: (input: {
-					paywallId: string;
-				}) =>
+				deletePaywall: (input: { paywallId: string }) =>
 					Effect.gen(function* () {
 						const session = yield* AuthSession;
 						const paywallRepository = yield* PaywallRepository;
@@ -255,13 +256,13 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 
 						// First check if paywall exists
 						const paywall = yield* paywallRepository.getPaywallById(
-							input.paywallId
+							input.paywallId,
 						);
 						if (!paywall) {
 							return yield* Effect.fail(
-								new PaywallNotFound({
+								new PaywallNotFoundError({
 									message: `Paywall ${input.paywallId} not found`,
-								})
+								}),
 							);
 						}
 
@@ -269,20 +270,20 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 						yield* checkProjectPermission(
 							paywall.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to delete paywall ${input.paywallId} for project ${paywall.projectId}`
+							`User ${session?.user?.id} is not authorized to delete paywall ${input.paywallId} for project ${paywall.projectId}`,
 						);
 
 						// Check if paywall is being used by any paywall locations
 						const paywallLocationsUsingPaywall =
 							yield* paywallRepository.getPaywallLocationsUsingPaywall(
-								input.paywallId
+								input.paywallId,
 							);
 						if (paywallLocationsUsingPaywall.length > 0) {
 							return yield* Effect.fail(
 								new PaywallInUseError({
 									message:
 										"You cannot delete this paywall, because some paywall locations are still using it. Please update the paywall locations to use a different paywall first, or delete the paywall locations.",
-								})
+								}),
 							);
 						}
 
@@ -292,12 +293,12 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 								Effect.gen(function* () {
 									// Delete paywall products first
 									yield* paywallRepository.deletePaywallProducts(
-										input.paywallId
+										input.paywallId,
 									);
 									// Then delete the paywall
 									yield* paywallRepository.deletePaywall(input.paywallId);
-								})
-							)
+								}),
+							),
 						);
 
 						yield* Effect.log(`Deleted paywall ${input.paywallId}`);
@@ -306,5 +307,5 @@ export class PaywallService extends Effect.Service<PaywallService>()(
 					}),
 			};
 		}),
-	}
+	},
 ) {}
