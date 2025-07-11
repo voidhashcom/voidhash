@@ -23,12 +23,17 @@ async function ProjectLayoutSidebar({
 			return yield* AuthSession.provide(authSession)(
 				Effect.gen(function* () {
 					const organizationService = yield* OrganizationService;
-					const activeOrganization =
-						yield* organizationService.getOrganizationBySlug(organizationSlug);
+					const activeOrganization = yield* organizationService
+						.getOrganizationBySlug(organizationSlug)
+						.pipe(
+							Effect.catchTags({
+								OrganizationNotFound: () => Effect.succeed(null),
+							}),
+						);
 					return { activeOrganization };
-				})
+				}),
 			);
-		})
+		}),
 	);
 
 	if (data.isErr()) {

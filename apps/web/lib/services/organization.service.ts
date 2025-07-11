@@ -9,20 +9,20 @@ import { createShortId, createSlug } from "@voidhash/lib/functions";
 import { SLUG_BLACKLIST } from "@voidhash/lib/constants";
 
 export class FailedToCreateOrganizationError extends Data.TaggedError(
-	"FailedToCreateOrganizationError"
+	"FailedToCreateOrganizationError",
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
 }> {}
 
 export class UserSessionNotFoundError extends Data.TaggedError(
-	"UserSessionNotFoundError"
+	"UserSessionNotFoundError",
 )<{
 	readonly message: string;
 }> {}
 
 export class OrganizationNotFound extends Data.TaggedError(
-	"OrganizationNotFound"
+	"OrganizationNotFound",
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
@@ -42,8 +42,8 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 							client.api.checkOrganizationSlug({
 								headers,
 								body: { slug },
-							})
-						)
+							}),
+						),
 					);
 
 					if (Either.isLeft(res)) {
@@ -63,9 +63,7 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 				});
 
 			return {
-				createOrganization: (input: {
-					name: string;
-				}) =>
+				createOrganization: (input: { name: string }) =>
 					Effect.gen(function* () {
 						const betterAuth = yield* BetterAuth;
 						const request = yield* Request;
@@ -89,13 +87,13 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 									name: input.name,
 									slug,
 								},
-							})
+							}),
 						);
 						if (!organization) {
 							return yield* Effect.fail(
 								new FailedToCreateOrganizationError({
 									message: "Failed to create organization",
-								})
+								}),
 							);
 						}
 
@@ -104,7 +102,7 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 							return yield* Effect.fail(
 								new UserSessionNotFoundError({
 									message: "User session not found",
-								})
+								}),
 							);
 						}
 
@@ -122,13 +120,17 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 						const organization =
 							yield* organizationRepository.getOrganizationBySlug(slug);
 						if (!organization) {
-							return null;
+							return yield* Effect.fail(
+								new OrganizationNotFound({
+									message: `Organization with slug ${slug} not found`,
+								}),
+							);
 						}
 						// SECURITY: Authorization check
 						yield* checkOrganizationPermission(
 							organization.id,
 							"organization:all",
-							`User ${session?.user?.id} is not authorized to access organization ${organization.id}`
+							`User ${session?.user?.id} is not authorized to access organization ${organization.id}`,
 						);
 
 						return organization;
@@ -139,19 +141,27 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 						const session = yield* AuthSession;
 						const organizationRepository = yield* OrganizationRepository;
 
+						const organization =
+							yield* organizationRepository.getOrganizationById(id);
+						if (!organization) {
+							return yield* Effect.fail(
+								new OrganizationNotFound({
+									message: `Organization with id ${id} not found`,
+								}),
+							);
+						}
+
 						// SECURITY: Authorization check
 						yield* checkOrganizationPermission(
 							id,
 							"organization:all",
-							`User ${session?.user?.id} is not authorized to access organization ${id}`
+							`User ${session?.user?.id} is not authorized to access organization ${id}`,
 						);
 
-						return yield* organizationRepository.getOrganizationById(id);
+						return organization;
 					}),
 
-				deleteOrganization: (input: {
-					organizationId: string;
-				}) =>
+				deleteOrganization: (input: { organizationId: string }) =>
 					Effect.gen(function* () {
 						const session = yield* AuthSession;
 						const request = yield* Request;
@@ -160,7 +170,7 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 						yield* checkOrganizationPermission(
 							input.organizationId,
 							"organization:all",
-							`User ${session?.user?.id} is not authorized to delete organization ${input.organizationId}`
+							`User ${session?.user?.id} is not authorized to delete organization ${input.organizationId}`,
 						);
 
 						const betterAuth = yield* BetterAuth;
@@ -169,39 +179,36 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 							client.api.deleteOrganization({
 								headers,
 								body: { organizationId: input.organizationId },
-							})
+							}),
 						);
 
 						return yield* Effect.succeed(undefined);
 					}),
 
-				updateOrganization: (input: {
-					organizationId: string;
-					name: string;
-				}) =>
+				updateOrganization: (input: { organizationId: string; name: string }) =>
 					Effect.gen(function* () {
 						const session = yield* AuthSession;
 						const request = yield* Request;
 						const organizationRepository = yield* OrganizationRepository;
 
-						// SECURITY: Authorization check
-						yield* checkOrganizationPermission(
-							input.organizationId,
-							"organization:all",
-							`User ${session?.user?.id} is not authorized to update organization ${input.organizationId}`
-						);
-
 						const organization =
 							yield* organizationRepository.getOrganizationById(
-								input.organizationId
+								input.organizationId,
 							);
 						if (!organization) {
 							return yield* Effect.fail(
 								new OrganizationNotFound({
 									message: `Organization with id ${input.organizationId} not found`,
-								})
+								}),
 							);
 						}
+
+						// SECURITY: Authorization check
+						yield* checkOrganizationPermission(
+							input.organizationId,
+							"organization:all",
+							`User ${session?.user?.id} is not authorized to update organization ${input.organizationId}`,
+						);
 
 						const betterAuth = yield* BetterAuth;
 						const headers = yield* request.getHeaders;
@@ -214,7 +221,7 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 										name: input.name,
 									},
 								},
-							})
+							}),
 						);
 
 						return yield* Effect.succeed(undefined);
@@ -224,5 +231,5 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 
 		// Specify dependencies
 		dependencies: [],
-	}
+	},
 ) {}

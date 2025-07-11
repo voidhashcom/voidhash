@@ -7,6 +7,7 @@ import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
 import { CustomerService } from "@/lib/services/customer.service";
 import { Effect } from "effect";
 import { AuthService, AuthSession } from "@/lib/services/auth.service";
+import { NotFoundError } from "@/lib/effect/errors";
 
 export async function CustomerDetailPage({
 	customerId,
@@ -30,9 +31,14 @@ export async function CustomerDetailPage({
 					const customerUnlockedPerks =
 						yield* customerService.getCustomersUnlockedPerks(customerId);
 					return { customer, customerPurchases, customerUnlockedPerks };
-				})
+				}).pipe(
+					Effect.catchTags({
+						CustomerNotFoundError: (error) =>
+							Effect.fail(new NotFoundError({ message: error.message })),
+					}),
+				),
 			);
-		})
+		}),
 	);
 
 	if (data.isErr()) {

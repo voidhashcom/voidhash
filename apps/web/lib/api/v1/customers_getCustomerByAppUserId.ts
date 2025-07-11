@@ -12,6 +12,7 @@ import {
 	Environment,
 	EnvironmentService,
 } from "@/lib/services/environment.service";
+import { NotFoundError } from "@/lib/effect/errors";
 
 const route = describeRoute({
 	description: "Get a customer by app user ID",
@@ -49,7 +50,12 @@ export const registerCustomersGetCustomerByAppUserId = (app: App) =>
 							yield* environmentService.getEnvironmentFromApiAuthSession();
 
 						const customer = yield* Environment.provide(environment)(
-							customerService.getCustomerByAppUserId(c.req.param("appUserId"))
+							customerService.getCustomerByAppUserId(c.req.param("appUserId")),
+						).pipe(
+							Effect.catchTags({
+								CustomerNotFoundError: (error) =>
+									Effect.fail(new NotFoundError({ message: error.message })),
+							}),
 						);
 
 						return c.json<z.infer<typeof customerResponseSchema>>({
@@ -58,8 +64,8 @@ export const registerCustomersGetCustomerByAppUserId = (app: App) =>
 							email: customer.email ?? null,
 							appUserId: customer.appUserId ?? null,
 						});
-					})
+					}),
 				);
-			})
-		)
+			}),
+		),
 	);

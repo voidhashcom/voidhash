@@ -2,27 +2,26 @@ import { Data, Effect } from "effect";
 import { PaywallLocationRepository } from "../repositories/paywall-location.repository";
 import { AuthSession } from "@/lib/services/auth.service";
 import { Environment } from "@/lib/services/environment.service";
-import { NotFoundError } from "@/lib/effect/errors";
 import { checkProjectPermission } from "@/lib/effect/permissions";
 import { PaywallRepository } from "../repositories/paywall.repository";
 import { generateId } from "@/lib/id/generate";
 
 export class SlugAlreadyExistsError extends Data.TaggedError(
-	"SlugAlreadyExistsError"
+	"SlugAlreadyExistsError",
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
 }> {}
 
 export class DefaultPaywallNotFoundError extends Data.TaggedError(
-	"DefaultPaywallNotFoundError"
+	"DefaultPaywallNotFoundError",
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
 }> {}
 
 export class PaywallLocationNotFound extends Data.TaggedError(
-	"PaywallLocationNotFound"
+	"PaywallLocationNotFound",
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
@@ -51,7 +50,7 @@ export class PaywallLocationService extends Effect.Service<PaywallLocationServic
 						yield* checkProjectPermission(
 							input.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to create paywall locations for project ${input.projectId}`
+							`User ${session?.user?.id} is not authorized to create paywall locations for project ${input.projectId}`,
 						);
 
 						const paywallLocation =
@@ -65,18 +64,26 @@ export class PaywallLocationService extends Effect.Service<PaywallLocationServic
 								new SlugAlreadyExistsError({
 									message:
 										"Paywall location with this slug already exists. Please choose a different slug.",
-								})
+								}),
 							);
 						}
 
 						const defaultPaywall = yield* paywallRepository.getPaywallById(
-							input.defaultPaywallId
+							input.defaultPaywallId,
 						);
 						if (!defaultPaywall) {
 							return yield* Effect.fail(
 								new DefaultPaywallNotFoundError({
 									message: "Default paywall not found",
-								})
+								}),
+							);
+						}
+
+						if (defaultPaywall.projectId !== input.projectId) {
+							return yield* Effect.fail(
+								new DefaultPaywallNotFoundError({
+									message: "Default paywall not found",
+								}),
 							);
 						}
 
@@ -90,10 +97,10 @@ export class PaywallLocationService extends Effect.Service<PaywallLocationServic
 						};
 
 						yield* paywallLocationRepository.createPaywallLocation(
-							newPaywallLocation
+							newPaywallLocation,
 						);
 						yield* Effect.log(
-							`Created paywall location ${newPaywallLocation.id} for project ${input.projectId}`
+							`Created paywall location ${newPaywallLocation.id} for project ${input.projectId}`,
 						);
 
 						// TODO: Adding a perk should unlock it for existing users?
@@ -112,7 +119,7 @@ export class PaywallLocationService extends Effect.Service<PaywallLocationServic
 						yield* checkProjectPermission(
 							projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to access paywall locations for project ${projectId}`
+							`User ${session?.user?.id} is not authorized to access paywall locations for project ${projectId}`,
 						);
 
 						return yield* paywallLocationRepository.getPaywallLocations({
@@ -128,35 +135,33 @@ export class PaywallLocationService extends Effect.Service<PaywallLocationServic
 							yield* paywallLocationRepository.getPaywallLocationById(id);
 						if (!paywallLocation) {
 							return yield* Effect.fail(
-								new NotFoundError({
+								new PaywallLocationNotFound({
 									message: "Paywall location not found",
-								})
+								}),
 							);
 						}
 						// SECURITY: Authorization check
 						yield* checkProjectPermission(
 							paywallLocation.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to access paywall location ${id} for project ${paywallLocation.projectId}`
+							`User ${session?.user?.id} is not authorized to access paywall location ${id} for project ${paywallLocation.projectId}`,
 						);
 						return paywallLocation;
 					}),
 
-				deletePaywallLocation: (input: {
-					paywallLocationId: string;
-				}) =>
+				deletePaywallLocation: (input: { paywallLocationId: string }) =>
 					Effect.gen(function* () {
 						const session = yield* AuthSession;
 						const paywallLocationRepository = yield* PaywallLocationRepository;
 						const paywallLocation =
 							yield* paywallLocationRepository.getPaywallLocationById(
-								input.paywallLocationId
+								input.paywallLocationId,
 							);
 						if (!paywallLocation) {
 							return yield* Effect.fail(
 								new PaywallLocationNotFound({
 									message: `Paywall location with id ${input.paywallLocationId} not found`,
-								})
+								}),
 							);
 						}
 
@@ -164,14 +169,14 @@ export class PaywallLocationService extends Effect.Service<PaywallLocationServic
 						yield* checkProjectPermission(
 							paywallLocation.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to delete paywall location ${input.paywallLocationId}`
+							`User ${session?.user?.id} is not authorized to delete paywall location ${input.paywallLocationId}`,
 						);
 
 						yield* paywallLocationRepository.deletePaywallLocation(
-							input.paywallLocationId
+							input.paywallLocationId,
 						);
 					}),
 			};
 		}),
-	}
+	},
 ) {}

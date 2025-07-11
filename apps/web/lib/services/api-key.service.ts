@@ -3,12 +3,11 @@ import { ApiKeyRepository } from "../repositories/api-key.repository";
 import { AuthSession } from "@/lib/services/auth.service";
 import { Environment } from "@/lib/services/environment.service";
 import { checkProjectPermission } from "@/lib/effect/permissions";
-import { NotFoundError } from "@/lib/effect/errors";
 import { createSecretKey as generateSecretKeyFn } from "../core/api-keys/effect/utils";
 import { generateId } from "@/lib/id/generate";
 
 export class ApiKeyNotFoundError extends Data.TaggedError(
-	"ApiKeyNotFoundError"
+	"ApiKeyNotFoundError",
 )<{
 	readonly cause?: unknown;
 	readonly message: string;
@@ -21,10 +20,7 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
 		effect: Effect.gen(function* () {
 			const apiKeyRepository = yield* ApiKeyRepository;
 			return {
-				createSecretKey: (input: {
-					projectId: string;
-					name: string;
-				}) =>
+				createSecretKey: (input: { projectId: string; name: string }) =>
 					Effect.gen(function* () {
 						const session = yield* AuthSession;
 						const environment = yield* Environment;
@@ -34,7 +30,7 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
 						yield* checkProjectPermission(
 							input.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to create secret keys for project ${input.projectId}`
+							`User ${session?.user?.id} is not authorized to create secret keys for project ${input.projectId}`,
 						);
 
 						const { rawKey, ...secretKey } =
@@ -52,7 +48,7 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
 							return yield* Effect.fail(
 								new ApiKeyNotFoundError({
 									message: "API key not found",
-								})
+								}),
 							);
 						}
 
@@ -74,7 +70,7 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
 						yield* checkProjectPermission(
 							projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to access api keys for project ${projectId}`
+							`User ${session?.user?.id} is not authorized to access api keys for project ${projectId}`,
 						);
 						const apiKeys = yield* apiKeyRepository.getApiKeys(projectId);
 						return apiKeys.filter((key) => key.environment === environment);
@@ -87,9 +83,9 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
 						const apiKey = yield* apiKeyRepository.getApiKeyById(id);
 						if (!apiKey) {
 							return yield* Effect.fail(
-								new NotFoundError({
+								new ApiKeyNotFoundError({
 									message: "API key not found",
-								})
+								}),
 							);
 						}
 
@@ -97,27 +93,25 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
 						yield* checkProjectPermission(
 							apiKey.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to access api key ${id} for project ${apiKey.projectId}`
+							`User ${session?.user?.id} is not authorized to access api key ${id} for project ${apiKey.projectId}`,
 						);
 
 						return apiKey;
 					}),
 
-				deleteSecretKey: (input: {
-					secretKeyId: string;
-				}) =>
+				deleteSecretKey: (input: { secretKeyId: string }) =>
 					Effect.gen(function* () {
 						const session = yield* AuthSession;
 						const apiKeyRepository = yield* ApiKeyRepository;
 
 						const existingKey = yield* apiKeyRepository.getApiKeyById(
-							input.secretKeyId
+							input.secretKeyId,
 						);
 						if (!existingKey) {
 							return yield* Effect.fail(
 								new ApiKeyNotFoundError({
 									message: "Secret key not found",
-								})
+								}),
 							);
 						}
 
@@ -125,27 +119,25 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
 						yield* checkProjectPermission(
 							existingKey.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to delete secret key ${input.secretKeyId} for project ${existingKey.projectId}`
+							`User ${session?.user?.id} is not authorized to delete secret key ${input.secretKeyId} for project ${existingKey.projectId}`,
 						);
 
 						yield* apiKeyRepository.deleteApiKey(input.secretKeyId);
 					}),
 
-				rotateSecretKey: (input: {
-					secretKeyId: string;
-				}) =>
+				rotateSecretKey: (input: { secretKeyId: string }) =>
 					Effect.gen(function* () {
 						const session = yield* AuthSession;
 						const apiKeyRepository = yield* ApiKeyRepository;
 
 						const existingKey = yield* apiKeyRepository.getApiKeyById(
-							input.secretKeyId
+							input.secretKeyId,
 						);
 						if (!existingKey) {
 							return yield* Effect.fail(
 								new ApiKeyNotFoundError({
 									message: "Secret key not found",
-								})
+								}),
 							);
 						}
 
@@ -153,11 +145,11 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
 						yield* checkProjectPermission(
 							existingKey.projectId,
 							"project:all",
-							`User ${session?.user?.id} is not authorized to rotate secret key ${input.secretKeyId} for project ${existingKey.projectId}`
+							`User ${session?.user?.id} is not authorized to rotate secret key ${input.secretKeyId} for project ${existingKey.projectId}`,
 						);
 
 						const { rawKey, ...newKey } = yield* generateSecretKeyFn(
-							existingKey.environment
+							existingKey.environment,
 						);
 						yield* apiKeyRepository.updateApiKey({
 							id: input.secretKeyId,
@@ -174,5 +166,5 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
 					}),
 			};
 		}),
-	}
+	},
 ) {}

@@ -66,7 +66,7 @@ export const registerSdkCreateCheckout = (app: App) =>
 										c.req.valid("json").paymentProviderConfigurationProductId,
 									successCallbackUrl: c.req.valid("json").successCallbackUrl,
 									errorCallbackUrl: c.req.valid("json").errorCallbackUrl,
-								})
+								}),
 							);
 							return c.json<z.infer<typeof sdkCheckoutResponseSchema>>({
 								checkoutSessionId: checkout.checkoutSessionId,
@@ -80,7 +80,7 @@ export const registerSdkCreateCheckout = (app: App) =>
 											code: "NOT_FOUND",
 											message: error.message,
 											originalError: error,
-										})
+										}),
 									),
 								PaymentProviderConfigurationNotFound: (error) =>
 									Effect.fail(
@@ -88,11 +88,18 @@ export const registerSdkCreateCheckout = (app: App) =>
 											code: "NOT_FOUND",
 											message: error.message,
 											originalError: error,
-										})
+										}),
 									),
-							})
-						)
+								InvalidAnonymousIdError: (error) =>
+									Effect.fail(
+										new HonoErrorResponse({
+											code: "BAD_REQUEST",
+											message: error.message,
+										}),
+									),
+							}),
+						),
 					);
-				})
-			)
+				}),
+			),
 	);

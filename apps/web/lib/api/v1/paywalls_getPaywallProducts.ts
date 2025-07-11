@@ -12,6 +12,7 @@ import { createEffectHandler } from "@/lib/effect/runtimes/hono";
 import { PaywallService } from "@/lib/services/paywall.service";
 import { Effect } from "effect";
 import { AuthService, AuthSession } from "@/lib/services/auth.service";
+import { NotFoundError } from "@/lib/effect/errors";
 
 const route = describeRoute({
 	description: "Get all products for a paywall",
@@ -50,18 +51,25 @@ export const registerPaywallsGetPaywallProducts = (app: App) =>
 					return yield* AuthSession.provide(authSession)(
 						Effect.gen(function* () {
 							const paywallService = yield* PaywallService;
-							const paywallProducts = yield* paywallService.getPaywallProducts(
-								c.req.param("paywallId")
-							);
+							const paywallProducts = yield* paywallService
+								.getPaywallProducts(c.req.param("paywallId"))
+								.pipe(
+									Effect.catchTags({
+										PaywallNotFoundError: (error) =>
+											Effect.fail(
+												new NotFoundError({ message: error.message }),
+											),
+									}),
+								);
 							return c.json<z.infer<typeof paywallProductResponseSchema>[]>(
 								paywallProducts.map((pp) => ({
 									paywallId: pp.paywallId,
 									productId: pp.productId,
 									productName: pp.product.name ?? null,
-								}))
+								})),
 							);
-						})
+						}),
 					);
-				})
-			)
+				}),
+			),
 	);
