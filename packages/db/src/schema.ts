@@ -34,9 +34,9 @@ export const projects = mysqlTable(
 		index("organization_id_idx").on(table.organizationId),
 		uniqueIndex("slug_oragnization_id_idx").on(
 			table.slug,
-			table.organizationId
+			table.organizationId,
 		),
-	]
+	],
 );
 
 export const projectsRelations = relations(projects, ({ one }) => ({
@@ -126,12 +126,13 @@ export const customers = mysqlTable(
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
 	(table) => [
-		uniqueIndex("app_user_id_project_id_idx").on(
+		uniqueIndex("app_user_id_project_id_environment_idx").on(
 			table.appUserId,
-			table.projectId
+			table.projectId,
+			table.environment,
 		),
 		index("parent_customer_id_idx").on(table.parentCustomerId),
-	]
+	],
 );
 
 export const customerRelations = relations(customers, ({ many, one }) => ({
@@ -172,7 +173,7 @@ export const customerUnlockedPerks = mysqlTable(
 	},
 	(table) => [
 		uniqueIndex("customer_id_perk_id_idx").on(table.customerId, table.perkId),
-	]
+	],
 );
 
 export const externalCustomerIdentifiers = mysqlTable(
@@ -190,9 +191,9 @@ export const externalCustomerIdentifiers = mysqlTable(
 		index("customer_id_service_id_identifier_idx").on(
 			table.customerId,
 			table.serviceId,
-			table.identifier
+			table.identifier,
 		),
-	]
+	],
 );
 export const externalCustomerIdentifiersRelations = relations(
 	externalCustomerIdentifiers,
@@ -201,7 +202,7 @@ export const externalCustomerIdentifiersRelations = relations(
 			fields: [externalCustomerIdentifiers.customerId],
 			references: [customers.id],
 		}),
-	})
+	}),
 );
 
 export const paymentProviderConfigurations = mysqlTable(
@@ -224,7 +225,7 @@ export const paymentProviderConfigurations = mysqlTable(
 	(table) => [
 		index("project_id_idx").on(table.projectId),
 		index("provider_id_idx").on(table.providerId),
-	]
+	],
 );
 
 export const paymentProviderConfigurationRelations = relations(
@@ -235,9 +236,9 @@ export const paymentProviderConfigurationRelations = relations(
 			references: [projects.id],
 		}),
 		paymentProviderConfigurationProducts: many(
-			paymentProviderConfigurationProducts
+			paymentProviderConfigurationProducts,
 		),
-	})
+	}),
 );
 
 // Perk
@@ -258,9 +259,9 @@ export const perks = mysqlTable(
 		uniqueIndex("slug_project_id_idx").on(
 			table.slug,
 			table.projectId,
-			table.environment
+			table.environment,
 		),
-	]
+	],
 );
 
 export const perkRelations = relations(perks, ({ many }) => ({
@@ -282,7 +283,7 @@ export const productRelations = relations(products, ({ many }) => ({
 	paywallProducts: many(paywallProducts),
 	checkoutSessions: many(checkoutSessions),
 	paymentProviderConfigurationProducts: many(
-		paymentProviderConfigurationProducts
+		paymentProviderConfigurationProducts,
 	),
 }));
 
@@ -297,7 +298,7 @@ export const productPerks = mysqlTable(
 	},
 	(table) => [
 		uniqueIndex("product_id_perk_id_idx").on(table.productId, table.perkId),
-	]
+	],
 );
 
 export const productPerkRelations = relations(productPerks, ({ one }) => ({
@@ -319,7 +320,7 @@ export const paymentProviderConfigurationProducts = mysqlTable(
 			"payment_provider_configuration_id",
 			{
 				length: 255,
-			}
+			},
 		).notNull(),
 		providerProductKey: varchar("provider_product_key", {
 			length: 255,
@@ -338,12 +339,12 @@ export const paymentProviderConfigurationProducts = mysqlTable(
 			table.paymentProviderConfigurationId,
 			table.providerProductKey,
 			table.productId,
-			table.environment
+			table.environment,
 		),
 		index("payment_provider_configuration_id_idx").on(
-			table.paymentProviderConfigurationId
+			table.paymentProviderConfigurationId,
 		),
-	]
+	],
 );
 
 export const paymentProviderConfigurationProductRelations = relations(
@@ -360,7 +361,7 @@ export const paymentProviderConfigurationProductRelations = relations(
 			references: [paymentProviderConfigurations.id],
 		}),
 		subscriptions: many(subscriptions),
-	})
+	}),
 );
 
 // Paywall
@@ -394,7 +395,7 @@ export const paywallProducts = mysqlTable(
 			"web_checkout_payment_provider_product_configuration_id",
 			{
 				length: 255,
-			}
+			},
 		),
 		order: int("order").notNull().default(0),
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
@@ -403,12 +404,12 @@ export const paywallProducts = mysqlTable(
 	(table) => [
 		uniqueIndex("paywall_id_product_id_idx").on(
 			table.paywallId,
-			table.productId
+			table.productId,
 		),
 		index("paywall_id_idx").on(table.paywallId),
 		index("product_id_idx").on(table.productId),
 		uniqueIndex("paywall_id_order_idx").on(table.paywallId, table.order),
-	]
+	],
 );
 
 export const paywallProductRelations = relations(
@@ -422,7 +423,7 @@ export const paywallProductRelations = relations(
 			fields: [paywallProducts.paywallId],
 			references: [paywalls.id],
 		}),
-	})
+	}),
 );
 
 // Paywall Locations
@@ -446,9 +447,9 @@ export const paywallLocations = mysqlTable(
 		uniqueIndex("slug_project_id_idx").on(
 			table.slug,
 			table.projectId,
-			table.environment
+			table.environment,
 		),
-	]
+	],
 );
 
 export const paywallLocationRelations = relations(
@@ -458,7 +459,7 @@ export const paywallLocationRelations = relations(
 			fields: [paywallLocations.defaultPaywallId],
 			references: [paywalls.id],
 		}),
-	})
+	}),
 );
 
 export const CheckoutSessionStatus = {
@@ -476,7 +477,7 @@ export const checkoutSessions = mysqlTable("checkout_session", {
 		"payment_provider_configuration_product_id",
 		{
 			length: 255,
-		}
+		},
 	).notNull(),
 	status: tinyint("status").notNull().default(CheckoutSessionStatus.Pending),
 	successCallbackUrl: varchar("success_callback_url", {
@@ -503,9 +504,9 @@ export const checkoutSessionRelations = relations(
 			{
 				fields: [checkoutSessions.paymentProviderConfigurationProductId],
 				references: [paymentProviderConfigurationProducts.id],
-			}
+			},
 		),
-	})
+	}),
 );
 
 export const outbox = mysqlTable("outbox", {
@@ -536,7 +537,7 @@ export const purchases = mysqlTable(
 			"payment_provider_configuration_product_id",
 			{
 				length: 255,
-			}
+			},
 		).notNull(),
 
 		/**
@@ -549,7 +550,7 @@ export const purchases = mysqlTable(
 		createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 		updatedAt: timestamp("updated_at").onUpdateNow(),
 	},
-	(table) => [uniqueIndex("provider_key_idx").on(table.providerKey)]
+	(table) => [uniqueIndex("provider_key_idx").on(table.providerKey)],
 );
 
 export const subscriptions = mysqlTable("subscription", {
@@ -573,7 +574,7 @@ export const subscriptions = mysqlTable("subscription", {
 		"payment_provider_configuration_product_id",
 		{
 			length: 255,
-		}
+		},
 	).notNull(),
 
 	/**
@@ -618,7 +619,7 @@ export const subscriptionRelations = relations(subscriptions, ({ one }) => ({
 		{
 			fields: [subscriptions.paymentProviderConfigurationProductId],
 			references: [paymentProviderConfigurationProducts.id],
-		}
+		},
 	),
 }));
 
@@ -632,7 +633,7 @@ export const transactions = mysqlTable("transaction", {
 		"payment_provider_product_configuration_id",
 		{
 			length: 255,
-		}
+		},
 	).notNull(),
 	environment: tinyint("environment").notNull().default(Environment.Production),
 	providerEnvironment: tinyint("provider_environment")
@@ -754,5 +755,5 @@ export const appStoreTransactions = mysqlTable(
 			length: 255,
 		}),
 	},
-	(table) => [uniqueIndex("transaction_id_idx").on(table.transactionId)]
+	(table) => [uniqueIndex("transaction_id_idx").on(table.transactionId)],
 );
