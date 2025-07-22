@@ -1,1 +1,1 @@
-export * from "./dashboard-sidebar-provider";
+export * from './dashboard-sidebar-provider';

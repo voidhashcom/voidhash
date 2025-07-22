@@ -1,21 +1,21 @@
-import { PaywallsDetailPage } from "@/features/paywalls/paywalls-detail-page";
+import { PaywallsDetailPage } from '@/features/paywalls/paywalls-detail-page';
 
 export default async function Page({
-	params,
+  params
 }: {
-	params: Promise<{
-		organizationSlug: string;
-		projectSlug: string;
-		id: string;
-	}>;
+  params: Promise<{
+    organizationSlug: string;
+    projectSlug: string;
+    id: string;
+  }>;
 }) {
-	const { organizationSlug, projectSlug, id } = await params;
+  const { organizationSlug, projectSlug, id } = await params;
 
-	return (
-		<PaywallsDetailPage
-			organizationSlug={organizationSlug}
-			projectSlug={projectSlug}
-			id={id}
-		/>
-	);
+  return (
+    <PaywallsDetailPage
+      id={id}
+      organizationSlug={organizationSlug}
+      projectSlug={projectSlug}
+    />
+  );
 }

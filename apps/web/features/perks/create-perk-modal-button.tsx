@@ -1,20 +1,18 @@
-"use client";
-import { useState } from "react";
-import { Button } from "@voidhash/ui/button";
-import { CreatePerkModal } from "./create-perk-modal";
+'use client';
+import { Button } from '@voidhash/ui/button';
+import { useState } from 'react';
+import { CreatePerkModal } from './create-perk-modal';
 
 export function CreatePerkModalButton({ projectId }: { projectId: string }) {
-	const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
-	return (
-		<>
-			<CreatePerkModal
-				open={open}
-				onClose={() => setOpen(false)}
-				trigger={<Button onClick={() => setOpen(true)}>Add Perk</Button>}
-				projectId={projectId}
-				onSuccess={() => setOpen(false)}
-			/>
-		</>
-	);
+  return (
+    <CreatePerkModal
+      onClose={() => setOpen(false)}
+      onSuccess={() => setOpen(false)}
+      open={open}
+      projectId={projectId}
+      trigger={<Button onClick={() => setOpen(true)}>Add Perk</Button>}
+    />
+  );
 }

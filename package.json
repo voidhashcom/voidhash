@@ -1,42 +1,64 @@
 {
-    "name": "@voidhash/root",
-    "private": true,
-    "type": "module",
-    "version": "0.0.1-alpha.1",
-    "packageManager": "pnpm@9.15.0",
-    "license": "AGPL-3.0",
-    "scripts": {
-        "build": "turbo build",
-        "dev": "turbo  dev",
-        "clean": "turbo clean && rm -rf node_modules",
-        "format": "biome format . --write",
-        "lint": "biome check .",
-        "lint:fix": "biome check . --apply",
-        "bump": "bumpp",
-        "test": "turbo test",
-        "typecheck": "turbo typecheck",
-        "better-auth:generate": "pnpm with-env npx @better-auth/cli@latest generate --config ./packages/auth/src/index.ts --output ./packages/db/auth-schema.ts",
-        "better-auth:migrate": "pnpm with-env npx @better-auth/cli@latest migrate --config ./packages/auth/src/index.ts",
-        "db:generate": "pnpm with-env drizzle-kit generate",
-        "db:migrate": "pnpm with-env drizzle-kit migrate",
-        "db:studio": "pnpm with-env drizzle-kit studio",
-        "db:push": "pnpm with-env drizzle-kit push",
-        "with-env": "dotenv -e ./apps/web/.env --",
-        "lines-of-code": "npx cloc . --exclude-dir=.next,node_modules,.vercel,.turbo,.git,meta,.github,.expo,build,.expo-shared --not-match-f=bun.lockb,meta.json --exclude-ext=yaml,md"
+  "name": "@voidhash/root",
+  "private": true,
+  "type": "module",
+  "version": "0.0.1-alpha.1",
+  "packageManager": "bun@1.2.18",
+  "license": "AGPL-3.0",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo  dev",
+    "clean": "turbo clean && rm -rf node_modules",
+    "format": "biome format . --write",
+    "lint": "biome check .",
+    "lint:fix": "biome check . --apply",
+    "bump": "bumpp",
+    "test": "turbo test",
+    "typecheck": "turbo typecheck",
+    "better-auth:generate": "bun with-env npx @better-auth/cli@latest generate --config ./packages/auth/src/index.ts --output ./packages/db/auth-schema.ts",
+    "better-auth:migrate": "bun with-env npx @better-auth/cli@latest migrate --config ./packages/auth/src/index.ts",
+    "db:generate": "bun with-env drizzle-kit generate",
+    "db:migrate": "bun with-env drizzle-kit migrate",
+    "db:studio": "bun with-env drizzle-kit studio",
+    "db:push": "bun with-env drizzle-kit push",
+    "with-env": "dotenv -e ./apps/web/.env --",
+    "lines-of-code": "npx cloc . --exclude-dir=.next,node_modules,.vercel,.turbo,.git,meta,.github,.expo,build,.expo-shared --not-match-f=bun.lockb,meta.json --exclude-ext=yaml,md"
+  },
+  "dependencies": {
+    "@types/node": "^24.0.12",
+    "bumpp": "^10.2.0",
+    "cross-env": "^7.0.3",
+    "drizzle-kit": "^0.31.4",
+    "simple-git-hooks": "^2.11.1",
+    "taze": "^0.18.0",
+    "tinyglobby": "^0.2.10",
+    "turbo": "^2.3.3",
+    "typescript": "5.8.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.1.2",
+    "dotenv-cli": "^8.0.0",
+    "ultracite": "5.0.39"
+  },
+  "workspaces": {
+    "packages": [
+      "packages/*",
+      "apps/*"
+    ],
+    "catalogs": {
+      "react18": {
+        "react": "18.3.1",
+        "react-dom": "18.3.1"
+      }
     },
-    "dependencies": {
-        "@types/node": "^24.0.12",
-        "bumpp": "^10.2.0",
-        "cross-env": "^7.0.3",
-        "drizzle-kit": "^0.31.4",
-        "simple-git-hooks": "^2.11.1",
-        "taze": "^0.18.0",
-        "tinyglobby": "^0.2.10",
-        "turbo": "^2.3.3",
-        "typescript": "5.8.3"
-    },
-    "devDependencies": {
-        "@biomejs/biome": "2.1.1",
-        "dotenv-cli": "^8.0.0"
+    "catalog": {
+      "@types/react": "^18.3.14",
+      "@types/react-dom": "^18.3.2",
+      "@trpc/client": "^11.1.0",
+      "@trpc/server": "^11.1.0",
+      "@tanstack/react-query": "^5.67.1",
+      "@trpc/tanstack-react-query": "^11.1.0",
+      "superjson": "^2.2.2"
     }
+  }
 }

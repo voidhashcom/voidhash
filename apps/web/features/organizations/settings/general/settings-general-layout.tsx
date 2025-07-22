@@ -1,19 +1,19 @@
-import { Page } from "@/features/shell";
+import { Page } from '@/features/shell';
 
 export function SettingsGeneralLayout({
-	children,
+  children
 }: {
-	children: React.ReactNode;
+  children: React.ReactNode;
 }) {
-	return (
-		<Page>
-			{/* Key is used to reload the default form data when the organization slug changes */}
-			<div className="max-w-4xl mx-auto">
-				<h1 className="text-3xl font-normal tracking-right">Team Settings</h1>
-				<p className="text-muted-foreground mt-3">All settings for team</p>
+  return (
+    <Page>
+      {/* Key is used to reload the default form data when the organization slug changes */}
+      <div className="mx-auto max-w-4xl">
+        <h1 className="font-normal text-3xl tracking-right">Team Settings</h1>
+        <p className="mt-3 text-muted-foreground">All settings for team</p>
 
-				{children}
-			</div>
-		</Page>
-	);
+        {children}
+      </div>
+    </Page>
+  );
 }

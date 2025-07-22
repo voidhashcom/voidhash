@@ -1,15 +1,15 @@
-import { CustomersPage } from "@/features/customers/customers-page";
+import { CustomersPage } from '@/features/customers/customers-page';
 
 export default async function Page({
-	params,
+  params
 }: {
-	params: { organizationSlug: string; projectSlug: string };
+  params: { organizationSlug: string; projectSlug: string };
 }) {
-	const { organizationSlug, projectSlug } = await params;
-	return (
-		<CustomersPage
-			organizationSlug={organizationSlug}
-			projectSlug={projectSlug}
-		/>
-	);
+  const { organizationSlug, projectSlug } = await params;
+  return (
+    <CustomersPage
+      organizationSlug={organizationSlug}
+      projectSlug={projectSlug}
+    />
+  );
 }

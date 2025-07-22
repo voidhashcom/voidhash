@@ -1,23 +1,23 @@
-import { defineConfig } from "@trigger.dev/sdk/v3";
-import { env } from "./lib/env";
+import { defineConfig } from '@trigger.dev/sdk/v3';
+import { env } from './lib/env';
 
 export default defineConfig({
-	project: env.TRIGGER_PROJECT_ID,
-	runtime: "node",
-	logLevel: "log",
-	// The max compute seconds a task is allowed to run. If the task run exceeds this duration, it will be stopped.
-	// You can override this on an individual task.
-	// See https://trigger.dev/docs/runs/max-duration
-	maxDuration: 30,
-	retries: {
-		enabledInDev: true,
-		default: {
-			maxAttempts: 3,
-			minTimeoutInMs: 1000,
-			maxTimeoutInMs: 10000,
-			factor: 2,
-			randomize: true,
-		},
-	},
-	dirs: ["jobs"],
+  project: env.TRIGGER_PROJECT_ID,
+  runtime: 'node',
+  logLevel: 'log',
+  // The max compute seconds a task is allowed to run. If the task run exceeds this duration, it will be stopped.
+  // You can override this on an individual task.
+  // See https://trigger.dev/docs/runs/max-duration
+  maxDuration: 30,
+  retries: {
+    enabledInDev: true,
+    default: {
+      maxAttempts: 3,
+      minTimeoutInMs: 1000,
+      maxTimeoutInMs: 10_000,
+      factor: 2,
+      randomize: true
+    }
+  },
+  dirs: ['jobs']
 });

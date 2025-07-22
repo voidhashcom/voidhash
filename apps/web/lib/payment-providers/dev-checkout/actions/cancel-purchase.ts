@@ -1,74 +1,74 @@
-import { CheckoutSessionRepository } from "@/lib/repositories/checkout-session.repository";
-import { Data, Effect, pipe, Schema } from "effect";
-import { CheckoutSessionStatus } from "@voidhash/db";
+import { CheckoutSessionStatus } from '@voidhash/db';
+import { Data, Effect, pipe, Schema } from 'effect';
+import { CheckoutSessionRepository } from '@/lib/repositories/checkout-session.repository';
 
 export const cancelDevCheckoutPurchaseInputSchema = Schema.Struct({
-	checkoutSessionId: Schema.String,
+  checkoutSessionId: Schema.String
 });
 
 type CancelDevCheckoutPurchaseInput = Schema.Schema.Type<
-	typeof cancelDevCheckoutPurchaseInputSchema
+  typeof cancelDevCheckoutPurchaseInputSchema
 >;
 
 export class CheckoutSessionNotFound extends Data.TaggedError(
-	"CheckoutSessionNotFound"
+  'CheckoutSessionNotFound'
 )<{
-	readonly cause?: unknown;
-	readonly message: string;
+  readonly cause?: unknown;
+  readonly message: string;
 }> {}
 
 export class CheckoutSessionWasAlreadyCancelled extends Data.TaggedError(
-	"CheckoutSessionWasAlreadyCancelled"
+  'CheckoutSessionWasAlreadyCancelled'
 )<{
-	readonly cause?: unknown;
-	readonly message: string;
+  readonly cause?: unknown;
+  readonly message: string;
 }> {}
 
 export class CheckoutSessionWasAlreadyConfirmed extends Data.TaggedError(
-	"CheckoutSessionWasAlreadyConfirmed"
+  'CheckoutSessionWasAlreadyConfirmed'
 )<{
-	readonly cause?: unknown;
-	readonly message: string;
+  readonly cause?: unknown;
+  readonly message: string;
 }> {}
 
 export const cancelPurchase = (inputUnsafe: CancelDevCheckoutPurchaseInput) =>
-	pipe(
-		Effect.gen(function* () {
-			const checkoutSessionRepository = yield* CheckoutSessionRepository;
-			const checkoutSession =
-				yield* checkoutSessionRepository.getCheckoutSessionById(
-					inputUnsafe.checkoutSessionId
-				);
+  pipe(
+    Effect.gen(function* () {
+      const checkoutSessionRepository = yield* CheckoutSessionRepository;
+      const checkoutSession =
+        yield* checkoutSessionRepository.getCheckoutSessionById(
+          inputUnsafe.checkoutSessionId
+        );
 
-			if (!checkoutSession) {
-				return yield* Effect.fail(
-					new CheckoutSessionNotFound({
-						message: "Checkout session not found",
-					})
-				);
-			}
+      if (!checkoutSession) {
+        return yield* Effect.fail(
+          new CheckoutSessionNotFound({
+            message: 'Checkout session not found'
+          })
+        );
+      }
 
-			if (checkoutSession.status === CheckoutSessionStatus.Cancelled) {
-				return {
-					redirectUrl: checkoutSession.successCallbackUrl,
-				};
-			}
+      if (checkoutSession.status === CheckoutSessionStatus.Cancelled) {
+        return {
+          redirectUrl: checkoutSession.successCallbackUrl
+        };
+      }
 
-			if (checkoutSession.status === CheckoutSessionStatus.Success) {
-				return yield* Effect.fail(
-					new CheckoutSessionWasAlreadyConfirmed({
-						message: "Checkout session was already confirmed",
-					})
-				);
-			}
+      if (checkoutSession.status === CheckoutSessionStatus.Success) {
+        return yield* Effect.fail(
+          new CheckoutSessionWasAlreadyConfirmed({
+            message: 'Checkout session was already confirmed'
+          })
+        );
+      }
 
-			yield* checkoutSessionRepository.updateCheckoutSession({
-				id: inputUnsafe.checkoutSessionId,
-				status: CheckoutSessionStatus.Cancelled,
-			});
+      yield* checkoutSessionRepository.updateCheckoutSession({
+        id: inputUnsafe.checkoutSessionId,
+        status: CheckoutSessionStatus.Cancelled
+      });
 
-			return {
-				redirectUrl: checkoutSession.successCallbackUrl,
-			};
-		})
-	);
+      return {
+        redirectUrl: checkoutSession.successCallbackUrl
+      };
+    })
+  );

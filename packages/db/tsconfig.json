@@ -1,5 +1,5 @@
 {
-	"extends": "@voidhash/tsconfig/internal-package.json",
-	"include": ["src"],
-	"exclude": ["node_modules"]
+  "extends": "@voidhash/tsconfig/internal-package.json",
+  "include": ["src"],
+  "exclude": ["node_modules"]
 }

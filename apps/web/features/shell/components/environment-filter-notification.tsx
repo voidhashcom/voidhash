@@ -1,26 +1,26 @@
-import { cn } from "@voidhash/ui";
+import { cn } from '@voidhash/ui';
 
 export const EnvironmentFilterNotification = ({
-	message = "You are using test data.",
-	className,
-	type,
+  message = 'You are using test data.',
+  className,
+  type
 }: {
-	message: string;
-	className?: string;
-	type: "testing" | "shared";
+  message: string;
+  className?: string;
+  type: 'testing' | 'shared';
 }) => {
-	return (
-		<div
-			className={cn(
-				"p-4 border border-",
-				type === "shared" &&
-					"bg-card border-l-2 border-l-orange-600   text-card-foreground ",
-				type === "testing" &&
-					"bg-card border-l-2 border-l-primary   text-card-foreground",
-				className
-			)}
-		>
-			<div className="text-sm mt-1">{message}</div>
-		</div>
-	);
+  return (
+    <div
+      className={cn(
+        'border- border p-4',
+        type === 'shared' &&
+          'border-l-2 border-l-orange-600 bg-card text-card-foreground ',
+        type === 'testing' &&
+          'border-l-2 border-l-primary bg-card text-card-foreground',
+        className
+      )}
+    >
+      <div className="mt-1 text-sm">{message}</div>
+    </div>
+  );
 };

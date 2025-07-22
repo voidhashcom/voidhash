@@ -1,109 +1,109 @@
-import { Page } from "@/features/shell";
-import { CreateProductModalButton } from "./create-product-modal-button";
-import { Card } from "@voidhash/ui";
-import { ProductRecord } from "./product-record";
-import { ProductsPageEmptyState } from "./products-page-empty-state";
-import { ProductRecordConfigurationStateIndicator } from "./product-record-configuration-state-indicator";
-import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { Effect } from "effect";
-import { ProjectService } from "@/lib/services/project.service";
+import { Card } from '@voidhash/ui';
+import { Effect } from 'effect';
+import { Page } from '@/features/shell';
+import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
+import { NotFoundError } from '@/lib/effect/errors';
+import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import {
-	Environment,
-	EnvironmentService,
-} from "@/lib/services/environment.service";
-import { NotFoundError } from "@/lib/effect/errors";
-import { ProductService } from "@/lib/services/product.service";
-import { AuthService, AuthSession } from "@/lib/services/auth.service";
+  Environment,
+  EnvironmentService
+} from '@/lib/services/environment.service';
+import { ProductService } from '@/lib/services/product.service';
+import { ProjectService } from '@/lib/services/project.service';
+import { CreateProductModalButton } from './create-product-modal-button';
+import { ProductRecord } from './product-record';
+import { ProductRecordConfigurationStateIndicator } from './product-record-configuration-state-indicator';
+import { ProductsPageEmptyState } from './products-page-empty-state';
 
 export async function ProductsPage({
-	organizationSlug,
-	projectSlug,
+  organizationSlug,
+  projectSlug
 }: {
-	organizationSlug: string;
-	projectSlug;
+  organizationSlug: string;
+  projectSlug;
 }) {
-	const data = await runServerEffect(
-		Effect.gen(function* () {
-			const authService = yield* AuthService;
-			const environmentService = yield* EnvironmentService;
-			const authSession = yield* authService.authenticateWithSession();
-			return yield* AuthSession.provide(authSession)(
-				Effect.gen(function* () {
-					const environment =
-						yield* environmentService.getEnvironmentFromCookie({
-							organizationSlug,
-							projectSlug,
-						});
-					return yield* Environment.provide(environment)(
-						Effect.gen(function* () {
-							const projectService = yield* ProjectService;
-							const productService = yield* ProductService;
-							const project =
-								yield* projectService.getProjectBySlugAndOrganizationSlug({
-									organizationSlug,
-									projectSlug,
-								});
-							if (!project) {
-								return yield* Effect.fail(
-									new NotFoundError({
-										message: "Project not found",
-									})
-								);
-							}
-							const products = yield* productService.getProducts(project.id);
-							return { project, products };
-						})
-					);
-				})
-			);
-		})
-	);
+  const data = await runServerEffect(
+    Effect.gen(function* () {
+      const authService = yield* AuthService;
+      const environmentService = yield* EnvironmentService;
+      const authSession = yield* authService.authenticateWithSession();
+      return yield* AuthSession.provide(authSession)(
+        Effect.gen(function* () {
+          const environment =
+            yield* environmentService.getEnvironmentFromCookie({
+              organizationSlug,
+              projectSlug
+            });
+          return yield* Environment.provide(environment)(
+            Effect.gen(function* () {
+              const projectService = yield* ProjectService;
+              const productService = yield* ProductService;
+              const project =
+                yield* projectService.getProjectBySlugAndOrganizationSlug({
+                  organizationSlug,
+                  projectSlug
+                });
+              if (!project) {
+                return yield* Effect.fail(
+                  new NotFoundError({
+                    message: 'Project not found'
+                  })
+                );
+              }
+              const products = yield* productService.getProducts(project.id);
+              return { project, products };
+            })
+          );
+        })
+      );
+    })
+  );
 
-	if (data.isErr()) {
-		const error = data._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
+  if (data.isErr()) {
+    const error = data._unsafeUnwrapErr();
+    return <VoidhashErrorCard error={error} />;
+  }
 
-	const { project, products } = data.value;
+  const { project, products } = data.value;
 
-	return (
-		<Page>
-			{/* Key is used to reload the default form data when the organization slug changes */}
-			<div className="max-w-4xl mx-auto">
-				<div className="flex flex-row items-center justify-between">
-					<h1 className="text-3xl font-normal tracking-right">Products</h1>
-					{products.length > 0 && (
-						<CreateProductModalButton projectId={project.id} />
-					)}
-				</div>
-				<p className="text-muted-foreground mt-3">
-					List of products available to purchase.
-				</p>
+  return (
+    <Page>
+      {/* Key is used to reload the default form data when the organization slug changes */}
+      <div className="mx-auto max-w-4xl">
+        <div className="flex flex-row items-center justify-between">
+          <h1 className="font-normal text-3xl tracking-right">Products</h1>
+          {products.length > 0 && (
+            <CreateProductModalButton projectId={project.id} />
+          )}
+        </div>
+        <p className="mt-3 text-muted-foreground">
+          List of products available to purchase.
+        </p>
 
-				<div className="mt-8">
-					{products.length === 0 ? (
-						<ProductsPageEmptyState projectId={project.id} />
-					) : (
-						<Card className="divide-y grid p-0 gap-0">
-							{products.map((product) => (
-								<ProductRecord
-									key={product.id}
-									product={product}
-									organizationSlug={organizationSlug}
-									projectSlug={projectSlug}
-									configurationStateIndicator={
-										<ProductRecordConfigurationStateIndicator
-											productId={product.id}
-											projectId={project.id}
-										/>
-									}
-								/>
-							))}
-						</Card>
-					)}
-				</div>
-			</div>
-		</Page>
-	);
+        <div className="mt-8">
+          {products.length === 0 ? (
+            <ProductsPageEmptyState projectId={project.id} />
+          ) : (
+            <Card className="grid gap-0 divide-y p-0">
+              {products.map((product) => (
+                <ProductRecord
+                  configurationStateIndicator={
+                    <ProductRecordConfigurationStateIndicator
+                      productId={product.id}
+                      projectId={project.id}
+                    />
+                  }
+                  key={product.id}
+                  organizationSlug={organizationSlug}
+                  product={product}
+                  projectSlug={projectSlug}
+                />
+              ))}
+            </Card>
+          )}
+        </div>
+      </div>
+    </Page>
+  );
 }

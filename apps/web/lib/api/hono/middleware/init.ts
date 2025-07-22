@@ -1,8 +1,8 @@
-import { MiddlewareHandler } from "hono";
-import { HonoEnv } from "../env";
-import { generateId } from "@/lib/id/generate";
-import { ConsoleLogger } from "@/lib/logger/console";
-import { env } from "@/lib/env";
+import type { MiddlewareHandler } from 'hono';
+import { env } from '@/lib/env';
+import { generateId } from '@/lib/id/generate';
+import { ConsoleLogger } from '@/lib/logger/console';
+import type { HonoEnv } from '../env';
 
 /**
  * workerId and coldStartAt are used to track the lifetime of the worker
@@ -10,39 +10,39 @@ import { env } from "@/lib/env";
  *
  * subsequent requests will use the same workerId and coldStartAt
  */
-let isolateId: string | undefined = undefined;
-let isolateCreatedAt: number | undefined = undefined;
+let isolateId: string | undefined;
+let isolateCreatedAt: number | undefined;
 /**
  * Initialize all services.
  *
  * Call this once before any hono handlers run.
  */
 export function init(): MiddlewareHandler<HonoEnv> {
-	return async (c, next) => {
-		if (!isolateId) {
-			isolateId = crypto.randomUUID();
-		}
-		if (!isolateCreatedAt) {
-			isolateCreatedAt = Date.now();
-		}
-		c.set("isolateId", isolateId);
-		c.set("isolateCreatedAt", isolateCreatedAt);
-		const requestId = generateId("request");
-		c.set("requestId", requestId);
+  return async (c, next) => {
+    if (!isolateId) {
+      isolateId = crypto.randomUUID();
+    }
+    if (!isolateCreatedAt) {
+      isolateCreatedAt = Date.now();
+    }
+    c.set('isolateId', isolateId);
+    c.set('isolateCreatedAt', isolateCreatedAt);
+    const requestId = generateId('request');
+    c.set('requestId', requestId);
 
-		c.set("requestStartedAt", Date.now());
+    c.set('requestStartedAt', Date.now());
 
-		c.res.headers.set("Voidhash-Request-Id", requestId);
+    c.res.headers.set('Voidhash-Request-Id', requestId);
 
-		const logger = new ConsoleLogger({
-			requestId,
-			application: "api",
-			environment: env.VERCEL_ENV ?? "unknown",
-			defaultFields: { environment: env.VERCEL_ENV ?? "unknown" },
-		});
+    const logger = new ConsoleLogger({
+      requestId,
+      application: 'api',
+      environment: env.VERCEL_ENV ?? 'unknown',
+      defaultFields: { environment: env.VERCEL_ENV ?? 'unknown' }
+    });
 
-		c.set("logger", logger);
+    c.set('logger', logger);
 
-		await next();
-	};
+    await next();
+  };
 }
