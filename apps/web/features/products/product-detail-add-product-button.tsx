@@ -1,36 +1,36 @@
-"use client";
+'use client';
 
-import { Button } from "@voidhash/ui";
-import { ProviderProductSheet } from "./provider-product-sheet";
-import { useState } from "react";
+import { Button } from '@voidhash/ui';
+import { useState } from 'react';
+import { ProviderProductSheet } from './provider-product-sheet';
 
 export function ProductDetailAddProductButton({
-	productId,
-	providerId,
-	paymentProviderConfigurationId,
-	title,
-	variant = "default",
+  productId,
+  providerId,
+  paymentProviderConfigurationId,
+  title,
+  variant = 'default'
 }: {
-	productId: string;
-	paymentProviderConfigurationId: string;
-	providerId: string;
-	title: string;
-	variant?: "default" | "secondary";
+  productId: string;
+  paymentProviderConfigurationId: string;
+  providerId: string;
+  title: string;
+  variant?: 'default' | 'secondary';
 }) {
-	const [open, setOpen] = useState(false);
-	return (
-		<>
-			<Button type="submit" variant={variant} onClick={() => setOpen(true)}>
-				Add {title} product
-			</Button>
-			<ProviderProductSheet
-				open={open}
-				onClose={() => setOpen(false)}
-				productId={productId}
-				paymentProviderConfigurationId={paymentProviderConfigurationId}
-				providerId={providerId}
-				mode={"add"}
-			/>
-		</>
-	);
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)} type="submit" variant={variant}>
+        Add {title} product
+      </Button>
+      <ProviderProductSheet
+        mode={'add'}
+        onClose={() => setOpen(false)}
+        open={open}
+        paymentProviderConfigurationId={paymentProviderConfigurationId}
+        productId={productId}
+        providerId={providerId}
+      />
+    </>
+  );
 }

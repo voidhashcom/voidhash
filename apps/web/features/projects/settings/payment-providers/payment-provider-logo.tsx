@@ -1,39 +1,39 @@
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { AppleLogo } from "./logos/apple-logo";
-import { StripeLogo } from "./logos/stripe-logo";
-import { cn, Logo } from "@voidhash/ui";
+import { cn, Logo } from '@voidhash/ui';
+import type { paymentProviders } from '@/lib/payment-providers/payment-providers';
+import { AppleLogo } from './logos/apple-logo';
+import { StripeLogo } from './logos/stripe-logo';
 
 export function PaymentProviderLogo({
-	providerId,
-	className,
+  providerId,
+  className
 }: {
-	providerId: ReturnType<(typeof paymentProviders)[number]["getId"]>;
-	className?: string;
+  providerId: ReturnType<(typeof paymentProviders)[number]['getId']>;
+  className?: string;
 }) {
-	if (providerId === "app-store") {
-		return <AppleLogo className={className} />;
-	}
+  if (providerId === 'app-store') {
+    return <AppleLogo className={className} />;
+  }
 
-	if (providerId === "stripe") {
-		return <StripeLogo className={className} />;
-	}
+  if (providerId === 'stripe') {
+    return <StripeLogo className={className} />;
+  }
 
-	if (providerId === "dev-checkout") {
-		return (
-			<div
-				className={cn(
-					"bg-primary p-1 rounded-md w-full h-full flex items-center justify-center",
-					className
-				)}
-			>
-				<Logo
-					variant="symbol"
-					color="mono"
-					className="w-full h-full text-white"
-				/>
-			</div>
-		);
-	}
+  if (providerId === 'dev-checkout') {
+    return (
+      <div
+        className={cn(
+          'flex h-full w-full items-center justify-center rounded-md bg-primary p-1',
+          className
+        )}
+      >
+        <Logo
+          className="h-full w-full text-white"
+          color="mono"
+          variant="symbol"
+        />
+      </div>
+    );
+  }
 
-	return null;
+  return null;
 }

@@ -1,37 +1,37 @@
-"use client";
+'use client';
 
-import { Button } from "@voidhash/ui/button";
-import { CreateSecretKeyModal } from "./create-secret-key-modal";
-import { useState } from "react";
-import { SecretKeyRevealModal } from "./secret-key-reveal-modal";
-import { ApiKey } from "@/lib/core/api-keys/types";
+import { Button } from '@voidhash/ui/button';
+import { useState } from 'react';
+import type { ApiKey } from '@/lib/core/api-keys/types';
+import { CreateSecretKeyModal } from './create-secret-key-modal';
+import { SecretKeyRevealModal } from './secret-key-reveal-modal';
 
 export function CreateSecretKeyModalButton({
-	projectId,
+  projectId
 }: {
-	projectId: string;
+  projectId: string;
 }) {
-	const [open, setOpen] = useState(false);
-	const [secretKey, setSecretKey] = useState<ApiKey | null>(null);
-	return (
-		<>
-			<CreateSecretKeyModal
-				open={open}
-				onClose={() => setOpen(false)}
-				onSuccess={(apiKey) => {
-					setOpen(false);
-					setSecretKey(apiKey);
-				}}
-				trigger={
-					<Button onClick={() => setOpen(true)}>Create secret key</Button>
-				}
-				projectId={projectId}
-			/>
-			<SecretKeyRevealModal
-				open={!!secretKey}
-				onClose={() => setSecretKey(null)}
-				apiKey={secretKey}
-			/>
-		</>
-	);
+  const [open, setOpen] = useState(false);
+  const [secretKey, setSecretKey] = useState<ApiKey | null>(null);
+  return (
+    <>
+      <CreateSecretKeyModal
+        onClose={() => setOpen(false)}
+        onSuccess={(apiKey) => {
+          setOpen(false);
+          setSecretKey(apiKey);
+        }}
+        open={open}
+        projectId={projectId}
+        trigger={
+          <Button onClick={() => setOpen(true)}>Create secret key</Button>
+        }
+      />
+      <SecretKeyRevealModal
+        apiKey={secretKey}
+        onClose={() => setSecretKey(null)}
+        open={!!secretKey}
+      />
+    </>
+  );
 }

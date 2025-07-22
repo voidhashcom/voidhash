@@ -1,5 +1,5 @@
-import { ProjectApiKeysPageSkeleton } from "@/features/api-keys/project-api-keys-page-skeleton";
+import { ProjectApiKeysPageSkeleton } from '@/features/api-keys/project-api-keys-page-skeleton';
 
 export default function Loading() {
-	return <ProjectApiKeysPageSkeleton />;
+  return <ProjectApiKeysPageSkeleton />;
 }

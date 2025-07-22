@@ -1,27 +1,28 @@
-"use client";
-import { useState } from "react";
-import { Button } from "@voidhash/ui/button";
-import { CreatePaywallLocationModal } from "./create-paywall-location-modal";
-import type { Paywall } from "@voidhash/db";
+'use client';
+import type { Paywall } from '@voidhash/db';
+import { Button } from '@voidhash/ui/button';
+import { useState } from 'react';
+import { CreatePaywallLocationModal } from './create-paywall-location-modal';
 
 export function CreatePaywallLocationModalButton({
-	projectId,
-	paywalls,
-}: { projectId: string; paywalls: Paywall[] }) {
-	const [open, setOpen] = useState(false);
+  projectId,
+  paywalls
+}: {
+  projectId: string;
+  paywalls: Paywall[];
+}) {
+  const [open, setOpen] = useState(false);
 
-	return (
-		<>
-			<CreatePaywallLocationModal
-				open={open}
-				onClose={() => setOpen(false)}
-				paywalls={paywalls}
-				trigger={
-					<Button onClick={() => setOpen(true)}>Add Paywall Location</Button>
-				}
-				projectId={projectId}
-				onSuccess={() => setOpen(false)}
-			/>
-		</>
-	);
+  return (
+    <CreatePaywallLocationModal
+      onClose={() => setOpen(false)}
+      onSuccess={() => setOpen(false)}
+      open={open}
+      paywalls={paywalls}
+      projectId={projectId}
+      trigger={
+        <Button onClick={() => setOpen(true)}>Add Paywall Location</Button>
+      }
+    />
+  );
 }

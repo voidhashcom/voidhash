@@ -1,8 +1,8 @@
 import {
-	fromUnknownThrow,
-	VoidhashInternalServerError,
-} from "@voidhash/lib/constants";
-import { Result, ok, err, Ok, Err } from "neverthrow";
+  fromUnknownThrow,
+  type VoidhashInternalServerError
+} from '@voidhash/lib/constants';
+import { Err, err, Ok, ok, type Result } from 'neverthrow';
 
 /**
  * A safe way to execute a function that may throw.
@@ -26,31 +26,31 @@ import { Result, ok, err, Ok, Err } from "neverthrow";
  * );
  */
 export function safeTry<TOk, SpecificError>(
-	fn: () => Result<TOk, SpecificError> | TOk
+  fn: () => Result<TOk, SpecificError> | TOk
 ): Result<TOk, SpecificError | VoidhashInternalServerError>;
 export function safeTry<TOk, SpecificError>(
-	fn: () => Result<TOk, SpecificError> | TOk,
-	errorFn: (error: unknown) => SpecificError
+  fn: () => Result<TOk, SpecificError> | TOk,
+  errorFn: (error: unknown) => SpecificError
 ): Result<TOk, SpecificError>;
 export function safeTry<TOk, SpecificError>(
-	fn: () => Result<TOk, SpecificError> | TOk,
-	errorFn?: (error: unknown) => SpecificError
+  fn: () => Result<TOk, SpecificError> | TOk,
+  errorFn?: (error: unknown) => SpecificError
 ): Result<TOk, SpecificError | VoidhashInternalServerError> {
-	try {
-		const result = fn();
+  try {
+    const result = fn();
 
-		if (result instanceof Ok) {
-			return ok(result.value);
-		}
+    if (result instanceof Ok) {
+      return ok(result.value);
+    }
 
-		if (result instanceof Err) {
-			return err(result.error);
-		}
+    if (result instanceof Err) {
+      return err(result.error);
+    }
 
-		return ok(result);
-	} catch (error) {
-		return err(errorFn ? errorFn(error) : fromUnknownThrow(error));
-	}
+    return ok(result);
+  } catch (error) {
+    return err(errorFn ? errorFn(error) : fromUnknownThrow(error));
+  }
 }
 
 /**
@@ -74,33 +74,33 @@ export function safeTry<TOk, SpecificError>(
  * }
  */
 export async function safeTryPromise<TOk, TryError>(
-	fn: () => Promise<Result<TOk, TryError> | TOk>
+  fn: () => Promise<Result<TOk, TryError> | TOk>
 ): Promise<Result<TOk, VoidhashInternalServerError | TryError>>;
 export async function safeTryPromise<TOk, TryError, SpecificError>(
-	fn: () => Promise<Result<TOk, TryError> | TOk>,
-	errorFn: (error: unknown) => SpecificError
+  fn: () => Promise<Result<TOk, TryError> | TOk>,
+  errorFn: (error: unknown) => SpecificError
 ): Promise<Result<TOk, SpecificError | TryError>>;
 export async function safeTryPromise<TOk, TryError, SpecificError>(
-	fn: () => Promise<Result<TOk, TryError> | TOk>,
-	errorFn?: (error: unknown) => SpecificError
+  fn: () => Promise<Result<TOk, TryError> | TOk>,
+  errorFn?: (error: unknown) => SpecificError
 ): Promise<
-	Result<TOk, SpecificError | TryError | VoidhashInternalServerError>
+  Result<TOk, SpecificError | TryError | VoidhashInternalServerError>
 > {
-	try {
-		const res = await fn();
+  try {
+    const res = await fn();
 
-		if (res instanceof Ok) {
-			return ok(res.value);
-		}
+    if (res instanceof Ok) {
+      return ok(res.value);
+    }
 
-		if (res instanceof Err) {
-			return err(res.error);
-		}
+    if (res instanceof Err) {
+      return err(res.error);
+    }
 
-		return ok(res);
-	} catch (error) {
-		return err(errorFn ? errorFn(error) : fromUnknownThrow(error));
-	}
+    return ok(res);
+  } catch (error) {
+    return err(errorFn ? errorFn(error) : fromUnknownThrow(error));
+  }
 }
 
 // class SfnError<TError> extends Error {

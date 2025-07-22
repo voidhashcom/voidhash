@@ -1,10 +1,10 @@
-import { createPaymentProviderApi } from "@/lib/core/payment-providers/payment-provider-api";
 // import { registerStripeWebhook } from "./api/webhook";
-import { App } from "@/lib/api/hono/app";
+import type { App } from '@/lib/api/hono/app';
+import { createPaymentProviderApi } from '@/lib/core/payment-providers/payment-provider-api';
 
 export const stripeApi = createPaymentProviderApi({
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	registerEndpoints: (app: App) => {
-		// registerStripeWebhook(app);
-	},
+  // biome-ignore lint/correctness/noUnusedFunctionParameters: TODO
+  registerEndpoints: (app: App) => {
+    // registerStripeWebhook(app);
+  }
 });
