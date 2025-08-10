@@ -22,10 +22,10 @@ export default async function DevelopersLayout({
       label: 'API Keys',
       path: `/${organizationSlug}/${projectSlug}/developers/api-keys`
     },
-    {
-      label: 'Paywall Locations',
-      path: `/${organizationSlug}/${projectSlug}/developers/paywall-locations`
-    },
+    // {
+    //   label: 'Paywall Locations',
+    //   path: `/${organizationSlug}/${projectSlug}/developers/paywall-locations`
+    // },
     {
       label: 'Perks',
       path: `/${organizationSlug}/${projectSlug}/developers/perks`

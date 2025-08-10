@@ -25,7 +25,7 @@
     "@effect/platform": "^0.87.12",
     "@effect/platform-node": "^0.89.5",
     "@hono/zod-openapi": "beta",
-    "@hono/zod-validator": "^0.7.0",
+    "@hono/zod-validator": "^0.7.2",
     "@hookform/resolvers": "^5.1.1",
     "@polar-sh/nextjs": "^0.4.0",
     "@react-three/drei": "^10.1.2",
@@ -67,7 +67,7 @@
     "vite-tsconfig-paths": "^5.1.4",
     "voidhash": "0.0.1-alpha.4",
     "zod": "^4.0.2",
-    "zod-openapi": "^5.1.0"
+    "zod-openapi": "^5.3.1"
   },
   "devDependencies": {
     "@effect/language-service": "^0.24.0",
