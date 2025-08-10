@@ -65,15 +65,6 @@ export function ProjectSidebar({
               )
           },
           {
-            title: 'Paywalls',
-            url: `/${organizationSlug}/${projectSlug}/paywalls`,
-            icon: GalleryHorizontalEnd,
-            isActive: () =>
-              pathname.startsWith(
-                `/${organizationSlug}/${projectSlug}/paywalls`
-              )
-          },
-          {
             title: 'Developers',
             url: `/${organizationSlug}/${projectSlug}/developers`,
             icon: SquareTerminal,
