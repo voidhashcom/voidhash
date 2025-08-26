@@ -54,17 +54,7 @@ export const registerSdkGetCustomer = (app: App) =>
             const environment =
               yield* environmentService.getEnvironmentFromApiAuthSession();
             const customer = yield* Environment.provide(environment)(
-              sdkService.getCustomerOrCreateAnonymous()
-            ).pipe(
-              Effect.catchTags({
-                InvalidAnonymousIdError: (error) =>
-                  Effect.fail(
-                    new HonoErrorResponse({
-                      code: 'BAD_REQUEST',
-                      message: error.message
-                    })
-                  )
-              })
+              sdkService.getCustomer()
             );
 
             if (!customer) {

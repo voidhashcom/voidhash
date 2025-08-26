@@ -13,26 +13,26 @@ const ErrorCode = z.enum([
   'UNAUTHORIZED'
 ]);
 
-export class VoidhashHTTPError extends Error {
-  code: z.infer<typeof ErrorCode>;
-  originalError: Error | null;
+// export class VoidhashHTTPError extends Error {
+//   code: z.infer<typeof ErrorCode>;
+//   originalError: Error | null;
 
-  constructor({
-    code,
-    message,
-    originalError
-  }: {
-    code: z.infer<typeof ErrorCode>;
-    message: string;
-    originalError?: unknown;
-  }) {
-    super(message);
-    this.name = `VoidhashError:${code}`;
-    this.message = `${message}`;
-    this.code = code;
-    this.originalError = originalError instanceof Error ? originalError : null;
-  }
-}
+//   constructor({
+//     code,
+//     message,
+//     originalError
+//   }: {
+//     code: z.infer<typeof ErrorCode>;
+//     message: string;
+//     originalError?: unknown;
+//   }) {
+//     super(message);
+//     this.name = `VoidhashError:${code}`;
+//     this.message = `${message}`;
+//     this.code = code;
+//     this.originalError = originalError instanceof Error ? originalError : null;
+//   }
+// }
 
 export function isVoidhashError(error: Error) {
   return error.message.startsWith('VoidhashError:');
@@ -131,24 +131,24 @@ export function fromUnknownThrow(error: unknown): VoidhashInternalServerError {
   };
 }
 
-export function toVoidhashHTTPError(
-  error: AnyVoidhashError
-): VoidhashHTTPError {
-  let originalError: Error | null = null;
-  switch (error.code) {
-    case 'BAD_REQUEST':
-      originalError = error.validationErrors ?? null;
-      break;
-    case 'INTERNAL_SERVER_ERROR':
-      originalError = error.originalError ?? null;
-      break;
-    default:
-      originalError = null;
-  }
+// export function toVoidhashHTTPError(
+//   error: AnyVoidhashError
+// ): VoidhashHTTPError {
+//   let originalError: Error | null = null;
+//   switch (error.code) {
+//     case 'BAD_REQUEST':
+//       originalError = error.validationErrors ?? null;
+//       break;
+//     case 'INTERNAL_SERVER_ERROR':
+//       originalError = error.originalError ?? null;
+//       break;
+//     default:
+//       originalError = null;
+//   }
 
-  return new VoidhashHTTPError({
-    code: error.code,
-    message: error.message,
-    originalError
-  });
-}
+//   return new VoidhashHTTPError({
+//     code: error.code,
+//     message: error.message,
+//     originalError
+//   });
+// }

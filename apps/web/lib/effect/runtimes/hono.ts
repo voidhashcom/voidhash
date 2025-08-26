@@ -401,20 +401,24 @@ export const createEffectHandler =
       pipe(
         effect,
         handleGlobalErrors,
-        Effect.catchTags({
-          HonoErrorResponse: (error) =>
-            Effect.succeed(toHonoErrorResponse(context, error))
-        }),
-        Effect.catchAll((error) => {
+        // biome-ignore lint/suspicious/noExplicitAny: required for the instanceof check
+        Effect.catchAll((error: any) => {
+          const honoErrorResponse =
+            error instanceof HonoErrorResponse
+              ? error
+              : new HonoErrorResponse({
+                  code: 'INTERNAL_SERVER_ERROR',
+                  message: 'Internal server error',
+                  originalError: error
+                });
+
+          context.get('logger').error('HonoErrorResponse', {
+            error: error.message,
+            cause: error.originalError
+          });
+
           return Effect.succeed(
-            toHonoErrorResponse(
-              context,
-              new HonoErrorResponse({
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'Internal server error',
-                originalError: error
-              })
-            )
+            toHonoErrorResponse(context, honoErrorResponse)
           );
         })
       )

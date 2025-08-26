@@ -1,6 +1,5 @@
 // Credited to https://github.com/unkeyed/unkey
 
-import { VoidhashHTTPError } from '@voidhash/lib/constants';
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { ContentfulStatusCode, StatusCode } from 'hono/utils/http-status';
@@ -170,32 +169,32 @@ export function handleZodError(
 export function handleError(err: Error, c: Context<HonoEnv>): Response {
   const logger = c.get('logger');
 
-  /**
-   * We can handle this very well, as it is something we threw ourselves
-   */
-  if (err instanceof VoidhashHTTPError) {
-    const status = codeToStatus(err.code);
-    if (status >= 500) {
-      logger.error('returning 5XX', {
-        message: err.message,
-        name: err.name,
-        code: err.code,
-        status: err.code
-      });
-    }
-    return c.json<z.infer<typeof ErrorSchema>>(
-      {
-        error: {
-          code: err.code,
-          // TODO: Add example link docs: `https://unkey.dev/docs/api-reference/errors/code/${err.code}`,
-          docs: '',
-          message: err.message,
-          requestId: c.get('requestId')
-        }
-      },
-      { status }
-    );
-  }
+  // /**
+  //  * We can handle this very well, as it is something we threw ourselves
+  //  */
+  // if (err instanceof HonoErro) {
+  //   const status = codeToStatus(err.code);
+  //   if (status >= 500) {
+  //     logger.error('returning 5XX', {
+  //       message: err.message,
+  //       name: err.name,
+  //       code: err.code,
+  //       status: err.code
+  //     });
+  //   }
+  //   return c.json<z.infer<typeof ErrorSchema>>(
+  //     {
+  //       error: {
+  //         code: err.code,
+  //         // TODO: Add example link docs: `https://unkey.dev/docs/api-reference/errors/code/${err.code}`,
+  //         docs: '',
+  //         message: err.message,
+  //         requestId: c.get('requestId')
+  //       }
+  //     },
+  //     { status }
+  //   );
+  // }
 
   /**
    * HTTPExceptions from hono at least give us some idea of what to do as they provide a status and

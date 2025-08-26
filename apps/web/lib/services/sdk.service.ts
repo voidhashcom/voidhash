@@ -10,7 +10,7 @@ import {
   Environment as EnvironmentEnum,
   type EnvironmentValue
 } from '@voidhash/lib/index';
-import { Data, Effect } from 'effect';
+import { Data, Effect, pipe } from 'effect';
 import { Db, TransactionContext } from '@/lib/effect/db';
 import { NotFoundError, UnauthorizedError } from '@/lib/effect/errors';
 import { Request } from '@/lib/effect/request';
@@ -75,6 +75,11 @@ type PaywallResponse = {
     webCheckoutAvailable: boolean;
     webCheckoutPaymentProviderConfigurationProductId: string | null;
   }[];
+};
+
+type CustomerAttributesParams = {
+  name?: string;
+  email?: string;
 };
 
 export class SdkService extends Effect.Service<SdkService>()('SdkService', {
@@ -176,13 +181,12 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
                 );
 
                 if (!customer && isAnonymousId(appUserId)) {
-                  const newCustomer =
-                    yield* customerService.createAnonymousCustomer({
-                      projectId,
-                      appUserId,
-                      origin: CustomerOrigin.IOS, // TODO: Make this dynamic
-                      environment
-                    });
+                  const newCustomer = yield* customerService.createCustomer({
+                    projectId,
+                    appUserId,
+                    origin: CustomerOrigin.IOS, // TODO: Make this dynamic
+                    environment
+                  });
                   customer = newCustomer;
                 }
 
@@ -460,7 +464,8 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
                     email: input.email ?? null,
                     origin: CustomerOrigin.IOS, // TODO: Make this dynamic
                     environment,
-                    type: CustomerType.Identified
+                    type: CustomerType.Identified,
+                    additionalAttributes: {}
                   } satisfies InsertCustomer;
 
                   yield* customerRepository.createCustomer(newCustomer);
@@ -522,12 +527,136 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
           return result;
         }),
 
-      getCustomerOrCreateAnonymous: () =>
+      syncCustomerAttributes: (input: CustomerAttributesParams) =>
         Effect.gen(function* () {
+          const request = yield* Request;
           const session = yield* AuthSession;
           const environment = yield* Environment;
           const customerRepository = yield* CustomerRepository;
           const customerService = yield* CustomerService;
+
+          const appUserId = session?.customer?.appUserId;
+          if (!appUserId) {
+            return yield* Effect.fail(
+              new UnauthorizedError({
+                message: 'App user ID not found'
+              })
+            );
+          }
+
+          const projectId = session?.projects[0]?.id;
+          if (!projectId) {
+            return yield* Effect.fail(
+              new NotFoundError({
+                message: 'Project ID not found after authentication'
+              })
+            );
+          }
+
+          // Get or create customer
+          const customer = yield* pipe(
+            customerRepository.getCustomerByAppUserId({
+              appUserId,
+              environment,
+              projectId
+            }),
+
+            Effect.andThen((customer) => {
+              if (customer) {
+                return Effect.succeed(customer);
+              }
+
+              return pipe(
+                customerService.createCustomer({
+                  projectId,
+                  appUserId,
+                  origin: CustomerOrigin.IOS, // TODO: Make this dynamic
+                  environment
+                }),
+
+                // Get customer after creation
+                Effect.andThen(() =>
+                  customerRepository.getCustomerByAppUserId({
+                    appUserId,
+                    environment,
+                    projectId
+                  })
+                ),
+
+                // This is required to make the type checker happy
+                Effect.andThen((customer) =>
+                  customer
+                    ? Effect.succeed(customer)
+                    : Effect.dieMessage(
+                        'Customer not found after syncCustomerData. This should never happen, because we created it before retrieving it.'
+                      )
+                )
+              );
+            })
+          );
+
+          const headers = yield* request.getHeaders();
+          const sdkHeaders = parseSdkHeaders(headers);
+
+          yield* Effect.log(JSON.stringify(sdkHeaders, null, 2));
+
+          yield* customerRepository.updateCustomer({
+            id: customer.id,
+            name: input.name,
+            email: input.email,
+            additionalAttributes: {
+              ...(customer.additionalAttributes ?? {}),
+              platform: sdkHeaders['x-platform'],
+              sdk: sdkHeaders['x-sdk'],
+              sdkVersion: sdkHeaders['x-sdk-version'],
+              platformFlavor: sdkHeaders['x-platform-flavor'],
+              platformFlavorVersion: sdkHeaders['x-platform-flavor-version'],
+              platformVersion: sdkHeaders['x-platform-version'],
+              platformDevice: sdkHeaders['x-platform-device'],
+              platformBrand: sdkHeaders['x-platform-brand'],
+              preferredLocales: sdkHeaders['x-preferred-locales'],
+              clientLocale: sdkHeaders['x-client-locale'],
+              clientVersion: sdkHeaders['x-client-version'],
+              storefront: sdkHeaders['x-storefront']
+            }
+          });
+
+          yield* Effect.log(
+            `Synced customer data ${JSON.stringify(
+              {
+                id: customer.id,
+                name: input.name,
+                email: input.email,
+                additionalAttributes: {
+                  ...(customer.additionalAttributes ?? {}),
+                  platform: sdkHeaders['x-platform'],
+                  sdk: sdkHeaders['x-sdk'],
+                  sdkVersion: sdkHeaders['x-sdk-version'],
+                  platformFlavor: sdkHeaders['x-platform-flavor'],
+                  platformFlavorVersion:
+                    sdkHeaders['x-platform-flavor-version'],
+                  platformVersion: sdkHeaders['x-platform-version'],
+                  platformDevice: sdkHeaders['x-platform-device'],
+                  platformBrand: sdkHeaders['x-platform-brand'],
+                  preferredLocales: sdkHeaders['x-preferred-locales'],
+                  clientLocale: sdkHeaders['x-client-locale'],
+                  clientVersion: sdkHeaders['x-client-version'],
+                  storefront: sdkHeaders['x-storefront']
+                }
+              },
+              null,
+              2
+            )} for customer ${customer.id} for app user ${appUserId}`
+          );
+
+          return customer;
+        }),
+
+      getCustomer: () =>
+        Effect.gen(function* () {
+          const session = yield* AuthSession;
+          const environment = yield* Environment;
+          const customerRepository = yield* CustomerRepository;
           const db = yield* Db;
 
           const appUserId = session?.customer?.appUserId;
@@ -569,18 +698,6 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
                     return parentCustomer;
                   }
                   return customer;
-                }
-
-                // Customer not found, check if we should create anonymous customer
-                if (isAnonymousId(appUserId)) {
-                  const newCustomer =
-                    yield* customerService.createAnonymousCustomer({
-                      projectId,
-                      appUserId,
-                      origin: CustomerOrigin.IOS, // TODO: Make this dynamic
-                      environment
-                    });
-                  return newCustomer;
                 }
 
                 // Customer not found and not anonymous ID
