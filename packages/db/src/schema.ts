@@ -101,6 +101,21 @@ export const CustomerOrigin = {
 export type CustomerOriginValue =
   (typeof CustomerOrigin)[keyof typeof CustomerOrigin];
 
+export type AdditionalCustomerAttributes = {
+  platform?: string;
+  sdk?: string;
+  sdkVersion?: string;
+  platformFlavor?: string;
+  platformFlavorVersion?: string;
+  platformVersion?: string;
+  platformDevice?: string;
+  platformBrand?: string;
+  preferredLocales?: string;
+  clientLocale?: string;
+  clientVersion?: string;
+  storefront?: string;
+};
+
 export const customers = mysqlTable(
   'customer',
   {
@@ -110,6 +125,10 @@ export const customers = mysqlTable(
     // Connecting customer to user in app
     appUserId: varchar('app_user_id', { length: 255 }).notNull(),
     email: varchar('email', { length: 255 }),
+    additionalAttributes: json(
+      'additional_attributes'
+    ).$type<AdditionalCustomerAttributes>(),
+
     /**
      * From where the customer was created
      */

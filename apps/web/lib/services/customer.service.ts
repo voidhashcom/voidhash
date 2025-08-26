@@ -34,46 +34,47 @@ export class CustomerService extends Effect.Service<CustomerService>()(
     effect: Effect.gen(function* () {
       const customerRepository = yield* CustomerRepository;
       return {
+        // createCustomer: (input: {
+        //   projectId: string;
+        //   appUserId: string;
+        //   name?: string | null;
+        //   email?: string | null;
+        //   attributes?: Record<string, string | number | boolean | null>;
+        //   origin: CustomerOriginValue;
+        // }) =>
+        //   Effect.gen(function* () {
+        //     const session = yield* AuthSession;
+        //     const environment = yield* Environment;
+        //     const customerRepository = yield* CustomerRepository;
+
+        //     // SECURITY: Authorization check
+        //     yield* checkProjectPermission(
+        //       input.projectId,
+        //       'project:all',
+        //       `User ${session?.user?.id} is not authorized to create customers for project ${input.projectId}`
+        //     );
+
+        //     const newCustomer = {
+        //       id: generateId('customer'),
+        //       projectId: input.projectId,
+        //       appUserId: input.appUserId,
+        //       type: CustomerType.Identified,
+        //       name: input.name ?? null,
+        //       email: input.email ?? null,
+        //       parentCustomerId: null,
+        //       origin: input.origin,
+        //       environment
+        //     } satisfies InsertCustomer;
+
+        //     yield* customerRepository.createCustomer(newCustomer);
+        //     return {
+        //       ...newCustomer,
+        //       createdAt: new Date(),
+        //       updatedAt: new Date()
+        //     };
+        //   }),
+
         createCustomer: (input: {
-          projectId: string;
-          appUserId: string;
-          name?: string | null;
-          email?: string | null;
-          origin: CustomerOriginValue;
-        }) =>
-          Effect.gen(function* () {
-            const session = yield* AuthSession;
-            const environment = yield* Environment;
-            const customerRepository = yield* CustomerRepository;
-
-            // SECURITY: Authorization check
-            yield* checkProjectPermission(
-              input.projectId,
-              'project:all',
-              `User ${session?.user?.id} is not authorized to create customers for project ${input.projectId}`
-            );
-
-            const newCustomer = {
-              id: generateId('customer'),
-              projectId: input.projectId,
-              appUserId: input.appUserId,
-              type: CustomerType.Identified,
-              name: input.name ?? null,
-              email: input.email ?? null,
-              parentCustomerId: null,
-              origin: input.origin,
-              environment
-            } satisfies InsertCustomer;
-
-            yield* customerRepository.createCustomer(newCustomer);
-            return {
-              ...newCustomer,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            };
-          }),
-
-        createAnonymousCustomer: (input: {
           projectId: string;
           appUserId: string;
           origin: CustomerOriginValue;
@@ -92,20 +93,24 @@ export class CustomerService extends Effect.Service<CustomerService>()(
 
             const newCustomer = {
               id: generateId('customer'),
-              type: CustomerType.Anonymous,
+              type: input.appUserId.startsWith(ANONYMOUS_USER_ID_PREFIX)
+                ? CustomerType.Anonymous
+                : CustomerType.Identified,
               parentCustomerId: null,
               projectId: input.projectId,
               appUserId: input.appUserId,
               origin: input.origin,
               environment: input.environment,
               name: null,
-              email: null
+              email: null,
+              additionalAttributes: {}
+              // TODO: Figure out how to handle attributes
             } satisfies InsertCustomer;
 
             yield* customerRepository.createCustomer(newCustomer);
 
             yield* Effect.log(
-              `Created anonymous customer ${newCustomer.id} for app user ${input.appUserId}`
+              `Created customer ${newCustomer.id} (${newCustomer.type === CustomerType.Anonymous ? 'anonymous' : 'identified'}) for app user ${input.appUserId}`
             );
 
             return yield* Effect.succeed({

@@ -25,8 +25,9 @@ import { registerSdkCreateCheckout } from './v1/sdk_createCheckout';
 import { registerSdkGetCustomer } from './v1/sdk_getCustomer';
 import { registerSdkGetPaywallByLocation } from './v1/sdk_getPaywallByLocation';
 import { registerSdkIdentify } from './v1/sdk_identify';
+import { registerSdkSyncCustomerAttributes } from './v1/sdk_syncCustomerAttributes';
 
-export const app = newApp();
+const app = newApp();
 
 const url =
   process.env.NODE_ENV === 'development'
@@ -63,6 +64,7 @@ registerSdkCreateCheckout(app);
 registerSdkGetCustomer(app);
 registerSdkIdentify(app);
 registerSdkGetPaywallByLocation(app);
+registerSdkSyncCustomerAttributes(app);
 
 for (const api of paymentProviderApis) {
   api.registerEndpoints(app);
@@ -97,3 +99,5 @@ app.get(
     }
   })
 );
+
+export { app };

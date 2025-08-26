@@ -921,10 +921,23 @@ export const createCustomerAction = actionClient
                   projectId: parsedInput.projectId
                 });
               return yield* Environment.provide(environment)(
-                customerService.createCustomer({
-                  ...parsedInput,
-                  origin: CustomerOrigin.Dashboard
-                })
+                customerService
+                  .createCustomer({
+                    ...parsedInput,
+                    origin: CustomerOrigin.Dashboard,
+                    environment
+                  })
+                  .pipe(
+                    Effect.catchTags({
+                      InvalidAnonymousIdError: (error) =>
+                        Effect.fail(
+                          new NextjsErrorResponse({
+                            code: 'BAD_REQUEST',
+                            message: error.message
+                          })
+                        )
+                    })
+                  )
               );
             })
           );

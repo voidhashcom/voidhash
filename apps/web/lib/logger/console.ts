@@ -20,23 +20,6 @@ export class ConsoleLogger implements Logger {
     this.defaultFields = opts.defaultFields ?? {};
   }
 
-  private marshal(
-    level: 'debug' | 'info' | 'warn' | 'error' | 'fatal',
-    message: string,
-    fields?: Fields
-  ): string {
-    return new Log({
-      type: 'log',
-      environment: this.environment,
-      application: this.application,
-      requestId: this.requestId,
-      time: Date.now(),
-      level,
-      message,
-      context: { ...this.defaultFields, ...fields }
-    }).toString();
-  }
-
   debug(message: string, fields?: Fields): void {
     console.debug(this.marshal('debug', message, fields));
   }
@@ -55,5 +38,22 @@ export class ConsoleLogger implements Logger {
 
   setRequestId(requestId: string): void {
     this.requestId = requestId;
+  }
+
+  private marshal(
+    level: 'debug' | 'info' | 'warn' | 'error' | 'fatal',
+    message: string,
+    fields?: Fields
+  ): string {
+    return new Log({
+      type: 'log',
+      environment: this.environment,
+      application: this.application,
+      requestId: this.requestId,
+      time: Date.now(),
+      level,
+      message,
+      context: { ...this.defaultFields, ...fields }
+    }).toString();
   }
 }

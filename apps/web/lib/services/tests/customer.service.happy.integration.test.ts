@@ -22,7 +22,8 @@ describe.sequential('CustomerService happy path', () => {
       appUserId: 'test-app-user-id',
       name: 'Test Customer',
       email: 'test@example.com',
-      origin: CustomerOrigin.Dashboard
+      origin: CustomerOrigin.Dashboard,
+      environment: EnvironmentEnum.Production
     };
     const result = await integrationTestRunner(
       Effect.gen(function* () {
@@ -79,8 +80,7 @@ describe.sequential('CustomerService happy path', () => {
         return yield* pipe(
           Effect.gen(function* () {
             const customerService = yield* CustomerService;
-            const customer =
-              yield* customerService.createAnonymousCustomer(input);
+            const customer = yield* customerService.createCustomer(input);
             return customer;
           }),
           Effect.provideService(
