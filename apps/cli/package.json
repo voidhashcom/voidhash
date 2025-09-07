@@ -13,7 +13,7 @@
     "./schema": "./src/schema.ts"
   },
   "scripts": {
-    "dev": "bun run src/index.ts",
+    "start": "tsx ./src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",
+    "tsx": "^4.19.3",
     "typescript": "5.8.3",
     "vitest": "^3.0.9"
   },
