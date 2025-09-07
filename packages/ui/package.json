@@ -120,6 +120,6 @@
     "@types/react": "^19.1.5",
     "@types/react-dom": "^19.1.5",
     "@voidhash/tsconfig": "workspace:*",
-    "typescript": "5.6.1-rc"
+    "typescript": "5.6.3"
   }
 }

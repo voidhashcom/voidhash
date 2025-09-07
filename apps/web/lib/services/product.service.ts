@@ -1,13 +1,8 @@
-import { Environment as EnvironmentEnum } from '@voidhash/lib/index';
 import { Data, Effect } from 'effect';
 import { Db, TransactionContext } from '@/lib/effect/db';
 import { NotFoundError } from '@/lib/effect/errors';
 import { checkProjectPermission } from '@/lib/effect/permissions';
 import { generateId } from '@/lib/id/generate';
-import {
-  devCheckout,
-  devCheckoutPaymentProviderId
-} from '@/lib/payment-providers/dev-checkout/dev-checkout';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
 import { AuthSession } from '@/lib/services/auth.service';
 import { Environment } from '@/lib/services/environment.service';
@@ -82,8 +77,6 @@ export class ProductService extends Effect.Service<ProductService>()(
           Effect.gen(function* () {
             const session = yield* AuthSession;
             const productRepository = yield* ProductRepository;
-            const paymentProviderConfigurationProductRepository =
-              yield* PaymentProviderConfigurationProductRepository;
             const environment = yield* Environment;
             const db = yield* Db;
 
@@ -107,48 +100,6 @@ export class ProductService extends Effect.Service<ProductService>()(
                 Effect.gen(function* () {
                   // Create the product
                   yield* productRepository.createProduct(newProduct);
-
-                  // For testing environment, create dev checkout configuration
-                  if (environment === EnvironmentEnum.Testing) {
-                    const devCheckoutConfig = yield* tx(async (dbTx) => {
-                      return await dbTx.query.paymentProviderConfigurations.findFirst(
-                        {
-                          where: (configs, { eq, and }) =>
-                            and(
-                              eq(configs.projectId, input.projectId),
-                              eq(
-                                configs.providerId,
-                                devCheckoutPaymentProviderId
-                              )
-                            )
-                        }
-                      );
-                    });
-
-                    if (!devCheckoutConfig) {
-                      return yield* Effect.fail(
-                        new PaymentProviderConfigurationNotFoundError({
-                          message: 'Dev Checkout configuration not found'
-                        })
-                      );
-                    }
-
-                    yield* paymentProviderConfigurationProductRepository.createPaymentProviderProduct(
-                      {
-                        id: generateId('paymentProviderProduct'),
-                        productId,
-                        paymentProviderConfigurationId: devCheckoutConfig.id,
-                        providerProductKey: devCheckout.createProductKey({
-                          productId
-                        }),
-                        configuration: {
-                          productId
-                        },
-                        environment,
-                        isActive: true
-                      }
-                    );
-                  }
                 })
               )
             );

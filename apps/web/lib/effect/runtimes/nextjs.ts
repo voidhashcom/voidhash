@@ -11,7 +11,6 @@ import { err, ok, type Result } from 'neverthrow';
 import { isDynamicServerError } from 'next/dist/client/components/hooks-server-context';
 import { cookies, headers } from 'next/headers';
 import { unstable_rethrow } from 'next/navigation';
-import { DevCheckoutService } from '@/lib/payment-providers/dev-checkout/dev-checkout.service';
 import { ApiKeyRepository } from '@/lib/repositories/api-key.repository';
 import { CheckoutSessionRepository } from '@/lib/repositories/checkout-session.repository';
 import { CustomerRepository } from '@/lib/repositories/customer.repository';
@@ -143,8 +142,7 @@ const RuntimeLayer = () => {
     Layer.provideMerge(ProductService.Default),
     Layer.provideMerge(ProjectService.Default),
     Layer.provideMerge(SdkService.Default),
-    Layer.provideMerge(UserService.Default),
-    Layer.provideMerge(DevCheckoutService.Default)
+    Layer.provideMerge(UserService.Default)
   );
 
   return pipe(

@@ -33,49 +33,64 @@ export class PinoLogger implements Logger {
   }
 
   debug(message: string, fields?: Fields): void {
-    pinoLogger.debug(message, {
-      environment: this.environment,
-      application: this.application,
-      requestId: this.requestId,
-      ...this.defaultFields,
-      ...fields
-    });
+    pinoLogger.debug(
+      {
+        environment: this.environment,
+        application: this.application,
+        requestId: this.requestId,
+        ...this.defaultFields,
+        ...fields
+      },
+      message
+    );
   }
   info(message: string, fields?: Fields): void {
-    pinoLogger.info(message, {
-      environment: this.environment,
-      application: this.application,
-      requestId: this.requestId,
-      ...this.defaultFields,
-      ...fields
-    });
+    pinoLogger.info(
+      {
+        environment: this.environment,
+        application: this.application,
+        requestId: this.requestId,
+        ...this.defaultFields,
+        ...fields
+      },
+      message
+    );
   }
   warn(message: string, fields?: Fields): void {
-    pinoLogger.warn(message, {
-      environment: this.environment,
-      application: this.application,
-      requestId: this.requestId,
-      ...this.defaultFields,
-      ...fields
-    });
+    pinoLogger.warn(
+      {
+        environment: this.environment,
+        application: this.application,
+        requestId: this.requestId,
+        ...this.defaultFields,
+        ...fields
+      },
+      message
+    );
   }
   error(message: string, fields?: Fields): void {
-    pinoLogger.error(message, {
-      environment: this.environment,
-      application: this.application,
-      requestId: this.requestId,
-      ...this.defaultFields,
-      ...fields
-    });
+    pinoLogger.error(
+      {
+        environment: this.environment,
+        application: this.application,
+        requestId: this.requestId,
+        ...this.defaultFields,
+        ...fields
+      },
+      message
+    );
   }
   fatal(message: string, fields?: Fields): void {
-    pinoLogger.fatal(message, {
-      environment: this.environment,
-      application: this.application,
-      requestId: this.requestId,
-      ...this.defaultFields,
-      ...fields
-    });
+    pinoLogger.fatal(
+      {
+        environment: this.environment,
+        application: this.application,
+        requestId: this.requestId,
+        ...this.defaultFields,
+        ...fields
+      },
+      message
+    );
   }
 
   setRequestId(requestId: string): void {

@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",
-    "typescript": "5.6.1-rc"
+    "typescript": "5.6.3"
   },
   "peerDependencies": {
     "better-auth": "^1.2.4"

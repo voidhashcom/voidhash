@@ -1,7 +1,6 @@
 import { Context, Data, Effect, Layer, ManagedRuntime, pipe } from 'effect';
 import type { z } from 'zod';
 import type { ErrorCode } from '@/lib/api/errors/http';
-import { DevCheckoutService } from '@/lib/payment-providers/dev-checkout/dev-checkout.service';
 import { ApiKeyRepository } from '@/lib/repositories/api-key.repository';
 import { CheckoutSessionRepository } from '@/lib/repositories/checkout-session.repository';
 import { CustomerRepository } from '@/lib/repositories/customer.repository';
@@ -118,8 +117,7 @@ const RuntimeLayer = (type: RuntimeType) => {
     Layer.provideMerge(ProductService.Default),
     Layer.provideMerge(ProjectService.Default),
     Layer.provideMerge(SdkService.Default),
-    Layer.provideMerge(UserService.Default),
-    Layer.provideMerge(DevCheckoutService.Default)
+    Layer.provideMerge(UserService.Default)
   );
 
   return pipe(

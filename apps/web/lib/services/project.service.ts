@@ -1,4 +1,3 @@
-import { paymentProviderConfigurations } from '@voidhash/db';
 import {
   createShortId,
   createSlug,
@@ -13,10 +12,6 @@ import {
   checkProjectPermission
 } from '@/lib/effect/permissions';
 import { generateId } from '@/lib/id/generate';
-import {
-  devCheckout,
-  devCheckoutPaymentProviderId
-} from '@/lib/payment-providers/dev-checkout/dev-checkout';
 import { AuthSession } from '@/lib/services/auth.service';
 import { createPublishableKey } from '../core/api-keys/effect/utils';
 import { ApiKeyRepository } from '../repositories/api-key.repository';
@@ -105,25 +100,6 @@ export class ProjectService extends Effect.Service<ProjectService>()(
                     projectId: id,
                     name: 'Publishable key',
                     ...testingPublishableKey
-                  });
-
-                  // Create dev checkout payment provider configuration using db directly since no repository exists
-                  const devCheckoutConfigurationId = generateId(
-                    'paymentProviderConfiguration'
-                  );
-                  yield* tx(async (dbTx) => {
-                    await dbTx.insert(paymentProviderConfigurations).values({
-                      id: devCheckoutConfigurationId,
-                      projectId: id,
-                      name: 'Dev Checkout',
-                      providerId: devCheckoutPaymentProviderId,
-                      paymentProviderKey: devCheckout.createGlobalKey({
-                        paymentProviderConfigurationId:
-                          devCheckoutConfigurationId
-                      }),
-                      enabled: true,
-                      configuration: {}
-                    });
                   });
                 })
               )
