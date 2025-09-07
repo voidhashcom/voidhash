@@ -1,5 +1,5 @@
-import { stripe } from "./stripe/stripe";
-import { devCheckout } from "./dev-checkout/dev-checkout";
-import { appStore } from "./app-store/app-store";
+import { appStore } from './app-store/app-store';
+import { devCheckout } from './dev-checkout/dev-checkout';
+import { stripe } from './stripe/stripe';
 
 export const paymentProviders = [stripe, devCheckout, appStore] as const;

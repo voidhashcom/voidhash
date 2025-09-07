@@ -1,82 +1,82 @@
-import { Page } from "@/features/shell";
-import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { PaymentProviderDetailConfiguration } from "./payment-provider-detail-configuration";
-import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { PaymentProviderService } from "@/lib/services/payment-provider.service";
-import { ProjectService } from "@/lib/services/project.service";
-import { Effect } from "effect";
-import { NotFoundError } from "@/lib/effect/errors";
-import { AuthService, AuthSession } from "@/lib/services/auth.service";
+import { Effect } from 'effect';
+import { Page } from '@/features/shell';
+import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
+import { NotFoundError } from '@/lib/effect/errors';
+import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { PaymentProviderService } from '@/lib/services/payment-provider.service';
+import { ProjectService } from '@/lib/services/project.service';
+import { PaymentProviderDetailConfiguration } from './payment-provider-detail-configuration';
 
 export async function PaymentProviderDetailPage({
-	paramsPromise,
+  paramsPromise
 }: {
-	paramsPromise: Promise<{
-		paymentProviderConfigurationId: string;
-		organizationSlug: string;
-		projectSlug: string;
-	}>;
+  paramsPromise: Promise<{
+    paymentProviderConfigurationId: string;
+    organizationSlug: string;
+    projectSlug: string;
+  }>;
 }) {
-	const { organizationSlug, projectSlug, paymentProviderConfigurationId } =
-		await paramsPromise;
+  const { organizationSlug, projectSlug, paymentProviderConfigurationId } =
+    await paramsPromise;
 
-	const data = await runServerEffect(
-		Effect.gen(function* () {
-			const authService = yield* AuthService;
-			const authSession = yield* authService.authenticateWithSession();
-			return yield* AuthSession.provide(authSession)(
-				Effect.gen(function* () {
-					const projectService = yield* ProjectService;
-					const paymentProviderService = yield* PaymentProviderService;
-					const project =
-						yield* projectService.getProjectBySlugAndOrganizationSlug({
-							organizationSlug,
-							projectSlug,
-						});
-					if (!project) {
-						return yield* Effect.fail(
-							new NotFoundError({
-								message: "Project not found",
-							})
-						);
-					}
-					const paymentProviderConfiguration =
-						yield* paymentProviderService.getPaymentProviderConfigurationById(
-							paymentProviderConfigurationId
-						);
-					return { project, paymentProviderConfiguration };
-				})
-			);
-		})
-	);
+  const data = await runServerEffect(
+    Effect.gen(function* () {
+      const authService = yield* AuthService;
+      const authSession = yield* authService.authenticateWithSession();
+      return yield* AuthSession.provide(authSession)(
+        Effect.gen(function* () {
+          const projectService = yield* ProjectService;
+          const paymentProviderService = yield* PaymentProviderService;
+          const project =
+            yield* projectService.getProjectBySlugAndOrganizationSlug({
+              organizationSlug,
+              projectSlug
+            });
+          if (!project) {
+            return yield* Effect.fail(
+              new NotFoundError({
+                message: 'Project not found'
+              })
+            );
+          }
+          const paymentProviderConfiguration =
+            yield* paymentProviderService.getPaymentProviderConfigurationById(
+              paymentProviderConfigurationId
+            );
+          return { project, paymentProviderConfiguration };
+        })
+      );
+    })
+  );
 
-	if (data.isErr()) {
-		const error = data._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
+  if (data.isErr()) {
+    const error = data._unsafeUnwrapErr();
+    return <VoidhashErrorCard error={error} />;
+  }
 
-	const { project, paymentProviderConfiguration } = data.value;
+  const { project, paymentProviderConfiguration } = data.value;
 
-	return (
-		<Page
-			className="p-0 pb-0  pt-3 flex flex-col flex-1"
-			breadcrumbs={[
-				{
-					title: "Payment Providers",
-					url: `/${organizationSlug}/${projectSlug}/settings/payment-providers`,
-				},
-				{
-					title: paymentProviderConfiguration.name,
-					url: `/${organizationSlug}/${projectSlug}/settings/payment-providers/${paymentProviderConfiguration.id}`,
-				},
-			]}
-		>
-			<PaymentProviderDetailConfiguration
-				organizationSlug={organizationSlug}
-				projectSlug={projectSlug}
-				paymentProviderConfiguration={paymentProviderConfiguration}
-				project={project}
-			/>
-		</Page>
-	);
+  return (
+    <Page
+      breadcrumbs={[
+        {
+          title: 'Payment Providers',
+          url: `/${organizationSlug}/${projectSlug}/settings/payment-providers`
+        },
+        {
+          title: paymentProviderConfiguration.name,
+          url: `/${organizationSlug}/${projectSlug}/settings/payment-providers/${paymentProviderConfiguration.id}`
+        }
+      ]}
+      className="flex flex-1 flex-col p-0 pt-3 pb-0"
+    >
+      <PaymentProviderDetailConfiguration
+        organizationSlug={organizationSlug}
+        paymentProviderConfiguration={paymentProviderConfiguration}
+        project={project}
+        projectSlug={projectSlug}
+      />
+    </Page>
+  );
 }

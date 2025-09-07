@@ -1,64 +1,60 @@
-"use client";
+'use client';
 
+import { authClient } from '@voidhash/auth/client';
 import {
-	DropdownMenuContent,
-	DropdownMenuLabel,
-	Avatar,
-	GradientAvatar,
-	AvatarFallback,
-	DropdownMenuSeparator,
-	DropdownMenuItem,
-	ToggleGroup,
-	ToggleGroupItem,
-} from "@voidhash/ui";
-import { LogOut, Monitor, Moon, Sun } from "lucide-react";
-import { authClient } from "@voidhash/auth/client";
-import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import { User } from "better-auth";
+  Avatar,
+  AvatarFallback,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  GradientAvatar,
+  ToggleGroup,
+  ToggleGroupItem
+} from '@voidhash/ui';
+import type { User } from 'better-auth';
+import { LogOut, Monitor, Moon, Sun } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 
-export function NavUserDropdown({
-	user,
-}: {
-	user: User;
-}) {
-	const router = useRouter();
+export function NavUserDropdown({ user }: { user: User }) {
+  const router = useRouter();
 
-	const { setTheme, theme } = useTheme();
+  const { setTheme, theme } = useTheme();
 
-	const handleSignOut = async () => {
-		await authClient.signOut();
-		router.refresh();
-		router.push("/login");
-	};
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    router.refresh();
+    router.push('/login');
+  };
 
-	return (
-		<DropdownMenuContent
-			className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-			side={"bottom"}
-			align="end"
-			sideOffset={4}
-		>
-			<DropdownMenuLabel className="p-0 font-normal">
-				<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-					<Avatar className="h-8 w-8 rounded-lg">
-						<GradientAvatar
-							className="h-8 w-8 rounded-lg"
-							src={user.image ?? undefined}
-							alt={user.name}
-							fallback={user.id}
-						/>
-						<AvatarFallback className="rounded-lg">CN</AvatarFallback>
-					</Avatar>
-					<div className="grid flex-1 text-left text-sm leading-tight">
-						<span className="truncate font-semibold">{user.name}</span>
-						<span className="truncate text-xs text-muted-foreground">
-							{user.email}
-						</span>
-					</div>
-				</div>
-			</DropdownMenuLabel>
-			{/* <DropdownMenuSeparator />
+  return (
+    <DropdownMenuContent
+      align="end"
+      className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+      side={'bottom'}
+      sideOffset={4}
+    >
+      <DropdownMenuLabel className="p-0 font-normal">
+        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+          <Avatar className="h-8 w-8 rounded-lg">
+            <GradientAvatar
+              alt={user.name}
+              className="h-8 w-8 rounded-lg"
+              fallback={user.id}
+              src={user.image ?? undefined}
+            />
+            <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+          </Avatar>
+          <div className="grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-semibold">{user.name}</span>
+            <span className="truncate text-muted-foreground text-xs">
+              {user.email}
+            </span>
+          </div>
+        </div>
+      </DropdownMenuLabel>
+      {/* <DropdownMenuSeparator />
 
 			<DropdownMenuGroup>
 				<DropdownMenuItem>
@@ -70,47 +66,47 @@ export function NavUserDropdown({
 					Billing
 				</DropdownMenuItem>
 			</DropdownMenuGroup> */}
-			<DropdownMenuSeparator />
-			<div className="flex gap-2 w-full justify-between p-2 items-center">
-				<span className="text-sm text-muted-foreground ">Theme</span>
-				<div>
-					<ToggleGroup
-						type="single"
-						className="border border-border divide-x rounded-full overflow-hidden"
-						value={theme}
-						onValueChange={(value) => setTheme(value)}
-					>
-						<ToggleGroupItem
-							value="system"
-							aria-label="Toggle system"
-							className="p-0 px-2 h-6"
-						>
-							<Monitor className="h-4 w-4" />
-						</ToggleGroupItem>
-						<ToggleGroupItem
-							value="light"
-							aria-label="Toggle light"
-							className="p-0 px-2 h-6"
-						>
-							<Sun className="h-4 w-4" />
-						</ToggleGroupItem>
-						<ToggleGroupItem
-							value="dark"
-							aria-label="Toggle strikethrough"
-							className="p-0 px-2 h-6"
-						>
-							<Moon className="h-4 w-4" />
-						</ToggleGroupItem>
-					</ToggleGroup>
-				</div>
-			</div>
-			<DropdownMenuSeparator />
-			<DropdownMenuItem asChild>
-				<button onClick={handleSignOut} className="w-full">
-					<LogOut />
-					Log out
-				</button>
-			</DropdownMenuItem>
-		</DropdownMenuContent>
-	);
+      <DropdownMenuSeparator />
+      <div className="flex w-full items-center justify-between gap-2 p-2">
+        <span className="text-muted-foreground text-sm ">Theme</span>
+        <div>
+          <ToggleGroup
+            className="divide-x overflow-hidden rounded-full border border-border"
+            onValueChange={(value) => setTheme(value)}
+            type="single"
+            value={theme}
+          >
+            <ToggleGroupItem
+              aria-label="Toggle system"
+              className="h-6 p-0 px-2"
+              value="system"
+            >
+              <Monitor className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              aria-label="Toggle light"
+              className="h-6 p-0 px-2"
+              value="light"
+            >
+              <Sun className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              aria-label="Toggle strikethrough"
+              className="h-6 p-0 px-2"
+              value="dark"
+            >
+              <Moon className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+      </div>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem asChild>
+        <button className="w-full" onClick={handleSignOut} type="button">
+          <LogOut />
+          Log out
+        </button>
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  );
 }

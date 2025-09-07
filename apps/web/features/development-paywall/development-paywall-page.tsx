@@ -1,3 +1,3 @@
 export default function DevelopmentPaywallPage() {
-	return <div>DevelopmentPaywallPage</div>;
+  return <div>DevelopmentPaywallPage</div>;
 }

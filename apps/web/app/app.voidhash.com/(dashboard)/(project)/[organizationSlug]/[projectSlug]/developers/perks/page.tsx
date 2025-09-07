@@ -1,15 +1,15 @@
-import { PerksPage } from "@/features/perks/perks-page";
+import { PerksPage } from '@/features/perks/perks-page';
 
 export default async function Page({
-	params,
+  params
 }: {
-	params: Promise<{
-		organizationSlug: string;
-		projectSlug: string;
-	}>;
+  params: Promise<{
+    organizationSlug: string;
+    projectSlug: string;
+  }>;
 }) {
-	const { organizationSlug, projectSlug } = await params;
-	return (
-		<PerksPage organizationSlug={organizationSlug} projectSlug={projectSlug} />
-	);
+  const { organizationSlug, projectSlug } = await params;
+  return (
+    <PerksPage organizationSlug={organizationSlug} projectSlug={projectSlug} />
+  );
 }

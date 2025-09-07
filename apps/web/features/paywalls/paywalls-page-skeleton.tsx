@@ -1,24 +1,25 @@
-import { Page } from "@/features/shell";
-import { Card } from "@voidhash/ui";
-import { PaywallRecordSkeleton } from "./paywall-record-skeleton";
+import { Card } from '@voidhash/ui';
+import { Page } from '@/features/shell';
+import { PaywallRecordSkeleton } from './paywall-record-skeleton';
 
 export function PaywallsPageSkeleton() {
-	return (
-		<Page>
-			{/* Key is used to reload the default form data when the organization slug changes */}
-			<div className="max-w-4xl mx-auto">
-				<div className="flex flex-row items-center justify-between">
-					<h1 className="text-3xl font-normal tracking-right">Paywalls</h1>
-				</div>
+  return (
+    <Page>
+      {/* Key is used to reload the default form data when the organization slug changes */}
+      <div className="mx-auto max-w-4xl">
+        <div className="flex flex-row items-center justify-between">
+          <h1 className="font-normal text-3xl tracking-right">Paywalls</h1>
+        </div>
 
-				<div className="mt-8">
-					<Card className="divide-y grid p-0 gap-0">
-						{Array.from({ length: 3 }).map((_, index) => (
-							<PaywallRecordSkeleton key={index} />
-						))}
-					</Card>
-				</div>
-			</div>
-		</Page>
-	);
+        <div className="mt-8">
+          <Card className="grid gap-0 divide-y p-0">
+            {Array.from({ length: 3 }).map((_, index) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
+              <PaywallRecordSkeleton key={index} />
+            ))}
+          </Card>
+        </div>
+      </div>
+    </Page>
+  );
 }

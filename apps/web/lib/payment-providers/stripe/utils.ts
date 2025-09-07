@@ -1,20 +1,20 @@
 import {
-	SubscriptionStatus,
-	SubscriptionStatusValue,
-} from "@voidhash/lib/constants";
-import { Stripe } from "stripe";
+  SubscriptionStatus,
+  type SubscriptionStatusValue
+} from '@voidhash/lib/constants';
+import type { Stripe } from 'stripe';
 
 export const mapSubscriptionStatus = (
-	status: Stripe.Subscription.Status
+  status: Stripe.Subscription.Status
 ): SubscriptionStatusValue => {
-	switch (status) {
-		case "active":
-			return SubscriptionStatus.Active;
+  switch (status) {
+    case 'active':
+      return SubscriptionStatus.Active;
 
-		case "trialing":
-			return SubscriptionStatus.Active;
+    case 'trialing':
+      return SubscriptionStatus.Active;
 
-		default:
-			return SubscriptionStatus.Canceled;
-	}
+    default:
+      return SubscriptionStatus.Canceled;
+  }
 };

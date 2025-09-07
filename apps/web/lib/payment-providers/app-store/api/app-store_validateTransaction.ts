@@ -1,80 +1,106 @@
-// import { describeRoute } from "hono-openapi";
-// import { resolver } from "hono-openapi/zod";
-// import { App } from "@/lib/api/hono/app";
-// import { authenticateContext } from "@/lib/service-function";
-// import { z } from "zod";
-// import {
-// 	parseISO4217CurrencyCode,
-// 	toVoidhashHTTPError,
-// 	VoidhashBadRequestError,
-// 	VoidhashNotFoundError,
-// } from "@voidhash/lib/constants";
-// import { zValidator } from "@hono/zod-validator";
-// import {
-// 	db,
-// 	paymentProviderConfigurations,
-// 	and,
-// 	eq,
-// 	paymentProviderConfigurationProducts,
-// 	desc,
-// 	appStoreTransactions,
-// 	Transaction,
-// } from "@voidhash/db";
-// import { openApiErrorResponses } from "@/lib/api/errors/openapi_responses";
-// import { appStore, appStorePaymentProviderId } from "../app-store";
-// import {
-// 	AppStoreServerAPI,
-// 	Environment,
-// 	TransactionReason,
-// 	TransactionType,
-// 	decodeTransaction,
-// } from "app-store-server-api";
-// import { safeTryPromise } from "@/lib/neverthrow";
-// import { ok } from "neverthrow";
-// import { processSubscriptionCreation } from "../../core/process-subscription-creation";
-// import {
-// 	fromEnvironment,
-// 	fromOfferDiscountType,
-// 	fromOfferType,
-// 	fromOwnershipType,
-// 	fromRevocationReason,
-// 	fromTransactionReason,
-// 	fromTransactionType,
-// } from "../utils";
-// import { generateId } from "@/lib/id/generate";
+import { zValidator } from '@hono/zod-validator';
+import { Effect } from 'effect';
+import { describeRoute } from 'hono-openapi';
+import { resolver } from 'hono-openapi/zod';
+import { z } from 'zod';
+import { openApiErrorResponses } from '@/lib/api/errors/openapi_responses';
+import type { App } from '@/lib/api/hono/app';
+import {
+  createEffectHandler,
+  HonoErrorResponse
+} from '@/lib/effect/runtimes/hono';
+import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import {
+  Environment,
+  EnvironmentService
+} from '@/lib/services/environment.service';
+import { AppStoreService } from '../services/app-store.service';
 
-// const appStoreValidateTransactionBodySchema = z.object({
-// 	transactionId: z.string(),
-// 	bundleId: z.string(),
-// });
+const appStoreValidateTransactionBodySchema = z.object({
+  transactionId: z.string(),
+  bundleId: z.string()
+});
 
-// const appStoreValidateTransactionResponseSchema = z.object({
-// 	success: z.boolean(),
-// });
+const appStoreValidateTransactionResponseSchema = z.object({
+  success: z.boolean()
+});
 
-// const route = describeRoute({
-// 	description: "Validates a transaction",
-// 	operationId: "appStoreValidateTransaction",
-// 	security: [
-// 		{
-// 			publishableKey: [],
-// 		},
-// 	],
-// 	responses: {
-// 		200: {
-// 			description: "Successful response",
-// 			content: {
-// 				"application/json": {
-// 					schema: resolver(appStoreValidateTransactionResponseSchema),
-// 				},
-// 			},
-// 		},
-// 		...openApiErrorResponses,
-// 	},
-// 	tags: ["App Store"],
-// });
+const route = describeRoute({
+  description: 'Validates a transaction',
+  operationId: 'appStoreValidateTransaction',
+  security: [
+    {
+      publishableKey: []
+    }
+  ],
+  responses: {
+    200: {
+      description: 'Successful response',
+      content: {
+        'application/json': {
+          schema: resolver(appStoreValidateTransactionResponseSchema)
+        }
+      }
+    },
+    ...openApiErrorResponses
+  },
+  tags: ['App Store']
+});
 
-// export type Route = typeof route;
+export type Route = typeof route;
+
+export const registerAppStoreValidateTransaction = (app: App) =>
+  app.post(
+    '/v1/app-store/validate-transaction',
+    route,
+    zValidator('json', appStoreValidateTransactionBodySchema),
+    async (c) =>
+      createEffectHandler(c)(
+        Effect.gen(function* () {
+          const authService = yield* AuthService;
+          const environmentService = yield* EnvironmentService;
+          const appStoreService = yield* AppStoreService;
+          const authSession =
+            yield* authService.authenticateWithPublishableKey();
+          return yield* AuthSession.provide(authSession)(
+            Effect.gen(function* () {
+              const environment =
+                yield* environmentService.getEnvironmentFromApiAuthSession();
+              return yield* Environment.provide(environment)(
+                Effect.gen(function* () {
+                  yield* appStoreService
+                    .validateTransaction({
+                      transactionId: c.req.valid('json').transactionId,
+                      bundleId: c.req.valid('json').bundleId,
+                      environment
+                    })
+                    .pipe(
+                      // TODO: Properly handle errors
+                      Effect.catchAll((error) => {
+                        return Effect.gen(function* () {
+                          return yield* Effect.fail(
+                            new HonoErrorResponse({
+                              code: 'INTERNAL_SERVER_ERROR',
+                              message: 'Failed to validate transaction',
+                              originalError: error
+                            })
+                          );
+                        });
+                      })
+                    );
+
+                  return c.json<
+                    z.infer<typeof appStoreValidateTransactionResponseSchema>
+                  >({
+                    success: true
+                  });
+                })
+              );
+            })
+          );
+        })
+      )
+  );
 
 // export const registerAppStoreValidateTransaction = (app: App) =>
 // 	app.post(

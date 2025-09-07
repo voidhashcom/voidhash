@@ -1,20 +1,20 @@
-import { ProductDetailPage } from "@/features/products/product-detail-page";
+import { ProductDetailPage } from '@/features/products/product-detail-page';
 
 export default async function Page({
-	params,
+  params
 }: {
-	params: Promise<{
-		organizationSlug: string;
-		projectSlug: string;
-		id: string;
-	}>;
+  params: Promise<{
+    organizationSlug: string;
+    projectSlug: string;
+    id: string;
+  }>;
 }) {
-	const { organizationSlug, projectSlug, id } = await params;
-	return (
-		<ProductDetailPage
-			organizationSlug={organizationSlug}
-			projectSlug={projectSlug}
-			id={id}
-		/>
-	);
+  const { organizationSlug, projectSlug, id } = await params;
+  return (
+    <ProductDetailPage
+      id={id}
+      organizationSlug={organizationSlug}
+      projectSlug={projectSlug}
+    />
+  );
 }

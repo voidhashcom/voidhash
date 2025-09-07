@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import { Button } from "@voidhash/ui";
-import { CreateCustomerModal } from "./create-customer-modal";
-import { useState } from "react";
+import { Button } from '@voidhash/ui';
+import { useState } from 'react';
+import { CreateCustomerModal } from './create-customer-modal';
 
 export function CreateCustomerButton({ projectId }: { projectId: string }) {
-	const [open, setOpen] = useState(false);
-	return (
-		<CreateCustomerModal
-			open={open}
-			onClose={() => setOpen(false)}
-			trigger={<Button onClick={() => setOpen(true)}>Create Customer</Button>}
-			projectId={projectId}
-		/>
-	);
+  const [open, setOpen] = useState(false);
+  return (
+    <CreateCustomerModal
+      onClose={() => setOpen(false)}
+      open={open}
+      projectId={projectId}
+      trigger={<Button onClick={() => setOpen(true)}>Create Customer</Button>}
+    />
+  );
 }

@@ -1,179 +1,211 @@
-import { Db } from "@/lib/effect/db";
 import {
-	eq,
-	and,
-	asc,
-	paywalls,
-	paywallProducts,
-	InsertPaywall,
-	InsertPaywallProduct,
-	paywallLocations,
-	inArray,
-	products,
-} from "@voidhash/db";
-import { Effect } from "effect";
-import { EnvironmentValue } from "@voidhash/lib/constants";
+  and,
+  asc,
+  eq,
+  type InsertPaywall,
+  type InsertPaywallProduct,
+  inArray,
+  paywallLocations,
+  paywallProducts,
+  paywalls,
+  products
+} from '@voidhash/db';
+import type { EnvironmentValue } from '@voidhash/lib/constants';
+import { Effect } from 'effect';
+import { Db } from '@/lib/effect/db';
 
 export class PaywallRepository extends Effect.Service<PaywallRepository>()(
-	"PaywallRepository",
-	{
-		effect: Effect.gen(function* () {
-			const dbService = yield* Db;
-			return {
-				createPaywall: dbService.makeQuery((execute, paywall: InsertPaywall) =>
-					execute(async (db) => await db.insert(paywalls).values(paywall))
-				),
+  'PaywallRepository',
+  {
+    effect: Effect.gen(function* () {
+      const dbService = yield* Db;
+      return {
+        createPaywall: dbService.makeQuery((execute, paywall: InsertPaywall) =>
+          execute(async (db) => await db.insert(paywalls).values(paywall))
+        ),
 
-				getPaywallById: dbService.makeQuery((execute, id: string) =>
-					execute(
-						async (db) =>
-							await db.query.paywalls.findFirst({
-								where: eq(paywalls.id, id),
-							})
-					)
-				),
+        getPaywallById: dbService.makeQuery((execute, id: string) =>
+          execute(
+            async (db) =>
+              await db.query.paywalls.findFirst({
+                where: eq(paywalls.id, id)
+              })
+          )
+        ),
 
-				getPaywallWithProductsByLocationSlug: dbService.makeQuery(
-					(
-						execute,
-						input: {
-							locationSlug: string;
-							environment: EnvironmentValue;
-						}
-					) =>
-						execute(
-							async (db) =>
-								await db.query.paywallLocations.findFirst({
-									where: and(
-										eq(paywallLocations.slug, input.locationSlug),
-										eq(paywallLocations.environment, input.environment)
-									),
-									with: {
-										defaultPaywall: {
-											with: {
-												paywallProducts: {
-													with: {
-														product: true,
-													},
-													orderBy: [asc(paywallProducts.order)],
-												},
-											},
-										},
-									},
-								})
-						)
-				),
+        getPaywallWithProductsByLocationSlug: dbService.makeQuery(
+          (
+            execute,
+            input: {
+              locationSlug: string;
+              environment: EnvironmentValue;
+            }
+          ) =>
+            execute(
+              async (db) =>
+                await db.query.paywallLocations.findFirst({
+                  where: and(
+                    eq(paywallLocations.slug, input.locationSlug),
+                    eq(paywallLocations.environment, input.environment)
+                  ),
+                  with: {
+                    defaultPaywall: {
+                      with: {
+                        paywallProducts: {
+                          with: {
+                            product: true
+                          },
+                          orderBy: [asc(paywallProducts.order)]
+                        }
+                      }
+                    }
+                  }
+                })
+            )
+        ),
 
-				getPaywalls: dbService.makeQuery(
-					(
-						execute,
-						input: { projectId: string; environment: EnvironmentValue }
-					) =>
-						execute(
-							async (db) =>
-								await db.query.paywalls.findMany({
-									where: and(
-										eq(paywalls.projectId, input.projectId),
-										eq(paywalls.environment, input.environment)
-									),
-								})
-						)
-				),
+        getPaywalls: dbService.makeQuery(
+          (
+            execute,
+            input: { projectId: string; environment: EnvironmentValue }
+          ) =>
+            execute(
+              async (db) =>
+                await db.query.paywalls.findMany({
+                  where: and(
+                    eq(paywalls.projectId, input.projectId),
+                    eq(paywalls.environment, input.environment)
+                  )
+                })
+            )
+        ),
 
-				updatePaywall: dbService.makeQuery(
-					(execute, { id, name }: { id: string; name: string }) =>
-						execute(
-							async (db) =>
-								await db
-									.update(paywalls)
-									.set({
-										name,
-										updatedAt: new Date(),
-									})
-									.where(eq(paywalls.id, id))
-						)
-				),
+        getPaywallsWithProductsAndPaymentProviderConfigurations:
+          dbService.makeQuery(
+            (
+              execute,
+              input: {
+                projectId: string;
+                environment: EnvironmentValue;
+              }
+            ) =>
+              execute(
+                async (db) =>
+                  await db.query.paywalls.findMany({
+                    where: and(
+                      eq(paywalls.projectId, input.projectId),
+                      eq(paywalls.environment, input.environment)
+                    ),
+                    with: {
+                      paywallProducts: {
+                        with: {
+                          product: {
+                            with: {
+                              paymentProviderConfigurationProducts: true
+                            }
+                          }
+                        },
+                        orderBy: [asc(paywallProducts.order)]
+                      }
+                    }
+                  })
+              )
+          ),
 
-				deletePaywall: dbService.makeQuery((execute, id: string) =>
-					execute(
-						async (db) => await db.delete(paywalls).where(eq(paywalls.id, id))
-					)
-				),
+        updatePaywall: dbService.makeQuery(
+          (execute, { id, name }: { id: string; name: string }) =>
+            execute(
+              async (db) =>
+                await db
+                  .update(paywalls)
+                  .set({
+                    name,
+                    updatedAt: new Date()
+                  })
+                  .where(eq(paywalls.id, id))
+            )
+        ),
 
-				getPaywallProducts: dbService.makeQuery((execute, paywallId: string) =>
-					execute(
-						async (db) =>
-							await db.query.paywallProducts.findMany({
-								where: eq(paywallProducts.paywallId, paywallId),
-								with: {
-									product: {
-										columns: {
-											name: true,
-										},
-									},
-								},
-								orderBy: [asc(paywallProducts.order)],
-							})
-					)
-				),
+        deletePaywall: dbService.makeQuery((execute, id: string) =>
+          execute(
+            async (db) => await db.delete(paywalls).where(eq(paywalls.id, id))
+          )
+        ),
 
-				getPaywallProductById: dbService.makeQuery(
-					(execute, paywallProductId: string) =>
-						execute(
-							async (db) =>
-								await db.query.paywallProducts.findFirst({
-									where: eq(paywallProducts.id, paywallProductId),
-									with: {
-										product: true,
-									},
-								})
-						)
-				),
+        getPaywallProducts: dbService.makeQuery((execute, paywallId: string) =>
+          execute(
+            async (db) =>
+              await db.query.paywallProducts.findMany({
+                where: eq(paywallProducts.paywallId, paywallId),
+                with: {
+                  product: {
+                    columns: {
+                      name: true
+                    }
+                  }
+                },
+                orderBy: [asc(paywallProducts.order)]
+              })
+          )
+        ),
 
-				createPaywallProduct: dbService.makeQuery(
-					(execute, paywallProduct: InsertPaywallProduct) =>
-						execute(
-							async (db) =>
-								await db.insert(paywallProducts).values(paywallProduct)
-						)
-				),
+        getPaywallProductById: dbService.makeQuery(
+          (execute, paywallProductId: string) =>
+            execute(
+              async (db) =>
+                await db.query.paywallProducts.findFirst({
+                  where: eq(paywallProducts.id, paywallProductId),
+                  with: {
+                    product: true
+                  }
+                })
+            )
+        ),
 
-				deletePaywallProducts: dbService.makeQuery(
-					(execute, paywallId: string) =>
-						execute(
-							async (db) =>
-								await db
-									.delete(paywallProducts)
-									.where(eq(paywallProducts.paywallId, paywallId))
-						)
-				),
+        createPaywallProduct: dbService.makeQuery(
+          (execute, paywallProduct: InsertPaywallProduct) =>
+            execute(
+              async (db) =>
+                await db.insert(paywallProducts).values(paywallProduct)
+            )
+        ),
 
-				getPaywallLocationsUsingPaywall: dbService.makeQuery(
-					(execute, paywallId: string) =>
-						execute(
-							async (db) =>
-								await db.query.paywallLocations.findMany({
-									where: eq(paywallLocations.defaultPaywallId, paywallId),
-								})
-						)
-				),
+        deletePaywallProducts: dbService.makeQuery(
+          (execute, paywallId: string) =>
+            execute(
+              async (db) =>
+                await db
+                  .delete(paywallProducts)
+                  .where(eq(paywallProducts.paywallId, paywallId))
+            )
+        ),
 
-				getProductsWithConfigurations: dbService.makeQuery(
-					(execute, productIds: string[]) =>
-						execute(
-							async (db) =>
-								await db.query.products.findMany({
-									where: inArray(products.id, productIds),
-									with: {
-										paymentProviderConfigurationProducts: true,
-									},
-								})
-						)
-				),
-			};
-		}),
+        getPaywallLocationsUsingPaywall: dbService.makeQuery(
+          (execute, paywallId: string) =>
+            execute(
+              async (db) =>
+                await db.query.paywallLocations.findMany({
+                  where: eq(paywallLocations.defaultPaywallId, paywallId)
+                })
+            )
+        ),
 
-		// Specify dependencies
-		dependencies: [Db.Default],
-	}
+        getProductsWithConfigurations: dbService.makeQuery(
+          (execute, productIds: string[]) =>
+            execute(
+              async (db) =>
+                await db.query.products.findMany({
+                  where: inArray(products.id, productIds),
+                  with: {
+                    paymentProviderConfigurationProducts: true
+                  }
+                })
+            )
+        )
+      };
+    }),
+
+    // Specify dependencies
+    dependencies: [Db.Default]
+  }
 ) {}
