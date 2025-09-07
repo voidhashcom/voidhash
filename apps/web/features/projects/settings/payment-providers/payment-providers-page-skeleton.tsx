@@ -1,40 +1,40 @@
-import { Page } from "@/features/shell";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { Card, Skeleton } from "@voidhash/ui";
+import { Card, Skeleton } from '@voidhash/ui';
+import { Page } from '@/features/shell';
+import { paymentProviders } from '@/lib/payment-providers/payment-providers';
 
 export function PaymentProvidersPageSkeleton() {
-	return (
-		<Page>
-			{/* Key is used to reload the default form data when the organization slug changes */}
-			<div className="max-w-4xl mx-auto">
-				<h1 className="text-3xl font-normal tracking-right">
-					Payment Providers
-				</h1>
-				<p className="text-muted-foreground mt-3">
-					Configure your payment providers
-				</p>
-				<div className="mt-8">
-					<Card className="divide-y grid p-0 gap-0">
-						{paymentProviders?.map((paymentProvider) => (
-							<div
-								className="relative isolate group hover:bg-accent/30 px-6 py-4"
-								key={paymentProvider.getId()}
-							>
-								<div className="flex flex-row items-center justify-between">
-									<div className="flex items-center gap-4 flex-1">
-										<div className="w-8 h-8">
-											<Skeleton className="w-full h-full" />
-										</div>
-										<div className="flex flex-col">
-											<Skeleton className="w-64 h-4" />
-										</div>
-									</div>
-								</div>
-							</div>
-						))}
-					</Card>
-				</div>
-			</div>
-		</Page>
-	);
+  return (
+    <Page>
+      {/* Key is used to reload the default form data when the organization slug changes */}
+      <div className="mx-auto max-w-4xl">
+        <h1 className="font-normal text-3xl tracking-right">
+          Payment Providers
+        </h1>
+        <p className="mt-3 text-muted-foreground">
+          Configure your payment providers
+        </p>
+        <div className="mt-8">
+          <Card className="grid gap-0 divide-y p-0">
+            {paymentProviders?.map((paymentProvider) => (
+              <div
+                className="group relative isolate px-6 py-4 hover:bg-accent/30"
+                key={paymentProvider.getId()}
+              >
+                <div className="flex flex-row items-center justify-between">
+                  <div className="flex flex-1 items-center gap-4">
+                    <div className="h-8 w-8">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                    <div className="flex flex-col">
+                      <Skeleton className="h-4 w-64" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </Card>
+        </div>
+      </div>
+    </Page>
+  );
 }

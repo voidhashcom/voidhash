@@ -1,322 +1,325 @@
-import { Page } from "@/features/shell";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { ProductDetailPaymentProvidersEmptyState } from "./product-detail-payment-providers-empty-state";
+import { Environment as EnvironmentEnum } from '@voidhash/lib/index';
 import {
-	Card,
-	CardContent,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@voidhash/ui";
-import { PaymentProviderLogo } from "../projects/settings/payment-providers/payment-provider-logo";
-import { ProductDetailAddProductButton } from "./product-detail-add-product-button";
-import { ProductDetailProviderProductRecord } from "./product-detail-provider-product-record";
-import { ProductDetailPerksEmptyState } from "./product-detail-perks-empty-state";
-import { ProductDetailPerkRecord } from "./product-detail-product-perk-record";
-import { ProductDetailAddPerkButton } from "./product-detail-add-perk-button";
-import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
-import { PerkService } from "@/lib/services/perk.service";
-import { Effect } from "effect";
-import { runServerEffect } from "@/lib/effect/runtimes/nextjs";
-import { ProductService } from "@/lib/services/product.service";
-import { PaymentProviderService } from "@/lib/services/payment-provider.service";
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from '@voidhash/ui';
+import { Effect } from 'effect';
+import { Page } from '@/features/shell';
+import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
+import { NotFoundError } from '@/lib/effect/errors';
+import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import { paymentProviders } from '@/lib/payment-providers/payment-providers';
+import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import {
-	Environment,
-	EnvironmentService,
-} from "@/lib/services/environment.service";
-import { AuthService, AuthSession } from "@/lib/services/auth.service";
-import { ProjectService } from "@/lib/services/project.service";
-import { NotFoundError } from "@/lib/effect/errors";
-import { Environment as EnvironmentEnum } from "@voidhash/lib/index";
+  Environment,
+  EnvironmentService
+} from '@/lib/services/environment.service';
+import { PaymentProviderService } from '@/lib/services/payment-provider.service';
+import { PerkService } from '@/lib/services/perk.service';
+import { ProductService } from '@/lib/services/product.service';
+import { ProjectService } from '@/lib/services/project.service';
+import { PaymentProviderLogo } from '../projects/settings/payment-providers/payment-provider-logo';
+import { ProductDetailAddPerkButton } from './product-detail-add-perk-button';
+import { ProductDetailAddProductButton } from './product-detail-add-product-button';
+import { ProductDetailPaymentProvidersEmptyState } from './product-detail-payment-providers-empty-state';
+import { ProductDetailPerksEmptyState } from './product-detail-perks-empty-state';
+import { ProductDetailPerkRecord } from './product-detail-product-perk-record';
+import { ProductDetailProviderProductRecord } from './product-detail-provider-product-record';
 
 export async function ProductDetailPage({
-	organizationSlug,
-	projectSlug,
-	id,
+  organizationSlug,
+  projectSlug,
+  id
 }: {
-	organizationSlug: string;
-	projectSlug: string;
-	id: string;
+  organizationSlug: string;
+  projectSlug: string;
+  id: string;
 }) {
-	const data = await runServerEffect(
-		Effect.gen(function* () {
-			const authService = yield* AuthService;
-			const authSession = yield* authService.authenticateWithSession();
-			return yield* AuthSession.provide(authSession)(
-				Effect.gen(function* () {
-					const environmentService = yield* EnvironmentService;
-					const environment =
-						yield* environmentService.getEnvironmentFromCookie({
-							organizationSlug,
-							projectSlug,
-						});
-					return yield* Environment.provide(environment)(
-						Effect.gen(function* () {
-							const productService = yield* ProductService;
-							const paymentProviderService = yield* PaymentProviderService;
-							const perkService = yield* PerkService;
-							const environment = yield* Environment;
-							const projectService = yield* ProjectService;
+  const data = await runServerEffect(
+    Effect.gen(function* () {
+      const authService = yield* AuthService;
+      const authSession = yield* authService.authenticateWithSession();
+      return yield* AuthSession.provide(authSession)(
+        Effect.gen(function* () {
+          const environmentService = yield* EnvironmentService;
+          const environment =
+            yield* environmentService.getEnvironmentFromCookie({
+              organizationSlug,
+              projectSlug
+            });
+          return yield* Environment.provide(environment)(
+            Effect.gen(function* () {
+              const productService = yield* ProductService;
+              const paymentProviderService = yield* PaymentProviderService;
+              const perkService = yield* PerkService;
+              const environment = yield* Environment;
+              const projectService = yield* ProjectService;
 
-							const project =
-								yield* projectService.getProjectBySlugAndOrganizationSlug({
-									organizationSlug,
-									projectSlug,
-								});
+              const project =
+                yield* projectService.getProjectBySlugAndOrganizationSlug({
+                  organizationSlug,
+                  projectSlug
+                });
 
-							if (!project) {
-								return yield* Effect.fail(
-									new NotFoundError({
-										message: "Project not found",
-									})
-								);
-							}
+              if (!project) {
+                return yield* Effect.fail(
+                  new NotFoundError({
+                    message: 'Project not found'
+                  })
+                );
+              }
 
-							const [
-								product,
-								providerProducts,
-								paymentProviderConfigurations,
-								perks,
-								productPerks,
-							] = yield* Effect.all([
-								productService.getProductById(id),
-								productService.getProviderProductsByProductId(id),
-								paymentProviderService.getPaymentProviderConfigurations(
-									project.id
-								),
-								perkService.getPerks(project.id),
-								productService.getProductPerksByProductId(id),
-							], {
-								concurrency: "unbounded"
-							});
+              const [
+                product,
+                providerProducts,
+                paymentProviderConfigurations,
+                perks,
+                productPerks
+              ] = yield* Effect.all(
+                [
+                  productService.getProductById(id),
+                  productService.getProviderProductsByProductId(id),
+                  paymentProviderService.getPaymentProviderConfigurations(
+                    project.id
+                  ),
+                  perkService.getPerks(project.id),
+                  productService.getProductPerksByProductId(id)
+                ],
+                {
+                  concurrency: 'unbounded'
+                }
+              );
 
-							return {
-								product,
-								providerProducts,
-								paymentProviderConfigurations,
-								environment,
-								perks,
-								productPerks,
-							};
-						})
-					);
-				})
-			);
-		})
-	);
+              return {
+                product,
+                providerProducts,
+                paymentProviderConfigurations,
+                environment,
+                perks,
+                productPerks
+              };
+            })
+          );
+        })
+      );
+    })
+  );
 
-	if (data.isErr()) {
-		const error = data._unsafeUnwrapErr();
-		return <VoidhashErrorCard error={error} />;
-	}
+  if (data.isErr()) {
+    const error = data._unsafeUnwrapErr();
+    return <VoidhashErrorCard error={error} />;
+  }
 
-	const {
-		product,
-		providerProducts,
-		paymentProviderConfigurations,
-		environment,
-		perks,
-		productPerks,
-	} = data.value;
+  const {
+    product,
+    providerProducts,
+    paymentProviderConfigurations,
+    environment,
+    perks,
+    productPerks
+  } = data.value;
 
-	const enabledPaymentProviderConfigurations = paymentProviderConfigurations
-		.map((paymentProviderConfiguration) => {
-			const paymentProvider = paymentProviders.find(
-				(paymentProvider) =>
-					paymentProvider.getId() === paymentProviderConfiguration.providerId
-			);
+  const enabledPaymentProviderConfigurations = paymentProviderConfigurations
+    .map((paymentProviderConfiguration) => {
+      const paymentProvider = paymentProviders.find(
+        (paymentProvider) =>
+          paymentProvider.getId() === paymentProviderConfiguration.providerId
+      );
 
-			if (!paymentProvider) {
-				return null;
-			}
+      if (!paymentProvider) {
+        return null;
+      }
 
-			return {
-				paymentProvider,
-				id: paymentProviderConfiguration.id,
-				name: paymentProviderConfiguration.name,
-				enabled:
-					!!paymentProviderConfiguration &&
-					paymentProviderConfiguration.enabled,
-				configuration: paymentProviderConfiguration,
-			};
-		})
-		.filter(
-			(paymentProviderConfiguration) => paymentProviderConfiguration !== null
-		)
-		.filter(
-			(paymentProviderConfiguration) =>
-				paymentProviderConfiguration.paymentProvider.getIsProductConfigurable() &&
-				paymentProviderConfiguration.enabled
-		);
+      return {
+        paymentProvider,
+        id: paymentProviderConfiguration.id,
+        name: paymentProviderConfiguration.name,
+        enabled:
+          !!paymentProviderConfiguration &&
+          paymentProviderConfiguration.enabled,
+        configuration: paymentProviderConfiguration
+      };
+    })
+    .filter(
+      (paymentProviderConfiguration) => paymentProviderConfiguration !== null
+    )
+    .filter(
+      (paymentProviderConfiguration) =>
+        paymentProviderConfiguration.paymentProvider.getIsProductConfigurable() &&
+        paymentProviderConfiguration.enabled
+    );
 
-	const perksWithoutProductPerks = perks.filter(
-		(perk) =>
-			!productPerks.some((productPerk) => productPerk.perkId === perk.id)
-	);
+  const perksWithoutProductPerks = perks.filter(
+    (perk) =>
+      !productPerks.some((productPerk) => productPerk.perkId === perk.id)
+  );
 
-	return (
-		<Page
-			className="p-0 py-8"
-			breadcrumbs={[
-				{
-					title: "Products",
-					url: `/${organizationSlug}/${projectSlug}/products`,
-				},
-				{
-					title: product.name,
-					url: `/${organizationSlug}/${projectSlug}/products/${id}`,
-				},
-			]}
-		>
-			{/* Key is used to reload the default form data when the organization slug changes */}
-			<div className="border-b border-border">
-				<div className="max-w-4xl mx-auto  pb-10">
-					<div className="flex flex-row items-center justify-between">
-						<h1 className="text-3xl font-normal tracking-right">
-							{product.name}
-						</h1>
-						{/* <CreateProductModalButton projectId={project.id} /> */}
-					</div>
-				</div>
-			</div>
-			<div className="max-w-4xl mx-auto">
-				<div className="mt-8">
-					<h2 className="text-2xl font-normal tracking-right">Perks</h2>
-					<p className="text-muted-foreground mt-2">
-						Configure what perks this product unlocks.
-					</p>
+  return (
+    <Page
+      breadcrumbs={[
+        {
+          title: 'Products',
+          url: `/${organizationSlug}/${projectSlug}/products`
+        },
+        {
+          title: product.name,
+          url: `/${organizationSlug}/${projectSlug}/products/${id}`
+        }
+      ]}
+      className="p-0 py-8"
+    >
+      {/* Key is used to reload the default form data when the organization slug changes */}
+      <div className="border-border border-b">
+        <div className="mx-auto max-w-4xl pb-10">
+          <div className="flex flex-row items-center justify-between">
+            <h1 className="font-normal text-3xl tracking-right">
+              {product.name}
+            </h1>
+            {/* <CreateProductModalButton projectId={project.id} /> */}
+          </div>
+        </div>
+      </div>
+      <div className="mx-auto max-w-4xl">
+        <div className="mt-8">
+          <h2 className="font-normal text-2xl tracking-right">Perks</h2>
+          <p className="mt-2 text-muted-foreground">
+            Configure what perks this product unlocks.
+          </p>
 
-					<div className="mt-8">
-						{productPerks.length === 0 && (
-							<ProductDetailPerksEmptyState
-								productId={product.id}
-								perks={perksWithoutProductPerks}
-							/>
-						)}
-						{productPerks.length > 0 && (
-							<Card className="pb-0 overflow-hidden mt-8 gap-0 pt-0">
-								<CardContent className="divide-y divide-border px-0">
-									{productPerks.map((productPerk) => (
-										<ProductDetailPerkRecord
-											key={productPerk.perkId}
-											productPerk={productPerk}
-											perks={perks}
-										/>
-									))}
-								</CardContent>
+          <div className="mt-8">
+            {productPerks.length === 0 && (
+              <ProductDetailPerksEmptyState
+                perks={perksWithoutProductPerks}
+                productId={product.id}
+              />
+            )}
+            {productPerks.length > 0 && (
+              <Card className="mt-8 gap-0 overflow-hidden pt-0 pb-0">
+                <CardContent className="divide-y divide-border px-0">
+                  {productPerks.map((productPerk) => (
+                    <ProductDetailPerkRecord
+                      key={productPerk.perkId}
+                      perks={perks}
+                      productPerk={productPerk}
+                    />
+                  ))}
+                </CardContent>
 
-								<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
-									<ProductDetailAddPerkButton
-										productId={product.id}
-										perks={perksWithoutProductPerks}
-										variant="secondary"
-									/>
-								</CardFooter>
-							</Card>
-						)}
-					</div>
-				</div>
-				{environment !== EnvironmentEnum.Testing && (
-					<div className="mt-16">
-						<h2 className="text-2xl font-normal tracking-right">
-							Payment Providers
-						</h2>
-						<p className="text-muted-foreground mt-2">
-							Sets up a relationship between this voidhash product and payment
-							providers products.
-						</p>
+                <CardFooter className="flex items-baseline justify-between border-border border-t bg-background py-3 [.border-t]:pt-3">
+                  <ProductDetailAddPerkButton
+                    perks={perksWithoutProductPerks}
+                    productId={product.id}
+                    variant="secondary"
+                  />
+                </CardFooter>
+              </Card>
+            )}
+          </div>
+        </div>
+        {environment !== EnvironmentEnum.Testing && (
+          <div className="mt-16">
+            <h2 className="font-normal text-2xl tracking-right">
+              Payment Providers
+            </h2>
+            <p className="mt-2 text-muted-foreground">
+              Sets up a relationship between this voidhash product and payment
+              providers products.
+            </p>
 
-						<div className="mt-8">
-							{enabledPaymentProviderConfigurations.length === 0 && (
-								<ProductDetailPaymentProvidersEmptyState
-									projectSlug={projectSlug}
-									organizationSlug={organizationSlug}
-								/>
-							)}
-							{enabledPaymentProviderConfigurations.map(
-								(paymentProviderWithConfiguration) => (
-									<Card
-										className="pb-0 overflow-hidden mt-8 gap-0"
-										key={paymentProviderWithConfiguration.paymentProvider.getId()}
-									>
-										<CardHeader className="pb-4">
-											<CardTitle className="flex items-center gap-4">
-												<PaymentProviderLogo
-													providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
-													className="w-5 h-5"
-												/>
-												<span>
-													{paymentProviderWithConfiguration.paymentProvider.getTitle()}
-												</span>
-											</CardTitle>
-										</CardHeader>
-										<CardContent className="border-t border-border divide-y divide-border px-0">
-											{/* Emtpy State */}
-											{providerProducts.filter(
-												(providerProduct) =>
-													providerProduct.paymentProviderConfigurationId ===
-													paymentProviderWithConfiguration.id
-											).length === 0 && (
-												<div className="flex flex-col items-center justify-center h-full py-6">
-													<div className="text-muted-foreground">
-														You haven&apos;t added any{" "}
-														{paymentProviderWithConfiguration.paymentProvider.getTitle()}{" "}
-														product yet.
-													</div>
-													<div className="mt-4">
-														<ProductDetailAddProductButton
-															productId={product.id}
-															paymentProviderConfigurationId={
-																paymentProviderWithConfiguration.id
-															}
-															providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
-															title={paymentProviderWithConfiguration.paymentProvider.getTitle()}
-														/>
-													</div>
-												</div>
-											)}
+            <div className="mt-8">
+              {enabledPaymentProviderConfigurations.length === 0 && (
+                <ProductDetailPaymentProvidersEmptyState
+                  organizationSlug={organizationSlug}
+                  projectSlug={projectSlug}
+                />
+              )}
+              {enabledPaymentProviderConfigurations.map(
+                (paymentProviderWithConfiguration) => (
+                  <Card
+                    className="mt-8 gap-0 overflow-hidden pb-0"
+                    key={paymentProviderWithConfiguration.paymentProvider.getId()}
+                  >
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-4">
+                        <PaymentProviderLogo
+                          className="h-5 w-5"
+                          providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
+                        />
+                        <span>
+                          {paymentProviderWithConfiguration.paymentProvider.getTitle()}
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="divide-y divide-border border-border border-t px-0">
+                      {/* Emtpy State */}
+                      {providerProducts.filter(
+                        (providerProduct) =>
+                          providerProduct.paymentProviderConfigurationId ===
+                          paymentProviderWithConfiguration.id
+                      ).length === 0 && (
+                        <div className="flex h-full flex-col items-center justify-center py-6">
+                          <div className="text-muted-foreground">
+                            You haven&apos;t added any{' '}
+                            {paymentProviderWithConfiguration.paymentProvider.getTitle()}{' '}
+                            product yet.
+                          </div>
+                          <div className="mt-4">
+                            <ProductDetailAddProductButton
+                              paymentProviderConfigurationId={
+                                paymentProviderWithConfiguration.id
+                              }
+                              productId={product.id}
+                              providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
+                              title={paymentProviderWithConfiguration.paymentProvider.getTitle()}
+                            />
+                          </div>
+                        </div>
+                      )}
 
-											{providerProducts
-												.filter(
-													(providerProduct) =>
-														providerProduct.paymentProviderConfigurationId ===
-														paymentProviderWithConfiguration.id
-												)
-												.map((providerProduct) => (
-													<ProductDetailProviderProductRecord
-														key={providerProduct.providerProductKey}
-														paymentProviderConfigurationId={
-															paymentProviderWithConfiguration.id
-														}
-														providerProduct={providerProduct}
-														paymentProviderId={paymentProviderWithConfiguration.paymentProvider.getId()}
-													/>
-												))}
-										</CardContent>
-										{providerProducts.filter(
-											(providerProduct) =>
-												providerProduct.paymentProviderConfigurationId ===
-												paymentProviderWithConfiguration.id
-										).length > 0 && (
-											<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
-												<ProductDetailAddProductButton
-													variant="secondary"
-													productId={product.id}
-													paymentProviderConfigurationId={
-														paymentProviderWithConfiguration.id
-													}
-													providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
-													title={paymentProviderWithConfiguration.paymentProvider.getTitle()}
-												/>
-											</CardFooter>
-										)}
-									</Card>
-								)
-							)}
-						</div>
-					</div>
-				)}
-			</div>
-		</Page>
-	);
+                      {providerProducts
+                        .filter(
+                          (providerProduct) =>
+                            providerProduct.paymentProviderConfigurationId ===
+                            paymentProviderWithConfiguration.id
+                        )
+                        .map((providerProduct) => (
+                          <ProductDetailProviderProductRecord
+                            key={providerProduct.providerProductKey}
+                            paymentProviderConfigurationId={
+                              paymentProviderWithConfiguration.id
+                            }
+                            paymentProviderId={paymentProviderWithConfiguration.paymentProvider.getId()}
+                            providerProduct={providerProduct}
+                          />
+                        ))}
+                    </CardContent>
+                    {providerProducts.filter(
+                      (providerProduct) =>
+                        providerProduct.paymentProviderConfigurationId ===
+                        paymentProviderWithConfiguration.id
+                    ).length > 0 && (
+                      <CardFooter className="flex items-baseline justify-between border-border border-t bg-background py-3 [.border-t]:pt-3">
+                        <ProductDetailAddProductButton
+                          paymentProviderConfigurationId={
+                            paymentProviderWithConfiguration.id
+                          }
+                          productId={product.id}
+                          providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
+                          title={paymentProviderWithConfiguration.paymentProvider.getTitle()}
+                          variant="secondary"
+                        />
+                      </CardFooter>
+                    )}
+                  </Card>
+                )
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </Page>
+  );
 }

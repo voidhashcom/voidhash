@@ -1,5 +1,5 @@
-import slugify from "slug";
+import slugify from 'slug';
 
 export function createSlug(name: string) {
-	return slugify(name);
+  return slugify(name);
 }

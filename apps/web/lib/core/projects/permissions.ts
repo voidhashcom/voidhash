@@ -1,6 +1,6 @@
 export const ProjectPermissions = {
-	all: "project:all",
+  all: 'project:all'
 } as const;
 
 export type ProjectPermission =
-	(typeof ProjectPermissions)[keyof typeof ProjectPermissions];
+  (typeof ProjectPermissions)[keyof typeof ProjectPermissions];

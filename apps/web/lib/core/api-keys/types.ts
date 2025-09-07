@@ -1,10 +1,10 @@
-import { EnvironmentValue } from "@voidhash/lib/index";
+import type { EnvironmentValue } from '@voidhash/lib/index';
 
 export type ApiKey = {
-	key: string;
-	rawKey?: string;
-	environment: EnvironmentValue;
-	isPublic: boolean;
-	end: string;
-	prefix: string;
+  key: string;
+  rawKey?: string;
+  environment: EnvironmentValue;
+  isPublic: boolean;
+  end: string;
+  prefix: string;
 };

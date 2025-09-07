@@ -1,0 +1,52 @@
+{
+  "name": "react-native-voidhash-example",
+  "main": "expo-router/entry",
+  "version": "1.0.0",
+  "scripts": {
+    "run:android": "expo run:android",
+    "run:ios": "expo run:ios",
+    "eas:build-dev:local": "eas build --local -e development",
+    "start": "expo start --dev-client",
+    "prebuild": "expo prebuild",
+    "lint": "biome check .",
+    "format": "biome format .",
+    "web": "expo start --web",
+    "xcode": "xed ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.1.2",
+    "@voidhash/react-native": "workspace:*",
+    "clsx": "^2.1.1",
+    "expo": "53.0.20",
+    "expo-constants": "17.1.8-canary-20250729-d8899ae",
+    "expo-dev-client": "5.2.4",
+    "expo-linking": "7.1.8-canary-20250729-d8899ae",
+    "expo-localization": "16.1.6",
+    "expo-router": "5.1.4",
+    "expo-splash-screen": "0.30.11-canary-20250729-d8899ae",
+    "expo-status-bar": "2.2.4-canary-20250729-d8899ae",
+    "expo-system-ui": "~5.0.10",
+    "fast-text-encoding": "^1.0.6",
+    "nativewind": "latest",
+    "react": "19.0.0",
+    "react-native": "0.79.5",
+    "react-native-nitro-modules": "0.26.4",
+    "react-native-reanimated": "~3.17.5",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-svg": "15.11.2",
+    "tailwind-merge": "^3.3.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@types/react": "19.0.14",
+    "@typescript-eslint/parser": "^8.33.0",
+    "eslint": "^9.25.1",
+    "eslint-config-expo": "9.2.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "~5.8.3"
+  },
+  "private": true
+}

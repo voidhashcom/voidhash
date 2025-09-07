@@ -1,24 +1,27 @@
-"use client";
+'use client';
 
-import { NextjsErrorResponse } from "@/lib/effect/runtimes/nextjs";
-import { AnyVoidhashError } from "@voidhash/lib/constants";
-import { ErrorCard } from "@voidhash/ui";
+import type { AnyVoidhashError } from '@voidhash/lib/constants';
+import { ErrorCard } from '@voidhash/ui';
+import type { NextjsErrorResponse } from '@/lib/effect/runtimes/nextjs';
 
-export function VoidhashErrorCard({ error }: { error: AnyVoidhashError | NextjsErrorResponse }) {
-	console.error(error);
-	// TODO: Improve this a lot
-	return (
-		<ErrorCard
-			title="Something went wrong"
-			description={
-				error.code !== "INTERNAL_SERVER_ERROR"
-					? error.message
-					: "Please try again later"
-			}
-			className="h-screen"
-			onRetry={() => {
-				window.location.reload();
-			}}
-		/>
-	);
+export function VoidhashErrorCard({
+  error
+}: {
+  error: AnyVoidhashError | NextjsErrorResponse;
+}) {
+  // TODO: Improve this a lot
+  return (
+    <ErrorCard
+      className="h-screen"
+      description={
+        error.code !== 'INTERNAL_SERVER_ERROR'
+          ? error.message
+          : 'Please try again later'
+      }
+      onRetry={() => {
+        window.location.reload();
+      }}
+      title="Something went wrong"
+    />
+  );
 }

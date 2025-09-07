@@ -1,269 +1,271 @@
-"use client";
+'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
+import type { PaymentProviderConfiguration, Project } from '@voidhash/db';
 import {
-	deletePaymentProviderConfigurationAction,
-	updatePaymentProviderConfigurationAction,
-} from "@/lib/nextjs/server-actions";
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { zodResolver } from "@hookform/resolvers/zod";
-import type { Project, PaymentProviderConfiguration } from "@voidhash/db";
+  Badge,
+  Button,
+  Card,
+  CopyText,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Dropzone,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  Label,
+  useConfirmDialog
+} from '@voidhash/ui';
+import { CheckCircleIcon, EllipsisVerticalIcon, XIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useAction } from 'next-safe-action/hooks';
+import { Fragment, useState } from 'react';
+import { type SubmitErrorHandler, useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import type { z } from 'zod';
 import {
-	Form,
-	Label,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormControl,
-	Input,
-	FormMessage,
-	CopyText,
-	Button,
-	Card,
-	Dropzone,
-	useConfirmDialog,
-	DropdownMenu,
-	DropdownMenuTrigger,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	Badge,
-} from "@voidhash/ui";
-import { CheckCircleIcon, EllipsisVerticalIcon, XIcon } from "lucide-react";
-import { useAction } from "next-safe-action/hooks";
-import { useRouter } from "next/navigation";
-import { Fragment, useState } from "react";
-import { SubmitErrorHandler, useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
-import { PaymentProviderLogo } from "./payment-provider-logo";
+  deletePaymentProviderConfigurationAction,
+  updatePaymentProviderConfigurationAction
+} from '@/lib/nextjs/server-actions';
+import { paymentProviders } from '@/lib/payment-providers/payment-providers';
+import { PaymentProviderLogo } from './payment-provider-logo';
 
 export function PaymentProviderDetailConfiguration({
-	organizationSlug,
-	projectSlug,
-	project,
-	paymentProviderConfiguration,
+  organizationSlug,
+  projectSlug,
+  project,
+  paymentProviderConfiguration
 }: {
-	organizationSlug: string;
-	projectSlug: string;
-	project: Project;
-	paymentProviderConfiguration: PaymentProviderConfiguration;
+  organizationSlug: string;
+  projectSlug: string;
+  project: Project;
+  paymentProviderConfiguration: PaymentProviderConfiguration;
 }) {
-	const router = useRouter();
+  const router = useRouter();
 
-	const paymentProvider = paymentProviders.find(
-		(pp) => pp.getId() === paymentProviderConfiguration.providerId
-	)!;
-	const [name, setName] = useState(paymentProviderConfiguration.name);
+  const paymentProvider =
+    paymentProviders.find(
+      (pp) => pp.getId() === paymentProviderConfiguration.providerId
+    ) ?? paymentProviders[0];
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const form = useForm<any>({
-		resolver: zodResolver(paymentProvider?.getGlobalConfigurationSchema()),
-		defaultValues: paymentProviderConfiguration.configuration,
-	});
+  const [name, setName] = useState(paymentProviderConfiguration.name);
 
-	const { execute, isPending } = useAction(
-		updatePaymentProviderConfigurationAction,
-		{
-			onSuccess: () => {
-				toast.success(
-					`${paymentProvider?.getTitle()} configuration saved successfully`
-				);
+  // biome-ignore lint/suspicious/noExplicitAny: zod
+  const form = useForm<any>({
+    resolver: zodResolver(paymentProvider?.getGlobalConfigurationSchema()),
+    defaultValues: paymentProviderConfiguration.configuration
+  });
 
-				router.refresh();
-			},
-			onError: (error) => {
-				toast.error(
-					error.error.serverError ??
-						`Failed to save ${paymentProvider?.getTitle()} configuration. Please try again.`
-				);
-			},
-		}
-	);
+  const { execute, isPending } = useAction(
+    updatePaymentProviderConfigurationAction,
+    {
+      onSuccess: () => {
+        toast.success(
+          `${paymentProvider?.getTitle()} configuration saved successfully`
+        );
 
-	// Delete payment provider configuration
-	const { ConfirmationDialog, openDialog } = useConfirmDialog();
-	const { execute: deletePaymentProviderConfiguration, isPending: isDeleting } =
-		useAction(deletePaymentProviderConfigurationAction, {
-			onSuccess: () => {
-				toast.success(
-					`${paymentProvider?.getTitle()} configuration deleted successfully`
-				);
-				router.push(
-					`/${organizationSlug}/${projectSlug}/settings/payment-providers`
-				);
-			},
-			onError: (error) => {
-				toast.error(
-					error.error.serverError ??
-						`Failed to delete ${paymentProvider?.getTitle()} configuration. Please try again.`
-				);
-			},
-		});
+        router.refresh();
+      },
+      onError: (error) => {
+        toast.error(
+          error.error.serverError ??
+            `Failed to save ${paymentProvider?.getTitle()} configuration. Please try again.`
+        );
+      }
+    }
+  );
 
-	const handleDeletePaymentProviderConfiguration = async (id: string) => {
-		const res = await openDialog({
-			title: "Delete payment provider",
-			description: `Are you sure you want to delete this payment provider?`,
-		});
+  // Delete payment provider configuration
+  const { ConfirmationDialog, openDialog } = useConfirmDialog();
+  const { execute: deletePaymentProviderConfiguration, isPending: isDeleting } =
+    useAction(deletePaymentProviderConfigurationAction, {
+      onSuccess: () => {
+        toast.success(
+          `${paymentProvider?.getTitle()} configuration deleted successfully`
+        );
+        router.push(
+          `/${organizationSlug}/${projectSlug}/settings/payment-providers`
+        );
+      },
+      onError: (error) => {
+        toast.error(
+          error.error.serverError ??
+            `Failed to delete ${paymentProvider?.getTitle()} configuration. Please try again.`
+        );
+      }
+    });
 
-		if (!res) {
-			return;
-		}
+  const handleDeletePaymentProviderConfiguration = async (id: string) => {
+    const res = await openDialog({
+      title: 'Delete payment provider',
+      description: 'Are you sure you want to delete this payment provider?'
+    });
 
-		deletePaymentProviderConfiguration({
-			paymentProviderConfigurationId: id,
-		});
-	};
+    if (!res) {
+      return;
+    }
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const onValidSubmit = async (
-		data: z.infer<
-			ReturnType<typeof paymentProvider.getGlobalConfigurationSchema>
-		>
-	) => {
-		execute({
-			id: paymentProviderConfiguration.id,
-			enabled: paymentProviderConfiguration.enabled,
-			name: name,
-			configuration: data,
-		});
-	};
+    deletePaymentProviderConfiguration({
+      paymentProviderConfigurationId: id
+    });
+  };
 
-	const onInvalidSubmit: SubmitErrorHandler<
-		z.infer<ReturnType<typeof paymentProvider.getGlobalConfigurationSchema>>
-	> = (errors) => {
-		// Log validation errors for debugging
-		console.error("Form validation errors:", errors);
-	};
+  const onValidSubmit = (
+    data: z.infer<
+      ReturnType<typeof paymentProvider.getGlobalConfigurationSchema>
+    >
+  ) => {
+    execute({
+      id: paymentProviderConfiguration.id,
+      enabled: paymentProviderConfiguration.enabled,
+      name,
+      configuration: data
+    });
+  };
 
-	if (!paymentProvider) {
-		return null;
-	}
+  const onInvalidSubmit: SubmitErrorHandler<
+    z.infer<ReturnType<typeof paymentProvider.getGlobalConfigurationSchema>>
+  > = (errors) => {
+    // Log validation errors for debugging
+    // biome-ignore lint/suspicious/noConsole: error handling
+    console.error('Form validation errors:', errors);
+  };
 
-	if (!project) {
-		return null;
-	}
+  if (!paymentProvider) {
+    return null;
+  }
 
-	const configurationSheet = paymentProvider.getGlobalConfigurationSheet({
-		projectId: project.id,
-	});
+  if (!project) {
+    return null;
+  }
 
-	const handleP8FileChange = (name: string, file: File) => {
-		const reader = new FileReader();
-		reader.onload = (e) => {
-			const content = e.target?.result as string;
-			form.setValue(name, content);
-		};
-		reader.readAsText(file);
-	};
+  const configurationSheet = paymentProvider.getGlobalConfigurationSheet({
+    projectId: project.id
+  });
 
-	const handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void> = async (
-		e
-	) => {
-		e?.preventDefault();
+  const handleP8FileChange = (name: string, file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      form.setValue(name, content);
+    };
+    reader.readAsText(file);
+  };
 
-		const isValid = await form.trigger();
-		const isCurrentlyEnabled = paymentProviderConfiguration.enabled;
+  const handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void> = async (
+    e
+  ) => {
+    e?.preventDefault();
 
-		// Case 1: Form is invalid and provider is currently enabled
-		if (!isValid && isCurrentlyEnabled) {
-			const shouldContinue = await openDialog({
-				title: "Invalid Configuration",
-				description:
-					"The current configuration is invalid. If you continue, the payment provider will be disabled. Do you want to proceed?",
-			});
+    const isValid = await form.trigger();
+    const isCurrentlyEnabled = paymentProviderConfiguration.enabled;
 
-			if (!shouldContinue) {
-				return;
-			}
+    // Case 1: Form is invalid and provider is currently enabled
+    if (!isValid && isCurrentlyEnabled) {
+      const shouldContinue = await openDialog({
+        title: 'Invalid Configuration',
+        description:
+          'The current configuration is invalid. If you continue, the payment provider will be disabled. Do you want to proceed?'
+      });
 
-			// Submit with enabled set to false
-			await form.handleSubmit((data) =>
-				execute({
-					id: paymentProviderConfiguration.id,
-					enabled: false,
-					name: name,
-					configuration: data,
-				})
-			)(e);
-			return;
-		}
+      if (!shouldContinue) {
+        return;
+      }
 
-		// Case 2: Form is valid and provider is currently disabled
-		if (isValid && !isCurrentlyEnabled) {
-			const shouldEnable = (await openDialog({
-				title: "Enable Payment Provider",
-				description: "Would you like to enable this payment provider?",
-			})) as boolean;
+      // Submit with enabled set to false
+      await form.handleSubmit((data) =>
+        execute({
+          id: paymentProviderConfiguration.id,
+          enabled: false,
+          name,
+          configuration: data
+        })
+      )(e);
+      return;
+    }
 
-			// Submit with enabled based on user choice
-			await form.handleSubmit((data) =>
-				execute({
-					id: paymentProviderConfiguration.id,
-					enabled: shouldEnable,
-					name: name,
-					configuration: data,
-				})
-			)(e);
-			return;
-		}
+    // Case 2: Form is valid and provider is currently disabled
+    if (isValid && !isCurrentlyEnabled) {
+      const shouldEnable = (await openDialog({
+        title: 'Enable Payment Provider',
+        description: 'Would you like to enable this payment provider?'
+      })) as boolean;
 
-		await form.handleSubmit(onValidSubmit, onInvalidSubmit)(e);
-	};
+      // Submit with enabled based on user choice
+      await form.handleSubmit((data) =>
+        execute({
+          id: paymentProviderConfiguration.id,
+          enabled: shouldEnable,
+          name,
+          configuration: data
+        })
+      )(e);
+      return;
+    }
 
-	return (
-		<Form {...form}>
-			<form onSubmit={handleSubmit} className="flex flex-col flex-1">
-				<div className="border-b border-border">
-					<div className="max-w-5xl mx-auto pb-8">
-						<div className="flex justify-between items-center">
-							<div className="flex items-center gap-4">
-								<PaymentProviderLogo
-									providerId={
-										paymentProviderConfiguration.providerId as ReturnType<
-											(typeof paymentProviders)[number]["getId"]
-										>
-									}
-									className="w-8 h-8"
-								/>
-								<h1 className="text-3xl font-normal tracking-right">
-									{paymentProviderConfiguration.name}
-								</h1>
-								{paymentProviderConfiguration.enabled ? (
-									<Badge variant="default">Enabled</Badge>
-								) : (
-									<Badge variant="outline">Disabled</Badge>
-								)}
-							</div>
-							<div className="flex items-center gap-4">
-								<Button type="submit" disabled={isPending}>
-									{isPending ? "Saving..." : "Save changes"}
-								</Button>
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button variant="outline" size="icon" className="z-20">
-											<EllipsisVerticalIcon className="w-4 h-4" />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent className="w-48" align="end">
-										<DropdownMenuItem
-											className="cursor-pointer"
-											variant="destructive"
-											disabled={isDeleting}
-											onClick={(e) => {
-												e.preventDefault();
-												handleDeletePaymentProviderConfiguration(
-													paymentProviderConfiguration.id
-												);
-											}}
-										>
-											Delete
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
-							</div>
-						</div>
+    await form.handleSubmit(onValidSubmit, onInvalidSubmit)(e);
+  };
 
-						{/* <Alert variant="success" className="mt-6 flex items-center">
+  return (
+    <Form {...form}>
+      <form className="flex flex-1 flex-col" onSubmit={handleSubmit}>
+        <div className="border-border border-b">
+          <div className="mx-auto max-w-5xl pb-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <PaymentProviderLogo
+                  className="h-8 w-8"
+                  providerId={
+                    paymentProviderConfiguration.providerId as ReturnType<
+                      (typeof paymentProviders)[number]['getId']
+                    >
+                  }
+                />
+                <h1 className="font-normal text-3xl tracking-right">
+                  {paymentProviderConfiguration.name}
+                </h1>
+                {paymentProviderConfiguration.enabled ? (
+                  <Badge variant="default">Enabled</Badge>
+                ) : (
+                  <Badge variant="outline">Disabled</Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-4">
+                <Button disabled={isPending} type="submit">
+                  {isPending ? 'Saving...' : 'Save changes'}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button className="z-20" size="icon" variant="outline">
+                      <EllipsisVerticalIcon className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      disabled={isDeleting}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleDeletePaymentProviderConfiguration(
+                          paymentProviderConfiguration.id
+                        );
+                      }}
+                      variant="destructive"
+                    >
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            {/* <Alert variant="success" className="mt-6 flex items-center">
 							<div className="flex-1">
 								<AlertTitle>This provider is correctly configured</AlertTitle>
 								<AlertDescription>
@@ -272,121 +274,121 @@ export function PaymentProviderDetailConfiguration({
 							</div>
 							<Button variant="success">Enable</Button>
 						</Alert> */}
-					</div>
-				</div>
+          </div>
+        </div>
 
-				<div className="grid grid-cols-12 gap-6 flex-1 max-w-5xl mx-auto w-full">
-					<div className="col-span-6"></div>
-					<div className="col-span-6 border-l border-r border-border bg-card">
-						<div className="px-4 pt-10 border-border">
-							<h2 className="font-semibold text-lg tracking-tight">
-								Configuration
-							</h2>
-						</div>
-						<div className="w-full pt-6">
-							<div className="flex-1 flex flex-col">
-								<div>
-									{form.formState.errors.root && (
-										<div className="text-destructive">
-											{form.formState.errors.root.message}
-										</div>
-									)}
-								</div>
+        <div className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-12 gap-6">
+          <div className="col-span-6" />
+          <div className="col-span-6 border-border border-r border-l bg-card">
+            <div className="border-border px-4 pt-10">
+              <h2 className="font-semibold text-lg tracking-tight">
+                Configuration
+              </h2>
+            </div>
+            <div className="w-full pt-6">
+              <div className="flex flex-1 flex-col">
+                <div>
+                  {form.formState.errors.root && (
+                    <div className="text-destructive">
+                      {form.formState.errors.root.message}
+                    </div>
+                  )}
+                </div>
 
-								<div className="px-4 flex-1 space-y-6 ">
-									{paymentProvider.getType() === "native" && (
-										<div>
-											<Label htmlFor="name">Name</Label>
-											<Input
-												id="name"
-												className="mt-2"
-												value={name}
-												onChange={(e) => setName(e.target.value)}
-											/>
-										</div>
-									)}
+                <div className="flex-1 space-y-6 px-4 ">
+                  {paymentProvider.getType() === 'native' && (
+                    <div>
+                      <Label htmlFor="name">Name</Label>
+                      <Input
+                        className="mt-2"
+                        id="name"
+                        onChange={(e) => setName(e.target.value)}
+                        value={name}
+                      />
+                    </div>
+                  )}
 
-									{configurationSheet?.sections.map((section) => (
-										<Fragment key={section.key}>
-											{section.type === "text-input" && (
-												<FormField
-													control={form.control}
-													name={section.name}
-													render={({ field }) => (
-														<FormItem>
-															<FormLabel>{section.label}</FormLabel>
-															<FormControl>
-																<Input
-																	type={section.input.type}
-																	placeholder={section.input.placeholder}
-																	{...field}
-																/>
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
-												/>
-											)}
-											{section.type === "copy-text" && (
-												<div className="mt-4">
-													<Label>{section.label}</Label>
-													<div className="mt-2 p-3 bg-muted text-foreground rounded-md font-mono border border-input">
-														<CopyText text={section.text} />
-													</div>
-												</div>
-											)}
-											{section.type === "p8-upload" && (
-												<FormField
-													control={form.control}
-													name="privateKey"
-													render={({ field }) => (
-														<FormItem>
-															<FormLabel>Private Key (.p8 file)</FormLabel>
-															<FormControl>
-																{field.value ? (
-																	<Card className="p-4 flex items-center justify-between gap-2 flex-row">
-																		<div className="flex items-center gap-2">
-																			<CheckCircleIcon className="w-4 h-4 text-green-500" />
-																			<p className="text-sm text-muted-foreground">
-																				Private key was successfully attached
-																			</p>
-																		</div>
-																		<Button
-																			variant="outline"
-																			onClick={(e) => {
-																				e.preventDefault();
-																				field.onChange("");
-																			}}
-																		>
-																			<XIcon className="w-4 h-4" />
-																			<span>Remove</span>
-																		</Button>
-																	</Card>
-																) : (
-																	<Dropzone
-																		onFileChange={(file) =>
-																			handleP8FileChange(section.name, file)
-																		}
-																		accept=".p8"
-																		maxSize={1024 * 1024} // 1MB
-																	/>
-																)}
-															</FormControl>
-															<FormMessage />
-														</FormItem>
-													)}
-												/>
-											)}
-										</Fragment>
-									))}
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
+                  {configurationSheet?.sections.map((section) => (
+                    <Fragment key={section.key}>
+                      {section.type === 'text-input' && (
+                        <FormField
+                          control={form.control}
+                          name={section.name}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{section.label}</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder={section.input.placeholder}
+                                  type={section.input.type}
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                      {section.type === 'copy-text' && (
+                        <div className="mt-4">
+                          <Label>{section.label}</Label>
+                          <div className="mt-2 rounded-md border border-input bg-muted p-3 font-mono text-foreground">
+                            <CopyText text={section.text} />
+                          </div>
+                        </div>
+                      )}
+                      {section.type === 'p8-upload' && (
+                        <FormField
+                          control={form.control}
+                          name="privateKey"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Private Key (.p8 file)</FormLabel>
+                              <FormControl>
+                                {field.value ? (
+                                  <Card className="flex flex-row items-center justify-between gap-2 p-4">
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                                      <p className="text-muted-foreground text-sm">
+                                        Private key was successfully attached
+                                      </p>
+                                    </div>
+                                    <Button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        field.onChange('');
+                                      }}
+                                      variant="outline"
+                                    >
+                                      <XIcon className="h-4 w-4" />
+                                      <span>Remove</span>
+                                    </Button>
+                                  </Card>
+                                ) : (
+                                  <Dropzone
+                                    accept=".p8"
+                                    maxSize={1024 * 1024}
+                                    onFileChange={(file) =>
+                                      handleP8FileChange(section.name, file)
+                                    } // 1MB
+                                  />
+                                )}
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                    </Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-				<ConfirmationDialog />
-			</form>
-		</Form>
-	);
+        <ConfirmationDialog />
+      </form>
+    </Form>
+  );
 }

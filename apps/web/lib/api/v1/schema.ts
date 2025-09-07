@@ -1,236 +1,293 @@
-import { paymentProviders } from "@/lib/payment-providers/payment-providers";
-import { z } from "zod";
+import { z } from 'zod';
+import { paymentProviders } from '@/lib/payment-providers/payment-providers';
 
 // Customer
 export const createCustomerBodySchema = z
-	.object({
-		appUserId: z.string(),
-		name: z.string().optional(),
-		email: z.string().email().optional(),
-	})
-	.meta({
-		ref: "CreateCustomerBody",
-	});
+  .object({
+    appUserId: z.string(),
+    name: z.string().optional(),
+    email: z.string().email().optional()
+  })
+  .meta({
+    ref: 'CreateCustomerBody'
+  });
 
 export const customerResponseSchema = z
-	.object({
-		customerId: z.string(),
-		name: z.string().nullable(),
-		email: z.string().nullable(),
-		appUserId: z.string().nullable(),
-		// origin: z.enum(["dashboard", "ios", "android", "stripe", "api"]),
-	})
-	.meta({
-		ref: "Customer",
-	});
+  .object({
+    customerId: z.string(),
+    name: z.string().nullable(),
+    email: z.string().nullable(),
+    appUserId: z.string().nullable()
+    // origin: z.enum(["dashboard", "ios", "android", "stripe", "api"]),
+  })
+  .meta({
+    ref: 'Customer'
+  });
 
 // Product
 export const createProductBodySchema = z
-	.object({
-		name: z.string(),
-	})
-	.meta({
-		ref: "CreateProductBody",
-	});
+  .object({
+    name: z.string()
+  })
+  .meta({
+    ref: 'CreateProductBody'
+  });
 
 export const productResponseSchema = z
-	.object({
-		productId: z.string(),
-		name: z.string(),
-	})
-	.meta({
-		ref: "Product",
-	});
+  .object({
+    productId: z.string(),
+    name: z.string()
+  })
+  .meta({
+    ref: 'Product'
+  });
 
 export const getProductByIdParamsSchema = z.object({
-	productId: z.string(),
+  productId: z.string()
 });
 
 export const updateProductBodySchema = z
-	.object({
-		name: z.string(),
-	})
-	.meta({
-		ref: "UpdateProductBody",
-	});
+  .object({
+    name: z.string()
+  })
+  .meta({
+    ref: 'UpdateProductBody'
+  });
 
 export const updateProductParamsSchema = z.object({
-	productId: z.string(),
+  productId: z.string()
 });
 
 export const deleteProductParamsSchema = z.object({
-	productId: z.string(),
+  productId: z.string()
 });
 
 const paymentProviderConfigurationProductSchema = z
-	.union([
-		...paymentProviders.map((p) =>
-			z.object({
-				providerId: z.literal(p.getId()),
-				paymentProviderConfigurationId: z.string(),
-				configuration: p.getProductConfigurationSchema(),
-			}),
-		),
-	])
-	.meta({
-		ref: "PaymentProviderConfigurationProduct",
-	});
+  .union([
+    ...paymentProviders.map((p) =>
+      z.object({
+        providerId: z.literal(p.getId()),
+        paymentProviderConfigurationId: z.string(),
+        configuration: p.getProductConfigurationSchema()
+      })
+    )
+  ])
+  .meta({
+    ref: 'PaymentProviderConfigurationProduct'
+  });
 
 export const attachProviderProductParamsSchema = z.object({
-	productId: z.string(),
+  productId: z.string()
 });
 
 export const attachProviderProductBodySchema =
-	paymentProviderConfigurationProductSchema.meta({
-		ref: "AttachProviderProductBody",
-	});
+  paymentProviderConfigurationProductSchema.meta({
+    ref: 'AttachProviderProductBody'
+  });
 
 export const providerProductResponseSchema = z
-	.object({
-		providerProductKey: z.string(),
-		providerConfiguration: paymentProviderConfigurationProductSchema,
-	})
-	.meta({
-		ref: "ProviderProduct",
-	});
+  .object({
+    providerProductKey: z.string(),
+    providerConfiguration: paymentProviderConfigurationProductSchema
+  })
+  .meta({
+    ref: 'ProviderProduct'
+  });
 
 export const getProviderProductsParamsSchema = z.object({
-	productId: z.string(),
+  productId: z.string()
 });
 
 export const updateProviderProductParamsSchema = z.object({
-	paymentProviderConfigurationProductId: z.string(),
+  paymentProviderConfigurationProductId: z.string()
 });
 
 export const updateProviderProductBodySchema =
-	paymentProviderConfigurationProductSchema.meta({
-		ref: "UpdateProviderProductBody",
-	});
+  paymentProviderConfigurationProductSchema.meta({
+    ref: 'UpdateProviderProductBody'
+  });
 
 export const deleteProviderProductParamsSchema = z.object({
-	productId: z.string(),
-	paymentProviderConfigurationId: z.string(),
-	providerProductKey: z.string(),
+  productId: z.string(),
+  paymentProviderConfigurationId: z.string(),
+  providerProductKey: z.string()
 });
 
 // Paywall
 export const createPaywallBodySchema = z
-	.object({
-		name: z.string(),
-	})
-	.meta({
-		ref: "CreatePaywallBody",
-	});
+  .object({
+    name: z.string()
+  })
+  .meta({
+    ref: 'CreatePaywallBody'
+  });
 
 export const paywallResponseSchema = z
-	.object({
-		paywallId: z.string(),
-		name: z.string(),
-	})
-	.meta({
-		ref: "Paywall",
-	});
+  .object({
+    paywallId: z.string(),
+    name: z.string()
+  })
+  .meta({
+    ref: 'Paywall'
+  });
 
 export const getPaywallByIdParamsSchema = z.object({
-	paywallId: z.string(),
+  paywallId: z.string()
 });
 
 export const deletePaywallParamsSchema = z.object({
-	paywallId: z.string(),
+  paywallId: z.string()
 });
 
 // Paywall Product
 export const attachProductToPaywallParamsSchema = z.object({
-	paywallId: z.string(),
+  paywallId: z.string()
 });
 
 export const attachProductToPaywallBodySchema = z
-	.object({
-		productId: z.string(),
-	})
-	.meta({
-		ref: "AttachProductToPaywallBody",
-	});
+  .object({
+    productId: z.string()
+  })
+  .meta({
+    ref: 'AttachProductToPaywallBody'
+  });
 
 export const paywallProductResponseSchema = z
-	.object({
-		paywallId: z.string(),
-		productId: z.string(),
-		productName: z.string().nullable(),
-	})
-	.meta({
-		ref: "PaywallProduct",
-	});
+  .object({
+    paywallId: z.string(),
+    productId: z.string(),
+    productName: z.string().nullable()
+  })
+  .meta({
+    ref: 'PaywallProduct'
+  });
 
 export const getPaywallProductsParamsSchema = z.object({
-	paywallId: z.string(),
+  paywallId: z.string()
 });
 
 export const deletePaywallProductParamsSchema = z.object({
-	paywallId: z.string(),
-	productId: z.string(),
+  paywallId: z.string(),
+  productId: z.string()
 });
 
 // SDK
 export const sdkGetPaywallByLocationParamsSchema = z.object({
-	locationSlug: z.string(),
+  locationSlug: z.string()
+});
+
+export const sdkGetPaywallByLocationQuerySchema = z.object({
+  nativePaymentProviderId: z.string().optional()
 });
 
 export const sdkPaywallResponseSchema = z
-	.object({
-		paywallId: z.string(),
-		paywallProducts: z.array(
-			z.object({
-				paywallProductId: z.string(),
-				productId: z.string(),
-				displayName: z.string(),
-				price: z.number().nullable(),
-				nativePurchaseAvailable: z.boolean(),
-				webCheckoutAvailable: z.boolean(),
-				webCheckoutPaymentProviderConfigurationProductId: z.string().nullable(),
-			}),
-		),
-	})
-	.meta({
-		ref: "SdkPaywall",
-	});
+  .object({
+    paywallId: z.string(),
+    paywallProducts: z.array(
+      z.object({
+        paywallProductId: z.string(),
+        productId: z.string(),
+        displayName: z.string(),
+        price: z.number().nullable(),
+        nativePurchaseAvailable: z.boolean(),
+        webCheckoutAvailable: z.boolean(),
+        webCheckoutPaymentProviderConfigurationProductId: z.string().nullable()
+      })
+    )
+  })
+  .meta({
+    ref: 'SdkPaywall'
+  });
 
 export const sdkCreateCheckoutBodySchema = z
-	.object({
-		paymentProviderConfigurationProductId: z.string(),
-		successCallbackUrl: z.string().min(1).includes("://"),
-		errorCallbackUrl: z.string().min(1).includes("://"),
-	})
-	.meta({
-		ref: "SdkCreateCheckoutBody",
-	});
+  .object({
+    paymentProviderConfigurationProductId: z.string(),
+    successCallbackUrl: z.string().min(1).includes('://'),
+    errorCallbackUrl: z.string().min(1).includes('://')
+  })
+  .meta({
+    ref: 'SdkCreateCheckoutBody'
+  });
 
 export const sdkCheckoutResponseSchema = z
-	.object({
-		checkoutSessionId: z.string(),
-		checkoutUrl: z.string(),
-	})
-	.meta({
-		ref: "SdkCheckout",
-	});
+  .object({
+    checkoutSessionId: z.string(),
+    checkoutUrl: z.string()
+  })
+  .meta({
+    ref: 'SdkCheckout'
+  });
 
 export const sdkCustomerResponseSchema = z
-	.object({
-		customerId: z.string(),
-		name: z.string().nullable(),
-		email: z.string().nullable(),
-		appUserId: z.string().nullable(),
-	})
-	.meta({
-		ref: "SdkCustomer",
-	});
+  .object({
+    customerId: z.string(),
+    name: z.string().nullable(),
+    email: z.string().nullable(),
+    appUserId: z.string().nullable()
+  })
+  .meta({
+    ref: 'SdkCustomer'
+  });
 
 export const sdkIdentifyCustomerBodySchema = z
-	.object({
-		appUserId: z.string(),
-		name: z.string().optional(),
-		email: z.string().email().optional(),
-	})
-	.meta({
-		ref: "SdkIdentifyCustomerBody",
-	});
+  .object({
+    appUserId: z.string(),
+    name: z.string().optional(),
+    email: z.string().email().optional()
+  })
+  .meta({
+    ref: 'SdkIdentifyCustomerBody'
+  });
+
+export const sdkGetConfigurationResponseSchema = z.object({
+  paywalls: z.array(
+    z.object({
+      paywallId: z.string(),
+      paywallProducts: z.array(
+        z.object({
+          paywallProductId: z.string(),
+          productId: z.string(),
+          displayName: z.string(),
+          nativePaymentProviderConfigurationProductId: z.string().nullable(),
+          defaultWebCheckoutPaymentProviderConfigurationProductId: z
+            .string()
+            .nullable(),
+          paymentProviderConfigurationProducts: z.array(
+            z.object({
+              paymentProviderConfigurationProductId: z.string(),
+              paymentProviderConfigurationId: z.string(),
+              configuration: z.record(z.string(), z.any())
+            })
+          )
+        })
+      )
+    })
+  ),
+  paywallLocations: z.array(
+    z.object({
+      paywallLocationId: z.string(),
+      slug: z.string()
+    })
+  ),
+  placements: z.array(
+    z.object({
+      paywallId: z.string(),
+      paywallLocationId: z.string()
+    })
+  ),
+  paymentProviderConfigurations: z.array(
+    z.object({
+      paymentProviderConfigurationId: z.string(),
+      providerId: z.string()
+    })
+  )
+});
+
+export const sdkSyncCustomerAttributesBodySchema = z
+  .object({
+    name: z.string().optional(),
+    email: z.string().optional()
+  })
+  .meta({
+    ref: 'SdkSyncCustomerAttributesBody'
+  });
