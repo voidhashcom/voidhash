@@ -3,10 +3,7 @@ import { Effect } from 'effect';
 import { describeRoute } from 'hono-openapi';
 import { resolver } from 'hono-openapi/zod';
 import type { z } from 'zod';
-import {
-  createEffectHandler,
-  HonoErrorResponse
-} from '@/lib/effect/runtimes/hono';
+import { createEffectHandler } from '@/lib/effect/runtimes/hono';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import {
   Environment,
@@ -65,17 +62,7 @@ export const registerProductsCreateProduct = (app: App) =>
                   .pipe(
                     Effect.flatMap((createdProduct) =>
                       productService.getProductById(createdProduct.id)
-                    ),
-                    Effect.catchTags({
-                      PaymentProviderConfigurationNotFound: (error) =>
-                        Effect.fail(
-                          new HonoErrorResponse({
-                            code: 'BAD_REQUEST',
-                            message: error.message,
-                            originalError: error
-                          })
-                        )
-                    })
+                    )
                   )
               );
               return c.json<z.infer<typeof productResponseSchema>>({

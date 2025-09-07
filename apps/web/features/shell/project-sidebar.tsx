@@ -2,7 +2,6 @@
 
 import { Sidebar, SidebarContent, useSidebar } from '@voidhash/ui';
 import {
-  GalleryHorizontalEnd,
   GaugeIcon,
   Package2,
   Settings,

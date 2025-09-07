@@ -66,7 +66,7 @@ const paymentProviderConfigurationProductSchema = z
   .union([
     ...paymentProviders.map((p) =>
       z.object({
-        providerId: z.literal(p.getId()),
+        // providerId: z.literal(p.getId()),
         paymentProviderConfigurationId: z.string(),
         configuration: p.getProductConfigurationSchema()
       })
