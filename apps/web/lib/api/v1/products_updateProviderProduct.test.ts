@@ -66,7 +66,6 @@ describe.sequential(
       const updatePayload: RouteRequest = {
         paymentProviderConfigurationId:
           h.resources.paymentProviderConfiguration.id,
-        providerId: 'stripe',
         configuration: {
           productId: 'prod_123',
           // @ts-expect-error - TODO: fix this

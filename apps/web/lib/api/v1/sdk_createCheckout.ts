@@ -82,14 +82,6 @@ export const registerSdkCreateCheckout = (app: App) =>
                       originalError: error
                     })
                   ),
-                PaymentProviderConfigurationNotFound: (error) =>
-                  Effect.fail(
-                    new HonoErrorResponse({
-                      code: 'NOT_FOUND',
-                      message: error.message,
-                      originalError: error
-                    })
-                  ),
                 InvalidAnonymousIdError: (error) =>
                   Effect.fail(
                     new HonoErrorResponse({
