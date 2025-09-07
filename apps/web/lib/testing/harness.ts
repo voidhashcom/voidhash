@@ -19,10 +19,7 @@ import type { TaskContext } from 'vitest';
 import type { z } from 'zod';
 import { hashKey } from '../core/api-keys/utils';
 import { generateId } from '../id/generate';
-import {
-  devCheckout,
-  devCheckoutPaymentProviderId
-} from '../payment-providers/dev-checkout/dev-checkout';
+
 import {
   stripe,
   stripePaymentProviderId
@@ -36,7 +33,6 @@ export type Resources = {
   project: Project;
   secretKey: ApiKey & { unhashedKey: string };
   publishableKey: ApiKey & { unhashedKey: string };
-  devCheckoutPaymentProviderConfiguration: PaymentProviderConfiguration;
   paymentProviderConfiguration: PaymentProviderConfiguration;
 };
 
@@ -175,23 +171,6 @@ export abstract class Harness {
       organizationId: organization.id
     };
 
-    const devCheckoutConfigurationId = generateId('test');
-    const devCheckoutPaymentProviderConfiguration: PaymentProviderConfiguration =
-      {
-        id: devCheckoutConfigurationId,
-        projectId: project.id,
-        providerId: devCheckoutPaymentProviderId,
-        name: 'DevCheckout',
-        enabled: true,
-        paymentProviderKey: devCheckout.createGlobalKey({
-          paymentProviderConfigurationId: devCheckoutConfigurationId
-        }),
-        configuration: {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        deletedAt: null
-      };
-
     const paymentProviderConfiguration: PaymentProviderConfiguration = {
       id: generateId('test'),
       projectId: project.id,
@@ -251,7 +230,6 @@ export abstract class Harness {
       project,
       secretKey,
       publishableKey,
-      devCheckoutPaymentProviderConfiguration,
       paymentProviderConfiguration
     };
   }
@@ -298,8 +276,5 @@ export abstract class Harness {
     await this.db.primary
       .insert(schema.paymentProviderConfigurations)
       .values(this.resources.paymentProviderConfiguration);
-    await this.db.primary
-      .insert(schema.paymentProviderConfigurations)
-      .values(this.resources.devCheckoutPaymentProviderConfiguration);
   }
 }

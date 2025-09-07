@@ -7,9 +7,6 @@ import {
   NextjsErrorResponse,
   runServerEffect
 } from '../effect/runtimes/nextjs';
-import { cancelDevCheckoutPurchaseInputSchema } from '../payment-providers/dev-checkout/actions/cancel-purchase';
-import { confirmDevCheckoutPurchaseInputSchema } from '../payment-providers/dev-checkout/actions/confirm-purchase';
-import { DevCheckoutService } from '../payment-providers/dev-checkout/dev-checkout.service';
 import { ApiKeyService } from '../services/api-key.service';
 import { AuthService, AuthSession } from '../services/auth.service';
 import { CustomerService } from '../services/customer.service';
@@ -551,15 +548,6 @@ export const createProductAction = actionClient
               );
             })
           );
-        }),
-        Effect.catchTags({
-          PaymentProviderConfigurationNotFound: (error) =>
-            Effect.fail(
-              new NextjsErrorResponse({
-                code: 'INTERNAL_SERVER_ERROR',
-                message: error.message
-              })
-            )
         })
       )
     );
@@ -1215,77 +1203,6 @@ export const deletePerkAction = actionClient
             Effect.fail(
               new NextjsErrorResponse({
                 code: 'NOT_FOUND',
-                message: error.message
-              })
-            )
-        })
-      )
-    );
-
-    if (res.isErr()) {
-      throw res.error;
-    }
-
-    return res.value;
-  });
-
-// Dev checkout
-export const confirmDevCheckoutPurchaseAction = actionClient
-  .inputSchema(Schema.standardSchemaV1(confirmDevCheckoutPurchaseInputSchema))
-  .action(async ({ parsedInput }) => {
-    const res = await runServerEffect(
-      pipe(
-        DevCheckoutService,
-        Effect.flatMap((devCheckoutService) =>
-          devCheckoutService.confirmPurchase(parsedInput)
-        ),
-        Effect.catchTags({
-          CheckoutSessionNotFound: (error) =>
-            Effect.fail(
-              new NextjsErrorResponse({
-                code: 'NOT_FOUND',
-                message: error.message
-              })
-            ),
-          CheckoutSessionWasAlreadyCancelled: (error) =>
-            Effect.fail(
-              new NextjsErrorResponse({
-                code: 'BAD_REQUEST',
-                message: error.message
-              })
-            )
-        })
-      )
-    );
-
-    if (res.isErr()) {
-      throw res.error;
-    }
-
-    return res.value;
-  });
-
-export const cancelDevCheckoutPurchaseAction = actionClient
-  .inputSchema(Schema.standardSchemaV1(cancelDevCheckoutPurchaseInputSchema))
-  .action(async ({ parsedInput }) => {
-    const res = await runServerEffect(
-      pipe(
-        DevCheckoutService,
-        Effect.flatMap((devCheckoutService) =>
-          devCheckoutService.cancelPurchase(parsedInput)
-        ),
-        Effect.catchTags({
-          CheckoutSessionNotFound: (error) =>
-            Effect.fail(
-              new NextjsErrorResponse({
-                code: 'NOT_FOUND',
-                message: error.message
-              })
-            ),
-          CheckoutSessionWasAlreadyConfirmed: (error) =>
-            Effect.fail(
-              new NextjsErrorResponse({
-                code: 'BAD_REQUEST',
                 message: error.message
               })
             )

@@ -65,7 +65,7 @@ export const registerSdkSyncCustomerAttributes = (app: App) =>
                 })
               );
 
-              return c.json({});
+              return c.json(customer);
             }).pipe(
               Effect.catchTags({
                 InvalidAnonymousIdError: (error) =>

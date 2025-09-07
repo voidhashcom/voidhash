@@ -81,10 +81,9 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
                       paymentProviderConfigurationProductId
                     );
 
-                  return c.json<z.infer<typeof providerProductResponseSchema>>({
+                  return c.json({
                     providerProductKey: providerProduct.providerProductKey,
                     providerConfiguration: {
-                      // @ts-expect-error - TODO: fix this
                       configuration: providerProduct.configuration,
                       paymentProviderConfigurationId:
                         providerProduct.paymentProviderConfigurationId

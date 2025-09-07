@@ -15,7 +15,6 @@ import { Db, TransactionContext } from '@/lib/effect/db';
 import { NotFoundError, UnauthorizedError } from '@/lib/effect/errors';
 import { Request } from '@/lib/effect/request';
 import { generateId } from '@/lib/id/generate';
-import { devCheckoutPaymentProviderId } from '@/lib/payment-providers/dev-checkout/dev-checkout';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { Environment } from '@/lib/services/environment.service';
 import { isAnonymousId } from '../core/sdk/utils';
@@ -116,8 +115,6 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
             yield* PaymentProviderConfigurationProductRepository;
           const customerRepository = yield* CustomerRepository;
           const checkoutSessionRepository = yield* CheckoutSessionRepository;
-          const paymentProviderRepository =
-            yield* PaymentProviderConfigurationRepository;
           const customerService = yield* CustomerService;
           const db = yield* Db;
 
@@ -148,22 +145,6 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
             return yield* Effect.fail(
               new ProductNotFound({
                 message: 'Payment provider configuration product not found'
-              })
-            );
-          }
-
-          // Get dev checkout payment provider configuration
-          const devCheckoutConfiguration =
-            yield* paymentProviderRepository.getExistingPaymentProviderConfigurationByProviderId(
-              {
-                projectId,
-                providerId: devCheckoutPaymentProviderId
-              }
-            );
-          if (!devCheckoutConfiguration) {
-            return yield* Effect.fail(
-              new PaymentProviderConfigurationNotFound({
-                message: 'Dev checkout payment provider configuration not found'
               })
             );
           }
