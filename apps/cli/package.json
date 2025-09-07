@@ -13,7 +13,7 @@
     "./schema": "./src/schema.ts"
   },
   "scripts": {
-    "dev": "bun run src/index.ts",
+    "dev": "pnpm run src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
