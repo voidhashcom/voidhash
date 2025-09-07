@@ -2,6 +2,7 @@ import { CustomerOrigin, customers, eq } from '@voidhash/db';
 import { Environment as EnvironmentEnum } from '@voidhash/lib/constants';
 import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
+import { ANONYMOUS_USER_ID_PREFIX } from '@/lib/core/sdk/constants';
 import { generateId } from '@/lib/id/generate';
 import { createIntegrationTestRunner } from '../../effect/runtimes/integration-test';
 import { createMockEnvironment } from '../../testing/__mocks__/environment.mock';
@@ -21,7 +22,7 @@ describe.sequential('CustomerService error path', () => {
     const integrationTestRunner = createIntegrationTestRunner('hono');
     const input = {
       projectId: h.resources.project.id,
-      appUserId: 'test-anonymous-user-id',
+      appUserId: `${ANONYMOUS_USER_ID_PREFIX}test-anonymous-user-id`,
       origin: CustomerOrigin.Dashboard,
       environment: EnvironmentEnum.Production
     };
@@ -30,8 +31,7 @@ describe.sequential('CustomerService error path', () => {
         return yield* pipe(
           Effect.gen(function* () {
             const customerService = yield* CustomerService;
-            const customer =
-              yield* customerService.createAnonymousCustomer(input);
+            const customer = yield* customerService.createCustomer(input);
             return customer;
           }),
           Effect.provideService(

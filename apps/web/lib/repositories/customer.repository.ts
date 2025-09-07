@@ -151,13 +151,13 @@ export class CustomerRepository extends Effect.Service<CustomerRepository>()(
         ),
 
         updateCustomer: dbService.makeQuery(
-          (execute, { id, ...customer }: Partial<Customer> & { id: string }) =>
+          (execute, customer: Omit<Partial<Customer>, 'id'> & { id: string }) =>
             execute(async (db) => {
               await db
                 .update(customers)
                 .set(customer)
-                .where(eq(customers.id, id));
-              return { id };
+                .where(eq(customers.id, customer.id));
+              return { id: customer.id };
             })
         )
       };

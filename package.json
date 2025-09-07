@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "version": "0.0.1-alpha.1",
-  "packageManager": "bun@1.2.18",
+  "packageManager": "pnpm@10.7.1",
   "license": "AGPL-3.0",
   "scripts": {
     "build": "turbo build",
@@ -15,12 +15,12 @@
     "bump": "bumpp",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
-    "better-auth:generate": "bun with-env npx @better-auth/cli@latest generate --config ./packages/auth/src/index.ts --output ./packages/db/auth-schema.ts",
-    "better-auth:migrate": "bun with-env npx @better-auth/cli@latest migrate --config ./packages/auth/src/index.ts",
-    "db:generate": "bun with-env drizzle-kit generate",
-    "db:migrate": "bun with-env drizzle-kit migrate",
-    "db:studio": "bun with-env drizzle-kit studio",
-    "db:push": "bun with-env drizzle-kit push",
+    "better-auth:generate": "pnpm run with-env npx @better-auth/cli@latest generate --config ./packages/auth/src/index.ts --output ./packages/db/auth-schema.ts",
+    "better-auth:migrate": "pnpm run with-env npx @better-auth/cli@latest migrate --config ./packages/auth/src/index.ts",
+    "db:generate": "pnpm run with-env drizzle-kit generate",
+    "db:migrate": "pnpm run with-env drizzle-kit migrate",
+    "db:studio": "pnpm run with-env drizzle-kit studio",
+    "db:push": "pnpm run with-env drizzle-kit push",
     "with-env": "dotenv -e ./apps/web/.env --",
     "lines-of-code": "npx cloc . --exclude-dir=.next,node_modules,.vercel,.turbo,.git,meta,.github,.expo,build,.expo-shared --not-match-f=bun.lockb,meta.json --exclude-ext=yaml,md"
   },
@@ -43,7 +43,9 @@
   "workspaces": {
     "packages": [
       "packages/*",
-      "apps/*"
+      "apps/*",
+      "libraries/*",
+      "examples/*"
     ],
     "catalogs": {
       "react18": {

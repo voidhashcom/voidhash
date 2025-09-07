@@ -1,28 +1,26 @@
 import { Schema } from 'effect';
 
 const SdkHeaders = Schema.Struct({
-  'Content-Type': Schema.Literal('application/json'),
-  'X-App-User-Id': Schema.String,
-  'X-Publishable-Key': Schema.String,
-  'X-Platform': Schema.String,
-  'X-SDK': Schema.Literal('react-native'),
-  'X-SDK-Version': Schema.String,
-  'X-Platform-Flavor': Schema.Literal('native'),
-  'X-Platform-Flavor-Version': Schema.optional(Schema.String),
-  'X-Platform-Version': Schema.optional(Schema.String),
-  'X-Platform-Device': Schema.optional(Schema.String),
-  'X-Platform-Brand': Schema.optional(Schema.String),
-  'X-Preferred-Locales': Schema.optional(Schema.String),
-  'X-Client-Locale': Schema.optional(Schema.String),
-  'X-Client-Version': Schema.optional(Schema.String),
-  'X-Client-Bundle-ID': Schema.String,
-  'X-Observer-Mode-Enabled': Schema.Literal('false'),
-  'X-Nonce': Schema.optional(Schema.String),
-  'X-Storefront': Schema.optional(Schema.String),
-  'X-Is-Debug-Build': Schema.Literal('true', 'false'),
-  'X-Is-Backgrounded': Schema.Literal('false')
+  'x-app-user-id': Schema.String,
+  'x-publishable-key': Schema.String,
+  'x-platform': Schema.String,
+  'x-sdk': Schema.Literal('react-native'),
+  'x-sdk-version': Schema.String,
+  'x-platform-flavor': Schema.Literal('native'),
+  'x-platform-flavor-version': Schema.optional(Schema.String),
+  'x-platform-version': Schema.optional(Schema.String),
+  'x-platform-device': Schema.optional(Schema.String),
+  'x-platform-brand': Schema.optional(Schema.String),
+  'x-preferred-locales': Schema.optional(Schema.String),
+  'x-client-locale': Schema.optional(Schema.String),
+  'x-client-version': Schema.optional(Schema.String),
+  'x-client-bundle-id': Schema.String,
+  'x-observer-mode': Schema.Literal('false'),
+  'x-nonce': Schema.optional(Schema.String),
+  'x-storefront': Schema.optional(Schema.String),
+  'x-is-debug-build': Schema.Literal('true', 'false'),
+  'x-is-backgrounded': Schema.Literal('false')
 });
 
-export const parseSdkHeaders = (headers: Headers) => {
-  return Schema.decodeUnknownSync(SdkHeaders)(headers);
-};
+export const parseSdkHeaders = (headers: Headers) =>
+  Schema.decodeUnknownSync(SdkHeaders)(Object.fromEntries(headers));
