@@ -1,20 +1,24 @@
-import { CookiesAdapter } from "@/lib/cookies-adapter";
-import { NextRequest } from "next/server";
+import type { NextRequest } from 'next/server';
+import type { CookiesAdapter } from '@/lib/cookies-adapter';
 
 export class NextMiddlewareCookiesAdapter implements CookiesAdapter {
-	constructor(private readonly req: NextRequest) {}
+  private readonly req: NextRequest;
+  constructor(req: NextRequest) {
+    this.req = req;
+  }
 
-	async get(name: string): Promise<string | null> {
-		return this.req.cookies.get(name)?.value ?? null;
-	}
+  // biome-ignore lint/suspicious/useAwait: need to match CookiesAdapter interface
+  async get(name: string): Promise<string | null> {
+    return this.req.cookies.get(name)?.value ?? null;
+  }
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async set(_: string, __: string): Promise<void> {
-		throw new Error("Settings cookies is not allowed in next.js middleware");
-	}
+  // biome-ignore lint/suspicious/useAwait: need to match CookiesAdapter interface
+  async set(_: string, __: string): Promise<void> {
+    throw new Error('Settings cookies is not allowed in next.js middleware');
+  }
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	async delete(_: string): Promise<void> {
-		throw new Error("Deleting cookies is not allowed in next.js middleware");
-	}
+  // biome-ignore lint/suspicious/useAwait: need to match CookiesAdapter interface
+  async delete(_: string): Promise<void> {
+    throw new Error('Deleting cookies is not allowed in next.js middleware');
+  }
 }

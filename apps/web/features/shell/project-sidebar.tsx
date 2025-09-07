@@ -1,140 +1,102 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { GaugeIcon, Settings, Store, Users } from "lucide-react";
-import { Sidebar, SidebarContent, useSidebar } from "@voidhash/ui";
-import { NavMain } from "./nav-main";
-import { usePathname } from "next/navigation";
-import Link from "next/link";
+import { Sidebar, SidebarContent, useSidebar } from '@voidhash/ui';
+import {
+  GalleryHorizontalEnd,
+  GaugeIcon,
+  Package2,
+  Settings,
+  SquareTerminal,
+  Users
+} from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import * as React from 'react';
+import { NavMain } from './nav-main';
 
 export function ProjectSidebar({
-	collapsible = "icon",
-	organizationSlug,
-	projectSlug,
-	...props
+  collapsible = 'icon',
+  organizationSlug,
+  projectSlug,
+  ...props
 }: React.ComponentProps<typeof Sidebar> & {
-	organizationSlug: string;
-	projectSlug: string;
+  organizationSlug: string;
+  projectSlug: string;
 }) {
-	const pathname = usePathname();
+  const pathname = usePathname();
 
-	const isSettingsRoute = pathname.includes("/settings");
-	const { setOpen } = useSidebar();
-	React.useEffect(() => {
-		if (isSettingsRoute) {
-			setOpen(false);
-		} else if (!isSettingsRoute) {
-			setOpen(true);
-		}
-	}, [isSettingsRoute, setOpen]);
+  const isSettingsRoute = pathname.includes('/settings');
+  const { setOpen } = useSidebar();
+  React.useEffect(() => {
+    if (isSettingsRoute) {
+      setOpen(false);
+    } else if (!isSettingsRoute) {
+      setOpen(true);
+    }
+  }, [isSettingsRoute, setOpen]);
 
-	const data = {
-		navMain: [
-			{
-				title: "Platform",
-				items: [
-					{
-						title: "Overview",
-						url: `/${organizationSlug}/${projectSlug}`,
-						icon: GaugeIcon,
-						isActive: () => pathname == `/${organizationSlug}/${projectSlug}`,
-					},
-					{
-						title: "Customers",
-						url: `/${organizationSlug}/${projectSlug}/customers/list`,
-						icon: Users,
-						isActive: () =>
-							pathname.startsWith(
-								`/${organizationSlug}/${projectSlug}/customers`
-							),
-						items: [
-							{
-								title: "All Customers",
-								url: `/${organizationSlug}/${projectSlug}/customers/list`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/customers/list`
-									),
-							},
-							// {
-							// 	title: "Access Levels",
-							// 	url: `/${organizationSlug}/${projectSlug}/customers/access-levels`,
-							// 	isActive: () =>
-							// 		pathname.startsWith(
-							// 			`/${organizationSlug}/${projectSlug}/customers/access-levels`
-							// 		),
-							// },
-						],
-					},
-					// {
-					// 	title: "Transactions",
-					// 	url: `/${organizationSlug}/${projectSlug}/transactions`,
-					// 	icon: Repeat,
-					// 	isActive: () =>
-					// 		pathname.startsWith(
-					// 			`/${organizationSlug}/${projectSlug}/transactions`
-					// 		),
-					// },
-					{
-						title: "Storefront",
-						icon: Store,
-						url: `/${organizationSlug}/${projectSlug}/storefront/payment-providers`,
-						isActive: () =>
-							pathname.startsWith(
-								`/${organizationSlug}/${projectSlug}/storefront`
-							),
-						items: [
-							{
-								title: "Payment Providers",
-								url: `/${organizationSlug}/${projectSlug}/storefront/payment-providers`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/storefront/payment-providers`
-									),
-							},
-							{
-								title: "Products",
-								url: `/${organizationSlug}/${projectSlug}/storefront/products`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/storefront/products`
-									),
-							},
+  const data = {
+    navMain: [
+      {
+        title: 'Platform',
+        items: [
+          {
+            title: 'Overview',
+            url: `/${organizationSlug}/${projectSlug}`,
+            icon: GaugeIcon,
+            isActive: () => pathname === `/${organizationSlug}/${projectSlug}`
+          },
+          {
+            title: 'Customers',
+            url: `/${organizationSlug}/${projectSlug}/customers`,
+            icon: Users,
+            isActive: () =>
+              pathname.startsWith(
+                `/${organizationSlug}/${projectSlug}/customers`
+              )
+          },
+          {
+            title: 'Products',
+            url: `/${organizationSlug}/${projectSlug}/products`,
+            icon: Package2,
+            isActive: () =>
+              pathname.startsWith(
+                `/${organizationSlug}/${projectSlug}/products`
+              )
+          },
+          {
+            title: 'Developers',
+            url: `/${organizationSlug}/${projectSlug}/developers`,
+            icon: SquareTerminal,
+            isActive: () =>
+              pathname.startsWith(
+                `/${organizationSlug}/${projectSlug}/developers`
+              )
+          },
+          {
+            title: 'Settings',
+            url: `/${organizationSlug}/${projectSlug}/settings/general`,
+            icon: Settings,
+            isActive: () =>
+              pathname.startsWith(
+                `/${organizationSlug}/${projectSlug}/settings/general`
+              )
+          }
+        ]
+      }
+    ]
+  };
 
-							{
-								title: "Paywalls",
-								url: `/${organizationSlug}/${projectSlug}/storefront/paywalls`,
-								isActive: () =>
-									pathname.startsWith(
-										`/${organizationSlug}/${projectSlug}/storefront/paywalls`
-									),
-							},
-						],
-					},
-					{
-						title: "Settings",
-						url: `/${organizationSlug}/${projectSlug}/settings/general`,
-						icon: Settings,
-						isActive: () =>
-							pathname.startsWith(
-								`/${organizationSlug}/${projectSlug}/settings/general`
-							),
-					},
-				],
-			},
-		],
-	};
-
-	return (
-		<Sidebar
-			variant="inset"
-			collapsible={collapsible}
-			className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] border-r"
-			{...props}
-		>
-			<SidebarContent>
-				<NavMain groups={data.navMain} link={Link} />
-			</SidebarContent>
-		</Sidebar>
-	);
+  return (
+    <Sidebar
+      className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] border-r transition-all duration-75"
+      collapsible={collapsible}
+      variant="inset"
+      {...props}
+    >
+      <SidebarContent>
+        <NavMain defaultOpenNested={true} groups={data.navMain} link={Link} />
+      </SidebarContent>
+    </Sidebar>
+  );
 }

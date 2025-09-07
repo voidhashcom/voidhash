@@ -1,12 +1,11 @@
 {
-    "name": "@voidhash/tsconfig",
-    "version": "0.0.1-alpha.1",
-    "private": true,
-    "license": "MIT",
-    "publishConfig": {
-        "access": "public"
-    },
-    "files": [
-        "*.json"
-    ]
+  "name": "@voidhash/tsconfig",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "*.json"
+  ]
 }

@@ -1,117 +1,117 @@
-"use client";
-import * as React from "react";
-import { GradientAvatar, Skeleton } from "@voidhash/ui";
-import { Sidebar, SidebarContent, SidebarHeader } from "@voidhash/ui";
-import { ChevronLeft } from "lucide-react";
-import { usePathname } from "next/navigation";
-import Link from "next/link";
-import { NavMain } from "./nav-main";
-import { type getOrganizationBySlug } from "@/lib/services/organizations/queries";
-import { Suspense, use } from "react";
+'use client';
+import type { Organization } from '@voidhash/db';
+import {
+  GradientAvatar,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  Skeleton
+} from '@voidhash/ui';
+import { ChevronLeft } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import type * as React from 'react';
+import { NavMain } from './nav-main';
 
 const ActiveOrganization = ({
-	activeOrganizationPromise,
+  activeOrganization
 }: {
-	activeOrganizationPromise: ReturnType<typeof getOrganizationBySlug>;
+  activeOrganization: Organization;
 }) => {
-	const activeOrganization = use(activeOrganizationPromise);
+  return (
+    <div className="group flex items-center gap-2">
+      <ChevronLeft className="-ml-1 absolute size-4 opacity-0 transition-opacity group-hover:opacity-100" />
+      <GradientAvatar
+        alt={activeOrganization.name}
+        className="h-4 w-4 scale-100 rounded-lg text-xs transition-all group-hover:scale-0 group-hover:opacity-0"
+        fallback={activeOrganization.id}
+        src={undefined}
+      />
 
-	if (!activeOrganization) {
-		return null;
-	}
-
-	return (
-		<div className="flex items-center gap-2 group">
-			<ChevronLeft className="size-4 -ml-1 opacity-0 group-hover:opacity-100 transition-opacity absolute" />
-			<GradientAvatar
-				className="h-4 w-4 rounded-lg text-xs scale-100 group-hover:opacity-0 transition-all group-hover:scale-0"
-				src={undefined}
-				alt={activeOrganization.name}
-				fallback={activeOrganization.id}
-			/>
-
-			<span className="truncate text-sm text-foreground-">
-				{activeOrganization?.name}
-			</span>
-		</div>
-	);
+      <span className="truncate text-foreground- text-sm">
+        {activeOrganization.name}
+      </span>
+    </div>
+  );
 };
 
 const ActiveOrganizationSkeleton = () => {
-	return (
-		<>
-			<Skeleton className="h-4 w-4 rounded-lg" />
-			<Skeleton className="h-4 w-24 rounded-lg" />
-		</>
-	);
+  return (
+    <>
+      <Skeleton className="h-4 w-4 rounded-lg" />
+      <Skeleton className="h-4 w-24 rounded-lg" />
+    </>
+  );
 };
 
 export function ProjectSettingsSidebar({
-	activeOrganizationPromise,
-	organizationSlug,
-	projectSlug,
-	...props
+  activeOrganization,
+  isActiveOrganizationLoading,
+  organizationSlug,
+  projectSlug,
+  ...props
 }: React.ComponentProps<typeof Sidebar> & {
-	activeOrganizationPromise: ReturnType<typeof getOrganizationBySlug>;
-	organizationSlug: string;
-	projectSlug: string;
+  activeOrganization: Organization | null;
+  isActiveOrganizationLoading: boolean;
+  organizationSlug: string;
+  projectSlug: string;
 }) {
-	const pathname = usePathname();
+  const pathname = usePathname();
 
-	const data = {
-		navMain: [
-			{
-				title: "Project",
-				items: [
-					{
-						title: "General",
-						url: `/${organizationSlug}/${projectSlug}/settings/general`,
-						isActive: () =>
-							pathname.startsWith(
-								`/${organizationSlug}/${projectSlug}/settings/general`
-							),
-					},
-					{
-						title: "API Keys",
-						url: `/${organizationSlug}/${projectSlug}/settings/api-keys`,
-						isActive: () =>
-							pathname.startsWith(
-								`/${organizationSlug}/${projectSlug}/settings/api-keys`
-							),
-					},
-				],
-			},
-		],
-	};
+  const data = {
+    navMain: [
+      {
+        title: 'Project',
+        items: [
+          {
+            title: 'General',
+            url: `/${organizationSlug}/${projectSlug}/settings/general`,
+            isActive: () =>
+              pathname.startsWith(
+                `/${organizationSlug}/${projectSlug}/settings/general`
+              )
+          },
+          {
+            title: 'Payment Providers',
+            url: `/${organizationSlug}/${projectSlug}/settings/payment-providers`,
+            isActive: () =>
+              pathname.startsWith(
+                `/${organizationSlug}/${projectSlug}/settings/payment-providers`
+              )
+          }
+        ]
+      }
+    ]
+  };
 
-	return (
-		<Sidebar
-			variant="inset"
-			collapsible="none"
-			className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] border-r sticky flex"
-			{...props}
-		>
-			<SidebarHeader className="gap-3.5 border-b p-4">
-				<div className="flex w-full items-start justify-start flex-col">
-					<Link
-						href={`/${organizationSlug}/~/settings/general`}
-						className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-					>
-						<Suspense fallback={<ActiveOrganizationSkeleton />}>
-							<ActiveOrganization
-								activeOrganizationPromise={activeOrganizationPromise}
-							/>
-						</Suspense>
-					</Link>
+  return (
+    <Sidebar
+      className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] sticky flex border-r transition-all duration-75"
+      collapsible="none"
+      variant="inset"
+      {...props}
+    >
+      <SidebarHeader className="gap-3.5 border-b p-4">
+        <div className="flex w-full flex-col items-start justify-start">
+          <Link
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+            href={`/${organizationSlug}/~/settings/general`}
+          >
+            {isActiveOrganizationLoading || !activeOrganization ? (
+              <ActiveOrganizationSkeleton />
+            ) : (
+              <ActiveOrganization activeOrganization={activeOrganization} />
+            )}
+          </Link>
 
-					<div className="text-base font-medium text-foreground w-full mt-2">
-						Project Settings
-					</div>
-				</div>
-			</SidebarHeader>
-			<SidebarContent>
-				<NavMain groups={data.navMain} link={Link} tooltips="disabled" />
-			</SidebarContent>
-		</Sidebar>
-	);
+          <div className="mt-2 w-full font-medium text-base text-foreground">
+            Project Settings
+          </div>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <NavMain groups={data.navMain} link={Link} tooltips="disabled" />
+      </SidebarContent>
+    </Sidebar>
+  );
 }

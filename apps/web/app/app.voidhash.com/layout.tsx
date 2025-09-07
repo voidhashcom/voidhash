@@ -1,9 +1,9 @@
-import { AppProviders } from "./providers";
+import { AppProviders } from './providers';
 
 export default function AppLayout({
-	children,
+  children
 }: Readonly<{
-	children: React.ReactNode;
+  children: React.ReactNode;
 }>) {
-	return <AppProviders>{children}</AppProviders>;
+  return <AppProviders>{children}</AppProviders>;
 }

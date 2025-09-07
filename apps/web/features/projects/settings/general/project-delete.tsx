@@ -1,85 +1,85 @@
-"use client";
+'use client';
 
-import { DeleteProjectModal } from "@/features/projects/delete-project-modal";
+import { useQueryClient } from '@tanstack/react-query';
 import {
-	Card,
-	CardHeader,
-	CardTitle,
-	CardDescription,
-	CardFooter,
-	Button,
-} from "@voidhash/ui";
-import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
-import { useAction } from "next-safe-action/hooks";
-import { deleteProjectAction } from "@/lib/nextjs/server-actions";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "@/features/trpc/react";
+  Button,
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from '@voidhash/ui';
+import { useParams, useRouter } from 'next/navigation';
+import { useAction } from 'next-safe-action/hooks';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { DeleteProjectModal } from '@/features/projects/delete-project-modal';
+import { useTRPC } from '@/features/trpc/react';
+import { deleteProjectAction } from '@/lib/nextjs/server-actions';
 
 export function ProjectDelete({ projectId }: { projectId: string }) {
-	const { organizationSlug, projectSlug } = useParams();
-	const router = useRouter();
-	const queryClient = useQueryClient();
-	const trpc = useTRPC();
+  const { organizationSlug, projectSlug } = useParams();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const trpc = useTRPC();
 
-	const { execute, isPending } = useAction(deleteProjectAction, {
-		onSuccess: () => {
-			toast.success("Project deleted successfully");
-			queryClient.invalidateQueries({
-				queryKey: trpc.pathKey(),
-			});
-			router.push("/");
-		},
-		onError: (error) => {
-			toast.error(error.error.serverError);
-		},
-	});
+  const { execute, isPending } = useAction(deleteProjectAction, {
+    onSuccess: () => {
+      toast.success('Project deleted successfully');
+      queryClient.invalidateQueries({
+        queryKey: trpc.pathKey()
+      });
+      router.push('/');
+    },
+    onError: (error) => {
+      toast.error(error.error.serverError);
+    }
+  });
 
-	const handleDelete = () => {
-		execute({
-			id: projectId,
-		});
-	};
+  const handleDelete = () => {
+    execute({
+      id: projectId
+    });
+  };
 
-	// Delete modal
-	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  // Delete modal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
-	if (typeof organizationSlug !== "string" || typeof projectSlug !== "string") {
-		return null;
-	}
+  if (typeof organizationSlug !== 'string' || typeof projectSlug !== 'string') {
+    return null;
+  }
 
-	return (
-		<Card className="pb-0 overflow-hidden mt-8" variant="destructive">
-			<CardHeader>
-				<CardTitle>Delete Project</CardTitle>
-				<CardDescription>
-					Permanently delete your project and all associated data. This action
-					is irreversible.
-				</CardDescription>
-			</CardHeader>
-			<CardFooter className="bg-background py-3 border-t border-border [.border-t]:pt-3 flex items-baseline justify-between">
-				<div className="text-muted-foreground"></div>
-				<div>
-					<DeleteProjectModal
-						open={deleteModalOpen}
-						onClose={() => setDeleteModalOpen(false)}
-						onDelete={handleDelete}
-						key={deleteModalOpen ? "open" : "closed"}
-						trigger={
-							<Button
-								variant="destructive"
-								onClick={() => setDeleteModalOpen(true)}
-								disabled={isPending}
-							>
-								{isPending ? "Deleting..." : "Delete Project"}
-							</Button>
-						}
-						organizationSlug={organizationSlug}
-						projectSlug={projectSlug}
-					/>
-				</div>
-			</CardFooter>
-		</Card>
-	);
+  return (
+    <Card className="mt-8 overflow-hidden pb-0" variant="destructive">
+      <CardHeader>
+        <CardTitle>Delete Project</CardTitle>
+        <CardDescription>
+          Permanently delete your project and all associated data. This action
+          is irreversible.
+        </CardDescription>
+      </CardHeader>
+      <CardFooter className="flex items-baseline justify-between border-border border-t bg-background py-3 [.border-t]:pt-3">
+        <div className="text-muted-foreground" />
+        <div>
+          <DeleteProjectModal
+            key={deleteModalOpen ? 'open' : 'closed'}
+            onClose={() => setDeleteModalOpen(false)}
+            onDelete={handleDelete}
+            open={deleteModalOpen}
+            organizationSlug={organizationSlug}
+            projectSlug={projectSlug}
+            trigger={
+              <Button
+                disabled={isPending}
+                onClick={() => setDeleteModalOpen(true)}
+                variant="destructive"
+              >
+                {isPending ? 'Deleting...' : 'Delete Project'}
+              </Button>
+            }
+          />
+        </div>
+      </CardFooter>
+    </Card>
+  );
 }

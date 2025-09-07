@@ -1,0 +1,216 @@
+import { Effect, Schema } from 'effect';
+
+export const CURRENCIES = {
+  AED: 'United Arab Emirates Dirham',
+  AFN: 'Afghanistan Afghani',
+  ALL: 'Albania Lek',
+  AMD: 'Armenia Dram',
+  ANG: 'Netherlands Antilles Guilder',
+  AOA: 'Angola Kwanza',
+  ARS: 'Argentina Peso',
+  AUD: 'Australia Dollar',
+  AWG: 'Aruba Guilder',
+  AZN: 'Azerbaijan New Manat',
+  BAM: 'Bosnia and Herzegovina Convertible Marka',
+  BBD: 'Barbados Dollar',
+  BDT: 'Bangladesh Taka',
+  BGN: 'Bulgaria Lev',
+  BHD: 'Bahrain Dinar',
+  BIF: 'Burundi Franc',
+  BMD: 'Bermuda Dollar',
+  BND: 'Brunei Darussalam Dollar',
+  BOB: 'Bolivia Bolíviano',
+  BOV: 'Bolivia Mvdol', // Fund code
+  BRL: 'Brazil Real',
+  BSD: 'Bahamas Dollar',
+  BTN: 'Bhutan Ngultrum',
+  BWP: 'Botswana Pula',
+  BYN: 'Belarus Ruble',
+  BYR: 'Belarus Ruble (old)',
+  BZD: 'Belize Dollar',
+  CAD: 'Canada Dollar',
+  CDF: 'Congo/Kinshasa Franc',
+  CHE: 'Switzerland WIR Euro', // Complementary currency
+  CHF: 'Switzerland Franc',
+  CHW: 'Switzerland WIR Franc', // Complementary currency
+  CLF: 'Chile Unidad de Fomento', // Fund code
+  CLP: 'Chile Peso',
+  CNY: 'China Yuan Renminbi',
+  COP: 'Colombia Peso',
+  COU: 'Colombia Unidad de Valor Real', // Fund code
+  CRC: 'Costa Rica Colon',
+  CUC: 'Cuba Convertible Peso', // Being phased out/largely replaced by CUP
+  CUP: 'Cuba Peso',
+  CVE: 'Cape Verde Escudo',
+  CZK: 'Czech Republic Koruna',
+  DJF: 'Djibouti Franc',
+  DKK: 'Denmark Krone',
+  DOP: 'Dominican Republic Peso',
+  DZD: 'Algeria Dinar',
+  EGP: 'Egypt Pound',
+  ERN: 'Eritrea Nakfa',
+  ETB: 'Ethiopia Birr',
+  EUR: 'Euro',
+  FJD: 'Fiji Dollar',
+  FKP: 'Falkland Islands Pound',
+  GBP: 'United Kingdom Pound',
+  GEL: 'Georgia Lari',
+  GHS: 'Ghana Cedi',
+  GIP: 'Gibraltar Pound',
+  GMD: 'Gambia Dalasi',
+  GNF: 'Guinea Franc',
+  GTQ: 'Guatemala Quetzal',
+  GYD: 'Guyana Dollar',
+  HKD: 'Hong Kong Dollar',
+  HNL: 'Honduras Lempira',
+  HRK: 'Croatia Kuna (historical, replaced by EUR)',
+  HTG: 'Haiti Gourde',
+  HUF: 'Hungary Forint',
+  IDR: 'Indonesia Rupiah',
+  ILS: 'Israel Shekel',
+  IMP: 'Isle of Man Pound', // Local issue, pegged to GBP
+  INR: 'India Rupee',
+  IQD: 'Iraq Dinar',
+  IRR: 'Iran Rial',
+  ISK: 'Iceland Krona',
+  JEP: 'Jersey Pound', // Local issue, pegged to GBP
+  JMD: 'Jamaica Dollar',
+  JOD: 'Jordan Dinar',
+  JPY: 'Japan Yen',
+  KES: 'Kenya Shilling',
+  KGS: 'Kyrgyzstan Som',
+  KHR: 'Cambodia Riel',
+  KMF: 'Comoros Franc',
+  KPW: 'North Korea Won',
+  KRW: 'South Korea Won',
+  KWD: 'Kuwait Dinar',
+  KYD: 'Cayman Islands Dollar',
+  KZT: 'Kazakhstan Tenge',
+  LAK: 'Laos Kip',
+  LBP: 'Lebanon Pound',
+  LKR: 'Sri Lanka Rupee',
+  LRD: 'Liberia Dollar',
+  LSL: 'Lesotho Loti',
+  LYD: 'Libya Dinar',
+  MAD: 'Morocco Dirham',
+  MDL: 'Moldova Leu',
+  MGA: 'Madagascar Ariary',
+  MKD: 'Macedonia Denar',
+  MMK: 'Myanmar Kyat',
+  MNT: 'Mongolia Tughrik',
+  MOP: 'Macau Pataca',
+  MRU: 'Mauritania Ouguiya',
+  MRO: 'Mauritania Ouguiya (old)',
+  MUR: 'Mauritius Rupee',
+  MVR: 'Maldives Rufiyaa',
+  MWK: 'Malawi Kwacha',
+  MXN: 'Mexico Peso',
+  MXV: 'Mexico Unidad de Inversion (UDI)', // Fund code
+  MYR: 'Malaysia Ringgit',
+  MZN: 'Mozambique Metical',
+  NAD: 'Namibia Dollar',
+  NGN: 'Nigeria Naira',
+  NIO: 'Nicaragua Cordoba',
+  NOK: 'Norway Krone',
+  NPR: 'Nepal Rupee',
+  NZD: 'New Zealand Dollar',
+  OMR: 'Oman Rial',
+  PAB: 'Panama Balboa',
+  PEN: 'Peru Sol',
+  PGK: 'Papua New Guinea Kina',
+  PHP: 'Philippines Peso',
+  PKR: 'Pakistan Rupee',
+  PLN: 'Poland Zloty',
+  PYG: 'Paraguay Guarani',
+  QAR: 'Qatar Riyal',
+  RON: 'Romania New Leu',
+  RSD: 'Serbia Dinar',
+  RUB: 'Russia Ruble',
+  RWF: 'Rwanda Franc',
+  SAR: 'Saudi Arabia Riyal',
+  SBD: 'Solomon Islands Dollar',
+  SCR: 'Seychelles Rupee',
+  SDG: 'Sudan Pound',
+  SEK: 'Sweden Krona',
+  SGD: 'Singapore Dollar',
+  SHP: 'Saint Helena Pound',
+  SLE: 'Sierra Leone Leone',
+  SLL: 'Sierra Leone Leone (old)',
+  SOS: 'Somalia Shilling',
+  SSP: 'South Sudan Pound',
+  STN: 'São Tomé and Príncipe Dobra',
+  STD: 'São Tomé and Príncipe Dobra (old)',
+  SVC: 'El Salvador Colon (historical, USD is primary currency)',
+  SYP: 'Syria Pound',
+  SZL: 'Eswatini Lilangeni',
+  THB: 'Thailand Baht',
+  TJS: 'Tajikistan Somoni',
+  TMT: 'Turkmenistan Manat',
+  TND: 'Tunisia Dinar',
+  TOP: "Tonga Pa'anga",
+  TRY: 'Turkey Lira',
+  TTD: 'Trinidad and Tobago Dollar',
+  TVD: 'Tuvalu Dollar', // Pegged to AUD
+  TWD: 'Taiwan New Dollar',
+  TZS: 'Tanzania Shilling',
+  UAH: 'Ukraine Hryvnia',
+  UGX: 'Uganda Shilling',
+  USD: 'United States Dollar',
+  USN: 'United States Dollar (Next day)', // Fund code
+  USS: 'United States Dollar (Same day)', // Fund code, deprecated
+  UYI: 'Uruguay Peso en Unidades Indexadas', // Fund code
+  UYU: 'Uruguay Peso',
+  UYW: 'Unidad Previsional', // Fund code (Uruguay)
+  UZS: 'Uzbekistan Som',
+  VED: 'Venezuela Bolívar Digital',
+  VEF: 'Venezuela Bolívar (old)',
+  VES: 'Venezuela Bolívar Soberano (old)',
+  VND: 'Viet Nam Dong',
+  VUV: 'Vanuatu Vatu',
+  WST: 'Samoa Tala',
+  XAF: 'Communauté Financière Africaine BEAC Franc', // CFA Franc BEAC
+  XAG: 'Silver', // Precious metal
+  XAU: 'Gold', // Precious metal
+  XBA: 'European Composite Unit (EURCO)', // Bond market unit
+  XBB: 'European Monetary Unit (E.M.U.-6)', // Bond market unit
+  XBC: 'European Unit of Account (XBC)', // Bond market unit
+  XBD: 'European Unit of Account (XBD)', // Bond market unit
+  XCD: 'East Caribbean Dollar',
+  XDR: 'International Monetary Fund Special Drawing Rights',
+  XOF: 'Communauté Financière Africaine BCEAO Franc', // CFA Franc BCEAO
+  XPD: 'Palladium', // Precious metal
+  XPF: 'Comptoirs Français du Pacifique CFP Franc', // CFP Franc
+  XPT: 'Platinum', // Precious metal
+  XSU: 'SUCRE', // Regional currency
+  XTS: 'Testing Currency Code', // For testing purposes
+  XUA: 'ADB Unit of Account', // African Development Bank
+  XXX: 'No Currency', // For transactions where no currency is involved
+  YER: 'Yemen Rial',
+  ZAR: 'South Africa Rand',
+  ZMW: 'Zambia Kwacha',
+  ZWL: 'Zimbabwe Dollar (historical, replaced by ZiG)'
+} as const;
+
+export type ISO4217CurrencyCode = keyof typeof CURRENCIES;
+
+export class InvalidISO4217CurrencyCodeError extends Schema.TaggedError<InvalidISO4217CurrencyCodeError>()(
+  'InvalidISO4217CurrencyCodeError',
+  {
+    code: Schema.String,
+    message: Schema.String
+  }
+) {}
+
+export const parseISO4217CurrencyCode = (currency: string) =>
+  Effect.gen(function* () {
+    if (currency in CURRENCIES) {
+      return currency as ISO4217CurrencyCode;
+    }
+
+    return yield* Effect.fail(
+      new InvalidISO4217CurrencyCodeError({
+        code: 'INVALID_ISO_4217_CURRENCY_CODE',
+        message: `Invalid ISO 4217 currency code: ${currency}`
+      })
+    );
+  });

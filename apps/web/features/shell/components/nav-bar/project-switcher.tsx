@@ -1,95 +1,120 @@
-import { GradientAvatar, Skeleton } from "@voidhash/ui";
-import Link from "next/link";
-import { NavSlashSeparator } from "./nav-slash-separator";
-import { OrganizationProjectSwitcher } from "./organization-project-switcher";
-import {
-	type getProjectBySlug,
-	getProjectBySlugAndOrganizationSlug,
-} from "@/lib/services/projects/queries";
-import { Suspense } from "react";
-import { createNextServiceContext } from "@/lib/nextjs/utils/create-next-service-context";
-import { getOrganizationBySlug } from "@/lib/services/organizations/queries";
-import { getUser } from "@/lib/services/users/queries";
+import type { Project } from '@voidhash/db';
+import { GradientAvatar, Skeleton } from '@voidhash/ui';
+import { Effect } from 'effect';
+import Link from 'next/link';
+import { Suspense } from 'react';
+import { NotFoundError } from '@/lib/effect/errors';
+import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { OrganizationService } from '@/lib/services/organization.service';
+import { ProjectService } from '@/lib/services/project.service';
+import { UserService } from '@/lib/services/user.service';
+import { NavSlashSeparator } from './nav-slash-separator';
+import { OrganizationProjectSwitcher } from './organization-project-switcher';
 
-const ProjectTitle = async ({
-	projectPromise,
-}: { projectPromise: ReturnType<typeof getProjectBySlug> }) => {
-	const project = await projectPromise;
+const ProjectTitle = ({ project }: { project: Project }) => {
+  return (
+    <div className="flex items-center gap-2">
+      <GradientAvatar
+        alt={project.name}
+        className="h-6 w-6 rounded-lg text-xs"
+        fallback={project.id}
+        src={undefined}
+      />
 
-	if (!project) {
-		return null;
-	}
-
-	return (
-		<div className="flex items-center gap-2">
-			<GradientAvatar
-				className="h-6 w-6 rounded-lg text-xs"
-				src={undefined}
-				alt={project.name}
-				fallback={project.id}
-			/>
-
-			<span className="truncate text-sm text-foreground-">{project.name}</span>
-		</div>
-	);
+      <span className="truncate text-foreground- text-sm">{project.name}</span>
+    </div>
+  );
 };
 
 const ProjectTitleSkeleton = () => {
-	return (
-		<div className="flex items-center gap-2">
-			<Skeleton className="h-6 w-6 rounded-full" />
-			<Skeleton className="h-4 w-24" />
-		</div>
-	);
+  return (
+    <div className="flex items-center gap-2">
+      <Skeleton className="h-6 w-6 rounded-full" />
+      <Skeleton className="h-4 w-24" />
+    </div>
+  );
 };
 
 export async function ProjectSwitcher({
-	organizationSlug,
-	projectSlug,
+  organizationSlug,
+  projectSlug
 }: {
-	organizationSlug: string | null;
-	projectSlug: string | null;
+  organizationSlug: string | null;
+  projectSlug: string | null;
 }) {
-	if (!projectSlug || !organizationSlug) {
-		return null;
-	}
+  if (!(projectSlug && organizationSlug)) {
+    return null;
+  }
 
-	const serviceContext = await createNextServiceContext();
-	const userPromise = getUser({
-		ctx: serviceContext,
-	});
-	const activeOrganizationPromise = getOrganizationBySlug({
-		ctx: serviceContext,
-		input: {
-			slug: organizationSlug,
-		},
-	});
+  const data = await runServerEffect(
+    Effect.gen(function* () {
+      const authService = yield* AuthService;
+      const authSession = yield* authService.authenticateWithSession();
+      return yield* AuthSession.provide(authSession)(
+        Effect.gen(function* () {
+          const userService = yield* UserService;
+          const organizationService = yield* OrganizationService;
+          const projectService = yield* ProjectService;
+          const [user, activeOrganization, activeProject] = yield* Effect.all(
+            [
+              userService.getUser(),
+              organizationService.getOrganizationBySlug(organizationSlug).pipe(
+                Effect.catchTags({
+                  OrganizationNotFound: () =>
+                    Effect.fail(
+                      new NotFoundError({
+                        message: 'Organization not found'
+                      })
+                    )
+                })
+              ),
+              projectService.getProjectBySlugAndOrganizationSlug({
+                organizationSlug,
+                projectSlug
+              })
+            ],
+            {
+              concurrency: 'unbounded'
+            }
+          );
 
-	const projectPromise = getProjectBySlugAndOrganizationSlug({
-		ctx: serviceContext,
-		input: {
-			organizationSlug: organizationSlug,
-			projectSlug: projectSlug,
-		},
-	});
+          if (!activeProject) {
+            return yield* Effect.fail(
+              new NotFoundError({
+                message: 'Project not found'
+              })
+            );
+          }
+          return { user, activeOrganization, activeProject };
+        })
+      );
+    })
+  );
 
-	return (
-		<>
-			<NavSlashSeparator />
-			<div className="flex items-center gap-2">
-				<Link href={`/${organizationSlug}/${projectSlug}`}>
-					<div className="flex items-center gap-2">
-						<Suspense fallback={<ProjectTitleSkeleton />}>
-							<ProjectTitle projectPromise={projectPromise} />
-						</Suspense>
-					</div>
-				</Link>
-				<OrganizationProjectSwitcher
-					userPromise={userPromise}
-					activeOrganizationPromise={activeOrganizationPromise}
-					activeProjectPromise={projectPromise}
-				/>
-			</div>
-		</>
-	);
+  if (data.isErr()) {
+    return null;
+  }
+
+  const { user, activeOrganization, activeProject } = data.value;
+
+  return (
+    <>
+      <NavSlashSeparator />
+      <div className="flex items-center gap-2">
+        <Link href={`/${organizationSlug}/${projectSlug}`}>
+          <div className="flex items-center gap-2">
+            <Suspense fallback={<ProjectTitleSkeleton />}>
+              <ProjectTitle project={activeProject} />
+            </Suspense>
+          </div>
+        </Link>
+        <OrganizationProjectSwitcher
+          activeOrganization={activeOrganization}
+          activeProject={activeProject}
+          user={user}
+        />
+      </div>
+    </>
+  );
 }

@@ -1,0 +1,106 @@
+import {
+  type InsertPaymentProviderConfigurationProduct,
+  type InsertProduct,
+  paymentProviderConfigurationProducts,
+  products
+} from '@voidhash/db';
+import { Environment } from '@voidhash/lib/constants';
+import { eq } from 'drizzle-orm';
+import { describe, expect, test } from 'vitest';
+import type { z } from 'zod';
+import { generateId } from '@/lib/id/generate';
+import type { stripe } from '@/lib/payment-providers/stripe/stripe';
+import { IntegrationHarness } from '@/lib/testing/integration-harness';
+
+describe.sequential(
+  '/v1/products/:productId/provider-products/:providerId/:providerProductKey',
+  () => {
+    test('DELETE /v1/products/:productId/provider-products/:providerId/:providerProductKey - success', async (t) => {
+      const h = await IntegrationHarness.init(t);
+
+      // Create a base product
+      const productInput: Omit<InsertProduct, 'projectId'> = {
+        id: generateId('test'),
+        name: 'Base Product for Delete Provider',
+        environment: Environment.Production
+      };
+      await h.db.primary.insert(products).values({
+        ...productInput,
+        projectId: h.resources.project.id
+      });
+
+      // Directly insert a provider product to delete
+      const providerConfigToDelete: InsertPaymentProviderConfigurationProduct =
+        {
+          id: generateId('test'),
+          productId: productInput.id,
+          paymentProviderConfigurationId:
+            h.resources.paymentProviderConfiguration.id,
+          providerProductKey: `ppk_to_delete_${generateId('test')}`,
+          configuration: {
+            priceId: `price_to_delete_${generateId('test')}`,
+            productId: `prod_to_delete_${generateId('test')}`
+          } satisfies z.infer<
+            ReturnType<typeof stripe.getProductConfigurationSchema>
+          >,
+          isActive: true
+        };
+      await h.db.primary
+        .insert(paymentProviderConfigurationProducts)
+        .values(providerConfigToDelete);
+
+      const res = await h.delete({
+        url: `/v1/products/${productInput.id}/provider-products/${providerConfigToDelete.paymentProviderConfigurationId}/${providerConfigToDelete.providerProductKey}`,
+        headers: {
+          'x-secret-key': h.resources.secretKey.unhashedKey
+        }
+      });
+
+      expect(
+        res.status,
+        `expected 200, received: ${JSON.stringify(res, null, 2)}`
+      ).toBe(200);
+
+      expect(res.body).toEqual({ message: 'Provider product deleted' });
+
+      // Verify deletion in DB
+      const dbProviderProduct =
+        await h.db.primary.query.paymentProviderConfigurationProducts.findFirst(
+          {
+            where: eq(
+              paymentProviderConfigurationProducts.id,
+              providerConfigToDelete.id
+            )
+          }
+        );
+      expect(dbProviderProduct).toBeUndefined();
+
+      // Clean up base product
+      t.onTestFinished(async () => {
+        await h.db.primary
+          .delete(products)
+          .where(eq(products.id, productInput.id));
+      });
+    });
+
+    test('DELETE /v1/products/:productId/provider-products/:providerId/:providerProductKey - not found', async (t) => {
+      const h = await IntegrationHarness.init(t);
+      const productId = generateId('test');
+      const providerId = 'stripe';
+      const nonExistentKey = `ppk_nonexistent_${generateId('test')}`;
+
+      const res = await h.delete({
+        url: `/v1/products/${productId}/provider-products/${providerId}/${nonExistentKey}`,
+        headers: {
+          'x-secret-key': h.resources.secretKey.unhashedKey
+        }
+      });
+
+      // Assuming the service returns 404 when the provider product is not found
+      expect(
+        res.status,
+        `expected 404, received: ${JSON.stringify(res, null, 2)}`
+      ).toBe(404);
+    });
+  }
+);
