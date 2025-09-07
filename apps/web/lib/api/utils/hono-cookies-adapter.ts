@@ -1,19 +1,25 @@
-import { CookiesAdapter } from "@/lib/cookies-adapter";
-import { getCookie, setCookie, deleteCookie } from "hono/cookie";
-import { Context } from "hono";
+import type { Context } from 'hono';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
+import type { CookiesAdapter } from '@/lib/cookies-adapter';
 
 export class HonoCookiesAdapter implements CookiesAdapter {
-	constructor(private readonly honoContext: Context) {}
+  private readonly honoContext: Context;
+  constructor(honoContext: Context) {
+    this.honoContext = honoContext;
+  }
 
-	async get(name: string): Promise<string | null> {
-		return getCookie(this.honoContext, name) ?? null;
-	}
+  // biome-ignore lint/suspicious/useAwait: need to match CookiesAdapter interface
+  async get(name: string): Promise<string | null> {
+    return getCookie(this.honoContext, name) ?? null;
+  }
 
-	async set(name: string, value: string): Promise<void> {
-		setCookie(this.honoContext, name, value);
-	}
+  // biome-ignore lint/suspicious/useAwait: need to match CookiesAdapter interface
+  async set(name: string, value: string): Promise<void> {
+    setCookie(this.honoContext, name, value);
+  }
 
-	async delete(name: string): Promise<void> {
-		deleteCookie(this.honoContext, name);
-	}
+  // biome-ignore lint/suspicious/useAwait: need to match CookiesAdapter interface
+  async delete(name: string): Promise<void> {
+    deleteCookie(this.honoContext, name);
+  }
 }

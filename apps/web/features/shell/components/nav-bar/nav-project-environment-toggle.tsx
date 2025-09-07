@@ -1,55 +1,66 @@
-"use client";
+'use client';
 
-import { switchEnvironmentAction } from "@/lib/nextjs/server-actions";
-import { Environment } from "@/lib/environments/types";
-import { cn, Label, Switch } from "@voidhash/ui";
-import { useAction } from "next-safe-action/hooks";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import {
+  Environment as EnvironmentEnum,
+  type EnvironmentValue
+} from '@voidhash/lib/index';
+import { cn, Label, Switch } from '@voidhash/ui';
+import { useRouter } from 'next/navigation';
+import { useAction } from 'next-safe-action/hooks';
+import { toast } from 'sonner';
+import { switchEnvironmentAction } from '@/lib/nextjs/server-actions';
 
 export function NavProjectEnvironmentToggle({
-	environment,
-	projectId,
-}: { environment: Environment; projectId: string }) {
-	const router = useRouter();
-	const { execute, isExecuting } = useAction(switchEnvironmentAction, {
-		onSuccess: ({ input }) => {
-			if (input.environment === "testing") {
-				toast.success("Switched to testing environment");
-			} else {
-				toast.success("Switched to production environment");
-			}
-		},
-		onError: () => {
-			toast.error("Failed to switch environment");
-		},
-		onSettled: () => {
-			router.refresh();
-		},
-	});
+  environment,
+  projectId
+}: {
+  environment: EnvironmentValue;
+  projectId: string;
+}) {
+  const router = useRouter();
+  const { execute, isExecuting } = useAction(switchEnvironmentAction, {
+    onSuccess: ({ input }) => {
+      if (input.environment === EnvironmentEnum.Testing) {
+        toast.success('Switched to testing environment');
+      } else {
+        toast.success('Switched to production environment');
+      }
+    },
+    onError: () => {
+      toast.error('Failed to switch environment');
+    },
+    onSettled: () => {
+      router.refresh();
+    }
+  });
 
-	const handleSwitch = () => {
-		execute({
-			projectId: projectId,
-			environment: environment === "testing" ? "production" : "testing",
-		});
-	};
+  const handleSwitch = () => {
+    execute({
+      projectId,
+      environment:
+        environment === EnvironmentEnum.Testing
+          ? EnvironmentEnum.Production
+          : EnvironmentEnum.Testing
+    });
+  };
 
-	return (
-		<div className="flex items-center gap-2">
-			<Label
-				htmlFor="test-mode-switch"
-				className={cn(environment === "testing" && "text-orange-600")}
-			>
-				Test Mode
-			</Label>
-			<Switch
-				id="test-mode-switch"
-				checked={environment === "testing"}
-				disabled={isExecuting}
-				className="data-[state=checked]:bg-orange-600"
-				onCheckedChange={handleSwitch}
-			/>
-		</div>
-	);
+  return (
+    <div className="flex items-center gap-2">
+      <Label
+        className={cn(
+          environment === EnvironmentEnum.Testing && 'text-primary'
+        )}
+        htmlFor="test-mode-switch"
+      >
+        Dev Mode
+      </Label>
+      <Switch
+        checked={environment === EnvironmentEnum.Testing}
+        className="data-[state=checked]:bg-primary"
+        disabled={isExecuting}
+        id="test-mode-switch"
+        onCheckedChange={handleSwitch}
+      />
+    </div>
+  );
 }

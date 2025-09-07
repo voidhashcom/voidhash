@@ -1,3 +1,2 @@
-export type QueryData<T extends (...args: any[]) => Promise<any>> = Awaited<
-	ReturnType<T>
->;
+export type QueryData<T extends (...args: unknown[]) => Promise<unknown>> =
+  Awaited<ReturnType<T>>;
