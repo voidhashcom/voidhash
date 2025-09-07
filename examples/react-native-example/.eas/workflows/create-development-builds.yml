@@ -1,0 +1,9 @@
+name: Create development builds
+
+jobs:
+  ios_device_development_build:
+    name: Build iOS device
+    type: build
+    params:
+      platform: ios
+      profile: development

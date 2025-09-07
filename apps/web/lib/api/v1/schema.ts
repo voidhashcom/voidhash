@@ -282,3 +282,12 @@ export const sdkGetConfigurationResponseSchema = z.object({
     })
   )
 });
+
+export const sdkSyncCustomerAttributesBodySchema = z
+  .object({
+    name: z.string().optional(),
+    email: z.string().optional()
+  })
+  .meta({
+    ref: 'SdkSyncCustomerAttributesBody'
+  });

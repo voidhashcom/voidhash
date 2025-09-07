@@ -4,7 +4,10 @@ import { Effect } from 'effect';
 import { describeRoute } from 'hono-openapi';
 import { resolver } from 'hono-openapi/zod';
 import type { z } from 'zod';
-import { createEffectHandler } from '@/lib/effect/runtimes/hono';
+import {
+  createEffectHandler,
+  HonoErrorResponse
+} from '@/lib/effect/runtimes/hono';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { CustomerService } from '@/lib/services/customer.service';
 import {
@@ -56,13 +59,24 @@ export const registerCustomersCreateCustomer = (app: App) =>
 
               const projectId = yield* authService.getAuthorizedProjectId();
               const customer = yield* Environment.provide(environment)(
-                customerService.createCustomer({
-                  email: c.req.valid('json').email,
-                  name: c.req.valid('json').name,
-                  appUserId: c.req.valid('json').appUserId,
-                  origin: CustomerOrigin.API,
-                  projectId
-                })
+                customerService
+                  .createCustomer({
+                    appUserId: c.req.valid('json').appUserId,
+                    origin: CustomerOrigin.API,
+                    projectId,
+                    environment
+                  })
+                  .pipe(
+                    Effect.catchTags({
+                      InvalidAnonymousIdError: (error) =>
+                        Effect.fail(
+                          new HonoErrorResponse({
+                            code: 'BAD_REQUEST',
+                            message: error.message
+                          })
+                        )
+                    })
+                  )
               );
 
               return c.json<z.infer<typeof customerResponseSchema>>({
