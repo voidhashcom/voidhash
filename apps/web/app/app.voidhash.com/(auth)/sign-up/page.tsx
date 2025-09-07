@@ -82,7 +82,7 @@ export default function SignUpPage() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col gap-6">
           <div className="flex justify-center">
-            <Link href="/">
+            <Link href="/login">
               <Logo />
             </Link>
           </div>
