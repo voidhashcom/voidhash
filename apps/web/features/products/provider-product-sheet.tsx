@@ -52,16 +52,14 @@ export function ProviderProductSheet({
   configuration?: any;
 }) {
   const router = useRouter();
-  const paymentProvider = paymentProviders.find(
-    (pp) => pp.getId() === providerId
-  );
+  const paymentProvider = paymentProviders.find((pp) => pp.id === providerId);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const form = useForm<any>({
     resolver: zodResolver(
-      paymentProvider?.getProductConfigurationSchema() ?? z.object({})
+      paymentProvider?.productConfigurationSchema ?? z.object({})
     ),
-    defaultValues: paymentProvider?.getDefaultProductConfiguration()
+    defaultValues: paymentProvider?.defaultProductConfiguration
   });
 
   const { execute: create, isPending: createPending } = useAction(
@@ -69,7 +67,7 @@ export function ProviderProductSheet({
     {
       onSuccess: () => {
         toast.success(
-          `${paymentProvider?.getTitle()} configuration saved successfully`
+          `${paymentProvider?.title} configuration saved successfully`
         );
         onClose();
         router.refresh();
@@ -77,7 +75,7 @@ export function ProviderProductSheet({
       onError: (error) => {
         toast.error(
           error.error.serverError ??
-            `Failed to save ${paymentProvider?.getTitle()} configuration. Please try again.`
+            `Failed to save ${paymentProvider?.title} configuration. Please try again.`
         );
       }
     }
@@ -88,7 +86,7 @@ export function ProviderProductSheet({
     {
       onSuccess: () => {
         toast.success(
-          `${paymentProvider?.getTitle()} configuration saved successfully`
+          `${paymentProvider?.title} configuration saved successfully`
         );
         onClose();
         router.refresh();
@@ -96,7 +94,7 @@ export function ProviderProductSheet({
       onError: (error) => {
         toast.error(
           error.error.serverError ??
-            `Failed to save ${paymentProvider?.getTitle()} configuration. Please try again.`
+            `Failed to save ${paymentProvider?.title} configuration. Please try again.`
         );
       }
     }
@@ -126,7 +124,7 @@ export function ProviderProductSheet({
   useEffect(() => {
     if (!open) {
       form.reset(
-        configuration ?? paymentProvider?.getDefaultProductConfiguration() ?? {}
+        configuration ?? paymentProvider?.defaultProductConfiguration ?? {}
       );
     }
   }, [open, configuration, form, paymentProvider]);
@@ -135,7 +133,9 @@ export function ProviderProductSheet({
     return null;
   }
 
-  const configurationSheet = paymentProvider.getProductConfigurationSheet();
+  const configurationSheet = paymentProvider.getProductConfigurationSheet({
+    productId
+  });
 
   return (
     <Sheet
@@ -150,8 +150,8 @@ export function ProviderProductSheet({
         <SheetHeader>
           <SheetTitle>
             {mode === 'add'
-              ? `Add ${paymentProvider.getTitle()} Product`
-              : `Edit ${paymentProvider.getTitle()} Product`}
+              ? `Add ${paymentProvider.title} Product`
+              : `Edit ${paymentProvider.title} Product`}
           </SheetTitle>
         </SheetHeader>
 

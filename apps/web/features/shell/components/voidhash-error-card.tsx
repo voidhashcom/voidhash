@@ -2,7 +2,7 @@
 
 // import type { AnyVoidhashError } from '@voidhash/lib/constants';
 import { ErrorCard } from '@voidhash/ui';
-import type { encodeNextjsErrorResponse } from '@/lib/effect/runtimes/nextjs';
+import type { encodeNextjsErrorResponse } from '@/lib/nextjs-runtime';
 
 export function VoidhashErrorCard({
   error

@@ -1,19 +1,22 @@
+import {
+  authenticateWithSession,
+  ProjectService
+} from '@voidhash/core/services';
 import { SidebarInset } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
 import { Suspense } from 'react';
 import { NavBar } from '@/features/shell';
 import { OrganizationSettingsSidebar } from '@/features/shell/organization-settings-sidebar';
 import { OrganizationSidebar } from '@/features/shell/organization-sidebar';
-import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { LayoutSidebar } from './layout-sidebar';
 
 const _OrganizationSettingsLayoutSidebar = Effect.fn(
   'OrganizationSettingsLayoutSidebar'
 )(function* ({ organizationSlug }: { organizationSlug: string }) {
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const projectService = yield* ProjectService;
         const projects =
@@ -37,7 +40,7 @@ const _OrganizationSettingsLayoutSidebar = Effect.fn(
   );
 });
 
-export const OrganizationSettingsLayoutSidebar = ServerComponent.build(
+const OrganizationSettingsLayoutSidebar = ServerComponent.build(
   _OrganizationSettingsLayoutSidebar
 );
 

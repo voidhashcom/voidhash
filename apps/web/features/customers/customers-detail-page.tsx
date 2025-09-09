@@ -1,15 +1,13 @@
+import {
+  authenticateWithSession,
+  CustomerService
+} from '@voidhash/core/services';
 import { Card, CardContent, CardHeader, CardTitle } from '@voidhash/ui';
 import { format } from 'date-fns';
 import { Effect, Either } from 'effect';
 import { Clock4Icon } from 'lucide-react';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { CustomerService } from '@/lib/services/customer.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { Page } from '../shell';
 import { VoidhashErrorCard } from '../shell/components/voidhash-error-card';
 
@@ -23,7 +21,7 @@ const _CustomerDetailPage = Effect.fn('CustomerDetailPage')(function* ({
   projectSlug: string;
 }) {
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const customerService = yield* CustomerService;
         const customer = yield* customerService.getCustomerById(customerId);
@@ -32,17 +30,19 @@ const _CustomerDetailPage = Effect.fn('CustomerDetailPage')(function* ({
         const customerUnlockedPerks =
           yield* customerService.getCustomersUnlockedPerks(customerId);
         return { customer, customerPurchases, customerUnlockedPerks };
-      }).pipe(
-        Effect.catchTags({
-          CustomerNotFoundError: (error) =>
-            Effect.fail(new NotFoundError({ message: error.message }))
-        })
-      )
-    ).pipe(HandleCommonErrors)
+      })
+    )
   );
 
   if (Either.isLeft(data)) {
-    return <VoidhashErrorCard error={encodeNextjsErrorResponse(data.left)} />;
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the customer'
+        }}
+      />
+    );
   }
 
   const { customer, customerPurchases, customerUnlockedPerks } = data.right;

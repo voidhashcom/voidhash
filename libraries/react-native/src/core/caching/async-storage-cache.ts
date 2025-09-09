@@ -1,20 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { CacheAdapter } from './types';
+import { Effect, Layer } from 'effect';
+import { CacheAdapter } from './cache-adapter';
 
-export class AsyncStorageCacheAdapter implements CacheAdapter {
-  async get(key: string): Promise<string | null> {
-    return await AsyncStorage.getItem(key);
-  }
-
-  async set(key: string, value: string): Promise<void> {
-    await AsyncStorage.setItem(key, value);
-  }
-
-  async delete(key: string): Promise<void> {
-    await AsyncStorage.removeItem(key);
-  }
-}
-
-export function asyncStorageCacheAdapter(): CacheAdapter {
-  return new AsyncStorageCacheAdapter();
-}
+export const AsyncStorageCacheAdapter = Layer.succeed(CacheAdapter, {
+  get: (key: string) => Effect.promise(() => AsyncStorage.getItem(key)),
+  set: (key: string, value: string) =>
+    Effect.promise(() => AsyncStorage.setItem(key, value)),
+  delete: (key: string) => Effect.promise(() => AsyncStorage.removeItem(key))
+} as const);

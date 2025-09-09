@@ -1,5 +1,6 @@
 'use client';
 
+import type { ApiKey } from '@voidhash/core';
 import { Button } from '@voidhash/ui/button';
 import { CopyText } from '@voidhash/ui/copy-text';
 import {
@@ -10,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle
 } from '@voidhash/ui/dialog';
-import type { ApiKey } from '@/lib/core/api-keys/types';
 
 interface SecretKeyRevealModalProps {
   open: boolean;

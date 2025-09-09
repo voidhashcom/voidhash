@@ -1,0 +1,81 @@
+import { zValidator } from '@hono/zod-validator';
+import {
+  authenticateWithSecretKey,
+  PaywallService,
+  withEnvironmentFromApiKey
+} from '@voidhash/core/services';
+import { Effect } from 'effect';
+import { describeRoute } from 'hono-openapi';
+import { resolver } from 'hono-openapi/zod';
+import { z } from 'zod';
+import {
+  createEffectHandler,
+  HonoErrorResponse
+} from '@/lib/effect/runtimes/hono';
+import { openApiErrorResponses } from '../errors/openapi_responses';
+import type { App } from '../hono/app';
+import { deletePaywallParamsSchema } from './schema';
+
+const route = describeRoute({
+  description: 'Delete a paywall',
+  operationId: 'deletePaywall',
+  security: [
+    {
+      secretKey: []
+    }
+  ],
+  responses: {
+    200: {
+      description: 'Successful response',
+      content: {
+        'application/json': {
+          schema: resolver(z.object({ message: z.string() }))
+        }
+      }
+    },
+    ...openApiErrorResponses
+  },
+  tags: ['Paywalls']
+});
+
+export type Route = typeof route;
+
+export const registerPaywallsDeletePaywall = (app: App) =>
+  app.delete(
+    '/v1/paywalls/:paywallId',
+    route,
+    zValidator('param', deletePaywallParamsSchema),
+    async (c) =>
+      createEffectHandler(c)(
+        authenticateWithSecretKey(
+          withEnvironmentFromApiKey()(
+            Effect.gen(function* () {
+              const paywallService = yield* PaywallService;
+              yield* paywallService.deletePaywall({
+                paywallId: c.req.param('paywallId')
+              });
+              return c.json({ message: 'Paywall deleted' });
+            }).pipe(
+              Effect.catchTags({
+                PaywallNotFoundError: (error) =>
+                  Effect.fail(
+                    new HonoErrorResponse({
+                      code: 'NOT_FOUND',
+                      message: error.message,
+                      originalError: error
+                    })
+                  ),
+                PaywallInUseError: (error) =>
+                  Effect.fail(
+                    new HonoErrorResponse({
+                      code: 'BAD_REQUEST',
+                      message: error.message,
+                      originalError: error
+                    })
+                  )
+              })
+            )
+          )
+        )
+      )
+  );

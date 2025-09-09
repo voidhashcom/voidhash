@@ -1,14 +1,13 @@
+import {
+  authenticateWithSession,
+  CustomerService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import type { CustomerTypeValue } from '@voidhash/db';
 import { Effect, Either } from 'effect';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { CustomerService } from '@/lib/services/customer.service';
-import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { columns } from './columns';
 import { DataTable } from './data-table';
 
@@ -24,7 +23,7 @@ const _CustomersTable = Effect.fn('CustomersTable')(function* ({
   projectSlug: string;
 }) {
   const customersResult = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       withEnvironmentFromCookie({ projectId })(
         Effect.gen(function* () {
           const customerService = yield* CustomerService;
@@ -34,13 +33,16 @@ const _CustomersTable = Effect.fn('CustomersTable')(function* ({
           });
         })
       )
-    ).pipe(HandleCommonErrors)
+    )
   );
 
   if (Either.isLeft(customersResult)) {
     return (
       <VoidhashErrorCard
-        error={encodeNextjsErrorResponse(customersResult.left)}
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the customers'
+        }}
       />
     );
   }

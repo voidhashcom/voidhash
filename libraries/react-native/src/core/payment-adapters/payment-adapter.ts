@@ -1,8 +1,6 @@
-import type { Result } from 'neverthrow';
+import { Context, type Effect } from 'effect';
 import type { Product, SubscriptionProduct } from '../entities/product';
 import type { Transaction } from '../entities/transaction';
-import type { Logger } from '../logging';
-import type { PlatformProvider } from '../platform/types';
 import type {
   ExtractSchemaProductDefinitions,
   VoidhashSchema
@@ -23,77 +21,144 @@ import type {
   UserCancelledError
 } from './errors';
 
-export interface PaymentAdapter {
-  initConnection(
-    onPurchase?: (transaction: Transaction) => void
-  ): Promise<Result<void, FailedToInitializeNativeAdapterError>>;
+export class PaymentAdapter extends Context.Tag('rn-voidhash/PaymentAdapter')<
+  PaymentAdapter,
+  {
+    initConnection(
+      onPurchase?: (transaction: Transaction) => void
+    ): Effect.Effect<void, FailedToInitializeNativeAdapterError>;
 
-  endConnection(): Promise<Result<void, FailedToEndNativeAdapterError>>;
+    endConnection(): Effect.Effect<void, FailedToEndNativeAdapterError, never>;
 
-  getProducts<
-    TSchema extends VoidhashSchema,
-    TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>
-  >(
-    productDefinitions: TDefinedProducts
-  ): Promise<
-    Result<
+    getProducts<
+      TSchema extends VoidhashSchema,
+      TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>
+    >(
+      productDefinitions: TDefinedProducts
+    ): Effect.Effect<
       Product[],
-      NativeAdapterNotInitializedError | FailedToGetProductsError
-    >
-  >;
+      NativeAdapterNotInitializedError | FailedToGetProductsError,
+      never
+    >;
 
-  buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
-    product: TSubscriptionProduct,
-    quantity?: number,
-    appAccountToken?: string
-  ): Promise<
-    Result<
+    buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
+      product: TSubscriptionProduct,
+      quantity?: number,
+      appAccountToken?: string
+    ): Effect.Effect<
       Transaction,
       | UserCancelledError
       | PurchasePendingError
       | NativeAdapterNotInitializedError
       | ProductNotFoundError
-      | FailedToBuyProductError
-    >
-  >;
+      | FailedToBuyProductError,
+      never
+    >;
 
-  acknowledgePurchase(
-    transaction: Transaction
-  ): Promise<Result<void, FailedToAcknowledgePurchaseError>>;
+    acknowledgePurchase(
+      transaction: Transaction
+    ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never>;
 
-  getPurchaseHistory(
-    onlyIncludeActiveItems?: boolean
-  ): Promise<Result<Transaction[], GetPurchaseHistoryError>>;
+    getPurchaseHistory(
+      onlyIncludeActiveItems?: boolean
+    ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never>;
 
-  getPendingTransactions(): Promise<
-    Result<Transaction[], GetPendingTransactionsError>
-  >;
+    getPendingTransactions(): Effect.Effect<
+      Transaction[],
+      GetPendingTransactionsError,
+      never
+    >;
 
-  // Platform specific methods
-  presentCodeRedemptionSheet?(): Promise<
-    Result<void, FailedToPresentCodeRedemptionSheetError>
-  >;
+    // Platform specific methods
+    presentCodeRedemptionSheet?(): Effect.Effect<
+      void,
+      FailedToPresentCodeRedemptionSheetError,
+      never
+    >;
 
-  showManageSubscriptions?(): Promise<
-    Result<void, FailedToShowManageSubscriptionsError>
-  >;
-}
-
-export function createPaymentAdapter(
-  platformProvider: PlatformProvider,
-  logger: Logger
-): PaymentAdapter {
-  const platform = platformProvider.getPlatform();
-
-  if (platform === 'ios') {
-    const { AppStoreAdapter } = require('./app-store-adapter');
-    return new AppStoreAdapter(logger);
+    showManageSubscriptions?(): Effect.Effect<
+      void,
+      FailedToShowManageSubscriptionsError,
+      never
+    >;
   }
+>() {}
 
-  if (platform === 'android') {
-    const { GooglePlayAdapter } = require('./google-play-adapter');
-    return new GooglePlayAdapter(logger);
-  }
+// export interface PaymentAdapter {
+//   initConnection(
+//     onPurchase?: (transaction: Transaction) => void
+//   ): Effect.Effect<void, FailedToInitializeNativeAdapterError>;
 
-  throw new Error(`Unsupported platform: ${platform}`);
-}
+//   endConnection(): Effect.Effect<void, FailedToEndNativeAdapterError, never>;
+
+//   getProducts<
+//     TSchema extends VoidhashSchema,
+//     TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>
+//   >(
+//     productDefinitions: TDefinedProducts
+//   ): Effect.Effect<
+//     Product[],
+//     NativeAdapterNotInitializedError | FailedToGetProductsError,
+//     never
+//   >;
+
+//   buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
+//     product: TSubscriptionProduct,
+//     quantity?: number,
+//     appAccountToken?: string
+//   ): Effect.Effect<
+//     Transaction,
+//     | UserCancelledError
+//     | PurchasePendingError
+//     | NativeAdapterNotInitializedError
+//     | ProductNotFoundError
+//     | FailedToBuyProductError,
+//     never
+//   >;
+
+//   acknowledgePurchase(
+//     transaction: Transaction
+//   ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never>;
+
+//   getPurchaseHistory(
+//     onlyIncludeActiveItems?: boolean
+//   ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never>;
+
+//   getPendingTransactions(): Effect.Effect<
+//     Transaction[],
+//     GetPendingTransactionsError,
+//     never
+//   >;
+
+//   // Platform specific methods
+//   presentCodeRedemptionSheet?(): Effect.Effect<
+//     void,
+//     FailedToPresentCodeRedemptionSheetError,
+//     never
+//   >;
+
+//   showManageSubscriptions?(): Effect.Effect<
+//     void,
+//     FailedToShowManageSubscriptionsError,
+//     never
+//   >;
+// }
+
+// export function createPaymentAdapter(
+//   platformProvider: PlatformProvider,
+//   logger: Logger
+// ): PaymentAdapter {
+//   const platform = platformProvider.getPlatform();
+
+//   if (platform === 'ios') {
+//     const { AppStoreAdapter } = require('./app-store-adapter');
+//     return new AppStoreAdapter(logger);
+//   }
+
+//   if (platform === 'android') {
+//     const { GooglePlayAdapter } = require('./google-play-adapter');
+//     return new GooglePlayAdapter();
+//   }
+
+//   throw new Error(`Unsupported platform: ${platform}`);
+// }

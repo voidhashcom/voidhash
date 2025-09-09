@@ -54,17 +54,17 @@ export function PaymentProvidersNewStoreDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         {paymentProviders
-          .filter((p) => p.getType() === 'native')
+          .filter((p) => p.type === 'native')
           .map((p) => (
             <DropdownMenuItem
               className="cursor-pointer"
               disabled={isPending}
-              key={p.getId()}
+              key={p.id}
               onClick={() => {
-                handleCreatePaymentProviderConfiguration(p.getId());
+                handleCreatePaymentProviderConfiguration(p.id);
               }}
             >
-              {p.getTitle()}
+              {p.title}
             </DropdownMenuItem>
           ))}
       </DropdownMenuContent>

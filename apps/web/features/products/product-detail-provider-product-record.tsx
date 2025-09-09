@@ -35,7 +35,7 @@ export function ProductDetailProviderProductRecord({
 }) {
   const router = useRouter();
   const paymentProvider = paymentProviders.find(
-    (p) => p.getId() === paymentProviderId
+    (p) => p.id === paymentProviderId
   );
 
   const [openEditSheet, setOpenEditSheet] = useState(false);
@@ -45,14 +45,14 @@ export function ProductDetailProviderProductRecord({
     {
       onSuccess: () => {
         toast.success(
-          `${paymentProvider?.getTitle()} product was successfully deleted`
+          `${paymentProvider?.title} product was successfully deleted`
         );
         router.refresh();
       },
       onError: (error) => {
         toast.error(
           error.error.serverError ??
-            `Failed to delete ${paymentProvider?.getTitle()} product. Please try again.`
+            `Failed to delete ${paymentProvider?.title} product. Please try again.`
         );
       }
     }
@@ -64,14 +64,14 @@ export function ProductDetailProviderProductRecord({
   } = useAction(setActivePaymentProviderProductAction, {
     onSuccess: () => {
       toast.success(
-        `${paymentProvider?.getTitle()} product was successfully activated`
+        `${paymentProvider?.title} product was successfully activated`
       );
       router.refresh();
     },
     onError: (error) => {
       toast.error(
         error.error.serverError ??
-          `Failed to activate ${paymentProvider?.getTitle()} product. Please try again.`
+          `Failed to activate ${paymentProvider?.title} product. Please try again.`
       );
     }
   });
@@ -93,7 +93,7 @@ export function ProductDetailProviderProductRecord({
 
     const res = await openDialog({
       title: 'Delete product',
-      description: `Are you sure you want to delete this ${paymentProvider.getTitle()} product? This may break access for customers who have already purchased this.`
+      description: `Are you sure you want to delete this ${paymentProvider.title} product? This may break access for customers who have already purchased this.`
     });
 
     if (!res) {
@@ -122,7 +122,7 @@ export function ProductDetailProviderProductRecord({
           !providerProduct.isActive && 'opacity-50'
         )}
       >
-        {paymentProvider.getProductKeyProperties().map((key) => (
+        {paymentProvider.productConfigurationKeyProperties.map((key) => (
           <Badge key={key} variant="outline">
             {providerProduct.configuration?.[key]}
           </Badge>

@@ -1,4 +1,5 @@
-import type { CacheAdapter } from './types';
+import { Effect } from 'effect';
+import { CacheAdapter } from './cache-adapter';
 
 const CACHE_KEYS_KEY = 'cache-keys';
 
@@ -13,83 +14,96 @@ type CacheHit<T> = CacheEnvelope<T> & {
   isStale: boolean;
   isExpired: boolean;
 };
+export class CacheManager extends Effect.Service<CacheManager>()(
+  'rn-voidhash/CacheManager',
+  {
+    dependencies: [],
+    effect: Effect.gen(function* () {
+      const cache = yield* CacheAdapter;
+      const get = <T,>(key: string) =>
+        Effect.gen(function* () {
+          const cachedValue = yield* cache.get(key);
+          if (cachedValue) {
+            const cacheHit = JSON.parse(cachedValue) as CacheEnvelope<T>;
 
-export class CacheManager {
-  private cache: CacheAdapter;
+            const isExpired = cacheHit.expiresAt
+              ? cacheHit.expiresAt < Date.now()
+              : false;
+            const isStale = cacheHit.staleAt
+              ? cacheHit.staleAt < Date.now()
+              : false;
 
-  constructor(cache: CacheAdapter) {
-    this.cache = cache;
-  }
+            if (isExpired) {
+              yield* deleteValue(key);
+              return null;
+            }
 
-  async get<T>(key: string): Promise<CacheHit<T> | null> {
-    const cachedValue = await this.cache.get(key);
-    if (cachedValue) {
-      const cacheHit = JSON.parse(cachedValue) as CacheEnvelope<T>;
+            return {
+              ...cacheHit,
+              isExpired,
+              isStale
+            } satisfies CacheHit<T>;
+          }
+          return null;
+        });
 
-      const isExpired = cacheHit.expiresAt
-        ? cacheHit.expiresAt < Date.now()
-        : false;
-      const isStale = cacheHit.staleAt ? cacheHit.staleAt < Date.now() : false;
+      const setValue = <T,>(
+        key: string,
+        value: T,
+        options?: { ttl?: number; staleTime?: number }
+      ) =>
+        Effect.all([
+          cache.set(
+            key,
+            JSON.stringify({
+              value,
+              expiresAt: options?.ttl ? Date.now() + options.ttl : null,
+              staleAt: options?.staleTime
+                ? Date.now() + options.staleTime
+                : null,
+              createdAt: Date.now()
+            } satisfies CacheEnvelope<T>)
+          ),
+          storeCacheKey(key)
+        ]);
 
-      if (isExpired) {
-        await this.delete(key);
-        return null;
-      }
+      const deleteValue = (key: string) => cache.delete(key);
+
+      const clear = () =>
+        Effect.gen(function* () {
+          const cacheKeys = yield* getCacheKeys();
+          yield* Effect.all(cacheKeys.map((key) => cache.delete(key)));
+          yield* cache.delete(CACHE_KEYS_KEY);
+        });
+
+      const getCacheKeys = () =>
+        Effect.gen(function* () {
+          const cacheKeys = yield* cache.get(CACHE_KEYS_KEY);
+          if (cacheKeys) {
+            return JSON.parse(cacheKeys) as string[];
+          }
+          return [];
+        });
+
+      const storeCacheKey = (key: string) =>
+        Effect.gen(function* () {
+          const cacheKeys = yield* cache.get(CACHE_KEYS_KEY);
+          if (cacheKeys) {
+            const cacheKeysArray = JSON.parse(cacheKeys) as string[];
+            cacheKeysArray.push(key);
+            yield* cache.set(CACHE_KEYS_KEY, JSON.stringify(cacheKeysArray));
+          } else {
+            yield* cache.set(CACHE_KEYS_KEY, JSON.stringify([key]));
+          }
+        });
 
       return {
-        ...cacheHit,
-        isExpired,
-        isStale
-      } satisfies CacheHit<T>;
-    }
-    return null;
+        get,
+        set: setValue,
+        delete: deleteValue,
+        clear,
+        getCacheKeys
+      } as const;
+    })
   }
-
-  async set<T>(
-    key: string,
-    // biome-ignore lint/suspicious/noExplicitAny: required here
-    value: T extends CacheEnvelope<any> ? never : T,
-    options?: { ttl?: number; staleTime?: number }
-  ): Promise<void> {
-    const envelope = {
-      value,
-      expiresAt: options?.ttl ? Date.now() + options.ttl : null,
-      staleAt: options?.staleTime ? Date.now() + options.staleTime : null,
-      createdAt: Date.now()
-    } satisfies CacheEnvelope<T>;
-
-    await Promise.all([
-      this.cache.set(key, JSON.stringify(envelope)),
-      this.storeCacheKey(key)
-    ]);
-  }
-
-  async delete(key: string): Promise<void> {
-    await this.cache.delete(key);
-  }
-
-  async clear(): Promise<void> {
-    const cacheKeys = await this.getCacheKeys();
-    await Promise.all(cacheKeys.map((key) => this.cache.delete(key)));
-    await this.cache.delete(CACHE_KEYS_KEY);
-  }
-
-  private async storeCacheKey(key: string): Promise<void> {
-    const cacheKeys = await this.cache.get(CACHE_KEYS_KEY);
-    if (cacheKeys) {
-      const cacheKeysArray = JSON.parse(cacheKeys) as string[];
-      cacheKeysArray.push(key);
-      await this.cache.set(CACHE_KEYS_KEY, JSON.stringify(cacheKeysArray));
-    } else {
-      await this.cache.set(CACHE_KEYS_KEY, JSON.stringify([key]));
-    }
-  }
-
-  private async getCacheKeys(): Promise<string[]> {
-    const cacheKeys = await this.cache.get(CACHE_KEYS_KEY);
-    if (cacheKeys) {
-      return JSON.parse(cacheKeys) as string[];
-    }
-    return [];
-  }
-}
+) {}
