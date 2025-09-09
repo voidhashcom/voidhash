@@ -1,4 +1,9 @@
 import {
+  authenticateWithSession,
+  OrganizationService,
+  ProjectService
+} from '@voidhash/core/services';
+import {
   Button,
   Card,
   DropdownMenu,
@@ -11,15 +16,8 @@ import { Effect, Either } from 'effect';
 import { EllipsisVerticalIcon } from 'lucide-react';
 import Link from 'next/link';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { OrganizationService } from '@/lib/services/organization.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { EmptyState } from './empty-state';
 
 const _ProjectsList = Effect.fn('ProjectList')(function* ({
@@ -28,22 +26,13 @@ const _ProjectsList = Effect.fn('ProjectList')(function* ({
   organizationSlug: string;
 }) {
   const result = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const organizationService = yield* OrganizationService;
         const projectService = yield* ProjectService;
         const [activeOrganization, projects] = yield* Effect.all(
           [
-            organizationService.getOrganizationBySlug(organizationSlug).pipe(
-              Effect.catchTags({
-                OrganizationNotFound: () =>
-                  Effect.fail(
-                    new NotFoundError({
-                      message: 'Organization not found'
-                    })
-                  )
-              })
-            ),
+            organizationService.getOrganizationBySlug(organizationSlug),
             projectService.getProjectsByOrganizationSlug(organizationSlug)
           ],
           {
@@ -53,11 +42,18 @@ const _ProjectsList = Effect.fn('ProjectList')(function* ({
 
         return { activeOrganization, organizationProjects: projects };
       })
-    ).pipe(HandleCommonErrors)
+    )
   );
 
   if (Either.isLeft(result)) {
-    return <VoidhashErrorCard error={encodeNextjsErrorResponse(result.left)} />;
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the projects'
+        }}
+      />
+    );
   }
 
   const { activeOrganization, organizationProjects } = result.right;

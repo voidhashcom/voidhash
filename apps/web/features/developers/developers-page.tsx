@@ -1,13 +1,12 @@
+import {
+  authenticateWithSession,
+  ProjectNotFoundError,
+  ProjectService
+} from '@voidhash/core/services';
 import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { VoidhashErrorCard } from '../shell/components/voidhash-error-card';
 export const _DevelopersPage = Effect.fn('DevelopersPage')(function* ({
   organizationSlug,
@@ -17,7 +16,7 @@ export const _DevelopersPage = Effect.fn('DevelopersPage')(function* ({
   projectSlug;
 }) {
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const projectService = yield* ProjectService;
         const project =
@@ -27,19 +26,25 @@ export const _DevelopersPage = Effect.fn('DevelopersPage')(function* ({
           });
         if (!project) {
           return yield* Effect.fail(
-            new NotFoundError({
+            new ProjectNotFoundError({
               message: 'Project not found'
             })
           );
         }
         return { project };
       })
-    ).pipe(HandleCommonErrors)
+    )
   );
 
   if (Either.isLeft(data)) {
-    const error = data.left;
-    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the developers'
+        }}
+      />
+    );
   }
 
   return (

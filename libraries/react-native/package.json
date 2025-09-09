@@ -60,6 +60,7 @@
     "@types/jest": "^30.0.0",
     "@types/react": "~19.0.14",
     "@vitejs/plugin-react": "^4.6.0",
+    "@voidhash/api-spec": "workspace:*",
     "expo-module-scripts": "^4.0.5",
     "jest": "~29.7.0",
     "jest-expo": "~53.0.9",
@@ -73,6 +74,8 @@
     "ultracite": "5.0.39"
   },
   "peerDependencies": {
+    "@effect/platform": "^0.90.9",
+    "effect": "^3.17.13",
     "expo": "*",
     "expo-constants": "*",
     "expo-linking": "*",

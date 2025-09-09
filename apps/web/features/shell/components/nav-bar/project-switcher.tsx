@@ -1,17 +1,17 @@
+import {
+  authenticateWithSession,
+  OrganizationService,
+  ProjectNotFoundError,
+  ProjectService,
+  UserService
+} from '@voidhash/core/services';
 import type { Project } from '@voidhash/db';
 import { GradientAvatar, Skeleton } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
 import Link from 'next/link';
 import { Suspense } from 'react';
-import { NotFoundError } from '@/lib/effect/errors';
-import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import {
-  AuthSession,
-  authenticateWithSession
-} from '@/lib/services/auth.service';
-import { OrganizationService } from '@/lib/services/organization.service';
-import { ProjectService } from '@/lib/services/project.service';
-import { UserService } from '@/lib/services/user.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { NavSlashSeparator } from './nav-slash-separator';
 import { OrganizationProjectSwitcher } from './organization-project-switcher';
 
@@ -51,24 +51,15 @@ export const _ProjectSwitcher = Effect.fn('ProjectSwitcher')(function* ({
   }
 
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const userService = yield* UserService;
         const organizationService = yield* OrganizationService;
         const projectService = yield* ProjectService;
         const [user, activeOrganization, activeProject] = yield* Effect.all(
           [
-            userService.getUser(),
-            organizationService.getOrganizationBySlug(organizationSlug).pipe(
-              Effect.catchTags({
-                OrganizationNotFound: () =>
-                  Effect.fail(
-                    new NotFoundError({
-                      message: 'Organization not found'
-                    })
-                  )
-              })
-            ),
+            userService.getUser(yield* headers),
+            organizationService.getOrganizationBySlug(organizationSlug),
             projectService.getProjectBySlugAndOrganizationSlug({
               organizationSlug,
               projectSlug
@@ -81,7 +72,7 @@ export const _ProjectSwitcher = Effect.fn('ProjectSwitcher')(function* ({
 
         if (!activeProject) {
           return yield* Effect.fail(
-            new NotFoundError({
+            new ProjectNotFoundError({
               message: 'Project not found'
             })
           );

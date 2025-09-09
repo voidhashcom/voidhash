@@ -18,7 +18,7 @@ export function PaymentProvidersPageSkeleton() {
             {paymentProviders?.map((paymentProvider) => (
               <div
                 className="group relative isolate px-6 py-4 hover:bg-accent/30"
-                key={paymentProvider.getId()}
+                key={paymentProvider.id}
               >
                 <div className="flex flex-row items-center justify-between">
                   <div className="flex flex-1 items-center gap-4">

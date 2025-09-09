@@ -13,24 +13,24 @@
     "./schema": "./src/schema.ts"
   },
   "scripts": {
-    "start": "tsx ./src/index.ts",
+    "start": "dotenv -- tsx ./src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@effect/cli": "^0.69.2",
-    "@effect/platform": "^0.90.6",
+    "@effect/platform": "^0.90.9",
     "@effect/platform-node": "^0.96.1",
-    "@voidhash/lib": "workspace:*",
+    "@voidhash/api-spec": "workspace:*",
+    "better-auth": "^1.3.11",
+    "effect": "^3.17.13",
     "nanoid": "^5.1.5"
   },
   "devDependencies": {
-    "@effect/language-service": "^0.38.1",
+    "@effect/language-service": "^0.40.0",
     "@voidhash/tsconfig": "workspace:*",
+    "dotenv-cli": "^10.0.0",
     "tsx": "^4.19.3",
     "typescript": "5.6.3",
     "vitest": "^3.0.9"
-  },
-  "peerDependencies": {
-    "effect": "^3.17.13"
   }
 }

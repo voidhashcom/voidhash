@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { VoidhashClient } from '../../client';
-import type { Customer } from '../../core/networking/types';
 import type { VoidhashSchema } from '../../core/schema';
+import type { Customer } from '../../core/types';
 import type { VoidhashContext } from '../components/provider';
 import useAsyncFunction from './use-async-function';
 

@@ -1,16 +1,7 @@
 import Constants from 'expo-constants';
+import { Platform as RNPlatform } from 'react-native';
 import { VoidhashClient, type VoidhashClientOptions } from './client';
-import { asyncStorageCacheAdapter } from './core/caching/async-storage-cache';
-import { CacheManager } from './core/caching/cache-manager';
 import { EventBus } from './core/event-bus';
-import { CustomerAttributeManager } from './core/identity/customer-attribute-manager';
-import { CustomerInfoManager } from './core/identity/customer-info-manager';
-import { IdentityManager } from './core/identity/identity-manager';
-import { Logger, LogLevel } from './core/logging';
-import { createApi } from './core/networking/api';
-import { HttpClient } from './core/networking/http-client';
-import { createPaymentAdapter } from './core/payment-adapters/payment-adapter';
-import { ReactNativePlatformProvider } from './core/platform/platform';
 import type { VoidhashSchema } from './core/schema';
 import { SchemeNotSetError } from './errors';
 import { voidhashProviderFactory } from './react/components/provider';
@@ -39,56 +30,17 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
     throw new SchemeNotSetError();
   }
 
-  const logger = new Logger(
-    'VoidhashClient',
-    options.debug ? LogLevel.DEBUG : LogLevel.INFO
-  );
   const eventBus = new EventBus();
-  const platformProvider = new ReactNativePlatformProvider();
-
-  const cacheManager = new CacheManager(asyncStorageCacheAdapter());
-  const httpClient = new HttpClient({
-    publishableKey,
-    baseUrl,
-    platformProvider,
-    logger
-  });
-  const api = createApi(httpClient);
-  const customerInfoManager = new CustomerInfoManager(
-    cacheManager,
-    logger,
-    api,
-    eventBus
-  );
-  const customerAttributeManager = new CustomerAttributeManager(
-    cacheManager,
-    logger,
-    api
-  );
-  const identityManager = new IdentityManager(
-    cacheManager,
-    logger,
-    customerInfoManager,
-    customerAttributeManager,
-    api,
-    eventBus
-  );
-
-  const paymentAdapter = createPaymentAdapter(platformProvider, logger);
+  const platform = RNPlatform.OS === 'ios' ? 'ios' : 'android';
 
   const client = new VoidhashClient<TSchema>(
     initialAppUserId,
     scheme,
-    logger,
-    cacheManager,
-    customerInfoManager,
-    identityManager,
-    customerAttributeManager,
     schema,
-    paymentAdapter,
+    baseUrl,
+    publishableKey,
     eventBus,
-    platformProvider,
-    httpClient
+    platform
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);

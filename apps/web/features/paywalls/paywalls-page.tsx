@@ -1,17 +1,16 @@
+import {
+  authenticateWithSession,
+  PaywallService,
+  ProjectNotFoundError,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { Card } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
-import { PaywallService } from '@/lib/services/paywall.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { CreatePaywallModalButton } from './create-paywall-modal-button';
 import { PaywallRecord } from './paywall-record';
 import { PaywallsPageEmptyState } from './paywalls-page-empty-state';
@@ -24,7 +23,7 @@ export const _PaywallsPage = Effect.fn('PaywallsPage')(function* ({
   projectSlug: string;
 }) {
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
           const projectService = yield* ProjectService;
@@ -36,7 +35,7 @@ export const _PaywallsPage = Effect.fn('PaywallsPage')(function* ({
             });
           if (!project) {
             return yield* Effect.fail(
-              new NotFoundError({
+              new ProjectNotFoundError({
                 message: 'Project not found'
               })
             );
@@ -45,12 +44,18 @@ export const _PaywallsPage = Effect.fn('PaywallsPage')(function* ({
           return { project, paywalls };
         })
       )
-    ).pipe(HandleCommonErrors)
+    )
   );
 
   if (Either.isLeft(data)) {
-    const error = data.left;
-    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the paywalls'
+        }}
+      />
+    );
   }
 
   const { project, paywalls } = data.right;

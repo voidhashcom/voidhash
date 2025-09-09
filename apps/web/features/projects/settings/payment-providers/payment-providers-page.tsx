@@ -1,3 +1,9 @@
+import {
+  authenticateWithSession,
+  PaymentProviderService,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { Environment as EnvironmentEnum } from '@voidhash/lib/index';
 import { Badge, Card, CardHeader, CardTitle, cn } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
@@ -6,19 +12,16 @@ import Link from 'next/link';
 import { Page } from '@/features/shell';
 import { EnvironmentFilterNotification } from '@/features/shell/components/environment-filter-notification';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
+import { headers } from '@/lib/effect/headers';
 import {
   encodeNextjsErrorResponse,
   HandleCommonErrors,
   NextjsErrorResponse,
   ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
+} from '@/lib/nextjs-runtime';
 // import { StripeConfigurationSheet } from "./stripe/stripe-configuration-sheet";
 // import { AppStoreConfigurationSheet } from "./app-store/app-store-configuration-sheet";
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
-import { PaymentProviderService } from '@/lib/services/payment-provider.service';
-import { ProjectService } from '@/lib/services/project.service';
 import { PaymentProviderLogo } from './payment-provider-logo';
 import { PaymentProvidersNewStoreDropdown } from './payment-providers-new-store-dropdown';
 import { SetupPaymentProviderButton } from './setup-payment-provider-button';
@@ -35,7 +38,7 @@ export const _PaymentProvidersPage = Effect.fn('PaymentProvidersPage')(
     const { organizationSlug, projectSlug } = params;
 
     const data = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         withEnvironmentFromCookie({ organizationSlug, projectSlug })(
           Effect.gen(function* () {
             const projectService = yield* ProjectService;
@@ -79,9 +82,9 @@ export const _PaymentProvidersPage = Effect.fn('PaymentProvidersPage')(
     const applicationsWithConfiguration = paymentProviderConfigurations
       .map((p) => {
         const paymentProvider = paymentProviders.find(
-          (pp) => pp.getId() === p.providerId
+          (pp) => pp.id === p.providerId
         );
-        if (!paymentProvider || paymentProvider.getType() !== 'native') {
+        if (!paymentProvider || paymentProvider.type !== 'native') {
           return null;
         }
         return {
@@ -92,11 +95,11 @@ export const _PaymentProvidersPage = Effect.fn('PaymentProvidersPage')(
       .filter(Boolean);
 
     const webCheckoutProvidersWithConfigurations = paymentProviders
-      .filter((p) => p.getType() === 'web-checkout' && p.getIsConfigurable())
+      .filter((p) => p.type === 'web-checkout')
       .map((paymentProvider) => {
         const paymentProvidersConfiguration =
           paymentProviderConfigurations?.find(
-            (p) => p.providerId === paymentProvider.getId()
+            (p) => p.providerId === paymentProvider.id
           );
         return {
           ...paymentProvidersConfiguration,

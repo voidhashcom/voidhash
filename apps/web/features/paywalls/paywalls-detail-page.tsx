@@ -1,17 +1,16 @@
+import {
+  authenticateWithSession,
+  PaywallService,
+  ProductService,
+  ProjectNotFoundError,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
-import { PaywallService } from '@/lib/services/paywall.service';
-import { ProductService } from '@/lib/services/product.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { PaywallDetailPageEditor } from './paywall-detail-page-editor';
 
 export const _PaywallsDetailPage = Effect.fn('PaywallsDetailPage')(function* ({
@@ -24,7 +23,7 @@ export const _PaywallsDetailPage = Effect.fn('PaywallsDetailPage')(function* ({
   id: string;
 }) {
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
           const projectService = yield* ProjectService;
@@ -37,37 +36,31 @@ export const _PaywallsDetailPage = Effect.fn('PaywallsDetailPage')(function* ({
             });
           if (!project) {
             return yield* Effect.fail(
-              new NotFoundError({
+              new ProjectNotFoundError({
                 message: 'Project not found'
               })
             );
           }
 
-          const paywall = yield* paywallService.getPaywallById(id).pipe(
-            Effect.catchTags({
-              PaywallNotFoundError: (error) =>
-                Effect.fail(new NotFoundError({ message: error.message }))
-            })
-          );
+          const paywall = yield* paywallService.getPaywallById(id);
 
-          const paywallProducts = yield* paywallService
-            .getPaywallProducts(id)
-            .pipe(
-              Effect.catchTags({
-                PaywallNotFoundError: (error) =>
-                  Effect.fail(new NotFoundError({ message: error.message }))
-              })
-            );
+          const paywallProducts = yield* paywallService.getPaywallProducts(id);
           const products = yield* productService.getProducts(project.id);
           return { project, paywall, paywallProducts, products };
         })
       )
-    ).pipe(HandleCommonErrors)
+    )
   );
 
   if (Either.isLeft(data)) {
-    const error = data.left;
-    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the paywall'
+        }}
+      />
+    );
   }
 
   const { paywall, paywallProducts, products } = data.right;
