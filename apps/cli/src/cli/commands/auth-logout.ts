@@ -1,7 +1,7 @@
 import { Command, Prompt } from '@effect/cli';
 import { Console, Effect } from 'effect';
-import { getSignedInSession } from '../utils/login/get-signed-in-user';
-import { logout } from '../utils/login/logout';
+import { getSignedInSession } from '../../utils/login/get-signed-in-user';
+import { logout } from '../../utils/login/logout';
 
 export const logoutCommand = Command.make('logout', {}, () =>
   Effect.gen(function* () {
@@ -18,15 +18,11 @@ export const logoutCommand = Command.make('logout', {}, () =>
         })
       );
       if (!shouldContinue) {
-        yield* Console.log('Login cancelled.');
-        return;
+        return yield* Console.log('Login cancelled.');
       }
-      yield* logout;
+      return yield* logout;
     }
 
-    if (!user) {
-      yield* Console.log('You are not logged in.');
-      return;
-    }
+    return yield* Console.log('You are not logged in.');
   })
 ).pipe(Command.withDescription('Logout from the Voidhash CLI.'));

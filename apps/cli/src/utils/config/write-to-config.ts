@@ -1,6 +1,5 @@
 import os from 'node:os';
-import path from 'node:path';
-import { FileSystem } from '@effect/platform';
+import { FileSystem, Path } from '@effect/platform';
 import { Effect, type Schema } from 'effect';
 import { CONFIG_FILE_NAME } from '../../constants';
 import { readConfig } from './read-config';
@@ -18,6 +17,7 @@ export const writeToConfig = (
 ) =>
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
     const homeDir = os.homedir();
     const filePath = path.join(homeDir, CONFIG_FILE_NAME);
     const currentConfig = yield* readConfig().pipe(

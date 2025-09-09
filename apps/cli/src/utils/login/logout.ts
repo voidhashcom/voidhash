@@ -10,5 +10,5 @@ export const logout = Effect.gen(function* () {
   }
 
   yield* writeToConfig({ apiKey: null });
-  yield* Effect.log('You have been logged out.');
+  yield* Console.log('You have been logged out.');
 });
