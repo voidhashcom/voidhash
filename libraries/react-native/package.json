@@ -61,6 +61,7 @@
     "@types/react": "~19.0.14",
     "@vitejs/plugin-react": "^4.6.0",
     "@voidhash/api-spec": "workspace:*",
+    "@voidhash/shared": "workspace:*",
     "expo-module-scripts": "^4.0.5",
     "jest": "~29.7.0",
     "jest-expo": "~53.0.9",

@@ -6,18 +6,18 @@ import {
 } from '@voidhash/db';
 import { Db, TransactionContext } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
+import {
+  CustomerConflictError,
+  CustomerNotFoundError,
+  MissingAppUserIdError,
+  MissingProjectIdError
+} from '@voidhash/shared/errors';
 import { Effect, pipe } from 'effect';
 import { CustomerRepository } from '../repositories/customer-repository';
 import type { CustomerMetadata } from '../types';
 import { AuthSession } from './auth-service';
 import { CustomerService } from './customer-service';
 import { Environment } from './environment-service';
-import {
-  CustomerConflictError,
-  CustomerNotFoundError,
-  MissingAppUserIdError,
-  MissingProjectIdError
-} from './errors';
 
 // type CreateCheckoutResponse = {
 //   checkoutSessionId: string;

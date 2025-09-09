@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@voidhash/lib": "workspace:*"
+    "@voidhash/lib": "workspace:*",
+    "@voidhash/shared": "workspace:*"
   },
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",

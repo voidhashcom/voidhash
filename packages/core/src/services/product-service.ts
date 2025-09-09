@@ -1,5 +1,6 @@
 import { Db, TransactionContext } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
+import { PerkNotFound, ProductNotFound } from '@voidhash/shared/errors';
 import { Effect } from 'effect';
 import { PerkRepository } from '../repositories/perk-repository';
 import { ProductPerkRepository } from '../repositories/product-perk-repository';
@@ -7,7 +8,6 @@ import { ProductRepository } from '../repositories/product-repository';
 import { checkProjectPermission } from '../utils/permissions';
 import { AuthSession } from './auth-service';
 import { Environment } from './environment-service';
-import { PerkNotFound, ProductNotFound } from './errors';
 
 export class ProductService extends Effect.Service<ProductService>()(
   'ProductService',

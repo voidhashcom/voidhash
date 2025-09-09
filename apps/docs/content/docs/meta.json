@@ -1,0 +1,11 @@
+{
+    "title": "guide",
+    "root": true,
+    "pages": [
+        "index",
+        "---Introduction---",
+        "installation",
+        "basic-usage",
+        "concepts"
+    ]
+}

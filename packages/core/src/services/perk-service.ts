@@ -1,10 +1,10 @@
 import { generateId } from '@voidhash/lib';
+import { PerkNotFound, SlugAlreadyExistsError } from '@voidhash/shared/errors';
 import { Effect } from 'effect';
 import { PerkRepository } from '../repositories/perk-repository';
 import { checkProjectPermission } from '../utils/permissions';
 import { AuthSession } from './auth-service';
 import { Environment } from './environment-service';
-import { PerkNotFound, SlugAlreadyExistsError } from './errors';
 
 export class PerkService extends Effect.Service<PerkService>()('PerkService', {
   dependencies: [PerkRepository.Default],

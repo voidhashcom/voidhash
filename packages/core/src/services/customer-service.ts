@@ -6,12 +6,15 @@ import {
 } from '@voidhash/db';
 import { ANONYMOUS_USER_ID_PREFIX, generateId } from '@voidhash/lib';
 import type { EnvironmentValue } from '@voidhash/lib/constants';
+import {
+  CustomerNotFoundError,
+  InvalidAnonymousIdError
+} from '@voidhash/shared/errors';
 import { Effect } from 'effect';
 import { CustomerRepository } from '../repositories/customer-repository';
 import { checkProjectPermission } from '../utils/permissions';
 import { AuthSession } from './auth-service';
 import { Environment } from './environment-service';
-import { CustomerNotFoundError, InvalidAnonymousIdError } from './errors';
 
 export class CustomerService extends Effect.Service<CustomerService>()(
   'CustomerService',

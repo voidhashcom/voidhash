@@ -8,6 +8,7 @@ import { SdkHeaders, VoidhashApi } from '@voidhash/api-spec';
 import { CustomerRepository } from '@voidhash/core/repositories';
 import {
   authenticateWithPublishableKey,
+  CustomerNotFoundError,
   CustomerService,
   SdkService,
   withEnvironmentFromApiKey
@@ -43,7 +44,11 @@ export const SdkGroupLive = HttpApiBuilder.group(
                   const customer = yield* sdkService.getCustomer();
 
                   if (!customer) {
-                    return yield* Effect.fail(new HttpApiError.NotFound());
+                    return yield* Effect.fail(
+                      new CustomerNotFoundError({
+                        message: 'Customer not found'
+                      })
+                    );
                   }
 
                   return yield* HttpServerResponse.json({
@@ -59,12 +64,8 @@ export const SdkGroupLive = HttpApiBuilder.group(
             Effect.catchTags(HandleCommonErrors),
             Effect.catchTags(HandlePublishableKeyAuthErrors),
             Effect.catchTags({
-              CustomerNotFoundError: () =>
-                Effect.fail(new HttpApiError.NotFound()),
               HttpBodyError: () =>
-                Effect.fail(new HttpApiError.InternalServerError()),
-              MissingProjectIdError: () =>
-                Effect.fail(new HttpApiError.Forbidden())
+                Effect.fail(new HttpApiError.InternalServerError())
             })
           )
         )
@@ -99,11 +100,8 @@ export const SdkGroupLive = HttpApiBuilder.group(
             Effect.catchTags(HandleCommonErrors),
             Effect.catchTags(HandlePublishableKeyAuthErrors),
             Effect.catchTags({
-              CustomerConflict: () => Effect.fail(new HttpApiError.Conflict()),
               HttpBodyError: () =>
-                Effect.fail(new HttpApiError.InternalServerError()),
-              MissingProjectIdError: () =>
-                Effect.fail(new HttpApiError.Forbidden())
+                Effect.fail(new HttpApiError.InternalServerError())
             })
           )
         )
@@ -145,12 +143,8 @@ export const SdkGroupLive = HttpApiBuilder.group(
             Effect.catchTags(HandleCommonErrors),
             Effect.catchTags(HandlePublishableKeyAuthErrors),
             Effect.catchTags({
-              InvalidAnonymousIdError: () =>
-                Effect.fail(new HttpApiError.BadRequest()),
               HttpBodyError: () =>
                 Effect.fail(new HttpApiError.InternalServerError()),
-              MissingProjectIdError: () =>
-                Effect.fail(new HttpApiError.Forbidden()),
               ParseError: () => Effect.fail(new HttpApiError.BadRequest())
             })
           )

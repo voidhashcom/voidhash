@@ -1,16 +1,16 @@
 import { Db, TransactionContext } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
-import { Effect } from 'effect';
-import { PaywallRepository } from '../repositories/paywall-repository';
-import { checkProjectPermission } from '../utils/permissions';
-import { AuthSession } from './auth-service';
-import { Environment } from './environment-service';
 import {
   PaymentProviderConfigurationNotFound,
   PaywallInUseError,
   PaywallNotFoundError,
   ProductNotFound
-} from './errors';
+} from '@voidhash/shared/errors';
+import { Effect } from 'effect';
+import { PaywallRepository } from '../repositories/paywall-repository';
+import { checkProjectPermission } from '../utils/permissions';
+import { AuthSession } from './auth-service';
+import { Environment } from './environment-service';
 
 export class PaywallService extends Effect.Service<PaywallService>()(
   'PaywallService',

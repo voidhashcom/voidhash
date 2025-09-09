@@ -1,11 +1,11 @@
 import { generateId } from '@voidhash/lib';
+import { ApiKeyNotFoundError } from '@voidhash/shared/errors';
 import { Effect } from 'effect';
 import { ApiKeyRepository } from '../repositories/api-key-repository';
 import { createSecretKey as generateSecretKeyFn } from '../utils/api-keys/effect/utils';
 import { checkProjectPermission } from '../utils/permissions';
 import { AuthSession } from './auth-service';
 import { Environment } from './environment-service';
-import { ApiKeyNotFoundError } from './errors';
 
 export class ApiKeyService extends Effect.Service<ApiKeyService>()(
   'ApiKeyService',

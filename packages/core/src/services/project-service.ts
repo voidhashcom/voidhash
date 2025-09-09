@@ -6,6 +6,7 @@ import {
   generateId,
   SLUG_BLACKLIST
 } from '@voidhash/lib';
+import { ProjectNotFound, UnauthenticatedError } from '@voidhash/shared/errors';
 import { Effect } from 'effect';
 import { ApiKeyRepository } from '../repositories/api-key-repository';
 import { OrganizationRepository } from '../repositories/organization-repository';
@@ -16,7 +17,6 @@ import {
   checkProjectPermission
 } from '../utils/permissions';
 import { AuthSession } from './auth-service';
-import { ProjectNotFound, UnauthenticatedError } from './errors';
 
 export class ProjectService extends Effect.Service<ProjectService>()(
   'ProjectService',
@@ -106,6 +106,7 @@ export class ProjectService extends Effect.Service<ProjectService>()(
 
             return yield* Effect.succeed({
               id,
+              name: input.name,
               slug
             });
           }),

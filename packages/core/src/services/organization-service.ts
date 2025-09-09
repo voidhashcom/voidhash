@@ -1,27 +1,30 @@
 import { BetterAuth } from '@voidhash/auth/effect';
 import { createShortId, createSlug } from '@voidhash/lib';
 import { SLUG_BLACKLIST } from '@voidhash/lib/constants';
-import { Effect, Either } from 'effect';
-import { OrganizationRepository } from '../repositories/organization-repository';
-import { checkOrganizationPermission } from '../utils/permissions';
-import { AuthSession } from './auth-service';
 import {
   FailedToCreateOrganizationError,
   OrganizationNotFound,
   UserSessionNotFoundError
-} from './errors';
+} from '@voidhash/shared/errors';
+import { Effect, Either } from 'effect';
+import { OrganizationRepository } from '../repositories/organization-repository';
+import { checkOrganizationPermission } from '../utils/permissions';
+import { AuthSession } from './auth-service';
 
 export class OrganizationService extends Effect.Service<OrganizationService>()(
   'OrganizationService',
   {
+    // Specify dependencies
+    dependencies: [OrganizationRepository.Default, BetterAuth.Default],
     effect: Effect.gen(function* () {
-      const checkSlugAvailable = (slug: string, headers: Headers) =>
+      const betterAuth = yield* BetterAuth;
+      const organizationRepository = yield* OrganizationRepository;
+
+      const checkSlugAvailable = (slug: string) =>
         Effect.gen(function* () {
-          const betterAuth = yield* BetterAuth;
           const res = yield* Effect.either(
             betterAuth.use(async (client) =>
               client.api.checkOrganizationSlug({
-                headers,
                 body: { slug }
               })
             )
@@ -46,7 +49,6 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
       return {
         createOrganization: (input: { name: string }, headers: Headers) =>
           Effect.gen(function* () {
-            const betterAuth = yield* BetterAuth;
             const session = yield* AuthSession;
 
             let slug = createSlug(input.name);
@@ -61,8 +63,8 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 
             const organization = yield* betterAuth.use(async (client) =>
               client.api.createOrganization({
-                headers,
                 body: {
+                  userId: session?.user?.id,
                   name: input.name,
                   slug
                 }
@@ -95,7 +97,7 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
         getOrganizationBySlug: (slug: string) =>
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const organizationRepository = yield* OrganizationRepository;
+
             const organization =
               yield* organizationRepository.getOrganizationBySlug(slug);
             if (!organization) {
@@ -171,7 +173,6 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
         ) =>
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const organizationRepository = yield* OrganizationRepository;
 
             const organization =
               yield* organizationRepository.getOrganizationById(
@@ -208,9 +209,6 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
             return yield* Effect.succeed(undefined);
           })
       };
-    }),
-
-    // Specify dependencies
-    dependencies: []
+    })
   }
 ) {}

@@ -1,15 +1,15 @@
 import { generateId } from '@voidhash/lib';
-import { Effect, Schema } from 'effect';
-import { appStore, paymentProviders, stripe } from '../payment-providers';
-import { PaymentProviderConfigurationRepository } from '../repositories/payment-provider-repository';
-import { checkProjectPermission } from '../utils/permissions';
-import { AuthSession } from './auth-service';
 import {
   PaymentProviderAlreadyExistsError,
   PaymentProviderConfigurationNotFound,
   PaymentProviderKeyUnavailableError,
   PaymentProviderNotFoundError
-} from './errors';
+} from '@voidhash/shared/errors';
+import { Effect, Schema } from 'effect';
+import { appStore, paymentProviders, stripe } from '../payment-providers';
+import { PaymentProviderConfigurationRepository } from '../repositories/payment-provider-repository';
+import { checkProjectPermission } from '../utils/permissions';
+import { AuthSession } from './auth-service';
 
 export class PaymentProviderService extends Effect.Service<PaymentProviderService>()(
   'PaymentProviderService',

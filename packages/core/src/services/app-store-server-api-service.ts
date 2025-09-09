@@ -6,25 +6,31 @@ import {
   type TransactionInfoResponse,
   VerificationException
 } from '@apple/app-store-server-library';
-import { Effect } from 'effect';
 import {
-  APPLE_ROOT_CA_G2,
-  APPLE_ROOT_CA_G3,
-  APPLE_ROOT_CERTIFICATE
-} from '../payment-providers/app-store/constants';
-import {
-  AppStoreGeneralError,
   AppStoreRateLimitExceededError,
   AppStoreSignedTransactionInfoNotFoundError,
   AppStoreTransactionNotFoundError,
   AppStoreUnauthorizedError,
   AppStoreVerificationException
-} from './errors';
+} from '@voidhash/shared/errors';
+import { Data, Effect } from 'effect';
+import {
+  APPLE_ROOT_CA_G2,
+  APPLE_ROOT_CA_G3,
+  APPLE_ROOT_CERTIFICATE
+} from '../payment-providers/app-store/constants';
 
 export type TransactionInfoResult = {
   environment: 'production' | 'sandbox';
   transactionInfo: TransactionInfoResponse;
 };
+
+export class AppStoreGeneralError extends Data.TaggedError(
+  'AppStoreGeneralError'
+)<{
+  readonly message: string;
+  readonly cause: unknown;
+}> {}
 
 export class AppStoreServerAPIService extends Effect.Service<AppStoreServerAPIService>()(
   'AppStoreServerAPIService',
@@ -194,8 +200,7 @@ export class AppStoreServerAPIService extends Effect.Service<AppStoreServerAPISe
                           cause
                         });
                         return new AppStoreVerificationException({
-                          message: 'Failed to decode transaction',
-                          cause
+                          message: 'Failed to decode transaction'
                         });
                       }
 

@@ -3,12 +3,6 @@ import { Effect } from 'effect';
 
 export const HandleCommonErrors = {
   DatabaseError: () => Effect.fail(new HttpApiError.InternalServerError())
-
-  // MissingSecretKeyError: () => Effect.fail(new HttpApiError.Unauthorized()),
-  // InvalidSecretKeyError: () => Effect.fail(new HttpApiError.Unauthorized()),
-  // MissingPublishableKeyError: () =>
-  //   Effect.fail(new HttpApiError.Unauthorized()),
-  // InvalidPublishableKeyError: () => Effect.fail(new HttpApiError.Unauthorized())
 } as const;
 
 export const HandleSecretKeyAuthErrors = {
