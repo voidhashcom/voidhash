@@ -1,26 +1,32 @@
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { PaymentProviderService } from '@/lib/services/payment-provider.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { PaymentProviderDetailConfiguration } from './payment-provider-detail-configuration';
 
-export async function PaymentProviderDetailPage({
-  paramsPromise
+export const _PaymentProviderDetailPage = Effect.fn(
+  'PaymentProviderDetailPage'
+)(function* ({
+  params
 }: {
-  paramsPromise: Promise<{
+  params: {
     paymentProviderConfigurationId: string;
     organizationSlug: string;
     projectSlug: string;
-  }>;
+  };
 }) {
   const { organizationSlug, projectSlug, paymentProviderConfigurationId } =
-    await paramsPromise;
+    params;
 
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -47,15 +53,15 @@ export async function PaymentProviderDetailPage({
           return { project, paymentProviderConfiguration };
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+  if (Either.isLeft(data)) {
+    const error = data.left;
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
   }
 
-  const { project, paymentProviderConfiguration } = data.value;
+  const { project, paymentProviderConfiguration } = data.right;
 
   return (
     <Page
@@ -79,4 +85,8 @@ export async function PaymentProviderDetailPage({
       />
     </Page>
   );
-}
+});
+
+export const PaymentProviderDetailPage = ServerComponent.build(
+  _PaymentProviderDetailPage
+);

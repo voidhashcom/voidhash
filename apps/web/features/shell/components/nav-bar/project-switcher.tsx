@@ -1,10 +1,10 @@
 import type { Project } from '@voidhash/db';
 import { GradientAvatar, Skeleton } from '@voidhash/ui';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { OrganizationService } from '@/lib/services/organization.service';
 import { ProjectService } from '@/lib/services/project.service';
@@ -36,7 +36,7 @@ const ProjectTitleSkeleton = () => {
   );
 };
 
-export async function ProjectSwitcher({
+export const _ProjectSwitcher = Effect.fn('ProjectSwitcher')(function* ({
   organizationSlug,
   projectSlug
 }: {
@@ -47,7 +47,7 @@ export async function ProjectSwitcher({
     return null;
   }
 
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -92,11 +92,11 @@ export async function ProjectSwitcher({
     })
   );
 
-  if (data.isErr()) {
+  if (Either.isLeft(data)) {
     return null;
   }
 
-  const { user, activeOrganization, activeProject } = data.value;
+  const { user, activeOrganization, activeProject } = data.right;
 
   return (
     <>
@@ -117,4 +117,6 @@ export async function ProjectSwitcher({
       </div>
     </>
   );
-}
+});
+
+export const ProjectSwitcher = ServerComponent.build(_ProjectSwitcher);

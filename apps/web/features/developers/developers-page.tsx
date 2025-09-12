@@ -1,18 +1,22 @@
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { VoidhashErrorCard } from '../shell/components/voidhash-error-card';
-export async function DevelopersPage({
+export const _DevelopersPage = Effect.fn('DevelopersPage')(function* ({
   organizationSlug,
   projectSlug
 }: {
   organizationSlug: string;
   projectSlug;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -34,12 +38,12 @@ export async function DevelopersPage({
           return { project };
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+  if (Either.isLeft(data)) {
+    const error = data.left;
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
   }
 
   // const {} = data.value;
@@ -51,4 +55,6 @@ export async function DevelopersPage({
       </div>
     </Page>
   );
-}
+});
+
+export const DevelopersPage = ServerComponent.build(_DevelopersPage);

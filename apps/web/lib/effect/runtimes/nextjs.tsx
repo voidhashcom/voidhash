@@ -1,16 +1,9 @@
-import {
-  Cause,
-  Effect,
-  Exit,
-  Layer,
-  ManagedRuntime,
-  pipe,
-  Schema
-} from 'effect';
-import { err, ok, type Result } from 'neverthrow';
-import { isDynamicServerError } from 'next/dist/client/components/hooks-server-context';
+import 'server-only';
+
+import { Next } from '@mcrovero/effect-nextjs';
+import { Effect, Layer, pipe, Schema } from 'effect';
 import { cookies, headers } from 'next/headers';
-import { unstable_rethrow } from 'next/navigation';
+import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { ApiKeyRepository } from '@/lib/repositories/api-key.repository';
 import { CheckoutSessionRepository } from '@/lib/repositories/checkout-session.repository';
 import { CustomerRepository } from '@/lib/repositories/customer.repository';
@@ -63,6 +56,21 @@ import type {
 import { Request } from '../request';
 import { NextjsRuntimeTag } from './tags';
 
+export class NextjsErrorResponse extends Schema.TaggedError<NextjsErrorResponse>()(
+  'NextjsErrorResponse',
+  {
+    code: Schema.String,
+    message: Schema.String
+  }
+) {}
+
+export function encodeNextjsErrorResponse(error: NextjsErrorResponse) {
+  return {
+    code: error.code,
+    message: error.message
+  };
+}
+
 const NextjsRuntimeTagLive = Layer.succeed(
   NextjsRuntimeTag,
   NextjsRuntimeTag.of('nextjs')
@@ -105,7 +113,7 @@ const RequestLive = Layer.succeed(
 
 const DbLive = Db.Default;
 
-const RuntimeLayer = () => {
+const InternalsLayer = (() => {
   const CoreLayer = pipe(
     BetterAuth.Default,
     Layer.provideMerge(DbLive),
@@ -150,31 +158,7 @@ const RuntimeLayer = () => {
     Layer.provideMerge(RepositoryLayer),
     Layer.provideMerge(CoreLayer)
   );
-};
-
-export const NextjsRuntime = ManagedRuntime.make(RuntimeLayer());
-const createNextjsRuntime = () => {
-  return ManagedRuntime.make(RuntimeLayer());
-};
-
-export class NextjsErrorResponse extends Schema.TaggedError<NextjsErrorResponse>()(
-  'NextjsErrorResponse',
-  {
-    code: Schema.String,
-    message: Schema.String
-  }
-) {}
-
-// export const createEffectHandler = (context: HonoContextType) => <T, S>(effect: Effect.Effect<T, HonoErrorResponse, S>):  => {
-
-// 		const runtime = createHonoRuntime(context);
-// 		const result = yield* runtime.runPromise(effect);
-// 		if (result.isErr()) {
-// 			return result.error;
-// 		}
-// 		return result.value;
-
-// };
+})();
 
 type GenericErrors = NotFoundError | ForbiddenError | UnauthorizedError;
 type SystemErrors =
@@ -183,7 +167,6 @@ type SystemErrors =
   | BetterAuthError
   | InvalidSourceError;
 type AcceptableErrorTypes =
-  | NextjsErrorResponse
   | GenericErrors
   | SystemErrors
   | MissingSecretKeyError
@@ -198,13 +181,9 @@ type AcceptableErrorTypes =
   | InvalidEnvironmentError
   | EnvironmentCookieNotFoundError;
 
-type AvailableServices = Layer.Layer.Success<ReturnType<typeof RuntimeLayer>>;
-
-const handleGlobalErrors = (
-  // biome-ignore lint/suspicious/noExplicitAny: is ok
-  effect: Effect.Effect<any, AcceptableErrorTypes, AvailableServices>
-  // biome-ignore lint/suspicious/noExplicitAny: is ok
-): Effect.Effect<any, NextjsErrorResponse, AvailableServices> => {
+export const HandleCommonErrors = <D, T>(
+  effect: Effect.Effect<D, AcceptableErrorTypes, T>
+) => {
   return pipe(
     effect,
     Effect.catchTags({
@@ -338,52 +317,24 @@ const handleGlobalErrors = (
   );
 };
 
-export const runServerEffect = async <T, E extends AcceptableErrorTypes>(
-  effect: Effect.Effect<T, E, AvailableServices>
-): Promise<Result<T, NextjsErrorResponse>> => {
-  const runtime = createNextjsRuntime();
-  const result = await runtime.runPromiseExit(
-    pipe(
-      effect,
-      Effect.flatMap((result) => {
-        return Effect.succeed(ok(result));
-      }),
-      handleGlobalErrors,
-      Effect.catchTags({
-        NextjsErrorResponse: (error) => Effect.succeed(err(error))
-      }),
-      Effect.catchAll((error) => {
-        Effect.logError(error);
-        return Effect.succeed(
-          err(
-            new NextjsErrorResponse({
-              code: 'INTERNAL_SERVER_ERROR',
-              message: 'Internal server error'
-            })
-          )
-        );
-      })
+export const ErrorAsComponent = <D, T>(
+  effect: Effect.Effect<D, NextjsErrorResponse, T>
+) => {
+  return pipe(
+    effect,
+    Effect.catchTag('NextjsErrorResponse', (error) =>
+      Effect.succeed(
+        <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />
+      )
     )
   );
-
-  return Exit.match(result, {
-    onSuccess: (value) => value,
-    onFailure: (error) => {
-      if (Cause.isDie(error)) {
-        const defects = Cause.defects(error);
-        for (const defect of defects) {
-          if (isDynamicServerError(defect)) {
-            unstable_rethrow(defect);
-          }
-        }
-      }
-
-      return err(
-        new NextjsErrorResponse({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Internal server error'
-        })
-      );
-    }
-  });
 };
+
+// @mcrovero/effect-nextjs
+
+export const Page = Next.make('EffectfulBasePage', InternalsLayer);
+export const ServerComponent = Next.make(
+  'EffectfulServerComponent',
+  InternalsLayer
+);
+export const ServerAction = Next.make('EffectfulServerAction', InternalsLayer);

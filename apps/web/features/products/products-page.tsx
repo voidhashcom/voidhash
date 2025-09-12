@@ -1,9 +1,13 @@
 import { Card } from '@voidhash/ui';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import {
   Environment,
@@ -16,14 +20,14 @@ import { ProductRecord } from './product-record';
 import { ProductRecordConfigurationStateIndicator } from './product-record-configuration-state-indicator';
 import { ProductsPageEmptyState } from './products-page-empty-state';
 
-export async function ProductsPage({
+export const _ProductsPage = Effect.fn('ProductsPage')(function* ({
   organizationSlug,
   projectSlug
 }: {
   organizationSlug: string;
   projectSlug;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const environmentService = yield* EnvironmentService;
@@ -57,15 +61,15 @@ export async function ProductsPage({
           );
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+  if (Either.isLeft(data)) {
+    const error = data.left;
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
   }
 
-  const { project, products } = data.value;
+  const { project, products } = data.right;
 
   return (
     <Page>
@@ -106,4 +110,6 @@ export async function ProductsPage({
       </div>
     </Page>
   );
-}
+});
+
+export const ProductsPage = ServerComponent.build(_ProductsPage);

@@ -1,21 +1,27 @@
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { ProjectDelete } from './project-delete';
 import { ProjectNameForm } from './project-name';
 import { ProjectSettingsGeneralLayout } from './project-settings-general-layout';
 
-export async function ProjectSettingsGeneralPage({
+export const _ProjectSettingsGeneralPage = Effect.fn(
+  'ProjectSettingsGeneralPage'
+)(function* ({
   organizationSlug,
   projectSlug
 }: {
   organizationSlug: string;
   projectSlug: string;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -37,15 +43,15 @@ export async function ProjectSettingsGeneralPage({
           return { project };
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+  if (Either.isLeft(data)) {
+    const error = data.left;
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
   }
 
-  const { project } = data.value;
+  const { project } = data.right;
 
   return (
     <ProjectSettingsGeneralLayout>
@@ -53,4 +59,8 @@ export async function ProjectSettingsGeneralPage({
       <ProjectDelete projectId={project.id} />
     </ProjectSettingsGeneralLayout>
   );
-}
+});
+
+export const ProjectSettingsGeneralPage = ServerComponent.build(
+  _ProjectSettingsGeneralPage
+);

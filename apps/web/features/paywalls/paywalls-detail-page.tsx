@@ -1,8 +1,12 @@
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import {
   Environment,
@@ -13,7 +17,7 @@ import { ProductService } from '@/lib/services/product.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { PaywallDetailPageEditor } from './paywall-detail-page-editor';
 
-export async function PaywallsDetailPage({
+export const _PaywallsDetailPage = Effect.fn('PaywallsDetailPage')(function* ({
   organizationSlug,
   projectSlug,
   id
@@ -22,7 +26,7 @@ export async function PaywallsDetailPage({
   projectSlug: string;
   id: string;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -72,15 +76,15 @@ export async function PaywallsDetailPage({
           );
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+  if (Either.isLeft(data)) {
+    const error = data.left;
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
   }
 
-  const { paywall, paywallProducts, products } = data.value;
+  const { paywall, paywallProducts, products } = data.right;
 
   return (
     <Page
@@ -105,4 +109,6 @@ export async function PaywallsDetailPage({
       </div>
     </Page>
   );
-}
+});
+
+export const PaywallsDetailPage = ServerComponent.build(_PaywallsDetailPage);

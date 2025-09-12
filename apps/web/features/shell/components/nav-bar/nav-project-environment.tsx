@@ -1,8 +1,11 @@
 import { Environment as EnvironmentEnum } from '@voidhash/lib/index';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { Suspense } from 'react';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import {
   Environment,
@@ -11,7 +14,9 @@ import {
 import { ProjectService } from '@/lib/services/project.service';
 import { NavProjectEnvironmentToggle } from './nav-project-environment-toggle';
 
-export async function NavProjectEnvironmentContent({
+export const _NavProjectEnvironmentContent = Effect.fn(
+  'NavProjectEnvironmentContent'
+)(function* ({
   organizationSlug,
   projectSlug
 }: {
@@ -21,7 +26,7 @@ export async function NavProjectEnvironmentContent({
   if (!(organizationSlug && projectSlug)) {
     return null;
   }
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -54,14 +59,14 @@ export async function NavProjectEnvironmentContent({
           );
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
+  if (Either.isLeft(data)) {
     return null;
   }
 
-  const { project, environment } = data.value;
+  const { project, environment } = data.right;
 
   return (
     <div>
@@ -71,7 +76,11 @@ export async function NavProjectEnvironmentContent({
       />
     </div>
   );
-}
+});
+
+export const NavProjectEnvironmentContent = ServerComponent.build(
+  _NavProjectEnvironmentContent
+);
 
 export function NavProjectEnvironment({
   organizationSlug,

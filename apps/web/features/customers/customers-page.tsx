@@ -5,23 +5,28 @@ import {
   UnderlineTabsList,
   UnderlineTabsTrigger
 } from '@voidhash/ui';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { VoidhashErrorCard } from '../shell/components/voidhash-error-card';
 import { CreateCustomerButton } from './create-customer-button';
 import { CustomersTable } from './customers-table';
-export async function CustomersPage({
+
+const _CustomersPage = Effect.fn('CustomersPage')(function* ({
   organizationSlug,
   projectSlug
 }: {
   organizationSlug: string;
   projectSlug;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -43,15 +48,15 @@ export async function CustomersPage({
           return { project };
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+  if (Either.isLeft(data)) {
+    const error = data.left;
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
   }
 
-  const { project } = data.value;
+  const { project } = data.right;
 
   return (
     <Page className="p-0 py-8">
@@ -109,4 +114,6 @@ export async function CustomersPage({
       </div>
     </Page>
   );
-}
+});
+
+export const CustomersPage = ServerComponent.build(_CustomersPage);

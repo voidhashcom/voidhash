@@ -197,6 +197,12 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.1.1
         version: 5.2.1(react-hook-form@7.62.0(react@19.1.1))
+      '@mcrovero/effect-nextjs':
+        specifier: ^0.12.0
+        version: 0.12.0(effect@3.17.13)
+      '@mcrovero/effect-react-cache':
+        specifier: ^0.2.3
+        version: 0.2.3(effect@3.17.13)(react@19.1.1)
       '@polar-sh/nextjs':
         specifier: ^0.4.0
         version: 0.4.4(next@15.5.2(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@19.1.0-rc.2)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))
@@ -2997,6 +3003,17 @@ packages:
 
   '@levischuck/tiny-cbor@0.2.11':
     resolution: {integrity: sha512-llBRm4dT4Z89aRsm6u2oEZ8tfwL/2l6BwpZ7JcyieouniDECM5AqNgr/y08zalEIvW3RSK4upYyybDcmjXqAow==}
+
+  '@mcrovero/effect-nextjs@0.12.0':
+    resolution: {integrity: sha512-QpHtM10iL6q7kXfq1sTbmICrudjC6q6G2DtYEwwCLmpTdtnRjMHzQlFl6lKeo079lbMki8wEVo9n/e3dA6kLFw==}
+    peerDependencies:
+      effect: ^3.0.0
+
+  '@mcrovero/effect-react-cache@0.2.3':
+    resolution: {integrity: sha512-4NrTlcDZva8yd1NQg94eGxjL6Cq7ROENtmJAzlgUc7MLwNUoC6UlWPKwlrmTARPA3pOqOnFa4MucvgTMECZx6A==}
+    peerDependencies:
+      effect: ^3.0.0
+      react: ^19.0.0
 
   '@mdx-js/mdx@3.1.1':
     resolution: {integrity: sha512-f6ZO2ifpwAQIpzGWaBQT2TXxPv6z3RBzQKpVftEWN78Vl/YweF1uwussDx8ECAXVtr3Rs89fKyG9YlzUs9DyGQ==}
@@ -14030,6 +14047,15 @@ snapshots:
 
   '@levischuck/tiny-cbor@0.2.11': {}
 
+  '@mcrovero/effect-nextjs@0.12.0(effect@3.17.13)':
+    dependencies:
+      effect: 3.17.13
+
+  '@mcrovero/effect-react-cache@0.2.3(effect@3.17.13)(react@19.1.1)':
+    dependencies:
+      effect: 3.17.13
+      react: 19.1.1
+
   '@mdx-js/mdx@3.1.1':
     dependencies:
       '@types/estree': 1.0.8
@@ -16332,15 +16358,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/project-service@8.42.0(typescript@5.6.3)':
-    dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.42.0(typescript@5.6.3)
-      '@typescript-eslint/types': 8.42.0
-      debug: 4.4.1
-      typescript: 5.6.3
-    transitivePeerDependencies:
-      - supports-color
-
   '@typescript-eslint/project-service@8.42.0(typescript@5.8.3)':
     dependencies:
       '@typescript-eslint/tsconfig-utils': 8.42.0(typescript@5.8.3)
@@ -16354,10 +16371,6 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.42.0
       '@typescript-eslint/visitor-keys': 8.42.0
-
-  '@typescript-eslint/tsconfig-utils@8.42.0(typescript@5.6.3)':
-    dependencies:
-      typescript: 5.6.3
 
   '@typescript-eslint/tsconfig-utils@8.42.0(typescript@5.8.3)':
     dependencies:
@@ -16403,8 +16416,8 @@ snapshots:
 
   '@typescript-eslint/typescript-estree@8.42.0(typescript@5.6.3)':
     dependencies:
-      '@typescript-eslint/project-service': 8.42.0(typescript@5.6.3)
-      '@typescript-eslint/tsconfig-utils': 8.42.0(typescript@5.6.3)
+      '@typescript-eslint/project-service': 8.42.0(typescript@5.8.3)
+      '@typescript-eslint/tsconfig-utils': 8.42.0(typescript@5.8.3)
       '@typescript-eslint/types': 8.42.0
       '@typescript-eslint/visitor-keys': 8.42.0
       debug: 4.4.1
@@ -16412,7 +16425,7 @@ snapshots:
       is-glob: 4.0.3
       minimatch: 9.0.5
       semver: 7.7.2
-      ts-api-utils: 2.1.0(typescript@5.6.3)
+      ts-api-utils: 2.1.0(typescript@5.8.3)
       typescript: 5.6.3
     transitivePeerDependencies:
       - supports-color
