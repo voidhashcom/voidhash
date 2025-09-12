@@ -1,25 +1,23 @@
 import { Skeleton } from '@voidhash/ui';
 import { GradientAvatar } from '@voidhash/ui/gradient-avatar';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { OrganizationService } from '@/lib/services/organization.service';
 import { UserService } from '@/lib/services/user.service';
 import { OrganizationProjectSwitcher } from './organization-project-switcher';
 
-const OrganizationSwitcherComponent = async ({
-  organizationSlug
-}: {
-  organizationSlug: string | null;
-}) => {
+const _OrganizationSwitcherComponent = Effect.fn(
+  'OrganizationSwitcherComponent'
+)(function* ({ organizationSlug }: { organizationSlug: string | null }) {
   if (!organizationSlug) {
     return null;
   }
 
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -52,11 +50,11 @@ const OrganizationSwitcherComponent = async ({
     })
   );
 
-  if (data.isErr()) {
+  if (Either.isLeft(data)) {
     return null;
   }
 
-  const { user, activeOrganization } = data.value;
+  const { user, activeOrganization } = data.right;
 
   return (
     <div className="flex items-center gap-2">
@@ -80,7 +78,11 @@ const OrganizationSwitcherComponent = async ({
       />
     </div>
   );
-};
+});
+
+export const OrganizationSwitcherComponent = ServerComponent.build(
+  _OrganizationSwitcherComponent
+);
 
 function OrganizationSwitcherSkeleton() {
   return (

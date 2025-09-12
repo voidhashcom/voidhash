@@ -1,8 +1,12 @@
 import { Card } from '@voidhash/ui';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  Page
+} from '@/lib/effect/runtimes/nextjs';
 import { ApiKeyService } from '@/lib/services/api-key.service';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import {
@@ -13,14 +17,14 @@ import { ProjectService } from '@/lib/services/project.service';
 import { ApiKeyRecord } from './api-key-record';
 import { CreateSecretKeyModalButton } from './create-secret-key-modal-button';
 
-export async function ProjectApiKeysPage({
+const _ProjectApiKeysPage = Effect.fn('ProjectApiKeysPage')(function* ({
   organizationSlug,
   projectSlug
 }: {
   organizationSlug: string;
   projectSlug: string;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const environmentService = yield* EnvironmentService;
@@ -55,15 +59,15 @@ export async function ProjectApiKeysPage({
           );
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+  if (Either.isLeft(data)) {
+    const error = data.left;
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
   }
 
-  const { project, apiKeys } = data.value;
+  const { project, apiKeys } = data.right;
 
   return (
     <div>
@@ -84,4 +88,6 @@ export async function ProjectApiKeysPage({
       </div>
     </div>
   );
-}
+});
+
+export const ProjectApiKeysPage = Page.build(_ProjectApiKeysPage);

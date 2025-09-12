@@ -1,19 +1,21 @@
 import { Badge } from '@voidhash/ui';
-import { Effect } from 'effect';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import { Effect, Either } from 'effect';
+import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { PaymentProviderService } from '@/lib/services/payment-provider.service';
 import { ProductService } from '@/lib/services/product.service';
 import { PaymentProviderLogo } from '../projects/settings/payment-providers/payment-provider-logo';
 
-export async function ProductRecordConfigurationStateIndicator({
+export const _ProductRecordConfigurationStateIndicator = Effect.fn(
+  'ProductRecordConfigurationStateIndicator'
+)(function* ({
   productId,
   projectId
 }: {
   productId: string;
   projectId: string;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -40,11 +42,11 @@ export async function ProductRecordConfigurationStateIndicator({
     })
   );
 
-  if (data.isErr()) {
+  if (Either.isLeft(data)) {
     return <Badge>Loading error</Badge>;
   }
 
-  const { providerProducts, paymentProviderConfigurations } = data.value;
+  const { providerProducts, paymentProviderConfigurations } = data.right;
 
   if (providerProducts.length === 0) {
     return <Badge>Configuration required</Badge>;
@@ -77,4 +79,8 @@ export async function ProductRecordConfigurationStateIndicator({
         })}
     </div>
   );
-}
+});
+
+export const ProductRecordConfigurationStateIndicator = ServerComponent.build(
+  _ProductRecordConfigurationStateIndicator
+);
