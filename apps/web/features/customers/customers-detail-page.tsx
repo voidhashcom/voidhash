@@ -1,15 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@voidhash/ui';
 import { format } from 'date-fns';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { Clock4Icon } from 'lucide-react';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { CustomerService } from '@/lib/services/customer.service';
 import { Page } from '../shell';
 import { VoidhashErrorCard } from '../shell/components/voidhash-error-card';
 
-export async function CustomerDetailPage({
+const _CustomerDetailPage = Effect.fn('CustomerDetailPage')(function* ({
   customerId,
   organizationSlug,
   projectSlug
@@ -18,7 +22,7 @@ export async function CustomerDetailPage({
   organizationSlug: string;
   projectSlug: string;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -38,14 +42,14 @@ export async function CustomerDetailPage({
           })
         )
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    return <VoidhashErrorCard error={data._unsafeUnwrapErr()} />;
+  if (Either.isLeft(data)) {
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(data.left)} />;
   }
 
-  const { customer, customerPurchases, customerUnlockedPerks } = data.value;
+  const { customer, customerPurchases, customerUnlockedPerks } = data.right;
 
   const title =
     customer.name ?? customer.email ?? customer.appUserId ?? customer.id;
@@ -147,4 +151,6 @@ export async function CustomerDetailPage({
       </div>
     </Page>
   );
-}
+});
+
+export const CustomerDetailPage = ServerComponent.build(_CustomerDetailPage);

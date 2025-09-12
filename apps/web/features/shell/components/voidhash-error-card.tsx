@@ -1,13 +1,13 @@
 'use client';
 
-import type { AnyVoidhashError } from '@voidhash/lib/constants';
+// import type { AnyVoidhashError } from '@voidhash/lib/constants';
 import { ErrorCard } from '@voidhash/ui';
-import type { NextjsErrorResponse } from '@/lib/effect/runtimes/nextjs';
+import type { encodeNextjsErrorResponse } from '@/lib/effect/runtimes/nextjs';
 
 export function VoidhashErrorCard({
   error
 }: {
-  error: AnyVoidhashError | NextjsErrorResponse;
+  error: ReturnType<typeof encodeNextjsErrorResponse>;
 }) {
   // TODO: Improve this a lot
   return (

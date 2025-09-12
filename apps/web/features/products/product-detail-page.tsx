@@ -6,11 +6,15 @@ import {
   CardHeader,
   CardTitle
 } from '@voidhash/ui';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import {
@@ -29,7 +33,7 @@ import { ProductDetailPerksEmptyState } from './product-detail-perks-empty-state
 import { ProductDetailPerkRecord } from './product-detail-product-perk-record';
 import { ProductDetailProviderProductRecord } from './product-detail-provider-product-record';
 
-export async function ProductDetailPage({
+export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
   organizationSlug,
   projectSlug,
   id
@@ -38,7 +42,7 @@ export async function ProductDetailPage({
   projectSlug: string;
   id: string;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -105,12 +109,12 @@ export async function ProductDetailPage({
           );
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+  if (Either.isLeft(data)) {
+    const error = data.left;
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
   }
 
   const {
@@ -120,7 +124,7 @@ export async function ProductDetailPage({
     environment,
     perks,
     productPerks
-  } = data.value;
+  } = data.right;
 
   const enabledPaymentProviderConfigurations = paymentProviderConfigurations
     .map((paymentProviderConfiguration) => {
@@ -322,4 +326,6 @@ export async function ProductDetailPage({
       </div>
     </Page>
   );
-}
+});
+
+export const ProductDetailPage = ServerComponent.build(_ProductDetailPage);

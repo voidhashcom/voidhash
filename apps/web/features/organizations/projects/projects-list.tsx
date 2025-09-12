@@ -7,25 +7,29 @@ import {
   DropdownMenuTrigger,
   GradientAvatar
 } from '@voidhash/ui';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { EllipsisVerticalIcon } from 'lucide-react';
 import Link from 'next/link';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { OrganizationService } from '@/lib/services/organization.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { EmptyState } from './empty-state';
 
-export async function ProjectsList({
+const _ProjectsList = Effect.fn('ProjectList')(function* ({
   organizationSlug
 }: {
   organizationSlug: string;
 }) {
-  const data = await runServerEffect(
+  const authService = yield* AuthService;
+  const result = yield* Effect.either(
     Effect.gen(function* () {
-      const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
       return yield* AuthSession.provide(authSession)(
         Effect.gen(function* () {
@@ -53,15 +57,14 @@ export async function ProjectsList({
           return { activeOrganization, organizationProjects: projects };
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+  if (Either.isLeft(result)) {
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(result.left)} />;
   }
 
-  const { activeOrganization, organizationProjects } = data.value;
+  const { activeOrganization, organizationProjects } = result.right;
 
   if (organizationProjects?.length === 0) {
     return (
@@ -119,4 +122,6 @@ export async function ProjectsList({
       ))}
     </Card>
   );
-}
+});
+
+export const ProjectsList = ServerComponent.build(_ProjectsList);

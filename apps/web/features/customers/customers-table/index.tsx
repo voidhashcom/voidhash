@@ -1,7 +1,11 @@
 import type { CustomerTypeValue } from '@voidhash/db';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { CustomerService } from '@/lib/services/customer.service';
 import {
@@ -11,7 +15,7 @@ import {
 import { columns } from './columns';
 import { DataTable } from './data-table';
 
-export async function CustomersTable({
+const _CustomersTable = Effect.fn('CustomersTable')(function* ({
   projectId,
   type,
   organizationSlug,
@@ -22,7 +26,7 @@ export async function CustomersTable({
   organizationSlug: string;
   projectSlug: string;
 }) {
-  const customersResult = await runServerEffect(
+  const customersResult = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const customerService = yield* CustomerService;
@@ -42,14 +46,18 @@ export async function CustomersTable({
           );
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (customersResult.isErr()) {
-    return <VoidhashErrorCard error={customersResult._unsafeUnwrapErr()} />;
+  if (Either.isLeft(customersResult)) {
+    return (
+      <VoidhashErrorCard
+        error={encodeNextjsErrorResponse(customersResult.left)}
+      />
+    );
   }
 
-  const customers = customersResult.value;
+  const customers = customersResult.right;
 
   return (
     <DataTable
@@ -59,4 +67,6 @@ export async function CustomersTable({
       projectSlug={projectSlug}
     />
   );
-}
+});
+
+export const CustomersTable = ServerComponent.build(_CustomersTable);

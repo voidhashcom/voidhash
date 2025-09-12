@@ -1,22 +1,22 @@
 import { SidebarInset } from '@voidhash/ui';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { Suspense } from 'react';
 import { NavBar } from '@/features/shell';
 import { ProjectSettingsSidebar } from '@/features/shell/project-settings-sidebar';
 import { ProjectSidebar } from '@/features/shell/project-sidebar';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { OrganizationService } from '@/lib/services/organization.service';
 import { LayoutSidebar } from './layout-sidebar';
 
-async function ProjectLayoutSidebar({
+const _ProjectLayoutSidebar = Effect.fn('ProjectLayoutSidebar')(function* ({
   organizationSlug,
   projectSlug
 }: {
   organizationSlug: string;
   projectSlug: string;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -36,11 +36,11 @@ async function ProjectLayoutSidebar({
     })
   );
 
-  if (data.isErr()) {
+  if (Either.isLeft(data)) {
     return null;
   }
 
-  const { activeOrganization } = data.value;
+  const { activeOrganization } = data.right;
 
   return (
     <ProjectSettingsSidebar
@@ -50,7 +50,11 @@ async function ProjectLayoutSidebar({
       projectSlug={projectSlug}
     />
   );
-}
+});
+
+export const ProjectLayoutSidebar = ServerComponent.build(
+  _ProjectLayoutSidebar
+);
 
 export default async function ProjectLayout({
   children,
