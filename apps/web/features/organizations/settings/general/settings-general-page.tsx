@@ -1,57 +1,64 @@
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { OrganizationService } from '@/lib/services/organization.service';
 import { SettingsGeneralLayout } from './settings-general-layout';
 import { TeamDelete } from './team-delete';
 import { TeamNameForm } from './team-name';
 
-export default async function GeneralSettingsPage({
-  params
-}: {
-  params: { organizationSlug: string };
-}) {
-  const { organizationSlug } = params;
-  const data = await runServerEffect(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        Effect.gen(function* () {
-          const organizationService = yield* OrganizationService;
-          const activeOrganization = yield* organizationService
-            .getOrganizationBySlug(organizationSlug)
-            .pipe(
-              Effect.catchTags({
-                OrganizationNotFound: () =>
-                  Effect.fail(
-                    new NotFoundError({
-                      message: 'Organization not found'
-                    })
-                  )
-              })
-            );
+export const _SettingsGeneralPage = Effect.fn('SettingsGeneralPage')(
+  function* ({ params }: { params: { organizationSlug: string } }) {
+    const { organizationSlug } = params;
+    const data = yield* Effect.either(
+      Effect.gen(function* () {
+        const authService = yield* AuthService;
+        const authSession = yield* authService.authenticateWithSession();
+        return yield* AuthSession.provide(authSession)(
+          Effect.gen(function* () {
+            const organizationService = yield* OrganizationService;
+            const activeOrganization = yield* organizationService
+              .getOrganizationBySlug(organizationSlug)
+              .pipe(
+                Effect.catchTags({
+                  OrganizationNotFound: () =>
+                    Effect.fail(
+                      new NotFoundError({
+                        message: 'Organization not found'
+                      })
+                    )
+                })
+              );
 
-          return { activeOrganization };
-        })
-      );
-    })
-  );
+            return { activeOrganization };
+          })
+        );
+      }).pipe(HandleCommonErrors)
+    );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+    if (Either.isLeft(data)) {
+      const error = data.left;
+      return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+    }
+
+    const { activeOrganization } = data.right;
+
+    return (
+      <SettingsGeneralLayout>
+        <TeamNameForm
+          key={organizationSlug}
+          organization={activeOrganization}
+        />
+        {/* <TeamUrlForm /> */}
+        <TeamDelete organizationId={activeOrganization.id} />
+      </SettingsGeneralLayout>
+    );
   }
+);
 
-  const { activeOrganization } = data.value;
-
-  return (
-    <SettingsGeneralLayout>
-      <TeamNameForm key={organizationSlug} organization={activeOrganization} />
-      {/* <TeamUrlForm /> */}
-      <TeamDelete organizationId={activeOrganization.id} />
-    </SettingsGeneralLayout>
-  );
-}
+export const SettingsGeneralPage = ServerComponent.build(_SettingsGeneralPage);

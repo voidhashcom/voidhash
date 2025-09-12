@@ -1,8 +1,12 @@
 import { Card } from '@voidhash/ui';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { NotFoundError } from '@/lib/effect/errors';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import {
+  encodeNextjsErrorResponse,
+  HandleCommonErrors,
+  ServerComponent
+} from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import {
   Environment,
@@ -14,14 +18,14 @@ import { CreatePerkModalButton } from './create-perk-modal-button';
 import { PerkRecord } from './perk-record';
 import { PerksPageEmptyState } from './perks-page-empty-state';
 
-export async function PerksPage({
+export const _PerksPage = Effect.fn('PerksPage')(function* ({
   organizationSlug,
   projectSlug
 }: {
   organizationSlug: string;
   projectSlug: string;
 }) {
-  const data = await runServerEffect(
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const environmentService = yield* EnvironmentService;
@@ -55,15 +59,15 @@ export async function PerksPage({
           );
         })
       );
-    })
+    }).pipe(HandleCommonErrors)
   );
 
-  if (data.isErr()) {
-    const error = data._unsafeUnwrapErr();
-    return <VoidhashErrorCard error={error} />;
+  if (Either.isLeft(data)) {
+    const error = data.left;
+    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
   }
 
-  const { project, perks } = data.value;
+  const { project, perks } = data.right;
 
   return (
     <div>
@@ -90,4 +94,6 @@ export async function PerksPage({
       </div>
     </div>
   );
-}
+});
+
+export const PerksPage = ServerComponent.build(_PerksPage);

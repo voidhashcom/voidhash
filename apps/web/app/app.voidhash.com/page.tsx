@@ -1,12 +1,13 @@
 import { ErrorCard } from '@voidhash/ui';
-import { Effect } from 'effect';
+import { Effect, Either } from 'effect';
 import { redirect } from 'next/navigation';
-import { runServerEffect } from '@/lib/effect/runtimes/nextjs';
+import { NotFoundError, UnauthorizedError } from '@/lib/effect/errors';
+import { Page } from '@/lib/effect/runtimes/nextjs';
 import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import { UserService } from '@/lib/services/user.service';
 
-export default async function Index() {
-  const data = await runServerEffect(
+const _Index = Effect.fn('Index')(function* () {
+  const data = yield* Effect.either(
     Effect.gen(function* () {
       const authService = yield* AuthService;
       const authSession = yield* authService.authenticateWithSession();
@@ -20,10 +21,10 @@ export default async function Index() {
     })
   );
 
-  if (data.isErr()) {
-    const err = data._unsafeUnwrapErr();
+  if (Either.isLeft(data)) {
+    const err = data.left;
 
-    if (err.code === 'NOT_FOUND' || err.code === 'UNAUTHORIZED') {
+    if (err instanceof NotFoundError || err instanceof UnauthorizedError) {
       return redirect('/login');
     }
 
@@ -38,10 +39,14 @@ export default async function Index() {
     );
   }
 
-  const { user } = data.value;
+  const { user } = data.right;
 
   if (user.organizations.length === 0) {
     return redirect('/~/create-organization');
   }
   return redirect(`/${user.organizations[0]?.slug}`);
-}
+});
+
+export const Index = Page.build(_Index);
+
+export default Index;
