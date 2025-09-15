@@ -97,6 +97,13 @@ export type PublishableApiKeySession = VoidhashBaseSession & {
   readonly environment: EnvironmentValue;
 };
 
+export class InvalidAuthMethodError extends Data.TaggedError(
+  'InvalidAuthMethodError'
+)<{
+  readonly cause?: unknown;
+  readonly message: string;
+}> {}
+
 export class AuthSession extends Context.Tag('app/AuthSession')<
   AuthSession,
   UserSession | ApiKeySession | PublishableApiKeySession
@@ -116,43 +123,6 @@ export class AuthService extends Effect.Service<AuthService>()(
 
     effect: Effect.gen(function* () {
       return {
-        authenticateWithSession: () =>
-          Effect.gen(function* () {
-            // Works only in Next.js runtime
-            yield* NextjsRuntimeTag;
-            const existingSession = yield* Effect.serviceOption(AuthSession);
-            if (Option.isSome(existingSession)) {
-              return existingSession.value;
-            }
-            const userAuthSession = yield* getUserAuthSession;
-            return userAuthSession;
-          }),
-
-        authenticateWithSecretKey: () =>
-          Effect.gen(function* () {
-            // Works only in Next.js runtime
-            yield* HonoRuntimeTag;
-            const existingSession = yield* Effect.serviceOption(AuthSession);
-            if (Option.isSome(existingSession)) {
-              return existingSession.value;
-            }
-            const secretApiKeyAuthSession = yield* getSecretApiKeyAuthSession;
-            return secretApiKeyAuthSession;
-          }),
-
-        authenticateWithPublishableKey: () =>
-          Effect.gen(function* () {
-            // Works only in Next.js runtime
-            yield* HonoRuntimeTag;
-            const existingSession = yield* Effect.serviceOption(AuthSession);
-            if (Option.isSome(existingSession)) {
-              return existingSession.value;
-            }
-            const publishableApiKeyAuthSession =
-              yield* getPublishableApiKeyAuthSession;
-            return publishableApiKeyAuthSession;
-          }),
-
         getAuthorizedProjectId: () =>
           Effect.gen(function* () {
             const authSession = yield* AuthSession;
@@ -170,6 +140,47 @@ export class AuthService extends Effect.Service<AuthService>()(
     })
   }
 ) {}
+
+export const authenticateWithSession = <A, B, C>(
+  effect: Effect.Effect<A, B, C>
+) =>
+  Effect.gen(function* () {
+    yield* NextjsRuntimeTag;
+    const existingSession = yield* Effect.serviceOption(AuthSession);
+    if (Option.isSome(existingSession)) {
+      return yield* effect.pipe(AuthSession.provide(existingSession.value));
+    }
+    const userAuthSession = yield* getUserAuthSession;
+    return yield* effect.pipe(AuthSession.provide(userAuthSession));
+  });
+
+export const authenticateWithSecretKey = <A, B, C>(
+  effect: Effect.Effect<A, B, C>
+) =>
+  Effect.gen(function* () {
+    yield* HonoRuntimeTag;
+    const existingSession = yield* Effect.serviceOption(AuthSession);
+    if (Option.isSome(existingSession)) {
+      return yield* effect.pipe(AuthSession.provide(existingSession.value));
+    }
+    const secretApiKeyAuthSession = yield* getSecretApiKeyAuthSession;
+    return yield* effect.pipe(AuthSession.provide(secretApiKeyAuthSession));
+  });
+
+export const authenticateWithPublishableKey = <A, B, C>(
+  effect: Effect.Effect<A, B, C>
+) =>
+  Effect.gen(function* () {
+    yield* HonoRuntimeTag;
+    const existingSession = yield* Effect.serviceOption(AuthSession);
+    if (Option.isSome(existingSession)) {
+      return yield* effect.pipe(AuthSession.provide(existingSession.value));
+    }
+    const publishableApiKeyAuthSession = yield* getPublishableApiKeyAuthSession;
+    return yield* effect.pipe(
+      AuthSession.provide(publishableApiKeyAuthSession)
+    );
+  });
 
 const getUserAuthSession = Effect.gen(function* () {
   const betterAuth = yield* BetterAuth;

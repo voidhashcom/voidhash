@@ -7,11 +7,8 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
+import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
 import { PaywallService } from '@/lib/services/paywall.service';
 import { PaywallLocationService } from '@/lib/services/paywall-location.service';
 import { ProjectService } from '@/lib/services/project.service';
@@ -28,43 +25,32 @@ export const _PaywallLocationsPage = Effect.fn('PaywallLocationsPage')(
     projectSlug: string;
   }) {
     const data = yield* Effect.either(
-      Effect.gen(function* () {
-        const authService = yield* AuthService;
-        const projectService = yield* ProjectService;
-        const paywallLocationService = yield* PaywallLocationService;
-        const paywallService = yield* PaywallService;
-        const environmentService = yield* EnvironmentService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
+      authenticateWithSession(
+        withEnvironmentFromCookie({ organizationSlug, projectSlug })(
           Effect.gen(function* () {
-            const environment =
-              yield* environmentService.getEnvironmentFromCookie({
+            const projectService = yield* ProjectService;
+            const paywallLocationService = yield* PaywallLocationService;
+            const paywallService = yield* PaywallService;
+
+            const project =
+              yield* projectService.getProjectBySlugAndOrganizationSlug({
                 organizationSlug,
                 projectSlug
               });
-            return yield* Environment.provide(environment)(
-              Effect.gen(function* () {
-                const project =
-                  yield* projectService.getProjectBySlugAndOrganizationSlug({
-                    organizationSlug,
-                    projectSlug
-                  });
-                if (!project) {
-                  return yield* Effect.fail(
-                    new NotFoundError({
-                      message: 'Project not found'
-                    })
-                  );
-                }
-                const paywalls = yield* paywallService.getPaywalls(project.id);
-                const paywallLocations =
-                  yield* paywallLocationService.getPaywallLocations(project.id);
-                return { project, paywalls, paywallLocations };
-              })
-            );
+            if (!project) {
+              return yield* Effect.fail(
+                new NotFoundError({
+                  message: 'Project not found'
+                })
+              );
+            }
+            const paywalls = yield* paywallService.getPaywalls(project.id);
+            const paywallLocations =
+              yield* paywallLocationService.getPaywallLocations(project.id);
+            return { project, paywalls, paywallLocations };
           })
-        );
-      }).pipe(HandleCommonErrors)
+        )
+      ).pipe(HandleCommonErrors)
     );
 
     if (Either.isLeft(data)) {

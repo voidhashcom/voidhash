@@ -7,7 +7,8 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSecretKey } from '@/lib/services/auth.service';
+import { withEnvironmentFromApiKey } from '@/lib/services/environment.service';
 import { ProductService } from '@/lib/services/product.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -42,12 +43,10 @@ export const registerProductsGetProductById = (app: App) =>
     zValidator('param', getProductByIdParamsSchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const productService = yield* ProductService;
-          const authSession = yield* authService.authenticateWithSecretKey();
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithSecretKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
+              const productService = yield* ProductService;
               const product = yield* productService.getProductById(
                 c.req.param('productId')
               );
@@ -66,8 +65,8 @@ export const registerProductsGetProductById = (app: App) =>
                 name: product.name
               });
             })
-          );
-        })
+          )
+        )
       )
   );
 

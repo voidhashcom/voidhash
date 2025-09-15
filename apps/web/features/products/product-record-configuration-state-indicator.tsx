@@ -1,7 +1,7 @@
 import { Badge } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
 import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import { PaymentProviderService } from '@/lib/services/payment-provider.service';
 import { ProductService } from '@/lib/services/product.service';
 import { PaymentProviderLogo } from '../projects/settings/payment-providers/payment-provider-logo';
@@ -16,30 +16,24 @@ export const _ProductRecordConfigurationStateIndicator = Effect.fn(
   projectId: string;
 }) {
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        Effect.gen(function* () {
-          const productService = yield* ProductService;
-          const paymentProviderService = yield* PaymentProviderService;
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const productService = yield* ProductService;
+        const paymentProviderService = yield* PaymentProviderService;
 
-          const [providerProducts, paymentProviderConfigurations] =
-            yield* Effect.all(
-              [
-                productService.getProviderProductsByProductId(productId),
-                paymentProviderService.getPaymentProviderConfigurations(
-                  projectId
-                )
-              ],
-              {
-                concurrency: 'unbounded'
-              }
-            );
-          return { providerProducts, paymentProviderConfigurations };
-        })
-      );
-    })
+        const [providerProducts, paymentProviderConfigurations] =
+          yield* Effect.all(
+            [
+              productService.getProviderProductsByProductId(productId),
+              paymentProviderService.getPaymentProviderConfigurations(projectId)
+            ],
+            {
+              concurrency: 'unbounded'
+            }
+          );
+        return { providerProducts, paymentProviderConfigurations };
+      })
+    )
   );
 
   if (Either.isLeft(data)) {

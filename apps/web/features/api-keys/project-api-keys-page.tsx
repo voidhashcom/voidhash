@@ -8,11 +8,8 @@ import {
   Page
 } from '@/lib/effect/runtimes/nextjs';
 import { ApiKeyService } from '@/lib/services/api-key.service';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
+import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { ApiKeyRecord } from './api-key-record';
 import { CreateSecretKeyModalButton } from './create-secret-key-modal-button';
@@ -25,41 +22,29 @@ const _ProjectApiKeysPage = Effect.fn('ProjectApiKeysPage')(function* ({
   projectSlug: string;
 }) {
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const environmentService = yield* EnvironmentService;
-      const apiKeyService = yield* ApiKeyService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
+    authenticateWithSession(
+      withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
-          const environment =
-            yield* environmentService.getEnvironmentFromCookie({
+          const apiKeyService = yield* ApiKeyService;
+          const projectService = yield* ProjectService;
+          const project =
+            yield* projectService.getProjectBySlugAndOrganizationSlug({
               organizationSlug,
               projectSlug
             });
-          return yield* Environment.provide(environment)(
-            Effect.gen(function* () {
-              const projectService = yield* ProjectService;
-              const project =
-                yield* projectService.getProjectBySlugAndOrganizationSlug({
-                  organizationSlug,
-                  projectSlug
-                });
-              if (!project) {
-                return yield* Effect.fail(
-                  new NotFoundError({
-                    message: 'Project not found'
-                  })
-                );
-              }
-              const apiKeys = yield* apiKeyService.getApiKeys(project.id);
+          if (!project) {
+            return yield* Effect.fail(
+              new NotFoundError({
+                message: 'Project not found'
+              })
+            );
+          }
+          const apiKeys = yield* apiKeyService.getApiKeys(project.id);
 
-              return { project, apiKeys };
-            })
-          );
+          return { project, apiKeys };
         })
-      );
-    }).pipe(HandleCommonErrors)
+      )
+    ).pipe(HandleCommonErrors)
   );
 
   if (Either.isLeft(data)) {

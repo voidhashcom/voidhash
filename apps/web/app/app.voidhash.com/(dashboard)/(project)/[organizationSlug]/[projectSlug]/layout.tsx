@@ -5,7 +5,7 @@ import { NavBar } from '@/features/shell';
 import { ProjectSettingsSidebar } from '@/features/shell/project-settings-sidebar';
 import { ProjectSidebar } from '@/features/shell/project-sidebar';
 import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import { OrganizationService } from '@/lib/services/organization.service';
 import { LayoutSidebar } from './layout-sidebar';
 
@@ -17,23 +17,19 @@ const _ProjectLayoutSidebar = Effect.fn('ProjectLayoutSidebar')(function* ({
   projectSlug: string;
 }) {
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        Effect.gen(function* () {
-          const organizationService = yield* OrganizationService;
-          const activeOrganizationRes = yield* organizationService
-            .getOrganizationBySlug(organizationSlug)
-            .pipe(
-              Effect.catchTags({
-                OrganizationNotFound: () => Effect.succeed(null)
-              })
-            );
-          return { activeOrganization: activeOrganizationRes };
-        })
-      );
-    })
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const organizationService = yield* OrganizationService;
+        const activeOrganizationRes = yield* organizationService
+          .getOrganizationBySlug(organizationSlug)
+          .pipe(
+            Effect.catchTags({
+              OrganizationNotFound: () => Effect.succeed(null)
+            })
+          );
+        return { activeOrganization: activeOrganizationRes };
+      })
+    )
   );
 
   if (Either.isLeft(data)) {

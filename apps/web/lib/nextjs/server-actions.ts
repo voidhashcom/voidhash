@@ -3,15 +3,16 @@ import 'server-only';
 
 import { CustomerOrigin } from '@voidhash/db';
 import type { EnvironmentValue } from '@voidhash/lib/constants';
-import { Effect, Either, Schema } from 'effect';
+import { Effect, Either, pipe, Schema } from 'effect';
 import { actionClient } from '@/lib/safe-action';
 import { NextjsErrorResponse, ServerAction } from '../effect/runtimes/nextjs';
 import { ApiKeyService } from '../services/api-key.service';
-import { AuthService, AuthSession } from '../services/auth.service';
+import { authenticateWithSession } from '../services/auth.service';
 import { CustomerService } from '../services/customer.service';
 import {
   Environment,
-  EnvironmentService
+  EnvironmentService,
+  withEnvironmentFromCookie
 } from '../services/environment.service';
 import { OrganizationService } from '../services/organization.service';
 import { PaymentProviderService } from '../services/payment-provider.service';
@@ -57,23 +58,16 @@ import {
 const _createSecretKeyAction = Effect.fn('createSecretKeyAction')(
   function* (input: { projectId: string; name: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const apiKeyService = yield* ApiKeyService;
-        const authService = yield* AuthService;
-        const environmentService = yield* EnvironmentService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          Effect.gen(function* () {
-            const environment =
-              yield* environmentService.getEnvironmentFromCookie({
-                projectId: input.projectId
-              });
-            return yield* Environment.provide(environment)(
+      authenticateWithSession(
+        withEnvironmentFromCookie({ projectId: input.projectId })(
+          pipe(
+            ApiKeyService,
+            Effect.flatMap((apiKeyService) =>
               apiKeyService.createSecretKey(input)
-            );
-          })
-        );
-      })
+            )
+          )
+        )
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -92,12 +86,10 @@ export const createSecretKeyAction = actionClient
 const _rotateSecretKeyAction = Effect.fn('rotateSecretKeyAction')(
   function* (input: { secretKeyId: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const apiKeyService = yield* ApiKeyService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          apiKeyService.rotateSecretKey(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const apiKeyService = yield* ApiKeyService;
+          return yield* apiKeyService.rotateSecretKey(input).pipe(
             Effect.catchTags({
               ApiKeyNotFoundError: (error) =>
                 Effect.fail(
@@ -107,9 +99,9 @@ const _rotateSecretKeyAction = Effect.fn('rotateSecretKeyAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -128,12 +120,10 @@ export const rotateSecretKeyAction = actionClient
 const _deleteSecretKeyAction = Effect.fn('deleteSecretKeyAction')(
   function* (input: { secretKeyId: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const apiKeyService = yield* ApiKeyService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          apiKeyService.deleteSecretKey(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const apiKeyService = yield* ApiKeyService;
+          return yield* apiKeyService.deleteSecretKey(input).pipe(
             Effect.catchTags({
               ApiKeyNotFoundError: (error) =>
                 Effect.fail(
@@ -143,9 +133,9 @@ const _deleteSecretKeyAction = Effect.fn('deleteSecretKeyAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -165,12 +155,10 @@ export const deleteSecretKeyAction = actionClient
 const _createOrganizationAction = Effect.fn('createOrganizationAction')(
   function* (input: { name: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const organizationService = yield* OrganizationService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          organizationService.createOrganization(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const organizationService = yield* OrganizationService;
+          return yield* organizationService.createOrganization(input).pipe(
             Effect.catchTags({
               FailedToCreateOrganizationError: (error) =>
                 Effect.fail(
@@ -187,9 +175,9 @@ const _createOrganizationAction = Effect.fn('createOrganizationAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -208,12 +196,10 @@ export const createOrganizationAction = actionClient
 const _updateOrganizationAction = Effect.fn('updateOrganizationAction')(
   function* (input: { organizationId: string; name: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const organizationService = yield* OrganizationService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          organizationService.updateOrganization(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const organizationService = yield* OrganizationService;
+          return yield* organizationService.updateOrganization(input).pipe(
             Effect.catchTags({
               OrganizationNotFound: (error) =>
                 Effect.fail(
@@ -223,9 +209,9 @@ const _updateOrganizationAction = Effect.fn('updateOrganizationAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -244,14 +230,12 @@ export const updateOrganizationAction = actionClient
 const _deleteOrganizationAction = Effect.fn('deleteOrganizationAction')(
   function* (input: { organizationId: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const organizationService = yield* OrganizationService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          organizationService.deleteOrganization(input)
-        );
-      })
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const organizationService = yield* OrganizationService;
+          return yield* organizationService.deleteOrganization(input);
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -271,14 +255,12 @@ export const deleteOrganizationAction = actionClient
 const _createProjectAction = Effect.fn('createProjectAction')(
   function* (input: { name: string; organizationId: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const projectService = yield* ProjectService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          projectService.createProject(input)
-        );
-      })
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const projectService = yield* ProjectService;
+          return yield* projectService.createProject(input);
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -297,12 +279,10 @@ export const createProjectAction = actionClient
 const _updateProjectAction = Effect.fn('updateProjectAction')(
   function* (input: { id: string; name: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const projectService = yield* ProjectService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          projectService.updateProject(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const projectService = yield* ProjectService;
+          return yield* projectService.updateProject(input).pipe(
             Effect.catchTags({
               ProjectNotFound: (error) =>
                 Effect.fail(
@@ -312,9 +292,9 @@ const _updateProjectAction = Effect.fn('updateProjectAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -333,12 +313,10 @@ export const updateProjectAction = actionClient
 const _deleteProjectAction = Effect.fn('deleteProjectAction')(
   function* (input: { id: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const projectService = yield* ProjectService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          projectService.deleteProject(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const projectService = yield* ProjectService;
+          return yield* projectService.deleteProject(input).pipe(
             Effect.catchTags({
               ProjectNotFound: (error) =>
                 Effect.fail(
@@ -348,9 +326,9 @@ const _deleteProjectAction = Effect.fn('deleteProjectAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -370,12 +348,10 @@ export const deleteProjectAction = actionClient
 const _switchEnvironmentAction = Effect.fn('switchEnvironmentAction')(
   function* (input: { projectId: string; environment: EnvironmentValue }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const environmentService = yield* EnvironmentService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          environmentService.switchEnvironment(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const environmentService = yield* EnvironmentService;
+          return yield* environmentService.switchEnvironment(input).pipe(
             Effect.catchTags({
               ProjectNotFoundError: (error) =>
                 Effect.fail(
@@ -399,9 +375,9 @@ const _switchEnvironmentAction = Effect.fn('switchEnvironmentAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -422,31 +398,31 @@ const _createPaymentProviderConfigurationAction = Effect.fn(
   'createPaymentProviderConfigurationAction'
 )(function* (input: { projectId: string; providerId: string }) {
   const res = yield* Effect.either(
-    Effect.gen(function* () {
-      const paymentProviderService = yield* PaymentProviderService;
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        paymentProviderService.createPaymentProviderConfiguration(input).pipe(
-          Effect.catchTags({
-            PaymentProviderNotFoundError: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'NOT_FOUND',
-                  message: error.message
-                })
-              ),
-            PaymentProviderAlreadyExistsError: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'BAD_REQUEST',
-                  message: error.message
-                })
-              )
-          })
-        )
-      );
-    })
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const paymentProviderService = yield* PaymentProviderService;
+        return yield* paymentProviderService
+          .createPaymentProviderConfiguration(input)
+          .pipe(
+            Effect.catchTags({
+              PaymentProviderNotFoundError: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'NOT_FOUND',
+                    message: error.message
+                  })
+                ),
+              PaymentProviderAlreadyExistsError: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                )
+            })
+          );
+      })
+    )
   );
 
   if (Either.isLeft(res)) {
@@ -472,45 +448,45 @@ const _updatePaymentProviderConfigurationAction = Effect.fn(
   configuration: Record<string, unknown>;
 }) {
   const res = yield* Effect.either(
-    Effect.gen(function* () {
-      const paymentProviderService = yield* PaymentProviderService;
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        paymentProviderService.updatePaymentProviderConfiguration(input).pipe(
-          Effect.catchTags({
-            PaymentProviderConfigurationNotFound: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'NOT_FOUND',
-                  message: error.message
-                })
-              ),
-            PaymentProviderNotFoundError: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'NOT_FOUND',
-                  message: error.message
-                })
-              ),
-            ValidationError: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'BAD_REQUEST',
-                  message: error.message
-                })
-              ),
-            PaymentProviderKeyUnavailableError: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'BAD_REQUEST',
-                  message: error.message
-                })
-              )
-          })
-        )
-      );
-    })
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const paymentProviderService = yield* PaymentProviderService;
+        return yield* paymentProviderService
+          .updatePaymentProviderConfiguration(input)
+          .pipe(
+            Effect.catchTags({
+              PaymentProviderConfigurationNotFound: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'NOT_FOUND',
+                    message: error.message
+                  })
+                ),
+              PaymentProviderNotFoundError: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'NOT_FOUND',
+                    message: error.message
+                  })
+                ),
+              ValidationError: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                ),
+              PaymentProviderKeyUnavailableError: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                )
+            })
+          );
+      })
+    )
   );
 
   if (Either.isLeft(res)) {
@@ -531,24 +507,24 @@ const _deletePaymentProviderConfigurationAction = Effect.fn(
   'deletePaymentProviderConfigurationAction'
 )(function* (input: { paymentProviderConfigurationId: string }) {
   const res = yield* Effect.either(
-    Effect.gen(function* () {
-      const paymentProviderService = yield* PaymentProviderService;
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        paymentProviderService.deletePaymentProviderConfiguration(input).pipe(
-          Effect.catchTags({
-            PaymentProviderConfigurationNotFound: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'NOT_FOUND',
-                  message: error.message
-                })
-              )
-          })
-        )
-      );
-    })
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const paymentProviderService = yield* PaymentProviderService;
+        return yield* paymentProviderService
+          .deletePaymentProviderConfiguration(input)
+          .pipe(
+            Effect.catchTags({
+              PaymentProviderConfigurationNotFound: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'NOT_FOUND',
+                    message: error.message
+                  })
+                )
+            })
+          );
+      })
+    )
   );
 
   if (Either.isLeft(res)) {
@@ -569,23 +545,14 @@ export const deletePaymentProviderConfigurationAction = actionClient
 const _createProductAction = Effect.fn('createProductAction')(
   function* (input: { projectId: string; name: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const productService = yield* ProductService;
-        const authService = yield* AuthService;
-        const environmentService = yield* EnvironmentService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
+      authenticateWithSession(
+        withEnvironmentFromCookie({ projectId: input.projectId })(
           Effect.gen(function* () {
-            const environment =
-              yield* environmentService.getEnvironmentFromCookie({
-                projectId: input.projectId
-              });
-            return yield* Environment.provide(environment)(
-              productService.createProduct(input)
-            );
+            const productService = yield* ProductService;
+            return yield* productService.createProduct(input);
           })
-        );
-      })
+        )
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -604,12 +571,10 @@ export const createProductAction = actionClient
 const _updateProductAction = Effect.fn('updateProductAction')(
   function* (input: { productId: string; name: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const productService = yield* ProductService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          productService.updateProduct(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const productService = yield* ProductService;
+          return yield* productService.updateProduct(input).pipe(
             Effect.catchTags({
               ProductNotFound: (error) =>
                 Effect.fail(
@@ -619,9 +584,9 @@ const _updateProductAction = Effect.fn('updateProductAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -640,12 +605,10 @@ export const updateProductAction = actionClient
 const _deleteProductAction = Effect.fn('deleteProductAction')(
   function* (input: { productId: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const productService = yield* ProductService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          productService.deleteProduct(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const productService = yield* ProductService;
+          return yield* productService.deleteProduct(input).pipe(
             Effect.catchTags({
               ProductNotFound: (error) =>
                 Effect.fail(
@@ -655,9 +618,9 @@ const _deleteProductAction = Effect.fn('deleteProductAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -677,12 +640,10 @@ export const deleteProductAction = actionClient
 const _createProductPerkAction = Effect.fn('createProductPerkAction')(
   function* (input: { productId: string; perkId: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const productService = yield* ProductService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          productService.createProductPerk(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const productService = yield* ProductService;
+          return yield* productService.createProductPerk(input).pipe(
             Effect.catchTags({
               ProductNotFound: (error) =>
                 Effect.fail(
@@ -699,9 +660,9 @@ const _createProductPerkAction = Effect.fn('createProductPerkAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -720,12 +681,10 @@ export const createProductPerkAction = actionClient
 const _deleteProductPerkAction = Effect.fn('deleteProductPerkAction')(
   function* (input: { productId: string; perkId: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const productService = yield* ProductService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          productService.deleteProductPerk(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const productService = yield* ProductService;
+          return yield* productService.deleteProductPerk(input).pipe(
             Effect.catchTags({
               ProductNotFound: (error) =>
                 Effect.fail(
@@ -735,9 +694,9 @@ const _deleteProductPerkAction = Effect.fn('deleteProductPerkAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -762,12 +721,10 @@ const _createPaymentProviderProductAction = Effect.fn(
   configuration: Record<string, unknown>;
 }) {
   const res = yield* Effect.either(
-    Effect.gen(function* () {
-      const productService = yield* ProductService;
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        productService.createPaymentProviderProduct(input).pipe(
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const productService = yield* ProductService;
+        return yield* productService.createPaymentProviderProduct(input).pipe(
           Effect.catchTags({
             ProductNotFound: (error) =>
               Effect.fail(
@@ -798,9 +755,9 @@ const _createPaymentProviderProductAction = Effect.fn(
                 })
               )
           })
-        )
-      );
-    })
+        );
+      })
+    )
   );
 
   if (Either.isLeft(res)) {
@@ -822,12 +779,10 @@ const _updatePaymentProviderProductAction = Effect.fn(
   configuration: Record<string, unknown>;
 }) {
   const res = yield* Effect.either(
-    Effect.gen(function* () {
-      const productService = yield* ProductService;
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        productService.updatePaymentProviderProduct(input).pipe(
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const productService = yield* ProductService;
+        return yield* productService.updatePaymentProviderProduct(input).pipe(
           Effect.catchTags({
             ProductNotFound: (error) =>
               Effect.fail(
@@ -865,9 +820,9 @@ const _updatePaymentProviderProductAction = Effect.fn(
                 })
               )
           })
-        )
-      );
-    })
+        );
+      })
+    )
   );
 
   if (Either.isLeft(res)) {
@@ -890,38 +845,38 @@ const _setActivePaymentProviderProductAction = Effect.fn(
   paymentProviderConfigurationId: string;
 }) {
   const res = yield* Effect.either(
-    Effect.gen(function* () {
-      const productService = yield* ProductService;
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        productService.setActivePaymentProviderProduct(input).pipe(
-          Effect.catchTags({
-            ProductNotFound: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'BAD_REQUEST',
-                  message: error.message
-                })
-              ),
-            PaymentProviderConfigurationNotFound: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'BAD_REQUEST',
-                  message: error.message
-                })
-              ),
-            PaymentProviderNotFound: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'BAD_REQUEST',
-                  message: error.message
-                })
-              )
-          })
-        )
-      );
-    })
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const productService = yield* ProductService;
+        return yield* productService
+          .setActivePaymentProviderProduct(input)
+          .pipe(
+            Effect.catchTags({
+              ProductNotFound: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                ),
+              PaymentProviderConfigurationNotFound: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                ),
+              PaymentProviderNotFound: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                )
+            })
+          );
+      })
+    )
   );
 
   if (Either.isLeft(res)) {
@@ -946,12 +901,10 @@ const _deletePaymentProviderProductAction = Effect.fn(
   providerProductKey: string;
 }) {
   const res = yield* Effect.either(
-    Effect.gen(function* () {
-      const productService = yield* ProductService;
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        productService.deletePaymentProviderProduct(input).pipe(
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const productService = yield* ProductService;
+        return yield* productService.deletePaymentProviderProduct(input).pipe(
           Effect.catchTags({
             ProductNotFound: (error) =>
               Effect.fail(
@@ -961,9 +914,9 @@ const _deletePaymentProviderProductAction = Effect.fn(
                 })
               )
           })
-        )
-      );
-    })
+        );
+      })
+    )
   );
 
   if (Either.isLeft(res)) {
@@ -987,39 +940,30 @@ const _createCustomerAction = Effect.fn('createCustomerAction')(
     email?: string | null;
   }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const customerService = yield* CustomerService;
-        const authService = yield* AuthService;
-        const environmentService = yield* EnvironmentService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
+      authenticateWithSession(
+        withEnvironmentFromCookie({ projectId: input.projectId })(
           Effect.gen(function* () {
-            const environment =
-              yield* environmentService.getEnvironmentFromCookie({
-                projectId: input.projectId
-              });
-            return yield* Environment.provide(environment)(
-              customerService
-                .createCustomer({
-                  ...input,
-                  origin: CustomerOrigin.Dashboard,
-                  environment
+            const customerService = yield* CustomerService;
+            return yield* customerService
+              .createCustomer({
+                ...input,
+                origin: CustomerOrigin.Dashboard,
+                environment: yield* Environment
+              })
+              .pipe(
+                Effect.catchTags({
+                  InvalidAnonymousIdError: (error) =>
+                    Effect.fail(
+                      new NextjsErrorResponse({
+                        code: 'BAD_REQUEST',
+                        message: error.message
+                      })
+                    )
                 })
-                .pipe(
-                  Effect.catchTags({
-                    InvalidAnonymousIdError: (error) =>
-                      Effect.fail(
-                        new NextjsErrorResponse({
-                          code: 'BAD_REQUEST',
-                          message: error.message
-                        })
-                      )
-                  })
-                )
-            );
+              );
           })
-        );
-      })
+        )
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -1041,23 +985,14 @@ export const createCustomerAction = actionClient
 const _createPaywallAction = Effect.fn('createPaywallAction')(
   function* (input: { projectId: string; name: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const paywallService = yield* PaywallService;
-        const authService = yield* AuthService;
-        const environmentService = yield* EnvironmentService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
+      authenticateWithSession(
+        withEnvironmentFromCookie({ projectId: input.projectId })(
           Effect.gen(function* () {
-            const environment =
-              yield* environmentService.getEnvironmentFromCookie({
-                projectId: input.projectId
-              });
-            return yield* Environment.provide(environment)(
-              paywallService.createPaywall(input)
-            );
+            const paywallService = yield* PaywallService;
+            return yield* paywallService.createPaywall(input);
           })
-        );
-      })
+        )
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -1087,12 +1022,10 @@ const _updatePaywallAction = Effect.fn('updatePaywallAction')(
     }>;
   }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const paywallService = yield* PaywallService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          paywallService
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const paywallService = yield* PaywallService;
+          return yield* paywallService
             .updatePaywall({
               ...input,
               paywallProducts: [...input.paywallProducts]
@@ -1121,9 +1054,9 @@ const _updatePaywallAction = Effect.fn('updatePaywallAction')(
                     })
                   )
               })
-            )
-        );
-      })
+            );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -1142,12 +1075,10 @@ export const updatePaywallAction = actionClient
 const _deletePaywallAction = Effect.fn('deletePaywallAction')(
   function* (input: { paywallId: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const paywallService = yield* PaywallService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          paywallService.deletePaywall(input).pipe(
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const paywallService = yield* PaywallService;
+          return yield* paywallService.deletePaywall(input).pipe(
             Effect.catchTags({
               PaywallNotFoundError: (error) =>
                 Effect.fail(
@@ -1164,9 +1095,9 @@ const _deletePaywallAction = Effect.fn('deletePaywallAction')(
                   })
                 )
             })
-          )
-        );
-      })
+          );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -1191,19 +1122,13 @@ const _createPaywallLocationAction = Effect.fn('createPaywallLocationAction')(
     defaultPaywallId: string;
   }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const paywallLocationService = yield* PaywallLocationService;
-        const authService = yield* AuthService;
-        const environmentService = yield* EnvironmentService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
+      authenticateWithSession(
+        withEnvironmentFromCookie({ projectId: input.projectId })(
           Effect.gen(function* () {
-            const environment =
-              yield* environmentService.getEnvironmentFromCookie({
-                projectId: input.projectId
-              });
-            return yield* Environment.provide(environment)(
-              paywallLocationService.createPaywallLocation(input).pipe(
+            const paywallLocationService = yield* PaywallLocationService;
+            return yield* paywallLocationService
+              .createPaywallLocation(input)
+              .pipe(
                 Effect.catchTags({
                   SlugAlreadyExistsError: (error) =>
                     Effect.fail(
@@ -1220,11 +1145,10 @@ const _createPaywallLocationAction = Effect.fn('createPaywallLocationAction')(
                       })
                     )
                 })
-              )
-            );
+              );
           })
-        );
-      })
+        )
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -1243,12 +1167,10 @@ export const createPaywallLocationAction = actionClient
 const _deletePaywallLocationAction = Effect.fn('deletePaywallLocationAction')(
   function* (input: { paywallLocationId: string }) {
     const res = yield* Effect.either(
-      Effect.gen(function* () {
-        const paywallLocationService = yield* PaywallLocationService;
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          paywallLocationService
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const paywallLocationService = yield* PaywallLocationService;
+          return yield* paywallLocationService
             .deletePaywallLocation({
               paywallLocationId: input.paywallLocationId
             })
@@ -1262,9 +1184,9 @@ const _deletePaywallLocationAction = Effect.fn('deletePaywallLocationAction')(
                     })
                   )
               })
-            )
-        );
-      })
+            );
+        })
+      )
     );
 
     if (Either.isLeft(res)) {
@@ -1286,33 +1208,24 @@ const _createPerkAction = Effect.fn('createPerkAction')(function* (input: {
   slug: string;
 }) {
   const res = yield* Effect.either(
-    Effect.gen(function* () {
-      const perkService = yield* PerkService;
-      const authService = yield* AuthService;
-      const environmentService = yield* EnvironmentService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
+    authenticateWithSession(
+      withEnvironmentFromCookie({ projectId: input.projectId })(
         Effect.gen(function* () {
-          const environment =
-            yield* environmentService.getEnvironmentFromCookie({
-              projectId: input.projectId
-            });
-          return yield* Environment.provide(environment)(
-            perkService.createPerk(input).pipe(
-              Effect.catchTags({
-                SlugAlreadyExistsError: (error) =>
-                  Effect.fail(
-                    new NextjsErrorResponse({
-                      code: 'BAD_REQUEST',
-                      message: error.message
-                    })
-                  )
-              })
-            )
+          const perkService = yield* PerkService;
+          return yield* perkService.createPerk(input).pipe(
+            Effect.catchTags({
+              SlugAlreadyExistsError: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                )
+            })
           );
         })
-      );
-    })
+      )
+    )
   );
 
   if (Either.isLeft(res)) {
@@ -1331,12 +1244,10 @@ const _deletePerkAction = Effect.fn('deletePerkAction')(function* (input: {
   perkId: string;
 }) {
   const res = yield* Effect.either(
-    Effect.gen(function* () {
-      const perkService = yield* PerkService;
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        perkService.deletePerk({ perkId: input.perkId }).pipe(
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const perkService = yield* PerkService;
+        return yield* perkService.deletePerk({ perkId: input.perkId }).pipe(
           Effect.catchTags({
             PerkNotFound: (error) =>
               Effect.fail(
@@ -1346,9 +1257,9 @@ const _deletePerkAction = Effect.fn('deletePerkAction')(function* (input: {
                 })
               )
           })
-        )
-      );
-    })
+        );
+      })
+    )
   );
 
   if (Either.isLeft(res)) {

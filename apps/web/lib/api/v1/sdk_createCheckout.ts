@@ -7,11 +7,8 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithPublishableKey } from '@/lib/services/auth.service';
+import { withEnvironmentFromApiKey } from '@/lib/services/environment.service';
 import { SdkService } from '@/lib/services/sdk.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -49,25 +46,16 @@ export const registerSdkCreateCheckout = (app: App) =>
     zValidator('json', sdkCreateCheckoutBodySchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const sdkService = yield* SdkService;
-          const environmentService = yield* EnvironmentService;
-          const authSession =
-            yield* authService.authenticateWithPublishableKey();
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithPublishableKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
-              const environment =
-                yield* environmentService.getEnvironmentFromApiAuthSession();
-
-              const checkout = yield* Environment.provide(environment)(
-                sdkService.createCheckout({
-                  paymentProviderConfigurationProductId:
-                    c.req.valid('json').paymentProviderConfigurationProductId,
-                  successCallbackUrl: c.req.valid('json').successCallbackUrl,
-                  errorCallbackUrl: c.req.valid('json').errorCallbackUrl
-                })
-              );
+              const sdkService = yield* SdkService;
+              const checkout = yield* sdkService.createCheckout({
+                paymentProviderConfigurationProductId:
+                  c.req.valid('json').paymentProviderConfigurationProductId,
+                successCallbackUrl: c.req.valid('json').successCallbackUrl,
+                errorCallbackUrl: c.req.valid('json').errorCallbackUrl
+              });
               return c.json<z.infer<typeof sdkCheckoutResponseSchema>>({
                 checkoutSessionId: checkout.checkoutSessionId,
                 checkoutUrl: checkout.checkoutUrl
@@ -91,7 +79,7 @@ export const registerSdkCreateCheckout = (app: App) =>
                   )
               })
             )
-          );
-        })
+          )
+        )
       )
   );

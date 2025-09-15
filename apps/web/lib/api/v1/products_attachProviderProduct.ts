@@ -7,11 +7,8 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithSecretKey } from '@/lib/services/auth.service';
+import { withEnvironmentFromApiKey } from '@/lib/services/environment.service';
 import { ProductService } from '@/lib/services/product.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -53,58 +50,53 @@ export const registerProductsAttachProviderProduct = (app: App) =>
     zValidator('json', attachProviderProductBodySchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const productService = yield* ProductService;
-          const authSession = yield* authService.authenticateWithSecretKey();
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithSecretKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
-              const environmentService = yield* EnvironmentService;
-              const environment =
-                yield* environmentService.getEnvironmentFromApiAuthSession();
-              const result = yield* Environment.provide(environment)(
-                productService.createPaymentProviderProduct({
+              const productService = yield* ProductService;
+              const result = yield* productService
+                .createPaymentProviderProduct({
                   productId: c.req.param('productId'),
                   paymentProviderConfigurationId:
                     c.req.valid('json').paymentProviderConfigurationId,
                   configuration: c.req.valid('json').configuration
                 })
-              ).pipe(
-                Effect.catchTags({
-                  ProductNotFound: (error) =>
-                    Effect.fail(
-                      new HonoErrorResponse({
-                        code: 'NOT_FOUND',
-                        message: error.message,
-                        originalError: error
-                      })
-                    ),
-                  PaymentProviderConfigurationNotFound: (error) =>
-                    Effect.fail(
-                      new HonoErrorResponse({
-                        code: 'NOT_FOUND',
-                        message: error.message,
-                        originalError: error
-                      })
-                    ),
-                  PaymentProviderNotFound: (error) =>
-                    Effect.fail(
-                      new HonoErrorResponse({
-                        code: 'NOT_FOUND',
-                        message: error.message,
-                        originalError: error
-                      })
-                    ),
-                  InvalidConfiguration: (error) =>
-                    Effect.fail(
-                      new HonoErrorResponse({
-                        code: 'BAD_REQUEST',
-                        message: error.message,
-                        originalError: error
-                      })
-                    )
-                })
-              );
+                .pipe(
+                  Effect.catchTags({
+                    ProductNotFound: (error) =>
+                      Effect.fail(
+                        new HonoErrorResponse({
+                          code: 'NOT_FOUND',
+                          message: error.message,
+                          originalError: error
+                        })
+                      ),
+                    PaymentProviderConfigurationNotFound: (error) =>
+                      Effect.fail(
+                        new HonoErrorResponse({
+                          code: 'NOT_FOUND',
+                          message: error.message,
+                          originalError: error
+                        })
+                      ),
+                    PaymentProviderNotFound: (error) =>
+                      Effect.fail(
+                        new HonoErrorResponse({
+                          code: 'NOT_FOUND',
+                          message: error.message,
+                          originalError: error
+                        })
+                      ),
+                    InvalidConfiguration: (error) =>
+                      Effect.fail(
+                        new HonoErrorResponse({
+                          code: 'BAD_REQUEST',
+                          message: error.message,
+                          originalError: error
+                        })
+                      )
+                  })
+                );
               return c.json<z.infer<typeof providerProductResponseSchema>>({
                 providerProductKey: result.providerProductKey,
                 providerConfiguration: {
@@ -114,8 +106,8 @@ export const registerProductsAttachProviderProduct = (app: App) =>
                 }
               });
             })
-          );
-        })
+          )
+        )
       )
   );
 
