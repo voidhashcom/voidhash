@@ -7,7 +7,7 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSecretKey } from '@/lib/services/auth.service';
 import { PaywallService } from '@/lib/services/paywall.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -42,32 +42,28 @@ export const registerPaywallsGetPaywallById = (app: App) =>
     zValidator('param', getPaywallByIdParamsSchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const authSession = yield* authService.authenticateWithSecretKey();
-          return yield* AuthSession.provide(authSession)(
-            Effect.gen(function* () {
-              const paywallService = yield* PaywallService;
-              const paywall = yield* paywallService
-                .getPaywallById(c.req.param('paywallId'))
-                .pipe(
-                  Effect.catchTags({
-                    PaywallNotFoundError: () =>
-                      Effect.fail(
-                        new HonoErrorResponse({
-                          code: 'NOT_FOUND',
-                          message: 'Paywall not found'
-                        })
-                      )
-                  })
-                );
+        authenticateWithSecretKey(
+          Effect.gen(function* () {
+            const paywallService = yield* PaywallService;
+            const paywall = yield* paywallService
+              .getPaywallById(c.req.param('paywallId'))
+              .pipe(
+                Effect.catchTags({
+                  PaywallNotFoundError: () =>
+                    Effect.fail(
+                      new HonoErrorResponse({
+                        code: 'NOT_FOUND',
+                        message: 'Paywall not found'
+                      })
+                    )
+                })
+              );
 
-              return c.json<z.infer<typeof paywallResponseSchema>>({
-                paywallId: paywall.id,
-                name: paywall.name
-              });
-            })
-          );
-        })
+            return c.json<z.infer<typeof paywallResponseSchema>>({
+              paywallId: paywall.id,
+              name: paywall.name
+            });
+          })
+        )
       )
   );

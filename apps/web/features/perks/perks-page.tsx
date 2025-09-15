@@ -7,11 +7,8 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
+import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
 import { PerkService } from '@/lib/services/perk.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { CreatePerkModalButton } from './create-perk-modal-button';
@@ -26,40 +23,28 @@ export const _PerksPage = Effect.fn('PerksPage')(function* ({
   projectSlug: string;
 }) {
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const environmentService = yield* EnvironmentService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
+    authenticateWithSession(
+      withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
-          const environment =
-            yield* environmentService.getEnvironmentFromCookie({
+          const projectService = yield* ProjectService;
+          const perkService = yield* PerkService;
+          const project =
+            yield* projectService.getProjectBySlugAndOrganizationSlug({
               organizationSlug,
               projectSlug
             });
-          return yield* Environment.provide(environment)(
-            Effect.gen(function* () {
-              const projectService = yield* ProjectService;
-              const perkService = yield* PerkService;
-              const project =
-                yield* projectService.getProjectBySlugAndOrganizationSlug({
-                  organizationSlug,
-                  projectSlug
-                });
-              if (!project) {
-                return yield* Effect.fail(
-                  new NotFoundError({
-                    message: 'Project not found'
-                  })
-                );
-              }
-              const perks = yield* perkService.getPerks(project.id);
-              return { project, perks };
-            })
-          );
+          if (!project) {
+            return yield* Effect.fail(
+              new NotFoundError({
+                message: 'Project not found'
+              })
+            );
+          }
+          const perks = yield* perkService.getPerks(project.id);
+          return { project, perks };
         })
-      );
-    }).pipe(HandleCommonErrors)
+      )
+    ).pipe(HandleCommonErrors)
   );
 
   if (Either.isLeft(data)) {

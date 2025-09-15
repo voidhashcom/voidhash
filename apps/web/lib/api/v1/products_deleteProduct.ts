@@ -7,7 +7,7 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSecretKey } from '@/lib/services/auth.service';
 import { ProductService } from '@/lib/services/product.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -44,31 +44,27 @@ export const registerProductsDeleteProduct = (app: App) =>
     zValidator('param', deleteProductParamsSchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const productService = yield* ProductService;
-          const authSession = yield* authService.authenticateWithSecretKey();
-          return yield* AuthSession.provide(authSession)(
-            Effect.gen(function* () {
-              yield* productService
-                .deleteProduct({
-                  productId: c.req.param('productId')
+        authenticateWithSecretKey(
+          Effect.gen(function* () {
+            const productService = yield* ProductService;
+            yield* productService
+              .deleteProduct({
+                productId: c.req.param('productId')
+              })
+              .pipe(
+                Effect.catchTags({
+                  ProductNotFound: (error) =>
+                    Effect.fail(
+                      new HonoErrorResponse({
+                        code: 'NOT_FOUND',
+                        message: error.message,
+                        originalError: error
+                      })
+                    )
                 })
-                .pipe(
-                  Effect.catchTags({
-                    ProductNotFound: (error) =>
-                      Effect.fail(
-                        new HonoErrorResponse({
-                          code: 'NOT_FOUND',
-                          message: error.message,
-                          originalError: error
-                        })
-                      )
-                  })
-                );
-              return c.json({ message: 'Product deleted' });
-            })
-          );
-        })
+              );
+            return c.json({ message: 'Product deleted' });
+          })
+        )
       )
   );

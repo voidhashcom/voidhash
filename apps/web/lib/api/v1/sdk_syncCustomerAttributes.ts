@@ -6,11 +6,8 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithPublishableKey } from '@/lib/services/auth.service';
+import { withEnvironmentFromApiKey } from '@/lib/services/environment.service';
 import { SdkService } from '@/lib/services/sdk.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -48,22 +45,14 @@ export const registerSdkSyncCustomerAttributes = (app: App) =>
     zValidator('json', sdkSyncCustomerAttributesBodySchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const sdkService = yield* SdkService;
-          const environmentService = yield* EnvironmentService;
-          const authSession =
-            yield* authService.authenticateWithPublishableKey();
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithPublishableKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
-              const environment =
-                yield* environmentService.getEnvironmentFromApiAuthSession();
-              const customer = yield* Environment.provide(environment)(
-                sdkService.syncCustomerAttributes({
-                  name: c.req.valid('json').name,
-                  email: c.req.valid('json').email
-                })
-              );
+              const sdkService = yield* SdkService;
+              const customer = yield* sdkService.syncCustomerAttributes({
+                name: c.req.valid('json').name,
+                email: c.req.valid('json').email
+              });
 
               return c.json(customer);
             }).pipe(
@@ -77,7 +66,7 @@ export const registerSdkSyncCustomerAttributes = (app: App) =>
                   )
               })
             )
-          );
-        })
+          )
+        )
       )
   );

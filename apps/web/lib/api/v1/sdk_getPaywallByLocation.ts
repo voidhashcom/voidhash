@@ -7,11 +7,8 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithPublishableKey } from '@/lib/services/auth.service';
+import { withEnvironmentFromApiKey } from '@/lib/services/environment.service';
 import { SdkService } from '@/lib/services/sdk.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -51,24 +48,14 @@ export const registerSdkGetPaywallByLocation = (app: App) =>
     zValidator('query', sdkGetPaywallByLocationQuerySchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const sdkService = yield* SdkService;
-          const environmentService = yield* EnvironmentService;
-          const authSession =
-            yield* authService.authenticateWithPublishableKey();
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithPublishableKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
-              const environment =
-                yield* environmentService.getEnvironmentFromApiAuthSession();
-              const paywall = yield* Environment.provide(environment)(
-                sdkService.getPaywallByLocation({
-                  locationSlug: c.req.param('locationSlug'),
-                  nativePaymentProviderId: c.req.query(
-                    'nativePaymentProviderId'
-                  )
-                })
-              );
+              const sdkService = yield* SdkService;
+              const paywall = yield* sdkService.getPaywallByLocation({
+                locationSlug: c.req.param('locationSlug'),
+                nativePaymentProviderId: c.req.query('nativePaymentProviderId')
+              });
               return c.json<z.infer<typeof sdkPaywallResponseSchema>>(paywall);
             }).pipe(
               Effect.catchTags({
@@ -82,7 +69,7 @@ export const registerSdkGetPaywallByLocation = (app: App) =>
                   )
               })
             )
-          );
-        })
+          )
+        )
       )
   );

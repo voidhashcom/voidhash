@@ -6,12 +6,9 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import { CustomerService } from '@/lib/services/customer.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
 import { columns } from './columns';
 import { DataTable } from './data-table';
 
@@ -27,26 +24,17 @@ const _CustomersTable = Effect.fn('CustomersTable')(function* ({
   projectSlug: string;
 }) {
   const customersResult = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const customerService = yield* CustomerService;
-      const environmentService = yield* EnvironmentService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
+    authenticateWithSession(
+      withEnvironmentFromCookie({ projectId })(
         Effect.gen(function* () {
-          const environment =
-            yield* environmentService.getEnvironmentFromCookie({
-              projectId
-            });
-          return yield* Environment.provide(environment)(
-            customerService.getCustomers({
-              projectId,
-              type
-            })
-          );
+          const customerService = yield* CustomerService;
+          return yield* customerService.getCustomers({
+            projectId,
+            type
+          });
         })
-      );
-    }).pipe(HandleCommonErrors)
+      )
+    ).pipe(HandleCommonErrors)
   );
 
   if (Either.isLeft(customersResult)) {

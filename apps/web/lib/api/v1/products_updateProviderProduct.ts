@@ -7,11 +7,8 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithSecretKey } from '@/lib/services/auth.service';
+import { withEnvironmentFromApiKey } from '@/lib/services/environment.service';
 import { ProductService } from '@/lib/services/product.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -53,44 +50,34 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
     zValidator('json', updateProviderProductBodySchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const productService = yield* ProductService;
-          const environmentService = yield* EnvironmentService;
-          const authSession = yield* authService.authenticateWithSecretKey();
-
-          const paymentProviderConfigurationProductId = c.req.param(
-            'paymentProviderConfigurationProductId'
-          );
-          const configuration = c.req.valid('json');
-
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithSecretKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
-              const environment =
-                yield* environmentService.getEnvironmentFromApiAuthSession();
-              return yield* Environment.provide(environment)(
-                Effect.gen(function* () {
-                  yield* productService.updatePaymentProviderProduct({
-                    paymentProviderConfigurationProductId,
-                    configuration: configuration.configuration
-                  });
-
-                  // Get the updated provider product to return full details
-                  const providerProduct =
-                    yield* productService.getProviderProductById(
-                      paymentProviderConfigurationProductId
-                    );
-
-                  return c.json({
-                    providerProductKey: providerProduct.providerProductKey,
-                    providerConfiguration: {
-                      configuration: providerProduct.configuration,
-                      paymentProviderConfigurationId:
-                        providerProduct.paymentProviderConfigurationId
-                    }
-                  });
-                })
+              const productService = yield* ProductService;
+              const paymentProviderConfigurationProductId = c.req.param(
+                'paymentProviderConfigurationProductId'
               );
+              const configuration = c.req.valid('json');
+
+              yield* productService.updatePaymentProviderProduct({
+                paymentProviderConfigurationProductId,
+                configuration: configuration.configuration
+              });
+
+              // Get the updated provider product to return full details
+              const providerProduct =
+                yield* productService.getProviderProductById(
+                  paymentProviderConfigurationProductId
+                );
+
+              return c.json({
+                providerProductKey: providerProduct.providerProductKey,
+                providerConfiguration: {
+                  configuration: providerProduct.configuration,
+                  paymentProviderConfigurationId:
+                    providerProduct.paymentProviderConfigurationId
+                }
+              });
             }).pipe(
               Effect.catchTags({
                 ProductNotFound: (error) =>
@@ -135,8 +122,8 @@ export const registerProductsUpdateProviderProduct = (app: App) =>
                   )
               })
             )
-          );
-        })
+          )
+        )
       )
   );
 

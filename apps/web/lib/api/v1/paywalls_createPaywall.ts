@@ -5,11 +5,12 @@ import { resolver } from 'hono-openapi/zod';
 import type { z } from 'zod';
 import { NotFoundError } from '@/lib/effect/errors';
 import { createEffectHandler } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
 import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+  AuthService,
+  authenticateWithSecretKey
+} from '@/lib/services/auth.service';
+import { withEnvironmentFromApiKey } from '@/lib/services/environment.service';
+
 import { PaywallService } from '@/lib/services/paywall.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -44,23 +45,17 @@ export const registerPaywallsCreatePaywall = (app: App) =>
     zValidator('json', createPaywallBodySchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const environmentService = yield* EnvironmentService;
-          const paywallService = yield* PaywallService;
-          const authSession = yield* authService.authenticateWithSecretKey();
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithSecretKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
-              const environment =
-                yield* environmentService.getEnvironmentFromApiAuthSession();
+              const authService = yield* AuthService;
+              const paywallService = yield* PaywallService;
 
               const projectId = yield* authService.getAuthorizedProjectId();
-              const createdPaywall = yield* Environment.provide(environment)(
-                paywallService.createPaywall({
-                  name: c.req.valid('json').name,
-                  projectId
-                })
-              );
+              const createdPaywall = yield* paywallService.createPaywall({
+                name: c.req.valid('json').name,
+                projectId
+              });
 
               const refreshedPaywall = yield* paywallService
                 .getPaywallById(createdPaywall.id)
@@ -81,7 +76,7 @@ export const registerPaywallsCreatePaywall = (app: App) =>
                 name: refreshedPaywall.name
               });
             })
-          );
-        })
+          )
+        )
       )
   );

@@ -9,10 +9,10 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithPublishableKey } from '@/lib/services/auth.service';
 import {
   Environment,
-  EnvironmentService
+  withEnvironmentFromApiKey
 } from '@/lib/services/environment.service';
 import { AppStoreService } from '../services/app-store.service';
 
@@ -56,49 +56,39 @@ export const registerAppStoreValidateTransaction = (app: App) =>
     zValidator('json', appStoreValidateTransactionBodySchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const environmentService = yield* EnvironmentService;
-          const appStoreService = yield* AppStoreService;
-          const authSession =
-            yield* authService.authenticateWithPublishableKey();
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithPublishableKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
-              const environment =
-                yield* environmentService.getEnvironmentFromApiAuthSession();
-              return yield* Environment.provide(environment)(
-                Effect.gen(function* () {
-                  yield* appStoreService
-                    .validateTransaction({
-                      transactionId: c.req.valid('json').transactionId,
-                      bundleId: c.req.valid('json').bundleId,
-                      environment
-                    })
-                    .pipe(
-                      // TODO: Properly handle errors
-                      Effect.catchAll((error) => {
-                        return Effect.gen(function* () {
-                          return yield* Effect.fail(
-                            new HonoErrorResponse({
-                              code: 'INTERNAL_SERVER_ERROR',
-                              message: 'Failed to validate transaction',
-                              originalError: error
-                            })
-                          );
-                        });
-                      })
-                    );
-
-                  return c.json<
-                    z.infer<typeof appStoreValidateTransactionResponseSchema>
-                  >({
-                    success: true
-                  });
+              const appStoreService = yield* AppStoreService;
+              yield* appStoreService
+                .validateTransaction({
+                  transactionId: c.req.valid('json').transactionId,
+                  bundleId: c.req.valid('json').bundleId,
+                  environment: yield* Environment
                 })
-              );
+                .pipe(
+                  // TODO: Properly handle errors
+                  Effect.catchAll((error) => {
+                    return Effect.gen(function* () {
+                      return yield* Effect.fail(
+                        new HonoErrorResponse({
+                          code: 'INTERNAL_SERVER_ERROR',
+                          message: 'Failed to validate transaction',
+                          originalError: error
+                        })
+                      );
+                    });
+                  })
+                );
+
+              return c.json<
+                z.infer<typeof appStoreValidateTransactionResponseSchema>
+              >({
+                success: true
+              });
             })
-          );
-        })
+          )
+        )
       )
   );
 

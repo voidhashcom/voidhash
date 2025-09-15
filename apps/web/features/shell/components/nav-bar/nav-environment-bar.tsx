@@ -4,10 +4,10 @@ import { Effect, Either } from 'effect';
 import { Suspense } from 'react';
 import { NotFoundError } from '@/lib/effect/errors';
 import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import {
   Environment,
-  EnvironmentService
+  withEnvironmentFromCookie
 } from '@/lib/services/environment.service';
 import { ProjectService } from '@/lib/services/project.service';
 
@@ -24,39 +24,29 @@ export const _EnviromentBarContent = Effect.fn('EnviromentBarContent')(
     }
 
     const data = yield* Effect.either(
-      Effect.gen(function* () {
-        const authService = yield* AuthService;
-        const environmentService = yield* EnvironmentService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
+      authenticateWithSession(
+        withEnvironmentFromCookie({ organizationSlug, projectSlug })(
           Effect.gen(function* () {
-            const environment =
-              yield* environmentService.getEnvironmentFromCookie({
-                organizationSlug,
-                projectSlug
-              });
-            return yield* Environment.provide(environment)(
-              Effect.gen(function* () {
-                const projectService = yield* ProjectService;
-                const environment = yield* Environment;
-                const project =
-                  yield* projectService.getProjectBySlugAndOrganizationSlug({
-                    organizationSlug,
-                    projectSlug
-                  });
-                if (!project) {
-                  return yield* Effect.fail(
-                    new NotFoundError({
-                      message: 'Project not found'
-                    })
-                  );
-                }
-                return { project, environment };
-              })
-            );
+            return yield* Effect.gen(function* () {
+              const projectService = yield* ProjectService;
+              const environment = yield* Environment;
+              const project =
+                yield* projectService.getProjectBySlugAndOrganizationSlug({
+                  organizationSlug,
+                  projectSlug
+                });
+              if (!project) {
+                return yield* Effect.fail(
+                  new NotFoundError({
+                    message: 'Project not found'
+                  })
+                );
+              }
+              return { project, environment };
+            });
           })
-        );
-      })
+        )
+      )
     );
 
     if (Either.isLeft(data)) {
