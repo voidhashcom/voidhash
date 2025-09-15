@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { NotFoundError } from '@/lib/effect/errors';
 import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import { OrganizationService } from '@/lib/services/organization.service';
 import { UserService } from '@/lib/services/user.service';
 import { OrganizationProjectSwitcher } from './organization-project-switcher';
@@ -18,36 +18,32 @@ const _OrganizationSwitcherComponent = Effect.fn(
   }
 
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        Effect.gen(function* () {
-          const userService = yield* UserService;
-          const organizationService = yield* OrganizationService;
-          const [user, activeOrganization] = yield* Effect.all(
-            [
-              userService.getUser(),
-              organizationService.getOrganizationBySlug(organizationSlug).pipe(
-                Effect.catchTags({
-                  OrganizationNotFound: () =>
-                    Effect.fail(
-                      new NotFoundError({
-                        message: 'Organization not found'
-                      })
-                    )
-                })
-              )
-            ],
-            {
-              concurrency: 'unbounded'
-            }
-          );
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const userService = yield* UserService;
+        const organizationService = yield* OrganizationService;
+        const [user, activeOrganization] = yield* Effect.all(
+          [
+            userService.getUser(),
+            organizationService.getOrganizationBySlug(organizationSlug).pipe(
+              Effect.catchTags({
+                OrganizationNotFound: () =>
+                  Effect.fail(
+                    new NotFoundError({
+                      message: 'Organization not found'
+                    })
+                  )
+              })
+            )
+          ],
+          {
+            concurrency: 'unbounded'
+          }
+        );
 
-          return { user, activeOrganization };
-        })
-      );
-    })
+        return { user, activeOrganization };
+      })
+    )
   );
 
   if (Either.isLeft(data)) {

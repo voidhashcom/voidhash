@@ -6,7 +6,7 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import { OrganizationService } from '@/lib/services/organization.service';
 import { SettingsGeneralLayout } from './settings-general-layout';
 import { TeamDelete } from './team-delete';
@@ -16,29 +16,25 @@ export const _SettingsGeneralPage = Effect.fn('SettingsGeneralPage')(
   function* ({ params }: { params: { organizationSlug: string } }) {
     const { organizationSlug } = params;
     const data = yield* Effect.either(
-      Effect.gen(function* () {
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
-          Effect.gen(function* () {
-            const organizationService = yield* OrganizationService;
-            const activeOrganization = yield* organizationService
-              .getOrganizationBySlug(organizationSlug)
-              .pipe(
-                Effect.catchTags({
-                  OrganizationNotFound: () =>
-                    Effect.fail(
-                      new NotFoundError({
-                        message: 'Organization not found'
-                      })
-                    )
-                })
-              );
+      authenticateWithSession(
+        Effect.gen(function* () {
+          const organizationService = yield* OrganizationService;
+          const activeOrganization = yield* organizationService
+            .getOrganizationBySlug(organizationSlug)
+            .pipe(
+              Effect.catchTags({
+                OrganizationNotFound: () =>
+                  Effect.fail(
+                    new NotFoundError({
+                      message: 'Organization not found'
+                    })
+                  )
+              })
+            );
 
-            return { activeOrganization };
-          })
-        );
-      }).pipe(HandleCommonErrors)
+          return { activeOrganization };
+        })
+      ).pipe(HandleCommonErrors)
     );
 
     if (Either.isLeft(data)) {

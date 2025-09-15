@@ -8,11 +8,8 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
+import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
 import { PaywallService } from '@/lib/services/paywall.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { CreatePaywallModalButton } from './create-paywall-modal-button';
@@ -27,40 +24,28 @@ export const _PaywallsPage = Effect.fn('PaywallsPage')(function* ({
   projectSlug: string;
 }) {
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
+    authenticateWithSession(
+      withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
           const projectService = yield* ProjectService;
           const paywallService = yield* PaywallService;
-          const environmentService = yield* EnvironmentService;
-          const environment =
-            yield* environmentService.getEnvironmentFromCookie({
+          const project =
+            yield* projectService.getProjectBySlugAndOrganizationSlug({
               organizationSlug,
               projectSlug
             });
-          return yield* Environment.provide(environment)(
-            Effect.gen(function* () {
-              const project =
-                yield* projectService.getProjectBySlugAndOrganizationSlug({
-                  organizationSlug,
-                  projectSlug
-                });
-              if (!project) {
-                return yield* Effect.fail(
-                  new NotFoundError({
-                    message: 'Project not found'
-                  })
-                );
-              }
-              const paywalls = yield* paywallService.getPaywalls(project.id);
-              return { project, paywalls };
-            })
-          );
+          if (!project) {
+            return yield* Effect.fail(
+              new NotFoundError({
+                message: 'Project not found'
+              })
+            );
+          }
+          const paywalls = yield* paywallService.getPaywalls(project.id);
+          return { project, paywalls };
         })
-      );
-    }).pipe(HandleCommonErrors)
+      )
+    ).pipe(HandleCommonErrors)
   );
 
   if (Either.isLeft(data)) {

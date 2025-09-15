@@ -7,7 +7,7 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import { PaymentProviderService } from '@/lib/services/payment-provider.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { PaymentProviderDetailConfiguration } from './payment-provider-detail-configuration';
@@ -27,33 +27,29 @@ export const _PaymentProviderDetailPage = Effect.fn(
     params;
 
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        Effect.gen(function* () {
-          const projectService = yield* ProjectService;
-          const paymentProviderService = yield* PaymentProviderService;
-          const project =
-            yield* projectService.getProjectBySlugAndOrganizationSlug({
-              organizationSlug,
-              projectSlug
-            });
-          if (!project) {
-            return yield* Effect.fail(
-              new NotFoundError({
-                message: 'Project not found'
-              })
-            );
-          }
-          const paymentProviderConfiguration =
-            yield* paymentProviderService.getPaymentProviderConfigurationById(
-              paymentProviderConfigurationId
-            );
-          return { project, paymentProviderConfiguration };
-        })
-      );
-    }).pipe(HandleCommonErrors)
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const projectService = yield* ProjectService;
+        const paymentProviderService = yield* PaymentProviderService;
+        const project =
+          yield* projectService.getProjectBySlugAndOrganizationSlug({
+            organizationSlug,
+            projectSlug
+          });
+        if (!project) {
+          return yield* Effect.fail(
+            new NotFoundError({
+              message: 'Project not found'
+            })
+          );
+        }
+        const paymentProviderConfiguration =
+          yield* paymentProviderService.getPaymentProviderConfigurationById(
+            paymentProviderConfigurationId
+          );
+        return { project, paymentProviderConfiguration };
+      })
+    ).pipe(HandleCommonErrors)
   );
 
   if (Either.isLeft(data)) {

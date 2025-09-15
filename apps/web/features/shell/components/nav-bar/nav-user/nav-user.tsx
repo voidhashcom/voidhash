@@ -7,7 +7,7 @@ import {
 import { Effect, Either } from 'effect';
 import { Suspense } from 'react';
 import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import { UserService } from '@/lib/services/user.service';
 import { NavUserDropdown } from './nav-user-dropdown';
 
@@ -17,17 +17,13 @@ function NavUserSkeleton() {
 
 export const _NavUserContent = Effect.fn('NavUserContent')(function* () {
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        Effect.gen(function* () {
-          const userService = yield* UserService;
-          const user = yield* userService.getUser();
-          return { user };
-        })
-      );
-    })
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const userService = yield* UserService;
+        const user = yield* userService.getUser();
+        return { user };
+      })
+    )
   );
 
   if (Either.isLeft(data)) {

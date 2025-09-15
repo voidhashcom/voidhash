@@ -6,20 +6,17 @@ import Link from 'next/link';
 import { Page } from '@/features/shell';
 import { EnvironmentFilterNotification } from '@/features/shell/components/environment-filter-notification';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { NotFoundError } from '@/lib/effect/errors';
 import {
   encodeNextjsErrorResponse,
   HandleCommonErrors,
+  NextjsErrorResponse,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
 // import { StripeConfigurationSheet } from "./stripe/stripe-configuration-sheet";
 // import { AppStoreConfigurationSheet } from "./app-store/app-store-configuration-sheet";
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
+import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
 import { PaymentProviderService } from '@/lib/services/payment-provider.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { PaymentProviderLogo } from './payment-provider-logo';
@@ -38,49 +35,43 @@ export const _PaymentProvidersPage = Effect.fn('PaymentProvidersPage')(
     const { organizationSlug, projectSlug } = params;
 
     const data = yield* Effect.either(
-      Effect.gen(function* () {
-        const authService = yield* AuthService;
-        const authSession = yield* authService.authenticateWithSession();
-        return yield* AuthSession.provide(authSession)(
+      authenticateWithSession(
+        withEnvironmentFromCookie({ organizationSlug, projectSlug })(
           Effect.gen(function* () {
-            const environmentService = yield* EnvironmentService;
-            const environment =
-              yield* environmentService.getEnvironmentFromCookie({
+            const projectService = yield* ProjectService;
+            const paymentProviderService = yield* PaymentProviderService;
+            const project =
+              yield* projectService.getProjectBySlugAndOrganizationSlug({
                 organizationSlug,
                 projectSlug
               });
-            return yield* Environment.provide(environment)(
-              Effect.gen(function* () {
-                const projectService = yield* ProjectService;
-                const paymentProviderService = yield* PaymentProviderService;
-                const project =
-                  yield* projectService.getProjectBySlugAndOrganizationSlug({
-                    organizationSlug,
-                    projectSlug
-                  });
-                if (!project) {
-                  return yield* Effect.fail(
-                    new NotFoundError({
-                      message: 'Project not found'
-                    })
-                  );
-                }
-                const paymentProviderConfigurations =
-                  yield* paymentProviderService.getPaymentProviderConfigurations(
-                    project.id
-                  );
+            if (!project) {
+              return yield* Effect.fail(
+                new NextjsErrorResponse({
+                  code: 'NOT_FOUND',
+                  message: 'Project not found'
+                })
+              );
+            }
+            const paymentProviderConfigurations =
+              yield* paymentProviderService.getPaymentProviderConfigurations(
+                project.id
+              );
 
-                return { project, environment, paymentProviderConfigurations };
-              })
-            );
+            return { project, environment, paymentProviderConfigurations };
           })
-        );
-      }).pipe(HandleCommonErrors)
+        )
+      ).pipe(HandleCommonErrors)
     );
 
     if (Either.isLeft(data)) {
       const error = data.left;
-      return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+      return (
+        <VoidhashErrorCard
+          // TODO: This typecast should not be required and is possibly a bug
+          error={encodeNextjsErrorResponse(error as NextjsErrorResponse)}
+        />
+      );
     }
 
     const { project, environment, paymentProviderConfigurations } = data.right;

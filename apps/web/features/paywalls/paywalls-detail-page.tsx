@@ -7,11 +7,8 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
+import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
 import { PaywallService } from '@/lib/services/paywall.service';
 import { ProductService } from '@/lib/services/product.service';
 import { ProjectService } from '@/lib/services/project.service';
@@ -27,10 +24,8 @@ export const _PaywallsDetailPage = Effect.fn('PaywallsDetailPage')(function* ({
   id: string;
 }) {
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
+    authenticateWithSession(
+      withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
           const projectService = yield* ProjectService;
           const paywallService = yield* PaywallService;
@@ -47,36 +42,27 @@ export const _PaywallsDetailPage = Effect.fn('PaywallsDetailPage')(function* ({
               })
             );
           }
-          const environmentService = yield* EnvironmentService;
-          const environment =
-            yield* environmentService.getEnvironmentFromCookie({
-              organizationSlug,
-              projectSlug
-            });
-          return yield* Environment.provide(environment)(
-            Effect.gen(function* () {
-              const paywall = yield* paywallService.getPaywallById(id).pipe(
-                Effect.catchTags({
-                  PaywallNotFoundError: (error) =>
-                    Effect.fail(new NotFoundError({ message: error.message }))
-                })
-              );
 
-              const paywallProducts = yield* paywallService
-                .getPaywallProducts(id)
-                .pipe(
-                  Effect.catchTags({
-                    PaywallNotFoundError: (error) =>
-                      Effect.fail(new NotFoundError({ message: error.message }))
-                  })
-                );
-              const products = yield* productService.getProducts(project.id);
-              return { project, paywall, paywallProducts, products };
+          const paywall = yield* paywallService.getPaywallById(id).pipe(
+            Effect.catchTags({
+              PaywallNotFoundError: (error) =>
+                Effect.fail(new NotFoundError({ message: error.message }))
             })
           );
+
+          const paywallProducts = yield* paywallService
+            .getPaywallProducts(id)
+            .pipe(
+              Effect.catchTags({
+                PaywallNotFoundError: (error) =>
+                  Effect.fail(new NotFoundError({ message: error.message }))
+              })
+            );
+          const products = yield* productService.getProducts(project.id);
+          return { project, paywall, paywallProducts, products };
         })
-      );
-    }).pipe(HandleCommonErrors)
+      )
+    ).pipe(HandleCommonErrors)
   );
 
   if (Either.isLeft(data)) {

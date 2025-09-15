@@ -198,6 +198,26 @@ export class EnvironmentService extends Effect.Service<EnvironmentService>()(
   }
 ) {}
 
+export const withEnvironmentFromCookie =
+  (optionsFromCookie: EnvironmentRetrievalOptions) =>
+  <A, B, C>(effect: Effect.Effect<A, B, C>) =>
+    Effect.gen(function* () {
+      const environmentService = yield* EnvironmentService;
+      const environment =
+        yield* environmentService.getEnvironmentFromCookie(optionsFromCookie);
+      return yield* effect.pipe(Environment.provide(environment));
+    });
+
+export const withEnvironmentFromApiKey =
+  () =>
+  <A, B, C>(effect: Effect.Effect<A, B, C>) =>
+    Effect.gen(function* () {
+      const environmentService = yield* EnvironmentService;
+      const environment =
+        yield* environmentService.getEnvironmentFromApiAuthSession();
+      return yield* effect.pipe(Environment.provide(environment));
+    });
+
 const setEnvironmentCookie = (
   organizationSlug: string,
   projectSlug: string,

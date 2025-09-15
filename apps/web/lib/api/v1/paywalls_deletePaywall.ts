@@ -7,7 +7,8 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSecretKey } from '@/lib/services/auth.service';
+import { withEnvironmentFromApiKey } from '@/lib/services/environment.service';
 import { PaywallService } from '@/lib/services/paywall.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -44,37 +45,35 @@ export const registerPaywallsDeletePaywall = (app: App) =>
     zValidator('param', deletePaywallParamsSchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const paywallService = yield* PaywallService;
-          const authSession = yield* authService.authenticateWithSecretKey();
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithSecretKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
+              const paywallService = yield* PaywallService;
               yield* paywallService.deletePaywall({
                 paywallId: c.req.param('paywallId')
               });
               return c.json({ message: 'Paywall deleted' });
-            })
-          ).pipe(
-            Effect.catchTags({
-              PaywallNotFoundError: (error) =>
-                Effect.fail(
-                  new HonoErrorResponse({
-                    code: 'NOT_FOUND',
-                    message: error.message,
-                    originalError: error
-                  })
-                ),
-              PaywallInUseError: (error) =>
-                Effect.fail(
-                  new HonoErrorResponse({
-                    code: 'BAD_REQUEST',
-                    message: error.message,
-                    originalError: error
-                  })
-                )
-            })
-          );
-        })
+            }).pipe(
+              Effect.catchTags({
+                PaywallNotFoundError: (error) =>
+                  Effect.fail(
+                    new HonoErrorResponse({
+                      code: 'NOT_FOUND',
+                      message: error.message,
+                      originalError: error
+                    })
+                  ),
+                PaywallInUseError: (error) =>
+                  Effect.fail(
+                    new HonoErrorResponse({
+                      code: 'BAD_REQUEST',
+                      message: error.message,
+                      originalError: error
+                    })
+                  )
+              })
+            )
+          )
+        )
       )
   );

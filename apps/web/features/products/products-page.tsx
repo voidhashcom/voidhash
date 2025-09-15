@@ -8,11 +8,8 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
+import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
 import { ProductService } from '@/lib/services/product.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { CreateProductModalButton } from './create-product-modal-button';
@@ -29,37 +26,27 @@ export const _ProductsPage = Effect.fn('ProductsPage')(function* ({
 }) {
   const data = yield* Effect.either(
     Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const environmentService = yield* EnvironmentService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        Effect.gen(function* () {
-          const environment =
-            yield* environmentService.getEnvironmentFromCookie({
-              organizationSlug,
-              projectSlug
-            });
-          return yield* Environment.provide(environment)(
-            Effect.gen(function* () {
-              const projectService = yield* ProjectService;
-              const productService = yield* ProductService;
-              const project =
-                yield* projectService.getProjectBySlugAndOrganizationSlug({
-                  organizationSlug,
-                  projectSlug
-                });
-              if (!project) {
-                return yield* Effect.fail(
-                  new NotFoundError({
-                    message: 'Project not found'
-                  })
-                );
-              }
-              const products = yield* productService.getProducts(project.id);
-              return { project, products };
-            })
-          );
-        })
+      return yield* authenticateWithSession(
+        withEnvironmentFromCookie({ organizationSlug, projectSlug })(
+          Effect.gen(function* () {
+            const projectService = yield* ProjectService;
+            const productService = yield* ProductService;
+            const project =
+              yield* projectService.getProjectBySlugAndOrganizationSlug({
+                organizationSlug,
+                projectSlug
+              });
+            if (!project) {
+              return yield* Effect.fail(
+                new NotFoundError({
+                  message: 'Project not found'
+                })
+              );
+            }
+            const products = yield* productService.getProducts(project.id);
+            return { project, products };
+          })
+        )
       );
     }).pipe(HandleCommonErrors)
   );
