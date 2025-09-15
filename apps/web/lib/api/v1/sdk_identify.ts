@@ -7,11 +7,8 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  EnvironmentService
-} from '@/lib/services/environment.service';
+import { authenticateWithPublishableKey } from '@/lib/services/auth.service';
+import { withEnvironmentFromApiKey } from '@/lib/services/environment.service';
 import { SdkService } from '@/lib/services/sdk.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -51,23 +48,15 @@ export const registerSdkIdentify = (app: App) =>
     zValidator('json', sdkIdentifyCustomerBodySchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const sdkService = yield* SdkService;
-          const environmentService = yield* EnvironmentService;
-          const authSession =
-            yield* authService.authenticateWithPublishableKey();
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithPublishableKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
-              const environment =
-                yield* environmentService.getEnvironmentFromApiAuthSession();
-              const customer = yield* Environment.provide(environment)(
-                sdkService.identifyCustomer({
-                  appUserId: c.req.valid('json').appUserId,
-                  name: c.req.valid('json').name ?? null,
-                  email: c.req.valid('json').email ?? null
-                })
-              );
+              const sdkService = yield* SdkService;
+              const customer = yield* sdkService.identifyCustomer({
+                appUserId: c.req.valid('json').appUserId,
+                name: c.req.valid('json').name ?? null,
+                email: c.req.valid('json').email ?? null
+              });
               return c.json<z.infer<typeof customerResponseSchema>>({
                 customerId: customer.id,
                 name: customer.name ?? null,
@@ -95,7 +84,7 @@ export const registerSdkIdentify = (app: App) =>
                   )
               })
             )
-          );
-        })
+          )
+        )
       )
   );

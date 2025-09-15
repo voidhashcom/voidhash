@@ -6,10 +6,10 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import {
   Environment,
-  EnvironmentService
+  withEnvironmentFromCookie
 } from '@/lib/services/environment.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { NavProjectEnvironmentToggle } from './nav-project-environment-toggle';
@@ -27,39 +27,27 @@ export const _NavProjectEnvironmentContent = Effect.fn(
     return null;
   }
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
+    authenticateWithSession(
+      withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
-          const environmentService = yield* EnvironmentService;
-          const environment =
-            yield* environmentService.getEnvironmentFromCookie({
+          const projectService = yield* ProjectService;
+          const environment = yield* Environment;
+          const project =
+            yield* projectService.getProjectBySlugAndOrganizationSlug({
               organizationSlug,
               projectSlug
             });
-          return yield* Environment.provide(environment)(
-            Effect.gen(function* () {
-              const projectService = yield* ProjectService;
-              const environment = yield* Environment;
-              const project =
-                yield* projectService.getProjectBySlugAndOrganizationSlug({
-                  organizationSlug,
-                  projectSlug
-                });
-              if (!project) {
-                return yield* Effect.fail(
-                  new NotFoundError({
-                    message: 'Project not found'
-                  })
-                );
-              }
-              return { project, environment };
-            })
-          );
+          if (!project) {
+            return yield* Effect.fail(
+              new NotFoundError({
+                message: 'Project not found'
+              })
+            );
+          }
+          return { project, environment };
         })
-      );
-    }).pipe(HandleCommonErrors)
+      )
+    ).pipe(HandleCommonErrors)
   );
 
   if (Either.isLeft(data)) {

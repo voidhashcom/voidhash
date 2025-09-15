@@ -8,7 +8,7 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import { CustomerService } from '@/lib/services/customer.service';
 import { Page } from '../shell';
 import { VoidhashErrorCard } from '../shell/components/voidhash-error-card';
@@ -23,26 +23,22 @@ const _CustomerDetailPage = Effect.fn('CustomerDetailPage')(function* ({
   projectSlug: string;
 }) {
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        Effect.gen(function* () {
-          const customerService = yield* CustomerService;
-          const customer = yield* customerService.getCustomerById(customerId);
-          const customerPurchases =
-            yield* customerService.getCustomerPurchases(customerId);
-          const customerUnlockedPerks =
-            yield* customerService.getCustomersUnlockedPerks(customerId);
-          return { customer, customerPurchases, customerUnlockedPerks };
-        }).pipe(
-          Effect.catchTags({
-            CustomerNotFoundError: (error) =>
-              Effect.fail(new NotFoundError({ message: error.message }))
-          })
-        )
-      );
-    }).pipe(HandleCommonErrors)
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const customerService = yield* CustomerService;
+        const customer = yield* customerService.getCustomerById(customerId);
+        const customerPurchases =
+          yield* customerService.getCustomerPurchases(customerId);
+        const customerUnlockedPerks =
+          yield* customerService.getCustomersUnlockedPerks(customerId);
+        return { customer, customerPurchases, customerUnlockedPerks };
+      }).pipe(
+        Effect.catchTags({
+          CustomerNotFoundError: (error) =>
+            Effect.fail(new NotFoundError({ message: error.message }))
+        })
+      )
+    ).pipe(HandleCommonErrors)
   );
 
   if (Either.isLeft(data)) {

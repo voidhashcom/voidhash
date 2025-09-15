@@ -17,7 +17,7 @@ import {
   HandleCommonErrors,
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import { OrganizationService } from '@/lib/services/organization.service';
 import { ProjectService } from '@/lib/services/project.service';
 import { EmptyState } from './empty-state';
@@ -27,37 +27,33 @@ const _ProjectsList = Effect.fn('ProjectList')(function* ({
 }: {
   organizationSlug: string;
 }) {
-  const authService = yield* AuthService;
   const result = yield* Effect.either(
-    Effect.gen(function* () {
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
-        Effect.gen(function* () {
-          const organizationService = yield* OrganizationService;
-          const projectService = yield* ProjectService;
-          const [activeOrganization, projects] = yield* Effect.all(
-            [
-              organizationService.getOrganizationBySlug(organizationSlug).pipe(
-                Effect.catchTags({
-                  OrganizationNotFound: () =>
-                    Effect.fail(
-                      new NotFoundError({
-                        message: 'Organization not found'
-                      })
-                    )
-                })
-              ),
-              projectService.getProjectsByOrganizationSlug(organizationSlug)
-            ],
-            {
-              concurrency: 'unbounded'
-            }
-          );
+    authenticateWithSession(
+      Effect.gen(function* () {
+        const organizationService = yield* OrganizationService;
+        const projectService = yield* ProjectService;
+        const [activeOrganization, projects] = yield* Effect.all(
+          [
+            organizationService.getOrganizationBySlug(organizationSlug).pipe(
+              Effect.catchTags({
+                OrganizationNotFound: () =>
+                  Effect.fail(
+                    new NotFoundError({
+                      message: 'Organization not found'
+                    })
+                  )
+              })
+            ),
+            projectService.getProjectsByOrganizationSlug(organizationSlug)
+          ],
+          {
+            concurrency: 'unbounded'
+          }
+        );
 
-          return { activeOrganization, organizationProjects: projects };
-        })
-      );
-    }).pipe(HandleCommonErrors)
+        return { activeOrganization, organizationProjects: projects };
+      })
+    ).pipe(HandleCommonErrors)
   );
 
   if (Either.isLeft(result)) {

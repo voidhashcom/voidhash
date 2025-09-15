@@ -16,10 +16,10 @@ import {
   ServerComponent
 } from '@/lib/effect/runtimes/nextjs';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import { authenticateWithSession } from '@/lib/services/auth.service';
 import {
   Environment,
-  EnvironmentService
+  withEnvironmentFromCookie
 } from '@/lib/services/environment.service';
 import { PaymentProviderService } from '@/lib/services/payment-provider.service';
 import { PerkService } from '@/lib/services/perk.service';
@@ -43,73 +43,61 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
   id: string;
 }) {
   const data = yield* Effect.either(
-    Effect.gen(function* () {
-      const authService = yield* AuthService;
-      const authSession = yield* authService.authenticateWithSession();
-      return yield* AuthSession.provide(authSession)(
+    authenticateWithSession(
+      withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
-          const environmentService = yield* EnvironmentService;
-          const environment =
-            yield* environmentService.getEnvironmentFromCookie({
+          const productService = yield* ProductService;
+          const paymentProviderService = yield* PaymentProviderService;
+          const perkService = yield* PerkService;
+          const environment = yield* Environment;
+          const projectService = yield* ProjectService;
+
+          const project =
+            yield* projectService.getProjectBySlugAndOrganizationSlug({
               organizationSlug,
               projectSlug
             });
-          return yield* Environment.provide(environment)(
-            Effect.gen(function* () {
-              const productService = yield* ProductService;
-              const paymentProviderService = yield* PaymentProviderService;
-              const perkService = yield* PerkService;
-              const environment = yield* Environment;
-              const projectService = yield* ProjectService;
 
-              const project =
-                yield* projectService.getProjectBySlugAndOrganizationSlug({
-                  organizationSlug,
-                  projectSlug
-                });
+          if (!project) {
+            return yield* Effect.fail(
+              new NotFoundError({
+                message: 'Project not found'
+              })
+            );
+          }
 
-              if (!project) {
-                return yield* Effect.fail(
-                  new NotFoundError({
-                    message: 'Project not found'
-                  })
-                );
-              }
-
-              const [
-                product,
-                providerProducts,
-                paymentProviderConfigurations,
-                perks,
-                productPerks
-              ] = yield* Effect.all(
-                [
-                  productService.getProductById(id),
-                  productService.getProviderProductsByProductId(id),
-                  paymentProviderService.getPaymentProviderConfigurations(
-                    project.id
-                  ),
-                  perkService.getPerks(project.id),
-                  productService.getProductPerksByProductId(id)
-                ],
-                {
-                  concurrency: 'unbounded'
-                }
-              );
-
-              return {
-                product,
-                providerProducts,
-                paymentProviderConfigurations,
-                environment,
-                perks,
-                productPerks
-              };
-            })
+          const [
+            product,
+            providerProducts,
+            paymentProviderConfigurations,
+            perks,
+            productPerks
+          ] = yield* Effect.all(
+            [
+              productService.getProductById(id),
+              productService.getProviderProductsByProductId(id),
+              paymentProviderService.getPaymentProviderConfigurations(
+                project.id
+              ),
+              perkService.getPerks(project.id),
+              productService.getProductPerksByProductId(id)
+            ],
+            {
+              concurrency: 'unbounded'
+            }
           );
+
+          return {
+            product,
+            providerProducts,
+            paymentProviderConfigurations,
+            environment,
+            perks,
+            productPerks
+          };
         })
-      );
-    }).pipe(HandleCommonErrors)
+      )
+    ).pipe(HandleCommonErrors)
   );
 
   if (Either.isLeft(data)) {

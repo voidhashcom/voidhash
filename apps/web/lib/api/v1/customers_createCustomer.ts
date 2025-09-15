@@ -8,11 +8,14 @@ import {
   createEffectHandler,
   HonoErrorResponse
 } from '@/lib/effect/runtimes/hono';
-import { AuthService, AuthSession } from '@/lib/services/auth.service';
+import {
+  AuthService,
+  authenticateWithSecretKey
+} from '@/lib/services/auth.service';
 import { CustomerService } from '@/lib/services/customer.service';
 import {
   Environment,
-  EnvironmentService
+  withEnvironmentFromApiKey
 } from '@/lib/services/environment.service';
 import { openApiErrorResponses } from '../errors/openapi_responses';
 import type { App } from '../hono/app';
@@ -47,37 +50,32 @@ export const registerCustomersCreateCustomer = (app: App) =>
     zValidator('json', createCustomerBodySchema),
     async (c) =>
       createEffectHandler(c)(
-        Effect.gen(function* () {
-          const authService = yield* AuthService;
-          const customerService = yield* CustomerService;
-          const environmentService = yield* EnvironmentService;
-          const authSession = yield* authService.authenticateWithSecretKey();
-          return yield* AuthSession.provide(authSession)(
+        authenticateWithSecretKey(
+          withEnvironmentFromApiKey()(
             Effect.gen(function* () {
-              const environment =
-                yield* environmentService.getEnvironmentFromApiAuthSession();
+              const customerService = yield* CustomerService;
+              const authService = yield* AuthService;
+              const environment = yield* Environment;
 
               const projectId = yield* authService.getAuthorizedProjectId();
-              const customer = yield* Environment.provide(environment)(
-                customerService
-                  .createCustomer({
-                    appUserId: c.req.valid('json').appUserId,
-                    origin: CustomerOrigin.API,
-                    projectId,
-                    environment
+              const customer = yield* customerService
+                .createCustomer({
+                  appUserId: c.req.valid('json').appUserId,
+                  origin: CustomerOrigin.API,
+                  projectId,
+                  environment
+                })
+                .pipe(
+                  Effect.catchTags({
+                    InvalidAnonymousIdError: (error) =>
+                      Effect.fail(
+                        new HonoErrorResponse({
+                          code: 'BAD_REQUEST',
+                          message: error.message
+                        })
+                      )
                   })
-                  .pipe(
-                    Effect.catchTags({
-                      InvalidAnonymousIdError: (error) =>
-                        Effect.fail(
-                          new HonoErrorResponse({
-                            code: 'BAD_REQUEST',
-                            message: error.message
-                          })
-                        )
-                    })
-                  )
-              );
+                );
 
               return c.json<z.infer<typeof customerResponseSchema>>({
                 customerId: customer.id,
@@ -86,8 +84,8 @@ export const registerCustomersCreateCustomer = (app: App) =>
                 appUserId: customer.appUserId ?? null
               });
             })
-          );
-        })
+          )
+        )
       )
   );
 
