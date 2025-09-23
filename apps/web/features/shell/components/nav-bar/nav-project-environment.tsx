@@ -1,17 +1,15 @@
+import {
+  authenticateWithSession,
+  Environment,
+  ProjectNotFoundError,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { Environment as EnvironmentEnum } from '@voidhash/lib/index';
 import { Effect, Either } from 'effect';
 import { Suspense } from 'react';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  withEnvironmentFromCookie
-} from '@/lib/services/environment.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { NavProjectEnvironmentToggle } from './nav-project-environment-toggle';
 
 export const _NavProjectEnvironmentContent = Effect.fn(
@@ -27,7 +25,7 @@ export const _NavProjectEnvironmentContent = Effect.fn(
     return null;
   }
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
           const projectService = yield* ProjectService;
@@ -39,7 +37,7 @@ export const _NavProjectEnvironmentContent = Effect.fn(
             });
           if (!project) {
             return yield* Effect.fail(
-              new NotFoundError({
+              new ProjectNotFoundError({
                 message: 'Project not found'
               })
             );
@@ -47,7 +45,7 @@ export const _NavProjectEnvironmentContent = Effect.fn(
           return { project, environment };
         })
       )
-    ).pipe(HandleCommonErrors)
+    )
   );
 
   if (Either.isLeft(data)) {

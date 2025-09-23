@@ -1,3 +1,14 @@
+import {
+  authenticateWithSession,
+  Environment,
+  PaymentProviderProductService,
+  PaymentProviderService,
+  PerkService,
+  ProductService,
+  ProjectNotFoundError,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { Environment as EnvironmentEnum } from '@voidhash/lib/index';
 import {
   Card,
@@ -9,22 +20,9 @@ import {
 import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  withEnvironmentFromCookie
-} from '@/lib/services/environment.service';
-import { PaymentProviderService } from '@/lib/services/payment-provider.service';
-import { PerkService } from '@/lib/services/perk.service';
-import { ProductService } from '@/lib/services/product.service';
-import { ProjectService } from '@/lib/services/project.service';
 import { PaymentProviderLogo } from '../projects/settings/payment-providers/payment-provider-logo';
 import { ProductDetailAddPerkButton } from './product-detail-add-perk-button';
 import { ProductDetailAddProductButton } from './product-detail-add-product-button';
@@ -43,11 +41,13 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
   id: string;
 }) {
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
           const productService = yield* ProductService;
           const paymentProviderService = yield* PaymentProviderService;
+          const paymentProviderProductService =
+            yield* PaymentProviderProductService;
           const perkService = yield* PerkService;
           const environment = yield* Environment;
           const projectService = yield* ProjectService;
@@ -60,7 +60,7 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
 
           if (!project) {
             return yield* Effect.fail(
-              new NotFoundError({
+              new ProjectNotFoundError({
                 message: 'Project not found'
               })
             );
@@ -75,7 +75,7 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
           ] = yield* Effect.all(
             [
               productService.getProductById(id),
-              productService.getProviderProductsByProductId(id),
+              paymentProviderProductService.getProviderProductsByProductId(id),
               paymentProviderService.getPaymentProviderConfigurations(
                 project.id
               ),
@@ -97,12 +97,18 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
           };
         })
       )
-    ).pipe(HandleCommonErrors)
+    )
   );
 
   if (Either.isLeft(data)) {
-    const error = data.left;
-    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the product'
+        }}
+      />
+    );
   }
 
   const {
@@ -118,7 +124,7 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
     .map((paymentProviderConfiguration) => {
       const paymentProvider = paymentProviders.find(
         (paymentProvider) =>
-          paymentProvider.getId() === paymentProviderConfiguration.providerId
+          paymentProvider.id === paymentProviderConfiguration.providerId
       );
 
       if (!paymentProvider) {
@@ -139,9 +145,7 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
       (paymentProviderConfiguration) => paymentProviderConfiguration !== null
     )
     .filter(
-      (paymentProviderConfiguration) =>
-        paymentProviderConfiguration.paymentProvider.getIsProductConfigurable() &&
-        paymentProviderConfiguration.enabled
+      (paymentProviderConfiguration) => paymentProviderConfiguration.enabled
     );
 
   const perksWithoutProductPerks = perks.filter(
@@ -232,16 +236,21 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
                 (paymentProviderWithConfiguration) => (
                   <Card
                     className="mt-8 gap-0 overflow-hidden pb-0"
-                    key={paymentProviderWithConfiguration.paymentProvider.getId()}
+                    key={paymentProviderWithConfiguration.paymentProvider.id}
                   >
                     <CardHeader className="pb-4">
                       <CardTitle className="flex items-center gap-4">
                         <PaymentProviderLogo
                           className="h-5 w-5"
-                          providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
+                          providerId={
+                            paymentProviderWithConfiguration.paymentProvider.id
+                          }
                         />
                         <span>
-                          {paymentProviderWithConfiguration.paymentProvider.getTitle()}
+                          {
+                            paymentProviderWithConfiguration.paymentProvider
+                              .title
+                          }
                         </span>
                       </CardTitle>
                     </CardHeader>
@@ -255,7 +264,10 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
                         <div className="flex h-full flex-col items-center justify-center py-6">
                           <div className="text-muted-foreground">
                             You haven&apos;t added any{' '}
-                            {paymentProviderWithConfiguration.paymentProvider.getTitle()}{' '}
+                            {
+                              paymentProviderWithConfiguration.paymentProvider
+                                .title
+                            }{' '}
                             product yet.
                           </div>
                           <div className="mt-4">
@@ -264,8 +276,14 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
                                 paymentProviderWithConfiguration.id
                               }
                               productId={product.id}
-                              providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
-                              title={paymentProviderWithConfiguration.paymentProvider.getTitle()}
+                              providerId={
+                                paymentProviderWithConfiguration.paymentProvider
+                                  .id
+                              }
+                              title={
+                                paymentProviderWithConfiguration.paymentProvider
+                                  .title
+                              }
                             />
                           </div>
                         </div>
@@ -283,7 +301,10 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
                             paymentProviderConfigurationId={
                               paymentProviderWithConfiguration.id
                             }
-                            paymentProviderId={paymentProviderWithConfiguration.paymentProvider.getId()}
+                            paymentProviderId={
+                              paymentProviderWithConfiguration.paymentProvider
+                                .id
+                            }
                             providerProduct={providerProduct}
                           />
                         ))}
@@ -299,8 +320,13 @@ export const _ProductDetailPage = Effect.fn('ProductDetailPage')(function* ({
                             paymentProviderWithConfiguration.id
                           }
                           productId={product.id}
-                          providerId={paymentProviderWithConfiguration.paymentProvider.getId()}
-                          title={paymentProviderWithConfiguration.paymentProvider.getTitle()}
+                          providerId={
+                            paymentProviderWithConfiguration.paymentProvider.id
+                          }
+                          title={
+                            paymentProviderWithConfiguration.paymentProvider
+                              .title
+                          }
                           variant="secondary"
                         />
                       </CardFooter>

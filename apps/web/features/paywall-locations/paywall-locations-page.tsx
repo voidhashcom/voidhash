@@ -1,17 +1,16 @@
+import {
+  authenticateWithSession,
+  PaywallLocationService,
+  PaywallService,
+  ProjectNotFoundError,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { Card } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
-import { PaywallService } from '@/lib/services/paywall.service';
-import { PaywallLocationService } from '@/lib/services/paywall-location.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { CreatePaywallLocationModalButton } from './create-paywall-location-modal-button';
 import { PaywallLocationRecord } from './paywall-location-record';
 import { PaywallLocationsPageEmptyState } from './paywall-locations-page-empty-state';
@@ -25,7 +24,7 @@ export const _PaywallLocationsPage = Effect.fn('PaywallLocationsPage')(
     projectSlug: string;
   }) {
     const data = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         withEnvironmentFromCookie({ organizationSlug, projectSlug })(
           Effect.gen(function* () {
             const projectService = yield* ProjectService;
@@ -39,7 +38,7 @@ export const _PaywallLocationsPage = Effect.fn('PaywallLocationsPage')(
               });
             if (!project) {
               return yield* Effect.fail(
-                new NotFoundError({
+                new ProjectNotFoundError({
                   message: 'Project not found'
                 })
               );
@@ -50,12 +49,18 @@ export const _PaywallLocationsPage = Effect.fn('PaywallLocationsPage')(
             return { project, paywalls, paywallLocations };
           })
         )
-      ).pipe(HandleCommonErrors)
+      )
     );
 
     if (Either.isLeft(data)) {
-      const error = data.left;
-      return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+      return (
+        <VoidhashErrorCard
+          error={{
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'An error occured loading the paywall locations'
+          }}
+        />
+      );
     }
 
     const { project, paywalls, paywallLocations } = data.right;

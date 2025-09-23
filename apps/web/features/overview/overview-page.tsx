@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { Page } from '@/features/shell';
-import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { TodayRevenueChart } from './today-revenue-chart';
 import { ActiveSubsChartWidget } from './widgets/active-subs-chart-widget';
 import { ActiveTrialsChartWidget } from './widgets/active-trials-chart-widget';

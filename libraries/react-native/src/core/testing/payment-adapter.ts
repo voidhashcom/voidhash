@@ -1,4 +1,4 @@
-import { ok, type Result } from 'neverthrow';
+import { Effect, Layer } from 'effect';
 import { Product, type SubscriptionProduct } from '../entities/product';
 import { Transaction } from '../entities/transaction';
 import type {
@@ -16,108 +16,134 @@ import type {
   PurchasePendingError,
   UserCancelledError
 } from '../payment-adapters/errors';
-import type { PaymentAdapter } from '../payment-adapters/payment-adapter';
+import { PaymentAdapter } from '../payment-adapters/payment-adapter';
 import type {
   ExtractSchemaProductDefinitions,
   VoidhashSchema
 } from '../schema';
 
-export class TestPaymentAdapter implements PaymentAdapter {
+export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
   initConnection(
-    _?: (transaction: Transaction) => void
-  ): Promise<Result<void, FailedToInitializeNativeAdapterError>> {
-    return Promise.resolve(ok());
-  }
-  endConnection(): Promise<Result<void, FailedToEndNativeAdapterError>> {
-    return Promise.resolve(ok());
-  }
+    _onPurchase?: (transaction: Transaction) => void
+  ): Effect.Effect<void, FailedToInitializeNativeAdapterError, never> {
+    Effect.logDebug('TestPaymentAdapter: Initializing connection');
+    return Effect.succeed(undefined);
+  },
+
+  endConnection(): Effect.Effect<void, FailedToEndNativeAdapterError, never> {
+    Effect.logDebug('TestPaymentAdapter: Ending connection');
+    return Effect.succeed(undefined);
+  },
+
   getProducts<
     TSchema extends VoidhashSchema,
     TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>
   >(
     productDefinitions: TDefinedProducts
-  ): Promise<
-    Result<
-      Product[],
-      NativeAdapterNotInitializedError | FailedToGetProductsError
-    >
+  ): Effect.Effect<
+    Product[],
+    NativeAdapterNotInitializedError | FailedToGetProductsError,
+    never
   > {
     const productDefinitionsArray = Object.values(
       productDefinitions
     ) as TDefinedProducts[keyof TDefinedProducts][];
 
-    return Promise.resolve(
-      ok(
-        productDefinitionsArray.map(
-          (productDefinition) =>
-            new Product(
-              productDefinition.slug,
-              productDefinition.slug,
-              productDefinition.properties.name,
-              'Test product',
-              productDefinition.slug,
-              '100',
-              100,
-              'USD',
-              'subscription',
-              'ios'
-            )
-        )
+    Effect.logDebug('TestPaymentAdapter: Getting products', {
+      count: productDefinitionsArray.length
+    });
+
+    return Effect.succeed(
+      productDefinitionsArray.map(
+        (productDefinition) =>
+          new Product(
+            productDefinition.slug,
+            productDefinition.slug,
+            productDefinition.properties.name,
+            'Test product',
+            productDefinition.slug,
+            '100',
+            100,
+            'USD',
+            'subscription',
+            'ios'
+          )
       )
     );
-  }
+  },
+
   buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
     product: TSubscriptionProduct,
-    quantity?: number,
-    _?: string
-  ): Promise<
-    Result<
-      Transaction,
-      | UserCancelledError
-      | PurchasePendingError
-      | NativeAdapterNotInitializedError
-      | ProductNotFoundError
-      | FailedToBuyProductError
-    >
+    quantity = 1,
+    _appAccountToken?: string
+  ): Effect.Effect<
+    Transaction,
+    | UserCancelledError
+    | PurchasePendingError
+    | NativeAdapterNotInitializedError
+    | ProductNotFoundError
+    | FailedToBuyProductError,
+    never
   > {
-    return Promise.resolve(
-      ok(
-        new Transaction(
-          'test-transaction-id',
-          'test-transaction-id',
-          product.slug,
-          Date.now(),
-          quantity ?? 1,
-          false,
-          'ios',
-          {}
-        )
+    Effect.logDebug('TestPaymentAdapter: Buying product', {
+      productId: product.slug,
+      quantity
+    });
+
+    return Effect.succeed(
+      new Transaction(
+        'test-transaction-id',
+        'test-transaction-id',
+        product.slug,
+        Date.now(),
+        quantity,
+        false,
+        'ios',
+        {}
       )
     );
-  }
+  },
+
   acknowledgePurchase(
-    _: Transaction
-  ): Promise<Result<void, FailedToAcknowledgePurchaseError>> {
-    return Promise.resolve(ok());
-  }
+    transaction: Transaction
+  ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never> {
+    Effect.logDebug('TestPaymentAdapter: Acknowledging purchase', {
+      transactionId: transaction.id
+    });
+    return Effect.succeed(undefined);
+  },
+
   getPurchaseHistory(
-    _?: boolean
-  ): Promise<Result<Transaction[], GetPurchaseHistoryError>> {
-    return Promise.resolve(ok([]));
-  }
-  getPendingTransactions(): Promise<
-    Result<Transaction[], GetPendingTransactionsError>
+    _onlyIncludeActiveItems = false
+  ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never> {
+    Effect.logDebug('TestPaymentAdapter: Getting purchase history');
+    return Effect.succeed([]);
+  },
+
+  getPendingTransactions(): Effect.Effect<
+    Transaction[],
+    GetPendingTransactionsError,
+    never
   > {
-    return Promise.resolve(ok([]));
-  }
-  presentCodeRedemptionSheet?(): Promise<
-    Result<void, FailedToPresentCodeRedemptionSheetError>
+    Effect.logDebug('TestPaymentAdapter: Getting pending transactions');
+    return Effect.succeed([]);
+  },
+
+  presentCodeRedemptionSheet(): Effect.Effect<
+    void,
+    FailedToPresentCodeRedemptionSheetError,
+    never
   > {
-    return Promise.resolve(ok());
-  }
-  showManageSubscriptions?(): Promise<
-    Result<void, FailedToShowManageSubscriptionsError>
+    Effect.logDebug('TestPaymentAdapter: Presenting code redemption sheet');
+    return Effect.succeed(undefined);
+  },
+
+  showManageSubscriptions(): Effect.Effect<
+    void,
+    FailedToShowManageSubscriptionsError,
+    never
   > {
-    return Promise.resolve(ok());
+    Effect.logDebug('TestPaymentAdapter: Showing manage subscriptions');
+    return Effect.succeed(undefined);
   }
-}
+});

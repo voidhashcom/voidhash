@@ -24,10 +24,10 @@ export function SetupPaymentProviderButton({
     {
       onSuccess: (res) => {
         toast.success(
-          `${paymentProvider?.getTitle()} configuration saved successfully`
+          `${paymentProvider?.title} configuration saved successfully`
         );
 
-        if (res.data?.id && paymentProvider?.getIsConfigurable()) {
+        if (res.data?.id) {
           router.push(
             `/${organizationSlug}/${projectSlug}/settings/payment-providers/${res.data.id}`
           );
@@ -38,15 +38,13 @@ export function SetupPaymentProviderButton({
       onError: (error) => {
         toast.error(
           error.error.serverError ??
-            `Failed to save ${paymentProvider?.getTitle()} configuration. Please try again.`
+            `Failed to save ${paymentProvider?.title} configuration. Please try again.`
         );
       }
     }
   );
 
-  const paymentProvider = paymentProviders.find(
-    (p) => p.getId() === providerId
-  );
+  const paymentProvider = paymentProviders.find((p) => p.id === providerId);
 
   if (!paymentProvider) {
     return null;

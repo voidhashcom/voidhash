@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { ApiKey } from '@voidhash/db';
 import { Button } from '@voidhash/ui/button';
 import {
   Dialog,
@@ -24,7 +25,6 @@ import { useAction } from 'next-safe-action/hooks';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import type { ApiKey } from '@/lib/core/api-keys/types';
 import { createSecretKeyAction } from '@/lib/nextjs/server-actions';
 
 const createSecretKeySchema = z.object({

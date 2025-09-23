@@ -1,3 +1,4 @@
+import { authenticateWithSession, UserService } from '@voidhash/core/services';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -6,9 +7,8 @@ import {
 } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
 import { Suspense } from 'react';
-import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { UserService } from '@/lib/services/user.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { NavUserDropdown } from './nav-user-dropdown';
 
 function NavUserSkeleton() {
@@ -17,10 +17,10 @@ function NavUserSkeleton() {
 
 export const _NavUserContent = Effect.fn('NavUserContent')(function* () {
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const userService = yield* UserService;
-        const user = yield* userService.getUser();
+        const user = yield* userService.getUser(yield* headers);
         return { user };
       })
     )

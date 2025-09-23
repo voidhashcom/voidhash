@@ -1,16 +1,15 @@
+import {
+  authenticateWithSession,
+  PerkService,
+  ProjectNotFoundError,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { Card } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
-import { PerkService } from '@/lib/services/perk.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { CreatePerkModalButton } from './create-perk-modal-button';
 import { PerkRecord } from './perk-record';
 import { PerksPageEmptyState } from './perks-page-empty-state';
@@ -23,7 +22,7 @@ export const _PerksPage = Effect.fn('PerksPage')(function* ({
   projectSlug: string;
 }) {
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
           const projectService = yield* ProjectService;
@@ -35,7 +34,7 @@ export const _PerksPage = Effect.fn('PerksPage')(function* ({
             });
           if (!project) {
             return yield* Effect.fail(
-              new NotFoundError({
+              new ProjectNotFoundError({
                 message: 'Project not found'
               })
             );
@@ -44,12 +43,18 @@ export const _PerksPage = Effect.fn('PerksPage')(function* ({
           return { project, perks };
         })
       )
-    ).pipe(HandleCommonErrors)
+    )
   );
 
   if (Either.isLeft(data)) {
-    const error = data.left;
-    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the perks'
+        }}
+      />
+    );
   }
 
   const { project, perks } = data.right;

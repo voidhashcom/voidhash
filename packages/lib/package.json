@@ -9,6 +9,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./constants": "./src/constants/index.ts",
     "./effect": "./src/effect/index.ts"
   },
   "scripts": {

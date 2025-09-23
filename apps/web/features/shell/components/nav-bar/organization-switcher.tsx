@@ -1,13 +1,16 @@
+import {
+  authenticateWithSession,
+  OrganizationNotFoundError,
+  OrganizationService,
+  UserService
+} from '@voidhash/core/services';
 import { Skeleton } from '@voidhash/ui';
 import { GradientAvatar } from '@voidhash/ui/gradient-avatar';
 import { Effect, Either } from 'effect';
 import Link from 'next/link';
 import { Suspense } from 'react';
-import { NotFoundError } from '@/lib/effect/errors';
-import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { OrganizationService } from '@/lib/services/organization.service';
-import { UserService } from '@/lib/services/user.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { OrganizationProjectSwitcher } from './organization-project-switcher';
 
 const _OrganizationSwitcherComponent = Effect.fn(
@@ -18,18 +21,18 @@ const _OrganizationSwitcherComponent = Effect.fn(
   }
 
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const userService = yield* UserService;
         const organizationService = yield* OrganizationService;
         const [user, activeOrganization] = yield* Effect.all(
           [
-            userService.getUser(),
+            userService.getUser(yield* headers),
             organizationService.getOrganizationBySlug(organizationSlug).pipe(
               Effect.catchTags({
                 OrganizationNotFound: () =>
                   Effect.fail(
-                    new NotFoundError({
+                    new OrganizationNotFoundError({
                       message: 'Organization not found'
                     })
                   )
