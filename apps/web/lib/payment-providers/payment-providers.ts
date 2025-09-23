@@ -1,4 +1,17 @@
-import { appStore } from './app-store/app-store';
-import { stripe } from './stripe/stripe';
+import type z from 'zod';
+import { appleAppStore } from './app-store';
+import type { PaymentProvider } from './types';
 
-export const paymentProviders = [stripe, appStore] as const;
+export const createPaymentProvider = <
+  TGlobalConfigurationSchema extends z.ZodSchema,
+  TProductConfigurationSchema extends z.ZodSchema
+>(
+  options: PaymentProvider<
+    TGlobalConfigurationSchema,
+    TProductConfigurationSchema
+  >
+) => {
+  return options;
+};
+
+export const paymentProviders = [appleAppStore];

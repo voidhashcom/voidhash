@@ -1,77 +1,68 @@
-import { VoidhashError } from '../../errors';
-import type { CacheManager } from '../caching/cache-manager';
-import type { Logger } from '../logging';
-import type { Api } from '../networking/api';
+import { Effect } from 'effect';
+import { CacheManager } from '../caching/cache-manager';
+import { ApiClient } from '../networking/api-client';
+import { getCommonSdkHeaders } from '../utils/get-common-sdk-headers';
 
 type CustomerAttributes = {
   email?: string;
   name?: string;
 };
 
-export class CustomerAttributeManager {
-  private cacheManager: CacheManager;
-  private logger: Logger;
-  private api: Api;
+export class CustomerAttributeManager extends Effect.Service<CustomerAttributeManager>()(
+  'rn-voidhash/CustomerAttributeManager',
+  {
+    dependencies: [CacheManager.Default, ApiClient.Default],
+    effect: Effect.gen(function* () {
+      const cacheManager = yield* CacheManager;
+      const apiClient = yield* ApiClient;
 
-  constructor(cacheManager: CacheManager, logger: Logger, api: Api) {
-    this.cacheManager = cacheManager;
-    this.logger = logger;
-    this.api = api;
+      const getCustomerAttributes = (appUserId: string) =>
+        cacheManager
+          .get<CustomerAttributes>(
+            generateCustomerAttributesCacheKey(appUserId)
+          )
+          .pipe(Effect.map((attributes) => attributes?.value ?? null));
+
+      const setCustomerAttributes = (
+        appUserId: string,
+        attributes: CustomerAttributes
+      ) =>
+        cacheManager.set(
+          generateCustomerAttributesCacheKey(appUserId),
+          attributes
+        );
+
+      const syncCustomerAttributes = (appUserId: string) =>
+        Effect.gen(function* () {
+          let attributes = yield* getCustomerAttributes(appUserId);
+          if (!attributes) {
+            attributes = {
+              name: undefined,
+              email: undefined
+            };
+            yield* setCustomerAttributes(appUserId, attributes);
+          }
+          const commonHeaders = yield* getCommonSdkHeaders();
+          yield* apiClient.v1_sdk.syncCustomerAttributes({
+            headers: {
+              ...commonHeaders,
+              'x-app-user-id': appUserId
+            },
+            payload: {
+              name: attributes.name,
+              email: attributes.email
+            }
+          });
+        });
+
+      const generateCustomerAttributesCacheKey = (appUserId: string) =>
+        `customer-attributes:${appUserId}`;
+
+      return {
+        getCustomerAttributes,
+        setCustomerAttributes,
+        syncCustomerAttributes
+      } as const;
+    })
   }
-
-  async getCustomerAttributes(appUserId: string) {
-    const cachedCustomerAttributes =
-      await this.cacheManager.get<CustomerAttributes>(
-        this.generateCustomerAttributesCacheKey(appUserId)
-      );
-
-    if (cachedCustomerAttributes?.value) {
-      return cachedCustomerAttributes.value;
-    }
-
-    return null;
-  }
-
-  async setCustomerAttributes(
-    appUserId: string,
-    attributes: CustomerAttributes
-  ) {
-    await this.cacheManager.set(
-      this.generateCustomerAttributesCacheKey(appUserId),
-      attributes
-    );
-  }
-
-  async syncCustomerAttributes(appUserId: string) {
-    let customerAttributes: CustomerAttributes | null =
-      await this.getCustomerAttributes(appUserId);
-
-    if (!customerAttributes) {
-      customerAttributes = {
-        email: undefined,
-        name: undefined
-      };
-      await this.setCustomerAttributes(appUserId, customerAttributes);
-    }
-
-    const result = await this.api.syncCustomerAttributes(
-      customerAttributes,
-      appUserId
-    );
-    if (result.isErr()) {
-      const err = result.error;
-      this.logger.error('Failed to sync customer attributes', {
-        err,
-        appUserId
-      });
-      throw new VoidhashError(err.message);
-    }
-
-    // TODO: Handle result
-    return;
-  }
-
-  private generateCustomerAttributesCacheKey(appUserId: string) {
-    return `customer-attributes:${appUserId}`;
-  }
-}
+) {}

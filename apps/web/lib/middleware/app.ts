@@ -1,10 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { getEnvironment } from '../core/environments/utils';
-import { NextMiddlewareCookiesAdapter } from '../nextjs/utils/next-middleware-cookie-adapter';
+
 import { parse } from './utils/parse';
 
-export default async function AppMiddleware(req: NextRequest) {
-  const { fullPath, path, organizationSlug, projectSlug } = parse(req);
+export default function AppMiddleware(req: NextRequest) {
+  const { fullPath, path } = parse(req);
 
   const sessionCookie = req.cookies.get('better-auth.session_token');
   const secureSessionCookie = req.cookies.get(
@@ -23,29 +22,6 @@ export default async function AppMiddleware(req: NextRequest) {
         req.url
       )
     );
-  }
-
-  if (
-    organizationSlug &&
-    projectSlug &&
-    !path.includes('/environment-redirect')
-  ) {
-    const environmentResult = await getEnvironment(
-      new NextMiddlewareCookiesAdapter(req),
-      organizationSlug,
-      projectSlug
-    );
-    if (environmentResult.isErr()) {
-      if (environmentResult.error.code === 'NOT_FOUND') {
-        return NextResponse.redirect(
-          new URL(
-            `/${organizationSlug}/${projectSlug}/environment-redirect?next=${encodeURIComponent(fullPath)}`,
-            req.url
-          )
-        );
-      }
-      return NextResponse.redirect(new URL('/error', req.url));
-    }
   }
 
   // otherwise, rewrite the path to /app

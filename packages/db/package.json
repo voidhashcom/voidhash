@@ -10,7 +10,8 @@
   "main": "./index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema.ts"
+    "./schema": "./src/schema.ts",
+    "./effect": "./src/effect.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

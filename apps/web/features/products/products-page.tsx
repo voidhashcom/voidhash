@@ -1,17 +1,16 @@
+import {
+  authenticateWithSession,
+  ProductService,
+  ProjectNotFoundError,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { Card } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
-import { ProductService } from '@/lib/services/product.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { CreateProductModalButton } from './create-product-modal-button';
 import { ProductRecord } from './product-record';
 import { ProductRecordConfigurationStateIndicator } from './product-record-configuration-state-indicator';
@@ -26,7 +25,7 @@ export const _ProductsPage = Effect.fn('ProductsPage')(function* ({
 }) {
   const data = yield* Effect.either(
     Effect.gen(function* () {
-      return yield* authenticateWithSession(
+      return yield* authenticateWithSession(yield* headers)(
         withEnvironmentFromCookie({ organizationSlug, projectSlug })(
           Effect.gen(function* () {
             const projectService = yield* ProjectService;
@@ -38,7 +37,7 @@ export const _ProductsPage = Effect.fn('ProductsPage')(function* ({
               });
             if (!project) {
               return yield* Effect.fail(
-                new NotFoundError({
+                new ProjectNotFoundError({
                   message: 'Project not found'
                 })
               );
@@ -48,12 +47,18 @@ export const _ProductsPage = Effect.fn('ProductsPage')(function* ({
           })
         )
       );
-    }).pipe(HandleCommonErrors)
+    })
   );
 
   if (Either.isLeft(data)) {
-    const error = data.left;
-    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the products'
+        }}
+      />
+    );
   }
 
   const { project, products } = data.right;

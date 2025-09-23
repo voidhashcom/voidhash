@@ -1,11 +1,11 @@
 import { Command } from '@effect/cli';
-import { BunContext, BunRuntime } from '@effect/platform-bun';
-import { Effect, Layer } from 'effect';
+import { FetchHttpClient } from '@effect/platform';
+import { NodeContext, NodeRuntime } from '@effect/platform-node';
+import { Effect } from 'effect';
+import { BetterAuthClient } from './better-auth';
 import { authCommand } from './commands/auth';
 import { initCommand } from './commands/init';
 import { schemaCommand } from './commands/schema';
-
-const MainLayer = Layer.mergeAll(BunContext.layer);
 
 const command = Command.make('voidhash').pipe(
   Command.withDescription('Voidhash CLI application.'),
@@ -17,8 +17,12 @@ const cli = Command.run(command, {
   version: '0.0.1-alpha.1'
 });
 
-Effect.suspend(() => cli(process.argv)).pipe(
-  Effect.provide(MainLayer),
+const cliEffect = Effect.suspend(() => cli(process.argv));
+
+cliEffect.pipe(
   Effect.tapErrorCause(Effect.logError),
-  BunRuntime.runMain
+  Effect.provide(FetchHttpClient.layer),
+  Effect.provide(BetterAuthClient.Default),
+  Effect.provide(NodeContext.layer),
+  NodeRuntime.runMain
 );

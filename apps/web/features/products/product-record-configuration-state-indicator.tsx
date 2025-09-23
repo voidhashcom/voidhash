@@ -1,9 +1,12 @@
+import {
+  authenticateWithSession,
+  PaymentProviderProductService,
+  PaymentProviderService
+} from '@voidhash/core/services';
 import { Badge } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
-import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { PaymentProviderService } from '@/lib/services/payment-provider.service';
-import { ProductService } from '@/lib/services/product.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { PaymentProviderLogo } from '../projects/settings/payment-providers/payment-provider-logo';
 
 export const _ProductRecordConfigurationStateIndicator = Effect.fn(
@@ -16,15 +19,18 @@ export const _ProductRecordConfigurationStateIndicator = Effect.fn(
   projectId: string;
 }) {
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
-        const productService = yield* ProductService;
         const paymentProviderService = yield* PaymentProviderService;
+        const paymentProviderProductService =
+          yield* PaymentProviderProductService;
 
         const [providerProducts, paymentProviderConfigurations] =
           yield* Effect.all(
             [
-              productService.getProviderProductsByProductId(productId),
+              paymentProviderProductService.getProviderProductsByProductId(
+                productId
+              ),
               paymentProviderService.getPaymentProviderConfigurations(projectId)
             ],
             {

@@ -1,26 +1,28 @@
 'use server';
 import 'server-only';
 
+import {
+  ApiKeyService,
+  authenticateWithSession,
+  CustomerService,
+  Environment,
+  EnvironmentService,
+  OrganizationService,
+  PaymentProviderProductService,
+  PaymentProviderService,
+  PaywallLocationService,
+  PaywallService,
+  PerkService,
+  ProductService,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { CustomerOrigin } from '@voidhash/db';
 import type { EnvironmentValue } from '@voidhash/lib/constants';
 import { Effect, Either, pipe, Schema } from 'effect';
 import { actionClient } from '@/lib/safe-action';
-import { NextjsErrorResponse, ServerAction } from '../effect/runtimes/nextjs';
-import { ApiKeyService } from '../services/api-key.service';
-import { authenticateWithSession } from '../services/auth.service';
-import { CustomerService } from '../services/customer.service';
-import {
-  Environment,
-  EnvironmentService,
-  withEnvironmentFromCookie
-} from '../services/environment.service';
-import { OrganizationService } from '../services/organization.service';
-import { PaymentProviderService } from '../services/payment-provider.service';
-import { PaywallService } from '../services/paywall.service';
-import { PaywallLocationService } from '../services/paywall-location.service';
-import { PerkService } from '../services/perk.service';
-import { ProductService } from '../services/product.service';
-import { ProjectService } from '../services/project.service';
+import { headers } from '../effect/headers';
+import { NextjsErrorResponse, ServerAction } from '../nextjs-runtime';
 import {
   createCustomerInputSchema,
   createOrganizationInputSchema,
@@ -58,7 +60,7 @@ import {
 const _createSecretKeyAction = Effect.fn('createSecretKeyAction')(
   function* (input: { projectId: string; name: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         withEnvironmentFromCookie({ projectId: input.projectId })(
           pipe(
             ApiKeyService,
@@ -86,7 +88,7 @@ export const createSecretKeyAction = actionClient
 const _rotateSecretKeyAction = Effect.fn('rotateSecretKeyAction')(
   function* (input: { secretKeyId: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const apiKeyService = yield* ApiKeyService;
           return yield* apiKeyService.rotateSecretKey(input).pipe(
@@ -120,7 +122,7 @@ export const rotateSecretKeyAction = actionClient
 const _deleteSecretKeyAction = Effect.fn('deleteSecretKeyAction')(
   function* (input: { secretKeyId: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const apiKeyService = yield* ApiKeyService;
           return yield* apiKeyService.deleteSecretKey(input).pipe(
@@ -155,27 +157,29 @@ export const deleteSecretKeyAction = actionClient
 const _createOrganizationAction = Effect.fn('createOrganizationAction')(
   function* (input: { name: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const organizationService = yield* OrganizationService;
-          return yield* organizationService.createOrganization(input).pipe(
-            Effect.catchTags({
-              FailedToCreateOrganizationError: (error) =>
-                Effect.fail(
-                  new NextjsErrorResponse({
-                    code: 'INTERNAL_SERVER_ERROR',
-                    message: error.message
-                  })
-                ),
-              UserSessionNotFoundError: (error) =>
-                Effect.fail(
-                  new NextjsErrorResponse({
-                    code: 'INTERNAL_SERVER_ERROR',
-                    message: error.message
-                  })
-                )
-            })
-          );
+          return yield* organizationService
+            .createOrganization(input, yield* headers)
+            .pipe(
+              Effect.catchTags({
+                FailedToCreateOrganizationError: (error) =>
+                  Effect.fail(
+                    new NextjsErrorResponse({
+                      code: 'INTERNAL_SERVER_ERROR',
+                      message: error.message
+                    })
+                  ),
+                UserSessionNotFoundError: (error) =>
+                  Effect.fail(
+                    new NextjsErrorResponse({
+                      code: 'INTERNAL_SERVER_ERROR',
+                      message: error.message
+                    })
+                  )
+              })
+            );
         })
       )
     );
@@ -196,20 +200,22 @@ export const createOrganizationAction = actionClient
 const _updateOrganizationAction = Effect.fn('updateOrganizationAction')(
   function* (input: { organizationId: string; name: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const organizationService = yield* OrganizationService;
-          return yield* organizationService.updateOrganization(input).pipe(
-            Effect.catchTags({
-              OrganizationNotFound: (error) =>
-                Effect.fail(
-                  new NextjsErrorResponse({
-                    code: 'NOT_FOUND',
-                    message: error.message
-                  })
-                )
-            })
-          );
+          return yield* organizationService
+            .updateOrganization(input, yield* headers)
+            .pipe(
+              Effect.catchTags({
+                OrganizationNotFound: (error) =>
+                  Effect.fail(
+                    new NextjsErrorResponse({
+                      code: 'NOT_FOUND',
+                      message: error.message
+                    })
+                  )
+              })
+            );
         })
       )
     );
@@ -229,11 +235,12 @@ export const updateOrganizationAction = actionClient
 
 const _deleteOrganizationAction = Effect.fn('deleteOrganizationAction')(
   function* (input: { organizationId: string }) {
+    const heads = yield* headers;
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(heads)(
         Effect.gen(function* () {
           const organizationService = yield* OrganizationService;
-          return yield* organizationService.deleteOrganization(input);
+          return yield* organizationService.deleteOrganization(input, heads);
         })
       )
     );
@@ -255,7 +262,7 @@ export const deleteOrganizationAction = actionClient
 const _createProjectAction = Effect.fn('createProjectAction')(
   function* (input: { name: string; organizationId: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const projectService = yield* ProjectService;
           return yield* projectService.createProject(input);
@@ -279,7 +286,7 @@ export const createProjectAction = actionClient
 const _updateProjectAction = Effect.fn('updateProjectAction')(
   function* (input: { id: string; name: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const projectService = yield* ProjectService;
           return yield* projectService.updateProject(input).pipe(
@@ -313,7 +320,7 @@ export const updateProjectAction = actionClient
 const _deleteProjectAction = Effect.fn('deleteProjectAction')(
   function* (input: { id: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const projectService = yield* ProjectService;
           return yield* projectService.deleteProject(input).pipe(
@@ -348,7 +355,7 @@ export const deleteProjectAction = actionClient
 const _switchEnvironmentAction = Effect.fn('switchEnvironmentAction')(
   function* (input: { projectId: string; environment: EnvironmentValue }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const environmentService = yield* EnvironmentService;
           return yield* environmentService.switchEnvironment(input).pipe(
@@ -398,7 +405,7 @@ const _createPaymentProviderConfigurationAction = Effect.fn(
   'createPaymentProviderConfigurationAction'
 )(function* (input: { projectId: string; providerId: string }) {
   const res = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const paymentProviderService = yield* PaymentProviderService;
         return yield* paymentProviderService
@@ -448,7 +455,7 @@ const _updatePaymentProviderConfigurationAction = Effect.fn(
   configuration: Record<string, unknown>;
 }) {
   const res = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const paymentProviderService = yield* PaymentProviderService;
         return yield* paymentProviderService
@@ -469,13 +476,14 @@ const _updatePaymentProviderConfigurationAction = Effect.fn(
                     message: error.message
                   })
                 ),
-              ValidationError: (error) =>
+              ParseError: (error) =>
                 Effect.fail(
                   new NextjsErrorResponse({
                     code: 'BAD_REQUEST',
                     message: error.message
                   })
                 ),
+
               PaymentProviderKeyUnavailableError: (error) =>
                 Effect.fail(
                   new NextjsErrorResponse({
@@ -507,7 +515,7 @@ const _deletePaymentProviderConfigurationAction = Effect.fn(
   'deletePaymentProviderConfigurationAction'
 )(function* (input: { paymentProviderConfigurationId: string }) {
   const res = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const paymentProviderService = yield* PaymentProviderService;
         return yield* paymentProviderService
@@ -545,7 +553,7 @@ export const deletePaymentProviderConfigurationAction = actionClient
 const _createProductAction = Effect.fn('createProductAction')(
   function* (input: { projectId: string; name: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         withEnvironmentFromCookie({ projectId: input.projectId })(
           Effect.gen(function* () {
             const productService = yield* ProductService;
@@ -571,7 +579,7 @@ export const createProductAction = actionClient
 const _updateProductAction = Effect.fn('updateProductAction')(
   function* (input: { productId: string; name: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const productService = yield* ProductService;
           return yield* productService.updateProduct(input).pipe(
@@ -605,7 +613,7 @@ export const updateProductAction = actionClient
 const _deleteProductAction = Effect.fn('deleteProductAction')(
   function* (input: { productId: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const productService = yield* ProductService;
           return yield* productService.deleteProduct(input).pipe(
@@ -640,7 +648,7 @@ export const deleteProductAction = actionClient
 const _createProductPerkAction = Effect.fn('createProductPerkAction')(
   function* (input: { productId: string; perkId: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const productService = yield* ProductService;
           return yield* productService.createProductPerk(input).pipe(
@@ -681,7 +689,7 @@ export const createProductPerkAction = actionClient
 const _deleteProductPerkAction = Effect.fn('deleteProductPerkAction')(
   function* (input: { productId: string; perkId: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const productService = yield* ProductService;
           return yield* productService.deleteProductPerk(input).pipe(
@@ -721,41 +729,59 @@ const _createPaymentProviderProductAction = Effect.fn(
   configuration: Record<string, unknown>;
 }) {
   const res = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
-        const productService = yield* ProductService;
-        return yield* productService.createPaymentProviderProduct(input).pipe(
-          Effect.catchTags({
-            ProductNotFound: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'BAD_REQUEST',
-                  message: error.message
-                })
-              ),
-            PaymentProviderConfigurationNotFound: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'BAD_REQUEST',
-                  message: error.message
-                })
-              ),
-            PaymentProviderNotFound: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'BAD_REQUEST',
-                  message: error.message
-                })
-              ),
-            InvalidConfiguration: (error) =>
-              Effect.fail(
-                new NextjsErrorResponse({
-                  code: 'BAD_REQUEST',
-                  message: error.message
-                })
-              )
-          })
-        );
+        const productService = yield* PaymentProviderProductService;
+        const paymentProviderProduct = yield* productService
+          .createPaymentProviderProduct(input)
+          .pipe(
+            Effect.catchTags({
+              ProductNotFound: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                ),
+              PaymentProviderConfigurationNotFound: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                ),
+              PaymentProviderNotFoundError: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                ),
+              ParseError: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'BAD_REQUEST',
+                    message: error.message
+                  })
+                ),
+              ActionForbiddenError: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'FORBIDDEN',
+                    message: error.message
+                  })
+                ),
+              DatabaseError: (error) =>
+                Effect.fail(
+                  new NextjsErrorResponse({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: error.message
+                  })
+                )
+            })
+          );
+
+        return paymentProviderProduct;
       })
     )
   );
@@ -779,9 +805,9 @@ const _updatePaymentProviderProductAction = Effect.fn(
   configuration: Record<string, unknown>;
 }) {
   const res = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
-        const productService = yield* ProductService;
+        const productService = yield* PaymentProviderProductService;
         return yield* productService.updatePaymentProviderProduct(input).pipe(
           Effect.catchTags({
             ProductNotFound: (error) =>
@@ -798,7 +824,7 @@ const _updatePaymentProviderProductAction = Effect.fn(
                   message: error.message
                 })
               ),
-            PaymentProviderNotFound: (error) =>
+            PaymentProviderNotFoundError: (error) =>
               Effect.fail(
                 new NextjsErrorResponse({
                   code: 'BAD_REQUEST',
@@ -812,7 +838,7 @@ const _updatePaymentProviderProductAction = Effect.fn(
                   message: error.message
                 })
               ),
-            InvalidConfiguration: (error) =>
+            ParseError: (error) =>
               Effect.fail(
                 new NextjsErrorResponse({
                   code: 'BAD_REQUEST',
@@ -845,9 +871,9 @@ const _setActivePaymentProviderProductAction = Effect.fn(
   paymentProviderConfigurationId: string;
 }) {
   const res = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
-        const productService = yield* ProductService;
+        const productService = yield* PaymentProviderProductService;
         return yield* productService
           .setActivePaymentProviderProduct(input)
           .pipe(
@@ -866,7 +892,7 @@ const _setActivePaymentProviderProductAction = Effect.fn(
                     message: error.message
                   })
                 ),
-              PaymentProviderNotFound: (error) =>
+              PaymentProviderNotFoundError: (error) =>
                 Effect.fail(
                   new NextjsErrorResponse({
                     code: 'BAD_REQUEST',
@@ -901,9 +927,9 @@ const _deletePaymentProviderProductAction = Effect.fn(
   providerProductKey: string;
 }) {
   const res = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
-        const productService = yield* ProductService;
+        const productService = yield* PaymentProviderProductService;
         return yield* productService.deletePaymentProviderProduct(input).pipe(
           Effect.catchTags({
             ProductNotFound: (error) =>
@@ -940,7 +966,7 @@ const _createCustomerAction = Effect.fn('createCustomerAction')(
     email?: string | null;
   }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         withEnvironmentFromCookie({ projectId: input.projectId })(
           Effect.gen(function* () {
             const customerService = yield* CustomerService;
@@ -985,7 +1011,7 @@ export const createCustomerAction = actionClient
 const _createPaywallAction = Effect.fn('createPaywallAction')(
   function* (input: { projectId: string; name: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         withEnvironmentFromCookie({ projectId: input.projectId })(
           Effect.gen(function* () {
             const paywallService = yield* PaywallService;
@@ -1022,7 +1048,7 @@ const _updatePaywallAction = Effect.fn('updatePaywallAction')(
     }>;
   }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const paywallService = yield* PaywallService;
           return yield* paywallService
@@ -1075,7 +1101,7 @@ export const updatePaywallAction = actionClient
 const _deletePaywallAction = Effect.fn('deletePaywallAction')(
   function* (input: { paywallId: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const paywallService = yield* PaywallService;
           return yield* paywallService.deletePaywall(input).pipe(
@@ -1122,7 +1148,7 @@ const _createPaywallLocationAction = Effect.fn('createPaywallLocationAction')(
     defaultPaywallId: string;
   }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         withEnvironmentFromCookie({ projectId: input.projectId })(
           Effect.gen(function* () {
             const paywallLocationService = yield* PaywallLocationService;
@@ -1167,7 +1193,7 @@ export const createPaywallLocationAction = actionClient
 const _deletePaywallLocationAction = Effect.fn('deletePaywallLocationAction')(
   function* (input: { paywallLocationId: string }) {
     const res = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         Effect.gen(function* () {
           const paywallLocationService = yield* PaywallLocationService;
           return yield* paywallLocationService
@@ -1208,7 +1234,7 @@ const _createPerkAction = Effect.fn('createPerkAction')(function* (input: {
   slug: string;
 }) {
   const res = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       withEnvironmentFromCookie({ projectId: input.projectId })(
         Effect.gen(function* () {
           const perkService = yield* PerkService;
@@ -1244,7 +1270,7 @@ const _deletePerkAction = Effect.fn('deletePerkAction')(function* (input: {
   perkId: string;
 }) {
   const res = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const perkService = yield* PerkService;
         return yield* perkService.deletePerk({ perkId: input.perkId }).pipe(

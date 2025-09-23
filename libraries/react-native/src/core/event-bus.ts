@@ -1,4 +1,18 @@
-import type { Customer } from './networking/types';
+import { Context } from 'effect';
+import type { Customer } from './types';
+
+export type CustomerFetchedEvent = {
+  type: 'customer-fetched';
+  customer: Customer;
+};
+
+export type CustomerSignedOutEvent = {
+  type: 'customer-signed-out';
+};
+
+export type CustomerIdentifiedEvent = {
+  type: 'customer-identified';
+};
 
 export type VoidhashEvents = {
   'customer-fetched': Customer;
@@ -42,3 +56,7 @@ export class EventBus {
     }
   }
 }
+
+export class EventBusProvider extends Context.Tag(
+  'rn-voidhash/EventBusProvider'
+)<EventBusProvider, EventBus>() {}

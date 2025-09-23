@@ -51,14 +51,15 @@ export function PaymentProviderDetailConfiguration({
 
   const paymentProvider =
     paymentProviders.find(
-      (pp) => pp.getId() === paymentProviderConfiguration.providerId
-    ) ?? paymentProviders[0];
+      (pp) => pp.id === paymentProviderConfiguration.providerId
+      // biome-ignore lint/style/noNonNullAssertion: paymentProviders is not empty
+    ) ?? paymentProviders[0]!;
 
   const [name, setName] = useState(paymentProviderConfiguration.name);
 
   // biome-ignore lint/suspicious/noExplicitAny: zod
   const form = useForm<any>({
-    resolver: zodResolver(paymentProvider?.getGlobalConfigurationSchema()),
+    resolver: zodResolver(paymentProvider?.globalConfigurationSchema),
     defaultValues: paymentProviderConfiguration.configuration
   });
 
@@ -67,7 +68,7 @@ export function PaymentProviderDetailConfiguration({
     {
       onSuccess: () => {
         toast.success(
-          `${paymentProvider?.getTitle()} configuration saved successfully`
+          `${paymentProvider?.title} configuration saved successfully`
         );
 
         router.refresh();
@@ -75,7 +76,7 @@ export function PaymentProviderDetailConfiguration({
       onError: (error) => {
         toast.error(
           error.error.serverError ??
-            `Failed to save ${paymentProvider?.getTitle()} configuration. Please try again.`
+            `Failed to save ${paymentProvider?.title} configuration. Please try again.`
         );
       }
     }
@@ -87,7 +88,7 @@ export function PaymentProviderDetailConfiguration({
     useAction(deletePaymentProviderConfigurationAction, {
       onSuccess: () => {
         toast.success(
-          `${paymentProvider?.getTitle()} configuration deleted successfully`
+          `${paymentProvider?.title} configuration deleted successfully`
         );
         router.push(
           `/${organizationSlug}/${projectSlug}/settings/payment-providers`
@@ -96,7 +97,7 @@ export function PaymentProviderDetailConfiguration({
       onError: (error) => {
         toast.error(
           error.error.serverError ??
-            `Failed to delete ${paymentProvider?.getTitle()} configuration. Please try again.`
+            `Failed to delete ${paymentProvider?.title} configuration. Please try again.`
         );
       }
     });
@@ -117,9 +118,7 @@ export function PaymentProviderDetailConfiguration({
   };
 
   const onValidSubmit = (
-    data: z.infer<
-      ReturnType<typeof paymentProvider.getGlobalConfigurationSchema>
-    >
+    data: z.infer<typeof paymentProvider.globalConfigurationSchema>
   ) => {
     execute({
       id: paymentProviderConfiguration.id,
@@ -130,7 +129,7 @@ export function PaymentProviderDetailConfiguration({
   };
 
   const onInvalidSubmit: SubmitErrorHandler<
-    z.infer<ReturnType<typeof paymentProvider.getGlobalConfigurationSchema>>
+    z.infer<typeof paymentProvider.globalConfigurationSchema>
   > = (errors) => {
     // Log validation errors for debugging
     // biome-ignore lint/suspicious/noConsole: error handling
@@ -221,11 +220,7 @@ export function PaymentProviderDetailConfiguration({
               <div className="flex items-center gap-4">
                 <PaymentProviderLogo
                   className="h-8 w-8"
-                  providerId={
-                    paymentProviderConfiguration.providerId as ReturnType<
-                      (typeof paymentProviders)[number]['getId']
-                    >
-                  }
+                  providerId={paymentProviderConfiguration.providerId}
                 />
                 <h1 className="font-normal text-3xl tracking-right">
                   {paymentProviderConfiguration.name}
@@ -296,7 +291,7 @@ export function PaymentProviderDetailConfiguration({
                 </div>
 
                 <div className="flex-1 space-y-6 px-4 ">
-                  {paymentProvider.getType() === 'native' && (
+                  {paymentProvider.type === 'native' && (
                     <div>
                       <Label htmlFor="name">Name</Label>
                       <Input

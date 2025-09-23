@@ -1,16 +1,15 @@
+import {
+  ApiKeyService,
+  authenticateWithSession,
+  ProjectNotFoundError,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { Card } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  Page
-} from '@/lib/effect/runtimes/nextjs';
-import { ApiKeyService } from '@/lib/services/api-key.service';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { withEnvironmentFromCookie } from '@/lib/services/environment.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { Page } from '@/lib/nextjs-runtime';
 import { ApiKeyRecord } from './api-key-record';
 import { CreateSecretKeyModalButton } from './create-secret-key-modal-button';
 
@@ -22,7 +21,7 @@ const _ProjectApiKeysPage = Effect.fn('ProjectApiKeysPage')(function* ({
   projectSlug: string;
 }) {
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       withEnvironmentFromCookie({ organizationSlug, projectSlug })(
         Effect.gen(function* () {
           const apiKeyService = yield* ApiKeyService;
@@ -34,22 +33,27 @@ const _ProjectApiKeysPage = Effect.fn('ProjectApiKeysPage')(function* ({
             });
           if (!project) {
             return yield* Effect.fail(
-              new NotFoundError({
+              new ProjectNotFoundError({
                 message: 'Project not found'
               })
             );
           }
           const apiKeys = yield* apiKeyService.getApiKeys(project.id);
-
           return { project, apiKeys };
         })
       )
-    ).pipe(HandleCommonErrors)
+    )
   );
 
   if (Either.isLeft(data)) {
-    const error = data.left;
-    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the api keys'
+        }}
+      />
+    );
   }
 
   const { project, apiKeys } = data.right;

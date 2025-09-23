@@ -1,30 +1,23 @@
-import type { CacheManager } from './core/caching/cache-manager';
-import type { Product } from './core/entities/product';
-import type { EventBus } from './core/event-bus';
-import type { CustomerAttributeManager } from './core/identity/customer-attribute-manager';
-import type { CustomerInfoManager } from './core/identity/customer-info-manager';
-import type { IdentityManager } from './core/identity/identity-manager';
-import type { Logger } from './core/logging';
-import type { HttpClient } from './core/networking/http-client';
-import type { PaymentAdapter } from './core/payment-adapters/payment-adapter';
-import type { PlatformProvider } from './core/platform/types';
+import { FetchHttpClient } from '@effect/platform';
+import { Exit, Layer, ManagedRuntime, pipe } from 'effect';
+import { VoidhashEffectClient } from './client-effect';
+import { AsyncStorageCacheAdapter } from './core/caching/async-storage-cache';
+import { CacheManager } from './core/caching/cache-manager';
+import { type EventBus, EventBusProvider } from './core/event-bus';
+import { CustomerAttributeManager } from './core/identity/customer-attribute-manager';
+import { CustomerInfoManager } from './core/identity/customer-info-manager';
+import { IdentityManager } from './core/identity/identity-manager';
+import { ApiClient } from './core/networking/api-client';
+import { AppStoreAdapter } from './core/payment-adapters/app-store-adapter';
+import { GooglePlayAdapter } from './core/payment-adapters/google-play-adapter';
+import type { PlatformInfo } from './core/platform/platform-provider';
+import { ReactNativePlatformProvider } from './core/platform/react-native-platform-provider';
 import type {
-  ExtractSchemaProductDefinitions,
-  ExtractSchemaProductKeys,
   InferGetProductResponseFromSchema,
   VoidhashSchema
 } from './core/schema';
-import { extractProductDefinitions } from './core/schema/utils';
-import {
-  FailedToBuyProductError,
-  NotInitializedError,
-  ProductNotFoundError,
-  PurchaseCancelledError,
-  PurchasePendingError,
-  UnknownVoidhashError,
-  UnsupportedPlatformError,
-  VoidhashError
-} from './errors';
+import { SdkConfiguration } from './core/sdk-configuration';
+import { VoidhashError } from './errors';
 
 export type VoidhashClientOptions<TSchema extends VoidhashSchema> = {
   baseUrl?: string;
@@ -34,81 +27,89 @@ export type VoidhashClientOptions<TSchema extends VoidhashSchema> = {
   debug?: boolean;
 };
 
+const CreateEffectRuntime = (
+  platform: PlatformInfo['platform'],
+  baseUrl: string,
+  publishableKey: string,
+  eventBus: EventBus
+) => {
+  return ManagedRuntime.make(
+    pipe(
+      CustomerAttributeManager.Default,
+      Layer.provideMerge(CustomerInfoManager.Default),
+      Layer.provideMerge(IdentityManager.Default),
+      Layer.provideMerge(CacheManager.Default),
+      Layer.provideMerge(AsyncStorageCacheAdapter),
+      Layer.provideMerge(ApiClient.Default),
+      Layer.provideMerge(FetchHttpClient.layer),
+      Layer.provideMerge(
+        platform === 'ios' ? AppStoreAdapter : GooglePlayAdapter
+      ),
+      Layer.provideMerge(Layer.succeed(EventBusProvider, eventBus)),
+      Layer.provideMerge(ReactNativePlatformProvider),
+      Layer.provideMerge(
+        Layer.succeed(SdkConfiguration, { baseUrl, publishableKey })
+      )
+    )
+  );
+};
+
 export class VoidhashClient<TSchema extends VoidhashSchema> {
   private _isInitialized = false;
   private initialAppUserId: string | null;
   private scheme: string;
-  private logger: Logger;
-  private cacheManager: CacheManager;
-  private identityManager: IdentityManager;
-  private customerInfoManager: CustomerInfoManager;
-  private customerAttributeManager: CustomerAttributeManager;
-  private httpClient: HttpClient;
-  private platformProvider: PlatformProvider;
   private schema: TSchema;
-  private paymentAdapter: PaymentAdapter;
   private eventBus: EventBus;
+
+  private effectRuntime: ReturnType<typeof CreateEffectRuntime>;
+
+  private unitializedClient: ReturnType<
+    typeof VoidhashEffectClient.makeUnitializedClient
+  >;
+  private initializedClient?: ReturnType<
+    typeof VoidhashEffectClient.makeInitializedClient
+  >;
 
   constructor(
     initialAppUserId: string | null,
     scheme: string,
-    logger: Logger,
-    cacheManager: CacheManager,
-    customerInfoManager: CustomerInfoManager,
-    identityManager: IdentityManager,
-    customerAttributeManager: CustomerAttributeManager,
     schema: TSchema,
-    paymentAdapter: PaymentAdapter,
+    baseUrl: string,
+    publishableKey: string,
     eventBus: EventBus,
-    platformProvider: PlatformProvider,
-    httpClient: HttpClient
+    platform: Exclude<PlatformInfo['platform'], 'unknown'>
   ) {
     this.initialAppUserId = initialAppUserId;
     this.scheme = scheme;
-    this.logger = logger;
-    this.cacheManager = cacheManager;
-    this.customerInfoManager = customerInfoManager;
-    this.identityManager = identityManager;
-    this.customerAttributeManager = customerAttributeManager;
     this.schema = schema;
-    this.paymentAdapter = paymentAdapter;
     this.eventBus = eventBus;
-    this.platformProvider = platformProvider;
-    this.httpClient = httpClient;
+    this.effectRuntime = CreateEffectRuntime(
+      platform,
+      baseUrl,
+      publishableKey,
+      eventBus
+    );
+    this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
   }
   /**
    * Initializes the voidhash client.
    * @throws {FailedToInitializeNativeAdapterError} If the payment adapter fails to initialize
    */
   async init() {
-    if (this.initialAppUserId) {
-      // Identify as the user which ID was passed during SDK initialization
-      this.logger.debug('Initializing with initial user id', {
-        appUserId: this.initialAppUserId
-      });
+    const initializedClientResult = await this.effectRuntime.runPromiseExit(
+      this.unitializedClient.init<TSchema>({
+        initialAppUserId: this.initialAppUserId ?? undefined,
+        schema: this.schema
+      })
+    );
 
-      // Sync customer attributes before identify to not lose historical customer data
-      const appUserId = await this.identityManager.getAppUserIdFromCache();
-      if (appUserId) {
-        await this.customerAttributeManager.syncCustomerAttributes(appUserId);
-      }
-
-      await this.identityManager.identify(this.initialAppUserId, {});
-    } else {
-      // If no user ID was passed during SDK initialization, fetch the last identified customer from the server
-      const appUserId = await this.identityManager.getAppUserId();
-      this.logger.debug('Initializing without initial user id', {
-        appUserId
-      });
-
-      await this.customerAttributeManager.syncCustomerAttributes(appUserId);
-
-      // We don't need the result immediately. We do this to pre-fetch fresh customer data in the background.
-      await this.customerInfoManager.getCustomer(appUserId, 'fetch');
+    if (Exit.isSuccess(initializedClientResult)) {
+      this.initializedClient = initializedClientResult.value;
+      return;
     }
 
-    await this.paymentAdapter.initConnection();
-    this._isInitialized = true;
+    // TODO: Handle different erros that can happen properly
+    throw new VoidhashError('FAILED_TO_INITIALIZE_VOIDHASH_CLIENT');
   }
 
   /**
@@ -116,8 +117,19 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    * @throws {FailedToEndNativeAdapterError} If the payment adapter fails to end
    */
   async end() {
-    await this.paymentAdapter.endConnection();
-    this._isInitialized = false;
+    this.ensureInitialized();
+    const endResult = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.end()
+    );
+
+    if (Exit.isSuccess(endResult)) {
+      this._isInitialized = false;
+      return;
+    }
+
+    // TODO: Handle different erros that can happen properly
+    throw new VoidhashError('FAILED_TO_END_VOIDHASH_CLIENT');
   }
 
   /**
@@ -134,13 +146,17 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
   async getCurrentCustomer(forceFetch = false) {
     this.ensureInitialized();
 
-    const appUserId = await this.identityManager.getAppUserId();
-    const customer = await this.customerInfoManager.getCustomer(
-      appUserId,
-      forceFetch ? 'fetch' : 'fetch-while-stale'
+    const currentCustomerResult = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.getCurrentCustomer(forceFetch)
     );
 
-    return customer;
+    if (Exit.isSuccess(currentCustomerResult)) {
+      return currentCustomerResult.value;
+    }
+
+    // TODO: Handle different erros that can happen properly
+    throw new VoidhashError('FAILED_TO_GET_CURRENT_CUSTOMER');
   }
 
   /**
@@ -155,7 +171,17 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
   ) {
     this.ensureInitialized();
-    await this.identityManager.identify(appUserId, options);
+    const identifyResult = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.identify(appUserId, options)
+    );
+
+    if (Exit.isSuccess(identifyResult)) {
+      return;
+    }
+
+    // TODO: Handle different erros that can happen properly
+    throw new VoidhashError('FAILED_TO_IDENTIFY');
   }
 
   /**
@@ -163,7 +189,17 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    */
   async signOut() {
     this.ensureInitialized();
-    await this.identityManager.signOut();
+    const signOutResult = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.signOut()
+    );
+
+    if (Exit.isSuccess(signOutResult)) {
+      return;
+    }
+
+    // TODO: Handle different erros that can happen properly
+    throw new VoidhashError('FAILED_TO_SIGN_OUT');
   }
 
   /**
@@ -174,12 +210,17 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    */
   async getProducts() {
     this.ensureInitialized();
-    const productDefinitions = extractProductDefinitions(this.schema);
-    const nativeProducts = await this.loadProductsCached(productDefinitions);
-    return this.mapNativeProductsToProductMap(
-      productDefinitions,
-      nativeProducts
+    const getProductsResult = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.getProducts()
     );
+
+    if (Exit.isSuccess(getProductsResult)) {
+      return getProductsResult.value;
+    }
+
+    // TODO: Handle different erros that can happen properly
+    throw new VoidhashError('FAILED_TO_GET_PRODUCTS');
   }
 
   /**
@@ -191,53 +232,25 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    * @throws {PurchaseCancelledError} The customer has cancelled the purchase
    */
   async purchase(
-    product: Exclude<
-      InferGetProductResponseFromSchema<TSchema>[keyof InferGetProductResponseFromSchema<TSchema>],
-      null
+    product: NonNullable<
+      InferGetProductResponseFromSchema<TSchema>[keyof InferGetProductResponseFromSchema<TSchema>]
     >,
     _options: {
       method?: 'native';
     }
   ) {
     this.ensureInitialized();
+    const purchaseResult = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.purchase<TSchema>(product, _options)
+    );
 
-    const buyProductResult = await this.paymentAdapter.buyProduct(product);
-
-    if (buyProductResult.isErr()) {
-      const err = buyProductResult.error;
-      this.logger.error('Failed to buy product', {
-        error: err,
-        product
-      });
-
-      if (err.code === 'NATIVE_ADAPTER_NOT_INITIALIZED') {
-        throw new NotInitializedError();
-      }
-
-      if (err.code === 'FAILED_TO_BUY_PRODUCT') {
-        throw new FailedToBuyProductError(err.message, err.cause);
-      }
-
-      if (err.code === 'PRODUCT_NOT_FOUND') {
-        throw new ProductNotFoundError(err.message, err.cause);
-      }
-
-      if (err.code === 'PURCHASE_PENDING') {
-        throw new PurchasePendingError(err.message, err.cause);
-      }
-
-      if (err.code === 'USER_CANCELLED') {
-        throw new PurchaseCancelledError(err.message, err.cause);
-      }
-
-      throw new UnknownVoidhashError();
+    if (Exit.isSuccess(purchaseResult)) {
+      return;
     }
 
-    // TODO: Send transaction to backend
-    // biome-ignore lint/suspicious/noConsole: temporary
-    console.log(this.httpClient);
-
-    return;
+    // TODO: Handle different erros that can happen properly
+    throw new VoidhashError('FAILED_TO_PURCHASE');
   }
 
   // ===============================
@@ -250,15 +263,19 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    * @throws {VoidhashError} If the code redemption sheet fails to present
    */
   async iosPresentCodeRedemptionSheet() {
-    const result = await this.paymentAdapter.presentCodeRedemptionSheet?.();
-    if (!result) {
-      throw new UnsupportedPlatformError(
-        'Present code redemption sheet is not supported on this platform'
+    this.ensureInitialized();
+    const presentCodeRedemptionSheetResult =
+      await this.effectRuntime.runPromiseExit(
+        // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+        this.initializedClient!.iosPresentCodeRedemptionSheet()
       );
+
+    if (Exit.isSuccess(presentCodeRedemptionSheetResult)) {
+      return;
     }
-    if (result.isErr()) {
-      throw new VoidhashError(result.error.message, result.error.cause);
-    }
+
+    // TODO: Handle different erros that can happen properly
+    throw new VoidhashError('FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET');
   }
 
   /**
@@ -267,23 +284,27 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    * @throws {VoidhashError} If the manage subscriptions screen fails to show
    */
   async iosShowManageSubscriptions() {
-    const result = await this.paymentAdapter.showManageSubscriptions?.();
-    if (!result) {
-      throw new UnsupportedPlatformError(
-        'Show manage subscriptions is not supported on this platform'
+    this.ensureInitialized();
+    const showManageSubscriptionsResult =
+      await this.effectRuntime.runPromiseExit(
+        // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+        this.initializedClient!.iosShowManageSubscriptions()
       );
+
+    if (Exit.isSuccess(showManageSubscriptionsResult)) {
+      return;
     }
-    if (result.isErr()) {
-      throw new VoidhashError(result.error.message, result.error.cause);
-    }
+
+    // TODO: Handle different erros that can happen properly
+    throw new VoidhashError('FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS');
   }
 
   // ===============================
   // Internal helpers
   // ===============================
 
-  internal_getPlatformProvider() {
-    return this.platformProvider;
+  internal_getEventBus() {
+    return this.eventBus;
   }
 
   internal_getSchema() {
@@ -298,106 +319,13 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     return `${this.scheme}://voidhash/callback/error`;
   }
 
-  internal_getEventBus() {
-    return this.eventBus;
-  }
-
   private ensureInitialized() {
-    if (!this._isInitialized) {
+    if (!this.initializedClient) {
       throw new VoidhashError(
         'VOIDHASH_CLIENT_NOT_INITIALIZED',
         new Error('ProductManager is not initialized')
       );
     }
-  }
-
-  // ===============================
-  // Get products helpers
-  // ===============================
-
-  private generateCacheKeyFromProductDefinitions(
-    productDefinitions: ExtractSchemaProductDefinitions<TSchema>
-  ) {
-    return `native-products:${JSON.stringify(productDefinitions)}`;
-  }
-
-  private async loadProductsCached(
-    productDefinitions: ExtractSchemaProductDefinitions<TSchema>
-  ) {
-    const cacheKey =
-      this.generateCacheKeyFromProductDefinitions(productDefinitions);
-
-    const cachedProducts = await this.cacheManager.get<Product[]>(cacheKey);
-
-    if (
-      cachedProducts &&
-      !(cachedProducts.isStale || cachedProducts.isExpired)
-    ) {
-      this.logger.debug('Products fetched from cache', {
-        products: cachedProducts.value
-      });
-      return cachedProducts.value;
-    }
-
-    const nativeProductsResult =
-      await this.paymentAdapter.getProducts(productDefinitions);
-
-    if (nativeProductsResult.isErr()) {
-      const err = nativeProductsResult.error;
-      this.logger.error('Failed to get products from native adapter', {
-        error: err,
-        productDefinitions
-      });
-
-      if (err.code === 'FAILED_TO_GET_PRODUCTS') {
-        throw new NotInitializedError();
-      }
-
-      if (err.code === 'NATIVE_ADAPTER_NOT_INITIALIZED') {
-        throw new NotInitializedError();
-      }
-
-      // This should never happen. It is here to satisfy the type checker.
-      throw new UnknownVoidhashError();
-    }
-
-    const nativeProducts = nativeProductsResult.value;
-
-    this.logger.debug('Products fetched from native adapter', {
-      products: nativeProducts
-    });
-
-    // Store products in cache
-    await this.cacheManager.set(cacheKey, nativeProducts, {
-      ttl: 1000 * 60 * 60 * 24 // 24 hours
-    });
-
-    return nativeProducts;
-  }
-
-  private mapNativeProductsToProductMap(
-    productDefinitions: ExtractSchemaProductDefinitions<TSchema>,
-    nativeProducts: Product[]
-  ) {
-    const productMap: InferGetProductResponseFromSchema<TSchema> =
-      {} as InferGetProductResponseFromSchema<TSchema>;
-
-    for (const productDefinitionKey of Object.keys(productDefinitions)) {
-      const productDefinition =
-        productDefinitions[
-          productDefinitionKey as ExtractSchemaProductKeys<TSchema>
-        ];
-      const nativeProduct = nativeProducts.find(
-        (nativeProduct) => nativeProduct.slug === productDefinition.slug
-      );
-
-      if (nativeProduct) {
-        productMap[productDefinitionKey as ExtractSchemaProductKeys<TSchema>] =
-          nativeProduct as InferGetProductResponseFromSchema<TSchema>[ExtractSchemaProductKeys<TSchema>];
-      }
-    }
-
-    return productMap;
   }
 
   // ===============================
@@ -408,16 +336,6 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    * Resets the cache.
    */
   async resetCache() {
-    this.logger.debug('Resetting cache');
-    const appUserId = await this.identityManager.getAppUserId();
-    await Promise.all([
-      this.cacheManager.clear(),
-      this.cacheManager.delete(
-        this.generateCacheKeyFromProductDefinitions(
-          extractProductDefinitions(this.schema)
-        )
-      ),
-      this.customerInfoManager.resetCache(appUserId)
-    ]);
+    // TODO: Implement
   }
 }

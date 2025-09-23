@@ -1,15 +1,14 @@
+import {
+  authenticateWithSession,
+  PaymentProviderService,
+  ProjectNotFoundError,
+  ProjectService
+} from '@voidhash/core/services';
 import { Effect, Either } from 'effect';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { NotFoundError } from '@/lib/effect/errors';
-import {
-  encodeNextjsErrorResponse,
-  HandleCommonErrors,
-  ServerComponent
-} from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import { PaymentProviderService } from '@/lib/services/payment-provider.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 import { PaymentProviderDetailConfiguration } from './payment-provider-detail-configuration';
 
 export const _PaymentProviderDetailPage = Effect.fn(
@@ -27,7 +26,7 @@ export const _PaymentProviderDetailPage = Effect.fn(
     params;
 
   const data = yield* Effect.either(
-    authenticateWithSession(
+    authenticateWithSession(yield* headers)(
       Effect.gen(function* () {
         const projectService = yield* ProjectService;
         const paymentProviderService = yield* PaymentProviderService;
@@ -38,7 +37,7 @@ export const _PaymentProviderDetailPage = Effect.fn(
           });
         if (!project) {
           return yield* Effect.fail(
-            new NotFoundError({
+            new ProjectNotFoundError({
               message: 'Project not found'
             })
           );
@@ -49,12 +48,18 @@ export const _PaymentProviderDetailPage = Effect.fn(
           );
         return { project, paymentProviderConfiguration };
       })
-    ).pipe(HandleCommonErrors)
+    )
   );
 
   if (Either.isLeft(data)) {
-    const error = data.left;
-    return <VoidhashErrorCard error={encodeNextjsErrorResponse(error)} />;
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the payment provider configuration'
+        }}
+      />
+    );
   }
 
   const { project, paymentProviderConfiguration } = data.right;

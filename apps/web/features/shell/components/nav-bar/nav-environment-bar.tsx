@@ -1,15 +1,16 @@
+import {
+  authenticateWithSession,
+  Environment,
+  ProjectNotFoundError,
+  ProjectService,
+  withEnvironmentFromCookie
+} from '@voidhash/core/services';
 import { Environment as EnvironmentEnum } from '@voidhash/lib/index';
 import { cn } from '@voidhash/ui';
 import { Effect, Either } from 'effect';
 import { Suspense } from 'react';
-import { NotFoundError } from '@/lib/effect/errors';
-import { ServerComponent } from '@/lib/effect/runtimes/nextjs';
-import { authenticateWithSession } from '@/lib/services/auth.service';
-import {
-  Environment,
-  withEnvironmentFromCookie
-} from '@/lib/services/environment.service';
-import { ProjectService } from '@/lib/services/project.service';
+import { headers } from '@/lib/effect/headers';
+import { ServerComponent } from '@/lib/nextjs-runtime';
 
 export const _EnviromentBarContent = Effect.fn('EnviromentBarContent')(
   function* ({
@@ -24,7 +25,7 @@ export const _EnviromentBarContent = Effect.fn('EnviromentBarContent')(
     }
 
     const data = yield* Effect.either(
-      authenticateWithSession(
+      authenticateWithSession(yield* headers)(
         withEnvironmentFromCookie({ organizationSlug, projectSlug })(
           Effect.gen(function* () {
             return yield* Effect.gen(function* () {
@@ -37,7 +38,7 @@ export const _EnviromentBarContent = Effect.fn('EnviromentBarContent')(
                 });
               if (!project) {
                 return yield* Effect.fail(
-                  new NotFoundError({
+                  new ProjectNotFoundError({
                     message: 'Project not found'
                   })
                 );

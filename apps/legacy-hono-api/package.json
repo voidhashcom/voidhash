@@ -1,0 +1,26 @@
+{
+  "name": "@voidhash/api-legacy",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format . --write",
+    "test": "vitest run -c vitest.unit.mts",
+    "test:integration": "vitest run -c vitest.integration.mts --bail=1"
+  },
+  "dependencies": {
+    "@hono/standard-validator": "^0.1.5",
+    "@voidhash/core": "workspace:*",
+    "@voidhash/lib": "workspace:*",
+    "hono": "^4.9.7",
+    "hono-openapi": "^0.4.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "@voidhash/tsconfig": "workspace:*",
+    "srvx": "^0.8.7",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,8 +1,8 @@
 import { CustomerOrigin } from '@voidhash/db';
+import { ANONYMOUS_USER_ID_PREFIX } from '@voidhash/lib';
 import { Environment } from '@voidhash/lib/constants';
 import { ID_BLACKLIST } from '@voidhash/lib/constants/id-blacklist';
 import { Schema } from 'effect';
-import { ANONYMOUS_USER_ID_PREFIX } from '../core/sdk/constants';
 
 // Api Keys
 export const createSecretKeyInputSchema = Schema.Struct({
