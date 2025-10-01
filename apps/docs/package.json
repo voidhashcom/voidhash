@@ -1,5 +1,5 @@
 {
-  "name": "docs",
+  "name": "@voidhash/docs",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -10,6 +10,7 @@
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
+    "@vercel/microfrontends": "^2.0.0",
     "@voidhash/ui": "workspace:*",
     "fumadocs-core": "15.4.1",
     "fumadocs-mdx": "11.6.6",
