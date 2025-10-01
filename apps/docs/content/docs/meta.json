@@ -2,8 +2,7 @@
     "title": "guide",
     "root": true,
     "pages": [
-        "index",
-        "---Introduction---",
+        "introduction",
         "installation",
         "basic-usage",
         "concepts"
