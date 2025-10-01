@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@voidhash/auth": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
     "@voidhash/shared": "workspace:*"
