@@ -5,6 +5,10 @@
   "version": "0.0.1-alpha.1",
   "packageManager": "pnpm@10.7.1",
   "license": "AGPL-3.0",
+  "resolutions": {
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
   "scripts": {
     "build": "turbo build",
     "dev": "turbo  dev",
