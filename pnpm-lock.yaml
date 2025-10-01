@@ -694,6 +694,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@voidhash/auth':
+        specifier: workspace:*
+        version: link:../auth
       '@voidhash/db':
         specifier: workspace:*
         version: link:../db
