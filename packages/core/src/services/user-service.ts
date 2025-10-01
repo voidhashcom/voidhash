@@ -1,7 +1,7 @@
 import { BetterAuth } from '@voidhash/auth/effect';
+import { UnauthenticatedError } from '@voidhash/shared/errors';
 import { Effect } from 'effect';
 import { AuthSession } from './auth-service';
-import { UnauthenticatedError } from './errors';
 
 export class UserService extends Effect.Service<UserService>()('UserService', {
   dependencies: [],

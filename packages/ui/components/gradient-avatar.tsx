@@ -173,7 +173,7 @@ class ColorHash {
     const s1Hsl = this.hsl(str);
     const s2Hsl = [(s1Hsl[0] + 87) % 360, s1Hsl[1], s1Hsl[2]];
     const rgb1 = HSL2RGB.apply(this, s1Hsl);
-    const rgb2 = HSL2RGB.apply(this, s2Hsl);
+    const rgb2 = HSL2RGB.apply(this, s2Hsl as [number, number, number]);
     const hex1 = RGB2HEX(rgb1);
     const hex2 = RGB2HEX(rgb2);
     return [hex1, hex2];

@@ -2,25 +2,27 @@ import { BetterAuth } from '@voidhash/auth/effect';
 import { apiKeys, projects, type User } from '@voidhash/db';
 import { Db } from '@voidhash/db/effect';
 import type { EnvironmentValue } from '@voidhash/lib/constants';
-import { eq, inArray } from 'drizzle-orm';
-import { Context, Effect, Option } from 'effect';
-import { hashKey } from '../utils/api-keys/effect/utils';
 import {
   InvalidPublishableKeyError,
   InvalidSecretKeyError,
   MissingProjectIdError,
   UnauthenticatedError
-} from './errors';
+} from '@voidhash/shared/errors';
+import { eq, inArray } from 'drizzle-orm';
+import { Context, Effect, Option } from 'effect';
+import { hashKey } from '../utils/api-keys/effect/utils';
 
 type VoidhashBaseSession = {
   readonly organizations: {
     readonly id: string;
+    readonly name: string;
     readonly slug: string;
     readonly permissions: string[];
   }[];
   readonly projects: {
     readonly id: string;
     readonly slug: string;
+    readonly name: string;
     readonly organizationId: string;
     readonly permissions: string[];
   }[];
@@ -189,12 +191,14 @@ const getUserAuthSession = (headers: Headers) =>
       organizations: usersOrganizations.map((o) => ({
         id: o.id,
         slug: o.slug,
+        name: o.name,
         permissions: ['organization:all'] // TODO: Add permissions
       })),
       environment: null,
       projects: usersProjects.map((p) => ({
         id: p.id,
         slug: p.slug,
+        name: p.name,
         organizationId: p.organizationId,
         permissions: ['project:all'] // TODO: Add permissions
       }))
@@ -234,6 +238,7 @@ const getSecretApiKeyAuthSession = (secretKey: string) =>
       projects: projects.map((p) => ({
         id: p.id,
         slug: p.slug,
+        name: p.name,
         organizationId: p.organizationId,
         permissions: ['project:all'] // TODO: Add permissions
       }))
@@ -276,6 +281,7 @@ export const getPublishableApiKeyAuthSession = (
       projects: projects.map((p) => ({
         id: p.id,
         slug: p.slug,
+        name: p.name,
         organizationId: p.organizationId,
         permissions: []
       }))

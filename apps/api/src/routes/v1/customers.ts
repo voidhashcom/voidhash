@@ -40,11 +40,7 @@ export const CustomersGroupLive = HttpApiBuilder.group(
         }).pipe(
           Effect.catchTags({
             HttpBodyError: () =>
-              Effect.fail(new HttpApiError.InternalServerError()),
-            CustomerNotFoundError: () =>
-              Effect.fail(new HttpApiError.NotFound()),
-            ActionForbiddenError: () =>
-              Effect.fail(new HttpApiError.Forbidden())
+              Effect.fail(new HttpApiError.InternalServerError())
           }),
           Effect.catchTags(HandleCommonErrors),
           Effect.catchTags(HandleSecretKeyAuthErrors)

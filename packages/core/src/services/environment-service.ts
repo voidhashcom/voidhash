@@ -2,12 +2,6 @@ import {
   Environment as EnvironmentEnum,
   type EnvironmentValue
 } from '@voidhash/lib/constants';
-import { Context, Effect } from 'effect';
-import { Cookies } from '../../../../apps/web/lib/effect/cookies';
-import { OrganizationRepository } from '../repositories/organization-repository';
-import { ProjectRepository } from '../repositories/project-repository';
-import { checkProjectPermission } from '../utils/permissions';
-import { AuthSession } from './auth-service';
 import {
   EnvironmentCookieNotFoundError,
   InvalidEnvironmentError,
@@ -17,7 +11,13 @@ import {
   OrganizationWithoutSlugError,
   ProjectNotFoundError,
   ProjectNotFoundInSessionError
-} from './errors';
+} from '@voidhash/shared/errors';
+import { Context, Effect } from 'effect';
+import { Cookies } from '../../../../apps/web/lib/effect/cookies';
+import { OrganizationRepository } from '../repositories/organization-repository';
+import { ProjectRepository } from '../repositories/project-repository';
+import { checkProjectPermission } from '../utils/permissions';
+import { AuthSession } from './auth-service';
 
 type EnvironmentRetrievalOptions =
   | {

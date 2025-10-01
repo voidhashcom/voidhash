@@ -30,7 +30,22 @@ export const GetSessionHeaders = Schema.Union(
 
 export const Session = Schema.Struct({
   method: SessionAuthMethods,
-  name: Schema.String
+  name: Schema.String,
+  organizations: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      slug: Schema.String,
+      name: Schema.String
+    })
+  ),
+  projects: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      slug: Schema.String,
+      name: Schema.String,
+      organizationId: Schema.String
+    })
+  )
 });
 
 // ========================================================
@@ -84,4 +99,33 @@ export const SdkIdentifyBody = Schema.Struct({
 export const SdkSyncCustomerAttributesBody = Schema.Struct({
   name: Schema.optional(Schema.String),
   email: Schema.optional(Schema.String)
+});
+
+// ========================================================
+// Projects
+// ========================================================
+
+export const CreateProjectBody = Schema.Struct({
+  name: Schema.String,
+  organizationId: Schema.String
+});
+
+export const Project = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  slug: Schema.String
+});
+
+// ========================================================
+// Organizations
+// ========================================================
+
+export const CreateOrganizationBody = Schema.Struct({
+  name: Schema.String
+});
+
+export const Organization = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  slug: Schema.String
 });

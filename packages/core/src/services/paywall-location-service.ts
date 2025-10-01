@@ -1,15 +1,15 @@
 import { generateId } from '@voidhash/lib';
+import {
+  DefaultPaywallNotFoundError,
+  PaywallLocationNotFound,
+  SlugAlreadyExistsError
+} from '@voidhash/shared/errors';
 import { Effect } from 'effect';
 import { PaywallLocationRepository } from '../repositories/paywall-location-repository';
 import { PaywallRepository } from '../repositories/paywall-repository';
 import { checkProjectPermission } from '../utils/permissions';
 import { AuthSession } from './auth-service';
 import { Environment } from './environment-service';
-import {
-  DefaultPaywallNotFoundError,
-  PaywallLocationNotFound,
-  SlugAlreadyExistsError
-} from './errors';
 
 export class PaywallLocationService extends Effect.Service<PaywallLocationService>()(
   'PaywallLocationService',

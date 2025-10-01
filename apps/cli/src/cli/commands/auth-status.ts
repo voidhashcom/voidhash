@@ -1,6 +1,6 @@
 import { Command } from '@effect/cli';
 import { Console, Effect } from 'effect';
-import { getSignedInSession } from '../utils/login/get-signed-in-user';
+import { getSignedInSession } from '../../utils/login/get-signed-in-user';
 
 export const authStatusCommand = Command.make('status', {}, () =>
   Effect.gen(function* () {

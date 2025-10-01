@@ -126,7 +126,7 @@ export const login = Effect.scoped(
     // Store in config
     yield* writeToConfig({ apiKey: callbackEvent.key });
 
-    yield* Effect.log(
+    yield* Console.log(
       `Authentication successful! Your key has been stored in your config file.  To view it, type 'cat ~/${CONFIG_FILE_NAME}'.\n);`
     );
   })

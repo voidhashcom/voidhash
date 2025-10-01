@@ -6,11 +6,13 @@ import { Db } from '@voidhash/db/effect';
 import { Layer } from 'effect';
 import { AuthGroupLive } from './routes/v1/auth';
 import { CustomersGroupLive } from './routes/v1/customers';
+import { OrganizationsGroupLive } from './routes/v1/organizations';
 import { SdkGroupLive } from './routes/v1/sdk';
 
 const VoidhashApiLive = HttpApiBuilder.api(VoidhashApi).pipe(
   Layer.provide(Layer.mergeAll(AuthGroupLive)),
   Layer.provide(Layer.mergeAll(CustomersGroupLive)),
+  Layer.provide(Layer.mergeAll(OrganizationsGroupLive)),
   Layer.provide(Layer.mergeAll(SdkGroupLive)),
   Layer.provide(
     Layer.mergeAll(

@@ -1,5 +1,11 @@
 import { Db, TransactionContext } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
+import {
+  PaymentProviderConfigurationNotFound,
+  PaymentProviderNotFoundError,
+  ProductNotFound,
+  ProviderProductNotFound
+} from '@voidhash/shared/errors';
 import { Effect, Schema } from 'effect';
 import { appStore, paymentProviders, stripe } from '../payment-providers';
 import { PaymentProviderConfigurationProductRepository } from '../repositories/payment-provider-configuration-product-repository';
@@ -7,13 +13,6 @@ import { PaymentProviderConfigurationRepository } from '../repositories/payment-
 import { ProductRepository } from '../repositories/product-repository';
 import { checkProjectPermission } from '../utils/permissions';
 import { AuthSession } from './auth-service';
-
-import {
-  PaymentProviderConfigurationNotFound,
-  PaymentProviderNotFoundError,
-  ProductNotFound,
-  ProviderProductNotFound
-} from './errors';
 
 export class PaymentProviderProductService extends Effect.Service<PaymentProviderProductService>()(
   'PaymentProviderProductService',

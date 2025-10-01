@@ -7,7 +7,8 @@ import { VoidhashApi } from '@voidhash/api-spec';
 import {
   AuthSession,
   authenticateWithApiKey,
-  authenticateWithSecretKey
+  authenticateWithSecretKey,
+  UnauthenticatedError
 } from '@voidhash/core/services';
 import { Effect } from 'effect';
 import { getApiKeyFromRequest, getSecretKeyFromRequest } from '@/utils/auth';
@@ -22,10 +23,20 @@ export const AuthGroupLive = HttpApiBuilder.group(
           const authSession = yield* AuthSession;
           const method =
             authSession.method === 'user' ? 'api-key' : authSession.method;
-
           return yield* HttpServerResponse.json({
             method,
-            name: authSession.name
+            name: authSession.name,
+            organizations: authSession.organizations.map((o) => ({
+              id: o.id,
+              slug: o.slug,
+              name: o.name
+            })),
+            projects: authSession.projects.map((p) => ({
+              id: p.id,
+              slug: p.slug,
+              name: p.name,
+              organizationId: p.organizationId
+            }))
           });
         });
 
@@ -38,11 +49,7 @@ export const AuthGroupLive = HttpApiBuilder.group(
           ).pipe(
             Effect.catchTags({
               DatabaseError: () =>
-                Effect.fail(new HttpApiError.InternalServerError()),
-              HttpBodyError: () =>
-                Effect.fail(new HttpApiError.InternalServerError()),
-              InvalidSecretKeyError: () =>
-                Effect.fail(new HttpApiError.Unauthorized())
+                Effect.fail(new HttpApiError.InternalServerError())
             })
           );
         }
@@ -58,16 +65,16 @@ export const AuthGroupLive = HttpApiBuilder.group(
               BetterAuthError: () =>
                 Effect.fail(new HttpApiError.InternalServerError()),
               DatabaseError: () =>
-                Effect.fail(new HttpApiError.InternalServerError()),
-              HttpBodyError: () =>
-                Effect.fail(new HttpApiError.InternalServerError()),
-              UnauthenticatedError: () =>
-                Effect.fail(new HttpApiError.Unauthorized())
+                Effect.fail(new HttpApiError.InternalServerError())
             })
           );
         }
 
-        return yield* Effect.fail(new HttpApiError.Unauthorized());
+        return yield* Effect.fail(
+          new UnauthenticatedError({
+            message: 'Secret key or API key is required'
+          })
+        );
       })
     )
 );

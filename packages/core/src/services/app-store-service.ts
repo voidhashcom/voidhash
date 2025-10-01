@@ -4,6 +4,11 @@ import {
   type EnvironmentValue,
   parseISO4217CurrencyCode
 } from '@voidhash/lib/constants';
+import {
+  AppStoreNotEnabledForThisBundleIdError,
+  AppStoreTransactionValidationFailed,
+  PaymentProviderConfigurationProductNotFoundError
+} from '@voidhash/shared/errors';
 import { Effect, Schema } from 'effect';
 import { appStore } from '../payment-providers';
 import { PaymentProviderConfigurationProductRepository } from '../repositories/payment-provider-configuration-product-repository';
@@ -11,12 +16,6 @@ import { PaymentProviderConfigurationRepository } from '../repositories/payment-
 import { AppStoreServerAPIService } from './app-store-server-api-service';
 import { AuthSession } from './auth-service';
 import { Environment } from './environment-service';
-import {
-  AppStoreNotEnabledForThisBundleIdError,
-  AppStoreServerAPIError,
-  AppStoreTransactionValidationFailed,
-  PaymentProviderConfigurationProductNotFoundError
-} from './errors';
 
 export class AppStoreService extends Effect.Service<AppStoreService>()(
   'AppStoreService',
@@ -82,16 +81,7 @@ export class AppStoreService extends Effect.Service<AppStoreService>()(
                 Effect.catchTags({
                   // TODO: Handle other errors - mostly to notify the user about incorrect configuration
                 }),
-                Effect.catchAll((error) =>
-                  Effect.gen(function* () {
-                    return yield* Effect.fail(
-                      new AppStoreServerAPIError({
-                        message: 'Failed to validate transaction',
-                        cause: error
-                      })
-                    );
-                  })
-                )
+                Effect.orDie
               );
 
             const decodedTransaction = yield* appStoreServerAPISdk

@@ -43,6 +43,7 @@
     "@babel/core": "^7.20.0",
     "@types/react": "19.0.14",
     "@typescript-eslint/parser": "^8.33.0",
+    "voidhash-cli": "workspace:*",
     "eslint": "^9.25.1",
     "eslint-config-expo": "9.2.0",
     "tailwindcss": "^3.4.0",
