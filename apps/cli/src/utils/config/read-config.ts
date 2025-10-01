@@ -1,6 +1,5 @@
 import os from 'node:os';
-import path from 'node:path';
-import { FileSystem } from '@effect/platform';
+import { FileSystem, Path } from '@effect/platform';
 import { Data, Effect, Schema } from 'effect';
 import { CONFIG_FILE_NAME } from '../../constants';
 import { ConfigSchema } from './schema';
@@ -20,6 +19,7 @@ export class ConfigFileNotFoundError extends Data.TaggedError(
 export const readConfig = () =>
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
     const homeDir = os.homedir();
     const filePath = path.join(homeDir, CONFIG_FILE_NAME);
     if (!fileSystem.exists(filePath)) {

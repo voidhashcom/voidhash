@@ -5,10 +5,26 @@ import {
   HttpApiGroup,
   HttpApiSchema
 } from '@effect/platform';
-import { Schema } from 'effect';
 import {
+  ActionForbiddenError,
+  CustomerConflictError,
+  CustomerNotFoundError,
+  FailedToCreateOrganizationError,
+  InvalidAnonymousIdError,
+  InvalidSecretKeyError,
+  MissingProjectIdError,
+  UnauthenticatedError,
+  UserSessionNotFoundError
+} from '@voidhash/shared/errors';
+import { Schema } from 'effect';
+import { InternalError } from './errors';
+import {
+  CreateOrganizationBody,
+  CreateProjectBody,
   Customer,
   GetSessionHeaders,
+  Organization,
+  Project,
   SdkHeaders,
   SdkIdentifyBody,
   SdkSyncCustomerAttributesBody,
@@ -25,7 +41,9 @@ export const VoidhashApi = HttpApi.make('VoidhashApi')
           .addSuccess(Session)
           .setHeaders(GetSessionHeaders)
           .addError(HttpApiError.InternalServerError)
-          .addError(HttpApiError.Unauthorized)
+          .addError(HttpApiError.HttpApiDecodeError)
+          .addError(InvalidSecretKeyError, { status: 401 })
+          .addError(UnauthenticatedError, { status: 401 })
       )
       .prefix('/v1/auth')
   )
@@ -36,8 +54,8 @@ export const VoidhashApi = HttpApi.make('VoidhashApi')
           .addSuccess(Customer)
           .addError(HttpApiError.Unauthorized)
           .addError(HttpApiError.InternalServerError)
-          .addError(HttpApiError.Forbidden)
-          .addError(HttpApiError.NotFound)
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(CustomerNotFoundError, { status: 404 })
       )
       .prefix('/v1/customers')
   )
@@ -49,9 +67,9 @@ export const VoidhashApi = HttpApi.make('VoidhashApi')
           .setHeaders(SdkHeaders)
           .addError(HttpApiError.Unauthorized)
           .addError(HttpApiError.BadRequest)
-          .addError(HttpApiError.Forbidden)
           .addError(HttpApiError.InternalServerError)
-          .addError(HttpApiError.NotFound)
+          .addError(MissingProjectIdError, { status: 403 })
+          .addError(CustomerNotFoundError, { status: 404 })
       )
       .add(
         HttpApiEndpoint.post('identify')`/identify`
@@ -60,9 +78,9 @@ export const VoidhashApi = HttpApi.make('VoidhashApi')
           .setHeaders(SdkHeaders)
           .addError(HttpApiError.Unauthorized)
           .addError(HttpApiError.BadRequest)
-          .addError(HttpApiError.Forbidden)
           .addError(HttpApiError.InternalServerError)
-          .addError(HttpApiError.Conflict)
+          .addError(MissingProjectIdError, { status: 403 })
+          .addError(CustomerConflictError, { status: 409 })
       )
       .add(
         HttpApiEndpoint.post(
@@ -71,11 +89,42 @@ export const VoidhashApi = HttpApi.make('VoidhashApi')
           .setPayload(SdkSyncCustomerAttributesBody)
           .addSuccess(Customer)
           .setHeaders(SdkHeaders)
+          .addError(MissingProjectIdError, { status: 403 })
+          .addError(InvalidAnonymousIdError, { status: 400 })
           .addError(HttpApiError.Unauthorized)
           .addError(HttpApiError.BadRequest)
-          .addError(HttpApiError.Forbidden)
           .addError(HttpApiError.InternalServerError)
       )
       .prefix('/v1/sdk')
+  )
+  .add(
+    HttpApiGroup.make('v1_organizations')
+      .add(
+        HttpApiEndpoint.post('createOrganization')`/create`
+          .setPayload(CreateOrganizationBody)
+          .addSuccess(Organization)
+          .setHeaders(GetSessionHeaders)
+          .addError(HttpApiError.Unauthorized)
+          .addError(HttpApiError.BadRequest)
+          .addError(HttpApiError.InternalServerError)
+          .addError(UnauthenticatedError, { status: 401 })
+          .addError(FailedToCreateOrganizationError, { status: 500 })
+          .addError(UserSessionNotFoundError, { status: 401 })
+      )
+      .prefix('/v1/organizations')
+  )
+  .add(
+    HttpApiGroup.make('v1_projects').add(
+      HttpApiEndpoint.post('createProject')`/create`
+        .setPayload(CreateProjectBody)
+        .addSuccess(Project)
+        .setHeaders(GetSessionHeaders)
+        .addError(HttpApiError.Unauthorized)
+        .addError(HttpApiError.BadRequest)
+        .addError(InternalError, { status: 500 })
+        .addError(UnauthenticatedError, { status: 401 })
+        .addError(ActionForbiddenError, { status: 403 })
+        .prefix('/v1/projects')
+    )
   )
   .prefix('/api');
