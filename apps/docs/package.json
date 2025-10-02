@@ -12,12 +12,12 @@
   "dependencies": {
     "@vercel/microfrontends": "^2.0.0",
     "@voidhash/ui": "workspace:*",
-    "fumadocs-core": "15.4.1",
-    "fumadocs-mdx": "11.6.6",
-    "fumadocs-ui": "15.4.1",
-    "lucide-react": "^0.542.0",
+    "fumadocs-core": "15.8.2",
+    "fumadocs-mdx": "12.0.1",
+    "fumadocs-ui": "15.8.2",
+    "lucide-react": "^0.544.0",
     "lucide-static": "^0.544.0",
-    "next": "15.3.5",
+    "next": "15.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

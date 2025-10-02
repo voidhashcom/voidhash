@@ -6,6 +6,12 @@ const withMDX = createMDX();
 const config = {
   basePath: "/docs",
   reactStrictMode: true,
+  serverExternalPackages: [
+    "ts-morph",
+    "typescript",
+    "oxc-transform",
+    "@shikijs/twoslash",
+  ],
 };
 
 export default withMDX(config);

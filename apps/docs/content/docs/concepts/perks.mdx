@@ -1,4 +1,274 @@
 ---
 title: Perks
-description: Perks
+description: Understanding perks and how they control access to features
 ---
+
+Perks are the features, content, or capabilities that users gain access to when they purchase a product. They're the building blocks of your app's access control system.
+
+## What is a Perk?
+
+A perk represents a specific feature or piece of content that can be unlocked through purchases. Think of perks as permissions or entitlements that control what users can access in your app.
+
+Examples of perks:
+
+- Access to premium features
+- Ad-free experience
+- Unlimited usage
+- Priority support
+- Exclusive content
+- Advanced tools
+
+## Creating Perks
+
+Perks are defined in your schema configuration using the `unlockablePerk` helper:
+
+```ts
+import { schemaConfiguration, unlockablePerk } from "@voidhash/react-native";
+
+export const sc = schemaConfiguration({
+  providers: {
+    googlePlay: true,
+    appleAppStore: true,
+  },
+  perks: {
+    allAccess: unlockablePerk("all-access", {
+      name: "All Access",
+    }),
+    premiumFeatures: unlockablePerk("premium-features", {
+      name: "Premium Features",
+    }),
+    adFree: unlockablePerk("ad-free", {
+      name: "Ad-Free Experience",
+    }),
+  },
+});
+```
+
+## Perk Configuration
+
+### Key (Identifier)
+
+The key is how you reference the perk in your code. It should be camelCase and descriptive. In most cases, it is similar to the slug, just in a .js/.ts friendly way.
+
+```ts
+schemaConfiguration({
+  providers: { /* ... */ },
+  perks: {
+    allAccess: unlockablePerk(...),      // Good
+    premiumFeatures: unlockablePerk(...), // Good
+  },
+});
+```
+
+### Slug
+
+The slug is a unique identifier for your perk across Voidhash. It should be lowercase with hyphens or underscores. Do not use spaces or special characters.
+
+```ts
+unlockablePerk("all-access", { ... });      // Good
+unlockablePerk("premium-features", { ... }); // Good
+unlockablePerk("AllAccess", { ... });        // Bad: Use lowercase
+```
+
+### Name
+
+The name is a human-readable display name. It could be shown to users in your app but is primarily used for admin purposes.
+
+```ts
+unlockablePerk("all-access", {
+  name: "All Access",
+});
+```
+
+## Assigning Perks to Products
+
+Perks are unlocked by products. When a user purchases a product, all the perks assigned to that product are automatically activated:
+
+```ts
+export const monthlySub = sc.subscription("monthly_sub", {
+  name: "Monthly Premium",
+  perks: {
+    allAccess: true, // This perk will be unlocked
+    premiumFeatures: true, // This perk will be unlocked
+    // adFree not listed, so it stays locked
+  },
+  providers: {
+    // ... providers configuration
+  },
+});
+```
+
+## Checking Perk Access
+
+TODO: Add documentation about checking perk access.
+
+## Perk Lifecycle
+
+### Activation
+
+Perks are automatically activated when:
+
+- A user purchases a product that includes the perk
+- An active subscription that grants the perk is in good standing
+
+### Deactivation
+
+Perks are automatically deactivated when:
+
+- A subscription expires
+- A subscription payment fails and grace period ends
+
+### Expiration
+
+For subscription-based perks:
+
+- Perks remain active as long as the subscription is active
+- When a subscription expires, associated perks are automatically deactivated
+- Voidhash handles this synchronization automatically
+
+## Perk Strategies
+
+### Feature-Based Perks
+
+Group features into logical perks:
+
+```ts
+export const sc = schemaConfiguration({
+  providers: {
+    /* ... */
+  },
+  perks: {
+    basicEditor: unlockablePerk("basic-editor", {
+      name: "Basic Editor",
+    }),
+    advancedEditor: unlockablePerk("advanced-editor", {
+      name: "Advanced Editor",
+    }),
+    exportFeatures: unlockablePerk("export-features", {
+      name: "Export Features",
+    }),
+  },
+});
+```
+
+### Tier-Based Perks
+
+Create perks for different subscription tiers:
+
+```ts
+export const sc = schemaConfiguration({
+  providers: {
+    /* ... */
+  },
+  perks: {
+    basicTier: unlockablePerk("basic-tier", {
+      name: "Basic Tier",
+    }),
+    proTier: unlockablePerk("pro-tier", {
+      name: "Pro Tier",
+    }),
+    enterpriseTier: unlockablePerk("enterprise-tier", {
+      name: "Enterprise Tier",
+    }),
+  },
+});
+
+// Products
+export const basic = sc.subscription("basic", {
+  name: "Basic",
+  perks: {
+    basicTier: true,
+  },
+  providers: {
+    /* ... */
+  },
+});
+
+export const pro = sc.subscription("pro", {
+  name: "Pro",
+  perks: {
+    basicTier: true,
+    proTier: true, // Pro gets both basic and pro perks
+  },
+  providers: {
+    /* ... */
+  },
+});
+```
+
+### Content-Based Perks
+
+Control access to specific content categories:
+
+```ts
+export const sc = schemaConfiguration({
+  providers: {
+    /* ... */
+  },
+  perks: {
+    freeContent: unlockablePerk("free-content", {
+      name: "Free Content",
+    }),
+    premiumContent: unlockablePerk("premium-content", {
+      name: "Premium Content",
+    }),
+    exclusiveContent: unlockablePerk("exclusive-content", {
+      name: "Exclusive Content",
+    }),
+  },
+});
+```
+
+## Best Practices
+
+### Hierarchical Access
+
+Design your perks so higher tiers include lower tier perks:
+
+```ts
+// Free tier gets nothing
+export const freeTier = sc.subscription("free", {
+  name: "Free",
+  perks: {}, // No perks
+  providers: {
+    /* ... */
+  },
+});
+
+// Basic tier gets basic features
+export const basicTier = sc.subscription("basic", {
+  name: "Basic",
+  perks: {
+    adFree: true,
+  },
+  providers: {
+    /* ... */
+  },
+});
+
+// Pro tier gets basic + pro features
+export const proTier = sc.subscription("pro", {
+  name: "Pro",
+  perks: {
+    adFree: true,
+    premiumFeatures: true,
+  },
+  providers: {
+    /* ... */
+  },
+});
+
+// Premium tier gets everything
+export const premiumTier = sc.subscription("premium", {
+  name: "Premium",
+  perks: {
+    adFree: true,
+    premiumFeatures: true,
+    exclusiveContent: true,
+    prioritySupport: true,
+  },
+  providers: {
+    /* ... */
+  },
+});
+```
