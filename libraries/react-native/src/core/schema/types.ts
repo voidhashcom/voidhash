@@ -103,6 +103,18 @@ export type AnyProductDefinition = ProductDefinition<
   any
 >;
 
+/**
+ * Type representing any schema configuration object.
+ * Schema configurations contain providers and perks definitions,
+ * along with methods to create product definitions.
+ */
+export type AnySchemaConfiguration = {
+  providers: AnyDefinedProviders;
+  perks: AnyDefinedPerks;
+  // biome-ignore lint/suspicious/noExplicitAny: needed for flexibility
+  subscription: (...args: any[]) => AnyProductDefinition;
+};
+
 export type ProductDefinitionConfiguration<
   TDefinedProviders extends DefinedProviders,
   TDefinedPerks extends DefinedPerks
@@ -158,18 +170,34 @@ export type InferGetProductResponseFromSchema<TSchema extends VoidhashSchema> =
 // Schema
 // ===============================
 
+/**
+ * A Voidhash schema can contain:
+ * - Product definitions (subscriptions, one-time purchases, etc.)
+ * - Schema configuration objects (which contain providers and perks)
+ */
 export type VoidhashSchema = Record<
   string,
-  AnyProductDefinition | AnyDefinedPerks | AnyDefinedProviders
+  AnyProductDefinition | AnySchemaConfiguration
 >;
 
 export type ExtractSchemaKeys<TSchema extends VoidhashSchema> = keyof TSchema;
+
 export type ExtractSchemaProductKeys<TSchema extends VoidhashSchema> = {
   [K in keyof TSchema]: TSchema[K] extends AnyProductDefinition ? K : never;
 }[keyof TSchema];
 
 export type ExtractSchemaProductDefinitions<TSchema extends VoidhashSchema> = {
   [K in ExtractSchemaProductKeys<TSchema>]: TSchema[K] extends AnyProductDefinition
+    ? TSchema[K]
+    : never;
+};
+
+export type ExtractSchemaConfigurationKeys<TSchema extends VoidhashSchema> = {
+  [K in keyof TSchema]: TSchema[K] extends AnySchemaConfiguration ? K : never;
+}[keyof TSchema];
+
+export type ExtractSchemaConfigurations<TSchema extends VoidhashSchema> = {
+  [K in ExtractSchemaConfigurationKeys<TSchema>]: TSchema[K] extends AnySchemaConfiguration
     ? TSchema[K]
     : never;
 };
