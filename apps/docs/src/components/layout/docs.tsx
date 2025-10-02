@@ -41,7 +41,7 @@ export function DocsLayout({ tree, children }: DocsLayoutProps) {
           <DocsSidebar />
 
           <SidebarInset className="top-[var(--header-height)] transition-all duration-75">
-            {children}
+            <div className="flex w-full">{children}</div>
           </SidebarInset>
         </div>
       </TreeContextProvider>

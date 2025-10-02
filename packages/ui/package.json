@@ -60,6 +60,7 @@
     "./tooltip": "./components/ui/tooltip.tsx",
     "./copy-text": "./components/copy-text.tsx",
     "./error-card": "./components/error-card.tsx",
+    "./theme-toggle": "./components/theme-toggle.tsx",
     "./shell": "./components/shell/index.tsx"
   },
   "scripts": {},
