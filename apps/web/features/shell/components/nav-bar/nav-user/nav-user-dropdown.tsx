@@ -9,11 +9,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   GradientAvatar,
-  ToggleGroup,
-  ToggleGroupItem
+  ThemeToggle
 } from '@voidhash/ui';
 import type { User } from 'better-auth';
-import { LogOut, Monitor, Moon, Sun } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 
@@ -70,34 +69,7 @@ export function NavUserDropdown({ user }: { user: User }) {
       <div className="flex w-full items-center justify-between gap-2 p-2">
         <span className="text-muted-foreground text-sm ">Theme</span>
         <div>
-          <ToggleGroup
-            className="divide-x overflow-hidden rounded-full border border-border"
-            onValueChange={(value) => setTheme(value)}
-            type="single"
-            value={theme}
-          >
-            <ToggleGroupItem
-              aria-label="Toggle system"
-              className="h-6 p-0 px-2"
-              value="system"
-            >
-              <Monitor className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              aria-label="Toggle light"
-              className="h-6 p-0 px-2"
-              value="light"
-            >
-              <Sun className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              aria-label="Toggle strikethrough"
-              className="h-6 p-0 px-2"
-              value="dark"
-            >
-              <Moon className="h-4 w-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
+          <ThemeToggle setTheme={setTheme} theme={theme ?? 'system'} />
         </div>
       </div>
       <DropdownMenuSeparator />

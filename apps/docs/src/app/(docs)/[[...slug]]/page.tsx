@@ -5,15 +5,15 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
+import { notFound, redirect } from 'next/navigation';
+import { source } from '@/lib/source';
+import { getMDXComponents } from '@/mdx-components';
 import {
   DocsBody,
   DocsDescription,
   DocsPage,
   DocsTitle
-} from 'fumadocs-ui/page';
-import { notFound, redirect } from 'next/navigation';
-import { source } from '@/lib/source';
-import { getMDXComponents } from '@/mdx-components';
+} from '../../../components/layout/page';
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
@@ -31,7 +31,7 @@ export default async function Page(props: {
   const MDXContent = page.data.body;
 
   return (
-    <DocsPage full={page.data.full} toc={page.data.toc}>
+    <DocsPage toc={page.data.toc}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>

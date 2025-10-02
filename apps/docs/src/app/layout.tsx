@@ -1,15 +1,15 @@
 import './global.css';
 import { RootProvider } from 'fumadocs-ui/provider/next';
-import { Inter } from 'next/font/google';
+import { Geist } from 'next/font/google';
 import type { ReactNode } from 'react';
 
-const inter = Inter({
+const geist = Geist({
   subsets: ['latin']
 });
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html className={inter.className} lang="en" suppressHydrationWarning>
+    <html className={geist.className} lang="en" suppressHydrationWarning>
       <body className="flex min-h-screen flex-col">
         <RootProvider>{children}</RootProvider>
       </body>
