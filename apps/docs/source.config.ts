@@ -19,5 +19,11 @@ export const docs = defineDocs({
 export default defineConfig({
   mdxOptions: {
     // MDX options
+    valueToExport: ['elementIds', 'toc'],
+    remarkNpmOptions: {
+      persist: {
+        id: 'package-manager'
+      }
+    }
   }
 });

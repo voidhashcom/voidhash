@@ -1,4 +1,204 @@
 ---
 title: Products
-description: Products
+description: Understanding products and how they work in Voidhash
 ---
+
+Products represent the purchasable items in your app that customers can buy through app stores. They define what's available for sale and how it connects to your payment providers and perks.
+
+## What is a Product?
+
+A product in Voidhash is a purchasable item that:
+
+- Has a **unique identifier** (slug) that you define in your schema
+- Has a **name** that's displayed to users
+- Is configured for **payment providers** (Apple App Store, Google Play, or both)
+- **Unlocks specific perks** when purchased
+- Contains **pricing and billing information** from the app stores
+
+## Product Types
+
+### Subscription Products
+
+Currently, Voidhash supports subscription products, which provide recurring access to features or content.
+
+```ts
+import { schemaConfiguration, unlockablePerk } from "@voidhash/react-native";
+
+export const sc = schemaConfiguration({
+  providers: {
+    googlePlay: true,
+    appleAppStore: true,
+  },
+  perks: {
+    allAccess: unlockablePerk("all-access", {
+      name: "All Access",
+    }),
+  },
+});
+
+export const monthlySub = sc.subscription("monthly-sub", {
+  name: "Monthly",
+  perks: {
+    allAccess: true,
+  },
+  providers: {
+    googlePlay: {
+      productId: "com.yourapp.monthly",
+    },
+    appleAppStore: {
+      productId: "monthly_subscription",
+    },
+  },
+});
+```
+
+## Product Configuration
+
+### Slug
+
+The slug is a unique identifier for your product across Voidhash.:
+
+```ts
+sc.subscription("monthly-sub", { ... });
+sc.subscription("yearly-premium", { ... });
+sc.subscription("lifetime-access", { ... });
+```
+
+### Name
+
+The name is a human-readable display name, that could be shown to users.
+
+```ts
+sc.subscription("monthly-sub", {
+  name: "Monthly Premium",
+  // ...
+});
+```
+
+### Payment Provider Configuration
+
+Each product must be configured for the payment providers you want to support. The configuration links your Voidhash product to the actual in-app purchases in the app stores.
+
+#### Apple App Store
+
+For Apple App Store, you need to provide the product identifier that matches your App Store Connect configuration:
+
+```ts
+sc.subscription("monthly-sub", {
+  name: "Monthly",
+  perks: {
+    /* ... */
+  },
+  providers: {
+    appleAppStore: {
+      productId: "monthly-subscription",
+    },
+  },
+});
+```
+
+#### Google Play
+
+For Google Play, provide the product ID and optionally a base plan ID for subscriptions:
+
+```ts
+sc.subscription("monthly-sub", {
+  name: "Monthly",
+  perks: {
+    /* ... */
+  },
+  providers: {
+    googlePlay: {
+      productId: "com.yourapp.monthly",
+      basePlanId: "com.yourapp.monthly.base", // Optional
+    },
+  },
+});
+```
+
+<Callout type="info" title="Base Plan ID">
+  The `basePlanId` is only needed for Google Play subscriptions that use base
+  plans. This is a Google Play feature that allows you to offer different
+  billing periods and pricing for the same product.
+</Callout>
+
+### Perk Configuration
+
+Products define which perks they unlock when purchased. You configure this by specifying which perks should be activated:
+
+```ts
+sc.subscription("premium-sub", {
+  name: "Premium",
+  perks: {
+    allAccess: true,
+    premiumFeatures: true,
+    adFree: true,
+  },
+  providers: {
+    /* ... */
+  },
+});
+```
+
+Only list the perks you want to unlock. Perks not listed will remain locked.
+
+## Product Properties
+
+When you fetch products using `useProducts()`, each product loads additional information from the app stores and contains the following properties:
+
+```ts
+{
+  id: string; // Internal Voidhash ID
+  slug: string; // Your schema slug
+  name: string; // Display name
+  description: string; // Description from app store
+  displayName: string; // Formatted display name
+  displayPrice: string; // Formatted price (e.g., "$9.99")
+  price: number; // Raw price value
+  currency: string; // Currency code (e.g., "USD")
+  type: string; // Product type
+  platform: "ios" | "android"; // Current platform
+  interval: string; // For subscriptions: "month", "year", etc.
+}
+```
+
+### Using Product Properties
+
+Here's how to display product information in your UI:
+
+```tsx
+import type { SubscriptionProduct } from "@voidhash/react-native";
+
+function ProductCard({ product }: { product: SubscriptionProduct }) {
+  return (
+    <View>
+      <Text>{product.name}</Text>
+      <Text>{product.displayPrice}</Text>
+      <Text>Billed {product.interval}</Text>
+      <Text>{product.description}</Text>
+    </View>
+  );
+}
+```
+
+## Development vs Production
+
+During development, you can disable payment providers to use a development paywall for testing without actual purchases:
+
+```ts
+export const sc = schemaConfiguration({
+  providers: {
+    // Leave empty to use a development paywall
+  },
+  perks: {
+    /* ... */
+  },
+});
+```
+
+When you're ready to publish:
+
+1. Enable the payment providers in your schema
+2. Configure the product IDs in App Store Connect and Google Play Console
+3. Push the schema to Voidhash
+4. Test the purchase flow with sandbox accounts

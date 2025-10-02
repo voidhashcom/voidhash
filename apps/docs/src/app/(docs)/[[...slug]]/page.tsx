@@ -1,3 +1,9 @@
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { File, Files, Folder } from 'fumadocs-ui/components/files';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { TypeTable } from 'fumadocs-ui/components/type-table';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import {
   DocsBody,
@@ -32,7 +38,34 @@ export default async function Page(props: {
         <MDXContent
           components={getMDXComponents({
             // this allows you to link to other pages with relative file paths
-            a: createRelativeLink(source, page)
+            a: createRelativeLink(source, page),
+
+            Step,
+            Steps,
+            File,
+            Folder,
+            Files,
+            Tab,
+            Tabs,
+            TypeTable,
+            Accordion,
+            Accordions,
+            Callout: ({
+              children,
+              type,
+              ...props
+            }: {
+              children: React.ReactNode;
+              type?: 'info' | 'warn' | 'error' | 'success' | 'warning';
+              [key: string]: any;
+            }) => (
+              <Callout type={type} {...props}>
+                {children}
+              </Callout>
+            ),
+            iframe: (props) => (
+              <iframe {...props} className="h-[500px] w-full" />
+            )
           })}
         />
       </DocsBody>
