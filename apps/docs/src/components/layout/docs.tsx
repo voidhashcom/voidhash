@@ -41,7 +41,7 @@ export function DocsLayout({ tree, children }: DocsLayoutProps) {
         <div className="flex flex-1">
           <DocsSidebar />
 
-          <SidebarInset className="top-[var(--header-height)] transition-all duration-75">
+          <SidebarInset className="top-[var(--header-height)] flex-1 transition-all duration-75">
             <div className="flex w-full">{children}</div>
           </SidebarInset>
         </div>
@@ -137,15 +137,12 @@ function DocsSidebar() {
   }, [root, pathname]);
 
   return (
-    <>
-      <Sidebar className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] fixed min-w-64 border-r bg-background transition-all duration-75">
-        <SidebarContent className="gap-0">
-          <NavMain groups={groups} link={NextLink} />
-          <DocsThemeToggle className="mt-2 ml-5 block md:hidden" />
-        </SidebarContent>
-      </Sidebar>
-      <div className="block w-64 md:hidden" />
-    </>
+    <Sidebar className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] fixed min-w-64 border-r bg-background transition-all duration-75">
+      <SidebarContent className="gap-0">
+        <NavMain groups={groups} link={NextLink} />
+        <DocsThemeToggle className="mt-2 ml-5 block md:hidden" />
+      </SidebarContent>
+    </Sidebar>
   );
 }
 
