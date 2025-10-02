@@ -1,10 +1,10 @@
 'use client';
-import { Button, CommandShortcut, cn, Logo, ThemeToggle } from '@voidhash/ui';
+import { Button, CommandShortcut, cn, Logo, useSidebar } from '@voidhash/ui';
 import { useSearchContext } from 'fumadocs-ui/contexts/search';
-import { SearchIcon } from 'lucide-react';
+import { MenuIcon, SearchIcon } from 'lucide-react';
 import Link from 'next/link';
-import { useTheme } from 'next-themes';
 import type { ComponentProps } from 'react';
+import { DocsThemeToggle } from './theme-toggle';
 
 function SearchToggle(props: ComponentProps<'button'>) {
   const { enabled, setOpenSearch } = useSearchContext();
@@ -15,24 +15,26 @@ function SearchToggle(props: ComponentProps<'button'>) {
   return (
     <button
       {...props}
-      className={cn('flex items-center gap-2 text-sm ', props.className)}
+      className={cn(
+        'flex items-center gap-2 bg-transparent text-sm md:bg-muted ',
+        props.className
+      )}
       onClick={() => setOpenSearch(true)}
     >
       <SearchIcon className="size-4 cursor-pointer text-muted-foreground " />
-      <span className="mr-4 flex-1 text-left text-muted-foreground">
+      <span className="mr-4 hidden flex-1 text-left text-muted-foreground md:block">
         Search documentation...
       </span>
-      <CommandShortcut>⌘K</CommandShortcut>
+      <CommandShortcut className="hidden md:block">⌘K</CommandShortcut>
     </button>
   );
 }
 
 export function NavBar() {
-  const { theme = 'system', setTheme } = useTheme();
   return (
     <div className="fixed z-10 flex h-[var(--header-height)] w-full flex-row items-center justify-between border-border border-b bg-background transition-all duration-75">
       <div className="flex flex-1 items-center justify-between px-4 py-2">
-        <div className="flex flex-1 items-center gap-7">
+        <div className="mr-7 flex items-center">
           <Link
             className="flex items-center gap-3"
             href={'https://voidhash.com'}
@@ -42,13 +44,30 @@ export function NavBar() {
               Docs
             </span>
           </Link>
-          <SearchToggle className="ml-8 cursor-pointer rounded-lg bg-muted p-2 px-3 hover:bg-accent" />
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle setTheme={setTheme} theme={theme} />
-          <Button variant="outline">Dashboard</Button>
+        <div className="flex items-center gap-2 md:flex-1">
+          <div className="md:flex-1">
+            <SearchToggle className="ml-8 cursor-pointer rounded-lg bg-muted p-2 px-3 hover:bg-accent" />
+          </div>
+          <DocsThemeToggle />
+          <SidebarToggle />
+          <Link className="hidden md:block" href="https://app.voidhash.com">
+            <Button variant="outline">Dashboard</Button>
+          </Link>
         </div>
       </div>
     </div>
+  );
+}
+
+function SidebarToggle() {
+  const { openMobile, setOpenMobile } = useSidebar();
+  const handleToggle = () => {
+    setOpenMobile(!openMobile);
+  };
+  return (
+    <Button className={cn('md:hidden')} onClick={handleToggle} variant="ghost">
+      <MenuIcon className="size-4" />
+    </Button>
   );
 }

@@ -3,7 +3,7 @@
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
 
-@source "../../../packages/ui";
+@source "../../../../packages/ui";
 @source "../../src";
 
 @custom-variant dark (&:is(.dark *));

@@ -22,6 +22,7 @@ import { CirclePlay } from 'lucide-static';
 import NextLink from 'next/link';
 import { type ReactElement, type ReactNode, useMemo } from 'react';
 import { NavBar } from '../nav-bar';
+import { DocsThemeToggle } from '../theme-toggle';
 
 export interface DocsLayoutProps {
   tree: PageTree.Root;
@@ -137,16 +138,13 @@ function DocsSidebar() {
 
   return (
     <>
-      <Sidebar
-        className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] fixed left-0 w-64 border-r transition-all duration-75"
-        collapsible={'none'}
-        variant="inset"
-      >
+      <Sidebar className="!top-[var(--header-height)] !h-[calc(100svh-var(--header-height))] fixed min-w-64 border-r bg-background transition-all duration-75">
         <SidebarContent className="gap-0">
           <NavMain groups={groups} link={NextLink} />
+          <DocsThemeToggle className="mt-2 ml-5 block md:hidden" />
         </SidebarContent>
       </Sidebar>
-      <div className="w-64" />
+      <div className="block w-64 md:hidden" />
     </>
   );
 }
@@ -198,7 +196,7 @@ export function NavMain({
           <SidebarGroup className="p-0">
             <SidebarGroupLabel
               asChild
-              className="group/label -mt-px rounded-none border-border border-y px-6 py-3 text-sidebar-foreground text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="group/label -mt-px rounded-none border-border border-y px-6 py-5 text-sidebar-foreground text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
               <CollapsibleTrigger className="cursor-pointer">
                 <div
