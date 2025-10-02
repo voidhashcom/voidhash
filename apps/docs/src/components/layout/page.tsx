@@ -135,7 +135,7 @@ function Footer() {
       {previous ? (
         <Link className="flex-1" href={previous.url}>
           <Card className="rounded-none hover:bg-card">
-            <CardContent className="py-4">
+            <CardContent>
               <CardDescription className="mt-1 flex items-center">
                 <ChevronLeftIcon className="-ml-1 mr-1 size-4" />{' '}
                 <span>Previous Page</span>
@@ -150,7 +150,7 @@ function Footer() {
       {next ? (
         <Link className="flex-1" href={next.url}>
           <Card className="rounded-none hover:bg-card">
-            <CardContent className="flex w-full flex-col items-end py-4">
+            <CardContent className="flex w-full flex-col items-end">
               <CardDescription className="mt-1 flex items-center">
                 <span>Next Page</span>
                 <ChevronRightIcon className="-mr-1 ml-1 size-4" />{' '}

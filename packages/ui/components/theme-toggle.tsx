@@ -4,14 +4,19 @@ import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 
 export function ThemeToggle({
   theme,
-  setTheme
+  setTheme,
+  className
 }: {
   theme: string;
   setTheme: (theme: string) => void;
+  className?: string;
 }) {
   return (
     <ToggleGroup
-      className="divide-x overflow-hidden rounded-full border border-border"
+      className={cn(
+        'divide-x overflow-hidden rounded-full border border-border',
+        className
+      )}
       onValueChange={(value) => setTheme(value)}
       type="single"
       value={theme}
