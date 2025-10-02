@@ -1,5 +1,8 @@
-export * from './definitions';
+export * from './builder';
 export * from './perk';
 export * from './products/base';
-export * from './products/subscription';
+export {
+  type SubscriptionDefinitionProperties,
+  SubscriptionProductDefinition
+} from './products/subscription';
 export * from './types';
