@@ -9,7 +9,7 @@ export function DocsThemeToggle({ className }: { className?: string }) {
     <ThemeToggle
       className={cn('hidden md:block', className)}
       setTheme={setTheme}
-      theme={theme}
+      theme={theme ?? 'system'}
     />
   );
 }
