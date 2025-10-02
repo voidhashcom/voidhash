@@ -39,7 +39,6 @@ export default async function Page(props: {
           components={getMDXComponents({
             // this allows you to link to other pages with relative file paths
             a: createRelativeLink(source, page),
-
             Step,
             Steps,
             File,
@@ -57,6 +56,7 @@ export default async function Page(props: {
             }: {
               children: React.ReactNode;
               type?: 'info' | 'warn' | 'error' | 'success' | 'warning';
+              // biome-ignore lint/suspicious/noExplicitAny: Okay for now. Maybe we can fix this later but those are just props.
               [key: string]: any;
             }) => (
               <Callout type={type} {...props}>
