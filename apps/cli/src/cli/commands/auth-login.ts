@@ -1,14 +1,21 @@
 import { Command, Prompt } from '@effect/cli';
 import { Console, Effect } from 'effect';
-import { getSignedInSession } from '../../utils/login/get-signed-in-user';
-import { login } from '../../utils/login/login';
-import { logout } from '../../utils/login/logout';
+import { Auth } from '../../domain/services/auth';
 
 export const loginCommand = Command.make('login', {}, () =>
   Effect.gen(function* () {
-    const user = yield* getSignedInSession.pipe(
+    const auth = yield* Auth;
+    const user = yield* auth.getSignedInSession.pipe(
       Effect.catchTags({
-        NoSignedInUserError: () => Effect.succeed(null)
+        NoSignedInUserError: () => Effect.succeed(null),
+        FailedToGetSessionError: () =>
+          Effect.succeed(null).pipe(
+            Effect.tap(() =>
+              Console.log(
+                'Failed to get currect user session. Acting as if the user is not logged in.'
+              )
+            )
+          )
       })
     );
 
@@ -21,9 +28,27 @@ export const loginCommand = Command.make('login', {}, () =>
       if (!shouldContinue) {
         return yield* Console.log('Login cancelled.');
       }
-      return yield* logout;
+      return yield* auth.logout.pipe(
+        Effect.catchTags({
+          FailedToLogoutError: () =>
+            Effect.succeed(null).pipe(
+              Effect.tap(() => Console.log('Failed to logout.'))
+            )
+        })
+      );
     }
 
-    return yield* login;
+    return yield* auth.login.pipe(
+      Effect.catchTags({
+        LoginCancelledError: () =>
+          Effect.succeed(undefined).pipe(
+            Effect.tap(() => Console.log('Login cancelled.'))
+          ),
+        FailedToLoginError: () =>
+          Effect.succeed(undefined).pipe(
+            Effect.tap(() => Console.log('Failed to login. Please try again.'))
+          )
+      })
+    );
   })
 ).pipe(Command.withDescription('Login to the Voidhash CLI.'));

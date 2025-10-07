@@ -12,7 +12,6 @@ import type {
   GetPendingTransactionsError,
   GetPurchaseHistoryError,
   NativeAdapterNotInitializedError,
-  ProductNotFoundError,
   PurchasePendingError,
   UserCancelledError
 } from '../payment-adapters/errors';

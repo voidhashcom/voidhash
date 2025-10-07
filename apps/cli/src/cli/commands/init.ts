@@ -1,16 +1,28 @@
 import { Command, HelpDoc, Prompt, ValidationError } from '@effect/cli';
 import { Console, Effect } from 'effect';
-import { getSignedInSession } from '../../utils/login/get-signed-in-user';
-import { login } from '../../utils/login/login';
+import { Auth } from '../../domain/services/auth';
+import { SourceCode } from '../../domain/services/source-code';
 import { selectOrganization } from '../../utils/organizations/select-organization';
 import { selectProject } from '../../utils/projects/select-project';
-import { loadVoidhashConfig } from '../../utils/source-code/voidhash-config';
+import { Path } from '@effect/platform';
+import { assertFileCanBeCreated } from '../../utils/fs';
+import { Codegen } from '../../domain/services/codegen';
 
 export const initCommand = Command.make('init', {}, () =>
   Effect.gen(function* () {
-    const voidhashConfig = yield* loadVoidhashConfig().pipe(
-      Effect.catchTag('VoidhashConfigNotFoundError', () => Effect.succeed(null))
-    );
+    const auth = yield* Auth;
+    const sourceCode = yield* SourceCode;
+    const codegen = yield* Codegen;
+    const path = yield* Path.Path;
+
+
+    const voidhashConfig = yield* sourceCode
+      .loadVoidhashConfig()
+      .pipe(
+        Effect.catchTag('VoidhashConfigNotFoundError', () =>
+          Effect.succeed(null)
+        )
+      );
 
     if (voidhashConfig) {
       return yield* Effect.fail(
@@ -23,7 +35,7 @@ export const initCommand = Command.make('init', {}, () =>
     }
 
     // Sign in
-    const session = yield* getSignedInSession
+    const session = yield* auth.getSignedInSession
       .pipe(
         Effect.catchTag('NoSignedInUserError', () =>
           Effect.gen(function* () {
@@ -38,7 +50,9 @@ export const initCommand = Command.make('init', {}, () =>
                 ValidationError.invalidValue(HelpDoc.p('Login cancelled.'))
               );
             }
-            return yield* login.pipe(Effect.andThen(getSignedInSession));
+            return yield* auth.login.pipe(
+              Effect.andThen(auth.getSignedInSession)
+            );
           })
         )
       )
@@ -49,7 +63,13 @@ export const initCommand = Command.make('init', {}, () =>
               ValidationError.invalidValue(
                 HelpDoc.p('We were unable to sign you in. Please try it again.')
               )
-            )
+            ),
+          FailedToGetSessionError: (e) =>
+            Effect.fail(
+              ValidationError.invalidValue(
+                HelpDoc.p('Failed to get user session. Please try again.')
+              )
+            ).pipe(Effect.tapError(() => Effect.logDebug(e)))
           // TODO: handle other errors
         })
       );
@@ -58,11 +78,53 @@ export const initCommand = Command.make('init', {}, () =>
     const organization = yield* selectOrganization(session.organizations);
 
     // Select project
-    const project = yield* selectProject(organization.id, session.projects);
+    const project = yield* selectProject(organization.id, session.projects.filter((p) => p.organizationId === organization.id));
 
-    yield* Console.log(organization, project);
+    // Select folder path
+    
+    const srcFolderPath = yield* sourceCode.retrieveSrcDir();
+    const hasSrcDir = srcFolderPath.endsWith('src');
 
-    yield* Console.log(`Logged in as ${session?.name}`);
+    const voidhashFilesFolderPath = yield* Prompt.run(
+      Prompt.text({
+        message: 'Select the folder where you want to create the Voidhash schema and client',
+        default: hasSrcDir ? `./src/utils/voidhash` : `./utils/voidhash`,
+      })
+    );
+
+
+    // File names
+    const language = yield* sourceCode.detectSrcLanguage()
+    const schemaFileName = language === 'ts' ? 'schema.ts' : 'schema.js';
+    const clientFileName = language === 'ts' ? 'client.ts' : 'client.js';
+    const configFileName = language === 'ts' ? 'voidhash.config.ts' : 'voidhash.config.js';
+
+    // File paths
+    const schemaFilePath = path.resolve(voidhashFilesFolderPath, schemaFileName);
+    const clientFilePath = path.resolve(voidhashFilesFolderPath, clientFileName);
+    const configFilePath = path.resolve(configFileName);
+
+    yield* Console.log(schemaFilePath, clientFilePath, configFilePath);
+
+    // Assert files can be created
+    yield* assertFileCanBeCreated(schemaFileName, schemaFilePath);
+    yield* assertFileCanBeCreated(clientFileName, clientFilePath);
+    yield* assertFileCanBeCreated(configFileName, configFilePath);
+
+    // Generate files
+    // yield* codegen.generateSchemaFile(schemaFilePath);
+    // yield* codegen.generateClientFile(clientFilePath);
+    yield* codegen.generateVoidhashConfigFile(configFilePath, {
+      team: organization.slug,
+      project: project.slug,
+      schema: path.relative(path.resolve(), schemaFilePath)
+    });
+
+
+  
+    // Generate voidhash.config.ts, voidhash client and schema
+
+
 
     // const sourceCodeDetails = yield* retrieveSourceCodeDetails();
   })

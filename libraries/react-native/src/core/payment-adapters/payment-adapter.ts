@@ -1,3 +1,4 @@
+import type { ProductNotFoundError } from '@voidhash/shared/errors';
 import { Context, type Effect } from 'effect';
 import type { Product, SubscriptionProduct } from '../entities/product';
 import type { Transaction } from '../entities/transaction';
@@ -16,7 +17,6 @@ import type {
   GetPendingTransactionsError,
   GetPurchaseHistoryError,
   NativeAdapterNotInitializedError,
-  ProductNotFoundError,
   PurchasePendingError,
   UserCancelledError
 } from './errors';

@@ -2,7 +2,7 @@ import type { SubscriptionProduct } from '@voidhash/react-native/build/core/enti
 import { Button } from 'components/button';
 import { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { voidhash } from 'utils/voidhash/client';
+import { voidhash } from 'utils/voidhash/local.client';
 import { cn } from '../../utils/lib';
 
 export default function HomeScreen() {

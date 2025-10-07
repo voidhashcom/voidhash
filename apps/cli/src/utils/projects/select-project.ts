@@ -7,7 +7,10 @@ export const selectProject = (
   projects: ReadonlyArray<{ id: string; slug: string; name: string }>
 ) =>
   Effect.gen(function* () {
-    const project = yield* Prompt.run(
+    if (projects.length === 0) {
+      return yield* createProject({ organizationId });
+    }
+    const projectSlug = yield* Prompt.run(
       Prompt.select({
         message: 'Select a project',
         choices: [
@@ -19,8 +22,15 @@ export const selectProject = (
         ]
       })
     );
-    if (project === 'create-new-project') {
+    if (projectSlug === 'create-new-project') {
       return yield* createProject({ organizationId });
+    }
+
+    const project = projects.find((p) => p.slug === projectSlug);
+    if (!project) {
+      return yield* Effect.dieMessage(
+        'Project not found even though it was selected and should exist.'
+      );
     }
     return project;
   });

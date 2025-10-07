@@ -1,3 +1,4 @@
+import { HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 
 export const PublishableKeyAuthHeaders = Schema.Struct({
@@ -23,11 +24,6 @@ const SessionAuthMethods = Schema.Union(
   Schema.Literal('secret-key')
 );
 
-export const GetSessionHeaders = Schema.Union(
-  ApiKeyAuthHeaders,
-  SecretKeyAuthHeaders
-);
-
 export const Session = Schema.Struct({
   method: SessionAuthMethods,
   name: Schema.String,
@@ -49,15 +45,139 @@ export const Session = Schema.Struct({
 });
 
 // ========================================================
+// API Keys
+// ========================================================
+
+export class ApiKey extends Schema.Class<ApiKey>('ApiKey')({
+  id: Schema.String,
+  name: Schema.String,
+  end: Schema.String,
+  prefix: Schema.String,
+  isPublic: Schema.Boolean,
+  projectId: Schema.String
+}) {}
+
+export class ApiKeyWithRawKey extends Schema.Class<ApiKeyWithRawKey>(
+  'ApiKeyWithRawKey'
+)({
+  id: Schema.String,
+  name: Schema.String,
+  end: Schema.String,
+  prefix: Schema.String,
+  isPublic: Schema.Boolean,
+  projectId: Schema.String,
+  rawKey: Schema.String
+}) {}
+
+export class CreateSecretKeyBody extends Schema.Class<CreateSecretKeyBody>(
+  'CreateSecretKeyBody'
+)({
+  projectId: Schema.String,
+  name: Schema.String
+}) {}
+
+export const ApiKeyIdParam = HttpApiSchema.param('apiKeyId', Schema.String);
+
+// ========================================================
 // Customers
 // ========================================================
 
-export const Customer = Schema.Struct({
-  customerId: Schema.String,
+export class Customer extends Schema.Class<Customer>('Customer')({
+  id: Schema.String,
   name: Schema.NullOr(Schema.String),
   email: Schema.NullOr(Schema.String),
   appUserId: Schema.String
-});
+}) {}
+
+export class CreateCustomerBody extends Schema.Class<CreateCustomerBody>(
+  'CreateCustomerBody'
+)({
+  appUserId: Schema.String,
+  name: Schema.optional(Schema.String),
+  email: Schema.optional(Schema.String)
+}) {}
+
+export const CustomerIdParam = HttpApiSchema.param('customerId', Schema.String);
+
+export const AppUserIdParam = HttpApiSchema.param('appUserId', Schema.String);
+
+// ========================================================
+// Organizations
+// ========================================================
+
+export class CreateOrganizationBody extends Schema.Class<CreateOrganizationBody>(
+  'CreateOrganizationBody'
+)({
+  name: Schema.String
+}) {}
+
+export class Organization extends Schema.Class<Organization>('Organization')({
+  id: Schema.String,
+  name: Schema.String,
+  slug: Schema.String
+}) {}
+
+// ========================================================
+// Perks
+// ========================================================
+
+export class Perk extends Schema.Class<Perk>('Perk')({
+  id: Schema.String,
+  slug: Schema.String,
+  name: Schema.String,
+  projectId: Schema.String
+}) {}
+
+// ========================================================
+// Products
+// ========================================================
+
+export const ProductType = Schema.Literal(
+  'subscription',
+  'one-time',
+  'one-time-consumable'
+);
+
+export class Product extends Schema.Class<Product>('Product')({
+  id: Schema.String,
+  type: ProductType,
+  name: Schema.String,
+  projectId: Schema.String
+}) {}
+
+// ========================================================
+// Product Perks
+// ========================================================
+
+export const ProductIdParam = HttpApiSchema.param('productId', Schema.String);
+
+export class ProductPerk extends Schema.Class<ProductPerk>('ProductPerk')({
+  id: Schema.String,
+  productId: Schema.String,
+  perkId: Schema.String
+}) {}
+
+// ========================================================
+// Projects
+// ========================================================
+
+export class CreateProjectBody extends Schema.Class<CreateProjectBody>(
+  'CreateProjectBody'
+)({
+  name: Schema.String,
+  organizationId: Schema.String
+}) {}
+
+export class Project extends Schema.Class<Project>('Project')({
+  id: Schema.String,
+  name: Schema.String,
+  slug: Schema.String
+}) {}
+
+export const OrganizationIdParam = HttpApiSchema.param(
+  'organizationId',
+  Schema.String
+);
 
 // ========================================================
 // SDK
@@ -89,43 +209,56 @@ export const SdkHeaders = Schema.Struct({
 });
 
 // SDK Identify
-export const SdkIdentifyBody = Schema.Struct({
+export class SdkIdentifyBody extends Schema.Class<SdkIdentifyBody>(
+  'SdkIdentifyBody'
+)({
   appUserId: Schema.String,
   name: Schema.optional(Schema.String),
   email: Schema.optional(Schema.String)
-});
+}) {}
 
 // SDK Sync Customer Attributes
-export const SdkSyncCustomerAttributesBody = Schema.Struct({
+export class SdkSyncCustomerAttributesBody extends Schema.Class<SdkSyncCustomerAttributesBody>(
+  'SdkSyncCustomerAttributesBody'
+)({
   name: Schema.optional(Schema.String),
   email: Schema.optional(Schema.String)
-});
+}) {}
+
+export class SdkCustomer extends Schema.Class<SdkCustomer>('SdkCustomer')({
+  customerId: Schema.String,
+  name: Schema.NullOr(Schema.String),
+  email: Schema.NullOr(Schema.String),
+  appUserId: Schema.String
+}) {}
 
 // ========================================================
-// Projects
+// User
 // ========================================================
 
-export const CreateProjectBody = Schema.Struct({
+export class User extends Schema.Class<User>('User')({
   name: Schema.String,
-  organizationId: Schema.String
-});
-
-export const Project = Schema.Struct({
   id: Schema.String,
-  name: Schema.String,
-  slug: Schema.String
-});
-
-// ========================================================
-// Organizations
-// ========================================================
-
-export const CreateOrganizationBody = Schema.Struct({
-  name: Schema.String
-});
-
-export const Organization = Schema.Struct({
-  id: Schema.String,
-  name: Schema.String,
-  slug: Schema.String
-});
+  createdAt: Schema.Date,
+  updatedAt: Schema.Date,
+  email: Schema.String,
+  emailVerified: Schema.Boolean,
+  image: Schema.NullOr(Schema.String),
+  organizations: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      name: Schema.String,
+      slug: Schema.String,
+      logo: Schema.NullOr(Schema.String)
+    })
+  ),
+  projects: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      name: Schema.String,
+      logo: Schema.NullOr(Schema.String),
+      slug: Schema.String,
+      organizationId: Schema.String
+    })
+  )
+}) {}
