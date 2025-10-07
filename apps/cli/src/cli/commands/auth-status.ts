@@ -1,10 +1,11 @@
 import { Command } from '@effect/cli';
 import { Console, Effect } from 'effect';
-import { getSignedInSession } from '../../utils/login/get-signed-in-user';
+import { Auth } from '../../domain/services/auth';
 
 export const authStatusCommand = Command.make('status', {}, () =>
   Effect.gen(function* () {
-    const user = yield* getSignedInSession.pipe(
+    const auth = yield* Auth;
+    const user = yield* auth.getSignedInSession.pipe(
       Effect.catchTags({
         NoSignedInUserError: () => Effect.succeed(null)
       })

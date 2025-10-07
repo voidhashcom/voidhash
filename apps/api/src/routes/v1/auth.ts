@@ -1,80 +1,37 @@
-import {
-  HttpApiBuilder,
-  HttpApiError,
-  HttpServerResponse
-} from '@effect/platform';
-import { VoidhashApi } from '@voidhash/api-spec';
-import {
-  AuthSession,
-  authenticateWithApiKey,
-  authenticateWithSecretKey,
-  UnauthenticatedError
-} from '@voidhash/core/services';
+import { HttpApiBuilder } from '@effect/platform';
+import { VoidhashV1Api } from '@voidhash/api-spec';
+import { AuthSession } from '@voidhash/shared';
 import { Effect } from 'effect';
-import { getApiKeyFromRequest, getSecretKeyFromRequest } from '@/utils/auth';
 
 export const AuthGroupLive = HttpApiBuilder.group(
-  VoidhashApi,
-  'v1_auth',
+  VoidhashV1Api,
+  'auth',
   (handlers) =>
     handlers.handle('session', () =>
       Effect.gen(function* () {
-        const createAuthSessionResponse = Effect.gen(function* () {
-          const authSession = yield* AuthSession;
-          const method =
-            authSession.method === 'user' ? 'api-key' : authSession.method;
-          return yield* HttpServerResponse.json({
-            method,
-            name: authSession.name,
-            organizations: authSession.organizations.map((o) => ({
-              id: o.id,
-              slug: o.slug,
-              name: o.name
-            })),
-            projects: authSession.projects.map((p) => ({
-              id: p.id,
-              slug: p.slug,
-              name: p.name,
-              organizationId: p.organizationId
-            }))
-          });
-        });
-
-        const secretKey = yield* getSecretKeyFromRequest().pipe(
-          Effect.orElse(() => Effect.succeed(null))
-        );
-        if (secretKey) {
-          return yield* authenticateWithSecretKey(secretKey)(
-            createAuthSessionResponse
-          ).pipe(
-            Effect.catchTags({
-              DatabaseError: () =>
-                Effect.fail(new HttpApiError.InternalServerError())
-            })
-          );
-        }
-
-        const apiKey = yield* getApiKeyFromRequest().pipe(
-          Effect.orElse(() => Effect.succeed(null))
-        );
-        if (apiKey) {
-          return yield* authenticateWithApiKey(apiKey)(
-            createAuthSessionResponse
-          ).pipe(
-            Effect.catchTags({
-              BetterAuthError: () =>
-                Effect.fail(new HttpApiError.InternalServerError()),
-              DatabaseError: () =>
-                Effect.fail(new HttpApiError.InternalServerError())
-            })
-          );
-        }
-
-        return yield* Effect.fail(
-          new UnauthenticatedError({
-            message: 'Secret key or API key is required'
-          })
-        );
+        const authSession = yield* AuthSession;
+        const method =
+          authSession.method === 'user'
+            ? 'api-key'
+            : (authSession.method as
+                | 'api-key'
+                | 'publishable-key'
+                | 'secret-key');
+        return {
+          method,
+          name: authSession.name,
+          organizations: authSession.organizations.map((o) => ({
+            id: o.id,
+            slug: o.slug,
+            name: o.name
+          })),
+          projects: authSession.projects.map((p) => ({
+            id: p.id,
+            slug: p.slug,
+            name: p.name,
+            organizationId: p.organizationId
+          }))
+        };
       })
     )
 );

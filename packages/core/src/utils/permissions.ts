@@ -1,7 +1,6 @@
 import type { OrganizationPermission, ProjectPermission } from '@voidhash/lib';
+import { ActionForbiddenError, AuthSession } from '@voidhash/shared';
 import { Effect } from 'effect';
-import { ActionForbiddenError } from '../services';
-import { AuthSession } from '../services/auth-service';
 
 export const checkProjectPermission = (
   projectId: string,

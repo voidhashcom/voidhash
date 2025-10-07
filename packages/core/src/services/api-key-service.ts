@@ -1,24 +1,50 @@
+import {
+  apiKeys,
+  asc,
+  type ApiKey as DbApiKey,
+  desc,
+  eq,
+  type InsertApiKey
+} from '@voidhash/db';
+import { Db } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
-import { ApiKeyNotFoundError } from '@voidhash/shared/errors';
-import { Effect } from 'effect';
-import { ApiKeyRepository } from '../repositories/api-key-repository';
+import {
+  ApiKeyNotFoundError,
+  ApiKeyServiceError,
+  AuthSession
+} from '@voidhash/shared';
+import { Effect, pipe } from 'effect';
 import { createSecretKey as generateSecretKeyFn } from '../utils/api-keys/effect/utils';
 import { checkProjectPermission } from '../utils/permissions';
-import { AuthSession } from './auth-service';
-import { Environment } from './environment-service';
 
 export class ApiKeyService extends Effect.Service<ApiKeyService>()(
   'ApiKeyService',
   {
-    dependencies: [ApiKeyRepository.Default],
+    dependencies: [],
     effect: Effect.gen(function* () {
-      const apiKeyRepository = yield* ApiKeyRepository;
-      return {
-        createSecretKey: (input: { projectId: string; name: string }) =>
+      const dbService = yield* Db;
+
+      const _getApiKeyById = dbService.makeQuery((execute, id: string) =>
+        execute(
+          async (db) =>
+            await db.query.apiKeys.findFirst({
+              where: eq(apiKeys.id, id)
+            })
+        )
+      );
+
+      const _createApiKeyRecord = dbService.makeQuery(
+        (execute, apiKey: InsertApiKey) =>
+          execute(async (db) => {
+            await db.insert(apiKeys).values(apiKey);
+            return { id: apiKey.id };
+          })
+      );
+
+      const createSecretKey = (input: { projectId: string; name: string }) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const environment = yield* Environment;
-            const apiKeyRepository = yield* ApiKeyRepository;
 
             // SECURITY: Authorization check
             yield* checkProjectPermission(
@@ -27,21 +53,21 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
               `User ${session?.user?.id} is not authorized to create secret keys for project ${input.projectId}`
             );
 
-            const { rawKey, ...secretKey } =
-              yield* generateSecretKeyFn(environment);
+            const { rawKey, ...secretKey } = yield* generateSecretKeyFn();
+
             const apiKeyId = generateId('apiSecretKey');
-            yield* apiKeyRepository.createApiKey({
+            yield* _createApiKeyRecord({
               id: apiKeyId,
               projectId: input.projectId,
               name: input.name,
               ...secretKey
             });
 
-            const apiKey = yield* apiKeyRepository.getApiKeyById(apiKeyId);
+            const apiKey = yield* _getApiKeyById(apiKeyId);
             if (!apiKey) {
               return yield* Effect.fail(
-                new ApiKeyNotFoundError({
-                  message: 'API key not found'
+                new ApiKeyServiceError({
+                  cause: 'API key not found after creation.'
                 })
               );
             }
@@ -51,26 +77,46 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
               rawKey
             };
           }),
+          Effect.catchTags({
+            DatabaseError: (e) =>
+              new ApiKeyServiceError({ cause: String(e.cause) })
+          })
+        );
 
-        getApiKeys: (projectId: string) =>
+      const _getApiKeys = dbService.makeQuery((execute, projectId: string) =>
+        execute(
+          async (db) =>
+            await db.query.apiKeys.findMany({
+              where: eq(apiKeys.projectId, projectId),
+              orderBy: [desc(apiKeys.isPublic), asc(apiKeys.createdAt)]
+            })
+        )
+      );
+
+      const getApiKeys = (projectId: string) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const environment = yield* Environment;
             // SECURITY: Authorization check
             yield* checkProjectPermission(
               projectId,
               'project:all',
               `User ${session?.user?.id} is not authorized to access api keys for project ${projectId}`
             );
-            const apiKeys = yield* apiKeyRepository.getApiKeys(projectId);
-            return apiKeys.filter((key) => key.environment === environment);
+            return yield* _getApiKeys(projectId);
           }),
+          Effect.catchTags({
+            DatabaseError: (e) =>
+              new ApiKeyServiceError({ cause: String(e.cause) })
+          })
+        );
 
-        getApiKeyById: (id: string) =>
+      const getApiKeyById = (id: string) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
 
-            const apiKey = yield* apiKeyRepository.getApiKeyById(id);
+            const apiKey = yield* _getApiKeyById(id);
             if (!apiKey) {
               return yield* Effect.fail(
                 new ApiKeyNotFoundError({
@@ -88,41 +134,29 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
 
             return apiKey;
           }),
+          Effect.catchTags({
+            DatabaseError: (e) =>
+              new ApiKeyServiceError({ cause: String(e.cause) })
+          })
+        );
 
-        deleteSecretKey: (input: { secretKeyId: string }) =>
+      const _updateApiKeyRecord = dbService.makeQuery(
+        (execute, apiKey: Omit<Partial<DbApiKey>, 'id'> & { id: string }) =>
+          execute(async (db) => {
+            await db
+              .update(apiKeys)
+              .set(apiKey)
+              .where(eq(apiKeys.id, apiKey.id));
+            return { id: apiKey.id };
+          })
+      );
+
+      const rotateSecretKey = (input: { secretKeyId: string }) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const apiKeyRepository = yield* ApiKeyRepository;
 
-            const existingKey = yield* apiKeyRepository.getApiKeyById(
-              input.secretKeyId
-            );
-            if (!existingKey) {
-              return yield* Effect.fail(
-                new ApiKeyNotFoundError({
-                  message: 'Secret key not found'
-                })
-              );
-            }
-
-            // SECURITY: Authorization check
-            yield* checkProjectPermission(
-              existingKey.projectId,
-              'project:all',
-              `User ${session?.user?.id} is not authorized to delete secret key ${input.secretKeyId} for project ${existingKey.projectId}`
-            );
-
-            yield* apiKeyRepository.deleteApiKey(input.secretKeyId);
-          }),
-
-        rotateSecretKey: (input: { secretKeyId: string }) =>
-          Effect.gen(function* () {
-            const session = yield* AuthSession;
-            const apiKeyRepository = yield* ApiKeyRepository;
-
-            const existingKey = yield* apiKeyRepository.getApiKeyById(
-              input.secretKeyId
-            );
+            const existingKey = yield* _getApiKeyById(input.secretKeyId);
             if (!existingKey) {
               return yield* Effect.fail(
                 new ApiKeyNotFoundError({
@@ -138,10 +172,8 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
               `User ${session?.user?.id} is not authorized to rotate secret key ${input.secretKeyId} for project ${existingKey.projectId}`
             );
 
-            const { rawKey, ...newKey } = yield* generateSecretKeyFn(
-              existingKey.environment
-            );
-            yield* apiKeyRepository.updateApiKey({
+            const { rawKey, ...newKey } = yield* generateSecretKeyFn();
+            yield* _updateApiKeyRecord({
               id: input.secretKeyId,
               ...newKey,
               updatedAt: new Date(),
@@ -153,8 +185,56 @@ export class ApiKeyService extends Effect.Service<ApiKeyService>()(
               ...newKey,
               rawKey
             };
+          }),
+          Effect.catchTags({
+            DatabaseError: (e) =>
+              new ApiKeyServiceError({ cause: String(e.cause) })
           })
-      };
+        );
+
+      const _deleteApiKeyRecord = dbService.makeQuery((execute, id: string) =>
+        execute(async (db) => {
+          await db.delete(apiKeys).where(eq(apiKeys.id, id));
+          return { id };
+        })
+      );
+
+      const deleteSecretKey = (input: { secretKeyId: string }) =>
+        pipe(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
+
+            const existingKey = yield* _getApiKeyById(input.secretKeyId);
+            if (!existingKey) {
+              return yield* Effect.fail(
+                new ApiKeyNotFoundError({
+                  message: 'Secret key not found'
+                })
+              );
+            }
+
+            // SECURITY: Authorization check
+            yield* checkProjectPermission(
+              existingKey.projectId,
+              'project:all',
+              `User ${session?.user?.id} is not authorized to delete secret key ${input.secretKeyId} for project ${existingKey.projectId}`
+            );
+
+            yield* _deleteApiKeyRecord(input.secretKeyId);
+          }),
+          Effect.catchTags({
+            DatabaseError: (e) =>
+              new ApiKeyServiceError({ cause: String(e.cause) })
+          })
+        );
+
+      return {
+        createSecretKey,
+        getApiKeys,
+        getApiKeyById,
+        rotateSecretKey,
+        deleteSecretKey
+      } as const;
     })
   }
 ) {}

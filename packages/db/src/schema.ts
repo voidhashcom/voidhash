@@ -1,9 +1,4 @@
-import {
-  Environment,
-  ProductType,
-  PurchaseType,
-  SubscriptionStatus
-} from '@voidhash/lib';
+import { ProductType, PurchaseType, SubscriptionStatus } from '@voidhash/lib';
 import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
@@ -69,7 +64,6 @@ export const apiKeys = mysqlTable('api_key', {
   /**
    * The environment of the API key.
    */
-  environment: tinyint('environment').notNull().default(Environment.Production),
   projectId: varchar('project_id', { length: 255 }).notNull(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp('updated_at').onUpdateNow()
@@ -133,9 +127,6 @@ export const customers = mysqlTable(
      * From where the customer was created
      */
     origin: tinyint('origin').notNull().default(CustomerOrigin.Dashboard),
-    environment: tinyint('environment')
-      .notNull()
-      .default(Environment.Production),
     projectId: varchar('project_id', { length: 255 }).notNull(),
     parentCustomerId: varchar('parent_customer_id', { length: 255 }), // When Identified, we store the parent customer id
     archivedAt: timestamp('archived_at'),
@@ -145,8 +136,7 @@ export const customers = mysqlTable(
   (table) => [
     uniqueIndex('app_user_id_project_id_environment_idx').on(
       table.appUserId,
-      table.projectId,
-      table.environment
+      table.projectId
     ),
     index('parent_customer_id_idx').on(table.parentCustomerId)
   ]
@@ -265,19 +255,12 @@ export const perks = mysqlTable(
     id: varchar('id', { length: 255 }).primaryKey(),
     slug: varchar('slug', { length: 255 }).notNull(),
     name: varchar('name', { length: 255 }).notNull(),
-    environment: tinyint('environment')
-      .notNull()
-      .default(Environment.Production),
     projectId: varchar('project_id', { length: 255 }).notNull(),
     createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
     updatedAt: timestamp('updated_at').onUpdateNow()
   },
   (table) => [
-    uniqueIndex('slug_project_id_idx').on(
-      table.slug,
-      table.projectId,
-      table.environment
-    )
+    uniqueIndex('slug_project_id_idx').on(table.slug, table.projectId)
   ]
 );
 
@@ -289,7 +272,6 @@ export const products = mysqlTable('product', {
   id: varchar('id', { length: 255 }).primaryKey(),
   type: tinyint('type').notNull().default(ProductType.Subscription),
   name: varchar('name', { length: 255 }).notNull(),
-  environment: tinyint('environment').notNull().default(Environment.Production),
   projectId: varchar('project_id', { length: 255 }).notNull(),
   createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp('updated_at').onUpdateNow()
@@ -297,7 +279,6 @@ export const products = mysqlTable('product', {
 
 export const productRelations = relations(products, ({ many }) => ({
   perks: many(productPerks),
-  paywallProducts: many(paywallProducts),
   checkoutSessions: many(checkoutSessions),
   paymentProviderConfigurationProducts: many(
     paymentProviderConfigurationProducts
@@ -343,9 +324,6 @@ export const paymentProviderConfigurationProducts = mysqlTable(
       length: 255
     }).notNull(),
     productId: varchar('product_id', { length: 255 }).notNull(),
-    environment: tinyint('environment')
-      .notNull()
-      .default(Environment.Production),
     isActive: boolean('is_active').notNull().default(true),
     configuration: json('configuration').$type<object>(),
     createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
@@ -355,8 +333,7 @@ export const paymentProviderConfigurationProducts = mysqlTable(
     uniqueIndex('product_provider_configuration_ext_pk_idx').on(
       table.paymentProviderConfigurationId,
       table.providerProductKey,
-      table.productId,
-      table.environment
+      table.productId
     ),
     index('payment_provider_configuration_id_idx').on(
       table.paymentProviderConfigurationId
@@ -378,104 +355,6 @@ export const paymentProviderConfigurationProductRelations = relations(
       references: [paymentProviderConfigurations.id]
     }),
     subscriptions: many(subscriptions)
-  })
-);
-
-// Paywall
-export const paywalls = mysqlTable('paywall', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  environment: tinyint('environment').notNull().default(Environment.Production),
-  projectId: varchar('project_id', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: timestamp('updated_at').onUpdateNow()
-});
-
-export const paywallRelations = relations(paywalls, ({ many }) => ({
-  paywallProducts: many(paywallProducts)
-}));
-
-export const paywallProducts = mysqlTable(
-  'paywall_product',
-  {
-    id: varchar('id', { length: 255 }).primaryKey(),
-    displayName: varchar('display_name', { length: 255 })
-      .notNull()
-      .default('Unknown'),
-    paywallId: varchar('paywall_id', { length: 255 }).notNull(),
-    productId: varchar('product_id', { length: 255 }).notNull(),
-    enableNativePurchase: boolean('enable_native_purchase')
-      .notNull()
-      .default(true),
-    enableWebCheckout: boolean('enable_web_checkout').notNull().default(false),
-    webCheckoutPaymentProviderConfigurationProductId: varchar(
-      'web_checkout_payment_provider_product_configuration_id',
-      {
-        length: 255
-      }
-    ),
-    order: int('order').notNull().default(0),
-    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: timestamp('updated_at').onUpdateNow()
-  },
-  (table) => [
-    uniqueIndex('paywall_id_product_id_idx').on(
-      table.paywallId,
-      table.productId
-    ),
-    index('paywall_id_idx').on(table.paywallId),
-    index('product_id_idx').on(table.productId),
-    uniqueIndex('paywall_id_order_idx').on(table.paywallId, table.order)
-  ]
-);
-
-export const paywallProductRelations = relations(
-  paywallProducts,
-  ({ one }) => ({
-    product: one(products, {
-      fields: [paywallProducts.productId],
-      references: [products.id]
-    }),
-    paywall: one(paywalls, {
-      fields: [paywallProducts.paywallId],
-      references: [paywalls.id]
-    })
-  })
-);
-
-// Paywall Locations
-export const paywallLocations = mysqlTable(
-  'paywall_location',
-  {
-    id: varchar('id', { length: 255 }).primaryKey(),
-    slug: varchar('slug', { length: 255 }).notNull(),
-    name: varchar('name', { length: 255 }).notNull(),
-    defaultPaywallId: varchar('default_paywall_id', {
-      length: 255
-    }).notNull(),
-    environment: tinyint('environment')
-      .notNull()
-      .default(Environment.Production),
-    projectId: varchar('project_id', { length: 255 }).notNull(),
-    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: timestamp('updated_at').onUpdateNow()
-  },
-  (table) => [
-    uniqueIndex('slug_project_id_idx').on(
-      table.slug,
-      table.projectId,
-      table.environment
-    )
-  ]
-);
-
-export const paywallLocationRelations = relations(
-  paywallLocations,
-  ({ one }) => ({
-    defaultPaywall: one(paywalls, {
-      fields: [paywallLocations.defaultPaywallId],
-      references: [paywalls.id]
-    })
   })
 );
 
@@ -652,7 +531,6 @@ export const transactions = mysqlTable('transaction', {
       length: 255
     }
   ).notNull(),
-  environment: tinyint('environment').notNull().default(Environment.Production),
   providerEnvironment: tinyint('provider_environment')
     .notNull()
     .default(ProviderEnvironment.Production),

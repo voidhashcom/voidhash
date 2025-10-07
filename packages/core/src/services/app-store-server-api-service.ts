@@ -6,19 +6,19 @@ import {
   type TransactionInfoResponse,
   VerificationException
 } from '@apple/app-store-server-library';
-import {
-  AppStoreRateLimitExceededError,
-  AppStoreSignedTransactionInfoNotFoundError,
-  AppStoreTransactionNotFoundError,
-  AppStoreUnauthorizedError,
-  AppStoreVerificationException
-} from '@voidhash/shared/errors';
 import { Data, Effect } from 'effect';
 import {
   APPLE_ROOT_CA_G2,
   APPLE_ROOT_CA_G3,
   APPLE_ROOT_CERTIFICATE
 } from '../payment-providers/app-store/constants';
+import {
+  AppStoreRateLimitExceededError,
+  AppStoreSignedTransactionInfoNotFoundError,
+  AppStoreTransactionNotFoundError,
+  AppStoreUnauthorizedError,
+  AppStoreVerificationException
+} from '../utils/apple-app-store-api';
 
 export type TransactionInfoResult = {
   environment: 'production' | 'sandbox';

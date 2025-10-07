@@ -1,10 +1,8 @@
-import type { EnvironmentValue } from '@voidhash/lib';
 import type { Schema } from 'effect';
 
 export type ApiKey = {
   key: string;
   rawKey?: string;
-  environment: EnvironmentValue;
   isPublic: boolean;
   end: string;
   prefix: string;

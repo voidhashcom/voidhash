@@ -66,7 +66,6 @@
     "jest": "~29.7.0",
     "jest-expo": "~53.0.9",
     "jest-fixed-jsdom": "^0.0.9",
-    "msw": "^2.10.4",
     "nitro-codegen": "*",
     "react": "19.0.0",
     "react-native": "0.79.5",
@@ -75,8 +74,8 @@
     "ultracite": "5.0.39"
   },
   "peerDependencies": {
-    "@effect/platform": "^0.90.9",
-    "effect": "^3.17.13",
+    "@effect/platform": "catalog:",
+    "effect": "catalog:",
     "expo": "*",
     "expo-constants": "*",
     "expo-linking": "*",

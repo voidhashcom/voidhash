@@ -246,6 +246,7 @@ export abstract class Harness {
       organizations: [
         {
           id: this.resources.organization.id,
+          name: this.resources.organization.name,
           permissions: ['organization:all'],
           slug: this.resources.organization.slug ?? 'org-slug'
         }
@@ -253,6 +254,7 @@ export abstract class Harness {
       projects: [
         {
           id: this.resources.project.id,
+          name: this.resources.project.name,
           permissions: ['project:all'],
           organizationId: this.resources.organization.id,
           slug: this.resources.project.slug ?? 'project-slug'

@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Image, Pressable, Text, View } from 'react-native';
 import { fakeAuthService, users } from 'utils/fake-auth-service';
-import { voidhash } from 'utils/voidhash/client';
+import { voidhash } from 'utils/voidhash/local.client';
 
 export default function HomeScreen() {
   const router = useRouter();

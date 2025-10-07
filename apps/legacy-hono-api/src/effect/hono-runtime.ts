@@ -17,7 +17,6 @@ import {
   ApiKeyService,
   AuthService,
   CustomerService,
-  EnvironmentService,
   type InvalidEnvironmentError,
   type InvalidPublishableKeyError,
   type InvalidSecretKeyError,
@@ -139,7 +138,6 @@ const RuntimeLayer = (context: HonoContextType) => {
   const ServiceLayer = pipe(
     ApiKeyService.Default,
     Layer.provideMerge(CustomerService.Default),
-    Layer.provideMerge(EnvironmentService.Default),
     Layer.provideMerge(OrganizationService.Default),
     Layer.provideMerge(PaymentProviderService.Default),
     Layer.provideMerge(PaywallLocationService.Default),

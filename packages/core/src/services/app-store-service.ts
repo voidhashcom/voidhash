@@ -1,49 +1,83 @@
 import type { JWSTransactionDecodedPayload } from '@apple/app-store-server-library';
-import type { PaymentProviderConfiguration } from '@voidhash/db';
 import {
-  type EnvironmentValue,
-  parseISO4217CurrencyCode
-} from '@voidhash/lib/constants';
+  and,
+  eq,
+  isNull,
+  type PaymentProviderConfiguration,
+  paymentProviderConfigurationProducts,
+  paymentProviderConfigurations
+} from '@voidhash/db';
+import { Db } from '@voidhash/db/effect';
+import { parseISO4217CurrencyCode } from '@voidhash/lib/constants';
 import {
-  AppStoreNotEnabledForThisBundleIdError,
-  AppStoreTransactionValidationFailed,
-  PaymentProviderConfigurationProductNotFoundError
-} from '@voidhash/shared/errors';
-import { Effect, Schema } from 'effect';
+  AppStoreNotEnabledForFollowingBundleIdError,
+  AppStoreServiceError,
+  AuthSession,
+  PaymentProviderProductServiceError
+} from '@voidhash/shared';
+import { Effect, pipe, Schema } from 'effect';
 import { appStore } from '../payment-providers';
-import { PaymentProviderConfigurationProductRepository } from '../repositories/payment-provider-configuration-product-repository';
-import { PaymentProviderConfigurationRepository } from '../repositories/payment-provider-repository';
 import { AppStoreServerAPIService } from './app-store-server-api-service';
-import { AuthSession } from './auth-service';
-import { Environment } from './environment-service';
-
 export class AppStoreService extends Effect.Service<AppStoreService>()(
   'AppStoreService',
   {
     dependencies: [],
     effect: Effect.gen(function* () {
-      return {
-        validateTransaction: (input: {
-          transactionId: string;
-          bundleId: string;
-          environment: EnvironmentValue;
-        }) =>
+      const dbService = yield* Db;
+
+      const _getPaymentProviderConfigurationsByProjectId = dbService.makeQuery(
+        (execute, projectId: string) =>
+          execute(
+            async (db) =>
+              await db.query.paymentProviderConfigurations.findMany({
+                where: and(
+                  eq(paymentProviderConfigurations.projectId, projectId),
+                  isNull(paymentProviderConfigurations.deletedAt)
+                )
+              })
+          )
+      );
+
+      const _getProviderProductByPrimaryKey = dbService.makeQuery(
+        (
+          execute,
+          {
+            paymentProviderConfigurationId,
+            providerProductKey
+          }: {
+            paymentProviderConfigurationId: string;
+            providerProductKey: string;
+          }
+        ) =>
+          execute(
+            async (db) =>
+              await db.query.paymentProviderConfigurationProducts.findFirst({
+                where: and(
+                  eq(
+                    paymentProviderConfigurationProducts.paymentProviderConfigurationId,
+                    paymentProviderConfigurationId
+                  ),
+                  eq(
+                    paymentProviderConfigurationProducts.providerProductKey,
+                    providerProductKey
+                  )
+                )
+              })
+          )
+      );
+
+      const validateTransaction = (input: {
+        transactionId: string;
+        bundleId: string;
+      }) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const environment = yield* Environment;
             const appStoreServerAPIService = yield* AppStoreServerAPIService;
-            // const db = yield* Db;
-            // const appStoreTransactionRepository =
-            // 	yield* AppStoreTransactionRepository;
-            const paymentProviderConfigurationRepository =
-              yield* PaymentProviderConfigurationRepository;
-            const paymentProviderConfigurationProductRepository =
-              yield* PaymentProviderConfigurationProductRepository;
 
             Effect.logDebug('Validating transaction', {
               transactionId: input.transactionId,
-              bundleId: input.bundleId,
-              environment: input.environment
+              bundleId: input.bundleId
             });
 
             const projectId = session.projects[0]?.id;
@@ -54,9 +88,7 @@ export class AppStoreService extends Effect.Service<AppStoreService>()(
             }
 
             const paymentProviderConfigurations =
-              yield* paymentProviderConfigurationRepository.getPaymentProviderConfigurations(
-                projectId
-              );
+              yield* _getPaymentProviderConfigurationsByProjectId(projectId);
 
             // Load configuration
             const appStorePaymentProviderConfiguration =
@@ -89,19 +121,16 @@ export class AppStoreService extends Effect.Service<AppStoreService>()(
               .pipe(Effect.flatMap(ensureEncodedTransactionHasRequiredFields));
 
             const paymentProviderConfigurationProduct =
-              yield* paymentProviderConfigurationProductRepository.getProviderProductByPrimaryKey(
-                {
-                  paymentProviderConfigurationId:
-                    appStorePaymentProviderConfiguration.id,
-                  providerProductKey: decodedTransaction.productId,
-                  environment
-                }
-              );
+              yield* _getProviderProductByPrimaryKey({
+                paymentProviderConfigurationId:
+                  appStorePaymentProviderConfiguration.id,
+                providerProductKey: decodedTransaction.productId
+              });
 
             if (!paymentProviderConfigurationProduct) {
               return yield* Effect.fail(
-                new PaymentProviderConfigurationProductNotFoundError({
-                  message: 'Payment provider configuration product not found. '
+                new PaymentProviderProductServiceError({
+                  cause: 'Payment provider configuration product not found. '
                 })
               );
             }
@@ -110,9 +139,9 @@ export class AppStoreService extends Effect.Service<AppStoreService>()(
             // const currency = decodedTransaction.currency;
             // const transactionId = decodedTransaction.transactionId;
 
-            return yield* Effect.succeed({
+            return {
               success: true
-            });
+            };
 
             // return yield* db.transaction((tx) =>
             // 	TransactionContext.provide(tx)(
@@ -135,8 +164,41 @@ export class AppStoreService extends Effect.Service<AppStoreService>()(
             // 		}),
             // 	),
             // );
+          }),
+          Effect.catchTags({
+            AppStoreGeneralError: (error) =>
+              new AppStoreServiceError({
+                cause: String(error.cause)
+              }),
+            AppStoreSignedTransactionInfoNotFoundError: (error) =>
+              new AppStoreServiceError({
+                cause: String(error.cause)
+              }),
+            AppStoreVerificationException: (error) =>
+              new AppStoreServiceError({
+                cause: String(error.cause)
+              }),
+            DatabaseError: (error) =>
+              new AppStoreServiceError({
+                cause: String(error.cause)
+              }),
+            InvalidISO4217CurrencyCodeError: (error) =>
+              new AppStoreServiceError({
+                cause: String(error.cause)
+              }),
+            ParseError: (error) =>
+              new AppStoreServiceError({
+                cause: String(error.cause)
+              }),
+            PaymentProviderProductServiceError: (error) =>
+              new AppStoreServiceError({
+                cause: String(error.cause)
+              })
           })
-      };
+        );
+      return {
+        validateTransaction
+      } as const;
     })
   }
 ) {}
@@ -162,8 +224,8 @@ const getActiveAppStorePaymentProviderConfiguration = (
 
     if (!paymentProviderConfiguration) {
       return yield* Effect.fail(
-        new AppStoreNotEnabledForThisBundleIdError({
-          message: 'App Store is not enabled for this bundle ID'
+        new AppStoreNotEnabledForFollowingBundleIdError({
+          bundleId
         })
       );
     }
@@ -185,32 +247,32 @@ const ensureEncodedTransactionHasRequiredFields = (
 
     if (!transactionId) {
       return yield* Effect.fail(
-        new AppStoreTransactionValidationFailed({
-          message: 'Transaction does not contain transaction ID'
+        new AppStoreServiceError({
+          cause: 'Transaction does not contain transaction ID'
         })
       );
     }
 
     if (!productId) {
       return yield* Effect.fail(
-        new AppStoreTransactionValidationFailed({
-          message: 'Transaction does not contain product ID'
+        new AppStoreServiceError({
+          cause: 'Transaction does not contain product ID'
         })
       );
     }
 
     if (!appAccountToken) {
       return yield* Effect.fail(
-        new AppStoreTransactionValidationFailed({
-          message: 'Transaction does not contain customer ID'
+        new AppStoreServiceError({
+          cause: 'Transaction does not contain customer ID (appAccountToken)'
         })
       );
     }
 
     if (!currency) {
       return yield* Effect.fail(
-        new AppStoreTransactionValidationFailed({
-          message: 'Transaction does not contain currency'
+        new AppStoreServiceError({
+          cause: 'Transaction does not contain currency'
         })
       );
     }

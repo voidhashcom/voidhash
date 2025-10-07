@@ -1,36 +1,86 @@
+import {
+  and,
+  apiKeys,
+  eq,
+  type InsertApiKey,
+  type InsertProject,
+  organization,
+  projects
+} from '@voidhash/db';
 import { Db, TransactionContext } from '@voidhash/db/effect';
 import {
   createShortId,
   createSlug,
-  Environment,
   generateId,
   SLUG_BLACKLIST
 } from '@voidhash/lib';
-import { ProjectNotFound, UnauthenticatedError } from '@voidhash/shared/errors';
-import { Effect } from 'effect';
-import { ApiKeyRepository } from '../repositories/api-key-repository';
-import { OrganizationRepository } from '../repositories/organization-repository';
-import { ProjectRepository } from '../repositories/project-repository';
+import {
+  AuthenticationError,
+  AuthSession,
+  ProjectNotFoundError,
+  ProjectServiceError
+} from '@voidhash/shared';
+import { Effect, pipe } from 'effect';
+
 import { createPublishableKey } from '../utils/api-keys/effect/utils';
 import {
   checkOrganizationPermission,
   checkProjectPermission
 } from '../utils/permissions';
-import { AuthSession } from './auth-service';
 
 export class ProjectService extends Effect.Service<ProjectService>()(
   'ProjectService',
   {
-    dependencies: [ProjectRepository.Default],
+    dependencies: [],
     effect: Effect.gen(function* () {
-      const projectRepository = yield* ProjectRepository;
-      return {
-        createProject: (input: { name: string; organizationId: string }) =>
+      const dbService = yield* Db;
+
+      const _createApiKeyRecord = dbService.makeQuery(
+        (execute, apiKey: InsertApiKey) =>
+          execute(async (db) => {
+            await db.insert(apiKeys).values(apiKey);
+            return { id: apiKey.id };
+          })
+      );
+
+      const _getOrganizationBySlug = dbService.makeQuery(
+        (execute, slug: string) =>
+          execute(
+            async (db) =>
+              await db.query.organization.findFirst({
+                where: eq(organization.slug, slug)
+              })
+          )
+      );
+
+      const _getProjectBySlug = dbService.makeQuery(
+        (
+          execute,
+          {
+            projectSlug,
+            organizationId
+          }: { projectSlug: string; organizationId: string }
+        ) =>
+          execute(
+            async (db) =>
+              await db.query.projects.findFirst({
+                where: and(
+                  eq(projects.slug, projectSlug),
+                  eq(projects.organizationId, organizationId)
+                )
+              })
+          )
+      );
+
+      const _createProjectRecord = dbService.makeQuery(
+        (execute, project: InsertProject) =>
+          execute(async (db) => await db.insert(projects).values(project))
+      );
+
+      const createProject = (input: { name: string; organizationId: string }) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const projectRepository = yield* ProjectRepository;
-            const apiKeyRepository = yield* ApiKeyRepository;
-            const db = yield* Db;
 
             // SECURITY: Authorization check
             yield* checkOrganizationPermission(
@@ -42,8 +92,9 @@ export class ProjectService extends Effect.Service<ProjectService>()(
             const userId = session?.user?.id;
             if (!userId) {
               return yield* Effect.fail(
-                new UnauthenticatedError({
-                  message: 'You are not authenticated'
+                new AuthenticationError({
+                  message: 'You are not authenticated',
+                  cause: 'You are not authenticated'
                 })
               );
             }
@@ -55,7 +106,7 @@ export class ProjectService extends Effect.Service<ProjectService>()(
               slug = `${slug}-${createShortId()}`;
             }
 
-            const existingProject = yield* projectRepository.getProjectBySlug({
+            const existingProject = yield* _getProjectBySlug({
               projectSlug: slug,
               organizationId: input.organizationId
             });
@@ -64,10 +115,10 @@ export class ProjectService extends Effect.Service<ProjectService>()(
               slug = `${slug}-${createShortId()}`;
             }
 
-            yield* db.transaction((tx) =>
+            yield* dbService.transaction((tx) =>
               TransactionContext.provide(tx)(
                 Effect.gen(function* () {
-                  yield* projectRepository.createProject({
+                  yield* _createProjectRecord({
                     id,
                     name: input.name,
                     slug,
@@ -76,25 +127,13 @@ export class ProjectService extends Effect.Service<ProjectService>()(
                   });
 
                   // Create production publishable key
-                  const productionPublishableKey = yield* createPublishableKey(
-                    Environment.Production
-                  );
-                  yield* apiKeyRepository.createApiKey({
+                  const productionPublishableKey =
+                    yield* createPublishableKey();
+                  yield* _createApiKeyRecord({
                     id: generateId('apiPublishableKey'),
                     projectId: id,
                     name: 'Publishable key',
                     ...productionPublishableKey
-                  });
-
-                  // Create testing publishable key
-                  const testingPublishableKey = yield* createPublishableKey(
-                    Environment.Testing
-                  );
-                  yield* apiKeyRepository.createApiKey({
-                    id: generateId('apiPublishableKeyTesting'),
-                    projectId: id,
-                    name: 'Publishable key',
-                    ...testingPublishableKey
                   });
                 })
               )
@@ -110,8 +149,26 @@ export class ProjectService extends Effect.Service<ProjectService>()(
               slug
             });
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new ProjectServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getProjects: (organizationId: string) =>
+      const _getProjectsByOrganizationId = dbService.makeQuery(
+        (execute, organizationId: string) =>
+          execute(
+            async (db) =>
+              await db.query.projects.findMany({
+                where: eq(projects.organizationId, organizationId)
+              })
+          )
+      );
+
+      const getProjects = (organizationId: string) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
 
@@ -122,13 +179,30 @@ export class ProjectService extends Effect.Service<ProjectService>()(
               `User ${session?.user?.id} is not authorized to access projects for organization ${organizationId}`
             );
 
-            return yield* projectRepository.getProjects(organizationId);
+            return yield* _getProjectsByOrganizationId(organizationId);
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new ProjectServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getProjectById: (id: string) =>
+      const _getProjectById = dbService.makeQuery((execute, id: string) =>
+        execute(
+          async (db) =>
+            await db.query.projects.findFirst({
+              where: eq(projects.id, id)
+            })
+        )
+      );
+
+      const getProjectById = (id: string) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const project = yield* projectRepository.getProjectById(id);
+            const project = yield* _getProjectById(id);
             if (!project) {
               return null;
             }
@@ -142,18 +216,26 @@ export class ProjectService extends Effect.Service<ProjectService>()(
 
             return project;
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new ProjectServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getProjectBySlug: ({
-          organizationId,
-          slug
-        }: {
-          organizationId: string;
-          slug: string;
-        }) =>
+      const getProjectBySlug = ({
+        organizationId,
+        slug
+      }: {
+        organizationId: string;
+        slug: string;
+      }) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
 
-            const project = yield* projectRepository.getProjectBySlug({
+            const project = yield* _getProjectBySlug({
               projectSlug: slug,
               organizationId
             });
@@ -171,26 +253,31 @@ export class ProjectService extends Effect.Service<ProjectService>()(
 
             return project;
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new ProjectServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getProjectBySlugAndOrganizationSlug: ({
-          organizationSlug,
-          projectSlug
-        }: {
-          organizationSlug: string;
-          projectSlug: string;
-        }) =>
+      const getProjectBySlugAndOrganizationSlug = ({
+        organizationSlug,
+        projectSlug
+      }: {
+        organizationSlug: string;
+        projectSlug: string;
+      }) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const organizationRepository = yield* OrganizationRepository;
             const organization =
-              yield* organizationRepository.getOrganizationBySlug(
-                organizationSlug
-              );
+              yield* _getOrganizationBySlug(organizationSlug);
             if (!organization) {
               return null;
             }
 
-            const project = yield* projectRepository.getProjectBySlug({
+            const project = yield* _getProjectBySlug({
               projectSlug,
               organizationId: organization.id
             });
@@ -208,15 +295,20 @@ export class ProjectService extends Effect.Service<ProjectService>()(
 
             return project;
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new ProjectServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getProjectsByOrganizationSlug: (organizationSlug: string) =>
+      const getProjectsByOrganizationSlug = (organizationSlug: string) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const organizationRepository = yield* OrganizationRepository;
             const organization =
-              yield* organizationRepository.getOrganizationBySlug(
-                organizationSlug
-              );
+              yield* _getOrganizationBySlug(organizationSlug);
             if (!organization) {
               return null;
             }
@@ -228,20 +320,35 @@ export class ProjectService extends Effect.Service<ProjectService>()(
               `User ${session?.user?.id} is not authorized to access organization ${organization.id}`
             );
 
-            return yield* projectRepository.getProjects(organization.id);
+            return yield* _getProjectsByOrganizationId(organization.id);
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new ProjectServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        updateProject: (input: { id: string; name: string }) =>
+      const _updateProjectRecord = dbService.makeQuery(
+        (execute, { id, name }: { id: string; name: string }) =>
+          execute(
+            async (db) =>
+              await db.update(projects).set({ name }).where(eq(projects.id, id))
+          )
+      );
+
+      const updateProject = (input: { id: string; name: string }) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const projectRepository = yield* ProjectRepository;
 
             // First check if project exists
-            const project = yield* projectRepository.getProjectById(input.id);
+            const project = yield* _getProjectById(input.id);
             if (!project) {
               return yield* Effect.fail(
-                new ProjectNotFound({
-                  message: `Project ${input.id} not found`
+                new ProjectNotFoundError({
+                  projectId: input.id
                 })
               );
             }
@@ -254,7 +361,7 @@ export class ProjectService extends Effect.Service<ProjectService>()(
             );
 
             // Update the project
-            yield* projectRepository.updateProject({
+            yield* _updateProjectRecord({
               id: input.id,
               name: input.name
             });
@@ -263,18 +370,31 @@ export class ProjectService extends Effect.Service<ProjectService>()(
 
             return yield* Effect.succeed(undefined);
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new ProjectServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        deleteProject: (input: { id: string }) =>
+      const _deleteProjectRecord = dbService.makeQuery((execute, id: string) =>
+        execute(
+          async (db) => await db.delete(projects).where(eq(projects.id, id))
+        )
+      );
+
+      const deleteProject = (input: { id: string }) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const projectRepository = yield* ProjectRepository;
 
             // First check if project exists
-            const project = yield* projectRepository.getProjectById(input.id);
+            const project = yield* _getProjectById(input.id);
             if (!project) {
               return yield* Effect.fail(
-                new ProjectNotFound({
-                  message: `Project ${input.id} not found`
+                new ProjectNotFoundError({
+                  projectId: input.id
                 })
               );
             }
@@ -287,13 +407,30 @@ export class ProjectService extends Effect.Service<ProjectService>()(
             );
 
             // Delete the project
-            yield* projectRepository.deleteProject(input.id);
+            yield* _deleteProjectRecord(input.id);
 
             yield* Effect.log(`Deleted project ${input.id}`);
 
             return yield* Effect.succeed(undefined);
+          }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new ProjectServiceError({
+                cause: String(error.cause)
+              })
           })
-      };
+        );
+
+      return {
+        createProject,
+        getProjects,
+        getProjectById,
+        getProjectBySlug,
+        getProjectBySlugAndOrganizationSlug,
+        getProjectsByOrganizationSlug,
+        updateProject,
+        deleteProject
+      } as const;
     })
   }
 ) {}

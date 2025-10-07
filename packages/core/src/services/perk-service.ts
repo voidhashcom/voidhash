@@ -1,21 +1,51 @@
+import { and, eq, type InsertPerk, perks } from '@voidhash/db';
+import { Db } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
-import { PerkNotFound, SlugAlreadyExistsError } from '@voidhash/shared/errors';
-import { Effect } from 'effect';
-import { PerkRepository } from '../repositories/perk-repository';
+import {
+  AuthSession,
+  PerkNotFoundError,
+  PerkServiceError,
+  PerkSlugAlreadyExistsError
+} from '@voidhash/shared';
+import { Effect, pipe } from 'effect';
 import { checkProjectPermission } from '../utils/permissions';
-import { AuthSession } from './auth-service';
-import { Environment } from './environment-service';
 
 export class PerkService extends Effect.Service<PerkService>()('PerkService', {
-  dependencies: [PerkRepository.Default],
+  dependencies: [Db.Default],
   effect: Effect.gen(function* () {
-    const perkRepository = yield* PerkRepository;
-    return {
-      createPerk: (input: { projectId: string; name: string; slug: string }) =>
+    const dbService = yield* Db;
+
+    const _getPerkBySlug = dbService.makeQuery(
+      (
+        execute,
+        input: {
+          slug: string;
+          projectId: string;
+        }
+      ) =>
+        execute(
+          async (db) =>
+            await db.query.perks.findFirst({
+              where: and(
+                eq(perks.slug, input.slug),
+                eq(perks.projectId, input.projectId)
+              )
+            })
+        )
+    );
+
+    const _createPerkRecord = dbService.makeQuery((execute, perk: InsertPerk) =>
+      execute(async (db) => await db.insert(perks).values(perk))
+    );
+
+    const createPerk = (input: {
+      projectId: string;
+      name: string;
+      slug: string;
+    }) =>
+      pipe(
         Effect.gen(function* () {
           const session = yield* AuthSession;
-          const environment = yield* Environment;
-          const perkRepository = yield* PerkRepository;
 
           // SECURITY: Authorization check
           yield* checkProjectPermission(
@@ -24,16 +54,14 @@ export class PerkService extends Effect.Service<PerkService>()('PerkService', {
             `User ${session?.user?.id} is not authorized to create perks for project ${input.projectId}`
           );
 
-          const perk = yield* perkRepository.getPerkBySlug({
+          const perk = yield* _getPerkBySlug({
             slug: input.slug,
-            projectId: input.projectId,
-            environment
+            projectId: input.projectId
           });
           if (perk) {
             return yield* Effect.fail(
-              new SlugAlreadyExistsError({
-                message:
-                  'Perk with this slug already exists. Please choose a different slug.'
+              new PerkSlugAlreadyExistsError({
+                slug: input.slug
               })
             );
           }
@@ -42,45 +70,75 @@ export class PerkService extends Effect.Service<PerkService>()('PerkService', {
             id: generateId('perk'),
             slug: input.slug,
             projectId: input.projectId,
-            name: input.name,
-            environment
+            name: input.name
           };
 
-          yield* perkRepository.createPerk(newPerk);
+          yield* _createPerkRecord(newPerk);
           yield* Effect.log(
             `Created perk ${newPerk.id} for project ${input.projectId}`
           );
 
           // TODO: Adding a perk should unlock it for existing users?
 
-          return yield* Effect.succeed({
+          return {
             id: newPerk.id
-          });
+          };
         }),
+        Effect.catchTags({
+          DatabaseError: (error) =>
+            new PerkServiceError({
+              cause: String(error.cause)
+            })
+        })
+      );
 
-      getPerks: (projectId: string) =>
+    const _getPerksByProjectId = dbService.makeQuery(
+      (execute, input: { projectId: string }) =>
+        execute(
+          async (db) =>
+            await db.query.perks.findMany({
+              where: and(eq(perks.projectId, input.projectId))
+            })
+        )
+    );
+
+    const getPerks = (projectId: string) =>
+      pipe(
         Effect.gen(function* () {
           const session = yield* AuthSession;
-          const environment = yield* Environment;
           // SECURITY: Authorization check
           yield* checkProjectPermission(
             projectId,
             'project:all',
             `User ${session?.user?.id} is not authorized to access perks for project ${projectId}`
           );
-          return yield* perkRepository.getPerks({
-            projectId,
-            environment
+          return yield* _getPerksByProjectId({
+            projectId
           });
         }),
+        Effect.catchTags({
+          DatabaseError: (error) =>
+            new PerkServiceError({
+              cause: String(error.cause)
+            })
+        })
+      );
 
-      getPerkById: (id: string) =>
+    const _getPerkById = dbService.makeQuery((execute, id: string) =>
+      execute(
+        async (db) =>
+          await db.query.perks.findFirst({ where: eq(perks.id, id) })
+      )
+    );
+
+    const getPerkById = (id: string) =>
+      pipe(
         Effect.gen(function* () {
           const session = yield* AuthSession;
-          const perk = yield* perkRepository.getPerkById(id);
+          const perk = yield* _getPerkById(id);
           if (!perk) {
             return yield* Effect.fail(
-              new PerkNotFound({
+              new PerkNotFoundError({
                 message: 'Perk not found'
               })
             );
@@ -95,15 +153,26 @@ export class PerkService extends Effect.Service<PerkService>()('PerkService', {
 
           return perk;
         }),
+        Effect.catchTags({
+          DatabaseError: (error) =>
+            new PerkServiceError({
+              cause: String(error.cause)
+            })
+        })
+      );
 
-      deletePerk: (input: { perkId: string }) =>
+    const _deletePerkRecord = dbService.makeQuery((execute, id: string) =>
+      execute(async (db) => db.delete(perks).where(eq(perks.id, id)))
+    );
+
+    const deletePerk = (input: { perkId: string }) =>
+      pipe(
         Effect.gen(function* () {
           const session = yield* AuthSession;
-          const perkRepository = yield* PerkRepository;
-          const perk = yield* perkRepository.getPerkById(input.perkId);
+          const perk = yield* _getPerkById(input.perkId);
           if (!perk) {
             return yield* Effect.fail(
-              new PerkNotFound({
+              new PerkNotFoundError({
                 message: `Perk with id ${input.perkId} not found`
               })
             );
@@ -116,8 +185,22 @@ export class PerkService extends Effect.Service<PerkService>()('PerkService', {
             `User ${session?.user?.id} is not authorized to delete perk ${input.perkId}`
           );
 
-          yield* perkRepository.deletePerk(input.perkId);
+          yield* _deletePerkRecord(input.perkId);
+          yield* Effect.log(`Deleted perk ${input.perkId}`);
+        }),
+        Effect.catchTags({
+          DatabaseError: (error) =>
+            new PerkServiceError({
+              cause: String(error.cause)
+            })
         })
-    };
+      );
+
+    return {
+      createPerk,
+      getPerks,
+      getPerkById,
+      deletePerk
+    } as const;
   })
 }) {}

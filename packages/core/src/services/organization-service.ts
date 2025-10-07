@@ -1,26 +1,27 @@
 import { BetterAuth } from '@voidhash/auth/effect';
+import { eq, organization } from '@voidhash/db';
+import { Db } from '@voidhash/db/effect';
 import { createShortId, createSlug } from '@voidhash/lib';
 import { SLUG_BLACKLIST } from '@voidhash/lib/constants';
 import {
-  FailedToCreateOrganizationError,
-  OrganizationNotFound,
-  UserSessionNotFoundError
-} from '@voidhash/shared/errors';
-import { Effect, Either } from 'effect';
-import { OrganizationRepository } from '../repositories/organization-repository';
+  AuthSession,
+  OrganizationNotFoundError,
+  OrganizationServiceError
+} from '@voidhash/shared';
+import { Effect, Either, pipe } from 'effect';
+
 import { checkOrganizationPermission } from '../utils/permissions';
-import { AuthSession } from './auth-service';
 
 export class OrganizationService extends Effect.Service<OrganizationService>()(
   'OrganizationService',
   {
     // Specify dependencies
-    dependencies: [OrganizationRepository.Default, BetterAuth.Default],
+    dependencies: [BetterAuth.Default],
     effect: Effect.gen(function* () {
       const betterAuth = yield* BetterAuth;
-      const organizationRepository = yield* OrganizationRepository;
+      const dbService = yield* Db;
 
-      const checkSlugAvailable = (slug: string) =>
+      const _checkSlugAvailable = (slug: string) =>
         Effect.gen(function* () {
           const res = yield* Effect.either(
             betterAuth.use(async (client) =>
@@ -38,16 +39,16 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
               // biome-ignore lint/suspicious/noExplicitAny: is ok
               (error.cause as any).body?.code === 'SLUG_IS_TAKEN'
             ) {
-              return yield* Effect.succeed(false);
+              return false;
             }
             return yield* Effect.fail(res.left);
           }
 
-          return yield* Effect.succeed(true);
+          return true;
         });
 
-      return {
-        createOrganization: (input: { name: string }, headers: Headers) =>
+      const createOrganization = (input: { name: string }) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
 
@@ -56,7 +57,7 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
               slug = `${slug}-${createShortId()}`;
             }
 
-            const slugIsAvailable = yield* checkSlugAvailable(slug, headers);
+            const slugIsAvailable = yield* _checkSlugAvailable(slug);
             if (!slugIsAvailable) {
               slug = `${slug}-${createShortId()}`;
             }
@@ -72,37 +73,44 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
             );
             if (!organization) {
               return yield* Effect.fail(
-                new FailedToCreateOrganizationError({
-                  message: 'Failed to create organization'
+                new OrganizationServiceError({
+                  cause: 'Organization was not created.'
                 })
               );
             }
 
-            const email = session?.user?.email;
-            if (!email) {
-              return yield* Effect.fail(
-                new UserSessionNotFoundError({
-                  message: 'User session not found'
-                })
-              );
-            }
-
-            return yield* Effect.succeed({
+            return {
               id: organization.id,
               name: organization.name,
               slug
-            });
+            };
           }),
+          Effect.catchTags({
+            BetterAuthError: (error) =>
+              new OrganizationServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getOrganizationBySlug: (slug: string) =>
+      const _getOrganizationBySlug = dbService.makeQuery(
+        (execute, slug: string) =>
+          execute(
+            async (db) =>
+              await db.query.organization.findFirst({
+                where: eq(organization.slug, slug)
+              })
+          )
+      );
+      const getOrganizationBySlug = (slug: string) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
 
-            const organization =
-              yield* organizationRepository.getOrganizationBySlug(slug);
+            const organization = yield* _getOrganizationBySlug(slug);
             if (!organization) {
               return yield* Effect.fail(
-                new OrganizationNotFound({
+                new OrganizationNotFoundError({
                   message: `Organization with slug ${slug} not found`
                 })
               );
@@ -116,17 +124,32 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 
             return organization;
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new OrganizationServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getOrganizationById: (id: string) =>
+      const _getOrganizationById = dbService.makeQuery((execute, id: string) =>
+        execute(
+          async (db) =>
+            await db.query.organization.findFirst({
+              where: eq(organization.id, id)
+            })
+        )
+      );
+
+      const getOrganizationById = (id: string) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const organizationRepository = yield* OrganizationRepository;
 
-            const organization =
-              yield* organizationRepository.getOrganizationById(id);
+            const organization = yield* _getOrganizationById(id);
             if (!organization) {
               return yield* Effect.fail(
-                new OrganizationNotFound({
+                new OrganizationNotFoundError({
                   message: `Organization with id ${id} not found`
                 })
               );
@@ -141,11 +164,19 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 
             return organization;
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new OrganizationServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        deleteOrganization: (
-          input: { organizationId: string },
-          headers: Headers
-        ) =>
+      const deleteOrganization = (
+        input: { organizationId: string },
+        headers: Headers
+      ) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
 
@@ -156,7 +187,6 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
               `User ${session?.user?.id} is not authorized to delete organization ${input.organizationId}`
             );
 
-            const betterAuth = yield* BetterAuth;
             yield* betterAuth.use(async (client) =>
               client.api.deleteOrganization({
                 headers,
@@ -166,21 +196,28 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 
             return yield* Effect.succeed(undefined);
           }),
+          Effect.catchTags({
+            BetterAuthError: (error) =>
+              new OrganizationServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        updateOrganization: (
-          input: { organizationId: string; name: string },
-          headers: Headers
-        ) =>
+      const updateOrganization = (
+        input: { organizationId: string; name: string },
+        headers: Headers
+      ) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
 
-            const organization =
-              yield* organizationRepository.getOrganizationById(
-                input.organizationId
-              );
+            const organization = yield* _getOrganizationById(
+              input.organizationId
+            );
             if (!organization) {
               return yield* Effect.fail(
-                new OrganizationNotFound({
+                new OrganizationNotFoundError({
                   message: `Organization with id ${input.organizationId} not found`
                 })
               );
@@ -193,7 +230,6 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
               `User ${session?.user?.id} is not authorized to update organization ${input.organizationId}`
             );
 
-            const betterAuth = yield* BetterAuth;
             yield* betterAuth.use(async (client) =>
               client.api.updateOrganization({
                 headers,
@@ -207,8 +243,26 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
             );
 
             return yield* Effect.succeed(undefined);
+          }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new OrganizationServiceError({
+                cause: String(error.cause)
+              }),
+            BetterAuthError: (error) =>
+              new OrganizationServiceError({
+                cause: String(error.cause)
+              })
           })
-      };
+        );
+
+      return {
+        createOrganization,
+        getOrganizationBySlug,
+        getOrganizationById,
+        deleteOrganization,
+        updateOrganization
+      } as const;
     })
   }
 ) {}

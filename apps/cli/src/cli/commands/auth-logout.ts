@@ -1,11 +1,11 @@
 import { Command, Prompt } from '@effect/cli';
 import { Console, Effect } from 'effect';
-import { getSignedInSession } from '../../utils/login/get-signed-in-user';
-import { logout } from '../../utils/login/logout';
+import { Auth } from '../../domain/services/auth';
 
 export const logoutCommand = Command.make('logout', {}, () =>
   Effect.gen(function* () {
-    const user = yield* getSignedInSession.pipe(
+    const auth = yield* Auth;
+    const user = yield* auth.getSignedInSession.pipe(
       Effect.catchTags({
         NoSignedInUserError: () => Effect.succeed(null)
       })
@@ -20,9 +20,22 @@ export const logoutCommand = Command.make('logout', {}, () =>
       if (!shouldContinue) {
         return yield* Console.log('Login cancelled.');
       }
-      return yield* logout;
+      return yield* auth.logout;
     }
 
     return yield* Console.log('You are not logged in.');
-  })
+  }).pipe(
+    Effect.catchTags({
+      FailedToLogoutError: () =>
+        Effect.succeed(undefined).pipe(
+          Effect.tap(() => Console.log('Failed to logout. Please try again.'))
+        ),
+      FailedToGetSessionError: () =>
+        Effect.succeed(undefined).pipe(
+          Effect.tap(() =>
+            Console.log('Failed to get currect user session. Please try again.')
+          )
+        )
+    })
+  )
 ).pipe(Command.withDescription('Logout from the Voidhash CLI.'));

@@ -22,6 +22,7 @@ export const createMockUserAuthSession = (
     {
       id: 'test_org_123',
       slug: 'test-org',
+      name: 'Test Organization',
       permissions: ['organization:all']
     }
   ],
@@ -30,6 +31,7 @@ export const createMockUserAuthSession = (
       id: 'test_proj_123',
       slug: 'test-project',
       organizationId: 'test_org_123',
+      name: 'Test Project',
       permissions: ['project:all']
     }
   ],
@@ -48,6 +50,7 @@ export const createMockSecretApiKeyAuthSession = (
     {
       id: 'test_org_123',
       slug: 'test-org',
+      name: 'Test Organization',
       permissions: ['organization:all']
     }
   ],
@@ -56,6 +59,7 @@ export const createMockSecretApiKeyAuthSession = (
       id: 'test_proj_123',
       slug: 'test-project',
       organizationId: 'test_org_123',
+      name: 'Test Project',
       permissions: ['project:all']
     }
   ],

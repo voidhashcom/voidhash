@@ -6,6 +6,9 @@ export const selectOrganization = (
   organizations: ReadonlyArray<{ id: string; slug: string; name: string }>
 ) =>
   Effect.gen(function* () {
+    if (organizations.length === 0) {
+      return yield* createOrganization();
+    }
     const organizationSlug = yield* Prompt.run(
       Prompt.select({
         message: 'Select an organization',
