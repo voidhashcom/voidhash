@@ -29,17 +29,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@effect/cli": "^0.69.2",
-    "@effect/platform": "^0.90.9",
-    "@effect/platform-node": "^0.96.1",
+    "@effect/cli": "catalog:",
+    "@effect/platform": "catalog:",
+    "@effect/platform-node": "catalog:",
     "@voidhash/api-spec": "workspace:*",
     "better-auth": "^1.3.11",
-    "effect": "^3.17.13",
+    "effect": "catalog:",
     "esbuild-register": "^3.6.0",
     "nanoid": "^5.1.5"
   },
   "devDependencies": {
-    "@effect/language-service": "^0.40.0",
+    "@effect/language-service": "catalog:",
     "@voidhash/tsconfig": "workspace:*",
     "dotenv-cli": "^10.0.0",
     "esbuild": "^0.25.10",

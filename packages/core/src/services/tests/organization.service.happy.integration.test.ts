@@ -21,10 +21,8 @@ describe.sequential('OrganizationService happy path', () => {
           Effect.gen(function* () {
             const organizationService = yield* OrganizationService;
             // TODO: Pass real headers. This probably won't work.
-            const organization = yield* organizationService.createOrganization(
-              input,
-              new Headers()
-            );
+            const organization =
+              yield* organizationService.createOrganization(input);
             return organization;
           }),
           Effect.provideService(

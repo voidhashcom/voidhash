@@ -4,7 +4,7 @@ import 'fast-text-encoding';
 import '../global.css';
 
 import { StatusBar } from 'expo-status-bar';
-import { voidhash } from 'utils/voidhash/client';
+import { voidhash } from 'utils/voidhash/local.client';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 // SplashScreen.preventAutoHideAsync();

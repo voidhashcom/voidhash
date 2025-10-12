@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { ActivityIndicator, Image, Text, View } from 'react-native';
 import { fakeAuthService, useCurrentUser } from 'utils/fake-auth-service';
 import { cn } from 'utils/lib';
-import { voidhash } from 'utils/voidhash/client';
+import { voidhash } from 'utils/voidhash/local.client';
 import { Logo } from '../components/logo';
 
 export default function HomeScreen() {

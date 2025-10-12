@@ -1,8 +1,8 @@
 import { Prompt } from '@effect/cli';
 import { Console, Effect } from 'effect';
+import { NoSignedInUserError } from '../../domain/errors/auth';
+import { CliConfig } from '../../domain/services/cli-config';
 import { ApiClient } from '../api-client';
-import { readConfig } from '../config/read-config';
-import { NoSignedInUserError } from '../login/get-signed-in-user';
 
 const validateOrganizationName = (value: string) => {
   if (value.length < 3) {
@@ -17,8 +17,9 @@ const validateOrganizationName = (value: string) => {
 export const createOrganization = () =>
   Effect.gen(function* () {
     const client = yield* ApiClient;
+    const cliConfig = yield* CliConfig;
 
-    const config = yield* readConfig().pipe(
+    const config = yield* cliConfig.readConfig().pipe(
       Effect.catchTag('ConfigFileNotFoundError', () => Effect.succeed(null)),
       Effect.catchAll(() => Effect.dieMessage('Failed to read config'))
     );

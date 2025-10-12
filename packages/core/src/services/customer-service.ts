@@ -1,41 +1,56 @@
+import type { Customer } from '@voidhash/api-spec';
 import {
+  and,
   type CustomerOriginValue,
   CustomerType,
   type CustomerTypeValue,
-  type InsertCustomer
+  customers,
+  customerUnlockedPerks,
+  eq,
+  type InsertCustomer,
+  purchases,
+  type UpdateCustomer
 } from '@voidhash/db';
+import { Db } from '@voidhash/db/effect';
 import { ANONYMOUS_USER_ID_PREFIX, generateId } from '@voidhash/lib';
-import type { EnvironmentValue } from '@voidhash/lib/constants';
 import {
+  AuthSession,
+  CustomerInvalidAnonymousIdError,
   CustomerNotFoundError,
-  InvalidAnonymousIdError
-} from '@voidhash/shared/errors';
-import { Effect } from 'effect';
-import { CustomerRepository } from '../repositories/customer-repository';
+  CustomerServiceError
+} from '@voidhash/shared';
+import { Effect, pipe, type Schema } from 'effect';
 import { checkProjectPermission } from '../utils/permissions';
-import { AuthSession } from './auth-service';
-import { Environment } from './environment-service';
 
 export class CustomerService extends Effect.Service<CustomerService>()(
   'CustomerService',
   {
-    dependencies: [CustomerRepository.Default],
+    dependencies: [],
     effect: Effect.gen(function* () {
-      const customerRepository = yield* CustomerRepository;
-      return {
-        createCustomer: (input: {
-          projectId: string;
-          appUserId: string;
-          origin: CustomerOriginValue;
-          environment: EnvironmentValue;
-        }) =>
-          Effect.gen(function* () {
-            const customerRepository = yield* CustomerRepository;
+      const dbService = yield* Db;
 
+      const _createCustomerRecord = dbService.makeQuery(
+        (execute, customer: InsertCustomer) =>
+          execute(async (db) => {
+            await db.insert(customers).values(customer);
+            return { id: customer.id };
+          })
+      );
+
+      const createCustomer = (input: {
+        projectId: string;
+        appUserId: string;
+        name: string | null;
+        email: string | null;
+        origin: CustomerOriginValue;
+        parentCustomerId?: string;
+      }) =>
+        pipe(
+          Effect.gen(function* () {
             if (!input.appUserId.startsWith(ANONYMOUS_USER_ID_PREFIX)) {
               return yield* Effect.fail(
-                new InvalidAnonymousIdError({
-                  message: `Invalid anonymous id: ${input.appUserId}`
+                new CustomerInvalidAnonymousIdError({
+                  id: input.appUserId
                 })
               );
             }
@@ -49,14 +64,13 @@ export class CustomerService extends Effect.Service<CustomerService>()(
               projectId: input.projectId,
               appUserId: input.appUserId,
               origin: input.origin,
-              environment: input.environment,
-              name: null,
-              email: null,
+              name: input.name,
+              email: input.email,
               additionalAttributes: {}
               // TODO: Figure out how to handle attributes
             } satisfies InsertCustomer;
 
-            yield* customerRepository.createCustomer(newCustomer);
+            yield* _createCustomerRecord(newCustomer);
 
             yield* Effect.log(
               `Created customer ${newCustomer.id} (${newCustomer.type === CustomerType.Anonymous ? 'anonymous' : 'identified'}) for app user ${input.appUserId}`
@@ -69,36 +83,84 @@ export class CustomerService extends Effect.Service<CustomerService>()(
               updatedAt: new Date()
             });
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new CustomerServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getCustomers: ({
-          projectId,
-          type
-        }: {
-          projectId: string;
-          type?: CustomerTypeValue;
-        }) =>
+      const _getCustomers = dbService.makeQuery(
+        (
+          execute,
+          {
+            projectId,
+
+            type
+          }: {
+            projectId: string;
+
+            type: CustomerTypeValue | null;
+          }
+        ) =>
+          execute(
+            async (db) =>
+              await db.query.customers.findMany({
+                where: and(
+                  eq(customers.projectId, projectId),
+                  type !== null ? eq(customers.type, type) : undefined
+                )
+              })
+          )
+      );
+
+      const getCustomers = ({
+        projectId,
+        type
+      }: {
+        projectId: string;
+        type?: CustomerTypeValue;
+      }) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const environment = yield* Environment;
             yield* checkProjectPermission(
               projectId,
               'project:all',
               `User ${session?.user?.id} is not authorized to access customers for project ${projectId}`
             );
-            return yield* customerRepository.getCustomers({
+            return yield* _getCustomers({
               projectId,
-              environment,
               type: type ?? null
             });
           }),
-        getCustomerById: (id: string) =>
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new CustomerServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
+
+      const _getCustomerById = dbService.makeQuery((execute, id: string) =>
+        execute(
+          async (db) =>
+            await db.query.customers.findFirst({
+              where: eq(customers.id, id)
+            })
+        )
+      );
+
+      const getCustomerById = (id: string) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const customer = yield* customerRepository.getCustomerById(id);
+            const customer = yield* _getCustomerById(id);
             if (!customer) {
               return yield* Effect.fail(
                 new CustomerNotFoundError({
-                  message: 'Customer not found'
+                  id
                 })
               );
             }
@@ -109,10 +171,39 @@ export class CustomerService extends Effect.Service<CustomerService>()(
             );
             return customer;
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new CustomerServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getCustomerByAppUserId: (appUserId: string) =>
+      const _getCustomerByAppUserId = dbService.makeQuery(
+        (
+          execute,
+          {
+            projectId,
+            appUserId
+          }: {
+            projectId: string;
+            appUserId: string;
+          }
+        ) =>
+          execute(
+            async (db) =>
+              await db.query.customers.findFirst({
+                where: and(
+                  eq(customers.projectId, projectId),
+                  eq(customers.appUserId, appUserId)
+                )
+              })
+          )
+      );
+
+      const getCustomerByAppUserId = (appUserId: string) =>
+        pipe(
           Effect.gen(function* () {
-            const environment = yield* Environment;
             const session = yield* AuthSession;
             const projectId = session?.projects[0]?.id;
             if (!projectId) {
@@ -120,15 +211,14 @@ export class CustomerService extends Effect.Service<CustomerService>()(
                 'Project ID not found after authentication'
               );
             }
-            const customer = yield* customerRepository.getCustomerByAppUserId({
+            const customer = yield* _getCustomerByAppUserId({
               projectId,
-              appUserId,
-              environment
+              appUserId
             });
             if (!customer) {
               return yield* Effect.fail(
                 new CustomerNotFoundError({
-                  message: 'Customer not found'
+                  id: appUserId
                 })
               );
             }
@@ -137,16 +227,39 @@ export class CustomerService extends Effect.Service<CustomerService>()(
               'project:all',
               `User ${session?.user?.id} is not authorized to access customer ${appUserId} for project ${customer.projectId}`
             );
-            return customer;
+            return {
+              id: customer.id,
+              name: customer.name,
+              email: customer.email,
+              appUserId: customer.appUserId
+            } satisfies Schema.Schema.Type<typeof Customer>;
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new CustomerServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getCustomersUnlockedPerks: (customerId: string) =>
+      const _getCustomersUnlockedPerks = dbService.makeQuery(
+        (execute, customerId: string) =>
+          execute(
+            async (db) =>
+              await db.query.customerUnlockedPerks.findMany({
+                where: eq(customerUnlockedPerks.customerId, customerId)
+              })
+          )
+      );
+
+      const getCustomersUnlockedPerks = (customerId: string) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
             const [customer, perks] = yield* Effect.all(
               [
-                customerRepository.getCustomerById(customerId),
-                customerRepository.getCustomersUnlockedPerks(customerId)
+                _getCustomerById(customerId),
+                _getCustomersUnlockedPerks(customerId)
               ],
               {
                 concurrency: 'unbounded'
@@ -155,7 +268,7 @@ export class CustomerService extends Effect.Service<CustomerService>()(
             if (!customer) {
               return yield* Effect.fail(
                 new CustomerNotFoundError({
-                  message: 'Customer not found'
+                  id: customerId
                 })
               );
             }
@@ -166,16 +279,33 @@ export class CustomerService extends Effect.Service<CustomerService>()(
             );
             return perks;
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new CustomerServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        getCustomerPurchases: (customerId: string) =>
+      const _getCustomerPurchases = dbService.makeQuery(
+        (execute, customerId: string) =>
+          execute(
+            async (db) =>
+              await db.query.purchases.findMany({
+                where: eq(purchases.customerId, customerId)
+              })
+          )
+      );
+
+      const getCustomerPurchases = (customerId: string) =>
+        pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const customer =
-              yield* customerRepository.getCustomerById(customerId);
+            const customer = yield* _getCustomerById(customerId);
             if (!customer) {
               return yield* Effect.fail(
                 new CustomerNotFoundError({
-                  message: 'Customer not found'
+                  id: customerId
                 })
               );
             }
@@ -184,14 +314,31 @@ export class CustomerService extends Effect.Service<CustomerService>()(
               'project:all',
               `User ${session?.user?.id} is not authorized to access customer ${customerId} for project ${customer.projectId}`
             );
-            return yield* customerRepository.getCustomerPurchases(customerId);
+            return yield* _getCustomerPurchases(customerId);
           }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new CustomerServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
-        mergeCustomers: (fromCustomerId: string, toCustomerId: string) =>
+      const _updateCustomerRecord = dbService.makeQuery(
+        (execute, customer: UpdateCustomer) =>
+          execute(async (db) => {
+            await db
+              .update(customers)
+              .set(customer)
+              .where(eq(customers.id, customer.id));
+            return { id: customer.id };
+          })
+      );
+
+      const mergeCustomers = (fromCustomerId: string, toCustomerId: string) =>
+        pipe(
           Effect.gen(function* () {
-            const customerRepository = yield* CustomerRepository;
-
-            return yield* customerRepository.updateCustomer({
+            return yield* _updateCustomerRecord({
               id: fromCustomerId,
               parentCustomerId: toCustomerId,
               archivedAt: new Date()
@@ -202,8 +349,23 @@ export class CustomerService extends Effect.Service<CustomerService>()(
             // TODO: Update all the customer's unlocked perks to the new customer
             // TODO: Update all the customer's external identifiers to the new customer
             // TODO: Update all the customer's transactions to the new customer
+          }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new CustomerServiceError({
+                cause: String(error.cause)
+              })
           })
-      };
+        );
+      return {
+        createCustomer,
+        getCustomers,
+        getCustomerById,
+        getCustomerByAppUserId,
+        getCustomersUnlockedPerks,
+        getCustomerPurchases,
+        mergeCustomers
+      } as const;
     })
   }
 ) {}

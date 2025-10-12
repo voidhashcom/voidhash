@@ -1,43 +1,46 @@
-import { BetterAuth } from '@voidhash/auth/effect';
-import { UnauthenticatedError } from '@voidhash/shared/errors';
-import { Effect } from 'effect';
-import { AuthSession } from './auth-service';
+import type { User } from '@voidhash/api-spec';
+
+import { AuthenticationError, AuthSession } from '@voidhash/shared';
+import { Effect, pipe, type Schema } from 'effect';
 
 export class UserService extends Effect.Service<UserService>()('UserService', {
   dependencies: [],
   effect: Effect.gen(function* () {
-    return {
-      getUser: (headers: Headers) =>
+    const getUser = () =>
+      pipe(
         Effect.gen(function* () {
           const session = yield* AuthSession;
-          const betterAuth = yield* BetterAuth;
-
-          const organizations = yield* betterAuth.use(async (client) =>
-            client.api.listOrganizations({
-              headers
-            })
-          );
 
           if (!session?.user) {
             return yield* Effect.fail(
-              new UnauthenticatedError({
-                message: 'User not found'
+              new AuthenticationError({
+                message: 'User not found',
+                cause: 'User not found'
               })
             );
           }
 
           return {
             ...session.user,
-            organizations: organizations.map((o) => ({
+            organizations: session.organizations.map((o) => ({
               id: o.id,
               name: o.name,
               slug: o.slug,
-              logo: o.logo ?? null,
-              createdAt: o.createdAt,
-              metadata: o.metadata ?? null
+              logo: null
+            })),
+            projects: session.projects.map((p) => ({
+              id: p.id,
+              name: p.name,
+              slug: p.slug,
+              logo: null,
+              organizationId: p.organizationId
             }))
-          };
+          } satisfies Schema.Schema.Type<typeof User>;
         })
-    };
+      );
+
+    return {
+      getUser
+    } as const;
   })
 }) {}

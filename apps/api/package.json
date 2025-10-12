@@ -13,12 +13,15 @@
     "test:integration": "vitest run -c vitest.integration.mts --bail=1"
   },
   "dependencies": {
-    "@effect/platform": "^0.90.9",
-    "@effect/platform-node": "^0.96.1",
+    "@effect/platform": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "@voidhash/auth": "workspace:*",
     "@voidhash/api-spec": "workspace:*",
     "@voidhash/core": "workspace:*",
+    "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
-    "effect": "^3.17.13",
+    "@voidhash/shared": "workspace:*",
+    "effect": "catalog:",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "next": "15.5.3"

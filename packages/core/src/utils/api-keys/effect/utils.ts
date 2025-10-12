@@ -1,5 +1,4 @@
 import { base64Url, createHashEf } from '@voidhash/lib';
-import { Environment, type EnvironmentValue } from '@voidhash/lib/constants';
 import { Effect } from 'effect';
 
 export type SecretKey = {
@@ -8,7 +7,6 @@ export type SecretKey = {
   isPublic: false;
   end: string;
   prefix: string;
-  environment: EnvironmentValue;
 };
 
 export type PublishableKey = {
@@ -17,13 +15,10 @@ export type PublishableKey = {
   isPublic: true;
   end: string;
   prefix: string;
-  environment: EnvironmentValue;
 };
 
 export const PRODUCTION_SECRET_KEY_PREFIX = 'vh_sk_';
-export const TESTING_SECRET_KEY_PREFIX = 'vh_sk_test_';
 export const PRODUCTION_PUBLISHABLE_KEY_PREFIX = 'vh_pk_';
-export const TESTING_PUBLISHABLE_KEY_PREFIX = 'vh_pk_test_';
 export const KEY_END_LENGTH = 4;
 
 const keyGenerator = (options: {
@@ -45,54 +40,40 @@ export const hashKey = (key: string) =>
     Effect.map((hash) => base64Url.encode(hash, { padding: false }))
   );
 
-export const generateSecretKey = (environment: EnvironmentValue) =>
+export const generateSecretKey = () =>
   keyGenerator({
     length: 32,
-    prefix:
-      environment === Environment.Production
-        ? PRODUCTION_SECRET_KEY_PREFIX
-        : TESTING_SECRET_KEY_PREFIX
+    prefix: PRODUCTION_SECRET_KEY_PREFIX
   });
 
-export const generatePublishableKey = (environment: EnvironmentValue) =>
+export const generatePublishableKey = () =>
   keyGenerator({
     length: 32,
-    prefix:
-      environment === Environment.Production
-        ? PRODUCTION_PUBLISHABLE_KEY_PREFIX
-        : TESTING_PUBLISHABLE_KEY_PREFIX
+    prefix: PRODUCTION_PUBLISHABLE_KEY_PREFIX
   });
 
-export const createPublishableKey = (environment: EnvironmentValue) =>
-  generatePublishableKey(environment).pipe(
+export const createPublishableKey = () =>
+  generatePublishableKey().pipe(
     Effect.map((key) => ({
       key,
       rawKey: key,
-      environment,
       isPublic: true,
       end: key.slice(-KEY_END_LENGTH),
-      prefix:
-        environment === Environment.Production
-          ? PRODUCTION_PUBLISHABLE_KEY_PREFIX
-          : TESTING_PUBLISHABLE_KEY_PREFIX
+      prefix: PRODUCTION_PUBLISHABLE_KEY_PREFIX
     }))
   );
 
-export const createSecretKey = (environment: EnvironmentValue) =>
+export const createSecretKey = () =>
   Effect.gen(function* () {
-    const key = yield* generateSecretKey(environment);
+    const key = yield* generateSecretKey();
     const hashed = yield* hashKey(key);
     const end = key.slice(key.length - KEY_END_LENGTH);
 
     return {
       key: hashed,
       rawKey: key,
-      environment,
       isPublic: false,
       end,
-      prefix:
-        environment === Environment.Production
-          ? PRODUCTION_SECRET_KEY_PREFIX
-          : TESTING_SECRET_KEY_PREFIX
+      prefix: PRODUCTION_SECRET_KEY_PREFIX
     };
   });

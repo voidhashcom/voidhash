@@ -1,41 +1,24 @@
+import type { SdkCustomer } from '@voidhash/api-spec';
 import {
-  type Customer,
+  and,
   CustomerOrigin,
   CustomerType,
-  type InsertCustomer
+  customers,
+  type Customer as DbCustomer,
+  eq
 } from '@voidhash/db';
 import { Db, TransactionContext } from '@voidhash/db/effect';
-import { generateId } from '@voidhash/lib';
 import {
-  CustomerConflictError,
-  CustomerNotFoundError,
-  MissingAppUserIdError,
-  MissingProjectIdError
-} from '@voidhash/shared/errors';
-import { Effect, pipe } from 'effect';
-import { CustomerRepository } from '../repositories/customer-repository';
+  AuthenticationError,
+  AuthSession,
+  SdkCustomerAlreadyIdentifiedError,
+  SdkCustomerNotFoundError,
+  SdkServiceError,
+  SdkValidationError
+} from '@voidhash/shared';
+import { Effect, pipe, type Schema } from 'effect';
 import type { CustomerMetadata } from '../types';
-import { AuthSession } from './auth-service';
 import { CustomerService } from './customer-service';
-import { Environment } from './environment-service';
-
-// type CreateCheckoutResponse = {
-//   checkoutSessionId: string;
-//   checkoutUrl: string;
-// };
-
-// type PaywallResponse = {
-//   paywallId: string;
-//   paywallProducts: {
-//     paywallProductId: string;
-//     productId: string;
-//     price: number;
-//     displayName: string;
-//     nativePurchaseAvailable: boolean;
-//     webCheckoutAvailable: boolean;
-//     webCheckoutPaymentProviderConfigurationProductId: string | null;
-//   }[];
-// };
 
 type CustomerAttributesParams = {
   name?: string;
@@ -44,257 +27,82 @@ type CustomerAttributesParams = {
 };
 
 export class SdkService extends Effect.Service<SdkService>()('SdkService', {
-  dependencies: [CustomerRepository.Default, CustomerService.Default],
+  dependencies: [CustomerService.Default],
   effect: Effect.gen(function* () {
-    // const isNativePurchaseAvailable = (options: {
-    //   environment: EnvironmentValue;
-    //   paywallProduct: PaywallProduct;
-    // }) => {
-    //   return options.paywallProduct.enableNativePurchase;
-    // };
+    const dbService = yield* Db;
+    const customerService = yield* CustomerService;
 
-    // const isWebCheckoutAvailable = (options: {
-    //   environment: EnvironmentValue;
-    //   paywallProduct: PaywallProduct;
-    // }) => {
-    //   if (options.environment === EnvironmentEnum.Testing) {
-    //     return true;
-    //   }
+    const _getCustomerByAppUserId = dbService.makeQuery(
+      (
+        execute,
+        {
+          projectId,
+          appUserId
+        }: {
+          projectId: string;
+          appUserId: string;
+        }
+      ) =>
+        execute(
+          async (db) =>
+            await db.query.customers.findFirst({
+              where: and(
+                eq(customers.projectId, projectId),
+                eq(customers.appUserId, appUserId)
+              )
+            })
+        )
+    );
 
-    //   return options.paywallProduct.enableWebCheckout;
-    // };
+    const _getCustomerById = dbService.makeQuery((execute, id: string) =>
+      execute(
+        async (db) =>
+          await db.query.customers.findFirst({
+            where: eq(customers.id, id)
+          })
+      )
+    );
 
-    return {
-      // createCheckout: (input: {
-      //   paymentProviderConfigurationProductId: string;
-      //   successCallbackUrl: string;
-      //   errorCallbackUrl: string;
-      // }) =>
-      //   Effect.gen(function* () {
-      //     const session = yield* AuthSession;
-      //     const environment = yield* Environment;
-      //     const paymentProviderConfigurationProductRepository =
-      //       yield* PaymentProviderConfigurationProductRepository;
-      //     const customerRepository = yield* CustomerRepository;
-      //     const checkoutSessionRepository = yield* CheckoutSessionRepository;
-      //     const customerService = yield* CustomerService;
-      //     const db = yield* Db;
-
-      //     const appUserId = session?.customer?.appUserId;
-      //     if (!appUserId) {
-      //       return yield* Effect.fail(
-      //         new MissingAppUserIdError({
-      //           message: 'App user ID not found'
-      //         })
-      //       );
-      //     }
-
-      //     const projectId = session?.projects[0]?.id;
-      //     if (!projectId) {
-      //       return yield* Effect.fail(
-      //         new MissingProjectIdError({
-      //           message: 'Project not found'
-      //         })
-      //       );
-      //     }
-
-      //     // Get payment provider configuration product
-      //     const paymentProviderConfigurationProduct =
-      //       yield* paymentProviderConfigurationProductRepository.getProviderProductById(
-      //         input.paymentProviderConfigurationProductId
-      //       );
-      //     if (!paymentProviderConfigurationProduct) {
-      //       return yield* Effect.fail(
-      //         new ProductNotFound({
-      //           message: 'Payment provider configuration product not found'
-      //         })
-      //       );
-      //     }
-
-      //     const result = yield* db.transaction((tx) =>
-      //       TransactionContext.provide(tx)(
-      //         Effect.gen(function* () {
-      //           // Get or create customer
-      //           let customer = yield* customerRepository.getCustomerByAppUserId(
-      //             {
-      //               projectId,
-      //               appUserId,
-      //               environment
-      //             }
-      //           );
-
-      //           if (!customer && isAnonymousId(appUserId)) {
-      //             const newCustomer = yield* customerService.createCustomer({
-      //               projectId,
-      //               appUserId,
-      //               origin: CustomerOrigin.IOS, // TODO: Make this dynamic
-      //               environment
-      //             });
-      //             customer = newCustomer;
-      //           }
-
-      //           if (!customer) {
-      //             return yield* Effect.fail(
-      //               new CustomerNotFoundError({
-      //                 message: 'Customer not found'
-      //               })
-      //             );
-      //           }
-
-      //           // Create checkout session
-      //           const sessionId = generateId('checkoutSession');
-      //           const sessionData = {
-      //             id: sessionId,
-      //             customerId: customer.id,
-      //             paymentProviderConfigurationProductId:
-      //               paymentProviderConfigurationProduct.id,
-      //             successCallbackUrl: input.successCallbackUrl,
-      //             errorCallbackUrl: input.errorCallbackUrl,
-      //             createdAt: new Date(),
-      //             updatedAt: new Date()
-      //           };
-
-      //           yield* checkoutSessionRepository.createCheckoutSession(
-      //             sessionData
-      //           );
-
-      //           return yield* Effect.succeed({
-      //             checkoutSessionId: sessionId,
-      //             checkoutUrl: `${CHECKOUT_DOMAIN}/dev-checkout/${sessionId}`
-      //           } satisfies CreateCheckoutResponse);
-      //         })
-      //       )
-      //     );
-
-      //     yield* Effect.log(
-      //       `Created checkout session ${result.checkoutSessionId} for customer ${appUserId}`
-      //     );
-
-      //     return result;
-      //   }),
-
-      // getPaywallByLocation: (input: {
-      //   locationSlug: string;
-      //   nativePaymentProviderId?: string | null;
-      // }) =>
-      //   Effect.gen(function* () {
-      //     const session = yield* AuthSession;
-      //     const environment = yield* Environment;
-      //     const paywallRepository = yield* PaywallRepository;
-
-      //     const appUserId = session?.customer?.appUserId;
-      //     if (!appUserId) {
-      //       return yield* Effect.fail(
-      //         new MissingAppUserIdError({
-      //           message: 'App user ID not found'
-      //         })
-      //       );
-      //     }
-
-      //     const projectId = session?.projects[0]?.id;
-      //     if (!projectId) {
-      //       return yield* Effect.fail(
-      //         new MissingProjectIdError({
-      //           message: 'Project ID not found after authentication'
-      //         })
-      //       );
-      //     }
-
-      //     // Get paywall with products by location slug
-      //     const paywallLocation =
-      //       yield* paywallRepository.getPaywallWithProductsByLocationSlug({
-      //         locationSlug: input.locationSlug,
-      //         environment
-      //       });
-
-      //     if (!paywallLocation?.defaultPaywall) {
-      //       return yield* Effect.fail(
-      //         new PaywallNotFound({
-      //           message: 'Paywall not found'
-      //         })
-      //       );
-      //     }
-
-      //     const paywall = paywallLocation.defaultPaywall;
-
-      //     const paywallProducts = paywall.paywallProducts.map(
-      //       (paywallProduct) => {
-      //         const product = paywallProduct.product;
-
-      //         const nativePurchaseAvailable = input.nativePaymentProviderId
-      //           ? isNativePurchaseAvailable({
-      //               environment,
-      //               paywallProduct
-      //             })
-      //           : false;
-
-      //         const webCheckoutAvailable = isWebCheckoutAvailable({
-      //           environment,
-      //           paywallProduct
-      //         });
-
-      //         return {
-      //           paywallProductId: paywallProduct.id,
-      //           productId: product.id,
-      //           displayName: paywallProduct.displayName,
-      //           price: 100, // TODO: Get real price
-      //           nativePurchaseAvailable,
-      //           webCheckoutAvailable,
-      //           webCheckoutPaymentProviderConfigurationProductId:
-      //             webCheckoutAvailable
-      //               ? paywallProduct.webCheckoutPaymentProviderConfigurationProductId
-      //               : null
-      //         };
-      //       }
-      //     );
-
-      //     const response: PaywallResponse = {
-      //       paywallId: paywall.id,
-      //       paywallProducts
-      //     };
-
-      //     yield* Effect.log(
-      //       `Retrieved paywall ${paywall.id} for location ${input.locationSlug}`
-      //     );
-
-      //     return yield* Effect.succeed(response);
-      //   }),
-
-      identifyCustomer: (input: {
-        appUserId: string;
-        name: string | null;
-        email: string | null;
-      }) =>
+    const identifyCustomer = (input: {
+      appUserId: string;
+      name: string | null;
+      email: string | null;
+    }): Effect.Effect<
+      Schema.Schema.Type<typeof SdkCustomer>,
+      | AuthenticationError
+      | SdkServiceError
+      | SdkValidationError
+      | SdkCustomerAlreadyIdentifiedError,
+      AuthSession
+    > =>
+      pipe(
         Effect.gen(function* () {
           const session = yield* AuthSession;
-          const environment = yield* Environment;
-          const customerRepository = yield* CustomerRepository;
-          const customerService = yield* CustomerService;
-          const db = yield* Db;
 
           const projectId = session?.projects[0]?.id;
           if (!projectId) {
             return yield* Effect.fail(
-              new MissingProjectIdError({
-                message: 'Project ID not found after authentication'
+              new AuthenticationError({
+                cause:
+                  'No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.',
+                message:
+                  'No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.'
               })
             );
           }
 
-          const result = yield* db.transaction((tx) =>
+          const result = yield* dbService.transaction((tx) =>
             TransactionContext.provide(tx)(
               Effect.gen(function* () {
                 const currentAppUserId = session?.customer?.appUserId;
 
                 // Get current customer if exists
-                let currentCustomer: Customer | undefined;
+                let currentCustomer: DbCustomer | undefined;
                 if (currentAppUserId) {
-                  currentCustomer =
-                    yield* customerRepository.getCustomerByAppUserId({
-                      appUserId: currentAppUserId,
-                      environment,
-                      projectId
-                    });
+                  currentCustomer = yield* _getCustomerByAppUserId({
+                    appUserId: currentAppUserId,
+                    projectId
+                  });
                 }
 
                 // Can't identify already identified anonymous customer.
@@ -303,10 +111,9 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
                   currentCustomer.type === CustomerType.Anonymous &&
                   currentCustomer.parentCustomerId
                 ) {
-                  const parentCustomer =
-                    yield* customerRepository.getCustomerById(
-                      currentCustomer.parentCustomerId
-                    );
+                  const parentCustomer = yield* _getCustomerById(
+                    currentCustomer.parentCustomerId
+                  );
                   if (!parentCustomer) {
                     return yield* Effect.die(
                       new Error(
@@ -317,8 +124,8 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
 
                   if (parentCustomer.appUserId !== input.appUserId) {
                     return yield* Effect.fail(
-                      new CustomerConflictError({
-                        message: 'Anonymous customer is already identified'
+                      new SdkCustomerAlreadyIdentifiedError({
+                        appUserId: input.appUserId
                       })
                     );
                   }
@@ -327,37 +134,31 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
                 }
 
                 // Get identifying as customer if exists
-                let identifyingAsCustomer =
-                  yield* customerRepository.getCustomerByAppUserId({
-                    appUserId: input.appUserId,
-                    environment,
-                    projectId
-                  });
+                let identifyingAsCustomer = yield* _getCustomerByAppUserId({
+                  appUserId: input.appUserId,
+                  projectId
+                });
 
                 // If identifying as customer doesn't exist, create a new one
                 if (!identifyingAsCustomer) {
-                  const newCustomer = {
-                    id: generateId('customer'),
+                  yield* customerService.createCustomer({
                     projectId,
                     appUserId: input.appUserId,
-                    parentCustomerId: null,
                     name: input.name ?? null,
                     email: input.email ?? null,
-                    origin: CustomerOrigin.IOS, // TODO: Make this dynamic
-                    environment,
-                    type: CustomerType.Identified,
-                    additionalAttributes: {}
-                  } satisfies InsertCustomer;
+                    origin: CustomerOrigin.IOS // TODO: Make this dynamic
+                  });
 
-                  yield* customerRepository.createCustomer(newCustomer);
+                  identifyingAsCustomer = yield* _getCustomerByAppUserId({
+                    appUserId: input.appUserId,
+                    projectId
+                  });
 
-                  identifyingAsCustomer = {
-                    ...newCustomer,
-                    archivedAt: null,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                    parentCustomerId: null
-                  };
+                  if (!identifyingAsCustomer) {
+                    return yield* Effect.dieMessage(
+                      'identifyingAsCustomer is null event though it should exist'
+                    );
+                  }
                 }
 
                 // Merge customers if current customer is anonymous
@@ -372,12 +173,10 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
                 }
 
                 // Get updated identified customer
-                const updatedCustomer =
-                  yield* customerRepository.getCustomerByAppUserId({
-                    appUserId: input.appUserId,
-                    environment,
-                    projectId
-                  });
+                const updatedCustomer = yield* _getCustomerByAppUserId({
+                  appUserId: input.appUserId,
+                  projectId
+                });
 
                 if (!updatedCustomer) {
                   return yield* Effect.dieMessage(
@@ -394,20 +193,55 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
             `Identified customer ${result.id} for app user ${input.appUserId}`
           );
 
-          return result;
+          return {
+            appUserId: result.appUserId,
+            name: result.name,
+            email: result.email,
+            customerId: result.id
+          };
         }),
+        Effect.catchTags({
+          DatabaseError: (error) =>
+            new SdkServiceError({
+              cause: String(error.cause)
+            }),
+          CustomerServiceError: (error) =>
+            new SdkServiceError({
+              cause: String(error.cause)
+            }),
+          CustomerInvalidAnonymousIdError: () =>
+            new SdkValidationError({
+              message: 'Invalid anonymous ID'
+            })
+        })
+      );
 
-      syncCustomerAttributes: (input: CustomerAttributesParams) =>
+    const _updateCustomerRecord = dbService.makeQuery(
+      (execute, customer: Omit<Partial<DbCustomer>, 'id'> & { id: string }) =>
+        execute(async (db) => {
+          await db
+            .update(customers)
+            .set(customer)
+            .where(eq(customers.id, customer.id));
+          return { id: customer.id };
+        })
+    );
+
+    const syncCustomerAttributes = (
+      input: CustomerAttributesParams
+    ): Effect.Effect<
+      Schema.Schema.Type<typeof SdkCustomer>,
+      AuthenticationError | SdkServiceError | SdkValidationError,
+      AuthSession
+    > =>
+      pipe(
         Effect.gen(function* () {
           const session = yield* AuthSession;
-          const environment = yield* Environment;
-          const customerRepository = yield* CustomerRepository;
-          const customerService = yield* CustomerService;
 
           const appUserId = session?.customer?.appUserId;
           if (!appUserId) {
             return yield* Effect.fail(
-              new MissingAppUserIdError({
+              new SdkValidationError({
                 message: 'App user ID not found'
               })
             );
@@ -416,17 +250,19 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
           const projectId = session?.projects[0]?.id;
           if (!projectId) {
             return yield* Effect.fail(
-              new MissingProjectIdError({
-                message: 'Project ID not found after authentication'
+              new AuthenticationError({
+                cause:
+                  'No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.',
+                message:
+                  'No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.'
               })
             );
           }
 
           // Get or create customer
           const customer = yield* pipe(
-            customerRepository.getCustomerByAppUserId({
+            _getCustomerByAppUserId({
               appUserId,
-              environment,
               projectId
             }),
 
@@ -439,15 +275,15 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
                 customerService.createCustomer({
                   projectId,
                   appUserId,
-                  origin: CustomerOrigin.IOS, // TODO: Make this dynamic
-                  environment
+                  name: null,
+                  email: null,
+                  origin: CustomerOrigin.IOS // TODO: Make this dynamic
                 }),
 
                 // Get customer after creation
                 Effect.andThen(() =>
-                  customerRepository.getCustomerByAppUserId({
+                  _getCustomerByAppUserId({
                     appUserId,
-                    environment,
                     projectId
                   })
                 ),
@@ -464,7 +300,7 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
             })
           );
 
-          yield* customerRepository.updateCustomer({
+          yield* _updateCustomerRecord({
             id: customer.id,
             name: input.name,
             email: input.email,
@@ -486,20 +322,45 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
             }
           });
 
-          return customer;
+          return {
+            appUserId: customer.appUserId,
+            name: customer.name,
+            email: customer.email,
+            customerId: customer.id
+          } satisfies Schema.Schema.Type<typeof SdkCustomer>;
         }),
+        Effect.catchTags({
+          DatabaseError: (error) =>
+            new SdkServiceError({
+              cause: String(error.cause)
+            }),
+          CustomerServiceError: (error) =>
+            new SdkServiceError({
+              cause: String(error.cause)
+            }),
+          CustomerInvalidAnonymousIdError: () =>
+            new SdkValidationError({
+              message: 'Invalid anonymous ID'
+            })
+        })
+      );
 
-      getCustomer: () =>
+    const getCustomer = (): Effect.Effect<
+      Schema.Schema.Type<typeof SdkCustomer>,
+      | AuthenticationError
+      | SdkServiceError
+      | SdkCustomerNotFoundError
+      | SdkValidationError,
+      AuthSession
+    > =>
+      pipe(
         Effect.gen(function* () {
           const session = yield* AuthSession;
-          const environment = yield* Environment;
-          const customerRepository = yield* CustomerRepository;
-          const db = yield* Db;
 
           const appUserId = session?.customer?.appUserId;
           if (!appUserId) {
             return yield* Effect.fail(
-              new MissingAppUserIdError({
+              new SdkValidationError({
                 message: 'App user ID not found'
               })
             );
@@ -508,30 +369,30 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
           const projectId = session?.projects[0]?.id;
           if (!projectId) {
             return yield* Effect.fail(
-              new MissingProjectIdError({
-                message: 'Project ID not found after authentication'
+              new AuthenticationError({
+                cause:
+                  'No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.',
+                message:
+                  'No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.'
               })
             );
           }
 
-          const result = yield* db.transaction((tx) =>
+          const result = yield* dbService.transaction((tx) =>
             TransactionContext.provide(tx)(
               Effect.gen(function* () {
                 // Try to get existing customer
-                const customer =
-                  yield* customerRepository.getCustomerByAppUserId({
-                    appUserId,
-                    environment,
-                    projectId
-                  });
+                const customer = yield* _getCustomerByAppUserId({
+                  appUserId,
+                  projectId
+                });
 
                 if (customer) {
                   // Return parent if it exists, otherwise return the customer itself
                   if (customer.parentCustomerId) {
-                    const parentCustomer =
-                      yield* customerRepository.getCustomerById(
-                        customer.parentCustomerId
-                      );
+                    const parentCustomer = yield* _getCustomerById(
+                      customer.parentCustomerId
+                    );
                     return parentCustomer;
                   }
                   return customer;
@@ -539,7 +400,7 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
 
                 // Customer not found and not anonymous ID
                 return yield* Effect.fail(
-                  new CustomerNotFoundError({
+                  new SdkCustomerNotFoundError({
                     message: 'Customer not found'
                   })
                 );
@@ -547,8 +408,33 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
             )
           );
 
-          return result;
+          if (!result) {
+            return yield* Effect.fail(
+              new SdkCustomerNotFoundError({
+                message: 'Customer not found'
+              })
+            );
+          }
+
+          return {
+            appUserId: result.appUserId,
+            name: result.name,
+            email: result.email,
+            customerId: result.id
+          };
+        }),
+        Effect.catchTags({
+          DatabaseError: (error) =>
+            new SdkServiceError({
+              cause: String(error.cause)
+            })
         })
-    };
+      );
+
+    return {
+      identifyCustomer,
+      syncCustomerAttributes,
+      getCustomer
+    } as const;
   })
 }) {}

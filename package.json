@@ -29,7 +29,7 @@
     "lines-of-code": "npx cloc . --exclude-dir=.next,node_modules,.vercel,.turbo,.git,meta,.github,.expo,build,.expo-shared,nitrogen --vcs git --not-match-f=bun.lockb,meta.json --exclude-ext=yaml,md"
   },
   "dependencies": {
-    "@effect/language-service": "^0.40.0",
+    "@effect/language-service": "catalog:",
     "@types/node": "^24.0.12",
     "bumpp": "^10.2.0",
     "cross-env": "^7.0.3",

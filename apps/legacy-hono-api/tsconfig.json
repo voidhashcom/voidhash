@@ -1,7 +1,7 @@
 {
   "extends": "@voidhash/tsconfig/internal-package.json",
   "include": ["src"],
-  "exclude": ["node_modules"],
+  "exclude": ["**/node_modules/**"],
   "compilerOptions": {
     "target": "ES2022",
     "module": "Preserve",

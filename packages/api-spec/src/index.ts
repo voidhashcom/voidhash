@@ -1,3 +1,3 @@
 export * from './api';
-export * from './errors';
+export * from './middlewares';
 export * from './schema';

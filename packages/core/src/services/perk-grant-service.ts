@@ -1,18 +1,23 @@
 import {
   type CustomerUnlockedPerk,
   CustomerUnlockedPerkStatus,
+  customerUnlockedPerks,
+  eq,
+  type InsertCustomerUnlockedPerk,
+  inArray,
   type PaymentProviderConfigurationProduct,
   type ProductPerk,
-  type Subscription
+  paymentProviderConfigurationProducts,
+  productPerks,
+  products,
+  type Subscription,
+  subscriptions
 } from '@voidhash/db';
 import { Db, TransactionContext } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
 import { SubscriptionStatus } from '@voidhash/lib/constants';
-import { Effect } from 'effect';
-import { CustomerRepository } from '../repositories/customer-repository';
-import { CustomerUnlockedPerkRepository } from '../repositories/customer-unlocked-perk-repository';
-import { ProductPerkRepository } from '../repositories/product-perk-repository';
-import { SubscriptionRepository } from '../repositories/subscription-repository';
+import { PerkGrantServiceError } from '@voidhash/shared';
+import { Effect, pipe } from 'effect';
 
 type PerkOperationCreation = {
   status: 'create';
@@ -44,23 +49,95 @@ export class PerkGrantService extends Effect.Service<PerkGrantService>()(
   {
     dependencies: [],
     effect: Effect.gen(function* () {
-      return {
-        syncUnlockedPerks: (customerId: string) =>
+      const dbService = yield* Db;
+
+      const _getCustomersUnlockedPerks = dbService.makeQuery(
+        (execute, customerId: string) =>
+          execute(
+            async (db) =>
+              await db.query.customerUnlockedPerks.findMany({
+                where: eq(customerUnlockedPerks.customerId, customerId)
+              })
+          )
+      );
+
+      const _getSubscriptionsByCustomerIdWithPaymentProviderConfigurationProduct =
+        dbService.makeQuery((execute, customerId: string) =>
+          execute(
+            async (db) =>
+              await db.query.subscriptions.findMany({
+                where: eq(subscriptions.customerId, customerId),
+                with: {
+                  paymentProviderConfigurationProduct: true
+                }
+              })
+          )
+        );
+
+      const _getProductPerksByPaymentProviderConfigurationProductIds =
+        dbService.makeQuery(
+          (execute, paymentProviderConfigurationProductIds: string[]) =>
+            execute(async (db) =>
+              (
+                await db
+                  .select()
+                  .from(paymentProviderConfigurationProducts)
+                  .innerJoin(
+                    products,
+                    eq(
+                      paymentProviderConfigurationProducts.productId,
+                      products.id
+                    )
+                  )
+                  .innerJoin(
+                    productPerks,
+                    eq(productPerks.productId, products.id)
+                  )
+                  .where(
+                    inArray(
+                      paymentProviderConfigurationProducts.id,
+                      paymentProviderConfigurationProductIds
+                    )
+                  )
+              ).map((row) => row.product_perk)
+            )
+        );
+
+      const _createCustomerUnlockedPerk = dbService.makeQuery(
+        (execute, customerUnlockedPerk: InsertCustomerUnlockedPerk) =>
+          execute(async (db) => {
+            await db.insert(customerUnlockedPerks).values(customerUnlockedPerk);
+            return { id: customerUnlockedPerk.id };
+          })
+      );
+
+      const _updateCustomerUnlockedPerk = dbService.makeQuery(
+        (
+          execute,
+          customerUnlockedPerk: Omit<Partial<CustomerUnlockedPerk>, 'id'> & {
+            id: string;
+          }
+        ) =>
+          execute(async (db) => {
+            await db
+              .update(customerUnlockedPerks)
+              .set(customerUnlockedPerk)
+              .where(eq(customerUnlockedPerks.id, customerUnlockedPerk.id));
+            return { id: customerUnlockedPerk.id };
+          })
+      );
+
+      const syncUnlockedPerks = (customerId: string) =>
+        pipe(
           Effect.gen(function* () {
-            const customerRepository = yield* CustomerRepository;
-            const subscriptionRepository = yield* SubscriptionRepository;
-            const productPerkRepository = yield* ProductPerkRepository;
-            const customerUnlockedPerkRepository =
-              yield* CustomerUnlockedPerkRepository;
-            const db = yield* Db;
             const [unlockedPerks, customersSubscriptions] = yield* Effect.all([
-              customerRepository.getCustomersUnlockedPerks(customerId),
-              subscriptionRepository.getSubscriptionsByCustomerIdWithPaymentProviderConfigurationProduct(
+              _getCustomersUnlockedPerks(customerId),
+              _getSubscriptionsByCustomerIdWithPaymentProviderConfigurationProduct(
                 customerId
               )
             ]);
             const unlockablePerks =
-              yield* productPerkRepository.getProductPerksByPaymentProviderConfigurationProductIds(
+              yield* _getProductPerksByPaymentProviderConfigurationProductIds(
                 customersSubscriptions.map(
                   (subscription) =>
                     subscription.paymentProviderConfigurationProductId
@@ -86,40 +163,34 @@ export class PerkGrantService extends Effect.Service<PerkGrantService>()(
               ...perksFromSubscriptionsToDeactivate
             ];
 
-            yield* db.transaction((tx) =>
+            yield* dbService.transaction((tx) =>
               TransactionContext.provide(tx)(
                 Effect.all([
                   ...operations.map((operation) => {
                     switch (operation.status) {
                       case 'create':
-                        return customerUnlockedPerkRepository.createCustomerUnlockedPerk(
-                          {
-                            id: generateId('customerUnlockedPerk'),
-                            customerId,
-                            perkId: operation.perkId,
-                            unlockedBySubscriptionId:
-                              operation.unlockedBySubscriptionId,
-                            expiresAt: operation.expiresAt,
-                            status: CustomerUnlockedPerkStatus.Active
-                          }
-                        );
+                        return _createCustomerUnlockedPerk({
+                          id: generateId('customerUnlockedPerk'),
+                          customerId,
+                          perkId: operation.perkId,
+                          unlockedBySubscriptionId:
+                            operation.unlockedBySubscriptionId,
+                          expiresAt: operation.expiresAt,
+                          status: CustomerUnlockedPerkStatus.Active
+                        });
                       case 'reactivate':
-                        return customerUnlockedPerkRepository.updateCustomerUnlockedPerk(
-                          {
-                            id: operation.perkId,
-                            expiresAt: operation.expiresAt,
-                            updatedAt: new Date(),
-                            status: CustomerUnlockedPerkStatus.Active
-                          }
-                        );
+                        return _updateCustomerUnlockedPerk({
+                          id: operation.perkId,
+                          expiresAt: operation.expiresAt,
+                          updatedAt: new Date(),
+                          status: CustomerUnlockedPerkStatus.Active
+                        });
                       case 'expire':
-                        return customerUnlockedPerkRepository.updateCustomerUnlockedPerk(
-                          {
-                            id: operation.perkId,
-                            updatedAt: new Date(),
-                            status: CustomerUnlockedPerkStatus.Expired
-                          }
-                        );
+                        return _updateCustomerUnlockedPerk({
+                          id: operation.perkId,
+                          updatedAt: new Date(),
+                          status: CustomerUnlockedPerkStatus.Expired
+                        });
                       default:
                         // THIS should never happen
                         throw new Error('Unknown perk operation status');
@@ -128,8 +199,18 @@ export class PerkGrantService extends Effect.Service<PerkGrantService>()(
                 ])
               )
             );
+          }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new PerkGrantServiceError({
+                cause: String(error.cause)
+              })
           })
-      };
+        );
+
+      return {
+        syncUnlockedPerks
+      } as const;
     })
   }
 ) {}
