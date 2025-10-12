@@ -50,7 +50,7 @@ voidhash-cli init
 
 ## 📚 Documentation
 
-For detailed documentation, visit [voidhash.com](https://voidhash.com)
+For detailed documentation, visit [voidhash.com](https://voidhash.com/docs)
 
 ## 🤝 Contributing
 
@@ -63,7 +63,7 @@ Licensed under the AGPL-3.0 License. See [LICENSE.md](LICENSE.md) for more infor
 ## 🔗 Links
 
 - [Website](https://voidhash.com)
-- [Documentation](https://voidhash.com)
+- [Documentation](https://voidhash.com/docs)
 - [GitHub](https://github.com/voidhashcom/voidhash)
 - [Twitter](https://x.com/voidhashcom)
 
