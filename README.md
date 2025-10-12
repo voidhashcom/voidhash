@@ -4,73 +4,71 @@
     <source srcset="./banner.png" media="(prefers-color-scheme: light)">
     <img src="./banner.png" alt="Better Auth Logo">
   </picture>
+<hr />
+  <p>
+    Voidhash is <strong>WIP</strong>. We're working on the first version of the product.
+  </p>
+
+  <hr />
   <h2 align="center">
-    Voidhash
+    Subscription management platform for React Native
   </h2>
 
   <p align="center">
-    <!-- The universal subscription management library in Typescript for orchestrating subscriptions from Google Play, App Store, Stripe and more. -->
-    <br />
-    <a href="https://chiron.sh"><strong>Learn more »</strong></a>
+    Voidhash is an open-source subscription management platform for React Native that allows you to integrate Google Play and App Store purchases with a single command.
     <br />
     <br />
-    <a href="https://chiron.sh">Website</a>
+    <a href="https://voidhash.com"><strong>Join Waitlist →</strong></a>
+    <br />
+    <br />
+    <a href="https://voidhash.com">Website</a>
     ·
-    <a href="https://github.com/voidhashcom/Chiron/issues">Issues</a>
+    <a href="https://github.com/voidhashcom/voidhash">GitHub</a>
+    ·
+    <a href="https://x.com/voidhashcom">Twitter</a>
   </p>
+</p>
 
-<!-- [![npm](https://img.shields.io/npm/dm/better-auth)](https://npm.chart.dev/better-auth?primary=neutral&gray=neutral&theme=dark)
-[![npm version](https://img.shields.io/npm/v/better-auth.svg)](https://www.npmjs.com/package/better-auth)
-[![GitHub stars](https://img.shields.io/github/stars/better-auth/better-auth)](https://github.com/better-auth/better-auth/stargazers) -->
+## ✨ Features
 
-# Roadmap
-Core
-- [x] Teams
--- [x] Create
--- [x] Update
--- [x] Delete
+- **🏪 Multi-Platform Support** - Seamless integration with Google Play and App Store
+- **🔐 Server-Side Validation** - Secure receipt validation on your backend
+- **👥 Customer Management** - Comprehensive customer lifecycle management
+- **📊 Analytics Dashboard** - Track subscriptions, revenue, and user metrics
+- **⚡ Powerful CLI** - Simple command-line interface for quick setup
+- **🎯 React Native First** - Built specifically for React Native applications
 
-- [x] Projects
--- [x] Create
--- [x] Update
--- [x] Delete
+## 🛠️ Quick Start
 
+```bash
+# Install the CLI
+npm install voidhash-cli --save-dev
 
-- [ ] Environments
--- [ ] Create
--- [ ] Update
--- [ ] Delete
+# Initialize in your React Native project
+voidhash-cli init
+```
 
-- [ ] Users
--- [x] Sign in
--- [x] Sign up
--- [ ] Forgot password
--- [ ] Reset password
--- [ ] Change password
--- [ ] Change email
--- [x] Sign out
--- [ ] Github sign in
+## 📚 Documentation
 
-- [ ] Customers
--- [ ] List
--- [ ] Detail
+For detailed documentation, visit [voidhash.com](https://voidhash.com)
 
-- [ ] Subscriptions
--- [ ] List
--- [ ] Detail
+## 🤝 Contributing
 
-- [ ] Payments
--- [ ] List
--- [ ] Detail
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-- [ ] Analytics
-- [ ] Dashboard
+## 📄 License
 
-- [ ] Paywalls
-- [ ] A/B testing
+Licensed under the AGPL-3.0 License. See [LICENSE.md](LICENSE.md) for more information.
 
-- [ ] Integrations
+## 🔗 Links
 
+- [Website](https://voidhash.com)
+- [Documentation](https://voidhash.com)
+- [GitHub](https://github.com/voidhashcom/voidhash)
+- [Twitter](https://x.com/voidhashcom)
 
+---
 
+<p align="center">
+  Made with ❤️ by <a href="https://voidhash.com">Voidhash s.r.o.</a>
 </p>
