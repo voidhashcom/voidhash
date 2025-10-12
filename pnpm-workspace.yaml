@@ -4,16 +4,32 @@ packages:
   - libraries/*
   - examples/*
 catalog:
-  '@types/react': ^18.3.14
-  '@types/react-dom': ^18.3.2
-  '@trpc/client': ^11.1.0
-  '@trpc/server': ^11.1.0
-  '@tanstack/react-query': ^5.67.1
-  '@trpc/tanstack-react-query': ^11.1.0
+  "@types/react": ^18.3.14
+  "@types/react-dom": ^18.3.2
+  "@trpc/client": ^11.1.0
+  "@trpc/server": ^11.1.0
+  "@tanstack/react-query": ^5.67.1
+  "@trpc/tanstack-react-query": ^11.1.0
+  effect: ^3.18.1
+  "@effect/platform-node": ^0.98.3
+  "@effect/platform": ^0.92.1
+  "@effect/cli": ^0.71.0
+  "@effect/language-service": ^0.41.1
+  "@effect/vitest": ^0.26.0
   superjson: ^2.2.2
 catalogs:
   react18:
     react: 18.3.1
     react-dom: 18.3.1
 onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - "@tailwindcss/oxide"
   - esbuild
+  - msgpackr-extract
+  - msw
+  - nitro-codegen
+  - protobufjs
+  - react-native-nitro-modules
+  - sharp
+  - simple-git-hooks
+  - unrs-resolver

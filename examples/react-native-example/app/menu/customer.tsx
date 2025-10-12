@@ -1,6 +1,6 @@
 import { Button } from 'components/button';
 import { Platform, Text, View } from 'react-native';
-import { voidhash } from 'utils/voidhash/client';
+import { voidhash } from 'utils/voidhash/local.client';
 
 export default function HomeScreen() {
   const { client } = voidhash.useVoidhash();

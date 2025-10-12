@@ -1,6 +1,5 @@
 export * from './currencies';
 export * from './customers';
-export * from './environments';
 export * from './main';
 export * from './permissions';
 export * from './products';

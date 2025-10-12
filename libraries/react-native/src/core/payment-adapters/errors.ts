@@ -35,13 +35,6 @@ export class FailedToBuyProductError extends Data.TaggedError(
   readonly cause?: unknown;
 }> {}
 
-export class ProductNotFoundError extends Data.TaggedError(
-  'ProductNotFoundError'
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
-
 export class UserCancelledError extends Data.TaggedError('UserCancelledError')<{
   readonly message: string;
   readonly cause?: unknown;
