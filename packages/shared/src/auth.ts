@@ -50,6 +50,7 @@ export type UserSession = VoidhashBaseSession & {
   readonly user: User;
   readonly customer: null;
   readonly environment: null;
+  readonly cookie: string | null;
 };
 
 export type SecretKeySession = VoidhashBaseSession & {
@@ -57,6 +58,7 @@ export type SecretKeySession = VoidhashBaseSession & {
   readonly name: string;
   readonly user: null;
   readonly customer: null;
+  readonly cookie: null;
 };
 
 export type PublishableKeySession = VoidhashBaseSession & {
@@ -66,6 +68,7 @@ export type PublishableKeySession = VoidhashBaseSession & {
     readonly appUserId: string;
   };
   readonly user: null;
+  readonly cookie: null;
 };
 
 export type AnyAuthSession =
