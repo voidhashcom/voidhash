@@ -1,67 +1,47 @@
-import {
-  authenticateWithSession,
-  ProjectNotFoundError,
-  ProjectService
-} from '@voidhash/core/services';
-import { Effect, Either } from 'effect';
+'use client';
+
+import { Result } from '@effect-atom/atom-react';
+import { useUser } from 'atom/user';
+import { useParams } from 'next/navigation';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { headers } from '@/lib/effect/headers';
-import { ServerComponent } from '@/lib/nextjs-runtime';
 import { ProjectDelete } from './project-delete';
 import { ProjectNameForm } from './project-name';
 import { ProjectSettingsGeneralLayout } from './project-settings-general-layout';
+import { ProjectSettingsGeneralPageSkeleton } from './project-settings-general-page-skeleton';
 
-export const _ProjectSettingsGeneralPage = Effect.fn(
-  'ProjectSettingsGeneralPage'
-)(function* ({
-  organizationSlug,
-  projectSlug
-}: {
-  organizationSlug: string;
-  projectSlug: string;
-}) {
-  const data = yield* Effect.either(
-    authenticateWithSession(yield* headers)(
-      Effect.gen(function* () {
-        const projectService = yield* ProjectService;
-        const project =
-          yield* projectService.getProjectBySlugAndOrganizationSlug({
-            organizationSlug,
-            projectSlug
-          });
+export function ProjectSettingsGeneralPage() {
+  const { projectSlug } = useParams();
+  return useUser().pipe(
+    Result.match({
+      onInitial: () => <ProjectSettingsGeneralPageSkeleton />,
+      onFailure: () => (
+        <VoidhashErrorCard
+          error={{
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'An error occured loading the project'
+          }}
+        />
+      ),
+      onSuccess: ({ value: user }) => {
+        const project = user.projects.find((p) => p.slug === projectSlug);
         if (!project) {
-          return yield* Effect.fail(
-            new ProjectNotFoundError({
-              message: 'Project not found'
-            })
+          return (
+            <VoidhashErrorCard
+              error={{ code: 'NOT_FOUND', message: 'Project not found' }}
+            />
           );
         }
-        return { project };
-      })
-    )
+        return (
+          <ProjectSettingsGeneralLayout>
+            <ProjectNameForm
+              key={projectSlug as string}
+              projectId={project.id}
+              projectName={project.name}
+            />
+            <ProjectDelete projectId={project.id} />
+          </ProjectSettingsGeneralLayout>
+        );
+      }
+    })
   );
-
-  if (Either.isLeft(data)) {
-    return (
-      <VoidhashErrorCard
-        error={{
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'An error occured loading the project'
-        }}
-      />
-    );
-  }
-
-  const { project } = data.right;
-
-  return (
-    <ProjectSettingsGeneralLayout>
-      <ProjectNameForm key={projectSlug} project={project} />
-      <ProjectDelete projectId={project.id} />
-    </ProjectSettingsGeneralLayout>
-  );
-});
-
-export const ProjectSettingsGeneralPage = ServerComponent.build(
-  _ProjectSettingsGeneralPage
-);
+}

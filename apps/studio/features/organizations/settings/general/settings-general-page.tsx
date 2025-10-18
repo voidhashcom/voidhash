@@ -1,7 +1,8 @@
+'use client';
 import { Result } from '@effect-atom/atom-react';
 import { SettingsCardSkeleton } from '@voidhash/ui';
 import { useUser } from 'atom/user';
-import { use } from 'react';
+import { useParams } from 'next/navigation';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { SettingsGeneralLayout } from './settings-general-layout';
 import { TeamDelete } from './team-delete';
@@ -41,12 +42,8 @@ import { TeamNameForm } from './team-name';
 //   }
 // );
 
-export function SettingsGeneralPage({
-  params
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
-  const { organizationSlug } = use(params);
+export function SettingsGeneralPage() {
+  const { organizationSlug } = useParams();
   return useUser().pipe(
     Result.match({
       onInitial: () => (
@@ -78,7 +75,7 @@ export function SettingsGeneralPage({
         return (
           <SettingsGeneralLayout>
             <TeamNameForm
-              key={organizationSlug}
+              key={organizationSlug as string}
               organization={activeOrganization}
             />
             <TeamDelete organizationId={activeOrganization.id} />

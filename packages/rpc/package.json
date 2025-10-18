@@ -1,0 +1,30 @@
+{
+  "name": "@voidhash/rpc",
+  "version": "0.0.1-alpha.1",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/rpc"
+  },
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/rpc": "^0.71.0",
+    "@voidhash/lib": "workspace:*",
+    "@voidhash/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "5.6.3"
+  },
+  "peerDependencies": {
+    "@effect/platform": "catalog:",
+    "effect": "catalog:"
+  }
+}

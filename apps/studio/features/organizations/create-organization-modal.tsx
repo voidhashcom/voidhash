@@ -22,13 +22,14 @@ import {
   FormMessage
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
-import { ApiClient } from 'atom/lib/api-client';
+import { VRpc } from 'atom/lib/rpc-client';
+import { runtime } from 'atom/lib/runtime';
+import { withToast } from 'atom/lib/with-toast';
 import { queryKeys } from 'atom/query-keys';
-import { Exit, type Schema } from 'effect';
+import { Effect, Either, type Schema } from 'effect';
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
 
 type CreateOrganizationForm = Schema.Schema.Type<typeof CreateOrganizationBody>;
 
@@ -43,6 +44,7 @@ export function CreateOrganizationModal({
   onClose,
   trigger
 }: CreateOrganizationModalProps) {
+  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
   const router = useRouter();
   const form = useForm<CreateOrganizationForm>({
     resolver: effectTsResolver(CreateOrganizationBody),
@@ -51,14 +53,38 @@ export function CreateOrganizationModal({
     }
   });
 
-  const createOrganization = useAtomSet(
-    ApiClient.mutation('organizations', 'createOrganization'),
-    {
-      mode: 'promiseExit'
-    }
-  );
+  // const createOrganization = useAtomSet(VRpc.mutation('CreateOrganization'), {
+  //   mode: 'promiseExit'
+  // });
 
-  const [isCreatingOrganization, startCreatingOrganization] = useTransition();
+  const createOrganization = useAtomSet(
+    runtime.fn(
+      Effect.fnUntraced(
+        function* (payload: CreateOrganizationBody) {
+          setIsCreatingOrganization(true);
+          const vrpc = yield* VRpc;
+          const result = yield* vrpc('CreateOrganization', payload).pipe(
+            Effect.either
+          );
+          if (Either.isRight(result)) {
+            router.push(`/${result.right.slug}`);
+            setIsCreatingOrganization(false);
+            return yield* Effect.succeed(result.right);
+          }
+          setIsCreatingOrganization(false);
+          return yield* Effect.fail(result.left);
+        },
+        withToast({
+          onSuccess: 'Organization created successfully',
+          onFailure: 'Failed to create organization',
+          onWaiting: 'Creating organization...'
+        })
+      ),
+      {
+        reactivityKeys: queryKeys.invalidateAll()
+      }
+    )
+  );
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -66,25 +92,8 @@ export function CreateOrganizationModal({
     }
   };
 
-  const onSubmit = (data: CreateOrganizationForm) => {
-    startCreatingOrganization(async () => {
-      const result = await createOrganization({
-        payload: {
-          name: data.name
-        },
-        reactivityKeys: queryKeys.invalidateAll()
-      });
-
-      if (Exit.isSuccess(result)) {
-        router.push(`/${result.value.slug}`);
-        onClose?.();
-      }
-
-      if (Exit.isFailure(result)) {
-        toast.error('Failed to create organization');
-      }
-    });
-  };
+  const onSubmit = (data: CreateOrganizationForm) =>
+    createOrganization({ name: data.name });
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>

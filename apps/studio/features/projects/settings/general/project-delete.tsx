@@ -1,6 +1,6 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
+import { useAtomSet } from '@effect-atom/atom-react';
 import {
   Button,
   Card,
@@ -9,36 +9,51 @@ import {
   CardHeader,
   CardTitle
 } from '@voidhash/ui';
+import { VRpc } from 'atom/lib/rpc-client';
+import { runtime } from 'atom/lib/runtime';
+import { withToast } from 'atom/lib/with-toast';
+import { queryKeys } from 'atom/query-keys';
+import { Effect, Either } from 'effect';
 import { useParams, useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { DeleteProjectModal } from '@/features/projects/delete-project-modal';
-import { useTRPC } from '@/features/trpc/react';
-import { deleteProjectAction } from '@/lib/nextjs/server-actions';
 
 export function ProjectDelete({ projectId }: { projectId: string }) {
   const { organizationSlug, projectSlug } = useParams();
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const trpc = useTRPC();
 
-  const { execute, isPending } = useAction(deleteProjectAction, {
-    onSuccess: () => {
-      toast.success('Project deleted successfully');
-      queryClient.invalidateQueries({
-        queryKey: trpc.pathKey()
-      });
-      router.push('/');
-    },
-    onError: (error) => {
-      toast.error(error.error.serverError);
-    }
-  });
-
+  const deleteProject = useAtomSet(
+    runtime.fn(
+      Effect.fnUntraced(
+        function* (payload: { projectId: string }) {
+          const vrpc = yield* VRpc;
+          setIsDeletingProject(true);
+          const result = yield* vrpc('DeleteProject', {
+            id: payload.projectId
+          }).pipe(Effect.either);
+          if (Either.isRight(result)) {
+            router.push('/');
+            setIsDeletingProject(false);
+            return yield* Effect.succeed(undefined);
+          }
+          setIsDeletingProject(false);
+          return yield* Effect.fail(result.left);
+        },
+        withToast({
+          onSuccess: 'Project deleted successfully',
+          onFailure: 'Failed to delete project',
+          onWaiting: 'Deleting project...'
+        })
+      ),
+      {
+        reactivityKeys: queryKeys.invalidateAll()
+      }
+    )
+  );
   const handleDelete = () => {
-    execute({
-      id: projectId
+    deleteProject({
+      projectId
     });
   };
 
@@ -70,11 +85,11 @@ export function ProjectDelete({ projectId }: { projectId: string }) {
             projectSlug={projectSlug}
             trigger={
               <Button
-                disabled={isPending}
+                disabled={isDeletingProject}
                 onClick={() => setDeleteModalOpen(true)}
                 variant="destructive"
               >
-                {isPending ? 'Deleting...' : 'Delete Project'}
+                {isDeletingProject ? 'Deleting...' : 'Delete Project'}
               </Button>
             }
           />

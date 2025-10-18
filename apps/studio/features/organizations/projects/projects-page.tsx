@@ -1,17 +1,12 @@
+'use client';
+import { useParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { Page } from '@/features/shell';
 import { ProjectsList } from './projects-list';
 import { ProjectsSkeleton } from './projects-skeleton';
 
-export function ProjectsPage({
-  params
-}: {
-  params: {
-    organizationSlug: string;
-  };
-}) {
-  const { organizationSlug } = params;
-
+export function ProjectsPage() {
+  const { organizationSlug } = useParams();
   return (
     <Page>
       <div className="mx-auto max-w-4xl">
@@ -21,7 +16,7 @@ export function ProjectsPage({
         </p>
         <div className="mt-8">
           <Suspense fallback={<ProjectsSkeleton />}>
-            <ProjectsList organizationSlug={organizationSlug} />
+            <ProjectsList />
           </Suspense>
         </div>
       </div>

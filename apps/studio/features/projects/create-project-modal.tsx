@@ -1,6 +1,6 @@
 'use client';
+import { useAtomSet } from '@effect-atom/atom-react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@voidhash/ui/button';
 import {
   Dialog,
@@ -19,10 +19,15 @@ import {
   FormMessage
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
+import { VRpc } from 'atom/lib/rpc-client';
+import { runtime } from 'atom/lib/runtime';
+import { withToast } from 'atom/lib/with-toast';
+import { queryKeys } from 'atom/query-keys';
+import { Effect, Either } from 'effect';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { useTRPC } from '../trpc/react';
 
 const createProjectSchema = z.object({
   name: z
@@ -57,23 +62,36 @@ export function CreateProjectModal({
     }
   });
 
-  const queryClient = useQueryClient();
-  const trpc = useTRPC();
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
-  const isPending = false;
-  // const { execute, isPending } = useAction(createProjectAction, {
-  //   onSuccess: (res) => {
-  //     queryClient.invalidateQueries();
-  //     router.push(`/${organizationSlug}/${res.data?.slug}`);
-  //     queryClient.invalidateQueries({
-  //       queryKey: trpc.projects.pathKey()
-  //     });
-  //     onClose?.();
-  //   },
-  //   onError: (error) => {
-  //     toast.error(error.error.serverError);
-  //   }
-  // });
+  const createProject = useAtomSet(
+    runtime.fn(
+      Effect.fnUntraced(
+        function* (payload: { name: string; organizationId: string }) {
+          setIsCreatingProject(true);
+          const vrpc = yield* VRpc;
+          const result = yield* vrpc('CreateProject', payload).pipe(
+            Effect.either
+          );
+          if (Either.isRight(result)) {
+            setIsCreatingProject(false);
+            router.push(`/${organizationSlug}/${result.right.slug}`);
+            return yield* Effect.succeed(result.right);
+          }
+          setIsCreatingProject(false);
+          return yield* Effect.fail(result.left);
+        },
+        withToast({
+          onSuccess: 'Project created successfully',
+          onFailure: 'Failed to create project',
+          onWaiting: 'Creating project...'
+        })
+      ),
+      {
+        reactivityKeys: queryKeys.invalidateAll()
+      }
+    )
+  );
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -82,10 +100,10 @@ export function CreateProjectModal({
   };
 
   const onSubmit = (data: CreateProjectForm) => {
-    // execute({
-    //   ...data,
-    //   organizationId
-    // });
+    createProject({
+      name: data.name,
+      organizationId
+    });
   };
 
   return (
@@ -116,10 +134,10 @@ export function CreateProjectModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={isPending}
+                disabled={isCreatingProject}
                 type="submit"
               >
-                {isPending ? 'Creating Project...' : 'Create Project'}
+                {isCreatingProject ? 'Creating Project...' : 'Create Project'}
               </Button>
             </DialogFooter>
           </form>

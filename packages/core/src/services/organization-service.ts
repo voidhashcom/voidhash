@@ -174,7 +174,7 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 
       const deleteOrganization = (
         input: { organizationId: string },
-        headers: Headers
+        cookie: string
       ) =>
         pipe(
           Effect.gen(function* () {
@@ -189,7 +189,9 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 
             yield* betterAuth.use(async (client) =>
               client.api.deleteOrganization({
-                headers,
+                headers: new Headers({
+                  cookie
+                }),
                 body: { organizationId: input.organizationId }
               })
             );
@@ -206,12 +208,11 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 
       const updateOrganization = (
         input: { organizationId: string; name: string },
-        headers: Headers
+        cookie: string
       ) =>
         pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-
             const organization = yield* _getOrganizationById(
               input.organizationId
             );
@@ -232,7 +233,9 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
 
             yield* betterAuth.use(async (client) =>
               client.api.updateOrganization({
-                headers,
+                headers: new Headers({
+                  cookie
+                }),
                 body: {
                   organizationId: input.organizationId,
                   data: {

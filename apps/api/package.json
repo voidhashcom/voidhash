@@ -3,9 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --port 5001",
-    "build": "next build --turbopack",
-    "start": "next start",
+    "dev": "bun run --watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format . --write",
@@ -14,22 +12,22 @@
   },
   "dependencies": {
     "@effect/platform": "catalog:",
+    "@effect/platform-bun": "^0.81.1",
     "@effect/platform-node": "catalog:",
-    "@voidhash/auth": "workspace:*",
     "@voidhash/api-spec": "workspace:*",
+    "@voidhash/auth": "workspace:*",
     "@voidhash/core": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
+    "@voidhash/rpc": "workspace:*",
     "@voidhash/shared": "workspace:*",
-    "effect": "catalog:",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "next": "15.5.3"
+    "effect": "catalog:"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^19",
-    "@types/react-dom": "^19"
+    "@types/react-dom": "^19",
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "^5"
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
+import { useAtomSet } from '@effect-atom/atom-react';
 import {
   Button,
   Card,
@@ -9,34 +9,51 @@ import {
   CardHeader,
   CardTitle
 } from '@voidhash/ui';
+import { VRpc } from 'atom/lib/rpc-client';
+import { runtime } from 'atom/lib/runtime';
+import { withToast } from 'atom/lib/with-toast';
+import { queryKeys } from 'atom/query-keys';
+import { Effect, Either } from 'effect';
 import { useParams, useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { DeleteOrganizationModal } from '@/features/organizations/delete-organization-modal';
-import { useTRPC } from '@/features/trpc/react';
 
 export function TeamDelete({ organizationId }: { organizationId: string }) {
+  const [isDeletingOrganization, setIsDeletingOrganization] = useState(false);
   const { organizationSlug } = useParams();
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const trpc = useTRPC();
 
-  const { execute, isPending } = useAction(deleteOrganizationAction, {
-    onSuccess: () => {
-      toast.success('Team deleted successfully');
-      queryClient.invalidateQueries({
-        queryKey: trpc.pathKey()
-      });
-      router.push('/');
-    },
-    onError: (error) => {
-      toast.error(error.error.serverError);
-    }
-  });
+  const deleteOrganization = useAtomSet(
+    runtime.fn(
+      Effect.fnUntraced(
+        function* (payload: { organizationId: string }) {
+          const vrpc = yield* VRpc;
+          setIsDeletingOrganization(true);
+          const result = yield* vrpc('DeleteOrganization', {
+            organizationId: payload.organizationId
+          }).pipe(Effect.either);
+          if (Either.isRight(result)) {
+            router.push('/');
+            setIsDeletingOrganization(false);
+            return yield* Effect.succeed(undefined);
+          }
+          setIsDeletingOrganization(false);
+          return yield* Effect.fail(result.left);
+        },
+        withToast({
+          onSuccess: 'Organization deleted successfully',
+          onFailure: 'Failed to delete organization',
+          onWaiting: 'Deleting organization...'
+        })
+      ),
+      {
+        reactivityKeys: queryKeys.invalidateAll()
+      }
+    )
+  );
 
   const handleDelete = () => {
-    execute({
+    deleteOrganization({
       organizationId
     });
   };
@@ -68,11 +85,11 @@ export function TeamDelete({ organizationId }: { organizationId: string }) {
             organizationSlug={organizationSlug}
             trigger={
               <Button
-                disabled={isPending}
+                disabled={isDeletingOrganization}
                 onClick={() => setDeleteModalOpen(true)}
                 variant="destructive"
               >
-                {isPending ? 'Deleting...' : 'Delete Team'}
+                {isDeletingOrganization ? 'Deleting...' : 'Delete Organization'}
               </Button>
             }
           />

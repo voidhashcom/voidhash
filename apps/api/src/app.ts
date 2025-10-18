@@ -1,4 +1,9 @@
-import { HttpApiBuilder, HttpApiScalar, HttpServer } from '@effect/platform';
+import {
+  HttpApiBuilder,
+  HttpApiScalar,
+  HttpLayerRouter
+} from '@effect/platform';
+import { RpcSerialization, RpcServer } from '@effect/rpc';
 import { VoidhashV1Api } from '@voidhash/api-spec';
 import { BetterAuth } from '@voidhash/auth/effect';
 import {
@@ -19,8 +24,9 @@ import {
 } from '@voidhash/core/services';
 import { Db } from '@voidhash/db/effect';
 import { DOCS_DOMAIN, STUDIO_DOMAIN, WWW_DOMAIN } from '@voidhash/lib';
+import { RpcGroups } from '@voidhash/rpc';
 import { Layer } from 'effect';
-import { AuthMiddlewareLive } from './middlewares';
+import { AuthMiddlewareLive } from './api-middlewares';
 import { ApiKeysGroupLive } from './routes/v1/api-keys';
 import { AuthGroupLive } from './routes/v1/auth';
 import { CustomersGroupLive } from './routes/v1/customers';
@@ -31,7 +37,36 @@ import { ProductsGroupLive } from './routes/v1/products';
 import { ProjectsGroupLive } from './routes/v1/projects';
 import { SdkGroupLive } from './routes/v1/sdk';
 import { UsersGroupLive } from './routes/v1/users';
+import { RpcAuthLive } from './rpc-middlewares';
+import { ApiKeyRpcsLive } from './rpcs/api-key-rpcs';
+import { CustomerRpcsLive } from './rpcs/customer-rpcs';
+import { OrganizationRpcsLive } from './rpcs/organization-rpcs';
+import { PerkRpcsLive } from './rpcs/perk-rpcs';
+import { ProductPerkRpcsLive } from './rpcs/product-perk-rpcs';
+import { ProductRpcsLive } from './rpcs/product-rpcs';
+import { ProjectRpcsLive } from './rpcs/project-rpcs';
+import { UserRpcsLive } from './rpcs/user-rpcs';
 
+const ServicesLayer = Layer.mergeAll(
+  ApiKeyService.Default,
+  AppStoreServerAPIService.Default,
+  AppStoreService.Default,
+  CustomerService.Default,
+  OrganizationService.Default,
+  PaymentProviderProductService.Default,
+  PaymentProviderService.Default,
+  PerkGrantService.Default,
+  PerkService.Default,
+  ProductPerkService.Default,
+  ProductService.Default,
+  ProjectService.Default,
+  SdkService.Default,
+  UserService.Default
+);
+
+// ==============================
+// API ROUTES
+// ==============================
 const V1GroupsLayer = Layer.mergeAll(
   ApiKeysGroupLive,
   AuthGroupLive,
@@ -45,42 +80,71 @@ const V1GroupsLayer = Layer.mergeAll(
   UsersGroupLive
 );
 
-const VoidhashV1ApiRoutes = HttpApiBuilder.api(VoidhashV1Api).pipe(
+const V1ApiRoutes = HttpLayerRouter.addHttpApi(VoidhashV1Api, {
+  openapiPath: '/api/docs/openapi.json'
+}).pipe(
   Layer.provide(V1GroupsLayer),
-
-  Layer.provide(
-    Layer.mergeAll(
-      AuthMiddlewareLive,
-      ApiKeyService.Default,
-      AppStoreServerAPIService.Default,
-      AppStoreService.Default,
-      CustomerService.Default,
-      OrganizationService.Default,
-      PaymentProviderProductService.Default,
-      PaymentProviderService.Default,
-      PerkGrantService.Default,
-      PerkService.Default,
-      ProductPerkService.Default,
-      ProductService.Default,
-      ProjectService.Default,
-      SdkService.Default,
-      UserService.Default
-    )
-  ),
+  Layer.provide(Layer.mergeAll(AuthMiddlewareLive, ServicesLayer)),
   Layer.provide(Layer.mergeAll(BetterAuth.Default, Db.Default))
 );
 
-const DocsRoute = HttpApiScalar.layer({
+// const DocsRoute = HttpApiScalar.layer({
+//   path: '/api/docs'
+// }).pipe(Layer.provide(V1ApiRoutes));
+
+const ApiDocsLayer = HttpApiScalar.layerHttpLayerRouter({
+  api: VoidhashV1Api,
   path: '/api/docs'
-}).pipe(Layer.provide(VoidhashV1ApiRoutes));
+});
 
-const ApiRoutesLayer = Layer.mergeAll(VoidhashV1ApiRoutes, DocsRoute);
-
-export const Routes = Layer.mergeAll(
-  ApiRoutesLayer,
+const ApiRoutesLayer = Layer.mergeAll(
+  V1ApiRoutes,
   HttpApiBuilder.middlewareCors({
     allowedOrigins: [WWW_DOMAIN, STUDIO_DOMAIN, DOCS_DOMAIN],
     credentials: true
-  }),
-  HttpServer.layerContext
+  })
 );
+
+// ==============================
+// RPC
+// ==============================
+const RpcRoutesLayer = RpcServer.layerHttpRouter({
+  group: RpcGroups,
+  protocol: 'http',
+  path: '/rpc'
+}).pipe(
+  Layer.provide(RpcSerialization.layerNdjson),
+  Layer.provide(RpcAuthLive),
+  Layer.provide(
+    Layer.mergeAll(
+      ApiKeyRpcsLive,
+      CustomerRpcsLive,
+      OrganizationRpcsLive,
+      PerkRpcsLive,
+      ProductPerkRpcsLive,
+      ProductRpcsLive,
+      ProjectRpcsLive,
+      UserRpcsLive
+    )
+  ),
+  Layer.provide(Layer.mergeAll(AuthMiddlewareLive, ServicesLayer)),
+  Layer.provide(Layer.mergeAll(BetterAuth.Default, Db.Default))
+);
+
+// ==============================
+// All Routes
+// ==============================
+const AllRoutes = Layer.mergeAll(
+  ApiRoutesLayer,
+  ApiDocsLayer,
+  RpcRoutesLayer
+).pipe(
+  Layer.provide(
+    HttpLayerRouter.cors({
+      allowedOrigins: [WWW_DOMAIN, STUDIO_DOMAIN, DOCS_DOMAIN],
+      credentials: true
+    })
+  )
+);
+
+export const AppLive = HttpLayerRouter.serve(AllRoutes);

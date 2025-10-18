@@ -29,10 +29,6 @@ import { Fragment, useState } from 'react';
 import { type SubmitErrorHandler, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import type { z } from 'zod';
-import {
-  deletePaymentProviderConfigurationAction,
-  updatePaymentProviderConfigurationAction
-} from '@/lib/nextjs/server-actions';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
 import { PaymentProviderLogo } from './payment-provider-logo';
 

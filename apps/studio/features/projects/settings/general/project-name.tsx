@@ -1,8 +1,7 @@
 'use client';
 
+import { useAtomSet } from '@effect-atom/atom-react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQueryClient } from '@tanstack/react-query';
-import type { Project } from '@voidhash/db';
 import {
   Button,
   Card,
@@ -18,13 +17,14 @@ import {
   FormMessage,
   Input
 } from '@voidhash/ui';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
+import { VRpc } from 'atom/lib/rpc-client';
+import { runtime } from 'atom/lib/runtime';
+import { withToast } from 'atom/lib/with-toast';
+import { queryKeys } from 'atom/query-keys';
+import { Effect, Either } from 'effect';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
 import { z } from 'zod';
-import { useTRPC } from '@/features/trpc/react';
-import { updateProjectAction } from '@/lib/nextjs/server-actions';
 
 const updateProjectNameSchema = z.object({
   name: z
@@ -35,41 +35,53 @@ const updateProjectNameSchema = z.object({
 
 type UpdateProjectNameForm = z.infer<typeof updateProjectNameSchema>;
 
-export function ProjectNameForm({ project }: { project: Project }) {
+export function ProjectNameForm({
+  projectId,
+  projectName
+}: {
+  projectId: string;
+  projectName: string;
+}) {
   const form = useForm<UpdateProjectNameForm>({
     resolver: zodResolver(updateProjectNameSchema),
     defaultValues: {
-      name: project?.name
+      name: projectName
     }
   });
 
-  const queryClient = useQueryClient();
-  const trpc = useTRPC();
+  const [isUpdatingProjectName, setIsUpdatingProjectName] = useState(false);
 
-  const router = useRouter();
-
-  const { execute: updateProjectName, isPending } = useAction(
-    updateProjectAction,
-    {
-      onSuccess: () => {
-        toast.success('Project name updated successfully');
-        queryClient.invalidateQueries({
-          queryKey: trpc.pathKey()
-        });
-        router.refresh();
-      },
-      onError: (error) => {
-        toast.error(error.error.serverError);
+  const updateProjectName = useAtomSet(
+    runtime.fn(
+      Effect.fnUntraced(
+        function* (payload: { id: string; name: string }) {
+          const vrpc = yield* VRpc;
+          setIsUpdatingProjectName(true);
+          const result = yield* vrpc('UpdateProject', payload).pipe(
+            Effect.either
+          );
+          if (Either.isRight(result)) {
+            setIsUpdatingProjectName(false);
+            return yield* Effect.succeed(undefined);
+          }
+          setIsUpdatingProjectName(false);
+          return yield* Effect.fail(result.left);
+        },
+        withToast({
+          onSuccess: 'Project name updated successfully',
+          onFailure: 'Failed to update project name',
+          onWaiting: 'Updating project name...'
+        })
+      ),
+      {
+        reactivityKeys: queryKeys.invalidateAll()
       }
-    }
+    )
   );
 
   const onSubmit = (data: UpdateProjectNameForm) => {
-    if (!project) {
-      return;
-    }
     updateProjectName({
-      id: project.id,
+      id: projectId,
       name: data.name
     });
   };
@@ -107,8 +119,8 @@ export function ProjectNameForm({ project }: { project: Project }) {
               Please use 32 characters at maximum.
             </div>
             <div>
-              <Button disabled={isPending} type="submit">
-                {isPending ? 'Saving...' : 'Save'}
+              <Button disabled={isUpdatingProjectName} type="submit">
+                {isUpdatingProjectName ? 'Saving...' : 'Save'}
               </Button>
             </div>
           </CardFooter>

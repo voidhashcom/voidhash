@@ -10,5 +10,27 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.biome": "explicit",
     "source.organizeImports.biome": "explicit"
+  },
+  "files.exclude": {
+    "apps/api/node_modules": true,
+    "apps/api/.turbo": true,
+    "node_modules": true,
+    "packages/api-spec/node_modules": true,
+    ".turbo": true,
+    "packages/rpc/node_modules": true,
+    "packages/core/node_modules": true,
+    "packages/core/.cache": true,
+    "packages/auth/node_modules": true,
+    "packages/auth/.turbo": true,
+    "packages/auth/.cache": true,
+    "packages/api-spec/.cache": true,
+    "packages/db/node_modules": true,
+    "packages/db/.turbo": true,
+    "packages/db/.cache": true,
+    "packages/lib/node_modules": true,
+    "packages/lib/.turbo": true,
+    "packages/lib/.cache": true,
+    "packages/shared/node_modules": true,
+    "packages/ui/node_modules": true
   }
 }

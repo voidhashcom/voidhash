@@ -1,5 +1,4 @@
 import {
-  API_DOMAIN,
   DOCS_DOMAIN,
   STUDIO_DOMAIN,
   WWW_DOMAIN

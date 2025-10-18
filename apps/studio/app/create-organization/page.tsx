@@ -19,7 +19,7 @@ import {
   Input,
   Logo
 } from '@voidhash/ui';
-import { ApiClient } from 'atom/lib/api-client';
+import { VRpc } from 'atom/lib/rpc-client';
 import { runtime } from 'atom/lib/runtime';
 import { withToast } from 'atom/lib/with-toast';
 import { queryKeys } from 'atom/query-keys';
@@ -46,8 +46,8 @@ export default function CreateOrgPage() {
     runtime.fn(
       Effect.fnUntraced(
         function* (payload: CreateOrganizationBody) {
-          const apiClient = yield* ApiClient;
-          return yield* apiClient.organizations.createOrganization({ payload });
+          const vrpc = yield* VRpc;
+          return yield* vrpc('CreateOrganization', payload);
         },
         withToast({
           onSuccess: 'Organization created successfully',

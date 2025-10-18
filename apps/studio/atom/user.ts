@@ -1,10 +1,12 @@
+'use client';
+
 import { useAtomValue } from '@effect-atom/atom-react';
-import { ApiClient } from './lib/api-client';
+import { VRpc } from './lib/rpc-client';
 import { queryKeys } from './query-keys';
 
 export const useUser = () =>
   useAtomValue(
-    ApiClient.query('users', 'getUser', {
+    VRpc.query('CurrentUser', undefined, {
       reactivityKeys: queryKeys.user.getUser()
     })
   );
