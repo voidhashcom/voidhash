@@ -7,18 +7,17 @@ import {
 import { Schema } from 'effect';
 import { AuthMiddleware } from '../middlewares';
 
-export class ApiKey extends Schema.Class<ApiKey>('ApiKey')({
+export const ApiKey = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   end: Schema.String,
+  key: Schema.String,
   prefix: Schema.String,
   isPublic: Schema.Boolean,
   projectId: Schema.String
-}) {}
+});
 
-export class ApiKeyWithRawKey extends Schema.Class<ApiKeyWithRawKey>(
-  'ApiKeyWithRawKey'
-)({
+export const ApiKeyWithRawKey = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   end: Schema.String,
@@ -26,7 +25,7 @@ export class ApiKeyWithRawKey extends Schema.Class<ApiKeyWithRawKey>(
   isPublic: Schema.Boolean,
   projectId: Schema.String,
   rawKey: Schema.String
-}) {}
+});
 
 export class ApiKeyRpcsDef extends RpcGroup.make(
   Rpc.make('CreateSecretKey', {
@@ -39,6 +38,9 @@ export class ApiKeyRpcsDef extends RpcGroup.make(
   }),
   Rpc.make('ListApiKeys', {
     success: Schema.Array(ApiKey),
+    payload: {
+      projectId: Schema.String
+    },
     error: Schema.Union(ApiKeyServiceError, ActionForbiddenError)
   }),
   Rpc.make('GetApiKeyById', {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAtomSet } from '@effect-atom/atom-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Card,
@@ -9,48 +9,30 @@ import {
   CardHeader,
   CardTitle
 } from '@voidhash/ui';
-import { VRpc } from 'atom/lib/rpc-client';
-import { runtime } from 'atom/lib/runtime';
-import { withToast } from 'atom/lib/with-toast';
-import { queryKeys } from 'atom/query-keys';
-import { Effect, Either } from 'effect';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { DeleteOrganizationModal } from '@/features/organizations/delete-organization-modal';
+import { queryKeys } from '@/lib/tanstack-query';
+import { deleteOrganizationOptions } from '@/lib/tanstack-query/organizations';
 
 export function TeamDelete({ organizationId }: { organizationId: string }) {
-  const [isDeletingOrganization, setIsDeletingOrganization] = useState(false);
   const { organizationSlug } = useParams();
   const router = useRouter();
 
-  const deleteOrganization = useAtomSet(
-    runtime.fn(
-      Effect.fnUntraced(
-        function* (payload: { organizationId: string }) {
-          const vrpc = yield* VRpc;
-          setIsDeletingOrganization(true);
-          const result = yield* vrpc('DeleteOrganization', {
-            organizationId: payload.organizationId
-          }).pipe(Effect.either);
-          if (Either.isRight(result)) {
-            router.push('/');
-            setIsDeletingOrganization(false);
-            return yield* Effect.succeed(undefined);
-          }
-          setIsDeletingOrganization(false);
-          return yield* Effect.fail(result.left);
-        },
-        withToast({
-          onSuccess: 'Organization deleted successfully',
-          onFailure: 'Failed to delete organization',
-          onWaiting: 'Deleting organization...'
-        })
-      ),
-      {
-        reactivityKeys: queryKeys.invalidateAll()
+  const queryClient = useQueryClient();
+  const { mutate: deleteOrganization, status: deleteOrganizationStatus } =
+    useMutation({
+      ...deleteOrganizationOptions(),
+      onSuccess: () => {
+        toast.success('Organization deleted successfully');
+        queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
+        router.push('/');
+      },
+      onError: () => {
+        toast.error('Failed to delete organization');
       }
-    )
-  );
+    });
 
   const handleDelete = () => {
     deleteOrganization({
@@ -85,11 +67,13 @@ export function TeamDelete({ organizationId }: { organizationId: string }) {
             organizationSlug={organizationSlug}
             trigger={
               <Button
-                disabled={isDeletingOrganization}
+                disabled={deleteOrganizationStatus === 'pending'}
                 onClick={() => setDeleteModalOpen(true)}
                 variant="destructive"
               >
-                {isDeletingOrganization ? 'Deleting...' : 'Delete Organization'}
+                {deleteOrganizationStatus === 'pending'
+                  ? 'Deleting...'
+                  : 'Delete Organization'}
               </Button>
             }
           />

@@ -7,11 +7,11 @@ import {
 import { Schema } from 'effect';
 import { AuthMiddleware } from '../middlewares';
 
-export class ProductPerk extends Schema.Class<ProductPerk>('ProductPerk')({
+export const ProductPerk = Schema.Struct({
   id: Schema.String,
   productId: Schema.String,
   perkId: Schema.String
-}) {}
+});
 
 export class ProductPerkRpcsDef extends RpcGroup.make(
   Rpc.make('ListProductPerksByProductId', {
@@ -19,6 +19,30 @@ export class ProductPerkRpcsDef extends RpcGroup.make(
     payload: {
       productId: Schema.String
     },
+    error: Schema.Union(
+      ActionForbiddenError,
+      ProductPerkServiceError,
+      ProductPerkValidationError
+    )
+  }),
+  Rpc.make('CreateProductPerk', {
+    payload: Schema.Struct({
+      productId: Schema.String,
+      perkId: Schema.String
+    }),
+    success: Schema.Void,
+    error: Schema.Union(
+      ActionForbiddenError,
+      ProductPerkServiceError,
+      ProductPerkValidationError
+    )
+  }),
+  Rpc.make('DeleteProductPerk', {
+    payload: Schema.Struct({
+      productId: Schema.String,
+      perkId: Schema.String
+    }),
+    success: Schema.Void,
     error: Schema.Union(
       ActionForbiddenError,
       ProductPerkServiceError,

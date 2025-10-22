@@ -1,7 +1,7 @@
 'use client';
 
-import { useAtomSet } from '@effect-atom/atom-react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Card,
@@ -17,14 +17,11 @@ import {
   FormMessage,
   Input
 } from '@voidhash/ui';
-import { VRpc } from 'atom/lib/rpc-client';
-import { runtime } from 'atom/lib/runtime';
-import { withToast } from 'atom/lib/with-toast';
-import { queryKeys } from 'atom/query-keys';
-import { Effect, Either } from 'effect';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 import { z } from 'zod';
+import { queryKeys } from '@/lib/tanstack-query';
+import { updateOrganizationOptions } from '@/lib/tanstack-query/organizations';
 
 const updateTeamNameSchema = z.object({
   name: z
@@ -43,55 +40,24 @@ export function TeamNameForm({
     name: string;
   };
 }) {
-  const [isUpdatingTeamName, setIsUpdatingTeamName] = useState(false);
   const form = useForm<UpdateTeamNameForm>({
     resolver: zodResolver(updateTeamNameSchema),
     defaultValues: {
       name: organization?.name
     }
   });
-  // const { execute: updateTeamName, isPending } = useAction(
-  //   updateOrganizationAction,
-  //   {
-  //     onSuccess: () => {
-  //       toast.success('Team name updated successfully');
-  //       queryClient.invalidateQueries({
-  //         queryKey: trpc.pathKey()
-  //       });
-  //       router.refresh();
-  //     },
-  //     onError: (error) => {
-  //       toast.error(error.error.serverError);
-  //     }
-  //   }
-  // );
 
-  const updateTeamName = useAtomSet(
-    runtime.fn(
-      Effect.fnUntraced(
-        function* (payload: { organizationId: string; name: string }) {
-          const vrpc = yield* VRpc;
-          setIsUpdatingTeamName(true);
-          const result = yield* vrpc('UpdateOrganization', payload).pipe(
-            Effect.either
-          );
-          if (Either.isRight(result)) {
-            setIsUpdatingTeamName(false);
-            return yield* Effect.succeed(undefined);
-          }
-          setIsUpdatingTeamName(false);
-        },
-        withToast({
-          onSuccess: 'Team name updated successfully',
-          onFailure: 'Failed to update team name',
-          onWaiting: 'Updating team name...'
-        })
-      ),
-      {
-        reactivityKeys: queryKeys.invalidateAll()
-      }
-    )
-  );
+  const queryClient = useQueryClient();
+  const { mutate: updateTeamName, status: updateTeamNameStatus } = useMutation({
+    ...updateOrganizationOptions(),
+    onSuccess: () => {
+      toast.success('Team name updated successfully');
+      queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
+    },
+    onError: () => {
+      toast.error('Failed to update team name');
+    }
+  });
 
   const onSubmit = (data: UpdateTeamNameForm) => {
     if (!organization) {
@@ -137,8 +103,11 @@ export function TeamNameForm({
               Please use 32 characters at maximum.
             </div>
             <div>
-              <Button disabled={isUpdatingTeamName} type="submit">
-                {isUpdatingTeamName ? 'Saving...' : 'Save'}
+              <Button
+                disabled={updateTeamNameStatus === 'pending'}
+                type="submit"
+              >
+                {updateTeamNameStatus === 'pending' ? 'Saving...' : 'Save'}
               </Button>
             </div>
           </CardFooter>

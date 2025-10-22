@@ -1,5 +1,7 @@
 'use client';
+
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { InfoTooltip } from '@voidhash/ui';
 import { Button } from '@voidhash/ui/button';
 import {
@@ -19,13 +21,10 @@ import {
   FormMessage
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
-import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { createCustomerAction } from '@/lib/nextjs/server-actions';
+import { createCustomerOptions, queryKeys } from '@/lib/tanstack-query';
 
 // Extract the relevant parts from createCustomerInputSchema for the form
 const createCustomerFormSchema = z.object({
@@ -38,9 +37,9 @@ type CreateCustomerForm = z.infer<typeof createCustomerFormSchema>;
 
 interface CreateCustomerModalProps {
   trigger: React.ReactNode;
+  projectId: string;
   open: boolean;
   onClose: () => void;
-  projectId: string;
 }
 
 export function CreateCustomerModal({
@@ -49,7 +48,6 @@ export function CreateCustomerModal({
   trigger,
   projectId
 }: CreateCustomerModalProps) {
-  const router = useRouter();
   const form = useForm<CreateCustomerForm>({
     resolver: zodResolver(createCustomerFormSchema),
     defaultValues: {
@@ -59,44 +57,28 @@ export function CreateCustomerModal({
     }
   });
 
-  const { execute, isPending } = useAction(createCustomerAction, {
+  const queryClient = useQueryClient();
+  const { mutate: createCustomer, status: createCustomerStatus } = useMutation({
+    ...createCustomerOptions(),
     onSuccess: () => {
-      router.refresh();
-      toast.success('Customer created successfully!');
-      form.reset();
-      onClose?.();
+      toast.success('Customer created successfully');
+      queryClient.invalidateQueries({ queryKey: queryKeys.customer.all });
     },
-    onError: (error) => {
-      // Use the serverError field if available, otherwise fallback
-      const errorMessage =
-        error.error.serverError ||
-        error.error.validationErrors?._errors?.join(', ') || // Combine top-level validation errors
-        'Failed to create customer';
-      toast.error(errorMessage);
+    onError: () => {
+      toast.error('Failed to create customer');
     }
   });
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      form.reset(); // Reset form when closing
       onClose?.();
+      form.reset();
     }
   };
 
   const onSubmit = (data: CreateCustomerForm) => {
-    execute({
-      ...data,
-      name: data.name ?? null,
-      email: data.email ?? null,
-      projectId // Add the projectId required by the action
-    });
+    createCustomer({ ...data, projectId });
   };
-
-  useEffect(() => {
-    if (!open) {
-      form.reset();
-    }
-  }, [form, open]);
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
@@ -159,10 +141,12 @@ export function CreateCustomerModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={isPending}
+                disabled={createCustomerStatus === 'pending'}
                 type="submit"
               >
-                {isPending ? 'Creating Customer...' : 'Create Customer'}
+                {createCustomerStatus === 'pending'
+                  ? 'Creating Customer...'
+                  : 'Create Customer'}
               </Button>
             </DialogFooter>
           </form>

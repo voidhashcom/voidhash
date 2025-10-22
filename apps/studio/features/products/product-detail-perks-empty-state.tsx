@@ -1,6 +1,6 @@
 'use client';
 
-import type { Perk } from '@voidhash/db';
+import type { Perk } from '@voidhash/rpc';
 import {
   Card,
   CardContent,
@@ -15,7 +15,7 @@ export function ProductDetailPerksEmptyState({
   perks
 }: {
   productId: string;
-  perks: Perk[];
+  perks: (typeof Perk.Type)[];
 }) {
   return (
     <Card className="mx-auto w-full max-w-5xl text-center">

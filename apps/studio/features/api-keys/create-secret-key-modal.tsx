@@ -1,7 +1,8 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { ApiKey } from '@voidhash/db';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ApiKeyWithRawKey } from '@voidhash/rpc';
 import { Button } from '@voidhash/ui/button';
 import {
   Dialog,
@@ -21,11 +22,10 @@ import {
   FormMessage
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
-import { useAction } from 'next-safe-action/hooks';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { createSecretKeyAction } from '@/lib/nextjs/server-actions';
+import { createSecretKeyOptions, queryKeys } from '@/lib/tanstack-query';
 
 const createSecretKeySchema = z.object({
   name: z
@@ -41,7 +41,7 @@ interface CreateSecretKeyModalProps {
   onClose: () => void;
   trigger: React.ReactNode;
   projectId: string;
-  onSuccess?: (apiKey: ApiKey) => void;
+  onSuccess?: (apiKey: typeof ApiKeyWithRawKey.Type) => void;
 }
 
 export function CreateSecretKeyModal({
@@ -58,18 +58,19 @@ export function CreateSecretKeyModal({
     }
   });
 
-  const { execute, isPending } = useAction(createSecretKeyAction, {
-    onSuccess: (res) => {
-      if (res.data) {
-        toast.success('Secret key created successfully');
-        onSuccess?.(res.data);
-        handleOpenChange(false);
+  const queryClient = useQueryClient();
+  const { mutate: createSecretKey, status: createSecretKeyStatus } =
+    useMutation({
+      ...createSecretKeyOptions(),
+      onSuccess: (data) => {
+        onSuccess?.(data);
+        toast.success('Key successfully created');
+        queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
+      },
+      onError: () => {
+        toast.error('Failed to create key');
       }
-    },
-    onError: (error) => {
-      toast.error(error.error.serverError || 'Failed to create secret key');
-    }
-  });
+    });
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -79,7 +80,7 @@ export function CreateSecretKeyModal({
   };
 
   const onSubmit = (data: CreateSecretKeyForm) => {
-    execute({ ...data, projectId });
+    createSecretKey({ ...data, projectId });
   };
 
   return (
@@ -113,10 +114,12 @@ export function CreateSecretKeyModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={isPending}
+                disabled={createSecretKeyStatus === 'pending'}
                 type="submit"
               >
-                {isPending ? 'Creating Key...' : 'Create Key'}
+                {createSecretKeyStatus === 'pending'
+                  ? 'Creating Key...'
+                  : 'Create Key'}
               </Button>
             </DialogFooter>
           </form>

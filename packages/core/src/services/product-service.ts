@@ -12,12 +12,12 @@ import {
   ProductNotFoundError,
   ProductServiceError
 } from '@voidhash/shared';
-import { Effect, pipe, type Schema } from 'effect';
+import { Effect, pipe } from 'effect';
 import { checkProjectPermission } from '../utils/permissions';
 
 function dbProductTypeToApiProductType(
   type: ProductTypeValue
-): Schema.Schema.Type<typeof ProductType> {
+): typeof ProductType.Type {
   if (type === ProductTypeEnum.Subscription) {
     return 'subscription';
   }
@@ -100,7 +100,7 @@ export class ProductService extends Effect.Service<ProductService>()(
       const getProducts = (
         projectId: string
       ): Effect.Effect<
-        Schema.Schema.Type<typeof Product>[],
+        (typeof Product.Type)[],
         ActionForbiddenError | ProductServiceError,
         AuthSession
       > =>
@@ -128,7 +128,7 @@ export class ProductService extends Effect.Service<ProductService>()(
                   type: dbProductTypeToApiProductType(
                     product.type as ProductTypeValue
                   )
-                }) satisfies Schema.Schema.Type<typeof Product>
+                }) satisfies typeof Product.Type
             );
           }),
           Effect.catchTags({
@@ -168,7 +168,14 @@ export class ProductService extends Effect.Service<ProductService>()(
               `User ${session?.user?.id} is not authorized to access product ${id} for project ${product.projectId}`
             );
 
-            return product;
+            return {
+              id: product.id,
+              name: product.name,
+              projectId: product.projectId,
+              type: dbProductTypeToApiProductType(
+                product.type as ProductTypeValue
+              )
+            } satisfies typeof Product.Type;
           }),
           Effect.catchTags({
             DatabaseError: (error) =>

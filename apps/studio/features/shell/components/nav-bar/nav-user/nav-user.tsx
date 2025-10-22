@@ -1,13 +1,12 @@
 'use client';
 
-import { Result } from '@effect-atom/atom-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   GradientAvatar,
   Skeleton
 } from '@voidhash/ui';
-import { useUser } from 'atom/user';
+import { useCurrentUser } from 'hooks/tanstack-query';
 import { NavUserDropdown } from './nav-user-dropdown';
 
 function NavUserSkeleton() {
@@ -15,33 +14,38 @@ function NavUserSkeleton() {
 }
 
 export function NavUser() {
-  return useUser().pipe(
-    Result.matchWithWaiting({
-      onWaiting: () => <NavUserSkeleton />,
-      onError: () => <NavUserSkeleton />,
-      onDefect: () => <NavUserSkeleton />,
-      onSuccess: ({ value: user }) => (
-        <div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="cursor-pointer data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                type="button"
-              >
-                {user && (
-                  <GradientAvatar
-                    alt={user.name}
-                    className="h-8 w-8 rounded-lg"
-                    fallback={user.id}
-                    src={user.image ?? undefined}
-                  />
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            {user && <NavUserDropdown user={user} />}
-          </DropdownMenu>
-        </div>
-      )
-    })
-  );
+  const { data: currentUser, status: currentUserStatus } = useCurrentUser();
+
+  if (currentUserStatus === 'pending') {
+    return <NavUserSkeleton />;
+  }
+
+  if (currentUserStatus === 'error') {
+    return <NavUserSkeleton />;
+  }
+
+  if (currentUser) {
+    return (
+      <div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="cursor-pointer data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              type="button"
+            >
+              <GradientAvatar
+                alt={currentUser.name}
+                className="h-8 w-8 rounded-lg"
+                fallback={currentUser.id}
+                src={currentUser.image ?? undefined}
+              />
+            </button>
+          </DropdownMenuTrigger>
+          <NavUserDropdown user={currentUser} />
+        </DropdownMenu>
+      </div>
+    );
+  }
+
+  return <NavUserSkeleton />;
 }

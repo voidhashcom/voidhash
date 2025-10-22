@@ -1,8 +1,7 @@
 import type { SdkHeaders } from '@voidhash/api-spec';
-import type { Schema } from 'effect';
 
 export const getCustomerMetadataFromSdkHeaders = (
-  parsedHeaders: Schema.Schema.Type<typeof SdkHeaders>
+  parsedHeaders: typeof SdkHeaders.Type
 ) => {
   return {
     appUserId: parsedHeaders['x-app-user-id'],

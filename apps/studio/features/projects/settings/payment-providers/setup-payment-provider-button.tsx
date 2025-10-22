@@ -1,10 +1,10 @@
 'use client';
+import { useMutation } from '@tanstack/react-query';
 import { Button } from '@voidhash/ui';
 import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { toast } from 'sonner';
-import { createPaymentProviderConfigurationAction } from '@/lib/nextjs/server-actions';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
+import { createPaymentProviderConfigurationOptions } from '@/lib/tanstack-query';
 
 export function SetupPaymentProviderButton({
   projectId,
@@ -18,33 +18,26 @@ export function SetupPaymentProviderButton({
   projectSlug: string;
 }) {
   const router = useRouter();
-
-  const { execute, isPending } = useAction(
-    createPaymentProviderConfigurationAction,
-    {
-      onSuccess: (res) => {
-        toast.success(
-          `${paymentProvider?.title} configuration saved successfully`
-        );
-
-        if (res.data?.id) {
-          router.push(
-            `/${organizationSlug}/${projectSlug}/settings/payment-providers/${res.data.id}`
-          );
-        } else {
-          router.refresh();
-        }
-      },
-      onError: (error) => {
-        toast.error(
-          error.error.serverError ??
-            `Failed to save ${paymentProvider?.title} configuration. Please try again.`
-        );
-      }
-    }
-  );
-
   const paymentProvider = paymentProviders.find((p) => p.id === providerId);
+
+  const { mutate: createPaymentProviderConfiguration, status } = useMutation({
+    ...createPaymentProviderConfigurationOptions(),
+    onSuccess: (data) => {
+      toast.success(
+        `${paymentProvider?.title} configuration saved successfully`
+      );
+      if (data.id) {
+        router.push(
+          `/${organizationSlug}/${projectSlug}/settings/payment-providers/${data.id}`
+        );
+      } else {
+        router.refresh();
+      }
+    },
+    onError: () => {
+      toast.error(`Failed to save ${paymentProvider?.title} configuration`);
+    }
+  });
 
   if (!paymentProvider) {
     return null;
@@ -52,9 +45,9 @@ export function SetupPaymentProviderButton({
 
   return (
     <Button
-      disabled={isPending}
+      disabled={status === 'pending'}
       onClick={() =>
-        execute({
+        createPaymentProviderConfiguration({
           projectId,
           providerId
         })

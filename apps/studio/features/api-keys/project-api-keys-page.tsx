@@ -1,51 +1,36 @@
-import {
-  ApiKeyService,
-  authenticateWithSession,
-  ProjectNotFoundError,
-  ProjectService,
-  withEnvironmentFromCookie
-} from '@voidhash/core/services';
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@voidhash/ui';
-import { Effect, Either } from 'effect';
+import { useCurrentUser } from 'hooks/tanstack-query';
+import { useParams } from 'next/navigation';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { headers } from '@/lib/effect/headers';
-import { Page } from '@/lib/nextjs-runtime';
+import { listApiKeysOptions } from '@/lib/tanstack-query/api-keys';
+import { CurrentUser } from '@/lib/utils/current-user';
 import { ApiKeyRecord } from './api-key-record';
 import { CreateSecretKeyModalButton } from './create-secret-key-modal-button';
+import { ProjectApiKeysPageSkeleton } from './project-api-keys-page-skeleton';
 
-const _ProjectApiKeysPage = Effect.fn('ProjectApiKeysPage')(function* ({
-  organizationSlug,
-  projectSlug
-}: {
-  organizationSlug: string;
-  projectSlug: string;
-}) {
-  const data = yield* Effect.either(
-    authenticateWithSession(yield* headers)(
-      withEnvironmentFromCookie({ organizationSlug, projectSlug })(
-        Effect.gen(function* () {
-          const apiKeyService = yield* ApiKeyService;
-          const projectService = yield* ProjectService;
-          const project =
-            yield* projectService.getProjectBySlugAndOrganizationSlug({
-              organizationSlug,
-              projectSlug
-            });
-          if (!project) {
-            return yield* Effect.fail(
-              new ProjectNotFoundError({
-                message: 'Project not found'
-              })
-            );
-          }
-          const apiKeys = yield* apiKeyService.getApiKeys(project.id);
-          return { project, apiKeys };
-        })
-      )
-    )
-  );
+export const ProjectApiKeysPage = () => {
+  const { organizationSlug, projectSlug } = useParams();
+  const { data: currentUser, status: currentUserStatus } = useCurrentUser();
+  const project =
+    currentUser &&
+    CurrentUser.getProjectBySlugs(
+      currentUser,
+      organizationSlug as string,
+      projectSlug as string
+    );
+  const { data: apiKeys, status: apiKeysStatus } = useQuery({
+    ...listApiKeysOptions({ projectId: project?.id ?? '' }),
+    enabled: !!project?.id
+  });
 
-  if (Either.isLeft(data)) {
+  if (apiKeysStatus === 'pending' || currentUserStatus === 'pending') {
+    return <ProjectApiKeysPageSkeleton />;
+  }
+
+  if (apiKeysStatus === 'error' || currentUserStatus === 'error' || !project) {
     return (
       <VoidhashErrorCard
         error={{
@@ -55,8 +40,6 @@ const _ProjectApiKeysPage = Effect.fn('ProjectApiKeysPage')(function* ({
       />
     );
   }
-
-  const { project, apiKeys } = data.right;
 
   return (
     <div>
@@ -77,6 +60,4 @@ const _ProjectApiKeysPage = Effect.fn('ProjectApiKeysPage')(function* ({
       </div>
     </div>
   );
-});
-
-export const ProjectApiKeysPage = Page.build(_ProjectApiKeysPage);
+};

@@ -1,6 +1,6 @@
 'use client';
 
-import type { ApiKey } from '@voidhash/core';
+import type { ApiKeyWithRawKey } from '@voidhash/rpc';
 import { Button } from '@voidhash/ui/button';
 import { CopyText } from '@voidhash/ui/copy-text';
 import {
@@ -15,7 +15,7 @@ import {
 interface SecretKeyRevealModalProps {
   open: boolean;
   onClose: () => void;
-  apiKey: ApiKey | null;
+  apiKey: typeof ApiKeyWithRawKey.Type | null;
 }
 
 export function SecretKeyRevealModal({

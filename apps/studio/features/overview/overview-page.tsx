@@ -1,6 +1,5 @@
-import { Effect } from 'effect';
+'use client';
 import { Page } from '@/features/shell';
-import { ServerComponent } from '@/lib/nextjs-runtime';
 import { TodayRevenueChart } from './today-revenue-chart';
 import { ActiveSubsChartWidget } from './widgets/active-subs-chart-widget';
 import { ActiveTrialsChartWidget } from './widgets/active-trials-chart-widget';
@@ -14,16 +13,8 @@ import { NewUsersChartWidget } from './widgets/new-users-chart-widget';
 import { RenewalCanceledSubsChartWidget } from './widgets/renewal-canceled-subs-chart-widget';
 import { RevenueChartWidget } from './widgets/revenue-chart-widget';
 
-export const _OverviewPage = Effect.fn('OverviewPage')(function* ({
-  organizationSlug,
-  projectSlug
-}: {
-  organizationSlug: string;
-  projectSlug: string;
-}) {
-  console.log('organizationSlug', organizationSlug);
-  console.log('projectSlug', projectSlug);
-
+export const OverviewPage = () => {
+  // const { organizationSlug, projectSlug } = useParams();
   return (
     <Page>
       {/* Key is used to reload the default form data when the organization slug changes */}
@@ -55,6 +46,4 @@ export const _OverviewPage = Effect.fn('OverviewPage')(function* ({
       </div>
     </Page>
   );
-});
-
-export const OverviewPage = ServerComponent.build(_OverviewPage);
+};

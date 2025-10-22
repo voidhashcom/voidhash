@@ -1,57 +1,53 @@
-import {
-  authenticateWithSession,
-  PaymentProviderService,
-  ProjectNotFoundError,
-  ProjectService
-} from '@voidhash/core/services';
-import { Effect, Either } from 'effect';
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { useCurrentUser } from 'hooks/tanstack-query';
+import { useParams } from 'next/navigation';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { headers } from '@/lib/effect/headers';
-import { ServerComponent } from '@/lib/nextjs-runtime';
+import { getPaymentProviderConfigurationOptions } from '@/lib/tanstack-query';
+import { CurrentUser } from '@/lib/utils/current-user';
 import { PaymentProviderDetailConfiguration } from './payment-provider-detail-configuration';
 
-export const _PaymentProviderDetailPage = Effect.fn(
-  'PaymentProviderDetailPage'
-)(function* ({
-  params
-}: {
-  params: {
-    paymentProviderConfigurationId: string;
-    organizationSlug: string;
-    projectSlug: string;
-  };
-}) {
-  const { organizationSlug, projectSlug, paymentProviderConfigurationId } =
-    params;
+export const PaymentProviderDetailPage = () => {
+  const params = useParams();
+  const organizationSlug = params.organizationSlug as string;
+  const projectSlug = params.projectSlug as string;
+  const paymentProviderConfigurationId =
+    params.paymentProviderConfigurationId as string;
 
-  const data = yield* Effect.either(
-    authenticateWithSession(yield* headers)(
-      Effect.gen(function* () {
-        const projectService = yield* ProjectService;
-        const paymentProviderService = yield* PaymentProviderService;
-        const project =
-          yield* projectService.getProjectBySlugAndOrganizationSlug({
-            organizationSlug,
-            projectSlug
-          });
-        if (!project) {
-          return yield* Effect.fail(
-            new ProjectNotFoundError({
-              message: 'Project not found'
-            })
-          );
-        }
-        const paymentProviderConfiguration =
-          yield* paymentProviderService.getPaymentProviderConfigurationById(
-            paymentProviderConfigurationId
-          );
-        return { project, paymentProviderConfiguration };
-      })
-    )
-  );
+  const { data: currentUser, status: currentUserStatus } = useCurrentUser();
+  const project =
+    currentUser &&
+    CurrentUser.getProjectBySlugs(
+      currentUser,
+      organizationSlug as string,
+      projectSlug as string
+    );
 
-  if (Either.isLeft(data)) {
+  const {
+    data: paymentProviderConfiguration,
+    status: paymentProviderConfigurationStatus
+  } = useQuery({
+    ...getPaymentProviderConfigurationOptions({
+      id: paymentProviderConfigurationId
+    }),
+    enabled: !!paymentProviderConfigurationId
+  });
+
+  if (
+    currentUserStatus === 'pending' ||
+    paymentProviderConfigurationStatus === 'pending'
+  ) {
+    return <div>Loading...</div>;
+  }
+
+  if (
+    currentUserStatus === 'error' ||
+    paymentProviderConfigurationStatus === 'error' ||
+    !project ||
+    !paymentProviderConfiguration
+  ) {
     return (
       <VoidhashErrorCard
         error={{
@@ -61,8 +57,6 @@ export const _PaymentProviderDetailPage = Effect.fn(
       />
     );
   }
-
-  const { project, paymentProviderConfiguration } = data.right;
 
   return (
     <Page
@@ -86,8 +80,4 @@ export const _PaymentProviderDetailPage = Effect.fn(
       />
     </Page>
   );
-});
-
-export const PaymentProviderDetailPage = ServerComponent.build(
-  _PaymentProviderDetailPage
-);
+};

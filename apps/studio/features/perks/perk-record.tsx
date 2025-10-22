@@ -1,5 +1,6 @@
 'use client';
-import type { Perk } from '@voidhash/db';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { Perk } from '@voidhash/rpc';
 import {
   Button,
   DropdownMenu,
@@ -13,31 +14,22 @@ import {
   useConfirmDialog
 } from '@voidhash/ui';
 import { CopyIcon, EllipsisVerticalIcon } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { toast } from 'sonner';
-import { deletePerkAction } from '@/lib/nextjs/server-actions';
+import { deletePerkOptions, queryKeys } from '@/lib/tanstack-query';
 // import { EditProductModal } from "./edit-product-modal";
 
-export function PerkRecord({ perk }: { perk: Perk }) {
-  const router = useRouter();
+export function PerkRecord({ perk }: { perk: typeof Perk.Type }) {
   // const [setOpenEditModal] = useState(false);
 
-  const { execute: deletePerk, isPending } = useAction(deletePerkAction, {
-    onExecute: () => {
-      toast.loading('Deleting perk...');
-    },
+  const queryClient = useQueryClient();
+  const { mutate: deletePerk, status: deletePerkStatus } = useMutation({
+    ...deletePerkOptions(),
     onSuccess: () => {
-      toast.dismiss();
-      toast.success('Perk was successfully deleted');
-      router.refresh();
+      toast.success('Perk successfully deleted');
+      queryClient.invalidateQueries({ queryKey: queryKeys.perk.all });
     },
-    onError: (error) => {
-      toast.dismiss();
-      toast.error(
-        error.error.serverError ??
-          'Failed to delete the perk. Please try again.'
-      );
+    onError: () => {
+      toast.error('Failed to delete perk');
     }
   });
 
@@ -112,10 +104,10 @@ export function PerkRecord({ perk }: { perk: Perk }) {
 
               <DropdownMenuItem
                 className="cursor-pointer"
-                disabled={isPending}
+                disabled={deletePerkStatus === 'pending'}
                 onClick={handleDeletePerk}
               >
-                {isPending ? 'Deleting...' : 'Delete perk'}
+                {deletePerkStatus === 'pending' ? 'Deleting...' : 'Delete perk'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

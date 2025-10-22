@@ -26,7 +26,7 @@ export const createPaymentProvider = <
 };
 
 export const appStore = createPaymentProvider({
-  id: 'app-store',
+  id: 'apple-app-store',
   title: 'App Store',
   type: 'native',
   defaultProductConfiguration: {

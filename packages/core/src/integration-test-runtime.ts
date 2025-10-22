@@ -5,7 +5,7 @@ import { Cookies } from '../../../apps/web/lib/effect/cookies';
 import { ApiKeyService } from './services/api-key-service';
 import { CustomerService } from './services/customer-service';
 import { OrganizationService } from './services/organization-service';
-import { PaymentProviderService } from './services/payment-provider-service';
+import { PaymentProviderConfigurationService } from './services/payment-provider-configuration-service';
 import { PerkService } from './services/perk-service';
 import { ProductService } from './services/product-service';
 import { ProjectService } from './services/project-service';
@@ -38,7 +38,7 @@ const RuntimeLayer = () => {
     ApiKeyService.Default,
     Layer.provideMerge(CustomerService.Default),
     Layer.provideMerge(OrganizationService.Default),
-    Layer.provideMerge(PaymentProviderService.Default),
+    Layer.provideMerge(PaymentProviderConfigurationService.Default),
     Layer.provideMerge(PerkService.Default),
     Layer.provideMerge(ProductService.Default),
     Layer.provideMerge(ProjectService.Default),

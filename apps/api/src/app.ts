@@ -12,8 +12,8 @@ import {
   AppStoreService,
   CustomerService,
   OrganizationService,
+  PaymentProviderConfigurationService,
   PaymentProviderProductService,
-  PaymentProviderService,
   PerkGrantService,
   PerkService,
   ProductPerkService,
@@ -41,6 +41,8 @@ import { RpcAuthLive } from './rpc-middlewares';
 import { ApiKeyRpcsLive } from './rpcs/api-key-rpcs';
 import { CustomerRpcsLive } from './rpcs/customer-rpcs';
 import { OrganizationRpcsLive } from './rpcs/organization-rpcs';
+import { PaymentProviderConfigurationRpcsLive } from './rpcs/payment-provider-configuration-rpcs';
+import { PaymentProviderProductRpcsLive } from './rpcs/payment-provider-product-rpcs';
 import { PerkRpcsLive } from './rpcs/perk-rpcs';
 import { ProductPerkRpcsLive } from './rpcs/product-perk-rpcs';
 import { ProductRpcsLive } from './rpcs/product-rpcs';
@@ -54,7 +56,7 @@ const ServicesLayer = Layer.mergeAll(
   CustomerService.Default,
   OrganizationService.Default,
   PaymentProviderProductService.Default,
-  PaymentProviderService.Default,
+  PaymentProviderConfigurationService.Default,
   PerkGrantService.Default,
   PerkService.Default,
   ProductPerkService.Default,
@@ -120,6 +122,8 @@ const RpcRoutesLayer = RpcServer.layerHttpRouter({
       ApiKeyRpcsLive,
       CustomerRpcsLive,
       OrganizationRpcsLive,
+      PaymentProviderConfigurationRpcsLive,
+      PaymentProviderProductRpcsLive,
       PerkRpcsLive,
       ProductPerkRpcsLive,
       ProductRpcsLive,

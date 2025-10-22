@@ -1,52 +1,37 @@
-import {
-  authenticateWithSession,
-  PerkService,
-  ProjectNotFoundError,
-  ProjectService,
-  withEnvironmentFromCookie
-} from '@voidhash/core/services';
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@voidhash/ui';
-import { Effect, Either } from 'effect';
+import { useCurrentUser } from 'hooks/tanstack-query';
+import { useParams } from 'next/navigation';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { headers } from '@/lib/effect/headers';
-import { ServerComponent } from '@/lib/nextjs-runtime';
+import { listPerksOptions } from '@/lib/tanstack-query/perks';
+import { CurrentUser } from '@/lib/utils/current-user';
 import { CreatePerkModalButton } from './create-perk-modal-button';
 import { PerkRecord } from './perk-record';
 import { PerksPageEmptyState } from './perks-page-empty-state';
+import { PerksPageSkeleton } from './perks-page-skeleton';
 
-export const _PerksPage = Effect.fn('PerksPage')(function* ({
-  organizationSlug,
-  projectSlug
-}: {
-  organizationSlug: string;
-  projectSlug: string;
-}) {
-  const data = yield* Effect.either(
-    authenticateWithSession(yield* headers)(
-      withEnvironmentFromCookie({ organizationSlug, projectSlug })(
-        Effect.gen(function* () {
-          const projectService = yield* ProjectService;
-          const perkService = yield* PerkService;
-          const project =
-            yield* projectService.getProjectBySlugAndOrganizationSlug({
-              organizationSlug,
-              projectSlug
-            });
-          if (!project) {
-            return yield* Effect.fail(
-              new ProjectNotFoundError({
-                message: 'Project not found'
-              })
-            );
-          }
-          const perks = yield* perkService.getPerks(project.id);
-          return { project, perks };
-        })
-      )
-    )
-  );
+export const PerksPage = () => {
+  const { organizationSlug, projectSlug } = useParams();
+  const { data: currentUser, status: currentUserStatus } = useCurrentUser();
+  const project =
+    currentUser &&
+    CurrentUser.getProjectBySlugs(
+      currentUser,
+      organizationSlug as string,
+      projectSlug as string
+    );
+  const { data: perks, status: perksStatus } = useQuery({
+    ...listPerksOptions({ projectId: project?.id ?? '' }),
+    enabled: !!project?.id
+  });
 
-  if (Either.isLeft(data)) {
+  if (perksStatus === 'pending' || currentUserStatus === 'pending') {
+    return <PerksPageSkeleton />;
+  }
+
+  if (perksStatus === 'error' || currentUserStatus === 'error' || !project) {
     return (
       <VoidhashErrorCard
         error={{
@@ -56,8 +41,6 @@ export const _PerksPage = Effect.fn('PerksPage')(function* ({
       />
     );
   }
-
-  const { project, perks } = data.right;
 
   return (
     <div>
@@ -84,6 +67,4 @@ export const _PerksPage = Effect.fn('PerksPage')(function* ({
       </div>
     </div>
   );
-});
-
-export const PerksPage = ServerComponent.build(_PerksPage);
+};

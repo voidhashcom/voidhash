@@ -1,4 +1,4 @@
-import { Context, Effect, type Schema } from 'effect';
+import { Context, Effect } from 'effect';
 import type { PackageJsonSchema } from '../domain/schema/package-json';
 import { SourceCode } from '../domain/services/source-code';
 import type { PackageManager, SourceCodeLanguage } from '../domain/types';
@@ -10,7 +10,7 @@ export type SourceCodeDetailsType = {
   srcDir: string;
   isExpoProject: boolean;
   monorepoRootPath: string | null;
-  packageJson: Schema.Schema.Type<typeof PackageJsonSchema>;
+  packageJson: typeof PackageJsonSchema.Type;
 };
 
 export class SourceCodeDetails extends Context.Tag('app/SourceCodeDetails')<

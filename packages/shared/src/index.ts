@@ -4,7 +4,7 @@ export * from './auth';
 export * from './customer';
 export * from './errors';
 export * from './organization';
-export * from './payment-provider';
+export * from './payment-provider-configuration';
 export * from './payment-provider-product';
 export * from './perk';
 export * from './perk-grant';

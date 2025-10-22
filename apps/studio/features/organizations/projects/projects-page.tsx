@@ -1,9 +1,7 @@
 'use client';
 import { useParams } from 'next/navigation';
-import { Suspense } from 'react';
 import { Page } from '@/features/shell';
 import { ProjectsList } from './projects-list';
-import { ProjectsSkeleton } from './projects-skeleton';
 
 export function ProjectsPage() {
   const { organizationSlug } = useParams();
@@ -15,9 +13,7 @@ export function ProjectsPage() {
           All projects of organization {organizationSlug}
         </p>
         <div className="mt-8">
-          <Suspense fallback={<ProjectsSkeleton />}>
-            <ProjectsList />
-          </Suspense>
+          <ProjectsList organizationSlug={organizationSlug as string} />
         </div>
       </div>
     </Page>

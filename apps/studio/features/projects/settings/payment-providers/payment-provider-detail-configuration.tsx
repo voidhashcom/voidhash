@@ -1,7 +1,8 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { PaymentProviderConfiguration, Project } from '@voidhash/db';
+import { useMutation } from '@tanstack/react-query';
+import type { PaymentProviderConfiguration } from '@voidhash/rpc';
 import {
   Badge,
   Button,
@@ -24,12 +25,15 @@ import {
 } from '@voidhash/ui';
 import { CheckCircleIcon, EllipsisVerticalIcon, XIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { Fragment, useState } from 'react';
 import { type SubmitErrorHandler, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import type { z } from 'zod';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
+import {
+  deletePaymentProviderConfigurationOptions,
+  updatePaymentProviderConfigurationOptions
+} from '@/lib/tanstack-query';
 import { PaymentProviderLogo } from './payment-provider-logo';
 
 export function PaymentProviderDetailConfiguration({
@@ -40,8 +44,8 @@ export function PaymentProviderDetailConfiguration({
 }: {
   organizationSlug: string;
   projectSlug: string;
-  project: Project;
-  paymentProviderConfiguration: PaymentProviderConfiguration;
+  project: { id: string };
+  paymentProviderConfiguration: typeof PaymentProviderConfiguration.Type;
 }) {
   const router = useRouter();
 
@@ -59,44 +63,38 @@ export function PaymentProviderDetailConfiguration({
     defaultValues: paymentProviderConfiguration.configuration
   });
 
-  const { execute, isPending } = useAction(
-    updatePaymentProviderConfigurationAction,
-    {
-      onSuccess: () => {
-        toast.success(
-          `${paymentProvider?.title} configuration saved successfully`
-        );
-
-        router.refresh();
-      },
-      onError: (error) => {
-        toast.error(
-          error.error.serverError ??
-            `Failed to save ${paymentProvider?.title} configuration. Please try again.`
-        );
-      }
+  const { mutate: updateConfiguration, status: updateStatus } = useMutation({
+    ...updatePaymentProviderConfigurationOptions(),
+    onSuccess: () => {
+      toast.success(
+        `${paymentProvider?.title} configuration saved successfully`
+      );
+      router.refresh();
+    },
+    onError: () => {
+      toast.error(`Failed to save ${paymentProvider?.title} configuration`);
     }
-  );
+  });
 
   // Delete payment provider configuration
   const { ConfirmationDialog, openDialog } = useConfirmDialog();
-  const { execute: deletePaymentProviderConfiguration, isPending: isDeleting } =
-    useAction(deletePaymentProviderConfigurationAction, {
-      onSuccess: () => {
-        toast.success(
-          `${paymentProvider?.title} configuration deleted successfully`
-        );
-        router.push(
-          `/${organizationSlug}/${projectSlug}/settings/payment-providers`
-        );
-      },
-      onError: (error) => {
-        toast.error(
-          error.error.serverError ??
-            `Failed to delete ${paymentProvider?.title} configuration. Please try again.`
-        );
-      }
-    });
+  const { mutate: deleteConfiguration, status: deleteStatus } = useMutation({
+    ...deletePaymentProviderConfigurationOptions(),
+    onSuccess: () => {
+      toast.success(
+        `${paymentProvider?.title} configuration deleted successfully`
+      );
+      router.push(
+        `/${organizationSlug}/${projectSlug}/settings/payment-providers`
+      );
+    },
+    onError: () => {
+      toast.error(`Failed to delete ${paymentProvider?.title} configuration`);
+    }
+  });
+
+  const isPending = updateStatus === 'pending';
+  const isDeleting = deleteStatus === 'pending';
 
   const handleDeletePaymentProviderConfiguration = async (id: string) => {
     const res = await openDialog({
@@ -108,7 +106,7 @@ export function PaymentProviderDetailConfiguration({
       return;
     }
 
-    deletePaymentProviderConfiguration({
+    deleteConfiguration({
       paymentProviderConfigurationId: id
     });
   };
@@ -116,7 +114,7 @@ export function PaymentProviderDetailConfiguration({
   const onValidSubmit = (
     data: z.infer<typeof paymentProvider.globalConfigurationSchema>
   ) => {
-    execute({
+    updateConfiguration({
       id: paymentProviderConfiguration.id,
       enabled: paymentProviderConfiguration.enabled,
       name,
@@ -175,7 +173,7 @@ export function PaymentProviderDetailConfiguration({
 
       // Submit with enabled set to false
       await form.handleSubmit((data) =>
-        execute({
+        updateConfiguration({
           id: paymentProviderConfiguration.id,
           enabled: false,
           name,
@@ -194,7 +192,7 @@ export function PaymentProviderDetailConfiguration({
 
       // Submit with enabled based on user choice
       await form.handleSubmit((data) =>
-        execute({
+        updateConfiguration({
           id: paymentProviderConfiguration.id,
           enabled: shouldEnable,
           name,

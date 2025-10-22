@@ -70,9 +70,7 @@ export class CliConfig extends Effect.Service<CliConfig>()(
        * @param config - Partial configuration object to write to the config file.
        * @returns An Effect that writes the merged configuration to disk.
        */
-      const writeToConfig = (
-        config: Partial<Schema.Schema.Type<typeof CliConfigSchema>>
-      ) =>
+      const writeToConfig = (config: Partial<typeof CliConfigSchema.Type>) =>
         Effect.gen(function* () {
           const currentConfig = yield* readConfig().pipe(
             Effect.orElse(() => Effect.succeed({}))

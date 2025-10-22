@@ -8,11 +8,11 @@ import {
 import { Schema } from 'effect';
 import { AuthMiddleware } from '../middlewares';
 
-export class Project extends Schema.Class<Project>('Project')({
+export const Project = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   slug: Schema.String
-}) {}
+});
 
 export class ProjectRpcsDef extends RpcGroup.make(
   Rpc.make('CreateProject', {

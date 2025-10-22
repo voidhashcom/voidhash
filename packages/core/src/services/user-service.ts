@@ -1,7 +1,7 @@
 import type { User } from '@voidhash/api-spec';
 
 import { AuthenticationError, AuthSession } from '@voidhash/shared';
-import { Effect, pipe, type Schema } from 'effect';
+import { Effect, pipe } from 'effect';
 
 export class UserService extends Effect.Service<UserService>()('UserService', {
   dependencies: [],
@@ -35,7 +35,7 @@ export class UserService extends Effect.Service<UserService>()('UserService', {
               logo: null,
               organizationId: p.organizationId
             }))
-          } satisfies Schema.Schema.Type<typeof User>;
+          } satisfies typeof User.Type;
         })
       );
 

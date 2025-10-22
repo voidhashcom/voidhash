@@ -1,6 +1,6 @@
 'use client';
 
-import type { ApiKey } from '@voidhash/db';
+import type { ApiKeyWithRawKey } from '@voidhash/rpc';
 import { Button } from '@voidhash/ui/button';
 import { useState } from 'react';
 import { CreateSecretKeyModal } from './create-secret-key-modal';
@@ -12,7 +12,9 @@ export function CreateSecretKeyModalButton({
   projectId: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [secretKey, setSecretKey] = useState<ApiKey | null>(null);
+  const [secretKey, setSecretKey] = useState<
+    typeof ApiKeyWithRawKey.Type | null
+  >(null);
   return (
     <>
       <CreateSecretKeyModal

@@ -2,26 +2,20 @@
 
 // import type { AnyVoidhashError } from '@voidhash/lib/constants';
 import { ErrorCard } from '@voidhash/ui';
-import type { encodeNextjsErrorResponse } from '@/lib/nextjs-runtime';
 
 export function VoidhashErrorCard({
   error
 }: {
-  error: ReturnType<typeof encodeNextjsErrorResponse>;
+  error: { code: string; title?: string; message?: string };
 }) {
-  // TODO: Improve this a lot
   return (
     <ErrorCard
       className="h-screen"
-      description={
-        error.code !== 'INTERNAL_SERVER_ERROR'
-          ? error.message
-          : 'Please try again later'
-      }
+      description={error.message ?? 'Please try again later.'}
       onRetry={() => {
         window.location.reload();
       }}
-      title="Something went wrong"
+      title={error.title ?? 'Something went wrong'}
     />
   );
 }

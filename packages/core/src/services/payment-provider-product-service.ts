@@ -12,6 +12,7 @@ import { generateId } from '@voidhash/lib';
 import {
   AuthSession,
   PaymentProviderProductNotFoundError,
+  PaymentProviderProductServiceError,
   PaymentProviderProductValidationError
 } from '@voidhash/shared';
 import { Effect, pipe, Schema } from 'effect';
@@ -195,12 +196,23 @@ export class PaymentProviderProductService extends Effect.Service<PaymentProvide
                     `Created payment provider product ${newProviderProduct.id} for product ${product.id}`
                   );
 
-                  return yield* Effect.succeed(newProviderProduct);
+                  return {
+                    id: newProviderProduct.id
+                  };
                 })
               )
             );
           }),
-          Effect.catchTags({})
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new PaymentProviderProductServiceError({
+                cause: String(error.cause)
+              }),
+            ParseError: (error) =>
+              new PaymentProviderProductValidationError({
+                message: String(error.cause)
+              })
+          })
         );
 
       const _getPaymentProviderProductById = dbService.makeQuery(
@@ -245,92 +257,104 @@ export class PaymentProviderProductService extends Effect.Service<PaymentProvide
         paymentProviderConfigurationProductId: string;
         configuration: Record<string, unknown>;
       }) =>
-        Effect.gen(function* () {
-          const session = yield* AuthSession;
-          const db = yield* Db;
+        pipe(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
+            const db = yield* Db;
 
-          const providerProduct = yield* _getPaymentProviderProductById(
-            input.paymentProviderConfigurationProductId
-          );
-
-          if (!providerProduct) {
-            return yield* Effect.fail(
-              new PaymentProviderProductNotFoundError({
-                message: 'Provider product not found'
-              })
+            const providerProduct = yield* _getPaymentProviderProductById(
+              input.paymentProviderConfigurationProductId
             );
-          }
 
-          // Get product and provider configuration in parallel
-          const [product, providerConfiguration] = yield* Effect.all([
-            _getProductById(providerProduct.productId),
-            _getPaymentProviderConfigurationById(
-              providerProduct.paymentProviderConfigurationId
-            )
-          ]);
+            if (!providerProduct) {
+              return yield* Effect.fail(
+                new PaymentProviderProductNotFoundError({
+                  message: 'Provider product not found'
+                })
+              );
+            }
 
-          if (!product) {
-            return yield* Effect.fail(
+            // Get product and provider configuration in parallel
+            const [product, providerConfiguration] = yield* Effect.all([
+              _getProductById(providerProduct.productId),
+              _getPaymentProviderConfigurationById(
+                providerProduct.paymentProviderConfigurationId
+              )
+            ]);
+
+            if (!product) {
+              return yield* Effect.fail(
+                new PaymentProviderProductValidationError({
+                  message: `Product ${providerProduct.productId} not found`
+                })
+              );
+            }
+
+            if (!providerConfiguration) {
+              return yield* Effect.fail(
+                new PaymentProviderProductValidationError({
+                  message: `Payment provider configuration ${providerProduct.paymentProviderConfigurationId} not found`
+                })
+              );
+            }
+
+            // SECURITY: Authorization checks
+            yield* checkProjectPermission(
+              product.projectId,
+              'project:all',
+              `User ${session?.user?.id} is not authorized to update payment provider products for project ${product.projectId}`
+            );
+
+            // Find the payment provider
+            const provider = paymentProviders.find(
+              (p) => p.id === providerConfiguration.providerId
+            );
+            if (!provider) {
+              return yield* Effect.fail(
+                new PaymentProviderProductValidationError({
+                  message: `Payment provider ${providerProduct.paymentProviderConfigurationId} not found`
+                })
+              );
+            }
+
+            // Validate configuration
+            const configurationValidationResult =
+              yield* validateProductConfigurationAndCreateProductKey(
+                providerConfiguration.providerId,
+                input.configuration
+              );
+
+            return yield* db.transaction((tx) =>
+              TransactionContext.provide(tx)(
+                Effect.gen(function* () {
+                  yield* _updatePaymentProviderProductRecord({
+                    id: providerProduct.id,
+                    newProviderProductKey:
+                      configurationValidationResult.productKey,
+                    configuration:
+                      configurationValidationResult.parsedConfiguration
+                  });
+
+                  yield* Effect.log(
+                    `Updated payment provider product for product ${providerProduct.productId}`
+                  );
+
+                  return yield* Effect.succeed(undefined);
+                })
+              )
+            );
+          }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new PaymentProviderProductServiceError({
+                cause: String(error.cause)
+              }),
+            ParseError: (error) =>
               new PaymentProviderProductValidationError({
-                message: `Product ${providerProduct.productId} not found`
+                message: String(error.cause)
               })
-            );
-          }
-
-          if (!providerConfiguration) {
-            return yield* Effect.fail(
-              new PaymentProviderProductValidationError({
-                message: `Payment provider configuration ${providerProduct.paymentProviderConfigurationId} not found`
-              })
-            );
-          }
-
-          // SECURITY: Authorization checks
-          yield* checkProjectPermission(
-            product.projectId,
-            'project:all',
-            `User ${session?.user?.id} is not authorized to update payment provider products for project ${product.projectId}`
-          );
-
-          // Find the payment provider
-          const provider = paymentProviders.find(
-            (p) => p.id === providerConfiguration.providerId
-          );
-          if (!provider) {
-            return yield* Effect.fail(
-              new PaymentProviderProductValidationError({
-                message: `Payment provider ${providerProduct.paymentProviderConfigurationId} not found`
-              })
-            );
-          }
-
-          // Validate configuration
-          const configurationValidationResult =
-            yield* validateProductConfigurationAndCreateProductKey(
-              providerConfiguration.providerId,
-              input.configuration
-            );
-
-          return yield* db.transaction((tx) =>
-            TransactionContext.provide(tx)(
-              Effect.gen(function* () {
-                yield* _updatePaymentProviderProductRecord({
-                  id: providerProduct.id,
-                  newProviderProductKey:
-                    configurationValidationResult.productKey,
-                  configuration:
-                    configurationValidationResult.parsedConfiguration
-                });
-
-                yield* Effect.log(
-                  `Updated payment provider product for product ${providerProduct.productId}`
-                );
-
-                return yield* Effect.succeed(undefined);
-              })
-            )
-          );
-        });
+          })
+        );
 
       const _setActivePaymentProviderProductRecord = dbService.makeQuery(
         (
@@ -374,97 +398,105 @@ export class PaymentProviderProductService extends Effect.Service<PaymentProvide
         providerProductKey: string;
         paymentProviderConfigurationId: string;
       }) =>
-        Effect.gen(function* () {
-          const session = yield* AuthSession;
-          const db = yield* Db;
+        pipe(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
+            const db = yield* Db;
 
-          // Get product and provider configuration in parallel
-          const [product, providerConfiguration] = yield* Effect.all(
-            [
-              _getProductById(input.productId),
-              db.use(async (dbInstance) => {
-                return await dbInstance.query.paymentProviderConfigurations.findFirst(
-                  {
-                    where: (configs, { eq }) =>
-                      eq(configs.id, input.paymentProviderConfigurationId)
-                  }
-                );
-              })
-            ],
-            {
-              concurrency: 'unbounded'
+            // Get product and provider configuration in parallel
+            const [product, providerConfiguration] = yield* Effect.all(
+              [
+                _getProductById(input.productId),
+                db.use(async (dbInstance) => {
+                  return await dbInstance.query.paymentProviderConfigurations.findFirst(
+                    {
+                      where: (configs, { eq }) =>
+                        eq(configs.id, input.paymentProviderConfigurationId)
+                    }
+                  );
+                })
+              ],
+              {
+                concurrency: 'unbounded'
+              }
+            );
+
+            if (!product) {
+              return yield* Effect.fail(
+                new PaymentProviderProductValidationError({
+                  message: `Product ${input.productId} not found`
+                })
+              );
             }
-          );
 
-          if (!product) {
-            return yield* Effect.fail(
-              new PaymentProviderProductValidationError({
-                message: `Product ${input.productId} not found`
-              })
+            if (!providerConfiguration) {
+              return yield* Effect.fail(
+                new PaymentProviderProductValidationError({
+                  message: `Payment provider configuration ${input.paymentProviderConfigurationId} not found`
+                })
+              );
+            }
+
+            // SECURITY: Authorization checks
+            yield* checkProjectPermission(
+              product.projectId,
+              'project:all',
+              `User ${session?.user?.id} is not authorized to update payment provider products for project ${product.projectId}`
             );
-          }
 
-          if (!providerConfiguration) {
-            return yield* Effect.fail(
-              new PaymentProviderProductValidationError({
-                message: `Payment provider configuration ${input.paymentProviderConfigurationId} not found`
-              })
+            yield* checkProjectPermission(
+              providerConfiguration.projectId,
+              'project:all',
+              `User ${session?.user?.id} is not authorized to access payment provider configuration for project ${providerConfiguration.projectId}`
             );
-          }
 
-          // SECURITY: Authorization checks
-          yield* checkProjectPermission(
-            product.projectId,
-            'project:all',
-            `User ${session?.user?.id} is not authorized to update payment provider products for project ${product.projectId}`
-          );
-
-          yield* checkProjectPermission(
-            providerConfiguration.projectId,
-            'project:all',
-            `User ${session?.user?.id} is not authorized to access payment provider configuration for project ${providerConfiguration.projectId}`
-          );
-
-          // Find the payment provider
-          const provider = paymentProviders.find(
-            (p) => p.id === providerConfiguration.providerId
-          );
-          if (!provider) {
-            return yield* Effect.fail(
-              new PaymentProviderProductValidationError({
-                message: `Payment provider ${providerConfiguration.providerId} not found`
-              })
+            // Find the payment provider
+            const provider = paymentProviders.find(
+              (p) => p.id === providerConfiguration.providerId
             );
-          }
+            if (!provider) {
+              return yield* Effect.fail(
+                new PaymentProviderProductValidationError({
+                  message: `Payment provider ${providerConfiguration.providerId} not found`
+                })
+              );
+            }
 
-          return yield* db.transaction((tx) =>
-            TransactionContext.provide(tx)(
-              Effect.gen(function* () {
-                // Deactivate other provider products for this product/configuration
-                yield* _deactivateOtherProviderProducts({
-                  productId: input.productId,
-                  paymentProviderConfigurationId:
-                    input.paymentProviderConfigurationId,
-                  excludeProviderProductKey: input.providerProductKey
-                });
+            return yield* db.transaction((tx) =>
+              TransactionContext.provide(tx)(
+                Effect.gen(function* () {
+                  // Deactivate other provider products for this product/configuration
+                  yield* _deactivateOtherProviderProducts({
+                    productId: input.productId,
+                    paymentProviderConfigurationId:
+                      input.paymentProviderConfigurationId,
+                    excludeProviderProductKey: input.providerProductKey
+                  });
 
-                // Activate the selected provider product
-                yield* _setActivePaymentProviderProductRecord({
-                  productId: input.productId,
-                  paymentProviderConfigurationId:
-                    input.paymentProviderConfigurationId,
-                  providerProductKey: input.providerProductKey
-                });
+                  // Activate the selected provider product
+                  yield* _setActivePaymentProviderProductRecord({
+                    productId: input.productId,
+                    paymentProviderConfigurationId:
+                      input.paymentProviderConfigurationId,
+                    providerProductKey: input.providerProductKey
+                  });
 
-                yield* Effect.log(
-                  `Set active payment provider product ${input.providerProductKey} for product ${input.productId}`
-                );
+                  yield* Effect.log(
+                    `Set active payment provider product ${input.providerProductKey} for product ${input.productId}`
+                  );
 
-                return yield* Effect.succeed(undefined);
+                  return yield* Effect.succeed(undefined);
+                })
+              )
+            );
+          }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new PaymentProviderProductServiceError({
+                cause: String(error.cause)
               })
-            )
-          );
-        });
+          })
+        );
 
       const _getProviderProductsByProductId = dbService.makeQuery(
         (execute, productId: string) =>
@@ -482,27 +514,35 @@ export class PaymentProviderProductService extends Effect.Service<PaymentProvide
 
       // Provider product methods
       const getProviderProductsByProductId = (productId: string) =>
-        Effect.gen(function* () {
-          const session = yield* AuthSession;
+        pipe(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
 
-          const product = yield* _getProductById(productId);
-          if (!product) {
-            return yield* Effect.fail(
-              new PaymentProviderProductValidationError({
-                message: 'Product not found'
-              })
+            const product = yield* _getProductById(productId);
+            if (!product) {
+              return yield* Effect.fail(
+                new PaymentProviderProductValidationError({
+                  message: 'Product not found'
+                })
+              );
+            }
+
+            // SECURITY: Authorization check
+            yield* checkProjectPermission(
+              product.projectId,
+              'project:all',
+              `User ${session?.user?.id} is not authorized to access provider products for product ${productId}`
             );
-          }
 
-          // SECURITY: Authorization check
-          yield* checkProjectPermission(
-            product.projectId,
-            'project:all',
-            `User ${session?.user?.id} is not authorized to access provider products for product ${productId}`
-          );
-
-          return yield* _getProviderProductsByProductId(productId);
-        });
+            return yield* _getProviderProductsByProductId(productId);
+          }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new PaymentProviderProductServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
       const _getProviderProductById = dbService.makeQuery(
         (execute, id: string) =>
@@ -589,39 +629,47 @@ export class PaymentProviderProductService extends Effect.Service<PaymentProvide
         paymentProviderConfigurationId: string;
         providerProductKey: string;
       }) =>
-        Effect.gen(function* () {
-          const session = yield* AuthSession;
+        pipe(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
 
-          // Get the product to check authorization
-          const product = yield* _getProductById(input.productId);
-          if (!product) {
-            return yield* Effect.fail(
-              new PaymentProviderProductValidationError({
-                message: `Product ${input.productId} not found`
-              })
+            // Get the product to check authorization
+            const product = yield* _getProductById(input.productId);
+            if (!product) {
+              return yield* Effect.fail(
+                new PaymentProviderProductValidationError({
+                  message: `Product ${input.productId} not found`
+                })
+              );
+            }
+
+            // SECURITY: Authorization check
+            yield* checkProjectPermission(
+              product.projectId,
+              'project:all',
+              `User ${session?.user?.id} is not authorized to delete payment provider products for project ${product.projectId}`
             );
-          }
 
-          // SECURITY: Authorization check
-          yield* checkProjectPermission(
-            product.projectId,
-            'project:all',
-            `User ${session?.user?.id} is not authorized to delete payment provider products for project ${product.projectId}`
-          );
+            yield* _deletePaymentProviderProductRecord({
+              productId: input.productId,
+              paymentProviderConfigurationId:
+                input.paymentProviderConfigurationId,
+              providerProductKey: input.providerProductKey
+            });
 
-          yield* _deletePaymentProviderProductRecord({
-            productId: input.productId,
-            paymentProviderConfigurationId:
-              input.paymentProviderConfigurationId,
-            providerProductKey: input.providerProductKey
-          });
+            yield* Effect.log(
+              `Deleted payment provider product for product ${input.productId}`
+            );
 
-          yield* Effect.log(
-            `Deleted payment provider product for product ${input.productId}`
-          );
-
-          return yield* Effect.succeed(undefined);
-        });
+            return yield* Effect.succeed(undefined);
+          }),
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new PaymentProviderProductServiceError({
+                cause: String(error.cause)
+              })
+          })
+        );
 
       return {
         createPaymentProviderProduct,

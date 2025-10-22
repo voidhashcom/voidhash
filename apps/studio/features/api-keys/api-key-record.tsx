@@ -1,5 +1,6 @@
 'use client';
-import type { ApiKey } from '@voidhash/db';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ApiKey, ApiKeyWithRawKey } from '@voidhash/rpc';
 import {
   Button,
   DropdownMenu,
@@ -13,19 +14,20 @@ import {
   useConfirmDialog
 } from '@voidhash/ui';
 import { EllipsisVerticalIcon } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
-  deleteSecretKeyAction,
-  rotateSecretKeyAction
-} from '@/lib/nextjs/server-actions';
+  deleteApiKeyOptions,
+  queryKeys,
+  rotateSecretKeyOptions
+} from '@/lib/tanstack-query';
 import { SecretKeyRevealModal } from './secret-key-reveal-modal';
 
-export function ApiKeyRecord({ apiKey }: { apiKey: ApiKey }) {
-  const router = useRouter();
-  const [secretKey, setSecretKey] = useState<ApiKey | null>(null);
+export function ApiKeyRecord({ apiKey }: { apiKey: typeof ApiKey.Type }) {
+  const queryClient = useQueryClient();
+  const [secretKey, setSecretKey] = useState<
+    typeof ApiKeyWithRawKey.Type | null
+  >(null);
   const { ConfirmationDialog, openDialog } = useConfirmDialog();
 
   const copyToClipboard = (text: string) => {
@@ -34,21 +36,18 @@ export function ApiKeyRecord({ apiKey }: { apiKey: ApiKey }) {
   };
 
   // Rotate key
-  const { execute: rotateKey, isExecuting: isRotating } = useAction(
-    rotateSecretKeyAction,
-    {
-      onSuccess: (res) => {
+  const { mutate: rotateSecretKey, status: rotateSecretKeyStatus } =
+    useMutation({
+      ...rotateSecretKeyOptions(),
+      onSuccess: () => {
         toast.success('Key successfully rotated');
-        router.refresh();
-        if (res.data) {
-          setSecretKey(res.data);
-        }
+        queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
       },
       onError: () => {
         toast.error('Failed to rotate key');
       }
-    }
-  );
+    });
+
   const handleRotateKey = async () => {
     const res = await openDialog({
       title: 'Rotate key',
@@ -57,25 +56,25 @@ export function ApiKeyRecord({ apiKey }: { apiKey: ApiKey }) {
       confirmText: 'Rotate'
     });
     if (res) {
-      rotateKey({
-        secretKeyId: apiKey.id
+      rotateSecretKey({
+        apiKeyId: apiKey.id
       });
     }
   };
 
   // Delete key
-  const { execute: deleteKey, isExecuting: isDeleting } = useAction(
-    deleteSecretKeyAction,
-    {
+  const { mutate: deleteSecretKey, status: deleteSecretKeyStatus } =
+    useMutation({
+      ...deleteApiKeyOptions(),
       onSuccess: () => {
         toast.success('Key successfully deleted');
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
       },
       onError: () => {
         toast.error('Failed to delete key');
       }
-    }
-  );
+    });
+
   const handleDeleteKey = async () => {
     const res = await openDialog({
       title: 'Delete key',
@@ -84,8 +83,8 @@ export function ApiKeyRecord({ apiKey }: { apiKey: ApiKey }) {
       confirmText: 'Delete'
     });
     if (res) {
-      deleteKey({
-        secretKeyId: apiKey.id
+      deleteSecretKey({
+        apiKeyId: apiKey.id
       });
     }
   };
@@ -132,14 +131,14 @@ export function ApiKeyRecord({ apiKey }: { apiKey: ApiKey }) {
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  disabled={isRotating}
+                  disabled={rotateSecretKeyStatus === 'pending'}
                   onClick={handleRotateKey}
                 >
                   Rotate key
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  disabled={isDeleting}
+                  disabled={deleteSecretKeyStatus === 'pending'}
                   onClick={handleDeleteKey}
                 >
                   Delete key

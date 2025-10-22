@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ProductType, ProductTypeLabels } from '@voidhash/lib/index';
 import { Badge, InfoTooltip, RadioGroup, RadioGroupItem } from '@voidhash/ui';
 import { Button } from '@voidhash/ui/button';
@@ -22,12 +23,10 @@ import {
   FormMessage
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { createProductAction } from '@/lib/nextjs/server-actions';
+import { createProductOptions, queryKeys } from '@/lib/tanstack-query';
 
 const createProductSchema = z.object({
   name: z
@@ -64,7 +63,6 @@ export function CreateProductModal({
   projectId,
   onSuccess
 }: CreateProductModalProps) {
-  const router = useRouter();
   const form = useForm<CreateProductForm>({
     resolver: zodResolver(createProductSchema),
     defaultValues: {
@@ -73,17 +71,19 @@ export function CreateProductModal({
     }
   });
 
-  const { execute, isPending } = useAction(createProductAction, {
-    onSuccess: (res) => {
-      if (res.data) {
-        toast.success('Product created successfully');
-        onSuccess?.(res.data);
-        router.refresh();
-        handleOpenChange(false);
-      }
+  const queryClient = useQueryClient();
+  const { mutate: createProduct, status: createProductStatus } = useMutation({
+    ...createProductOptions(),
+    onSuccess: (data) => {
+      onSuccess?.(data);
+      toast.success('Product created successfully');
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.product.list({ projectId })
+      });
+      handleOpenChange(false);
     },
-    onError: (error) => {
-      toast.error(error.error.serverError || 'Failed to create product');
+    onError: () => {
+      toast.error('Failed to create product');
     }
   });
 
@@ -95,7 +95,7 @@ export function CreateProductModal({
   };
 
   const onSubmit = (data: CreateProductForm) => {
-    execute({ ...data, projectId });
+    createProduct({ ...data, projectId });
   };
 
   return (
@@ -194,10 +194,12 @@ export function CreateProductModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={isPending}
+                disabled={createProductStatus === 'pending'}
                 type="submit"
               >
-                {isPending ? 'Creating Product...' : 'Create Product'}
+                {createProductStatus === 'pending'
+                  ? 'Creating Product...'
+                  : 'Create Product'}
               </Button>
             </DialogFooter>
           </form>

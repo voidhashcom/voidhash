@@ -1,6 +1,7 @@
 'use client';
 
-import type { Perk, ProductPerk } from '@voidhash/db';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { Perk, ProductPerk } from '@voidhash/rpc';
 import {
   Badge,
   Button,
@@ -12,36 +13,35 @@ import {
   useConfirmDialog
 } from '@voidhash/ui';
 import { EllipsisVerticalIcon } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { toast } from 'sonner';
-import { deleteProductPerkAction } from '@/lib/nextjs/server-actions';
+import { deleteProductPerkOptions, queryKeys } from '@/lib/tanstack-query';
 
 export function ProductDetailPerkRecord({
   productPerk,
   perks
 }: {
-  productPerk: ProductPerk;
-  perks: Perk[];
+  productPerk: typeof ProductPerk.Type;
+  // biome-ignore lint/style/useConsistentArrayType: We need to use ReadonlyArray to avoid mutation
+  perks: ReadonlyArray<typeof Perk.Type>;
 }) {
-  const router = useRouter();
   const perk = perks.find((p) => p.id === productPerk.perkId);
 
-  const { execute: deleteProductPerk, isPending } = useAction(
-    deleteProductPerkAction,
-    {
+  const queryClient = useQueryClient();
+  const { mutate: deleteProductPerk, status: deleteProductPerkStatus } =
+    useMutation({
+      ...deleteProductPerkOptions(),
       onSuccess: () => {
-        toast.success(`${perk?.name} perk was successfully deleted`);
-        router.refresh();
+        toast.success(`${perk?.name} perk successfully deleted`);
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.productPerk.listByProduct({
+            productId: productPerk.productId
+          })
+        });
       },
-      onError: (error) => {
-        toast.error(
-          error.error.serverError ??
-            `Failed to delete ${perk?.name} perk. Please try again.`
-        );
+      onError: () => {
+        toast.error(`Failed to delete ${perk?.name} perk`);
       }
-    }
-  );
+    });
 
   const { ConfirmationDialog, openDialog } = useConfirmDialog();
 
@@ -85,10 +85,10 @@ export function ProductDetailPerkRecord({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem
-              disabled={isPending}
+              disabled={deleteProductPerkStatus === 'pending'}
               onSelect={handleDeleteProductPerk}
             >
-              {isPending ? 'Deleting...' : 'Delete'}
+              {deleteProductPerkStatus === 'pending' ? 'Deleting...' : 'Delete'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
