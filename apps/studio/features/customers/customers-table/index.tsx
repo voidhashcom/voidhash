@@ -1,7 +1,6 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import type { CustomerTypeValue } from '@voidhash/db';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { listCustomersOptions } from '@/lib/tanstack-query/customers';
 import { columns } from './columns';
@@ -13,7 +12,7 @@ export const CustomersTable = ({
   organizationSlug,
   projectSlug
 }: {
-  type?: CustomerTypeValue;
+  type?: 1 | 2; // TODO: Use CustomerType
   organizationSlug: string;
   projectSlug: string;
   projectId: string;
