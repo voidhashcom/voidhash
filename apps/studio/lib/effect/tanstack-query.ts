@@ -9,14 +9,7 @@ import {
   type UseMutationOptions,
   type UseQueryOptions
 } from '@tanstack/react-query';
-import {
-  Cause,
-  Duration,
-  Effect,
-  Exit,
-  type Layer,
-  ManagedRuntime
-} from 'effect';
+import { Cause, Duration, Effect, Exit, Layer, ManagedRuntime } from 'effect';
 // import { useRuntime } from '@/lib/effect/runtime/use-runtime';
 
 export const queryClient = new QueryClient({
@@ -40,12 +33,13 @@ export const queryClient = new QueryClient({
 //   );
 // };
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+// biome-ignore lint/suspicious/noExplicitAny: Generic type for layer
 export function createEffectQuery<TLayer extends Layer.Layer<any, any, never>>(
   layer: TLayer
 ) {
+  const layerWithScope = layer.pipe(Layer.provide(Layer.scope));
   type TManagedRuntime = ManagedRuntime.ManagedRuntime<
-    Layer.Layer.Success<TLayer>,
+    Layer.Layer.Success<typeof layerWithScope>,
     never
   >;
   type RuntimeContext = ManagedRuntime.ManagedRuntime.Context<TManagedRuntime>;

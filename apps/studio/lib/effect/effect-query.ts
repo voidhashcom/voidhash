@@ -24,7 +24,7 @@ export const RpcProtocolLive = RpcClient.layerProtocolHttp({
 
 export const VoidhashRpc = RpcClient.make(RpcGroups);
 
-export const LiveLayer = Layer.mergeAll(RpcProtocolLive, Layer.scope).pipe(
+export const LiveLayer = Layer.mergeAll(RpcProtocolLive).pipe(
   Layer.provide(Logger.pretty)
 );
 
