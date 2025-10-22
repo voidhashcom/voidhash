@@ -1,5 +1,5 @@
 import { FileSystem } from '@effect/platform';
-import { Effect, type Schema } from 'effect';
+import { Effect } from 'effect';
 import type { Writable } from '../../utils/types';
 import type { VoidhashConfigSchema } from '../schema/voidhash-config';
 
@@ -11,7 +11,7 @@ export class Codegen extends Effect.Service<Codegen>()('voidhash-cli/Codegen', {
 
     const generateVoidhashConfigFile = (
       path: string,
-      config: Writable<Schema.Schema.Type<typeof VoidhashConfigSchema>>
+      config: Writable<typeof VoidhashConfigSchema.Type>
     ) =>
       Effect.gen(function* () {
         const content = `import { defineConfig } from 'voidhash-cli';

@@ -1,12 +1,12 @@
 import type { SdkHeaders } from '@voidhash/api-spec';
-import { Effect, type Schema } from 'effect';
+import { Effect } from 'effect';
 import { SDK_VERSION } from '../constants';
 import type { IdentityManager } from '../identity/identity-manager';
 import { PlatformProvider } from '../platform/platform-provider';
 import { SdkConfiguration } from '../sdk-configuration';
 
 export const getCommonSdkHeaders = (): Effect.Effect<
-  Omit<Schema.Schema.Type<typeof SdkHeaders>, 'x-app-user-id'>,
+  Omit<typeof SdkHeaders.Type, 'x-app-user-id'>,
   never,
   PlatformProvider | SdkConfiguration | IdentityManager
 > =>

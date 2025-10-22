@@ -1,4 +1,3 @@
-import type { Schema } from 'effect';
 import type { PackageJsonSchema } from '../domain/schema/package-json';
 
 /**
@@ -18,7 +17,7 @@ export const relativePathPrefixFromDepth = (depth: number) => {
  * @returns True if the project is an Expo project, false otherwise.
  */
 export const checkIsExpoProject = (
-  packageJson: Schema.Schema.Type<typeof PackageJsonSchema>
+  packageJson: typeof PackageJsonSchema.Type
 ) => {
   return packageJson.dependencies?.expo !== undefined;
 };
