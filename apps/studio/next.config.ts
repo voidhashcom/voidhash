@@ -7,7 +7,6 @@ const nextConfig = {
   transpilePackages: [
     '@voidhash/ui',
     '@voidhash/auth',
-    '@voidhash/db',
     '@voidhash/lib',
     '@voidhash/emails'
   ],
