@@ -1,56 +1,39 @@
-import {
-  authenticateWithSession,
-  ProductService,
-  ProjectNotFoundError,
-  ProjectService,
-  withEnvironmentFromCookie
-} from '@voidhash/core/services';
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@voidhash/ui';
-import { Effect, Either } from 'effect';
+import { useCurrentUser } from 'hooks/tanstack-query';
+import { useParams } from 'next/navigation';
 import { Page } from '@/features/shell';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { headers } from '@/lib/effect/headers';
-import { ServerComponent } from '@/lib/nextjs-runtime';
+import { listProductsOptions } from '@/lib/tanstack-query/products';
+import { CurrentUser } from '@/lib/utils/current-user';
 import { CreateProductModalButton } from './create-product-modal-button';
 import { ProductRecord } from './product-record';
 import { ProductRecordConfigurationStateIndicator } from './product-record-configuration-state-indicator';
 import { ProductsPageEmptyState } from './products-page-empty-state';
+import { ProductsPageSkeleton } from './products-page-skeleton';
 
-export const _ProductsPage = Effect.fn('ProductsPage')(function* ({
-  organizationSlug,
-  projectSlug
-}: {
-  organizationSlug: string;
-  projectSlug;
-}) {
-  const data = yield* Effect.either(
-    Effect.gen(function* () {
-      return yield* authenticateWithSession(yield* headers)(
-        withEnvironmentFromCookie({ organizationSlug, projectSlug })(
-          Effect.gen(function* () {
-            const projectService = yield* ProjectService;
-            const productService = yield* ProductService;
-            const project =
-              yield* projectService.getProjectBySlugAndOrganizationSlug({
-                organizationSlug,
-                projectSlug
-              });
-            if (!project) {
-              return yield* Effect.fail(
-                new ProjectNotFoundError({
-                  message: 'Project not found'
-                })
-              );
-            }
-            const products = yield* productService.getProducts(project.id);
-            return { project, products };
-          })
-        )
-      );
-    })
-  );
+export const ProductsPage = () => {
+  const { organizationSlug, projectSlug } = useParams();
+  const { data: currentUser, status: currentUserStatus } = useCurrentUser();
+  const project =
+    currentUser &&
+    CurrentUser.getProjectBySlugs(
+      currentUser,
+      organizationSlug as string,
+      projectSlug as string
+    );
+  const { data: products, status: productsStatus } = useQuery({
+    ...listProductsOptions({ projectId: project?.id ?? '' }),
+    enabled: !!project?.id
+  });
 
-  if (Either.isLeft(data)) {
+  if (productsStatus === 'pending' || currentUserStatus === 'pending') {
+    return <ProductsPageSkeleton />;
+  }
+
+  if (productsStatus === 'error' || currentUserStatus === 'error' || !project) {
     return (
       <VoidhashErrorCard
         error={{
@@ -60,8 +43,6 @@ export const _ProductsPage = Effect.fn('ProductsPage')(function* ({
       />
     );
   }
-
-  const { project, products } = data.right;
 
   return (
     <Page>
@@ -91,9 +72,9 @@ export const _ProductsPage = Effect.fn('ProductsPage')(function* ({
                     />
                   }
                   key={product.id}
-                  organizationSlug={organizationSlug}
+                  organizationSlug={organizationSlug as string}
                   product={product}
-                  projectSlug={projectSlug}
+                  projectSlug={projectSlug as string}
                 />
               ))}
             </Card>
@@ -102,6 +83,4 @@ export const _ProductsPage = Effect.fn('ProductsPage')(function* ({
       </div>
     </Page>
   );
-});
-
-export const ProductsPage = ServerComponent.build(_ProductsPage);
+};

@@ -1,5 +1,4 @@
 'use client';
-import { Result } from '@effect-atom/atom-react';
 import type { User } from '@voidhash/api-spec';
 import {
   GradientAvatar,
@@ -8,15 +7,14 @@ import {
   SidebarHeader,
   Skeleton
 } from '@voidhash/ui';
-import { useUser } from 'atom/user';
-import type { Schema } from 'effect';
+import { useCurrentUser } from 'hooks/tanstack-query';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type * as React from 'react';
 import { NavMain } from './nav-main';
 
-type Organization = Schema.Schema.Type<typeof User>['organizations'][number];
+type Organization = (typeof User.Type)['organizations'][number];
 
 const ActiveOrganization = ({
   activeOrganization
@@ -58,7 +56,7 @@ export function ProjectSettingsSidebar({
   projectSlug: string;
 }) {
   const pathname = usePathname();
-  const activeOrganization = useUser();
+  const { data: currentUser, status: currentUserStatus } = useCurrentUser();
 
   const data = {
     navMain: [
@@ -99,25 +97,20 @@ export function ProjectSettingsSidebar({
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
             href={`/${organizationSlug}/~/settings/general`}
           >
-            {activeOrganization.pipe(
-              Result.match({
-                onInitial: () => <ActiveOrganizationSkeleton />,
-                onFailure: () => <ActiveOrganizationSkeleton />,
-                onSuccess: ({ value: user }) => {
-                  const activeOrganization = user.organizations.find(
-                    (o) => o.slug === organizationSlug
-                  );
-                  if (!activeOrganization) {
-                    return <ActiveOrganizationSkeleton />;
-                  }
-                  return (
-                    <ActiveOrganization
-                      activeOrganization={activeOrganization}
-                    />
-                  );
+            {currentUserStatus === 'pending' && <ActiveOrganizationSkeleton />}
+            {currentUserStatus === 'error' && <ActiveOrganizationSkeleton />}
+            {currentUser &&
+              (() => {
+                const activeOrganization = currentUser.organizations.find(
+                  (o) => o.slug === organizationSlug
+                );
+                if (!activeOrganization) {
+                  return <ActiveOrganizationSkeleton />;
                 }
-              })
-            )}
+                return (
+                  <ActiveOrganization activeOrganization={activeOrganization} />
+                );
+              })()}
           </Link>
 
           <div className="mt-2 w-full font-medium text-base text-foreground">

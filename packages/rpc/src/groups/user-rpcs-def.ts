@@ -3,7 +3,7 @@ import { AuthenticationError, UserServiceError } from '@voidhash/shared';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '../middlewares';
 
-export class User extends Schema.Class<User>('User')({
+export const User = Schema.Struct({
   name: Schema.String,
   id: Schema.String,
   createdAt: Schema.Date,
@@ -28,7 +28,7 @@ export class User extends Schema.Class<User>('User')({
       organizationId: Schema.String
     })
   )
-}) {}
+});
 
 export class UserRpcsDef extends RpcGroup.make(
   Rpc.make('CurrentUser', {

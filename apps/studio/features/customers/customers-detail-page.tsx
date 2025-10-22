@@ -1,51 +1,52 @@
-import {
-  authenticateWithSession,
-  CustomerService
-} from '@voidhash/core/services';
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@voidhash/ui';
 import { format } from 'date-fns';
-import { Effect, Either } from 'effect';
+import { Cause } from 'effect';
 import { Clock4Icon } from 'lucide-react';
-import { headers } from '@/lib/effect/headers';
-import { ServerComponent } from '@/lib/nextjs-runtime';
+import { useParams } from 'next/navigation';
+import { getCustomerByIdOptions } from '@/lib/tanstack-query/customers';
 import { Page } from '../shell';
 import { VoidhashErrorCard } from '../shell/components/voidhash-error-card';
 
-const _CustomerDetailPage = Effect.fn('CustomerDetailPage')(function* ({
-  customerId,
-  organizationSlug,
-  projectSlug
-}: {
-  customerId: string;
-  organizationSlug: string;
-  projectSlug: string;
-}) {
-  const data = yield* Effect.either(
-    authenticateWithSession(yield* headers)(
-      Effect.gen(function* () {
-        const customerService = yield* CustomerService;
-        const customer = yield* customerService.getCustomerById(customerId);
-        const customerPurchases =
-          yield* customerService.getCustomerPurchases(customerId);
-        const customerUnlockedPerks =
-          yield* customerService.getCustomersUnlockedPerks(customerId);
-        return { customer, customerPurchases, customerUnlockedPerks };
-      })
-    )
-  );
+export const CustomerDetailPage = () => {
+  const { id: customerId, organizationSlug, projectSlug } = useParams();
 
-  if (Either.isLeft(data)) {
+  const {
+    data: customer,
+    status,
+    error
+  } = useQuery(getCustomerByIdOptions({ customerId: customerId as string }));
+
+  if (status === 'pending') {
+    return <Page className="p-0 py-8 pt-3">Loading customer...</Page>;
+  }
+
+  if (status === 'error') {
+    if (
+      Cause.isFailType(error.cause) &&
+      error.cause.error._tag === 'CustomerNotFoundError'
+    ) {
+      return (
+        <VoidhashErrorCard
+          error={{
+            code: 'NOT_FOUND',
+            title: 'Customer not found',
+            message: 'The customer you are looking for does not exist.'
+          }}
+        />
+      );
+    }
+
     return (
       <VoidhashErrorCard
         error={{
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'An error occured loading the customer'
+          code: 'INTERNAL_SERVER_ERROR'
         }}
       />
     );
   }
-
-  const { customer, customerPurchases, customerUnlockedPerks } = data.right;
 
   const title =
     customer.name ?? customer.email ?? customer.appUserId ?? customer.id;
@@ -85,18 +86,11 @@ const _CustomerDetailPage = Effect.fn('CustomerDetailPage')(function* ({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="divide-y divide-border border-border border-t px-0">
-                  {/* Emtpy State */}
-                  {customerPurchases.length === 0 && (
-                    <div className="flex h-full flex-col items-center justify-center py-6">
-                      <div className="text-muted-foreground">
-                        Customer has not made any purchases.
-                      </div>
+                  <div className="flex h-full flex-col items-center justify-center py-6">
+                    <div className="text-muted-foreground">
+                      Customer has not made any purchases.
                     </div>
-                  )}
-
-                  {customerPurchases.map((purchase) => (
-                    <div key={purchase.id}>{purchase.id}</div>
-                  ))}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -108,18 +102,11 @@ const _CustomerDetailPage = Effect.fn('CustomerDetailPage')(function* ({
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="divide-y divide-border border-border border-t px-0">
-                    {/* Emtpy State */}
-                    {customerUnlockedPerks.length === 0 && (
-                      <div className="flex h-full flex-col items-center justify-center py-6">
-                        <div className="text-muted-foreground">
-                          Customer has no unlocked perks.
-                        </div>
+                    <div className="flex h-full flex-col items-center justify-center py-6">
+                      <div className="text-muted-foreground">
+                        Customer has no unlocked perks.
                       </div>
-                    )}
-
-                    {customerUnlockedPerks.map((unlockedPerk) => (
-                      <div key={unlockedPerk.id}>{unlockedPerk.id}</div>
-                    ))}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -147,6 +134,4 @@ const _CustomerDetailPage = Effect.fn('CustomerDetailPage')(function* ({
       </div>
     </Page>
   );
-});
-
-export const CustomerDetailPage = ServerComponent.build(_CustomerDetailPage);
+};

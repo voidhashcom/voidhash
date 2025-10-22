@@ -1,4 +1,3 @@
-import type { Customer } from '@voidhash/api-spec';
 import {
   and,
   type CustomerOriginValue,
@@ -19,7 +18,7 @@ import {
   CustomerNotFoundError,
   CustomerServiceError
 } from '@voidhash/shared';
-import { Effect, pipe, type Schema } from 'effect';
+import { Effect, pipe } from 'effect';
 import { checkProjectPermission } from '../utils/permissions';
 
 export class CustomerService extends Effect.Service<CustomerService>()(
@@ -201,16 +200,10 @@ export class CustomerService extends Effect.Service<CustomerService>()(
           )
       );
 
-      const getCustomerByAppUserId = (appUserId: string) =>
+      const getCustomerByAppUserId = (appUserId: string, projectId: string) =>
         pipe(
           Effect.gen(function* () {
             const session = yield* AuthSession;
-            const projectId = session?.projects[0]?.id;
-            if (!projectId) {
-              return yield* Effect.dieMessage(
-                'Project ID not found after authentication'
-              );
-            }
             const customer = yield* _getCustomerByAppUserId({
               projectId,
               appUserId
@@ -231,8 +224,10 @@ export class CustomerService extends Effect.Service<CustomerService>()(
               id: customer.id,
               name: customer.name,
               email: customer.email,
-              appUserId: customer.appUserId
-            } satisfies Schema.Schema.Type<typeof Customer>;
+              appUserId: customer.appUserId,
+              type: customer.type,
+              createdAt: customer.createdAt
+            };
           }),
           Effect.catchTags({
             DatabaseError: (error) =>

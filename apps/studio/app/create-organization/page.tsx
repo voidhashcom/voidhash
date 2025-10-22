@@ -1,6 +1,6 @@
 'use client';
-import { useAtomSet } from '@effect-atom/atom-react';
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CreateOrganizationBody } from '@voidhash/api-spec';
 import { authClient } from '@voidhash/auth/client';
 import {
@@ -19,22 +19,17 @@ import {
   Input,
   Logo
 } from '@voidhash/ui';
-import { VRpc } from 'atom/lib/rpc-client';
-import { runtime } from 'atom/lib/runtime';
-import { withToast } from 'atom/lib/with-toast';
-import { queryKeys } from 'atom/query-keys';
-import { Effect, type Schema } from 'effect';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { queryKeys } from '@/lib/tanstack-query';
+import { createOrganizationOptions } from '@/lib/tanstack-query/organizations';
 
-type CreateOrganizationForm = Schema.Schema.Type<typeof CreateOrganizationBody>;
+type CreateOrganizationForm = typeof CreateOrganizationBody.Type;
 
 export default function CreateOrgPage() {
   const router = useRouter();
-  const [isCreatingOrganization, startCreatingOrganization] = useTransition();
-
   const form = useForm<CreateOrganizationForm>({
     resolver: effectTsResolver(CreateOrganizationBody),
     defaultValues: {
@@ -42,30 +37,22 @@ export default function CreateOrgPage() {
     }
   });
 
-  const createOrganization = useAtomSet(
-    runtime.fn(
-      Effect.fnUntraced(
-        function* (payload: CreateOrganizationBody) {
-          const vrpc = yield* VRpc;
-          return yield* vrpc('CreateOrganization', payload);
-        },
-        withToast({
-          onSuccess: 'Organization created successfully',
-          onFailure: 'Failed to create organization',
-          onWaiting: 'Creating organization...'
-        })
-      ),
-      {
-        reactivityKeys: queryKeys.invalidateAll()
+  const queryClient = useQueryClient();
+  const { mutate: createOrganization, status: createOrganizationStatus } =
+    useMutation({
+      ...createOrganizationOptions(),
+      onSuccess: () => {
+        toast.success('Organization created successfully');
+        queryClient.invalidateQueries({ queryKey: queryKeys.organization.all });
+      },
+      onError: () => {
+        toast.error('Failed to create organization');
       }
-    )
-  );
+    });
 
   const onSubmit = (data: CreateOrganizationForm) => {
-    startCreatingOrganization(() => {
-      createOrganization({
-        name: data.name
-      });
+    createOrganization({
+      name: data.name
     });
   };
 
@@ -113,10 +100,10 @@ export default function CreateOrgPage() {
                   />
                   <Button
                     className="w-full"
-                    disabled={isCreatingOrganization}
+                    disabled={createOrganizationStatus === 'pending'}
                     type="submit"
                   >
-                    {isCreatingOrganization
+                    {createOrganizationStatus === 'pending'
                       ? 'Creating Organization...'
                       : 'Create Organization'}
                   </Button>

@@ -36,9 +36,16 @@ export const CustomersGroupLive = HttpApiBuilder.group(
         .handle('getCustomerById', ({ path: { customerId } }) =>
           customerService.getCustomerById(customerId)
         )
-        .handle('byAppUserId', ({ path: { appUserId } }) =>
-          customerService.getCustomerByAppUserId(appUserId)
-        );
+        .handle('byAppUserId', ({ path: { appUserId } }) => {
+          return Effect.gen(function* () {
+            const authSession = yield* AuthSession;
+            const projectId = yield* extractAuthorizedProjectId(authSession);
+            return yield* customerService.getCustomerByAppUserId(
+              appUserId,
+              projectId
+            );
+          });
+        });
     })
 );
 

@@ -8,14 +8,13 @@ import {
   PopoverContent,
   PopoverTrigger
 } from '@voidhash/ui';
-import type { Schema } from 'effect';
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 import Link from 'next/link';
 import * as React from 'react';
 import { CreateOrganizationModal } from '../../../organizations/create-organization-modal';
 import { CreateProjectModal } from '../../../projects/create-project-modal';
 
-type UserType = Schema.Schema.Type<typeof User>;
+type UserType = typeof User.Type;
 
 function OrganizationProjectSwitcherProjects({
   organizationId,

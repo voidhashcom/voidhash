@@ -1,7 +1,8 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { Product } from '@voidhash/db';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { Product } from '@voidhash/rpc';
 import { Button } from '@voidhash/ui/button';
 import {
   Dialog,
@@ -20,13 +21,11 @@ import {
   FormMessage
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { updateProductAction } from '@/lib/nextjs/server-actions';
+import { queryKeys, updateProductOptions } from '@/lib/tanstack-query';
 
 const updateProductSchema = z.object({
   name: z.string().min(1)
@@ -38,7 +37,7 @@ type UpdateProductForm = z.infer<typeof updateProductSchema>;
 interface EditProductModalProps {
   open: boolean;
   onClose: () => void;
-  product: Product;
+  product: typeof Product.Type;
 }
 
 export function EditProductModal({
@@ -46,7 +45,6 @@ export function EditProductModal({
   onClose,
   product
 }: EditProductModalProps) {
-  const router = useRouter();
   const form = useForm<UpdateProductForm>({
     resolver: zodResolver(updateProductSchema),
     defaultValues: {
@@ -54,15 +52,19 @@ export function EditProductModal({
     }
   });
 
-  const { execute, isPending } = useAction(updateProductAction, {
+  const queryClient = useQueryClient();
+  const { mutate: updateProduct, status: updateProductStatus } = useMutation({
+    ...updateProductOptions(),
     onSuccess: () => {
       toast.success('Product updated successfully');
-      router.refresh();
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.product.list({ projectId: product.projectId })
+      });
       onClose?.();
       handleOpenChange(false);
     },
-    onError: (error) => {
-      toast.error(error.error.serverError || 'Failed to update the product');
+    onError: () => {
+      toast.error('Failed to update the product');
     }
   });
 
@@ -74,7 +76,7 @@ export function EditProductModal({
   };
 
   const onSubmit = (data: UpdateProductForm) => {
-    execute({ ...data, productId: product.id });
+    updateProduct({ ...data, productId: product.id });
   };
 
   useEffect(() => {
@@ -113,10 +115,12 @@ export function EditProductModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={isPending}
+                disabled={updateProductStatus === 'pending'}
                 type="submit"
               >
-                {isPending ? 'Saving...' : 'Save Changes'}
+                {updateProductStatus === 'pending'
+                  ? 'Saving...'
+                  : 'Save Changes'}
               </Button>
             </DialogFooter>
           </form>

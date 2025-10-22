@@ -7,11 +7,11 @@ import {
 import { Schema } from 'effect';
 import { AuthMiddleware } from '../middlewares';
 
-export class Organization extends Schema.Class<Organization>('Organization')({
+export const Organization = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   slug: Schema.String
-}) {}
+});
 
 export class OrganizationRpcsDef extends RpcGroup.make(
   Rpc.make('CreateOrganization', {

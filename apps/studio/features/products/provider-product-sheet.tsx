@@ -2,6 +2,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
 import {
   Button,
   CopyText,
@@ -20,16 +21,15 @@ import {
   SheetTitle
 } from '@voidhash/ui';
 import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { Fragment, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import {
-  createPaymentProviderProductAction,
-  updatePaymentProviderProductAction
-} from '@/lib/nextjs/server-actions';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
+import {
+  createPaymentProviderProductOptions,
+  updatePaymentProviderProductOptions
+} from '@/lib/tanstack-query';
 
 export function ProviderProductSheet({
   open,
@@ -62,45 +62,35 @@ export function ProviderProductSheet({
     defaultValues: paymentProvider?.defaultProductConfiguration
   });
 
-  const { execute: create, isPending: createPending } = useAction(
-    createPaymentProviderProductAction,
-    {
-      onSuccess: () => {
-        toast.success(
-          `${paymentProvider?.title} configuration saved successfully`
-        );
-        onClose();
-        router.refresh();
-      },
-      onError: (error) => {
-        toast.error(
-          error.error.serverError ??
-            `Failed to save ${paymentProvider?.title} configuration. Please try again.`
-        );
-      }
+  const { mutate: create, status: createStatus } = useMutation({
+    ...createPaymentProviderProductOptions(),
+    onSuccess: () => {
+      toast.success(
+        `${paymentProvider?.title} configuration saved successfully`
+      );
+      onClose();
+      router.refresh();
+    },
+    onError: () => {
+      toast.error(`Failed to save ${paymentProvider?.title} configuration`);
     }
-  );
+  });
 
-  const { execute: update, isPending: updatePending } = useAction(
-    updatePaymentProviderProductAction,
-    {
-      onSuccess: () => {
-        toast.success(
-          `${paymentProvider?.title} configuration saved successfully`
-        );
-        onClose();
-        router.refresh();
-      },
-      onError: (error) => {
-        toast.error(
-          error.error.serverError ??
-            `Failed to save ${paymentProvider?.title} configuration. Please try again.`
-        );
-      }
+  const { mutate: update, status: updateStatus } = useMutation({
+    ...updatePaymentProviderProductOptions(),
+    onSuccess: () => {
+      toast.success(
+        `${paymentProvider?.title} configuration saved successfully`
+      );
+      onClose();
+      router.refresh();
+    },
+    onError: () => {
+      toast.error(`Failed to save ${paymentProvider?.title} configuration`);
     }
-  );
+  });
 
-  const isPending = createPending || updatePending;
+  const isPending = createStatus === 'pending' || updateStatus === 'pending';
 
   const onSubmit = (data: any) => {
     if (mode === 'add') {

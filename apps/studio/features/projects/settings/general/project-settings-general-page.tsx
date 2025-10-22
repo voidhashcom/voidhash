@@ -1,7 +1,6 @@
 'use client';
 
-import { Result } from '@effect-atom/atom-react';
-import { useUser } from 'atom/user';
+import { useCurrentUser } from 'hooks/tanstack-query';
 import { useParams } from 'next/navigation';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
 import { ProjectDelete } from './project-delete';
@@ -11,37 +10,41 @@ import { ProjectSettingsGeneralPageSkeleton } from './project-settings-general-p
 
 export function ProjectSettingsGeneralPage() {
   const { projectSlug } = useParams();
-  return useUser().pipe(
-    Result.match({
-      onInitial: () => <ProjectSettingsGeneralPageSkeleton />,
-      onFailure: () => (
+  const { data: currentUser, status: currentUserStatus } = useCurrentUser();
+
+  if (currentUserStatus === 'pending') {
+    return <ProjectSettingsGeneralPageSkeleton />;
+  }
+
+  if (currentUserStatus === 'error') {
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An error occured loading the project'
+        }}
+      />
+    );
+  }
+
+  if (currentUser) {
+    const project = currentUser.projects.find((p) => p.slug === projectSlug);
+    if (!project) {
+      return (
         <VoidhashErrorCard
-          error={{
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'An error occured loading the project'
-          }}
+          error={{ code: 'NOT_FOUND', message: 'Project not found' }}
         />
-      ),
-      onSuccess: ({ value: user }) => {
-        const project = user.projects.find((p) => p.slug === projectSlug);
-        if (!project) {
-          return (
-            <VoidhashErrorCard
-              error={{ code: 'NOT_FOUND', message: 'Project not found' }}
-            />
-          );
-        }
-        return (
-          <ProjectSettingsGeneralLayout>
-            <ProjectNameForm
-              key={projectSlug as string}
-              projectId={project.id}
-              projectName={project.name}
-            />
-            <ProjectDelete projectId={project.id} />
-          </ProjectSettingsGeneralLayout>
-        );
-      }
-    })
-  );
+      );
+    }
+    return (
+      <ProjectSettingsGeneralLayout>
+        <ProjectNameForm
+          key={projectSlug as string}
+          projectId={project.id}
+          projectName={project.name}
+        />
+        <ProjectDelete projectId={project.id} />
+      </ProjectSettingsGeneralLayout>
+    );
+  }
 }

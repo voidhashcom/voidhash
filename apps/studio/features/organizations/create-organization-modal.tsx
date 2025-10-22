@@ -1,8 +1,7 @@
 'use client';
 
-import { useAtomSet } from '@effect-atom/atom-react';
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import { CreateOrganizationBody } from '@voidhash/api-spec';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@voidhash/ui/button';
 import {
   Dialog,
@@ -22,16 +21,21 @@ import {
   FormMessage
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
-import { VRpc } from 'atom/lib/rpc-client';
-import { runtime } from 'atom/lib/runtime';
-import { withToast } from 'atom/lib/with-toast';
-import { queryKeys } from 'atom/query-keys';
-import { Effect, Either, type Schema } from 'effect';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
+import { queryKeys } from '@/lib/tanstack-query';
+import { createOrganizationOptions } from '@/lib/tanstack-query/organizations';
 
-type CreateOrganizationForm = Schema.Schema.Type<typeof CreateOrganizationBody>;
+const createOrganizationFormSchema = z.object({
+  name: z
+    .string()
+    .min(3, 'Organization name must be at least 3 characters')
+    .max(32, 'Organization name must be less than 32 characters')
+});
+
+type CreateOrganizationForm = z.infer<typeof createOrganizationFormSchema>;
 
 interface CreateOrganizationModalProps {
   open: boolean;
@@ -44,56 +48,38 @@ export function CreateOrganizationModal({
   onClose,
   trigger
 }: CreateOrganizationModalProps) {
-  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
   const router = useRouter();
   const form = useForm<CreateOrganizationForm>({
-    resolver: effectTsResolver(CreateOrganizationBody),
+    resolver: zodResolver(createOrganizationFormSchema),
     defaultValues: {
       name: ''
     }
   });
 
-  // const createOrganization = useAtomSet(VRpc.mutation('CreateOrganization'), {
-  //   mode: 'promiseExit'
-  // });
-
-  const createOrganization = useAtomSet(
-    runtime.fn(
-      Effect.fnUntraced(
-        function* (payload: CreateOrganizationBody) {
-          setIsCreatingOrganization(true);
-          const vrpc = yield* VRpc;
-          const result = yield* vrpc('CreateOrganization', payload).pipe(
-            Effect.either
-          );
-          if (Either.isRight(result)) {
-            router.push(`/${result.right.slug}`);
-            setIsCreatingOrganization(false);
-            return yield* Effect.succeed(result.right);
-          }
-          setIsCreatingOrganization(false);
-          return yield* Effect.fail(result.left);
-        },
-        withToast({
-          onSuccess: 'Organization created successfully',
-          onFailure: 'Failed to create organization',
-          onWaiting: 'Creating organization...'
-        })
-      ),
-      {
-        reactivityKeys: queryKeys.invalidateAll()
+  const queryClient = useQueryClient();
+  const { mutate: createOrganization, status: createOrganizationStatus } =
+    useMutation({
+      ...createOrganizationOptions(),
+      onSuccess: (data) => {
+        toast.success('Organization created successfully');
+        queryClient.invalidateQueries({ queryKey: queryKeys.organization.all });
+        router.push(`/${data.slug}`);
+      },
+      onError: () => {
+        toast.error('Failed to create organization');
       }
-    )
-  );
+    });
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       onClose?.();
+      form.reset();
     }
   };
 
-  const onSubmit = (data: CreateOrganizationForm) =>
+  const onSubmit = (data: CreateOrganizationForm) => {
     createOrganization({ name: data.name });
+  };
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
@@ -126,10 +112,12 @@ export function CreateOrganizationModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={isCreatingOrganization}
+                disabled={createOrganizationStatus === 'pending'}
                 type="submit"
               >
-                {isCreatingOrganization ? 'Creating Team...' : 'Create Team'}
+                {createOrganizationStatus === 'pending'
+                  ? 'Creating Team...'
+                  : 'Create Team'}
               </Button>
             </DialogFooter>
           </form>

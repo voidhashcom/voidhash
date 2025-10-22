@@ -16,7 +16,7 @@ import {
   SdkServiceError,
   SdkValidationError
 } from '@voidhash/shared';
-import { Effect, pipe, type Schema } from 'effect';
+import { Effect, pipe } from 'effect';
 import type { CustomerMetadata } from '../types';
 import { CustomerService } from './customer-service';
 
@@ -68,7 +68,7 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
       name: string | null;
       email: string | null;
     }): Effect.Effect<
-      Schema.Schema.Type<typeof SdkCustomer>,
+      typeof SdkCustomer.Type,
       | AuthenticationError
       | SdkServiceError
       | SdkValidationError
@@ -230,7 +230,7 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
     const syncCustomerAttributes = (
       input: CustomerAttributesParams
     ): Effect.Effect<
-      Schema.Schema.Type<typeof SdkCustomer>,
+      typeof SdkCustomer.Type,
       AuthenticationError | SdkServiceError | SdkValidationError,
       AuthSession
     > =>
@@ -327,7 +327,7 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
             name: customer.name,
             email: customer.email,
             customerId: customer.id
-          } satisfies Schema.Schema.Type<typeof SdkCustomer>;
+          } satisfies typeof SdkCustomer.Type;
         }),
         Effect.catchTags({
           DatabaseError: (error) =>
@@ -346,7 +346,7 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
       );
 
     const getCustomer = (): Effect.Effect<
-      Schema.Schema.Type<typeof SdkCustomer>,
+      typeof SdkCustomer.Type,
       | AuthenticationError
       | SdkServiceError
       | SdkCustomerNotFoundError

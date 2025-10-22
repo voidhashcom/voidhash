@@ -1,5 +1,6 @@
 'use client';
-import type { Product } from '@voidhash/db';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { Product } from '@voidhash/rpc';
 import {
   Button,
   DropdownMenu,
@@ -10,11 +11,9 @@ import {
 } from '@voidhash/ui';
 import { EllipsisVerticalIcon } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { deleteProductAction } from '@/lib/nextjs/server-actions';
+import { deleteProductOptions, queryKeys } from '@/lib/tanstack-query';
 import { EditProductModal } from './edit-product-modal';
 
 export function ProductRecord({
@@ -23,24 +22,24 @@ export function ProductRecord({
   organizationSlug,
   projectSlug
 }: {
-  product: Product;
+  product: typeof Product.Type;
   configurationStateIndicator: React.ReactNode;
   organizationSlug: string;
   projectSlug: string;
 }) {
-  const router = useRouter();
   const [openEditModal, setOpenEditModal] = useState(false);
 
-  const { execute: deleteProduct, isPending } = useAction(deleteProductAction, {
+  const queryClient = useQueryClient();
+  const { mutate: deleteProduct, status: deleteProductStatus } = useMutation({
+    ...deleteProductOptions(),
     onSuccess: () => {
-      toast.success('Product was successfully deleted');
-      router.refresh();
+      toast.success('Product successfully deleted');
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.product.list({ projectId: product.projectId })
+      });
     },
-    onError: (error) => {
-      toast.error(
-        error.error.serverError ??
-          'Failed to delete the product. Please try again.'
-      );
+    onError: () => {
+      toast.error('Failed to delete product');
     }
   });
 
@@ -92,10 +91,12 @@ export function ProductRecord({
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer"
-                disabled={isPending}
+                disabled={deleteProductStatus === 'pending'}
                 onClick={handleDeleteProduct}
               >
-                {isPending ? 'Deleting...' : 'Delete product'}
+                {deleteProductStatus === 'pending'
+                  ? 'Deleting...'
+                  : 'Delete product'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

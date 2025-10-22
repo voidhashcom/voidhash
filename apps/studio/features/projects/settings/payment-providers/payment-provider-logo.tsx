@@ -9,7 +9,7 @@ export function PaymentProviderLogo({
   providerId: (typeof paymentProviders)[number]['id'];
   className?: string;
 }) {
-  if (providerId === 'app-store') {
+  if (providerId === 'apple-app-store') {
     return <AppleLogo className={className} />;
   }
 

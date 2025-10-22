@@ -1,20 +1,16 @@
 'use client';
 
-import { Result } from '@effect-atom/atom-react';
 import type { User } from '@voidhash/api-spec';
 import { GradientAvatar, Skeleton } from '@voidhash/ui';
-import { useUser } from 'atom/user';
-import type { Schema } from 'effect';
+import { useCurrentUser } from 'hooks/tanstack-query';
 import Link from 'next/link';
 import { NavSlashSeparator } from './nav-slash-separator';
 import { OrganizationProjectSwitcher } from './organization-project-switcher';
 
-type UserType = Schema.Schema.Type<typeof User>;
-
 const ProjectTitle = ({
   project
 }: {
-  project: UserType['projects'][number];
+  project: (typeof User.Type)['projects'][number];
 }) => {
   return (
     <div className="flex items-center gap-2">
@@ -73,52 +69,53 @@ export const ProjectSwitcher = ({
   organizationSlug: string | null;
   projectSlug: string | null;
 }) => {
-  return useUser().pipe(
-    Result.matchWithWaiting({
-      onWaiting: () => (
-        <ProjectSwitcherShell
-          organizationSlug={organizationSlug}
-          projectSlug={projectSlug}
-          projectTitle={<ProjectTitleSkeleton />}
+  const { data: currentUser, status: currentUserStatus } = useCurrentUser();
+
+  if (currentUserStatus === 'pending') {
+    return (
+      <ProjectSwitcherShell
+        organizationSlug={organizationSlug}
+        projectSlug={projectSlug}
+        projectTitle={<ProjectTitleSkeleton />}
+      />
+    );
+  }
+
+  if (currentUserStatus === 'error') {
+    return (
+      <ProjectSwitcherShell
+        organizationSlug={organizationSlug}
+        projectSlug={projectSlug}
+        projectTitle={<ProjectTitleSkeleton />}
+      />
+    );
+  }
+
+  if (currentUser) {
+    const activeProject = currentUser.projects.find(
+      (p) => p.slug === projectSlug
+    );
+    const activeOrganization = currentUser.organizations.find(
+      (o) => o.slug === organizationSlug
+    );
+    const canBeDisplayed = activeProject && activeOrganization;
+    if (!canBeDisplayed) {
+      return null;
+    }
+    return (
+      <ProjectSwitcherShell
+        organizationSlug={organizationSlug}
+        projectSlug={projectSlug}
+        projectTitle={<ProjectTitle project={activeProject} />}
+      >
+        <OrganizationProjectSwitcher
+          activeOrganization={activeOrganization}
+          activeProject={activeProject}
+          user={currentUser}
         />
-      ),
-      onError: () => (
-        <ProjectSwitcherShell
-          organizationSlug={organizationSlug}
-          projectSlug={projectSlug}
-          projectTitle={<ProjectTitleSkeleton />}
-        />
-      ),
-      onDefect: () => (
-        <ProjectSwitcherShell
-          organizationSlug={organizationSlug}
-          projectSlug={projectSlug}
-          projectTitle={<ProjectTitleSkeleton />}
-        />
-      ),
-      onSuccess: ({ value: user }) => {
-        const activeProject = user.projects.find((p) => p.slug === projectSlug);
-        const activeOrganization = user.organizations.find(
-          (o) => o.slug === organizationSlug
-        );
-        const canBeDisplayed = activeProject && activeOrganization;
-        if (!canBeDisplayed) {
-          return null;
-        }
-        return (
-          <ProjectSwitcherShell
-            organizationSlug={organizationSlug}
-            projectSlug={projectSlug}
-            projectTitle={<ProjectTitle project={activeProject} />}
-          >
-            <OrganizationProjectSwitcher
-              activeOrganization={activeOrganization}
-              activeProject={activeProject}
-              user={user}
-            />
-          </ProjectSwitcherShell>
-        );
-      }
-    })
-  );
+      </ProjectSwitcherShell>
+    );
+  }
+
+  return null;
 };

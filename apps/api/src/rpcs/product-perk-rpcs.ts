@@ -7,7 +7,9 @@ export const ProductPerkRpcsLive = ProductPerkRpcsDef.toLayer(
     const productPerkService = yield* ProductPerkService;
     return {
       ListProductPerksByProductId: ({ productId }) =>
-        productPerkService.getProductPerksByProductId(productId)
+        productPerkService.getProductPerksByProductId(productId),
+      CreateProductPerk: (input) => productPerkService.createProductPerk(input),
+      DeleteProductPerk: (input) => productPerkService.deleteProductPerk(input)
     };
   })
 ).pipe(Layer.provide(ProductPerkService.Default));

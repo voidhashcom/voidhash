@@ -1,58 +1,55 @@
-import {
-  authenticateWithSession,
-  PaymentProviderProductService,
-  PaymentProviderService
-} from '@voidhash/core/services';
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@voidhash/ui';
-import { Effect, Either } from 'effect';
-import { headers } from '@/lib/effect/headers';
-import { ServerComponent } from '@/lib/nextjs-runtime';
+import {
+  listPaymentProviderConfigurationsOptions,
+  listProviderProductsByProductIdOptions
+} from '@/lib/tanstack-query';
 import { PaymentProviderLogo } from '../projects/settings/payment-providers/payment-provider-logo';
 
-export const _ProductRecordConfigurationStateIndicator = Effect.fn(
-  'ProductRecordConfigurationStateIndicator'
-)(function* ({
+export function ProductRecordConfigurationStateIndicator({
   productId,
   projectId
 }: {
   productId: string;
   projectId: string;
 }) {
-  const data = yield* Effect.either(
-    authenticateWithSession(yield* headers)(
-      Effect.gen(function* () {
-        const paymentProviderService = yield* PaymentProviderService;
-        const paymentProviderProductService =
-          yield* PaymentProviderProductService;
+  const { data: providerProducts, status: providerProductsStatus } = useQuery({
+    ...listProviderProductsByProductIdOptions({ productId }),
+    enabled: !!productId
+  });
 
-        const [providerProducts, paymentProviderConfigurations] =
-          yield* Effect.all(
-            [
-              paymentProviderProductService.getProviderProductsByProductId(
-                productId
-              ),
-              paymentProviderService.getPaymentProviderConfigurations(projectId)
-            ],
-            {
-              concurrency: 'unbounded'
-            }
-          );
-        return { providerProducts, paymentProviderConfigurations };
-      })
-    )
-  );
+  const {
+    data: paymentProviderConfigurations,
+    status: paymentProviderConfigurationsStatus
+  } = useQuery({
+    ...listPaymentProviderConfigurationsOptions({ projectId }),
+    enabled: !!projectId
+  });
 
-  if (Either.isLeft(data)) {
+  if (
+    providerProductsStatus === 'error' ||
+    paymentProviderConfigurationsStatus === 'error'
+  ) {
     return <Badge>Loading error</Badge>;
   }
 
-  const { providerProducts, paymentProviderConfigurations } = data.right;
+  if (
+    providerProductsStatus === 'pending' ||
+    paymentProviderConfigurationsStatus === 'pending'
+  ) {
+    return <Badge>Loading...</Badge>;
+  }
 
-  if (providerProducts.length === 0) {
+  if (!providerProducts || providerProducts.length === 0) {
     return <Badge>Configuration required</Badge>;
   }
 
-  if (paymentProviderConfigurations.length === 0) {
+  if (
+    !paymentProviderConfigurations ||
+    paymentProviderConfigurations.length === 0
+  ) {
     return <Badge>Configuration required</Badge>;
   }
 
@@ -72,15 +69,11 @@ export const _ProductRecordConfigurationStateIndicator = Effect.fn(
               providerId={
                 paymentProviderConfiguration.providerId as
                   | 'stripe'
-                  | 'app-store'
+                  | 'apple-app-store'
               }
             />
           ) : null;
         })}
     </div>
   );
-});
-
-export const ProductRecordConfigurationStateIndicator = ServerComponent.build(
-  _ProductRecordConfigurationStateIndicator
-);
+}

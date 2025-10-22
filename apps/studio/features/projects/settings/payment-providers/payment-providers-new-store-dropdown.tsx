@@ -1,5 +1,5 @@
 'use client';
-import type { Project } from '@voidhash/db';
+import { useMutation } from '@tanstack/react-query';
 import {
   Button,
   DropdownMenu,
@@ -9,36 +9,36 @@ import {
 } from '@voidhash/ui';
 import { PlusIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { toast } from 'sonner';
-import { createPaymentProviderConfigurationAction } from '@/lib/nextjs/server-actions';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
+import { createPaymentProviderConfigurationOptions } from '@/lib/tanstack-query';
 
 export function PaymentProvidersNewStoreDropdown({
   project,
   organizationSlug,
   projectSlug
 }: {
-  project: Project;
+  project: { id: string };
   organizationSlug: string;
   projectSlug: string;
 }) {
   const router = useRouter();
 
-  const { execute, isPending } = useAction(
-    createPaymentProviderConfigurationAction,
-    {
-      onSuccess: (res) => {
-        toast.success('Payment provider configuration created successfully');
-        router.push(
-          `/${organizationSlug}/${projectSlug}/settings/payment-providers/${res.data?.id}`
-        );
-      }
+  const { mutate: createPaymentProviderConfiguration, status } = useMutation({
+    ...createPaymentProviderConfigurationOptions(),
+    onSuccess: (data) => {
+      toast.success('Payment provider configuration created successfully');
+      router.push(
+        `/${organizationSlug}/${projectSlug}/settings/payment-providers/${data.id}`
+      );
+    },
+    onError: () => {
+      toast.error('Failed to create payment provider configuration');
     }
-  );
+  });
 
   const handleCreatePaymentProviderConfiguration = (providerId: string) => {
-    execute({
+    createPaymentProviderConfiguration({
       providerId,
       projectId: project.id
     });
@@ -58,7 +58,7 @@ export function PaymentProvidersNewStoreDropdown({
           .map((p) => (
             <DropdownMenuItem
               className="cursor-pointer"
-              disabled={isPending}
+              disabled={status === 'pending'}
               key={p.id}
               onClick={() => {
                 handleCreatePaymentProviderConfiguration(p.id);

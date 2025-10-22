@@ -1,52 +1,26 @@
-import {
-  authenticateWithSession,
-  ProjectNotFoundError,
-  ProjectService
-} from '@voidhash/core/services';
-import { CustomerType } from '@voidhash/db';
+'use client';
+
 import {
   UnderlineTabs,
   UnderlineTabsContent,
   UnderlineTabsList,
   UnderlineTabsTrigger
 } from '@voidhash/ui';
-import { Effect, Either } from 'effect';
-import { Page } from '@/features/shell';
-import { headers } from '@/lib/effect/headers';
-import { ServerComponent } from '@/lib/nextjs-runtime';
-import { VoidhashErrorCard } from '../shell/components/voidhash-error-card';
+import { useCurrentUser } from 'hooks/tanstack-query';
+import { CurrentUser } from 'lib/utils/current-user';
+import { useParams } from 'next/navigation';
+import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
+import { Page } from '../shell';
 import { CreateCustomerButton } from './create-customer-button';
 import { CustomersTable } from './customers-table';
 
-const _CustomersPage = Effect.fn('CustomersPage')(function* ({
-  organizationSlug,
-  projectSlug
-}: {
-  organizationSlug: string;
-  projectSlug;
-}) {
-  const data = yield* Effect.either(
-    authenticateWithSession(yield* headers)(
-      Effect.gen(function* () {
-        const projectService = yield* ProjectService;
-        const project =
-          yield* projectService.getProjectBySlugAndOrganizationSlug({
-            organizationSlug,
-            projectSlug
-          });
-        if (!project) {
-          return yield* Effect.fail(
-            new ProjectNotFoundError({
-              message: 'Project not found'
-            })
-          );
-        }
-        return { project };
-      })
-    )
-  );
-
-  if (Either.isLeft(data)) {
+export const CustomersPage = () => {
+  const { organizationSlug, projectSlug } = useParams();
+  const { data: currentUser, status: currentUserStatus } = useCurrentUser();
+  if (currentUserStatus === 'pending') {
+    return <Page className="p-0 py-8">Loading...</Page>;
+  }
+  if (currentUserStatus === 'error') {
     return (
       <VoidhashErrorCard
         error={{
@@ -57,19 +31,32 @@ const _CustomersPage = Effect.fn('CustomersPage')(function* ({
     );
   }
 
-  const { project } = data.right;
+  const project =
+    currentUser &&
+    CurrentUser.getProjectBySlugs(
+      currentUser,
+      organizationSlug as string,
+      projectSlug as string
+    );
+
+  if (!project) {
+    return (
+      <VoidhashErrorCard
+        error={{
+          code: 'INTERNAL_SERVER_ERROR',
+          title: 'Project not found',
+          message: 'The project you are looking for does not exist.'
+        }}
+      />
+    );
+  }
 
   return (
     <Page className="p-0 py-8">
-      {/* Key is used to reload the default form data when the organization slug changes */}
-
       <div className="mx-auto flex max-w-4xl flex-row items-center justify-between">
         <h1 className="font-normal text-3xl tracking-right">Customers</h1>
         <CreateCustomerButton projectId={project.id} />
       </div>
-      {/* <p className="text-muted-foreground mt-3">
-					List of products available to purchase.
-				</p> */}
 
       <div className="mt-3">
         <UnderlineTabs defaultValue="identified">
@@ -79,35 +66,27 @@ const _CustomersPage = Effect.fn('CustomersPage')(function* ({
                 Identified
               </UnderlineTabsTrigger>
               <UnderlineTabsTrigger value="anonymous">
-                <span>Anonymous</span> {/* Number of unidentified customers */}
-                {/* {!!10 && (
-									<Badge
-										variant="secondary"
-										className="ml-2 px-1 py-0 text-xs rounded-full"
-									>
-										10
-									</Badge>
-								)} */}
+                <span>Anonymous</span>
               </UnderlineTabsTrigger>
             </div>
           </UnderlineTabsList>
           <UnderlineTabsContent value="identified">
             <div className="mx-auto max-w-4xl">
               <CustomersTable
-                organizationSlug={organizationSlug}
+                organizationSlug={organizationSlug as string}
                 projectId={project.id}
-                projectSlug={projectSlug}
-                type={CustomerType.Identified}
+                projectSlug={projectSlug as string}
+                type={1} // TODO: Use CustomerType
               />
             </div>
           </UnderlineTabsContent>
           <UnderlineTabsContent value="anonymous">
             <div className="mx-auto max-w-4xl">
               <CustomersTable
-                organizationSlug={organizationSlug}
+                organizationSlug={organizationSlug as string}
                 projectId={project.id}
-                projectSlug={projectSlug}
-                type={CustomerType.Anonymous}
+                projectSlug={projectSlug as string}
+                type={2} // TODO: Use CustomerType
               />
             </div>
           </UnderlineTabsContent>
@@ -115,6 +94,4 @@ const _CustomersPage = Effect.fn('CustomersPage')(function* ({
       </div>
     </Page>
   );
-});
-
-export const CustomersPage = ServerComponent.build(_CustomersPage);
+};

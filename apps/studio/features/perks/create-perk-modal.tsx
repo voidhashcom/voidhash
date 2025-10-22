@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { InfoTooltip } from '@voidhash/ui';
 import { Button } from '@voidhash/ui/button';
 import {
@@ -20,13 +21,10 @@ import {
   FormMessage
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
-import { useRouter } from 'next/navigation';
-import type { InferSafeActionFnResult } from 'next-safe-action';
-import { useAction } from 'next-safe-action/hooks';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { createPerkAction } from '@/lib/nextjs/server-actions';
+import { createPerkOptions, queryKeys } from '@/lib/tanstack-query';
 
 const createPerkSchema = z.object({
   name: z
@@ -44,14 +42,13 @@ const createPerkSchema = z.object({
 });
 
 type CreatePerkForm = z.infer<typeof createPerkSchema>;
-type Perk = InferSafeActionFnResult<typeof createPerkAction>['data'];
 
 interface CreatePerkModalProps {
   open: boolean;
   onClose: () => void;
   trigger: React.ReactNode;
   projectId: string;
-  onSuccess?: (perk: Perk) => void;
+  onSuccess?: (perk: { id: string }) => void;
 }
 
 export function CreatePerkModal({
@@ -61,7 +58,6 @@ export function CreatePerkModal({
   projectId,
   onSuccess
 }: CreatePerkModalProps) {
-  const router = useRouter();
   const form = useForm<CreatePerkForm>({
     resolver: zodResolver(createPerkSchema),
     defaultValues: {
@@ -70,17 +66,19 @@ export function CreatePerkModal({
     }
   });
 
-  const { execute, isPending } = useAction(createPerkAction, {
-    onSuccess: (res) => {
-      if (res.data) {
-        toast.success('Perk created successfully');
-        onSuccess?.(res.data);
-        router.refresh();
-        handleOpenChange(false);
-      }
+  const queryClient = useQueryClient();
+  const { mutate: createPerk, status: createPerkStatus } = useMutation({
+    ...createPerkOptions(),
+    onSuccess: (data) => {
+      onSuccess?.(data);
+      toast.success('Perk created successfully');
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.perk.list({ projectId })
+      });
+      handleOpenChange(false);
     },
-    onError: (error) => {
-      toast.error(error.error.serverError || 'Failed to create perk');
+    onError: () => {
+      toast.error('Failed to create perk');
     }
   });
 
@@ -92,7 +90,7 @@ export function CreatePerkModal({
   };
 
   const onSubmit = (data: CreatePerkForm) => {
-    execute({ ...data, projectId });
+    createPerk({ ...data, projectId });
   };
 
   return (
@@ -149,10 +147,12 @@ export function CreatePerkModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={isPending}
+                disabled={createPerkStatus === 'pending'}
                 type="submit"
               >
-                {isPending ? 'Creating Perk...' : 'Create Perk'}
+                {createPerkStatus === 'pending'
+                  ? 'Creating Perk...'
+                  : 'Create Perk'}
               </Button>
             </DialogFooter>
           </form>

@@ -1,6 +1,7 @@
 'use client';
 
-import type { PaymentProviderConfigurationProduct } from '@voidhash/db';
+import { useMutation } from '@tanstack/react-query';
+import type { PaymentProviderProduct } from '@voidhash/rpc';
 import {
   Badge,
   Button,
@@ -14,14 +15,13 @@ import {
 import { format } from 'date-fns';
 import { Clock4Icon, EllipsisVerticalIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import {
-  deletePaymentProviderProductAction,
-  setActivePaymentProviderProductAction
-} from '@/lib/nextjs/server-actions';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
+import {
+  deletePaymentProviderProductOptions,
+  setActivePaymentProviderProductOptions
+} from '@/lib/tanstack-query';
 import { ProviderProductSheet } from './provider-product-sheet';
 
 export function ProductDetailProviderProductRecord({
@@ -31,7 +31,7 @@ export function ProductDetailProviderProductRecord({
 }: {
   paymentProviderId: string;
   paymentProviderConfigurationId: string;
-  providerProduct: PaymentProviderConfigurationProduct;
+  providerProduct: typeof PaymentProviderProduct.Type;
 }) {
   const router = useRouter();
   const paymentProvider = paymentProviders.find(
@@ -40,39 +40,29 @@ export function ProductDetailProviderProductRecord({
 
   const [openEditSheet, setOpenEditSheet] = useState(false);
 
-  const { execute: deleteProviderProduct, isPending } = useAction(
-    deletePaymentProviderProductAction,
-    {
+  const { mutate: deleteProviderProduct, status: deleteProviderProductStatus } =
+    useMutation({
+      ...deletePaymentProviderProductOptions(),
       onSuccess: () => {
-        toast.success(
-          `${paymentProvider?.title} product was successfully deleted`
-        );
+        toast.success(`${paymentProvider?.title} product successfully deleted`);
         router.refresh();
       },
-      onError: (error) => {
-        toast.error(
-          error.error.serverError ??
-            `Failed to delete ${paymentProvider?.title} product. Please try again.`
-        );
+      onError: () => {
+        toast.error(`Failed to delete ${paymentProvider?.title} product`);
       }
-    }
-  );
+    });
 
   const {
-    execute: setActiveProviderProduct,
-    isPending: isSettingActiveProviderProduct
-  } = useAction(setActivePaymentProviderProductAction, {
+    mutate: setActiveProviderProduct,
+    status: setActiveProviderProductStatus
+  } = useMutation({
+    ...setActivePaymentProviderProductOptions(),
     onSuccess: () => {
-      toast.success(
-        `${paymentProvider?.title} product was successfully activated`
-      );
+      toast.success(`${paymentProvider?.title} product successfully activated`);
       router.refresh();
     },
-    onError: (error) => {
-      toast.error(
-        error.error.serverError ??
-          `Failed to activate ${paymentProvider?.title} product. Please try again.`
-      );
+    onError: () => {
+      toast.error(`Failed to activate ${paymentProvider?.title} product`);
     }
   });
 
@@ -83,6 +73,10 @@ export function ProductDetailProviderProductRecord({
       providerProductKey: providerProduct.providerProductKey
     });
   };
+
+  const isPending = deleteProviderProductStatus === 'pending';
+  const isSettingActiveProviderProduct =
+    setActiveProviderProductStatus === 'pending';
 
   const { ConfirmationDialog, openDialog } = useConfirmDialog();
 

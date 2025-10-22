@@ -1,6 +1,7 @@
 'use client';
-import { useAtomSet } from '@effect-atom/atom-react';
+
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@voidhash/ui/button';
 import {
   Dialog,
@@ -19,15 +20,12 @@ import {
   FormMessage
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
-import { VRpc } from 'atom/lib/rpc-client';
-import { runtime } from 'atom/lib/runtime';
-import { withToast } from 'atom/lib/with-toast';
-import { queryKeys } from 'atom/query-keys';
-import { Effect, Either } from 'effect';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 import { z } from 'zod';
+import { queryKeys } from '@/lib/tanstack-query';
+import { createProjectOptions } from '@/lib/tanstack-query/projects';
 
 const createProjectSchema = z.object({
   name: z
@@ -62,40 +60,23 @@ export function CreateProjectModal({
     }
   });
 
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
-
-  const createProject = useAtomSet(
-    runtime.fn(
-      Effect.fnUntraced(
-        function* (payload: { name: string; organizationId: string }) {
-          setIsCreatingProject(true);
-          const vrpc = yield* VRpc;
-          const result = yield* vrpc('CreateProject', payload).pipe(
-            Effect.either
-          );
-          if (Either.isRight(result)) {
-            setIsCreatingProject(false);
-            router.push(`/${organizationSlug}/${result.right.slug}`);
-            return yield* Effect.succeed(result.right);
-          }
-          setIsCreatingProject(false);
-          return yield* Effect.fail(result.left);
-        },
-        withToast({
-          onSuccess: 'Project created successfully',
-          onFailure: 'Failed to create project',
-          onWaiting: 'Creating project...'
-        })
-      ),
-      {
-        reactivityKeys: queryKeys.invalidateAll()
-      }
-    )
-  );
+  const queryClient = useQueryClient();
+  const { mutate: createProject, status: createProjectStatus } = useMutation({
+    ...createProjectOptions(),
+    onSuccess: (data) => {
+      toast.success('Project created successfully');
+      queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
+      router.push(`/${organizationSlug}/${data.slug}`);
+    },
+    onError: () => {
+      toast.error('Failed to create project');
+    }
+  });
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       onClose?.();
+      form.reset();
     }
   };
 
@@ -134,10 +115,12 @@ export function CreateProjectModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={isCreatingProject}
+                disabled={createProjectStatus === 'pending'}
                 type="submit"
               >
-                {isCreatingProject ? 'Creating Project...' : 'Create Project'}
+                {createProjectStatus === 'pending'
+                  ? 'Creating Project...'
+                  : 'Create Project'}
               </Button>
             </DialogFooter>
           </form>

@@ -1,42 +1,30 @@
-import {
-  authenticateWithSession,
-  CustomerService,
-  withEnvironmentFromCookie
-} from '@voidhash/core/services';
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
 import type { CustomerTypeValue } from '@voidhash/db';
-import { Effect, Either } from 'effect';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { headers } from '@/lib/effect/headers';
-import { ServerComponent } from '@/lib/nextjs-runtime';
+import { listCustomersOptions } from '@/lib/tanstack-query/customers';
 import { columns } from './columns';
 import { DataTable } from './data-table';
 
-const _CustomersTable = Effect.fn('CustomersTable')(function* ({
-  projectId,
+export const CustomersTable = ({
   type,
+  projectId,
   organizationSlug,
   projectSlug
 }: {
-  projectId: string;
   type?: CustomerTypeValue;
   organizationSlug: string;
   projectSlug: string;
-}) {
-  const customersResult = yield* Effect.either(
-    authenticateWithSession(yield* headers)(
-      withEnvironmentFromCookie({ projectId })(
-        Effect.gen(function* () {
-          const customerService = yield* CustomerService;
-          return yield* customerService.getCustomers({
-            projectId,
-            type
-          });
-        })
-      )
-    )
-  );
+  projectId: string;
+}) => {
+  const { data, status } = useQuery(listCustomersOptions({ projectId }));
 
-  if (Either.isLeft(customersResult)) {
+  if (status === 'pending') {
+    return <div>Loading customers...</div>;
+  }
+
+  if (status === 'error') {
     return (
       <VoidhashErrorCard
         error={{
@@ -47,16 +35,12 @@ const _CustomersTable = Effect.fn('CustomersTable')(function* ({
     );
   }
 
-  const customers = customersResult.right;
-
   return (
     <DataTable
       columns={columns}
-      data={customers}
+      data={data?.filter((customer) => customer.type === type) ?? []}
       organizationSlug={organizationSlug}
       projectSlug={projectSlug}
     />
   );
-});
-
-export const CustomersTable = ServerComponent.build(_CustomersTable);
+};

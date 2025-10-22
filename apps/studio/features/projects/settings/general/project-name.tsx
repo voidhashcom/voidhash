@@ -1,7 +1,7 @@
 'use client';
 
-import { useAtomSet } from '@effect-atom/atom-react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Card,
@@ -17,14 +17,11 @@ import {
   FormMessage,
   Input
 } from '@voidhash/ui';
-import { VRpc } from 'atom/lib/rpc-client';
-import { runtime } from 'atom/lib/runtime';
-import { withToast } from 'atom/lib/with-toast';
-import { queryKeys } from 'atom/query-keys';
-import { Effect, Either } from 'effect';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 import { z } from 'zod';
+import { queryKeys } from '@/lib/tanstack-query';
+import { updateProjectOptions } from '@/lib/tanstack-query/projects';
 
 const updateProjectNameSchema = z.object({
   name: z
@@ -49,35 +46,18 @@ export function ProjectNameForm({
     }
   });
 
-  const [isUpdatingProjectName, setIsUpdatingProjectName] = useState(false);
-
-  const updateProjectName = useAtomSet(
-    runtime.fn(
-      Effect.fnUntraced(
-        function* (payload: { id: string; name: string }) {
-          const vrpc = yield* VRpc;
-          setIsUpdatingProjectName(true);
-          const result = yield* vrpc('UpdateProject', payload).pipe(
-            Effect.either
-          );
-          if (Either.isRight(result)) {
-            setIsUpdatingProjectName(false);
-            return yield* Effect.succeed(undefined);
-          }
-          setIsUpdatingProjectName(false);
-          return yield* Effect.fail(result.left);
-        },
-        withToast({
-          onSuccess: 'Project name updated successfully',
-          onFailure: 'Failed to update project name',
-          onWaiting: 'Updating project name...'
-        })
-      ),
-      {
-        reactivityKeys: queryKeys.invalidateAll()
+  const queryClient = useQueryClient();
+  const { mutate: updateProjectName, status: updateProjectNameStatus } =
+    useMutation({
+      ...updateProjectOptions(),
+      onSuccess: () => {
+        toast.success('Project name updated successfully');
+        queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
+      },
+      onError: () => {
+        toast.error('Failed to update project name');
       }
-    )
-  );
+    });
 
   const onSubmit = (data: UpdateProjectNameForm) => {
     updateProjectName({
@@ -119,8 +99,11 @@ export function ProjectNameForm({
               Please use 32 characters at maximum.
             </div>
             <div>
-              <Button disabled={isUpdatingProjectName} type="submit">
-                {isUpdatingProjectName ? 'Saving...' : 'Save'}
+              <Button
+                disabled={updateProjectNameStatus === 'pending'}
+                type="submit"
+              >
+                {updateProjectNameStatus === 'pending' ? 'Saving...' : 'Save'}
               </Button>
             </div>
           </CardFooter>

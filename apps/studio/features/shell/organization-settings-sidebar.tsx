@@ -1,5 +1,5 @@
 'use client';
-import { Result } from '@effect-atom/atom-react';
+
 import {
   GradientAvatar,
   Sidebar,
@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
   Skeleton
 } from '@voidhash/ui';
-import { useUser } from 'atom/user';
+import { useCurrentUser } from 'hooks/tanstack-query';
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import type * as React from 'react';
@@ -23,47 +23,52 @@ const SidebarProjects = ({
 }: {
   organizationSlug: string;
 }) => {
-  return useUser().pipe(
-    Result.matchWithWaiting({
-      onWaiting: () => <SidebarProjectsSkeleton />,
-      onError: () => <SidebarProjectsSkeleton />,
-      onDefect: () => <SidebarProjectsSkeleton />,
-      onSuccess: ({ value: user }) => {
-        const organization = user.organizations.find(
-          (o) => o.slug === organizationSlug
-        );
-        const projects = organization
-          ? user.projects.filter((p) => p.organizationId === organization?.id)
-          : [];
+  const { data: currentUser, status: currentUserStatus } = useCurrentUser();
 
-        return (
-          <SidebarMenu>
-            {projects.map((project) => (
-              <SidebarMenuItem key={project.id}>
-                <SidebarMenuButton asChild isActive={false} tooltip={null}>
-                  <Link
-                    href={`/${organizationSlug}/${project.slug}/settings/general`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <GradientAvatar
-                        alt={project.name}
-                        className="h-6 w-6 rounded-lg text-xs"
-                        fallback={project.id}
-                        src={undefined}
-                      />
-                      <span className="truncate text-foreground- text-sm">
-                        {project.name}
-                      </span>
-                    </div>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        );
-      }
-    })
-  );
+  if (currentUserStatus === 'pending') {
+    return <SidebarProjectsSkeleton />;
+  }
+
+  if (currentUserStatus === 'error') {
+    return <SidebarProjectsSkeleton />;
+  }
+
+  if (currentUser) {
+    const organization = currentUser.organizations.find(
+      (o) => o.slug === organizationSlug
+    );
+    const projects = organization
+      ? currentUser.projects.filter((p) => p.organizationId === organization.id)
+      : [];
+
+    return (
+      <SidebarMenu>
+        {projects.map((project) => (
+          <SidebarMenuItem key={project.id}>
+            <SidebarMenuButton asChild isActive={false} tooltip={null}>
+              <Link
+                href={`/${organizationSlug}/${project.slug}/settings/general`}
+              >
+                <div className="flex items-center gap-2">
+                  <GradientAvatar
+                    alt={project.name}
+                    className="h-6 w-6 rounded-lg text-xs"
+                    fallback={project.id}
+                    src={undefined}
+                  />
+                  <span className="truncate text-foreground- text-sm">
+                    {project.name}
+                  </span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+    );
+  }
+
+  return <SidebarProjectsSkeleton />;
 };
 
 const SidebarProjectsSkeleton = () => {

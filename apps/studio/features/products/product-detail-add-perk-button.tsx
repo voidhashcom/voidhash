@@ -1,6 +1,7 @@
 'use client';
 
-import type { Perk } from '@voidhash/db';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { Perk } from '@voidhash/rpc';
 import {
   Button,
   Command,
@@ -15,11 +16,9 @@ import {
   PopoverTrigger
 } from '@voidhash/ui';
 import { Check } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useAction } from 'next-safe-action/hooks';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { createProductPerkAction } from '@/lib/nextjs/server-actions';
+import { createProductPerkOptions, queryKeys } from '@/lib/tanstack-query';
 
 export function ProductDetailAddPerkButton({
   productId,
@@ -27,30 +26,28 @@ export function ProductDetailAddPerkButton({
   variant = 'default'
 }: {
   productId: string;
-  perks: Perk[];
+  perks: (typeof Perk.Type)[];
   variant?: 'default' | 'secondary';
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
-  const router = useRouter();
 
-  const { execute } = useAction(createProductPerkAction, {
-    onExecute: () => {
-      toast.loading('Adding perk...');
-    },
+  const queryClient = useQueryClient();
+  const { mutate: createProductPerk } = useMutation({
+    ...createProductPerkOptions(),
     onSuccess: () => {
-      toast.dismiss();
       toast.success('Perk added');
-      router.refresh();
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.productPerk.listByProduct({ productId })
+      });
     },
-    onError: (error) => {
-      toast.dismiss();
-      toast.error(error.error.serverError ?? 'An error occurred');
+    onError: () => {
+      toast.error('Failed to add perk');
     }
   });
 
   const handleSelect = (perkId: string) => {
-    execute({
+    createProductPerk({
       productId,
       perkId
     });

@@ -1,7 +1,6 @@
 // Parts are ripped from https://github.com/pingdotgg/uploadthing/blob/main/packages/shared/src/types.ts
 
 import type { Customer as ApiCustomer } from '@voidhash/api-spec';
-import type { Schema } from 'effect';
 
 /**
  * A subset of the standard RequestInit properties needed by voidhash internally.
@@ -112,4 +111,4 @@ export type CheckoutSessionResponse = {
   checkoutUrl: string;
 };
 
-export type Customer = Schema.Schema.Type<typeof ApiCustomer>;
+export type Customer = typeof ApiCustomer.Type;

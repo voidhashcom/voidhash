@@ -1,9 +1,9 @@
 'use client';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { Customer } from '@voidhash/db';
+import type { Customer } from '@voidhash/rpc';
 import { format } from 'date-fns';
 
-export const columns: ColumnDef<Customer>[] = [
+export const columns: ColumnDef<typeof Customer.Type>[] = [
   {
     accessorKey: 'name',
     header: 'Name'
@@ -24,7 +24,7 @@ export const columns: ColumnDef<Customer>[] = [
       return (
         <span className="text-muted-foreground">
           {row.original.createdAt
-            ? format(new Date(row.original.createdAt), 'MMM d, yyyy')
+            ? format(row.original.createdAt, 'MMM d, yyyy')
             : 'N/A'}
         </span>
       );
