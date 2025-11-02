@@ -1,12 +1,12 @@
 import { Command, HelpDoc, Prompt, ValidationError } from '@effect/cli';
+import { Path } from '@effect/platform';
 import { Console, Effect } from 'effect';
 import { Auth } from '../../domain/services/auth';
+import { Codegen } from '../../domain/services/codegen';
 import { SourceCode } from '../../domain/services/source-code';
+import { assertFileCanBeCreated } from '../../utils/fs';
 import { selectOrganization } from '../../utils/organizations/select-organization';
 import { selectProject } from '../../utils/projects/select-project';
-import { Path } from '@effect/platform';
-import { assertFileCanBeCreated } from '../../utils/fs';
-import { Codegen } from '../../domain/services/codegen';
 
 export const initCommand = Command.make('init', {}, () =>
   Effect.gen(function* () {
@@ -14,7 +14,6 @@ export const initCommand = Command.make('init', {}, () =>
     const sourceCode = yield* SourceCode;
     const codegen = yield* Codegen;
     const path = yield* Path.Path;
-
 
     const voidhashConfig = yield* sourceCode
       .loadVoidhashConfig()
@@ -78,30 +77,40 @@ export const initCommand = Command.make('init', {}, () =>
     const organization = yield* selectOrganization(session.organizations);
 
     // Select project
-    const project = yield* selectProject(organization.id, session.projects.filter((p) => p.organizationId === organization.id));
+    const project = yield* selectProject(
+      organization.id,
+      session.projects.filter((p) => p.organizationId === organization.id)
+    );
 
     // Select folder path
-    
+
     const srcFolderPath = yield* sourceCode.retrieveSrcDir();
     const hasSrcDir = srcFolderPath.endsWith('src');
 
     const voidhashFilesFolderPath = yield* Prompt.run(
       Prompt.text({
-        message: 'Select the folder where you want to create the Voidhash schema and client',
-        default: hasSrcDir ? `./src/utils/voidhash` : `./utils/voidhash`,
+        message:
+          'Select the folder where you want to create the Voidhash schema and client',
+        default: hasSrcDir ? './src/utils/voidhash' : './utils/voidhash'
       })
     );
 
-
     // File names
-    const language = yield* sourceCode.detectSrcLanguage()
+    const language = yield* sourceCode.detectSrcLanguage();
     const schemaFileName = language === 'ts' ? 'schema.ts' : 'schema.js';
     const clientFileName = language === 'ts' ? 'client.ts' : 'client.js';
-    const configFileName = language === 'ts' ? 'voidhash.config.ts' : 'voidhash.config.js';
+    const configFileName =
+      language === 'ts' ? 'voidhash.config.ts' : 'voidhash.config.js';
 
     // File paths
-    const schemaFilePath = path.resolve(voidhashFilesFolderPath, schemaFileName);
-    const clientFilePath = path.resolve(voidhashFilesFolderPath, clientFileName);
+    const schemaFilePath = path.resolve(
+      voidhashFilesFolderPath,
+      schemaFileName
+    );
+    const clientFilePath = path.resolve(
+      voidhashFilesFolderPath,
+      clientFileName
+    );
     const configFilePath = path.resolve(configFileName);
 
     yield* Console.log(schemaFilePath, clientFilePath, configFilePath);
@@ -120,11 +129,7 @@ export const initCommand = Command.make('init', {}, () =>
       schema: path.relative(path.resolve(), schemaFilePath)
     });
 
-
-  
     // Generate voidhash.config.ts, voidhash client and schema
-
-
 
     // const sourceCodeDetails = yield* retrieveSourceCodeDetails();
   })

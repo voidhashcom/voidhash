@@ -43,10 +43,10 @@ export const createOrganization = () =>
         })
       );
 
-      const organization = yield* client.v1_organizations.createOrganization({
-        headers: {
-          'x-api-key': apiKey
-        },
+      const organization = yield* client.organizations.createOrganization({
+        // headers: {
+        //   'x-api-key': apiKey
+        // },
         payload: {
           name
         }

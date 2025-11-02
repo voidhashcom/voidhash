@@ -60,7 +60,7 @@ export class IdentityManager extends Effect.Service<IdentityManager>()(
             currentAppUserId
           );
           const commonHeaders = yield* getCommonSdkHeaders();
-          const identifyRequest = yield* apiClient.v1_sdk.identify({
+          const identifyRequest = yield* apiClient.sdk.identify({
             payload: {
               appUserId,
               email: options.email,
