@@ -2,7 +2,7 @@
   <picture>
     <source srcset="./banner-dark.png" media="(prefers-color-scheme: dark)">
     <source srcset="./banner.png" media="(prefers-color-scheme: light)">
-    <img src="./banner.png" alt="Better Auth Logo">
+    <img src="./banner.png" alt="Voidhash Logo">
   </picture>
 <hr />
   <p>

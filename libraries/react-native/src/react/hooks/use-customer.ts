@@ -1,7 +1,7 @@
+import type { SdkCustomer } from '@voidhash/api-spec';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { VoidhashClient } from '../../client';
 import type { VoidhashSchema } from '../../core/schema';
-import type { Customer } from '../../core/types';
 import type { VoidhashContext } from '../components/provider';
 import useAsyncFunction from './use-async-function';
 
@@ -11,10 +11,10 @@ export function currentCustomerHookFactory<TSchema extends VoidhashSchema>(
 ) {
   function useCurrentCustomer() {
     const voidhashContext = React.useContext(vhContext);
-    const [customer, setCustomer] = useState<Customer | null>(null);
+    const [customer, setCustomer] = useState<SdkCustomer | null>(null);
 
     const setCustomerIfDifferent = useCallback(
-      (newCustomer: Customer | null) => {
+      (newCustomer: SdkCustomer | null) => {
         if (JSON.stringify(customer) === JSON.stringify(newCustomer)) {
           return;
         }

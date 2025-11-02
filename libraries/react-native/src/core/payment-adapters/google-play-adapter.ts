@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: we use it for GoogleBilling that is only available on Android */
 
-import { ProductNotFoundError } from '@voidhash/shared/errors';
+import { ProductNotFoundError } from '@voidhash/shared';
 import { Effect, Layer } from 'effect';
 import { GoogleBilling } from '../../nitro';
 import type { GoogleBillingProductDetail } from '../../specs/android/GoogleBillingProductDetail.nitro';

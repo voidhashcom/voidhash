@@ -1,7 +1,6 @@
 'use client';
 
 import { ErrorCard } from '@voidhash/ui';
-import { Cause } from 'effect';
 import { useCurrentUser } from 'hooks/tanstack-query/users';
 import { useRouter } from 'next/navigation';
 
@@ -26,25 +25,27 @@ export default function Index() {
   }
 
   if (status === 'error') {
-    const error = Cause.isFailType(currentUserError.cause)
-      ? currentUserError.cause.error
-      : null;
-    if (
-      error?._tag === 'NotAuthenticatedError' ||
-      error?._tag === 'AuthenticationError'
-    ) {
-      nextRenderRedirect(router, '/login');
-      return null;
-    }
-    return (
-      <ErrorCard
-        description="Please try again"
-        onRetry={() => {
-          window.location.reload();
-        }}
-        title="Something went wrong!"
-      />
-    );
+    return currentUserError.match({
+      NotAuthenticatedError: () => {
+        nextRenderRedirect(router, '/login');
+        return null;
+      },
+      AuthenticationError: () => {
+        nextRenderRedirect(router, '/login');
+        return null;
+      },
+      OrElse: () => {
+        return (
+          <ErrorCard
+            description="Please try again"
+            onRetry={() => {
+              window.location.reload();
+            }}
+            title="Something went wrong!"
+          />
+        );
+      }
+    });
   }
 
   if (currentUser) {

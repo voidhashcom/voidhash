@@ -1,17 +1,17 @@
 import { Effect } from 'effect';
 import { queryKeys } from '@/lib/tanstack-query';
-import { effectQuery, VoidhashRpc } from '../effect/effect-query';
+import { eq, VoidhashRpc } from '../effect-query';
 
 export const listPerksOptions = (options: { projectId: string }) =>
-  effectQuery.queryOptions({
+  eq.queryOptions({
     queryKey: queryKeys.perk.list(options),
     queryFn: () =>
       VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.ListPerks(options)))
   });
 
 export const createPerkOptions = () =>
-  effectQuery.mutationOptions({
-    mutationKey: 'createPerk',
+  eq.mutationOptions({
+    mutationKey: ['createPerk'],
     mutationFn: (variables: {
       projectId: string;
       name: string;
@@ -20,8 +20,8 @@ export const createPerkOptions = () =>
   });
 
 export const deletePerkOptions = () =>
-  effectQuery.mutationOptions({
-    mutationKey: 'deletePerk',
+  eq.mutationOptions({
+    mutationKey: ['deletePerk'],
     mutationFn: (variables: { perkId: string }) =>
       VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.DeletePerk(variables)))
   });

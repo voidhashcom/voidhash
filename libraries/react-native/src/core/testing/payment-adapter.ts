@@ -1,3 +1,4 @@
+import type { ProductNotFoundError } from '@voidhash/shared';
 import { Effect, Layer } from 'effect';
 import { Product, type SubscriptionProduct } from '../entities/product';
 import { Transaction } from '../entities/transaction';

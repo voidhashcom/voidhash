@@ -14,7 +14,6 @@
   "files.exclude": {
     "apps/api/node_modules": true,
     "apps/api/.turbo": true,
-    "node_modules": true,
     "packages/api-spec/node_modules": true,
     ".turbo": true,
     "packages/rpc/node_modules": true,

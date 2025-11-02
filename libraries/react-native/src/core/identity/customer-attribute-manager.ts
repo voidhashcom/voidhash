@@ -43,7 +43,7 @@ export class CustomerAttributeManager extends Effect.Service<CustomerAttributeMa
             yield* setCustomerAttributes(appUserId, attributes);
           }
           const commonHeaders = yield* getCommonSdkHeaders();
-          yield* apiClient.v1_sdk.syncCustomerAttributes({
+          yield* apiClient.sdk.syncCustomerAttributes({
             headers: {
               ...commonHeaders,
               'x-app-user-id': appUserId

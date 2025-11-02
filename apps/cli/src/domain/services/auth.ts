@@ -129,10 +129,10 @@ export class Auth extends Effect.Service<Auth>()('voidhash-cli/Auth', {
         );
       }
 
-      const sessionResponse = yield* client.v1_auth.session({
-        headers: {
-          'x-api-key': apiKey
-        }
+      const sessionResponse = yield* client.auth.session({
+        // headers: {
+        //   'x-api-key': apiKey
+        // }
       });
 
       return sessionResponse;
