@@ -20,6 +20,7 @@
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "api:start": "turbo run start --filter=@voidhash/api",
+    "api:build": "turbo run build --filter=@voidhash/api",
     "better-auth:generate": "pnpm run with-env npx @better-auth/cli@latest generate --config ./packages/auth/src/index.ts --output ./packages/db/auth-schema.ts",
     "better-auth:migrate": "pnpm run with-env npx @better-auth/cli@latest migrate --config ./packages/auth/src/index.ts",
     "db:generate": "pnpm run with-env drizzle-kit generate",
