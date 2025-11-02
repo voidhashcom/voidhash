@@ -1,8 +1,8 @@
+import type { SdkCustomer } from '@voidhash/api-spec';
 import { Effect } from 'effect';
 import { CacheManager } from '../caching/cache-manager';
 import { EventBusProvider } from '../event-bus';
 import { ApiClient } from '../networking/api-client';
-import type { Customer } from '../types';
 import { getCommonSdkHeaders } from '../utils/get-common-sdk-headers';
 
 export class CustomerInfoManager extends Effect.Service<CustomerInfoManager>()(
@@ -18,9 +18,9 @@ export class CustomerInfoManager extends Effect.Service<CustomerInfoManager>()(
         `customer:${appUserId}`;
 
       const getCustomerFromCache = (appUserId: string) =>
-        cacheManager.get<Customer>(generateCustomerCacheKey(appUserId));
+        cacheManager.get<SdkCustomer>(generateCustomerCacheKey(appUserId));
 
-      const cache = (appUserId: string, customer: Customer) =>
+      const cache = (appUserId: string, customer: SdkCustomer) =>
         cacheManager.set(generateCustomerCacheKey(appUserId), customer, {
           ttl: 1000 * 60 * 60 * 24 * 2, // 2 days
           staleTime: 1000 * 60 * 5 // 5 minutes
@@ -32,7 +32,7 @@ export class CustomerInfoManager extends Effect.Service<CustomerInfoManager>()(
       const getCustomerFromServerAndCache = (appUserId: string) =>
         Effect.gen(function* () {
           const commonHeaders = yield* getCommonSdkHeaders();
-          const result = yield* apiClient.v1_sdk.getCustomer({
+          const result = yield* apiClient.sdk.getCustomer({
             headers: {
               ...commonHeaders,
               'x-app-user-id': appUserId

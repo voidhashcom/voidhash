@@ -1,11 +1,11 @@
 import { Effect } from 'effect';
 import { queryKeys } from '@/lib/tanstack-query';
-import { effectQuery, VoidhashRpc } from '../effect/effect-query';
+import { eq, VoidhashRpc } from '../effect-query';
 
 export const listPaymentProviderConfigurationsOptions = (options: {
   projectId: string;
 }) => {
-  return effectQuery.queryOptions({
+  return eq.queryOptions({
     queryKey: queryKeys.paymentProviderConfiguration.list(options),
     queryFn: () =>
       VoidhashRpc.pipe(
@@ -17,7 +17,7 @@ export const listPaymentProviderConfigurationsOptions = (options: {
 export const getPaymentProviderConfigurationOptions = (options: {
   id: string;
 }) =>
-  effectQuery.queryOptions({
+  eq.queryOptions({
     queryKey:
       queryKeys.paymentProviderConfiguration.getPaymentProviderConfiguration(
         options
@@ -29,8 +29,8 @@ export const getPaymentProviderConfigurationOptions = (options: {
   });
 
 export const createPaymentProviderConfigurationOptions = () =>
-  effectQuery.mutationOptions({
-    mutationKey: 'createPaymentProviderConfiguration',
+  eq.mutationOptions({
+    mutationKey: ['createPaymentProviderConfiguration'],
     mutationFn: (variables: { projectId: string; providerId: string }) =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) =>
@@ -40,8 +40,8 @@ export const createPaymentProviderConfigurationOptions = () =>
   });
 
 export const updatePaymentProviderConfigurationOptions = () =>
-  effectQuery.mutationOptions({
-    mutationKey: 'updatePaymentProviderConfiguration',
+  eq.mutationOptions({
+    mutationKey: ['updatePaymentProviderConfiguration'],
     mutationFn: (variables: {
       id: string;
       enabled: boolean;
@@ -56,8 +56,8 @@ export const updatePaymentProviderConfigurationOptions = () =>
   });
 
 export const deletePaymentProviderConfigurationOptions = () =>
-  effectQuery.mutationOptions({
-    mutationKey: 'deletePaymentProviderConfiguration',
+  eq.mutationOptions({
+    mutationKey: ['deletePaymentProviderConfiguration'],
     mutationFn: (variables: { paymentProviderConfigurationId: string }) =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) =>

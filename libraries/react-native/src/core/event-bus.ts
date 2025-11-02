@@ -1,9 +1,9 @@
+import type { SdkCustomer } from '@voidhash/api-spec';
 import { Context } from 'effect';
-import type { Customer } from './types';
 
 export type CustomerFetchedEvent = {
   type: 'customer-fetched';
-  customer: Customer;
+  customer: SdkCustomer;
 };
 
 export type CustomerSignedOutEvent = {
@@ -15,7 +15,7 @@ export type CustomerIdentifiedEvent = {
 };
 
 export type VoidhashEvents = {
-  'customer-fetched': Customer;
+  'customer-fetched': SdkCustomer;
   // biome-ignore lint/suspicious/noConfusingVoidType: it specifies that the event has no payload
   'customer-signed-out': void;
   // biome-ignore lint/suspicious/noConfusingVoidType: it specifies that the event has no payload

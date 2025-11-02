@@ -1,9 +1,17 @@
 import { Effect } from 'effect';
 import { queryKeys } from '@/lib/tanstack-query';
-import { effectQuery, VoidhashRpc } from '../effect/effect-query';
+import { eq, VoidhashRpc } from '../effect-query';
 
 export const currentUserOptions = () =>
-  effectQuery.queryOptions({
+  eq.queryOptions({
     queryKey: queryKeys.user.getUser(),
-    queryFn: () => VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.CurrentUser()))
+    queryFn: () =>
+      Effect.gen(function* () {
+        yield* Effect.log('Fetching user');
+        const user = yield* VoidhashRpc.pipe(
+          Effect.flatMap((rpc) => rpc.CurrentUser())
+        );
+        yield* Effect.log('User fetched');
+        return user;
+      })
   });

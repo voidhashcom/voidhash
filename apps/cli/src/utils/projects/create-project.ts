@@ -43,10 +43,10 @@ export const createProject = (input: { organizationId: string }) =>
         })
       );
 
-      const project = yield* client.v1_projects.createProject({
-        headers: {
-          'x-api-key': apiKey
-        },
+      const project = yield* client.projects.createProject({
+        // headers: {
+        //   'x-api-key': apiKey
+        // },
         payload: {
           name,
           organizationId: input.organizationId

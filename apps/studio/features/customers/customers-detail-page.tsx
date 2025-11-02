@@ -3,7 +3,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@voidhash/ui';
 import { format } from 'date-fns';
-import { Cause } from 'effect';
 import { Clock4Icon } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { getCustomerByIdOptions } from '@/lib/tanstack-query/customers';
@@ -15,30 +14,40 @@ export const CustomerDetailPage = () => {
 
   const {
     data: customer,
-    status,
-    error
+    status
+    // error
   } = useQuery(getCustomerByIdOptions({ customerId: customerId as string }));
+
+  // if (status === 'error') {
+  //   return error.match({
+  //     CustomerNotFoundError: () => {
+  //       return (
+  //         <VoidhashErrorCard
+  //           error={{
+  //             code: 'NOT_FOUND',
+  //             title: 'Customer not found',
+  //             message: 'The customer you are looking for does not exist.'
+  //           }}
+  //         />
+  //       );
+  //     },
+  //     OrElse: () => {
+  //       return (
+  //         <VoidhashErrorCard
+  //           error={{
+  //             code: 'INTERNAL_SERVER_ERROR'
+  //           }}
+  //         />
+  //       );
+  //     }
+  //   });
+  // }
 
   if (status === 'pending') {
     return <Page className="p-0 py-8 pt-3">Loading customer...</Page>;
   }
 
   if (status === 'error') {
-    if (
-      Cause.isFailType(error.cause) &&
-      error.cause.error._tag === 'CustomerNotFoundError'
-    ) {
-      return (
-        <VoidhashErrorCard
-          error={{
-            code: 'NOT_FOUND',
-            title: 'Customer not found',
-            message: 'The customer you are looking for does not exist.'
-          }}
-        />
-      );
-    }
-
     return (
       <VoidhashErrorCard
         error={{

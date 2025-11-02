@@ -1,9 +1,9 @@
 import { Effect } from 'effect';
 import { queryKeys } from '@/lib/tanstack-query';
-import { effectQuery, VoidhashRpc } from '../effect/effect-query';
+import { eq, VoidhashRpc } from '../effect-query';
 
 export const listCustomersOptions = (options: { projectId: string }) =>
-  effectQuery.queryOptions({
+  eq.queryOptions({
     queryKey: queryKeys.customer.list(options.projectId),
     queryFn: () =>
       VoidhashRpc.pipe(
@@ -14,8 +14,12 @@ export const listCustomersOptions = (options: { projectId: string }) =>
   });
 
 export const getCustomerByIdOptions = (options: { customerId: string }) =>
-  effectQuery.queryOptions({
-    queryKey: queryKeys.customer.getCustomer(options.customerId),
+  eq.queryOptions({
+    queryKey: [
+      'customers',
+      'getCustomerById',
+      { customerId: options.customerId }
+    ],
     queryFn: () =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) =>
@@ -28,7 +32,7 @@ export const getCustomerByAppUserIdOptions = (options: {
   projectId: string;
   appUserId: string;
 }) =>
-  effectQuery.queryOptions({
+  eq.queryOptions({
     queryKey: queryKeys.customer.getCustomerByAppUserId(
       options.projectId,
       options.appUserId
@@ -45,8 +49,8 @@ export const getCustomerByAppUserIdOptions = (options: {
   });
 
 export const createCustomerOptions = () =>
-  effectQuery.mutationOptions({
-    mutationKey: 'createCustomer',
+  eq.mutationOptions({
+    mutationKey: ['createCustomer'],
     mutationFn: (variables: {
       projectId: string;
       appUserId: string;

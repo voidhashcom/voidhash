@@ -1,11 +1,11 @@
 import { Effect } from 'effect';
 import { queryKeys } from '@/lib/tanstack-query';
-import { effectQuery, VoidhashRpc } from '../effect/effect-query';
+import { eq, VoidhashRpc } from '../effect-query';
 
 export const listProviderProductsByProductIdOptions = (options: {
   productId: string;
 }) =>
-  effectQuery.queryOptions({
+  eq.queryOptions({
     queryKey: queryKeys.paymentProviderProduct.listByProduct(options),
     queryFn: () =>
       VoidhashRpc.pipe(
@@ -14,8 +14,8 @@ export const listProviderProductsByProductIdOptions = (options: {
   });
 
 export const createPaymentProviderProductOptions = () =>
-  effectQuery.mutationOptions({
-    mutationKey: 'createPaymentProviderProduct',
+  eq.mutationOptions({
+    mutationKey: ['createPaymentProviderProduct'],
     mutationFn: (variables: {
       productId: string;
       paymentProviderConfigurationId: string;
@@ -27,8 +27,8 @@ export const createPaymentProviderProductOptions = () =>
   });
 
 export const updatePaymentProviderProductOptions = () =>
-  effectQuery.mutationOptions({
-    mutationKey: 'updatePaymentProviderProduct',
+  eq.mutationOptions({
+    mutationKey: ['updatePaymentProviderProduct'],
     mutationFn: (variables: {
       paymentProviderConfigurationProductId: string;
       configuration: Record<string, unknown>;
@@ -39,8 +39,8 @@ export const updatePaymentProviderProductOptions = () =>
   });
 
 export const deletePaymentProviderProductOptions = () =>
-  effectQuery.mutationOptions({
-    mutationKey: 'deletePaymentProviderProduct',
+  eq.mutationOptions({
+    mutationKey: ['deletePaymentProviderProduct'],
     mutationFn: (variables: {
       productId: string;
       paymentProviderConfigurationId: string;
@@ -52,8 +52,8 @@ export const deletePaymentProviderProductOptions = () =>
   });
 
 export const setActivePaymentProviderProductOptions = () =>
-  effectQuery.mutationOptions({
-    mutationKey: 'setActivePaymentProviderProduct',
+  eq.mutationOptions({
+    mutationKey: ['setActivePaymentProviderProduct'],
     mutationFn: (variables: {
       productId: string;
       paymentProviderConfigurationId: string;

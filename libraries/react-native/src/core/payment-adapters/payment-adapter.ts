@@ -1,4 +1,4 @@
-import type { ProductNotFoundError } from '@voidhash/shared/errors';
+import type { ProductNotFoundError } from '@voidhash/shared';
 import { Context, type Effect } from 'effect';
 import type { Product, SubscriptionProduct } from '../entities/product';
 import type { Transaction } from '../entities/transaction';
