@@ -332,8 +332,8 @@ importers:
         specifier: 'catalog:'
         version: 3.18.4
       effect-query:
-        specifier: 0.2.0-beta.1
-        version: 0.2.0-beta.1(@tanstack/react-query@5.90.5(react@19.1.1))(effect@3.18.4)(react@19.1.1)
+        specifier: 0.2.1-beta.3
+        version: 0.2.1-beta.3(@tanstack/react-query@5.90.5(react@19.1.1))(effect@3.18.4)(react@19.1.1)
       lucide-react:
         specifier: ^0.542.0
         version: 0.542.0(react@19.1.1)
@@ -6721,8 +6721,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  effect-query@0.2.0-beta.1:
-    resolution: {integrity: sha512-iejxT29QT3QN6wZmD/X3chIvhuB3ko5DYcpqyQkoZM07Q117JvwmdBHjM6Ql3O5BbqqmEJrYSGi+IB8p1VCXWg==}
+  effect-query@0.2.1-beta.3:
+    resolution: {integrity: sha512-FP7IuI2rgquj3wrH+s00bCFBZ0B9icC/zi0Rv4H5+GiEIM96+PFRwg8YCLVjSJ6Y8Bh5XHwkQAd92AcZiX0/qQ==}
     peerDependencies:
       '@tanstack/react-query': ^5.90.5
       effect: ^3.18.4
@@ -17891,7 +17891,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  effect-query@0.2.0-beta.1(@tanstack/react-query@5.90.5(react@19.1.1))(effect@3.18.4)(react@19.1.1):
+  effect-query@0.2.1-beta.3(@tanstack/react-query@5.90.5(react@19.1.1))(effect@3.18.4)(react@19.1.1):
     dependencies:
       '@tanstack/react-query': 5.90.5(react@19.1.1)
       effect: 3.18.4
