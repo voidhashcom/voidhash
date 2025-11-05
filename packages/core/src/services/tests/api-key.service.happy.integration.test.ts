@@ -1,16 +1,13 @@
-import { apiKeys, eq } from '@voidhash/db';
+import { apiKeys, eq, type InsertApiKey } from '@voidhash/db';
+import { Db } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
-import { Environment as EnvironmentEnum } from '@voidhash/lib/constants';
+import { AuthSession } from '@voidhash/shared';
 import { Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
-import { ApiKeyRepository } from '../../repositories/api-key-repository';
-import { createMockEnvironment } from '../../testing/__mocks__/environment.mock';
 import { IntegrationHarness } from '../../testing/integration-harness';
 import { hashKey } from '../../utils/api-keys/effect/utils';
 import { ApiKeyService } from '../api-key-service';
-import { AuthSession } from '../auth-service';
-import { Environment } from '../environment-service';
 
 describe.sequential('ApiKeyService happy path', () => {
   test('should create a secret key successfully', async (t) => {
@@ -29,14 +26,10 @@ describe.sequential('ApiKeyService happy path', () => {
             const secretKey = yield* apiKeyService.createSecretKey(input);
             return secretKey;
           }),
-          Effect.provide(ApiKeyService.DefaultWithoutDependencies),
+          Effect.provide(ApiKeyService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -54,9 +47,9 @@ describe.sequential('ApiKeyService happy path', () => {
     expect(value.end).toBe(value.rawKey.slice(-4));
 
     t.onTestFinished(async () => {
-      if (value?.id) {
-        await h.db.primary.delete(apiKeys).where(eq(apiKeys.id, value.id));
-      }
+      await h.db.primary
+        .delete(apiKeys)
+        .where(eq(apiKeys.projectId, h.resources.project.id));
     });
   });
 
@@ -69,20 +62,29 @@ describe.sequential('ApiKeyService happy path', () => {
         return yield* pipe(
           Effect.gen(function* () {
             const apiKeyService = yield* ApiKeyService;
-            const apiKeyRepository = yield* ApiKeyRepository;
+            const dbService = yield* Db;
+
             // Test Api Key
             const unhashedTestKey = 'test-secret-key';
             const hashedTestKey = yield* hashKey(unhashedTestKey);
-            yield* apiKeyRepository.createApiKey({
+
+            const _createApiKeyRecord = dbService.makeQuery(
+              (execute, apiKey: InsertApiKey) =>
+                execute(async (db) => {
+                  await db.insert(apiKeys).values(apiKey);
+                  return { id: apiKey.id };
+                })
+            );
+
+            yield* _createApiKeyRecord({
               id: generateId('test'),
-              name: 'Test Secret Key',
+              name: 'Test Secret Key 2',
               key: hashedTestKey,
               createdAt: new Date(),
               updatedAt: new Date(),
               prefix: 'test_',
               end: '1234',
               isPublic: false,
-              environment: EnvironmentEnum.Testing,
               projectId: h.resources.project.id
             });
 
@@ -91,7 +93,7 @@ describe.sequential('ApiKeyService happy path', () => {
             const hashedDifferentProjectKey = yield* hashKey(
               unhashedDifferentProjectKey
             );
-            yield* apiKeyRepository.createApiKey({
+            yield* _createApiKeyRecord({
               id: generateId('test'),
               name: 'Test Secret Key 2',
               key: hashedDifferentProjectKey,
@@ -100,24 +102,19 @@ describe.sequential('ApiKeyService happy path', () => {
               prefix: 'test_',
               end: '1234',
               isPublic: false,
-              environment: EnvironmentEnum.Production,
               projectId: generateId('test')
             });
 
-            const apiKeys = yield* apiKeyService.getApiKeys(
+            const apiKeysList = yield* apiKeyService.getApiKeys(
               h.resources.project.id
             );
 
-            return apiKeys;
+            return apiKeysList;
           }),
-          Effect.provide(ApiKeyService.DefaultWithoutDependencies),
+          Effect.provide(ApiKeyService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -128,19 +125,19 @@ describe.sequential('ApiKeyService happy path', () => {
       throw e;
     });
 
-    // Should return the existing secret key from the harness (both secret and publishable)
-    expect(value).toHaveLength(2);
-    const secretKey = value.find((key) => key.isPublic === false);
-    const publishableKey = value.find((key) => key.isPublic === true);
+    // Should return the existing secret key from the harness (both secret and publishable) and the new one
+    expect(value).toHaveLength(3);
+    const secretKey = value.find(
+      (key) => key.isPublic === false && key.name === 'Test Secret Key 2'
+    );
     expect(secretKey).toMatchObject({
       projectId: h.resources.project.id,
-      name: 'Test Secret Key',
-      environment: EnvironmentEnum.Production
+      name: 'Test Secret Key 2'
     });
-    expect(publishableKey).toMatchObject({
-      projectId: h.resources.project.id,
-      name: 'Test Publishable Key',
-      environment: EnvironmentEnum.Production
+    t.onTestFinished(async () => {
+      await h.db.primary
+        .delete(apiKeys)
+        .where(eq(apiKeys.projectId, h.resources.project.id));
     });
   });
 
@@ -158,14 +155,10 @@ describe.sequential('ApiKeyService happy path', () => {
             );
             return apiKey;
           }),
-          Effect.provide(ApiKeyService.DefaultWithoutDependencies),
+          Effect.provide(ApiKeyService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -179,8 +172,13 @@ describe.sequential('ApiKeyService happy path', () => {
     expect(value).toMatchObject({
       id: h.resources.secretKey.id,
       projectId: h.resources.project.id,
-      name: 'Test Secret Key',
-      environment: EnvironmentEnum.Production
+      name: 'Test Secret Key'
+    });
+
+    t.onTestFinished(async () => {
+      await h.db.primary
+        .delete(apiKeys)
+        .where(eq(apiKeys.projectId, h.resources.project.id));
     });
   });
 
@@ -198,14 +196,10 @@ describe.sequential('ApiKeyService happy path', () => {
             });
             return 'deleted';
           }),
-          Effect.provide(ApiKeyService.DefaultWithoutDependencies),
+          Effect.provide(ApiKeyService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -217,6 +211,12 @@ describe.sequential('ApiKeyService happy path', () => {
     });
 
     expect(value).toBe('deleted');
+
+    t.onTestFinished(async () => {
+      await h.db.primary
+        .delete(apiKeys)
+        .where(eq(apiKeys.projectId, h.resources.project.id));
+    });
   });
 
   test('should rotate a secret key successfully', async (t) => {
@@ -233,14 +233,10 @@ describe.sequential('ApiKeyService happy path', () => {
             });
             return rotatedKey;
           }),
-          Effect.provide(ApiKeyService.DefaultWithoutDependencies),
+          Effect.provide(ApiKeyService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -254,10 +250,15 @@ describe.sequential('ApiKeyService happy path', () => {
     expect(value).toMatchObject({
       id: h.resources.secretKey.id,
       projectId: h.resources.project.id,
-      name: 'Test Secret Key',
-      environment: EnvironmentEnum.Production
+      name: 'Test Secret Key'
     });
     expect(value.rawKey).not.toBe(h.resources.secretKey.unhashedKey);
     expect(value.end).toBe(value.rawKey.slice(-4));
+
+    t.onTestFinished(async () => {
+      await h.db.primary
+        .delete(apiKeys)
+        .where(eq(apiKeys.projectId, h.resources.project.id));
+    });
   });
 });

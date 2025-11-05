@@ -1,10 +1,9 @@
 import { generateId } from '@voidhash/lib';
+import { AuthSession, OrganizationNotFoundError } from '@voidhash/shared';
 import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { AuthSession } from '../auth-service';
-import { OrganizationNotFound } from '../errors';
 import { OrganizationService } from '../organization-service';
 
 describe.sequential('OrganizationService error path', () => {
@@ -22,6 +21,7 @@ describe.sequential('OrganizationService error path', () => {
               yield* organizationService.getOrganizationBySlug(nonExistentSlug);
             return organization;
           }),
+          Effect.provide(OrganizationService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
@@ -32,7 +32,7 @@ describe.sequential('OrganizationService error path', () => {
 
     expect(Exit.isFailure(result)).toBe(true);
     const error = Exit.getOrElse(result, (e) => Cause.squash(e));
-    expect(error).toBeInstanceOf(OrganizationNotFound);
+    expect(error).toBeInstanceOf(OrganizationNotFoundError);
   });
 
   test('should fail to get organization by non-existent ID', async (t) => {
@@ -59,7 +59,7 @@ describe.sequential('OrganizationService error path', () => {
 
     expect(Exit.isFailure(result)).toBe(true);
     const error = Exit.getOrElse(result, (e) => Cause.squash(e));
-    expect(error).toBeInstanceOf(OrganizationNotFound);
+    expect(error).toBeInstanceOf(OrganizationNotFoundError);
   });
 
   test('should fail to update non-existent organization', async (t) => {
@@ -77,9 +77,10 @@ describe.sequential('OrganizationService error path', () => {
           Effect.gen(function* () {
             const organizationService = yield* OrganizationService;
             // TODO: Pass real headers. This probably won't work.
-            yield* organizationService.updateOrganization(input, new Headers());
+            yield* organizationService.updateOrganization(input, 'cookie');
             return 'updated';
           }),
+          Effect.provide(OrganizationService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
@@ -90,7 +91,7 @@ describe.sequential('OrganizationService error path', () => {
 
     expect(Exit.isFailure(result)).toBe(true);
     const error = Exit.getOrElse(result, (e) => Cause.squash(e));
-    expect(error).toBeInstanceOf(OrganizationNotFound);
+    expect(error).toBeInstanceOf(OrganizationNotFoundError);
   });
 
   test('should fail to delete non-existent organization', async (t) => {
@@ -107,9 +108,10 @@ describe.sequential('OrganizationService error path', () => {
           Effect.gen(function* () {
             const organizationService = yield* OrganizationService;
             // TODO: Pass real headers. This probably won't work.
-            yield* organizationService.deleteOrganization(input, new Headers());
+            yield* organizationService.deleteOrganization(input, 'cookie');
             return 'deleted';
           }),
+          Effect.provide(OrganizationService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })

@@ -49,7 +49,6 @@ export type UserSession = VoidhashBaseSession & {
   readonly name: string;
   readonly user: User;
   readonly customer: null;
-  readonly environment: null;
   readonly cookie: string | null;
 };
 

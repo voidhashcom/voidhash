@@ -1,26 +1,59 @@
 import { generateId } from '@voidhash/lib';
-import { ApiKeyNotFoundError, AuthSession } from '@voidhash/shared';
+import { AuthSession, ProjectNotFoundError } from '@voidhash/shared';
 import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { ApiKeyService } from '../api-key-service';
+import { ProjectService } from '../project-service';
 
-describe.sequential('ApiKeyService error path', () => {
-  test('should fail to get API key by non-existent ID', async (t) => {
+describe.sequential('ProjectService error path', () => {
+  test('should fail to get project by non-existent ID', async (t) => {
     const h = await IntegrationHarness.init(t);
 
     const integrationTestRunner = createIntegrationTestRunner();
-    const nonExistentId = generateId('apiSecretKey');
+    const nonExistentId = generateId('project');
     const result = await integrationTestRunner(
       Effect.gen(function* () {
         return yield* pipe(
           Effect.gen(function* () {
-            const apiKeyService = yield* ApiKeyService;
-            const apiKey = yield* apiKeyService.getApiKeyById(nonExistentId);
-            return apiKey;
+            const projectService = yield* ProjectService;
+            const project = yield* projectService.getProjectById(nonExistentId);
+            return project;
           }),
-          Effect.provide(ApiKeyService.Default),
+          Effect.provide(ProjectService.Default),
+          Effect.provideService(
+            AuthSession,
+            h.createAuthSession({ type: 'user' })
+          )
+        );
+      })
+    );
+
+    expect(Exit.isSuccess(result)).toBe(true);
+    const value = Exit.getOrElse(result, (e) => {
+      throw e;
+    });
+    // getProjectById returns null for non-existent projects
+    expect(value).toBeNull();
+  });
+
+  test('should fail to update non-existent project', async (t) => {
+    const h = await IntegrationHarness.init(t);
+
+    const integrationTestRunner = createIntegrationTestRunner();
+    const nonExistentId = generateId('project');
+    const result = await integrationTestRunner(
+      Effect.gen(function* () {
+        return yield* pipe(
+          Effect.gen(function* () {
+            const projectService = yield* ProjectService;
+            yield* projectService.updateProject({
+              id: nonExistentId,
+              name: 'Updated Name'
+            });
+            return 'updated';
+          }),
+          Effect.provide(ProjectService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
@@ -31,25 +64,25 @@ describe.sequential('ApiKeyService error path', () => {
 
     expect(Exit.isFailure(result)).toBe(true);
     const error = Exit.getOrElse(result, (e) => Cause.squash(e));
-    expect(error).toBeInstanceOf(ApiKeyNotFoundError);
+    expect(error).toBeInstanceOf(ProjectNotFoundError);
   });
 
-  test('should fail to delete non-existent secret key', async (t) => {
+  test('should fail to delete non-existent project', async (t) => {
     const h = await IntegrationHarness.init(t);
 
     const integrationTestRunner = createIntegrationTestRunner();
-    const nonExistentId = generateId('apiSecretKey');
+    const nonExistentId = generateId('project');
     const result = await integrationTestRunner(
       Effect.gen(function* () {
         return yield* pipe(
           Effect.gen(function* () {
-            const apiKeyService = yield* ApiKeyService;
-            yield* apiKeyService.deleteSecretKey({
-              secretKeyId: nonExistentId
+            const projectService = yield* ProjectService;
+            yield* projectService.deleteProject({
+              id: nonExistentId
             });
             return 'deleted';
           }),
-          Effect.provide(ApiKeyService.Default),
+          Effect.provide(ProjectService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
@@ -60,35 +93,6 @@ describe.sequential('ApiKeyService error path', () => {
 
     expect(Exit.isFailure(result)).toBe(true);
     const error = Exit.getOrElse(result, (e) => Cause.squash(e));
-    expect(error).toBeInstanceOf(ApiKeyNotFoundError);
-  });
-
-  test('should fail to rotate non-existent secret key', async (t) => {
-    const h = await IntegrationHarness.init(t);
-
-    const integrationTestRunner = createIntegrationTestRunner();
-    const nonExistentId = generateId('apiSecretKey');
-    const result = await integrationTestRunner(
-      Effect.gen(function* () {
-        return yield* pipe(
-          Effect.gen(function* () {
-            const apiKeyService = yield* ApiKeyService;
-            const rotatedKey = yield* apiKeyService.rotateSecretKey({
-              secretKeyId: nonExistentId
-            });
-            return rotatedKey;
-          }),
-          Effect.provide(ApiKeyService.Default),
-          Effect.provideService(
-            AuthSession,
-            h.createAuthSession({ type: 'user' })
-          )
-        );
-      })
-    );
-
-    expect(Exit.isFailure(result)).toBe(true);
-    const error = Exit.getOrElse(result, (e) => Cause.squash(e));
-    expect(error).toBeInstanceOf(ApiKeyNotFoundError);
+    expect(error).toBeInstanceOf(ProjectNotFoundError);
   });
 });

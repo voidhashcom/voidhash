@@ -1,7 +1,6 @@
 import { BetterAuth } from '@voidhash/auth/effect';
 import { Db } from '@voidhash/db/effect';
-import { Effect, Layer, ManagedRuntime, pipe } from 'effect';
-import { Cookies } from '../../../apps/web/lib/effect/cookies';
+import { type Effect, Layer, ManagedRuntime, pipe } from 'effect';
 import { ApiKeyService } from './services/api-key-service';
 import { CustomerService } from './services/customer-service';
 import { OrganizationService } from './services/organization-service';
@@ -12,27 +11,10 @@ import { ProjectService } from './services/project-service';
 import { SdkService } from './services/sdk-service';
 import { UserService } from './services/user-service';
 
-const CookiesLive = Layer.effect(
-  Cookies,
-  Effect.gen(function* () {
-    const mockCookies = new Map<string, string>();
-
-    return {
-      getCookie: (name) => Effect.succeed(mockCookies.get(name) ?? null),
-      setCookie: (name, value) => Effect.succeed(mockCookies.set(name, value)),
-      deleteCookie: (name) => Effect.succeed(mockCookies.delete(name))
-    };
-  })
-);
-
 const DbLive = Db.Default;
 
 const RuntimeLayer = () => {
-  const CoreLayer = pipe(
-    BetterAuth.Default,
-    Layer.provideMerge(DbLive),
-    Layer.provideMerge(CookiesLive)
-  );
+  const CoreLayer = pipe(BetterAuth.Default, Layer.provideMerge(DbLive));
 
   const ServiceLayer = pipe(
     ApiKeyService.Default,

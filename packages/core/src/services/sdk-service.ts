@@ -208,10 +208,6 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
           CustomerServiceError: (error) =>
             new SdkServiceError({
               cause: String(error.cause)
-            }),
-          CustomerInvalidAnonymousIdError: () =>
-            new SdkValidationError({
-              message: 'Invalid anonymous ID'
             })
         })
       );
@@ -337,10 +333,6 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
           CustomerServiceError: (error) =>
             new SdkServiceError({
               cause: String(error.cause)
-            }),
-          CustomerInvalidAnonymousIdError: () =>
-            new SdkValidationError({
-              message: 'Invalid anonymous ID'
             })
         })
       );

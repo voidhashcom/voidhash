@@ -1,7 +1,7 @@
 import type { User } from '@voidhash/api-spec';
 
 import { AuthenticationError, AuthSession } from '@voidhash/shared';
-import { Effect, pipe } from 'effect';
+import { Effect, Option, pipe } from 'effect';
 
 export class UserService extends Effect.Service<UserService>()('UserService', {
   dependencies: [],
@@ -9,9 +9,8 @@ export class UserService extends Effect.Service<UserService>()('UserService', {
     const getUser = () =>
       pipe(
         Effect.gen(function* () {
-          const session = yield* AuthSession;
-
-          if (!session?.user) {
+          const maybeSession = yield* Effect.serviceOption(AuthSession);
+          if (Option.isNone(maybeSession) || !maybeSession.value.user) {
             return yield* Effect.fail(
               new AuthenticationError({
                 message: 'User not found',
@@ -19,7 +18,7 @@ export class UserService extends Effect.Service<UserService>()('UserService', {
               })
             );
           }
-
+          const session = maybeSession.value;
           return {
             ...session.user,
             organizations: session.organizations.map((o) => ({

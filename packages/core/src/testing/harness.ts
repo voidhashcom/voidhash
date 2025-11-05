@@ -11,7 +11,7 @@ import type {
 } from '@voidhash/db';
 import { type Database, eq, like } from '@voidhash/db';
 import * as schema from '@voidhash/db/schema';
-import { Environment, generateId } from '@voidhash/lib';
+import { generateId } from '@voidhash/lib';
 import { drizzle as drizzleMysql } from 'drizzle-orm/mysql2';
 import { drizzle as drizzlePlanetscale } from 'drizzle-orm/planetscale-serverless';
 import mysql from 'mysql2/promise';
@@ -208,7 +208,6 @@ export abstract class Harness {
       prefix: 'test_',
       end: '1234',
       isPublic: false,
-      environment: Environment.Production,
       projectId: project.id
     };
 
@@ -223,7 +222,6 @@ export abstract class Harness {
       prefix: 'test_',
       end: '1234',
       isPublic: true,
-      environment: Environment.Production,
       projectId: project.id
     };
 

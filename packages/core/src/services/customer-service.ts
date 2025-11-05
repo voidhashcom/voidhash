@@ -46,14 +46,6 @@ export class CustomerService extends Effect.Service<CustomerService>()(
       }) =>
         pipe(
           Effect.gen(function* () {
-            if (!input.appUserId.startsWith(ANONYMOUS_USER_ID_PREFIX)) {
-              return yield* Effect.fail(
-                new CustomerInvalidAnonymousIdError({
-                  id: input.appUserId
-                })
-              );
-            }
-
             const newCustomer = {
               id: generateId('customer'),
               type: input.appUserId.startsWith(ANONYMOUS_USER_ID_PREFIX)

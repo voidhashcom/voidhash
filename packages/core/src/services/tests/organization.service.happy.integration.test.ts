@@ -1,8 +1,8 @@
+import { AuthSession } from '@voidhash/shared';
 import { Effect, Exit, pipe } from 'effect';
 import { describe, expect, it, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { AuthSession } from '../auth-service';
 import { OrganizationService } from '../organization-service';
 
 describe.sequential('OrganizationService happy path', () => {
@@ -25,6 +25,7 @@ describe.sequential('OrganizationService happy path', () => {
               yield* organizationService.createOrganization(input);
             return organization;
           }),
+          Effect.provide(OrganizationService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
@@ -62,6 +63,7 @@ describe.sequential('OrganizationService happy path', () => {
               );
             return organization;
           }),
+          Effect.provide(OrganizationService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
@@ -96,6 +98,7 @@ describe.sequential('OrganizationService happy path', () => {
             );
             return organization;
           }),
+          Effect.provide(OrganizationService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
@@ -132,9 +135,10 @@ describe.sequential('OrganizationService happy path', () => {
           Effect.gen(function* () {
             const organizationService = yield* OrganizationService;
             // TODO: Pass real headers. This probably won't work.
-            yield* organizationService.updateOrganization(input, new Headers());
+            yield* organizationService.updateOrganization(input, 'cookie');
             return 'updated';
           }),
+          Effect.provide(OrganizationService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
@@ -166,9 +170,10 @@ describe.sequential('OrganizationService happy path', () => {
           Effect.gen(function* () {
             const organizationService = yield* OrganizationService;
             // TODO: Pass real headers. This probably won't work.
-            yield* organizationService.deleteOrganization(input, new Headers());
+            yield* organizationService.deleteOrganization(input, 'cookie');
             return 'deleted';
           }),
+          Effect.provide(OrganizationService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })

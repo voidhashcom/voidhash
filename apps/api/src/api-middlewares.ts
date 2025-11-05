@@ -78,7 +78,6 @@ export const AuthMiddlewareLive = Layer.effect(
                 name: o.name,
                 permissions: ['organization:all'] // TODO: Add permissions
               })),
-              environment: null,
               cookie: reqNode.headers.get('cookie') ?? '',
               projects: usersProjects.map((p) => ({
                 id: p.id,
@@ -154,7 +153,6 @@ export const AuthMiddlewareLive = Layer.effect(
                 name: o.name,
                 permissions: ['organization:all'] // TODO: Add permissions
               })),
-              environment: null,
               projects: usersProjects.map((p) => ({
                 id: p.id,
                 slug: p.slug,

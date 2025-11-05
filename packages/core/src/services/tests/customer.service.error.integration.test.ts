@@ -1,26 +1,23 @@
-import { CustomerOrigin, customers, eq } from '@voidhash/db';
+import { CustomerOrigin, CustomerType, customers, eq } from '@voidhash/db';
 import { ANONYMOUS_USER_ID_PREFIX, generateId } from '@voidhash/lib';
-import { Environment as EnvironmentEnum } from '@voidhash/lib/constants';
+import { AuthSession, CustomerNotFoundError } from '@voidhash/shared';
 import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
-import { createMockEnvironment } from '../../testing/__mocks__/environment.mock';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { AuthSession } from '../auth-service';
 import { CustomerService } from '../customer-service';
-import { Environment } from '../environment-service';
-import { CustomerNotFoundError, InvalidAnonymousIdError } from '../errors';
 
 describe.sequential('CustomerService error path', () => {
-  test('should fail to create an anonymous customer with invalid app user ID', async (t) => {
+  test('should create an anonymous customer successfully', async (t) => {
     const h = await IntegrationHarness.init(t);
 
     const integrationTestRunner = createIntegrationTestRunner();
     const input = {
       projectId: h.resources.project.id,
       appUserId: `${ANONYMOUS_USER_ID_PREFIX}test-anonymous-user-id`,
-      origin: CustomerOrigin.Dashboard,
-      environment: EnvironmentEnum.Production
+      name: null,
+      email: null,
+      origin: CustomerOrigin.Dashboard
     };
     const result = await integrationTestRunner(
       Effect.gen(function* () {
@@ -33,23 +30,26 @@ describe.sequential('CustomerService error path', () => {
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
     );
 
-    expect(Exit.isFailure(result)).toBe(true);
-    const error = Exit.getOrElse(result, (e) => Cause.squash(e));
-    expect(error).toBeInstanceOf(InvalidAnonymousIdError);
+    expect(Exit.isSuccess(result)).toBe(true);
+    const value = Exit.getOrElse(result, (e) => {
+      throw e;
+    });
+    expect(value).toMatchObject({
+      projectId: h.resources.project.id,
+      appUserId: `${ANONYMOUS_USER_ID_PREFIX}test-anonymous-user-id`,
+      type: CustomerType.Anonymous,
+      origin: CustomerOrigin.Dashboard
+    });
 
     t.onTestFinished(async () => {
-      await h.db.primary
-        .delete(customers)
-        .where(eq(customers.appUserId, input.appUserId));
+      if (value?.id) {
+        await h.db.primary.delete(customers).where(eq(customers.id, value.id));
+      }
     });
   });
 
@@ -70,10 +70,6 @@ describe.sequential('CustomerService error path', () => {
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -94,19 +90,15 @@ describe.sequential('CustomerService error path', () => {
         return yield* pipe(
           Effect.gen(function* () {
             const customerService = yield* CustomerService;
-            const customer =
-              yield* customerService.getCustomerByAppUserId(
-                nonExistentAppUserId
-              );
+            const customer = yield* customerService.getCustomerByAppUserId(
+              nonExistentAppUserId,
+              h.resources.project.id
+            );
             return customer;
           }),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -134,10 +126,6 @@ describe.sequential('CustomerService error path', () => {
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -165,10 +153,6 @@ describe.sequential('CustomerService error path', () => {
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })

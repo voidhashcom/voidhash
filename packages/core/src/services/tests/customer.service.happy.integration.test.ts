@@ -1,15 +1,19 @@
-import { CustomerOrigin, CustomerType, customers, eq, or } from '@voidhash/db';
+import {
+  CustomerOrigin,
+  CustomerType,
+  customers,
+  eq,
+  type InsertCustomer,
+  or
+} from '@voidhash/db';
+import { Db, TransactionContext } from '@voidhash/db/effect';
 import { ANONYMOUS_USER_ID_PREFIX, generateId } from '@voidhash/lib';
-import { Environment as EnvironmentEnum } from '@voidhash/lib/constants';
+import { AuthSession } from '@voidhash/shared';
 import { Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
-import { CustomerRepository } from '../../repositories/customer-repository';
-import { createMockEnvironment } from '../../testing/__mocks__/environment.mock';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { AuthSession } from '../auth-service';
 import { CustomerService } from '../customer-service';
-import { Environment } from '../environment-service';
 
 describe.sequential('CustomerService happy path', () => {
   test('should create a customer successfully', async (t) => {
@@ -21,8 +25,7 @@ describe.sequential('CustomerService happy path', () => {
       appUserId: 'test-app-user-id',
       name: 'Test Customer',
       email: 'test@example.com',
-      origin: CustomerOrigin.Dashboard,
-      environment: EnvironmentEnum.Production
+      origin: CustomerOrigin.Dashboard
     };
     const result = await integrationTestRunner(
       Effect.gen(function* () {
@@ -35,10 +38,6 @@ describe.sequential('CustomerService happy path', () => {
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -72,7 +71,8 @@ describe.sequential('CustomerService happy path', () => {
       projectId: h.resources.project.id,
       appUserId: `${ANONYMOUS_USER_ID_PREFIX}test-anonymous-user-id`,
       origin: CustomerOrigin.Dashboard,
-      environment: EnvironmentEnum.Production
+      name: null,
+      email: null
     };
     const result = await integrationTestRunner(
       Effect.gen(function* () {
@@ -85,10 +85,6 @@ describe.sequential('CustomerService happy path', () => {
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -102,8 +98,7 @@ describe.sequential('CustomerService happy path', () => {
       projectId: h.resources.project.id,
       appUserId: `${ANONYMOUS_USER_ID_PREFIX}test-anonymous-user-id`,
       origin: CustomerOrigin.Dashboard,
-      type: CustomerType.Anonymous,
-      environment: EnvironmentEnum.Production
+      type: CustomerType.Anonymous
     });
 
     t.onTestFinished(async () => {
@@ -122,7 +117,15 @@ describe.sequential('CustomerService happy path', () => {
         return yield* pipe(
           Effect.gen(function* () {
             const customerService = yield* CustomerService;
-            const customerRepository = yield* CustomerRepository;
+            const dbService = yield* Db;
+
+            const _createCustomerRecord = dbService.makeQuery(
+              (execute, customer: InsertCustomer) =>
+                execute(async (db) => {
+                  await db.insert(customers).values(customer);
+                  return { id: customer.id };
+                })
+            );
 
             // Create a test customer
             const testCustomer = {
@@ -132,7 +135,6 @@ describe.sequential('CustomerService happy path', () => {
               name: 'Test Customer',
               email: 'test@example.com',
               origin: CustomerOrigin.Dashboard,
-              environment: EnvironmentEnum.Production,
               type: 1, // Identified
               parentCustomerId: null,
               archivedAt: null,
@@ -148,7 +150,6 @@ describe.sequential('CustomerService happy path', () => {
               name: 'Test Customer',
               email: 'test@example.com',
               origin: CustomerOrigin.Dashboard,
-              environment: EnvironmentEnum.Production,
               type: 1, // Identified
               parentCustomerId: null,
               archivedAt: null,
@@ -156,43 +157,26 @@ describe.sequential('CustomerService happy path', () => {
               updatedAt: new Date()
             };
 
-            // Create a test customer different environment
-            const testCustomerDifferentEnvironment = {
-              id: generateId('test'),
-              projectId: h.resources.project.id,
-              appUserId: 'test-customer-user-id',
-              name: 'Test Customer',
-              email: 'test@example.com',
-              origin: CustomerOrigin.Dashboard,
-              environment: EnvironmentEnum.Testing,
-              type: 1, // Identified
-              parentCustomerId: null,
-              archivedAt: null,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            };
+            const customersList = yield* dbService.transaction((tx) =>
+              TransactionContext.provide(tx)(
+                Effect.gen(function* () {
+                  yield* _createCustomerRecord(testCustomer);
+                  yield* _createCustomerRecord(testCustomerDifferentProject);
 
-            yield* customerRepository.createCustomer(testCustomer);
-            yield* customerRepository.createCustomer(
-              testCustomerDifferentProject
-            );
-            yield* customerRepository.createCustomer(
-              testCustomerDifferentEnvironment
+                  const customersList = yield* customerService.getCustomers({
+                    projectId: h.resources.project.id
+                  });
+
+                  return customersList;
+                })
+              )
             );
 
-            const customers = yield* customerService.getCustomers({
-              projectId: h.resources.project.id
-            });
-
-            return customers;
+            return customersList;
           }),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -231,7 +215,14 @@ describe.sequential('CustomerService happy path', () => {
         return yield* pipe(
           Effect.gen(function* () {
             const customerService = yield* CustomerService;
-            const customerRepository = yield* CustomerRepository;
+            const dbService = yield* Db;
+            const _createCustomerRecord = dbService.makeQuery(
+              (execute, customer: InsertCustomer) =>
+                execute(async (db) => {
+                  await db.insert(customers).values(customer);
+                  return { id: customer.id };
+                })
+            );
 
             // Create a test customer
             const testCustomer = {
@@ -241,14 +232,13 @@ describe.sequential('CustomerService happy path', () => {
               name: 'Test Customer By ID',
               email: 'test-by-id@example.com',
               origin: CustomerOrigin.Dashboard,
-              environment: EnvironmentEnum.Production,
               type: 1, // Identified
               parentCustomerId: null,
               archivedAt: null,
               createdAt: new Date(),
               updatedAt: new Date()
             };
-            yield* customerRepository.createCustomer(testCustomer);
+            yield* _createCustomerRecord(testCustomer);
 
             const customer = yield* customerService.getCustomerById(
               testCustomer.id
@@ -258,10 +248,6 @@ describe.sequential('CustomerService happy path', () => {
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -292,13 +278,20 @@ describe.sequential('CustomerService happy path', () => {
     const integrationTestRunner = createIntegrationTestRunner();
     const testCustomerId = generateId('test');
     const testCustomerDifferentProjectId = generateId('test');
-    const testCustomerDifferentEnvironmentId = generateId('test');
+
     const result = await integrationTestRunner(
       Effect.gen(function* () {
         return yield* pipe(
           Effect.gen(function* () {
             const customerService = yield* CustomerService;
-            const customerRepository = yield* CustomerRepository;
+            const dbService = yield* Db;
+            const _createCustomerRecord = dbService.makeQuery(
+              (execute, customer: InsertCustomer) =>
+                execute(async (db) => {
+                  await db.insert(customers).values(customer);
+                  return { id: customer.id };
+                })
+            );
 
             // Create a test customer
             const testCustomer = {
@@ -308,7 +301,6 @@ describe.sequential('CustomerService happy path', () => {
               name: 'Test Customer By App User ID',
               email: 'test-by-app-user-id@example.com',
               origin: CustomerOrigin.Dashboard,
-              environment: EnvironmentEnum.Production,
               type: 1, // Identified
               parentCustomerId: null,
               archivedAt: null,
@@ -324,7 +316,6 @@ describe.sequential('CustomerService happy path', () => {
               name: 'Test Customer',
               email: 'test@example.com',
               origin: CustomerOrigin.Dashboard,
-              environment: EnvironmentEnum.Production,
               type: 1, // Identified
               parentCustomerId: null,
               archivedAt: null,
@@ -332,42 +323,18 @@ describe.sequential('CustomerService happy path', () => {
               updatedAt: new Date()
             };
 
-            // Create a test customer different environment
-            const testCustomerDifferentEnvironment = {
-              id: testCustomerDifferentEnvironmentId,
-              projectId: h.resources.project.id,
-              appUserId: 'test-customer-by-app-user-id',
-              name: 'Test Customer',
-              email: 'test@example.com',
-              origin: CustomerOrigin.Dashboard,
-              environment: EnvironmentEnum.Testing,
-              type: 1, // Identified
-              parentCustomerId: null,
-              archivedAt: null,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            };
-
-            yield* customerRepository.createCustomer(
-              testCustomerDifferentProject
-            );
-            yield* customerRepository.createCustomer(
-              testCustomerDifferentEnvironment
-            );
-            yield* customerRepository.createCustomer(testCustomer);
+            yield* _createCustomerRecord(testCustomerDifferentProject);
+            yield* _createCustomerRecord(testCustomer);
 
             const customer = yield* customerService.getCustomerByAppUserId(
-              'test-customer-by-app-user-id'
+              'test-customer-by-app-user-id',
+              h.resources.project.id
             );
             return customer;
           }),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })
@@ -382,8 +349,7 @@ describe.sequential('CustomerService happy path', () => {
       id: testCustomerId,
       appUserId: 'test-customer-by-app-user-id',
       name: 'Test Customer By App User ID',
-      email: 'test-by-app-user-id@example.com',
-      projectId: h.resources.project.id
+      email: 'test-by-app-user-id@example.com'
     });
 
     t.onTestFinished(async () => {
@@ -392,8 +358,7 @@ describe.sequential('CustomerService happy path', () => {
         .where(
           or(
             eq(customers.id, testCustomerId),
-            eq(customers.id, testCustomerDifferentProjectId),
-            eq(customers.id, testCustomerDifferentEnvironmentId)
+            eq(customers.id, testCustomerDifferentProjectId)
           )
         );
     });
@@ -408,7 +373,14 @@ describe.sequential('CustomerService happy path', () => {
         return yield* pipe(
           Effect.gen(function* () {
             const customerService = yield* CustomerService;
-            const customerRepository = yield* CustomerRepository;
+            const dbService = yield* Db;
+            const _createCustomerRecord = dbService.makeQuery(
+              (execute, customer: InsertCustomer) =>
+                execute(async (db) => {
+                  await db.insert(customers).values(customer);
+                  return { id: customer.id };
+                })
+            );
 
             // Create two test customers
             const fromCustomer = {
@@ -418,7 +390,6 @@ describe.sequential('CustomerService happy path', () => {
               name: 'From Customer',
               email: 'from@example.com',
               origin: CustomerOrigin.Dashboard,
-              environment: EnvironmentEnum.Production,
               type: 1, // Identified
               parentCustomerId: null,
               archivedAt: null,
@@ -432,15 +403,14 @@ describe.sequential('CustomerService happy path', () => {
               name: 'To Customer',
               email: 'to@example.com',
               origin: CustomerOrigin.Dashboard,
-              environment: EnvironmentEnum.Production,
               type: 1, // Identified
               parentCustomerId: null,
               archivedAt: null,
               createdAt: new Date(),
               updatedAt: new Date()
             };
-            yield* customerRepository.createCustomer(fromCustomer);
-            yield* customerRepository.createCustomer(toCustomer);
+            yield* _createCustomerRecord(fromCustomer);
+            yield* _createCustomerRecord(toCustomer);
 
             const result = yield* customerService.mergeCustomers(
               fromCustomer.id,
@@ -451,10 +421,6 @@ describe.sequential('CustomerService happy path', () => {
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
-          ),
-          Effect.provideService(
-            Environment,
-            createMockEnvironment(EnvironmentEnum.Production)
           )
         );
       })

@@ -5,7 +5,10 @@ import { QueryClient } from '@tanstack/react-query';
 import { API_DOMAIN } from '@voidhash/lib/constants';
 import { RpcGroups } from '@voidhash/rpc';
 import { Effect, Layer } from 'effect';
-import { createEffectQuery } from 'effect-query';
+import {
+  createEffectQuery,
+  type createEffectQueryFromManagedRuntime
+} from 'effect-query';
 
 const DevToolsLive = DevTools.layer();
 
@@ -40,3 +43,15 @@ export const LiveLayer = VoidhashRpc.Default.pipe(
 
 export const queryClient = new QueryClient();
 export const eq = createEffectQuery(LiveLayer);
+
+export type EffectQueryType = ReturnType<
+  typeof createEffectQueryFromManagedRuntime<typeof LiveLayer>
+>;
+
+export const exampleQuery = (effectQuery: EffectQueryType) =>
+  effectQuery.queryOptions({
+    queryKey: ['creative-metrics'],
+    queryFn: () => Effect.succeed(true),
+    refetchOnMount: false,
+    refetchOnWindowFocus: false
+  });

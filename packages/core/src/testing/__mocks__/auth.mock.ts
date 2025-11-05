@@ -1,8 +1,4 @@
-import { Environment } from '@voidhash/lib/constants';
-import type {
-  SecretKeySession,
-  UserSession
-} from '../../services/auth-service';
+import type { SecretKeySession, UserSession } from '@voidhash/shared';
 
 export const createMockUserAuthSession = (
   overrides: Partial<UserSession> = {}
@@ -35,7 +31,7 @@ export const createMockUserAuthSession = (
       permissions: ['project:all']
     }
   ],
-  environment: null,
+  cookie: 'mock-cookie',
   method: 'user',
   ...overrides
 });
@@ -63,7 +59,7 @@ export const createMockSecretApiKeyAuthSession = (
       permissions: ['project:all']
     }
   ],
-  environment: Environment.Production,
+  cookie: null,
   method: 'secret-key',
   ...overrides
 });

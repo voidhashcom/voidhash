@@ -15,7 +15,9 @@
     "./utils": "./src/utils/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run -c vitest.unit.mts",
+    "test:integration": "vitest run -c vitest.integration.mts --bail=1"
   },
   "dependencies": {
     "@voidhash/auth": "workspace:*",

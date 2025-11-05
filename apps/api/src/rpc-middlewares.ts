@@ -76,7 +76,6 @@ export const RpcAuthLive = Layer.effect(
               name: o.name,
               permissions: ['organization:all'] // TODO: Add permissions
             })),
-            environment: null,
             projects: usersProjects.map((p) => ({
               id: p.id,
               slug: p.slug,
