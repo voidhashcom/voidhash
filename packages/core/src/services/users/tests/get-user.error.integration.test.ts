@@ -1,11 +1,11 @@
 import { AuthenticationError } from '@voidhash/shared';
 import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
-import { createIntegrationTestRunner } from '../../integration-test-runtime';
-import { IntegrationHarness } from '../../testing/integration-harness';
-import { UserService } from '../users';
+import { createIntegrationTestRunner } from '../../../integration-test-runtime';
+import { IntegrationHarness } from '../../../testing/integration-harness';
+import { UserService } from '../index';
 
-describe.sequential('UserService error path', () => {
+describe.sequential('getUser error path', () => {
   test('should fail to get user when not authenticated', async (t) => {
     await IntegrationHarness.init(t);
 
@@ -28,3 +28,4 @@ describe.sequential('UserService error path', () => {
     expect(error).toBeInstanceOf(AuthenticationError);
   });
 });
+

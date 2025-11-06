@@ -1,12 +1,12 @@
 import { AuthSession } from '@voidhash/shared';
 import { Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
-import { createIntegrationTestRunner } from '../../integration-test-runtime';
-import { IntegrationHarness } from '../../testing/integration-harness';
-import { UserService } from '../users';
+import { createIntegrationTestRunner } from '../../../integration-test-runtime';
+import { IntegrationHarness } from '../../../testing/integration-harness';
+import { ProjectService } from '../index';
 
-describe.sequential('UserService happy path', () => {
-  test('should get user successfully', async (t) => {
+describe.sequential('getProjectById happy path', () => {
+  test('should get project by ID', async (t) => {
     const h = await IntegrationHarness.init(t);
 
     const integrationTestRunner = createIntegrationTestRunner();
@@ -14,11 +14,14 @@ describe.sequential('UserService happy path', () => {
       Effect.gen(function* () {
         return yield* pipe(
           Effect.gen(function* () {
-            const userService = yield* UserService;
-            const user = yield* userService.getUser();
-            return user;
+            const projectService = yield* ProjectService;
+
+            const project = yield* projectService.getProjectById(
+              h.resources.project.id
+            );
+            return project;
           }),
-          Effect.provide(UserService.Default),
+          Effect.provide(ProjectService.Default),
           Effect.provideService(
             AuthSession,
             h.createAuthSession({ type: 'user' })
@@ -33,12 +36,11 @@ describe.sequential('UserService happy path', () => {
     });
 
     expect(value).toMatchObject({
-      id: expect.any(String),
-      email: expect.any(String),
-      organizations: expect.any(Array),
-      projects: expect.any(Array)
+      id: h.resources.project.id,
+      name: h.resources.project.name,
+      slug: h.resources.project.slug,
+      organizationId: h.resources.project.organizationId
     });
-    expect(value.organizations.length).toBeGreaterThan(0);
-    expect(value.projects.length).toBeGreaterThan(0);
   });
 });
+
