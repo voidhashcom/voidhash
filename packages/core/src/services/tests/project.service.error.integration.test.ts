@@ -4,7 +4,7 @@ import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { ProjectService } from '../project-service';
+import { ProjectService } from '../projects';
 
 describe.sequential('ProjectService error path', () => {
   test('should fail to get project by non-existent ID', async (t) => {

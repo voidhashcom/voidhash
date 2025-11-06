@@ -4,7 +4,7 @@ import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { ProductService } from '../product-service';
+import { ProductService } from '../products';
 
 describe.sequential('ProductService error path', () => {
   test('should fail to get product by non-existent ID', async (t) => {

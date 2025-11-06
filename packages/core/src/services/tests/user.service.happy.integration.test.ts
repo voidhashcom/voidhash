@@ -3,7 +3,7 @@ import { Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { UserService } from '../user-service';
+import { UserService } from '../users';
 
 describe.sequential('UserService happy path', () => {
   test('should get user successfully', async (t) => {

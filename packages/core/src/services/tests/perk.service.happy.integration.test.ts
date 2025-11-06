@@ -6,7 +6,7 @@ import { Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { PerkService } from '../perk-service';
+import { PerkService } from '../perks';
 
 describe.sequential('PerkService happy path', () => {
   test('should create a perk successfully', async (t) => {

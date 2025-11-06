@@ -4,7 +4,7 @@ import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { OrganizationService } from '../organization-service';
+import { OrganizationService } from '../organizations';
 
 describe.sequential('OrganizationService error path', () => {
   test('should fail to get organization by non-existent slug', async (t) => {

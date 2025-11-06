@@ -3,11 +3,11 @@ import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { UserService } from '../user-service';
+import { UserService } from '../users';
 
 describe.sequential('UserService error path', () => {
   test('should fail to get user when not authenticated', async (t) => {
-    const h = await IntegrationHarness.init(t);
+    await IntegrationHarness.init(t);
 
     const integrationTestRunner = createIntegrationTestRunner();
     const result = await integrationTestRunner(

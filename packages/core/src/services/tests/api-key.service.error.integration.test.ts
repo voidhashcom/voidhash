@@ -4,7 +4,7 @@ import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { ApiKeyService } from '../api-key-service';
+import { ApiKeyService } from '../api-keys';
 
 describe.sequential('ApiKeyService error path', () => {
   test('should fail to get API key by non-existent ID', async (t) => {

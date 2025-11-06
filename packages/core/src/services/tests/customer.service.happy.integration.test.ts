@@ -13,7 +13,7 @@ import { Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { CustomerService } from '../customer-service';
+import { CustomerService } from '../customers';
 
 describe.sequential('CustomerService happy path', () => {
   test('should create a customer successfully', async (t) => {

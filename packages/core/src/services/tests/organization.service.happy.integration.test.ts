@@ -3,7 +3,7 @@ import { Effect, Exit, pipe } from 'effect';
 import { describe, expect, it, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { OrganizationService } from '../organization-service';
+import { OrganizationService } from '../organizations';
 
 describe.sequential('OrganizationService happy path', () => {
   // TODO: Fix this test, it's failing because the better-auth cookie is not set

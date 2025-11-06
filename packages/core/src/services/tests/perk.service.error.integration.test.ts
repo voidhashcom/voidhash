@@ -9,7 +9,7 @@ import { Cause, Effect, Exit, pipe } from 'effect';
 import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
-import { PerkService } from '../perk-service';
+import { PerkService } from '../perks';
 
 describe.sequential('PerkService error path', () => {
   test('should fail to create perk with duplicate slug', async (t) => {

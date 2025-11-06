@@ -1,15 +1,15 @@
 import { BetterAuth } from '@voidhash/auth/effect';
 import { Db } from '@voidhash/db/effect';
 import { type Effect, Layer, ManagedRuntime, pipe } from 'effect';
-import { ApiKeyService } from './services/api-key-service';
-import { CustomerService } from './services/customer-service';
-import { OrganizationService } from './services/organization-service';
-import { PaymentProviderConfigurationService } from './services/payment-provider-configuration-service';
-import { PerkService } from './services/perk-service';
-import { ProductService } from './services/product-service';
-import { ProjectService } from './services/project-service';
-import { SdkService } from './services/sdk-service';
-import { UserService } from './services/user-service';
+import { ApiKeyService } from './services/api-keys';
+import { CustomerService } from './services/customers';
+import { OrganizationService } from './services/organizations';
+import { PaymentProviderConfigurationService } from './services/payment-provider-configurations';
+import { PerkService } from './services/perks';
+import { ProductService } from './services/products';
+import { ProjectService } from './services/projects';
+import { SdkService } from './services/sdk';
+import { UserService } from './services/users';
 
 const DbLive = Db.Default;
 

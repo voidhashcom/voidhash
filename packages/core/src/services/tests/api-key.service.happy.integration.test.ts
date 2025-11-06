@@ -7,7 +7,7 @@ import { describe, expect, test } from 'vitest';
 import { createIntegrationTestRunner } from '../../integration-test-runtime';
 import { IntegrationHarness } from '../../testing/integration-harness';
 import { hashKey } from '../../utils/api-keys/effect/utils';
-import { ApiKeyService } from '../api-key-service';
+import { ApiKeyService } from '../api-keys';
 
 describe.sequential('ApiKeyService happy path', () => {
   test('should create a secret key successfully', async (t) => {
