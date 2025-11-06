@@ -1,0 +1,8 @@
+{
+    "title": "guide",
+    "root": true,
+    "pages": [
+        "introduction",
+        "components"
+    ]
+}
