@@ -1,10 +1,5 @@
 {
-    "title": "guide",
-    "root": true,
-    "pages": [
-        "introduction",
-        "installation",
-        "basic-usage",
-        "concepts"
-    ]
+  "title": "guide",
+  "root": true,
+  "pages": ["introduction", "installation", "basic-usage", "concepts"]
 }

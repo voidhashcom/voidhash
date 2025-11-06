@@ -160,9 +160,9 @@ export function Hero() {
                     animate={{
                       gradientTransform: [
                         'rotate(0 0 0) translate(0 50)',
-                        'rotate(-6 0 0) translate(0 -100)',
+                        'rotate(-6 0 0) translate(0 -100)'
                       ],
-                      opacity: [0.7, 1],
+                      opacity: [0.7, 1]
                     }}
                     gradientUnits="userSpaceOnUse"
                     id="paint0_linear_1135_42"
@@ -171,7 +171,7 @@ export function Hero() {
                       delay: 1,
                       ease: 'easeInOut',
                       repeatType: 'reverse',
-                      repeat: Number.POSITIVE_INFINITY,
+                      repeat: Number.POSITIVE_INFINITY
                     }}
                     x1="680.5"
                     x2="680.5"
@@ -197,8 +197,8 @@ export function Hero() {
                     animate={{
                       gradientTransform: [
                         'rotate(0 0 0) translate(0 300)',
-                        'rotate(4 0 0) translate(0 -100)',
-                      ],
+                        'rotate(4 0 0) translate(0 -100)'
+                      ]
                     }}
                     gradientUnits="userSpaceOnUse"
                     id="paint2_linear_1135_42"
@@ -206,7 +206,7 @@ export function Hero() {
                       duration: 4,
                       ease: 'easeInOut',
                       repeatType: 'reverse',
-                      repeat: Number.POSITIVE_INFINITY,
+                      repeat: Number.POSITIVE_INFINITY
                     }}
                     x1="635.277"
                     x2="838.798"

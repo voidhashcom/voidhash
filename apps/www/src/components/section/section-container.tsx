@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 
 export function SectionContainer({
   children,
-  className,
+  className
 }: {
   children: React.ReactNode;
   className?: string;

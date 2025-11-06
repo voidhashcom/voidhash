@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
 export const useContainerDimensions = (
   myRef: React.RefObject<HTMLElement | null>
@@ -10,7 +10,7 @@ export const useContainerDimensions = (
   useEffect(() => {
     const getDimensions = () => ({
       width: myRef.current?.offsetWidth ?? 0,
-      height: myRef.current?.offsetHeight ?? 0,
+      height: myRef.current?.offsetHeight ?? 0
     });
 
     const handleResize = () => {
@@ -21,10 +21,10 @@ export const useContainerDimensions = (
       setDimensions(getDimensions());
     }
 
-    window.addEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener('resize', handleResize);
     };
   }, [myRef]);
 

@@ -1,8 +1,5 @@
 {
-    "icon": "BookOpenText",
-    "title": "Concepts",
-    "pages": [
-        "products",
-        "perks"
-    ]
+  "icon": "BookOpenText",
+  "title": "Concepts",
+  "pages": ["products", "perks"]
 }

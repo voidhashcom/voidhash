@@ -6,14 +6,8 @@
       "persistent": true
     },
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**",
-        ".next/*",
-        "!.next/cache/**"
-      ],
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/*", "!.next/cache/**"],
       "env": [
         "NEXT_PUBLIC_APP_NAME",
         "NEXT_PUBLIC_APP_DOMAIN",
@@ -45,9 +39,7 @@
       "cache": false
     },
     "test": {
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "outputs": []
     },
     "typecheck": {
