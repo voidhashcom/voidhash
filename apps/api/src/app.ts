@@ -1,7 +1,8 @@
 import {
   HttpApiBuilder,
   HttpApiScalar,
-  HttpLayerRouter
+  HttpLayerRouter,
+  HttpServerResponse
 } from '@effect/platform';
 import { RpcSerialization, RpcServer } from '@effect/rpc';
 import { VoidhashV1Api } from '@voidhash/api-spec';
@@ -25,7 +26,7 @@ import {
 import { Db } from '@voidhash/db/effect';
 import { DOCS_DOMAIN, STUDIO_DOMAIN, WWW_DOMAIN } from '@voidhash/lib';
 import { RpcGroups } from '@voidhash/rpc';
-import { Layer } from 'effect';
+import { Effect, Layer } from 'effect';
 import { AuthMiddlewareLive } from './api-middlewares';
 import { ApiKeysGroupLive } from './routes/v1/api-keys';
 import { AuthGroupLive } from './routes/v1/auth';
@@ -136,12 +137,26 @@ const RpcRoutesLayer = RpcServer.layerHttpRouter({
 );
 
 // ==============================
+// Health Check
+// ==============================
+const HealthCheckRoute = Layer.effectDiscard(
+  Effect.gen(function* () {
+    // First, we need to access the `HttpRouter` service
+    const router = yield* HttpLayerRouter.HttpRouter;
+
+    // Then, we can add a new route to the router
+    yield* router.add('GET', '/health', HttpServerResponse.text('OK'));
+  })
+);
+
+// ==============================
 // All Routes
 // ==============================
 const AllRoutes = Layer.mergeAll(
   ApiRoutesLayer,
   ApiDocsLayer,
-  RpcRoutesLayer
+  RpcRoutesLayer,
+  HealthCheckRoute
 ).pipe(
   Layer.provide(
     HttpLayerRouter.cors({
