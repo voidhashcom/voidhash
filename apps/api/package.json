@@ -2,6 +2,9 @@
   "name": "@voidhash/api",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "bun": ">=1.2.20"
+  },
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
