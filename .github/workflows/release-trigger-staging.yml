@@ -17,14 +17,16 @@ jobs:
         with:
           node-version: "20.x"
 
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.1
 
       - name: Install dependencies
-        run: pnpm install
+        run: bun install
 
       - name: 🚀 Deploy Trigger.dev
         env:
           TRIGGER_PROJECT_ID: ${{ vars.TRIGGER_PROJECT_ID }}
           TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
         run: |
-          cd apps/web && pnpm trigger:deploy-staging
+          cd apps/web && bun trigger:deploy-staging
