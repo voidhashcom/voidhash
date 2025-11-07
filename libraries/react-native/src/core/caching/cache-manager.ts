@@ -20,7 +20,7 @@ export class CacheManager extends Effect.Service<CacheManager>()(
     dependencies: [],
     effect: Effect.gen(function* () {
       const cache = yield* CacheAdapter;
-      const get = <T,>(key: string) =>
+      const get = <T>(key: string) =>
         Effect.gen(function* () {
           const cachedValue = yield* cache.get(key);
           if (cachedValue) {
@@ -47,7 +47,7 @@ export class CacheManager extends Effect.Service<CacheManager>()(
           return null;
         });
 
-      const setValue = <T,>(
+      const setValue = <T>(
         key: string,
         value: T,
         options?: { ttl?: number; staleTime?: number }

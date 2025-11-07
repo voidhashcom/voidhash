@@ -13,7 +13,7 @@ export class BetterAuth extends Effect.Service<BetterAuth>()('app/BetterAuth', {
     const dbService = yield* Db;
     const auth = yield* dbService.use(async (db) => createBetterAuth(db));
     return {
-      use: <A,>(fn: (client: typeof auth) => Promise<A>) =>
+      use: <A>(fn: (client: typeof auth) => Promise<A>) =>
         Effect.tryPromise({
           try: () => fn(auth),
           catch: (error) =>

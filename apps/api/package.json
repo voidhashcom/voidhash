@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun run dist/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format . --write",

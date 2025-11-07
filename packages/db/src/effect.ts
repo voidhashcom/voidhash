@@ -27,7 +27,7 @@ type Client = typeof db;
 export class Db extends Effect.Service<Db>()('app/Db', {
   dependencies: [],
   effect: Effect.gen(function* () {
-    const use = Effect.fn(<T,>(fn: (client: Client) => Promise<T>) =>
+    const use = Effect.fn(<T>(fn: (client: Client) => Promise<T>) =>
       Effect.tryPromise({
         try: () => fn(db),
         catch: (cause) =>

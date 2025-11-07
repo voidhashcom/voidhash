@@ -6,12 +6,12 @@ import { ThemeProvider } from '../components/theme-provider';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
-  subsets: ['latin'],
+  subsets: ['latin']
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
-  subsets: ['latin'],
+  subsets: ['latin']
 });
 
 export const metadata: Metadata = {
@@ -19,12 +19,12 @@ export const metadata: Metadata = {
   description:
     'Voidhash is an open-source subscription management platform simplifying integrations, analytics, and revenue growth for apps and digital products.',
   appleWebApp: {
-    title: 'Voidhash',
-  },
+    title: 'Voidhash'
+  }
 };
 
 export default function RootLayout({
-  children,
+  children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
