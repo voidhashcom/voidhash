@@ -1,6 +1,6 @@
 {
   "name": "@voidhash/react-native",
-  "packageManager": "pnpm@10.7.1",
+  "packageManager": "bun@1.3.1",
   "version": "0.0.1",
   "description": "React Native SDK for in-app purchases.",
   "main": "build/index",
@@ -37,7 +37,7 @@
     "lint-ci": "biome check .",
     "format": "biome format . --write",
     "typescript": "tsc",
-    "specs": "pnpm run typescript && nitro-codegen --logLevel=\"debug\""
+    "specs": "bun run typescript && nitro-codegen --logLevel=\"debug\""
   },
   "keywords": [
     "react-native",
