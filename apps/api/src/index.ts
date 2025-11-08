@@ -6,8 +6,6 @@ import { AppLive } from './app';
 // Specify the port
 const port = 5001;
 
-console.log(process.env);
-
 AppLive.pipe(
   Layer.provide(DevTools.layer()),
   Layer.provide(

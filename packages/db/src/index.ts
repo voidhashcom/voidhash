@@ -9,6 +9,7 @@ import mysql from 'mysql2/promise';
 import * as schema from './schema';
 
 const createDb = async () => {
+  console.log(process.env);
   // if (process.env.DATABASE_HOST?.includes('psdb.cloud')) {
   //   const client = new Client({
   //     host: process.env.DATABASE_HOST,
