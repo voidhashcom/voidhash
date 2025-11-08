@@ -16,7 +16,6 @@ export const env = createEnv({
   server: {
     BETTER_AUTH_SECRET: z.string(),
     DATABASE_HOST: z.string(),
-    DATABASE_PORT: z.string().optional(),
     DATABASE_USERNAME: z.string(),
     DATABASE_PASSWORD: z.string(),
     DATABASE_NAME: z.string().optional(),
