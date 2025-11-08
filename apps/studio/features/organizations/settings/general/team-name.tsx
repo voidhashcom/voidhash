@@ -19,7 +19,7 @@ import {
 } from '@voidhash/ui';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { queryKeys } from '@/lib/tanstack-query';
 import { updateOrganizationOptions } from '@/lib/tanstack-query/organizations';
 

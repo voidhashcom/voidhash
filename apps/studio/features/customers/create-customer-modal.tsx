@@ -23,7 +23,7 @@ import {
 import { Input } from '@voidhash/ui/input';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { createCustomerOptions, queryKeys } from '@/lib/tanstack-query';
 
 // Extract the relevant parts from createCustomerInputSchema for the form

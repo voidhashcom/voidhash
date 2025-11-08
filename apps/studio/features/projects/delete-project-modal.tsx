@@ -19,7 +19,7 @@ import {
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 interface DeleteProjectModalProps {
   open: boolean;

@@ -23,7 +23,7 @@ import {
 import { Input } from '@voidhash/ui/input';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { createPerkOptions, queryKeys } from '@/lib/tanstack-query';
 
 const createPerkSchema = z.object({

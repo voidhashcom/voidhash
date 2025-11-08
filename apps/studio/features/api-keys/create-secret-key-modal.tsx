@@ -24,7 +24,7 @@ import {
 import { Input } from '@voidhash/ui/input';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { createSecretKeyOptions, queryKeys } from '@/lib/tanstack-query';
 
 const createSecretKeySchema = z.object({

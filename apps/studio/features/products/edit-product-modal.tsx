@@ -24,7 +24,7 @@ import { Input } from '@voidhash/ui/input';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { queryKeys, updateProductOptions } from '@/lib/tanstack-query';
 
 const updateProductSchema = z.object({
