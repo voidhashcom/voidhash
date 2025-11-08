@@ -6,7 +6,6 @@
     },
     "deploy": {
         "startCommand": "bun api:start",
-        "healthcheckPath": "/health",
         "healthcheckTimeout": 100,
         "restartPolicyType": "always"
     }
