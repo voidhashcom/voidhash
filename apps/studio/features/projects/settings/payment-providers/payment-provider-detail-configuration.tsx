@@ -28,7 +28,7 @@ import { useRouter } from 'next/navigation';
 import { Fragment, useState } from 'react';
 import { type SubmitErrorHandler, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import type { z } from 'zod';
+import type { z } from 'zod/v3';
 import { paymentProviders } from '@/lib/payment-providers/payment-providers';
 import {
   deletePaymentProviderConfigurationOptions,

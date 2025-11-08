@@ -1,4 +1,4 @@
-import z from 'zod';
+import { z } from 'zod/v3';
 import { AppleLogo } from '@/features/projects/settings/payment-providers/logos/apple-logo';
 import { createPaymentProvider } from './core';
 import type {
