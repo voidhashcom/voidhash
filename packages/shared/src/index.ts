@@ -2,6 +2,7 @@ export * from './api-key';
 export * from './app-store';
 export * from './auth';
 export * from './customer';
+export * from './deploy-changeset';
 export * from './errors';
 export * from './organization';
 export * from './payment-provider-configuration';

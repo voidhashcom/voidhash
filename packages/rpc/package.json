@@ -15,7 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@effect/rpc": "^0.71.0",
+    "@effect/rpc": "catalog:",
     "@voidhash/lib": "workspace:*",
     "@voidhash/shared": "workspace:*"
   },

@@ -1,4 +1,5 @@
 import { ProductType, PurchaseType, SubscriptionStatus } from '@voidhash/lib';
+import type { ChangesetSchema } from '@voidhash/shared';
 import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
@@ -247,6 +248,26 @@ export const paymentProviderConfigurationRelations = relations(
     )
   })
 );
+
+// Changeset deployment
+export const ChangesetDeploymentStatus = {
+  Pending: 1,
+  Success: 2,
+  Error: 3
+} as const;
+
+export type ChangesetDeploymentStatusValue =
+  (typeof ChangesetDeploymentStatus)[keyof typeof ChangesetDeploymentStatus];
+export const changesetDeployments = mysqlTable('changeset_deployment', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  projectId: varchar('project_id', { length: 255 }).notNull(),
+  changeset: json('changeset').$type<typeof ChangesetSchema.Type>(),
+  status: tinyint('status')
+    .notNull()
+    .default(ChangesetDeploymentStatus.Pending),
+  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp('updated_at').onUpdateNow()
+});
 
 // Perk
 export const perks = mysqlTable(

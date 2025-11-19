@@ -1,10 +1,13 @@
+import { ClusterWorkflowEngine } from '@effect/cluster';
 import {
   HttpApiBuilder,
   HttpApiScalar,
   HttpLayerRouter,
   HttpServerResponse
 } from '@effect/platform';
+import { BunClusterSocket } from '@effect/platform-bun';
 import { RpcSerialization, RpcServer } from '@effect/rpc';
+import { MysqlClient } from '@effect/sql-mysql2';
 import { VoidhashV1Api } from '@voidhash/api-spec';
 import { BetterAuth } from '@voidhash/auth/effect';
 import {
@@ -26,7 +29,7 @@ import {
 import { Db } from '@voidhash/db/effect';
 import { DOCS_DOMAIN, STUDIO_DOMAIN, WWW_DOMAIN } from '@voidhash/lib';
 import { RpcGroups } from '@voidhash/rpc';
-import { Effect, Layer } from 'effect';
+import { Effect, Layer, Redacted } from 'effect';
 import { AuthMiddlewareLive } from './api-middlewares';
 import { ApiKeysGroupLive } from './routes/v1/api-keys';
 import { AuthGroupLive } from './routes/v1/auth';
@@ -68,6 +71,30 @@ const ServicesLayer = Layer.mergeAll(
 );
 
 // ==============================
+// WORKFLOWS + CLUSTER
+// ==============================
+const isPlanetscale = process.env.DATABASE_HOST?.includes('psdb.cloud');
+
+const WorkflowEngineLayer = ClusterWorkflowEngine.layer.pipe(
+  Layer.provideMerge(BunClusterSocket.layer()),
+  Layer.provideMerge(
+    MysqlClient.layer({
+      host: process.env.DATABASE_HOST,
+      database: process.env.DATABASE_NAME,
+      username: process.env.DATABASE_USERNAME,
+      password: Redacted.make(process.env.DATABASE_PASSWORD as string),
+      poolConfig: {
+        ssl: isPlanetscale ? { rejectUnauthorized: true } : undefined
+      }
+    })
+  )
+);
+
+const ServicesWithWorkflowEngineLayer = ServicesLayer.pipe(
+  Layer.provideMerge(WorkflowEngineLayer)
+);
+
+// ==============================
 // API ROUTES
 // ==============================
 const V1GroupsLayer = Layer.mergeAll(
@@ -85,11 +112,7 @@ const V1GroupsLayer = Layer.mergeAll(
 
 const V1ApiRoutes = HttpLayerRouter.addHttpApi(VoidhashV1Api, {
   openapiPath: '/api/docs/openapi.json'
-}).pipe(
-  Layer.provide(V1GroupsLayer),
-  Layer.provide(Layer.mergeAll(AuthMiddlewareLive, ServicesLayer)),
-  Layer.provide(Layer.mergeAll(BetterAuth.Default, Db.Default))
-);
+}).pipe(Layer.provide(V1GroupsLayer), Layer.provide(AuthMiddlewareLive));
 
 // const DocsRoute = HttpApiScalar.layer({
 //   path: '/api/docs'
@@ -132,7 +155,11 @@ const RpcRoutesLayer = RpcServer.layerHttpRouter({
       UserRpcsLive
     )
   ),
-  Layer.provide(Layer.mergeAll(AuthMiddlewareLive, ServicesLayer)),
+  Layer.provide(AuthMiddlewareLive)
+);
+
+const ApiAndRpcLayer = Layer.mergeAll(ApiRoutesLayer, RpcRoutesLayer).pipe(
+  Layer.provide(ServicesWithWorkflowEngineLayer),
   Layer.provide(Layer.mergeAll(BetterAuth.Default, Db.Default))
 );
 
@@ -153,9 +180,8 @@ const HealthCheckRoute = Layer.effectDiscard(
 // All Routes
 // ==============================
 const AllRoutes = Layer.mergeAll(
-  ApiRoutesLayer,
+  ApiAndRpcLayer,
   ApiDocsLayer,
-  RpcRoutesLayer,
   HealthCheckRoute
 ).pipe(
   Layer.provide(

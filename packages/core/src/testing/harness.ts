@@ -62,29 +62,21 @@ export abstract class Harness {
       DATABASE_NAME
     } = this.env;
 
-    let db: Database;
-    if (DATABASE_HOST.includes('psdb.cloud')) {
-      const client = new Client({
-        host: DATABASE_HOST,
-        username: DATABASE_USERNAME,
-        password: DATABASE_PASSWORD
-      });
+    const connection = await mysql.createConnection({
+      host: DATABASE_HOST,
+      user: DATABASE_USERNAME,
+      database: DATABASE_NAME,
+      password: DATABASE_PASSWORD,
+      ssl: {
+        rejectUnauthorized: DATABASE_HOST.includes('psdb.cloud')
+      }
+    });
 
-      db = drizzlePlanetscale(client, { schema });
-    } else {
-      const connection = await mysql.createConnection({
-        host: DATABASE_HOST,
-        user: DATABASE_USERNAME,
-        database: DATABASE_NAME,
-        password: DATABASE_PASSWORD
-      });
-
-      db = drizzleMysql({
-        client: connection,
-        schema,
-        mode: 'default'
-      });
-    }
+    const db = drizzleMysql({
+      client: connection,
+      schema,
+      mode: 'default'
+    });
 
     this.db = { primary: db, readonly: db };
 
@@ -123,10 +115,12 @@ export abstract class Harness {
           .delete(schema.productPerks)
           .where(like(schema.productPerks.id, 'test%'));
         await tx.delete(schema.perks).where(like(schema.perks.id, 'test%'));
-
         await tx
           .delete(schema.organization)
           .where(eq(schema.organization.id, this.resources.organization.id));
+        await tx
+          .delete(schema.changesetDeployments)
+          .where(like(schema.changesetDeployments.projectId, 'test%'));
 
         await tx
           .delete(schema.user)

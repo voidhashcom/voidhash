@@ -19,6 +19,7 @@
   "dependencies": {
     "@planetscale/database": "^1.19.0",
     "@voidhash/lib": "workspace:*",
+    "@voidhash/shared": "workspace:*",
     "dotenv": "^17.2.0",
     "drizzle-orm": "^0.44.2",
     "drizzle-seed": "^0.3.1",
