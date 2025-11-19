@@ -24,7 +24,8 @@ const prefixes = {
   transaction: 'tx',
   outbox: 'outbox',
   subscription: 'sub',
-  appStoreTransaction: 'app_store_tx'
+  appStoreTransaction: 'app_store_tx',
+  changesetDeployment: 'chd'
 } as const;
 
 export const generateId = <TPrefix extends keyof typeof prefixes>(

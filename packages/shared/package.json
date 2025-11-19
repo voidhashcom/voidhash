@@ -13,7 +13,8 @@
     "./errors": "./src/errors.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run -c vitest.unit.mts"
   },
   "dependencies": {},
   "devDependencies": {
