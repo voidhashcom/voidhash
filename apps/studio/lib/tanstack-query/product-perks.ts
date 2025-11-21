@@ -29,7 +29,7 @@ export const createProductPerkOptions = () =>
 export const deleteProductPerkOptions = () =>
   eq.mutationOptions({
     mutationKey: ['deleteProductPerk'],
-    mutationFn: (variables: { productId: string; perkId: string }) =>
+    mutationFn: (variables: { id: string }) =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) => rpc.DeleteProductPerk(variables))
       )

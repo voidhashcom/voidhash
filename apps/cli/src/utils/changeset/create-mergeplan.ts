@@ -13,6 +13,10 @@ export type MergePlan = {
  * @param remoteData - The remote data to be merged.
  * @returns
  */
-export const createMergePlan = (from: unknown, to: unknown) => Effect.gen(function* () {
-
-}
+export const createMergePlan = (from: unknown, to: unknown) =>
+  Effect.gen(function* () {
+    return yield* Effect.succeed({
+      local: from,
+      remote: to
+    });
+  });

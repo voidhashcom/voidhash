@@ -65,6 +65,7 @@ export const SecretKeySessionSchema = Schema.Struct({
   name: Schema.String,
   user: Schema.Null,
   customer: Schema.Null,
+  cookie: Schema.Null,
   organizations: SessionOrganizationsSchema,
   projects: SessionProjectsSchema
 });
@@ -74,6 +75,7 @@ export const PublishableKeySessionSchema = Schema.Struct({
   name: Schema.String,
   user: Schema.Null,
   customer: SessionCustomerSchema,
+  cookie: Schema.Null,
   organizations: SessionOrganizationsSchema,
   projects: SessionProjectsSchema
 });

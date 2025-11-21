@@ -2,7 +2,8 @@ import { Rpc, RpcGroup } from '@effect/rpc';
 import {
   ActionForbiddenError,
   ProductNotFoundError,
-  ProductServiceError
+  ProductServiceError,
+  ProductSlugAlreadyExistsError
 } from '@voidhash/shared';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '../middlewares';
@@ -30,7 +31,7 @@ export class ProductRpcsDef extends RpcGroup.make(
   }),
   Rpc.make('GetProduct', {
     payload: Schema.Struct({
-      productId: Schema.String
+      id: Schema.String
     }),
     success: Product,
     error: Schema.Union(
@@ -42,17 +43,23 @@ export class ProductRpcsDef extends RpcGroup.make(
   Rpc.make('CreateProduct', {
     payload: Schema.Struct({
       projectId: Schema.String,
-      name: Schema.String
+      name: Schema.String,
+      slug: Schema.String
     }),
     success: Schema.Struct({
       id: Schema.String
     }),
-    error: Schema.Union(ActionForbiddenError, ProductServiceError)
+    error: Schema.Union(
+      ActionForbiddenError,
+      ProductServiceError,
+      ProductSlugAlreadyExistsError
+    )
   }),
   Rpc.make('UpdateProduct', {
     payload: Schema.Struct({
-      productId: Schema.String,
-      name: Schema.String
+      id: Schema.String,
+      name: Schema.String,
+      slug: Schema.optional(Schema.String)
     }),
     success: Schema.Void,
     error: Schema.Union(
@@ -63,7 +70,7 @@ export class ProductRpcsDef extends RpcGroup.make(
   }),
   Rpc.make('DeleteProduct', {
     payload: Schema.Struct({
-      productId: Schema.String
+      id: Schema.String
     }),
     success: Schema.Void,
     error: Schema.Union(

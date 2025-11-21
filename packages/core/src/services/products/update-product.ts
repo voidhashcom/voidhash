@@ -19,28 +19,32 @@ const _getProductById = (db: Db) =>
   );
 
 const _updateProductRecord = (db: Db) =>
-  db.makeQuery((execute, { id, name }: { id: string; name: string }) =>
-    execute(
-      async (db) =>
-        await db
-          .update(products)
-          .set({ name, updatedAt: new Date() })
-          .where(eq(products.id, id))
-    )
+  db.makeQuery(
+    (
+      execute,
+      { id, name, slug }: { id: string; name: string; slug?: string }
+    ) =>
+      execute(
+        async (db) =>
+          await db
+            .update(products)
+            .set({ name, slug, updatedAt: new Date() })
+            .where(eq(products.id, id))
+      )
   );
 
 export const updateProduct = Effect.gen(function* () {
   const db = yield* Db;
   return Effect.fn('updateProduct')(
-    function* (input: { productId: string; name: string }) {
+    function* (input: { id: string; name: string; slug?: string }) {
       const session = yield* AuthSession;
 
       // Get the product to check authorization
-      const existingProduct = yield* _getProductById(db)(input.productId);
+      const existingProduct = yield* _getProductById(db)(input.id);
       if (!existingProduct) {
         return yield* Effect.fail(
           new ProductNotFoundError({
-            message: `Product ${input.productId} not found`
+            message: `Product ${input.id} not found`
           })
         );
       }
@@ -49,16 +53,13 @@ export const updateProduct = Effect.gen(function* () {
       yield* checkProjectPermission(
         existingProduct.projectId,
         'project:all',
-        `User ${session?.user?.id} is not authorized to update product ${input.productId} for project ${existingProduct.projectId}`
+        `User ${session?.user?.id} is not authorized to update product ${input.id} for project ${existingProduct.projectId}`
       );
 
-      yield* _updateProductRecord(db)({
-        id: input.productId,
-        name: input.name
-      });
+      yield* _updateProductRecord(db)(input);
 
       yield* Effect.log(
-        `Updated product ${input.productId} for project ${existingProduct.projectId}`
+        `Updated product ${input.id} for project ${existingProduct.projectId}`
       );
 
       return;

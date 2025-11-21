@@ -95,9 +95,7 @@ export function ProductDetailProviderProductRecord({
     }
 
     deleteProviderProduct({
-      productId: providerProduct.productId,
-      paymentProviderConfigurationId,
-      providerProductKey: providerProduct.providerProductKey
+      id: providerProduct.id
     });
   };
 

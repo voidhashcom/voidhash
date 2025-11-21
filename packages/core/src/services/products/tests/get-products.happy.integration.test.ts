@@ -34,6 +34,7 @@ describe.sequential('getProducts happy path', () => {
               id: testProductId,
               projectId: h.resources.project.id,
               name: 'Test Product',
+              slug: 'test-product',
               type: 1, // Subscription
               createdAt: new Date(),
               updatedAt: new Date()
@@ -45,6 +46,7 @@ describe.sequential('getProducts happy path', () => {
               id: testProductDifferentProjectId,
               projectId: generateId('test'),
               name: 'Test Product Different Project',
+              slug: 'test-product-different-project',
               type: 1,
               createdAt: new Date(),
               updatedAt: new Date()
@@ -80,7 +82,8 @@ describe.sequential('getProducts happy path', () => {
     );
     expect(testProduct).toMatchObject({
       projectId: h.resources.project.id,
-      name: 'Test Product'
+      name: 'Test Product',
+      slug: 'test-product'
     });
 
     t.onTestFinished(async () => {
@@ -93,4 +96,3 @@ describe.sequential('getProducts happy path', () => {
     });
   });
 });
-

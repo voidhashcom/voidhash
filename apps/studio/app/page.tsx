@@ -3,15 +3,7 @@
 import { ErrorCard } from '@voidhash/ui';
 import { useCurrentUser } from 'hooks/tanstack-query/users';
 import { useRouter } from 'next/navigation';
-
-function nextRenderRedirect(
-  router: ReturnType<typeof useRouter>,
-  path: string
-) {
-  setTimeout(() => {
-    router.push(path);
-  }, 1);
-}
+import { nextRenderRedirect } from '@/lib/nextjs';
 
 export default function Index() {
   const router = useRouter();

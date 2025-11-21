@@ -4,7 +4,7 @@ import { deleteProductPerk } from './delete-product-perk';
 import { getProductPerksByProductId } from './get-product-perks-by-product-id';
 
 export class ProductPerkService extends Effect.Service<ProductPerkService>()(
-  'ProductService',
+  'ProductPerkService',
   {
     dependencies: [],
     effect: Effect.gen(function* () {
@@ -16,4 +16,3 @@ export class ProductPerkService extends Effect.Service<ProductPerkService>()(
     })
   }
 ) {}
-

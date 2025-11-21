@@ -51,7 +51,7 @@ export class PaymentProviderProductRpcsDef extends RpcGroup.make(
   }),
   Rpc.make('UpdatePaymentProviderProduct', {
     payload: Schema.Struct({
-      paymentProviderConfigurationProductId: Schema.String,
+      id: Schema.String,
       configuration: Schema.Record({
         key: Schema.String,
         value: Schema.Unknown
@@ -67,9 +67,7 @@ export class PaymentProviderProductRpcsDef extends RpcGroup.make(
   }),
   Rpc.make('DeletePaymentProviderProduct', {
     payload: Schema.Struct({
-      productId: Schema.String,
-      paymentProviderConfigurationId: Schema.String,
-      providerProductKey: Schema.String
+      id: Schema.String
     }),
     success: Schema.Void,
     error: Schema.Union(

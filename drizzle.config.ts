@@ -16,5 +16,6 @@ export default defineConfig({
           database: process.env['DATABASE_NAME']!,
           password: process.env['DATABASE_PASSWORD']!
         })
-  }
+  },
+  tablesFilter: ['!cluster_*']
 });

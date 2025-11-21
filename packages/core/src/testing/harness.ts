@@ -1,6 +1,5 @@
 // Credits: Inspired by https://github.com/unkeyed/unkey
 
-import { Client } from '@planetscale/database';
 import type {
   ApiKey,
   Organization,
@@ -9,11 +8,10 @@ import type {
   Transaction,
   User
 } from '@voidhash/db';
-import { type Database, eq, like } from '@voidhash/db';
+import { type Database, eq, like, or } from '@voidhash/db';
 import * as schema from '@voidhash/db/schema';
 import { generateId } from '@voidhash/lib';
 import { drizzle as drizzleMysql } from 'drizzle-orm/mysql2';
-import { drizzle as drizzlePlanetscale } from 'drizzle-orm/planetscale-serverless';
 import mysql from 'mysql2/promise';
 import type { TaskContext } from 'vitest';
 import type { z } from 'zod';
@@ -62,7 +60,7 @@ export abstract class Harness {
       DATABASE_NAME
     } = this.env;
 
-    const connection = await mysql.createConnection({
+    const connection = mysql.createPool({
       host: DATABASE_HOST,
       user: DATABASE_USERNAME,
       database: DATABASE_NAME,
@@ -111,6 +109,14 @@ export abstract class Harness {
         await tx
           .delete(schema.paymentProviderConfigurations)
           .where(like(schema.paymentProviderConfigurations.id, 'test%'));
+        await tx
+          .delete(schema.perks)
+          .where(
+            or(
+              like(schema.perks.id, 'test%'),
+              like(schema.perks.projectId, 'test%')
+            )
+          );
         await tx
           .delete(schema.productPerks)
           .where(like(schema.productPerks.id, 'test%'));
@@ -183,7 +189,7 @@ export abstract class Harness {
       configuration: {
         secretKey: 'sk_test_123',
         webhookSecret: 'whsec_123'
-      } satisfies z.infer<typeof stripe.globalConfigurationSchema>,
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null

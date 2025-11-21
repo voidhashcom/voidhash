@@ -1,6 +1,6 @@
 import { Cause, Context, Data, Effect, Exit, Option, Runtime } from 'effect';
 import type { Transaction } from '.';
-import { db } from '.';
+import { createDb, type db } from '.';
 
 export class DatabaseError extends Data.TaggedError('DatabaseError')<{
   readonly cause?: unknown;
@@ -26,8 +26,11 @@ type Client = typeof db;
 
 export class Db extends Effect.Service<Db>()('app/Db', {
   dependencies: [],
-  effect: Effect.gen(function* () {
-    const use = Effect.fn(<T>(fn: (client: Client) => Promise<T>) =>
+  scoped: Effect.gen(function* () {
+    const { mysql, drizzle: db } = createDb();
+    yield* Effect.addFinalizer(() => Effect.promise(() => mysql.end()));
+
+    const use = Effect.fn(<T,>(fn: (client: Client) => Promise<T>) =>
       Effect.tryPromise({
         try: () => fn(db),
         catch: (cause) =>

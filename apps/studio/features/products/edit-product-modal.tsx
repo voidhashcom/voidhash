@@ -76,7 +76,7 @@ export function EditProductModal({
   };
 
   const onSubmit = (data: UpdateProductForm) => {
-    updateProduct({ ...data, productId: product.id });
+    updateProduct({ ...data, id: product.id });
   };
 
   useEffect(() => {

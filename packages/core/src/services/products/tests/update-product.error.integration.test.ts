@@ -18,8 +18,9 @@ describe.sequential('updateProduct error path', () => {
           Effect.gen(function* () {
             const productService = yield* ProductService;
             yield* productService.updateProduct({
-              productId: nonExistentId,
-              name: 'Updated Name'
+              id: nonExistentId,
+              name: 'Updated Name',
+              slug: 'updated-product-name'
             });
             return 'updated';
           }),
@@ -37,4 +38,3 @@ describe.sequential('updateProduct error path', () => {
     expect(error).toBeInstanceOf(ProductNotFoundError);
   });
 });
-

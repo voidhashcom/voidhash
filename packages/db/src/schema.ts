@@ -289,14 +289,21 @@ export const perkRelations = relations(perks, ({ many }) => ({
   productPerks: many(productPerks)
 }));
 
-export const products = mysqlTable('product', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  type: tinyint('type').notNull().default(ProductType.Subscription),
-  name: varchar('name', { length: 255 }).notNull(),
-  projectId: varchar('project_id', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: timestamp('updated_at').onUpdateNow()
-});
+export const products = mysqlTable(
+  'product',
+  {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    type: tinyint('type').notNull().default(ProductType.Subscription),
+    name: varchar('name', { length: 255 }).notNull(),
+    slug: varchar('slug', { length: 255 }).notNull(),
+    projectId: varchar('project_id', { length: 255 }).notNull(),
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp('updated_at').onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex('product_slug_project_id_idx').on(table.slug, table.projectId)
+  ]
+);
 
 export const productRelations = relations(products, ({ many }) => ({
   perks: many(productPerks),

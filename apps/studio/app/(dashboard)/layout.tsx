@@ -2,7 +2,9 @@
 
 import { authClient } from '@voidhash/auth/client';
 import { Logo, SidebarProvider, useIsMobile } from '@voidhash/ui';
+import { useCurrentUser } from 'hooks/tanstack-query';
 import { usePathname, useRouter } from 'next/navigation';
+import { nextRenderRedirect } from '@/lib/nextjs';
 
 export default function DashboardLayout({
   children
@@ -11,6 +13,8 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { status, error: currentUserError } = useCurrentUser();
+
   const isSettingsRoute = pathname.includes('/settings');
   const isMobile = useIsMobile();
 
@@ -19,6 +23,20 @@ export default function DashboardLayout({
     router.refresh();
     router.push('/');
   };
+
+  if (status === 'error') {
+    currentUserError.match({
+      NotAuthenticatedError: () => {
+        nextRenderRedirect(router, '/login');
+      },
+      AuthenticationError: () => {
+        nextRenderRedirect(router, '/login');
+      },
+      OrElse: () => {
+        return null;
+      }
+    });
+  }
 
   return (
     <div className="flex flex-col [--header-height:calc(theme(spacing.14))] has-[div#nav-enviromental-bar]:[--header-height:calc(theme(spacing.24))]">

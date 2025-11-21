@@ -10,9 +10,9 @@ export const ProductRpcsLive = ProductRpcsDef.toLayer(
         Effect.gen(function* () {
           return yield* productService.getProducts(projectId);
         }),
-      GetProduct: ({ productId }) =>
+      GetProduct: ({ id }) =>
         Effect.gen(function* () {
-          return yield* productService.getProductById(productId);
+          return yield* productService.getProductById(id);
         }),
       CreateProduct: (input) => productService.createProduct(input),
       UpdateProduct: (input) => productService.updateProduct(input),

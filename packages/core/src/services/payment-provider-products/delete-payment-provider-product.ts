@@ -1,9 +1,4 @@
-import {
-  and,
-  eq,
-  paymentProviderConfigurationProducts,
-  products
-} from '@voidhash/db';
+import { eq, paymentProviderConfigurationProducts } from '@voidhash/db';
 import { Db } from '@voidhash/db/effect';
 import {
   AuthSession,
@@ -13,86 +8,55 @@ import {
 import { Effect } from 'effect';
 import { checkProjectPermission } from '../../utils/permissions';
 
-const _getProductById = (db: Db) =>
+const _getPaymentProviderProductById = (db: Db) =>
   db.makeQuery((execute, id: string) =>
     execute(
       async (db) =>
-        await db.query.products.findFirst({
-          where: eq(products.id, id)
+        await db.query.paymentProviderConfigurationProducts.findFirst({
+          where: eq(paymentProviderConfigurationProducts.id, id),
+          with: {
+            product: true
+          }
         })
     )
   );
 
 const _deletePaymentProviderProductRecord = (db: Db) =>
-  db.makeQuery(
-    (
-      execute,
-      {
-        productId,
-        paymentProviderConfigurationId,
-        providerProductKey
-      }: {
-        productId: string;
-        paymentProviderConfigurationId: string;
-        providerProductKey: string;
-      }
-    ) =>
-      execute(
-        async (db) =>
-          await db
-            .delete(paymentProviderConfigurationProducts)
-            .where(
-              and(
-                eq(paymentProviderConfigurationProducts.productId, productId),
-                eq(
-                  paymentProviderConfigurationProducts.paymentProviderConfigurationId,
-                  paymentProviderConfigurationId
-                ),
-                eq(
-                  paymentProviderConfigurationProducts.providerProductKey,
-                  providerProductKey
-                )
-              )
-            )
-      )
+  db.makeQuery((execute, id: string) =>
+    execute(
+      async (db) =>
+        await db
+          .delete(paymentProviderConfigurationProducts)
+          .where(eq(paymentProviderConfigurationProducts.id, id))
+    )
   );
 
 export const deletePaymentProviderProduct = Effect.gen(function* () {
   const db = yield* Db;
   return Effect.fn('deletePaymentProviderProduct')(
-    function* (input: {
-      productId: string;
-      paymentProviderConfigurationId: string;
-      providerProductKey: string;
-    }) {
+    function* (input: { id: string }) {
       const session = yield* AuthSession;
 
-      // Get the product to check authorization
-      const product = yield* _getProductById(db)(input.productId);
-      if (!product) {
+      const ppp = yield* _getPaymentProviderProductById(db)(input.id);
+
+      if (!ppp) {
         return yield* Effect.fail(
           new PaymentProviderProductValidationError({
-            message: `Product ${input.productId} not found`
+            message: `Payment provider product ${input.id} not found`
           })
         );
       }
 
       // SECURITY: Authorization check
       yield* checkProjectPermission(
-        product.projectId,
+        ppp.product.projectId,
         'project:all',
-        `User ${session?.user?.id} is not authorized to delete payment provider products for project ${product.projectId}`
+        `User ${session?.user?.id} is not authorized to delete payment provider products for project ${ppp.product.projectId}`
       );
 
-      yield* _deletePaymentProviderProductRecord(db)({
-        productId: input.productId,
-        paymentProviderConfigurationId: input.paymentProviderConfigurationId,
-        providerProductKey: input.providerProductKey
-      });
+      yield* _deletePaymentProviderProductRecord(db)(input.id);
 
-      yield* Effect.log(
-        `Deleted payment provider product for product ${input.productId}`
-      );
+      yield* Effect.log(`Deleted payment provider product ${input.id}`);
 
       return yield* Effect.succeed(undefined);
     },

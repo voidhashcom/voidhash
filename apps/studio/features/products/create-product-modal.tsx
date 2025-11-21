@@ -2,7 +2,11 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ProductType, ProductTypeLabels } from '@voidhash/lib/index';
+import {
+  createSlug,
+  ProductType,
+  ProductTypeLabels
+} from '@voidhash/lib/index';
 import { Badge, InfoTooltip, RadioGroup, RadioGroupItem } from '@voidhash/ui';
 import { Button } from '@voidhash/ui/button';
 import {
@@ -23,6 +27,7 @@ import {
   FormMessage
 } from '@voidhash/ui/form';
 import { Input } from '@voidhash/ui/input';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod/v3';
@@ -33,6 +38,15 @@ const createProductSchema = z.object({
     .string()
     .min(3, 'Name must be at least 3 characters long')
     .max(32, 'Name must be less than 32 characters'),
+
+  slug: z
+    .string()
+    .min(3, 'Slug must be at least 3 characters long')
+    .max(32, 'Slug must be less than 32 characters')
+    .regex(
+      /^[a-z0-9_-]+$/,
+      'Slug must contain only lowercase letters, numbers and hyphens'
+    ),
 
   type: z.nativeEnum(ProductType)
 });
@@ -67,9 +81,19 @@ export function CreateProductModal({
     resolver: zodResolver(createProductSchema),
     defaultValues: {
       name: '',
+      slug: '',
       type: ProductType.Subscription
     }
   });
+
+  const name = form.watch('name');
+
+  // Automatically generate slug if name is changed and slug is not touched
+  useEffect(() => {
+    if (name && !form.formState.touchedFields.slug) {
+      form.setValue('slug', createSlug(name), { shouldValidate: false });
+    }
+  }, [name, form]);
 
   const queryClient = useQueryClient();
   const { mutate: createProduct, status: createProductStatus } = useMutation({
@@ -126,6 +150,21 @@ export function CreateProductModal({
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="slug"
+              render={({ field }) => (
+                <FormItem className="space-y-1">
+                  <FormLabel>Slug</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Product Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="type"

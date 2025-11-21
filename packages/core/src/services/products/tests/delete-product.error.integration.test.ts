@@ -18,7 +18,7 @@ describe.sequential('deleteProduct error path', () => {
           Effect.gen(function* () {
             const productService = yield* ProductService;
             yield* productService.deleteProduct({
-              productId: nonExistentId
+              id: nonExistentId
             });
             return 'deleted';
           }),
@@ -36,4 +36,3 @@ describe.sequential('deleteProduct error path', () => {
     expect(error).toBeInstanceOf(ProductNotFoundError);
   });
 });
-

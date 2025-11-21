@@ -57,7 +57,7 @@ export function ProductRecord({
     }
 
     deleteProduct({
-      productId: product.id
+      id: product.id
     });
   };
 

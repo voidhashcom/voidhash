@@ -8,7 +8,7 @@ import { reset } from 'drizzle-seed';
 import mysql from 'mysql2/promise';
 import * as schema from './schema';
 
-const createDb = async () => {
+export const createDb = () => {
   // if (process.env.DATABASE_HOST?.includes('psdb.cloud')) {
   //   const client = new Client({
   //     host: process.env.DATABASE_HOST,
@@ -20,7 +20,7 @@ const createDb = async () => {
   // }
   const isPlanetscale = process.env.DATABASE_HOST?.includes('psdb.cloud');
 
-  const connection = await mysql.createConnection({
+  const connection = mysql.createPool({
     host: process.env.DATABASE_HOST,
     user: process.env.DATABASE_USERNAME,
     database: process.env.DATABASE_NAME,
@@ -28,16 +28,19 @@ const createDb = async () => {
     ssl: isPlanetscale ? { rejectUnauthorized: true } : undefined
   });
 
-  return drizzleMysql({
-    client: connection,
-    schema,
-    mode: 'default'
-  });
+  return {
+    mysql: connection,
+    drizzle: drizzleMysql({
+      client: connection,
+      schema,
+      mode: 'default'
+    })
+  };
 };
 
-const db = await createDb();
+const { drizzle: db } = createDb();
 
-export type Database = Awaited<ReturnType<typeof createDb>>;
+export type Database = ReturnType<typeof createDb>['drizzle'];
 export type Transaction =
   | PlanetScaleTransaction<
       typeof schema,

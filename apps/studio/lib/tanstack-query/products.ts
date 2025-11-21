@@ -13,26 +13,36 @@ export const getProductOptions = (options: { productId: string }) =>
   eq.queryOptions({
     queryKey: queryKeys.product.getProduct(options),
     queryFn: () =>
-      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.GetProduct(options)))
+      VoidhashRpc.pipe(
+        Effect.flatMap((rpc) =>
+          rpc.GetProduct({
+            id: options.productId
+          })
+        )
+      )
   });
 
 export const createProductOptions = () =>
   eq.mutationOptions({
     mutationKey: ['createProduct'],
-    mutationFn: (variables: { projectId: string; name: string }) =>
+    mutationFn: (variables: {
+      projectId: string;
+      name: string;
+      slug: string;
+    }) =>
       VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.CreateProduct(variables)))
   });
 
 export const updateProductOptions = () =>
   eq.mutationOptions({
     mutationKey: ['updateProduct'],
-    mutationFn: (variables: { productId: string; name: string }) =>
+    mutationFn: (variables: { id: string; name: string; slug?: string }) =>
       VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.UpdateProduct(variables)))
   });
 
 export const deleteProductOptions = () =>
   eq.mutationOptions({
     mutationKey: ['deleteProduct'],
-    mutationFn: (variables: { productId: string }) =>
+    mutationFn: (variables: { id: string }) =>
       VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.DeleteProduct(variables)))
   });

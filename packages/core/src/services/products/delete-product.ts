@@ -26,15 +26,15 @@ const _deleteProductRecord = (db: Db) =>
 export const deleteProduct = Effect.gen(function* () {
   const db = yield* Db;
   return Effect.fn('deleteProduct')(
-    function* (input: { productId: string }) {
+    function* (input: { id: string }) {
       const session = yield* AuthSession;
 
       // Get the product to check authorization
-      const existingProduct = yield* _getProductById(db)(input.productId);
+      const existingProduct = yield* _getProductById(db)(input.id);
       if (!existingProduct) {
         return yield* Effect.fail(
           new ProductNotFoundError({
-            message: `Product ${input.productId} not found`
+            message: `Product ${input.id} not found`
           })
         );
       }
@@ -43,13 +43,13 @@ export const deleteProduct = Effect.gen(function* () {
       yield* checkProjectPermission(
         existingProduct.projectId,
         'project:all',
-        `User ${session?.user?.id} is not authorized to delete product ${input.productId} for project ${existingProduct.projectId}`
+        `User ${session?.user?.id} is not authorized to delete product ${input.id} for project ${existingProduct.projectId}`
       );
 
-      yield* _deleteProductRecord(db)(input.productId);
+      yield* _deleteProductRecord(db)(input.id);
 
       yield* Effect.log(
-        `Deleted product ${input.productId} for project ${existingProduct.projectId}`
+        `Deleted product ${input.id} for project ${existingProduct.projectId}`
       );
     },
     (effect) =>

@@ -75,14 +75,11 @@ const _updatePaymentProviderProductRecord = (db: Db) =>
 export const updatePaymentProviderProduct = Effect.gen(function* () {
   const db = yield* Db;
   return Effect.fn('updatePaymentProviderProduct')(
-    function* (input: {
-      paymentProviderConfigurationProductId: string;
-      configuration: Record<string, unknown>;
-    }) {
+    function* (input: { id: string; configuration: Record<string, unknown> }) {
       const session = yield* AuthSession;
 
       const providerProduct = yield* _getPaymentProviderProductById(db)(
-        input.paymentProviderConfigurationProductId
+        input.id
       );
 
       if (!providerProduct) {

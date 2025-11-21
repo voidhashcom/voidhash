@@ -39,8 +39,7 @@ export class ProductPerkRpcsDef extends RpcGroup.make(
   }),
   Rpc.make('DeleteProductPerk', {
     payload: Schema.Struct({
-      productId: Schema.String,
-      perkId: Schema.String
+      id: Schema.String
     }),
     success: Schema.Void,
     error: Schema.Union(

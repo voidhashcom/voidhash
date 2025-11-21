@@ -57,8 +57,7 @@ export function ProductDetailPerkRecord({
     }
 
     deleteProductPerk({
-      productId: productPerk.productId,
-      perkId: productPerk.perkId
+      id: productPerk.id
     });
   };
 

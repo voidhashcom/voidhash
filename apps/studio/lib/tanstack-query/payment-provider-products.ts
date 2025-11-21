@@ -30,7 +30,7 @@ export const updatePaymentProviderProductOptions = () =>
   eq.mutationOptions({
     mutationKey: ['updatePaymentProviderProduct'],
     mutationFn: (variables: {
-      paymentProviderConfigurationProductId: string;
+      id: string;
       configuration: Record<string, unknown>;
     }) =>
       VoidhashRpc.pipe(
@@ -41,11 +41,7 @@ export const updatePaymentProviderProductOptions = () =>
 export const deletePaymentProviderProductOptions = () =>
   eq.mutationOptions({
     mutationKey: ['deletePaymentProviderProduct'],
-    mutationFn: (variables: {
-      productId: string;
-      paymentProviderConfigurationId: string;
-      providerProductKey: string;
-    }) =>
+    mutationFn: (variables: { id: string }) =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) => rpc.DeletePaymentProviderProduct(variables))
       )

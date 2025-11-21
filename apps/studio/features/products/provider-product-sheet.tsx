@@ -105,7 +105,7 @@ export function ProviderProductSheet({
         return;
       }
       update({
-        paymentProviderConfigurationProductId,
+        id: paymentProviderConfigurationProductId,
         configuration: data
       });
     }

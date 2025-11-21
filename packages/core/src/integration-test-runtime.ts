@@ -12,6 +12,7 @@ import {
   Redacted,
   Schedule
 } from 'effect';
+import { PaymentProviderProductService, ProductPerkService } from './services';
 import { ApiKeyService } from './services/api-keys';
 import { ChangesetDeploymentService } from './services/changeset-deployment';
 import { CustomerService } from './services/customers';
@@ -62,6 +63,8 @@ const RuntimeLayer = () => {
     Layer.provideMerge(PaymentProviderConfigurationService.Default),
     Layer.provideMerge(PerkService.Default),
     Layer.provideMerge(ProductService.Default),
+    Layer.provideMerge(PaymentProviderProductService.Default),
+    Layer.provideMerge(ProductPerkService.Default),
     Layer.provideMerge(ProjectService.Default),
     Layer.provideMerge(SdkService.Default),
     Layer.provideMerge(UserService.Default)

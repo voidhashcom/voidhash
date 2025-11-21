@@ -28,11 +28,13 @@ export const RpcAuthLive = Layer.effect(
 
           const [session, usersOrganizations] = yield* Effect.all(
             [
-              betterAuth.use(async (client) => {
-                return await client.api.getSession({
-                  headers: nodeHeaders
-                });
-              }),
+              betterAuth
+                .use(async (client) => {
+                  return await client.api.getSession({
+                    headers: nodeHeaders
+                  });
+                })
+                .pipe(),
               betterAuth.use(async (client) => {
                 return await client.api.listOrganizations({
                   headers: nodeHeaders

@@ -13,6 +13,7 @@ export default function ErrorRender({
   const router = useRouter();
   const pathname = usePathname();
   const [initialized, setInitialized] = useState(false);
+
   useEffect(() => {
     if (error.name === 'VoidhashError:UNAUTHORIZED' && pathname !== '/login') {
       router.push('/login');

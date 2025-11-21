@@ -4,6 +4,7 @@ import { Effect, Option } from 'effect';
 
 export const getUser = Effect.gen(function* () {
   return Effect.fn('getUser')(function* () {
+    yield* Effect.log('getUser');
     const maybeSession = yield* Effect.serviceOption(AuthSession);
     if (Option.isNone(maybeSession) || !maybeSession.value.user) {
       return yield* Effect.fail(
