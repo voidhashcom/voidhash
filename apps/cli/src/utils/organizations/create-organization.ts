@@ -17,23 +17,6 @@ const validateOrganizationName = (value: string) => {
 export const createOrganization = () =>
   Effect.gen(function* () {
     const client = yield* ApiClient;
-    const cliConfig = yield* CliConfig;
-
-    const config = yield* cliConfig.readConfig().pipe(
-      Effect.catchTag('ConfigFileNotFoundError', () => Effect.succeed(null)),
-      Effect.catchAll(() => Effect.dieMessage('Failed to read config'))
-    );
-
-    // If the config file is not found or the api key is not set, we consider the user to be signed out
-    const apiKey = config?.apiKey;
-    if (!apiKey) {
-      yield* Effect.logInfo(
-        'Api key is not set, considering the user to be signed out'
-      );
-      return yield* Effect.fail(
-        new NoSignedInUserError({ message: 'No signed in user' })
-      );
-    }
 
     const attemptToCreateOrganization = Effect.gen(function* () {
       const name = yield* Prompt.run(
@@ -44,9 +27,6 @@ export const createOrganization = () =>
       );
 
       const organization = yield* client.organizations.createOrganization({
-        // headers: {
-        //   'x-api-key': apiKey
-        // },
         payload: {
           name
         }

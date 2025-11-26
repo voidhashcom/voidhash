@@ -332,13 +332,20 @@ export class SourceCode extends Effect.Service<SourceCode>()(
           })
         );
 
+      const deleteVoidhashConfig = () =>
+        Effect.gen(function* () {
+          const voidhashConfigPath = path.resolve('./voidhash.config.ts');
+          yield* fs.remove(voidhashConfigPath);
+        });
+
       return {
         detectSrcLanguage,
         detectMonorepoRootPath,
         loadPackageJson,
         detectPackageManager,
         retrieveSrcDir,
-        loadVoidhashConfig
+        loadVoidhashConfig,
+        deleteVoidhashConfig
       } as const;
     })
   }

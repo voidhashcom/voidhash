@@ -1,12 +1,19 @@
 import os from 'node:os';
 import { FileSystem, Path } from '@effect/platform';
 import { Effect, Schema } from 'effect';
-import { CONFIG_FILE_NAME } from '../../constants';
 import {
-  CliConfigFileNotFoundError,
-  FailedToReadCliConfigError
-} from '../errors/cli-config';
+  CONFIG_FILE_NAME,
+  DEFAULT_API_URL,
+  DEFAULT_WEB_URL
+} from '../../constants';
+import { FailedToReadCliConfigError } from '../errors/cli-config';
 import { CliConfigSchema } from '../schema/cli-config';
+
+export const emptyConfig = {
+  api_key: null,
+  api_url: DEFAULT_API_URL,
+  web_url: DEFAULT_WEB_URL
+} satisfies typeof CliConfigSchema.Type;
 
 export class CliConfig extends Effect.Service<CliConfig>()(
   'voidhash-cli/CliConfig',
@@ -28,15 +35,14 @@ export class CliConfig extends Effect.Service<CliConfig>()(
       const readConfig = () =>
         Effect.gen(function* () {
           if (!fileSystem.exists(filePath)) {
-            return yield* Effect.fail(
-              new CliConfigFileNotFoundError({
-                message: 'Config file not found'
-              })
-            );
+            return yield* Effect.succeed(emptyConfig);
           }
           const configString = yield* fileSystem.readFileString(filePath);
           const configJson = JSON.parse(configString);
-          return yield* Schema.decodeUnknown(CliConfigSchema)(configJson);
+          return yield* Schema.decodeUnknown(CliConfigSchema)({
+            ...emptyConfig,
+            ...configJson
+          });
         }).pipe(
           Effect.catchTags({
             BadArgument: (e) =>
@@ -75,15 +81,34 @@ export class CliConfig extends Effect.Service<CliConfig>()(
           const currentConfig = yield* readConfig().pipe(
             Effect.orElse(() => Effect.succeed({}))
           );
+          const mergedConfig = { ...currentConfig, ...config };
+          const validatedConfig =
+            yield* Schema.decodeUnknown(CliConfigSchema)(mergedConfig);
           yield* fileSystem.writeFileString(
             filePath,
-            JSON.stringify({ ...currentConfig, ...config })
+            JSON.stringify(validatedConfig)
           );
+        });
+
+      /**
+       * Resets the configuration to the default values. If authenticated, persists the authentication state.
+       *
+       * @returns An Effect that resets the configuration to the default values.
+       */
+      const resetConfig = () =>
+        Effect.gen(function* () {
+          const config = yield* readConfig();
+
+          yield* writeToConfig({
+            ...emptyConfig,
+            api_key: config.api_key ?? null
+          });
         });
 
       return {
         readConfig,
-        writeToConfig
+        writeToConfig,
+        resetConfig
       } as const;
     })
   }

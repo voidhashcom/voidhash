@@ -24,13 +24,16 @@ export const initCommand = Command.make('init', {}, () =>
       );
 
     if (voidhashConfig) {
-      return yield* Effect.fail(
-        ValidationError.invalidValue(
-          HelpDoc.p(
-            'Voidhash was already initialized in this project. If you want to re-initialize, please remove the voidhash.config.(ts|js|cjs|mjs) file and run the command again.'
-          )
-        )
+      const shouldContinue = yield* Prompt.run(
+        Prompt.confirm({
+          message:
+            'Voidhash was already initialized in this project. This will overwrite the existing configuration. Do you want to continue?'
+        })
       );
+      if (!shouldContinue) {
+        return yield* Console.log('Initialization cancelled.');
+      }
+      yield* sourceCode.deleteVoidhashConfig();
     }
 
     // Sign in
