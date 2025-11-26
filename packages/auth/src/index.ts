@@ -38,6 +38,7 @@ export const createBetterAuth = (db: Database) =>
     plugins: [
       organization(),
       apiKey({
+        enableSessionForAPIKeys: true,
         rateLimit: {
           enabled: false
         }

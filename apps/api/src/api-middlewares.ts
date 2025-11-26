@@ -29,23 +29,25 @@ export const AuthMiddlewareLive = Layer.effect(
             const req = yield* HttpServerRequest.HttpServerRequest;
             const reqNode = req.source as Request;
 
-            const [session, usersOrganizations] = yield* Effect.all(
-              [
-                betterAuth.use(async (client) => {
-                  return await client.api.getSession({
-                    headers: reqNode.headers
-                  });
-                }),
-                betterAuth.use(async (client) => {
-                  return await client.api.listOrganizations({
-                    headers: reqNode.headers
-                  });
+            const session = yield* betterAuth.use(async (client) => {
+              return await client.api.getSession({
+                headers: reqNode.headers
+              });
+            });
+
+            if (!session?.user) {
+              return yield* Effect.fail(
+                new NotAuthenticatedError({
+                  message: 'You are not authenticated'
                 })
-              ],
-              {
-                concurrency: 'unbounded'
-              }
-            );
+              );
+            }
+
+            const usersOrganizations = yield* betterAuth.use(async (client) => {
+              return await client.api.listOrganizations({
+                headers: reqNode.headers
+              });
+            });
 
             const usersProjects = yield* dbService.use(async (db) => {
               return await db.query.projects.findMany({
@@ -109,11 +111,18 @@ export const AuthMiddlewareLive = Layer.effect(
             const headers = new Headers({
               'x-api-key': Redacted.value(apiKey)
             });
-            const session = yield* betterAuth.use(async (client) => {
-              return await client.api.getSession({
-                headers
-              });
-            });
+
+            const session = yield* betterAuth
+              .use(async (client) => {
+                return await client.api.getSession({
+                  headers
+                });
+              })
+              .pipe(
+                Effect.tapError((error) =>
+                  Console.log(JSON.stringify(error, null, 2))
+                )
+              );
 
             if (!session?.user) {
               return yield* Effect.fail(

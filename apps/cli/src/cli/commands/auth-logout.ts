@@ -7,7 +7,15 @@ export const logoutCommand = Command.make('logout', {}, () =>
     const auth = yield* Auth;
     const user = yield* auth.getSignedInSession.pipe(
       Effect.catchTags({
-        NoSignedInUserError: () => Effect.succeed(null)
+        NoSignedInUserError: () => Effect.succeed(null),
+        FailedToGetSessionError: () =>
+          Effect.succeed(null).pipe(
+            Effect.tap(() =>
+              Console.log(
+                'Failed to get current user session. We will still proceed with logout.'
+              )
+            )
+          )
       })
     );
 
@@ -29,12 +37,6 @@ export const logoutCommand = Command.make('logout', {}, () =>
       FailedToLogoutError: () =>
         Effect.succeed(undefined).pipe(
           Effect.tap(() => Console.log('Failed to logout. Please try again.'))
-        ),
-      FailedToGetSessionError: () =>
-        Effect.succeed(undefined).pipe(
-          Effect.tap(() =>
-            Console.log('Failed to get currect user session. Please try again.')
-          )
         )
     })
   )

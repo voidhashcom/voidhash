@@ -10,7 +10,7 @@ import {
 import { NodeContext, NodeHttpServer } from '@effect/platform-node';
 import { Console, Data, Effect, Layer, PubSub, Queue } from 'effect';
 import { customAlphabet } from 'nanoid';
-import { CONFIG_FILE_NAME, VOIDHASH_URL } from '../../constants';
+import { CONFIG_FILE_NAME } from '../../constants';
 import { ApiClient } from '../../utils/api-client';
 import {
   FailedToGetSessionError,
@@ -101,7 +101,6 @@ export class Auth extends Effect.Service<Auth>()('voidhash-cli/Auth', {
   effect: Effect.gen(function* () {
     const client = yield* ApiClient;
     const cliConfig = yield* CliConfig;
-
     /**
      * Retrieves the currently signed-in user from the local configuration and the BetterAuth service.
      *
@@ -113,13 +112,14 @@ export class Auth extends Effect.Service<Auth>()('voidhash-cli/Auth', {
      *   An Effect that yields the signed-in user's information, or fails with an appropriate error.
      */
     const getSignedInSession = Effect.gen(function* () {
-      const config = yield* cliConfig.readConfig().pipe(
-        Effect.catchTag('ConfigFileNotFoundError', () => Effect.succeed(null)),
-        Effect.catchAll(() => Effect.dieMessage('Failed to read config'))
-      );
+      const config = yield* cliConfig
+        .readConfig()
+        .pipe(
+          Effect.catchAll(() => Effect.dieMessage('Failed to read config'))
+        );
 
       // If the config file is not found or the api key is not set, we consider the user to be signed out
-      const apiKey = config?.apiKey;
+      const apiKey = config.api_key;
       if (!apiKey) {
         yield* Effect.logInfo(
           'Api key is not set, considering the user to be signed out'
@@ -129,11 +129,12 @@ export class Auth extends Effect.Service<Auth>()('voidhash-cli/Auth', {
         );
       }
 
-      const sessionResponse = yield* client.auth.session({
-        // headers: {
-        //   'x-api-key': apiKey
-        // }
-      });
+      const sessionResponse = yield* client.auth.session().pipe(
+        Effect.catchTags({
+          NotAuthenticatedError: () =>
+            new NoSignedInUserError({ message: 'No signed in user' })
+        })
+      );
 
       return sessionResponse;
     }).pipe(
@@ -166,7 +167,14 @@ export class Auth extends Effect.Service<Auth>()('voidhash-cli/Auth', {
         const redirect = `http://${host}:${port}/callback`;
 
         const code = nanoid();
-        const confirmationUrl = new URL(`${VOIDHASH_URL}/auth/devices`);
+        const config = yield* cliConfig
+          .readConfig()
+          .pipe(
+            Effect.catchAll(() => Effect.dieMessage('Failed to read config'))
+          );
+        const confirmationUrl = new URL(
+          `${config.web_url}/studio/auth/devices`
+        );
         confirmationUrl.searchParams.append('code', code);
         confirmationUrl.searchParams.append('redirect', redirect);
         yield* Console.log(`Confirmation code: ${code}\n`);
@@ -186,7 +194,7 @@ export class Auth extends Effect.Service<Auth>()('voidhash-cli/Auth', {
         }
 
         // Store in config
-        yield* cliConfig.writeToConfig({ apiKey: callbackEvent.key });
+        yield* cliConfig.writeToConfig({ api_key: callbackEvent.key });
 
         yield* Console.log(
           `Authentication successful! Your key has been stored in your config file.  To view it, type 'cat ~/${CONFIG_FILE_NAME}'.\n);`
@@ -209,12 +217,12 @@ export class Auth extends Effect.Service<Auth>()('voidhash-cli/Auth', {
      */
     const logout = Effect.gen(function* () {
       const config = yield* cliConfig.readConfig();
-      if (!config.apiKey) {
+      if (!config.api_key) {
         yield* Console.log('You are not logged in.');
         return;
       }
 
-      yield* cliConfig.writeToConfig({ apiKey: null });
+      yield* cliConfig.writeToConfig({ api_key: null });
       yield* Console.log('You have been logged out.');
     }).pipe(
       Effect.catchAll((e) =>

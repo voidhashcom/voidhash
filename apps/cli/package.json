@@ -26,6 +26,7 @@
     "start": "dotenv -- tsx ./src/index.ts",
     "build": "rm -rf ./dist && tsx build.ts && cp package.json dist/ && chmod +x ./dist/bin.cjs",
     "build:dev": "rm -rf ./dist && tsx build.dev.ts && chmod +x ./dist/index.cjs",
+    "dev:set-local-urls": "npx voidhash-cli config set api_url http://localhost:5001 && npx voidhash-cli config set web_url http://localhost:3000",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

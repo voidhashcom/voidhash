@@ -19,13 +19,12 @@ export const createProject = (input: { organizationId: string }) =>
     const client = yield* ApiClient;
     const cliConfig = yield* CliConfig;
 
-    const config = yield* cliConfig.readConfig().pipe(
-      Effect.catchTag('ConfigFileNotFoundError', () => Effect.succeed(null)),
-      Effect.catchAll(() => Effect.dieMessage('Failed to read config'))
-    );
+    const config = yield* cliConfig
+      .readConfig()
+      .pipe(Effect.catchAll(() => Effect.dieMessage('Failed to read config')));
 
     // If the config file is not found or the api key is not set, we consider the user to be signed out
-    const apiKey = config?.apiKey;
+    const apiKey = config.api_key;
     if (!apiKey) {
       yield* Effect.logInfo(
         'Api key is not set, considering the user to be signed out'

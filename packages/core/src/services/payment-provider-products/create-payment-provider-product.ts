@@ -98,7 +98,6 @@ export const createPaymentProviderProduct = Effect.gen(function* () {
       paymentProviderConfigurationId: string;
       configuration: Record<string, unknown>;
     }) {
-      console.log('createPaymentProviderProduct', input);
       const session = yield* AuthSession;
 
       // Get product and provider configuration in parallel

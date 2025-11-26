@@ -1,7 +1,7 @@
 import { createAuthClient } from 'better-auth/client';
 import { apiKeyClient } from 'better-auth/client/plugins';
 import { Data, Effect } from 'effect';
-import { VOIDHASH_URL } from './constants';
+import { CliConfig } from '../../../domain/services/cli-config';
 
 export class BetterAuthClientError extends Data.TaggedError(
   'BetterAuthClientError'
@@ -10,16 +10,18 @@ export class BetterAuthClientError extends Data.TaggedError(
   readonly message: string;
 }> {}
 
-const authClient: ReturnType<typeof createAuthClient> = createAuthClient({
-  baseURL: VOIDHASH_URL,
-  plugins: [apiKeyClient()]
-});
-
 export class BetterAuthClient extends Effect.Service<BetterAuthClient>()(
   'app/BetterAuthClient',
   {
     dependencies: [],
     effect: Effect.gen(function* () {
+      const cliConfig = yield* CliConfig;
+      const config = yield* cliConfig.readConfig();
+      const authClient: ReturnType<typeof createAuthClient> = createAuthClient({
+        baseURL: config.web_url ?? 'https://voidhash.com',
+        plugins: [apiKeyClient()]
+      });
+
       return {
         use: <D, E>(
           fn: (
