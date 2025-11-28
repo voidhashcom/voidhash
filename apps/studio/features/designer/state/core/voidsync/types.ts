@@ -1,0 +1,186 @@
+/** biome-ignore-all lint/suspicious/noExplicitAny: generic */
+import type * as Y from 'yjs';
+import type { StoreApi } from 'zustand';
+import type { z } from 'zod';
+import type { Awareness } from 'y-protocols/awareness';
+
+// ============================================================================
+// Sync Field Schema Types
+// ============================================================================
+
+export const VOIDSYNC_TYPE_KEY = Symbol('voidsyncType');
+
+export type VoidsyncTypeMarker = 'map' | 'array' | 'text';
+
+export type VoidsyncFieldSchema<
+  TMarker extends VoidsyncTypeMarker = VoidsyncTypeMarker
+> = {
+  [VOIDSYNC_TYPE_KEY]: TMarker;
+  schema: z.ZodTypeAny;
+};
+
+// Type to extract the inferred type from a VoidsyncFieldSchema
+export type InferVoidsyncFieldType<T> = T extends { _type: infer U } ? U : never;
+
+// Helper to infer the combined synced type from a record of field schemas
+export type InferSyncedRecord<T extends Record<string, VoidsyncFieldSchema>> = {
+  [K in keyof T]: InferVoidsyncFieldType<T[K]>;
+};
+
+// ============================================================================
+// Schema Types
+// ============================================================================
+
+/**
+ * Schema definition input for Voidsync store with three distinct state categories:
+ * - awareness: Ephemeral state shared via awareness protocol (cursors, selections)
+ * - browser: Local browser state, not synced (UI preferences, panel sizes)
+ * - synced: Persisted state synced to the document
+ */
+export type VoidsyncSchemaInput<
+  TAwareness extends z.ZodTypeAny,
+  TBrowser extends z.ZodTypeAny,
+  TSynced extends Record<string, VoidsyncFieldSchema>
+> = {
+  awareness: TAwareness;
+  browser: TBrowser;
+  synced: TSynced;
+};
+
+export type VoidsyncSchema<
+  TAwareness extends z.ZodTypeAny,
+  TBrowser extends z.ZodTypeAny,
+  TSynced extends Record<string, VoidsyncFieldSchema>
+> = {
+  awareness: TAwareness;
+  browser: TBrowser;
+  synced: TSynced;
+  _types: {
+    awareness: z.infer<TAwareness>;
+    browser: z.infer<TBrowser>;
+    synced: InferSyncedRecord<TSynced>;
+    combined: z.infer<TAwareness> &
+      z.infer<TBrowser> &
+      InferSyncedRecord<TSynced>;
+  };
+};
+
+// ============================================================================
+// Action Types
+// ============================================================================
+
+/**
+ * Action context providing access to all state and mutation methods
+ */
+export type ActionContext<
+  TSchema extends VoidsyncSchema<any, any, any>,
+  TYdoc extends Y.Doc,
+  TParams
+> = {
+  /** The document for persisted state mutations */
+  doc: TYdoc;
+  /** The Awareness instance for ephemeral shared state */
+  awareness: Awareness;
+  /** Get current combined state (awareness + browser + synced) */
+  getState: () => TSchema['_types']['combined'];
+  /** Set browser-only state (local, not synced) */
+  setBrowser: (state: Partial<TSchema['_types']['browser']>) => void;
+  /** Set awareness state (ephemeral, shared via awareness protocol) */
+  setAwareness: (state: Partial<TSchema['_types']['awareness']>) => void;
+  /** Action parameters passed by the caller */
+  params: TParams;
+};
+
+export type ActionFn<
+  TSchema extends VoidsyncSchema<any, any, any>,
+  TYdoc extends Y.Doc,
+  TParams = any
+> = (ctx: ActionContext<TSchema, TYdoc, TParams>) => void;
+
+export type Action<
+  TSchema extends VoidsyncSchema<any, any, any>,
+  TYdoc extends Y.Doc,
+  TParams = any
+> = {
+  fn: ActionFn<TSchema, TYdoc, TParams>;
+  paramsSchema: z.ZodTypeAny | null;
+};
+
+export type AnyAction = Action<any, any, any>;
+
+// ============================================================================
+// Sync Types
+// ============================================================================
+
+export type SyncFromDoc<TSyncedState, TYdoc extends Y.Doc> = (
+  doc: TYdoc,
+  set: (state: Partial<TSyncedState>) => void
+) => void;
+
+// ============================================================================
+// State & Store Types
+// ============================================================================
+
+export type VoidsyncState<
+  TSchema extends VoidsyncSchema<any, any, any>,
+  TYdoc extends Y.Doc
+> = {
+  zustand: StoreApi<TSchema['_types']['combined']>;
+  doc: TYdoc;
+  awareness: Awareness;
+  schema: TSchema;
+  syncFromDoc: SyncFromDoc<TSchema['_types']['synced'], TYdoc>;
+  /**
+   * Create an action with a zod schema for params.
+   * Types are inferred from the schema.
+   *
+   * @example
+   * const addNode = storeState.action(
+   *   z.object({ x: z.number(), y: z.number() }),
+   *   ({ doc, params }) => {
+   *     doc.getMap('nodes').set(id, params);
+   *   }
+   * );
+   */
+  action: {
+    // With params schema
+    <TParamsSchema extends z.ZodTypeAny>(
+      paramsSchema: TParamsSchema,
+      fn: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>>
+    ): Action<TSchema, TYdoc, z.infer<TParamsSchema>>;
+    // Without params (void)
+    (fn: ActionFn<TSchema, TYdoc, void>): Action<TSchema, TYdoc, void>;
+  };
+};
+
+export type VoidsyncStore<
+  TSchema extends VoidsyncSchema<any, any, any>,
+  TYdoc extends Y.Doc,
+  TActions extends Record<string, AnyAction>
+> = {
+  zustand: Readonly<StoreApi<TSchema['_types']['combined']>>;
+  doc: TYdoc;
+  awareness: Awareness;
+  schema: TSchema;
+  actions: TActions;
+  /** The local client's unique ID */
+  clientId: number;
+};
+
+// ============================================================================
+// Awareness Types
+// ============================================================================
+
+/**
+ * Represents all users' awareness states as a map from clientId to state
+ */
+export type AwarenessStates<TAwareness> = Map<number, TAwareness>;
+
+// ============================================================================
+// Initial State Input Type
+// ============================================================================
+
+export type InitialStateInput<TSchema extends VoidsyncSchema<any, any, any>> = {
+  awareness: TSchema['_types']['awareness'];
+  browser: TSchema['_types']['browser'];
+};

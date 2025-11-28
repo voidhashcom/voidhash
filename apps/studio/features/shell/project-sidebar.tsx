@@ -1,13 +1,7 @@
 'use client';
 
 import { Sidebar, SidebarContent, useSidebar } from '@voidhash/ui';
-import {
-  GaugeIcon,
-  Package2,
-  Settings,
-  SquareTerminal,
-  Users
-} from 'lucide-react';
+import { GaugeIcon, Settings, Smartphone, SquareTerminal } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import * as React from 'react';
@@ -39,30 +33,48 @@ export function ProjectSidebar({
       {
         title: 'Platform',
         items: [
+          // TEMP
           {
-            title: 'Overview',
+            title: 'Designer',
             url: `/${organizationSlug}/${projectSlug}`,
-            icon: GaugeIcon,
+            icon: Smartphone,
             isActive: () => pathname === `/${organizationSlug}/${projectSlug}`
           },
-          {
-            title: 'Customers',
-            url: `/${organizationSlug}/${projectSlug}/customers`,
-            icon: Users,
-            isActive: () =>
-              pathname.startsWith(
-                `/${organizationSlug}/${projectSlug}/customers`
-              )
-          },
-          {
-            title: 'Products',
-            url: `/${organizationSlug}/${projectSlug}/products`,
-            icon: Package2,
-            isActive: () =>
-              pathname.startsWith(
-                `/${organizationSlug}/${projectSlug}/products`
-              )
-          },
+
+          // FULL
+          // {
+          //   title: 'Overview',
+          //   url: `/${organizationSlug}/${projectSlug}`,
+          //   icon: GaugeIcon,
+          //   isActive: () => pathname === `/${organizationSlug}/${projectSlug}`
+          // },
+          // {
+          //   title: 'Customers',
+          //   url: `/${organizationSlug}/${projectSlug}/customers`,
+          //   icon: Users,
+          //   isActive: () =>
+          //     pathname.startsWith(
+          //       `/${organizationSlug}/${projectSlug}/customers`
+          //     )
+          // },
+          // {
+          //   title: 'Products',
+          //   url: `/${organizationSlug}/${projectSlug}/products`,
+          //   icon: Package2,
+          //   isActive: () =>
+          //     pathname.startsWith(
+          //       `/${organizationSlug}/${projectSlug}/products`
+          //     )
+          // },
+          // {
+          //   title: 'Paywalls',
+          //   url: `/${organizationSlug}/${projectSlug}/designer`,
+          //   icon: Smartphone,
+          //   isActive: () =>
+          //     pathname.startsWith(
+          //       `/${organizationSlug}/${projectSlug}/designer`
+          //     )
+          // },
           {
             title: 'Developers',
             url: `/${organizationSlug}/${projectSlug}/developers`,

@@ -20,11 +20,12 @@
     "test:integration": "vitest run -c vitest.integration.mts --bail=1"
   },
   "dependencies": {
-    "@voidhash/auth": "workspace:*",
     "@voidhash/api-spec": "workspace:*",
+    "@voidhash/auth": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
-    "@voidhash/shared": "workspace:*"
+    "@voidhash/shared": "workspace:*",
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",
