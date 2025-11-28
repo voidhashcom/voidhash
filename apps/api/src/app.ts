@@ -38,6 +38,7 @@ import { ProductsGroupLive } from './routes/v1/products';
 import { ProjectsGroupLive } from './routes/v1/projects';
 import { SdkGroupLive } from './routes/v1/sdk';
 import { UsersGroupLive } from './routes/v1/users';
+import { YjsRouteLayer } from './routes/yjs';
 import { RpcAuthLive } from './rpc-middlewares';
 import { ApiKeyRpcsLive } from './rpcs/api-key-rpcs';
 import { CustomerRpcsLive } from './rpcs/customer-rpcs';
@@ -156,7 +157,8 @@ const AllRoutes = Layer.mergeAll(
   ApiRoutesLayer,
   ApiDocsLayer,
   RpcRoutesLayer,
-  HealthCheckRoute
+  HealthCheckRoute,
+  YjsRouteLayer
 ).pipe(
   Layer.provide(
     HttpLayerRouter.cors({

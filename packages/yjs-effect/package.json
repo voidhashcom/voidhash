@@ -1,0 +1,39 @@
+{
+  "name": "@voidhash/yjs-effect",
+  "version": "0.0.1-alpha.1",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/db"
+  },
+  "main": "./index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./Storage": "./src/Storage.ts",
+    "./MessageBroker": "./src/MessageBroker.ts",
+    "./Protocol": "./src/Protocol.ts",
+    "./Auth": "./src/Auth.ts",
+    "./YjsServer": "./src/YjsServer.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run -c vitest.mts"
+  },
+  "dependencies": {
+    "@effect/platform": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.27"
+  },
+  "devDependencies": {
+    "@effect/vitest": "^0.27.0",
+    "@types/ws": "^8.18.1",
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "5.8.3",
+    "ws": "^8.18.2"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

@@ -1,0 +1,11 @@
+---
+description: Resource Rules
+globs: "**/*.{ts,tsx,js,jsx}"
+alwaysApply: true
+---
+
+There are multiple external repositories cloned into the `resources` directory. These repositories are helpful to reference code and understand it better.
+
+## Repositories
+
+- [effect](https://github.com/effect-ts/effect)
