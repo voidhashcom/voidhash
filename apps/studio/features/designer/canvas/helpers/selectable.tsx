@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import type { Container } from 'pixi.js';
+import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { CANVAS_DEFAULTS } from '../../constants';
 import {
@@ -8,18 +9,11 @@ import {
 import { useViewport } from '../viewport';
 
 export type SelectableProps = {
-  width: number;
-  height: number;
   children: ({ isSelected }: { isSelected: boolean }) => React.ReactNode;
   nodeId: string;
 };
 
-export function Selectable({
-  width,
-  height,
-  children,
-  nodeId
-}: SelectableProps) {
+export function Selectable({ children, nodeId }: SelectableProps) {
   const viewport = useViewport();
   const isSelected = useDesignerSelect(
     useShallow((state) => state.selectedNodeIds.includes(nodeId))
@@ -27,9 +21,7 @@ export function Selectable({
   const dispatch = useDesignerActions();
   const handleClick = (e: MouseEvent) => {
     e.stopImmediatePropagation();
-    if (!isSelected) {
-      dispatch('selectNode', { id: nodeId, many: e.shiftKey });
-    }
+    dispatch('nodeClicked', { id: nodeId, shiftKey: e.shiftKey });
   };
 
   const [scale, setScale] = useState(1);
@@ -47,9 +39,25 @@ export function Selectable({
     };
   }, [viewport]);
 
+  const containerRef = useRef<Container>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (containerRef.current) {
+      setSize({
+        width: containerRef.current.width,
+        height: containerRef.current.height
+      });
+    }
+  }, []);
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: custom selectable element
-    <pixiContainer eventMode={'static'} onClick={handleClick}>
+    <pixiContainer
+      eventMode={'static'}
+      onClick={handleClick}
+      ref={containerRef}
+    >
       {children({ isSelected })}
       <pixiGraphics
         draw={(graphics) => {
@@ -64,7 +72,7 @@ export function Selectable({
               color: CANVAS_DEFAULTS.PRIMARY_COLOR,
               alpha: 0.0
             });
-            graphics.rect(0, 0, width, height);
+            graphics.rect(0, 0, size.width, size.height);
             graphics.stroke();
             graphics.fill();
           }

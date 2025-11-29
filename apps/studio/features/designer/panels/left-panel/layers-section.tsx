@@ -1,8 +1,8 @@
 'use client';
 
 import { cn } from '@voidhash/ui';
-import { ChevronDown, ChevronRight, Smartphone } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronDown, ChevronRight, Smartphone, TypeIcon } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import {
   useDesignerActions,
@@ -17,30 +17,21 @@ type TreeNode = NodeData & {
 
 const typeIcons = {
   screen: Smartphone,
+  text: TypeIcon,
   root: null // Root nodes shouldn't be displayed
 } as const;
-
-function getNodeDisplayName(node: NodeData): string {
-  switch (node.type) {
-    case 'screen':
-      return `Screen ${node.width}×${node.height}`;
-    case 'root':
-      return 'Root';
-    default:
-      // Exhaustiveness check - should never reach here
-      return (node as NodeData).id;
-  }
-}
 
 interface TreeNodeItemProps {
   node: TreeNode;
   expandedLayers: Set<string>;
   onSelect: (id: string, many: boolean) => void;
   onUnselect: (id: string) => void;
+  toggleLayer: (id: string) => void;
   depth?: number;
 }
 
 function TreeNodeItem({
+  toggleLayer,
   node,
   expandedLayers,
   onSelect,
@@ -49,8 +40,8 @@ function TreeNodeItem({
 }: TreeNodeItemProps) {
   const isExpanded = expandedLayers.has(node.id);
   const hasChildren = node.children.length > 0;
-  const Icon = node.type === 'screen' ? typeIcons.screen : null;
-  const displayName = getNodeDisplayName(node);
+  const Icon = typeIcons[node.type];
+  const displayName = 'name' in node ? node.name : 'Root';
   const isSelected = useDesignerSelect(
     useShallow((state) => state.selectedNodeIds.includes(node.id))
   );
@@ -67,6 +58,7 @@ function TreeNodeItem({
             node={child}
             onSelect={onSelect}
             onUnselect={onUnselect}
+            toggleLayer={toggleLayer}
           />
         ))}
       </>
@@ -88,18 +80,35 @@ function TreeNodeItem({
             onSelect(node.id, isShiftPressed);
           }
         }}
-        style={{ paddingLeft: `${0.5 + depth * 1}rem` }}
+        style={{ paddingLeft: `${0.5 + depth * 0.5}rem` }}
         type="button"
       >
-        {hasChildren ? (
-          isExpanded ? (
-            <ChevronDown className="h-3 w-3 text-white/40" />
+        {/** biome-ignore lint/a11y/useSemanticElements: TODO: Cant use semantic elements inside button */}
+        <div
+          className="flex items-center gap-1.5 rounded-md p-0.5 text-left hover:bg-white/[0.04]"
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleLayer(node.id);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.stopPropagation();
+              toggleLayer(node.id);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+        >
+          {hasChildren ? (
+            isExpanded ? (
+              <ChevronDown className="h-3 w-3 text-white/40" />
+            ) : (
+              <ChevronRight className="h-3 w-3 text-white/40" />
+            )
           ) : (
-            <ChevronRight className="h-3 w-3 text-white/40" />
-          )
-        ) : (
-          <span className="w-3" />
-        )}
+            <span className="w-3" />
+          )}
+        </div>
         {Icon && <Icon className="h-3.5 w-3.5 text-white/40" />}
         <span className="truncate text-white/80 text-xs">{displayName}</span>
       </button>
@@ -114,6 +123,7 @@ function TreeNodeItem({
               node={child}
               onSelect={onSelect}
               onUnselect={onUnselect}
+              toggleLayer={toggleLayer}
             />
           ))}
         </div>
@@ -122,10 +132,38 @@ function TreeNodeItem({
   );
 }
 
+const getExpandedLayersBySelectedNodes = (
+  tree: TreeNode,
+  selectedNodeIds: string[]
+): Set<string> => {
+  const reduceExpandedNodeIdsToSet = (
+    node: TreeNode,
+    selectedNodeIds: string[]
+  ): Set<string> => {
+    // If the node has no children, return the set of selected node ids
+    if (node.children.length === 0) {
+      if (selectedNodeIds.includes(node.id)) {
+        return new Set([node.id]);
+      }
+      return new Set([]);
+    }
+
+    // Get the expanded children ids
+    const childrenExpandedIds = node.children.flatMap((child) =>
+      Array.from(reduceExpandedNodeIdsToSet(child, selectedNodeIds))
+    );
+
+    // If the node has expanded children, expand the node itself
+    return new Set([
+      ...childrenExpandedIds,
+      ...(childrenExpandedIds.length > 0 ? [node.id] : [])
+    ]);
+  };
+  return tree ? reduceExpandedNodeIdsToSet(tree, selectedNodeIds) : new Set([]);
+};
+
 export function LayersSection() {
-  const [expandedLayers, setExpandedLayers] = useState<Set<string>>(
-    new Set([])
-  );
+  const selectedNodeIds = useDesignerSelect((state) => state.selectedNodeIds);
 
   const nodes = useDesignerSelect((state) => state.nodes);
   const dispatch = useDesignerActions();
@@ -135,17 +173,35 @@ export function LayersSection() {
       ? (createTree(nodes) as TreeNode)
       : null;
 
-  //   const toggleLayer = (id: string) => {
-  //     setExpandedLayers((prev) => {
-  //       const next = new Set(prev);
-  //       if (next.has(id)) {
-  //         next.delete(id);
-  //       } else {
-  //         next.add(id);
-  //       }
-  //       return next;
-  //     });
-  //   };
+  const toggleLayer = (id: string) => {
+    setExpandedLayers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Expanded layers
+  // --- Layers expanded by user
+  const [expandedLayers, setExpandedLayers] = useState<Set<string>>(
+    new Set([])
+  );
+
+  // --- Layers expanded by selected nodes
+  const expandedLayersBySelectedNodes = tree
+    ? getExpandedLayersBySelectedNodes(tree, selectedNodeIds)
+    : new Set([]);
+
+  const allExpandedLayers = useMemo(() => {
+    return new Set([
+      ...Array.from(expandedLayers),
+      ...Array.from(expandedLayersBySelectedNodes)
+    ]);
+  }, [expandedLayers, expandedLayersBySelectedNodes]);
 
   const handleSelect = (id: string, many: boolean) => {
     dispatch('selectNode', { id, many });
@@ -159,10 +215,11 @@ export function LayersSection() {
     <div className="space-y-0.5">
       {tree ? (
         <TreeNodeItem
-          expandedLayers={expandedLayers}
+          expandedLayers={allExpandedLayers}
           node={tree}
           onSelect={handleSelect}
           onUnselect={handleUnselect}
+          toggleLayer={toggleLayer}
         />
       ) : (
         <div className="px-2 py-1.5 text-white/40 text-xs">No layers yet</div>

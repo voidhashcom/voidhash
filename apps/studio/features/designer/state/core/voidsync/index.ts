@@ -1,13 +1,39 @@
 // Types
+
+// Hooks
+export {
+  useVoidsyncActions,
+  useVoidsyncAwareness,
+  useVoidsyncSelect
+} from './hooks';
+// Schema
+export { createVoidsyncSchema } from './schema';
+// State
+export { createVoidsyncState } from './state';
+// Store
+export { createVoidsyncStore } from './store';
+// Sync markers
+export {
+  getVoidsyncTypeMarker,
+  isVoidsyncFieldSchema,
+  syncArray,
+  syncMap,
+  syncText
+} from './sync-markers';
 export type {
-  ActionContext,
-  ActionFn,
   Action,
+  ActionCall,
+  ActionContext,
+  ActionDispatchFn,
+  ActionFactory,
+  ActionFn,
+  ActionParams,
   AnyAction,
   AwarenessStates,
-  InitialStateInput,
+  HookDispatchFn,
   InferSyncedRecord,
   InferVoidsyncFieldType,
+  InitialStateInput,
   SyncFromDoc,
   VoidsyncFieldSchema,
   VoidsyncSchema,
@@ -16,31 +42,9 @@ export type {
   VoidsyncStore,
   VoidsyncTypeMarker
 } from './types';
-
-// Re-export the symbol for advanced use cases
-export { VOIDSYNC_TYPE_KEY } from './types';
-
-// Sync markers
+// Re-export symbols and type guards for advanced use cases
 export {
-  syncMap,
-  syncArray,
-  syncText,
-  isVoidsyncFieldSchema,
-  getVoidsyncTypeMarker
-} from './sync-markers';
-
-// Schema
-export { createVoidsyncSchema } from './schema';
-
-// State
-export { createVoidsyncState } from './state';
-
-// Store
-export { createVoidsyncStore } from './store';
-
-// Hooks
-export {
-  useVoidsyncSelect,
-  useVoidsyncAwareness,
-  useVoidsyncActions
-} from './hooks';
+  ACTION_CALL_SYMBOL,
+  isActionCall,
+  VOIDSYNC_TYPE_KEY
+} from './types';

@@ -2,6 +2,8 @@
 
 import { Canvas } from './canvas/canvas';
 import { LeftPanel } from './panels';
+import { ActionPanel } from './panels/action-panel';
+import { RightPanel } from './panels/right-panel';
 import { TopPanel } from './panels/top-panel';
 import { DesignerStoreProvider } from './state/designer-store';
 
@@ -15,7 +17,8 @@ export function DesignerDetailPage() {
         {/* Panel overlays */}
         <TopPanel />
         <LeftPanel />
-        {/* <RightPanel /> */}
+        <RightPanel />
+        <ActionPanel />
       </div>
     </DesignerStoreProvider>
   );

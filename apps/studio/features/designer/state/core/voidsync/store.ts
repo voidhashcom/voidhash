@@ -49,6 +49,7 @@ export function createVoidsyncStore<
     awareness,
     schema,
     actions,
-    clientId: awareness.clientID
+    clientId: awareness.clientID,
+    storeState
   };
 }

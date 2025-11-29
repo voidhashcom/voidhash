@@ -5,8 +5,9 @@ import type { DesignerStoreState } from './types';
  * Creates panel-related actions for the designer store.
  * These actions manage viewport panel dimensions (browser-only state).
  */
-export function createPanelActions(storeState: DesignerStoreState) {
-  const setTopPanelHeight = storeState.action(
+
+export const setTopPanelHeight = (storeState: DesignerStoreState) =>
+  storeState.action(
     z.object({ height: z.number() }),
     ({ getState, setBrowser, params }) => {
       const viewport = getState().viewport;
@@ -22,7 +23,8 @@ export function createPanelActions(storeState: DesignerStoreState) {
     }
   );
 
-  const setBottomPanelHeight = storeState.action(
+export const setBottomPanelHeight = (storeState: DesignerStoreState) =>
+  storeState.action(
     z.object({ height: z.number() }),
     ({ getState, setBrowser, params }) => {
       const viewport = getState().viewport;
@@ -38,7 +40,8 @@ export function createPanelActions(storeState: DesignerStoreState) {
     }
   );
 
-  const setLeftPanelWidth = storeState.action(
+export const setLeftPanelWidth = (storeState: DesignerStoreState) =>
+  storeState.action(
     z.object({ width: z.number() }),
     ({ getState, setBrowser, params }) => {
       const viewport = getState().viewport;
@@ -54,7 +57,8 @@ export function createPanelActions(storeState: DesignerStoreState) {
     }
   );
 
-  const setRightPanelWidth = storeState.action(
+export const setRightPanelWidth = (storeState: DesignerStoreState) =>
+  storeState.action(
     z.object({ width: z.number() }),
     ({ getState, setBrowser, params }) => {
       const viewport = getState().viewport;
@@ -70,11 +74,9 @@ export function createPanelActions(storeState: DesignerStoreState) {
     }
   );
 
-  return {
-    setTopPanelHeight,
-    setBottomPanelHeight,
-    setLeftPanelWidth,
-    setRightPanelWidth
-  };
-}
-
+export const createPanelActions = (storeState: DesignerStoreState) => ({
+  setTopPanelHeight: setTopPanelHeight(storeState),
+  setBottomPanelHeight: setBottomPanelHeight(storeState),
+  setLeftPanelWidth: setLeftPanelWidth(storeState),
+  setRightPanelWidth: setRightPanelWidth(storeState)
+});

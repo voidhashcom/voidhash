@@ -12,6 +12,7 @@ export const rootNodeSchema = z.object({
 
 export const baseNodeSchema = z.object({
   id: z.string(),
+  name: z.string(),
   parent: z.object({
     id: z.string(),
     index: z.string() // Fractional index - https://www.npmjs.com/package/fractional-indexing-jittered
@@ -26,13 +27,25 @@ export const screenNodeSchema = baseNodeSchema.extend({
   height: z.number()
 });
 
+export const textNodeSchema = baseNodeSchema.extend({
+  x: z.number(),
+  y: z.number(),
+  type: z.literal('text'),
+  text: z.string()
+});
+
+export const availableToolsSchema = z.enum(['cursor', 'text']);
+
 export const nodeSchema = z.discriminatedUnion('type', [
   screenNodeSchema,
+  textNodeSchema,
   rootNodeSchema
 ]);
+
 export type NodeData = z.infer<typeof nodeSchema>;
 export type RootNodeData = z.infer<typeof rootNodeSchema>;
 export type ScreenNodeData = z.infer<typeof screenNodeSchema>;
+export type TextNodeData = z.infer<typeof textNodeSchema>;
 export type NodeDataWithoutRoot = Exclude<NodeData, RootNodeData>;
 
 // ============================================================================
@@ -59,6 +72,9 @@ export const designerSchema = createVoidsyncSchema({
   browser: z.object({
     debug: z.object({
       showGrid: z.boolean()
+    }),
+    tools: z.object({
+      activeTool: availableToolsSchema
     }),
     viewport: z.object({
       panels: z.object({

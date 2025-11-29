@@ -5,15 +5,17 @@ import type { DesignerStoreState } from './types';
  * Creates awareness-related actions for the designer store.
  * These actions manage ephemeral state shared via the awareness protocol.
  */
-export function createAwarenessActions(storeState: DesignerStoreState) {
-  const updateCursor = storeState.action(
+
+export const updateCursor = (storeState: DesignerStoreState) =>
+  storeState.action(
     z.object({ x: z.number(), y: z.number() }).nullable(),
     ({ setAwareness, params }) => {
       setAwareness({ cursor: params });
     }
   );
 
-  const updateUser = storeState.action(
+export const updateUser = (storeState: DesignerStoreState) =>
+  storeState.action(
     z.object({
       name: z.string().optional(),
       color: z.string().optional()
@@ -28,9 +30,7 @@ export function createAwarenessActions(storeState: DesignerStoreState) {
     }
   );
 
-  return {
-    updateCursor,
-    updateUser
-  };
-}
-
+export const createAwarenessActions = (storeState: DesignerStoreState) => ({
+  updateCursor: updateCursor(storeState),
+  updateUser: updateUser(storeState)
+});

@@ -1,6 +1,5 @@
 'use client';
 
-import { createId } from '@paralleldrive/cuid2';
 import { IndexGenerator } from 'fractional-indexing-jittered';
 import { createContext, useContext, useRef } from 'react';
 import { Awareness } from 'y-protocols/awareness';
@@ -18,16 +17,18 @@ import {
   type DesignerSchema,
   designerSchema,
   rootNodeSchema,
+  type ScreenNodeData,
   screenNodeSchema
 } from './schema';
+import { createNodeId } from './utils/id';
 
 // ============================================================================
 // Store Factory
 // ============================================================================
 
-function createDesignerStore(doc: Y.Doc, awareness: Awareness) {
+function createDesignerStoreState(doc: Y.Doc, awareness: Awareness) {
   // Create the store state with initial values
-  const storeState = createVoidsyncState(designerSchema)(
+  return createVoidsyncState(designerSchema)(
     {
       awareness: {
         cursor: null,
@@ -43,6 +44,9 @@ function createDesignerStore(doc: Y.Doc, awareness: Awareness) {
         debug: {
           showGrid: SHOW_GRID
         },
+        tools: {
+          activeTool: 'cursor'
+        },
         viewport: {
           panels: {
             top: { height: 0 },
@@ -56,10 +60,12 @@ function createDesignerStore(doc: Y.Doc, awareness: Awareness) {
     doc,
     awareness
   );
+}
 
-  // Create all actions from modular action files
-  const actions = createDesignerActions(storeState);
-
+function createDesignerStore(
+  storeState: ReturnType<typeof createDesignerStoreState>,
+  actions: ReturnType<typeof createDesignerActions>
+) {
   // Create final store with actions
   return createVoidsyncStore(storeState, actions);
 }
@@ -97,13 +103,14 @@ export function DesignerStoreProvider({
 
     const initScreenData = screenNodeSchema.parse({
       ...INIT_SCREEN_DATA,
-      id: createId(),
+      id: createNodeId(),
       type: 'screen',
+      name: 'Screen 1',
       parent: {
         id: rootNodeData.id,
         index: generator.keyStart()
       }
-    });
+    } satisfies ScreenNodeData);
 
     nodesMap.set(rootNodeData.id, rootNodeData);
     nodesMap.set(initScreenData.id, initScreenData);
@@ -114,7 +121,9 @@ export function DesignerStoreProvider({
   if (storeRef.current === null) {
     const doc = ydoc ?? createNewYDoc();
     const awareness = externalAwareness ?? new Awareness(doc);
-    storeRef.current = createDesignerStore(doc, awareness);
+    const storeState = createDesignerStoreState(doc, awareness);
+    const actions = createDesignerActions(storeState);
+    storeRef.current = createDesignerStore(storeState, actions);
   }
 
   return (

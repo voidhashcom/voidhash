@@ -1,5 +1,7 @@
 'use client';
 
+import '@pixi/layout';
+import { LayoutContainer } from '@pixi/layout/components';
 import { Application, extend } from '@pixi/react';
 import { Container, type FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useEffect, useRef } from 'react';
@@ -9,7 +11,7 @@ import { GridBackground } from './grid-background';
 import { NodeTreeRenderer } from './node-tree-renderer';
 import { Viewport } from './viewport';
 
-extend({ Container, Graphics });
+extend({ Container, Graphics, LayoutContainer });
 
 export function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);

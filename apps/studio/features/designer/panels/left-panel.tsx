@@ -7,7 +7,7 @@ import { LayersSection } from './left-panel/layers-section';
 export function LeftPanel() {
   return (
     <div
-      className="fixed bottom-0 left-0 z-40 flex flex-col border-border border-r bg-sidebar backdrop-blur-xl"
+      className="fixed bottom-0 left-0 z-40 flex flex-col border-border border-r bg-sidebar"
       style={{
         top: PANEL_DIMENSIONS.TOP_HEIGHT,
         width: PANEL_DIMENSIONS.LEFT_WIDTH

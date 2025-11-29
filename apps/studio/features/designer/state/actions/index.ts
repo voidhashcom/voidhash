@@ -1,9 +1,10 @@
-import type { DesignerStoreState } from './types';
 import { createAwarenessActions } from './awareness-actions';
+import { createCanvasActions } from './canvas-actions';
 import { createDebugActions } from './debug-actions';
-import { createNodeActions } from './node-actions';
 import { createPanelActions } from './panel-actions';
 import { createSelectionActions } from './selection-actions';
+import { createToolsActions } from './tools-actions';
+import type { DesignerStoreState } from './types';
 
 export type { DesignerStoreState } from './types';
 
@@ -13,11 +14,11 @@ export type { DesignerStoreState } from './types';
  */
 export function createDesignerActions(storeState: DesignerStoreState) {
   return {
-    ...createNodeActions(storeState),
+    ...createCanvasActions(storeState),
     ...createSelectionActions(storeState),
     ...createDebugActions(storeState),
     ...createPanelActions(storeState),
-    ...createAwarenessActions(storeState)
+    ...createAwarenessActions(storeState),
+    ...createToolsActions(storeState)
   };
 }
-

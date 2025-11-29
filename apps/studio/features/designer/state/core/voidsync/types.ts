@@ -1,8 +1,9 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: generic */
-import type * as Y from 'yjs';
-import type { StoreApi } from 'zustand';
-import type { z } from 'zod';
+
 import type { Awareness } from 'y-protocols/awareness';
+import type * as Y from 'yjs';
+import type { z } from 'zod';
+import type { StoreApi } from 'zustand';
 
 // ============================================================================
 // Sync Field Schema Types
@@ -20,7 +21,9 @@ export type VoidsyncFieldSchema<
 };
 
 // Type to extract the inferred type from a VoidsyncFieldSchema
-export type InferVoidsyncFieldType<T> = T extends { _type: infer U } ? U : never;
+export type InferVoidsyncFieldType<T> = T extends { _type: infer U }
+  ? U
+  : never;
 
 // Helper to infer the combined synced type from a record of field schemas
 export type InferSyncedRecord<T extends Record<string, VoidsyncFieldSchema>> = {
@@ -70,12 +73,84 @@ export type VoidsyncSchema<
 // ============================================================================
 
 /**
+ * Symbol used to identify ActionCall objects at runtime.
+ */
+export const ACTION_CALL_SYMBOL = Symbol('actionCall');
+
+/**
+ * Represents a type-safe action invocation created by action.call(params).
+ * Used to dispatch actions with full type safety.
+ */
+export type ActionCall<TParams = unknown> = {
+  readonly [ACTION_CALL_SYMBOL]: true;
+  readonly action: AnyAction;
+  readonly params: TParams;
+};
+
+/**
+ * Type guard to check if a value is an ActionCall.
+ */
+export function isActionCall(value: unknown): value is ActionCall {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    ACTION_CALL_SYMBOL in value &&
+    value[ACTION_CALL_SYMBOL] === true
+  );
+}
+
+/**
+ * Type for action factory functions that take storeState and return an Action.
+ */
+export type ActionFactory<
+  TSchema extends VoidsyncSchema<any, any, any>,
+  TYdoc extends Y.Doc,
+  TParams
+> = (
+  storeState: VoidsyncState<TSchema, TYdoc>
+) => Action<TSchema, TYdoc, TParams>;
+
+/**
+ * Dispatch function that accepts action factory functions.
+ * Used within action handlers to dispatch other actions.
+ *
+ * @example
+ * // Dispatch from within another action:
+ * dispatch(unselectNode)({ id: params.id });
+ *
+ * // Or dispatch with void params:
+ * dispatch(clearSelection)();
+ */
+export type ActionDispatchFn<
+  TSchema extends VoidsyncSchema<any, any, any>,
+  TYdoc extends Y.Doc
+> = <TParams>(
+  actionFactory: ActionFactory<TSchema, TYdoc, TParams>
+) => (params: TParams) => void;
+
+/**
+ * Legacy dispatch function for string-based action dispatch.
+ * Used from React components via useVoidsyncActions hook.
+ *
+ * @example
+ * dispatch('selectNode', { id: '123', many: false });
+ * dispatch('clearSelection', {});
+ */
+export type HookDispatchFn<TActions extends Record<string, AnyAction>> = <
+  TName extends keyof TActions
+>(
+  name: TName,
+  params: TActions[TName] extends Action<any, any, infer P> ? P : never
+) => void;
+
+/**
  * Action context providing access to all state and mutation methods
  */
 export type ActionContext<
   TSchema extends VoidsyncSchema<any, any, any>,
   TYdoc extends Y.Doc,
-  TParams
+  TParams,
+  TActions extends Record<string, AnyAction> = Record<string, AnyAction>
 > = {
   /** The document for persisted state mutations */
   doc: TYdoc;
@@ -87,6 +162,19 @@ export type ActionContext<
   setBrowser: (state: Partial<TSchema['_types']['browser']>) => void;
   /** Set awareness state (ephemeral, shared via awareness protocol) */
   setAwareness: (state: Partial<TSchema['_types']['awareness']>) => void;
+  /**
+   * Dispatch another action using its factory function.
+   *
+   * @example
+   * dispatch(unselectNode)({ id: params.id });
+   * dispatch(selectNode)({ id: '123', many: false });
+   * dispatch(clearSelection)();
+   */
+  dispatch: ActionDispatchFn<TSchema, TYdoc>;
+  /**
+   * Access to all registered actions for advanced use cases.
+   */
+  actions: TActions;
   /** Action parameters passed by the caller */
   params: TParams;
 };
@@ -94,19 +182,36 @@ export type ActionContext<
 export type ActionFn<
   TSchema extends VoidsyncSchema<any, any, any>,
   TYdoc extends Y.Doc,
-  TParams = any
-> = (ctx: ActionContext<TSchema, TYdoc, TParams>) => void;
+  TParams = any,
+  TActions extends Record<string, AnyAction> = Record<string, AnyAction>
+> = (ctx: ActionContext<TSchema, TYdoc, TParams, TActions>) => void;
 
 export type Action<
   TSchema extends VoidsyncSchema<any, any, any>,
   TYdoc extends Y.Doc,
   TParams = any
 > = {
-  fn: ActionFn<TSchema, TYdoc, TParams>;
-  paramsSchema: z.ZodTypeAny | null;
+  readonly fn: ActionFn<TSchema, TYdoc, TParams, any>;
+  readonly paramsSchema: z.ZodTypeAny | null;
+  /**
+   * Create a type-safe action call for dispatch.
+   *
+   * @example
+   * dispatch(selectNode.call({ id: '123', many: false }));
+   */
+  readonly call: (params: TParams) => ActionCall<TParams>;
 };
 
 export type AnyAction = Action<any, any, any>;
+
+/**
+ * Extract the params type from an action.
+ *
+ * @example
+ * type SelectNodeParams = ActionParams<typeof selectNode>;
+ * // { id: string, many: boolean }
+ */
+export type ActionParams<T> = T extends Action<any, any, infer P> ? P : never;
 
 // ============================================================================
 // Sync Types
@@ -165,6 +270,8 @@ export type VoidsyncStore<
   actions: TActions;
   /** The local client's unique ID */
   clientId: number;
+  /** Reference to the underlying state for action factory invocation */
+  storeState: VoidsyncState<TSchema, TYdoc>;
 };
 
 // ============================================================================

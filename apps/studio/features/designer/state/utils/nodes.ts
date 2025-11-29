@@ -1,4 +1,8 @@
-import type { DesignerStateNodes, NodeData } from '../schema';
+import type {
+  DesignerStateNodes,
+  NodeData,
+  NodeDataWithoutRoot
+} from '../schema';
 
 type TreeNode<T extends NodeData> = T & {
   children: TreeNode<T>[];
@@ -67,4 +71,13 @@ export function createTree<TStateNodes extends DesignerStateNodes>(
   }
 
   return rootNode;
+}
+
+export function getNodesByParentId<TStateNodes extends DesignerStateNodes>(
+  nodes: TStateNodes,
+  parentId: string
+): NodeDataWithoutRoot[] {
+  return Object.values(nodes).filter(
+    (n) => n.type !== 'root' && n.parent.id === parentId
+  ) as NodeDataWithoutRoot[];
 }

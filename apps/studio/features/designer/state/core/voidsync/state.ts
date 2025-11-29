@@ -1,19 +1,22 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: generic */
-import * as Y from 'yjs';
-import { createStore } from 'zustand';
-import type { z } from 'zod';
+
 import type { Awareness } from 'y-protocols/awareness';
-import type {
-  Action,
-  ActionFn,
-  InferSyncedRecord,
-  InitialStateInput,
-  SyncFromDoc,
-  VoidsyncFieldSchema,
-  VoidsyncSchema,
-  VoidsyncState
-} from './types';
+import type * as Y from 'yjs';
+import type { z } from 'zod';
+import { createStore } from 'zustand';
 import { getVoidsyncTypeMarker, isVoidsyncFieldSchema } from './sync-markers';
+import {
+  ACTION_CALL_SYMBOL,
+  type Action,
+  type ActionCall,
+  type ActionFn,
+  type InferSyncedRecord,
+  type InitialStateInput,
+  type SyncFromDoc,
+  type VoidsyncFieldSchema,
+  type VoidsyncSchema,
+  type VoidsyncState
+} from './types';
 
 /**
  * Generates a sync function automatically from the synced schema.
@@ -29,7 +32,9 @@ function createAutoSyncFromSchema<
     const state: Record<string, unknown> = {};
 
     for (const [key, fieldSchema] of Object.entries(syncedSchema)) {
-      if (!isVoidsyncFieldSchema(fieldSchema)) continue;
+      if (!isVoidsyncFieldSchema(fieldSchema)) {
+        continue;
+      }
 
       const marker = getVoidsyncTypeMarker(fieldSchema);
 
@@ -117,12 +122,40 @@ function createVoidsyncStateFn<TSchema extends VoidsyncSchema<any, any, any>>(
       paramsSchemaOrFn: TParamsSchema | ActionFn<TSchema, TYdoc, void>,
       maybeFn?: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>>
     ): Action<TSchema, TYdoc, any> {
+      // Create the call method for type-safe dispatch
+      const createCallMethod = (
+        actionRef: Action<TSchema, TYdoc, any>
+      ): ((params: any) => ActionCall<any>) => {
+        return (params: any): ActionCall<any> => ({
+          [ACTION_CALL_SYMBOL]: true,
+          action: actionRef,
+          params
+        });
+      };
+
       // Check if first arg is a function (no params schema)
       if (typeof paramsSchemaOrFn === 'function') {
-        return { fn: paramsSchemaOrFn, paramsSchema: null };
+        const actionObj: Action<TSchema, TYdoc, void> = {
+          fn: paramsSchemaOrFn,
+          paramsSchema: null,
+          call: null as any // Will be set below
+        };
+        (actionObj as any).call = createCallMethod(actionObj);
+        return actionObj;
       }
+
       // First arg is schema, second is fn
-      return { fn: maybeFn!, paramsSchema: paramsSchemaOrFn };
+      const actionObj: Action<TSchema, TYdoc, any> = {
+        fn:
+          maybeFn ??
+          (() => {
+            throw new Error('No function provided for action');
+          }),
+        paramsSchema: paramsSchemaOrFn,
+        call: null as any // Will be set below
+      };
+      (actionObj as any).call = createCallMethod(actionObj);
+      return actionObj;
     }
 
     return {

@@ -5,8 +5,9 @@ import type { DesignerStoreState } from './types';
  * Creates selection-related actions for the designer store.
  * These actions manage the currently selected node (browser-only state).
  */
-export function createSelectionActions(storeState: DesignerStoreState) {
-  const selectNode = storeState.action(
+
+export const selectNode = (storeState: DesignerStoreState) =>
+  storeState.action(
     z.object({ id: z.string(), many: z.boolean() }),
     ({ params, setAwareness, getState }) => {
       if (params.many) {
@@ -21,7 +22,8 @@ export function createSelectionActions(storeState: DesignerStoreState) {
     }
   );
 
-  const unselectNode = storeState.action(
+export const unselectNode = (storeState: DesignerStoreState) =>
+  storeState.action(
     z.object({ id: z.string() }),
     ({ params, setAwareness, getState }) => {
       setAwareness({
@@ -32,13 +34,13 @@ export function createSelectionActions(storeState: DesignerStoreState) {
     }
   );
 
-  const clearSelection = storeState.action(z.object({}), ({ setAwareness }) => {
+export const clearSelection = (storeState: DesignerStoreState) =>
+  storeState.action(z.object({}), ({ setAwareness }) => {
     setAwareness({ selectedNodeIds: [] });
   });
 
-  return {
-    selectNode,
-    unselectNode,
-    clearSelection
-  };
-}
+export const createSelectionActions = (storeState: DesignerStoreState) => ({
+  selectNode: selectNode(storeState),
+  unselectNode: unselectNode(storeState),
+  clearSelection: clearSelection(storeState)
+});

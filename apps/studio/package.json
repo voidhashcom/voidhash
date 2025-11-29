@@ -28,6 +28,7 @@
     "@hookform/resolvers": "^5.1.1",
     "@pixi/layout": "^3.2.0",
     "@pixi/react": "^8.0.0-beta.25",
+    "@pixi/ui": "^2.3.0",
     "@polar-sh/nextjs": "^0.4.0",
     "@react-three/drei": "^10.1.2",
     "@react-three/fiber": "^9.1.2",

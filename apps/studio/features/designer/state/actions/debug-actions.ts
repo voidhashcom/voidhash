@@ -5,8 +5,8 @@ import type { DesignerStoreState } from './types';
  * Creates debug-related actions for the designer store.
  * These actions manage debug settings (browser-only state).
  */
-export function createDebugActions(storeState: DesignerStoreState) {
-  const setShowGrid = storeState.action(
+export const setShowGrid = (storeState: DesignerStoreState) =>
+  storeState.action(
     z.object({ showGrid: z.boolean() }),
     ({ getState, setBrowser, params }) => {
       setBrowser({
@@ -18,7 +18,8 @@ export function createDebugActions(storeState: DesignerStoreState) {
     }
   );
 
-  const toggleShowGrid = storeState.action(({ getState, setBrowser }) => {
+export const toggleShowGrid = (storeState: DesignerStoreState) =>
+  storeState.action(({ getState, setBrowser }) => {
     setBrowser({
       debug: {
         ...getState().debug,
@@ -27,9 +28,7 @@ export function createDebugActions(storeState: DesignerStoreState) {
     });
   });
 
-  return {
-    setShowGrid,
-    toggleShowGrid
-  };
-}
-
+export const createDebugActions = (storeState: DesignerStoreState) => ({
+  setShowGrid: setShowGrid(storeState),
+  toggleShowGrid: toggleShowGrid(storeState)
+});
