@@ -7,14 +7,14 @@ import type { DesignerStoreState } from './types';
  */
 export function createSelectionActions(storeState: DesignerStoreState) {
   const selectNode = storeState.action(
-    z.object({ id: z.string().nullable() }),
-    ({ setBrowser, params }) => {
-      setBrowser({ selectedNodeId: params.id });
+    z.object({ id: z.string() }),
+    ({ params, setAwareness }) => {
+      setAwareness({ selectedNodeIds: [params.id] });
     }
   );
 
-  const clearSelection = storeState.action(({ setBrowser }) => {
-    setBrowser({ selectedNodeId: null });
+  const clearSelection = storeState.action(({ setAwareness }) => {
+    setAwareness({ selectedNodeIds: [] });
   });
 
   return {
@@ -22,4 +22,3 @@ export function createSelectionActions(storeState: DesignerStoreState) {
     clearSelection
   };
 }
-

@@ -36,7 +36,8 @@ function createDesignerStore(doc: Y.Doc, awareness: Awareness) {
           color: `#${Math.floor(Math.random() * 16_777_215)
             .toString(16)
             .padStart(6, '0')}`
-        }
+        },
+        selectedNodeIds: []
       },
       browser: {
         debug: {
@@ -49,8 +50,7 @@ function createDesignerStore(doc: Y.Doc, awareness: Awareness) {
             left: { width: 0 },
             right: { width: 0 }
           }
-        },
-        selectedNodeId: null
+        }
       }
     },
     doc,

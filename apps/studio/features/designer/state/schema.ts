@@ -50,7 +50,8 @@ export const designerSchema = createVoidsyncSchema({
     user: z.object({
       name: z.string(),
       color: z.string()
-    })
+    }),
+    selectedNodeIds: z.array(z.string()).default([])
   }),
 
   // Local browser state, not synced (UI preferences, panel sizes)
@@ -65,8 +66,7 @@ export const designerSchema = createVoidsyncSchema({
         left: z.object({ width: z.number() }),
         right: z.object({ width: z.number() })
       })
-    }),
-    selectedNodeId: z.string().nullable()
+    })
   }),
 
   // Persisted state synced to the document

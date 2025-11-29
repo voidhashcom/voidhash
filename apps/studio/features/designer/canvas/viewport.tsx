@@ -7,6 +7,7 @@ import {
   useContext,
   useState
 } from 'react';
+import { INIT_SCREEN_DATA } from '../constants';
 
 type ViewportProps = Omit<IViewportOptions, 'events'>;
 
@@ -21,7 +22,28 @@ class ViewportWrapper extends BaseViewport {
       // hence we need to pass the app to the constructor.
       events: app.renderer.events
     });
-    this.drag().pinch().wheel().decelerate();
+
+    /// This centers the screen on the canvas
+    this.moveCorner(
+      -((this.screenWidth - INIT_SCREEN_DATA.width) / 2),
+      -((this.screenHeight - INIT_SCREEN_DATA.height) / 2)
+    );
+
+    this.zoomPercent(-0.2, true);
+
+    this.drag({
+      pressDrag: false
+    })
+      .pinch({
+        noDrag: true
+      })
+      .wheel({
+        trackpadPinch: true,
+        smooth: 3,
+        percent: 2,
+        wheelZoom: false
+      })
+      .decelerate();
   }
 }
 extend({ ViewportWrapper });

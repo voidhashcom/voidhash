@@ -2,7 +2,7 @@
 
 import { Application, extend } from '@pixi/react';
 import { Container, Graphics } from 'pixi.js';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { CANVAS_DEFAULTS } from '../constants';
 import { useDesignerSelect } from '../state/designer-store';
 import { GridBackground } from './grid-background';
@@ -15,11 +15,54 @@ export function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const showGrid = useDesignerSelect((state) => state.debug.showGrid);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    // Prevent browser zoom on trackpad pinch gestures
+    const handleWheel = (e: WheelEvent) => {
+      // Trackpad pinch gestures have ctrlKey set to true
+      if (e.ctrlKey) {
+        e.preventDefault();
+      }
+    };
+
+    // Prevent iOS gesture zoom
+    const handleGestureStart = (e: Event) => {
+      e.preventDefault();
+    };
+
+    const handleGestureChange = (e: Event) => {
+      e.preventDefault();
+    };
+
+    const handleGestureEnd = (e: Event) => {
+      e.preventDefault();
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener('gesturestart', handleGestureStart);
+    container.addEventListener('gesturechange', handleGestureChange);
+    container.addEventListener('gestureend', handleGestureEnd);
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('gesturestart', handleGestureStart);
+      container.removeEventListener('gesturechange', handleGestureChange);
+      container.removeEventListener('gestureend', handleGestureEnd);
+    };
+  }, []);
+
   return (
     <div
       className="absolute inset-0 overflow-hidden"
       ref={containerRef}
-      style={{ background: CANVAS_DEFAULTS.BACKGROUND_COLOR }}
+      style={{
+        background: CANVAS_DEFAULTS.BACKGROUND_COLOR,
+        touchAction: 'pan-x pan-y'
+      }}
     >
       <Application
         antialias
