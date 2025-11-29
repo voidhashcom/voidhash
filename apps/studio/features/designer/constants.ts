@@ -13,3 +13,10 @@ export const CANVAS_DEFAULTS = {
   //BACKGROUND_COLOR: 0x1f_1f_1f
   BACKGROUND_COLOR: 0x12_12_12
 } as const;
+
+export const INIT_SCREEN_DATA = {
+  x: 0,
+  y: 0,
+  width: 390,
+  height: 844
+} as const;

@@ -1,9 +1,11 @@
 'use client';
 
+import { createId } from '@paralleldrive/cuid2';
+import { IndexGenerator } from 'fractional-indexing-jittered';
 import { createContext, useContext, useRef } from 'react';
-import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
-import { SHOW_GRID } from '../constants';
+import * as Y from 'yjs';
+import { INIT_SCREEN_DATA, SHOW_GRID } from '../constants';
 import { createDesignerActions } from './actions';
 import {
   createVoidsyncState,
@@ -12,7 +14,12 @@ import {
   useVoidsyncAwareness,
   useVoidsyncSelect
 } from './core/voidsync';
-import { designerSchema, type DesignerSchema } from './schema';
+import {
+  type DesignerSchema,
+  designerSchema,
+  rootNodeSchema,
+  screenNodeSchema
+} from './schema';
 
 // ============================================================================
 // Store Factory
@@ -26,7 +33,9 @@ function createDesignerStore(doc: Y.Doc, awareness: Awareness) {
         cursor: null,
         user: {
           name: `User ${Math.floor(Math.random() * 1000)}`,
-          color: `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`
+          color: `#${Math.floor(Math.random() * 16_777_215)
+            .toString(16)
+            .padStart(6, '0')}`
         }
       },
       browser: {
@@ -76,8 +85,34 @@ export function DesignerStoreProvider({
 }: DesignerStoreProviderProps) {
   const storeRef = useRef<DesignerStoreType | null>(null);
 
+  function createNewYDoc() {
+    const generator = new IndexGenerator([]);
+
+    const doc = new Y.Doc();
+    const nodesMap = doc.getMap('nodes');
+    const rootNodeData = rootNodeSchema.parse({
+      id: 'root',
+      type: 'root'
+    });
+
+    const initScreenData = screenNodeSchema.parse({
+      ...INIT_SCREEN_DATA,
+      id: createId(),
+      type: 'screen',
+      parent: {
+        id: rootNodeData.id,
+        index: generator.keyStart()
+      }
+    });
+
+    nodesMap.set(rootNodeData.id, rootNodeData);
+    nodesMap.set(initScreenData.id, initScreenData);
+
+    return doc;
+  }
+
   if (storeRef.current === null) {
-    const doc = ydoc ?? new Y.Doc();
+    const doc = ydoc ?? createNewYDoc();
     const awareness = externalAwareness ?? new Awareness(doc);
     storeRef.current = createDesignerStore(doc, awareness);
   }

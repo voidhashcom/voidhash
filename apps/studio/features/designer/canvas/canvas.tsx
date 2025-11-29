@@ -1,17 +1,17 @@
 'use client';
 
 import { Application, extend } from '@pixi/react';
-import { Container } from 'pixi.js';
+import { Container, Graphics } from 'pixi.js';
 import { useRef } from 'react';
 import { CANVAS_DEFAULTS } from '../constants';
 import { useDesignerSelect } from '../state/designer-store';
-import type { DesignerCanvasProps } from '../types';
 import { GridBackground } from './grid-background';
+import { NodeTreeRenderer } from './node-tree-renderer';
 import { Viewport } from './viewport';
 
-extend({ Container });
+extend({ Container, Graphics });
 
-export function DesignerCanvas({ children }: DesignerCanvasProps) {
+export function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const showGrid = useDesignerSelect((state) => state.debug.showGrid);
 
@@ -30,7 +30,7 @@ export function DesignerCanvas({ children }: DesignerCanvasProps) {
       >
         <Viewport>
           {showGrid && <GridBackground />}
-          {children}
+          <NodeTreeRenderer />
         </Viewport>
       </Application>
     </div>

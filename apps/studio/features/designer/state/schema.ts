@@ -1,22 +1,38 @@
 import { z } from 'zod';
-import {
-  createVoidsyncSchema,
-  syncMap
-} from './core/voidsync';
+import { createVoidsyncSchema, syncMap } from './core/voidsync';
 
 // ============================================================================
 // Node Schema
 // ============================================================================
 
-export const nodeSchema = z.object({
+export const rootNodeSchema = z.object({
+  type: z.literal('root'),
+  id: z.string()
+});
+
+export const baseNodeSchema = z.object({
   id: z.string(),
+  parent: z.object({
+    id: z.string(),
+    index: z.string() // Fractional index - https://www.npmjs.com/package/fractional-indexing-jittered
+  })
+});
+
+export const screenNodeSchema = baseNodeSchema.extend({
+  type: z.literal('screen'),
   x: z.number(),
   y: z.number(),
   width: z.number(),
   height: z.number()
 });
 
+export const nodeSchema = z.discriminatedUnion('type', [
+  screenNodeSchema,
+  rootNodeSchema
+]);
 export type NodeData = z.infer<typeof nodeSchema>;
+export type RootNodeData = z.infer<typeof rootNodeSchema>;
+export type NodeDataWithoutRoot = Exclude<NodeData, RootNodeData>;
 
 // ============================================================================
 // Designer Schema
@@ -59,6 +75,7 @@ export const designerSchema = createVoidsyncSchema({
   }
 });
 
+export type DesignerStateNodes = Record<string, z.infer<typeof nodeSchema>>;
+
 export type DesignerSchema = typeof designerSchema;
 export type DesignerState = DesignerSchema['_types']['combined'];
-
