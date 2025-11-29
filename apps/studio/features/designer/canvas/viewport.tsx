@@ -32,10 +32,12 @@ class ViewportWrapper extends BaseViewport {
     this.zoomPercent(-0.2, true);
 
     this.drag({
-      pressDrag: false
+      pressDrag: false,
+      factor: 30
     })
       .pinch({
-        noDrag: true
+        noDrag: true,
+        factor: 30
       })
       .wheel({
         trackpadPinch: true,
@@ -43,7 +45,9 @@ class ViewportWrapper extends BaseViewport {
         percent: 2,
         wheelZoom: false
       })
-      .decelerate();
+      .decelerate({
+        minSpeed: 0.1
+      });
   }
 }
 extend({ ViewportWrapper });

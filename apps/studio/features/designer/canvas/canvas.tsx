@@ -55,6 +55,23 @@ export function Canvas() {
     };
   }, []);
 
+  useEffect(() => {
+    // Set overscroll-behavior-x on html and body to prevent horizontal overscroll
+    const htmlElement = document.documentElement;
+    const bodyElement = document.body;
+
+    const originalHtmlOverscroll = htmlElement.style.overscrollBehaviorX;
+    const originalBodyOverscroll = bodyElement.style.overscrollBehaviorX;
+
+    htmlElement.style.overscrollBehaviorX = 'none';
+    bodyElement.style.overscrollBehaviorX = 'none';
+
+    return () => {
+      htmlElement.style.overscrollBehaviorX = originalHtmlOverscroll;
+      bodyElement.style.overscrollBehaviorX = originalBodyOverscroll;
+    };
+  }, []);
+
   return (
     <div
       className="absolute inset-0 overflow-hidden"
