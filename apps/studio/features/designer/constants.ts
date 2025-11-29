@@ -12,7 +12,7 @@ export const CANVAS_DEFAULTS = {
   // Colors
   PRIMARY_COLOR: 0x00_5e_ff,
   GRID_COLOR: 0x3f_3f_3f,
-  BACKGROUND_COLOR: 0x12_12_12
+  BACKGROUND_COLOR: '#121212'
 } as const;
 
 export const INIT_SCREEN_DATA = {

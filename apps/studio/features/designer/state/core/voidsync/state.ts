@@ -4,6 +4,7 @@ import type { Awareness } from 'y-protocols/awareness';
 import type * as Y from 'yjs';
 import type { z } from 'zod';
 import { createStore } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
 import { getVoidsyncTypeMarker, isVoidsyncFieldSchema } from './sync-markers';
 import {
   ACTION_CALL_SYMBOL,
@@ -101,8 +102,8 @@ function createVoidsyncStateFn<TSchema extends VoidsyncSchema<any, any, any>>(
       ...initialState.browser
     } as TSchema['_types']['combined'];
 
-    const zustand = createStore<TSchema['_types']['combined']>(
-      () => combinedInitialState
+    const zustand = createStore<TSchema['_types']['combined']>()(
+      subscribeWithSelector(() => combinedInitialState)
     );
 
     // Set initial awareness state

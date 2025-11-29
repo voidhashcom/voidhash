@@ -4,28 +4,30 @@ import { ColumnLayoutRenderer } from './layouts/column-layout-renderer';
 
 export function ScreenNodeRenderer({
   node,
-  children
+  children,
+  ref
 }: {
   node: ScreenNodeData;
   children: React.ReactNode;
+  ref?: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <pixiContainer x={node.x} y={node.y}>
+    <div className="absolute" ref={ref} style={{ left: node.x, top: node.y }}>
       <Selectable nodeId={node.id}>
         {() => (
           <>
-            <pixiGraphics
-              draw={(graphics) => {
-                graphics.clear();
-                graphics.setFillStyle({ color: 0xff_ff_ff, alpha: 1 });
-                graphics.rect(0, 0, node.width, node.height);
-                graphics.fill();
+            <div
+              style={{
+                width: node.width,
+                height: node.height,
+                backgroundColor: '#ffffff'
               }}
-            />
-            <ColumnLayoutRenderer>{children}</ColumnLayoutRenderer>
+            >
+              <ColumnLayoutRenderer>{children}</ColumnLayoutRenderer>
+            </div>
           </>
         )}
       </Selectable>
-    </pixiContainer>
+    </div>
   );
 }

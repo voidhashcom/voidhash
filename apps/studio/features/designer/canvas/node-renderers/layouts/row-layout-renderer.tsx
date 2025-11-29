@@ -1,11 +1,12 @@
 export function RowLayoutRenderer({ children }: { children: React.ReactNode }) {
   return (
-    <pixiLayoutContainer
-      layout={{
+    <div
+      style={{
+        display: 'flex',
         flexDirection: 'row'
       }}
     >
       {children}
-    </pixiLayoutContainer>
+    </div>
   );
 }

@@ -1,93 +1,403 @@
-import { extend, useApplication } from '@pixi/react';
-import type { Application } from 'pixi.js';
-import { Viewport as BaseViewport, type IViewportOptions } from 'pixi-viewport';
+'use client';
+
 import {
   createContext,
   type PropsWithChildren,
+  useCallback,
   useContext,
-  useState
+  useEffect,
+  useLayoutEffect,
+  useRef
 } from 'react';
-import { INIT_SCREEN_DATA } from '../constants';
+import { CANVAS_DEFAULTS, INIT_SCREEN_DATA } from '../constants';
 
-type ViewportProps = Omit<IViewportOptions, 'events'>;
+// ============================================================================
+// Types
+// ============================================================================
 
-class ViewportWrapper extends BaseViewport {
-  constructor(options: ViewportProps & { app: Application }) {
-    const { app, ...rest } = options;
-    super({
-      ...rest,
-      // events is the only required argument to the constructor.
-      // This may be why extend() doesn't work propertly with pixi-viewport.
-      // other pixi elements have no required arguments to the constructor.
-      // hence we need to pass the app to the constructor.
-      events: app.renderer.events
+export type ViewportTransform = {
+  x: number;
+  y: number;
+  scale: number;
+};
+
+type ViewportContextValue = {
+  /**
+   * Convert a point from screen/viewport coordinates to canvas coordinates
+   */
+  screenToCanvas: (
+    screenX: number,
+    screenY: number
+  ) => { x: number; y: number };
+  /**
+   * Convert a point from canvas coordinates to screen/viewport coordinates
+   */
+  canvasToScreen: (
+    canvasX: number,
+    canvasY: number
+  ) => { x: number; y: number };
+  /**
+   * Get the current viewport transform (for reading purposes)
+   */
+  getTransform: () => ViewportTransform;
+};
+
+const ViewportContext = createContext<ViewportContextValue | null>(null);
+
+// ============================================================================
+// Viewport Component
+// ============================================================================
+
+export type ViewportProps = PropsWithChildren<{
+  onTransformChange?: (transform: ViewportTransform) => void;
+}>;
+
+export function Viewport({ children, onTransformChange }: ViewportProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Store transform in ref to avoid re-renders during pan/zoom
+  const transformRef = useRef<ViewportTransform>({
+    x: 0,
+    y: 0,
+    scale: 0.8 // Start at 80% zoom (matching pixi-viewport's zoomPercent(-0.2))
+  });
+
+  // Touch tracking for pinch gestures
+  const touchStateRef = useRef<{
+    initialDistance: number;
+    initialScale: number;
+    initialMidpoint: { x: number; y: number };
+    lastMidpoint: { x: number; y: number };
+  } | null>(null);
+
+  // Apply transform to DOM element
+  const applyTransform = useCallback(() => {
+    const content = contentRef.current;
+    if (!content) {
+      return;
+    }
+
+    const { x, y, scale } = transformRef.current;
+    onTransformChange?.({ x, y, scale });
+    content.style.transform = `matrix(${scale}, 0, 0, ${scale}, ${x}, ${y})`;
+  }, [onTransformChange]);
+
+  // Calculate initial position to center the screen
+  const initializePosition = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const { scale } = transformRef.current;
+    const containerRect = container.getBoundingClientRect();
+
+    // Center the initial screen in the viewport
+    const scaledScreenWidth = INIT_SCREEN_DATA.width * scale;
+    const scaledScreenHeight = INIT_SCREEN_DATA.height * scale;
+
+    transformRef.current.x =
+      (containerRect.width - scaledScreenWidth) / 2 -
+      INIT_SCREEN_DATA.x * scale;
+    transformRef.current.y =
+      (containerRect.height - scaledScreenHeight) / 2 -
+      INIT_SCREEN_DATA.y * scale;
+
+    applyTransform();
+  }, [applyTransform]);
+
+  // Initialize position on mount
+  useLayoutEffect(() => {
+    initializePosition();
+  }, [initializePosition]);
+
+  // Zoom towards a specific point
+  const zoomAtPoint = useCallback(
+    (newScale: number, pointX: number, pointY: number) => {
+      const { x, y, scale } = transformRef.current;
+
+      // Clamp scale to min/max
+      const clampedScale = Math.min(
+        Math.max(newScale, CANVAS_DEFAULTS.MIN_ZOOM),
+        CANVAS_DEFAULTS.MAX_ZOOM
+      );
+
+      if (clampedScale === scale) {
+        return;
+      }
+
+      // Zoom towards the point: adjust position so the point stays in the same place
+      const scaleRatio = clampedScale / scale;
+      transformRef.current = {
+        x: pointX - (pointX - x) * scaleRatio,
+        y: pointY - (pointY - y) * scaleRatio,
+        scale: clampedScale
+      };
+
+      applyTransform();
+    },
+    [applyTransform]
+  );
+
+  // Pan by delta
+  const pan = useCallback(
+    (deltaX: number, deltaY: number) => {
+      transformRef.current.x -= deltaX;
+      transformRef.current.y -= deltaY;
+      applyTransform();
+    },
+    [applyTransform]
+  );
+
+  // Wheel handler for trackpad pan and pinch-to-zoom
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+
+      // Trackpad pinch gesture sets ctrlKey to true
+      if (e.ctrlKey) {
+        // Pinch-to-zoom
+        const rect = container.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // deltaY is negative when zooming in (pinch out), positive when zooming out
+        // Apply smooth zoom factor
+        const zoomFactor = 1 - e.deltaY * 0.01;
+        const newScale = transformRef.current.scale * zoomFactor;
+
+        zoomAtPoint(newScale, mouseX, mouseY);
+      } else {
+        // Trackpad pan
+        pan(e.deltaX, e.deltaY);
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [pan, zoomAtPoint]);
+
+  // Touch handlers for pinch-to-zoom and two-finger pan
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const getDistance = (touch1: Touch, touch2: Touch) => {
+      const dx = touch1.clientX - touch2.clientX;
+      const dy = touch1.clientY - touch2.clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    const getMidpoint = (touch1: Touch, touch2: Touch) => {
+      const rect = container.getBoundingClientRect();
+      return {
+        x: (touch1.clientX + touch2.clientX) / 2 - rect.left,
+        y: (touch1.clientY + touch2.clientY) / 2 - rect.top
+      };
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) {
+        return;
+      }
+      e.preventDefault();
+      const touch1 = e.touches.item(0);
+      const touch2 = e.touches.item(1);
+      if (!touch1) {
+        return;
+      }
+      if (!touch2) {
+        return;
+      }
+      const midpoint = getMidpoint(touch1, touch2);
+
+      touchStateRef.current = {
+        initialDistance: getDistance(touch1, touch2),
+        initialScale: transformRef.current.scale,
+        initialMidpoint: midpoint,
+        lastMidpoint: midpoint
+      };
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2) {
+        return;
+      }
+      if (!touchStateRef.current) {
+        return;
+      }
+      e.preventDefault();
+
+      const touch1 = e.touches.item(0);
+      const touch2 = e.touches.item(1);
+      if (!touch1) {
+        return;
+      }
+      if (!touch2) {
+        return;
+      }
+      const currentDistance = getDistance(touch1, touch2);
+      const currentMidpoint = getMidpoint(touch1, touch2);
+
+      const { initialDistance, initialScale, lastMidpoint } =
+        touchStateRef.current;
+
+      // Calculate new scale from pinch
+      const scaleRatio = currentDistance / initialDistance;
+      const newScale = initialScale * scaleRatio;
+
+      // Apply zoom at the current midpoint
+      zoomAtPoint(newScale, currentMidpoint.x, currentMidpoint.y);
+
+      // Apply pan from midpoint movement
+      const panDeltaX = lastMidpoint.x - currentMidpoint.x;
+      const panDeltaY = lastMidpoint.y - currentMidpoint.y;
+      pan(panDeltaX, panDeltaY);
+
+      touchStateRef.current.lastMidpoint = currentMidpoint;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        touchStateRef.current = null;
+      }
+    };
+
+    // Prevent iOS gesture zoom
+    const handleGestureStart = (e: Event) => {
+      e.preventDefault();
+    };
+
+    const handleGestureChange = (e: Event) => {
+      e.preventDefault();
+    };
+
+    const handleGestureEnd = (e: Event) => {
+      e.preventDefault();
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, {
+      passive: false
     });
+    container.addEventListener('touchmove', handleTouchMove, {
+      passive: false
+    });
+    container.addEventListener('touchend', handleTouchEnd);
+    container.addEventListener('touchcancel', handleTouchEnd);
+    container.addEventListener('gesturestart', handleGestureStart);
+    container.addEventListener('gesturechange', handleGestureChange);
+    container.addEventListener('gestureend', handleGestureEnd);
 
-    /// This centers the screen on the canvas
-    this.moveCorner(
-      -((this.screenWidth - INIT_SCREEN_DATA.width) / 2),
-      -((this.screenHeight - INIT_SCREEN_DATA.height) / 2)
-    );
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('touchcancel', handleTouchEnd);
+      container.removeEventListener('gesturestart', handleGestureStart);
+      container.removeEventListener('gesturechange', handleGestureChange);
+      container.removeEventListener('gestureend', handleGestureEnd);
+    };
+  }, [pan, zoomAtPoint]);
 
-    this.zoomPercent(-0.2, true);
+  // Coordinate conversion functions
+  const screenToCanvas = useCallback(
+    (screenX: number, screenY: number): { x: number; y: number } => {
+      const container = containerRef.current;
+      if (!container) {
+        return { x: 0, y: 0 };
+      }
 
-    this.drag({
-      pressDrag: false,
-      factor: 30
-    })
-      .pinch({
-        noDrag: true,
-        factor: 30
-      })
-      .wheel({
-        trackpadPinch: true,
-        smooth: 3,
-        percent: 2,
-        wheelZoom: false
-      })
-      .decelerate({
-        minSpeed: 0.1
-      });
-  }
-}
-extend({ ViewportWrapper });
+      const rect = container.getBoundingClientRect();
+      const { x, y, scale } = transformRef.current;
 
-const ViewportContext = createContext<ViewportWrapper | null>(null);
-export function Viewport(props: PropsWithChildren<ViewportProps>) {
-  const { children, ...rest } = props;
+      // Convert from screen coordinates to canvas coordinates
+      const relativeX = screenX - rect.left;
+      const relativeY = screenY - rect.top;
 
-  const [viewport, setViewport] = useState<ViewportWrapper | null>(null);
-  const { app } = useApplication();
+      return {
+        x: (relativeX - x) / scale,
+        y: (relativeY - y) / scale
+      };
+    },
+    []
+  );
 
-  if (!app?.renderer) {
-    return null;
-  }
+  const canvasToScreen = useCallback(
+    (canvasX: number, canvasY: number): { x: number; y: number } => {
+      const container = containerRef.current;
+      if (!container) {
+        return { x: 0, y: 0 };
+      }
+
+      const rect = container.getBoundingClientRect();
+      const { x, y, scale } = transformRef.current;
+
+      // Convert from canvas coordinates to screen coordinates
+      return {
+        x: canvasX * scale + x + rect.left,
+        y: canvasY * scale + y + rect.top
+      };
+    },
+    []
+  );
+
+  const getTransform = useCallback(() => {
+    return { ...transformRef.current };
+  }, []);
+
+  const contextValue: ViewportContextValue = {
+    screenToCanvas,
+    canvasToScreen,
+    getTransform
+  };
 
   return (
-    <pixiViewportWrapper
-      app={app}
-      ref={(instance) => {
-        setViewport(instance);
-      }}
-      {...rest}
-    >
-      {viewport && (
-        <ViewportContext.Provider value={viewport}>
+    <ViewportContext.Provider value={contextValue}>
+      <div
+        className="absolute inset-0 overflow-hidden"
+        ref={containerRef}
+        style={{ touchAction: 'none' }}
+      >
+        <div
+          className="absolute origin-top-left"
+          ref={contentRef}
+          style={{
+            // Will be updated via JS for performance
+            transform: 'matrix(1, 0, 0, 1, 0, 0)',
+            willChange: 'transform'
+          }}
+        >
           {children}
-        </ViewportContext.Provider>
-      )}
-    </pixiViewportWrapper>
+        </div>
+      </div>
+    </ViewportContext.Provider>
   );
 }
 
+// ============================================================================
+// Hook
+// ============================================================================
+
 /**
- * Hook to get the viewport instance.
- * @returns The viewport instance.
+ * Hook to access viewport coordinate conversion functions.
+ * Does NOT cause re-renders when the viewport transforms - use for event handlers
+ * that need to convert coordinates.
  */
 export function useViewport() {
   const context = useContext(ViewportContext);
   if (!context) {
-    throw new Error('useViewport must be used within a ViewportProvider');
+    throw new Error('useViewport must be used within a Viewport');
   }
   return context;
 }

@@ -34,6 +34,19 @@ export const useVoidsyncSelect = <
   return useStore(store.zustand, selector);
 };
 
+export const useVoidsyncSubscribe = <
+  TSchema extends VoidsyncSchema<any, any, any>,
+  TYdoc extends Y.Doc,
+  TActions extends Record<string, AnyAction>,
+  TResult
+>(
+  store: VoidsyncStore<TSchema, TYdoc, TActions>,
+  selector: (state: TSchema['_types']['combined']) => TResult,
+  callback: (state: TResult) => void
+): (() => void) => {
+  return store.zustand.subscribe(selector, callback);
+};
+
 /**
  * React hook to get all users' awareness states.
  * Re-renders when any user's awareness state changes.

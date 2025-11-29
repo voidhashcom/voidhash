@@ -1,112 +1,96 @@
 'use client';
 
-import '@pixi/layout';
-import { LayoutContainer } from '@pixi/layout/components';
-import { Application, extend } from '@pixi/react';
-import { Container, type FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useEffect, useRef } from 'react';
 import { CANVAS_DEFAULTS } from '../constants';
-import { useDesignerActions, useDesignerSelect } from '../state/designer-store';
-import { GridBackground } from './grid-background';
+import { useDesignerActions } from '../state/designer-store';
 import { NodeTreeRenderer } from './node-tree-renderer';
-import { Viewport } from './viewport';
-
-extend({ Container, Graphics, LayoutContainer });
+import { SelectionOverlay } from './overlay/selection-overlay';
+import { Viewport, type ViewportTransform } from './viewport';
 
 export function Canvas() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const showGrid = useDesignerSelect((state) => state.debug.showGrid);
   const dispatch = useDesignerActions();
-
+  const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-
-    // Prevent browser zoom on trackpad pinch gestures
-    const handleWheel = (e: WheelEvent) => {
-      // Trackpad pinch gestures have ctrlKey set to true
-      if (e.ctrlKey) {
-        e.preventDefault();
-      }
-    };
-
-    // Prevent iOS gesture zoom
-    const handleGestureStart = (e: Event) => {
-      e.preventDefault();
-    };
-
-    const handleGestureChange = (e: Event) => {
-      e.preventDefault();
-    };
-
-    const handleGestureEnd = (e: Event) => {
-      e.preventDefault();
-    };
-
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    container.addEventListener('gesturestart', handleGestureStart);
-    container.addEventListener('gesturechange', handleGestureChange);
-    container.addEventListener('gestureend', handleGestureEnd);
-
-    return () => {
-      container.removeEventListener('wheel', handleWheel);
-      container.removeEventListener('gesturestart', handleGestureStart);
-      container.removeEventListener('gesturechange', handleGestureChange);
-      container.removeEventListener('gestureend', handleGestureEnd);
-    };
-  }, []);
-
-  useEffect(() => {
-    // Set overscroll-behavior-x on html and body to prevent horizontal overscroll
+    // Set overscroll-behavior on html and body to prevent overscroll navigation
     const htmlElement = document.documentElement;
     const bodyElement = document.body;
 
-    const originalHtmlOverscroll = htmlElement.style.overscrollBehaviorX;
-    const originalBodyOverscroll = bodyElement.style.overscrollBehaviorX;
+    const originalHtmlOverscrollX = htmlElement.style.overscrollBehaviorX;
+    const originalBodyOverscrollX = bodyElement.style.overscrollBehaviorX;
+    const originalHtmlOverscrollY = htmlElement.style.overscrollBehaviorY;
+    const originalBodyOverscrollY = bodyElement.style.overscrollBehaviorY;
 
     htmlElement.style.overscrollBehaviorX = 'none';
     bodyElement.style.overscrollBehaviorX = 'none';
+    htmlElement.style.overscrollBehaviorY = 'none';
+    bodyElement.style.overscrollBehaviorY = 'none';
 
     return () => {
-      htmlElement.style.overscrollBehaviorX = originalHtmlOverscroll;
-      bodyElement.style.overscrollBehaviorX = originalBodyOverscroll;
+      htmlElement.style.overscrollBehaviorX = originalHtmlOverscrollX;
+      bodyElement.style.overscrollBehaviorX = originalBodyOverscrollX;
+      htmlElement.style.overscrollBehaviorY = originalHtmlOverscrollY;
+      bodyElement.style.overscrollBehaviorY = originalBodyOverscrollY;
     };
   }, []);
 
-  const handleClearSelection = (e: FederatedPointerEvent) => {
-    if (e.target.constructor.name === 'ViewportWrapper') {
+  const handleClearSelection = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only clear selection if clicking directly on the canvas background
+    if (e.target === e.currentTarget) {
       dispatch('clearSelection', {});
     }
   };
 
+  const handleTransformChange = (newTransform: ViewportTransform) => {
+    dispatch('saveCanvasState', newTransform);
+  };
+
   return (
     <div
-      className="absolute inset-0 overflow-hidden"
+      className="absolute inset-0 h-full w-full overflow-hidden"
       ref={containerRef}
       style={{
-        background: CANVAS_DEFAULTS.BACKGROUND_COLOR,
-        touchAction: 'pan-x pan-y'
+        background: CANVAS_DEFAULTS.BACKGROUND_COLOR
       }}
     >
-      <Application
-        antialias
-        autoDensity
-        background={CANVAS_DEFAULTS.BACKGROUND_COLOR}
-        eventMode="static"
-        onInit={(app) => {
-          app.stage.addEventListener('mousedown', handleClearSelection);
-        }}
-        resizeTo={containerRef}
-        resolution={typeof window !== 'undefined' ? window.devicePixelRatio : 1}
-      >
-        {/* This container is used to clear the selection when clicking outside the canvas */}
-        <Viewport>
-          {showGrid && <GridBackground />}
-          <NodeTreeRenderer />
-        </Viewport>
-      </Application>
+      <Viewport onTransformChange={handleTransformChange}>
+        <div
+          className="absolute"
+          style={{
+            // Large canvas area for clicking to clear selection
+            width: CANVAS_DEFAULTS.WORLD_WIDTH,
+            height: CANVAS_DEFAULTS.WORLD_HEIGHT,
+            // Center the canvas so screens at (0,0) appear in the middle-ish
+            left: -CANVAS_DEFAULTS.WORLD_WIDTH / 2,
+            top: -CANVAS_DEFAULTS.WORLD_HEIGHT / 2
+          }}
+        >
+          <div
+            aria-label="Canvas background"
+            className="absolute inset-0"
+            onClick={handleClearSelection}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                dispatch('clearSelection', {});
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          />
+          <div
+            style={{
+              // Offset to place (0,0) at center of the world
+              position: 'absolute',
+              left: CANVAS_DEFAULTS.WORLD_WIDTH / 2,
+              top: CANVAS_DEFAULTS.WORLD_HEIGHT / 2
+            }}
+          >
+            <NodeTreeRenderer />
+          </div>
+        </div>
+      </Viewport>
+
+      {/* Pixi overlay for selection visualization */}
+      <SelectionOverlay containerRef={containerRef} />
     </div>
   );
 }

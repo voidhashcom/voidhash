@@ -3,6 +3,38 @@ import { createTextNode } from './nodes/text-node-actions';
 import { selectNode, unselectNode } from './selection-actions';
 import type { DesignerStoreState } from './types';
 
+export const saveCanvasState = (storeState: DesignerStoreState) =>
+  storeState.action(
+    z.object({
+      scale: z.number(),
+      x: z.number(),
+      y: z.number()
+    }),
+    ({ params, setBrowser, getState }) => {
+      const state = getState();
+      setBrowser({ canvas: { ...state.canvas, ...params } });
+    }
+  );
+
+export const updateBoundingBox = (storeState: DesignerStoreState) =>
+  storeState.action(
+    z.object({
+      id: z.string(),
+      boundingBox: z.object({
+        x: z.number(),
+        y: z.number(),
+        width: z.number(),
+        height: z.number()
+      })
+    }),
+    ({ params, getState, setBrowser }) => {
+      const state = getState();
+      const boundingBoxes = { ...state.canvas.boundingBoxes };
+      boundingBoxes[params.id] = params.boundingBox;
+      setBrowser({ canvas: { ...state.canvas, boundingBoxes } });
+    }
+  );
+
 export const nodeClicked = (storeState: DesignerStoreState) =>
   storeState.action(
     z.object({ id: z.string(), shiftKey: z.boolean() }),
@@ -37,5 +69,7 @@ export const nodeClicked = (storeState: DesignerStoreState) =>
   );
 
 export const createCanvasActions = (storeState: DesignerStoreState) => ({
-  nodeClicked: nodeClicked(storeState)
+  nodeClicked: nodeClicked(storeState),
+  saveCanvasState: saveCanvasState(storeState),
+  updateBoundingBox: updateBoundingBox(storeState)
 });

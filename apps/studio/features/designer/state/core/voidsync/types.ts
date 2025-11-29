@@ -5,6 +5,24 @@ import type * as Y from 'yjs';
 import type { z } from 'zod';
 import type { StoreApi } from 'zustand';
 
+type Write<T, U> = Omit<T, keyof U> & U;
+
+type StoreSubscribeWithSelector<T> = {
+  subscribe: {
+    (
+      listener: (selectedState: T, previousSelectedState: T) => void
+    ): () => void;
+    <U>(
+      selector: (state: T) => U,
+      listener: (selectedState: U, previousSelectedState: U) => void,
+      options?: {
+        equalityFn?: (a: U, b: U) => boolean;
+        fireImmediately?: boolean;
+      }
+    ): () => void;
+  };
+};
+
 // ============================================================================
 // Sync Field Schema Types
 // ============================================================================
@@ -230,7 +248,10 @@ export type VoidsyncState<
   TSchema extends VoidsyncSchema<any, any, any>,
   TYdoc extends Y.Doc
 > = {
-  zustand: StoreApi<TSchema['_types']['combined']>;
+  zustand: Write<
+    StoreApi<TSchema['_types']['combined']>,
+    StoreSubscribeWithSelector<TSchema['_types']['combined']>
+  >;
   doc: TYdoc;
   awareness: Awareness;
   schema: TSchema;
@@ -263,7 +284,12 @@ export type VoidsyncStore<
   TYdoc extends Y.Doc,
   TActions extends Record<string, AnyAction>
 > = {
-  zustand: Readonly<StoreApi<TSchema['_types']['combined']>>;
+  zustand: Readonly<
+    Write<
+      StoreApi<TSchema['_types']['combined']>,
+      StoreSubscribeWithSelector<TSchema['_types']['combined']>
+    >
+  >;
   doc: TYdoc;
   awareness: Awareness;
   schema: TSchema;

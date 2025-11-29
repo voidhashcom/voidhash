@@ -4,12 +4,13 @@ export function ColumnLayoutRenderer({
   children: React.ReactNode;
 }) {
   return (
-    <pixiLayoutContainer
-      layout={{
+    <div
+      style={{
+        display: 'flex',
         flexDirection: 'column'
       }}
     >
       {children}
-    </pixiLayoutContainer>
+    </div>
   );
 }

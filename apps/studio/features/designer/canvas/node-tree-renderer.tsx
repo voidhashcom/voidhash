@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useDesignerSelect } from '../state/designer-store';
+import { useDesignerActions, useDesignerSelect } from '../state/designer-store';
 import type { NodeData } from '../state/schema';
 import { getNodesByParentId } from '../state/utils/nodes';
 import { ScreenNodeRenderer } from './node-renderers/screen-node-renderer';
 import { TextNodeRenderer } from './node-renderers/text-node-renderer';
+import { useViewport } from './viewport';
 
 export function NodeRenderer({
   node
@@ -12,7 +13,57 @@ export function NodeRenderer({
   node: NodeData & { children: NodeData[] };
 }) {
   const nodes = useDesignerSelect(useShallow((state) => state.nodes));
+  const dispatch = useDesignerActions();
   const children = getNodesByParentId(nodes, node.id);
+  const elementRef = useRef<HTMLDivElement>(null);
+  const viewport = useViewport();
+
+  // Measure node bounding box on render
+  useLayoutEffect(() => {
+    // Skip measurement for root nodes
+    if (node.type === 'root') {
+      return;
+    }
+
+    const element = elementRef.current;
+    if (!element) {
+      return;
+    }
+
+    const measureBoundingBox = () => {
+      const rect = element.getBoundingClientRect();
+
+      // Convert screen coordinates to canvas coordinates
+      // screenToCanvas expects viewport/screen coordinates
+      const canvasCoords = viewport.screenToCanvas(rect.left, rect.top);
+
+      // Get dimensions in canvas space (accounting for scale)
+      const transform = viewport.getTransform();
+      const canvasWidth = rect.width / transform.scale;
+      const canvasHeight = rect.height / transform.scale;
+
+      dispatch('updateBoundingBox', {
+        id: node.id,
+        boundingBox: {
+          x: canvasCoords.x,
+          y: canvasCoords.y,
+          width: canvasWidth,
+          height: canvasHeight
+        }
+      });
+    };
+
+    // Measure immediately
+    measureBoundingBox();
+
+    // Also measure on resize
+    const resizeObserver = new ResizeObserver(measureBoundingBox);
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [node.id, node.type, viewport, dispatch]);
 
   if (node.type === 'root') {
     return (
@@ -23,10 +74,9 @@ export function NodeRenderer({
       </>
     );
   }
-
   if (node.type === 'screen') {
     return (
-      <ScreenNodeRenderer node={node}>
+      <ScreenNodeRenderer node={node} ref={elementRef}>
         {children.map((child) => (
           <NodeRenderer key={child.id} node={{ ...child, children }} />
         ))}
@@ -34,7 +84,11 @@ export function NodeRenderer({
     );
   }
   if (node.type === 'text') {
-    return <TextNodeRenderer node={node} />;
+    return (
+      <div ref={elementRef}>
+        <TextNodeRenderer node={node} />
+      </div>
+    );
   }
   return null;
 }
@@ -42,15 +96,15 @@ export function NodeRenderer({
 export function NodeTreeRenderer() {
   const nodes = useDesignerSelect(useShallow((state) => state.nodes));
   const firstLevelNodes = useMemo(() => {
-    return Object.values(nodes).filter(
+    return Object.values(nodes ?? {}).filter(
       (node) => node.type !== 'root' && node.parent?.id === 'root'
     );
   }, [nodes]);
   return (
-    <pixiContainer>
+    <div className="relative">
       <NodeRenderer
         node={{ type: 'root', id: 'root', children: firstLevelNodes }}
       />
-    </pixiContainer>
+    </div>
   );
 }

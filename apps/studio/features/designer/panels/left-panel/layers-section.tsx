@@ -2,7 +2,7 @@
 
 import { cn } from '@voidhash/ui';
 import { ChevronDown, ChevronRight, Smartphone, TypeIcon } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import {
   useDesignerActions,
@@ -186,15 +186,34 @@ export function LayersSection() {
   };
 
   // Expanded layers
-  // --- Layers expanded by user
   const [expandedLayers, setExpandedLayers] = useState<Set<string>>(
     new Set([])
   );
 
   // --- Layers expanded by selected nodes
-  const expandedLayersBySelectedNodes = tree
-    ? getExpandedLayersBySelectedNodes(tree, selectedNodeIds)
-    : new Set([]);
+  const expandedLayersBySelectedNodes = useMemo(
+    () =>
+      tree
+        ? getExpandedLayersBySelectedNodes(tree, selectedNodeIds)
+        : new Set([]),
+    [tree, selectedNodeIds]
+  );
+
+  useEffect(() => {
+    const newExpandedLayers = new Set<string>(expandedLayers);
+    const expandedLayersHasAllSelectedNodes = Array.from(
+      expandedLayersBySelectedNodes
+    ).every((nodeId) => expandedLayers.has(nodeId));
+
+    if (!expandedLayersHasAllSelectedNodes) {
+      for (const nodeId of expandedLayersBySelectedNodes) {
+        if (!newExpandedLayers.has(nodeId)) {
+          newExpandedLayers.add(nodeId);
+        }
+      }
+      setExpandedLayers(newExpandedLayers);
+    }
+  }, [expandedLayersBySelectedNodes, expandedLayers]);
 
   const allExpandedLayers = useMemo(() => {
     return new Set([

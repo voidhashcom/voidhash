@@ -76,6 +76,20 @@ export const designerSchema = createVoidsyncSchema({
     tools: z.object({
       activeTool: availableToolsSchema
     }),
+    canvas: z.object({
+      scale: z.number(),
+      x: z.number(),
+      y: z.number(),
+      boundingBoxes: z.record(
+        z.string(),
+        z.object({
+          x: z.number(),
+          y: z.number(),
+          width: z.number(),
+          height: z.number()
+        })
+      )
+    }),
     viewport: z.object({
       panels: z.object({
         top: z.object({ height: z.number() }),

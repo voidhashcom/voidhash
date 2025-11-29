@@ -13,6 +13,7 @@ import {
   useVoidsyncAwareness,
   useVoidsyncSelect
 } from './core/voidsync';
+import { useVoidsyncSubscribe } from './core/voidsync/hooks';
 import {
   type DesignerSchema,
   designerSchema,
@@ -46,6 +47,12 @@ function createDesignerStoreState(doc: Y.Doc, awareness: Awareness) {
         },
         tools: {
           activeTool: 'cursor'
+        },
+        canvas: {
+          scale: 1,
+          x: 0,
+          y: 0,
+          boundingBoxes: {}
         },
         viewport: {
           panels: {
@@ -137,7 +144,7 @@ export function DesignerStoreProvider({
 // Hooks
 // ============================================================================
 
-function useDesignerStore() {
+export function useDesignerStore() {
   const store = useContext(StoreContext);
   if (!store) {
     throw new Error('Missing DesignerStoreProvider');
@@ -158,6 +165,14 @@ export function useDesignerSelect<TResult>(
 ): TResult {
   const store = useDesignerStore();
   return useVoidsyncSelect(store, selector);
+}
+
+export function useDesignerSubscribe<TResult>(
+  selector: (state: DesignerSchema['_types']['combined']) => TResult,
+  callback: (state: TResult) => void
+) {
+  const store = useDesignerStore();
+  return useVoidsyncSubscribe(store, selector, callback);
 }
 
 /**
