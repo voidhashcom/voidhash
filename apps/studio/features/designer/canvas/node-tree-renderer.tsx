@@ -2,20 +2,13 @@ import { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useDesignerSelect } from '../state/designer-store';
 import type { NodeDataWithoutRoot } from '../state/schema';
+import { ScreenNodeRenderer } from './node-renderers/screen-node-renderer';
 
 function NodeRenderer({ node }: { node: NodeDataWithoutRoot }) {
-  return (
-    <pixiContainer x={node.x} y={node.y}>
-      <pixiGraphics
-        draw={(graphics) => {
-          graphics.clear();
-          graphics.setFillStyle({ color: 0xff_ff_ff, alpha: 1 });
-          graphics.rect(0, 0, node.width, node.height);
-          graphics.fill();
-        }}
-      />
-    </pixiContainer>
-  );
+  if (node.type === 'screen') {
+    return <ScreenNodeRenderer node={node} />;
+  }
+  return null;
 }
 
 export function NodeTreeRenderer() {

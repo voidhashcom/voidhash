@@ -1,10 +1,10 @@
 'use client';
 
 import { Application, extend } from '@pixi/react';
-import { Container, Graphics } from 'pixi.js';
+import { Container, type FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useEffect, useRef } from 'react';
 import { CANVAS_DEFAULTS } from '../constants';
-import { useDesignerSelect } from '../state/designer-store';
+import { useDesignerActions, useDesignerSelect } from '../state/designer-store';
 import { GridBackground } from './grid-background';
 import { NodeTreeRenderer } from './node-tree-renderer';
 import { Viewport } from './viewport';
@@ -14,6 +14,7 @@ extend({ Container, Graphics });
 export function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const showGrid = useDesignerSelect((state) => state.debug.showGrid);
+  const dispatch = useDesignerActions();
 
   useEffect(() => {
     const container = containerRef.current;
@@ -72,6 +73,12 @@ export function Canvas() {
     };
   }, []);
 
+  const handleClearSelection = (e: FederatedPointerEvent) => {
+    if (e.target.constructor.name === 'ViewportWrapper') {
+      dispatch('clearSelection', {});
+    }
+  };
+
   return (
     <div
       className="absolute inset-0 overflow-hidden"
@@ -85,9 +92,14 @@ export function Canvas() {
         antialias
         autoDensity
         background={CANVAS_DEFAULTS.BACKGROUND_COLOR}
+        eventMode="static"
+        onInit={(app) => {
+          app.stage.addEventListener('mousedown', handleClearSelection);
+        }}
         resizeTo={containerRef}
         resolution={typeof window !== 'undefined' ? window.devicePixelRatio : 1}
       >
+        {/* This container is used to clear the selection when clicking outside the canvas */}
         <Viewport>
           {showGrid && <GridBackground />}
           <NodeTreeRenderer />

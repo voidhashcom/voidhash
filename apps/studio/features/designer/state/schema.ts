@@ -32,6 +32,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
 ]);
 export type NodeData = z.infer<typeof nodeSchema>;
 export type RootNodeData = z.infer<typeof rootNodeSchema>;
+export type ScreenNodeData = z.infer<typeof screenNodeSchema>;
 export type NodeDataWithoutRoot = Exclude<NodeData, RootNodeData>;
 
 // ============================================================================

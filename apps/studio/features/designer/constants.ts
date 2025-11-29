@@ -9,6 +9,8 @@ export const CANVAS_DEFAULTS = {
   MIN_ZOOM: 0.1,
   MAX_ZOOM: 5,
   GRID_SIZE: 20,
+  // Colors
+  PRIMARY_COLOR: 0x00_5e_ff,
   GRID_COLOR: 0x3f_3f_3f,
   BACKGROUND_COLOR: 0x12_12_12
 } as const;
