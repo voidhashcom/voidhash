@@ -1,6 +1,11 @@
 import { IndexGenerator } from 'fractional-indexing-jittered';
 import z from 'zod';
-import { type TextNodeData, textNodeSchema } from '../../schema';
+import {
+  fontWeightSchema,
+  type TextNodeData,
+  textAlignSchema,
+  textNodeSchema
+} from '../../schema';
 import { createNodeId } from '../../utils/id';
 import { getNodesByParentId } from '../../utils/nodes';
 import { selectNode } from '../selection-actions';
@@ -34,6 +39,12 @@ export const createTextNode = (storeState: DesignerStoreState) =>
         x: 0,
         y: 0,
         text: 'New Text',
+        fontSize: 16,
+        color: '#000000',
+        fontWeight: '400',
+        textAlign: 'left',
+        lineHeight: 1.5,
+        letterSpacing: 0,
         parent: {
           id: params.parentId,
           index
@@ -46,6 +57,42 @@ export const createTextNode = (storeState: DesignerStoreState) =>
     }
   );
 
+export const updateTextNode = (storeState: DesignerStoreState) =>
+  storeState.action(
+    z.object({
+      id: z.string(),
+      text: z.string().optional(),
+      fontSize: z.number().optional(),
+      color: z.string().optional(),
+      fontWeight: fontWeightSchema.optional(),
+      textAlign: textAlignSchema.optional(),
+      lineHeight: z.number().optional(),
+      letterSpacing: z.number().optional()
+    }),
+    ({ params, getState, doc }) => {
+      const state = getState();
+      const node = state.nodes?.[params.id];
+      if (!node || node.type !== 'text') {
+        return;
+      }
+
+      const nodesMap = doc.getMap('nodes');
+      const updatedNode: TextNodeData = {
+        ...node,
+        text: params.text ?? node.text,
+        fontSize: params.fontSize ?? node.fontSize,
+        color: params.color ?? node.color,
+        fontWeight: params.fontWeight ?? node.fontWeight,
+        textAlign: params.textAlign ?? node.textAlign,
+        lineHeight: params.lineHeight ?? node.lineHeight,
+        letterSpacing: params.letterSpacing ?? node.letterSpacing
+      };
+
+      nodesMap.set(params.id, updatedNode);
+    }
+  );
+
 export const createTextNodeActions = (storeState: DesignerStoreState) => ({
-  createTextNode: createTextNode(storeState)
+  createTextNode: createTextNode(storeState),
+  updateTextNode: updateTextNode(storeState)
 });

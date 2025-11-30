@@ -1,4 +1,6 @@
 import z from 'zod';
+import { createColumnNode } from './nodes/column-node-actions';
+import { createRowNode } from './nodes/row-node-actions';
 import { createTextNode } from './nodes/text-node-actions';
 import { selectNode, unselectNode } from './selection-actions';
 import type { DesignerStoreState } from './types';
@@ -35,6 +37,21 @@ export const updateBoundingBox = (storeState: DesignerStoreState) =>
     }
   );
 
+export const nodeMouseEnter = (storeState: DesignerStoreState) =>
+  storeState.action(z.object({ id: z.string() }), ({ params, setBrowser }) => {
+    setBrowser({ highlightedNodeId: params.id });
+  });
+
+export const nodeMouseLeave = (storeState: DesignerStoreState) =>
+  storeState.action(
+    z.object({ id: z.string() }),
+    ({ params, getState, setBrowser }) => {
+      if (getState().highlightedNodeId === params.id) {
+        setBrowser({ highlightedNodeId: null });
+      }
+    }
+  );
+
 export const nodeClicked = (storeState: DesignerStoreState) =>
   storeState.action(
     z.object({ id: z.string(), shiftKey: z.boolean() }),
@@ -61,8 +78,17 @@ export const nodeClicked = (storeState: DesignerStoreState) =>
           dispatch(selectNode)({ id: params.id, many: params.shiftKey });
           break;
         }
+
         case 'text':
           dispatch(createTextNode)({ parentId: params.id });
+          break;
+
+        case 'columns':
+          dispatch(createColumnNode)({ parentId: params.id });
+          break;
+
+        case 'rows':
+          dispatch(createRowNode)({ parentId: params.id });
           break;
       }
     }
@@ -70,6 +96,8 @@ export const nodeClicked = (storeState: DesignerStoreState) =>
 
 export const createCanvasActions = (storeState: DesignerStoreState) => ({
   nodeClicked: nodeClicked(storeState),
+  nodeMouseEnter: nodeMouseEnter(storeState),
+  nodeMouseLeave: nodeMouseLeave(storeState),
   saveCanvasState: saveCanvasState(storeState),
   updateBoundingBox: updateBoundingBox(storeState)
 });

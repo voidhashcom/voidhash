@@ -1,7 +1,14 @@
 'use client';
 
 import { cn } from '@voidhash/ui';
-import { ChevronDown, ChevronRight, Smartphone, TypeIcon } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  Columns2Icon,
+  Rows2Icon,
+  Smartphone,
+  TypeIcon
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -18,6 +25,8 @@ type TreeNode = NodeData & {
 const typeIcons = {
   screen: Smartphone,
   text: TypeIcon,
+  column: Columns2Icon,
+  row: Rows2Icon,
   root: null // Root nodes shouldn't be displayed
 } as const;
 

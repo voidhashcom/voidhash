@@ -45,6 +45,7 @@ function createDesignerStoreState(doc: Y.Doc, awareness: Awareness) {
         debug: {
           showGrid: SHOW_GRID
         },
+        highlightedNodeId: null,
         tools: {
           activeTool: 'cursor'
         },

@@ -1,6 +1,10 @@
 import { createAwarenessActions } from './awareness-actions';
 import { createCanvasActions } from './canvas-actions';
 import { createDebugActions } from './debug-actions';
+import { createColumnNodeActions } from './nodes/column-node-actions';
+import { createRowNodeActions } from './nodes/row-node-actions';
+import { createScreenNodeActions } from './nodes/screen-node-actions';
+import { createTextNodeActions } from './nodes/text-node-actions';
 import { createPanelActions } from './panel-actions';
 import { createSelectionActions } from './selection-actions';
 import { createToolsActions } from './tools-actions';
@@ -19,6 +23,10 @@ export function createDesignerActions(storeState: DesignerStoreState) {
     ...createDebugActions(storeState),
     ...createPanelActions(storeState),
     ...createAwarenessActions(storeState),
-    ...createToolsActions(storeState)
+    ...createToolsActions(storeState),
+    ...createColumnNodeActions(storeState),
+    ...createRowNodeActions(storeState),
+    ...createScreenNodeActions(storeState),
+    ...createTextNodeActions(storeState)
   };
 }

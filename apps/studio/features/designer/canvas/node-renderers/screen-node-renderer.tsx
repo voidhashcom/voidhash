@@ -20,7 +20,14 @@ export function ScreenNodeRenderer({
               style={{
                 width: node.width,
                 height: node.height,
-                backgroundColor: '#ffffff'
+                backgroundColor: node.backgroundColor,
+                paddingTop: node.padding.top + (node.safeArea.top ? 47 : 0),
+                paddingRight: node.padding.right,
+                paddingBottom:
+                  node.padding.bottom + (node.safeArea.bottom ? 34 : 0),
+                paddingLeft: node.padding.left,
+                boxSizing: 'border-box',
+                overflow: 'hidden'
               }}
             >
               <ColumnLayoutRenderer>{children}</ColumnLayoutRenderer>

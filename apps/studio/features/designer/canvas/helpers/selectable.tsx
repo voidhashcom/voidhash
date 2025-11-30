@@ -19,10 +19,26 @@ export function Selectable({ children, nodeId }: SelectableProps) {
     dispatch('nodeClicked', { id: nodeId, shiftKey: e.shiftKey });
   };
 
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    dispatch('nodeMouseEnter', { id: nodeId });
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    dispatch('nodeMouseLeave', { id: nodeId });
+  };
+
   return (
     // biome-ignore lint/a11y/useFocusableInteractive: custom selectable element
     // biome-ignore lint/a11y/useSemanticElements: custom selectable element
-    <div className="relative" onMouseDown={handleClick} role="button">
+    <div
+      className="relative"
+      onMouseDown={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      role="button"
+    >
       {children({ isSelected })}
     </div>
   );

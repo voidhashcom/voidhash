@@ -2,6 +2,53 @@ import { z } from 'zod';
 import { createVoidsyncSchema, syncMap } from './core/voidsync';
 
 // ============================================================================
+// Shared Property Schemas
+// ============================================================================
+
+export const paddingSchema = z.object({
+  top: z.number(),
+  right: z.number(),
+  bottom: z.number(),
+  left: z.number()
+});
+
+export const justifyContentSchema = z.enum([
+  'flex-start',
+  'center',
+  'flex-end',
+  'space-between',
+  'space-around',
+  'space-evenly'
+]);
+
+export const alignItemsSchema = z.enum([
+  'flex-start',
+  'center',
+  'flex-end',
+  'stretch',
+  'baseline'
+]);
+
+export const fontWeightSchema = z.enum([
+  '100',
+  '200',
+  '300',
+  '400',
+  '500',
+  '600',
+  '700',
+  '800',
+  '900'
+]);
+
+export const textAlignSchema = z.enum(['left', 'center', 'right', 'justify']);
+
+export const safeAreaSchema = z.object({
+  top: z.boolean(),
+  bottom: z.boolean()
+});
+
+// ============================================================================
 // Node Schema
 // ============================================================================
 
@@ -24,28 +71,73 @@ export const screenNodeSchema = baseNodeSchema.extend({
   x: z.number(),
   y: z.number(),
   width: z.number(),
-  height: z.number()
+  height: z.number(),
+  backgroundColor: z.string().default('#ffffff'),
+  padding: paddingSchema.default({ top: 0, right: 0, bottom: 0, left: 0 }),
+  safeArea: safeAreaSchema.default({ top: false, bottom: false })
 });
 
 export const textNodeSchema = baseNodeSchema.extend({
   x: z.number(),
   y: z.number(),
   type: z.literal('text'),
-  text: z.string()
+  text: z.string(),
+  fontSize: z.number().default(16),
+  color: z.string().default('#000000'),
+  fontWeight: fontWeightSchema.default('400'),
+  textAlign: textAlignSchema.default('left'),
+  lineHeight: z.number().default(1.5),
+  letterSpacing: z.number().default(0)
 });
 
-export const availableToolsSchema = z.enum(['cursor', 'text']);
+export const columnNodeSchema = baseNodeSchema.extend({
+  type: z.literal('column'),
+  gap: z.number().default(0),
+  padding: paddingSchema.default({ top: 0, right: 0, bottom: 0, left: 0 }),
+  justifyContent: justifyContentSchema.default('flex-start'),
+  alignItems: alignItemsSchema.default('stretch'),
+  backgroundColor: z.string().nullable().default(null)
+});
+
+export const rowNodeSchema = baseNodeSchema.extend({
+  type: z.literal('row'),
+  gap: z.number().default(0),
+  padding: paddingSchema.default({ top: 0, right: 0, bottom: 0, left: 0 }),
+  justifyContent: justifyContentSchema.default('flex-start'),
+  alignItems: alignItemsSchema.default('stretch'),
+  backgroundColor: z.string().nullable().default(null)
+});
+
+export const availableToolsSchema = z.enum([
+  'cursor',
+  'text',
+  'rows',
+  'columns',
+  'scroll-view'
+]);
 
 export const nodeSchema = z.discriminatedUnion('type', [
   screenNodeSchema,
   textNodeSchema,
-  rootNodeSchema
+  rootNodeSchema,
+  columnNodeSchema,
+  rowNodeSchema
 ]);
 
 export type NodeData = z.infer<typeof nodeSchema>;
 export type RootNodeData = z.infer<typeof rootNodeSchema>;
 export type ScreenNodeData = z.infer<typeof screenNodeSchema>;
 export type TextNodeData = z.infer<typeof textNodeSchema>;
+export type ColumnNodeData = z.infer<typeof columnNodeSchema>;
+export type RowNodeData = z.infer<typeof rowNodeSchema>;
+
+export type Padding = z.infer<typeof paddingSchema>;
+export type JustifyContent = z.infer<typeof justifyContentSchema>;
+export type AlignItems = z.infer<typeof alignItemsSchema>;
+export type FontWeight = z.infer<typeof fontWeightSchema>;
+export type TextAlign = z.infer<typeof textAlignSchema>;
+export type SafeArea = z.infer<typeof safeAreaSchema>;
+
 export type NodeDataWithoutRoot = Exclude<NodeData, RootNodeData>;
 
 // ============================================================================
@@ -73,6 +165,7 @@ export const designerSchema = createVoidsyncSchema({
     debug: z.object({
       showGrid: z.boolean()
     }),
+    highlightedNodeId: z.string().nullable(),
     tools: z.object({
       activeTool: availableToolsSchema
     }),
