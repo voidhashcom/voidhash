@@ -98,11 +98,14 @@ export const ACTION_CALL_SYMBOL = Symbol('actionCall');
 /**
  * Represents a type-safe action invocation created by action.call(params).
  * Used to dispatch actions with full type safety.
+ * TReturn is a phantom type used for type inference only.
  */
-export type ActionCall<TParams = unknown> = {
+export type ActionCall<TParams = unknown, TReturn = void> = {
   readonly [ACTION_CALL_SYMBOL]: true;
   readonly action: AnyAction;
   readonly params: TParams;
+  /** Phantom type marker for return type inference */
+  readonly _returnType?: TReturn;
 };
 
 /**
@@ -123,14 +126,16 @@ export function isActionCall(value: unknown): value is ActionCall {
 export type ActionFactory<
   TSchema extends VoidsyncSchema<any, any, any>,
   TYdoc extends Y.Doc,
-  TParams
+  TParams,
+  TReturn = void
 > = (
   storeState: VoidsyncState<TSchema, TYdoc>
-) => Action<TSchema, TYdoc, TParams>;
+) => Action<TSchema, TYdoc, TParams, TReturn>;
 
 /**
  * Dispatch function that accepts action factory functions.
  * Used within action handlers to dispatch other actions.
+ * Returns the value from the action.
  *
  * @example
  * // Dispatch from within another action:
@@ -138,28 +143,35 @@ export type ActionFactory<
  *
  * // Or dispatch with void params:
  * dispatch(clearSelection)();
+ *
+ * // With return value:
+ * const result = dispatch(calculateSomething)({ input: 42 });
  */
 export type ActionDispatchFn<
   TSchema extends VoidsyncSchema<any, any, any>,
   TYdoc extends Y.Doc
-> = <TParams>(
-  actionFactory: ActionFactory<TSchema, TYdoc, TParams>
-) => (params: TParams) => void;
+> = <TParams, TReturn = void>(
+  actionFactory: ActionFactory<TSchema, TYdoc, TParams, TReturn>
+) => (params: TParams) => TReturn;
 
 /**
  * Legacy dispatch function for string-based action dispatch.
  * Used from React components via useVoidsyncActions hook.
+ * Returns the value from the action.
  *
  * @example
  * dispatch('selectNode', { id: '123', many: false });
  * dispatch('clearSelection', {});
+ *
+ * // With return value:
+ * const result = dispatch('calculateSomething', { input: 42 });
  */
 export type HookDispatchFn<TActions extends Record<string, AnyAction>> = <
   TName extends keyof TActions
 >(
   name: TName,
-  params: TActions[TName] extends Action<any, any, infer P> ? P : never
-) => void;
+  params: TActions[TName] extends Action<any, any, infer P, any> ? P : never
+) => TActions[TName] extends Action<any, any, any, infer R> ? R : undefined;
 
 /**
  * Action context providing access to all state and mutation methods
@@ -201,15 +213,17 @@ export type ActionFn<
   TSchema extends VoidsyncSchema<any, any, any>,
   TYdoc extends Y.Doc,
   TParams = any,
+  TReturn = void,
   TActions extends Record<string, AnyAction> = Record<string, AnyAction>
-> = (ctx: ActionContext<TSchema, TYdoc, TParams, TActions>) => void;
+> = (ctx: ActionContext<TSchema, TYdoc, TParams, TActions>) => TReturn;
 
 export type Action<
   TSchema extends VoidsyncSchema<any, any, any>,
   TYdoc extends Y.Doc,
-  TParams = any
+  TParams = any,
+  TReturn = void
 > = {
-  readonly fn: ActionFn<TSchema, TYdoc, TParams, any>;
+  readonly fn: ActionFn<TSchema, TYdoc, TParams, TReturn, any>;
   readonly paramsSchema: z.ZodTypeAny | null;
   /**
    * Create a type-safe action call for dispatch.
@@ -217,10 +231,10 @@ export type Action<
    * @example
    * dispatch(selectNode.call({ id: '123', many: false }));
    */
-  readonly call: (params: TParams) => ActionCall<TParams>;
+  readonly call: (params: TParams) => ActionCall<TParams, TReturn>;
 };
 
-export type AnyAction = Action<any, any, any>;
+export type AnyAction = Action<any, any, any, any>;
 
 /**
  * Extract the params type from an action.
@@ -229,7 +243,20 @@ export type AnyAction = Action<any, any, any>;
  * type SelectNodeParams = ActionParams<typeof selectNode>;
  * // { id: string, many: boolean }
  */
-export type ActionParams<T> = T extends Action<any, any, infer P> ? P : never;
+export type ActionParams<T> = T extends Action<any, any, infer P, any>
+  ? P
+  : never;
+
+/**
+ * Extract the return type from an action.
+ *
+ * @example
+ * type CalculateResult = ActionReturn<typeof calculateSomething>;
+ * // number
+ */
+export type ActionReturn<T> = T extends Action<any, any, any, infer R>
+  ? R
+  : undefined;
 
 // ============================================================================
 // Sync Types
@@ -259,6 +286,7 @@ export type VoidsyncState<
   /**
    * Create an action with a zod schema for params.
    * Types are inferred from the schema.
+   * Actions can optionally return a value.
    *
    * @example
    * const addNode = storeState.action(
@@ -267,15 +295,24 @@ export type VoidsyncState<
    *     doc.getMap('nodes').set(id, params);
    *   }
    * );
+   *
+   * // Action with return value:
+   * const getNodeCount = storeState.action(
+   *   ({ getState }) => {
+   *     return Object.keys(getState().nodes).length;
+   *   }
+   * );
    */
   action: {
-    // With params schema
-    <TParamsSchema extends z.ZodTypeAny>(
+    // With params schema and return type
+    <TParamsSchema extends z.ZodTypeAny, TReturn = void>(
       paramsSchema: TParamsSchema,
-      fn: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>>
-    ): Action<TSchema, TYdoc, z.infer<TParamsSchema>>;
-    // Without params (void)
-    (fn: ActionFn<TSchema, TYdoc, void>): Action<TSchema, TYdoc, void>;
+      fn: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>, TReturn>
+    ): Action<TSchema, TYdoc, z.infer<TParamsSchema>, TReturn>;
+    // Without params (void), with optional return type
+    <TReturn = void>(
+      fn: ActionFn<TSchema, TYdoc, void, TReturn>
+    ): Action<TSchema, TYdoc, void, TReturn>;
   };
 };
 

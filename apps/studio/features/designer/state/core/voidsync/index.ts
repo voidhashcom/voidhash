@@ -28,6 +28,7 @@ export type {
   ActionFactory,
   ActionFn,
   ActionParams,
+  ActionReturn,
   AnyAction,
   AwarenessStates,
   HookDispatchFn,

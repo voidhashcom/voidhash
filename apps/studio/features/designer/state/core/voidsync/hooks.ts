@@ -88,11 +88,12 @@ export const useVoidsyncAwareness = <
 
 /**
  * Creates the action dispatch function for use within action handlers.
- * Accepts action factory functions.
+ * Accepts action factory functions and returns the action's return value.
  *
  * @example
  * dispatch(unselectNode)({ id: '123' });
  * dispatch(clearSelection)();
+ * const result = dispatch(calculateSomething)({ input: 42 });
  */
 function createActionDispatch<
   TSchema extends VoidsyncSchema<any, any, any>,
@@ -100,25 +101,26 @@ function createActionDispatch<
   TActions extends Record<string, AnyAction>
 >(
   store: VoidsyncStore<TSchema, TYdoc, TActions>,
-  executeAction: (action: AnyAction, params: unknown) => void
+  executeAction: <TReturn>(action: AnyAction, params: unknown) => TReturn
 ): ActionDispatchFn<TSchema, TYdoc> {
-  return <TParams,>(
-    actionFactory: ActionFactory<TSchema, TYdoc, TParams>
-  ): ((params: TParams) => void) => {
-    return (params: TParams) => {
+  return <TParams, TReturn = void>(
+    actionFactory: ActionFactory<TSchema, TYdoc, TParams, TReturn>
+  ): ((params: TParams) => TReturn) => {
+    return (params: TParams): TReturn => {
       // Call the factory with storeState to get the action
       const action = actionFactory(store.storeState);
-      executeAction(action, params);
+      return executeAction<TReturn>(action, params);
     };
   };
 }
 
 /**
  * Creates the hook dispatch function for use from React components.
- * Accepts string action names.
+ * Accepts string action names and returns the action's return value.
  *
  * @example
  * dispatch('selectNode', { id: '123', many: false });
+ * const result = dispatch('calculateSomething', { input: 42 });
  */
 function createHookDispatch<
   TSchema extends VoidsyncSchema<any, any, any>,
@@ -126,14 +128,18 @@ function createHookDispatch<
   TActions extends Record<string, AnyAction>
 >(
   store: VoidsyncStore<TSchema, TYdoc, TActions>,
-  executeAction: (action: AnyAction, params: unknown) => void
+  executeAction: <TReturn>(action: AnyAction, params: unknown) => TReturn
 ): HookDispatchFn<TActions> {
-  return <TName extends keyof TActions>(name: TName, params: unknown): void => {
+  const dispatch = <TName extends keyof TActions>(
+    name: TName,
+    params: unknown
+  ) => {
     const action = store.actions[name];
     if (action) {
-      executeAction(action, params);
+      return executeAction(action, params);
     }
   };
+  return dispatch as HookDispatchFn<TActions>;
 }
 
 /**
@@ -144,8 +150,11 @@ function createDispatchFunctions<
   TYdoc extends Y.Doc,
   TActions extends Record<string, AnyAction>
 >(store: VoidsyncStore<TSchema, TYdoc, TActions>) {
-  // Execute an action with the given params
-  const executeAction = (action: AnyAction, params: unknown) => {
+  // Execute an action with the given params and return its result
+  const executeAction = <TReturn,>(
+    action: AnyAction,
+    params: unknown
+  ): TReturn => {
     const ctx: ActionContext<TSchema, TYdoc, typeof params, TActions> = {
       doc: store.doc,
       awareness: store.awareness,
@@ -164,7 +173,7 @@ function createDispatchFunctions<
       actions: store.actions,
       params: params as typeof params
     };
-    action.fn(ctx);
+    return action.fn(ctx) as TReturn;
   };
 
   // Create the action dispatch (used within action handlers)

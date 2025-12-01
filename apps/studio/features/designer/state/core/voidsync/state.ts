@@ -112,22 +112,22 @@ function createVoidsyncStateFn<TSchema extends VoidsyncSchema<any, any, any>>(
     }
 
     // Action factory with types bound to this store's schema
-    function action<TParamsSchema extends z.ZodTypeAny>(
+    function action<TParamsSchema extends z.ZodTypeAny, TReturn = void>(
       paramsSchema: TParamsSchema,
-      fn: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>>
-    ): Action<TSchema, TYdoc, z.infer<TParamsSchema>>;
-    function action(
-      fn: ActionFn<TSchema, TYdoc, void>
-    ): Action<TSchema, TYdoc, void>;
-    function action<TParamsSchema extends z.ZodTypeAny>(
-      paramsSchemaOrFn: TParamsSchema | ActionFn<TSchema, TYdoc, void>,
-      maybeFn?: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>>
-    ): Action<TSchema, TYdoc, any> {
+      fn: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>, TReturn>
+    ): Action<TSchema, TYdoc, z.infer<TParamsSchema>, TReturn>;
+    function action<TReturn = void>(
+      fn: ActionFn<TSchema, TYdoc, void, TReturn>
+    ): Action<TSchema, TYdoc, void, TReturn>;
+    function action<TParamsSchema extends z.ZodTypeAny, TReturn = void>(
+      paramsSchemaOrFn: TParamsSchema | ActionFn<TSchema, TYdoc, void, TReturn>,
+      maybeFn?: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>, TReturn>
+    ): Action<TSchema, TYdoc, any, any> {
       // Create the call method for type-safe dispatch
       const createCallMethod = (
-        actionRef: Action<TSchema, TYdoc, any>
-      ): ((params: any) => ActionCall<any>) => {
-        return (params: any): ActionCall<any> => ({
+        actionRef: Action<TSchema, TYdoc, any, any>
+      ): ((params: any) => ActionCall<any, any>) => {
+        return (params: any): ActionCall<any, any> => ({
           [ACTION_CALL_SYMBOL]: true,
           action: actionRef,
           params
@@ -136,7 +136,7 @@ function createVoidsyncStateFn<TSchema extends VoidsyncSchema<any, any, any>>(
 
       // Check if first arg is a function (no params schema)
       if (typeof paramsSchemaOrFn === 'function') {
-        const actionObj: Action<TSchema, TYdoc, void> = {
+        const actionObj: Action<TSchema, TYdoc, void, TReturn> = {
           fn: paramsSchemaOrFn,
           paramsSchema: null,
           call: null as any // Will be set below
@@ -146,7 +146,7 @@ function createVoidsyncStateFn<TSchema extends VoidsyncSchema<any, any, any>>(
       }
 
       // First arg is schema, second is fn
-      const actionObj: Action<TSchema, TYdoc, any> = {
+      const actionObj: Action<TSchema, TYdoc, any, TReturn> = {
         fn:
           maybeFn ??
           (() => {

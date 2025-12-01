@@ -70,7 +70,63 @@ export function createTree<TStateNodes extends DesignerStateNodes>(
     throw new Error('Root node not found in nodes');
   }
 
-  return rootNode;
+  return sortTree(rootNode);
+}
+
+/**
+ * Finds a subtree in a tree by its id.
+ * @param tree - The tree to search in.
+ * @param id - The id of the node to find.
+ * @returns The subtree or null if not found.
+ */
+export function findSubtreeInTree<TStateNodes extends DesignerStateNodes>(
+  tree: TreeNode<TStateNodes[string]>,
+  id: string
+): TreeNode<TStateNodes[string]> | null {
+  if (tree.id === id) {
+    return tree;
+  }
+  if (tree.children) {
+    for (const child of tree.children) {
+      const found = findSubtreeInTree(child, id);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
+
+export function sortTree<T extends NodeData>(tree: TreeNode<T>): TreeNode<T> {
+  if (tree.children && tree.children.length > 0) {
+    tree.children.sort((a, b) => {
+      if ('parent' in a && 'parent' in b) {
+        const indexA = a.parent.index;
+        const indexB = b.parent.index;
+
+        // Standard lexicographical string comparison
+        if (indexA < indexB) {
+          return -1;
+        }
+        if (indexA > indexB) {
+          return 1;
+        }
+      }
+      return 0;
+    });
+
+    for (const child of tree.children) {
+      sortTree(child);
+    }
+  }
+
+  return tree;
+}
+
+export function flattenTree<TStateNodes extends DesignerStateNodes>(
+  tree: TreeNode<TStateNodes[string]>
+): TreeNode<TStateNodes[string]>[] {
+  return [tree, ...tree.children.flatMap((child) => flattenTree(child))];
 }
 
 export function getNodesByParentId<TStateNodes extends DesignerStateNodes>(

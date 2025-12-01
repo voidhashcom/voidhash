@@ -20,8 +20,17 @@ export function Selectable({ children, nodeId }: SelectableProps) {
   };
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    dispatch('nodeMouseEnter', { id: nodeId });
+    const result = dispatch('nodeMouseEnter', { id: nodeId });
+    if (!result?.shouldPropagate) {
+      e.stopPropagation();
+    }
+  };
+
+  const handleMouseOver = (e: React.MouseEvent<HTMLDivElement>) => {
+    const result = dispatch('nodeMouseOver', { id: nodeId });
+    if (!result?.shouldPropagate) {
+      e.stopPropagation();
+    }
   };
 
   const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -32,11 +41,13 @@ export function Selectable({ children, nodeId }: SelectableProps) {
   return (
     // biome-ignore lint/a11y/useFocusableInteractive: custom selectable element
     // biome-ignore lint/a11y/useSemanticElements: custom selectable element
+    // biome-ignore lint/a11y/useKeyWithMouseEvents: highlighting
     <div
       className="relative"
       onMouseDown={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onMouseOver={handleMouseOver}
       role="button"
     >
       {children({ isSelected })}

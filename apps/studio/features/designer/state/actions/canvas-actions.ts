@@ -40,7 +40,24 @@ export const updateBoundingBox = (storeState: DesignerStoreState) =>
 export const nodeMouseEnter = (storeState: DesignerStoreState) =>
   storeState.action(z.object({ id: z.string() }), ({ params, setBrowser }) => {
     setBrowser({ highlightedNodeId: params.id });
+    return {
+      shouldPropagate: true
+    };
   });
+
+export const nodeMouseOver = (storeState: DesignerStoreState) =>
+  storeState.action(
+    z.object({ id: z.string() }),
+    ({ params, setBrowser, getState }) => {
+      const state = getState();
+      if (!state.highlightedNodeId) {
+        setBrowser({ highlightedNodeId: params.id });
+      }
+      return {
+        shouldPropagate: true
+      };
+    }
+  );
 
 export const nodeMouseLeave = (storeState: DesignerStoreState) =>
   storeState.action(
@@ -97,6 +114,7 @@ export const nodeClicked = (storeState: DesignerStoreState) =>
 export const createCanvasActions = (storeState: DesignerStoreState) => ({
   nodeClicked: nodeClicked(storeState),
   nodeMouseEnter: nodeMouseEnter(storeState),
+  nodeMouseOver: nodeMouseOver(storeState),
   nodeMouseLeave: nodeMouseLeave(storeState),
   saveCanvasState: saveCanvasState(storeState),
   updateBoundingBox: updateBoundingBox(storeState)
