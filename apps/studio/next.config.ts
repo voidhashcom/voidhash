@@ -1,3 +1,4 @@
+import path from 'node:path';
 import './lib/env';
 
 // Import env files to validate at build time. Use jiti so we can load .ts files in here.
@@ -10,6 +11,9 @@ const nextConfig = {
     '@voidhash/lib',
     '@voidhash/emails'
   ],
+  turbopack: {
+    root: path.join(__dirname, '../../..')
+  },
   serverExternalPackages: ['pino', '@axiomhq/pino']
 };
 
