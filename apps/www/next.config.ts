@@ -14,6 +14,9 @@ const STUDIO_BASE_PATH = '/studio';
 const DOCS_BASE_PATH = '/docs';
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: path.join(__dirname, '../../..')
+  },
   // biome-ignore lint/suspicious/useAwait: async is required
   redirects: async () => {
     return [
@@ -55,7 +58,7 @@ const nextConfig: NextConfig = {
 };
 
 if (process.env.NODE_ENV === 'development') {
-  nextConfig.outputFileTracingRoot = path.join(__dirname, '../../');
+  nextConfig.outputFileTracingRoot = path.join(__dirname, '../../../');
 }
 
 export default nextConfig;

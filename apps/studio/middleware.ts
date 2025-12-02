@@ -32,8 +32,8 @@ export default function middleware(req: NextRequest) {
     const res = NextResponse.next();
 
     const origin = req.headers.get('Origin') ?? '';
-    const isAllowedOrigin = checkIsAllowedOrigin(origin);
-
+    const isDevelopment = process.env.NEXT_PUBLIC_VERCEL_ENV === 'development';
+    const isAllowedOrigin = isDevelopment || checkIsAllowedOrigin(origin);
     if (!isAllowedOrigin) {
       return res;
     }
