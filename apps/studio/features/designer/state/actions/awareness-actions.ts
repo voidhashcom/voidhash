@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 import type { DesignerStoreState } from './types';
 
 /**
@@ -8,7 +8,7 @@ import type { DesignerStoreState } from './types';
 
 export const updateCursor = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ x: z.number(), y: z.number() }).nullable(),
+    Schema.NullOr(Schema.Struct({ x: Schema.Number, y: Schema.Number })),
     ({ setAwareness, params }) => {
       setAwareness({ cursor: params });
     }
@@ -16,9 +16,9 @@ export const updateCursor = (storeState: DesignerStoreState) =>
 
 export const updateUser = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({
-      name: z.string().optional(),
-      color: z.string().optional()
+    Schema.Struct({
+      name: Schema.optional(Schema.String),
+      color: Schema.optional(Schema.String)
     }),
     ({ getState, setAwareness, params }) => {
       setAwareness({

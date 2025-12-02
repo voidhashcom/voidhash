@@ -1,8 +1,8 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: generic */
 
+import type { Schema } from 'effect';
 import type { Awareness } from 'y-protocols/awareness';
 import type * as Y from 'yjs';
-import type { z } from 'zod';
 import type { StoreApi } from 'zustand';
 
 type Write<T, U> = Omit<T, keyof U> & U;
@@ -32,10 +32,11 @@ export const VOIDSYNC_TYPE_KEY = Symbol('voidsyncType');
 export type VoidsyncTypeMarker = 'map' | 'array' | 'text';
 
 export type VoidsyncFieldSchema<
-  TMarker extends VoidsyncTypeMarker = VoidsyncTypeMarker
+  TMarker extends VoidsyncTypeMarker = VoidsyncTypeMarker,
+  TType = unknown
 > = {
   [VOIDSYNC_TYPE_KEY]: TMarker;
-  schema: z.ZodTypeAny;
+  _type: TType;
 };
 
 // Type to extract the inferred type from a VoidsyncFieldSchema
@@ -53,14 +54,26 @@ export type InferSyncedRecord<T extends Record<string, VoidsyncFieldSchema>> = {
 // ============================================================================
 
 /**
+ * Any Effect Schema type (used for type constraints)
+ */
+export type AnyEffectSchema = Schema.Schema<any, any, any>;
+
+/**
+ * Infer the Type from an Effect Schema
+ */
+export type InferSchemaType<T> = T extends Schema.Schema<infer A, any, any>
+  ? A
+  : never;
+
+/**
  * Schema definition input for Voidsync store with three distinct state categories:
  * - awareness: Ephemeral state shared via awareness protocol (cursors, selections)
  * - browser: Local browser state, not synced (UI preferences, panel sizes)
  * - synced: Persisted state synced to the document
  */
 export type VoidsyncSchemaInput<
-  TAwareness extends z.ZodTypeAny,
-  TBrowser extends z.ZodTypeAny,
+  TAwareness extends AnyEffectSchema,
+  TBrowser extends AnyEffectSchema,
   TSynced extends Record<string, VoidsyncFieldSchema>
 > = {
   awareness: TAwareness;
@@ -69,19 +82,19 @@ export type VoidsyncSchemaInput<
 };
 
 export type VoidsyncSchema<
-  TAwareness extends z.ZodTypeAny,
-  TBrowser extends z.ZodTypeAny,
+  TAwareness extends AnyEffectSchema,
+  TBrowser extends AnyEffectSchema,
   TSynced extends Record<string, VoidsyncFieldSchema>
 > = {
   awareness: TAwareness;
   browser: TBrowser;
   synced: TSynced;
   _types: {
-    awareness: z.infer<TAwareness>;
-    browser: z.infer<TBrowser>;
+    awareness: InferSchemaType<TAwareness>;
+    browser: InferSchemaType<TBrowser>;
     synced: InferSyncedRecord<TSynced>;
-    combined: z.infer<TAwareness> &
-      z.infer<TBrowser> &
+    combined: InferSchemaType<TAwareness> &
+      InferSchemaType<TBrowser> &
       InferSyncedRecord<TSynced>;
   };
 };
@@ -224,7 +237,7 @@ export type Action<
   TReturn = void
 > = {
   readonly fn: ActionFn<TSchema, TYdoc, TParams, TReturn, any>;
-  readonly paramsSchema: z.ZodTypeAny | null;
+  readonly paramsSchema: AnyEffectSchema | null;
   /**
    * Create a type-safe action call for dispatch.
    *
@@ -284,13 +297,13 @@ export type VoidsyncState<
   schema: TSchema;
   syncFromDoc: SyncFromDoc<TSchema['_types']['synced'], TYdoc>;
   /**
-   * Create an action with a zod schema for params.
+   * Create an action with an Effect Schema for params.
    * Types are inferred from the schema.
    * Actions can optionally return a value.
    *
    * @example
    * const addNode = storeState.action(
-   *   z.object({ x: z.number(), y: z.number() }),
+   *   Schema.Struct({ x: Schema.Number, y: Schema.Number }),
    *   ({ doc, params }) => {
    *     doc.getMap('nodes').set(id, params);
    *   }
@@ -305,10 +318,10 @@ export type VoidsyncState<
    */
   action: {
     // With params schema and return type
-    <TParamsSchema extends z.ZodTypeAny, TReturn = void>(
+    <TParamsSchema extends AnyEffectSchema, TReturn = void>(
       paramsSchema: TParamsSchema,
-      fn: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>, TReturn>
-    ): Action<TSchema, TYdoc, z.infer<TParamsSchema>, TReturn>;
+      fn: ActionFn<TSchema, TYdoc, InferSchemaType<TParamsSchema>, TReturn>
+    ): Action<TSchema, TYdoc, InferSchemaType<TParamsSchema>, TReturn>;
     // Without params (void), with optional return type
     <TReturn = void>(
       fn: ActionFn<TSchema, TYdoc, void, TReturn>

@@ -40,6 +40,7 @@
     "@trigger.dev/sdk": "^3.3.17",
     "@voidhash/api-spec": "workspace:*",
     "@voidhash/auth": "workspace:*",
+    "@voidhash/dff": "workspace:*",
     "@voidhash/lib": "workspace:*",
     "@voidhash/rpc": "workspace:*",
     "@voidhash/shared": "workspace:*",

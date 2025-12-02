@@ -2,7 +2,6 @@
 
 import type { Awareness } from 'y-protocols/awareness';
 import type * as Y from 'yjs';
-import type { z } from 'zod';
 import { createStore } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { getVoidsyncTypeMarker, isVoidsyncFieldSchema } from './sync-markers';
@@ -11,6 +10,8 @@ import {
   type Action,
   type ActionCall,
   type ActionFn,
+  type AnyEffectSchema,
+  type InferSchemaType,
   type InferSyncedRecord,
   type InitialStateInput,
   type SyncFromDoc,
@@ -98,8 +99,8 @@ function createVoidsyncStateFn<TSchema extends VoidsyncSchema<any, any, any>>(
 
     // Create the zustand store internally with the combined initial state
     const combinedInitialState = {
-      ...initialState.awareness,
-      ...initialState.browser
+      ...(initialState.awareness as object),
+      ...(initialState.browser as object)
     } as TSchema['_types']['combined'];
 
     const zustand = createStore<TSchema['_types']['combined']>()(
@@ -107,21 +108,28 @@ function createVoidsyncStateFn<TSchema extends VoidsyncSchema<any, any, any>>(
     );
 
     // Set initial awareness state
-    for (const [key, value] of Object.entries(initialState.awareness)) {
+    for (const [key, value] of Object.entries(
+      initialState.awareness as Record<string, unknown>
+    )) {
       awareness.setLocalStateField(key, value);
     }
 
     // Action factory with types bound to this store's schema
-    function action<TParamsSchema extends z.ZodTypeAny, TReturn = void>(
+    function action<TParamsSchema extends AnyEffectSchema, TReturn = void>(
       paramsSchema: TParamsSchema,
-      fn: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>, TReturn>
-    ): Action<TSchema, TYdoc, z.infer<TParamsSchema>, TReturn>;
+      fn: ActionFn<TSchema, TYdoc, InferSchemaType<TParamsSchema>, TReturn>
+    ): Action<TSchema, TYdoc, InferSchemaType<TParamsSchema>, TReturn>;
     function action<TReturn = void>(
       fn: ActionFn<TSchema, TYdoc, void, TReturn>
     ): Action<TSchema, TYdoc, void, TReturn>;
-    function action<TParamsSchema extends z.ZodTypeAny, TReturn = void>(
+    function action<TParamsSchema extends AnyEffectSchema, TReturn = void>(
       paramsSchemaOrFn: TParamsSchema | ActionFn<TSchema, TYdoc, void, TReturn>,
-      maybeFn?: ActionFn<TSchema, TYdoc, z.infer<TParamsSchema>, TReturn>
+      maybeFn?: ActionFn<
+        TSchema,
+        TYdoc,
+        InferSchemaType<TParamsSchema>,
+        TReturn
+      >
     ): Action<TSchema, TYdoc, any, any> {
       // Create the call method for type-safe dispatch
       const createCallMethod = (
@@ -134,25 +142,27 @@ function createVoidsyncStateFn<TSchema extends VoidsyncSchema<any, any, any>>(
         });
       };
 
-      // Check if first arg is a function (no params schema)
-      if (typeof paramsSchemaOrFn === 'function') {
-        const actionObj: Action<TSchema, TYdoc, void, TReturn> = {
-          fn: paramsSchemaOrFn,
-          paramsSchema: null,
+      // Check if we have two arguments (schema + fn) or just one (fn only)
+      // We check for maybeFn because Effect Schemas are also typeof 'function'
+      // (they are class constructors), so we can't rely on typeof alone
+      if (maybeFn !== undefined) {
+        // First arg is schema, second is fn
+        const actionObj: Action<TSchema, TYdoc, any, TReturn> = {
+          fn: maybeFn,
+          paramsSchema: paramsSchemaOrFn as TParamsSchema,
           call: null as any // Will be set below
         };
         (actionObj as any).call = createCallMethod(actionObj);
         return actionObj;
       }
 
-      // First arg is schema, second is fn
-      const actionObj: Action<TSchema, TYdoc, any, TReturn> = {
-        fn:
-          maybeFn ??
-          (() => {
-            throw new Error('No function provided for action');
-          }),
-        paramsSchema: paramsSchemaOrFn,
+      // Single argument - must be the action function (no params schema)
+      if (typeof paramsSchemaOrFn !== 'function') {
+        throw new Error('Action requires a function');
+      }
+      const actionObj: Action<TSchema, TYdoc, void, TReturn> = {
+        fn: paramsSchemaOrFn,
+        paramsSchema: null,
         call: null as any // Will be set below
       };
       (actionObj as any).call = createCallMethod(actionObj);

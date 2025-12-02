@@ -14,23 +14,43 @@ export function RowPanel({ node }: { node: RowNodeData }) {
   const dispatch = useDesignerActions();
 
   const handleGapChange = (gap: number) => {
-    dispatch('updateRowNode', { id: node.id, gap });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'gap',
+      value: gap
+    });
   };
 
   const handlePaddingChange = (padding: Padding) => {
-    dispatch('updateRowNode', { id: node.id, padding });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'padding',
+      value: padding
+    });
   };
 
   const handleJustifyContentChange = (justifyContent: JustifyContent) => {
-    dispatch('updateRowNode', { id: node.id, justifyContent });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'justifyContent',
+      value: justifyContent
+    });
   };
 
   const handleAlignItemsChange = (alignItems: AlignItems) => {
-    dispatch('updateRowNode', { id: node.id, alignItems });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'alignItems',
+      value: alignItems
+    });
   };
 
   const handleBackgroundColorChange = (value: string | null) => {
-    dispatch('updateRowNode', { id: node.id, backgroundColor: value });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'backgroundColor',
+      value
+    });
   };
 
   return (

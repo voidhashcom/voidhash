@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 import type { DesignerStoreState } from './types';
 
 /**
@@ -8,7 +8,7 @@ import type { DesignerStoreState } from './types';
 
 export const setTopPanelHeight = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ height: z.number() }),
+    Schema.Struct({ height: Schema.Number }),
     ({ getState, setBrowser, params }) => {
       const viewport = getState().viewport;
       setBrowser({
@@ -25,7 +25,7 @@ export const setTopPanelHeight = (storeState: DesignerStoreState) =>
 
 export const setBottomPanelHeight = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ height: z.number() }),
+    Schema.Struct({ height: Schema.Number }),
     ({ getState, setBrowser, params }) => {
       const viewport = getState().viewport;
       setBrowser({
@@ -42,7 +42,7 @@ export const setBottomPanelHeight = (storeState: DesignerStoreState) =>
 
 export const setLeftPanelWidth = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ width: z.number() }),
+    Schema.Struct({ width: Schema.Number }),
     ({ getState, setBrowser, params }) => {
       const viewport = getState().viewport;
       setBrowser({
@@ -59,7 +59,7 @@ export const setLeftPanelWidth = (storeState: DesignerStoreState) =>
 
 export const setRightPanelWidth = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ width: z.number() }),
+    Schema.Struct({ width: Schema.Number }),
     ({ getState, setBrowser, params }) => {
       const viewport = getState().viewport;
       setBrowser({

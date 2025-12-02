@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 import type { DesignerStoreState } from './types';
 
 /**
@@ -7,7 +7,7 @@ import type { DesignerStoreState } from './types';
  */
 export const setShowGrid = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ showGrid: z.boolean() }),
+    Schema.Struct({ showGrid: Schema.Boolean }),
     ({ getState, setBrowser, params }) => {
       setBrowser({
         debug: {

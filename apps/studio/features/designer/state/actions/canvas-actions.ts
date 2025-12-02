@@ -1,4 +1,4 @@
-import z from 'zod';
+import { Schema } from 'effect';
 import { createColumnNode } from './nodes/column-node-actions';
 import { createRowNode } from './nodes/row-node-actions';
 import { createTextNode } from './nodes/text-node-actions';
@@ -7,10 +7,10 @@ import type { DesignerStoreState } from './types';
 
 export const saveCanvasState = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({
-      scale: z.number(),
-      x: z.number(),
-      y: z.number()
+    Schema.Struct({
+      scale: Schema.Number,
+      x: Schema.Number,
+      y: Schema.Number
     }),
     ({ params, setBrowser, getState }) => {
       const state = getState();
@@ -20,13 +20,13 @@ export const saveCanvasState = (storeState: DesignerStoreState) =>
 
 export const updateBoundingBox = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({
-      id: z.string(),
-      boundingBox: z.object({
-        x: z.number(),
-        y: z.number(),
-        width: z.number(),
-        height: z.number()
+    Schema.Struct({
+      id: Schema.String,
+      boundingBox: Schema.Struct({
+        x: Schema.Number,
+        y: Schema.Number,
+        width: Schema.Number,
+        height: Schema.Number
       })
     }),
     ({ params, getState, setBrowser }) => {
@@ -38,16 +38,19 @@ export const updateBoundingBox = (storeState: DesignerStoreState) =>
   );
 
 export const nodeMouseEnter = (storeState: DesignerStoreState) =>
-  storeState.action(z.object({ id: z.string() }), ({ params, setBrowser }) => {
-    setBrowser({ highlightedNodeId: params.id });
-    return {
-      shouldPropagate: true
-    };
-  });
+  storeState.action(
+    Schema.Struct({ id: Schema.String }),
+    ({ params, setBrowser }) => {
+      setBrowser({ highlightedNodeId: params.id });
+      return {
+        shouldPropagate: true
+      };
+    }
+  );
 
 export const nodeMouseOver = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ id: z.string() }),
+    Schema.Struct({ id: Schema.String }),
     ({ params, setBrowser, getState }) => {
       const state = getState();
       if (!state.highlightedNodeId) {
@@ -61,7 +64,7 @@ export const nodeMouseOver = (storeState: DesignerStoreState) =>
 
 export const nodeMouseLeave = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ id: z.string() }),
+    Schema.Struct({ id: Schema.String }),
     ({ params, getState, setBrowser }) => {
       if (getState().highlightedNodeId === params.id) {
         setBrowser({ highlightedNodeId: null });
@@ -71,7 +74,7 @@ export const nodeMouseLeave = (storeState: DesignerStoreState) =>
 
 export const nodeClicked = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ id: z.string(), shiftKey: z.boolean() }),
+    Schema.Struct({ id: Schema.String, shiftKey: Schema.Boolean }),
     ({ params, getState, dispatch }) => {
       const state = getState();
       const tool = state.tools.activeTool;

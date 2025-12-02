@@ -1,38 +1,22 @@
-import z from 'zod';
-import {
-  paddingSchema,
-  type ScreenNodeData,
-  safeAreaSchema
-} from '../../schema';
+import { screenNode } from '@voidhash/dff';
+import { createNodeAction, updateNodeAction } from '../core';
+import { selectNode } from '../selection-actions';
+import { setActiveTool } from '../tools-actions';
 import type { DesignerStoreState } from '../types';
 
-export const updateScreenNode = (storeState: DesignerStoreState) =>
-  storeState.action(
-    z.object({
-      id: z.string(),
-      backgroundColor: z.string().optional(),
-      padding: paddingSchema.optional(),
-      safeArea: safeAreaSchema.optional()
-    }),
-    ({ params, getState, doc }) => {
-      const state = getState();
-      const node = state.nodes?.[params.id];
-      if (!node || node.type !== 'screen') {
-        return;
-      }
-
-      const nodesMap = doc.getMap('nodes');
-      const updatedNode: ScreenNodeData = {
-        ...node,
-        backgroundColor: params.backgroundColor ?? node.backgroundColor,
-        padding: params.padding ?? node.padding,
-        safeArea: params.safeArea ?? node.safeArea
-      };
-
-      nodesMap.set(params.id, updatedNode);
+export const createScreenNode = (storeState: DesignerStoreState) =>
+  createNodeAction(storeState, screenNode, {
+    after: ({ dispatch, node }) => {
+      // node is automatically typed as ColumnNodeData
+      dispatch(selectNode)({ id: node.id, many: false });
+      dispatch(setActiveTool)({ tool: 'cursor' });
     }
-  );
+  });
+
+export const updateScreenNode = (storeState: DesignerStoreState) =>
+  updateNodeAction(storeState, screenNode);
 
 export const createScreenNodeActions = (storeState: DesignerStoreState) => ({
+  createScreenNode: createScreenNode(storeState),
   updateScreenNode: updateScreenNode(storeState)
 });

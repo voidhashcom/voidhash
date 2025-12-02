@@ -14,23 +14,43 @@ export function ColumnPanel({ node }: { node: ColumnNodeData }) {
   const dispatch = useDesignerActions();
 
   const handleGapChange = (gap: number) => {
-    dispatch('updateColumnNode', { id: node.id, gap });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'gap',
+      value: gap
+    });
   };
 
   const handlePaddingChange = (padding: Padding) => {
-    dispatch('updateColumnNode', { id: node.id, padding });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'padding',
+      value: padding
+    });
   };
 
   const handleJustifyContentChange = (justifyContent: JustifyContent) => {
-    dispatch('updateColumnNode', { id: node.id, justifyContent });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'justifyContent',
+      value: justifyContent
+    });
   };
 
   const handleAlignItemsChange = (alignItems: AlignItems) => {
-    dispatch('updateColumnNode', { id: node.id, alignItems });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'alignItems',
+      value: alignItems
+    });
   };
 
   const handleBackgroundColorChange = (value: string | null) => {
-    dispatch('updateColumnNode', { id: node.id, backgroundColor: value });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'backgroundColor',
+      value
+    });
   };
 
   return (

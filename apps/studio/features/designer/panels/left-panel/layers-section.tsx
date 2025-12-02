@@ -497,7 +497,7 @@ export function LayersSection() {
   const expandedLayersBySelectedNodes = useMemo(
     () =>
       tree
-        ? getExpandedLayersBySelectedNodes(tree, selectedNodeIds)
+        ? getExpandedLayersBySelectedNodes(tree, Array.from(selectedNodeIds))
         : new Set<string>([]),
     [tree, selectedNodeIds]
   );

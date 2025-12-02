@@ -1,3 +1,5 @@
+'use client';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,9 +16,8 @@ import {
   Rows2Icon,
   TypeIcon
 } from 'lucide-react';
-import type z from 'zod';
 import { useDesignerActions, useDesignerSelect } from '../state/designer-store';
-import { availableToolsSchema } from '../state/schema';
+import type { AvailableTool } from '../state/schema';
 
 function LayoutToolIcon({ tool }: { tool: string }) {
   switch (tool) {
@@ -35,10 +36,10 @@ function LayoutDropdownMenu({
   activeTool,
   onChange
 }: {
-  activeTool: z.infer<typeof availableToolsSchema>;
-  onChange: (tool: z.infer<typeof availableToolsSchema>) => void;
+  activeTool: AvailableTool;
+  onChange: (tool: AvailableTool) => void;
 }) {
-  const availableTools = ['rows', 'columns', 'scroll-view'];
+  const availableTools: AvailableTool[] = ['rows', 'columns', 'scroll-view'];
   const isAnyLayoutToolActive = availableTools.some(
     (tool) => tool === activeTool
   );
@@ -92,7 +93,7 @@ export function ActionPanel() {
         <ToggleGroup
           onValueChange={(value) =>
             dispatch('setActiveTool', {
-              tool: availableToolsSchema.parse(value)
+              tool: value as AvailableTool
             })
           }
           spacing={2}

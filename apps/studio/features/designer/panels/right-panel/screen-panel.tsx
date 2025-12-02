@@ -17,16 +17,28 @@ export function ScreenPanel({ node }: { node: ScreenNodeData }) {
 
   const handleBackgroundColorChange = (value: string | null) => {
     if (value) {
-      dispatch('updateScreenNode', { id: node.id, backgroundColor: value });
+      dispatch('updateScreenNode', {
+        id: node.id,
+        property: 'backgroundColor',
+        value
+      });
     }
   };
 
   const handlePaddingChange = (padding: Padding) => {
-    dispatch('updateScreenNode', { id: node.id, padding });
+    dispatch('updateScreenNode', {
+      id: node.id,
+      property: 'padding',
+      value: padding
+    });
   };
 
   const handleSafeAreaChange = (safeArea: SafeArea) => {
-    dispatch('updateScreenNode', { id: node.id, safeArea });
+    dispatch('updateScreenNode', {
+      id: node.id,
+      property: 'safeArea',
+      value: safeArea
+    });
   };
 
   return (
@@ -40,12 +52,23 @@ export function ScreenPanel({ node }: { node: ScreenNodeData }) {
           <PanelSectionTitle>Padding</PanelSectionTitle>
         </PanelSectionHeader>
         <PanelSectionContent>
-          <SpacingInput onChange={handlePaddingChange} value={node.padding} />
+          <SpacingInput
+            onChange={handlePaddingChange}
+            value={{
+              top: node.paddingTop,
+              right: node.paddingRight,
+              bottom: node.paddingBottom,
+              left: node.paddingLeft
+            }}
+          />
         </PanelSectionContent>
       </PanelSection>
       <SafeAreaSection
         onSafeAreaChange={handleSafeAreaChange}
-        safeArea={node.safeArea}
+        safeArea={{
+          top: node.safeAreaTop,
+          bottom: node.safeAreaBottom
+        }}
       />
     </>
   );

@@ -1,5 +1,10 @@
 'use client';
 
+import {
+  type ScreenNodeData,
+  setRootNodeSync,
+  setScreenNodeSync
+} from '@voidhash/dff';
 import { IndexGenerator } from 'fractional-indexing-jittered';
 import { createContext, useContext, useRef } from 'react';
 import { Awareness } from 'y-protocols/awareness';
@@ -14,13 +19,7 @@ import {
   useVoidsyncSelect
 } from './core/voidsync';
 import { useVoidsyncSubscribe } from './core/voidsync/hooks';
-import {
-  type DesignerSchema,
-  designerSchema,
-  rootNodeSchema,
-  type ScreenNodeData,
-  screenNodeSchema
-} from './schema';
+import { type DesignerSchema, designerSchema } from './schema';
 import { createNodeId } from './utils/id';
 
 // ============================================================================
@@ -104,24 +103,34 @@ export function DesignerStoreProvider({
 
     const doc = new Y.Doc();
     const nodesMap = doc.getMap('nodes');
-    const rootNodeData = rootNodeSchema.parse({
-      id: 'root',
-      type: 'root'
-    });
 
-    const initScreenData = screenNodeSchema.parse({
+    // Create root node using @dff
+    const rootNodeData = setRootNodeSync(nodesMap, 'root');
+
+    // Create initial screen using @dff
+    const initScreenData: ScreenNodeData = {
       ...INIT_SCREEN_DATA,
       id: createNodeId(),
       type: 'screen',
       name: 'Screen 1',
+      x: 0,
+      y: 0,
+      width: 390,
+      height: 844,
+      backgroundColor: '#ffffff',
+      paddingTop: 0,
+      paddingRight: 0,
+      paddingBottom: 0,
+      paddingLeft: 0,
+      safeAreaBottom: false,
+      safeAreaTop: false,
       parent: {
         id: rootNodeData.id,
         index: generator.keyStart()
       }
-    } satisfies ScreenNodeData);
+    };
 
-    nodesMap.set(rootNodeData.id, rootNodeData);
-    nodesMap.set(initScreenData.id, initScreenData);
+    setScreenNodeSync(nodesMap, initScreenData);
 
     return doc;
   }

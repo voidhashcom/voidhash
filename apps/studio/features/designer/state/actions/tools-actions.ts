@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { availableToolsSchema } from '../schema';
+import { Schema } from 'effect';
+import { AvailableToolsSchema } from '../schema';
 import type { DesignerStoreState } from './types';
 
 /**
@@ -8,7 +8,7 @@ import type { DesignerStoreState } from './types';
  */
 export const setActiveTool = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ tool: availableToolsSchema }),
+    Schema.Struct({ tool: AvailableToolsSchema }),
     ({ params, setBrowser }) => {
       setBrowser({ tools: { activeTool: params.tool } });
     }

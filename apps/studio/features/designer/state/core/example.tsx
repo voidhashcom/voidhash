@@ -1,6 +1,6 @@
-import * as Y from 'yjs';
+import { Schema } from 'effect';
 import { Awareness } from 'y-protocols/awareness';
-import { z } from 'zod';
+import * as Y from 'yjs';
 import {
   createVoidsyncSchema,
   createVoidsyncState,
@@ -13,50 +13,51 @@ import {
   useVoidsyncSelect
 } from './voidsync';
 
+// Define types for synced data
+interface NodeData {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 // 1. Define the schema with 3 state categories
 //    Use syncMap/syncArray/syncText to mark how fields are synced
 const schema = createVoidsyncSchema({
   // Ephemeral state shared via awareness protocol (cursors, selections, presence)
-  awareness: z.object({
-    cursor: z
-      .object({
-        x: z.number(),
-        y: z.number()
+  awareness: Schema.Struct({
+    cursor: Schema.NullOr(
+      Schema.Struct({
+        x: Schema.Number,
+        y: Schema.Number
       })
-      .nullable(),
-    user: z.object({
-      name: z.string(),
-      color: z.string()
+    ),
+    user: Schema.Struct({
+      name: Schema.String,
+      color: Schema.String
     })
   }),
   // Local browser state, not synced (UI preferences, panel sizes)
-  browser: z.object({
-    panels: z.object({
-      left: z.object({
-        width: z.number(),
-        collapsed: z.boolean()
+  browser: Schema.Struct({
+    panels: Schema.Struct({
+      left: Schema.Struct({
+        width: Schema.Number,
+        collapsed: Schema.Boolean
       }),
-      right: z.object({
-        width: z.number(),
-        collapsed: z.boolean()
+      right: Schema.Struct({
+        width: Schema.Number,
+        collapsed: Schema.Boolean
       })
     }),
-    selectedNodeId: z.string().nullable()
+    selectedNodeId: Schema.NullOr(Schema.String)
   }),
   // Persisted state synced to the document
   // Each key here maps to a sync type based on the marker:
   synced: {
     // syncMap() → backed by Y.Map, synced as Record<string, T>
-    nodes: syncMap(
-      z.object({
-        x: z.number(),
-        y: z.number(),
-        width: z.number(),
-        height: z.number()
-      })
-    ),
+    nodes: syncMap<NodeData>(),
     // syncArray() → backed by Y.Array, synced as T[]
-    layers: syncArray(z.string()),
+    layers: syncArray<string>(),
     // syncText() → backed by Y.Text, synced as string (for rich text binding)
     documentTitle: syncText()
   }
@@ -74,7 +75,7 @@ const designerStoreState = createVoidsyncState(schema)(
       cursor: null,
       user: {
         name: `User ${Math.floor(Math.random() * 1000)}`,
-        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`
+        color: `#${Math.floor(Math.random() * 16_777_215).toString(16)}`
       }
     },
     browser: {
@@ -89,13 +90,13 @@ const designerStoreState = createVoidsyncState(schema)(
   awareness
 );
 
-// 4. Define actions using zustand-style API: (paramsSchema, callback)
+// 4. Define actions using Effect Schema for params
 const addNodeAction = designerStoreState.action(
-  z.object({
-    x: z.number(),
-    y: z.number(),
-    width: z.number(),
-    height: z.number()
+  Schema.Struct({
+    x: Schema.Number,
+    y: Schema.Number,
+    width: Schema.Number,
+    height: Schema.Number
   }),
   ({ doc, setBrowser, params }) => {
     const id = crypto.randomUUID();
@@ -115,18 +116,18 @@ const addNodeAction = designerStoreState.action(
 );
 
 const selectNodeAction = designerStoreState.action(
-  z.object({ id: z.string().nullable() }),
+  Schema.NullOr(Schema.Struct({ id: Schema.String })),
   ({ setBrowser, params }) => {
     // Only affects local browser state
-    setBrowser({ selectedNodeId: params.id });
+    setBrowser({ selectedNodeId: params?.id ?? null });
   }
 );
 
 const moveNodeAction = designerStoreState.action(
-  z.object({
-    id: z.string(),
-    x: z.number(),
-    y: z.number()
+  Schema.Struct({
+    id: Schema.String,
+    x: Schema.Number,
+    y: Schema.Number
   }),
   ({ doc, getState, params }) => {
     // Read current state
@@ -144,7 +145,7 @@ const moveNodeAction = designerStoreState.action(
 );
 
 const deleteNodeAction = designerStoreState.action(
-  z.object({ id: z.string() }),
+  Schema.Struct({ id: Schema.String }),
   ({ doc, getState, setBrowser, params }) => {
     // Clear selection if deleting the selected node
     if (getState().selectedNodeId === params.id) {
@@ -158,7 +159,7 @@ const deleteNodeAction = designerStoreState.action(
 );
 
 const updateCursorAction = designerStoreState.action(
-  z.object({ x: z.number(), y: z.number() }).nullable(),
+  Schema.NullOr(Schema.Struct({ x: Schema.Number, y: Schema.Number })),
   ({ setAwareness, params }) => {
     // Update awareness (ephemeral, shared with all users)
     setAwareness({ cursor: params });
@@ -166,7 +167,7 @@ const updateCursorAction = designerStoreState.action(
 );
 
 const togglePanelAction = designerStoreState.action(
-  z.object({ panel: z.enum(['left', 'right']) }),
+  Schema.Struct({ panel: Schema.Literal('left', 'right') }),
   ({ getState, setBrowser, params }) => {
     const currentPanels = getState().panels;
     const targetPanel = currentPanels[params.panel];
@@ -185,7 +186,7 @@ const togglePanelAction = designerStoreState.action(
 );
 
 const addLayerAction = designerStoreState.action(
-  z.object({ name: z.string() }),
+  Schema.Struct({ name: Schema.String }),
   ({ doc, params }) => {
     // Modify Y.Array (persisted)
     const layersArray = doc.getArray<string>('layers');
@@ -194,7 +195,7 @@ const addLayerAction = designerStoreState.action(
 );
 
 const updateTitleAction = designerStoreState.action(
-  z.object({ title: z.string() }),
+  Schema.Struct({ title: Schema.String }),
   ({ doc, params }) => {
     // Modify Y.Text (persisted, supports rich text bindings)
     const titleText = doc.getText('documentTitle');
@@ -269,7 +270,7 @@ export function Example() {
   };
 
   return (
-    <div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+    <div onMouseLeave={handleMouseLeave} onMouseMove={handleMouseMove}>
       {/* Current user info */}
       <div style={{ marginBottom: 16 }}>
         <span
@@ -330,18 +331,18 @@ export function Example() {
         <label>
           Document Title (Y.Text):
           <input
-            type="text"
-            value={documentTitle ?? ''}
             onChange={(e) => dispatch('updateTitle', { title: e.target.value })}
             style={{ marginLeft: 8 }}
+            type="text"
+            value={documentTitle ?? ''}
           />
         </label>
       </div>
 
       <div style={{ marginBottom: 16 }}>
         <button
-          type="button"
           onClick={() => dispatch('togglePanel', { panel: 'left' })}
+          type="button"
         >
           {leftPanel.collapsed ? 'Show' : 'Hide'} Left Panel ({leftPanel.width}
           px)
@@ -351,11 +352,11 @@ export function Example() {
       <div style={{ marginBottom: 16 }}>
         <strong>Layers (Y.Array):</strong> {layers?.length ?? 0}
         <button
-          type="button"
           onClick={() =>
             dispatch('addLayer', { name: `Layer ${(layers?.length ?? 0) + 1}` })
           }
           style={{ marginLeft: 8 }}
+          type="button"
         >
           Add Layer
         </button>
@@ -368,7 +369,7 @@ export function Example() {
 
       <div>
         <strong>Nodes (Y.Map):</strong> {Object.keys(nodes ?? {}).length}
-        <button type="button" onClick={handleAddNode} style={{ marginLeft: 8 }}>
+        <button onClick={handleAddNode} style={{ marginLeft: 8 }} type="button">
           Add Node
         </button>
       </div>
@@ -382,17 +383,17 @@ export function Example() {
             }}
           >
             <button
-              type="button"
               onClick={() => dispatch('selectNode', { id })}
               style={{ marginRight: 8 }}
+              type="button"
             >
               Select
             </button>
             {id.slice(0, 8)}: ({node.x.toFixed(0)}, {node.y.toFixed(0)})
             <button
-              type="button"
               onClick={() => dispatch('deleteNode', { id })}
               style={{ marginLeft: 8 }}
+              type="button"
             >
               Delete
             </button>
@@ -404,9 +405,9 @@ export function Example() {
         <div style={{ marginTop: 16, padding: 16, border: '1px solid #ccc' }}>
           <strong>Selected Node: {selectedNodeId.slice(0, 8)}</strong>
           <button
-            type="button"
-            onClick={() => dispatch('selectNode', { id: null })}
+            onClick={() => dispatch('selectNode', null)}
             style={{ marginLeft: 8 }}
+            type="button"
           >
             Deselect
           </button>

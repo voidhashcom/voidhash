@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: generic */
-import type { z } from 'zod';
 import type {
+  AnyEffectSchema,
   VoidsyncFieldSchema,
   VoidsyncSchema,
   VoidsyncSchemaInput
@@ -8,25 +8,26 @@ import type {
 
 /**
  * Creates a typed schema definition for a Voidsync store.
+ * Uses Effect Schema for awareness and browser state validation.
  *
  * @example
  * const schema = createVoidsyncSchema({
- *   awareness: z.object({
- *     cursor: z.object({ x: z.number(), y: z.number() }).nullable()
+ *   awareness: Schema.Struct({
+ *     cursor: Schema.NullOr(Schema.Struct({ x: Schema.Number, y: Schema.Number }))
  *   }),
- *   browser: z.object({
- *     selectedId: z.string().nullable()
+ *   browser: Schema.Struct({
+ *     selectedId: Schema.NullOr(Schema.String)
  *   }),
  *   synced: {
- *     nodes: syncMap(z.object({ x: z.number(), y: z.number() })),
- *     layers: syncArray(z.string()),
+ *     nodes: syncMap<NodeData>(),
+ *     layers: syncArray<string>(),
  *     title: syncText()
  *   }
  * });
  */
 export function createVoidsyncSchema<
-  TAwareness extends z.ZodTypeAny,
-  TBrowser extends z.ZodTypeAny,
+  TAwareness extends AnyEffectSchema,
+  TBrowser extends AnyEffectSchema,
   TSynced extends Record<string, VoidsyncFieldSchema>
 >(
   input: VoidsyncSchemaInput<TAwareness, TBrowser, TSynced>

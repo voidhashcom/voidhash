@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 import { createTree, findSubtreeInTree, flattenTree } from '../utils/nodes';
 import type { DesignerStoreState } from './types';
 
@@ -7,34 +7,9 @@ import type { DesignerStoreState } from './types';
  * These actions manage the currently selected node (browser-only state).
  */
 
-// const unselectAllChildren = (storeState: DesignerStoreState) =>
-//   storeState.action(
-//     z.object({ id: z.string() }),
-//     ({ params, setAwareness, getState }) => {
-//       const tree = createTree(getState().nodes);
-//       const nodeSubtree = findSubtreeInTree(tree, params.id);
-//       if (!nodeSubtree) {
-//         return;
-//       }
-
-//       const flattenedSubtree = flattenTree(nodeSubtree);
-//       const nodeIdsToUnselect = flattenedSubtree
-//         .map((node) => node.id)
-//         .filter((id) => id !== params.id);
-
-//       const selectedNodeIds = getState().selectedNodeIds.filter(
-//         (id) => !nodeIdsToUnselect.includes(id)
-//       );
-
-//       setAwareness({ selectedNodeIds });
-
-//       return selectedNodeIds;
-//     }
-//   );
-
 export const selectNode = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ id: z.string(), many: z.boolean() }),
+    Schema.Struct({ id: Schema.String, many: Schema.Boolean }),
     ({ params, setAwareness, getState }) => {
       // If not selecting multiple nodes, clear the selection and select the new node
       if (!params.many) {
@@ -84,7 +59,7 @@ export const selectNode = (storeState: DesignerStoreState) =>
 
 export const unselectNode = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({ id: z.string() }),
+    Schema.Struct({ id: Schema.String }),
     ({ params, setAwareness, getState }) => {
       setAwareness({
         selectedNodeIds: getState().selectedNodeIds.filter(
@@ -95,7 +70,7 @@ export const unselectNode = (storeState: DesignerStoreState) =>
   );
 
 export const clearSelection = (storeState: DesignerStoreState) =>
-  storeState.action(z.object({}), ({ setAwareness }) => {
+  storeState.action(Schema.Struct({}), ({ setAwareness }) => {
     setAwareness({ selectedNodeIds: [] });
   });
 

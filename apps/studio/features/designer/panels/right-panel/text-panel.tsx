@@ -8,27 +8,51 @@ export function TextPanel({ node }: { node: TextNodeData }) {
   const dispatch = useDesignerActions();
 
   const handleFontSizeChange = (fontSize: number) => {
-    dispatch('updateTextNode', { id: node.id, fontSize });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'fontSize',
+      value: fontSize
+    });
   };
 
   const handleColorChange = (color: string) => {
-    dispatch('updateTextNode', { id: node.id, color });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'color',
+      value: color
+    });
   };
 
   const handleFontWeightChange = (fontWeight: FontWeight) => {
-    dispatch('updateTextNode', { id: node.id, fontWeight });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'fontWeight',
+      value: fontWeight
+    });
   };
 
   const handleTextAlignChange = (textAlign: TextAlign) => {
-    dispatch('updateTextNode', { id: node.id, textAlign });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'textAlign',
+      value: textAlign
+    });
   };
 
   const handleLineHeightChange = (lineHeight: number) => {
-    dispatch('updateTextNode', { id: node.id, lineHeight });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'lineHeight',
+      value: lineHeight
+    });
   };
 
   const handleLetterSpacingChange = (letterSpacing: number) => {
-    dispatch('updateTextNode', { id: node.id, letterSpacing });
+    dispatch('updateNodeProperty', {
+      id: node.id,
+      property: 'letterSpacing',
+      value: letterSpacing
+    });
   };
 
   return (

@@ -1,11 +1,11 @@
+import { type NodeDataWithoutRoot, updateNodeParentSync } from '@voidhash/dff';
+import { Schema } from 'effect';
 import {
   generateJitteredKeyBetween,
   IndexGenerator
 } from 'fractional-indexing-jittered';
-import z from 'zod';
-import type { NodeDataWithoutRoot } from '../../schema';
-import { getNodesByParentId } from '../../utils/nodes';
-import type { DesignerStoreState } from '../types';
+import { getNodesByParentId } from '../utils/nodes';
+import type { DesignerStoreState } from './types';
 
 /**
  * Moves a node to a new parent and/or position within siblings.
@@ -13,13 +13,13 @@ import type { DesignerStoreState } from '../types';
  */
 export const moveNode = (storeState: DesignerStoreState) =>
   storeState.action(
-    z.object({
+    Schema.Struct({
       /** The ID of the node being moved */
-      nodeId: z.string(),
+      nodeId: Schema.String,
       /** The ID of the new parent (can be the same as current parent) */
-      newParentId: z.string(),
+      newParentId: Schema.String,
       /** The ID of the sibling to place the node before (null = place at end) */
-      beforeSiblingId: z.string().nullable()
+      beforeSiblingId: Schema.NullOr(Schema.String)
     }),
     ({ params, getState, doc }) => {
       const state = getState();
@@ -47,17 +47,11 @@ export const moveNode = (storeState: DesignerStoreState) =>
       // Calculate the new fractional index
       const newIndex = calculateNewIndex(siblings, params.beforeSiblingId);
 
-      // Update the node with new parent and index
-      const nodesMap = doc.getMap('nodes');
-      const updatedNode: NodeDataWithoutRoot = {
-        ...node,
-        parent: {
-          id: params.newParentId,
-          index: newIndex
-        }
-      };
-
-      nodesMap.set(params.nodeId, updatedNode);
+      // Update the node with new parent and index using @dff
+      updateNodeParentSync(doc.getMap('nodes'), params.nodeId, {
+        id: params.newParentId,
+        index: newIndex
+      });
     }
   );
 
