@@ -274,7 +274,6 @@ export function FlexAlignmentInput({
 								)}
 
 								{/* Stretch illustration */}
-
 								<StretchIllustration
 									className={cn(
 										getAlignItems(rowIndex) === alignItems
@@ -335,7 +334,7 @@ export function FlexAlignmentInput({
 				<DropdownMenuTrigger asChild>
 					<PanelButton icon={<Settings2Icon className="size-3.5" />} />
 				</DropdownMenuTrigger>
-				<DropdownMenuContent>
+				<DropdownMenuContent align="end">
 					<DropdownMenuCheckboxItem
 						checked={justifyContent === "space-between"}
 						onCheckedChange={() =>
