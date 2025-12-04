@@ -7,7 +7,7 @@ import type { DesignerStoreState } from '../types';
 export const createScreenNode = (storeState: DesignerStoreState) =>
   createNodeAction(storeState, screenNode, {
     after: ({ dispatch, node }) => {
-      // node is automatically typed as ColumnNodeData
+      // node is automatically typed as ScreenNodeData
       dispatch(selectNode)({ id: node.id, many: false });
       dispatch(setActiveTool)({ tool: 'cursor' });
     }

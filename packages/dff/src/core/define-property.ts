@@ -9,26 +9,37 @@ type AnySchemaOrPropertySignature =
   | Schema.PropertySignature.Any;
 
 /**
- * Configuration for defining a property
+ * Configuration for defining a property without a default
  */
-interface PropertyConfig<TSchema extends AnySchemaOrPropertySignature, A> {
+interface PropertyConfigNoDefault<
+  TSchema extends AnySchemaOrPropertySignature
+> {
+  /** Effect Schema for the property value */
+  schema: TSchema;
+}
+
+/**
+ * Configuration for defining a property with a default.
+ * Uses NoInfer to prevent TypeScript from inferring A from the default function,
+ * ensuring literal types from the schema are preserved.
+ */
+interface PropertyConfigWithDefault<
+  TSchema extends AnySchemaOrPropertySignature,
+  A
+> {
   /** Effect Schema for the property value */
   schema: TSchema;
   /** Default value factory (can be overridden at node level) */
-  default?: () => A;
+  default: () => NoInfer<A>;
 }
 
 /**
  * Infer the type from a schema or property signature.
- * For PropertySignature, we extract the TypeA (second type parameter).
+ * Both Schema and PropertySignature extend Schema.Variance, so Schema.Schema.Type works for both.
  */
-type InferSchemaType<T> = T extends Schema.Schema.Any
+type InferSchemaType<T> = T extends { readonly [Schema.TypeId]: unknown }
   ? Schema.Schema.Type<T>
-  : T extends {
-        readonly Type: infer TypeA;
-      }
-    ? TypeA
-    : unknown;
+  : unknown;
 
 /**
  * Property definition with schema and optional default.
@@ -37,18 +48,20 @@ type InferSchemaType<T> = T extends Schema.Schema.Any
  * @typeParam Name - The property name (literal string type)
  * @typeParam TSchema - The Effect Schema type for this property
  * @typeParam A - The TypeScript type of the property value
+ * @typeParam HasDefault - Whether this property has a default value factory
  */
 export interface PropertyDef<
   Name extends string = string,
   TSchema extends AnySchemaOrPropertySignature = AnySchemaOrPropertySignature,
-  A = unknown
+  A = unknown,
+  HasDefault extends boolean = boolean
 > {
   readonly _tag: 'PropertyDef';
   readonly name: Name;
   readonly schema: TSchema;
-  readonly getDefault: (() => A) | undefined;
+  readonly getDefault: HasDefault extends true ? () => A : undefined;
   /** Builder method to create a new property def with overridden default */
-  default(fn: () => A): PropertyDef<Name, TSchema, A>;
+  default(fn: () => A): PropertyDef<Name, TSchema, A, true>;
 }
 
 /**
@@ -56,9 +69,15 @@ export interface PropertyDef<
  *
  * @example
  * ```ts
- * // Simple property with default
+ * // Property with default
  * export const paddingLeft = defineProperty('paddingLeft', {
- *   schema: Schema.optionalWith(Schema.Number, { default: () => 0 })
+ *   schema: Schema.optionalWith(Schema.Number, { default: () => 0 }),
+ *   default: () => 0
+ * });
+ *
+ * // Property without default
+ * export const customProp = defineProperty('customProp', {
+ *   schema: Schema.String
  * });
  *
  * // Override default at node level using builder pattern
@@ -70,20 +89,43 @@ export interface PropertyDef<
 export function defineProperty<
   Name extends string,
   TSchema extends AnySchemaOrPropertySignature,
-  A = InferSchemaType<TSchema>
+  A extends InferSchemaType<TSchema> = InferSchemaType<TSchema>
 >(
   name: Name,
-  config: PropertyConfig<TSchema, A>
-): PropertyDef<Name, TSchema, A> {
+  config: PropertyConfigWithDefault<TSchema, A>
+): PropertyDef<Name, TSchema, InferSchemaType<TSchema>, true>;
+
+export function defineProperty<
+  Name extends string,
+  TSchema extends AnySchemaOrPropertySignature
+>(
+  name: Name,
+  config: PropertyConfigNoDefault<TSchema>
+): PropertyDef<Name, TSchema, InferSchemaType<TSchema>, false>;
+
+export function defineProperty<
+  Name extends string,
+  TSchema extends AnySchemaOrPropertySignature,
+  A extends InferSchemaType<TSchema> = InferSchemaType<TSchema>
+>(
+  name: Name,
+  config:
+    | PropertyConfigNoDefault<TSchema>
+    | PropertyConfigWithDefault<TSchema, A>
+): PropertyDef<Name, TSchema, InferSchemaType<TSchema>, boolean> {
+  type SchemaType = InferSchemaType<TSchema>;
+  const hasDefault = 'default' in config && config.default !== undefined;
   return {
     _tag: 'PropertyDef' as const,
     name,
     schema: config.schema,
-    getDefault: config.default,
-    default(fn: () => A): PropertyDef<Name, TSchema, A> {
+    getDefault: hasDefault ? config.default : undefined,
+    default(
+      fn: () => SchemaType
+    ): PropertyDef<Name, TSchema, SchemaType, true> {
       return defineProperty(name, { schema: config.schema, default: fn });
     }
-  };
+  } as PropertyDef<Name, TSchema, SchemaType, boolean>;
 }
 
 /**
@@ -104,20 +146,22 @@ export function isPropertyDef(value: unknown): value is PropertyDef {
 export type PropertyDefSchema<P extends PropertyDef> = P extends PropertyDef<
   string,
   infer TSchema,
-  unknown
+  unknown,
+  boolean
 >
   ? TSchema
   : never;
 
 /**
- * Extract the value type from a PropertyDef
+ * Extract the value type from a PropertyDef by inferring from the schema
  */
 export type PropertyDefType<P extends PropertyDef> = P extends PropertyDef<
   string,
-  AnySchemaOrPropertySignature,
-  infer A
+  infer TSchema,
+  unknown,
+  boolean
 >
-  ? A
+  ? InferSchemaType<TSchema>
   : never;
 
 /**
@@ -126,7 +170,16 @@ export type PropertyDefType<P extends PropertyDef> = P extends PropertyDef<
 export type PropertyDefName<P extends PropertyDef> = P extends PropertyDef<
   infer N,
   AnySchemaOrPropertySignature,
-  unknown
+  unknown,
+  boolean
 >
   ? N
   : never;
+
+/**
+ * Check if a PropertyDef has a default value
+ */
+export type PropertyDefHasDefault<P extends PropertyDef> =
+  P extends PropertyDef<string, AnySchemaOrPropertySignature, unknown, infer H>
+    ? H
+    : false;

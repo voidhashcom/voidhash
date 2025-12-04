@@ -1,6 +1,6 @@
 import type { ScreenNodeData } from '../../state/schema';
 import { Selectable } from '../helpers/selectable';
-import { ColumnLayoutRenderer } from './layouts/column-layout-renderer';
+import { FlexLayoutRenderer } from './layouts/flex-layout-renderer';
 
 export function ScreenNodeRenderer({
   node,
@@ -20,17 +20,17 @@ export function ScreenNodeRenderer({
               style={{
                 width: node.width,
                 height: node.height,
-                backgroundColor: node.backgroundColor,
-                paddingTop: node.padding.top + (node.safeArea.top ? 47 : 0),
-                paddingRight: node.padding.right,
-                paddingBottom:
-                  node.padding.bottom + (node.safeArea.bottom ? 34 : 0),
-                paddingLeft: node.padding.left,
                 boxSizing: 'border-box',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                backgroundColor: node.backgroundColor
               }}
             >
-              <ColumnLayoutRenderer>{children}</ColumnLayoutRenderer>
+              <FlexLayoutRenderer
+                {...node}
+                initialStyle={{ width: node.width, height: node.height }}
+              >
+                {children}
+              </FlexLayoutRenderer>
             </div>
           </>
         )}

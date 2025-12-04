@@ -9,7 +9,7 @@
 @custom-variant dark (&:is(.dark *));
 
 ::selection {
-  background: #0075f2;
+  background: #0075f27e;
   color: #fff;
 }
 

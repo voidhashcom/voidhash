@@ -1,6 +1,6 @@
 'use client';
 
-import type { FontWeight, TextAlign } from '../../../state/schema';
+import type { FontWeight, TextAlign } from '@voidhash/dff';
 import {
   PanelSection,
   PanelSectionContent,
@@ -10,9 +10,6 @@ import {
   PanelSubSectionContent,
   PanelSubSectionTitle
 } from '../../core/components/panel-section';
-import { ColorInput } from '../inputs/color-input';
-import { NumberInput } from '../inputs/number-input';
-import { SelectInput } from '../inputs/select-input';
 
 interface TypographySectionProps {
   fontSize: number;
@@ -70,67 +67,67 @@ export function TypographySection({
       <PanelSectionContent>
         <PanelSubSection>
           <PanelSubSectionTitle>Color</PanelSubSectionTitle>
-          <PanelSubSectionContent>
+          {/* <PanelSubSectionContent>
             <ColorInput onChange={onColorChange} value={color} />
-          </PanelSubSectionContent>
+          </PanelSubSectionContent> */}
         </PanelSubSection>
 
         <PanelSubSection>
           <PanelSubSectionTitle>Font Size</PanelSubSectionTitle>
-          <PanelSubSectionContent>
+          {/* <PanelSubSectionContent>
             <NumberInput
               min={1}
               onChange={onFontSizeChange}
               suffix="px"
               value={fontSize}
             />
-          </PanelSubSectionContent>
+          </PanelSubSectionContent> */}
         </PanelSubSection>
 
         <PanelSubSection>
           <PanelSubSectionTitle>Font Weight</PanelSubSectionTitle>
-          <PanelSubSectionContent>
+          {/* <PanelSubSectionContent>
             <SelectInput
               onChange={onFontWeightChange}
               options={FONT_WEIGHT_OPTIONS}
               value={fontWeight}
             />
-          </PanelSubSectionContent>
+          </PanelSubSectionContent> */}
         </PanelSubSection>
 
         <PanelSubSection>
           <PanelSubSectionTitle>Text Align</PanelSubSectionTitle>
-          <PanelSubSectionContent>
+          {/* <PanelSubSectionContent>
             <SelectInput
               onChange={onTextAlignChange}
               options={TEXT_ALIGN_OPTIONS}
               value={textAlign}
             />
-          </PanelSubSectionContent>
+          </PanelSubSectionContent> */}
         </PanelSubSection>
 
         <PanelSubSection>
           <PanelSubSectionTitle>Line Height</PanelSubSectionTitle>
-          <PanelSubSectionContent>
+          {/* <PanelSubSectionContent>
             <NumberInput
               min={0.5}
               onChange={onLineHeightChange}
               step={0.1}
               value={lineHeight}
             />
-          </PanelSubSectionContent>
+          </PanelSubSectionContent> */}
         </PanelSubSection>
 
         <PanelSubSection>
           <PanelSubSectionTitle>Letter Spacing</PanelSubSectionTitle>
-          <PanelSubSectionContent>
+          {/* <PanelSubSectionContent>
             <NumberInput
               onChange={onLetterSpacingChange}
               step={0.1}
               suffix="px"
               value={letterSpacing}
             />
-          </PanelSubSectionContent>
+          </PanelSubSectionContent> */}
         </PanelSubSection>
       </PanelSectionContent>
     </PanelSection>

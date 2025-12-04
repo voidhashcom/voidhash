@@ -37,7 +37,9 @@ export function PanelSectionContent({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn('px-4 pt-2 pb-4', className)}>{children}</div>;
+  return (
+    <div className={cn('space-y-4 px-4 pt-2 pb-4', className)}>{children}</div>
+  );
 }
 
 export function PanelSubSection({
@@ -58,12 +60,7 @@ export function PanelSubSectionTitle({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        'pt-3 font-medium text-muted-foreground text-sm',
-        className
-      )}
-    >
+    <div className={cn('font-medium text-muted-foreground text-xs', className)}>
       {children}
     </div>
   );

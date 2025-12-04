@@ -2,8 +2,7 @@ import { createAwarenessActions } from './awareness-actions';
 import { createCanvasActions } from './canvas-actions';
 import { createDebugActions } from './debug-actions';
 import { createLayerActions } from './layer-actions';
-import { createColumnNodeActions } from './nodes/column-node-actions';
-import { createRowNodeActions } from './nodes/row-node-actions';
+import { createFlexNodeActions } from './nodes/flex-node-actions';
 import { createScreenNodeActions } from './nodes/screen-node-actions';
 import { createTextNodeActions } from './nodes/text-node-actions';
 import { createPanelActions } from './panel-actions';
@@ -25,10 +24,15 @@ export function createDesignerActions(storeState: DesignerStoreState) {
     ...createPanelActions(storeState),
     ...createAwarenessActions(storeState),
     ...createToolsActions(storeState),
-    ...createColumnNodeActions(storeState),
+    ...createFlexNodeActions(storeState),
     ...createLayerActions(storeState),
-    ...createRowNodeActions(storeState),
     ...createScreenNodeActions(storeState),
     ...createTextNodeActions(storeState)
-  };
+  } as const;
 }
+
+/**
+ * Type for all designer actions.
+ * Used for type-safe dispatch.
+ */
+export type DesignerActions = ReturnType<typeof createDesignerActions>;

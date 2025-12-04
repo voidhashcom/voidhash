@@ -2,18 +2,20 @@
 
 import {
   type ScreenNodeData,
-  setRootNodeSync,
-  setScreenNodeSync
+  screenNode,
+  setNodeSync,
+  setRootNodeSync
 } from '@voidhash/dff';
 import { IndexGenerator } from 'fractional-indexing-jittered';
 import { createContext, useContext, useRef } from 'react';
 import { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 import { INIT_SCREEN_DATA, SHOW_GRID } from '../constants';
-import { createDesignerActions } from './actions';
+import { createDesignerActions, type DesignerActions } from './actions';
 import {
   createVoidsyncState,
   createVoidsyncStore,
+  type HookDispatchFn,
   useVoidsyncActions,
   useVoidsyncAwareness,
   useVoidsyncSelect
@@ -107,30 +109,23 @@ export function DesignerStoreProvider({
     // Create root node using @dff
     const rootNodeData = setRootNodeSync(nodesMap, 'root');
 
+    const screenDefaults = screenNode.getDefaults();
+    screenDefaults.paddingBottom;
+
     // Create initial screen using @dff
     const initScreenData: ScreenNodeData = {
+      ...screenNode.getDefaults(),
       ...INIT_SCREEN_DATA,
       id: createNodeId(),
       type: 'screen',
       name: 'Screen 1',
-      x: 0,
-      y: 0,
-      width: 390,
-      height: 844,
-      backgroundColor: '#ffffff',
-      paddingTop: 0,
-      paddingRight: 0,
-      paddingBottom: 0,
-      paddingLeft: 0,
-      safeAreaBottom: false,
-      safeAreaTop: false,
       parent: {
         id: rootNodeData.id,
         index: generator.keyStart()
       }
     };
 
-    setScreenNodeSync(nodesMap, initScreenData);
+    setNodeSync(nodesMap, initScreenData);
 
     return doc;
   }
@@ -187,13 +182,14 @@ export function useDesignerSubscribe<TResult>(
 
 /**
  * Get a dispatch function to call store actions.
+ * Returns a fully type-safe dispatch function based on the registered actions.
  *
  * @example
  * const dispatch = useDesignerActions();
- * dispatch('addNode', { id: '123', x: 0, y: 0, width: 100, height: 100 });
- * dispatch('toggleShowGrid');
+ * dispatch('setActiveTool', { tool: 'cursor' });
+ * dispatch('updateScreenNode', { id: '123', paddingTop: 10 });
  */
-export function useDesignerActions() {
+export function useDesignerActions(): HookDispatchFn<DesignerActions> {
   const store = useDesignerStore();
   return useVoidsyncActions(store);
 }

@@ -19,18 +19,9 @@ export {
 
 // Synchronous API for use in voidsync actions
 export {
-  deleteNodeSync,
   getAllNodesSync,
   getNodeSync,
-  setColumnNodeSync,
   setNodeSync,
   setRootNodeSync,
-  setRowNodeSync,
-  setScreenNodeSync,
-  setTextNodeSync,
-  updateColumnNodeSync,
-  updateNodeParentSync,
-  updateRowNodeSync,
-  updateScreenNodeSync,
-  updateTextNodeSync
+  updateNodeParentSync
 } from './sync-api';

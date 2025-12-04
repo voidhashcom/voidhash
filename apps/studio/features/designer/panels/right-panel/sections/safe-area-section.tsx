@@ -1,7 +1,6 @@
 'use client';
 
 import { Switch } from '@voidhash/ui';
-import type { SafeArea } from '../../../state/schema';
 import {
   PanelSection,
   PanelSectionContent,
@@ -10,8 +9,11 @@ import {
 } from '../../core/components/panel-section';
 
 interface SafeAreaSectionProps {
-  safeArea: SafeArea;
-  onSafeAreaChange: (value: SafeArea) => void;
+  safeArea: {
+    top: boolean;
+    bottom: boolean;
+  };
+  onSafeAreaChange: (value: { top: boolean; bottom: boolean }) => void;
 }
 
 export function SafeAreaSection({

@@ -187,7 +187,7 @@ export function getRootNode(
     const node = yield* getNode(nodesMap, rootId);
     if (node.type !== 'root') {
       return yield* Effect.fail(
-        new NodeParseError(rootId, 'Expected root node but got ' + node.type)
+        new NodeParseError(rootId, `Expected root node but got ${node.type}`)
       );
     }
     return node;

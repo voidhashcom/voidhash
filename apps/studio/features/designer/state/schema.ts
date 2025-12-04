@@ -7,18 +7,11 @@ import { createVoidsyncSchema, syncMap } from './core/voidsync';
 // ============================================================================
 
 export type {
-  AlignItems,
-  ColumnNodeData,
-  FontWeight,
-  JustifyContent,
+  FlexNodeData,
   NodeData,
   NodeDataWithoutRoot,
-  Padding,
   RootNodeData,
-  RowNodeData,
-  SafeArea,
   ScreenNodeData,
-  TextAlign,
   TextNodeData
 } from '@voidhash/dff';
 

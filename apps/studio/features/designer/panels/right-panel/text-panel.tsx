@@ -1,57 +1,51 @@
 'use client';
 
+import type { FontWeight, TextAlign, TextNodeData } from '@voidhash/dff';
 import { useDesignerActions } from '../../state/designer-store';
-import type { FontWeight, TextAlign, TextNodeData } from '../../state/schema';
 import { TypographySection } from './sections/typography-section';
 
 export function TextPanel({ node }: { node: TextNodeData }) {
   const dispatch = useDesignerActions();
 
   const handleFontSizeChange = (fontSize: number) => {
-    dispatch('updateNodeProperty', {
+    dispatch('updateTextNode', {
       id: node.id,
-      property: 'fontSize',
-      value: fontSize
+      fontSize
     });
   };
 
   const handleColorChange = (color: string) => {
-    dispatch('updateNodeProperty', {
+    dispatch('updateTextNode', {
       id: node.id,
-      property: 'color',
-      value: color
+      color
     });
   };
 
   const handleFontWeightChange = (fontWeight: FontWeight) => {
-    dispatch('updateNodeProperty', {
+    dispatch('updateTextNode', {
       id: node.id,
-      property: 'fontWeight',
-      value: fontWeight
+      fontWeight
     });
   };
 
   const handleTextAlignChange = (textAlign: TextAlign) => {
-    dispatch('updateNodeProperty', {
+    dispatch('updateTextNode', {
       id: node.id,
-      property: 'textAlign',
-      value: textAlign
+      textAlign
     });
   };
 
   const handleLineHeightChange = (lineHeight: number) => {
-    dispatch('updateNodeProperty', {
+    dispatch('updateTextNode', {
       id: node.id,
-      property: 'lineHeight',
-      value: lineHeight
+      lineHeight
     });
   };
 
   const handleLetterSpacingChange = (letterSpacing: number) => {
-    dispatch('updateNodeProperty', {
+    dispatch('updateTextNode', {
       id: node.id,
-      property: 'letterSpacing',
-      value: letterSpacing
+      letterSpacing
     });
   };
 

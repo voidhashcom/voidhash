@@ -20,7 +20,5 @@ export const INIT_SCREEN_DATA = {
   y: 0,
   width: 390,
   height: 844,
-  backgroundColor: '#ffffff',
-  padding: { top: 0, right: 0, bottom: 0, left: 0 },
-  safeArea: { top: false, bottom: false }
+  backgroundColor: '#ffffff'
 } as const;

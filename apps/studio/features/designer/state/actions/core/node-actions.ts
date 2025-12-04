@@ -15,6 +15,7 @@ import { Schema } from 'effect';
 import { IndexGenerator } from 'fractional-indexing-jittered';
 import type * as Y from 'yjs';
 import type {
+  Action,
   ActionDispatchFn,
   AnyEffectSchema,
   VoidsyncSchema,
@@ -28,6 +29,22 @@ import { getNodesByParentId } from '../../utils/nodes';
 // ============================================================================
 
 /**
+ * Creates initial values type from node data.
+ * Includes all node properties (optional) except id, type, and parent.
+ */
+type InitialValues<TNodeDef extends NodeDef> = Partial<
+  Omit<NodeDefData<TNodeDef>, 'id' | 'type' | 'parent'>
+>;
+
+/**
+ * Create node action params type.
+ */
+type CreateParams<TNodeDef extends NodeDef> = {
+  parentId: string;
+  initialValues?: InitialValues<TNodeDef>;
+};
+
+/**
  * Context passed to the `after` callback for create node actions.
  */
 type CreateNodeAfterContext<
@@ -36,7 +53,7 @@ type CreateNodeAfterContext<
   TNodeDef extends NodeDef
 > = {
   /** The action parameters passed by the caller */
-  params: { parentId: string };
+  params: CreateParams<TNodeDef>;
   /** Dispatch function to call other actions */
   dispatch: ActionDispatchFn<TSchema, TYdoc>;
   /** The newly created node data */
@@ -125,6 +142,9 @@ type UpdateNodeActionOptions<
  *       dispatch(setActiveTool)({ tool: 'cursor' });
  *     }
  *   });
+ *
+ * // With initial values:
+ * dispatch(createFlexNode)({ parentId: 'parent-id', initialValues: { flexDirection: 'row' } });
  * ```
  */
 export function createNodeAction<
@@ -135,15 +155,42 @@ export function createNodeAction<
   storeState: VoidsyncState<TSchema, TYdoc>,
   nodeDef: TNodeDef,
   options?: CreateNodeActionOptions<TSchema, TYdoc, TNodeDef>
-) {
+): Action<TSchema, TYdoc, CreateParams<TNodeDef>, void> {
+  // Build schema for create params dynamically from node properties
+  const initialValueFields: Record<
+    string,
+    Schema.optional<Schema.Schema<unknown, unknown, never>>
+  > = {};
+
+  for (const prop of nodeDef.properties) {
+    initialValueFields[prop.name] = Schema.optional(
+      prop.schema as Schema.Schema<unknown, unknown, never>
+    );
+  }
+
+  // Add optional name field to initial values
+  initialValueFields.name = Schema.optional(
+    Schema.String as Schema.Schema<unknown, unknown, never>
+  );
+
+  const InitialValuesSchema = Schema.Struct(
+    initialValueFields as Schema.Struct.Fields
+  );
+
+  const CreateParamsSchema = Schema.Struct({
+    parentId: Schema.String,
+    initialValues: Schema.optional(InitialValuesSchema)
+  });
+
   return storeState.action(
-    Schema.Struct({ parentId: Schema.String }),
+    CreateParamsSchema,
     ({ params, getState, doc, dispatch }) => {
       const state = getState();
+      const typedParams = params as CreateParams<TNodeDef>;
 
       // Verify parent exists
       const nodes = (state as { nodes?: Record<string, unknown> }).nodes;
-      const parentNode = nodes?.[params.parentId];
+      const parentNode = nodes?.[typedParams.parentId];
       if (!parentNode) {
         return;
       }
@@ -152,7 +199,7 @@ export function createNodeAction<
       const id = createNodeId();
       const existingParentChildren = getNodesByParentId(
         nodes as Parameters<typeof getNodesByParentId>[0],
-        params.parentId
+        typedParams.parentId
       );
       const fractionalIndexes = existingParentChildren.map(
         (n) => n.parent.index
@@ -160,28 +207,32 @@ export function createNodeAction<
       const generator = new IndexGenerator(fractionalIndexes);
       const index = generator.keyEnd();
 
-      // Create node data with defaults from definition
+      // Create node data with defaults from definition, then override with initial values
       const nodeData = createNodeData(nodeDef, {
         id,
         parent: {
-          id: params.parentId,
+          id: typedParams.parentId,
           index
-        }
+        },
+        initialValues: typedParams.initialValues
       }) as NodeDefData<TNodeDef>;
 
       // Sync to document
-      setNodeSync(doc.getMap('nodes'), nodeData as any);
+      setNodeSync(
+        doc.getMap('nodes'),
+        nodeData as unknown as Parameters<typeof setNodeSync>[1]
+      );
 
       // Call after hook if provided
       if (options?.after) {
         options.after({
-          params,
+          params: typedParams,
           dispatch: dispatch as ActionDispatchFn<TSchema, TYdoc>,
           node: nodeData
         });
       }
     }
-  );
+  ) as Action<TSchema, TYdoc, CreateParams<TNodeDef>, void>;
 }
 
 // ============================================================================
@@ -215,7 +266,7 @@ export function updateNodeAction<
   storeState: VoidsyncState<TSchema, TYdoc>,
   nodeDef: TNodeDef,
   options?: UpdateNodeActionOptions<TSchema, TYdoc, TNodeDef>
-) {
+): Action<TSchema, TYdoc, UpdateParams<TNodeDef>, void> {
   // Build schema for update params dynamically from node properties
   const updateFields: Record<
     string,
@@ -234,14 +285,16 @@ export function updateNodeAction<
     updateFields as Schema.Struct.Fields
   );
 
+  // Cast is needed because the dynamically-built schema loses type info
   return storeState.action(
     UpdateParamsSchema,
     ({ params, getState, doc, dispatch }) => {
       const state = getState();
+      const typedParams = params as UpdateParams<TNodeDef>;
 
       // Get existing node
       const nodes = (state as { nodes?: Record<string, any> }).nodes;
-      const existingNode = nodes?.[params.id] as
+      const existingNode = nodes?.[typedParams.id] as
         | NodeDefData<TNodeDef>
         | undefined;
 
@@ -252,7 +305,7 @@ export function updateNodeAction<
       // Build updates object (excluding undefined values)
       const updates: Record<string, unknown> = {};
       for (const prop of nodeDef.properties) {
-        const value = (params as Record<string, unknown>)[prop.name];
+        const value = (typedParams as Record<string, unknown>)[prop.name];
         if (value !== undefined) {
           updates[prop.name] = value;
         }
@@ -272,12 +325,12 @@ export function updateNodeAction<
       // Call after hook if provided
       if (options?.after) {
         options.after({
-          params: params as UpdateParams<TNodeDef>,
+          params: typedParams,
           dispatch: dispatch as ActionDispatchFn<TSchema, TYdoc>,
           node: updatedNode,
           previousNode: existingNode
         });
       }
     }
-  );
+  ) as Action<TSchema, TYdoc, UpdateParams<TNodeDef>, void>;
 }

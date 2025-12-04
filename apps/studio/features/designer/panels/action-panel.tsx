@@ -89,7 +89,7 @@ export function ActionPanel() {
   const activeTool = useDesignerSelect((state) => state.tools.activeTool);
   return (
     <div className="fixed right-0 bottom-12 left-0 z-40 flex items-center justify-center ">
-      <div className="flex flex-row gap-2 rounded-2xl border border-border bg-sidebar p-2 shadow-lg">
+      <div className="flex flex-row gap-2 rounded-2xl border border-border bg-muted p-2 shadow-lg">
         <ToggleGroup
           onValueChange={(value) =>
             dispatch('setActiveTool', {

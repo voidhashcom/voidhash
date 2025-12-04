@@ -1,6 +1,5 @@
 import { Schema } from 'effect';
-import { createColumnNode } from './nodes/column-node-actions';
-import { createRowNode } from './nodes/row-node-actions';
+import { createFlexNode } from './nodes/flex-node-actions';
 import { createTextNode } from './nodes/text-node-actions';
 import { selectNode, unselectNode } from './selection-actions';
 import type { DesignerStoreState } from './types';
@@ -104,11 +103,17 @@ export const nodeClicked = (storeState: DesignerStoreState) =>
           break;
 
         case 'columns':
-          dispatch(createColumnNode)({ parentId: params.id });
+          dispatch(createFlexNode)({
+            parentId: params.id,
+            initialValues: { flexDirection: 'column', name: 'Column' }
+          });
           break;
 
         case 'rows':
-          dispatch(createRowNode)({ parentId: params.id });
+          dispatch(createFlexNode)({
+            parentId: params.id,
+            initialValues: { flexDirection: 'row', name: 'Row' }
+          });
           break;
       }
     }

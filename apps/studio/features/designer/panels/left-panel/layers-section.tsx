@@ -136,8 +136,7 @@ function flattenTree(
     return result;
   }
 
-  const canHaveChildren =
-    node.type === 'screen' || node.type === 'column' || node.type === 'row';
+  const canHaveChildren = node.type === 'screen' || node.type === 'flex';
 
   result.push({
     id: node.id,
@@ -335,7 +334,13 @@ function SortableTreeItem({
 }: SortableTreeItemProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({ id });
 
-  const Icon = typeIcons[node.type];
+  const iconType =
+    node.type === 'flex'
+      ? node.flexDirection === 'column'
+        ? 'column'
+        : 'row'
+      : node.type;
+  const Icon = typeIcons[iconType];
   const displayName = 'name' in node ? node.name : 'Unknown';
 
   const isActiveItem = id === activeId;

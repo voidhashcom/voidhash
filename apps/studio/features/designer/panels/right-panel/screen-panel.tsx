@@ -1,75 +1,21 @@
 'use client';
 
+import type { ScreenNodeData } from '@voidhash/dff';
 import { useDesignerActions } from '../../state/designer-store';
-import type { Padding, SafeArea, ScreenNodeData } from '../../state/schema';
-import {
-  PanelSection,
-  PanelSectionContent,
-  PanelSectionHeader,
-  PanelSectionTitle
-} from '../core/components/panel-section';
-import { SpacingInput } from './inputs/spacing-input';
-import { FillSection } from './sections/fill-section';
-import { SafeAreaSection } from './sections/safe-area-section';
+import { LayoutSection } from './sections/layout-section';
 
+const DISPATCH_ACTION = 'updateScreenNode';
 export function ScreenPanel({ node }: { node: ScreenNodeData }) {
   const dispatch = useDesignerActions();
-
-  const handleBackgroundColorChange = (value: string | null) => {
-    if (value) {
-      dispatch('updateScreenNode', {
-        id: node.id,
-        property: 'backgroundColor',
-        value
-      });
-    }
-  };
-
-  const handlePaddingChange = (padding: Padding) => {
-    dispatch('updateScreenNode', {
-      id: node.id,
-      property: 'padding',
-      value: padding
-    });
-  };
-
-  const handleSafeAreaChange = (safeArea: SafeArea) => {
-    dispatch('updateScreenNode', {
-      id: node.id,
-      property: 'safeArea',
-      value: safeArea
-    });
-  };
-
   return (
-    <>
-      <FillSection
-        backgroundColor={node.backgroundColor}
-        onBackgroundColorChange={handleBackgroundColorChange}
-      />
-      <PanelSection>
-        <PanelSectionHeader>
-          <PanelSectionTitle>Padding</PanelSectionTitle>
-        </PanelSectionHeader>
-        <PanelSectionContent>
-          <SpacingInput
-            onChange={handlePaddingChange}
-            value={{
-              top: node.paddingTop,
-              right: node.paddingRight,
-              bottom: node.paddingBottom,
-              left: node.paddingLeft
-            }}
-          />
-        </PanelSectionContent>
-      </PanelSection>
-      <SafeAreaSection
-        onSafeAreaChange={handleSafeAreaChange}
-        safeArea={{
-          top: node.safeAreaTop,
-          bottom: node.safeAreaBottom
-        }}
-      />
-    </>
+    // <>
+    <LayoutSection
+      direction="column"
+      node={node}
+      onNodeChange={(updatedNode) =>
+        dispatch(DISPATCH_ACTION, { ...node, ...updatedNode })
+      }
+    />
+    // </>
   );
 }

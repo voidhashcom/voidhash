@@ -20,8 +20,7 @@ import type {
   NodeData,
   ScreenNodeData,
   TextNodeData,
-  ColumnNodeData,
-  RowNodeData,
+  FlexNodeData,
   RootNodeData,
 } from "@voidhash/dff";
 ```

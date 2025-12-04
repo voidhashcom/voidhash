@@ -2,11 +2,9 @@
 
 import {
   PanelSection,
-  PanelSectionContent,
   PanelSectionHeader,
   PanelSectionTitle
 } from '../../core/components/panel-section';
-import { ColorInput } from '../inputs/color-input';
 
 interface FillSectionProps {
   backgroundColor: string | null;
@@ -24,7 +22,7 @@ export function FillSection({
       <PanelSectionHeader>
         <PanelSectionTitle>Fill</PanelSectionTitle>
       </PanelSectionHeader>
-      <PanelSectionContent>
+      {/* <PanelSectionContent>
         <ColorInput
           allowNull={allowNull}
           onChange={(value) => {
@@ -32,8 +30,7 @@ export function FillSection({
           }}
           value={backgroundColor ?? '#ffffff'}
         />
-      </PanelSectionContent>
+      </PanelSectionContent> */}
     </PanelSection>
   );
 }
-

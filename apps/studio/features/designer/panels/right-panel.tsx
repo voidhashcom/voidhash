@@ -3,8 +3,7 @@
 import { useDesignerSelect } from '../state/designer-store';
 import { PANEL_DIMENSIONS } from './constants';
 import { Panel } from './core/components/panel';
-import { ColumnPanel } from './right-panel/column-panel';
-import { RowPanel } from './right-panel/row-panel';
+import { FlexPanel } from './right-panel/flex-panel';
 import { ScreenPanel } from './right-panel/screen-panel';
 import { TextPanel } from './right-panel/text-panel';
 
@@ -64,12 +63,8 @@ function SelectedNodePanel({ nodeId }: { nodeId: string }) {
     return <ScreenPanel node={selectedNode} />;
   }
 
-  if (selectedNode.type === 'column') {
-    return <ColumnPanel node={selectedNode} />;
-  }
-
-  if (selectedNode.type === 'row') {
-    return <RowPanel node={selectedNode} />;
+  if (selectedNode.type === 'flex') {
+    return <FlexPanel node={selectedNode} />;
   }
 
   if (selectedNode.type === 'text') {

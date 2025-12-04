@@ -51,7 +51,7 @@
     "effect": "catalog:",
     "effect-query": "0.2.1-beta.3",
     "fractional-indexing-jittered": "^1.0.0",
-    "lucide-react": "^0.542.0",
+    "lucide-react": "^0.555.0",
     "nanoid": "^5.1.6",
     "next": "16.0.0",
     "pino": "^9.7.0",

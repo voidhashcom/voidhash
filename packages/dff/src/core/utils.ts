@@ -2,7 +2,8 @@ import type { NodeDef } from './define-node';
 
 /**
  * Create default node data for a new node instance.
- * Combines the node definition's defaults with required id and parent.
+ * Combines the node definition's defaults with required id and parent,
+ * optionally overriding with initial values.
  *
  * @example
  * ```ts
@@ -10,17 +11,29 @@ import type { NodeDef } from './define-node';
  *   id: createNodeId(),
  *   parent: { id: parentId, index: fractionalIndex }
  * });
+ *
+ * // With initial values to override defaults:
+ * const nodeData = createNodeData(flexNode, {
+ *   id: createNodeId(),
+ *   parent: { id: parentId, index: fractionalIndex },
+ *   initialValues: { flexDirection: 'row', gap: 16 }
+ * });
  * ```
  */
 export function createNodeData(
   nodeDef: NodeDef,
-  required: { id: string; parent: { id: string; index: string } }
+  options: {
+    id: string;
+    parent: { id: string; index: string };
+    initialValues?: Record<string, unknown>;
+  }
 ): Record<string, unknown> {
   const defaults = nodeDef.getDefaults();
   return {
     ...defaults,
-    id: required.id,
-    parent: required.parent
+    ...options.initialValues,
+    id: options.id,
+    parent: options.parent
   };
 }
 

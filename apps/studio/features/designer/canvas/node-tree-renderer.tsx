@@ -3,8 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useDesignerActions, useDesignerSelect } from '../state/designer-store';
 import type { NodeData } from '../state/schema';
 import { getNodesByParentId } from '../state/utils/nodes';
-import { ColumnNodeRenderer } from './node-renderers/column-node-renderer';
-import { RowNodeRenderer } from './node-renderers/row-node-renderer';
+import { FlexNodeRenderer } from './node-renderers/flex-node-renderer';
 import { ScreenNodeRenderer } from './node-renderers/screen-node-renderer';
 import { TextNodeRenderer } from './node-renderers/text-node-renderer';
 import { useViewport } from './viewport';
@@ -93,22 +92,13 @@ export function NodeRenderer({
     );
   }
 
-  if (node.type === 'column') {
+  if (node.type === 'flex') {
     return (
-      <ColumnNodeRenderer node={node} ref={elementRef}>
+      <FlexNodeRenderer node={node} ref={elementRef}>
         {children.map((child) => (
           <NodeRenderer key={child.id} node={{ ...child, children }} />
         ))}
-      </ColumnNodeRenderer>
-    );
-  }
-  if (node.type === 'row') {
-    return (
-      <RowNodeRenderer node={node} ref={elementRef}>
-        {children.map((child) => (
-          <NodeRenderer key={child.id} node={{ ...child, children }} />
-        ))}
-      </RowNodeRenderer>
+      </FlexNodeRenderer>
     );
   }
 
