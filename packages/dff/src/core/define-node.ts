@@ -1,8 +1,10 @@
 import { Schema } from 'effect';
 import type {
   PropertyDef,
+  PropertyDefHasDefault,
   PropertyDefName,
-  PropertyDefSchema
+  PropertyDefSchema,
+  PropertyDefType
 } from './define-property';
 
 /**
@@ -68,6 +70,22 @@ type NodeDataFromSchema<
   Props extends readonly PropertyDef[]
 > = Schema.Schema.Type<NodeSchema<Type, Props>>;
 
+/**
+ * Type for getDefaults return value - includes type, name, and property values.
+ * Only properties with defaults are included (as required fields).
+ */
+type NodeDefaultsType<
+  Type extends string,
+  Props extends readonly PropertyDef[]
+> = {
+  type: Type;
+  name: string;
+} & {
+  [K in Props[number] as PropertyDefHasDefault<K> extends true
+    ? PropertyDefName<K>
+    : never]: PropertyDefType<K>;
+};
+
 // ============================================================================
 // Node Definition Types
 // ============================================================================
@@ -109,7 +127,7 @@ export interface NodeDef<
   /** The composed Effect Schema for this node */
   readonly schema: TSchema;
   /** Get default values for creating a new node (without id/parent) */
-  getDefaults(): Record<string, unknown>;
+  getDefaults(): NodeDefaultsType<Type, Props>;
   /** Phantom type for the node data */
   readonly _data: TData;
 }
@@ -130,11 +148,14 @@ function buildSchemaFields(
 /**
  * Build default values from property definitions
  */
-function buildDefaults(
-  type: string,
+function buildDefaults<
+  Type extends string,
+  Props extends readonly PropertyDef[]
+>(
+  type: Type,
   defaultName: string,
-  properties: readonly PropertyDef[]
-): Record<string, unknown> {
+  properties: Props
+): NodeDefaultsType<Type, Props> {
   const defaults: Record<string, unknown> = {
     type,
     name: defaultName
@@ -146,7 +167,7 @@ function buildDefaults(
     }
   }
 
-  return defaults;
+  return defaults as NodeDefaultsType<Type, Props>;
 }
 
 /**

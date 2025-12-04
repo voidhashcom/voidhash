@@ -30,7 +30,7 @@ export interface CanvasDef<Type extends string = string> {
  * ```ts
  * // Design canvas for UI design
  * export const designCanvas = defineCanvas('design', {
- *   nodes: [screenNode, textNode, columnNode, rowNode]
+ *   nodes: [screenNode, textNode, flexNode]
  * });
  *
  * // Automation canvas for workflows

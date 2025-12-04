@@ -1,14 +1,6 @@
 import { Effect } from 'effect';
 import type * as Y from 'yjs';
-import type {
-  ColumnNodeData,
-  NodeData,
-  NodeDataWithoutRoot,
-  RootNodeData,
-  RowNodeData,
-  ScreenNodeData,
-  TextNodeData
-} from '../schema';
+import type { NodeData, NodeDataWithoutRoot, RootNodeData } from '../schema';
 import {
   deleteNode,
   getAllNodes,
@@ -132,50 +124,6 @@ export class DesignDocument {
    */
   deleteNode(nodeId: string): Effect.Effect<void, NodeNotFoundError> {
     return deleteNode(this.nodesMap, nodeId);
-  }
-
-  // ==========================================================================
-  // Typed Update Operations
-  // ==========================================================================
-
-  /**
-   * Update a screen node's properties atomically
-   */
-  updateScreenNode(
-    nodeId: string,
-    updates: Partial<Omit<ScreenNodeData, 'id' | 'type'>>
-  ): Effect.Effect<ScreenNodeData, NodeNotFoundError | NodeParseError> {
-    return updateNodeProperties<ScreenNodeData>(this.nodesMap, nodeId, updates);
-  }
-
-  /**
-   * Update a text node's properties atomically
-   */
-  updateTextNode(
-    nodeId: string,
-    updates: Partial<Omit<TextNodeData, 'id' | 'type'>>
-  ): Effect.Effect<TextNodeData, NodeNotFoundError | NodeParseError> {
-    return updateNodeProperties<TextNodeData>(this.nodesMap, nodeId, updates);
-  }
-
-  /**
-   * Update a column node's properties atomically
-   */
-  updateColumnNode(
-    nodeId: string,
-    updates: Partial<Omit<ColumnNodeData, 'id' | 'type'>>
-  ): Effect.Effect<ColumnNodeData, NodeNotFoundError | NodeParseError> {
-    return updateNodeProperties<ColumnNodeData>(this.nodesMap, nodeId, updates);
-  }
-
-  /**
-   * Update a row node's properties atomically
-   */
-  updateRowNode(
-    nodeId: string,
-    updates: Partial<Omit<RowNodeData, 'id' | 'type'>>
-  ): Effect.Effect<RowNodeData, NodeNotFoundError | NodeParseError> {
-    return updateNodeProperties<RowNodeData>(this.nodesMap, nodeId, updates);
   }
 
   /**
