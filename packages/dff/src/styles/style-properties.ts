@@ -94,6 +94,10 @@ export interface StylePropertyTypes {
   borderColor: string;
   borderStyle: BorderStyle;
   borderRadius: number;
+  borderRadiusTopLeft: number;
+  borderRadiusTopRight: number;
+  borderRadiusBottomRight: number;
+  borderRadiusBottomLeft: number;
   borderEnabled: boolean;
 
   // Visual
@@ -173,6 +177,10 @@ export const STYLE_DEFAULTS: StylePropertyTypes = {
   borderColor: 'rgba(0, 0, 0, 1)',
   borderStyle: 'solid',
   borderRadius: 0,
+  borderRadiusTopLeft: 0,
+  borderRadiusTopRight: 0,
+  borderRadiusBottomRight: 0,
+  borderRadiusBottomLeft: 0,
   borderEnabled: false,
 
   // Visual

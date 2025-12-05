@@ -26,6 +26,10 @@ export function FlexLayoutRenderer({
   borderWidthRight,
   borderWidthBottom,
   borderWidthLeft,
+  borderRadiusTopLeft,
+  borderRadiusBottomRight,
+  borderRadiusBottomLeft,
+  borderRadiusTopRight,
   borderColor,
   borderEnabled,
   initialStyle = {}
@@ -49,6 +53,10 @@ export function FlexLayoutRenderer({
         borderBottomWidth: borderEnabled ? (borderWidthBottom ?? 0) : 0,
         borderLeftWidth: borderEnabled ? (borderWidthLeft ?? 0) : 0,
         borderColor,
+        borderTopLeftRadius: borderRadiusTopLeft,
+        borderTopRightRadius: borderRadiusTopRight,
+        borderBottomRightRadius: borderRadiusBottomRight,
+        borderBottomLeftRadius: borderRadiusBottomLeft,
         boxSizing: 'border-box',
         ...initialStyle
       }}
