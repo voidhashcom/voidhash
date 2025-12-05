@@ -1,56 +1,3 @@
-/** All possible style property names */
-export type StylePropertyName =
-  | 'paddingTop'
-  | 'paddingRight'
-  | 'paddingBottom'
-  | 'paddingLeft'
-  | 'marginTop'
-  | 'marginRight'
-  | 'marginBottom'
-  | 'marginLeft'
-  | 'gap'
-  | 'justifyContent'
-  | 'alignItems'
-  | 'flexDirection'
-  | 'flex'
-  | 'flexGrow'
-  | 'flexShrink'
-  | 'flexBasis'
-  | 'alignSelf'
-  | 'width'
-  | 'height'
-  | 'minWidth'
-  | 'maxWidth'
-  | 'minHeight'
-  | 'maxHeight'
-  | 'backgroundColor'
-  | 'backgroundEnabled'
-  | 'borderWidth'
-  | 'borderColor'
-  | 'borderStyle'
-  | 'borderRadius'
-  | 'opacity'
-  | 'overflow'
-  | 'zIndex'
-  | 'display'
-  | 'shadowEnabled'
-  | 'shadowColor'
-  | 'shadowOffsetX'
-  | 'shadowOffsetY'
-  | 'shadowBlurRadius'
-  | 'shadowOpacity'
-  | 'text'
-  | 'fontSize'
-  | 'fontWeight'
-  | 'color'
-  | 'textAlign'
-  | 'lineHeight'
-  | 'letterSpacing'
-  | 'safeAreaTop'
-  | 'safeAreaBottom'
-  | 'x'
-  | 'y';
-
 /** Literal types for constrained properties */
 export type JustifyContent =
   | 'flex-start'
@@ -211,7 +158,7 @@ export const STYLE_DEFAULTS: StylePropertyTypes = {
   y: 0,
 
   // Background
-  backgroundColor: '#ffffff',
+  backgroundColor: 'rgba(255, 255, 255, 1)',
   backgroundEnabled: false,
 
   // Border
@@ -247,3 +194,5 @@ export const STYLE_DEFAULTS: StylePropertyTypes = {
   safeAreaTop: false,
   safeAreaBottom: false
 };
+
+export type StylePropertyName = keyof StylePropertyTypes;

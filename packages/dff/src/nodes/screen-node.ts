@@ -43,7 +43,7 @@ class ScreenNodeBase extends BaseNode<'screen', ScreenStyles> {
     width: 375,
     height: 812,
     backgroundEnabled: true,
-    backgroundColor: '#ffffff'
+    backgroundColor: 'rgba(255, 255, 255, 1)'
   };
 }
 

@@ -21,6 +21,7 @@ export function FlexLayoutRenderer({
   justifyContent,
   alignItems,
   backgroundColor,
+  backgroundEnabled,
   initialStyle = {}
 }: FlexLayoutRendererProps) {
   return (
@@ -36,7 +37,7 @@ export function FlexLayoutRenderer({
         paddingRight: paddingRight ?? 0,
         paddingBottom: paddingBottom ?? 0,
         paddingLeft: paddingLeft ?? 0,
-        backgroundColor: backgroundColor ?? undefined,
+        backgroundColor: backgroundEnabled ? backgroundColor : 'transparent',
         boxSizing: 'border-box',
         ...initialStyle
       }}

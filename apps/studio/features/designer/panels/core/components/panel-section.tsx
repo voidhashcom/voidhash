@@ -17,7 +17,16 @@ export function PanelSectionHeader({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn('px-4 pt-4 pb-2', className)}>{children}</div>;
+  return (
+    <div
+      className={cn(
+        'mt-2 flex h-7 flex-row items-center justify-between px-4',
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function PanelSectionTitle({
@@ -28,6 +37,22 @@ export function PanelSectionTitle({
   className?: string;
 }) {
   return <div className={cn('font-medium text-sm', className)}>{children}</div>;
+}
+
+export function PanelSectionHeaderActions({
+  children,
+  className
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn('flex flex-row items-center justify-end gap-2', className)}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function PanelSectionContent({

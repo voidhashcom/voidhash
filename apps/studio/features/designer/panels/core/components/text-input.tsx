@@ -15,6 +15,8 @@ export type TextInputProps = {
   onChange: (value: string) => void;
   type?: 'text' | 'number';
   typeNumberStepIncrement?: number;
+  minValue?: number;
+  maxValue?: number;
   icon?: React.ReactNode;
   label: string;
   validator?: Schema.Schema<string>;
@@ -24,18 +26,32 @@ export type TextInputProps = {
 function useNumberStepper(
   step: number,
   getValue: () => string,
-  onValueChange: (value: string) => void
+  onValueChange: (value: string) => void,
+  minValue?: number,
+  maxValue?: number
 ) {
   const incrementInterval = useRef<NodeJS.Timeout | null>(null);
   const decrementInterval = useRef<NodeJS.Timeout | null>(null);
+
+  const clampValue = (val: number): number => {
+    if (minValue !== undefined && val < minValue) {
+      return minValue;
+    }
+    if (maxValue !== undefined && val > maxValue) {
+      return maxValue;
+    }
+    return val;
+  };
 
   const startIncrement = () => {
     if (incrementInterval.current) {
       return;
     }
-    onValueChange((Number(getValue()) + step).toString());
+    const newValue = clampValue(Number(getValue()) + step);
+    onValueChange(newValue.toString());
     incrementInterval.current = setInterval(() => {
-      onValueChange((Number(getValue()) + step).toString());
+      const currentValue = clampValue(Number(getValue()) + step);
+      onValueChange(currentValue.toString());
     }, 100);
   };
 
@@ -43,9 +59,11 @@ function useNumberStepper(
     if (decrementInterval.current) {
       return;
     }
-    onValueChange((Number(getValue()) - step).toString());
+    const newValue = clampValue(Number(getValue()) - step);
+    onValueChange(newValue.toString());
     decrementInterval.current = setInterval(() => {
-      onValueChange((Number(getValue()) - step).toString());
+      const currentValue = clampValue(Number(getValue()) - step);
+      onValueChange(currentValue.toString());
     }, 100);
   };
 
@@ -78,6 +96,8 @@ export function TextInput({
   label,
   type = 'text',
   typeNumberStepIncrement = 1,
+  minValue,
+  maxValue,
   validator = S.String,
   className
 }: TextInputProps) {
@@ -99,19 +119,49 @@ export function TextInput({
     setInternalValue(newValue);
   }, []);
 
+  // Clamp value between min and max if they are defined
+  const clampValue = useCallback(
+    (val: number): number => {
+      if (minValue !== undefined && val < minValue) {
+        return minValue;
+      }
+      if (maxValue !== undefined && val > maxValue) {
+        return maxValue;
+      }
+      return val;
+    },
+    [minValue, maxValue]
+  );
+
   // Save to internal state AND propagate to parent (for dragging/incrementing)
   const handleLiveChange = useCallback(
     (newValue: string) => {
+      if (type === 'number') {
+        const numValue = Number(newValue);
+        if (!Number.isNaN(numValue)) {
+          const clampedValue = clampValue(numValue);
+          setInternalValue(clampedValue.toString());
+          onChange(clampedValue.toString());
+          return;
+        }
+      }
       setInternalValue(newValue);
       onChange(newValue);
     },
-    [onChange]
+    [onChange, type, clampValue]
   );
 
   // When editing is complete, validate the value and save it to the parent if valid, else reset to the previous state
   const handleBlur = () => {
     try {
-      const result = S.decodeSync(validator)(internalValue);
+      let result = S.decodeSync(validator)(internalValue);
+      // Apply min/max constraints for number type
+      if (type === 'number') {
+        const numValue = Number(result);
+        if (!Number.isNaN(numValue)) {
+          result = clampValue(numValue).toString();
+        }
+      }
       onChange(result);
     } catch {
       setInternalValue(value);
@@ -122,7 +172,9 @@ export function TextInput({
     useNumberStepper(
       typeNumberStepIncrement,
       () => internalValueRef.current,
-      handleLiveChange
+      handleLiveChange,
+      minValue,
+      maxValue
     );
 
   const isDragging = useRef(false);
@@ -144,7 +196,8 @@ export function TextInput({
       accumulatedMovement.current += e.movementX;
       const steps = Math.round(accumulatedMovement.current / pixelsPerStep);
       const newValue = dragStartValue.current + steps * typeNumberStepIncrement;
-      handleLiveChange(newValue.toString());
+      const clampedValue = clampValue(newValue);
+      handleLiveChange(clampedValue.toString());
     };
 
     const handleGlobalMouseUp = () => {
@@ -162,7 +215,7 @@ export function TextInput({
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [type, typeNumberStepIncrement, handleLiveChange]);
+  }, [type, typeNumberStepIncrement, handleLiveChange, clampValue]);
 
   const handleIconMouseDown = (e: React.MouseEvent) => {
     if (type !== 'number') {

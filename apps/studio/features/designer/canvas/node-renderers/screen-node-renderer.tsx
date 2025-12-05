@@ -22,7 +22,9 @@ export function ScreenNodeRenderer({
                 height: node.height,
                 boxSizing: 'border-box',
                 overflow: 'hidden',
-                backgroundColor: node.backgroundColor
+                backgroundColor: node.backgroundEnabled
+                  ? node.backgroundColor
+                  : 'transparent'
               }}
             >
               <FlexLayoutRenderer
