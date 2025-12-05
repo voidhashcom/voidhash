@@ -14,6 +14,7 @@ const FLEX_STYLE_GROUPS = [
   'sizeConstraints',
   'background',
   'border',
+  'borderRadius',
   'visual',
   'shadow',
   'safeArea',

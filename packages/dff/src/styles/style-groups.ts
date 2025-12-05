@@ -23,6 +23,12 @@ export const STYLE_GROUPS = {
     'borderStyle',
     'borderEnabled'
   ],
+  borderRadius: [
+    'borderRadiusTopLeft',
+    'borderRadiusTopRight',
+    'borderRadiusBottomRight',
+    'borderRadiusBottomLeft'
+  ],
   visual: ['opacity', 'overflow', 'zIndex', 'display'],
   shadow: [
     'shadowEnabled',
