@@ -1,49 +1,73 @@
-// Core abstractions for defining nodes and properties
+// Core exports
 export {
-  buildUpdateObject,
-  type CanvasDef,
-  createNodeData,
-  defineCanvas,
-  defineNode,
-  defineProperty,
-  getNodeDef,
-  getUpdatableProperties,
-  isCanvasDef,
-  isNodeDef,
-  isPropertyDef,
-  type NodeDef,
-  type NodeDefData,
-  type NodeDefType,
+  BaseNode,
+  type BaseNodeData,
+  DocumentDefinition,
+  type DocumentMeta,
+  getStyleDefaults,
+  type NodeClassLike,
   type ParentRef,
-  ParentRefSchema,
-  type PropertyDef,
-  type PropertyDefName,
-  type PropertyDefType,
-  pickDefined
+  type PickStyles
 } from './core';
-
 // Document exports
+export { PaywallDocument, paywallDocument } from './documents';
+// Editor exports
 export {
-  createDesignDocument,
-  DesignDocument,
-  deleteNode,
-  encodeNode,
-  fromYDoc,
-  getAllNodes,
-  getAllNodesSync,
-  getNode,
-  getNodeSync,
-  getRootNode,
+  type CreateFlexData,
+  type CreateScreenData,
+  type CreateTextData,
+  DocumentEditor,
+  type DocumentEditorOptions,
   NodeNotFoundError,
-  NodeParseError,
-  parseNode,
-  setNode,
-  setNodeSync,
-  setRootNode,
-  setRootNodeSync,
-  updateNodeParentSync,
-  updateNodeProperties
-} from './document';
-
-// Schema exports (nodes, properties, canvas)
-export * from './schema';
+  PaywallDocumentEditor,
+  ValidationError
+} from './editor';
+// JSON Converter exports
+export {
+  JsonConverter,
+  type JsonConvertibleEditor,
+  type JsonDocument
+} from './json-converter';
+// Mixin exports
+export { WithChildren, type WithChildrenCapability } from './mixins';
+// Node exports
+export {
+  FlexNode,
+  type FlexNodeClass,
+  type FlexNodeData,
+  RootNode,
+  type RootNodeData,
+  ScreenNode,
+  type ScreenNodeClass,
+  type ScreenNodeData,
+  TextNode,
+  type TextNodeData
+} from './nodes';
+// Storage exports
+export {
+  type DocumentSnapshot,
+  type NodesStore,
+  type StorageProvider,
+  YjsStorage,
+  ZustandStorage
+} from './storage';
+// Style exports
+export {
+  type AlignItems,
+  type AlignSelf,
+  type BorderStyle,
+  type Display,
+  type FlexBasis,
+  type FlexDirection,
+  type FontWeight,
+  getPropertiesFromGroups,
+  type JustifyContent,
+  type Overflow,
+  type PropertiesOfGroup,
+  STYLE_DEFAULTS,
+  STYLE_GROUPS,
+  type StyleGroup,
+  type StylePropertyName,
+  type StylePropertyTypes,
+  type TextAlign
+} from './styles';

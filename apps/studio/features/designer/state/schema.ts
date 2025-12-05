@@ -1,19 +1,27 @@
-import type { NodeData } from '@voidhash/dff';
-import { Schema } from 'effect';
-import { createVoidsyncSchema, syncMap } from './core/voidsync';
-
-// ============================================================================
-// Re-export types from @dff (single source of truth)
-// ============================================================================
-
-export type {
+import type {
   FlexNodeData,
-  NodeData,
-  NodeDataWithoutRoot,
   RootNodeData,
   ScreenNodeData,
   TextNodeData
 } from '@voidhash/dff';
+import { Schema } from 'effect';
+import { createVoidsyncSchema, syncMap } from './core/voidsync';
+
+// ============================================================================
+// Re-export types from @dff/v2 (single source of truth)
+// ============================================================================
+
+export type { FlexNodeData, RootNodeData, ScreenNodeData, TextNodeData };
+
+/** Union of all node data types */
+export type NodeData =
+  | RootNodeData
+  | ScreenNodeData
+  | FlexNodeData
+  | TextNodeData;
+
+/** All node types except root */
+export type NodeDataWithoutRoot = ScreenNodeData | FlexNodeData | TextNodeData;
 
 // ============================================================================
 // Effect Schemas for Action Parameters

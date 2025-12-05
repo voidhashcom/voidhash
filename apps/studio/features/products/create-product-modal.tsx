@@ -135,7 +135,7 @@ export function CreateProductModal({
                   <FormControl>
                     <RadioGroup
                       className="flex flex-col space-y-1"
-                      defaultValue={field.value.toString()}
+                      defaultValue={field.value?.toString()}
                       onValueChange={field.onChange}
                     >
                       <FormItem className="flex items-center space-x-3 space-y-0">

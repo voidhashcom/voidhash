@@ -27,89 +27,53 @@ type FlexAlignmentInputProps = {
 	}) => void;
 };
 
-function createJustifyContentGridInfo() {
-	const justifyContent = ["flex-start", "center", "flex-end"] as const;
-	const alignItems = ["flex-start", "center", "flex-end"] as const;
+const ALIGN_VALUES = ["flex-start", "center", "flex-end"] as const;
 
-	const createColumnGridInfo = () => {
-		return Array.from({ length: 3 }).map((_, rowIndex) => {
-			return Array.from({ length: 3 }).map((_, columnIndex) => {
-				const keyIndex = `${rowIndex}-${columnIndex}` as const;
-				const icons = [
-					<AlignStartVertical
-						key={`start-vertical-${keyIndex}`}
-						className="size-3"
-					/>,
-					<AlignCenterVertical
-						key={`center-vertical-${keyIndex}`}
-						className="size-3"
-					/>,
-					<AlignEndVertical
-						key={`end-vertical-${keyIndex}`}
-						className="size-3"
-					/>,
-				];
+const DOT_CLASS =
+	"group-hover:hidden block -translate-x-1/2 -translate-y-1/2 before:-translate-x-1/2 before:-translate-y-1/2 absolute top-1/2 left-1/2 before:absolute before:top-1/2 before:left-1/2 before:block before:h-0.5 before:w-0.5 before:rounded-full before:bg-muted-foreground before:content-['']";
 
-				const icon = icons[columnIndex];
-				const justifyContentValue = justifyContent[rowIndex];
-				const alignItemsValue = alignItems[columnIndex];
+type GridItem = {
+	icon: React.ReactNode;
+	justifyContent: (typeof ALIGN_VALUES)[number];
+	alignItems: (typeof ALIGN_VALUES)[number];
+};
 
-				if (!icon || !justifyContentValue || !alignItemsValue) {
-					throw new Error("Invalid icon, justifyContent, or alignItems");
+function createGridInfo() {
+	const columnIcons = [
+		AlignStartVertical,
+		AlignCenterVertical,
+		AlignEndVertical,
+	];
+	const rowIcons = [
+		AlignStartHorizontal,
+		AlignCenterHorizontal,
+		AlignEndHorizontal,
+	];
+
+	const createGrid = (isColumn: boolean): GridItem[][] =>
+		ALIGN_VALUES.map((_, rowIndex) =>
+			ALIGN_VALUES.map((_, columnIndex) => {
+				const Icon = isColumn ? columnIcons[columnIndex] : rowIcons[rowIndex];
+
+				if (!Icon) {
+					throw new Error("Invalid icon index");
 				}
 
 				return {
-					icon,
-					justifyContent: justifyContentValue,
-					alignItems: alignItemsValue,
-				};
-			});
-		});
-	};
-
-	const createRowGridInfo = () => {
-		return Array.from({ length: 3 }).map((_, rowIndex) => {
-			return Array.from({ length: 3 }).map((_, columnIndex) => {
-				const keyIndex = `${rowIndex}-${columnIndex}` as const;
-				const icons = [
-					<AlignStartHorizontal
-						key={`start-horizontal-${keyIndex}`}
-						className="size-3"
-					/>,
-					<AlignCenterHorizontal
-						key={`center-horizontal-${keyIndex}`}
-						className="size-3"
-					/>,
-					<AlignEndHorizontal
-						key={`end-horizontal-${keyIndex}`}
-						className="size-3"
-					/>,
-				];
-
-				const icon = icons[rowIndex];
-				const justifyContentValue = justifyContent[columnIndex];
-				const alignItemsValue = alignItems[rowIndex];
-
-				if (!icon || !justifyContentValue || !alignItemsValue) {
-					throw new Error("Invalid icon, justifyContent, or alignItems");
-				}
-
-				return {
-					icon,
-					justifyContent: justifyContentValue,
-					alignItems: alignItemsValue,
-				};
-			});
-		});
-	};
+					icon: <Icon className="size-3" />,
+					justifyContent: ALIGN_VALUES[isColumn ? rowIndex : columnIndex],
+					alignItems: ALIGN_VALUES[isColumn ? columnIndex : rowIndex],
+				} as GridItem;
+			}),
+		);
 
 	return {
-		column: createColumnGridInfo(),
-		row: createRowGridInfo(),
+		column: createGrid(true),
+		row: createGrid(false),
 	};
 }
 
-const JUSTIFY_CONTENT_GRID = createJustifyContentGridInfo();
+const GRID = createGridInfo();
 
 function StretchIllustration({
 	direction,
@@ -120,38 +84,31 @@ function StretchIllustration({
 	alignItems: AlignItems;
 	className?: string;
 }) {
+	const isRow = direction === "row";
+	const barClass = cn(
+		"bg-[currentColor] rounded-md",
+		isRow ? "w-0.5 h-2" : "h-0.5 w-2",
+	);
+
 	return (
 		<div
 			className={cn(
 				"flex flex-1 justify-around items-center",
 				className,
-				direction === "row" ? "flex-row" : "flex-col",
+				isRow ? "flex-row" : "flex-col",
 			)}
 			style={{ alignItems }}
 		>
-			<div
-				className={cn(
-					"bg-[currentColor] rounded-md",
-					direction === "row" ? "w-0.5 h-2" : "h-0.5 w-2",
-				)}
-			></div>
-			<div
-				className={cn(
-					"bg-[currentColor] rounded-md",
-					direction === "row" ? "w-0.5 h-2" : "h-0.5 w-2",
-				)}
-			></div>
-			<div
-				className={cn(
-					"bg-[currentColor] rounded-md",
-					direction === "row" ? "w-0.5 h-2" : "h-0.5 w-2",
-				)}
-			></div>
+			<div className={barClass} />
+			<div className={barClass} />
+			<div className={barClass} />
 		</div>
 	);
 }
 
-const ALIGN_ITEMS = ["flex-start", "center", "flex-end"] as const;
+function DotIndicator() {
+	return <span aria-hidden="true" className={DOT_CLASS} />;
+}
 
 export function FlexAlignmentInput({
 	flexDirection,
@@ -159,174 +116,150 @@ export function FlexAlignmentInput({
 	justifyContent,
 	onChange,
 }: FlexAlignmentInputProps) {
-	const justifyContentType = (() => {
-		if (justifyContent === "space-between" && flexDirection === "row") {
-			return "row-space-between";
-		}
-		if (justifyContent === "space-between" && flexDirection === "column") {
-			return "column-space-between";
-		}
-		return "no-justify-content";
-	})();
+	const isSpaceBetween = justifyContent === "space-between";
 
-	const getGridItem = (rowIndex: number, columnIndex: number) => {
-		const gridItem =
-			JUSTIFY_CONTENT_GRID[flexDirection]?.[rowIndex]?.[columnIndex];
-
+	const getGridItem = (rowIndex: number, columnIndex: number): GridItem => {
+		const gridItem = GRID[flexDirection]?.[rowIndex]?.[columnIndex];
 		if (!gridItem) {
 			throw new Error("Invalid grid item");
 		}
-
 		return gridItem;
 	};
 
-	const getAlignItems = (rowIndex: number) => {
-		const alignItems = ALIGN_ITEMS[rowIndex];
-		if (!alignItems) {
-			throw new Error("Invalid align items");
+	const getAlignValue = (index: number) => {
+		const value = ALIGN_VALUES[index];
+		if (!value) {
+			throw new Error("Invalid align value");
 		}
-		return alignItems;
+		return value;
 	};
+
+	const isSelected = (
+		itemAlignItems: AlignItems,
+		itemJustify: JustifyContent,
+	) => alignItems === itemAlignItems && justifyContent === itemJustify;
 
 	return (
 		<>
 			<div className="flex shrink-0 flex-1 rounded-sm bg-input/60">
-				{justifyContentType === "no-justify-content" && (
+				{/* Shows a 3x3 grid of alignment options. */}
+				{!isSpaceBetween && (
 					<div className="flex flex-1 flex-col">
-						{Array.from({ length: 3 }).map((_, rowIndex) => (
+						{ALIGN_VALUES.map((_, rowIndex) => (
 							<div
 								className="flex flex-1 flex-row"
 								key={`row-${rowIndex}-${flexDirection}`}
 							>
-								{Array.from({ length: 3 }).map((_, columnIndex) => (
-									// biome-ignore lint/a11y/noStaticElementInteractions: We need to use a div to get the pointer lock to work
-									// biome-ignore lint/a11y/useKeyWithClickEvents: We need to use a div to get the pointer lock to work
-									<div
-										className="relative py-1 w-7 flex-1 hover:bg-input/80 group items-center justify-center"
-										key={`cell-${rowIndex}-${columnIndex}-${flexDirection}`}
-										style={{ minWidth: 16 }}
-										onClick={() =>
-											onChange({
-												alignItems: getGridItem(rowIndex, columnIndex)
-													.alignItems,
-												justifyContent: getGridItem(rowIndex, columnIndex)
-													.justifyContent,
-											})
-										}
-									>
-										{/* Dot indicating an empty cell */}
-										{!(
-											alignItems ===
-												getGridItem(rowIndex, columnIndex).alignItems &&
-											justifyContent ===
-												getGridItem(rowIndex, columnIndex).justifyContent
-										) && (
-											<span
-												aria-hidden="true"
-												className="group-hover:hidden block -translate-x-1/2 -translate-y-1/2 before:-translate-x-1/2 before:-translate-y-1/2 absolute top-1/2 left-1/2 before:absolute before:top-1/2 before:left-1/2 before:block before:h-0.5 before:w-0.5 before:rounded-full before:bg-muted-foreground before:content-['']"
-											/>
-										)}
+								{ALIGN_VALUES.map((_, columnIndex) => {
+									const item = getGridItem(rowIndex, columnIndex);
+									const selected = isSelected(
+										item.alignItems,
+										item.justifyContent,
+									);
 
-										{/* Stretch illustration */}
+									return (
+										// biome-ignore lint/a11y/noStaticElementInteractions: Grid cell interaction
+										// biome-ignore lint/a11y/useKeyWithClickEvents: Grid cell interaction
 										<div
-											className={cn(
-												"absolute hidden group-hover:block top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-gray-400",
-												getGridItem(rowIndex, columnIndex).alignItems ===
-													alignItems &&
-													getGridItem(rowIndex, columnIndex).justifyContent ===
-														justifyContent &&
-													"text-white block group-hover:block group-hover:text-white",
-											)}
+											className="relative py-1 w-7 flex-1 hover:bg-input/80 group items-center justify-center"
+											key={`cell-${rowIndex}-${columnIndex}-${flexDirection}`}
+											style={{ minWidth: 16 }}
+											onClick={() =>
+												onChange({
+													alignItems: item.alignItems,
+													justifyContent: item.justifyContent,
+												})
+											}
 										>
-											{getGridItem(rowIndex, columnIndex).icon}
+											{!selected && <DotIndicator />}
+											<div
+												className={cn(
+													"absolute hidden group-hover:block top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-gray-400",
+													selected &&
+														"text-white block group-hover:block group-hover:text-white",
+												)}
+											>
+												{item.icon}
+											</div>
 										</div>
-									</div>
-								))}
+									);
+								})}
 							</div>
 						))}
 					</div>
 				)}
 
-				{justifyContentType === "row-space-between" && (
+				{/* Shows a 3 rows of vertical alignment options . */}
+				{isSpaceBetween && flexDirection === "row" && (
 					<div className="flex flex-1 flex-col">
-						{Array.from({ length: 3 }).map((_, rowIndex) => (
-							// biome-ignore lint/a11y/noStaticElementInteractions: We need to use a div to get the pointer lock to work
-							// biome-ignore lint/a11y/useKeyWithClickEvents: We need to use a div to get the pointer lock to work
-							<div
-								className={cn(
-									"relative py-1 w-21 flex-1 hover:bg-input/80 group items-center justify-center flex-row flex group text-gray-400",
-									getAlignItems(rowIndex) === alignItems && "bg-input/80",
-								)}
-								key={`row-${rowIndex}-${flexDirection}`}
-								onClick={() =>
-									onChange({
-										alignItems: getAlignItems(rowIndex),
-										justifyContent: "space-between" as const,
-									})
-								}
-							>
-								{/* Dot indicating an empty cell */}
-								{getAlignItems(rowIndex) !== alignItems && (
-									<span
-										aria-hidden="true"
-										className="group-hover:hidden block -translate-x-1/2 -translate-y-1/2 before:-translate-x-1/2 before:-translate-y-1/2 absolute top-1/2 left-1/2 before:absolute before:top-1/2 before:left-1/2 before:block before:h-0.5 before:w-0.5 before:rounded-full before:bg-muted-foreground before:content-['']"
-									/>
-								)}
+						{ALIGN_VALUES.map((_, rowIndex) => {
+							const itemAlignItems = getAlignValue(rowIndex);
+							const selected = itemAlignItems === alignItems;
 
-								{/* Stretch illustration */}
-								<StretchIllustration
+							return (
+								// biome-ignore lint/a11y/noStaticElementInteractions: Grid cell interaction
+								// biome-ignore lint/a11y/useKeyWithClickEvents: Grid cell interaction
+								<div
 									className={cn(
-										getAlignItems(rowIndex) === alignItems
-											? "text-white flex"
-											: "hidden group-hover:flex",
+										"relative py-1 w-21 flex-1 hover:bg-input/80 group items-center justify-center flex-row flex group text-gray-400",
+										selected && "bg-input/80",
 									)}
-									direction="row"
-									alignItems={getAlignItems(rowIndex)}
-								/>
-							</div>
-						))}
+									key={`row-${rowIndex}-${flexDirection}`}
+									onClick={() =>
+										onChange({
+											alignItems: itemAlignItems,
+											justifyContent: "space-between",
+										})
+									}
+								>
+									{!selected && <DotIndicator />}
+									<StretchIllustration
+										className={cn(
+											selected ? "text-white flex" : "hidden group-hover:flex",
+										)}
+										direction="row"
+										alignItems={itemAlignItems}
+									/>
+								</div>
+							);
+						})}
 					</div>
 				)}
 
-				{justifyContentType === "column-space-between" && (
+				{/* Shows a 3 columns of horizontal alignment options. */}
+				{isSpaceBetween && flexDirection === "column" && (
 					<div className="flex flex-1 flex-row items-center">
-						{Array.from({ length: 3 }).map((_, columnIndex) => (
-							// biome-ignore lint/a11y/noStaticElementInteractions: We need to use a div to get the pointer lock to work
-							// biome-ignore lint/a11y/useKeyWithClickEvents: We need to use a div to get the pointer lock to work
-							<div
-								className={cn(
-									"relative py-1 h-full w-7 flex-1 hover:bg-input/80 group items-center justify-center flex-col flex group text-gray-400",
-									getAlignItems(columnIndex) === alignItems && "bg-input/80",
-								)}
-								key={`row-${columnIndex}-${flexDirection}`}
-								onClick={() =>
-									onChange({
-										alignItems: getAlignItems(columnIndex),
-										justifyContent: "space-between" as const,
-									})
-								}
-							>
-								{/* Dot indicating an empty cell */}
-								{getAlignItems(columnIndex) !== alignItems && (
-									<span
-										aria-hidden="true"
-										className="group-hover:hidden block -translate-x-1/2 -translate-y-1/2 before:-translate-x-1/2 before:-translate-y-1/2 absolute top-1/2 left-1/2 before:absolute before:top-1/2 before:left-1/2 before:block before:h-0.5 before:w-0.5 before:rounded-full before:bg-muted-foreground before:content-['']"
-									/>
-								)}
+						{ALIGN_VALUES.map((_, columnIndex) => {
+							const itemAlignItems = getAlignValue(columnIndex);
+							const selected = itemAlignItems === alignItems;
 
-								{/* Stretch illustration */}
-
-								<StretchIllustration
+							return (
+								// biome-ignore lint/a11y/noStaticElementInteractions: Grid cell interaction
+								// biome-ignore lint/a11y/useKeyWithClickEvents: Grid cell interaction
+								<div
 									className={cn(
-										getAlignItems(columnIndex) === alignItems
-											? "text-white flex"
-											: "hidden group-hover:flex",
+										"relative py-1 h-full w-7 flex-1 hover:bg-input/80 group items-center justify-center flex-col flex group text-gray-400",
+										selected && "bg-input/80",
 									)}
-									direction="column"
-									alignItems={getAlignItems(columnIndex)}
-								/>
-							</div>
-						))}
+									key={`col-${columnIndex}-${flexDirection}`}
+									onClick={() =>
+										onChange({
+											alignItems: itemAlignItems,
+											justifyContent: "space-between",
+										})
+									}
+								>
+									{!selected && <DotIndicator />}
+									<StretchIllustration
+										className={cn(
+											selected ? "text-white flex" : "hidden group-hover:flex",
+										)}
+										direction="column"
+										alignItems={itemAlignItems}
+									/>
+								</div>
+							);
+						})}
 					</div>
 				)}
 			</div>
@@ -336,14 +269,11 @@ export function FlexAlignmentInput({
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
 					<DropdownMenuCheckboxItem
-						checked={justifyContent === "space-between"}
+						checked={isSpaceBetween}
 						onCheckedChange={() =>
 							onChange({
 								alignItems,
-								justifyContent:
-									justifyContent === "space-between"
-										? ("flex-start" as const)
-										: ("space-between" as const),
+								justifyContent: isSpaceBetween ? "flex-start" : "space-between",
 							})
 						}
 					>

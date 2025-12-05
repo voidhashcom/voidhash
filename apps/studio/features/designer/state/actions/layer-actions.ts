@@ -1,55 +1,68 @@
-import { type NodeDataWithoutRoot, updateNodeParentSync } from '@voidhash/dff';
+import { PaywallDocumentEditor, YjsStorage } from '@voidhash/dff';
 import { Schema } from 'effect';
 import {
   generateJitteredKeyBetween,
   IndexGenerator
 } from 'fractional-indexing-jittered';
+import type * as Y from 'yjs';
+import type { NodeDataWithoutRoot } from '../schema';
 import { getNodesByParentId } from '../utils/nodes';
 import type { DesignerStoreState } from './types';
 
 /**
+ * Creates a PaywallDocumentEditor with YjsStorage for the given Y.Doc.
+ */
+function createEditorForDoc(doc: Y.Doc): PaywallDocumentEditor {
+  const storage = new YjsStorage(doc);
+  return new PaywallDocumentEditor({ primaryStorage: storage });
+}
+
+/**
  * Moves a node to a new parent and/or position within siblings.
  * Uses fractional indexing to determine the new position.
+ * All mutations go through DocumentEditor with YjsStorage.
  */
 export const moveNode = (storeState: DesignerStoreState) =>
   storeState.action(
     Schema.Struct({
-      /** The ID of the node being moved */
       nodeId: Schema.String,
-      /** The ID of the new parent (can be the same as current parent) */
       newParentId: Schema.String,
-      /** The ID of the sibling to place the node before (null = place at end) */
       beforeSiblingId: Schema.NullOr(Schema.String)
     }),
     ({ params, getState, doc }) => {
+      const typedParams = params;
+
       const state = getState();
-      const node = state.nodes?.[params.nodeId];
+      const node = state.nodes?.[typedParams.nodeId];
 
       if (!node || node.type === 'root') {
         return;
       }
 
-      const newParent = state.nodes?.[params.newParentId];
+      const newParent = state.nodes?.[typedParams.newParentId];
       if (!newParent) {
         return;
       }
 
       // Prevent moving a node into itself or its descendants
-      if (isDescendant(state.nodes, params.nodeId, params.newParentId)) {
+      if (
+        isDescendant(state.nodes, typedParams.nodeId, typedParams.newParentId)
+      ) {
         return;
       }
 
       // Get siblings at the new parent (excluding the node being moved)
-      const siblings = getNodesByParentId(state.nodes, params.newParentId)
-        .filter((n) => n.id !== params.nodeId)
+      const siblings = getNodesByParentId(state.nodes, typedParams.newParentId)
+        .filter((n) => n.id !== typedParams.nodeId)
         .sort((a, b) => a.parent.index.localeCompare(b.parent.index));
 
       // Calculate the new fractional index
-      const newIndex = calculateNewIndex(siblings, params.beforeSiblingId);
+      const newIndex = calculateNewIndex(siblings, typedParams.beforeSiblingId);
 
-      // Update the node with new parent and index using @dff
-      updateNodeParentSync(doc.getMap('nodes'), params.nodeId, {
-        id: params.newParentId,
+      // All mutations go through DocumentEditor with YjsStorage
+      const editor = createEditorForDoc(doc);
+      editor.updateNodeParent(typedParams.nodeId, {
+        id: typedParams.newParentId,
         index: newIndex
       });
     }

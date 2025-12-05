@@ -1,13 +1,13 @@
 'use client';
 
 import {
+  PaywallDocumentEditor,
+  ScreenNode,
   type ScreenNodeData,
-  screenNode,
-  setNodeSync,
-  setRootNodeSync
+  YjsStorage
 } from '@voidhash/dff';
 import { IndexGenerator } from 'fractional-indexing-jittered';
-import { createContext, useContext, useRef } from 'react';
+import { createContext, useContext, useMemo, useRef } from 'react';
 import { Awareness } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 import { INIT_SCREEN_DATA, SHOW_GRID } from '../constants';
@@ -93,42 +93,45 @@ interface DesignerStoreProviderProps {
   awareness?: Awareness;
 }
 
+function createNewYDoc() {
+  const generator = new IndexGenerator([]);
+  const doc = new Y.Doc();
+
+  // Create editor with YjsStorage - all mutations go through this
+  const yjsStorage = new YjsStorage(doc);
+  const editor = new PaywallDocumentEditor({ primaryStorage: yjsStorage });
+  editor.initialize();
+
+  // Create root node through editor
+  editor.createRootNode('root');
+
+  // Create initial screen using v2 node class for defaults
+  const screenNodeClass = new ScreenNode();
+  const screenDefaults = screenNodeClass.getDefaults();
+
+  const initScreenData: ScreenNodeData = {
+    ...screenDefaults,
+    ...INIT_SCREEN_DATA,
+    id: createNodeId(),
+    name: 'Screen 1',
+    parent: {
+      id: 'root',
+      index: generator.keyStart()
+    }
+  };
+
+  // All writes go through editor (validated)
+  editor.setNode(initScreenData as unknown as Record<string, unknown>);
+
+  return doc;
+}
+
 export function DesignerStoreProvider({
   children,
   ydoc,
   awareness: externalAwareness
 }: DesignerStoreProviderProps) {
   const storeRef = useRef<DesignerStoreType | null>(null);
-
-  function createNewYDoc() {
-    const generator = new IndexGenerator([]);
-
-    const doc = new Y.Doc();
-    const nodesMap = doc.getMap('nodes');
-
-    // Create root node using @dff
-    const rootNodeData = setRootNodeSync(nodesMap, 'root');
-
-    const screenDefaults = screenNode.getDefaults();
-    screenDefaults.paddingBottom;
-
-    // Create initial screen using @dff
-    const initScreenData: ScreenNodeData = {
-      ...screenNode.getDefaults(),
-      ...INIT_SCREEN_DATA,
-      id: createNodeId(),
-      type: 'screen',
-      name: 'Screen 1',
-      parent: {
-        id: rootNodeData.id,
-        index: generator.keyStart()
-      }
-    };
-
-    setNodeSync(nodesMap, initScreenData);
-
-    return doc;
-  }
 
   if (storeRef.current === null) {
     const doc = ydoc ?? createNewYDoc();
@@ -221,6 +224,34 @@ export function useDesignerClientId() {
 export function useDesignerDoc() {
   const store = useDesignerStore();
   return store.doc;
+}
+
+/**
+ * Get a PaywallDocumentEditor populated with the current nodes from Zustand state.
+ * Provides typed accessors for reading node data in React components.
+ * Re-renders when nodes change.
+ *
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const document = useDesignerDocument();
+ *
+ *   // Use typed accessors
+ *   const screen = document.getScreen('screen-1');
+ *   const flex = document.getFlex('flex-1');
+ *
+ *   // Or iterate over all nodes
+ *   const allNodes = document.getAllNodes();
+ * }
+ * ```
+ */
+export function useDesignerDocument(): PaywallDocumentEditor {
+  const nodes = useDesignerSelect((state) => state.nodes);
+
+  return useMemo(
+    () => PaywallDocumentEditor.fromNodes(nodes as Record<string, unknown>),
+    [nodes]
+  );
 }
 
 // ============================================================================

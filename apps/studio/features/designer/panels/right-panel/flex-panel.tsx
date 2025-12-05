@@ -9,7 +9,6 @@ export function FlexPanel({ node }: { node: FlexNodeData }) {
 	const dispatch = useDesignerActions();
 	return (
 		<LayoutSection
-			direction="column"
 			node={node}
 			onNodeChange={(updatedNode) =>
 				dispatch(DISPATCH_ACTION, { ...node, ...updatedNode })

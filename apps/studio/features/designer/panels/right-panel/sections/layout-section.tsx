@@ -1,15 +1,6 @@
 "use client";
 
-import type {
-	alignItems,
-	flexDirection,
-	gap,
-	justifyContent,
-	paddingBottom,
-	paddingLeft,
-	paddingRight,
-	paddingTop,
-} from "@voidhash/dff";
+import type { FlexDirection, PropertiesOfGroup } from "@voidhash/dff";
 import { Schema } from "effect";
 import {
 	ArrowDownIcon,
@@ -43,78 +34,19 @@ import type { NodeEditorProps } from "../../core/types";
 import { FlexAlignmentInput } from "../inputs/flex-alignment-input";
 import { TextInput } from "../inputs/text-input";
 
-type RequiredProperties =
-	| typeof gap
-	| typeof justifyContent
-	| typeof alignItems
-	| typeof paddingTop
-	| typeof paddingRight
-	| typeof paddingBottom
-	| typeof paddingLeft
-	| typeof flexDirection;
+/** Properties needed for the layout section - derived from style groups */
+type LayoutPropertyNames = PropertiesOfGroup<"layout" | "padding">;
 
-type FlexDirection = "row" | "column";
+export interface LayoutSectionProps
+	extends NodeEditorProps<LayoutPropertyNames> {}
 
-interface LayoutSectionProps extends NodeEditorProps<RequiredProperties> {
-	/** The flex direction, used to orient alignment inputs */
-	direction: FlexDirection;
-}
-
-export function LayoutSection({
-	node,
-	onNodeChange,
-	direction,
-}: LayoutSectionProps) {
-	const padding = {
-		paddingTop: node.paddingTop,
-		paddingRight: node.paddingRight,
-		paddingBottom: node.paddingBottom,
-		paddingLeft: node.paddingLeft,
-	};
-
+export function LayoutSection({ node, onNodeChange }: LayoutSectionProps) {
 	return (
 		<PanelSection>
 			<PanelSectionHeader>
 				<PanelSectionTitle>Layout</PanelSectionTitle>
 			</PanelSectionHeader>
 			<PanelSectionContent>
-				{/* <LayoutFlowInput />
-        <PanelSubSection>
-          <PanelSubSectionTitle>Gap</PanelSubSectionTitle>
-          <PanelSubSectionContent>
-            <NumberInput
-              min={0}
-              onChange={(value) => onNodeChange({ ...node, gap: value })}
-              suffix="px"
-              value={node.gap}
-            />
-          </PanelSubSectionContent>
-        </PanelSubSection>
-
-        <PanelSubSection>
-          <PanelSubSectionTitle>Main Axis</PanelSubSectionTitle>
-          <PanelSubSectionContent>
-            <JustifyContentInput
-              direction={direction}
-              onChange={(value) =>
-                onNodeChange({ ...node, justifyContent: value })
-              }
-              value={node.justifyContent}
-            />
-          </PanelSubSectionContent>
-        </PanelSubSection>
-
-        <PanelSubSection>
-          <PanelSubSectionTitle>Cross Axis</PanelSubSectionTitle>
-          <PanelSubSectionContent>
-            <AlignItemsInput
-              direction={direction}
-              onChange={(value) => onNodeChange({ ...node, alignItems: value })}
-              value={node.alignItems}
-            />
-          </PanelSubSectionContent>
-        </PanelSubSection> */}
-
 				<FlexSubsection node={node} onNodeChange={onNodeChange} />
 				<PaddingSubSection node={node} onNodeChange={onNodeChange} />
 			</PanelSectionContent>
@@ -125,10 +57,7 @@ export function LayoutSection({
 // ===============================
 // Flex
 // ===============================
-
-type FlexSubsectionProps = NodeEditorProps<
-	typeof justifyContent | typeof alignItems | typeof gap | typeof flexDirection
->;
+type FlexSubsectionProps = NodeEditorProps<PropertiesOfGroup<"layout">>;
 
 function FlexSubsection({ node, onNodeChange }: FlexSubsectionProps) {
 	return (
@@ -183,8 +112,10 @@ function FlexSubsection({ node, onNodeChange }: FlexSubsectionProps) {
 // ===============================
 // Padding Sub Section
 // ===============================
+type PaddingPropertyNames = PropertiesOfGroup<"padding">;
+
 function shouldShowIndividualPadding(
-	node: NodeEditorProps<RequiredProperties>["node"],
+	node: NodeEditorProps<PaddingPropertyNames>["node"],
 ) {
 	return (
 		node.paddingTop !== node.paddingBottom ||
@@ -192,12 +123,7 @@ function shouldShowIndividualPadding(
 	);
 }
 
-type PaddingSubSectionProps = NodeEditorProps<
-	| typeof paddingTop
-	| typeof paddingRight
-	| typeof paddingBottom
-	| typeof paddingLeft
->;
+type PaddingSubSectionProps = NodeEditorProps<PaddingPropertyNames>;
 function PaddingSubSection({ node, onNodeChange }: PaddingSubSectionProps) {
 	const [showIndividualPadding, setShowIndividualPadding] = useState(
 		shouldShowIndividualPadding(node),

@@ -1,60 +1,68 @@
 import type {
-  PropertyDef,
-  PropertyDefName,
-  PropertyDefType
+  PropertiesOfGroup,
+  StyleGroup,
+  StylePropertyName,
+  StylePropertyTypes
 } from '@voidhash/dff';
 
-/**
- * Helper type to extract a PropertyDef from a union by its name.
- * Used internally to map property names to their definitions.
- */
-type ExtractPropertyByName<
-  P extends PropertyDef,
-  K extends string
-> = P extends PropertyDef<K, infer _TSchema, infer _A, infer _H> ? P : never;
+// Re-export for convenience
+export type { PropertiesOfGroup, StyleGroup, StylePropertyName };
 
 /**
- * Converts a union of PropertyDef types into an object type with
- * property names as keys and their value types as values.
+ * Pick specific style properties from StylePropertyTypes.
+ * Use property name literals or PropertiesOfGroup<G> for type-safe selection.
  *
  * @example
  * ```ts
- * import type { gap, justifyContent, alignItems } from '@voidhash/dff';
+ * // Using explicit property names
+ * type MyProps = NodeWithProperties<'gap' | 'paddingTop'>;
  *
- * type RequiredProperties = typeof gap | typeof justifyContent | typeof alignItems;
- *
- * // NodeWithProperties<RequiredProperties> becomes:
- * // {
- * //   gap: number;
- * //   justifyContent: JustifyContent;
- * //   alignItems: AlignItems;
- * // }
+ * // Using style groups (recommended)
+ * type LayoutProps = NodeWithProperties<PropertiesOfGroup<'layout' | 'padding'>>;
  * ```
  */
-export type NodeWithProperties<P extends PropertyDef> = {
-  [K in PropertyDefName<P>]: PropertyDefType<ExtractPropertyByName<P, K>>;
-};
+export type NodeWithProperties<K extends StylePropertyName> = Pick<
+  StylePropertyTypes,
+  K
+>;
 
 /**
  * Props for a node editor component that edits specific properties.
- * Use a union of PropertyDef types to specify which properties the editor requires.
+ * Use PropertiesOfGroup<G> to pick properties from predefined style groups.
+ *
+ * Available style groups:
+ * - 'padding': paddingTop, paddingRight, paddingBottom, paddingLeft
+ * - 'margin': marginTop, marginRight, marginBottom, marginLeft
+ * - 'layout': gap, justifyContent, alignItems, flexDirection
+ * - 'flexChild': flex, flexGrow, flexShrink, flexBasis, alignSelf
+ * - 'dimensions': width, height
+ * - 'sizeConstraints': minWidth, maxWidth, minHeight, maxHeight
+ * - 'size': width, height, minWidth, maxWidth, minHeight, maxHeight
+ * - 'position': x, y
+ * - 'background': backgroundColor, backgroundEnabled
+ * - 'border': borderWidth, borderColor, borderStyle, borderRadius
+ * - 'visual': opacity, overflow, zIndex, display
+ * - 'shadow': shadowEnabled, shadowColor, shadowOffsetX, shadowOffsetY, shadowBlurRadius, shadowOpacity
+ * - 'text': text, fontSize, fontWeight, color, textAlign, lineHeight, letterSpacing
+ * - 'safeArea': safeAreaTop, safeAreaBottom
  *
  * @example
  * ```tsx
- * import type { gap, justifyContent, alignItems } from '@voidhash/dff';
+ * import type { PropertiesOfGroup } from '@voidhash/dff';
  *
- * type RequiredProperties = typeof gap | typeof justifyContent | typeof alignItems;
+ * // Pick properties from style groups
+ * type LayoutProperties = PropertiesOfGroup<'layout' | 'padding'>;
  *
  * export function LayoutSection({
  *   node,
  *   onNodeChange
- * }: NodeEditorProps<RequiredProperties>) {
- *   // node.gap, node.justifyContent, node.alignItems are all typed correctly
+ * }: NodeEditorProps<LayoutProperties>) {
+ *   // node.gap, node.justifyContent, node.paddingTop, etc. are all typed correctly
  *   return <div>...</div>;
  * }
  * ```
  */
-export type NodeEditorProps<P extends PropertyDef> = {
-  node: NodeWithProperties<P>;
-  onNodeChange: (node: NodeWithProperties<P>) => void;
+export type NodeEditorProps<K extends StylePropertyName> = {
+  node: NodeWithProperties<K>;
+  onNodeChange: (node: NodeWithProperties<K>) => void;
 };
