@@ -22,6 +22,12 @@ export function FlexLayoutRenderer({
   alignItems,
   backgroundColor,
   backgroundEnabled,
+  borderWidthTop,
+  borderWidthRight,
+  borderWidthBottom,
+  borderWidthLeft,
+  borderColor,
+  borderEnabled,
   initialStyle = {}
 }: FlexLayoutRendererProps) {
   return (
@@ -38,6 +44,11 @@ export function FlexLayoutRenderer({
         paddingBottom: paddingBottom ?? 0,
         paddingLeft: paddingLeft ?? 0,
         backgroundColor: backgroundEnabled ? backgroundColor : 'transparent',
+        borderTopWidth: borderEnabled ? (borderWidthTop ?? 0) : 0,
+        borderRightWidth: borderEnabled ? (borderWidthRight ?? 0) : 0,
+        borderBottomWidth: borderEnabled ? (borderWidthBottom ?? 0) : 0,
+        borderLeftWidth: borderEnabled ? (borderWidthLeft ?? 0) : 0,
+        borderColor,
         boxSizing: 'border-box',
         ...initialStyle
       }}

@@ -14,7 +14,15 @@ export const STYLE_GROUPS = {
   size: ['width', 'height', 'minWidth', 'maxWidth', 'minHeight', 'maxHeight'],
   position: ['x', 'y'],
   background: ['backgroundColor', 'backgroundEnabled'],
-  border: ['borderWidth', 'borderColor', 'borderStyle', 'borderRadius'],
+  border: [
+    'borderWidthTop',
+    'borderWidthRight',
+    'borderWidthBottom',
+    'borderWidthLeft',
+    'borderColor',
+    'borderStyle',
+    'borderEnabled'
+  ],
   visual: ['opacity', 'overflow', 'zIndex', 'display'],
   shadow: [
     'shadowEnabled',

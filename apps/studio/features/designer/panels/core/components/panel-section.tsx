@@ -20,7 +20,7 @@ export function PanelSectionHeader({
   return (
     <div
       className={cn(
-        'mt-2 flex h-7 flex-row items-center justify-between px-4',
+        'my-2 flex h-7 flex-row items-center justify-between px-4',
         className
       )}
     >
@@ -62,9 +62,7 @@ export function PanelSectionContent({
   children: React.ReactNode;
   className?: string;
 }) {
-  return (
-    <div className={cn('space-y-4 px-4 pt-2 pb-4', className)}>{children}</div>
-  );
+  return <div className={cn('space-y-4 px-4 pb-4', className)}>{children}</div>;
 }
 
 export function PanelSubSection({

@@ -87,10 +87,14 @@ export interface StylePropertyTypes {
   backgroundEnabled: boolean;
 
   // Border
-  borderWidth: number;
-  borderColor: string | null;
+  borderWidthTop: number;
+  borderWidthRight: number;
+  borderWidthBottom: number;
+  borderWidthLeft: number;
+  borderColor: string;
   borderStyle: BorderStyle;
   borderRadius: number;
+  borderEnabled: boolean;
 
   // Visual
   opacity: number;
@@ -162,10 +166,14 @@ export const STYLE_DEFAULTS: StylePropertyTypes = {
   backgroundEnabled: false,
 
   // Border
-  borderWidth: 0,
-  borderColor: null,
+  borderWidthTop: 0,
+  borderWidthRight: 0,
+  borderWidthBottom: 0,
+  borderWidthLeft: 0,
+  borderColor: 'rgba(0, 0, 0, 1)',
   borderStyle: 'solid',
   borderRadius: 0,
+  borderEnabled: false,
 
   // Visual
   opacity: 1,
@@ -175,7 +183,7 @@ export const STYLE_DEFAULTS: StylePropertyTypes = {
 
   // Shadow
   shadowEnabled: false,
-  shadowColor: '#000000',
+  shadowColor: 'rgba(0, 0, 0, 1)',
   shadowOffsetX: 0,
   shadowOffsetY: 0,
   shadowBlurRadius: 0,
@@ -185,7 +193,7 @@ export const STYLE_DEFAULTS: StylePropertyTypes = {
   text: 'New Text',
   fontSize: 16,
   fontWeight: '400',
-  color: '#000000',
+  color: 'rgba(0, 0, 0, 1)',
   textAlign: 'left',
   lineHeight: 1.5,
   letterSpacing: 0,

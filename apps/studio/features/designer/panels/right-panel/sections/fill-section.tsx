@@ -47,7 +47,6 @@ export function FillSection({ node, onNodeChange }: LayoutSectionProps) {
 								onNodeChange({ ...node, backgroundEnabled: true });
 							}}
 							size="icon"
-							variant="ghost"
 						/>
 					)}
 				</PanelSectionHeaderActions>
@@ -80,7 +79,6 @@ export function FillSection({ node, onNodeChange }: LayoutSectionProps) {
 								onNodeChange({ ...node, backgroundEnabled: false });
 							}}
 							size="icon"
-							variant="ghost"
 						/>
 					</div>
 					<ColorInput
