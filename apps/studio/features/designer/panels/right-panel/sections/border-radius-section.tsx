@@ -5,8 +5,6 @@ import { Schema } from "effect";
 import {
 	FullscreenIcon,
 	ScanIcon,
-	SquareDashedTopSolidIcon,
-	SquareIcon,
 	SquareRoundCorner,
 	VaultIcon,
 } from "lucide-react";
@@ -19,7 +17,6 @@ import {
 	PanelSectionTitle,
 	PanelSubSection,
 	PanelSubSectionContent,
-	PanelSubSectionTitle,
 } from "../../core/components/panel-section";
 import type { NodeEditorProps, NodeWithProperties } from "../../core/types";
 import { TextInput } from "../inputs/text-input";

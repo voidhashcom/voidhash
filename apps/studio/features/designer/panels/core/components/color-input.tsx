@@ -82,7 +82,7 @@ export function ColorInput({
           </PopoverTrigger>
           <PopoverContent
             align="start"
-            className="w-auto p-3"
+            className="w-auto rounded-2xl p-3"
             side="left"
             sideOffset={8}
           >
