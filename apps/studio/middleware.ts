@@ -4,8 +4,8 @@ import {
   WWW_DOMAIN
 } from '@voidhash/lib/constants';
 import { type NextRequest, NextResponse } from 'next/server';
-import AppMiddleware from './lib/middleware/app';
-import { parse } from './lib/middleware/utils/parse';
+import AppMiddleware from './src/lib/middleware/app';
+import { parse } from './src/lib/middleware/utils/parse';
 // import { parse } from './lib/middleware/utils/parse';
 export const config = {
   matcher: [

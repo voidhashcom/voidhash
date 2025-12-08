@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 // import { Button } from '../button';
@@ -27,9 +26,9 @@ export function Navigation() {
         )}
       >
         <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4">
-          <Link href="https://voidhash.com">
+          <a href="https://voidhash.com">
             <Logo className="h-6" />
-          </Link>
+          </a>
           <div className="flex-1" />
           {/* <div className="flex items-center gap-2">
             <Button size="sm" variant="outline">
