@@ -29,6 +29,12 @@ const API_DOMAINS: Record<VERCEL_ENV, string> = {
   development: 'http://localhost:5001'
 };
 
+const AUTH_DOMAINS: Record<VERCEL_ENV, string> = {
+  production: `https://auth.${process.env.NEXT_PUBLIC_APP_DOMAIN}`,
+  preview: `https://auth-preview.${process.env.NEXT_PUBLIC_APP_DOMAIN}`,
+  development: 'http://localhost:3003'
+};
+
 export const HOME_DOMAIN = `https://${process.env.NEXT_PUBLIC_APP_DOMAIN}`;
 
 export const STUDIO_DOMAIN =
@@ -39,6 +45,8 @@ export const DOCS_DOMAIN =
   DOCS_DOMAINS[process.env.NEXT_PUBLIC_VERCEL_ENV as VERCEL_ENV];
 export const API_DOMAIN =
   API_DOMAINS[process.env.NEXT_PUBLIC_VERCEL_ENV as VERCEL_ENV];
+export const AUTH_DOMAIN =
+  AUTH_DOMAINS[process.env.NEXT_PUBLIC_VERCEL_ENV as VERCEL_ENV];
 
 export const APP_HOSTNAMES = new Set([
   `app.${process.env.NEXT_PUBLIC_APP_DOMAIN}`,
