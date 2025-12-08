@@ -16,6 +16,7 @@
     "test:integration": "vitest run -c vitest.integration.mts --bail=1"
   },
   "dependencies": {
+    "@effect-aws/client-s3": "^1.10.7",
     "@effect/platform": "catalog:",
     "@effect/platform-bun": "^0.81.1",
     "@effect/platform-node": "catalog:",

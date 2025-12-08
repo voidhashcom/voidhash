@@ -6,6 +6,7 @@ export * from './errors';
 export * from './organization';
 export * from './payment-provider-configuration';
 export * from './payment-provider-product';
+export * from './paywall';
 export * from './perk';
 export * from './perk-grant';
 export * from './product';

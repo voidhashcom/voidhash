@@ -15,6 +15,7 @@ import {
   OrganizationService,
   PaymentProviderConfigurationService,
   PaymentProviderProductService,
+  PaywallService,
   PerkGrantService,
   PerkService,
   ProductPerkService,
@@ -45,6 +46,7 @@ import { CustomerRpcsLive } from './rpcs/customer-rpcs';
 import { OrganizationRpcsLive } from './rpcs/organization-rpcs';
 import { PaymentProviderConfigurationRpcsLive } from './rpcs/payment-provider-configuration-rpcs';
 import { PaymentProviderProductRpcsLive } from './rpcs/payment-provider-product-rpcs';
+import { PaywallRpcsLive } from './rpcs/paywall-rpcs';
 import { PerkRpcsLive } from './rpcs/perk-rpcs';
 import { ProductPerkRpcsLive } from './rpcs/product-perk-rpcs';
 import { ProductRpcsLive } from './rpcs/product-rpcs';
@@ -62,6 +64,7 @@ const ServicesLayer = Layer.mergeAll(
   PerkGrantService.Default,
   PerkService.Default,
   ProductPerkService.Default,
+  PaywallService.Default,
   ProductService.Default,
   ProjectService.Default,
   SdkService.Default,
@@ -130,6 +133,7 @@ const RpcRoutesLayer = RpcServer.layerHttpRouter({
       ProductPerkRpcsLive,
       ProductRpcsLive,
       ProjectRpcsLive,
+      PaywallRpcsLive,
       UserRpcsLive
     )
   ),

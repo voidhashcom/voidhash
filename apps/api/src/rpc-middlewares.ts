@@ -63,7 +63,7 @@ export const RpcAuthLive = Layer.effect(
 
           return {
             method: 'user',
-            cookie: headers.cookie,
+            cookie: headers.cookie ?? null,
             name: `${session.user.name} <${session.user.email}>`,
             user: {
               ...session.user,

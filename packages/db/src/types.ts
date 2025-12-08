@@ -103,3 +103,6 @@ export type AppStoreTransaction = InferSelectModel<
 export type InsertAppStoreTransaction = InferInsertModel<
   typeof schema.appStoreTransactions
 >;
+
+export type Paywall = InferSelectModel<typeof schema.paywalls>;
+export type InsertPaywall = InferInsertModel<typeof schema.paywalls>;
