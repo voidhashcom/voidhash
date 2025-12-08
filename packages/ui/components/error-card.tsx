@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { cn } from '../lib/utils';
 import { Logo } from './logo';
 import { Button } from './ui/button';
@@ -23,9 +22,9 @@ export function ErrorCard({
         className
       )}
     >
-      <Link href="/">
+      <a href="/">
         <Logo />
-      </Link>
+      </a>
       <div className="flex flex-col items-center justify-center gap-3">
         <h1 className="font-bold text-2xl">{title}</h1>
         <p className="text-muted-foreground text-sm">{description}</p>
