@@ -1,13 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { DesignerDetailPage } from '@/features/designer/designer-detail-page';
 
 export const Route = createFileRoute(
   '/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id'
 )({
-  component: RouteComponent
+  component: DesignerDetailPage
 });
-
-function RouteComponent() {
-  return (
-    <div>Hello "/$organizationSlug/$projectSlug/_designer/design/$id"!</div>
-  );
-}
