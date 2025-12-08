@@ -7,6 +7,7 @@ export * from './organizations';
 export * from './payment-provider-configurations';
 // export * from './payment-provider-core-service';
 export * from './payment-provider-products';
+export * from './paywalls';
 export * from './perk-grants';
 export * from './perks';
 export * from './product-perks';

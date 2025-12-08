@@ -652,3 +652,32 @@ export const appStoreTransactions = mysqlTable(
   },
   (table) => [uniqueIndex('transaction_id_idx').on(table.transactionId)]
 );
+
+// Design file
+export type DesignFileMetadata = {};
+
+// Paywalls
+export const paywalls = mysqlTable(
+  'paywall',
+  {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    slug: varchar('slug', { length: 255 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    designFileMetadata: json(
+      'design_file_metadata'
+    ).$type<DesignFileMetadata>(),
+    projectId: varchar('project_id', { length: 255 }).notNull(),
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp('updated_at').onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex('slug_project_id_idx').on(table.slug, table.projectId)
+  ]
+);
+
+export const paywallRelations = relations(paywalls, ({ one }) => ({
+  project: one(projects, {
+    fields: [paywalls.projectId],
+    references: [projects.id]
+  })
+}));

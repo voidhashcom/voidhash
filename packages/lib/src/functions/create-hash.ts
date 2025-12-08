@@ -155,8 +155,11 @@ export function createHash<Encoding extends EncodingFormat = 'none'>(
       input: string | ArrayBuffer | TypedArray
     ): Promise<Encoding extends 'none' ? ArrayBuffer : string> => {
       const encoder = new TextEncoder();
-      const data =
+      const encoded =
         typeof input === 'string' ? encoder.encode(input) : toUint8Array(input);
+      // Ensure we have a Uint8Array with ArrayBuffer backing (not SharedArrayBuffer)
+      // by always creating a copy to guarantee ArrayBuffer backing
+      const data = new Uint8Array(encoded);
       const hashBuffer = await subtle.digest(algorithm, data);
 
       if (encoding === 'hex') {
