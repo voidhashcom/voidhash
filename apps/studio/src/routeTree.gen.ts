@@ -20,6 +20,7 @@ import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexR
 import { Route as AuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRouteImport } from './routes/_authenticated/_designer/$organizationSlug.$projectSlug.design.$id'
 import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers'
 import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products.index'
+import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls.index'
 import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersIndexRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers.index'
 import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIndexRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/customers.index'
 import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsGeneralRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/general'
@@ -101,6 +102,15 @@ const AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRoute
     {
       id: '/products/',
       path: '/products/',
+      getParentRoute: () =>
+        AuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
+const AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute =
+  AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRouteImport.update(
+    {
+      id: '/paywalls/',
+      path: '/paywalls/',
       getParentRoute: () =>
         AuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
@@ -213,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/$organizationSlug/$projectSlug/settings/general': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsGeneralRoute
   '/$organizationSlug/$projectSlug/customers': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIndexRoute
   '/$organizationSlug/$projectSlug/developers/': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersIndexRoute
+  '/$organizationSlug/$projectSlug/paywalls': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute
   '/$organizationSlug/$projectSlug/products': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRoute
   '/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersPaymentProviderConfigurationIdRoute
   '/$organizationSlug/$projectSlug/settings/payment-providers': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersIndexRoute
@@ -231,6 +242,7 @@ export interface FileRoutesByTo {
   '/$organizationSlug/$projectSlug/settings/general': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsGeneralRoute
   '/$organizationSlug/$projectSlug/customers': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIndexRoute
   '/$organizationSlug/$projectSlug/developers': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersIndexRoute
+  '/$organizationSlug/$projectSlug/paywalls': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute
   '/$organizationSlug/$projectSlug/products': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRoute
   '/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersPaymentProviderConfigurationIdRoute
   '/$organizationSlug/$projectSlug/settings/payment-providers': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersIndexRoute
@@ -255,6 +267,7 @@ export interface FileRoutesById {
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/general': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsGeneralRoute
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/customers/': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIndexRoute
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers/': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersIndexRoute
+  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRoute
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersPaymentProviderConfigurationIdRoute
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersIndexRoute
@@ -278,6 +291,7 @@ export interface FileRouteTypes {
     | '/$organizationSlug/$projectSlug/settings/general'
     | '/$organizationSlug/$projectSlug/customers'
     | '/$organizationSlug/$projectSlug/developers/'
+    | '/$organizationSlug/$projectSlug/paywalls'
     | '/$organizationSlug/$projectSlug/products'
     | '/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId'
     | '/$organizationSlug/$projectSlug/settings/payment-providers'
@@ -296,6 +310,7 @@ export interface FileRouteTypes {
     | '/$organizationSlug/$projectSlug/settings/general'
     | '/$organizationSlug/$projectSlug/customers'
     | '/$organizationSlug/$projectSlug/developers'
+    | '/$organizationSlug/$projectSlug/paywalls'
     | '/$organizationSlug/$projectSlug/products'
     | '/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId'
     | '/$organizationSlug/$projectSlug/settings/payment-providers'
@@ -319,6 +334,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/general'
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/customers/'
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers/'
+    | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/'
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/'
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId'
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/'
@@ -405,6 +421,13 @@ declare module '@tanstack/react-router' {
       path: '/products'
       fullPath: '/$organizationSlug/$projectSlug/products'
       preLoaderRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/': {
+      id: '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/'
+      path: '/paywalls'
+      fullPath: '/$organizationSlug/$projectSlug/paywalls'
+      preLoaderRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRouteImport
       parentRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
     }
     '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers/': {
@@ -526,6 +549,7 @@ interface AuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteChil
   AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIdRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIdRoute
   AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsGeneralRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsGeneralRoute
   AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIndexRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIndexRoute
+  AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute
   AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRoute
   AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersPaymentProviderConfigurationIdRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersPaymentProviderConfigurationIdRoute
   AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersIndexRoute: typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersIndexRoute
@@ -545,6 +569,8 @@ const AuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteChildren
       AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsGeneralRoute,
     AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIndexRoute:
       AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIndexRoute,
+    AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute:
+      AuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute,
     AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRoute:
       AuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRoute,
     AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersPaymentProviderConfigurationIdRoute:

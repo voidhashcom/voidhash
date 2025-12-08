@@ -75,6 +75,12 @@ const paymentProviderProductKeys = {
     [...paymentProviderProductKeys.all, 'listByProduct', options] as const
 };
 
+const paywallKeys = {
+  all: ['paywalls'] as const,
+  list: (options: { projectId: string }) =>
+    [...paywallKeys.all, 'list', options] as const
+};
+
 export const queryKeys = {
   invalidateAll: () => [],
   apiKey: apiKeyKeys,
@@ -86,5 +92,6 @@ export const queryKeys = {
   project: projectKeys,
   productPerk: productPerkKeys,
   paymentProviderConfiguration: paymentProviderConfigurationKeys,
-  paymentProviderProduct: paymentProviderProductKeys
+  paymentProviderProduct: paymentProviderProductKeys,
+  paywall: paywallKeys
 };

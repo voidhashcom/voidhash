@@ -3,6 +3,7 @@ export * from './customers';
 export * from './organizations';
 export * from './payment-provider-configurations';
 export * from './payment-provider-products';
+export * from './paywalls';
 export * from './perks';
 export * from './product-perks';
 export * from './products';
