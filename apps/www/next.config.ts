@@ -7,11 +7,12 @@
 // export default nextConfig;
 
 import path from 'node:path';
-import { DOCS_DOMAIN, STUDIO_DOMAIN } from '@voidhash/lib';
+import { AUTH_DOMAIN, DOCS_DOMAIN, STUDIO_DOMAIN } from '@voidhash/lib';
 import type { NextConfig } from 'next';
 
 const STUDIO_BASE_PATH = '/studio';
 const DOCS_BASE_PATH = '/docs';
+const AUTH_BASE_PATH = '/auth';
 
 const nextConfig: NextConfig = {
   turbopack: {
@@ -52,6 +53,14 @@ const nextConfig: NextConfig = {
       {
         source: `${DOCS_BASE_PATH}/:path*`,
         destination: `${DOCS_DOMAIN}/docs/:path+`
+      },
+      {
+        source: AUTH_BASE_PATH,
+        destination: `${AUTH_DOMAIN}/auth`
+      },
+      {
+        source: `${AUTH_BASE_PATH}/:path*`,
+        destination: `${AUTH_DOMAIN}/auth/:path+`
       }
     ];
   }

@@ -112,7 +112,7 @@
     "tw-animate-css": "^1.2.4",
     "use-debounce": "^10.0.4",
     "vaul": "^1.1.2",
-    "zod": "^4.0.2"
+    "zod": "^4.1.13"
   },
   "peerDependencies": {
     "react": "^19.1.0",
