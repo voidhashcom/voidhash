@@ -1,68 +1,33 @@
 "use client";
 
-import type { FontWeight, TextAlign, TextNodeData } from "@voidhash/dff";
+import type { TextNodeData } from "@voidhash/dff";
 import { usePaywallDesignerActions } from "../../state/designer-store";
+import { TextFillSection } from "./sections/text-fill-section";
+import { TextSection } from "./sections/text-section";
 import { TypographySection } from "./sections/typography-section";
 
 export function TextPanel({ node }: { node: TextNodeData }) {
 	const dispatch = usePaywallDesignerActions();
 
-	const handleFontSizeChange = (fontSize: number) => {
+	const handleNodeChange = (updatedNode: typeof node.style) => {
 		dispatch("updateTextNode", {
 			...node,
-			style: { ...node.style, fontSize },
+			style: { ...node.style, ...updatedNode },
 		});
 	};
 
-	const handleColorChange = (color: string) => {
+	const handleTextChange = (text: string) => {
 		dispatch("updateTextNode", {
 			...node,
-			style: { ...node.style, color },
-		});
-	};
-
-	const handleFontWeightChange = (fontWeight: FontWeight) => {
-		dispatch("updateTextNode", {
-			...node,
-			style: { ...node.style, fontWeight },
-		});
-	};
-
-	const handleTextAlignChange = (textAlign: TextAlign) => {
-		dispatch("updateTextNode", {
-			...node,
-			style: { ...node.style, textAlign },
-		});
-	};
-
-	const handleLineHeightChange = (lineHeight: number) => {
-		dispatch("updateTextNode", {
-			...node,
-			style: { ...node.style, lineHeight },
-		});
-	};
-
-	const handleLetterSpacingChange = (letterSpacing: number) => {
-		dispatch("updateTextNode", {
-			...node,
-			style: { ...node.style, letterSpacing },
+			text,
 		});
 	};
 
 	return (
-		<TypographySection
-			color={node.style.color}
-			fontSize={node.style.fontSize}
-			fontWeight={node.style.fontWeight}
-			letterSpacing={node.style.letterSpacing}
-			lineHeight={node.style.lineHeight}
-			onColorChange={handleColorChange}
-			onFontSizeChange={handleFontSizeChange}
-			onFontWeightChange={handleFontWeightChange}
-			onLetterSpacingChange={handleLetterSpacingChange}
-			onLineHeightChange={handleLineHeightChange}
-			onTextAlignChange={handleTextAlignChange}
-			textAlign={node.style.textAlign}
-		/>
+		<>
+			<TextSection value={node.text} onChange={handleTextChange} />
+			<TypographySection node={node.style} onNodeChange={handleNodeChange} />
+			<TextFillSection node={node.style} onNodeChange={handleNodeChange} />
+		</>
 	);
 }

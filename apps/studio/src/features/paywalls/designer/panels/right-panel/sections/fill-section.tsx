@@ -4,10 +4,6 @@ import { MinusIcon, PlusIcon } from "lucide-react";
 import { PanelButton } from "@/features/designer/components/button";
 import { ColorInput } from "@/features/designer/components/color-input";
 import {
-	hexOpacityToRgba,
-	rgbaToHexOpacity,
-} from "@/features/designer/components/color-picker/color-utils";
-import {
 	PanelSection,
 	PanelSectionContent,
 	PanelSectionHeader,

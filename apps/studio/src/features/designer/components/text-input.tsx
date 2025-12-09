@@ -293,7 +293,7 @@ export function TextInput({
     >
       <InputGroupInput
         aria-label={label}
-        className="h-7 px-1 py-0 text-xs"
+        className="h-7 px-1 py-0 pl-2 text-xs"
         disabled={disabled}
         onBlur={() => handleBlur()}
         onChange={(e) => handleInputChange(e.target.value)}
