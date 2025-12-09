@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PaywallDocument } from '../documents';
+import { FlexNode } from '../nodes';
 import type { DocumentSnapshot, StorageProvider } from '../storage';
 import {
   DocumentEditor,
@@ -146,6 +147,92 @@ describe('DocumentEditor', () => {
 
       expect(editor.hasNode('root')).toBe(true);
     });
+
+    it('should throw ValidationError when setting node with invalid parent type', () => {
+      editor.createRootNode();
+      editor.createNode('screen', {
+        id: 'screen-1',
+        parent: { id: 'root', index: 'a' }
+      });
+      editor.createNode('text', {
+        id: 'text-1',
+        parent: { id: 'screen-1', index: 'a' }
+      });
+
+      // Try to set a flex node under a text node (text nodes can't have children)
+      expect(() =>
+        editor.setNode({
+          id: 'flex-1',
+          type: 'flex',
+          name: 'Flex',
+          parent: { id: 'text-1', index: 'a' },
+          // Required flex node properties
+          paddingTop: 0,
+          paddingRight: 0,
+          paddingBottom: 0,
+          paddingLeft: 0,
+          marginTop: 0,
+          marginRight: 0,
+          marginBottom: 0,
+          marginLeft: 0,
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          justifyContent: 'flex-start',
+          alignItems: 'stretch',
+          alignContent: 'stretch',
+          minWidth: null,
+          maxWidth: null,
+          minHeight: null,
+          maxHeight: null,
+          backgroundEnabled: false,
+          backgroundColor: 'rgba(0, 0, 0, 0)',
+          borderTopWidth: 0,
+          borderRightWidth: 0,
+          borderBottomWidth: 0,
+          borderLeftWidth: 0,
+          borderTopColor: 'rgba(0, 0, 0, 1)',
+          borderRightColor: 'rgba(0, 0, 0, 1)',
+          borderBottomColor: 'rgba(0, 0, 0, 1)',
+          borderLeftColor: 'rgba(0, 0, 0, 1)',
+          borderRadiusTopLeft: 0,
+          borderRadiusTopRight: 0,
+          borderRadiusBottomRight: 0,
+          borderRadiusBottomLeft: 0,
+          opacity: 1,
+          flexGrow: 0,
+          flexShrink: 1,
+          flexBasis: 'auto',
+          alignSelf: 'auto'
+        })
+      ).toThrow(ValidationError);
+      expect(() =>
+        editor.setNode({
+          id: 'flex-1',
+          parent: { id: 'text-1', index: 'a' },
+          ...new FlexNode().getDefaults()
+        })
+      ).toThrow("Node type 'text' cannot have children");
+    });
+
+    it('should throw ValidationError when setting node that parent does not accept', () => {
+      editor.createRootNode();
+
+      // Try to set a flex node under root (root only accepts screen)
+      expect(() =>
+        editor.setNode({
+          id: 'flex-1',
+          parent: { id: 'root', index: 'a' },
+          ...new FlexNode().getDefaults()
+        })
+      ).toThrow(ValidationError);
+      expect(() =>
+        editor.setNode({
+          ...new FlexNode().getDefaults(),
+          id: 'flex-1',
+          parent: { id: 'root', index: 'a' }
+        })
+      ).toThrow("Node type 'root' does not accept 'flex' as children");
+    });
   });
 
   describe('createNode', () => {
@@ -198,6 +285,50 @@ describe('DocumentEditor', () => {
       });
 
       expect(editor.hasNode('screen-1')).toBe(true);
+    });
+
+    it('should throw ValidationError when creating node with invalid parent type', () => {
+      editor.createRootNode();
+      editor.createNode('screen', {
+        id: 'screen-1',
+        parent: { id: 'root', index: 'a' }
+      });
+      editor.createNode('text', {
+        id: 'text-1',
+        parent: { id: 'screen-1', index: 'a' }
+      });
+
+      // Try to create a screen node under a text node (text nodes can't have children)
+      expect(() =>
+        editor.createNode('screen', {
+          id: 'screen-2',
+          parent: { id: 'text-1', index: 'a' }
+        })
+      ).toThrow(ValidationError);
+      expect(() =>
+        editor.createNode('screen', {
+          id: 'screen-2',
+          parent: { id: 'text-1', index: 'a' }
+        })
+      ).toThrow("Node type 'text' cannot have children");
+    });
+
+    it('should throw ValidationError when creating node that parent does not accept', () => {
+      editor.createRootNode();
+
+      // Try to create a flex node under root (root only accepts screen)
+      expect(() =>
+        editor.createNode('flex', {
+          id: 'flex-1',
+          parent: { id: 'root', index: 'a' }
+        })
+      ).toThrow(ValidationError);
+      expect(() =>
+        editor.createNode('flex', {
+          id: 'flex-1',
+          parent: { id: 'root', index: 'a' }
+        })
+      ).toThrow("Node type 'root' does not accept 'flex' as children");
     });
   });
 
@@ -340,6 +471,50 @@ describe('DocumentEditor', () => {
 
       const node = editor.getNode('flex-1') as Record<string, unknown>;
       expect(node.parent).toEqual({ id: 'screen-1', index: 'b' });
+    });
+
+    it('should throw ValidationError when updating parent to a node that cannot have children', () => {
+      editor.createRootNode();
+      editor.createNode('screen', {
+        id: 'screen-1',
+        parent: { id: 'root', index: 'a' }
+      });
+      editor.createNode('flex', {
+        id: 'flex-1',
+        parent: { id: 'screen-1', index: 'a' }
+      });
+      editor.createNode('text', {
+        id: 'text-1',
+        parent: { id: 'screen-1', index: 'b' }
+      });
+
+      // Try to move flex node under text node (text nodes can't have children)
+      expect(() =>
+        editor.updateNodeParent('flex-1', { id: 'text-1', index: 'a' })
+      ).toThrow(ValidationError);
+      expect(() =>
+        editor.updateNodeParent('flex-1', { id: 'text-1', index: 'a' })
+      ).toThrow("Node type 'text' cannot have children");
+    });
+
+    it('should throw ValidationError when updating parent to a node that does not accept the child type', () => {
+      editor.createRootNode();
+      editor.createNode('screen', {
+        id: 'screen-1',
+        parent: { id: 'root', index: 'a' }
+      });
+      editor.createNode('flex', {
+        id: 'flex-1',
+        parent: { id: 'screen-1', index: 'a' }
+      });
+
+      // Try to move flex node under root (root only accepts screen)
+      expect(() =>
+        editor.updateNodeParent('flex-1', { id: 'root', index: 'a' })
+      ).toThrow(ValidationError);
+      expect(() =>
+        editor.updateNodeParent('flex-1', { id: 'root', index: 'a' })
+      ).toThrow("Node type 'root' does not accept 'flex' as children");
     });
   });
 

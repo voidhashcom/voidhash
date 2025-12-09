@@ -28,8 +28,9 @@ type ScreenStyleGroups = (typeof SCREEN_STYLE_GROUPS)[number];
 type ScreenStyles = PropertiesOfGroup<ScreenStyleGroups>;
 
 /** ScreenNode data type */
-export interface ScreenNodeData extends BaseNodeData, PickStyles<ScreenStyles> {
+export interface ScreenNodeData extends BaseNodeData {
   type: 'screen';
+  style: PickStyles<ScreenStyles>;
 }
 
 class ScreenNodeBase extends BaseNode<'screen', ScreenStyles> {

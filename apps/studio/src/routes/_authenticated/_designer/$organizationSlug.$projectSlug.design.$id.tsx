@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { DesignerDetailPage } from '@/features/designer/paywall-designer';
+import { DesignerDetailPage } from '@/features/paywalls/designer/paywall-designer';
 
 export const Route = createFileRoute(
   '/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id'

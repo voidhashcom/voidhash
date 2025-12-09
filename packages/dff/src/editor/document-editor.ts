@@ -107,6 +107,12 @@ export class DocumentEditor<TDoc extends DocumentDefinition> {
     if (!this.document.validateNode(node)) {
       throw new ValidationError(nodeId, 'Invalid node data');
     }
+    // Validate parent accepts this child type (skip for root nodes)
+    if (node.type !== 'root' && node.parent) {
+      const parent = node.parent as ParentRef;
+      const childType = node.type as string;
+      this.validateParentAcceptsChild(parent.id, childType);
+    }
     this.nodes[nodeId] = node;
     this.persistIfNotInTransaction();
   }
@@ -143,6 +149,9 @@ export class DocumentEditor<TDoc extends DocumentDefinition> {
     if (existing.type === 'root') {
       throw new ValidationError(nodeId, 'Cannot update parent of root node');
     }
+    // Validate new parent accepts this child type
+    const childType = existing.type as string;
+    this.validateParentAcceptsChild(newParent.id, childType);
     const updated = { ...existing, parent: newParent };
     this.setNode(updated);
   }
@@ -164,11 +173,23 @@ export class DocumentEditor<TDoc extends DocumentDefinition> {
       throw new ValidationError(data.id, `Unknown node type: ${nodeType}`);
     }
 
+    // Validate parent accepts this child type (skip for root nodes)
+    if (nodeType !== 'root') {
+      this.validateParentAcceptsChild(data.parent.id, nodeType);
+    }
+
     const defaults = nodeClass.getDefaults();
     const nodeData = {
       ...defaults,
       ...data,
-      type: nodeType
+      type: nodeType,
+      // Deep merge style object if both defaults and data have style
+      style:
+        'style' in defaults && 'style' in data && defaults.style && data.style
+          ? { ...defaults.style, ...data.style }
+          : 'style' in data
+            ? data.style
+            : defaults.style
     };
 
     this.setNode(nodeData);
@@ -230,6 +251,45 @@ export class DocumentEditor<TDoc extends DocumentDefinition> {
   private persistIfNotInTransaction(): void {
     if (!this.inTransaction) {
       this.persist();
+    }
+  }
+
+  /**
+   * Validate that a parent node accepts the given child type.
+   * @param parentId - The ID of the parent node
+   * @param childType - The type of the child node
+   * @throws ValidationError if parent doesn't exist, cannot have children, or doesn't accept the child type
+   */
+  private validateParentAcceptsChild(
+    parentId: string,
+    childType: string
+  ): void {
+    const parentNode = this.getNode(parentId) as Record<string, unknown>;
+    const parentType = parentNode.type as string;
+    const parentClass = this.document.getNodeClass(
+      parentType as Parameters<typeof this.document.getNodeClass>[0]
+    );
+
+    if (!parentClass) {
+      throw new ValidationError(
+        parentId,
+        `Parent node type '${parentType}' not found in document schema`
+      );
+    }
+
+    // If parent has no canContain method or no allowedChildTypes, it's a leaf node
+    if (!(parentClass.canContain && parentClass.allowedChildTypes)) {
+      throw new ValidationError(
+        parentId,
+        `Node type '${parentType}' cannot have children`
+      );
+    }
+
+    if (!parentClass.canContain(childType)) {
+      throw new ValidationError(
+        parentId,
+        `Node type '${parentType}' does not accept '${childType}' as children`
+      );
     }
   }
 }

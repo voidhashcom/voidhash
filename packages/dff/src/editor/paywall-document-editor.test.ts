@@ -28,11 +28,11 @@ describe('PaywallDocumentEditor', () => {
         id: 'screen-1',
         parent: { id: 'root', index: 'a' },
         name: 'Custom Screen',
-        width: 400
+        style: { width: 400 }
       });
 
       expect(screen.name).toBe('Custom Screen');
-      expect(screen.width).toBe(400);
+      expect(screen.style.width).toBe(400);
     });
 
     it('should store the created screen', () => {
@@ -262,8 +262,10 @@ describe('PaywallDocumentEditor', () => {
           id: 'screen-1',
           name: 'My Screen',
           parent: { id: 'root', index: 'a' },
-          width: 400,
-          height: 800
+          style: {
+            width: 400,
+            height: 800
+          }
         },
         'flex-1': {
           type: 'flex',
@@ -278,7 +280,7 @@ describe('PaywallDocumentEditor', () => {
       // Use typed accessors
       const screen = editorFromNodes.getScreen('screen-1');
       expect(screen.name).toBe('My Screen');
-      expect(screen.width).toBe(400);
+      expect(screen.style.width).toBe(400);
 
       const flex = editorFromNodes.getFlex('flex-1');
       expect(flex.name).toBe('Container');
