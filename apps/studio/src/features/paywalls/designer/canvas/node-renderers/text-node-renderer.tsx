@@ -1,24 +1,117 @@
+import { useEffect, useRef, useState } from "react";
+import { usePaywallDesignerActions } from "../../state/designer-store";
 import type { TextNodeData } from "../../state/schema";
 import { Selectable } from "../helpers/selectable";
 
 export function TextNodeRenderer({ node }: { node: TextNodeData }) {
+	const [isEditing, setIsEditing] = useState(false);
+	const editableRef = useRef<HTMLDivElement>(null);
+	const initializedRef = useRef(false);
+	const dispatch = usePaywallDesignerActions();
+
+	// Initialize content when entering edit mode
+	useEffect(() => {
+		if (isEditing && editableRef.current && !initializedRef.current) {
+			// Set initial content only once when entering edit mode
+			editableRef.current.textContent = node.text;
+			initializedRef.current = true;
+		}
+		if (!isEditing) {
+			initializedRef.current = false;
+		}
+	}, [isEditing, node.text]);
+
+	// Focus and select text when entering edit mode
+	useEffect(() => {
+		if (isEditing && editableRef.current) {
+			// Use requestAnimationFrame to ensure DOM is ready
+			requestAnimationFrame(() => {
+				if (editableRef.current) {
+					editableRef.current.focus();
+					const range = document.createRange();
+					range.selectNodeContents(editableRef.current);
+					const selection = window.getSelection();
+					selection?.removeAllRanges();
+					selection?.addRange(range);
+				}
+			});
+		}
+	}, [isEditing]);
+
+	const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+		e.stopPropagation();
+		setIsEditing(true);
+	};
+
+	const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+		if (isEditing) {
+			e.stopPropagation();
+			return;
+		}
+	};
+
+	const handleBlur = () => {
+		const finalValue = editableRef.current?.textContent ?? "";
+		setIsEditing(false);
+		// Save the changes
+		if (finalValue !== node.text) {
+			dispatch("updateTextNode", {
+				...node,
+				text: finalValue,
+			});
+		}
+	};
+
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+		if (e.key === "Enter") {
+			e.preventDefault();
+			e.currentTarget.blur();
+		}
+		if (e.key === "Escape") {
+			// Reset content to original value
+			if (editableRef.current) {
+				editableRef.current.textContent = node.text;
+			}
+			e.currentTarget.blur();
+		}
+	};
+
 	return (
 		<Selectable nodeId={node.id}>
-			{(selectableProps) => (
-				<div
-					style={{
-						fontSize: node.style.fontSize,
-						color: node.style.color,
-						fontWeight: node.style.fontWeight,
-						textAlign: node.style.textAlign,
-						lineHeight: node.style.lineHeight,
-						letterSpacing: node.style.letterSpacing,
-					}}
-					{...selectableProps}
-				>
-					{node.text}
-				</div>
-			)}
+			{(selectableProps) => {
+				const { role, onMouseDown, ...otherSelectableProps } = selectableProps;
+				const elementRole = isEditing ? "textbox" : role;
+				return (
+					// biome-ignore lint/a11y/noStaticElementInteractions: We need a div to support both selectable (button role) and editable (textbox role) modes
+					<div
+						key={isEditing ? "editing" : "display"}
+						ref={editableRef}
+						contentEditable={isEditing}
+						role={elementRole}
+						style={{
+							userSelect: isEditing ? "text" : "none",
+							fontSize: node.style.fontSize,
+							color: node.style.color,
+							fontWeight: node.style.fontWeight,
+							textAlign: node.style.textAlign,
+							lineHeight: node.style.lineHeight,
+							letterSpacing: node.style.letterSpacing,
+							outline: isEditing ? "1px solid currentColor" : "none",
+							cursor: isEditing ? "text" : "default",
+						}}
+						onClick={handleClick}
+						onDoubleClick={handleDoubleClick}
+						onBlur={handleBlur}
+						onKeyDown={handleKeyDown}
+						onMouseDown={isEditing ? undefined : onMouseDown}
+						suppressContentEditableWarning
+						{...otherSelectableProps}
+					>
+						{/* When editing, don't render children - let contentEditable manage it */}
+						{!isEditing && node.text}
+					</div>
+				);
+			}}
 		</Selectable>
 	);
 }
