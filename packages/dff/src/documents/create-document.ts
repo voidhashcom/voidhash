@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noExplicitAny: Used for generics */
 import type { ObjectSchema } from '../schema';
 import type { DocumentDefinition } from './types';
 

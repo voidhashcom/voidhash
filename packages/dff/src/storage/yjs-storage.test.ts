@@ -1,19 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
-import { YjsStorage } from './yjs-storage';
+import {
+  createTestRootNode,
+  createTestScreenNode,
+  testDocument
+} from './test-fixtures';
+import { createYjsStorage } from './yjs-storage';
 
 describe('YjsStorage', () => {
   let ydoc: Y.Doc;
-  let storage: YjsStorage;
+  let storage: ReturnType<typeof createYjsStorage>;
 
   beforeEach(() => {
     ydoc = new Y.Doc();
-    storage = new YjsStorage(ydoc);
+    storage = createYjsStorage(ydoc, testDocument);
   });
 
   describe('constructor', () => {
     it('should expose the ydoc', () => {
-      expect(storage.ydoc).toBe(ydoc);
+      expect(storage?.ydoc).toBe(ydoc);
     });
   });
 
@@ -50,22 +55,16 @@ describe('YjsStorage', () => {
 
     it('should return all nodes', () => {
       const nodesMap = ydoc.getMap('nodes');
-      nodesMap.set('root', { type: 'root', id: 'root' });
-      nodesMap.set('screen-1', {
-        type: 'screen',
-        id: 'screen-1',
-        name: 'Screen'
-      });
+      nodesMap.set('root', createTestRootNode());
+      nodesMap.set('screen-1', createTestScreenNode('screen-1', 'Screen'));
 
       const snapshot = storage.load();
 
       expect(Object.keys(snapshot.nodes)).toHaveLength(2);
-      expect(snapshot.nodes.root).toEqual({ type: 'root', id: 'root' });
-      expect(snapshot.nodes['screen-1']).toEqual({
-        type: 'screen',
-        id: 'screen-1',
-        name: 'Screen'
-      });
+      expect(snapshot.nodes.root).toEqual(createTestRootNode());
+      expect(snapshot.nodes['screen-1']).toEqual(
+        createTestScreenNode('screen-1', 'Screen')
+      );
     });
   });
 
@@ -85,17 +84,16 @@ describe('YjsStorage', () => {
       storage.save({
         meta: null,
         nodes: {
-          root: { type: 'root', id: 'root' },
-          'screen-1': { type: 'screen', id: 'screen-1' }
+          root: createTestRootNode(),
+          'screen-1': createTestScreenNode('screen-1')
         }
       });
 
       const nodesMap = ydoc.getMap('nodes');
-      expect(nodesMap.get('root')).toEqual({ type: 'root', id: 'root' });
-      expect(nodesMap.get('screen-1')).toEqual({
-        type: 'screen',
-        id: 'screen-1'
-      });
+      expect(nodesMap.get('root')).toEqual(createTestRootNode());
+      expect(nodesMap.get('screen-1')).toEqual(
+        createTestScreenNode('screen-1')
+      );
     });
 
     it('should delete removed nodes', () => {
@@ -103,8 +101,8 @@ describe('YjsStorage', () => {
       storage.save({
         meta: null,
         nodes: {
-          root: { type: 'root', id: 'root' },
-          'screen-1': { type: 'screen', id: 'screen-1' }
+          root: createTestRootNode(),
+          'screen-1': createTestScreenNode('screen-1')
         }
       });
 
@@ -112,7 +110,7 @@ describe('YjsStorage', () => {
       storage.save({
         meta: null,
         nodes: {
-          root: { type: 'root', id: 'root' }
+          root: createTestRootNode()
         }
       });
 
@@ -127,8 +125,8 @@ describe('YjsStorage', () => {
       storage.save({
         meta: { schemaVersion: 1, documentType: 'paywall' },
         nodes: {
-          root: { type: 'root', id: 'root' },
-          'screen-1': { type: 'screen', id: 'screen-1' }
+          root: createTestRootNode(),
+          'screen-1': createTestScreenNode('screen-1')
         }
       });
 
@@ -142,11 +140,11 @@ describe('YjsStorage', () => {
       storage.observe(callback);
 
       const nodesMap = ydoc.getMap('nodes');
-      nodesMap.set('root', { type: 'root', id: 'root' });
+      nodesMap.set('root', createTestRootNode());
 
       expect(callback).toHaveBeenCalledTimes(1);
       const snapshot = callback.mock.calls.at(0)?.[0];
-      expect(snapshot?.nodes.root).toEqual({ type: 'root', id: 'root' });
+      expect(snapshot?.nodes.root).toEqual(createTestRootNode());
     });
 
     it('should call callback when metadata changes', () => {
@@ -164,31 +162,96 @@ describe('YjsStorage', () => {
       const unsubscribe = storage.observe(callback);
 
       const nodesMap = ydoc.getMap('nodes');
-      nodesMap.set('root', { type: 'root', id: 'root' });
+      nodesMap.set('root', createTestRootNode());
       expect(callback).toHaveBeenCalledTimes(1);
 
       unsubscribe();
 
-      nodesMap.set('screen-1', { type: 'screen', id: 'screen-1' });
+      nodesMap.set('screen-1', createTestScreenNode('screen-1'));
       expect(callback).toHaveBeenCalledTimes(1); // Still 1
     });
   });
 
-  describe('size', () => {
-    it('should return 0 when no nodes exist', () => {
-      expect(storage.size).toBe(0);
-    });
-
-    it('should return the number of nodes', () => {
+  describe('getNode', () => {
+    it('should return node when valid and matches schema', () => {
+      const rootNode = createTestRootNode();
       storage.save({
         meta: null,
-        nodes: {
-          root: { type: 'root', id: 'root' },
-          'screen-1': { type: 'screen', id: 'screen-1' }
-        }
+        nodes: { root: rootNode }
       });
 
-      expect(storage.size).toBe(2);
+      const result = storage.getNode('root', 'root');
+
+      expect(result).toEqual(rootNode);
+    });
+
+    it('should return undefined when node does not exist', () => {
+      const result = storage.getNode('nonexistent', 'root');
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when node does not match schema', () => {
+      const nodesMap = ydoc.getMap('nodes');
+      // Set invalid node data (missing required 'id' field)
+      nodesMap.set('root', { type: 'root' });
+
+      const result = storage.getNode('root', 'root');
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when node type does not match', () => {
+      const screenNode = createTestScreenNode();
+      storage.save({
+        meta: null,
+        nodes: { 'screen-1': screenNode }
+      });
+
+      // Try to get screen node as root type
+      const result = storage.getNode('screen-1', 'root');
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('setNode', () => {
+    it('should save node when valid', () => {
+      const rootNode = createTestRootNode();
+
+      storage.setNode('root', 'root', rootNode);
+
+      const nodesMap = ydoc.getMap('nodes');
+      expect(nodesMap.get('root')).toEqual(rootNode);
+    });
+
+    it('should throw error when node does not match schema', () => {
+      // Invalid node (missing required 'id' field)
+      // biome-ignore lint/suspicious/noExplicitAny: ok
+      const invalidNode = { type: 'root' } as any;
+
+      expect(() => {
+        storage.setNode('root', 'root', invalidNode);
+      }).toThrow('does not match schema');
+    });
+
+    it('should update existing node', () => {
+      const rootNode1 = createTestRootNode('root-1');
+      storage.setNode('root', 'root', createTestRootNode());
+
+      storage.setNode('root', 'root', rootNode1);
+
+      const nodesMap = ydoc.getMap('nodes');
+      expect(nodesMap.get('root')).toEqual(rootNode1);
+    });
+
+    it('should save in a transaction', () => {
+      const transactSpy = vi.spyOn(ydoc, 'transact');
+      const rootNode = createTestRootNode();
+
+      storage.setNode('root', 'root', rootNode);
+
+      expect(transactSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -196,13 +259,13 @@ describe('YjsStorage', () => {
     it('should sync between two Y.Doc instances', () => {
       const ydoc1 = new Y.Doc();
       const ydoc2 = new Y.Doc();
-      const storage1 = new YjsStorage(ydoc1);
-      const storage2 = new YjsStorage(ydoc2);
+      const storage1 = createYjsStorage(ydoc1, testDocument);
+      const storage2 = createYjsStorage(ydoc2, testDocument);
 
       // Save to first storage
       storage1.save({
         meta: { schemaVersion: 1, documentType: 'paywall' },
-        nodes: { root: { type: 'root', id: 'root' } }
+        nodes: { root: createTestRootNode() }
       });
 
       // Sync state from ydoc1 to ydoc2
@@ -216,7 +279,7 @@ describe('YjsStorage', () => {
         schemaVersion: 1,
         documentType: 'paywall'
       });
-      expect(snapshot.nodes.root).toEqual({ type: 'root', id: 'root' });
+      expect(snapshot.nodes.root).toEqual(createTestRootNode());
     });
   });
 });
