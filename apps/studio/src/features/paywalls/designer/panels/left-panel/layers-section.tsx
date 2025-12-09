@@ -529,8 +529,8 @@ function SortableTreeItem({
 					"flex h-7 items-center gap-1 rounded-sm px-1 hover:bg-accent/50",
 					isSelected && "bg-accent text-accent-foreground hover:bg-accent",
 					isSelected && hasChildren && isExpanded && "rounded-b-none",
-					!isLast && !isSelected && "rounded-b-none",
-					isChildOfSelected && !isSelected && !isFirst && "rounded-t-none",
+					!isLast && "rounded-b-none",
+					isChildOfSelected && !isFirst && "rounded-t-none",
 					isChildOfSelected &&
 						!isSelected &&
 						"bg-accent/40 text-accent-foreground/80",
