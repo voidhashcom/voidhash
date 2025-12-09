@@ -12,8 +12,10 @@ export interface NodeClassLike {
   readonly defaultName: string;
   readonly isRoot: boolean;
   readonly supportedStyles: readonly StylePropertyName[];
+  readonly allowedChildTypes?: readonly string[];
   getDefaults(): Record<string, unknown>;
   validate(data: unknown): boolean;
+  canContain?(nodeType: string): boolean;
 }
 
 /**

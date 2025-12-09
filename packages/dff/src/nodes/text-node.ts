@@ -9,7 +9,7 @@ import {
 const TEXT_STYLE_GROUPS = [
   'margin',
   'sizeConstraints',
-  'text',
+  'typography',
   'border',
   'visual',
   'shadow',
@@ -23,8 +23,10 @@ type TextStyleGroups = (typeof TEXT_STYLE_GROUPS)[number];
 type TextStyles = PropertiesOfGroup<TextStyleGroups>;
 
 /** TextNode data type */
-export interface TextNodeData extends BaseNodeData, PickStyles<TextStyles> {
+export interface TextNodeData extends BaseNodeData {
   type: 'text';
+  text: string;
+  style: PickStyles<TextStyles>;
 }
 
 // TextNode has no children, so no mixin needed
@@ -33,4 +35,26 @@ export class TextNode extends BaseNode<'text', TextStyles> {
   override readonly defaultName = 'Text';
   override readonly isRoot = false;
   override readonly supportedStyles = TEXT_STYLES;
+
+  /** Override getDefaults to include text property */
+  override getDefaults(): {
+    type: 'text';
+    name: string;
+    text: string;
+    style: PickStyles<TextStyles>;
+  } {
+    return {
+      ...super.getDefaults(),
+      text: 'New Text'
+    };
+  }
+
+  /** Override validate to check for text property */
+  override validate(data: unknown): data is TextNodeData {
+    if (!super.validate(data)) {
+      return false;
+    }
+    const obj = data as unknown as Record<string, unknown>;
+    return typeof obj.text === 'string';
+  }
 }

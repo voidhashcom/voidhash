@@ -71,8 +71,8 @@ export interface StylePropertyTypes {
   alignSelf: AlignSelf;
 
   // Size
-  width: number;
-  height: number;
+  width: number | null;
+  height: number | null;
   minWidth: number | null;
   maxWidth: number | null;
   minHeight: number | null;
@@ -114,8 +114,7 @@ export interface StylePropertyTypes {
   shadowBlurRadius: number;
   shadowOpacity: number;
 
-  // Text
-  text: string;
+  // Typography
   fontSize: number;
   fontWeight: FontWeight;
   color: string;
@@ -197,8 +196,7 @@ export const STYLE_DEFAULTS: StylePropertyTypes = {
   shadowBlurRadius: 0,
   shadowOpacity: 1,
 
-  // Text
-  text: 'New Text',
+  // Typography
   fontSize: 16,
   fontWeight: '400',
   color: 'rgba(0, 0, 0, 1)',

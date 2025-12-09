@@ -41,16 +41,18 @@ export class BaseNode<
   readonly styleOverrides: Partial<StylePropertyTypes> = {};
 
   /** Get all defaults for creating a new node */
-  getDefaults(): { type: TType; name: string } & PickStyles<TStyles> {
+  getDefaults(): { type: TType; name: string; style: PickStyles<TStyles> } {
     return {
       type: this.type,
       name: this.defaultName,
-      ...getStyleDefaults(this.supportedStyles, this.styleOverrides)
+      style: getStyleDefaults(this.supportedStyles, this.styleOverrides)
     };
   }
 
   /** Validate that data has all required properties */
-  validate(data: unknown): data is BaseNodeData & PickStyles<TStyles> {
+  validate(
+    data: unknown
+  ): data is BaseNodeData & { style: PickStyles<TStyles> } {
     if (typeof data !== 'object' || data === null) {
       return false;
     }
@@ -70,9 +72,15 @@ export class BaseNode<
       return false;
     }
 
+    // Check style object exists and contains required properties
+    if (typeof obj.style !== 'object' || obj.style === null) {
+      return false;
+    }
+    const styleObj = obj.style as Record<string, unknown>;
+
     // Check style properties exist (type checking is loose for flexibility)
     for (const prop of this.supportedStyles) {
-      if (!(prop in obj)) {
+      if (!(prop in styleObj)) {
         return false;
       }
     }

@@ -1,4 +1,5 @@
 import type { BaseNodeData, PickStyles } from '../core';
+import { WithChildren } from '../mixins';
 
 /** RootNode data type - the document root that contains screens */
 export interface RootNodeData {
@@ -13,7 +14,7 @@ export interface RootNodeData {
  * Note: RootNode doesn't extend BaseNode because it has a completely
  * different structure (no parent, no name, no styles).
  */
-export class RootNode {
+class RootNodeBase {
   readonly type = 'root' as const;
   readonly defaultName = 'Root';
   readonly isRoot = true;
@@ -36,3 +37,5 @@ export class RootNode {
     return obj.type === 'root' && typeof obj.id === 'string';
   }
 }
+
+export const RootNode = WithChildren(RootNodeBase, ['screen']);

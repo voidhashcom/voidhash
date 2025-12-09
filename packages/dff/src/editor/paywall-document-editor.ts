@@ -3,18 +3,25 @@ import { PaywallDocument } from '../documents';
 import type { FlexNodeData, ScreenNodeData, TextNodeData } from '../nodes';
 import { DocumentEditor, type DocumentEditorOptions } from './document-editor';
 
+/** Deep partial type helper */
+type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+    }
+  : T;
+
 /** Data required to create a screen node (id and parent are required) */
-export type CreateScreenData = { id: string; parent: ParentRef } & Partial<
+export type CreateScreenData = { id: string; parent: ParentRef } & DeepPartial<
   Omit<ScreenNodeData, 'id' | 'parent' | 'type'>
 >;
 
 /** Data required to create a flex node (id and parent are required) */
-export type CreateFlexData = { id: string; parent: ParentRef } & Partial<
+export type CreateFlexData = { id: string; parent: ParentRef } & DeepPartial<
   Omit<FlexNodeData, 'id' | 'parent' | 'type'>
 >;
 
 /** Data required to create a text node (id and parent are required) */
-export type CreateTextData = { id: string; parent: ParentRef } & Partial<
+export type CreateTextData = { id: string; parent: ParentRef } & DeepPartial<
   Omit<TextNodeData, 'id' | 'parent' | 'type'>
 >;
 

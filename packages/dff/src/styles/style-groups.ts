@@ -38,8 +38,7 @@ export const STYLE_GROUPS = {
     'shadowBlurRadius',
     'shadowOpacity'
   ],
-  text: [
-    'text',
+  typography: [
     'fontSize',
     'fontWeight',
     'color',

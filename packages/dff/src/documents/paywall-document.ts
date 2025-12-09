@@ -1,4 +1,5 @@
 import { DocumentDefinition } from '../core';
+import { migrateV2 } from '../migrations/v2';
 import { FlexNode, RootNode, ScreenNode, TextNode } from '../nodes';
 
 type PaywallNodeTypes = 'root' | 'screen' | 'flex' | 'text';
@@ -14,12 +15,12 @@ export class PaywallDocument extends DocumentDefinition<PaywallNodeTypes> {
     text: new TextNode()
   };
 
-  readonly rootNodeTypes = ['screen'] as const;
+  readonly rootNodeTypes = ['root'] as const;
 
   // Example future migration
-  // readonly migrations = {
-  //   2: (data) => { /* transform v1 -> v2 */ return data; }
-  // };
+  readonly migrations = {
+    2: migrateV2
+  };
 }
 
 export const paywallDocument = new PaywallDocument();

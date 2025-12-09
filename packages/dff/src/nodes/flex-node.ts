@@ -11,6 +11,7 @@ const FLEX_STYLE_GROUPS = [
   'padding',
   'margin',
   'layout',
+  'dimensions',
   'sizeConstraints',
   'background',
   'border',
@@ -28,8 +29,9 @@ type FlexStyleGroups = (typeof FLEX_STYLE_GROUPS)[number];
 type FlexStyles = PropertiesOfGroup<FlexStyleGroups>;
 
 /** FlexNode data type */
-export interface FlexNodeData extends BaseNodeData, PickStyles<FlexStyles> {
+export interface FlexNodeData extends BaseNodeData {
   type: 'flex';
+  style: PickStyles<FlexStyles>;
 }
 
 class FlexNodeBase extends BaseNode<'flex', FlexStyles> {
@@ -37,6 +39,11 @@ class FlexNodeBase extends BaseNode<'flex', FlexStyles> {
   override readonly defaultName = 'Flex';
   override readonly isRoot = false;
   override readonly supportedStyles = FLEX_STYLES;
+
+  // Override specific defaults for screen
+  override readonly styleOverrides = {
+    alignSelf: 'stretch' as const
+  };
 }
 
 export const FlexNode = WithChildren(FlexNodeBase, ['flex', 'text']);
