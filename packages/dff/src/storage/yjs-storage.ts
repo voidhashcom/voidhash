@@ -1,22 +1,29 @@
+/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
 import type * as Y from 'yjs';
-import type { DocumentSnapshot, StorageProvider } from './types';
+import type { DocumentDefinition } from '../documents';
+import type { Infer } from '../schema';
+import { validate } from '../schema';
+import type { DocumentSnapshot, StorageAdapter } from './types';
 
 /**
- * Yjs-based storage provider for collaborative document editing.
- * Uses Y.Map for both nodes and metadata storage.
+ * Yjs-based storage adapter for collaborative document editing.
+ * Uses Y.Map for both nodes and metadata storage with schema validation.
  */
-export class YjsStorage implements StorageProvider {
+export class YjsStorage<TDoc extends DocumentDefinition<any>>
+  implements StorageAdapter<TDoc>
+{
   private readonly nodesMap: Y.Map<unknown>;
   private readonly metaMap: Y.Map<unknown>;
   readonly ydoc: Y.Doc;
+  private readonly document: TDoc;
 
-  constructor(ydoc: Y.Doc) {
+  constructor(ydoc: Y.Doc, document: TDoc) {
     this.ydoc = ydoc;
+    this.document = document;
     this.nodesMap = ydoc.getMap('nodes');
     this.metaMap = ydoc.getMap('meta');
   }
 
-  /** Load the current document state from Yjs */
   load(): DocumentSnapshot {
     const schemaVersion = this.metaMap.get('schemaVersion');
     const documentType = this.metaMap.get('documentType');
@@ -34,7 +41,6 @@ export class YjsStorage implements StorageProvider {
     return { meta, nodes };
   }
 
-  /** Save document state to Yjs in a single transaction */
   save(snapshot: DocumentSnapshot): void {
     this.ydoc.transact(() => {
       // Update metadata
@@ -61,7 +67,6 @@ export class YjsStorage implements StorageProvider {
     });
   }
 
-  /** Subscribe to Yjs document changes */
   observe(callback: (snapshot: DocumentSnapshot) => void): () => void {
     const handler = () => {
       callback(this.load());
@@ -76,8 +81,47 @@ export class YjsStorage implements StorageProvider {
     };
   }
 
-  /** Get the number of nodes in storage */
-  get size(): number {
-    return this.nodesMap.size;
+  getNode<K extends keyof TDoc['nodes']>(
+    id: string,
+    nodeType: K
+  ): Infer<TDoc['nodes'][K]> | undefined {
+    const node = this.nodesMap.get(id);
+    if (node === undefined) {
+      return;
+    }
+
+    const schema = this.document.nodes[nodeType];
+    if (!validate(schema, node)) {
+      return;
+    }
+
+    return node as Infer<TDoc['nodes'][K]>;
   }
+
+  setNode<K extends keyof TDoc['nodes']>(
+    id: string,
+    nodeType: K,
+    node: Infer<TDoc['nodes'][K]>
+  ): void {
+    const schema = this.document.nodes[nodeType];
+    if (!validate(schema, node)) {
+      throw new Error(
+        `Node ${id} does not match schema for type ${String(nodeType)}`
+      );
+    }
+
+    this.ydoc.transact(() => {
+      this.nodesMap.set(id, node);
+    });
+  }
+}
+
+/**
+ * Create a Yjs storage adapter with document context.
+ */
+export function createYjsStorage<TDoc extends DocumentDefinition<any>>(
+  ydoc: Y.Doc,
+  document: TDoc
+) {
+  return new YjsStorage(ydoc, document);
 }

@@ -1,12 +1,10 @@
-export {
-  DocumentEditor,
-  type DocumentEditorOptions,
-  NodeNotFoundError,
-  ValidationError
-} from './document-editor';
-export {
-  type CreateFlexData,
-  type CreateScreenData,
-  type CreateTextData,
-  PaywallDocumentEditor
-} from './paywall-document-editor';
+export { createEditor } from './create-editor';
+export { NodeNotFoundError, ValidationError } from './errors';
+export type {
+  AnyNodeDataFromDocument,
+  Editor,
+  EditorOptions,
+  Handle,
+  NodesAccessor,
+  Transaction
+} from './types';

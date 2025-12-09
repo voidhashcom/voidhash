@@ -1,4 +1,5 @@
-import type { Infer, ObjectSchema, Schema } from '../schema';
+/** biome-ignore-all lint/suspicious/noExplicitAny: Used for generics */
+import type { Infer, ObjectSchema } from '../schema';
 
 /**
  * Document metadata stored with the document.

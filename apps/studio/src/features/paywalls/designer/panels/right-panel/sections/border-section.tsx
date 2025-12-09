@@ -1,6 +1,5 @@
 "use client";
 
-import type { PropertiesOfGroup } from "@voidhash/dff";
 import { Schema } from "effect";
 import {
 	FullscreenIcon,
@@ -31,8 +30,15 @@ import {
 import type { NodeEditorProps, NodeWithProperties } from "../../types";
 import { TextInput } from "../inputs/text-input";
 
-/** Properties needed for the border section - derived from style groups */
-type BorderPropertyNames = PropertiesOfGroup<"border">;
+/** Properties needed for the border section - individual style properties */
+type BorderPropertyNames =
+	| "borderWidthTop"
+	| "borderWidthRight"
+	| "borderWidthBottom"
+	| "borderWidthLeft"
+	| "borderColor"
+	| "borderStyle"
+	| "borderEnabled";
 
 export interface BorderSectionProps
 	extends NodeEditorProps<BorderPropertyNames> {

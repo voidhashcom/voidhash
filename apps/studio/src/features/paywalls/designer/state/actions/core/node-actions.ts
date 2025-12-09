@@ -13,7 +13,7 @@ import {
 	paywallDocument,
 	type ScreenNodeData,
 	type TextNodeData,
-} from "@voidhash/dff/v3";
+} from "@voidhash/dff";
 import { IndexGenerator } from "fractional-indexing-jittered";
 import type * as Y from "yjs";
 import type {

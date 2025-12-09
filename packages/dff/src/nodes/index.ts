@@ -1,8 +1,21 @@
-export { FlexNode, type FlexNodeClass, type FlexNodeData } from './flex-node';
-export { RootNode, type RootNodeData } from './root-node';
+export { parentRefSchema } from './base';
 export {
-  ScreenNode,
-  type ScreenNodeClass,
-  type ScreenNodeData
+  type FlexNodeData,
+  flexNode,
+  flexNodeAllowedChildren
+} from './flex-node';
+export {
+  type RootNodeData,
+  rootNode,
+  rootNodeAllowedChildren
+} from './root-node';
+export {
+  type ScreenNodeData,
+  screenNode,
+  screenNodeAllowedChildren
 } from './screen-node';
-export { TextNode, type TextNodeData } from './text-node';
+export {
+  type TextNodeData,
+  textNode,
+  textNodeAllowedChildren
+} from './text-node';

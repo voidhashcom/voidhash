@@ -1,6 +1,6 @@
 "use client";
 
-import type { FlexDirection, PropertiesOfGroup } from "@voidhash/dff";
+import type { FlexDirection } from "@voidhash/dff";
 
 import { Schema } from "effect";
 import {
@@ -38,10 +38,23 @@ import { HeightInput } from "../inputs/height-input";
 import { TextInput } from "../inputs/text-input";
 import { WidthInput } from "../inputs/width-input";
 
-/** Properties needed for the layout section - derived from style groups */
-type LayoutPropertyNames = PropertiesOfGroup<
-	"layout" | "padding" | "dimensions" | "flexChild"
->;
+/** Properties needed for the layout section - individual style properties */
+type LayoutPropertyNames =
+	| "gap"
+	| "justifyContent"
+	| "alignItems"
+	| "flexDirection"
+	| "paddingTop"
+	| "paddingRight"
+	| "paddingBottom"
+	| "paddingLeft"
+	| "width"
+	| "height"
+	| "flex"
+	| "flexGrow"
+	| "flexShrink"
+	| "flexBasis"
+	| "alignSelf";
 
 export interface LayoutSectionProps
 	extends NodeEditorProps<LayoutPropertyNames> {
@@ -81,7 +94,14 @@ export function FlexLayoutSection({
 // ===============================
 // Dimensions
 // ===============================
-type DimensionsPropertyNames = PropertiesOfGroup<"dimensions" | "flexChild">;
+type DimensionsPropertyNames =
+	| "width"
+	| "height"
+	| "flex"
+	| "flexGrow"
+	| "flexShrink"
+	| "flexBasis"
+	| "alignSelf";
 type DimensionsSubSectionProps = NodeEditorProps<DimensionsPropertyNames> & {
 	editable?: boolean;
 	parentId: string;
@@ -125,7 +145,9 @@ function DimensionsSubSection({
 // ===============================
 // Flex
 // ===============================
-type FlexSubsectionProps = NodeEditorProps<PropertiesOfGroup<"layout">>;
+type FlexSubsectionProps = NodeEditorProps<
+	"gap" | "justifyContent" | "alignItems" | "flexDirection"
+>;
 
 function FlexSubsection({ node, onNodeChange }: FlexSubsectionProps) {
 	return (
@@ -180,7 +202,11 @@ function FlexSubsection({ node, onNodeChange }: FlexSubsectionProps) {
 // ===============================
 // Padding Sub Section
 // ===============================
-type PaddingPropertyNames = PropertiesOfGroup<"padding">;
+type PaddingPropertyNames =
+	| "paddingTop"
+	| "paddingRight"
+	| "paddingBottom"
+	| "paddingLeft";
 
 function shouldShowIndividualPadding(
 	node: NodeEditorProps<PaddingPropertyNames>["node"],

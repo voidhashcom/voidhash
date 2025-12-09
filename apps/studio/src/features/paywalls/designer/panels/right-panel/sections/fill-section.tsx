@@ -1,6 +1,5 @@
 "use client";
 
-import type { PropertiesOfGroup } from "@voidhash/dff";
 import { MinusIcon, PlusIcon } from "lucide-react";
 import { PanelButton } from "@/features/designer/components/button";
 import { ColorInput } from "@/features/designer/components/color-input";
@@ -21,8 +20,8 @@ import {
 } from "@/features/designer/components/toggle-group";
 import type { NodeEditorProps } from "../../types";
 
-/** Properties needed for the layout section - derived from style groups */
-type FillPropertyNames = PropertiesOfGroup<"background">;
+/** Properties needed for the layout section - individual style properties */
+type FillPropertyNames = "backgroundColor" | "backgroundEnabled";
 
 export interface LayoutSectionProps
 	extends NodeEditorProps<FillPropertyNames> {}

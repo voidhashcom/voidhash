@@ -1,57 +1,54 @@
 import type {
-  PropertiesOfGroup,
-  StyleGroup,
-  StylePropertyName,
-  StylePropertyTypes
-} from '@voidhash/dff';
+	AvailableStyleProperties,
+	StylePropertyTypes,
+} from "@voidhash/dff";
 
-// Re-export for convenience
-export type { PropertiesOfGroup, StyleGroup, StylePropertyName };
+/**
+ * All style property names defined in @voidhash/dff/src/styles/properties.ts
+ * that are actually used in node types. This ensures type safety by using the actual
+ * property names from the source, filtered to only include properties that exist on nodes.
+ */
+export type StylePropertyName = Extract<
+	AvailableStyleProperties,
+	keyof StylePropertyTypes
+>;
 
 /**
  * Pick specific style properties from StylePropertyTypes.
- * Use property name literals or PropertiesOfGroup<G> for type-safe selection.
+ * Use property name literals for type-safe selection.
  *
  * @example
  * ```ts
  * // Using explicit property names
  * type MyProps = NodeWithProperties<'gap' | 'paddingTop'>;
  *
- * // Using style groups (recommended)
- * type LayoutProps = NodeWithProperties<PropertiesOfGroup<'layout' | 'padding'>>;
+ * // Combining multiple properties
+ * type LayoutProps = NodeWithProperties<'gap' | 'justifyContent' | 'alignItems' | 'flexDirection' | 'paddingTop' | 'paddingRight' | 'paddingBottom' | 'paddingLeft'>;
  * ```
  */
 export type NodeWithProperties<K extends StylePropertyName> = Pick<
-  StylePropertyTypes,
-  K
+	StylePropertyTypes,
+	K
 >;
 
 /**
  * Props for a node editor component that edits specific properties.
- * Use PropertiesOfGroup<G> to pick properties from predefined style groups.
+ * Use property name literals to pick individual style properties.
  *
- * Available style groups:
- * - 'padding': paddingTop, paddingRight, paddingBottom, paddingLeft
- * - 'margin': marginTop, marginRight, marginBottom, marginLeft
- * - 'layout': gap, justifyContent, alignItems, flexDirection
- * - 'flexChild': flex, flexGrow, flexShrink, flexBasis, alignSelf
- * - 'dimensions': width, height
- * - 'sizeConstraints': minWidth, maxWidth, minHeight, maxHeight
- * - 'size': width, height, minWidth, maxWidth, minHeight, maxHeight
- * - 'position': x, y
- * - 'background': backgroundColor, backgroundEnabled
- * - 'border': borderWidth, borderColor, borderStyle, borderRadius
- * - 'visual': opacity, overflow, zIndex, display
- * - 'shadow': shadowEnabled, shadowColor, shadowOffsetX, shadowOffsetY, shadowBlurRadius, shadowOpacity
- * - 'text': text, fontSize, fontWeight, color, textAlign, lineHeight, letterSpacing
- * - 'safeArea': safeAreaTop, safeAreaBottom
+ * Common property combinations:
+ * - Layout: 'gap' | 'justifyContent' | 'alignItems' | 'flexDirection'
+ * - Padding: 'paddingTop' | 'paddingRight' | 'paddingBottom' | 'paddingLeft'
+ * - Margin: 'marginTop' | 'marginRight' | 'marginBottom' | 'marginLeft'
+ * - Dimensions: 'width' | 'height'
+ * - Flex Child: 'flex' | 'flexGrow' | 'flexShrink' | 'flexBasis' | 'alignSelf'
+ * - Background: 'backgroundColor' | 'backgroundEnabled'
+ * - Border: 'borderWidthTop' | 'borderWidthRight' | 'borderWidthBottom' | 'borderWidthLeft' | 'borderColor' | 'borderStyle' | 'borderEnabled'
+ * - Border Radius: 'borderRadiusTopLeft' | 'borderRadiusTopRight' | 'borderRadiusBottomRight' | 'borderRadiusBottomLeft'
  *
  * @example
  * ```tsx
- * import type { PropertiesOfGroup } from '@voidhash/dff';
- *
- * // Pick properties from style groups
- * type LayoutProperties = PropertiesOfGroup<'layout' | 'padding'>;
+ * // Pick individual properties
+ * type LayoutProperties = 'gap' | 'justifyContent' | 'alignItems' | 'flexDirection' | 'paddingTop' | 'paddingRight' | 'paddingBottom' | 'paddingLeft';
  *
  * export function LayoutSection({
  *   node,
@@ -63,6 +60,6 @@ export type NodeWithProperties<K extends StylePropertyName> = Pick<
  * ```
  */
 export type NodeEditorProps<K extends StylePropertyName> = {
-  node: NodeWithProperties<K>;
-  onNodeChange: (node: NodeWithProperties<K>) => void;
+	node: NodeWithProperties<K>;
+	onNodeChange: (node: NodeWithProperties<K>) => void;
 };

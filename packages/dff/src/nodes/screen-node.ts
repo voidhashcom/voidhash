@@ -1,52 +1,126 @@
-import { BaseNode, type BaseNodeData, type PickStyles } from '../core';
-import { WithChildren } from '../mixins';
+import type { Infer } from '../schema';
+import { s } from '../schema';
 import {
-  getPropertiesFromGroups,
-  type PropertiesOfGroup,
-  type StyleGroup
+  alignItems,
+  alignSelf,
+  backgroundColor,
+  backgroundEnabled,
+  borderColor,
+  borderEnabled,
+  borderStyle,
+  borderWidthBottom,
+  borderWidthLeft,
+  borderWidthRight,
+  borderWidthTop,
+  display,
+  flex,
+  flexBasis,
+  flexDirection,
+  flexGrow,
+  flexShrink,
+  gap,
+  justifyContent,
+  marginBottom,
+  marginLeft,
+  marginRight,
+  marginTop,
+  maxHeight,
+  maxWidth,
+  minHeight,
+  minWidth,
+  opacity,
+  overflow,
+  paddingBottom,
+  paddingLeft,
+  paddingRight,
+  paddingTop,
+  safeAreaBottom,
+  safeAreaTop,
+  shadowBlurRadius,
+  shadowColor,
+  shadowEnabled,
+  shadowOffsetX,
+  shadowOffsetY,
+  shadowOpacity,
+  x,
+  y,
+  zIndex
 } from '../styles';
+import { parentRefSchema } from './base';
 
-/** Style groups supported by ScreenNode */
-const SCREEN_STYLE_GROUPS = [
-  'position',
-  'size',
-  'padding',
-  'margin',
-  'layout',
-  'background',
-  'border',
-  'visual',
-  'shadow',
-  'safeArea',
-  'flexChild'
-] as const satisfies readonly StyleGroup[];
+/** ScreenNode schema */
+export const screenNode = s
+  .object({
+    id: s.string(),
+    type: s.literal('screen'),
+    name: s.string().default('Screen'),
+    parent: parentRefSchema,
+    style: s.object({
+      // Position
+      x,
+      y,
+      // Size
+      width: s.number().default(375),
+      height: s.number().default(812),
+      minWidth,
+      maxWidth,
+      minHeight,
+      maxHeight,
+      // Padding
+      paddingTop,
+      paddingRight,
+      paddingBottom,
+      paddingLeft,
+      // Margin
+      marginTop,
+      marginRight,
+      marginBottom,
+      marginLeft,
+      // Layout
+      gap,
+      justifyContent,
+      alignItems,
+      flexDirection,
+      // Background
+      backgroundColor: backgroundColor.default('rgba(255, 255, 255, 1)'),
+      backgroundEnabled: backgroundEnabled.default(true),
+      // Border
+      borderWidthTop,
+      borderWidthRight,
+      borderWidthBottom,
+      borderWidthLeft,
+      borderColor,
+      borderStyle,
+      borderEnabled,
+      // Visual
+      opacity,
+      overflow,
+      zIndex,
+      display,
+      // Shadow
+      shadowEnabled,
+      shadowColor,
+      shadowOffsetX,
+      shadowOffsetY,
+      shadowBlurRadius,
+      shadowOpacity,
+      // Safe area
+      safeAreaTop,
+      safeAreaBottom,
+      // Flex child
+      flex,
+      flexGrow,
+      flexShrink,
+      flexBasis,
+      alignSelf
+    })
+  })
+  .refine(() => {
+    // Children validation happens at document level
+    return true;
+  });
 
-/** All style properties for ScreenNode */
-const SCREEN_STYLES = getPropertiesFromGroups(SCREEN_STYLE_GROUPS);
+export type ScreenNodeData = Infer<typeof screenNode>;
 
-type ScreenStyleGroups = (typeof SCREEN_STYLE_GROUPS)[number];
-type ScreenStyles = PropertiesOfGroup<ScreenStyleGroups>;
-
-/** ScreenNode data type */
-export interface ScreenNodeData extends BaseNodeData {
-  type: 'screen';
-  style: PickStyles<ScreenStyles>;
-}
-
-class ScreenNodeBase extends BaseNode<'screen', ScreenStyles> {
-  override readonly type = 'screen' as const;
-  override readonly defaultName = 'Screen';
-  override readonly isRoot = false;
-  override readonly supportedStyles = SCREEN_STYLES;
-
-  // Override specific defaults for screen
-  override readonly styleOverrides = {
-    width: 375,
-    height: 812,
-    backgroundEnabled: true,
-    backgroundColor: 'rgba(255, 255, 255, 1)'
-  };
-}
-
-export const ScreenNode = WithChildren(ScreenNodeBase, ['flex', 'text']);
-export type ScreenNodeClass = InstanceType<typeof ScreenNode>;
+/** Allowed child types for ScreenNode */
+export const screenNodeAllowedChildren = ['flex', 'text'] as const;

@@ -15,10 +15,16 @@ export function ScreenPanel({ node }: { node: ScreenNodeData }) {
 				onNodeChange={(updatedStyle) =>
 					dispatch(DISPATCH_ACTION, {
 						...node,
-						style: { ...node.style, ...updatedStyle },
+						style: {
+							...node.style,
+							...updatedStyle,
+							width: updatedStyle.width ?? node.style.width,
+							height: updatedStyle.height ?? node.style.height,
+						},
 					})
 				}
 				editableDimensions={false}
+				parentId={node.parent.id}
 			/>
 			<FillSection
 				node={node.style}

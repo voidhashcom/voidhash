@@ -1,4 +1,5 @@
-import type { Infer } from '../schema';
+import type { Infer, Schema } from '../schema';
+import type * as properties from './properties';
 import type {
   alignItems,
   alignSelf,
@@ -23,3 +24,12 @@ export type Display = Infer<typeof display>;
 export type BorderStyle = Infer<typeof borderStyle>;
 export type FontWeight = Infer<typeof fontWeight>;
 export type TextAlign = Infer<typeof textAlign>;
+
+export type AvailableStyleProperties = keyof typeof properties;
+
+/** Maps each style property name to its inferred value type */
+export type StylePropertyTypes = {
+  [K in AvailableStyleProperties]: (typeof properties)[K] extends Schema<unknown>
+    ? Infer<(typeof properties)[K]>
+    : (typeof properties)[K];
+};

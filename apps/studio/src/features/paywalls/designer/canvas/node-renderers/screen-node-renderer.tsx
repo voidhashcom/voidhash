@@ -33,7 +33,13 @@ export function ScreenNodeRenderer({
 							{...selectableProps}
 						>
 							<FlexLayoutRenderer
-								style={node.style}
+								style={{
+									...node.style,
+									borderRadiusTopLeft: 0,
+									borderRadiusTopRight: 0,
+									borderRadiusBottomRight: 0,
+									borderRadiusBottomLeft: 0,
+								}}
 								initialStyle={{
 									width: node.style.width,
 									height: node.style.height,

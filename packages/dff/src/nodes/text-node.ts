@@ -1,60 +1,100 @@
-import { BaseNode, type BaseNodeData, type PickStyles } from '../core';
+import { s } from '../schema';
+import { parentRefSchema } from './base';
 import {
-  getPropertiesFromGroups,
-  type PropertiesOfGroup,
-  type StyleGroup
+  marginTop,
+  marginRight,
+  marginBottom,
+  marginLeft,
+  minWidth,
+  maxWidth,
+  minHeight,
+  maxHeight,
+  fontSize,
+  fontWeight,
+  color,
+  textAlign,
+  lineHeight,
+  letterSpacing,
+  borderWidthTop,
+  borderWidthRight,
+  borderWidthBottom,
+  borderWidthLeft,
+  borderColor,
+  borderStyle,
+  borderEnabled,
+  opacity,
+  overflow,
+  zIndex,
+  display,
+  shadowEnabled,
+  shadowColor,
+  shadowOffsetX,
+  shadowOffsetY,
+  shadowBlurRadius,
+  shadowOpacity,
+  flex,
+  flexGrow,
+  flexShrink,
+  flexBasis,
+  alignSelf
 } from '../styles';
+import type { Infer } from '../schema';
 
-/** Style groups supported by TextNode */
-const TEXT_STYLE_GROUPS = [
-  'margin',
-  'sizeConstraints',
-  'typography',
-  'border',
-  'visual',
-  'shadow',
-  'flexChild'
-] as const satisfies readonly StyleGroup[];
+/** TextNode schema */
+export const textNode = s.object({
+  id: s.string(),
+  type: s.literal('text'),
+  name: s.string().default('Text'),
+  parent: parentRefSchema,
+  text: s.string().default('New Text'),
+  style: s.object({
+    // Margin
+    marginTop,
+    marginRight,
+    marginBottom,
+    marginLeft,
+    // Size constraints
+    minWidth,
+    maxWidth,
+    minHeight,
+    maxHeight,
+    // Typography
+    fontSize,
+    fontWeight,
+    color,
+    textAlign,
+    lineHeight,
+    letterSpacing,
+    // Border
+    borderWidthTop,
+    borderWidthRight,
+    borderWidthBottom,
+    borderWidthLeft,
+    borderColor,
+    borderStyle,
+    borderEnabled,
+    // Visual
+    opacity,
+    overflow,
+    zIndex,
+    display,
+    // Shadow
+    shadowEnabled,
+    shadowColor,
+    shadowOffsetX,
+    shadowOffsetY,
+    shadowBlurRadius,
+    shadowOpacity,
+    // Flex child
+    flex,
+    flexGrow,
+    flexShrink,
+    flexBasis,
+    alignSelf
+  })
+});
 
-/** All style properties for TextNode */
-const TEXT_STYLES = getPropertiesFromGroups(TEXT_STYLE_GROUPS);
+export type TextNodeData = Infer<typeof textNode>;
 
-type TextStyleGroups = (typeof TEXT_STYLE_GROUPS)[number];
-type TextStyles = PropertiesOfGroup<TextStyleGroups>;
-
-/** TextNode data type */
-export interface TextNodeData extends BaseNodeData {
-  type: 'text';
-  text: string;
-  style: PickStyles<TextStyles>;
-}
-
-// TextNode has no children, so no mixin needed
-export class TextNode extends BaseNode<'text', TextStyles> {
-  override readonly type = 'text' as const;
-  override readonly defaultName = 'Text';
-  override readonly isRoot = false;
-  override readonly supportedStyles = TEXT_STYLES;
-
-  /** Override getDefaults to include text property */
-  override getDefaults(): {
-    type: 'text';
-    name: string;
-    text: string;
-    style: PickStyles<TextStyles>;
-  } {
-    return {
-      ...super.getDefaults(),
-      text: 'New Text'
-    };
-  }
-
-  /** Override validate to check for text property */
-  override validate(data: unknown): data is TextNodeData {
-    if (!super.validate(data)) {
-      return false;
-    }
-    const obj = data as unknown as Record<string, unknown>;
-    return typeof obj.text === 'string';
-  }
-}
+/** Allowed child types for TextNode */
+export const textNodeAllowedChildren = [] as const;

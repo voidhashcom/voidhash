@@ -8,11 +8,17 @@ import {
 import { Schema } from "effect";
 import { ChevronDownIcon } from "lucide-react";
 import { PanelButton } from "@/features/designer/components/button";
-import type { NodeEditorProps, PropertiesOfGroup } from "../../types";
+import type { NodeEditorProps } from "../../types";
 import { TextInput } from "./text-input";
 
 type HeightInputProps = NodeEditorProps<
-	PropertiesOfGroup<"dimensions" | "flexChild">
+	| "width"
+	| "height"
+	| "flex"
+	| "flexGrow"
+	| "flexShrink"
+	| "flexBasis"
+	| "alignSelf"
 > & {
 	disabled?: boolean;
 	parentDirection: FlexDirection;

@@ -1,50 +1,133 @@
-import { BaseNode, type BaseNodeData, type PickStyles } from '../core';
-import { WithChildren } from '../mixins';
+import type { Infer } from '../schema';
+import { s } from '../schema';
 import {
-  getPropertiesFromGroups,
-  type PropertiesOfGroup,
-  type StyleGroup
+  alignItems,
+  alignSelf,
+  backgroundColor,
+  backgroundEnabled,
+  borderColor,
+  borderEnabled,
+  borderRadiusBottomLeft,
+  borderRadiusBottomRight,
+  borderRadiusTopLeft,
+  borderRadiusTopRight,
+  borderStyle,
+  borderWidthBottom,
+  borderWidthLeft,
+  borderWidthRight,
+  borderWidthTop,
+  display,
+  flex,
+  flexBasis,
+  flexDirection,
+  flexGrow,
+  flexShrink,
+  gap,
+  height,
+  justifyContent,
+  marginBottom,
+  marginLeft,
+  marginRight,
+  marginTop,
+  maxHeight,
+  maxWidth,
+  minHeight,
+  minWidth,
+  opacity,
+  overflow,
+  paddingBottom,
+  paddingLeft,
+  paddingRight,
+  paddingTop,
+  safeAreaBottom,
+  safeAreaTop,
+  shadowBlurRadius,
+  shadowColor,
+  shadowEnabled,
+  shadowOffsetX,
+  shadowOffsetY,
+  shadowOpacity,
+  width,
+  zIndex
 } from '../styles';
+import { parentRefSchema } from './base';
 
-/** Style groups supported by FlexNode */
-const FLEX_STYLE_GROUPS = [
-  'padding',
-  'margin',
-  'layout',
-  'dimensions',
-  'sizeConstraints',
-  'background',
-  'border',
-  'borderRadius',
-  'visual',
-  'shadow',
-  'safeArea',
-  'flexChild'
-] as const satisfies readonly StyleGroup[];
+/** FlexNode schema */
+export const flexNode = s
+  .object({
+    id: s.string(),
+    type: s.literal('flex'),
+    name: s.string().default('Flex'),
+    parent: parentRefSchema,
+    style: s.object({
+      // Padding
+      paddingTop,
+      paddingRight,
+      paddingBottom,
+      paddingLeft,
+      // Margin
+      marginTop,
+      marginRight,
+      marginBottom,
+      marginLeft,
+      // Layout
+      gap,
+      justifyContent,
+      alignItems,
+      flexDirection,
+      // Dimensions
+      width,
+      height,
+      // Size constraints
+      minWidth,
+      maxWidth,
+      minHeight,
+      maxHeight,
+      // Background
+      backgroundColor,
+      backgroundEnabled,
+      // Border
+      borderWidthTop,
+      borderWidthRight,
+      borderWidthBottom,
+      borderWidthLeft,
+      borderColor,
+      borderStyle,
+      borderEnabled,
+      // Border radius
+      borderRadiusTopLeft,
+      borderRadiusTopRight,
+      borderRadiusBottomRight,
+      borderRadiusBottomLeft,
+      // Visual
+      opacity,
+      overflow,
+      zIndex,
+      display,
+      // Shadow
+      shadowEnabled,
+      shadowColor,
+      shadowOffsetX,
+      shadowOffsetY,
+      shadowBlurRadius,
+      shadowOpacity,
+      // Safe area
+      safeAreaTop,
+      safeAreaBottom,
+      // Flex child
+      flex,
+      flexGrow,
+      flexShrink,
+      flexBasis,
+      alignSelf: alignSelf.default('stretch')
+    })
+  })
+  .refine(() => {
+    // Children validation happens at document level
+    return true;
+  });
 
-/** All style properties for FlexNode */
-const FLEX_STYLES = getPropertiesFromGroups(FLEX_STYLE_GROUPS);
+export type FlexNodeData = Infer<typeof flexNode>;
 
-type FlexStyleGroups = (typeof FLEX_STYLE_GROUPS)[number];
-type FlexStyles = PropertiesOfGroup<FlexStyleGroups>;
-
-/** FlexNode data type */
-export interface FlexNodeData extends BaseNodeData {
-  type: 'flex';
-  style: PickStyles<FlexStyles>;
-}
-
-class FlexNodeBase extends BaseNode<'flex', FlexStyles> {
-  override readonly type = 'flex' as const;
-  override readonly defaultName = 'Flex';
-  override readonly isRoot = false;
-  override readonly supportedStyles = FLEX_STYLES;
-
-  // Override specific defaults for screen
-  override readonly styleOverrides = {
-    alignSelf: 'stretch' as const
-  };
-}
-
-export const FlexNode = WithChildren(FlexNodeBase, ['flex', 'text']);
-export type FlexNodeClass = InstanceType<typeof FlexNode>;
+/** Allowed child types for FlexNode */
+export const flexNodeAllowedChildren = ['flex', 'text'] as const;

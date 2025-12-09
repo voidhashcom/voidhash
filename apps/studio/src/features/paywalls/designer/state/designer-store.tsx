@@ -1,10 +1,13 @@
 "use client";
 
 import {
-	PaywallDocumentEditor,
-	ScreenNode,
+	createEditor,
+	createYjsStorage,
+	type Editor,
+	getDefaults,
+	paywallDocument,
 	type ScreenNodeData,
-	YjsStorage,
+	screenNode,
 } from "@voidhash/dff";
 import { IndexGenerator } from "fractional-indexing-jittered";
 import { createContext, useContext, useMemo, useRef } from "react";
@@ -103,30 +106,32 @@ function createNewPaywallYDoc() {
 	const doc = new Y.Doc();
 
 	// Create editor with YjsStorage - all mutations go through this
-	const yjsStorage = new YjsStorage(doc);
-	const editor = new PaywallDocumentEditor({ primaryStorage: yjsStorage });
+	const storage = createYjsStorage(doc, paywallDocument);
+	const editor = createEditor(paywallDocument, { storage });
 	editor.initialize();
 
 	// Create root node through editor
-	editor.createRootNode("root");
+	editor.nodes.create("root", {
+		id: "root",
+	});
 
-	// Create initial screen using v2 node class for defaults
-	const screenNodeClass = new ScreenNode();
-	const screenDefaults = screenNodeClass.getDefaults();
+	// Get screen defaults from schema
+	const screenDefaults = getDefaults(screenNode) as Partial<ScreenNodeData>;
 
 	const initScreenData: ScreenNodeData = {
 		...screenDefaults,
 		...INIT_SCREEN_DATA,
 		id: createNodeId(),
 		name: "Screen 1",
+		type: "screen",
 		parent: {
 			id: "root",
 			index: generator.keyStart(),
 		},
-	};
+	} as ScreenNodeData;
 
-	// All writes go through editor (validated)
-	editor.setNode(initScreenData as unknown as Record<string, unknown>);
+	// Create screen node through editor (validated)
+	editor.nodes.create("screen", initScreenData);
 
 	return doc;
 }
@@ -232,7 +237,7 @@ export function usePaywallDesignerDoc() {
 }
 
 /**
- * Get a PaywallDocumentEditor populated with the current nodes from Zustand state.
+ * Get an Editor populated with the current nodes from Zustand state.
  * Provides typed accessors for reading node data in React components.
  * Re-renders when nodes change.
  *
@@ -242,21 +247,19 @@ export function usePaywallDesignerDoc() {
  *   const document = useDesignerDocument();
  *
  *   // Use typed accessors
- *   const screen = document.getScreen('screen-1');
- *   const flex = document.getFlex('flex-1');
- *
- *   // Or iterate over all nodes
- *   const allNodes = document.getAllNodes();
+ *   const screen = document.nodes.get('screen-1');
+ *   const flex = document.nodes.get('flex-1');
  * }
  * ```
  */
-export function usePaywallDesignerDocument(): PaywallDocumentEditor {
+export function usePaywallDesignerDocument(): Editor<typeof paywallDocument> {
 	const nodes = usePaywallDesignerSelect((state) => state.nodes);
+	const doc = usePaywallDesignerDoc();
 
-	return useMemo(
-		() => PaywallDocumentEditor.fromNodes(nodes as Record<string, unknown>),
-		[nodes],
-	);
+	return useMemo(() => {
+		const storage = createYjsStorage(doc, paywallDocument);
+		return createEditor(paywallDocument, { storage, initialNodes: nodes });
+	}, [doc, nodes]);
 }
 
 // ============================================================================

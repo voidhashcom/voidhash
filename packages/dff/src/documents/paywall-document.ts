@@ -1,26 +1,28 @@
-import { DocumentDefinition } from '../core';
-import { migrateV2 } from '../migrations/v2';
-import { FlexNode, RootNode, ScreenNode, TextNode } from '../nodes';
+import { flexNode, rootNode, screenNode, textNode } from '../nodes';
+import { createDocument } from './create-document';
 
-type PaywallNodeTypes = 'root' | 'screen' | 'flex' | 'text';
+/**
+ * Paywall document definition using v3 functional schema approach.
+ * Defines the structure of a paywall design document with root, screen, flex, and text nodes.
+ */
+export const paywallDocument = createDocument({
+  type: 'paywall',
+  schemaVersion: 1,
+  nodes: {
+    root: rootNode,
+    screen: screenNode,
+    flex: flexNode,
+    text: textNode
+  } as const,
+  allowedChildren: {
+    root: ['screen'],
+    screen: ['flex', 'text'],
+    flex: ['flex', 'text'],
+    text: []
+  },
+  rootNodeTypes: ['root']
+});
 
-export class PaywallDocument extends DocumentDefinition<PaywallNodeTypes> {
-  readonly type = 'paywall';
-  readonly schemaVersion = 1;
-
-  readonly nodeClasses = {
-    root: new RootNode(),
-    screen: new ScreenNode(),
-    flex: new FlexNode(),
-    text: new TextNode()
-  };
-
-  readonly rootNodeTypes = ['root'] as const;
-
-  // Example future migration
-  readonly migrations = {
-    2: migrateV2
-  };
-}
-
-export const paywallDocument = new PaywallDocument();
+export const NODE_TYPES = Object.values(paywallDocument.nodes).map(
+  (node) => node.shape.type
+);

@@ -1,6 +1,5 @@
 "use client";
 
-import type { PropertiesOfGroup } from "@voidhash/dff";
 import { Schema } from "effect";
 import {
 	FullscreenIcon,
@@ -21,8 +20,12 @@ import {
 import type { NodeEditorProps, NodeWithProperties } from "../../types";
 import { TextInput } from "../inputs/text-input";
 
-/** Properties needed for the border radius section - derived from style groups */
-type BorderRadiusPropertyNames = PropertiesOfGroup<"borderRadius">;
+/** Properties needed for the border radius section - individual style properties */
+type BorderRadiusPropertyNames =
+	| "borderRadiusTopLeft"
+	| "borderRadiusTopRight"
+	| "borderRadiusBottomRight"
+	| "borderRadiusBottomLeft";
 
 export interface BorderRadiusSectionProps
 	extends NodeEditorProps<BorderRadiusPropertyNames> {

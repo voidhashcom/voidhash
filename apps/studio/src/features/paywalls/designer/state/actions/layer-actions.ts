@@ -1,8 +1,4 @@
-import {
-	createEditor,
-	createYjsStorage,
-	paywallDocument,
-} from "@voidhash/dff/v3";
+import { createEditor, createYjsStorage, paywallDocument } from "@voidhash/dff";
 import { Schema } from "effect";
 import {
 	generateJitteredKeyBetween,
