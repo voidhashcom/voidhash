@@ -13,7 +13,6 @@ import {
 	useSensors,
 } from "@dnd-kit/core";
 import {
-	arrayMove,
 	SortableContext,
 	useSortable,
 	verticalListSortingStrategy,
@@ -27,7 +26,7 @@ import {
 	Smartphone,
 	TypeIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
 	usePaywallDesignerActions,
@@ -57,6 +56,7 @@ interface Projection {
 	depth: number;
 	parentId: string | null;
 	overId: string;
+	isAbove: boolean;
 }
 
 // ============================================================================
@@ -64,6 +64,17 @@ interface Projection {
 // ============================================================================
 
 const INDENTATION_WIDTH = 16;
+
+const ALLOWED_CHILDREN: Record<string, string[]> = {
+	root: ["screen"],
+	screen: ["flex", "text"],
+	flex: ["flex", "text"],
+	text: [],
+};
+
+function canBeChildOf(childType: string, parentType: string): boolean {
+	return ALLOWED_CHILDREN[parentType]?.includes(childType) ?? false;
+}
 
 const typeIcons = {
 	screen: Smartphone,
@@ -157,6 +168,8 @@ function getProjection(
 	overId: string,
 	dragOffset: number,
 	indentationWidth: number,
+	cursorY: number,
+	overItemHeight: number,
 ): Projection | null {
 	const overItemIndex = items.findIndex(({ id }) => id === overId);
 	const activeItemIndex = items.findIndex(({ id }) => id === activeId);
@@ -166,12 +179,19 @@ function getProjection(
 		return null;
 	}
 
-	const newItems = arrayMove(items, activeItemIndex, overItemIndex);
-	const previousItem = newItems[overItemIndex - 1];
-	const nextItem = newItems[overItemIndex + 1];
+	// Determine if cursor is in top or bottom half
+	const isAbove = cursorY < overItemHeight / 2;
 
+	// Calculate target index based on above/below
+	const targetIndex = isAbove ? overItemIndex : overItemIndex + 1;
+
+	// Calculate depth from horizontal drag offset
 	const dragDepth = Math.round(dragOffset / indentationWidth);
 	const projectedDepth = activeItem.depth + dragDepth;
+
+	// Get items before and after target position
+	const previousItem = targetIndex > 0 ? items[targetIndex - 1] : undefined;
+	const nextItem = targetIndex < items.length ? items[targetIndex] : undefined;
 
 	const maxDepth = getMaxDepth(previousItem);
 	const minDepth = getMinDepth(nextItem);
@@ -183,9 +203,64 @@ function getProjection(
 		depth = minDepth;
 	}
 
-	const parentId = getParentId(previousItem, depth, items);
+	// Find valid parent that can accept the dragged node type
+	const activeNodeType = activeItem.node.type;
+	let parentId = getParentId(previousItem, depth, items);
 
-	return { depth, parentId, overId };
+	// Prevent dropping a node inside itself
+	if (parentId === activeId) {
+		// Try to use the parent's parent instead
+		const parentItem = items.find((item) => item.id === parentId);
+		if (parentItem) {
+			parentId = parentItem.parentId;
+			depth = parentItem.depth;
+		} else {
+			return null;
+		}
+	}
+
+	// Validate parent-child relationship
+	if (parentId === "root") {
+		// Root can only contain screens
+		if (!canBeChildOf(activeNodeType, "root")) {
+			return null;
+		}
+	} else {
+		// Find the parent node and validate
+		const parentItem = items.find((item) => item.id === parentId);
+		if (!parentItem) {
+			return null;
+		}
+		if (!canBeChildOf(activeNodeType, parentItem.node.type)) {
+			// Try to find a valid ancestor
+			let currentParentId = parentItem.parentId;
+			while (currentParentId) {
+				if (currentParentId === "root") {
+					if (canBeChildOf(activeNodeType, "root")) {
+						parentId = "root";
+						depth = 0;
+						break;
+					}
+					return null;
+				}
+				const ancestorItem = items.find((item) => item.id === currentParentId);
+				if (!ancestorItem) {
+					return null;
+				}
+				if (canBeChildOf(activeNodeType, ancestorItem.node.type)) {
+					parentId = currentParentId;
+					depth = ancestorItem.depth + 1;
+					break;
+				}
+				currentParentId = ancestorItem.parentId;
+			}
+			if (!currentParentId && parentId !== "root") {
+				return null;
+			}
+		}
+	}
+
+	return { depth, parentId, overId, isAbove };
 }
 
 function getMaxDepth(previousItem: FlattenedNode | undefined): number {
@@ -260,6 +335,86 @@ function getSiblingAfter(
 	return null;
 }
 
+function getHighlightedNodeIds(
+	projectedParentId: string | null,
+	tree: TreeNode,
+): Set<string> {
+	const highlightedIds = new Set<string>();
+
+	if (projectedParentId === null) {
+		return highlightedIds;
+	}
+
+	// Find the parent node in the tree
+	function findNode(node: TreeNode, targetId: string): TreeNode | null {
+		if (node.id === targetId) {
+			return node;
+		}
+		for (const child of node.children) {
+			const found = findNode(child, targetId);
+			if (found) {
+				return found;
+			}
+		}
+		return null;
+	}
+
+	// If parentId is "root", highlight entire tree
+	if (projectedParentId === "root") {
+		function collectAllIds(node: TreeNode): void {
+			if (node.type !== "root") {
+				highlightedIds.add(node.id);
+			}
+			for (const child of node.children) {
+				collectAllIds(child);
+			}
+		}
+		collectAllIds(tree);
+		return highlightedIds;
+	}
+
+	// Find the parent node and collect its subtree
+	const parentNode = findNode(tree, projectedParentId);
+	if (parentNode) {
+		function collectSubtreeIds(node: TreeNode): void {
+			highlightedIds.add(node.id);
+			for (const child of node.children) {
+				collectSubtreeIds(child);
+			}
+		}
+		collectSubtreeIds(parentNode);
+	}
+
+	return highlightedIds;
+}
+
+function isDescendantOfSelected(
+	item: FlattenedNode,
+	flattenedItems: FlattenedNode[],
+	selectedNodeIds: string[],
+): boolean {
+	if (selectedNodeIds.length === 0) {
+		return false;
+	}
+
+	let currentParentId = item.parentId;
+	while (currentParentId) {
+		if (currentParentId === "root") {
+			break;
+		}
+		if (selectedNodeIds.includes(currentParentId)) {
+			return true;
+		}
+		const parent = flattenedItems.find((i) => i.id === currentParentId);
+		if (!parent) {
+			break;
+		}
+		currentParentId = parent.parentId;
+	}
+
+	return false;
+}
+
 // ============================================================================
 // Components
 // ============================================================================
@@ -279,7 +434,10 @@ interface SortableTreeItemProps {
 	onToggle: (id: string) => void;
 	isExpanded: boolean;
 	hasChildren: boolean;
+	isFirst: boolean;
 	isLast: boolean;
+	isHighlighted: boolean;
+	isChildOfSelected: boolean;
 }
 
 function SortableTreeItem({
@@ -296,6 +454,9 @@ function SortableTreeItem({
 	isExpanded,
 	hasChildren,
 	isLast,
+	isFirst,
+	isHighlighted,
+	isChildOfSelected,
 }: SortableTreeItemProps) {
 	const { attributes, listeners, setNodeRef, isDragging } = useSortable({ id });
 
@@ -309,17 +470,26 @@ function SortableTreeItem({
 	const displayName = "name" in node ? node.name : "Unknown";
 
 	const isActiveItem = id === activeId;
+	const isDraggingSomething = activeId !== null;
+
+	// Show drop indicator if this is the target position
+	// We show indicators even when hovering over the dragged item itself
 	const showIndicatorAbove =
-		projected && projected.overId === id && !isActiveItem;
+		projected && projected.overId === id && projected.isAbove;
 	const showIndicatorBelow =
-		isLast &&
-		projected &&
-		projected.overId === END_DROP_ZONE_ID &&
-		!isActiveItem;
+		projected && projected.overId === id && !projected.isAbove;
+
+	// Show indicator below if this is the last item and drop is at the end
+	const showIndicatorAtEnd =
+		isLast && projected && projected.overId === END_DROP_ZONE_ID;
 
 	const indentStyle: React.CSSProperties = {
 		paddingLeft: `${depth * indentationWidth}px`,
 	};
+
+	// Apply opacity dimming when dragging and not highlighted
+	const opacityClass =
+		isDraggingSomething && !isActiveItem && !isHighlighted ? "opacity-40" : "";
 
 	const handleClick = (e: React.MouseEvent) => {
 		if (isSelected && e.shiftKey) {
@@ -336,8 +506,9 @@ function SortableTreeItem({
 
 	return (
 		<div
-			className={cn("relative", isDragging && "opacity-40")}
+			className={cn("relative", isDragging && "opacity-40", opacityClass)}
 			ref={setNodeRef}
+			data-id={id}
 		>
 			{/* Drop indicator line - above */}
 			{showIndicatorAbove && (
@@ -357,6 +528,12 @@ function SortableTreeItem({
 				className={cn(
 					"flex h-7 items-center gap-1 rounded-sm px-1 hover:bg-accent/50",
 					isSelected && "bg-accent text-accent-foreground hover:bg-accent",
+					isSelected && hasChildren && isExpanded && "rounded-b-none",
+					!isLast && !isSelected && "rounded-b-none",
+					isChildOfSelected && !isSelected && !isFirst && "rounded-t-none",
+					isChildOfSelected &&
+						!isSelected &&
+						"bg-accent/40 text-accent-foreground/80",
 				)}
 				onClick={handleClick}
 				style={indentStyle}
@@ -395,8 +572,19 @@ function SortableTreeItem({
 				</div>
 			</div>
 
-			{/* Drop indicator line - below (for last item) */}
+			{/* Drop indicator line - below */}
 			{showIndicatorBelow && (
+				<div
+					className="pointer-events-none absolute right-0 left-0 z-10 h-0.5 bg-primary"
+					style={{
+						bottom: -1,
+						marginLeft: `${(projected?.depth ?? depth) * indentationWidth}px`,
+					}}
+				/>
+			)}
+
+			{/* Drop indicator line - at end */}
+			{showIndicatorAtEnd && (
 				<div
 					className="pointer-events-none absolute right-0 left-0 z-10 h-0.5 bg-primary"
 					style={{
@@ -455,9 +643,61 @@ export function LayersSection() {
 	const [activeId, setActiveId] = useState<string | null>(null);
 	const [overId, setOverId] = useState<string | null>(null);
 	const [offsetLeft, setOffsetLeft] = useState(0);
+	const [cursorY, setCursorY] = useState(0);
+	const [overItemHeight, setOverItemHeight] = useState(28); // Default height (h-7 = 28px)
+	const [hoverExpandTimer, setHoverExpandTimer] = useState<{
+		nodeId: string;
+		timeoutId: ReturnType<typeof setTimeout>;
+	} | null>(null);
 	const [expandedLayers, setExpandedLayers] = useState<Set<string>>(
 		new Set([]),
 	);
+	const mouseYRef = useRef<number>(0);
+	const lastValidProjectionRef = useRef<Projection | null>(null);
+	const lastValidOverIdRef = useRef<string | null>(null);
+	const overIdRef = useRef<string | null>(null);
+	const cursorYRef = useRef<number>(0);
+	const overItemHeightRef = useRef<number>(28);
+	const lastIsAboveRef = useRef<boolean>(true);
+
+	// Keep ref in sync with state
+	useEffect(() => {
+		overIdRef.current = overId;
+	}, [overId]);
+
+	// Track mouse position during drag
+	useEffect(() => {
+		if (!activeId) return;
+
+		const handleMouseMove = (e: MouseEvent) => {
+			mouseYRef.current = e.clientY;
+
+			// Update cursor Y relative to the hovered item
+			const currentOverId = overIdRef.current;
+			if (currentOverId && currentOverId !== END_DROP_ZONE_ID) {
+				const overElement = document.querySelector(
+					`[data-id="${currentOverId}"]`,
+				) as HTMLElement;
+				if (overElement) {
+					const rect = overElement.getBoundingClientRect();
+					const relativeY = e.clientY - rect.top;
+					cursorYRef.current = relativeY;
+					overItemHeightRef.current = rect.height;
+
+					// Only update state if isAbove changed to minimize re-renders
+					const newIsAbove = relativeY < rect.height / 2;
+					if (newIsAbove !== lastIsAboveRef.current) {
+						lastIsAboveRef.current = newIsAbove;
+						setCursorY(relativeY);
+						setOverItemHeight(rect.height);
+					}
+				}
+			}
+		};
+
+		document.addEventListener("mousemove", handleMouseMove);
+		return () => document.removeEventListener("mousemove", handleMouseMove);
+	}, [activeId]);
 
 	const tree = useMemo(
 		() =>
@@ -519,16 +759,75 @@ export function LayersSection() {
 	}, [tree, allExpandedLayers, activeId]);
 
 	// Projection for indicator
-	const projected = useMemo(() => {
+	const projectedRaw = useMemo(() => {
 		if (!activeId) {
+			lastValidProjectionRef.current = null;
 			return null;
 		}
 		if (!overId) {
-			return null;
+			// Return last valid projection to prevent flickering
+			return lastValidProjectionRef.current;
 		}
-		// Handle end drop zone - project to end of list at root level
+		// Handle end drop zone - calculate depth based on last item and drag offset
 		if (overId === END_DROP_ZONE_ID) {
-			return { depth: 0, parentId: "root", overId: END_DROP_ZONE_ID };
+			const activeItem = flattenedItems.find((item) => item.id === activeId);
+			if (!activeItem) {
+				return null;
+			}
+
+			// Get the last item to calculate depth
+			const lastItem = flattenedItems.at(-1);
+			const dragDepth = Math.round(offsetLeft / INDENTATION_WIDTH);
+			const projectedDepth = activeItem.depth + dragDepth;
+
+			// Calculate max depth based on last item
+			const maxDepth = lastItem
+				? lastItem.canHaveChildren
+					? lastItem.depth + 1
+					: lastItem.depth
+				: 0;
+			const minDepth = 0;
+
+			let depth = Math.max(minDepth, Math.min(maxDepth, projectedDepth));
+
+			// Find valid parent at this depth
+			let parentId: string | null = "root";
+			if (lastItem && depth > 0) {
+				// Walk up from last item to find parent at target depth
+				let current: FlattenedNode | undefined = lastItem;
+				while (current && current.depth >= depth) {
+					if (current.depth === depth - 1 && current.canHaveChildren) {
+						parentId = current.id;
+						break;
+					}
+					current = flattenedItems.find(
+						(item) => item.id === current?.parentId,
+					);
+				}
+				if (!current && depth > 0) {
+					parentId = lastItem.canHaveChildren ? lastItem.id : lastItem.parentId;
+					depth = lastItem.canHaveChildren
+						? lastItem.depth + 1
+						: lastItem.depth;
+				}
+			}
+
+			// Validate parent-child relationship
+			const parentType =
+				parentId === "root"
+					? "root"
+					: (flattenedItems.find((item) => item.id === parentId)?.node.type ??
+						"root");
+			if (!canBeChildOf(activeItem.node.type, parentType)) {
+				return null;
+			}
+
+			return {
+				depth,
+				parentId,
+				overId: END_DROP_ZONE_ID,
+				isAbove: false,
+			};
 		}
 		return getProjection(
 			flattenedItems,
@@ -536,10 +835,44 @@ export function LayersSection() {
 			overId,
 			offsetLeft,
 			INDENTATION_WIDTH,
+			cursorY,
+			overItemHeight,
 		);
-	}, [activeId, overId, offsetLeft, flattenedItems]);
+	}, [activeId, overId, offsetLeft, flattenedItems, cursorY, overItemHeight]);
 
-	console.log("projected", projected);
+	// Use raw projection or fall back to last valid to prevent flickering
+	const projected = useMemo(() => {
+		if (projectedRaw) {
+			lastValidProjectionRef.current = projectedRaw;
+			return projectedRaw;
+		}
+		// When no valid projection, use last valid one to prevent flickering
+		return activeId ? lastValidProjectionRef.current : null;
+	}, [projectedRaw, activeId]);
+
+	// Calculate highlighted node IDs
+	const highlightedIds = useMemo(() => {
+		// Always include the active item when dragging
+		const ids = new Set<string>();
+		if (activeId) {
+			ids.add(activeId);
+		}
+
+		if (!projected || !tree) {
+			// When no valid projection, highlight everything to avoid full dimming
+			if (activeId && tree) {
+				return getHighlightedNodeIds("root", tree);
+			}
+			return ids;
+		}
+
+		// Add the projected parent's subtree
+		const subtreeIds = getHighlightedNodeIds(projected.parentId, tree);
+		for (const id of subtreeIds) {
+			ids.add(id);
+		}
+		return ids;
+	}, [projected, tree, activeId]);
 
 	const sortedIds = useMemo(
 		() => [...flattenedItems.map(({ id }) => id), END_DROP_ZONE_ID],
@@ -582,21 +915,106 @@ export function LayersSection() {
 	const handleDragStart = useCallback(({ active }: DragStartEvent) => {
 		setActiveId(active.id as string);
 		setOverId(active.id as string);
+		setCursorY(0);
 	}, []);
 
 	const handleDragMove = useCallback(({ delta }: DragMoveEvent) => {
 		setOffsetLeft(delta.x);
 	}, []);
 
-	const handleDragOver = useCallback(({ over }: DragOverEvent) => {
-		setOverId(over?.id as string | null);
-	}, []);
+	const handleDragOver = useCallback(
+		({ over }: DragOverEvent) => {
+			const rawOverId = over?.id as string | null;
+			// Use last valid overId if current is null to prevent flickering in gaps
+			const newOverId = rawOverId ?? lastValidOverIdRef.current;
+			if (rawOverId) {
+				lastValidOverIdRef.current = rawOverId;
+			}
+
+			// When over item changes, update cursor position immediately
+			if (
+				newOverId &&
+				newOverId !== overIdRef.current &&
+				newOverId !== END_DROP_ZONE_ID
+			) {
+				const overElement = document.querySelector(
+					`[data-id="${newOverId}"]`,
+				) as HTMLElement;
+				if (overElement) {
+					const rect = overElement.getBoundingClientRect();
+					const relativeY = mouseYRef.current - rect.top;
+					cursorYRef.current = relativeY;
+					overItemHeightRef.current = rect.height;
+					lastIsAboveRef.current = relativeY < rect.height / 2;
+					setCursorY(relativeY);
+					setOverItemHeight(rect.height);
+				}
+			}
+
+			setOverId(newOverId);
+
+			// Handle auto-expand for collapsed items
+			if (newOverId && newOverId !== END_DROP_ZONE_ID && activeId) {
+				const overItem = flattenedItems.find((item) => item.id === newOverId);
+				if (
+					overItem?.canHaveChildren &&
+					overItem.node.children.length > 0 &&
+					!allExpandedLayers.has(newOverId)
+				) {
+					// Check if we're already tracking this item
+					if (hoverExpandTimer?.nodeId !== newOverId) {
+						// Clear existing timer
+						if (hoverExpandTimer) {
+							clearTimeout(hoverExpandTimer.timeoutId);
+						}
+						// Start new timer
+						const timeoutId = setTimeout(() => {
+							toggleLayer(newOverId);
+							setHoverExpandTimer(null);
+						}, 3000);
+						setHoverExpandTimer({ nodeId: newOverId, timeoutId });
+					}
+				} else {
+					// Clear timer if not over a collapsed item
+					if (hoverExpandTimer) {
+						clearTimeout(hoverExpandTimer.timeoutId);
+						setHoverExpandTimer(null);
+					}
+				}
+			} else {
+				// Clear timer if not over a valid item
+				if (hoverExpandTimer) {
+					clearTimeout(hoverExpandTimer.timeoutId);
+					setHoverExpandTimer(null);
+				}
+			}
+		},
+		[
+			activeId,
+			flattenedItems,
+			allExpandedLayers,
+			hoverExpandTimer,
+			toggleLayer,
+		],
+	);
 
 	const resetState = useCallback(() => {
 		setActiveId(null);
 		setOverId(null);
 		setOffsetLeft(0);
-	}, []);
+		setCursorY(0);
+		setOverItemHeight(28);
+		lastValidOverIdRef.current = null;
+		lastValidProjectionRef.current = null;
+		overIdRef.current = null;
+		cursorYRef.current = 0;
+		overItemHeightRef.current = 28;
+		lastIsAboveRef.current = true;
+		if (hoverExpandTimer) {
+			clearTimeout(hoverExpandTimer.timeoutId);
+			setHoverExpandTimer(null);
+		}
+	}, [hoverExpandTimer]);
 
 	const handleDragEnd = useCallback(
 		({ active, over }: DragEndEvent) => {
@@ -609,7 +1027,7 @@ export function LayersSection() {
 				return;
 			}
 
-			const { parentId } = projected;
+			const { parentId, isAbove } = projected;
 			const newParentId = parentId ?? "root";
 
 			// Handle end drop zone - place at end of parent
@@ -622,12 +1040,22 @@ export function LayersSection() {
 				return;
 			}
 
-			// Find the sibling to insert before
-			const beforeSiblingId = getSiblingAfter(
-				flattenedItems,
-				over.id as string,
-				newParentId,
-			);
+			// Find the sibling to insert before based on isAbove
+			let beforeSiblingId: string | null = null;
+			if (isAbove) {
+				// Insert before the over item
+				const overItem = flattenedItems.find((item) => item.id === over.id);
+				if (overItem && overItem.parentId === newParentId) {
+					beforeSiblingId = overItem.id;
+				}
+			} else {
+				// Insert after the over item - find next sibling
+				beforeSiblingId = getSiblingAfter(
+					flattenedItems,
+					over.id as string,
+					newParentId,
+				);
+			}
 
 			dispatch("moveNode", {
 				nodeId: active.id as string,
@@ -660,7 +1088,10 @@ export function LayersSection() {
 							<SortableTreeItemWrapper
 								activeId={activeId}
 								allExpandedLayers={allExpandedLayers}
+								flattenedItems={flattenedItems}
+								highlightedIds={highlightedIds}
 								indentationWidth={INDENTATION_WIDTH}
+								isFirst={index === 0}
 								isLast={index === flattenedItems.length - 1}
 								item={item}
 								key={item.id}
@@ -668,6 +1099,7 @@ export function LayersSection() {
 								onToggle={toggleLayer}
 								onUnselect={handleUnselect}
 								projected={projected}
+								selectedNodeIds={Array.from(selectedNodeIds)}
 							/>
 						))
 					) : (
@@ -675,6 +1107,17 @@ export function LayersSection() {
 							No layers yet
 						</div>
 					)}
+					{/* End drop zone indicator */}
+					{projected &&
+						projected.overId === END_DROP_ZONE_ID &&
+						flattenedItems.length > 0 && (
+							<div
+								className="pointer-events-none relative h-0.5 bg-primary"
+								style={{
+									marginLeft: `${projected.depth * INDENTATION_WIDTH}px`,
+								}}
+							/>
+						)}
 				</div>
 			</SortableContext>
 		</DndContext>
@@ -691,7 +1134,11 @@ interface SortableTreeItemWrapperProps {
 	onUnselect: (id: string) => void;
 	onToggle: (id: string) => void;
 	allExpandedLayers: Set<string>;
+	isFirst: boolean;
 	isLast: boolean;
+	highlightedIds: Set<string>;
+	flattenedItems: FlattenedNode[];
+	selectedNodeIds: string[];
 }
 
 function SortableTreeItemWrapper({
@@ -703,10 +1150,21 @@ function SortableTreeItemWrapper({
 	onUnselect,
 	onToggle,
 	allExpandedLayers,
+	isFirst,
 	isLast,
+	highlightedIds,
+	flattenedItems,
+	selectedNodeIds,
 }: SortableTreeItemWrapperProps) {
 	const isSelected = usePaywallDesignerSelect(
 		useShallow((state) => state.selectedNodeIds.includes(item.id)),
+	);
+
+	const isHighlighted = highlightedIds.has(item.id);
+	const isChildOfSelected = isDescendantOfSelected(
+		item,
+		flattenedItems,
+		selectedNodeIds,
 	);
 
 	return (
@@ -716,7 +1174,10 @@ function SortableTreeItemWrapper({
 			hasChildren={item.node.children.length > 0}
 			id={item.id}
 			indentationWidth={indentationWidth}
+			isChildOfSelected={isChildOfSelected}
 			isExpanded={allExpandedLayers.has(item.id)}
+			isHighlighted={isHighlighted}
+			isFirst={isFirst}
 			isLast={isLast}
 			isSelected={isSelected}
 			node={item.node}
