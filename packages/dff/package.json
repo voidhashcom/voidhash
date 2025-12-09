@@ -10,7 +10,7 @@
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./v2": "./src/v2/index.ts"
+    "./v3": "./src/v3/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
