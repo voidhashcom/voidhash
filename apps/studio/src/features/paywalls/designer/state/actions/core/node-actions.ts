@@ -3,15 +3,17 @@
 /**
  * Node action helpers for simplified creation and update of nodes.
  * Built on top of storeState.action for type-safe node operations.
- * All mutations go through DocumentEditor with YjsStorage for validation.
+ * All mutations go through v3 Editor with YjsStorage for validation.
  */
 
 import {
-	type BaseNodeData,
-	type NodeClassLike,
-	PaywallDocumentEditor,
-	YjsStorage,
-} from "@voidhash/dff";
+	createEditor,
+	createYjsStorage,
+	type FlexNodeData,
+	paywallDocument,
+	type ScreenNodeData,
+	type TextNodeData,
+} from "@voidhash/dff/v3";
 import { IndexGenerator } from "fractional-indexing-jittered";
 import type * as Y from "yjs";
 import type {
@@ -25,12 +27,12 @@ import { createNodeId } from "../../utils/id";
 import { getNodesByParentId } from "../../utils/nodes";
 
 /**
- * Creates a PaywallDocumentEditor with YjsStorage for the given Y.Doc.
+ * Creates a v3 Editor with YjsStorage for the given Y.Doc.
  * Used by actions to perform validated mutations.
  */
-function createEditorForDoc(doc: Y.Doc): PaywallDocumentEditor {
-	const storage = new YjsStorage(doc);
-	return new PaywallDocumentEditor({ primaryStorage: storage });
+function createEditorForDoc(doc: Y.Doc) {
+	const storage = createYjsStorage(doc, paywallDocument);
+	return createEditor(paywallDocument, { storage });
 }
 
 // ============================================================================
@@ -38,11 +40,33 @@ function createEditorForDoc(doc: Y.Doc): PaywallDocumentEditor {
 // ============================================================================
 
 /**
+ * Supported node types that can be created/updated via actions.
+ */
+type CreatableNodeType = "flex" | "screen" | "text";
+
+/**
+ * Map of node type to its data type.
+ */
+type NodeDataMap = {
+	flex: FlexNodeData;
+	screen: ScreenNodeData;
+	text: TextNodeData;
+};
+
+/**
+ * Deep partial type that makes all nested properties optional.
+ */
+type DeepPartial<T> = T extends object
+	? { [P in keyof T]?: DeepPartial<T[P]> }
+	: T;
+
+/**
  * Create node action params type.
+ * Uses DeepPartial to allow partial style objects.
  */
 type CreateParams<TData> = {
 	parentId: string;
-	initialValues?: Partial<Omit<TData, "id" | "type" | "parent">>;
+	initialValues?: DeepPartial<Omit<TData, "id" | "type" | "parent">>;
 };
 
 /**
@@ -51,7 +75,7 @@ type CreateParams<TData> = {
 type CreateNodeAfterContext<
 	TSchema extends VoidsyncSchema<AnyEffectSchema, AnyEffectSchema, any>,
 	TYdoc extends Y.Doc,
-	TData extends BaseNodeData,
+	TData,
 > = {
 	/** The action parameters passed by the caller */
 	params: CreateParams<TData>;
@@ -67,7 +91,7 @@ type CreateNodeAfterContext<
 type UpdateNodeAfterContext<
 	TSchema extends VoidsyncSchema<AnyEffectSchema, AnyEffectSchema, any>,
 	TYdoc extends Y.Doc,
-	TData extends BaseNodeData,
+	TData,
 	TParams,
 > = {
 	/** The action parameters passed by the caller */
@@ -86,7 +110,7 @@ type UpdateNodeAfterContext<
 type CreateNodeActionOptions<
 	TSchema extends VoidsyncSchema<AnyEffectSchema, AnyEffectSchema, any>,
 	TYdoc extends Y.Doc,
-	TData extends BaseNodeData,
+	TData,
 > = {
 	/** Callback executed after the node is created */
 	after?: (ctx: CreateNodeAfterContext<TSchema, TYdoc, TData>) => void;
@@ -106,7 +130,7 @@ type UpdateParams<TData> = {
 type UpdateNodeActionOptions<
 	TSchema extends VoidsyncSchema<AnyEffectSchema, AnyEffectSchema, any>,
 	TYdoc extends Y.Doc,
-	TData extends BaseNodeData,
+	TData,
 > = {
 	/** Callback executed after the node is updated */
 	after?: (
@@ -120,23 +144,25 @@ type UpdateNodeActionOptions<
 
 /**
  * Creates a type-safe action for creating nodes of a specific type.
- * All mutations go through DocumentEditor with YjsStorage for validation.
+ * All mutations go through v3 Editor with YjsStorage for validation.
  *
  * @example
  * ```ts
  * export const createFlexNode = (storeState: DesignerStoreState) =>
- *   createNodeAction<FlexNodeData>(storeState, new FlexNode(), {
+ *   createNodeAction<FlexNodeData>(storeState, 'flex', {
  *     after: ({ params, dispatch, node }) => {
  *       dispatch(selectNode)({ id: node.id, many: false });
  *     }
  *   });
  * ```
  */
-export function createNodeAction<TData extends BaseNodeData>(
+export function createNodeAction<TNodeType extends CreatableNodeType>(
 	storeState: VoidsyncState<any, Y.Doc>,
-	nodeClass: NodeClassLike,
-	options?: CreateNodeActionOptions<any, Y.Doc, TData>,
-): Action<any, Y.Doc, CreateParams<TData>, void> {
+	nodeType: TNodeType,
+	options?: CreateNodeActionOptions<any, Y.Doc, NodeDataMap[TNodeType]>,
+): Action<any, Y.Doc, CreateParams<NodeDataMap[TNodeType]>, void> {
+	type TData = NodeDataMap[TNodeType];
+
 	// Cast the action to accept params - we handle typing manually
 	const action = storeState.action(
 		({ params, getState, doc, dispatch }: any) => {
@@ -162,23 +188,18 @@ export function createNodeAction<TData extends BaseNodeData>(
 			const generator = new IndexGenerator(fractionalIndexes);
 			const index = generator.keyEnd();
 
-			// Get defaults from v2 node class
-			const defaults = nodeClass.getDefaults();
-
-			// Build node data
-			const nodeData = {
-				...defaults,
-				...typedParams.initialValues,
+			// Create node using v3 editor
+			const editor = createEditorForDoc(doc);
+			const handle = editor.nodes.create(nodeType, {
 				id,
 				parent: {
 					id: typedParams.parentId,
 					index,
 				},
-			} as TData;
+				...typedParams.initialValues,
+			} as any);
 
-			// All mutations go through DocumentEditor with YjsStorage
-			const editor = createEditorForDoc(doc);
-			editor.setNode(nodeData as unknown as Record<string, unknown>);
+			const nodeData = handle.get() as TData;
 
 			// Call after hook if provided
 			if (options?.after) {
@@ -190,7 +211,12 @@ export function createNodeAction<TData extends BaseNodeData>(
 			}
 		},
 	);
-	return action as unknown as Action<any, Y.Doc, CreateParams<TData>, void>;
+	return action as unknown as Action<
+		any,
+		Y.Doc,
+		CreateParams<NodeDataMap[TNodeType]>,
+		void
+	>;
 }
 
 // ============================================================================
@@ -199,19 +225,21 @@ export function createNodeAction<TData extends BaseNodeData>(
 
 /**
  * Creates a type-safe action for updating nodes of a specific type.
- * All mutations go through DocumentEditor with YjsStorage for validation.
+ * All mutations go through v3 Editor with YjsStorage for validation.
  *
  * @example
  * ```ts
  * export const updateFlexNode = (storeState: DesignerStoreState) =>
- *   updateNodeAction<FlexNodeData>(storeState, new FlexNode());
+ *   updateNodeAction<FlexNodeData>(storeState, 'flex');
  * ```
  */
-export function updateNodeAction<TData extends BaseNodeData>(
+export function updateNodeAction<TNodeType extends CreatableNodeType>(
 	storeState: VoidsyncState<any, Y.Doc>,
-	nodeClass: NodeClassLike,
-	options?: UpdateNodeActionOptions<any, Y.Doc, TData>,
-): Action<any, Y.Doc, UpdateParams<TData>, void> {
+	nodeType: TNodeType,
+	options?: UpdateNodeActionOptions<any, Y.Doc, NodeDataMap[TNodeType]>,
+): Action<any, Y.Doc, UpdateParams<NodeDataMap[TNodeType]>, void> {
+	type TData = NodeDataMap[TNodeType];
+
 	// Cast the action to accept params - we handle typing manually
 	const action = storeState.action(
 		({ params, getState, doc, dispatch }: any) => {
@@ -222,7 +250,7 @@ export function updateNodeAction<TData extends BaseNodeData>(
 			const nodes = (state as { nodes?: Record<string, any> }).nodes;
 			const existingNode = nodes?.[typedParams.id] as TData | undefined;
 
-			if (!existingNode || existingNode.type !== nodeClass.type) {
+			if (!existingNode || existingNode.type !== nodeType) {
 				return;
 			}
 
@@ -245,9 +273,12 @@ export function updateNodeAction<TData extends BaseNodeData>(
 				type: existingNode.type,
 			} as TData;
 
-			// All mutations go through DocumentEditor with YjsStorage
+			// Update through v3 editor
 			const editor = createEditorForDoc(doc);
-			editor.setNode(updatedNode as unknown as Record<string, unknown>);
+			const handle = editor.nodes.get(typedParams.id);
+			if (handle) {
+				handle.set(updatedNode as any);
+			}
 
 			// Call after hook if provided
 			if (options?.after) {
@@ -260,5 +291,10 @@ export function updateNodeAction<TData extends BaseNodeData>(
 			}
 		},
 	);
-	return action as unknown as Action<any, Y.Doc, UpdateParams<TData>, void>;
+	return action as unknown as Action<
+		any,
+		Y.Doc,
+		UpdateParams<NodeDataMap[TNodeType]>,
+		void
+	>;
 }

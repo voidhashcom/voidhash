@@ -1,142 +1,153 @@
-import { PaywallDocumentEditor, YjsStorage } from '@voidhash/dff';
-import { Schema } from 'effect';
 import {
-  generateJitteredKeyBetween,
-  IndexGenerator
-} from 'fractional-indexing-jittered';
-import type * as Y from 'yjs';
-import type { NodeDataWithoutRoot } from '../schema';
-import { getNodesByParentId } from '../utils/nodes';
-import type { DesignerStoreState } from './types';
+	createEditor,
+	createYjsStorage,
+	paywallDocument,
+} from "@voidhash/dff/v3";
+import { Schema } from "effect";
+import {
+	generateJitteredKeyBetween,
+	IndexGenerator,
+} from "fractional-indexing-jittered";
+import type * as Y from "yjs";
+import type { NodeDataWithoutRoot } from "../schema";
+import { getNodesByParentId } from "../utils/nodes";
+import type { DesignerStoreState } from "./types";
 
 /**
- * Creates a PaywallDocumentEditor with YjsStorage for the given Y.Doc.
+ * Creates a v3 Editor with YjsStorage for the given Y.Doc.
  */
-function createEditorForDoc(doc: Y.Doc): PaywallDocumentEditor {
-  const storage = new YjsStorage(doc);
-  return new PaywallDocumentEditor({ primaryStorage: storage });
+function createEditorForDoc(doc: Y.Doc) {
+	const storage = createYjsStorage(doc, paywallDocument);
+	return createEditor(paywallDocument, { storage });
 }
 
 /**
  * Moves a node to a new parent and/or position within siblings.
  * Uses fractional indexing to determine the new position.
- * All mutations go through DocumentEditor with YjsStorage.
+ * All mutations go through v3 Editor with YjsStorage.
  */
 export const moveNode = (storeState: DesignerStoreState) =>
-  storeState.action(
-    Schema.Struct({
-      nodeId: Schema.String,
-      newParentId: Schema.String,
-      beforeSiblingId: Schema.NullOr(Schema.String)
-    }),
-    ({ params, getState, doc }) => {
-      const typedParams = params;
+	storeState.action(
+		Schema.Struct({
+			nodeId: Schema.String,
+			newParentId: Schema.String,
+			beforeSiblingId: Schema.NullOr(Schema.String),
+		}),
+		({ params, getState, doc }) => {
+			const typedParams = params;
 
-      const state = getState();
-      const node = state.nodes?.[typedParams.nodeId];
+			const state = getState();
+			const node = state.nodes?.[typedParams.nodeId];
 
-      if (!node || node.type === 'root') {
-        return;
-      }
+			if (!node || node.type === "root") {
+				return;
+			}
 
-      const newParent = state.nodes?.[typedParams.newParentId];
-      if (!newParent) {
-        return;
-      }
+			const newParent = state.nodes?.[typedParams.newParentId];
+			if (!newParent) {
+				return;
+			}
 
-      // Prevent moving a node into itself or its descendants
-      if (
-        isDescendant(state.nodes, typedParams.nodeId, typedParams.newParentId)
-      ) {
-        return;
-      }
+			// Prevent moving a node into itself or its descendants
+			if (
+				isDescendant(state.nodes, typedParams.nodeId, typedParams.newParentId)
+			) {
+				return;
+			}
 
-      // Get siblings at the new parent (excluding the node being moved)
-      const siblings = getNodesByParentId(state.nodes, typedParams.newParentId)
-        .filter((n) => n.id !== typedParams.nodeId)
-        .sort((a, b) => a.parent.index.localeCompare(b.parent.index));
+			// Get siblings at the new parent (excluding the node being moved)
+			const siblings = getNodesByParentId(state.nodes, typedParams.newParentId)
+				.filter((n) => n.id !== typedParams.nodeId)
+				.sort((a, b) => a.parent.index.localeCompare(b.parent.index));
 
-      // Calculate the new fractional index
-      const newIndex = calculateNewIndex(siblings, typedParams.beforeSiblingId);
+			// Calculate the new fractional index
+			const newIndex = calculateNewIndex(siblings, typedParams.beforeSiblingId);
 
-      // All mutations go through DocumentEditor with YjsStorage
-      const editor = createEditorForDoc(doc);
-      editor.updateNodeParent(typedParams.nodeId, {
-        id: typedParams.newParentId,
-        index: newIndex
-      });
-    }
-  );
+			// Update parent using v3 editor
+			const editor = createEditorForDoc(doc);
+			const handle = editor.nodes.get(typedParams.nodeId);
+			if (handle) {
+				const currentNode = handle.get();
+				handle.set({
+					...currentNode,
+					parent: {
+						id: typedParams.newParentId,
+						index: newIndex,
+					},
+				} as typeof currentNode);
+			}
+		},
+	);
 
 /**
  * Checks if targetId is a descendant of nodeId
  */
 function isDescendant(
-  nodes: Record<string, { type: string; parent?: { id: string } }> | undefined,
-  nodeId: string,
-  targetId: string
+	nodes: Record<string, { type: string; parent?: { id: string } }> | undefined,
+	nodeId: string,
+	targetId: string,
 ): boolean {
-  if (!nodes || nodeId === targetId) {
-    return true;
-  }
+	if (!nodes || nodeId === targetId) {
+		return true;
+	}
 
-  let current = nodes[targetId];
-  while (current && 'parent' in current && current.parent) {
-    if (current.parent.id === nodeId) {
-      return true;
-    }
-    current = nodes[current.parent.id];
-  }
+	let current = nodes[targetId];
+	while (current && "parent" in current && current.parent) {
+		if (current.parent.id === nodeId) {
+			return true;
+		}
+		current = nodes[current.parent.id];
+	}
 
-  return false;
+	return false;
 }
 
 /**
  * Calculates a new fractional index for a node being inserted among siblings.
  */
 function calculateNewIndex(
-  siblings: NodeDataWithoutRoot[],
-  beforeSiblingId: string | null
+	siblings: NodeDataWithoutRoot[],
+	beforeSiblingId: string | null,
 ): string {
-  const existingIndices = siblings.map((s) => s.parent.index);
-  const generator = new IndexGenerator(existingIndices);
+	const existingIndices = siblings.map((s) => s.parent.index);
+	const generator = new IndexGenerator(existingIndices);
 
-  if (siblings.length === 0) {
-    // No siblings, generate first index
-    return generator.keyEnd();
-  }
+	if (siblings.length === 0) {
+		// No siblings, generate first index
+		return generator.keyEnd();
+	}
 
-  if (beforeSiblingId === null) {
-    // Place at the end
-    return generator.keyEnd();
-  }
+	if (beforeSiblingId === null) {
+		// Place at the end
+		return generator.keyEnd();
+	}
 
-  const beforeIndex = siblings.findIndex((s) => s.id === beforeSiblingId);
+	const beforeIndex = siblings.findIndex((s) => s.id === beforeSiblingId);
 
-  if (beforeIndex === -1) {
-    // Sibling not found, place at end
-    return generator.keyEnd();
-  }
+	if (beforeIndex === -1) {
+		// Sibling not found, place at end
+		return generator.keyEnd();
+	}
 
-  if (beforeIndex === 0) {
-    // Place at the beginning
-    return generator.keyStart();
-  }
+	if (beforeIndex === 0) {
+		// Place at the beginning
+		return generator.keyStart();
+	}
 
-  // Place between two siblings
-  const prevSibling = siblings[beforeIndex - 1];
-  const nextSibling = siblings[beforeIndex];
+	// Place between two siblings
+	const prevSibling = siblings[beforeIndex - 1];
+	const nextSibling = siblings[beforeIndex];
 
-  if (!(prevSibling && nextSibling)) {
-    return generator.keyEnd();
-  }
+	if (!(prevSibling && nextSibling)) {
+		return generator.keyEnd();
+	}
 
-  return generateJitteredKeyBetween(
-    prevSibling.parent.index,
-    nextSibling.parent.index
-  );
+	return generateJitteredKeyBetween(
+		prevSibling.parent.index,
+		nextSibling.parent.index,
+	);
 }
 
 export const createLayerActions = (storeState: DesignerStoreState) => ({
-  moveNode: moveNode(storeState)
+	moveNode: moveNode(storeState),
 });
