@@ -1,40 +1,40 @@
 {
-	"extends": "@voidhash/tsconfig/nextjs.json",
-	"compilerOptions": {
-		"lib": ["dom", "dom.iterable", "esnext"],
-		"allowJs": true,
-		"skipLibCheck": true,
-		"baseUrl": ".",
-		"paths": {
-			"@voidhash/lib/*": ["../../packages/lib/src/*"],
-			"@/pages/*": ["src/pages/*"],
-			"@/styles/*": ["src/styles/*"],
-			"@/ui/*": ["src/ui/*"],
-			"@/lib/*": ["src/lib/*"],
-			"@/features/*": ["src/features/*"],
-			"@/routes/*": ["src/routes/*"]
-		},
-		"downlevelIteration": true,
-		"forceConsistentCasingInFileNames": true,
-		"noEmit": true,
-		"esModuleInterop": true,
-		"module": "esnext",
-		"moduleResolution": "bundler",
-		"resolveJsonModule": true,
-		"isolatedModules": true,
-		"jsx": "preserve",
-		"incremental": true,
-		"strict": false,
-		"strictNullChecks": true,
-		"plugins": [
-			{
-				"name": "next"
-			},
-			{
-				"name": "@effect/language-service"
-			}
-		]
-	},
-	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
-	"exclude": ["**/node_modules/**"]
+  "extends": "@voidhash/tsconfig/nextjs.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@voidhash/lib/*": ["../../packages/lib/src/*"],
+      "@/pages/*": ["src/pages/*"],
+      "@/styles/*": ["src/styles/*"],
+      "@/ui/*": ["src/ui/*"],
+      "@/lib/*": ["src/lib/*"],
+      "@/features/*": ["src/features/*"],
+      "@/routes/*": ["src/routes/*"]
+    },
+    "downlevelIteration": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "strict": false,
+    "strictNullChecks": true,
+    "plugins": [
+      {
+        "name": "next"
+      },
+      {
+        "name": "@effect/language-service"
+      }
+    ]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
+  "exclude": ["**/node_modules/**"]
 }

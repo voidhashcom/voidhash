@@ -13,14 +13,15 @@ import {
 import type { User } from 'better-auth';
 import { LogOut } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { authClient } from '@/lib/auth';
+import { authClient } from '@/lib/auth-client';
+import { env } from '@/lib/env';
 
 export function NavUserDropdown({ user }: { user: User }) {
   const { setTheme, theme } = useTheme();
 
   const handleSignOut = async () => {
     await authClient.signOut();
-    window.location.href = '/auth/login';
+    window.location.href = `${env.VITE_APP_AUTH_BASE_URL}/auth/login`;
   };
 
   return (

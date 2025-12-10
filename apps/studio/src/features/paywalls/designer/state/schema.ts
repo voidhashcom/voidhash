@@ -71,6 +71,7 @@ const BrowserSchema = Schema.Struct({
 		showGrid: Schema.Boolean,
 	}),
 	highlightedNodeId: Schema.NullOr(Schema.String),
+	textEditingNodeId: Schema.NullOr(Schema.String),
 	tools: Schema.Struct({
 		activeTool: AvailableToolsSchema,
 	}),

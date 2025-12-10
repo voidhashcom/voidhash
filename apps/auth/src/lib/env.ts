@@ -14,13 +14,21 @@ export const env = createEnv({
       .default('development')
   },
   client: {
-    VITE_APP_STUDIO_BASE_URL: z.string(),
-    VITE_APP_API_BASE_URL: z.string(),
     VITE_APP_AUTH_BASE_URL: z.string()
   },
   server: {
-    VOIDHASH_AUTH_CLIENT_ID: z.string(),
-    VOIDHASH_AUTH_CLIENT_SECRET: z.string()
+    DATABASE_HOST: z.string(),
+    DATABASE_PORT: z.coerce.number().default(3306),
+    DATABASE_USERNAME: z.string(),
+    DATABASE_PASSWORD: z.string(),
+    DATABASE_NAME: z.string(),
+
+    // Trusted clients
+    VOIDHASH_STUDIO_CLIENT_ID: z.string(),
+    VOIDHASH_STUDIO_CLIENT_SECRET: z.string(),
+    VOIDHASH_STUDIO_REDIRECT_URL: z.string(),
+    VOIDHASH_MOBILE_CLIENT_ID: z.string(),
+    VOIDHASH_MOBILE_CLIENT_SECRET: z.string()
   },
   clientPrefix: 'VITE_',
   runtimeEnv: {

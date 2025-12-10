@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { usePaywallDesignerActions } from "../../state/designer-store";
+import {
+	usePaywallDesignerActions,
+	usePaywallDesignerSelect,
+} from "../../state/designer-store";
 import type { TextNodeData } from "../../state/schema";
 import { Selectable } from "../helpers/selectable";
 
 export function TextNodeRenderer({ node }: { node: TextNodeData }) {
-	const [isEditing, setIsEditing] = useState(false);
+	const editingNodeId = usePaywallDesignerSelect(
+		(state) => state.textEditingNodeId,
+	);
+	const isEditing = editingNodeId === node.id;
 	const editableRef = useRef<HTMLDivElement>(null);
 	const initializedRef = useRef(false);
 	const dispatch = usePaywallDesignerActions();
@@ -40,7 +46,7 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
 
 	const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
 		e.stopPropagation();
-		setIsEditing(true);
+		dispatch("textEditingStarted", { id: node.id });
 	};
 
 	const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -52,7 +58,7 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
 
 	const handleBlur = () => {
 		const finalValue = editableRef.current?.textContent ?? "";
-		setIsEditing(false);
+		dispatch("textEditingStopped", { id: node.id });
 		// Save the changes
 		if (finalValue !== node.text) {
 			dispatch("updateTextNode", {

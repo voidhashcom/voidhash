@@ -20,6 +20,10 @@ export const user = mysqlTable("user", {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  role: text("role"),
+  banned: boolean("banned").default(false),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires", { fsp: 3 }),
 });
 
 export const session = mysqlTable(
@@ -38,6 +42,7 @@ export const session = mysqlTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     activeOrganizationId: text("active_organization_id"),
+    impersonatedBy: text("impersonated_by"),
   },
   (table) => [index("session_userId_idx").on(table.userId)],
 );
@@ -81,6 +86,14 @@ export const verification = mysqlTable(
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
+
+export const jwks = mysqlTable("jwks", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  publicKey: text("public_key").notNull(),
+  privateKey: text("private_key").notNull(),
+  createdAt: timestamp("created_at", { fsp: 3 }).notNull(),
+  expiresAt: timestamp("expires_at", { fsp: 3 }),
+});
 
 export const organization = mysqlTable("organization", {
   id: varchar("id", { length: 36 }).primaryKey(),

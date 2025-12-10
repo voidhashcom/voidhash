@@ -1,5 +1,6 @@
 import { STUDIO_DOMAIN } from '@voidhash/lib';
 import {
+  adminClient,
   apiKeyClient,
   oidcClient,
   organizationClient
@@ -24,7 +25,7 @@ export const getAuthBaseURL = (): string => {
 export const createAuthClientOptions = (baseURL: string) => ({
   baseURL,
   basePath: '/auth/api/auth',
-  plugins: [organizationClient(), apiKeyClient(), oidcClient()]
+  plugins: [organizationClient(), apiKeyClient(), adminClient(), oidcClient()]
 });
 
 // export const authClient = createAuthClient(

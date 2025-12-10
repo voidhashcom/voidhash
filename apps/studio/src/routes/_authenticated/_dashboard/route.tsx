@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useLocation } from '@tanstack/react-router';
 import { Logo, SidebarProvider, useIsMobile } from '@voidhash/ui';
-import { authClient } from '@/lib/auth';
+import { authClient } from '@/lib/auth-client';
 
 export const Route = createFileRoute('/_authenticated/_dashboard')({
   component: RouteComponent

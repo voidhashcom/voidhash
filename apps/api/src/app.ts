@@ -29,6 +29,7 @@ import { DOCS_DOMAIN, STUDIO_DOMAIN, WWW_DOMAIN } from '@voidhash/lib';
 import { RpcGroups } from '@voidhash/rpc';
 import { Effect, Layer } from 'effect';
 import { AuthMiddlewareLive } from './api-middlewares';
+import { JwtAuth } from './jwt-auth';
 import { ApiKeysGroupLive } from './routes/v1/api-keys';
 import { AuthGroupLive } from './routes/v1/auth';
 import { CustomersGroupLive } from './routes/v1/customers';
@@ -138,7 +139,7 @@ const RpcRoutesLayer = RpcServer.layerHttpRouter({
     )
   ),
   Layer.provide(Layer.mergeAll(AuthMiddlewareLive, ServicesLayer)),
-  Layer.provide(Layer.mergeAll(BetterAuth.Default, Db.Default))
+  Layer.provide(Layer.mergeAll(BetterAuth.Default, Db.Default, JwtAuth.Default))
 );
 
 // ==============================

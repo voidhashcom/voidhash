@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedDashboardRouteRouteImport } from './routes/_authenticated/_dashboard/route'
 import { Route as AuthenticatedCreateOrganizationIndexRouteImport } from './routes/_authenticated/create-organization/index'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthenticatedDashboardOrganizationOrganizationSlugRouteRouteImport } from './routes/_authenticated/_dashboard/_organization/$organizationSlug/route'
 import { Route as AuthenticatedDashboardOrganizationOrganizationSlugIndexRouteImport } from './routes/_authenticated/_dashboard/_organization/$organizationSlug/index'
 import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/route'
@@ -52,6 +53,11 @@ const AuthenticatedCreateOrganizationIndexRoute =
     path: '/create-organization/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedDashboardOrganizationOrganizationSlugRouteRoute =
   AuthenticatedDashboardOrganizationOrganizationSlugRouteRouteImport.update({
     id: '/_organization/$organizationSlug',
@@ -208,6 +214,7 @@ const AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentPro
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/create-organization': typeof AuthenticatedCreateOrganizationIndexRoute
   '/$organizationSlug': typeof AuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren
   '/$organizationSlug/$projectSlug': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren
@@ -230,6 +237,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/create-organization': typeof AuthenticatedCreateOrganizationIndexRoute
   '/$organizationSlug': typeof AuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
   '/$organizationSlug/$projectSlug/design/$id': typeof AuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRoute
@@ -252,6 +260,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/_dashboard': typeof AuthenticatedDashboardRouteRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/_authenticated/create-organization/': typeof AuthenticatedCreateOrganizationIndexRoute
   '/_authenticated/_dashboard/_organization/$organizationSlug': typeof AuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren
@@ -276,6 +285,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/api/auth/$'
     | '/create-organization'
     | '/$organizationSlug'
     | '/$organizationSlug/$projectSlug'
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/api/auth/$'
     | '/create-organization'
     | '/$organizationSlug'
     | '/$organizationSlug/$projectSlug/design/$id'
@@ -319,6 +330,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/_authenticated/_dashboard'
     | '/_authenticated/'
+    | '/api/auth/$'
     | '/_authenticated/create-organization/'
     | '/_authenticated/_dashboard/_organization/$organizationSlug'
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug'
@@ -342,6 +354,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -373,6 +386,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/create-organization'
       preLoaderRoute: typeof AuthenticatedCreateOrganizationIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/_dashboard/_organization/$organizationSlug': {
       id: '/_authenticated/_dashboard/_organization/$organizationSlug'
@@ -624,6 +644,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

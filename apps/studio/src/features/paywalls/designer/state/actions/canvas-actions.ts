@@ -39,7 +39,11 @@ export const updateBoundingBox = (storeState: DesignerStoreState) =>
 export const nodeMouseEnter = (storeState: DesignerStoreState) =>
 	storeState.action(
 		Schema.Struct({ id: Schema.String }),
-		({ params, setBrowser }) => {
+		({ params, setBrowser, getState }) => {
+			const state = getState();
+			if (state.textEditingNodeId) {
+				return;
+			}
 			setBrowser({ highlightedNodeId: params.id });
 			return {
 				shouldPropagate: true,
@@ -52,6 +56,9 @@ export const nodeMouseOver = (storeState: DesignerStoreState) =>
 		Schema.Struct({ id: Schema.String }),
 		({ params, setBrowser, getState }) => {
 			const state = getState();
+			if (state.textEditingNodeId) {
+				return;
+			}
 			if (!state.highlightedNodeId) {
 				setBrowser({ highlightedNodeId: params.id });
 			}
@@ -65,7 +72,11 @@ export const nodeMouseLeave = (storeState: DesignerStoreState) =>
 	storeState.action(
 		Schema.Struct({ id: Schema.String }),
 		({ params, getState, setBrowser }) => {
-			if (getState().highlightedNodeId === params.id) {
+			const state = getState();
+			if (state.textEditingNodeId) {
+				return;
+			}
+			if (state.highlightedNodeId === params.id) {
 				setBrowser({ highlightedNodeId: null });
 			}
 		},
@@ -79,6 +90,10 @@ export const nodeClicked = (storeState: DesignerStoreState) =>
 			const tool = state.tools.activeTool;
 			const clickedNode = state.nodes?.[params.id];
 			if (!clickedNode) {
+				return;
+			}
+
+			if (state.textEditingNodeId) {
 				return;
 			}
 
@@ -122,9 +137,24 @@ export const nodeClicked = (storeState: DesignerStoreState) =>
 		},
 	);
 
+export const textEditingStarted = (storeState: DesignerStoreState) =>
+	storeState.action(
+		Schema.Struct({ id: Schema.String }),
+		({ params, setBrowser }) => {
+			setBrowser({ textEditingNodeId: params.id });
+		},
+	);
+
+export const textEditingStopped = (storeState: DesignerStoreState) =>
+	storeState.action(Schema.Struct({ id: Schema.String }), ({ setBrowser }) => {
+		setBrowser({ textEditingNodeId: null });
+	});
+
 export const createCanvasActions = (storeState: DesignerStoreState) => ({
 	nodeClicked: nodeClicked(storeState),
 	nodeMouseEnter: nodeMouseEnter(storeState),
+	textEditingStarted: textEditingStarted(storeState),
+	textEditingStopped: textEditingStopped(storeState),
 	nodeMouseOver: nodeMouseOver(storeState),
 	nodeMouseLeave: nodeMouseLeave(storeState),
 	saveCanvasState: saveCanvasState(storeState),

@@ -11,7 +11,7 @@ import {
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { nextCookies } from 'better-auth/next-js';
-import { apiKey, oidcProvider, organization } from 'better-auth/plugins';
+import { admin, apiKey, oidcProvider, organization } from 'better-auth/plugins';
 import { tanstackStartCookies } from 'better-auth/tanstack-start';
 
 // Mobile app OIDC client configuration
@@ -63,6 +63,9 @@ export const createBetterAuthOptions = (
       rateLimit: {
         enabled: false
       }
+    }),
+    admin({
+      adminUserIds: process.env.ADMIN_USER_IDS?.split(',').filter(Boolean) ?? []
     }),
     oidcProvider({
       loginPage: '/auth/login',
