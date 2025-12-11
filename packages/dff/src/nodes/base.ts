@@ -1,4 +1,5 @@
-import { s } from '../schema';
+import { type Infer, s } from '../schema';
+import { variableTypeSchema } from '../variables';
 
 /** Parent reference for ordering children */
 export const parentRefSchema = s.object({
@@ -7,18 +8,22 @@ export const parentRefSchema = s.object({
   index: s.string()
 });
 
+const variableSchema = s.object({
+  name: s.string(),
+  value: variableTypeSchema
+});
+
+export type Variable = Infer<typeof variableSchema>;
+
 /** Used for definition of variables that are local to the node */
-export const localVariables = s.array(
-  s.object({
-    name: s.string(),
-    value: s.union([s.string(), s.number(), s.boolean()])
-  })
-);
+export const localVariables = s.array(variableSchema).default([]);
 
 /** Linked variables for linking to other variables */
-export const linkedVariables = s.array(
-  s.object({
-    nodeId: s.string(),
-    name: s.string()
-  })
-);
+export const linkedVariables = s
+  .array(
+    s.object({
+      nodeId: s.string(),
+      name: s.string()
+    })
+  )
+  .default([]);

@@ -1,6 +1,15 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: Used for generics */
 import { nanoid } from 'nanoid';
 import type { DocumentDefinition, NodeDataFromDocument } from '../documents';
+import type { Variable } from '../nodes/base';
+import {
+  booleanVariableTypeSchema,
+  numberVariableTypeSchema,
+  productVariableTypeSchema,
+  stringVariableTypeSchema,
+  type VariableType,
+  type VariableTypeKey
+} from '../variables';
 import { NodeNotFoundError, ValidationError } from './errors';
 import { generateIndex, type SiblingInfo } from './indexing';
 import type { TreeUtils } from './tree';
@@ -65,6 +74,45 @@ export interface EditorCommands<TDoc extends DocumentDefinition<any>> {
    * @throws ValidationError if move would create a cycle
    */
   moveNode(nodeId: string, options: MoveNodeOptions): void;
+
+  /**
+   * Add a variable to a node's localVariables array.
+   *
+   * @param nodeId - ID of the node
+   * @param type - Type of variable to add
+   * @param name - Name of the variable
+   * @throws NodeNotFoundError if the node doesn't exist
+   * @throws ValidationError if a variable with the same name already exists
+   */
+  addVariable(nodeId: string, type: VariableTypeKey, name: string): void;
+
+  /**
+   * Remove a variable from a node's localVariables array by name.
+   *
+   * @param nodeId - ID of the node
+   * @param variableName - Name of the variable to remove
+   * @throws NodeNotFoundError if the node doesn't exist
+   * @throws ValidationError if the variable doesn't exist
+   */
+  removeVariable(nodeId: string, variableName: string): void;
+
+  /**
+   * Update a variable's name or value in a node's localVariables array.
+   *
+   * @param nodeId - ID of the node
+   * @param variableName - Current name of the variable
+   * @param updates - Updates to apply (newName and/or newValue)
+   * @throws NodeNotFoundError if the node doesn't exist
+   * @throws ValidationError if the variable doesn't exist or new name conflicts
+   */
+  updateVariable(
+    nodeId: string,
+    variableName: string,
+    updates: {
+      newName?: string;
+      newValue?: VariableType;
+    }
+  ): void;
 }
 
 /**
@@ -80,10 +128,10 @@ interface NodeWithParent {
  * Create commands implementation for the editor.
  */
 export function createCommands<TDoc extends DocumentDefinition<any>>(
-  document: TDoc,
+  _document: TDoc,
   nodes: NodesAccessor<TDoc>,
   tree: TreeUtils<TDoc>,
-  getNodes: () => Record<string, unknown>
+  _getNodes: () => Record<string, unknown>
 ): EditorCommands<TDoc> {
   /**
    * Get siblings for index calculation.
@@ -186,6 +234,143 @@ export function createCommands<TDoc extends DocumentDefinition<any>>(
       handle.set({
         ...nodeData,
         parent: { id: parentId, index: newIndex }
+      } as AnyNodeDataFromDocument<TDoc>);
+    },
+
+    addVariable(nodeId: string, type: VariableTypeKey, name?: string): void {
+      const handle = nodes.get(nodeId);
+      if (!handle) {
+        throw new NodeNotFoundError(nodeId);
+      }
+
+      const nodeData = handle.get() as Record<string, unknown>;
+      const currentVariables = (nodeData.localVariables as Variable[]) ?? [];
+
+      // Generate name if not provided
+      const variableName = name ?? `variable${currentVariables.length + 1}`;
+
+      // Check if variable with this name already exists
+      if (currentVariables.some((v) => v.name === variableName)) {
+        throw new ValidationError(
+          nodeId,
+          `Variable with name '${variableName}' already exists`
+        );
+      }
+
+      // Get default value for type
+      let defaultValue: VariableType;
+      switch (type) {
+        case 'string':
+          defaultValue = stringVariableTypeSchema.getDefault();
+          break;
+        case 'number':
+          defaultValue = numberVariableTypeSchema.getDefault();
+          break;
+        case 'boolean':
+          defaultValue = booleanVariableTypeSchema.getDefault();
+          break;
+        case 'product':
+          defaultValue = productVariableTypeSchema.getDefault();
+          break;
+        default:
+          throw new ValidationError(nodeId, `Invalid variable type: ${type}`);
+      }
+
+      const newVariable: Variable = {
+        name: variableName,
+        value: defaultValue
+      };
+
+      handle.set({
+        ...nodeData,
+        localVariables: [...currentVariables, newVariable]
+      } as AnyNodeDataFromDocument<TDoc>);
+    },
+
+    removeVariable(nodeId: string, variableName: string): void {
+      const handle = nodes.get(nodeId);
+      if (!handle) {
+        throw new NodeNotFoundError(nodeId);
+      }
+
+      const nodeData = handle.get() as Record<string, unknown>;
+      const currentVariables = (nodeData.localVariables as Variable[]) ?? [];
+
+      // Check if variable exists
+      const variableIndex = currentVariables.findIndex(
+        (v) => v.name === variableName
+      );
+      if (variableIndex === -1) {
+        throw new ValidationError(
+          nodeId,
+          `Variable with name '${variableName}' does not exist`
+        );
+      }
+
+      const newVariables = currentVariables.filter(
+        (v) => v.name !== variableName
+      );
+
+      handle.set({
+        ...nodeData,
+        localVariables: newVariables
+      } as AnyNodeDataFromDocument<TDoc>);
+    },
+
+    updateVariable(
+      nodeId: string,
+      variableName: string,
+      updates: { newName?: string; newValue?: VariableType }
+    ): void {
+      const handle = nodes.get(nodeId);
+      if (!handle) {
+        throw new NodeNotFoundError(nodeId);
+      }
+
+      const nodeData = handle.get() as Record<string, unknown>;
+      const currentVariables = (nodeData.localVariables as Variable[]) ?? [];
+
+      // Find the variable
+      const variableIndex = currentVariables.findIndex(
+        (v) => v.name === variableName
+      );
+      if (variableIndex === -1) {
+        throw new ValidationError(
+          nodeId,
+          `Variable with name '${variableName}' does not exist`
+        );
+      }
+
+      const newVariables = [...currentVariables];
+      const existingVariable = newVariables[variableIndex];
+      if (!existingVariable) {
+        throw new ValidationError(
+          nodeId,
+          `Variable with name '${variableName}' does not exist`
+        );
+      }
+
+      // Check if new name conflicts with existing variable
+      if (
+        updates.newName &&
+        updates.newName !== variableName &&
+        currentVariables.some((v) => v.name === updates.newName)
+      ) {
+        throw new ValidationError(
+          nodeId,
+          `Variable with name '${updates.newName}' already exists`
+        );
+      }
+
+      // Update the variable
+      newVariables[variableIndex] = {
+        name: updates.newName ?? existingVariable.name,
+        value: updates.newValue ?? existingVariable.value
+      };
+
+      handle.set({
+        ...nodeData,
+        localVariables: newVariables
       } as AnyNodeDataFromDocument<TDoc>);
     }
   };

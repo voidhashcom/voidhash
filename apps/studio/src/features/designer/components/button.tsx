@@ -12,7 +12,7 @@ const panelButtonVariants = cva(
       variant: {
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
         secondary:
-          'bg-muted hover:bg-accent hover:text-accent-foreground dark:bg-input/60',
+          'bg-muted hover:bg-accent hover:text-accent-foreground dark:bg-input/60 ',
         ghost:
           'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
         outline:
