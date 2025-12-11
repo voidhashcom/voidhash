@@ -40,7 +40,8 @@ export type {
   FlexNodeData,
   RootNodeData,
   ScreenNodeData,
-  TextNodeData
+  TextNodeData,
+  Variable
 } from './nodes';
 // Nodes
 export {
@@ -87,3 +88,6 @@ export {
 
 // Styles
 export * from './styles';
+
+// Variables
+export * from './variables';

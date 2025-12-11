@@ -1,4 +1,4 @@
-export { parentRefSchema } from './base';
+export { parentRefSchema, type Variable } from './base';
 export {
   type FlexNodeData,
   flexNode,

@@ -245,16 +245,6 @@ describe('LiteralSchema', () => {
       const schema2 = schema1.default('test');
       expect(schema1).not.toBe(schema2);
     });
-
-    it('should throw when no default is set', () => {
-      const schema = new LiteralSchema('test');
-      expect(() => schema.getDefault()).toThrow();
-    });
-
-    it('should return undefined for optional schemas without default', () => {
-      const schema = new LiteralSchema('test').optional();
-      expect(schema.getDefault()).toBeUndefined();
-    });
   });
 
   describe('works with different literal types', () => {

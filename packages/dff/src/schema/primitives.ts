@@ -141,13 +141,8 @@ export class LiteralSchema<
 > extends PrimitiveSchema<T> {
   private readonly literalValue: T;
 
-  constructor(
-    value: T,
-    defaultValue?: T,
-    optional = false,
-    refinements: Refinement<T>[] = []
-  ) {
-    super(defaultValue, optional, refinements);
+  constructor(value: T, optional = false, refinements: Refinement<T>[] = []) {
+    super(value, optional, refinements);
     this.literalValue = value;
   }
 
@@ -155,19 +150,9 @@ export class LiteralSchema<
     return value === this.literalValue;
   }
 
-  default(value: T): LiteralSchema<T> {
-    return new LiteralSchema(
-      this.literalValue,
-      value,
-      this._optional,
-      this._refinements
-    );
-  }
-
   optional(): LiteralSchema<T> {
     return new LiteralSchema(
       this.literalValue,
-      this._default,
       true,
       this._refinements
     );
@@ -182,11 +167,6 @@ export class LiteralSchema<
       message: typeof message === 'string' ? message : message?.message
     };
     const newRefinements = [...this._refinements, refinement];
-    return new LiteralSchema(
-      this.literalValue,
-      this._default,
-      this._optional,
-      newRefinements
-    );
+    return new LiteralSchema(this.literalValue, this._optional, newRefinements);
   }
 }
