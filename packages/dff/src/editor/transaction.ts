@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noExplicitAny: Used for generics */
 import type { DocumentDefinition } from '../documents';
 import { createNodesAccessor } from './nodes-accessor';
 import type { Transaction } from './types';
@@ -11,14 +12,14 @@ export class TransactionContext<TDoc extends DocumentDefinition<any>>
 {
   private readonly pendingUpdates: Map<string, unknown> = new Map();
   private readonly pendingDeletes: Set<string> = new Set();
-  private readonly getNodes: () => Record<string, unknown>;
+  // private readonly getNodes: () => Record<string, unknown>;
   private readonly setNode: (id: string, node: unknown) => void;
   private readonly deleteNode: (id: string) => void;
-  private readonly validateParentAcceptsChild: (
-    parentId: string,
-    childType: keyof TDoc['nodes']
-  ) => void;
-  private readonly document: TDoc;
+  // private readonly validateParentAcceptsChild: (
+  //   parentId: string,
+  //   childType: keyof TDoc['nodes']
+  // ) => void;
+  // private readonly document: TDoc;
   private readonly commitFn: () => void;
 
   readonly nodes: ReturnType<typeof createNodesAccessor<TDoc>>;
@@ -34,11 +35,11 @@ export class TransactionContext<TDoc extends DocumentDefinition<any>>
     ) => void,
     commitFn: () => void
   ) {
-    this.document = document;
-    this.getNodes = getNodes;
+    // this.document = document;
+    // this.getNodes = getNodes;
     this.setNode = setNode;
     this.deleteNode = deleteNode;
-    this.validateParentAcceptsChild = validateParentAcceptsChild;
+    // this.validateParentAcceptsChild = validateParentAcceptsChild;
     this.commitFn = commitFn;
 
     // Create nodes accessor that writes to pending updates

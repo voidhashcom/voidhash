@@ -46,7 +46,7 @@ import {
   y,
   zIndex
 } from '../styles';
-import { parentRefSchema } from './base';
+import { linkedVariables, localVariables, parentRefSchema } from './base';
 
 /** ScreenNode schema */
 export const screenNode = s
@@ -55,6 +55,8 @@ export const screenNode = s
     type: s.literal('screen'),
     name: s.string().default('Screen'),
     parent: parentRefSchema,
+    localVariables,
+    linkedVariables,
     style: s.object({
       // Position
       x,

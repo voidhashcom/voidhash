@@ -1,10 +1,10 @@
-import { createAuthClient } from 'better-auth/client';
 import {
   adminClient,
   apiKeyClient,
   oidcClient,
   organizationClient
 } from 'better-auth/client/plugins';
+import { createAuthClient } from 'better-auth/react';
 import { env } from './env';
 
 export const createAuthClientOptions = (baseURL: string) => ({

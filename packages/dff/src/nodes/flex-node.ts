@@ -50,7 +50,7 @@ import {
   width,
   zIndex
 } from '../styles';
-import { parentRefSchema } from './base';
+import { linkedVariables, localVariables, parentRefSchema } from './base';
 
 /** FlexNode schema */
 export const flexNode = s
@@ -59,6 +59,8 @@ export const flexNode = s
     type: s.literal('flex'),
     name: s.string().default('Flex'),
     parent: parentRefSchema,
+    localVariables,
+    linkedVariables,
     style: s.object({
       // Padding
       paddingTop,

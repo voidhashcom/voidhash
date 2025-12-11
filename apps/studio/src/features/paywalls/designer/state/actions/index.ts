@@ -2,6 +2,7 @@ import { createAwarenessActions } from './awareness-actions';
 import { createCanvasActions } from './canvas-actions';
 import { createDebugActions } from './debug-actions';
 import { createLayerActions } from './layer-actions';
+import { createNodeActions } from './node-actions';
 import { createFlexNodeActions } from './nodes/flex-node-actions';
 import { createScreenNodeActions } from './nodes/screen-node-actions';
 import { createTextNodeActions } from './nodes/text-node-actions';
@@ -26,6 +27,7 @@ export function createDesignerActions(storeState: DesignerStoreState) {
     ...createToolsActions(storeState),
     ...createFlexNodeActions(storeState),
     ...createLayerActions(storeState),
+    ...createNodeActions(storeState),
     ...createScreenNodeActions(storeState),
     ...createTextNodeActions(storeState)
   } as const;

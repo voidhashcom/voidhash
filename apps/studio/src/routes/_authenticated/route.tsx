@@ -8,40 +8,53 @@ import { currentUserOptions } from '@/lib/tanstack-query';
 export const Route = createFileRoute('/_authenticated')({
   component: RouteComponent,
   beforeLoad: async ({ context }) => {
-    const session = await authClient.getSession();
+    try {
+      await context.queryClient.ensureQueryData(currentUserOptions());
+      // biome-ignore lint/suspicious/noExplicitAny: TODO: Add typesafe error handling
+    } catch (error: any) {
+      if (error.failure._tag === 'AuthenticationError') {
+        // window.location.href = `${env.VITE_APP_AUTH_BASE_URL}/auth/login?next=${env.VITE_APP_STUDIO_BASE_URL}${window.location.pathname}`;
 
-    if (
-      !(session.data || session.error) ||
-      (session.error && session.error.code === 'UNAUTHORIZED')
-    ) {
-      const redirectUrl = await authClient.signIn.social({
-        provider: 'voidhash-auth'
-      });
-
-      if (!redirectUrl.error && redirectUrl.data.url) {
-        throw redirect({
-          to: redirectUrl.data.url
+        const redirectUrl = await authClient.signIn.social({
+          provider: 'voidhash-auth'
         });
-      }
 
-      if (redirectUrl.error) {
-        throw redirectUrl.error;
+        if (!redirectUrl.error && redirectUrl.data.url) {
+          // throw redirect({
+          //   to: redirectUrl.data.url
+          // });
+          window.location.href = redirectUrl.data.url;
+        }
+
+        if (redirectUrl.error) {
+          throw redirectUrl.error;
+        }
       }
+      // TODO: Handle error and redirect to login
+      // console.log(JSON.stringify(error, null, 2));
     }
 
-    if (session.error) {
-      throw session.error;
-    }
+    // if (
+    //   !(session.data || session.error) ||
+    //   (session.error && session.error.code === 'UNAUTHORIZED')
+    // ) {
+    //   const redirectUrl = await authClient.signIn.social({
+    //     provider: 'voidhash-auth'
+    //   });
 
-    // try {
-    //   await context.queryClient.ensureQueryData(currentUserOptions());
-    //   // biome-ignore lint/suspicious/noExplicitAny: TODO: Add typesafe error handling
-    // } catch (error: any) {
-    //   if (error.failure._tag === 'AuthenticationError') {
-    //     window.location.href = `${env.VITE_APP_AUTH_BASE_URL}/auth/login?next=${env.VITE_APP_STUDIO_BASE_URL}${window.location.pathname}`;
+    //   if (!redirectUrl.error && redirectUrl.data.url) {
+    //     throw redirect({
+    //       to: redirectUrl.data.url
+    //     });
     //   }
-    //   // TODO: Handle error and redirect to login
-    //   // console.log(JSON.stringify(error, null, 2));
+
+    //   if (redirectUrl.error) {
+    //     throw redirectUrl.error;
+    //   }
+    // }
+
+    // if (session.error) {
+    //   throw session.error;
     // }
   }
   // pendingComponent: () => (

@@ -1,9 +1,12 @@
+/** biome-ignore-all lint/suspicious/noExplicitAny: Used for generics */
 import type { DocumentDefinition } from '../documents';
-import { validate } from '../schema';
 import type { DocumentSnapshot } from '../storage';
+import { createCommands } from './commands';
 import { NodeNotFoundError, ValidationError } from './errors';
 import { createNodesAccessor } from './nodes-accessor';
+import { createSerializationUtils } from './serialization';
 import { TransactionContext } from './transaction';
+import { createTreeUtils } from './tree';
 import type { Editor, EditorOptions, Transaction } from './types';
 
 /**
@@ -124,9 +127,29 @@ export function createEditor<TDoc extends DocumentDefinition<any>>(
     validateParentAcceptsChild
   );
 
+  // Helper to get handle by ID (for tree utils)
+  const getHandle = (id: string) => nodesAccessor.get(id);
+
+  // Create tree utilities
+  const treeUtils = createTreeUtils<TDoc>(getNodes, getHandle);
+
+  // Create commands
+  const commands = createCommands(document, nodesAccessor, treeUtils, getNodes);
+
+  // Create serialization utilities
+  const serializationUtils = createSerializationUtils(
+    document,
+    nodesAccessor,
+    treeUtils,
+    getNodes
+  );
+
   // Create editor instance
   const editor: Editor<TDoc> = {
     nodes: nodesAccessor,
+    commands,
+    tree: treeUtils,
+    serialization: serializationUtils,
 
     getMeta() {
       return meta;

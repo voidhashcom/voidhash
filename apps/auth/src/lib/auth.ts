@@ -60,6 +60,10 @@ export const auth = betterAuth({
     provider: 'mysql',
     schema
   }),
+  session: {
+    expiresIn: 8 * 60 * 60, // 8 hours
+    updateAge: 30 * 24 * 60 * 60 // 30 days
+  },
   socialProviders: {
     github: {
       clientId: process.env.GITHUB_CLIENT_ID as string,

@@ -1,10 +1,14 @@
+/** biome-ignore-all lint/suspicious/noExplicitAny: Used for generics */
 import type {
   DocumentDefinition,
   DocumentMeta,
   NodeDataFromDocument
 } from '../documents';
 import type { Infer, ObjectSchema } from '../schema';
-import type { DocumentSnapshot, StorageAdapter } from '../storage';
+import type { StorageAdapter } from '../storage';
+import type { EditorCommands } from './commands';
+import type { SerializationUtils } from './serialization';
+import type { TreeUtils } from './tree';
 
 /**
  * Handle provides typed access to nested properties with read/write operations.
@@ -90,8 +94,17 @@ export interface EditorOptions<TDoc extends DocumentDefinition<any>> {
  * Main editor interface providing ORM-like access to document data.
  */
 export interface Editor<TDoc extends DocumentDefinition<any>> {
-  /** Access nodes collection */
+  /** Access nodes collection (low-level) */
   readonly nodes: NodesAccessor<TDoc>;
+
+  /** High-level commands for node operations */
+  readonly commands: EditorCommands<TDoc>;
+
+  /** Tree navigation utilities */
+  readonly tree: TreeUtils<TDoc>;
+
+  /** Serialization utilities for copy/paste */
+  readonly serialization: SerializationUtils<TDoc>;
 
   /** Get document metadata */
   getMeta(): DocumentMeta | null;

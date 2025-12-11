@@ -27,8 +27,6 @@ export const Route = createFileRoute('/login')({
   validateSearch: zodValidator(loginSearchSchema)
 });
 
-// import { LoginPageIllustration } from "@/features/auth/components/login-page-illustration";
-
 export function LoginPage() {
   const searchParams = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -42,7 +40,8 @@ export function LoginPage() {
     try {
       const { error } = await authClient.signIn.email({
         email,
-        password
+        password,
+        rememberMe: true
       });
 
       if (error) {
