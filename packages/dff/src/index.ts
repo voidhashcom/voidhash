@@ -13,14 +13,29 @@ export type {
 // Documents
 export { createDocument, paywallDocument } from './documents';
 export type {
+  CreateNodeOptions,
+  DeserializeOptions,
   Editor,
+  EditorCommands,
   EditorOptions,
   Handle,
+  InsertPosition,
+  MoveNodeOptions,
   NodesAccessor,
-  Transaction
+  SerializedNodes,
+  SiblingInfo,
+  Transaction,
+  TreeUtils
 } from './editor';
 // Editor
-export { createEditor, NodeNotFoundError, ValidationError } from './editor';
+export {
+  createEditor,
+  generateIndex,
+  generateIndexAtEnd,
+  generateIndexAtStart,
+  NodeNotFoundError,
+  ValidationError
+} from './editor';
 export type {
   FlexNodeData,
   RootNodeData,
