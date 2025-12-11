@@ -1,5 +1,6 @@
 import { s } from '../schema';
 
+// Variable types
 export const stringVariableTypeSchema = s.object({
   key: s.literal('string'),
   value: s.string().default('')
@@ -32,3 +33,15 @@ export const variableTypeSchema = s.union([
   booleanVariableTypeSchema,
   productVariableTypeSchema
 ]);
+
+// Variable
+export const variableSchema = s.object({
+  name: s.string(),
+  value: variableTypeSchema
+});
+
+// Variable reference
+export const variableReferenceSchema = s.object({
+  nodeId: s.string(),
+  name: s.string()
+});
