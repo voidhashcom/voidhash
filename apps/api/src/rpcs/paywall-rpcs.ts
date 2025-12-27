@@ -11,7 +11,9 @@ export const PaywallRpcsLive = PaywallRpcsDef.toLayer(
           return yield* paywallService.getPaywalls(projectId);
         }),
       CreatePaywall: (input) => paywallService.createPaywall(input),
-      DeletePaywall: (input) => paywallService.deletePaywall(input)
+      DeletePaywall: (input) => paywallService.deletePaywall(input),
+      RequestPaywallEditToken: ({ paywallId }) =>
+        paywallService.createEditToken(paywallId)
     };
   })
 ).pipe(Layer.provide(PaywallService.Default));

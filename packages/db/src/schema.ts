@@ -681,3 +681,30 @@ export const paywallRelations = relations(paywalls, ({ one }) => ({
     references: [projects.id]
   })
 }));
+
+// Paywall Edit Tokens (short-lived tokens for mimic auth)
+export const paywallEditTokens = mysqlTable(
+  'paywall_edit_token',
+  {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    token: varchar('token', { length: 255 }).notNull().unique(),
+    paywallId: varchar('paywall_id', { length: 255 }).notNull(),
+    userId: varchar('user_id', { length: 255 }).notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`)
+  },
+  (table) => [
+    index('paywall_id_idx').on(table.paywallId),
+    index('expires_at_idx').on(table.expiresAt)
+  ]
+);
+
+export const paywallEditTokenRelations = relations(
+  paywallEditTokens,
+  ({ one }) => ({
+    paywall: one(paywalls, {
+      fields: [paywallEditTokens.paywallId],
+      references: [paywalls.id]
+    })
+  })
+);
