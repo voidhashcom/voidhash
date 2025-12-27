@@ -1,13 +1,12 @@
-import { s } from '../schema';
-import type { Infer } from '../schema';
+// import { z } from 'zod';
 
-/** RootNode schema - the document root that contains screens */
-export const rootNode = s.object({
-  type: s.literal('root'),
-  id: s.string()
-});
+// /** RootNode schema - the document root that contains screens */
+// export const rootNode = z.object({
+//   type: z.literal('root'),
+//   id: z.string()
+// });
 
-export type RootNodeData = Infer<typeof rootNode>;
+// export type RootNodeData = z.infer<typeof rootNode>;
 
-/** Allowed child types for RootNode */
-export const rootNodeAllowedChildren = ['screen'] as const;
+// /** Allowed child types for RootNode */
+// export const rootNodeAllowedChildren = ['screen'] as const;

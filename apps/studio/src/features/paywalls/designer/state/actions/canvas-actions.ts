@@ -1,162 +1,238 @@
-import { Schema } from "effect";
-import { createFlexNode } from "./nodes/flex-node-actions";
-import { createTextNode } from "./nodes/text-node-actions";
-import { selectNode, unselectNode } from "./selection-actions";
-import type { DesignerStoreState } from "./types";
+/**
+ * Canvas commands using zustand-commander.
+ *
+ * These commands manage canvas interactions and UI state.
+ */
 
-export const saveCanvasState = (storeState: DesignerStoreState) =>
-	storeState.action(
-		Schema.Struct({
-			scale: Schema.Number,
-			x: Schema.Number,
-			y: Schema.Number,
-		}),
-		({ params, setBrowser, getState }) => {
-			const state = getState();
-			setBrowser({ canvas: { ...state.canvas, ...params } });
-		},
-	);
+import { commander } from '../designer-commander';
+import type { DesignerStoreState } from '../designer-store-state';
+import { createFlexNode } from './nodes/flex-node-actions';
+import { createTextNode } from './nodes/text-node-actions';
+import { selectNode, unselectNode } from './selection-actions';
 
-export const updateBoundingBox = (storeState: DesignerStoreState) =>
-	storeState.action(
-		Schema.Struct({
-			id: Schema.String,
-			boundingBox: Schema.Struct({
-				x: Schema.Number,
-				y: Schema.Number,
-				width: Schema.Number,
-				height: Schema.Number,
-			}),
-		}),
-		({ params, getState, setBrowser }) => {
-			const state = getState();
-			const boundingBoxes = { ...state.canvas.boundingBoxes };
-			boundingBoxes[params.id] = params.boundingBox;
-			setBrowser({ canvas: { ...state.canvas, boundingBoxes } });
-		},
-	);
+// =============================================================================
+// Helper to get nodes from snapshot as a flat map
+// =============================================================================
 
-export const nodeMouseEnter = (storeState: DesignerStoreState) =>
-	storeState.action(
-		Schema.Struct({ id: Schema.String }),
-		({ params, setBrowser, getState }) => {
-			const state = getState();
-			if (state.textEditingNodeId) {
-				return;
-			}
-			setBrowser({ highlightedNodeId: params.id });
-			return {
-				shouldPropagate: true,
-			};
-		},
-	);
+function getNodesFromSnapshot(
+  snapshot: {
+    id: string;
+    type: string;
+    children: unknown[];
+  } | null
+): Record<string, { id: string; type: string }> {
+  if (!snapshot) {
+    return {};
+  }
 
-export const nodeMouseOver = (storeState: DesignerStoreState) =>
-	storeState.action(
-		Schema.Struct({ id: Schema.String }),
-		({ params, setBrowser, getState }) => {
-			const state = getState();
-			if (state.textEditingNodeId) {
-				return;
-			}
-			if (!state.highlightedNodeId) {
-				setBrowser({ highlightedNodeId: params.id });
-			}
-			return {
-				shouldPropagate: true,
-			};
-		},
-	);
+  const nodes: Record<string, { id: string; type: string }> = {};
 
-export const nodeMouseLeave = (storeState: DesignerStoreState) =>
-	storeState.action(
-		Schema.Struct({ id: Schema.String }),
-		({ params, getState, setBrowser }) => {
-			const state = getState();
-			if (state.textEditingNodeId) {
-				return;
-			}
-			if (state.highlightedNodeId === params.id) {
-				setBrowser({ highlightedNodeId: null });
-			}
-		},
-	);
+  const traverse = (node: {
+    id: string;
+    type: string;
+    children?: unknown[];
+  }): void => {
+    nodes[node.id] = node;
 
-export const nodeClicked = (storeState: DesignerStoreState) =>
-	storeState.action(
-		Schema.Struct({ id: Schema.String, shiftKey: Schema.Boolean }),
-		({ params, getState, dispatch }) => {
-			const state = getState();
-			const tool = state.tools.activeTool;
-			const clickedNode = state.nodes?.[params.id];
-			if (!clickedNode) {
-				return;
-			}
+    if (node.children && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        traverse(child as { id: string; type: string; children?: unknown[] });
+      }
+    }
+  };
 
-			if (state.textEditingNodeId) {
-				return;
-			}
+  traverse(snapshot);
+  return nodes;
+}
 
-			switch (tool) {
-				case "cursor": {
-					const isSelected = state.selectedNodeIds.includes(params.id);
-					if (isSelected) {
-						if (params.shiftKey) {
-							dispatch(unselectNode)({ id: params.id });
-							return;
-						}
-						// If the node is already selected, do nothing
-						return;
-					}
-					// Select the node
-					dispatch(selectNode)({ id: params.id, many: params.shiftKey });
-					break;
-				}
+// =============================================================================
+// Canvas State Commands
+// =============================================================================
 
-				case "text":
-					dispatch(createTextNode)({ parentId: params.id });
-					break;
+/**
+ * Save the current canvas state (scale, position).
+ */
+export const saveCanvasState = commander.action<{
+  scale: number;
+  x: number;
+  y: number;
+}>((ctx, params) => {
+    const state = ctx.getState();
+    ctx.setState({
+      canvas: { ...state.canvas, ...params }
+    } as Partial<DesignerStoreState>);
+  }
+);
 
-				case "columns":
-					dispatch(createFlexNode)({
-						parentId: params.id,
-						initialValues: {
-							style: { flexDirection: "column" },
-							name: "Column",
-						},
-					});
-					break;
+/**
+ * Update a node's bounding box (used for rendering overlays).
+ */
+export const updateBoundingBox = commander.action<{
+  id: string;
+  boundingBox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}>((ctx, params) => {
+    const state = ctx.getState();
+    const boundingBoxes = { ...state.canvas.boundingBoxes };
+    boundingBoxes[params.id] = params.boundingBox;
+    ctx.setState({
+      canvas: { ...state.canvas, boundingBoxes }
+    } as Partial<DesignerStoreState>);
+  }
+);
 
-				case "rows":
-					dispatch(createFlexNode)({
-						parentId: params.id,
-						initialValues: { style: { flexDirection: "row" }, name: "Row" },
-					});
-					break;
-			}
-		},
-	);
+// =============================================================================
+// Node Hover Commands
+// =============================================================================
 
-export const textEditingStarted = (storeState: DesignerStoreState) =>
-	storeState.action(
-		Schema.Struct({ id: Schema.String }),
-		({ params, setBrowser }) => {
-			setBrowser({ textEditingNodeId: params.id });
-		},
-	);
+/**
+ * Handle mouse entering a node.
+ */
+export const nodeMouseEnter = commander.action<{ id: string }>(
+  (ctx, params) => {
+    const state = ctx.getState();
+    if (state.textEditingNodeId) {
+      return { shouldPropagate: true };
+    }
+    ctx.setState({
+      highlightedNodeId: params.id
+    } as Partial<DesignerStoreState>);
+    return { shouldPropagate: true };
+  }
+);
 
-export const textEditingStopped = (storeState: DesignerStoreState) =>
-	storeState.action(Schema.Struct({ id: Schema.String }), ({ setBrowser }) => {
-		setBrowser({ textEditingNodeId: null });
-	});
+/**
+ * Handle mouse moving over a node.
+ */
+export const nodeMouseOver = commander.action<{ id: string }>(
+  (ctx, params) => {
+    const state = ctx.getState();
+    if (state.textEditingNodeId) {
+      return { shouldPropagate: true };
+    }
+    if (!state.highlightedNodeId) {
+      ctx.setState({
+        highlightedNodeId: params.id
+      } as Partial<DesignerStoreState>);
+    }
+    return { shouldPropagate: true };
+  }
+);
 
-export const createCanvasActions = (storeState: DesignerStoreState) => ({
-	nodeClicked: nodeClicked(storeState),
-	nodeMouseEnter: nodeMouseEnter(storeState),
-	textEditingStarted: textEditingStarted(storeState),
-	textEditingStopped: textEditingStopped(storeState),
-	nodeMouseOver: nodeMouseOver(storeState),
-	nodeMouseLeave: nodeMouseLeave(storeState),
-	saveCanvasState: saveCanvasState(storeState),
-	updateBoundingBox: updateBoundingBox(storeState),
-});
+/**
+ * Handle mouse leaving a node.
+ */
+export const nodeMouseLeave = commander.action<{ id: string }>(
+  (ctx, params) => {
+    const state = ctx.getState();
+    if (state.textEditingNodeId) {
+      return;
+    }
+    if (state.highlightedNodeId === params.id) {
+      ctx.setState({ highlightedNodeId: null } as Partial<DesignerStoreState>);
+    }
+  }
+);
+
+// =============================================================================
+// Node Click Commands
+// =============================================================================
+
+/**
+ * Handle clicking on a node.
+ * Behavior depends on the current active tool.
+ */
+export const nodeClicked = commander.action<{ id: string; shiftKey: boolean }>(
+  (ctx, params) => {
+    const state = ctx.getState();
+    const { mimic } = state;
+    const tool = state.tools.activeTool;
+
+    // Get nodes from snapshot
+    const nodes = getNodesFromSnapshot(
+      mimic.snapshot as {
+        id: string;
+        type: string;
+        children: unknown[];
+      } | null
+    );
+
+    const clickedNode = nodes[params.id];
+    if (!clickedNode) {
+      return;
+    }
+
+    if (state.textEditingNodeId) {
+      return;
+    }
+
+    // Get current selection from presence
+    const selectedNodeIds = mimic.presence?.self?.selectedNodeIds ?? [];
+
+    switch (tool) {
+      case 'cursor': {
+        const isSelected = selectedNodeIds.includes(params.id);
+        if (isSelected) {
+          if (params.shiftKey) {
+            ctx.dispatch(unselectNode)({ id: params.id });
+            return;
+          }
+          // If the node is already selected, do nothing
+          return;
+        }
+        // Select the node
+        ctx.dispatch(selectNode)({ id: params.id, many: params.shiftKey });
+        break;
+      }
+
+      case 'text':
+        ctx.dispatch(createTextNode)({ parentId: params.id });
+        break;
+
+      case 'columns':
+        ctx.dispatch(createFlexNode)({
+          parentId: params.id,
+          initialValues: {
+            style: { flexDirection: 'column' },
+            name: 'Column'
+          }
+        });
+        break;
+
+      case 'rows':
+        ctx.dispatch(createFlexNode)({
+          parentId: params.id,
+          initialValues: { style: { flexDirection: 'row' }, name: 'Row' }
+        });
+        break;
+    }
+  }
+);
+
+// =============================================================================
+// Text Editing Commands
+// =============================================================================
+
+/**
+ * Mark that text editing has started on a node.
+ */
+export const textEditingStarted = commander.action<{ id: string }>(
+  (ctx, params) => {
+    ctx.setState({
+      textEditingNodeId: params.id
+    } as Partial<DesignerStoreState>);
+  }
+);
+
+/**
+ * Mark that text editing has stopped.
+ */
+export const textEditingStopped = commander.action<{ id: string }>(
+  (ctx) => {
+    ctx.setState({ textEditingNodeId: null } as Partial<DesignerStoreState>);
+  }
+);

@@ -44,6 +44,8 @@
     "@voidhash/auth": "workspace:*",
     "@voidhash/dff": "workspace:*",
     "@voidhash/lib": "workspace:*",
+    "@voidhash/mimic-react": "0.0.1",
+    "@voidhash/mimic-schema": "workspace:*",
     "@voidhash/rpc": "workspace:*",
     "@voidhash/shared": "workspace:*",
     "@voidhash/ui": "workspace:*",

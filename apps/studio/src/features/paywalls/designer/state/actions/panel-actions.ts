@@ -1,82 +1,84 @@
-import { Schema } from 'effect';
-import type { DesignerStoreState } from './types';
-
 /**
- * Creates panel-related actions for the designer store.
- * These actions manage viewport panel dimensions (browser-only state).
+ * Panel commands using zustand-commander.
+ *
+ * These commands manage viewport panel dimensions (browser-only state).
  */
 
-export const setTopPanelHeight = (storeState: DesignerStoreState) =>
-  storeState.action(
-    Schema.Struct({ height: Schema.Number }),
-    ({ getState, setBrowser, params }) => {
-      const viewport = getState().viewport;
-      setBrowser({
-        viewport: {
-          ...viewport,
-          panels: {
-            ...viewport.panels,
-            top: { height: params.height }
-          }
-        }
-      });
-    }
-  );
+import { commander } from '../designer-commander';
+import type { DesignerStoreState } from '../designer-store-state';
 
-export const setBottomPanelHeight = (storeState: DesignerStoreState) =>
-  storeState.action(
-    Schema.Struct({ height: Schema.Number }),
-    ({ getState, setBrowser, params }) => {
-      const viewport = getState().viewport;
-      setBrowser({
-        viewport: {
-          ...viewport,
-          panels: {
-            ...viewport.panels,
-            bottom: { height: params.height }
-          }
-        }
-      });
-    }
-  );
+// =============================================================================
+// Panel Commands
+// =============================================================================
 
-export const setLeftPanelWidth = (storeState: DesignerStoreState) =>
-  storeState.action(
-    Schema.Struct({ width: Schema.Number }),
-    ({ getState, setBrowser, params }) => {
-      const viewport = getState().viewport;
-      setBrowser({
-        viewport: {
-          ...viewport,
-          panels: {
-            ...viewport.panels,
-            left: { width: params.width }
-          }
+/**
+ * Set the height of the top panel.
+ */
+export const setTopPanelHeight = commander.action<{ height: number }>(
+  (ctx, params) => {
+    const state = ctx.getState();
+    ctx.setState({
+      viewport: {
+        ...state.viewport,
+        panels: {
+          ...state.viewport.panels,
+          top: { height: params.height }
         }
-      });
-    }
-  );
+      }
+    } as Partial<DesignerStoreState>);
+  }
+);
 
-export const setRightPanelWidth = (storeState: DesignerStoreState) =>
-  storeState.action(
-    Schema.Struct({ width: Schema.Number }),
-    ({ getState, setBrowser, params }) => {
-      const viewport = getState().viewport;
-      setBrowser({
-        viewport: {
-          ...viewport,
-          panels: {
-            ...viewport.panels,
-            right: { width: params.width }
-          }
+/**
+ * Set the height of the bottom panel.
+ */
+export const setBottomPanelHeight = commander.action<{ height: number }>(
+  (ctx, params) => {
+    const state = ctx.getState();
+    ctx.setState({
+      viewport: {
+        ...state.viewport,
+        panels: {
+          ...state.viewport.panels,
+          bottom: { height: params.height }
         }
-      });
-    }
-  );
+      }
+    } as Partial<DesignerStoreState>);
+  }
+);
 
-export const createPanelActions = (storeState: DesignerStoreState) => ({
-  setTopPanelHeight: setTopPanelHeight(storeState),
-  setBottomPanelHeight: setBottomPanelHeight(storeState),
-  setLeftPanelWidth: setLeftPanelWidth(storeState),
-  setRightPanelWidth: setRightPanelWidth(storeState)
-});
+/**
+ * Set the width of the left panel.
+ */
+export const setLeftPanelWidth = commander.action<{ width: number }>(
+  (ctx, params) => {
+    const state = ctx.getState();
+    ctx.setState({
+      viewport: {
+        ...state.viewport,
+        panels: {
+          ...state.viewport.panels,
+          left: { width: params.width }
+        }
+      }
+    } as Partial<DesignerStoreState>);
+  }
+);
+
+/**
+ * Set the width of the right panel.
+ */
+export const setRightPanelWidth = commander.action<{ width: number }>(
+  (ctx, params) => {
+    const state = ctx.getState();
+    ctx.setState({
+      viewport: {
+        ...state.viewport,
+        panels: {
+          ...state.viewport.panels,
+          right: { width: params.width }
+        }
+      }
+    } as Partial<DesignerStoreState>);
+  }
+);

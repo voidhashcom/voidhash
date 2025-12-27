@@ -88,6 +88,7 @@ export function CreateOrganizationModal({
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
+      {/* @ts-expect-error React types version conflict between @types/react and @radix-ui */}
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>

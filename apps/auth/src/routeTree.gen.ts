@@ -8,27 +8,18 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { createFileRoute } from '@tanstack/react-router'
-
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DevicesIndexRouteImport } from './routes/devices/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as OidcConsentRouteImport } from './routes/oidc/consent'
-import { Route as AdminLayoutRouteImport } from './routes/admin/_layout'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminClientsNewRouteImport } from './routes/admin/clients/new'
 import { Route as AdminClientsClientIdRouteImport } from './routes/admin/clients/$clientId'
 
-const AdminRouteImport = createFileRoute('/admin')()
-
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
@@ -37,6 +28,11 @@ const SignUpRoute = SignUpRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -52,16 +48,12 @@ const DevicesIndexRoute = DevicesIndexRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const OidcConsentRoute = OidcConsentRouteImport.update({
   id: '/oidc/consent',
   path: '/oidc/consent',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AdminLayoutRoute = AdminLayoutRouteImport.update({
-  id: '/_layout',
-  getParentRoute: () => AdminRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -71,19 +63,19 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 const AdminClientsNewRoute = AdminClientsNewRouteImport.update({
   id: '/clients/new',
   path: '/clients/new',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminClientsClientIdRoute = AdminClientsClientIdRouteImport.update({
   id: '/clients/$clientId',
   path: '/clients/$clientId',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/sign-up': typeof SignUpRoute
-  '/admin': typeof AdminLayoutRoute
   '/oidc/consent': typeof OidcConsentRoute
   '/admin/': typeof AdminIndexRoute
   '/devices': typeof DevicesIndexRoute
@@ -95,8 +87,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/sign-up': typeof SignUpRoute
-  '/admin': typeof AdminIndexRoute
   '/oidc/consent': typeof OidcConsentRoute
+  '/admin': typeof AdminIndexRoute
   '/devices': typeof DevicesIndexRoute
   '/admin/clients/$clientId': typeof AdminClientsClientIdRoute
   '/admin/clients/new': typeof AdminClientsNewRoute
@@ -105,10 +97,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/sign-up': typeof SignUpRoute
-  '/admin': typeof AdminRouteWithChildren
-  '/admin/_layout': typeof AdminLayoutRoute
   '/oidc/consent': typeof OidcConsentRoute
   '/admin/': typeof AdminIndexRoute
   '/devices/': typeof DevicesIndexRoute
@@ -120,9 +111,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/login'
     | '/sign-up'
-    | '/admin'
     | '/oidc/consent'
     | '/admin/'
     | '/devices'
@@ -134,8 +125,8 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/sign-up'
-    | '/admin'
     | '/oidc/consent'
+    | '/admin'
     | '/devices'
     | '/admin/clients/$clientId'
     | '/admin/clients/new'
@@ -143,10 +134,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/login'
     | '/sign-up'
-    | '/admin'
-    | '/admin/_layout'
     | '/oidc/consent'
     | '/admin/'
     | '/devices/'
@@ -157,9 +147,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   SignUpRoute: typeof SignUpRoute
-  AdminRoute: typeof AdminRouteWithChildren
   OidcConsentRoute: typeof OidcConsentRoute
   DevicesIndexRoute: typeof DevicesIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -167,13 +157,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sign-up': {
       id: '/sign-up'
       path: '/sign-up'
@@ -186,6 +169,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -207,7 +197,7 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRoute
+      parentRoute: typeof AdminRouteRoute
     }
     '/oidc/consent': {
       id: '/oidc/consent'
@@ -215,13 +205,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/oidc/consent'
       preLoaderRoute: typeof OidcConsentRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/admin/_layout': {
-      id: '/admin/_layout'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminLayoutRouteImport
-      parentRoute: typeof AdminRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -235,39 +218,39 @@ declare module '@tanstack/react-router' {
       path: '/clients/new'
       fullPath: '/admin/clients/new'
       preLoaderRoute: typeof AdminClientsNewRouteImport
-      parentRoute: typeof AdminRoute
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/clients/$clientId': {
       id: '/admin/clients/$clientId'
       path: '/clients/$clientId'
       fullPath: '/admin/clients/$clientId'
       preLoaderRoute: typeof AdminClientsClientIdRouteImport
-      parentRoute: typeof AdminRoute
+      parentRoute: typeof AdminRouteRoute
     }
   }
 }
 
-interface AdminRouteChildren {
-  AdminLayoutRoute: typeof AdminLayoutRoute
+interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminClientsClientIdRoute: typeof AdminClientsClientIdRoute
   AdminClientsNewRoute: typeof AdminClientsNewRoute
 }
 
-const AdminRouteChildren: AdminRouteChildren = {
-  AdminLayoutRoute: AdminLayoutRoute,
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   AdminClientsClientIdRoute: AdminClientsClientIdRoute,
   AdminClientsNewRoute: AdminClientsNewRoute,
 }
 
-const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   SignUpRoute: SignUpRoute,
-  AdminRoute: AdminRouteWithChildren,
   OidcConsentRoute: OidcConsentRoute,
   DevicesIndexRoute: DevicesIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

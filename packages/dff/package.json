@@ -15,7 +15,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run -c vitest.mts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",
     "typescript": "5.8.3",

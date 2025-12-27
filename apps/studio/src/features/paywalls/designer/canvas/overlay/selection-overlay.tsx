@@ -4,6 +4,7 @@ import { Application, Graphics } from "pixi.js";
 import { useCallback, useEffect, useRef } from "react";
 import { CANVAS_DEFAULTS } from "../../constants";
 import { usePaywallDesignerStore } from "../../state/designer-store";
+import type { DesignerStoreState } from "../../state/designer-store-state";
 
 // ============================================================================
 // Types
@@ -50,19 +51,15 @@ export function SelectionOverlay({ containerRef }: SelectionOverlayProps) {
 		graphics.clear();
 
 		// Draw selections
-		const state = store.zustand.getState();
-		const { selectedNodeIds, nodes, canvas, highlightedNodeId } = state;
+		const state = store.getState() as DesignerStoreState;
+		const selectedNodeIds = state.mimic.presence.self?.selectedNodeIds ?? [];
+		const { canvas, highlightedNodeId } = state;
 		const { boundingBoxes } = canvas;
 		const { x: panX, y: panY, scale } = canvas;
 
 		// Build selection boxes from selected nodes
 		const boxes: SelectionBox[] = [];
 		for (const nodeId of selectedNodeIds) {
-			const node = nodes[nodeId];
-			if (!node) {
-				continue;
-			}
-
 			const box = boundingBoxes[nodeId];
 			if (box) {
 				boxes.push({ id: nodeId, ...box });
@@ -86,19 +83,16 @@ export function SelectionOverlay({ containerRef }: SelectionOverlayProps) {
 
 		// Draw node highlight
 		if (highlightedNodeId) {
-			const node = nodes[highlightedNodeId];
-			if (node) {
-				const box = boundingBoxes[highlightedNodeId] ?? null;
-				if (box) {
-					const highlightStrokeWidth = 2;
-					const screenX = box.x * scale + panX;
-					const screenY = box.y * scale + panY;
-					const screenWidth = box.width * scale;
-					const screenHeight = box.height * scale;
+			const box = boundingBoxes[highlightedNodeId] ?? null;
+			if (box) {
+				const highlightStrokeWidth = 2;
+				const screenX = box.x * scale + panX;
+				const screenY = box.y * scale + panY;
+				const screenWidth = box.width * scale;
+				const screenHeight = box.height * scale;
 
-					graphics.rect(screenX, screenY, screenWidth, screenHeight);
-					graphics.stroke({ width: highlightStrokeWidth, color: strokeColor });
-				}
+				graphics.rect(screenX, screenY, screenWidth, screenHeight);
+				graphics.stroke({ width: highlightStrokeWidth, color: strokeColor });
 			}
 		}
 	};
@@ -165,48 +159,11 @@ export function SelectionOverlay({ containerRef }: SelectionOverlayProps) {
 
 	// Subscribe to state changes that affect selection rendering
 	useEffect(() => {
-		// Subscribe to selectedNodeIds changes
-		const unsubscribeSelection = store.zustand.subscribe(
-			(state) => state.selectedNodeIds,
-			() => draw(),
-		);
-
-		const unsubscribeHighlightedNodeId = store.zustand.subscribe(
-			(state) => state.highlightedNodeId,
-			() => draw(),
-		);
-
-		// Subscribe to boundingBoxes changes
-		const unsubscribeBoundingBoxes = store.zustand.subscribe(
-			(state) => state.canvas.boundingBoxes,
-			() => draw(),
-		);
-
-		// Subscribe to canvas transform changes (pan/zoom)
-		const unsubscribeCanvas = store.zustand.subscribe(
-			(state) => ({
-				x: state.canvas.x,
-				y: state.canvas.y,
-				scale: state.canvas.scale,
-			}),
-			() => draw(),
-			{
-				equalityFn: (a, b) => a.x === b.x && a.y === b.y && a.scale === b.scale,
-			},
-		);
-
-		// Subscribe to nodes changes (for when node properties change)
-		const unsubscribeNodes = store.zustand.subscribe(
-			(state) => state.nodes,
-			() => draw(),
-		);
+		// Subscribe to all state changes - the draw function will read what it needs
+		const unsubscribe = store.subscribe(() => draw());
 
 		return () => {
-			unsubscribeSelection();
-			unsubscribeHighlightedNodeId();
-			unsubscribeBoundingBoxes();
-			unsubscribeCanvas();
-			unsubscribeNodes();
+			unsubscribe();
 		};
 	}, [store, draw]);
 

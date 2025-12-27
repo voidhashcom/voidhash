@@ -1,16 +1,16 @@
 import type {
-	AvailableStyleProperties,
-	StylePropertyTypes,
-} from "@voidhash/dff";
+  AvailableStyleProperties,
+  StylePropertyTypes
+} from '@voidhash/mimic-schema';
 
 /**
- * All style property names defined in @voidhash/dff/src/styles/properties.ts
+ * All style property names defined in @voidhash/mimic-schema/src/styles/properties.ts
  * that are actually used in node types. This ensures type safety by using the actual
  * property names from the source, filtered to only include properties that exist on nodes.
  */
 export type StylePropertyName = Extract<
-	AvailableStyleProperties,
-	keyof StylePropertyTypes
+  AvailableStyleProperties,
+  keyof StylePropertyTypes
 >;
 
 /**
@@ -27,8 +27,8 @@ export type StylePropertyName = Extract<
  * ```
  */
 export type NodeWithProperties<K extends StylePropertyName> = Pick<
-	StylePropertyTypes,
-	K
+  StylePropertyTypes,
+  K
 >;
 
 /**
@@ -60,6 +60,6 @@ export type NodeWithProperties<K extends StylePropertyName> = Pick<
  * ```
  */
 export type NodeEditorProps<K extends StylePropertyName> = {
-	node: NodeWithProperties<K>;
-	onNodeChange: (node: NodeWithProperties<K>) => void;
+  node: NodeWithProperties<K>;
+  onNodeChange: (node: NodeWithProperties<K>) => void;
 };

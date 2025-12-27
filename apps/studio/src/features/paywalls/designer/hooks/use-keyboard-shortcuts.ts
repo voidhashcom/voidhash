@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { copyNodes, cutNodes, deleteNodes, pasteNodes } from '../state/actions';
 import { usePaywallDesignerActions } from '../state/designer-store';
 
 /**
@@ -40,28 +41,28 @@ export function useKeyboardShortcuts() {
       // Cmd/Ctrl + C: Copy
       if (modKey && e.key === 'c') {
         e.preventDefault();
-        dispatch('copyNodes', {});
+        dispatch(copyNodes)({});
         return;
       }
 
       // Cmd/Ctrl + X: Cut
       if (modKey && e.key === 'x') {
         e.preventDefault();
-        dispatch('cutNodes', {});
+        dispatch(cutNodes)({});
         return;
       }
 
       // Cmd/Ctrl + V: Paste
       if (modKey && e.key === 'v') {
         e.preventDefault();
-        dispatch('pasteNodes', {});
+        dispatch(pasteNodes)({});
         return;
       }
 
       // Backspace or Delete: Delete selected nodes
       if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault();
-        dispatch('deleteNodes', {});
+        dispatch(deleteNodes)({});
       }
     };
 

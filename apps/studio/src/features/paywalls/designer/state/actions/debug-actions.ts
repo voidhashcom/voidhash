@@ -1,34 +1,40 @@
-import { Schema } from 'effect';
-import type { DesignerStoreState } from './types';
+/**
+ * Debug commands using zustand-commander.
+ *
+ * These commands manage debug settings (browser-only state).
+ */
+
+import { commander } from '../designer-commander';
+import type { DesignerStoreState } from '../designer-store-state';
+
+// =============================================================================
+// Debug Commands
+// =============================================================================
 
 /**
- * Creates debug-related actions for the designer store.
- * These actions manage debug settings (browser-only state).
+ * Set whether to show the grid overlay.
  */
-export const setShowGrid = (storeState: DesignerStoreState) =>
-  storeState.action(
-    Schema.Struct({ showGrid: Schema.Boolean }),
-    ({ getState, setBrowser, params }) => {
-      setBrowser({
-        debug: {
-          ...getState().debug,
-          showGrid: params.showGrid
-        }
-      });
-    }
-  );
-
-export const toggleShowGrid = (storeState: DesignerStoreState) =>
-  storeState.action(({ getState, setBrowser }) => {
-    setBrowser({
+export const setShowGrid = commander.action<{ showGrid: boolean }>(
+  (ctx, params) => {
+    const state = ctx.getState();
+    ctx.setState({
       debug: {
-        ...getState().debug,
-        showGrid: !getState().debug.showGrid
+        ...state.debug,
+        showGrid: params.showGrid
       }
-    });
-  });
+    } as Partial<DesignerStoreState>);
+  }
+);
 
-export const createDebugActions = (storeState: DesignerStoreState) => ({
-  setShowGrid: setShowGrid(storeState),
-  toggleShowGrid: toggleShowGrid(storeState)
+/**
+ * Toggle the grid overlay visibility.
+ */
+export const toggleShowGrid = commander.action((ctx) => {
+  const state = ctx.getState();
+  ctx.setState({
+    debug: {
+      ...state.debug,
+      showGrid: !state.debug.showGrid
+    }
+  } as Partial<DesignerStoreState>);
 });

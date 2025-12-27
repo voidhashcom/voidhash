@@ -1,6 +1,6 @@
 'use client';
 
-import type { FontWeight, TextAlign } from '@voidhash/dff';
+import type { FontWeight, TextAlign } from '@voidhash/mimic-schema';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,102 +78,104 @@ export function TypographySection({
       <PanelSectionContent>
         {/* Font Picker Row */}
 
-        <SelectInput
-          disabled={true}
-          icon={<BookTypeIcon className="size-3.5" />}
-          label="Font Family"
-          onChange={() => {
-            // Do nothing
-          }}
-          options={FONT_FAMILY_OPTIONS}
-          placeholder="Default"
-          value={FONT_FAMILY_OPTIONS[0]?.value ?? ''}
-        />
-
-        {/* Font Weight and Font Size Row */}
-
-        <div className="flex flex-row gap-2">
+        <div className="flex flex-col gap-2">
           <SelectInput
-            icon={<div className="font-bold text-xs">W</div>}
-            label="Font Weight"
-            onChange={(value) =>
-              onNodeChange({ ...node, fontWeight: value as FontWeight })
-            }
-            options={FONT_WEIGHT_OPTIONS}
-            value={node.fontWeight}
+            disabled={true}
+            icon={<BookTypeIcon className="size-3.5" />}
+            label="Font Family"
+            onChange={() => {
+              // Do nothing
+            }}
+            options={FONT_FAMILY_OPTIONS}
+            placeholder="Default"
+            value={FONT_FAMILY_OPTIONS[0]?.value ?? ''}
           />
-          <TextInput
-            icon={<TypeIcon className="size-3.5" />}
-            label="Font Size"
-            minValue={1}
-            onChange={(value) =>
-              onNodeChange({ ...node, fontSize: Number(value) })
-            }
-            type="number"
-            typeNumberStepIncrement={1}
-            validator={Schema.String}
-            value={node.fontSize.toString()}
-          />
-        </div>
 
-        {/* Line Height and Letter Spacing Row */}
+          {/* Font Weight and Font Size Row */}
 
-        <div className="flex flex-row gap-2">
-          <TextInput
-            disabled={isLineHeightAuto}
-            icon={<div className="text-xs">A</div>}
-            label="Line Height"
-            minValue={0.5}
-            onChange={(value) =>
-              onNodeChange({ ...node, lineHeight: Number(value) })
-            }
-            trailing={
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <PanelButton className="bg-transparent pr-3 dark:bg-transparent">
-                    {isLineHeightAuto ? (
-                      <div className="font-bold text-xs">Auto</div>
-                    ) : (
-                      <ChevronDownIcon className="size-3.5" />
-                    )}
-                  </PanelButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem
-                    onSelect={() => onNodeChange({ ...node, lineHeight: 0 })}
-                  >
-                    Auto
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() =>
-                      onNodeChange({
-                        ...node,
-                        lineHeight: isLineHeightAuto ? 1.5 : node.lineHeight
-                      })
-                    }
-                  >
-                    Fixed (
-                    {isLineHeightAuto ? '1.5' : node.lineHeight.toFixed(1)})
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            }
-            type="number"
-            typeNumberStepIncrement={0.1}
-            validator={Schema.String}
-            value={isLineHeightAuto ? 'Auto' : node.lineHeight.toString()}
-          />
-          <TextInput
-            icon={<div className="font-mono text-xs">|A|</div>}
-            label="Letter Spacing"
-            onChange={(value) =>
-              onNodeChange({ ...node, letterSpacing: Number(value) })
-            }
-            type="number"
-            typeNumberStepIncrement={0.1}
-            validator={Schema.String}
-            value={node.letterSpacing.toString()}
-          />
+          <div className="flex flex-row gap-2">
+            <SelectInput
+              icon={<div className="font-bold text-xs">W</div>}
+              label="Font Weight"
+              onChange={(value) =>
+                onNodeChange({ ...node, fontWeight: value as FontWeight })
+              }
+              options={FONT_WEIGHT_OPTIONS}
+              value={node.fontWeight}
+            />
+            <TextInput
+              icon={<TypeIcon className="size-3.5" />}
+              label="Font Size"
+              minValue={1}
+              onChange={(value) =>
+                onNodeChange({ ...node, fontSize: Number(value) })
+              }
+              type="number"
+              typeNumberStepIncrement={1}
+              validator={Schema.String}
+              value={node.fontSize.toString()}
+            />
+          </div>
+
+          {/* Line Height and Letter Spacing Row */}
+
+          <div className="flex flex-row gap-2">
+            <TextInput
+              disabled={isLineHeightAuto}
+              icon={<div className="text-xs">A</div>}
+              label="Line Height"
+              minValue={0.5}
+              onChange={(value) =>
+                onNodeChange({ ...node, lineHeight: Number(value) })
+              }
+              trailing={
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <PanelButton className="bg-transparent pr-3 dark:bg-transparent">
+                      {isLineHeightAuto ? (
+                        <div className="font-bold text-xs">Auto</div>
+                      ) : (
+                        <ChevronDownIcon className="size-3.5" />
+                      )}
+                    </PanelButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem
+                      onSelect={() => onNodeChange({ ...node, lineHeight: 0 })}
+                    >
+                      Auto
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        onNodeChange({
+                          ...node,
+                          lineHeight: isLineHeightAuto ? 1.5 : node.lineHeight
+                        })
+                      }
+                    >
+                      Fixed (
+                      {isLineHeightAuto ? '1.5' : node.lineHeight.toFixed(1)})
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              }
+              type="number"
+              typeNumberStepIncrement={0.1}
+              validator={Schema.String}
+              value={isLineHeightAuto ? 'Auto' : node.lineHeight.toString()}
+            />
+            <TextInput
+              icon={<div className="font-mono text-xs">|A|</div>}
+              label="Letter Spacing"
+              onChange={(value) =>
+                onNodeChange({ ...node, letterSpacing: Number(value) })
+              }
+              type="number"
+              typeNumberStepIncrement={0.1}
+              validator={Schema.String}
+              value={node.letterSpacing.toString()}
+            />
+          </div>
         </div>
 
         {/* Text Alignment */}

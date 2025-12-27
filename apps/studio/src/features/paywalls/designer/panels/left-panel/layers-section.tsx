@@ -28,25 +28,32 @@ import {
   TypeIcon
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useStore } from 'zustand/react';
 import { useShallow } from 'zustand/react/shallow';
+import { moveNode, selectNode, unselectNode } from '../../state/actions';
 import {
   usePaywallDesignerActions,
-  usePaywallDesignerSelect
+  usePaywallDesignerStore
 } from '../../state/designer-store';
-import type { NodeData } from '../../state/schema';
-import { createTree } from '../../state/utils/nodes';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type TreeNode = NodeData & {
-  children: TreeNode[];
-};
+/** Snapshot node structure from mimic - the tree is already structured */
+interface SnapshotNode {
+  id: string;
+  type: string;
+  name?: string;
+  style?: {
+    flexDirection?: string;
+  };
+  children?: SnapshotNode[];
+}
 
 interface FlattenedNode {
   id: string;
-  node: TreeNode;
+  node: SnapshotNode;
   depth: number;
   parentId: string | null;
   index: number;
@@ -97,14 +104,14 @@ const measuring = {
 // ============================================================================
 
 function flattenTree(
-  node: TreeNode,
+  node: SnapshotNode,
   expandedLayers: Set<string>,
   depth = 0,
   parentId: string | null = null,
   result: FlattenedNode[] = []
 ): FlattenedNode[] {
   if (node.type === 'root') {
-    for (const child of node.children) {
+    for (const child of node.children ?? []) {
       flattenTree(child, expandedLayers, depth, node.id, result);
     }
     return result;
@@ -123,7 +130,7 @@ function flattenTree(
 
   const isExpanded = expandedLayers.has(node.id);
   if (isExpanded) {
-    for (const child of node.children) {
+    for (const child of node.children ?? []) {
       flattenTree(child, expandedLayers, depth + 1, node.id, result);
     }
   }
@@ -337,9 +344,51 @@ function getSiblingAfter(
   return null;
 }
 
+/**
+ * Calculate the target index for a node being moved to a parent.
+ * Uses the tree structure to find the correct position.
+ */
+function getTargetIndex(
+  tree: SnapshotNode,
+  beforeSiblingId: string | null,
+  targetParentId: string
+): number {
+  // Find the parent node in the tree
+  function findNode(node: SnapshotNode, targetId: string): SnapshotNode | null {
+    if (node.id === targetId) {
+      return node;
+    }
+    for (const child of node.children ?? []) {
+      const found = findNode(child, targetId);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  const parentNode = findNode(tree, targetParentId);
+  if (!parentNode) {
+    return 0;
+  }
+
+  const children = parentNode.children ?? [];
+
+  // If no sibling specified, insert at the end
+  if (beforeSiblingId === null) {
+    return children.length;
+  }
+
+  // Find the index of the sibling
+  const siblingIndex = children.findIndex(
+    (child) => child.id === beforeSiblingId
+  );
+  return siblingIndex >= 0 ? siblingIndex : children.length;
+}
+
 function getHighlightedNodeIds(
   projectedParentId: string | null,
-  tree: TreeNode
+  tree: SnapshotNode
 ): Set<string> {
   const highlightedIds = new Set<string>();
 
@@ -348,11 +397,11 @@ function getHighlightedNodeIds(
   }
 
   // Find the parent node in the tree
-  function findNode(node: TreeNode, targetId: string): TreeNode | null {
+  function findNode(node: SnapshotNode, targetId: string): SnapshotNode | null {
     if (node.id === targetId) {
       return node;
     }
-    for (const child of node.children) {
+    for (const child of node.children ?? []) {
       const found = findNode(child, targetId);
       if (found) {
         return found;
@@ -363,11 +412,11 @@ function getHighlightedNodeIds(
 
   // If parentId is "root", highlight entire tree
   if (projectedParentId === 'root') {
-    function collectAllIds(node: TreeNode): void {
+    function collectAllIds(node: SnapshotNode): void {
       if (node.type !== 'root') {
         highlightedIds.add(node.id);
       }
-      for (const child of node.children) {
+      for (const child of node.children ?? []) {
         collectAllIds(child);
       }
     }
@@ -378,9 +427,9 @@ function getHighlightedNodeIds(
   // Find the parent node and collect its subtree
   const parentNode = findNode(tree, projectedParentId);
   if (parentNode) {
-    function collectSubtreeIds(node: TreeNode): void {
+    function collectSubtreeIds(node: SnapshotNode): void {
       highlightedIds.add(node.id);
-      for (const child of node.children) {
+      for (const child of node.children ?? []) {
         collectSubtreeIds(child);
       }
     }
@@ -425,7 +474,7 @@ const END_DROP_ZONE_ID = '__end-drop-zone__';
 
 interface SortableTreeItemProps {
   id: string;
-  node: TreeNode;
+  node: SnapshotNode;
   depth: number;
   indentationWidth: number;
   projected: Projection | null;
@@ -467,13 +516,13 @@ function SortableTreeItem({
       if (!hasChildren) {
         return 'flex';
       }
-      return node.style.flexDirection === 'column' ? 'column' : 'row';
+      return node.style?.flexDirection === 'column' ? 'column' : 'row';
     }
     return node.type;
   })();
 
   const Icon = typeIcons[iconType];
-  const displayName = 'name' in node ? node.name : 'Unknown';
+  const displayName = node.name ?? 'Unknown';
 
   const isActiveItem = id === activeId;
   const isDraggingSomething = activeId !== null;
@@ -608,21 +657,22 @@ function SortableTreeItem({
 // ============================================================================
 
 const getExpandedLayersBySelectedNodes = (
-  tree: TreeNode,
+  tree: SnapshotNode,
   selectedNodeIds: string[]
 ): Set<string> => {
   const reduceExpandedNodeIdsToSet = (
-    node: TreeNode,
+    node: SnapshotNode,
     selectedIds: string[]
   ): Set<string> => {
-    if (node.children.length === 0) {
+    const children = node.children ?? [];
+    if (children.length === 0) {
       if (selectedIds.includes(node.id)) {
         return new Set([node.id]);
       }
       return new Set([]);
     }
 
-    const childrenExpandedIds = node.children.flatMap((child) =>
+    const childrenExpandedIds = children.flatMap((child) =>
       Array.from(reduceExpandedNodeIdsToSet(child, selectedIds))
     );
 
@@ -640,10 +690,12 @@ const getExpandedLayersBySelectedNodes = (
 // ============================================================================
 
 export function LayersSection() {
-  const selectedNodeIds = usePaywallDesignerSelect(
-    (state) => state.selectedNodeIds
+  const store = usePaywallDesignerStore();
+  const selectedNodeIds = useStore(
+    store,
+    useShallow((state) => state.mimic.presence.self?.selectedNodeIds ?? [])
   );
-  const nodes = usePaywallDesignerSelect((state) => state.nodes);
+  const nodes = useStore(store, (state) => state.mimic.snapshot);
   const dispatch = usePaywallDesignerActions();
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -707,11 +759,9 @@ export function LayersSection() {
     return () => document.removeEventListener('mousemove', handleMouseMove);
   }, [activeId]);
 
+  // The snapshot is already a tree structure from mimic
   const tree = useMemo(
-    () =>
-      nodes && Object.keys(nodes).length > 0
-        ? (createTree(nodes) as TreeNode)
-        : null,
+    () => (nodes as SnapshotNode | null),
     [nodes]
   );
 
@@ -908,14 +958,14 @@ export function LayersSection() {
 
   const handleSelect = useCallback(
     (id: string, many: boolean) => {
-      dispatch('selectNode', { id, many });
+      dispatch(selectNode)({ id, many });
     },
     [dispatch]
   );
 
   const handleUnselect = useCallback(
     (id: string) => {
-      dispatch('unselectNode', { id });
+      dispatch(unselectNode)({ id });
     },
     [dispatch]
   );
@@ -966,7 +1016,7 @@ export function LayersSection() {
         const overItem = flattenedItems.find((item) => item.id === newOverId);
         if (
           overItem?.canHaveChildren &&
-          overItem.node.children.length > 0 &&
+          (overItem.node.children?.length ?? 0) > 0 &&
           !allExpandedLayers.has(newOverId)
         ) {
           // Check if we're already tracking this item
@@ -982,19 +1032,17 @@ export function LayersSection() {
             }, 3000);
             setHoverExpandTimer({ nodeId: newOverId, timeoutId });
           }
-        } else {
-          // Clear timer if not over a collapsed item
-          if (hoverExpandTimer) {
-            clearTimeout(hoverExpandTimer.timeoutId);
-            setHoverExpandTimer(null);
-          }
         }
-      } else {
-        // Clear timer if not over a valid item
-        if (hoverExpandTimer) {
+        // Clear timer if not over a collapsed item
+        else if (hoverExpandTimer) {
           clearTimeout(hoverExpandTimer.timeoutId);
           setHoverExpandTimer(null);
         }
+      }
+      // Clear timer if not over a valid item
+      else if (hoverExpandTimer) {
+        clearTimeout(hoverExpandTimer.timeoutId);
+        setHoverExpandTimer(null);
       }
     },
     [activeId, flattenedItems, allExpandedLayers, hoverExpandTimer, toggleLayer]
@@ -1028,16 +1076,20 @@ export function LayersSection() {
       if (!over) {
         return;
       }
+      if (!tree) {
+        return;
+      }
 
       const { parentId, isAbove } = projected;
       const newParentId = parentId ?? 'root';
 
       // Handle end drop zone - place at end of parent
       if (over.id === END_DROP_ZONE_ID) {
-        dispatch('moveNode', {
+        const toIndex = getTargetIndex(tree, null, newParentId);
+        dispatch(moveNode)({
           nodeId: active.id as string,
           newParentId,
-          beforeSiblingId: null
+          toIndex
         });
         return;
       }
@@ -1059,13 +1111,14 @@ export function LayersSection() {
         );
       }
 
-      dispatch('moveNode', {
+      const toIndex = getTargetIndex(tree, beforeSiblingId, newParentId);
+      dispatch(moveNode)({
         nodeId: active.id as string,
         newParentId,
-        beforeSiblingId
+        toIndex
       });
     },
-    [dispatch, flattenedItems, projected, resetState]
+    [dispatch, flattenedItems, projected, resetState, tree]
   );
 
   const handleDragCancel = useCallback(() => {
@@ -1158,8 +1211,12 @@ function SortableTreeItemWrapper({
   flattenedItems,
   selectedNodeIds
 }: SortableTreeItemWrapperProps) {
-  const isSelected = usePaywallDesignerSelect(
-    useShallow((state) => state.selectedNodeIds.includes(item.id))
+  const store = usePaywallDesignerStore();
+  const isSelected = useStore(
+    store,
+    useShallow((state) =>
+      (state.mimic.presence.self?.selectedNodeIds ?? []).includes(item.id)
+    )
   );
 
   const isHighlighted = highlightedIds.has(item.id);
@@ -1173,7 +1230,7 @@ function SortableTreeItemWrapper({
     <SortableTreeItem
       activeId={activeId}
       depth={item.depth}
-      hasChildren={item.node.children.length > 0}
+      hasChildren={(item.node.children?.length ?? 0) > 0}
       id={item.id}
       indentationWidth={indentationWidth}
       isChildOfSelected={isChildOfSelected}

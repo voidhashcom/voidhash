@@ -1,3 +1,5 @@
+import type { Primitive } from '@voidhash/mimic';
+import type { PaywallDesignerStoreType } from '../designer-store';
 import type {
   DesignerStateNodes,
   NodeData,
@@ -26,18 +28,22 @@ export function createTree<TStateNodes extends DesignerStateNodes>(
     } as unknown as TreeNode<TStateNodes[string]>;
     nodeMap.set(node.id, treeNode);
 
-    // If node has a parent (only screen nodes have parent, root nodes don't), add it to the children map
-    if ('parent' in node && node.parent) {
-      const parentId = node.parent.id;
-      if (!childrenMap.has(parentId)) {
+    // If node has a parent (non-root nodes have parentId), add it to the children map
+    if (node.type !== 'root') {
+      const nodeWithParent = node as NodeDataWithoutRoot;
+      const parentId = nodeWithParent.parentId;
+      if (parentId && !childrenMap.has(parentId)) {
         childrenMap.set(parentId, []);
       }
-      const parentChildren = childrenMap.get(parentId);
-      if (parentChildren) {
-        parentChildren.push({
-          nodeId: node.id,
-          index: node.parent.index
-        });
+      if (parentId) {
+        const parentChildren = childrenMap.get(parentId);
+        if (parentChildren) {
+          // Use pos for ordering since mimic uses pos for fractional indexing
+          parentChildren.push({
+            nodeId: node.id,
+            index: nodeWithParent.pos ?? ''
+          });
+        }
       }
     }
   }
@@ -100,17 +106,16 @@ export function findSubtreeInTree<TStateNodes extends DesignerStateNodes>(
 export function sortTree<T extends NodeData>(tree: TreeNode<T>): TreeNode<T> {
   if (tree.children && tree.children.length > 0) {
     tree.children.sort((a, b) => {
-      if ('parent' in a && 'parent' in b) {
-        const indexA = a.parent.index;
-        const indexB = b.parent.index;
+      // Use pos for ordering since mimic uses pos for fractional indexing
+      const indexA = 'pos' in a ? (a.pos as string) ?? '' : '';
+      const indexB = 'pos' in b ? (b.pos as string) ?? '' : '';
 
-        // Standard lexicographical string comparison
-        if (indexA < indexB) {
-          return -1;
-        }
-        if (indexA > indexB) {
-          return 1;
-        }
+      // Standard lexicographical string comparison
+      if (indexA < indexB) {
+        return -1;
+      }
+      if (indexA > indexB) {
+        return 1;
       }
       return 0;
     });
@@ -134,6 +139,37 @@ export function getNodesByParentId<TStateNodes extends DesignerStateNodes>(
   parentId: string
 ): NodeDataWithoutRoot[] {
   return Object.values(nodes ?? {}).filter(
-    (n) => n.type !== 'root' && n.parent.id === parentId
+    (n) => n.type !== 'root' && (n as NodeDataWithoutRoot).parentId === parentId
   ) as NodeDataWithoutRoot[];
 }
+
+type StoreData = PaywallDesignerStoreType;
+
+const getNodeByIdInSnapshot = (
+  snapshot: Primitive.TreeNodeSnapshot<Primitive.AnyTreeNodePrimitive>,
+  id: string
+) => {
+  if (snapshot.id === id) {
+    return snapshot;
+  }
+  if (snapshot.children) {
+    for (const child of snapshot.children) {
+      const found = getNodeByIdInSnapshot(child, id);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+};
+
+export const getNodeById = (
+  state: ReturnType<StoreData['getState']>,
+  id: string
+) => {
+  const treeSnapshot = state.mimic.snapshot;
+  if (!treeSnapshot) {
+    return null;
+  }
+  return getNodeByIdInSnapshot(treeSnapshot, id);
+};
