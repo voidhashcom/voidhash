@@ -11,6 +11,7 @@ const prefixes = {
   customer: 'cust',
   purchase: 'pur',
   paywall: 'pw',
+  paywallEditToken: 'pw_et',
   paywallProduct: 'pw_prod',
   paymentProviderConfiguration: 'pp_conf',
   paymentProviderProduct: 'pp_prod',
