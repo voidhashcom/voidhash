@@ -1,12 +1,13 @@
-"use client";
+'use client';
 
-import { useStore } from "zustand/react";
-import { Panel } from "@/features/designer/components/panel";
-import { usePaywallDesignerStore } from "../state/designer-store";
-import { PANEL_DIMENSIONS } from "./constants";
-import { FlexPanel } from "./right-panel/flex-panel";
-import { ScreenPanel } from "./right-panel/screen-panel";
-import { TextPanel } from "./right-panel/text-panel";
+import { useStore } from 'zustand/react';
+import { Panel } from '@/features/designer/components/panel';
+import { usePaywallDesignerStore } from '../state/designer-store';
+import { getNodeById } from '../state/utils/nodes';
+import { PANEL_DIMENSIONS } from './constants';
+import { FlexPanel } from './right-panel/flex-panel';
+import { ScreenPanel } from './right-panel/screen-panel';
+import { TextPanel } from './right-panel/text-panel';
 
 // function SelectedNodePanel({ nodeId }: { nodeId: string }) {
 //   const selectedNode = useDesignerSelect((state) => state.nodes?.[nodeId]);
@@ -55,53 +56,55 @@ import { TextPanel } from "./right-panel/text-panel";
 // }
 
 function SelectedNodePanel({ nodeId }: { nodeId: string }) {
-	const store = usePaywallDesignerStore();
-	const selectedNode = useStore(store, (state) => state.nodes?.[nodeId]);
-	if (!selectedNode) {
-		return null;
-	}
+  const store = usePaywallDesignerStore();
+  const selectedNode = useStore(store, (state) => getNodeById(state, nodeId));
+  if (!selectedNode) {
+    return null;
+  }
 
-	if (selectedNode.type === "screen") {
-		return <ScreenPanel node={selectedNode} />;
-	}
+  if (selectedNode.type === 'screen') {
+    return <ScreenPanel node={selectedNode} />;
+  }
 
-	if (selectedNode.type === "flex") {
-		return <FlexPanel node={selectedNode} />;
-	}
+  if (selectedNode.type === 'flex') {
+    return <FlexPanel node={selectedNode} />;
+  }
 
-	if (selectedNode.type === "text") {
-		return <TextPanel node={selectedNode} />;
-	}
+  if (selectedNode.type === 'text') {
+    return <TextPanel node={selectedNode} />;
+  }
 
-	return null;
+  return null;
 }
 
 export function RightPanel() {
-	const store = usePaywallDesignerStore();
-	const selectedNodeIds = useStore(store, (state) => state.selectedNodeIds);
-	const selectedNodeId = selectedNodeIds[0];
+  const store = usePaywallDesignerStore();
+  const selectedNodeIds =
+    useStore(store, (state) => state.mimic.presence.self?.selectedNodeIds) ??
+    [];
+  const selectedNodeId = selectedNodeIds[0];
 
-	return (
-		<div
-			className="fixed right-0 bottom-0 z-40 flex flex-col border-border border-l bg-sidebar"
-			style={{
-				top: PANEL_DIMENSIONS.TOP_HEIGHT,
-				width: PANEL_DIMENSIONS.RIGHT_WIDTH,
-			}}
-		>
-			<Panel>
-				{selectedNodeIds.length === 0 && <div />}
-				{selectedNodeIds.length === 1 && selectedNodeId && (
-					<SelectedNodePanel nodeId={selectedNodeId} />
-				)}
-				{selectedNodeIds.length > 1 && (
-					<div className="p-2 text-gray-500 text-sm">
-						Multiple nodes selected
-					</div>
-				)}
-			</Panel>
-		</div>
-	);
+  return (
+    <div
+      className="fixed right-0 bottom-0 z-40 flex flex-col border-border border-l bg-sidebar"
+      style={{
+        top: PANEL_DIMENSIONS.TOP_HEIGHT,
+        width: PANEL_DIMENSIONS.RIGHT_WIDTH
+      }}
+    >
+      <Panel>
+        {selectedNodeIds.length === 0 && <div />}
+        {selectedNodeIds.length === 1 && selectedNodeId && (
+          <SelectedNodePanel nodeId={selectedNodeId} />
+        )}
+        {selectedNodeIds.length > 1 && (
+          <div className="p-2 text-gray-500 text-sm">
+            Multiple nodes selected
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
 }
 
 // export function RightPanel() {

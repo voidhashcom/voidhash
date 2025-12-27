@@ -1,6 +1,15 @@
 'use client';
 
 import type { FlexNodeData } from '@voidhash/mimic-schema';
+import {
+  addFlexNodeState,
+  addFlexNodeVariable,
+  removeFlexNodeState,
+  removeFlexNodeVariable,
+  updateFlexNode,
+  updateFlexNodeState,
+  updateFlexNodeVariable
+} from '../../state/actions';
 import { usePaywallDesignerActions } from '../../state/designer-store';
 import { BorderRadiusSection } from './sections/border-radius-section';
 import { BorderSection } from './sections/border-section';
@@ -9,7 +18,6 @@ import { FlexLayoutSection } from './sections/flex-layout-section';
 import { StatesSection } from './sections/states-section';
 import { VariablesSection } from './sections/variables-section';
 
-const DISPATCH_ACTION = 'updateFlexNode';
 export function FlexPanel({ node }: { node: FlexNodeData }) {
   const dispatch = usePaywallDesignerActions();
   return (
@@ -17,13 +25,13 @@ export function FlexPanel({ node }: { node: FlexNodeData }) {
       <VariablesSection
         node={node}
         onAddVariable={(nodeId, type, name) =>
-          dispatch('addFlexNodeVariable', { nodeId, type, name })
+          dispatch(addFlexNodeVariable)({ nodeId, type, name })
         }
         onRemoveVariable={(nodeId, variableId) =>
-          dispatch('removeFlexNodeVariable', { nodeId, variableId })
+          dispatch(removeFlexNodeVariable)({ nodeId, variableId })
         }
         onUpdateVariable={(nodeId, variableId, updates) =>
-          dispatch('updateFlexNodeVariable', {
+          dispatch(updateFlexNodeVariable)({
             nodeId,
             variableId,
             ...updates
@@ -33,13 +41,13 @@ export function FlexPanel({ node }: { node: FlexNodeData }) {
       <StatesSection
         node={node}
         onAddState={(nodeId, name, condition) =>
-          dispatch('addFlexNodeState', { nodeId, name, condition })
+          dispatch(addFlexNodeState)({ nodeId, name, condition })
         }
         onRemoveState={(nodeId, stateId) =>
-          dispatch('removeFlexNodeState', { nodeId, stateId })
+          dispatch(removeFlexNodeState)({ nodeId, stateId })
         }
         onUpdateState={(nodeId, stateId, updates) =>
-          dispatch('updateFlexNodeState', {
+          dispatch(updateFlexNodeState)({
             nodeId,
             stateId,
             ...updates
@@ -49,9 +57,9 @@ export function FlexPanel({ node }: { node: FlexNodeData }) {
       <FlexLayoutSection
         node={node.data.style}
         onNodeChange={(updatedStyle) =>
-          dispatch(DISPATCH_ACTION, {
-            ...node,
-            style: { ...node.data.style, ...updatedStyle }
+          dispatch(updateFlexNode)({
+            id: node.id,
+            updates: { style: { ...node.data.style, ...updatedStyle } }
           })
         }
         parentId={node.id}
@@ -59,18 +67,18 @@ export function FlexPanel({ node }: { node: FlexNodeData }) {
       <BorderRadiusSection
         node={node.data.style}
         onNodeChange={(updatedStyle) =>
-          dispatch(DISPATCH_ACTION, {
-            ...node,
-            style: { ...node.data.style, ...updatedStyle }
+          dispatch(updateFlexNode)({
+            id: node.id,
+            updates: { style: { ...node.data.style, ...updatedStyle } }
           })
         }
       />
       <FillSection
         node={node.data.style}
         onNodeChange={(updatedStyle) =>
-          dispatch(DISPATCH_ACTION, {
-            ...node,
-            style: { ...node.data.style, ...updatedStyle }
+          dispatch(updateFlexNode)({
+            id: node.id,
+            updates: { style: { ...node.data.style, ...updatedStyle } }
           })
         }
       />
@@ -78,9 +86,9 @@ export function FlexPanel({ node }: { node: FlexNodeData }) {
       <BorderSection
         node={node.data.style}
         onNodeChange={(updatedStyle) =>
-          dispatch(DISPATCH_ACTION, {
-            ...node,
-            style: { ...node.data.style, ...updatedStyle }
+          dispatch(updateFlexNode)({
+            id: node.id,
+            updates: { style: { ...node.data.style, ...updatedStyle } }
           })
         }
       />

@@ -6,48 +6,53 @@
  */
 
 import { commander } from '../designer-commander';
-import type { DesignerStateNodes } from '../schema';
-import { createTree, findSubtreeInTree, flattenTree } from '../utils/nodes';
 
 // =============================================================================
-// Helper to get nodes from snapshot as a flat map
+// Helper Types
+// =============================================================================
+
+interface SnapshotNode {
+  id: string;
+  type: string;
+  children?: SnapshotNode[];
+}
+
+// =============================================================================
+// Helper Functions for Snapshot Tree
 // =============================================================================
 
 /**
- * Converts the tree snapshot to a flat nodes map for compatibility
- * with existing tree utilities.
+ * Find a subtree in the snapshot by its id.
  */
-function getNodesFromSnapshot(
-  snapshot: {
-    id: string;
-    type: string;
-    children: unknown[];
-  } | null
-): DesignerStateNodes {
-  if (!snapshot) {
-    return {};
+function findSubtreeInSnapshot(
+  snapshot: SnapshotNode,
+  id: string
+): SnapshotNode | null {
+  if (snapshot.id === id) {
+    return snapshot;
   }
-
-  const nodes: DesignerStateNodes = {};
-
-  const traverse = (node: {
-    id: string;
-    type: string;
-    children?: unknown[];
-  }): void => {
-    // Add the node to the map (spread to get all properties)
-    nodes[node.id] = node as DesignerStateNodes[string];
-
-    // Recursively traverse children
-    if (node.children && Array.isArray(node.children)) {
-      for (const child of node.children) {
-        traverse(child as { id: string; type: string; children?: unknown[] });
+  if (snapshot.children) {
+    for (const child of snapshot.children) {
+      const found = findSubtreeInSnapshot(child, id);
+      if (found) {
+        return found;
       }
     }
-  };
+  }
+  return null;
+}
 
-  traverse(snapshot);
-  return nodes;
+/**
+ * Flatten a snapshot tree into an array of nodes.
+ */
+function flattenSnapshot(node: SnapshotNode): SnapshotNode[] {
+  const result: SnapshotNode[] = [node];
+  if (node.children) {
+    for (const child of node.children) {
+      result.push(...flattenSnapshot(child));
+    }
+  }
+  return result;
 }
 
 // =============================================================================
@@ -83,15 +88,12 @@ export const selectNode = commander.action<{ id: string; many: boolean }>(
     }
 
     // Multi-select mode: combine the new selection
-    const nodes = getNodesFromSnapshot(
-      mimic.snapshot as {
-        id: string;
-        type: string;
-        children: unknown[];
-      } | null
-    );
-    const tree = createTree(nodes);
-    const nodeSubtree = findSubtreeInTree(tree, params.id);
+    const snapshot = mimic.snapshot as SnapshotNode | null;
+    if (!snapshot) {
+      return;
+    }
+
+    const nodeSubtree = findSubtreeInSnapshot(snapshot, params.id);
     if (!nodeSubtree) {
       return;
     }
@@ -99,11 +101,11 @@ export const selectNode = commander.action<{ id: string; many: boolean }>(
     // Do not select if already selected as a child of another selected node
     const allSelectedNodeIdsAndSubnodeIds = new Set(
       selectedNodeIds.flatMap((id) => {
-        const subtree = findSubtreeInTree(tree, id);
+        const subtree = findSubtreeInSnapshot(snapshot, id);
         if (!subtree) {
           return [];
         }
-        return flattenTree(subtree).map((node) => node.id);
+        return flattenSnapshot(subtree).map((node) => node.id);
       })
     );
 
@@ -112,7 +114,7 @@ export const selectNode = commander.action<{ id: string; many: boolean }>(
     }
 
     // Remove all children of the newly selected node
-    const flattenedSubtree = flattenTree(nodeSubtree);
+    const flattenedSubtree = flattenSnapshot(nodeSubtree);
     const nodeIdsToUnselect = flattenedSubtree
       .map((node) => node.id)
       .filter((id) => id !== params.id);

@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
 import { authClient } from '../../lib/auth-client';
 
-export const Route = createFileRoute('/admin/_layout')({
+export const Route = createFileRoute('/admin')({
   component: AdminLayout,
   beforeLoad: async () => {
     const session = await authClient.getSession();

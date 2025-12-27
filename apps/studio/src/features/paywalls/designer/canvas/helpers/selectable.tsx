@@ -34,7 +34,7 @@ export function Selectable({ children, nodeId }: SelectableProps) {
 	const store = usePaywallDesignerStore();
 	const isSelected = useStore(
 		store,
-		useShallow((state) => state.selectedNodeIds.includes(nodeId)),
+		useShallow((state) => (state.mimic.presence.self?.selectedNodeIds ?? []).includes(nodeId)),
 	);
 	const dispatch = usePaywallDesignerActions();
 	const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -43,14 +43,14 @@ export function Selectable({ children, nodeId }: SelectableProps) {
 	};
 
 	const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-		const result = dispatch(nodeMouseEnter)({ id: nodeId });
+		const result = dispatch(nodeMouseEnter)({ id: nodeId }) as { shouldPropagate?: boolean } | undefined;
 		if (!result?.shouldPropagate) {
 			e.stopPropagation();
 		}
 	};
 
 	const handleMouseOver = (e: React.MouseEvent<HTMLDivElement>) => {
-		const result = dispatch(nodeMouseOver)({ id: nodeId });
+		const result = dispatch(nodeMouseOver)({ id: nodeId }) as { shouldPropagate?: boolean } | undefined;
 		if (!result?.shouldPropagate) {
 			e.stopPropagation();
 		}

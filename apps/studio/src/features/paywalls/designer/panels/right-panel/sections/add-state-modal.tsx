@@ -93,7 +93,7 @@ export function AddStateModal({
       ]
     };
 
-    onAdd(data.name, defaultCondition);
+    onAdd(data.name, defaultCondition as unknown as DNF);
     handleOpenChange(false);
   };
 

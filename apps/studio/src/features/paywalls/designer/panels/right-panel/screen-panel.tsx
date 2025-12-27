@@ -1,13 +1,21 @@
 'use client';
 
 import type { ScreenNodeData } from '@voidhash/mimic-schema';
+import {
+  addScreenNodeState,
+  addScreenNodeVariable,
+  removeScreenNodeState,
+  removeScreenNodeVariable,
+  updateScreenNode,
+  updateScreenNodeState,
+  updateScreenNodeVariable
+} from '../../state/actions';
 import { usePaywallDesignerActions } from '../../state/designer-store';
 import { FillSection } from './sections/fill-section';
 import { FlexLayoutSection } from './sections/flex-layout-section';
 import { StatesSection } from './sections/states-section';
 import { VariablesSection } from './sections/variables-section';
 
-const DISPATCH_ACTION = 'updateScreenNode';
 export function ScreenPanel({ node }: { node: ScreenNodeData }) {
   const dispatch = usePaywallDesignerActions();
   return (
@@ -15,13 +23,13 @@ export function ScreenPanel({ node }: { node: ScreenNodeData }) {
       <VariablesSection
         node={node}
         onAddVariable={(nodeId, type, name) =>
-          dispatch('addScreenNodeVariable', { nodeId, type, name })
+          dispatch(addScreenNodeVariable)({ nodeId, type, name })
         }
         onRemoveVariable={(nodeId, variableId) =>
-          dispatch('removeScreenNodeVariable', { nodeId, variableId })
+          dispatch(removeScreenNodeVariable)({ nodeId, variableId })
         }
         onUpdateVariable={(nodeId, variableId, updates) =>
-          dispatch('updateScreenNodeVariable', {
+          dispatch(updateScreenNodeVariable)({
             nodeId,
             variableId,
             ...updates
@@ -31,13 +39,13 @@ export function ScreenPanel({ node }: { node: ScreenNodeData }) {
       <StatesSection
         node={node}
         onAddState={(nodeId, name, condition) =>
-          dispatch('addScreenNodeState', { nodeId, name, condition })
+          dispatch(addScreenNodeState)({ nodeId, name, condition })
         }
         onRemoveState={(nodeId, stateId) =>
-          dispatch('removeScreenNodeState', { nodeId, stateId })
+          dispatch(removeScreenNodeState)({ nodeId, stateId })
         }
         onUpdateState={(nodeId, stateId, updates) =>
-          dispatch('updateScreenNodeState', {
+          dispatch(updateScreenNodeState)({
             nodeId,
             stateId,
             ...updates
@@ -49,13 +57,15 @@ export function ScreenPanel({ node }: { node: ScreenNodeData }) {
           editableDimensions={false}
           node={node.data.style}
           onNodeChange={(updatedStyle) =>
-            dispatch(DISPATCH_ACTION, {
-              ...node,
-              style: {
-                ...node.data.style,
-                ...updatedStyle,
-                width: updatedStyle.width ?? node.data.style.width,
-                height: updatedStyle.height ?? node.data.style.height
+            dispatch(updateScreenNode)({
+              id: node.id,
+              updates: {
+                style: {
+                  ...node.data.style,
+                  ...updatedStyle,
+                  width: updatedStyle.width ?? node.data.style.width,
+                  height: updatedStyle.height ?? node.data.style.height
+                }
               }
             })
           }
@@ -65,9 +75,9 @@ export function ScreenPanel({ node }: { node: ScreenNodeData }) {
       <FillSection
         node={node.data.style}
         onNodeChange={(updatedStyle) =>
-          dispatch(DISPATCH_ACTION, {
-            ...node,
-            style: { ...node.data.style, ...updatedStyle }
+          dispatch(updateScreenNode)({
+            id: node.id,
+            updates: { style: { ...node.data.style, ...updatedStyle } }
           })
         }
       />

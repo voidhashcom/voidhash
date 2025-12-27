@@ -1,92 +1,94 @@
-"use client";
+'use client';
 
 import {
-	ClientDocument,
-	type Presence,
-	WebSocketTransport,
-} from "@voidhash/mimic/client";
-import { mimic } from "@voidhash/mimic-react/zustand";
-import { useCommander } from "@voidhash/mimic-react/zustand-commander";
+  ClientDocument,
+  type Presence,
+  WebSocketTransport
+} from '@voidhash/mimic/client';
+import { mimic } from '@voidhash/mimic-react/zustand';
+import { useCommander } from '@voidhash/mimic-react/zustand-commander';
 import {
-	PaywallDesignerDocument,
-	PresenceSchema,
-} from "@voidhash/mimic-schema";
-import { createContext, useContext, useRef } from "react";
-import { create } from "zustand";
-import { SHOW_GRID } from "../constants";
-import { commander } from "./designer-commander";
+  PaywallDesignerDocument,
+  PresenceSchema
+} from '@voidhash/mimic-schema';
+import { createContext, useContext, useRef } from 'react';
+import { create } from 'zustand';
+import { SHOW_GRID } from '../constants';
+import { commander } from './designer-commander';
 
 // ============================================================================
 // Store Factory
 // ============================================================================
 
 export const createPaywallDesignerDocument = (
-	documentId: string,
-	initialPresence?: Presence.Infer<typeof PresenceSchema>,
+  documentId: string,
+  initialPresence?: Presence.Infer<typeof PresenceSchema>
 ) =>
-	ClientDocument.make({
-		debug: true,
-		schema: PaywallDesignerDocument,
-		presence: PresenceSchema,
-		transport: WebSocketTransport.make({
-			url: "ws://localhost:5001/mimic/paywall-designer",
-			documentId,
-		}),
-		initialPresence,
-	});
+  ClientDocument.make({
+    debug: true,
+    schema: PaywallDesignerDocument,
+    presence: PresenceSchema,
+    transport: WebSocketTransport.make({
+      url: 'ws://localhost:5001/mimic/paywall-designer',
+      documentId
+    }),
+    initialPresence
+  });
 
 function createPaywallDesignerStore(options: { name: string; color: string }) {
-	// Create final store with actions
-	return create(
-		commander.middleware(
-			mimic(
-				createPaywallDesignerDocument("1", {
-					cursor: null,
-					user: { name: options.name, color: options.color },
-					selectedNodeIds: [],
-				}),
-				() => ({
-					// Local browser state
-					debug: {
-						showGrid: SHOW_GRID,
-					},
-					highlightedNodeId: null,
-					textEditingNodeId: null,
-					tools: {
-						activeTool: "cursor",
-					},
-					canvas: {
-						scale: 1,
-						x: 0,
-						y: 0,
-						boundingBoxes: {},
-					},
-					viewport: {
-						panels: {
-							top: { height: 0 },
-							bottom: { height: 0 },
-							left: { width: 0 },
-							right: { width: 0 },
-						},
-					},
-				}),
-			),
-		),
-	);
+  // Create final store with actions
+  return create(
+    commander.middleware(
+      mimic(
+        createPaywallDesignerDocument('1', {
+          cursor: null,
+          user: { name: options.name, color: options.color },
+          selectedNodeIds: []
+        }),
+        () => ({
+          // Local browser state
+          debug: {
+            showGrid: SHOW_GRID
+          },
+          highlightedNodeId: null,
+          textEditingNodeId: null,
+          tools: {
+            activeTool: 'cursor'
+          },
+          canvas: {
+            scale: 1,
+            x: 0,
+            y: 0,
+            boundingBoxes: {}
+          },
+          viewport: {
+            panels: {
+              top: { height: 0 },
+              bottom: { height: 0 },
+              left: { width: 0 },
+              right: { width: 0 }
+            }
+          }
+        })
+      )
+    )
+  );
 }
 
-type PaywallDesignerStoreType = ReturnType<typeof createPaywallDesignerStore>;
+export type PaywallDesignerStoreType = ReturnType<
+  typeof createPaywallDesignerStore
+>;
 
 // ============================================================================
 // React Context
 // ============================================================================
 
 const PaywallStoreContext = createContext<PaywallDesignerStoreType | null>(
-	null,
+  null
 );
 
 interface PaywallDesignerStoreProviderProps {
-	children: React.ReactNode;
+  children: React.ReactNode;
 }
 
 // function createNewPaywallYDoc() {
@@ -125,26 +127,26 @@ interface PaywallDesignerStoreProviderProps {
 // }
 
 export function PaywallDesignerStoreProvider({
-	children,
+  children
 }: PaywallDesignerStoreProviderProps) {
-	const storeRef = useRef<PaywallDesignerStoreType | null>(null);
+  const storeRef = useRef<PaywallDesignerStoreType | null>(null);
 
-	if (storeRef.current === null) {
-		// const storeState = createPaywallDesignerStoreState(doc, awareness);
-		// const actions = createPaywallDesignerActions(storeState);
-		storeRef.current = createPaywallDesignerStore({
-			name: `User ${Math.floor(Math.random() * 1000)}`,
-			color: `#${Math.floor(Math.random() * 16_777_215)
-				.toString(16)
-				.padStart(6, "0")}`,
-		});
-	}
+  if (storeRef.current === null) {
+    // const storeState = createPaywallDesignerStoreState(doc, awareness);
+    // const actions = createPaywallDesignerActions(storeState);
+    storeRef.current = createPaywallDesignerStore({
+      name: `User ${Math.floor(Math.random() * 1000)}`,
+      color: `#${Math.floor(Math.random() * 16_777_215)
+        .toString(16)
+        .padStart(6, '0')}`
+    });
+  }
 
-	return (
-		<PaywallStoreContext.Provider value={storeRef.current}>
-			{children}
-		</PaywallStoreContext.Provider>
-	);
+  return (
+    <PaywallStoreContext.Provider value={storeRef.current}>
+      {children}
+    </PaywallStoreContext.Provider>
+  );
 }
 
 // ============================================================================
@@ -152,11 +154,11 @@ export function PaywallDesignerStoreProvider({
 // ============================================================================
 
 export function usePaywallDesignerStore() {
-	const store = useContext(PaywallStoreContext);
-	if (!store) {
-		throw new Error("Missing DesignerStoreProvider");
-	}
-	return store;
+  const store = useContext(PaywallStoreContext);
+  if (!store) {
+    throw new Error('Missing DesignerStoreProvider');
+  }
+  return store;
 }
 
 /**
@@ -169,6 +171,6 @@ export function usePaywallDesignerStore() {
  * dispatch(updateScreenNode)({ id: '123', paddingTop: 10 });
  */
 export function usePaywallDesignerActions() {
-	const store = usePaywallDesignerStore();
-	return useCommander(store);
+  const store = usePaywallDesignerStore();
+  return useCommander(store);
 }

@@ -1,30 +1,34 @@
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useStore } from "zustand/react";
-import { useShallow } from "zustand/react/shallow";
 import { updateBoundingBox } from "../state/actions";
 import {
 	usePaywallDesignerActions,
 	usePaywallDesignerStore,
 } from "../state/designer-store";
-import type { NodeData } from "../state/schema";
-import { getNodesByParentId } from "../state/utils/nodes";
+import type { FlexNodeData, ScreenNodeData, TextNodeData } from "../state/schema";
 import { FlexNodeRenderer } from "./node-renderers/flex-node-renderer";
 import { ScreenNodeRenderer } from "./node-renderers/screen-node-renderer";
 import { TextNodeRenderer } from "./node-renderers/text-node-renderer";
 import { useViewport } from "./viewport";
 
+/** Snapshot node structure from mimic - the tree is already structured */
+interface SnapshotNode {
+	id: string;
+	type: string;
+	name?: string;
+	text?: string;
+	style?: Record<string, unknown>;
+	data?: Record<string, unknown>;
+	children?: SnapshotNode[];
+}
+
 export function NodeRenderer({
 	node,
 }: {
-	node: NodeData & { children: NodeData[] };
+	node: SnapshotNode;
 }) {
-	const store = usePaywallDesignerStore();
-	const nodes = useStore(
-		store,
-		useShallow((state) => state.nodes),
-	);
 	const dispatch = usePaywallDesignerActions();
-	const children = getNodesByParentId(nodes, node.id);
+	const children = node.children ?? [];
 	const elementRef = useRef<HTMLDivElement>(null);
 	const viewport = useViewport();
 
@@ -79,16 +83,16 @@ export function NodeRenderer({
 		return (
 			<>
 				{children.map((child) => (
-					<NodeRenderer key={child.id} node={{ ...child, children }} />
+					<NodeRenderer key={child.id} node={child} />
 				))}
 			</>
 		);
 	}
 	if (node.type === "screen") {
 		return (
-			<ScreenNodeRenderer node={node} ref={elementRef}>
+			<ScreenNodeRenderer node={node as unknown as ScreenNodeData} ref={elementRef}>
 				{children.map((child) => (
-					<NodeRenderer key={child.id} node={{ ...child, children }} />
+					<NodeRenderer key={child.id} node={child} />
 				))}
 			</ScreenNodeRenderer>
 		);
@@ -96,16 +100,16 @@ export function NodeRenderer({
 	if (node.type === "text") {
 		return (
 			<div ref={elementRef}>
-				<TextNodeRenderer node={node} />
+				<TextNodeRenderer node={node as unknown as TextNodeData} />
 			</div>
 		);
 	}
 
 	if (node.type === "flex") {
 		return (
-			<FlexNodeRenderer node={node} ref={elementRef}>
+			<FlexNodeRenderer node={node as unknown as FlexNodeData} ref={elementRef}>
 				{children.map((child) => (
-					<NodeRenderer key={child.id} node={{ ...child, children }} />
+					<NodeRenderer key={child.id} node={child} />
 				))}
 			</FlexNodeRenderer>
 		);
@@ -116,20 +120,18 @@ export function NodeRenderer({
 
 export function NodeTreeRenderer() {
 	const store = usePaywallDesignerStore();
-	const nodes = useStore(
+	const snapshot = useStore(
 		store,
-		useShallow((state) => state.nodes),
+		(state) => state.mimic.snapshot,
 	);
-	const firstLevelNodes = useMemo(() => {
-		return Object.values(nodes ?? {}).filter(
-			(node) => node.type !== "root" && node.parentId === "root",
-		);
-	}, [nodes]);
+
+	if (!snapshot) {
+		return null;
+	}
+
 	return (
 		<div className="relative">
-			<NodeRenderer
-				node={{ type: "root", id: "root", children: firstLevelNodes }}
-			/>
+			<NodeRenderer node={snapshot as SnapshotNode} />
 		</div>
 	);
 }
