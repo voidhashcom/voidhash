@@ -1,15 +1,15 @@
-import type { Infer } from '../schema';
-import type {
-  booleanVariableTypeSchema,
-  numberVariableTypeSchema,
-  productVariableTypeSchema,
-  stringVariableTypeSchema,
-  variableTypeSchema
-} from './variables';
+// import type { z } from 'zod';
+// import type {
+//   booleanVariableTypeSchema,
+//   numberVariableTypeSchema,
+//   productVariableTypeSchema,
+//   stringVariableTypeSchema,
+//   variableTypeSchema
+// } from './variables';
 
-export type VariableType = Infer<typeof variableTypeSchema>;
-export type VariableTypeKey = VariableType['key'];
-export type StringVariableType = Infer<typeof stringVariableTypeSchema>;
-export type NumberVariableType = Infer<typeof numberVariableTypeSchema>;
-export type BooleanVariableType = Infer<typeof booleanVariableTypeSchema>;
-export type ProductVariableType = Infer<typeof productVariableTypeSchema>;
+// export type VariableType = z.infer<typeof variableTypeSchema>;
+// export type VariableTypeKey = VariableType['key'];
+// export type StringVariableType = z.infer<typeof stringVariableTypeSchema>;
+// export type NumberVariableType = z.infer<typeof numberVariableTypeSchema>;
+// export type BooleanVariableType = z.infer<typeof booleanVariableTypeSchema>;
+// export type ProductVariableType = z.infer<typeof productVariableTypeSchema>;
