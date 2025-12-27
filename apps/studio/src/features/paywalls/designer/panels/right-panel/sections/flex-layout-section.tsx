@@ -1,6 +1,6 @@
 "use client";
 
-import type { FlexDirection } from "@voidhash/dff";
+import type { FlexDirection } from "@voidhash/mimic-schema";
 
 import { Schema } from "effect";
 import {
@@ -17,6 +17,7 @@ import {
 	VaultIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { useStore } from "zustand";
 import { PanelButton } from "@/features/designer/components/button";
 import {
 	PanelSection,
@@ -31,7 +32,7 @@ import {
 	PanelToggleGroup,
 	PanelToggleGroupItem,
 } from "@/features/designer/components/toggle-group";
-import { usePaywallDesignerSelect } from "../../../state/designer-store";
+import { usePaywallDesignerStore } from "../../../state/designer-store";
 import type { NodeEditorProps } from "../../types";
 import { FlexAlignmentInput } from "../inputs/flex-alignment-input";
 import { HeightInput } from "../inputs/height-input";
@@ -79,10 +80,10 @@ export function FlexLayoutSection({
 				<FlexSubsection node={node} onNodeChange={onNodeChange} />
 				{showDimensions && (
 					<DimensionsSubSection
-						node={node}
-						parentId={parentId}
-						onNodeChange={onNodeChange}
 						editable={editableDimensions}
+						node={node}
+						onNodeChange={onNodeChange}
+						parentId={parentId}
 					/>
 				)}
 				<PaddingSubSection node={node} onNodeChange={onNodeChange} />
@@ -112,30 +113,29 @@ function DimensionsSubSection({
 	parentId,
 	editable = true,
 }: DimensionsSubSectionProps) {
-	const parent = usePaywallDesignerSelect(
-		(state) => state.nodes?.[parentId ?? ""],
-	);
+	const store = usePaywallDesignerStore();
+	const parent = useStore(store, (state) => state.nodes?.[parentId ?? ""]);
 	if (!parent) {
 		return null;
 	}
 	const parentDirection =
-		parent.type === "flex" ? parent.style.flexDirection : "row";
+		parent.type === "flex" ? parent.data.style.flexDirection : "row";
 	return (
 		<PanelSubSection>
 			<PanelSubSectionTitle>Dimensions</PanelSubSectionTitle>
 			<PanelSubSectionContent>
 				<div className="flex flex-row gap-2">
 					<WidthInput
-						node={node}
-						parentDirection={parentDirection}
-						onNodeChange={onNodeChange}
 						disabled={!editable}
+						node={node}
+						onNodeChange={onNodeChange}
+						parentDirection={parentDirection}
 					/>
 					<HeightInput
-						node={node}
-						parentDirection={parentDirection}
-						onNodeChange={onNodeChange}
 						disabled={!editable}
+						node={node}
+						onNodeChange={onNodeChange}
+						parentDirection={parentDirection}
 					/>
 				</div>
 			</PanelSubSectionContent>

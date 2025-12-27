@@ -27,8 +27,8 @@ export function createTree<TStateNodes extends DesignerStateNodes>(
     nodeMap.set(node.id, treeNode);
 
     // If node has a parent (only screen nodes have parent, root nodes don't), add it to the children map
-    if ('parent' in node && node.parent) {
-      const parentId = node.parent.id;
+    if ('parentId' in node && node.parentId) {
+      const parentId = node.parentId;
       if (!childrenMap.has(parentId)) {
         childrenMap.set(parentId, []);
       }

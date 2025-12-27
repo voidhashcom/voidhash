@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useStore } from "zustand/react";
 import {
 	usePaywallDesignerActions,
-	usePaywallDesignerSelect,
+	usePaywallDesignerStore,
 } from "../../state/designer-store";
 import type { TextNodeData } from "../../state/schema";
 import { Selectable } from "../helpers/selectable";
 
 export function TextNodeRenderer({ node }: { node: TextNodeData }) {
-	const editingNodeId = usePaywallDesignerSelect(
-		(state) => state.textEditingNodeId,
-	);
+	const store = usePaywallDesignerStore();
+	const editingNodeId = useStore(store, (state) => state.textEditingNodeId);
 	const isEditing = editingNodeId === node.id;
 	const editableRef = useRef<HTMLDivElement>(null);
 	const initializedRef = useRef(false);
@@ -19,13 +19,13 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
 	useEffect(() => {
 		if (isEditing && editableRef.current && !initializedRef.current) {
 			// Set initial content only once when entering edit mode
-			editableRef.current.textContent = node.text;
+			editableRef.current.textContent = node.data.text;
 			initializedRef.current = true;
 		}
 		if (!isEditing) {
 			initializedRef.current = false;
 		}
-	}, [isEditing, node.text]);
+	}, [isEditing, node.data.text]);
 
 	// Focus and select text when entering edit mode
 	useEffect(() => {
@@ -60,7 +60,7 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
 		const finalValue = editableRef.current?.textContent ?? "";
 		dispatch("textEditingStopped", { id: node.id });
 		// Save the changes
-		if (finalValue !== node.text) {
+		if (finalValue !== node.data.text) {
 			dispatch("updateTextNode", {
 				...node,
 				text: finalValue,
@@ -76,7 +76,7 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
 		if (e.key === "Escape") {
 			// Reset content to original value
 			if (editableRef.current) {
-				editableRef.current.textContent = node.text;
+				editableRef.current.textContent = node.data.text;
 			}
 			e.currentTarget.blur();
 		}
@@ -89,32 +89,33 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
 				const elementRole = isEditing ? "textbox" : role;
 				return (
 					// biome-ignore lint/a11y/noStaticElementInteractions: We need a div to support both selectable (button role) and editable (textbox role) modes
+					// biome-ignore lint/nursery/noNoninteractiveElementInteractions: We need a div to support both selectable (button role) and editable (textbox role) modes
 					<div
-						key={isEditing ? "editing" : "display"}
-						ref={editableRef}
 						contentEditable={isEditing}
+						key={isEditing ? "editing" : "display"}
+						onBlur={handleBlur}
+						onClick={handleClick}
+						onDoubleClick={handleDoubleClick}
+						onKeyDown={handleKeyDown}
+						onMouseDown={isEditing ? undefined : onMouseDown}
+						ref={editableRef}
 						role={elementRole}
 						style={{
 							userSelect: isEditing ? "text" : "none",
-							fontSize: node.style.fontSize,
-							color: node.style.color,
-							fontWeight: node.style.fontWeight,
-							textAlign: node.style.textAlign,
-							lineHeight: node.style.lineHeight,
-							letterSpacing: node.style.letterSpacing,
+							fontSize: node.data.style.fontSize,
+							color: node.data.style.color,
+							fontWeight: node.data.style.fontWeight,
+							textAlign: node.data.style.textAlign,
+							lineHeight: node.data.style.lineHeight,
+							letterSpacing: node.data.style.letterSpacing,
 							outline: isEditing ? "1px solid currentColor" : "none",
 							cursor: isEditing ? "text" : "default",
 						}}
-						onClick={handleClick}
-						onDoubleClick={handleDoubleClick}
-						onBlur={handleBlur}
-						onKeyDown={handleKeyDown}
-						onMouseDown={isEditing ? undefined : onMouseDown}
 						suppressContentEditableWarning
 						{...otherSelectableProps}
 					>
 						{/* When editing, don't render children - let contentEditable manage it */}
-						{!isEditing && node.text}
+						{!isEditing && node.data.text}
 					</div>
 				);
 			}}

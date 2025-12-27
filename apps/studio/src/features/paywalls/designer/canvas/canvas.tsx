@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { CANVAS_DEFAULTS } from "../constants";
+import { clearSelection, saveCanvasState } from "../state/actions";
 import { usePaywallDesignerActions } from "../state/designer-store";
 import { NodeTreeRenderer } from "./node-tree-renderer";
 import { SelectionOverlay } from "./overlay/selection-overlay";
@@ -36,12 +37,16 @@ export function Canvas() {
 	const handleClearSelection = (e: React.MouseEvent<HTMLDivElement>) => {
 		// Only clear selection if clicking directly on the canvas background
 		if (e.target === e.currentTarget) {
-			dispatch("clearSelection", {});
+			dispatch(clearSelection)({});
 		}
 	};
 
 	const handleTransformChange = (newTransform: ViewportTransform) => {
-		dispatch("saveCanvasState", newTransform);
+		dispatch(saveCanvasState)({
+			scale: newTransform.scale,
+			x: newTransform.x,
+			y: newTransform.y,
+		});
 	};
 
 	return (
@@ -70,7 +75,7 @@ export function Canvas() {
 						onClick={handleClearSelection}
 						onKeyDown={(e) => {
 							if (e.key === "Escape") {
-								dispatch("clearSelection", {});
+								dispatch(clearSelection)({});
 							}
 						}}
 						role="button"

@@ -1,88 +1,78 @@
 "use client";
 
 import {
-	createEditor,
-	createYjsStorage,
-	type Editor,
-	getDefaults,
-	paywallDocument,
-	type ScreenNodeData,
-	screenNode,
-} from "@voidhash/dff";
-import { IndexGenerator } from "fractional-indexing-jittered";
-import { createContext, useContext, useMemo, useRef } from "react";
-import { Awareness } from "y-protocols/awareness";
-import * as Y from "yjs";
+	ClientDocument,
+	type Presence,
+	WebSocketTransport,
+} from "@voidhash/mimic/client";
+import { mimic } from "@voidhash/mimic-react/zustand";
+import { useCommander } from "@voidhash/mimic-react/zustand-commander";
 import {
-	createVoidsyncState,
-	createVoidsyncStore,
-	type HookDispatchFn,
-	useVoidsyncActions,
-	useVoidsyncAwareness,
-	useVoidsyncSelect,
-} from "../../../designer/voidsync";
-import { useVoidsyncSubscribe } from "../../../designer/voidsync/hooks";
-import { INIT_SCREEN_DATA, SHOW_GRID } from "../constants";
-import {
-	createDesignerActions as createPaywallDesignerActions,
-	type DesignerActions,
-} from "./actions";
-import { type DesignerSchema, designerSchema } from "./schema";
-import { createNodeId } from "./utils/id";
+	PaywallDesignerDocument,
+	PresenceSchema,
+} from "@voidhash/mimic-schema";
+import { createContext, useContext, useRef } from "react";
+import { create } from "zustand";
+import { SHOW_GRID } from "../constants";
+import { commander } from "./designer-commander";
 
 // ============================================================================
 // Store Factory
 // ============================================================================
 
-function createPaywallDesignerStoreState(doc: Y.Doc, awareness: Awareness) {
-	// Create the store state with initial values
-	return createVoidsyncState(designerSchema)(
-		{
-			awareness: {
-				cursor: null,
-				user: {
-					name: `User ${Math.floor(Math.random() * 1000)}`,
-					color: `#${Math.floor(Math.random() * 16_777_215)
-						.toString(16)
-						.padStart(6, "0")}`,
-				},
-				selectedNodeIds: [],
-			},
-			browser: {
-				debug: {
-					showGrid: SHOW_GRID,
-				},
-				highlightedNodeId: null,
-				tools: {
-					activeTool: "cursor",
-				},
-				canvas: {
-					scale: 1,
-					x: 0,
-					y: 0,
-					boundingBoxes: {},
-				},
-				viewport: {
-					panels: {
-						top: { height: 0 },
-						bottom: { height: 0 },
-						left: { width: 0 },
-						right: { width: 0 },
-					},
-				},
-			},
-		},
-		doc,
-		awareness,
-	);
-}
+export const createPaywallDesignerDocument = (
+	documentId: string,
+	initialPresence?: Presence.Infer<typeof PresenceSchema>,
+) =>
+	ClientDocument.make({
+		debug: true,
+		schema: PaywallDesignerDocument,
+		presence: PresenceSchema,
+		transport: WebSocketTransport.make({
+			url: "ws://localhost:5001/mimic/paywall-designer",
+			documentId,
+		}),
+		initialPresence,
+	});
 
-function createPaywallDesignerStore(
-	storeState: ReturnType<typeof createPaywallDesignerStoreState>,
-	actions: ReturnType<typeof createPaywallDesignerActions>,
-) {
+function createPaywallDesignerStore(options: { name: string; color: string }) {
 	// Create final store with actions
-	return createVoidsyncStore(storeState, actions);
+	return create(
+		commander.middleware(
+			mimic(
+				createPaywallDesignerDocument("1", {
+					cursor: null,
+					user: { name: options.name, color: options.color },
+					selectedNodeIds: [],
+				}),
+				() => ({
+					// Local browser state
+					debug: {
+						showGrid: SHOW_GRID,
+					},
+					highlightedNodeId: null,
+					textEditingNodeId: null,
+					tools: {
+						activeTool: "cursor",
+					},
+					canvas: {
+						scale: 1,
+						x: 0,
+						y: 0,
+						boundingBoxes: {},
+					},
+					viewport: {
+						panels: {
+							top: { height: 0 },
+							bottom: { height: 0 },
+							left: { width: 0 },
+							right: { width: 0 },
+						},
+					},
+				}),
+			),
+		),
+	);
 }
 
 type PaywallDesignerStoreType = ReturnType<typeof createPaywallDesignerStore>;
@@ -97,58 +87,57 @@ const PaywallStoreContext = createContext<PaywallDesignerStoreType | null>(
 
 interface PaywallDesignerStoreProviderProps {
 	children: React.ReactNode;
-	ydoc?: Y.Doc;
-	awareness?: Awareness;
 }
 
-function createNewPaywallYDoc() {
-	const generator = new IndexGenerator([]);
-	const doc = new Y.Doc();
+// function createNewPaywallYDoc() {
+//   const generator = new IndexGenerator([]);
+//   const doc = new Y.Doc();
 
-	// Create editor with YjsStorage - all mutations go through this
-	const storage = createYjsStorage(doc, paywallDocument);
-	const editor = createEditor(paywallDocument, { storage });
-	editor.initialize();
+//   // Create editor with YjsStorage - all mutations go through this
+//   const storage = createYjsStorage(doc, paywallDocument);
+//   const editor = createEditor(paywallDocument, { storage });
+//   editor.initialize();
 
-	// Create root node through editor
-	editor.nodes.create("root", {
-		id: "root",
-	});
+//   // Create root node through editor
+//   editor.nodes.create('root', {
+//     id: 'root'
+//   });
 
-	// Get screen defaults from schema
-	const screenDefaults = getDefaults(screenNode) as Partial<ScreenNodeData>;
+//   // Get screen defaults from schema
+//   const screenDefaults = getDefaults(screenNode) as Partial<ScreenNodeData>;
 
-	const initScreenData: ScreenNodeData = {
-		...screenDefaults,
-		...INIT_SCREEN_DATA,
-		id: createNodeId(),
-		name: "Screen 1",
-		type: "screen",
-		parent: {
-			id: "root",
-			index: generator.keyStart(),
-		},
-	} as ScreenNodeData;
+//   const initScreenData: ScreenNodeData = {
+//     ...screenDefaults,
+//     ...INIT_SCREEN_DATA,
+//     id: createNodeId(),
+//     name: 'Screen 1',
+//     type: 'screen',
+//     parent: {
+//       id: 'root',
+//       index: generator.keyStart()
+//     }
+//   } as ScreenNodeData;
 
-	// Create screen node through editor (validated)
-	editor.nodes.create("screen", initScreenData);
+//   // Create screen node through editor (validated)
+//   editor.nodes.create('screen', initScreenData);
 
-	return doc;
-}
+//   return doc;
+// }
 
 export function PaywallDesignerStoreProvider({
 	children,
-	ydoc,
-	awareness: externalAwareness,
 }: PaywallDesignerStoreProviderProps) {
 	const storeRef = useRef<PaywallDesignerStoreType | null>(null);
 
 	if (storeRef.current === null) {
-		const doc = ydoc ?? createNewPaywallYDoc();
-		const awareness = externalAwareness ?? new Awareness(doc);
-		const storeState = createPaywallDesignerStoreState(doc, awareness);
-		const actions = createPaywallDesignerActions(storeState);
-		storeRef.current = createPaywallDesignerStore(storeState, actions);
+		// const storeState = createPaywallDesignerStoreState(doc, awareness);
+		// const actions = createPaywallDesignerActions(storeState);
+		storeRef.current = createPaywallDesignerStore({
+			name: `User ${Math.floor(Math.random() * 1000)}`,
+			color: `#${Math.floor(Math.random() * 16_777_215)
+				.toString(16)
+				.padStart(6, "0")}`,
+		});
 	}
 
 	return (
@@ -171,106 +160,15 @@ export function usePaywallDesignerStore() {
 }
 
 /**
- * Select state from the designer store reactively.
- * Re-renders when the selected state changes.
+ * Get a dispatch function to call store commands.
+ * Returns a fully type-safe dispatch function using the Commander pattern.
  *
  * @example
- * const nodes = useDesignerSelect((state) => state.nodes);
- * const showGrid = useDesignerSelect((state) => state.debug.showGrid);
+ * const dispatch = usePaywallDesignerActions();
+ * dispatch(setActiveTool)({ tool: 'cursor' });
+ * dispatch(updateScreenNode)({ id: '123', paddingTop: 10 });
  */
-export function usePaywallDesignerSelect<TResult>(
-	selector: (state: DesignerSchema["_types"]["combined"]) => TResult,
-): TResult {
+export function usePaywallDesignerActions() {
 	const store = usePaywallDesignerStore();
-	return useVoidsyncSelect(store, selector);
+	return useCommander(store);
 }
-
-export function usePaywallDesignerSubscribe<TResult>(
-	selector: (state: DesignerSchema["_types"]["combined"]) => TResult,
-	callback: (state: TResult) => void,
-) {
-	const store = usePaywallDesignerStore();
-	return useVoidsyncSubscribe(store, selector, callback);
-}
-
-/**
- * Get a dispatch function to call store actions.
- * Returns a fully type-safe dispatch function based on the registered actions.
- *
- * @example
- * const dispatch = useDesignerActions();
- * dispatch('setActiveTool', { tool: 'cursor' });
- * dispatch('updateScreenNode', { id: '123', paddingTop: 10 });
- */
-export function usePaywallDesignerActions(): HookDispatchFn<DesignerActions> {
-	const store = usePaywallDesignerStore();
-	return useVoidsyncActions(store);
-}
-
-/**
- * Get all users' awareness states (for rendering remote cursors, presence, etc.)
- *
- * @example
- * const awarenessStates = useDesignerAwareness();
- * const otherUsers = Array.from(awarenessStates.entries())
- *   .filter(([clientId]) => clientId !== store.clientId);
- */
-export function usePaywallDesignerAwareness() {
-	const store = usePaywallDesignerStore();
-	return useVoidsyncAwareness(store);
-}
-
-/**
- * Get the local client's unique ID.
- */
-export function usePaywallDesignerClientId() {
-	const store = usePaywallDesignerStore();
-	return store.clientId;
-}
-
-/**
- * Get the raw Yjs document for advanced use cases.
- */
-export function usePaywallDesignerDoc() {
-	const store = usePaywallDesignerStore();
-	return store.doc;
-}
-
-/**
- * Get an Editor populated with the current nodes from Zustand state.
- * Provides typed accessors for reading node data in React components.
- * Re-renders when nodes change.
- *
- * @example
- * ```tsx
- * function MyComponent() {
- *   const document = useDesignerDocument();
- *
- *   // Use typed accessors
- *   const screen = document.nodes.get('screen-1');
- *   const flex = document.nodes.get('flex-1');
- * }
- * ```
- */
-export function usePaywallDesignerDocument(): Editor<typeof paywallDocument> {
-	const nodes = usePaywallDesignerSelect((state) => state.nodes);
-	const doc = usePaywallDesignerDoc();
-
-	return useMemo(() => {
-		const storage = createYjsStorage(doc, paywallDocument);
-		return createEditor(paywallDocument, { storage, initialNodes: nodes });
-	}, [doc, nodes]);
-}
-
-// ============================================================================
-// Legacy Compatibility Aliases
-// ============================================================================
-
-/** @deprecated Use useDesignerSelect instead */
-export const useDesignerStoreInContext = usePaywallDesignerSelect;
-
-/** @deprecated Use useDesignerSelect instead */
-export const useDesignFileSelect = usePaywallDesignerSelect;
-
-/** @deprecated Use useDesignerActions instead */
-export const useDesignFileActions = usePaywallDesignerActions;

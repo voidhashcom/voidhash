@@ -1,24 +1,24 @@
 import type {
-	FlexNodeData,
-	RootNodeData,
-	ScreenNodeData,
-	TextNodeData,
-} from "@voidhash/dff";
-import { Schema } from "effect";
-import { createVoidsyncSchema, syncMap } from "../../../designer/voidsync";
+  FlexNodeData,
+  RootNodeData,
+  ScreenNodeData,
+  TextNodeData
+} from '@voidhash/mimic-schema';
+import { Schema } from 'effect';
+import { createVoidsyncSchema, syncMap } from '../../../designer/voidsync';
 
 // ============================================================================
-// Re-export types from @dff/v2 (single source of truth)
+// Re-export types from @voidhash/mimic-schema (single source of truth)
 // ============================================================================
 
 export type { FlexNodeData, RootNodeData, ScreenNodeData, TextNodeData };
 
 /** Union of all node data types */
 export type NodeData =
-	| RootNodeData
-	| ScreenNodeData
-	| FlexNodeData
-	| TextNodeData;
+  | RootNodeData
+  | ScreenNodeData
+  | FlexNodeData
+  | TextNodeData;
 
 /** All node types except root */
 export type NodeDataWithoutRoot = ScreenNodeData | FlexNodeData | TextNodeData;
@@ -28,11 +28,11 @@ export type NodeDataWithoutRoot = ScreenNodeData | FlexNodeData | TextNodeData;
 // ============================================================================
 
 export const AvailableToolsSchema = Schema.Literal(
-	"cursor",
-	"text",
-	"rows",
-	"columns",
-	"scroll-view",
+  'cursor',
+  'text',
+  'rows',
+  'columns',
+  'scroll-view'
 );
 
 export type AvailableTool = Schema.Schema.Type<typeof AvailableToolsSchema>;
@@ -42,72 +42,72 @@ export type AvailableTool = Schema.Schema.Type<typeof AvailableToolsSchema>;
 // ============================================================================
 
 const CursorSchema = Schema.NullOr(
-	Schema.Struct({
-		x: Schema.Number,
-		y: Schema.Number,
-	}),
+  Schema.Struct({
+    x: Schema.Number,
+    y: Schema.Number
+  })
 );
 
 const UserSchema = Schema.Struct({
-	name: Schema.String,
-	color: Schema.String,
+  name: Schema.String,
+  color: Schema.String
 });
 
 const AwarenessSchema = Schema.Struct({
-	cursor: CursorSchema,
-	user: UserSchema,
-	selectedNodeIds: Schema.Array(Schema.String),
+  cursor: CursorSchema,
+  user: UserSchema,
+  selectedNodeIds: Schema.Array(Schema.String)
 });
 
 const BoundingBoxSchema = Schema.Struct({
-	x: Schema.Number,
-	y: Schema.Number,
-	width: Schema.Number,
-	height: Schema.Number,
+  x: Schema.Number,
+  y: Schema.Number,
+  width: Schema.Number,
+  height: Schema.Number
 });
 
 const BrowserSchema = Schema.Struct({
-	debug: Schema.Struct({
-		showGrid: Schema.Boolean,
-	}),
-	highlightedNodeId: Schema.NullOr(Schema.String),
-	textEditingNodeId: Schema.NullOr(Schema.String),
-	tools: Schema.Struct({
-		activeTool: AvailableToolsSchema,
-	}),
-	canvas: Schema.Struct({
-		scale: Schema.Number,
-		x: Schema.Number,
-		y: Schema.Number,
-		boundingBoxes: Schema.Record({
-			key: Schema.String,
-			value: BoundingBoxSchema,
-		}),
-	}),
-	viewport: Schema.Struct({
-		panels: Schema.Struct({
-			top: Schema.Struct({ height: Schema.Number }),
-			bottom: Schema.Struct({ height: Schema.Number }),
-			left: Schema.Struct({ width: Schema.Number }),
-			right: Schema.Struct({ width: Schema.Number }),
-		}),
-	}),
+  debug: Schema.Struct({
+    showGrid: Schema.Boolean
+  }),
+  highlightedNodeId: Schema.NullOr(Schema.String),
+  textEditingNodeId: Schema.NullOr(Schema.String),
+  tools: Schema.Struct({
+    activeTool: AvailableToolsSchema
+  }),
+  canvas: Schema.Struct({
+    scale: Schema.Number,
+    x: Schema.Number,
+    y: Schema.Number,
+    boundingBoxes: Schema.Record({
+      key: Schema.String,
+      value: BoundingBoxSchema
+    })
+  }),
+  viewport: Schema.Struct({
+    panels: Schema.Struct({
+      top: Schema.Struct({ height: Schema.Number }),
+      bottom: Schema.Struct({ height: Schema.Number }),
+      left: Schema.Struct({ width: Schema.Number }),
+      right: Schema.Struct({ width: Schema.Number })
+    })
+  })
 });
 
 export const designerSchema = createVoidsyncSchema({
-	// Ephemeral state shared via awareness protocol (cursors, selections, presence)
-	awareness: AwarenessSchema,
+  // Ephemeral state shared via awareness protocol (cursors, selections, presence)
+  awareness: AwarenessSchema,
 
-	// Local browser state, not synced (UI preferences, panel sizes)
-	browser: BrowserSchema,
+  // Local browser state, not synced (UI preferences, panel sizes)
+  browser: BrowserSchema,
 
-	// Persisted state synced to the document (uses @dff for mutations)
-	synced: {
-		nodes: syncMap<NodeData>(),
-	},
+  // Persisted state synced to the document (uses @dff for mutations)
+  synced: {
+    nodes: syncMap<NodeData>()
+  }
 });
 
 export type DesignerStateNodes = Record<string, NodeData>;
 
 export type DesignerSchema = typeof designerSchema;
-export type DesignerState = DesignerSchema["_types"]["combined"];
+export type DesignerState = DesignerSchema['_types']['combined'];

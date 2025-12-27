@@ -1,6 +1,6 @@
 'use client';
 
-import type { FontWeight, TextAlign } from '@voidhash/dff';
+import type { FontWeight, TextAlign } from '@voidhash/mimic-schema';
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -1,53 +1,229 @@
-import { createEditor, createYjsStorage, paywallDocument } from '@voidhash/dff';
-import { Schema } from 'effect';
-import type * as Y from 'yjs';
-import type { DesignerStoreState } from './types';
-
 /**
- * Creates an Editor with YjsStorage for the given Y.Doc.
+ * Layer commands using zustand-commander.
+ *
+ * These commands manage node positioning in the layer tree.
+ * Uses undoable actions for undo/redo support.
  */
-function createEditorForDoc(doc: Y.Doc) {
-  const storage = createYjsStorage(doc, paywallDocument);
-  return createEditor(paywallDocument, { storage });
+
+import { Schema } from 'effect';
+import { commander } from '../designer-commander';
+
+// =============================================================================
+// Helper Types
+// =============================================================================
+
+interface NodeInfo {
+  id: string;
+  type: string;
+  parentId: string | null;
+  index: number;
 }
 
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
 /**
- * Moves a node to a new parent and/or position within siblings.
- * Uses editor.commands.moveNode for automatic index management.
+ * Find a node in the snapshot tree and get its parent info.
  */
-export const moveNode = (storeState: DesignerStoreState) =>
-  storeState.action(
-    Schema.Struct({
-      nodeId: Schema.String,
-      newParentId: Schema.String,
-      beforeSiblingId: Schema.NullOr(Schema.String)
-    }),
-    ({ params, getState, doc }) => {
-      const state = getState();
-      const node = state.nodes?.[params.nodeId];
+function findNodeInfo(
+  snapshot: {
+    id: string;
+    type: string;
+    children?: unknown[];
+  } | null,
+  nodeId: string,
+  parentId: string | null = null,
+  index = 0
+): NodeInfo | null {
+  if (!snapshot) {
+    return null;
+  }
 
-      if (!node || node.type === 'root') {
-        return;
-      }
+  if (snapshot.id === nodeId) {
+    return { id: nodeId, type: snapshot.type, parentId, index };
+  }
 
-      const newParent = state.nodes?.[params.newParentId];
-      if (!newParent) {
-        return;
-      }
-
-      // Use editor commands for move (handles validation and index generation)
-      const editor = createEditorForDoc(doc);
-      try {
-        editor.commands.moveNode(params.nodeId, {
-          parentId: params.newParentId,
-          beforeSiblingId: params.beforeSiblingId
-        });
-      } catch {
-        // Move failed (e.g., would create a cycle), silently ignore
+  if (snapshot.children && Array.isArray(snapshot.children)) {
+    for (let i = 0; i < snapshot.children.length; i++) {
+      const child = snapshot.children[i] as {
+        id: string;
+        type: string;
+        children?: unknown[];
+      };
+      const found = findNodeInfo(child, nodeId, snapshot.id, i);
+      if (found) {
+        return found;
       }
     }
-  );
+  }
 
-export const createLayerActions = (storeState: DesignerStoreState) => ({
-  moveNode: moveNode(storeState)
-});
+  return null;
+}
+
+// =============================================================================
+// Layer Commands
+// =============================================================================
+
+/**
+ * Move a node to a new parent and/or position within siblings.
+ * Undoable: moves the node back to its original position on undo.
+ */
+export const moveNode = commander.undoableAction(
+  Schema.Struct({
+    nodeId: Schema.String,
+    newParentId: Schema.String,
+    toIndex: Schema.Number
+  }),
+  (ctx, params) => {
+    const state = ctx.getState();
+    const { mimic } = state;
+
+    // Get the snapshot to find original position
+    const snapshot = mimic.snapshot as {
+      id: string;
+      type: string;
+      children?: unknown[];
+    } | null;
+
+    // Find original position for undo
+    const originalInfo = findNodeInfo(snapshot, params.nodeId);
+    if (!originalInfo) {
+      return { originalParentId: null, originalIndex: 0 };
+    }
+
+    // Don't move root nodes
+    if (originalInfo.type === 'root') {
+      return { originalParentId: null, originalIndex: 0 };
+    }
+
+    // Perform the move
+    mimic.document.transaction((root) => {
+      root.move(params.nodeId, params.newParentId, params.toIndex);
+    });
+
+    return {
+      originalParentId: originalInfo.parentId,
+      originalIndex: originalInfo.index
+    };
+  },
+  (ctx, params, result) => {
+    const originalParentId = result.originalParentId;
+    if (originalParentId === null) {
+      return;
+    }
+
+    const { mimic } = ctx.getState();
+    mimic.document.transaction((root) => {
+      root.move(params.nodeId, originalParentId, result.originalIndex);
+    });
+  }
+);
+
+/**
+ * Move a node before a sibling.
+ * Undoable: moves the node back to its original position on undo.
+ */
+export const moveNodeBefore = commander.undoableAction(
+  Schema.Struct({
+    nodeId: Schema.String,
+    siblingId: Schema.String
+  }),
+  (ctx, params) => {
+    const state = ctx.getState();
+    const { mimic } = state;
+
+    // Get the snapshot to find original position
+    const snapshot = mimic.snapshot as {
+      id: string;
+      type: string;
+      children?: unknown[];
+    } | null;
+
+    // Find original position for undo
+    const originalInfo = findNodeInfo(snapshot, params.nodeId);
+    if (!originalInfo) {
+      return { originalParentId: null, originalIndex: 0 };
+    }
+
+    // Don't move root nodes
+    if (originalInfo.type === 'root') {
+      return { originalParentId: null, originalIndex: 0 };
+    }
+
+    // Perform the move
+    mimic.document.transaction((root) => {
+      root.moveBefore(params.nodeId, params.siblingId);
+    });
+
+    return {
+      originalParentId: originalInfo.parentId,
+      originalIndex: originalInfo.index
+    };
+  },
+  (ctx, params, result) => {
+    const originalParentId = result.originalParentId;
+    if (originalParentId === null) {
+      return;
+    }
+
+    const { mimic } = ctx.getState();
+    mimic.document.transaction((root) => {
+      root.move(params.nodeId, originalParentId, result.originalIndex);
+    });
+  }
+);
+
+/**
+ * Move a node after a sibling.
+ * Undoable: moves the node back to its original position on undo.
+ */
+export const moveNodeAfter = commander.undoableAction(
+  Schema.Struct({
+    nodeId: Schema.String,
+    siblingId: Schema.String
+  }),
+  (ctx, params) => {
+    const state = ctx.getState();
+    const { mimic } = state;
+
+    // Get the snapshot to find original position
+    const snapshot = mimic.snapshot as {
+      id: string;
+      type: string;
+      children?: unknown[];
+    } | null;
+
+    // Find original position for undo
+    const originalInfo = findNodeInfo(snapshot, params.nodeId);
+    if (!originalInfo) {
+      return { originalParentId: null, originalIndex: 0 };
+    }
+
+    // Don't move root nodes
+    if (originalInfo.type === 'root') {
+      return { originalParentId: null, originalIndex: 0 };
+    }
+
+    // Perform the move
+    mimic.document.transaction((root) => {
+      root.moveAfter(params.nodeId, params.siblingId);
+    });
+
+    return {
+      originalParentId: originalInfo.parentId,
+      originalIndex: originalInfo.index
+    };
+  },
+  (ctx, params, result) => {
+    const originalParentId = result.originalParentId;
+    if (originalParentId === null) {
+      return;
+    }
+
+    const { mimic } = ctx.getState();
+    mimic.document.transaction((root) => {
+      root.move(params.nodeId, originalParentId, result.originalIndex);
+    });
+  }
+);

@@ -1,7 +1,8 @@
+import { useStore } from "zustand/react";
 import { useShallow } from "zustand/react/shallow";
 import {
 	usePaywallDesignerActions,
-	usePaywallDesignerSelect,
+	usePaywallDesignerStore,
 } from "../../state/designer-store";
 
 export type SelectableProps = {
@@ -24,7 +25,9 @@ export type SelectableProps = {
 };
 
 export function Selectable({ children, nodeId }: SelectableProps) {
-	const isSelected = usePaywallDesignerSelect(
+	const store = usePaywallDesignerStore();
+	const isSelected = useStore(
+		store,
 		useShallow((state) => state.selectedNodeIds.includes(nodeId)),
 	);
 	const dispatch = usePaywallDesignerActions();

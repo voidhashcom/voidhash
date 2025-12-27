@@ -1,7 +1,8 @@
 "use client";
 
+import { useStore } from "zustand/react";
 import { Panel } from "@/features/designer/components/panel";
-import { usePaywallDesignerSelect } from "../state/designer-store";
+import { usePaywallDesignerStore } from "../state/designer-store";
 import { PANEL_DIMENSIONS } from "./constants";
 import { FlexPanel } from "./right-panel/flex-panel";
 import { ScreenPanel } from "./right-panel/screen-panel";
@@ -54,9 +55,8 @@ import { TextPanel } from "./right-panel/text-panel";
 // }
 
 function SelectedNodePanel({ nodeId }: { nodeId: string }) {
-	const selectedNode = usePaywallDesignerSelect(
-		(state) => state.nodes?.[nodeId],
-	);
+	const store = usePaywallDesignerStore();
+	const selectedNode = useStore(store, (state) => state.nodes?.[nodeId]);
 	if (!selectedNode) {
 		return null;
 	}
@@ -77,9 +77,8 @@ function SelectedNodePanel({ nodeId }: { nodeId: string }) {
 }
 
 export function RightPanel() {
-	const selectedNodeIds = usePaywallDesignerSelect(
-		(state) => state.selectedNodeIds,
-	);
+	const store = usePaywallDesignerStore();
+	const selectedNodeIds = useStore(store, (state) => state.selectedNodeIds);
 	const selectedNodeId = selectedNodeIds[0];
 
 	return (

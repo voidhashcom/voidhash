@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@effect-aws/client-s3": "^1.10.7",
-    "jose": "^6.0.11",
     "@effect/platform": "catalog:",
     "@effect/platform-bun": "^0.81.1",
     "@effect/platform-node": "catalog:",
@@ -26,10 +25,12 @@
     "@voidhash/core": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
+    "@voidhash/mimic-effect": "0.0.1",
     "@voidhash/rpc": "workspace:*",
     "@voidhash/shared": "workspace:*",
     "@voidhash/yjs-effect": "workspace:*",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "jose": "^6.0.11"
   },
   "devDependencies": {
     "@types/node": "^20",

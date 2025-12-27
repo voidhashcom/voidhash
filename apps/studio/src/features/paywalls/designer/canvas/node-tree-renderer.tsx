@@ -1,8 +1,9 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
+import { useStore } from "zustand/react";
 import { useShallow } from "zustand/react/shallow";
 import {
 	usePaywallDesignerActions,
-	usePaywallDesignerSelect,
+	usePaywallDesignerStore,
 } from "../state/designer-store";
 import type { NodeData } from "../state/schema";
 import { getNodesByParentId } from "../state/utils/nodes";
@@ -16,7 +17,11 @@ export function NodeRenderer({
 }: {
 	node: NodeData & { children: NodeData[] };
 }) {
-	const nodes = usePaywallDesignerSelect(useShallow((state) => state.nodes));
+	const store = usePaywallDesignerStore();
+	const nodes = useStore(
+		store,
+		useShallow((state) => state.nodes),
+	);
 	const dispatch = usePaywallDesignerActions();
 	const children = getNodesByParentId(nodes, node.id);
 	const elementRef = useRef<HTMLDivElement>(null);
@@ -109,10 +114,14 @@ export function NodeRenderer({
 }
 
 export function NodeTreeRenderer() {
-	const nodes = usePaywallDesignerSelect(useShallow((state) => state.nodes));
+	const store = usePaywallDesignerStore();
+	const nodes = useStore(
+		store,
+		useShallow((state) => state.nodes),
+	);
 	const firstLevelNodes = useMemo(() => {
 		return Object.values(nodes ?? {}).filter(
-			(node) => node.type !== "root" && node.parent?.id === "root",
+			(node) => node.type !== "root" && node.parentId === "root",
 		);
 	}, [nodes]);
 	return (

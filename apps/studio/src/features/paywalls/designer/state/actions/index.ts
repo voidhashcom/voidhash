@@ -1,40 +1,123 @@
-import { createAwarenessActions } from './awareness-actions';
-import { createCanvasActions } from './canvas-actions';
-import { createDebugActions } from './debug-actions';
-import { createLayerActions } from './layer-actions';
-import { createNodeActions } from './node-actions';
-import { createFlexNodeActions } from './nodes/flex-node-actions';
-import { createScreenNodeActions } from './nodes/screen-node-actions';
-import { createTextNodeActions } from './nodes/text-node-actions';
-import { createPanelActions } from './panel-actions';
-import { createSelectionActions } from './selection-actions';
-import { createToolsActions } from './tools-actions';
-import type { DesignerStoreState } from './types';
-
-export type { DesignerStoreState } from './types';
-
 /**
- * Creates all designer store actions.
- * Each action group is modular and can be extended independently.
+ * Designer store commands.
+ *
+ * This module re-exports all commands for the paywall designer.
+ * Commands are defined using the zustand-commander pattern.
  */
-export function createDesignerActions(storeState: DesignerStoreState) {
-  return {
-    ...createCanvasActions(storeState),
-    ...createSelectionActions(storeState),
-    ...createDebugActions(storeState),
-    ...createPanelActions(storeState),
-    ...createAwarenessActions(storeState),
-    ...createToolsActions(storeState),
-    ...createFlexNodeActions(storeState),
-    ...createLayerActions(storeState),
-    ...createNodeActions(storeState),
-    ...createScreenNodeActions(storeState),
-    ...createTextNodeActions(storeState)
-  } as const;
-}
 
-/**
- * Type for all designer actions.
- * Used for type-safe dispatch.
- */
-export type DesignerActions = ReturnType<typeof createDesignerActions>;
+// =============================================================================
+// Selection Commands
+// =============================================================================
+
+export {
+  selectNode,
+  unselectNode,
+  clearSelection
+} from './selection-actions';
+
+// =============================================================================
+// Canvas Commands
+// =============================================================================
+
+export {
+  saveCanvasState,
+  updateBoundingBox,
+  nodeMouseEnter,
+  nodeMouseOver,
+  nodeMouseLeave,
+  nodeClicked,
+  textEditingStarted,
+  textEditingStopped
+} from './canvas-actions';
+
+// =============================================================================
+// Tool Commands
+// =============================================================================
+
+export { setActiveTool } from './tools-actions';
+
+// =============================================================================
+// Panel Commands
+// =============================================================================
+
+export {
+  setTopPanelHeight,
+  setBottomPanelHeight,
+  setLeftPanelWidth,
+  setRightPanelWidth
+} from './panel-actions';
+
+// =============================================================================
+// Debug Commands
+// =============================================================================
+
+export { setShowGrid, toggleShowGrid } from './debug-actions';
+
+// =============================================================================
+// Awareness Commands
+// =============================================================================
+
+export { updateCursor, updateUser } from './awareness-actions';
+
+// =============================================================================
+// Layer Commands
+// =============================================================================
+
+export { moveNode, moveNodeBefore, moveNodeAfter } from './layer-actions';
+
+// =============================================================================
+// Node Commands (CRUD)
+// =============================================================================
+
+export { deleteNodes, copyNodes, cutNodes, pasteNodes } from './node-actions';
+
+// =============================================================================
+// Flex Node Commands
+// =============================================================================
+
+export {
+  createFlexNode,
+  updateFlexNode,
+  addFlexNodeVariable,
+  removeFlexNodeVariable,
+  updateFlexNodeVariable,
+  addFlexNodeState,
+  removeFlexNodeState,
+  updateFlexNodeState
+} from './nodes/flex-node-actions';
+
+// =============================================================================
+// Screen Node Commands
+// =============================================================================
+
+export {
+  createScreenNode,
+  updateScreenNode,
+  addScreenNodeVariable,
+  removeScreenNodeVariable,
+  updateScreenNodeVariable,
+  addScreenNodeState,
+  removeScreenNodeState,
+  updateScreenNodeState
+} from './nodes/screen-node-actions';
+
+// =============================================================================
+// Text Node Commands
+// =============================================================================
+
+export {
+  createTextNode,
+  updateTextNode,
+  addTextNodeVariable,
+  removeTextNodeVariable,
+  updateTextNodeVariable,
+  addTextNodeState,
+  removeTextNodeState,
+  updateTextNodeState
+} from './nodes/text-node-actions';
+
+// =============================================================================
+// Core Utilities
+// =============================================================================
+
+export { variableTypeKeySchema, type VariableTypeKey } from './core';

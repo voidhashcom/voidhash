@@ -1,47 +1,47 @@
-import { s } from '../schema';
+// import { z } from 'zod';
 
-// Variable types
-export const stringVariableTypeSchema = s.object({
-  key: s.literal('string'),
-  value: s.string().default('')
-});
+// // Variable types
+// export const stringVariableTypeSchema = z.object({
+//   key: z.literal('string').default('string'),
+//   value: z.string().default('')
+// });
 
-export const numberVariableTypeSchema = s.object({
-  key: s.literal('number'),
-  value: s.number().default(0)
-});
+// export const numberVariableTypeSchema = z.object({
+//   key: z.literal('number').default('number'),
+//   value: z.number().default(0)
+// });
 
-export const booleanVariableTypeSchema = s.object({
-  key: s.literal('boolean'),
-  value: s.boolean().default(false)
-});
+// export const booleanVariableTypeSchema = z.object({
+//   key: z.literal('boolean').default('boolean'),
+//   value: z.boolean().default(false)
+// });
 
-export const productVariableTypeSchema = s.object({
-  key: s.literal('product'),
-  value: s
-    .object({
-      productId: s.union([s.string(), s.literal(null)])
-    })
-    .default({
-      productId: null
-    })
-});
+// export const productVariableTypeSchema = z.object({
+//   key: z.literal('product').default('product'),
+//   value: z
+//     .object({
+//       productId: z.union([z.string(), z.literal(null)])
+//     })
+//     .default({
+//       productId: null
+//     })
+// });
 
-export const variableTypeSchema = s.union([
-  stringVariableTypeSchema,
-  numberVariableTypeSchema,
-  booleanVariableTypeSchema,
-  productVariableTypeSchema
-]);
+// export const variableTypeSchema = z.union([
+//   stringVariableTypeSchema,
+//   numberVariableTypeSchema,
+//   booleanVariableTypeSchema,
+//   productVariableTypeSchema
+// ]);
 
-// Variable
-export const variableSchema = s.object({
-  name: s.string(),
-  value: variableTypeSchema
-});
+// // Variable
+// export const variableSchema = z.object({
+//   id: z.string(),
+//   name: z.string(),
+//   value: variableTypeSchema
+// });
 
-// Variable reference
-export const variableReferenceSchema = s.object({
-  nodeId: s.string(),
-  name: s.string()
-});
+// // Variable reference
+// export const variableReferenceSchema = z.object({
+//   id: z.string()
+// });
