@@ -1,24 +1,26 @@
-import { s } from '../schema';
+// import { z } from 'zod';
+// import { stateSchema } from '../states/states';
+// import { variableSchema } from '../variables/variables';
 
-/** Parent reference for ordering children */
-export const parentRefSchema = s.object({
-  id: s.string(),
-  /** Fractional index for ordering */
-  index: s.string()
-});
+// /** Parent reference for ordering children */
+// export const parentRefSchema = z.object({
+//   id: z.string(),
+//   /** Fractional index for ordering */
+//   index: z.string()
+// });
+// export type Variable = z.infer<typeof variableSchema>;
 
-/** Used for definition of variables that are local to the node */
-export const localVariables = s.array(
-  s.object({
-    name: s.string(),
-    value: s.union([s.string(), s.number(), s.boolean()])
-  })
-);
+// /** Used for definition of variables that are local to the node */
+// export const localVariables = z.array(variableSchema).default([]);
 
-/** Linked variables for linking to other variables */
-export const linkedVariables = s.array(
-  s.object({
-    nodeId: s.string(),
-    name: s.string()
-  })
-);
+// export const states = z.array(stateSchema).default([]);
+
+// /** Linked variables for linking to other variables */
+// export const linkedVariables = z
+//   .array(
+//     z.object({
+//       nodeId: z.string(),
+//       name: z.string()
+//     })
+//   )
+//   .default([]);

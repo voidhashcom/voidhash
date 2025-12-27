@@ -13,7 +13,8 @@
         "useFilenamingConvention": "off",
         "noDoneCallback": "off",
         "noExportedImports": "off",
-        "useDefaultSwitchClause": "off"
+        "useDefaultSwitchClause": "off",
+        "noNamespace": "off"
       },
 
       "complexity": {
