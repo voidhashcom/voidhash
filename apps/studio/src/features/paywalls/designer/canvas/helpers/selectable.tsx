@@ -1,6 +1,12 @@
 import { useStore } from "zustand/react";
 import { useShallow } from "zustand/react/shallow";
 import {
+	nodeClicked,
+	nodeMouseEnter,
+	nodeMouseLeave,
+	nodeMouseOver,
+} from "../../state/actions";
+import {
 	usePaywallDesignerActions,
 	usePaywallDesignerStore,
 } from "../../state/designer-store";
@@ -33,18 +39,18 @@ export function Selectable({ children, nodeId }: SelectableProps) {
 	const dispatch = usePaywallDesignerActions();
 	const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
 		e.stopPropagation();
-		dispatch("nodeClicked", { id: nodeId, shiftKey: e.shiftKey });
+		dispatch(nodeClicked)({ id: nodeId, shiftKey: e.shiftKey });
 	};
 
 	const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-		const result = dispatch("nodeMouseEnter", { id: nodeId });
+		const result = dispatch(nodeMouseEnter)({ id: nodeId });
 		if (!result?.shouldPropagate) {
 			e.stopPropagation();
 		}
 	};
 
 	const handleMouseOver = (e: React.MouseEvent<HTMLDivElement>) => {
-		const result = dispatch("nodeMouseOver", { id: nodeId });
+		const result = dispatch(nodeMouseOver)({ id: nodeId });
 		if (!result?.shouldPropagate) {
 			e.stopPropagation();
 		}
@@ -52,7 +58,7 @@ export function Selectable({ children, nodeId }: SelectableProps) {
 
 	const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
 		e.stopPropagation();
-		dispatch("nodeMouseLeave", { id: nodeId });
+		dispatch(nodeMouseLeave)({ id: nodeId });
 	};
 
 	return (

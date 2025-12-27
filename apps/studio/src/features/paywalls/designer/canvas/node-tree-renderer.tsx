@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { useStore } from "zustand/react";
 import { useShallow } from "zustand/react/shallow";
+import { updateBoundingBox } from "../state/actions";
 import {
 	usePaywallDesignerActions,
 	usePaywallDesignerStore,
@@ -51,7 +52,7 @@ export function NodeRenderer({
 			const canvasWidth = rect.width / transform.scale;
 			const canvasHeight = rect.height / transform.scale;
 
-			dispatch("updateBoundingBox", {
+			dispatch(updateBoundingBox)({
 				id: node.id,
 				boundingBox: {
 					x: canvasCoords.x,

@@ -5,7 +5,6 @@
  * Uses undoable actions for undo/redo support on delete operations.
  */
 
-import { Schema } from 'effect';
 import { commander } from '../designer-commander';
 import { clearSelection, selectNode } from './selection-actions';
 
@@ -146,9 +145,16 @@ function generateId(): string {
  * Delete selected nodes and all their descendants.
  * Undoable: restores the deleted nodes on undo.
  */
-export const deleteNodes = commander.undoableAction(
-  Schema.Struct({}),
-  (ctx) => {
+export const deleteNodes = commander.undoableAction<
+  Record<string, never>,
+  {
+    deletedNodes: Array<{
+      serialized: SerializedNode;
+      parentId: string | null;
+      index: number;
+    }>;
+  }
+>((ctx) => {
     const state = ctx.getState();
     const { mimic } = state;
 
@@ -282,7 +288,7 @@ export const deleteNodes = commander.undoableAction(
  * Copy selected nodes to clipboard.
  * Non-undoable (read-only operation).
  */
-export const copyNodes = commander.action(Schema.Struct({}), async (ctx) => {
+export const copyNodes = commander.action(async (ctx) => {
   const state = ctx.getState();
   const { mimic } = state;
 
@@ -360,7 +366,7 @@ export const copyNodes = commander.action(Schema.Struct({}), async (ctx) => {
 /**
  * Cut selected nodes (copy then delete).
  */
-export const cutNodes = commander.action(Schema.Struct({}), async (ctx) => {
+export const cutNodes = commander.action(async (ctx) => {
   // Copy first
   await ctx.dispatch(copyNodes)({});
 
@@ -373,7 +379,7 @@ export const cutNodes = commander.action(Schema.Struct({}), async (ctx) => {
  * Note: This is a regular action (not undoable) since it modifies async state.
  * Use deleteNodes to undo a paste operation.
  */
-export const pasteNodes = commander.action(Schema.Struct({}), async (ctx) => {
+export const pasteNodes = commander.action(async (ctx) => {
   // Read from clipboard
   let clipboardText: string;
   try {

@@ -5,7 +5,6 @@
  * Cursor positions, user info, etc.
  */
 
-import { Schema } from 'effect';
 import { commander } from '../designer-commander';
 
 // =============================================================================
@@ -33,11 +32,7 @@ export const updateCursor = commander.action<{ x: number; y: number } | null>(
 /**
  * Update user information in presence.
  */
-export const updateUser = commander.action(
-  Schema.Struct({
-    name: Schema.optional(Schema.String),
-    color: Schema.optional(Schema.String)
-  }),
+export const updateUser = commander.action<{ name?: string; color?: string }>(
   (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;

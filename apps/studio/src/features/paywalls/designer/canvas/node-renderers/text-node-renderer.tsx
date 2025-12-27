@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useStore } from "zustand/react";
 import {
+	textEditingStarted,
+	textEditingStopped,
+	updateTextNode,
+} from "../../state/actions";
+import {
 	usePaywallDesignerActions,
 	usePaywallDesignerStore,
 } from "../../state/designer-store";
@@ -46,7 +51,7 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
 
 	const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
 		e.stopPropagation();
-		dispatch("textEditingStarted", { id: node.id });
+		dispatch(textEditingStarted)({ id: node.id });
 	};
 
 	const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -58,12 +63,12 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
 
 	const handleBlur = () => {
 		const finalValue = editableRef.current?.textContent ?? "";
-		dispatch("textEditingStopped", { id: node.id });
+		dispatch(textEditingStopped)({ id: node.id });
 		// Save the changes
 		if (finalValue !== node.data.text) {
-			dispatch("updateTextNode", {
-				...node,
-				text: finalValue,
+			dispatch(updateTextNode)({
+				id: node.id,
+				updates: { text: finalValue },
 			});
 		}
 	};

@@ -4,7 +4,6 @@
  * These commands manage canvas interactions and UI state.
  */
 
-import { Schema } from 'effect';
 import { commander } from '../designer-commander';
 import type { DesignerStoreState } from '../designer-store-state';
 import { createFlexNode } from './nodes/flex-node-actions';
@@ -53,13 +52,11 @@ function getNodesFromSnapshot(
 /**
  * Save the current canvas state (scale, position).
  */
-export const saveCanvasState = commander.action(
-  Schema.Struct({
-    scale: Schema.Number,
-    x: Schema.Number,
-    y: Schema.Number
-  }),
-  (ctx, params) => {
+export const saveCanvasState = commander.action<{
+  scale: number;
+  x: number;
+  y: number;
+}>((ctx, params) => {
     const state = ctx.getState();
     ctx.setState({
       canvas: { ...state.canvas, ...params }
@@ -70,17 +67,15 @@ export const saveCanvasState = commander.action(
 /**
  * Update a node's bounding box (used for rendering overlays).
  */
-export const updateBoundingBox = commander.action(
-  Schema.Struct({
-    id: Schema.String,
-    boundingBox: Schema.Struct({
-      x: Schema.Number,
-      y: Schema.Number,
-      width: Schema.Number,
-      height: Schema.Number
-    })
-  }),
-  (ctx, params) => {
+export const updateBoundingBox = commander.action<{
+  id: string;
+  boundingBox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}>((ctx, params) => {
     const state = ctx.getState();
     const boundingBoxes = { ...state.canvas.boundingBoxes };
     boundingBoxes[params.id] = params.boundingBox;
@@ -97,8 +92,7 @@ export const updateBoundingBox = commander.action(
 /**
  * Handle mouse entering a node.
  */
-export const nodeMouseEnter = commander.action(
-  Schema.Struct({ id: Schema.String }),
+export const nodeMouseEnter = commander.action<{ id: string }>(
   (ctx, params) => {
     const state = ctx.getState();
     if (state.textEditingNodeId) {
@@ -114,8 +108,7 @@ export const nodeMouseEnter = commander.action(
 /**
  * Handle mouse moving over a node.
  */
-export const nodeMouseOver = commander.action(
-  Schema.Struct({ id: Schema.String }),
+export const nodeMouseOver = commander.action<{ id: string }>(
   (ctx, params) => {
     const state = ctx.getState();
     if (state.textEditingNodeId) {
@@ -133,8 +126,7 @@ export const nodeMouseOver = commander.action(
 /**
  * Handle mouse leaving a node.
  */
-export const nodeMouseLeave = commander.action(
-  Schema.Struct({ id: Schema.String }),
+export const nodeMouseLeave = commander.action<{ id: string }>(
   (ctx, params) => {
     const state = ctx.getState();
     if (state.textEditingNodeId) {
@@ -154,8 +146,7 @@ export const nodeMouseLeave = commander.action(
  * Handle clicking on a node.
  * Behavior depends on the current active tool.
  */
-export const nodeClicked = commander.action(
-  Schema.Struct({ id: Schema.String, shiftKey: Schema.Boolean }),
+export const nodeClicked = commander.action<{ id: string; shiftKey: boolean }>(
   (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
@@ -229,8 +220,7 @@ export const nodeClicked = commander.action(
 /**
  * Mark that text editing has started on a node.
  */
-export const textEditingStarted = commander.action(
-  Schema.Struct({ id: Schema.String }),
+export const textEditingStarted = commander.action<{ id: string }>(
   (ctx, params) => {
     ctx.setState({
       textEditingNodeId: params.id
@@ -241,8 +231,7 @@ export const textEditingStarted = commander.action(
 /**
  * Mark that text editing has stopped.
  */
-export const textEditingStopped = commander.action(
-  Schema.Struct({ id: Schema.String }),
+export const textEditingStopped = commander.action<{ id: string }>(
   (ctx) => {
     ctx.setState({ textEditingNodeId: null } as Partial<DesignerStoreState>);
   }

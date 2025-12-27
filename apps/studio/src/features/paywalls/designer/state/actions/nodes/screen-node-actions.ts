@@ -5,9 +5,9 @@
  * Uses undoable actions for undo/redo support.
  */
 
-import { EffectSchema } from '@voidhash/mimic';
+import type { Primitive } from '@voidhash/mimic';
 import { ScreenNode } from '@voidhash/mimic-schema';
-import { Schema } from 'effect';
+import type { VariableTypeKey } from '../core';
 import { commander } from '../../designer-commander';
 import { selectNode } from '../selection-actions';
 import { setActiveTool } from '../tools-actions';
@@ -20,13 +20,14 @@ import { setActiveTool } from '../tools-actions';
  * Create a new screen node.
  * Undoable: removes the node on undo.
  */
-export const createScreenNode = commander.undoableAction(
-  Schema.Struct({
-    parentId: Schema.String,
-    beforeSiblingId: Schema.optional(Schema.NullOr(Schema.String)),
-    initialValues: Schema.optional(Schema.Any)
-  }),
-  (ctx, params) => {
+export const createScreenNode = commander.undoableAction<
+  {
+    parentId: string;
+    beforeSiblingId?: string | null;
+    initialValues?: unknown;
+  },
+  { nodeId: string | null }
+>((ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
 
@@ -62,12 +63,13 @@ export const createScreenNode = commander.undoableAction(
  * Update an existing screen node.
  * Undoable: restores the previous values on undo.
  */
-export const updateScreenNode = commander.undoableAction(
-  Schema.Struct({
-    id: Schema.String,
-    updates: EffectSchema.toUpdateSchema(ScreenNode)
-  }),
-  (ctx, params) => {
+export const updateScreenNode = commander.undoableAction<
+  {
+    id: string;
+    updates: Primitive.InferUpdateInput<typeof ScreenNode>;
+  },
+  { previousData: Record<string, unknown> | null }
+>((ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
 
@@ -112,13 +114,14 @@ export const updateScreenNode = commander.undoableAction(
 /**
  * Add a variable to a screen node.
  */
-export const addScreenNodeVariable = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    type: Schema.Literal('string', 'number', 'boolean', 'product'),
-    name: Schema.String
-  }),
-  (ctx, params) => {
+export const addScreenNodeVariable = commander.undoableAction<
+  {
+    nodeId: string;
+    type: VariableTypeKey;
+    name: string;
+  },
+  { variableId: string | null }
+>((ctx, params) => {
     const { mimic } = ctx.getState();
     let variableId: string | null = null;
 
@@ -161,12 +164,13 @@ export const addScreenNodeVariable = commander.undoableAction(
 /**
  * Remove a variable from a screen node.
  */
-export const removeScreenNodeVariable = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    variableId: Schema.String
-  }),
-  (ctx, params) => {
+export const removeScreenNodeVariable = commander.undoableAction<
+  {
+    nodeId: string;
+    variableId: string;
+  },
+  { removedVariable: unknown }
+>((ctx, params) => {
     const { mimic } = ctx.getState();
 
     // Get the variable data for undo
@@ -205,14 +209,15 @@ export const removeScreenNodeVariable = commander.undoableAction(
 /**
  * Update a variable on a screen node.
  */
-export const updateScreenNodeVariable = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    variableId: Schema.String,
-    newName: Schema.optional(Schema.String),
-    newValue: Schema.optional(Schema.Any)
-  }),
-  (ctx, params) => {
+export const updateScreenNodeVariable = commander.undoableAction<
+  {
+    nodeId: string;
+    variableId: string;
+    newName?: string;
+    newValue?: unknown;
+  },
+  { previousName: string | null | undefined; previousValue: unknown }
+>((ctx, params) => {
     const { mimic } = ctx.getState();
 
     // Get the previous variable data for undo
@@ -236,7 +241,7 @@ export const updateScreenNodeVariable = commander.undoableAction(
         varProxy.name.set(params.newName);
       }
       if (params.newValue !== undefined) {
-        varProxy.value.set(params.newValue);
+        varProxy.value.set(params.newValue as never);
       }
     });
 
@@ -257,8 +262,8 @@ export const updateScreenNodeVariable = commander.undoableAction(
       if (result.previousName !== undefined) {
         varProxy.name.set(result.previousName);
       }
-      if (result.previousValue !== undefined) {
-        varProxy.value.set(result.previousValue);
+      if (result.previousValue !== undefined && result.previousValue !== null) {
+        varProxy.value.set(result.previousValue as never);
       }
     });
   }
@@ -267,13 +272,14 @@ export const updateScreenNodeVariable = commander.undoableAction(
 /**
  * Add a state to a screen node.
  */
-export const addScreenNodeState = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    name: Schema.String,
-    condition: Schema.Any
-  }),
-  (ctx, params) => {
+export const addScreenNodeState = commander.undoableAction<
+  {
+    nodeId: string;
+    name: string;
+    condition: unknown;
+  },
+  { stateId: string | null }
+>((ctx, params) => {
     const { mimic } = ctx.getState();
     let stateId: string | null = null;
 
@@ -290,7 +296,7 @@ export const addScreenNodeState = commander.undoableAction(
         condition: params.condition
       };
 
-      proxy.data.states.push(newState);
+      proxy.data.states.push(newState as never);
     });
 
     return { stateId };
@@ -315,12 +321,13 @@ export const addScreenNodeState = commander.undoableAction(
 /**
  * Remove a state from a screen node.
  */
-export const removeScreenNodeState = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    stateId: Schema.String
-  }),
-  (ctx, params) => {
+export const removeScreenNodeState = commander.undoableAction<
+  {
+    nodeId: string;
+    stateId: string;
+  },
+  { removedState: unknown }
+>((ctx, params) => {
     const { mimic } = ctx.getState();
 
     // Get the state data for undo
@@ -351,7 +358,7 @@ export const removeScreenNodeState = commander.undoableAction(
       if (!proxy || result.removedState === null) {
         return;
       }
-      proxy.data.states.push(result.removedState);
+      proxy.data.states.push(result.removedState as never);
     });
   }
 );
@@ -359,14 +366,15 @@ export const removeScreenNodeState = commander.undoableAction(
 /**
  * Update a state on a screen node.
  */
-export const updateScreenNodeState = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    stateId: Schema.String,
-    newName: Schema.optional(Schema.String),
-    newCondition: Schema.optional(Schema.Any)
-  }),
-  (ctx, params) => {
+export const updateScreenNodeState = commander.undoableAction<
+  {
+    nodeId: string;
+    stateId: string;
+    newName?: string;
+    newCondition?: unknown;
+  },
+  { previousName: string | null | undefined; previousCondition: unknown }
+>((ctx, params) => {
     const { mimic } = ctx.getState();
 
     // Get the previous state data for undo
@@ -390,7 +398,7 @@ export const updateScreenNodeState = commander.undoableAction(
         stateProxy.name.set(params.newName);
       }
       if (params.newCondition !== undefined) {
-        stateProxy.condition.set(params.newCondition);
+        stateProxy.condition.set(params.newCondition as never);
       }
     });
 
@@ -411,8 +419,8 @@ export const updateScreenNodeState = commander.undoableAction(
       if (result.previousName !== undefined) {
         stateProxy.name.set(result.previousName);
       }
-      if (result.previousCondition !== undefined) {
-        stateProxy.condition.set(result.previousCondition);
+      if (result.previousCondition !== undefined && result.previousCondition !== null) {
+        stateProxy.condition.set(result.previousCondition as never);
       }
     });
   }

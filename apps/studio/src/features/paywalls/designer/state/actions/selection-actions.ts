@@ -5,7 +5,6 @@
  * Selection state is stored in presence for real-time collaboration.
  */
 
-import { Schema } from 'effect';
 import { commander } from '../designer-commander';
 import type { DesignerStateNodes } from '../schema';
 import { createTree, findSubtreeInTree, flattenTree } from '../utils/nodes';
@@ -60,8 +59,7 @@ function getNodesFromSnapshot(
  * If `many` is false, clears current selection and selects only this node.
  * If `many` is true, adds to the current selection (multi-select mode).
  */
-export const selectNode = commander.action(
-  Schema.Struct({ id: Schema.String, many: Schema.Boolean }),
+export const selectNode = commander.action<{ id: string; many: boolean }>(
   (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
@@ -138,8 +136,7 @@ export const selectNode = commander.action(
 /**
  * Unselect a specific node.
  */
-export const unselectNode = commander.action(
-  Schema.Struct({ id: Schema.String }),
+export const unselectNode = commander.action<{ id: string }>(
   (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
@@ -161,7 +158,7 @@ export const unselectNode = commander.action(
 /**
  * Clear all selection.
  */
-export const clearSelection = commander.action(Schema.Struct({}), (ctx) => {
+export const clearSelection = commander.action((ctx) => {
   const state = ctx.getState();
   const { mimic } = state;
 

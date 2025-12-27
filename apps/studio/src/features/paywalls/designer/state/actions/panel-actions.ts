@@ -4,7 +4,6 @@
  * These commands manage viewport panel dimensions (browser-only state).
  */
 
-import { Schema } from 'effect';
 import { commander } from '../designer-commander';
 import type { DesignerStoreState } from '../designer-store-state';
 
@@ -15,8 +14,7 @@ import type { DesignerStoreState } from '../designer-store-state';
 /**
  * Set the height of the top panel.
  */
-export const setTopPanelHeight = commander.action(
-  Schema.Struct({ height: Schema.Number }),
+export const setTopPanelHeight = commander.action<{ height: number }>(
   (ctx, params) => {
     const state = ctx.getState();
     ctx.setState({
@@ -34,8 +32,7 @@ export const setTopPanelHeight = commander.action(
 /**
  * Set the height of the bottom panel.
  */
-export const setBottomPanelHeight = commander.action(
-  Schema.Struct({ height: Schema.Number }),
+export const setBottomPanelHeight = commander.action<{ height: number }>(
   (ctx, params) => {
     const state = ctx.getState();
     ctx.setState({
@@ -53,8 +50,7 @@ export const setBottomPanelHeight = commander.action(
 /**
  * Set the width of the left panel.
  */
-export const setLeftPanelWidth = commander.action(
-  Schema.Struct({ width: Schema.Number }),
+export const setLeftPanelWidth = commander.action<{ width: number }>(
   (ctx, params) => {
     const state = ctx.getState();
     ctx.setState({
@@ -72,8 +68,7 @@ export const setLeftPanelWidth = commander.action(
 /**
  * Set the width of the right panel.
  */
-export const setRightPanelWidth = commander.action(
-  Schema.Struct({ width: Schema.Number }),
+export const setRightPanelWidth = commander.action<{ width: number }>(
   (ctx, params) => {
     const state = ctx.getState();
     ctx.setState({

@@ -5,10 +5,10 @@
  * Uses undoable actions for undo/redo support.
  */
 
-import { EffectSchema, type Primitive } from '@voidhash/mimic';
+import type { Primitive } from '@voidhash/mimic';
 import { FlexNode } from '@voidhash/mimic-schema';
-import { Schema } from 'effect';
 import { commander } from '../../designer-commander';
+import type { VariableTypeKey } from '../core';
 import { selectNode } from '../selection-actions';
 import { setActiveTool } from '../tools-actions';
 
@@ -20,12 +20,14 @@ import { setActiveTool } from '../tools-actions';
  * Create a new flex node.
  * Undoable: removes the node on undo.
  */
-export const createFlexNode = commander.undoableAction(
-  Schema.Struct({
-    parentId: Schema.String,
-    beforeSiblingId: Schema.optional(Schema.NullOr(Schema.String)),
-    initialValues: Schema.optional(Schema.Any)
-  }),
+export const createFlexNode = commander.undoableAction<
+  {
+    parentId: string;
+    beforeSiblingId?: string | null;
+    initialValues?: unknown;
+  },
+  { nodeId: string | null }
+>(
   (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
@@ -62,11 +64,13 @@ export const createFlexNode = commander.undoableAction(
  * Update an existing flex node.
  * Undoable: restores the previous values on undo.
  */
-export const updateFlexNode = commander.undoableAction(
-  Schema.Struct({
-    id: Schema.String,
-    updates: EffectSchema.toUpdateSchema(FlexNode)
-  }),
+export const updateFlexNode = commander.undoableAction<
+  {
+    id: string;
+    updates: Primitive.InferUpdateInput<typeof FlexNode>;
+  },
+  { previousData: Record<string, unknown> | null }
+>(
   (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
@@ -112,12 +116,14 @@ export const updateFlexNode = commander.undoableAction(
 /**
  * Add a variable to a flex node.
  */
-export const addFlexNodeVariable = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    type: Schema.Literal('string', 'number', 'boolean', 'product'),
-    name: Schema.String
-  }),
+export const addFlexNodeVariable = commander.undoableAction<
+  {
+    nodeId: string;
+    type: VariableTypeKey;
+    name: string;
+  },
+  { variableId: string | null }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
     let variableId: string | null = null;
@@ -161,11 +167,13 @@ export const addFlexNodeVariable = commander.undoableAction(
 /**
  * Remove a variable from a flex node.
  */
-export const removeFlexNodeVariable = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    variableId: Schema.String
-  }),
+export const removeFlexNodeVariable = commander.undoableAction<
+  {
+    nodeId: string;
+    variableId: string;
+  },
+  { removedVariable: unknown }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
 
@@ -205,13 +213,15 @@ export const removeFlexNodeVariable = commander.undoableAction(
 /**
  * Update a variable on a flex node.
  */
-export const updateFlexNodeVariable = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    variableId: Schema.String,
-    newName: Schema.optional(Schema.String),
-    newValue: Schema.optional(Schema.Any)
-  }),
+export const updateFlexNodeVariable = commander.undoableAction<
+  {
+    nodeId: string;
+    variableId: string;
+    newName?: string;
+    newValue?: unknown;
+  },
+  { previousName: string | null | undefined; previousValue: unknown }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
 
@@ -232,10 +242,10 @@ export const updateFlexNodeVariable = commander.undoableAction(
       }
       const varProxy = proxy.data.localVariables.at(params.variableId);
 
-      if (params.newName !== undefined) {
+      if (params.newName) {
         varProxy.name.set(params.newName);
       }
-      if (params.newValue !== undefined) {
+      if (params.newValue) {
         varProxy.value.set(params.newValue);
       }
     });
@@ -257,7 +267,7 @@ export const updateFlexNodeVariable = commander.undoableAction(
       if (result.previousName !== undefined) {
         varProxy.name.set(result.previousName);
       }
-      if (result.previousValue !== undefined) {
+      if (result.previousValue) {
         varProxy.value.set(result.previousValue);
       }
     });
@@ -267,12 +277,14 @@ export const updateFlexNodeVariable = commander.undoableAction(
 /**
  * Add a state to a flex node.
  */
-export const addFlexNodeState = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    name: Schema.String,
-    condition: Schema.Any
-  }),
+export const addFlexNodeState = commander.undoableAction<
+  {
+    nodeId: string;
+    name: string;
+    condition: unknown;
+  },
+  { stateId: string | null }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
     let stateId: string | null = null;
@@ -290,7 +302,7 @@ export const addFlexNodeState = commander.undoableAction(
         condition: params.condition
       };
 
-      proxy.data.states.push(newState);
+      proxy.data.states.push(newState as never);
     });
 
     return { stateId };
@@ -315,11 +327,13 @@ export const addFlexNodeState = commander.undoableAction(
 /**
  * Remove a state from a flex node.
  */
-export const removeFlexNodeState = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    stateId: Schema.String
-  }),
+export const removeFlexNodeState = commander.undoableAction<
+  {
+    nodeId: string;
+    stateId: string;
+  },
+  { removedState: unknown }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
 
@@ -351,7 +365,7 @@ export const removeFlexNodeState = commander.undoableAction(
       if (!proxy || result.removedState === null) {
         return;
       }
-      proxy.data.states.push(result.removedState);
+      proxy.data.states.push(result.removedState as never);
     });
   }
 );
@@ -359,13 +373,15 @@ export const removeFlexNodeState = commander.undoableAction(
 /**
  * Update a state on a flex node.
  */
-export const updateFlexNodeState = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    stateId: Schema.String,
-    newName: Schema.optional(Schema.String),
-    newCondition: Schema.optional(Schema.Any)
-  }),
+export const updateFlexNodeState = commander.undoableAction<
+  {
+    nodeId: string;
+    stateId: string;
+    newName?: string;
+    newCondition?: unknown;
+  },
+  { previousName: string | null | undefined; previousCondition: unknown }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
 
@@ -390,7 +406,7 @@ export const updateFlexNodeState = commander.undoableAction(
         stateProxy.name.set(params.newName);
       }
       if (params.newCondition !== undefined) {
-        stateProxy.condition.set(params.newCondition);
+        stateProxy.condition.set(params.newCondition as never);
       }
     });
 
@@ -411,8 +427,11 @@ export const updateFlexNodeState = commander.undoableAction(
       if (result.previousName !== undefined) {
         stateProxy.name.set(result.previousName);
       }
-      if (result.previousCondition !== undefined) {
-        stateProxy.condition.set(result.previousCondition);
+      if (
+        result.previousCondition !== undefined &&
+        result.previousCondition !== null
+      ) {
+        stateProxy.condition.set(result.previousCondition as never);
       }
     });
   }

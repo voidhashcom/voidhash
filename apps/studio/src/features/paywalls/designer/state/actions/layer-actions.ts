@@ -5,7 +5,6 @@
  * Uses undoable actions for undo/redo support.
  */
 
-import { Schema } from 'effect';
 import { commander } from '../designer-commander';
 
 // =============================================================================
@@ -69,13 +68,14 @@ function findNodeInfo(
  * Move a node to a new parent and/or position within siblings.
  * Undoable: moves the node back to its original position on undo.
  */
-export const moveNode = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    newParentId: Schema.String,
-    toIndex: Schema.Number
-  }),
-  (ctx, params) => {
+export const moveNode = commander.undoableAction<
+  {
+    nodeId: string;
+    newParentId: string;
+    toIndex: number;
+  },
+  { originalParentId: string | null; originalIndex: number }
+>((ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
 
@@ -124,12 +124,13 @@ export const moveNode = commander.undoableAction(
  * Move a node before a sibling.
  * Undoable: moves the node back to its original position on undo.
  */
-export const moveNodeBefore = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    siblingId: Schema.String
-  }),
-  (ctx, params) => {
+export const moveNodeBefore = commander.undoableAction<
+  {
+    nodeId: string;
+    siblingId: string;
+  },
+  { originalParentId: string | null; originalIndex: number }
+>((ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
 
@@ -178,12 +179,13 @@ export const moveNodeBefore = commander.undoableAction(
  * Move a node after a sibling.
  * Undoable: moves the node back to its original position on undo.
  */
-export const moveNodeAfter = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    siblingId: Schema.String
-  }),
-  (ctx, params) => {
+export const moveNodeAfter = commander.undoableAction<
+  {
+    nodeId: string;
+    siblingId: string;
+  },
+  { originalParentId: string | null; originalIndex: number }
+>((ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
 

@@ -7,8 +7,8 @@
 
 import type { Primitive } from '@voidhash/mimic';
 import { TextNode } from '@voidhash/mimic-schema';
-import { Schema } from 'effect';
 import { commander } from '../../designer-commander';
+import type { VariableTypeKey } from '../core';
 import { selectNode } from '../selection-actions';
 import { setActiveTool } from '../tools-actions';
 
@@ -20,12 +20,14 @@ import { setActiveTool } from '../tools-actions';
  * Create a new text node.
  * Undoable: removes the node on undo.
  */
-export const createTextNode = commander.undoableAction(
-  Schema.Struct({
-    parentId: Schema.String,
-    beforeSiblingId: Schema.optional(Schema.NullOr(Schema.String)),
-    initialValues: Schema.optional(Schema.Any)
-  }),
+export const createTextNode = commander.undoableAction<
+  {
+    parentId: string;
+    beforeSiblingId?: string | null;
+    initialValues?: unknown;
+  },
+  { nodeId: string | null }
+>(
   (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
@@ -62,11 +64,13 @@ export const createTextNode = commander.undoableAction(
  * Update an existing text node.
  * Undoable: restores the previous values on undo.
  */
-export const updateTextNode = commander.undoableAction(
-  Schema.Struct({
-    id: Schema.String,
-    updates: Schema.Unknown
-  }),
+export const updateTextNode = commander.undoableAction<
+  {
+    id: string;
+    updates: Primitive.InferUpdateInput<typeof TextNode>;
+  },
+  { previousData: Record<string, unknown> | null }
+>(
   (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
@@ -87,12 +91,7 @@ export const updateTextNode = commander.undoableAction(
         return;
       }
 
-      // Apply each update field
-      const updates = params.updates as Primitive.InferUpdateInput<
-        typeof TextNode
-      >;
-
-      proxy.update(updates);
+      proxy.update(params.updates);
     });
 
     return { previousData };
@@ -134,12 +133,14 @@ export const updateTextNode = commander.undoableAction(
 /**
  * Add a variable to a text node.
  */
-export const addTextNodeVariable = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    type: Schema.Literal('string', 'number', 'boolean', 'product'),
-    name: Schema.String
-  }),
+export const addTextNodeVariable = commander.undoableAction<
+  {
+    nodeId: string;
+    type: VariableTypeKey;
+    name: string;
+  },
+  { variableId: string | null }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
     let variableId: string | null = null;
@@ -183,11 +184,13 @@ export const addTextNodeVariable = commander.undoableAction(
 /**
  * Remove a variable from a text node.
  */
-export const removeTextNodeVariable = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    variableId: Schema.String
-  }),
+export const removeTextNodeVariable = commander.undoableAction<
+  {
+    nodeId: string;
+    variableId: string;
+  },
+  { removedVariable: unknown }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
 
@@ -227,13 +230,15 @@ export const removeTextNodeVariable = commander.undoableAction(
 /**
  * Update a variable on a text node.
  */
-export const updateTextNodeVariable = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    variableId: Schema.String,
-    newName: Schema.optional(Schema.String),
-    newValue: Schema.optional(Schema.Any)
-  }),
+export const updateTextNodeVariable = commander.undoableAction<
+  {
+    nodeId: string;
+    variableId: string;
+    newName?: string;
+    newValue?: unknown;
+  },
+  { previousName: string | null | undefined; previousValue: unknown }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
 
@@ -254,10 +259,10 @@ export const updateTextNodeVariable = commander.undoableAction(
       }
       const varProxy = proxy.data.localVariables.at(params.variableId);
 
-      if (params.newName !== undefined) {
+      if (params.newName) {
         varProxy.name.set(params.newName);
       }
-      if (params.newValue !== undefined) {
+      if (params.newValue) {
         varProxy.value.set(params.newValue);
       }
     });
@@ -279,8 +284,8 @@ export const updateTextNodeVariable = commander.undoableAction(
       if (result.previousName !== undefined) {
         varProxy.name.set(result.previousName);
       }
-      if (result.previousValue !== undefined) {
-        varProxy.value.set(result.previousValue);
+      if (result.previousValue !== undefined && result.previousValue !== null) {
+        varProxy.value.set(result.previousValue as never);
       }
     });
   }
@@ -289,12 +294,14 @@ export const updateTextNodeVariable = commander.undoableAction(
 /**
  * Add a state to a text node.
  */
-export const addTextNodeState = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    name: Schema.String,
-    condition: Schema.Any
-  }),
+export const addTextNodeState = commander.undoableAction<
+  {
+    nodeId: string;
+    name: string;
+    condition: unknown;
+  },
+  { stateId: string | null }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
     let stateId: string | null = null;
@@ -312,7 +319,7 @@ export const addTextNodeState = commander.undoableAction(
         condition: params.condition
       };
 
-      proxy.data.states.push(newState);
+      proxy.data.states.push(newState as never);
     });
 
     return { stateId };
@@ -337,11 +344,13 @@ export const addTextNodeState = commander.undoableAction(
 /**
  * Remove a state from a text node.
  */
-export const removeTextNodeState = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    stateId: Schema.String
-  }),
+export const removeTextNodeState = commander.undoableAction<
+  {
+    nodeId: string;
+    stateId: string;
+  },
+  { removedState: unknown }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
 
@@ -373,7 +382,7 @@ export const removeTextNodeState = commander.undoableAction(
       if (!proxy || result.removedState === null) {
         return;
       }
-      proxy.data.states.push(result.removedState);
+      proxy.data.states.push(result.removedState as never);
     });
   }
 );
@@ -381,13 +390,15 @@ export const removeTextNodeState = commander.undoableAction(
 /**
  * Update a state on a text node.
  */
-export const updateTextNodeState = commander.undoableAction(
-  Schema.Struct({
-    nodeId: Schema.String,
-    stateId: Schema.String,
-    newName: Schema.optional(Schema.String),
-    newCondition: Schema.optional(Schema.Any)
-  }),
+export const updateTextNodeState = commander.undoableAction<
+  {
+    nodeId: string;
+    stateId: string;
+    newName?: string;
+    newCondition?: unknown;
+  },
+  { previousName: string | null | undefined; previousCondition: unknown }
+>(
   (ctx, params) => {
     const { mimic } = ctx.getState();
 
@@ -412,7 +423,7 @@ export const updateTextNodeState = commander.undoableAction(
         stateProxy.name.set(params.newName);
       }
       if (params.newCondition !== undefined) {
-        stateProxy.condition.set(params.newCondition);
+        stateProxy.condition.set(params.newCondition as never);
       }
     });
 
@@ -433,8 +444,11 @@ export const updateTextNodeState = commander.undoableAction(
       if (result.previousName !== undefined) {
         stateProxy.name.set(result.previousName);
       }
-      if (result.previousCondition !== undefined) {
-        stateProxy.condition.set(result.previousCondition);
+      if (
+        result.previousCondition !== undefined &&
+        result.previousCondition !== null
+      ) {
+        stateProxy.condition.set(result.previousCondition as never);
       }
     });
   }

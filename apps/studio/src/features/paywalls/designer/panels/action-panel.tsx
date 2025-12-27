@@ -18,6 +18,7 @@ import {
 	TypeIcon,
 } from "lucide-react";
 import { useStore } from "zustand";
+import { setActiveTool } from "../state/actions";
 import {
 	usePaywallDesignerActions,
 	usePaywallDesignerStore,
@@ -98,7 +99,7 @@ export function ActionPanel() {
 			<div className="flex flex-row gap-2 rounded-2xl border border-border bg-muted p-2 shadow-lg">
 				<ToggleGroup
 					onValueChange={(value) =>
-						dispatch("setActiveTool", {
+						dispatch(setActiveTool)({
 							tool: value as AvailableTool,
 						})
 					}

@@ -30,6 +30,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand/react";
 import { useShallow } from "zustand/react/shallow";
+import { moveNode, selectNode, unselectNode } from "../../state/actions";
 import {
 	usePaywallDesignerActions,
 	usePaywallDesignerStore,
@@ -908,14 +909,14 @@ export function LayersSection() {
 
 	const handleSelect = useCallback(
 		(id: string, many: boolean) => {
-			dispatch("selectNode", { id, many });
+			dispatch(selectNode)({ id, many });
 		},
 		[dispatch],
 	);
 
 	const handleUnselect = useCallback(
 		(id: string) => {
-			dispatch("unselectNode", { id });
+			dispatch(unselectNode)({ id });
 		},
 		[dispatch],
 	);
@@ -1038,7 +1039,7 @@ export function LayersSection() {
 
 			// Handle end drop zone - place at end of parent
 			if (over.id === END_DROP_ZONE_ID) {
-				dispatch("moveNode", {
+				dispatch(moveNode)({
 					nodeId: active.id as string,
 					newParentId,
 					beforeSiblingId: null,
@@ -1063,7 +1064,7 @@ export function LayersSection() {
 				);
 			}
 
-			dispatch("moveNode", {
+			dispatch(moveNode)({
 				nodeId: active.id as string,
 				newParentId,
 				beforeSiblingId,
