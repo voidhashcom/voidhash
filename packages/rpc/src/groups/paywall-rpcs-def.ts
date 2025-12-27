@@ -48,5 +48,19 @@ export class PaywallRpcsDef extends RpcGroup.make(
       PaywallServiceError,
       PaywallNotFoundError
     )
+  }),
+  Rpc.make('RequestPaywallEditToken', {
+    payload: Schema.Struct({
+      paywallId: Schema.String
+    }),
+    success: Schema.Struct({
+      token: Schema.String,
+      expiresAt: Schema.DateFromNumber
+    }),
+    error: Schema.Union(
+      ActionForbiddenError,
+      PaywallServiceError,
+      PaywallNotFoundError
+    )
   })
 ).middleware(AuthMiddleware) {}

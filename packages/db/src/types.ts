@@ -106,3 +106,10 @@ export type InsertAppStoreTransaction = InferInsertModel<
 
 export type Paywall = InferSelectModel<typeof schema.paywalls>;
 export type InsertPaywall = InferInsertModel<typeof schema.paywalls>;
+
+export type PaywallEditToken = InferSelectModel<
+  typeof schema.paywallEditTokens
+>;
+export type InsertPaywallEditToken = InferInsertModel<
+  typeof schema.paywallEditTokens
+>;

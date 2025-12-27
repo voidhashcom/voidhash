@@ -40,6 +40,7 @@ import { ProductsGroupLive } from './routes/v1/products';
 import { ProjectsGroupLive } from './routes/v1/projects';
 import { SdkGroupLive } from './routes/v1/sdk';
 import { UsersGroupLive } from './routes/v1/users';
+import { MimicPaywallRouteLayer } from './routes/mimic-paywall';
 import { YjsRouteLayer } from './routes/yjs';
 import { RpcAuthLive } from './rpc-middlewares';
 import { ApiKeyRpcsLive } from './rpcs/api-key-rpcs';
@@ -163,7 +164,8 @@ const AllRoutes = Layer.mergeAll(
   ApiDocsLayer,
   RpcRoutesLayer,
   HealthCheckRoute,
-  YjsRouteLayer
+  YjsRouteLayer,
+  MimicPaywallRouteLayer
 ).pipe(
   Layer.provide(
     HttpLayerRouter.cors({
