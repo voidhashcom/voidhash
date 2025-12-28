@@ -26,6 +26,7 @@
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
     "@voidhash/mimic-effect": "0.0.1",
+    "@voidhash/mimic-schema": "workspace:*",
     "@voidhash/rpc": "workspace:*",
     "@voidhash/shared": "workspace:*",
     "@voidhash/yjs-effect": "workspace:*",

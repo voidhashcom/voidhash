@@ -4,37 +4,43 @@
  * Provides real-time collaborative editing for paywalls with
  * short-lived token authentication via PaywallService.
  */
+
+import { PaywallService } from "@voidhash/core/services";
+import { Db } from "@voidhash/db/effect";
+import { MimicAuthService, MimicServer } from "@voidhash/mimic-effect";
 import {
-  MimicAuthService,
-  MimicServer
-} from '@voidhash/mimic-effect';
-import { PaywallService } from '@voidhash/core/services';
-import { Db } from '@voidhash/db/effect';
-import { Effect, Layer } from 'effect';
+	PaywallDesignerDocument,
+	PresenceSchema,
+} from "@voidhash/mimic-schema";
+import { Effect, Layer } from "effect";
 
 // Custom auth layer - validates tokens via PaywallService
 const PaywallMimicAuthLayer = MimicAuthService.layerEffect(
-  Effect.gen(function* () {
-    const paywallService = yield* PaywallService;
-    return MimicAuthService.makeEffect((token: string) =>
-      paywallService
-        .validateEditToken(token)
-        .pipe(
-          Effect.map((result) => {
-            if (!result) {
-              return { success: false as const, error: 'Invalid or expired token' };
-            }
-            return {
-              success: true as const,
-              userId: result.userId
-            };
-          }),
-          Effect.catchAll(() =>
-            Effect.succeed({ success: false as const, error: 'Token validation failed' })
-          )
-        )
-    );
-  })
+	Effect.gen(function* () {
+		const paywallService = yield* PaywallService;
+		return MimicAuthService.makeEffect((token: string) =>
+			paywallService.validateEditToken(token).pipe(
+				Effect.map((result) => {
+					if (!result) {
+						return {
+							success: false as const,
+							error: "Invalid or expired token",
+						};
+					}
+					return {
+						success: true as const,
+						userId: result.userId,
+					};
+				}),
+				Effect.catchAll(() =>
+					Effect.succeed({
+						success: false as const,
+						error: "Token validation failed",
+					}),
+				),
+			),
+		);
+	}),
 );
 
 /**
@@ -44,10 +50,11 @@ const PaywallMimicAuthLayer = MimicAuthService.layerEffect(
  * with short-lived token authentication.
  */
 export const MimicPaywallRouteLayer = MimicServer.layerHttpLayerRouter({
-  basePath: '/mimic/paywall',
-  schema: {} as any, // Placeholder - will be replaced with actual schema
-  authLayer: PaywallMimicAuthLayer.pipe(
-    Layer.provide(PaywallService.Default),
-    Layer.provide(Db.Default)
-  )
+	basePath: "/mimic/paywall-designer",
+	schema: PaywallDesignerDocument,
+	authLayer: PaywallMimicAuthLayer.pipe(
+		Layer.provide(PaywallService.Default),
+		Layer.provide(Db.Default),
+	),
+	presence: PresenceSchema,
 });
