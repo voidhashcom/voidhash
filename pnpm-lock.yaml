@@ -112,6 +112,9 @@ importers:
       '@voidhash/mimic-effect':
         specifier: 0.0.1
         version: 0.0.1(@voidhash/mimic@0.0.1(effect@3.19.13))(effect@3.19.13)
+      '@voidhash/mimic-schema':
+        specifier: workspace:*
+        version: link:../../packages/mimic-schema
       '@voidhash/rpc':
         specifier: workspace:*
         version: link:../../packages/rpc
