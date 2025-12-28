@@ -1,4 +1,5 @@
 import { RpcGroup } from '@effect/rpc';
+import { AnalyticsRpcsDef } from './groups/analytics-rpcs-def';
 import { ApiKeyRpcsDef } from './groups/api-key-rpcs-def';
 import { BillingRpcsDef } from './groups/billing-rpcs-def';
 import { CustomerRpcsDef } from './groups/customer-rpcs-def';
@@ -13,6 +14,7 @@ import { ProjectRpcsDef } from './groups/project-rpcs-def';
 import { UserRpcsDef } from './groups/user-rpcs-def';
 
 export const RpcGroups = RpcGroup.make().merge(
+  AnalyticsRpcsDef,
   ApiKeyRpcsDef,
   BillingRpcsDef,
   CustomerRpcsDef,
@@ -27,6 +29,7 @@ export const RpcGroups = RpcGroup.make().merge(
   UserRpcsDef
 );
 
+export * from './groups/analytics-rpcs-def';
 export * from './groups/api-key-rpcs-def';
 export * from './groups/billing-rpcs-def';
 export * from './groups/customer-rpcs-def';

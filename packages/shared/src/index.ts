@@ -1,3 +1,4 @@
+export * from './analytics';
 export * from './api-key';
 export * from './app-store';
 export * from './auth';
