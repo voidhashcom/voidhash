@@ -81,6 +81,14 @@ const paywallKeys = {
     [...paywallKeys.all, 'list', options] as const
 };
 
+const billingKeys = {
+  all: ['billing'] as const,
+  getOrganizationBilling: (organizationId: string) =>
+    [...billingKeys.all, 'getOrganizationBilling', { organizationId }] as const,
+  getUsageSummaries: (organizationId: string) =>
+    [...billingKeys.all, 'getUsageSummaries', { organizationId }] as const
+};
+
 export const queryKeys = {
   invalidateAll: () => [],
   apiKey: apiKeyKeys,
@@ -93,5 +101,6 @@ export const queryKeys = {
   productPerk: productPerkKeys,
   paymentProviderConfiguration: paymentProviderConfigurationKeys,
   paymentProviderProduct: paymentProviderProductKeys,
-  paywall: paywallKeys
+  paywall: paywallKeys,
+  billing: billingKeys
 };
