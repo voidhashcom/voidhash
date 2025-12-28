@@ -30,6 +30,7 @@ import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelo
 import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersApiKeysRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers.api-keys'
 import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIdRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/customers.$id'
 import { Route as AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsGeneralRouteImport } from './routes/_authenticated/_dashboard/_organization/$organizationSlug/~/settings.general'
+import { Route as AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRouteImport } from './routes/_authenticated/_dashboard/_organization/$organizationSlug/~/settings.billing'
 import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersIndexRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers.index'
 import { Route as AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersPaymentProviderConfigurationIdRouteImport } from './routes/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers.$paymentProviderConfigurationId'
 
@@ -193,6 +194,15 @@ const AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsGeneralRo
         AuthenticatedDashboardOrganizationOrganizationSlugRouteRoute,
     } as any,
   )
+const AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRoute =
+  AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRouteImport.update(
+    {
+      id: '/~/settings/billing',
+      path: '/~/settings/billing',
+      getParentRoute: () =>
+        AuthenticatedDashboardOrganizationOrganizationSlugRouteRoute,
+    } as any,
+  )
 const AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersIndexRoute =
   AuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaymentProvidersIndexRouteImport.update(
     {
@@ -222,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/$organizationSlug/$projectSlug/developers': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersRouteWithChildren
   '/$organizationSlug/$projectSlug/design/$id': typeof AuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRoute
   '/$organizationSlug/$projectSlug/': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
+  '/$organizationSlug/~/settings/billing': typeof AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRoute
   '/$organizationSlug/~/settings/general': typeof AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsGeneralRoute
   '/$organizationSlug/$projectSlug/customers/$id': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIdRoute
   '/$organizationSlug/$projectSlug/developers/api-keys': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersApiKeysRoute
@@ -242,6 +253,7 @@ export interface FileRoutesByTo {
   '/$organizationSlug': typeof AuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
   '/$organizationSlug/$projectSlug/design/$id': typeof AuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRoute
   '/$organizationSlug/$projectSlug': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
+  '/$organizationSlug/~/settings/billing': typeof AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRoute
   '/$organizationSlug/~/settings/general': typeof AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsGeneralRoute
   '/$organizationSlug/$projectSlug/customers/$id': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIdRoute
   '/$organizationSlug/$projectSlug/developers/api-keys': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersApiKeysRoute
@@ -268,6 +280,7 @@ export interface FileRoutesById {
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersRouteWithChildren
   '/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id': typeof AuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRoute
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
+  '/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/billing': typeof AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRoute
   '/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/general': typeof AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsGeneralRoute
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/customers/$id': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugCustomersIdRoute
   '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers/api-keys': typeof AuthenticatedDashboardProjectOrganizationSlugProjectSlugDevelopersApiKeysRoute
@@ -293,6 +306,7 @@ export interface FileRouteTypes {
     | '/$organizationSlug/$projectSlug/developers'
     | '/$organizationSlug/$projectSlug/design/$id'
     | '/$organizationSlug/$projectSlug/'
+    | '/$organizationSlug/~/settings/billing'
     | '/$organizationSlug/~/settings/general'
     | '/$organizationSlug/$projectSlug/customers/$id'
     | '/$organizationSlug/$projectSlug/developers/api-keys'
@@ -313,6 +327,7 @@ export interface FileRouteTypes {
     | '/$organizationSlug'
     | '/$organizationSlug/$projectSlug/design/$id'
     | '/$organizationSlug/$projectSlug'
+    | '/$organizationSlug/~/settings/billing'
     | '/$organizationSlug/~/settings/general'
     | '/$organizationSlug/$projectSlug/customers/$id'
     | '/$organizationSlug/$projectSlug/developers/api-keys'
@@ -338,6 +353,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers'
     | '/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id'
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/'
+    | '/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/billing'
     | '/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/general'
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/customers/$id'
     | '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers/api-keys'
@@ -506,6 +522,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsGeneralRouteImport
       parentRoute: typeof AuthenticatedDashboardOrganizationOrganizationSlugRouteRoute
     }
+    '/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/billing': {
+      id: '/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/billing'
+      path: '/~/settings/billing'
+      fullPath: '/$organizationSlug/~/settings/billing'
+      preLoaderRoute: typeof AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRouteImport
+      parentRoute: typeof AuthenticatedDashboardOrganizationOrganizationSlugRouteRoute
+    }
     '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/': {
       id: '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/'
       path: '/settings/payment-providers'
@@ -525,6 +548,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedDashboardOrganizationOrganizationSlugRouteRouteChildren {
   AuthenticatedDashboardOrganizationOrganizationSlugIndexRoute: typeof AuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
+  AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRoute: typeof AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRoute
   AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsGeneralRoute: typeof AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsGeneralRoute
 }
 
@@ -532,6 +556,8 @@ const AuthenticatedDashboardOrganizationOrganizationSlugRouteRouteChildren: Auth
   {
     AuthenticatedDashboardOrganizationOrganizationSlugIndexRoute:
       AuthenticatedDashboardOrganizationOrganizationSlugIndexRoute,
+    AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRoute:
+      AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsBillingRoute,
     AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsGeneralRoute:
       AuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsGeneralRoute,
   }

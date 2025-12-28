@@ -1,6 +1,5 @@
 // Credits: Inspired by https://github.com/unkeyed/unkey
 
-import { Client } from '@planetscale/database';
 import type {
   ApiKey,
   Organization,
@@ -13,7 +12,6 @@ import { type Database, eq, like } from '@voidhash/db';
 import * as schema from '@voidhash/db/schema';
 import { generateId } from '@voidhash/lib';
 import { drizzle as drizzleMysql } from 'drizzle-orm/mysql2';
-import { drizzle as drizzlePlanetscale } from 'drizzle-orm/planetscale-serverless';
 import mysql from 'mysql2/promise';
 import type { TaskContext } from 'vitest';
 import type { z } from 'zod';
@@ -62,29 +60,18 @@ export abstract class Harness {
       DATABASE_NAME
     } = this.env;
 
-    let db: Database;
-    if (DATABASE_HOST.includes('psdb.cloud')) {
-      const client = new Client({
-        host: DATABASE_HOST,
-        username: DATABASE_USERNAME,
-        password: DATABASE_PASSWORD
-      });
+    const connection = await mysql.createConnection({
+      host: DATABASE_HOST,
+      user: DATABASE_USERNAME,
+      database: DATABASE_NAME,
+      password: DATABASE_PASSWORD
+    });
 
-      db = drizzlePlanetscale(client, { schema });
-    } else {
-      const connection = await mysql.createConnection({
-        host: DATABASE_HOST,
-        user: DATABASE_USERNAME,
-        database: DATABASE_NAME,
-        password: DATABASE_PASSWORD
-      });
-
-      db = drizzleMysql({
-        client: connection,
-        schema,
-        mode: 'default'
-      });
-    }
+    const db = drizzleMysql({
+      client: connection,
+      schema,
+      mode: 'default'
+    });
 
     this.db = { primary: db, readonly: db };
 
@@ -155,7 +142,11 @@ export abstract class Harness {
       createdAt: new Date(),
       updatedAt: new Date(),
       emailVerified: true,
-      image: null
+      image: null,
+      role: 'user',
+      banned: false,
+      banReason: null,
+      banExpires: null
     };
 
     const organization: Organization = {

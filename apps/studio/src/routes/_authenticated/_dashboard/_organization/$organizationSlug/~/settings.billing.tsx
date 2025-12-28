@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useAuth } from 'src/components/auth-context';
+import { getOrganizationBillingOptions } from 'src/lib/tanstack-query';
 import { BillingSettingsLayout } from '@/features/organizations/settings/billing/billing-settings-layout';
 import { SubscriptionCard } from '@/features/organizations/settings/billing/subscription-card';
 import { UsageDashboard } from '@/features/organizations/settings/billing/usage-dashboard';
 import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { getOrganizationBillingOptions } from 'src/lib/tanstack-query';
 
 export const Route = createFileRoute(
   '/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/billing'
@@ -42,13 +42,13 @@ export function SettingsBillingPage() {
   return (
     <BillingSettingsLayout>
       <SubscriptionCard
-        organizationId={activeOrganization.id}
         billingInfo={billingInfo}
         isLoading={isLoading}
+        organizationId={activeOrganization.id}
       />
       <UsageDashboard
-        usageSummaries={billingInfo?.usageSummaries}
         isLoading={isLoading}
+        usageSummaries={billingInfo?.usageSummaries}
       />
     </BillingSettingsLayout>
   );

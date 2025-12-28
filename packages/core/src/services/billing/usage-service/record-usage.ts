@@ -1,11 +1,11 @@
 import {
   and,
   eq,
+  type InsertUsageAggregate,
+  type InsertUsageRecord,
   organizationBilling,
   usageAggregates,
-  usageRecords,
-  type InsertUsageAggregate,
-  type InsertUsageRecord
+  usageRecords
 } from '@voidhash/db';
 import { Db } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
@@ -20,7 +20,15 @@ import type { MetricIdValue, UsageRecordInput } from '../../../billing/types';
 function getCurrentBillingPeriod(): { start: Date; end: Date } {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const end = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    0,
+    23,
+    59,
+    59,
+    999
+  );
   return { start, end };
 }
 
@@ -97,7 +105,7 @@ const _upsertUsageAggregate = (db: Db) =>
 const _getOrganizationBilling = (db: Db) =>
   db.makeQuery((execute, organizationId: string) =>
     execute(async (db) => {
-      return db.query.organizationBilling.findFirst({
+      return await db.query.organizationBilling.findFirst({
         where: eq(organizationBilling.organizationId, organizationId)
       });
     })

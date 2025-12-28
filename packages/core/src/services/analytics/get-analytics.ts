@@ -39,7 +39,7 @@ type MetricType =
   | 'trials'
   | 'trial_conversions';
 
-interface AnalyticsInput {
+export interface AnalyticsInput {
   projectId: string;
   metrics: MetricType[];
   timeRange: TimeRangeType;
@@ -59,7 +59,7 @@ interface MetricResult {
   currency?: string;
 }
 
-interface AnalyticsResult {
+export interface AnalyticsResult {
   projectId: string;
   timeRange: { start: Date; end: Date };
   previousTimeRange: { start: Date; end: Date } | null;
@@ -115,7 +115,7 @@ const resolveTimeRange = (
           end: now
         };
       case 'custom':
-        if (!startDate || !endDate) {
+        if (!(startDate && endDate)) {
           return yield* Effect.fail(
             new InvalidTimeRangeError({
               message: 'Custom time range requires startDate and endDate'

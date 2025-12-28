@@ -11,11 +11,11 @@ import {
 } from '@effect/platform';
 import {
   BillingService,
-  UsageService,
   handlePolarWebhook,
   PolarBillingProviderLive,
+  type PolarConfig,
   PolarConfigService,
-  type PolarConfig
+  UsageService
 } from '@voidhash/core/services';
 import { Db } from '@voidhash/db/effect';
 import { Effect, Layer } from 'effect';
@@ -60,12 +60,10 @@ const handleWebhook = Effect.gen(function* () {
   const timestamp = request.headers['webhook-timestamp'] ?? '';
 
   // Validate required headers
-  if (!signature || !webhookId || !timestamp) {
-    return yield* Effect.succeed(
-      HttpServerResponse.json(
-        { error: 'Missing required webhook headers' },
-        { status: 400 }
-      )
+  if (!(signature && webhookId && timestamp)) {
+    return yield* HttpServerResponse.json(
+      { error: 'Missing required webhook headers' },
+      { status: 400 }
     );
   }
 
@@ -80,7 +78,7 @@ const handleWebhook = Effect.gen(function* () {
     timestamp
   });
 
-  return HttpServerResponse.json({ received: true });
+  return yield* HttpServerResponse.json({ received: true });
 });
 
 /**
@@ -97,7 +95,7 @@ const registerPolarWebhookRoute = Effect.gen(function* () {
       Effect.catchAll((error) =>
         Effect.gen(function* () {
           yield* Effect.logError('Polar webhook error', error);
-          return HttpServerResponse.json(
+          return yield* HttpServerResponse.json(
             { error: 'Webhook processing failed' },
             { status: 500 }
           );

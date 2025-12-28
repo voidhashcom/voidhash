@@ -19,10 +19,13 @@ import {
   PaywallService,
   PerkGrantService,
   PerkService,
+  PolarBillingProviderLive,
+  PolarConfigService,
   ProductPerkService,
   ProductService,
   ProjectService,
   SdkService,
+  UsageService,
   UserService
 } from '@voidhash/core/services';
 import { Db } from '@voidhash/db/effect';
@@ -42,10 +45,11 @@ import { ProductsGroupLive } from './routes/v1/products';
 import { ProjectsGroupLive } from './routes/v1/projects';
 import { SdkGroupLive } from './routes/v1/sdk';
 import { UsersGroupLive } from './routes/v1/users';
-import { YjsRouteLayer } from './routes/yjs';
+import { PolarWebhookRouteLayer } from './routes/webhooks/polar';
 import { RpcAuthLive } from './rpc-middlewares';
 import { AnalyticsRpcsLive } from './rpcs/analytics-rpcs';
 import { ApiKeyRpcsLive } from './rpcs/api-key-rpcs';
+import { BillingRpcsLive } from './rpcs/billing-rpcs';
 import { CustomerRpcsLive } from './rpcs/customer-rpcs';
 import { OrganizationRpcsLive } from './rpcs/organization-rpcs';
 import { PaymentProviderConfigurationRpcsLive } from './rpcs/payment-provider-configuration-rpcs';
@@ -56,27 +60,6 @@ import { ProductPerkRpcsLive } from './rpcs/product-perk-rpcs';
 import { ProductRpcsLive } from './rpcs/product-rpcs';
 import { ProjectRpcsLive } from './rpcs/project-rpcs';
 import { UserRpcsLive } from './rpcs/user-rpcs';
-import { BillingRpcsLive } from './rpcs/billing-rpcs';
-import { PolarWebhookRouteLayer } from './routes/webhooks/polar';
-
-const ServicesLayer = Layer.mergeAll(
-  AnalyticsService.Default,
-  ApiKeyService.Default,
-  AppStoreServerAPIService.Default,
-  AppStoreService.Default,
-  CustomerService.Default,
-  OrganizationService.Default,
-  PaymentProviderProductService.Default,
-  PaymentProviderConfigurationService.Default,
-  PerkGrantService.Default,
-  PerkService.Default,
-  ProductPerkService.Default,
-  PaywallService.Default,
-  ProductService.Default,
-  ProjectService.Default,
-  SdkService.Default,
-  UserService.Default
-);
 
 // ==============================
 // API ROUTES
@@ -96,11 +79,7 @@ const V1GroupsLayer = Layer.mergeAll(
 
 const V1ApiRoutes = HttpLayerRouter.addHttpApi(VoidhashV1Api, {
   openapiPath: '/api/docs/openapi.json'
-}).pipe(
-  Layer.provide(V1GroupsLayer),
-  Layer.provide(Layer.mergeAll(AuthMiddlewareLive, ServicesLayer)),
-  Layer.provide(Layer.mergeAll(BetterAuth.Default, Db.Default))
-);
+}).pipe(Layer.provide(V1GroupsLayer), Layer.provide(AuthMiddlewareLive));
 
 // const DocsRoute = HttpApiScalar.layer({
 //   path: '/api/docs'
@@ -146,8 +125,7 @@ const RpcRoutesLayer = RpcServer.layerHttpRouter({
       UserRpcsLive
     )
   ),
-  Layer.provide(Layer.mergeAll(AuthMiddlewareLive, ServicesLayer)),
-  Layer.provide(Layer.mergeAll(BetterAuth.Default, Db.Default, JwtAuth.Default))
+  Layer.provide(AuthMiddlewareLive)
 );
 
 // ==============================
@@ -168,12 +146,11 @@ const HealthCheckRoute = Layer.effectDiscard(
 // ==============================
 const AllRoutes = Layer.mergeAll(
   ApiRoutesLayer,
+  MimicPaywallRouteLayer,
+  PolarWebhookRouteLayer,
   ApiDocsLayer,
   RpcRoutesLayer,
-  HealthCheckRoute,
-  YjsRouteLayer,
-  MimicPaywallRouteLayer,
-  PolarWebhookRouteLayer
+  HealthCheckRoute
 ).pipe(
   Layer.provide(
     HttpLayerRouter.cors({
@@ -183,4 +160,49 @@ const AllRoutes = Layer.mergeAll(
   )
 );
 
-export const AppLive = HttpLayerRouter.serve(AllRoutes);
+// ==============================
+// Services
+// ==============================
+const PolarBillingProviderConfigLayer = Layer.succeed(PolarConfigService, {
+  accessToken: process.env.POLAR_ACCESS_TOKEN ?? '',
+  organizationId: process.env.POLAR_ORGANIZATION_ID ?? '',
+  webhookSecret: process.env.POLAR_WEBHOOK_SECRET ?? '',
+  sandbox: true,
+  tierProductIds: {
+    pro: 'pro',
+    enterprise: 'enterprise'
+  }
+});
+
+const PolarBillingProviderLayer = PolarBillingProviderLive.pipe(
+  Layer.provideMerge(PolarBillingProviderConfigLayer)
+);
+
+const ServicesLayer = Layer.mergeAll(
+  AnalyticsService.Default,
+  ApiKeyService.Default,
+  AppStoreServerAPIService.Default,
+  AppStoreService.Default,
+  CustomerService.Default,
+  OrganizationService.Default,
+  PaymentProviderProductService.Default,
+  PaymentProviderConfigurationService.Default,
+  PerkGrantService.Default,
+  PerkService.Default,
+  ProductPerkService.Default,
+  PaywallService.Default,
+  ProductService.Default,
+  ProjectService.Default,
+  SdkService.Default,
+  UserService.Default
+).pipe(
+  Layer.provideMerge(PolarBillingProviderLayer),
+  Layer.provideMerge(UsageService.Default),
+  Layer.provideMerge(
+    Layer.mergeAll(BetterAuth.Default, Db.Default, JwtAuth.Default)
+  )
+);
+
+export const AppLive = HttpLayerRouter.serve(AllRoutes).pipe(
+  Layer.provide(ServicesLayer)
+);

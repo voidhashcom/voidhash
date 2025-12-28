@@ -25,7 +25,7 @@
     "@voidhash/core": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
-    "@voidhash/mimic-effect": "0.0.1",
+    "@voidhash/mimic-effect": "latest",
     "@voidhash/mimic-schema": "workspace:*",
     "@voidhash/rpc": "workspace:*",
     "@voidhash/shared": "workspace:*",

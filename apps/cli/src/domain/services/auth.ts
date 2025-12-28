@@ -2,8 +2,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import url from 'node:url';
 import {
-  HttpRouter,
-  HttpServer,
+  HttpLayerRouter,
   HttpServerRequest,
   HttpServerResponse
 } from '@effect/platform';
@@ -44,55 +43,59 @@ type CallbackEvent = CancelledCallbackEvent | KeyCallbackEvent;
 
 const runCallbackServer = (callbackEvents: PubSub.PubSub<CallbackEvent>) =>
   Effect.gen(function* () {
-    const router = HttpRouter.empty.pipe(
-      HttpRouter.get(
-        '/callback',
-        Effect.gen(function* () {
-          const req = yield* HttpServerRequest.HttpServerRequest;
-          const parsedUrl = url.parse(req.url as string, true);
-          const query = parsedUrl.query;
+    // Create the callback route layer
+    const CallbackRoute = Layer.effectDiscard(
+      Effect.gen(function* () {
+        const router = yield* HttpLayerRouter.HttpRouter;
+        yield* router.add(
+          'GET',
+          '/callback',
+          Effect.gen(function* () {
+            const req = yield* HttpServerRequest.HttpServerRequest;
+            const parsedUrl = url.parse(req.url as string, true);
+            const query = parsedUrl.query;
 
-          if (query.cancelled) {
-            yield* callbackEvents.publish({ type: 'cancelled' });
-            return yield* HttpServerResponse.text('Login cancelled').pipe(
+            if (query.cancelled) {
+              yield* callbackEvents.publish({ type: 'cancelled' });
+              return yield* HttpServerResponse.text('Login cancelled').pipe(
+                HttpServerResponse.setHeader('Access-Control-Allow-Origin', '*'),
+                HttpServerResponse.setHeader(
+                  'Access-Control-Allow-Methods',
+                  'GET, OPTIONS'
+                )
+              );
+            }
+
+            yield* callbackEvents.publish({
+              type: 'success',
+              code: query.code as string,
+              key: query.key as string
+            });
+            return yield* HttpServerResponse.text('Login successful').pipe(
               HttpServerResponse.setHeader('Access-Control-Allow-Origin', '*'),
               HttpServerResponse.setHeader(
                 'Access-Control-Allow-Methods',
                 'GET, OPTIONS'
+              ),
+              HttpServerResponse.setHeader(
+                'Access-Control-Allow-Headers',
+                'Content-Type, Authorization'
               )
             );
-          }
-
-          yield* callbackEvents.publish({
-            type: 'success',
-            code: query.code as string,
-            key: query.key as string
-          });
-          return yield* HttpServerResponse.text('Login successful').pipe(
-            HttpServerResponse.setHeader('Access-Control-Allow-Origin', '*'),
-            HttpServerResponse.setHeader(
-              'Access-Control-Allow-Methods',
-              'GET, OPTIONS'
-            ),
-            HttpServerResponse.setHeader(
-              'Access-Control-Allow-Headers',
-              'Content-Type, Authorization'
-            )
-          );
-        })
-      )
+          })
+        );
+      })
     );
-
-    const app = router.pipe(HttpServer.serve());
 
     const ServerLive = NodeHttpServer.layer(() => createServer(), {
       port,
       host
     });
 
-    // Launch the server with all dependencies provided
-    return yield* Layer.launch(
-      Layer.provide(app, Layer.mergeAll(ServerLive, NodeContext.layer))
+    // Launch the server with the callback route
+    return yield* HttpLayerRouter.serve(CallbackRoute).pipe(
+      Layer.provide(Layer.mergeAll(ServerLive, NodeContext.layer)),
+      Layer.launch
     );
   });
 

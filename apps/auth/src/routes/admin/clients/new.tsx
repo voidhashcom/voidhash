@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { zodValidator } from '@tanstack/zod-adapter';
 import {
   Button,
@@ -66,7 +66,6 @@ function NewClientPage() {
       const { data, error } = await authClient.oauth2.register({
         client_name: formData.name,
         redirect_uris: redirectUris,
-        type: formData.type,
         scope: formData.scope
       });
 
@@ -83,7 +82,7 @@ function NewClientPage() {
         });
         toast.success('OAuth client created successfully');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('An error occurred while creating the client');
     } finally {
       setLoading(false);
