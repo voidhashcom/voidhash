@@ -113,3 +113,39 @@ export type PaywallEditToken = InferSelectModel<
 export type InsertPaywallEditToken = InferInsertModel<
   typeof schema.paywallEditTokens
 >;
+
+// Billing Types
+export type OrganizationBilling = InferSelectModel<
+  typeof schema.organizationBilling
+>;
+export type InsertOrganizationBilling = InferInsertModel<
+  typeof schema.organizationBilling
+>;
+export type UpdateOrganizationBilling = InferUpdateModel<
+  typeof schema.organizationBilling
+>;
+
+export type UsageRecord = InferSelectModel<typeof schema.usageRecords>;
+export type InsertUsageRecord = InferInsertModel<typeof schema.usageRecords>;
+
+export type UsageAggregate = InferSelectModel<typeof schema.usageAggregates>;
+export type InsertUsageAggregate = InferInsertModel<
+  typeof schema.usageAggregates
+>;
+export type UpdateUsageAggregate = InferUpdateModel<
+  typeof schema.usageAggregates
+>;
+
+export type BillingWebhookEvent = InferSelectModel<
+  typeof schema.billingWebhookEvents
+>;
+export type InsertBillingWebhookEvent = InferInsertModel<
+  typeof schema.billingWebhookEvents
+>;
+
+export type BillingProviderMeter = InferSelectModel<
+  typeof schema.billingProviderMeters
+>;
+export type InsertBillingProviderMeter = InferInsertModel<
+  typeof schema.billingProviderMeters
+>;

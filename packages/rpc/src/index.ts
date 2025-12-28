@@ -1,5 +1,6 @@
 import { RpcGroup } from '@effect/rpc';
 import { ApiKeyRpcsDef } from './groups/api-key-rpcs-def';
+import { BillingRpcsDef } from './groups/billing-rpcs-def';
 import { CustomerRpcsDef } from './groups/customer-rpcs-def';
 import { OrganizationRpcsDef } from './groups/organization-rpcs-def';
 import { PaymentProviderConfigurationRpcsDef } from './groups/payment-provider-configuration-rpcs-def';
@@ -13,6 +14,7 @@ import { UserRpcsDef } from './groups/user-rpcs-def';
 
 export const RpcGroups = RpcGroup.make().merge(
   ApiKeyRpcsDef,
+  BillingRpcsDef,
   CustomerRpcsDef,
   OrganizationRpcsDef,
   PaymentProviderConfigurationRpcsDef,
@@ -26,6 +28,7 @@ export const RpcGroups = RpcGroup.make().merge(
 );
 
 export * from './groups/api-key-rpcs-def';
+export * from './groups/billing-rpcs-def';
 export * from './groups/customer-rpcs-def';
 export * from './groups/organization-rpcs-def';
 export * from './groups/payment-provider-configuration-rpcs-def';

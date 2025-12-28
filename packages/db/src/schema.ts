@@ -1,6 +1,7 @@
 import { ProductType, PurchaseType, SubscriptionStatus } from '@voidhash/lib';
 import { relations, sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   index,
   int,
@@ -707,4 +708,228 @@ export const paywallEditTokenRelations = relations(
       references: [paywalls.id]
     })
   })
+);
+
+// ============================================
+// BILLING TABLES
+// ============================================
+
+export const BillingTier = {
+  Free: 1,
+  Pro: 2,
+  Enterprise: 3
+} as const;
+
+export type BillingTierValue = (typeof BillingTier)[keyof typeof BillingTier];
+
+export const BillingSubscriptionStatus = {
+  None: 0,
+  Active: 1,
+  Canceled: 2,
+  PastDue: 3,
+  Trialing: 4
+} as const;
+
+export type BillingSubscriptionStatusValue =
+  (typeof BillingSubscriptionStatus)[keyof typeof BillingSubscriptionStatus];
+
+/**
+ * Links organizations to their billing configuration and provider customer
+ */
+export const organizationBilling = mysqlTable(
+  'organization_billing',
+  {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    organizationId: varchar('organization_id', { length: 255 }).notNull(),
+
+    /** Current billing tier */
+    tier: tinyint('tier').notNull().default(BillingTier.Free),
+
+    /** Billing provider (e.g., 'polar', 'stripe') */
+    billingProviderId: varchar('billing_provider_id', { length: 50 })
+      .notNull()
+      .default('polar'),
+
+    /** External customer ID in the billing provider (e.g., Polar customer ID) */
+    externalCustomerId: varchar('external_customer_id', { length: 255 }),
+
+    /** Subscription status synced from provider */
+    subscriptionStatus: tinyint('subscription_status')
+      .notNull()
+      .default(BillingSubscriptionStatus.None),
+
+    /** External subscription ID in the billing provider */
+    externalSubscriptionId: varchar('external_subscription_id', {
+      length: 255
+    }),
+
+    /** Current billing period start */
+    currentPeriodStart: timestamp('current_period_start'),
+
+    /** Current billing period end */
+    currentPeriodEnd: timestamp('current_period_end'),
+
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp('updated_at').onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex('organization_id_unique_idx').on(table.organizationId),
+    index('external_customer_id_idx').on(table.externalCustomerId),
+    index('billing_provider_id_idx').on(table.billingProviderId)
+  ]
+);
+
+export const organizationBillingRelations = relations(
+  organizationBilling,
+  ({ one }) => ({
+    organization: one(organization, {
+      fields: [organizationBilling.organizationId],
+      references: [organization.id]
+    })
+  })
+);
+
+/**
+ * Local usage records - stored locally first, then synced to provider asynchronously
+ */
+export const usageRecords = mysqlTable(
+  'usage_record',
+  {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    organizationId: varchar('organization_id', { length: 255 }).notNull(),
+
+    /** Metric identifier (e.g., 'paywall_conversions', 'monthly_tracked_revenue') */
+    metricId: varchar('metric_id', { length: 100 }).notNull(),
+
+    /** Usage value */
+    value: bigint('value', { mode: 'number' }).notNull(),
+
+    /** Billing period this usage belongs to */
+    periodStart: timestamp('period_start').notNull(),
+    periodEnd: timestamp('period_end').notNull(),
+
+    /** Whether this record has been synced to the billing provider */
+    syncedToProvider: boolean('synced_to_provider').notNull().default(false),
+    syncedAt: timestamp('synced_at'),
+    syncError: varchar('sync_error', { length: 500 }),
+
+    /** Additional context for the usage event */
+    metadata: json('metadata').$type<Record<string, unknown>>(),
+
+    /** When the usage event occurred */
+    occurredAt: timestamp('occurred_at').notNull(),
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`)
+  },
+  (table) => [
+    index('org_metric_period_idx').on(
+      table.organizationId,
+      table.metricId,
+      table.periodStart,
+      table.periodEnd
+    ),
+    index('synced_to_provider_idx').on(table.syncedToProvider)
+  ]
+);
+
+/**
+ * Pre-computed usage aggregates for performance
+ */
+export const usageAggregates = mysqlTable(
+  'usage_aggregate',
+  {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    organizationId: varchar('organization_id', { length: 255 }).notNull(),
+
+    /** Metric identifier */
+    metricId: varchar('metric_id', { length: 100 }).notNull(),
+
+    /** Billing period */
+    periodStart: timestamp('period_start').notNull(),
+    periodEnd: timestamp('period_end').notNull(),
+
+    /** Aggregated total value for the period */
+    totalValue: bigint('total_value', { mode: 'number' }).notNull().default(0),
+
+    /** Limit for this metric (null = unlimited) */
+    limitValue: bigint('limit_value', { mode: 'number' }),
+
+    /** Threshold at which to show warnings */
+    warnThreshold: bigint('warn_threshold', { mode: 'number' }),
+
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp('updated_at').onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex('org_metric_period_unique_idx').on(
+      table.organizationId,
+      table.metricId,
+      table.periodStart
+    )
+  ]
+);
+
+/**
+ * Billing webhook events for idempotency tracking
+ */
+export const billingWebhookEvents = mysqlTable(
+  'billing_webhook_event',
+  {
+    id: varchar('id', { length: 255 }).primaryKey(),
+
+    /** Billing provider ID (e.g., 'polar', 'stripe') */
+    providerId: varchar('provider_id', { length: 50 }).notNull(),
+
+    /** External event ID from the provider */
+    externalEventId: varchar('external_event_id', { length: 255 }).notNull(),
+
+    /** Event type (e.g., 'subscription.created') */
+    eventType: varchar('event_type', { length: 100 }).notNull(),
+
+    /** Full event payload */
+    payload: json('payload').$type<object>(),
+
+    /** When the event was processed (null = not yet processed) */
+    processedAt: timestamp('processed_at'),
+
+    /** Error message if processing failed */
+    error: varchar('error', { length: 500 }),
+
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`)
+  },
+  (table) => [
+    uniqueIndex('provider_event_unique_idx').on(
+      table.providerId,
+      table.externalEventId
+    ),
+    index('processed_at_idx').on(table.processedAt)
+  ]
+);
+
+/**
+ * Billing provider meters - tracks meter sync status with provider
+ */
+export const billingProviderMeters = mysqlTable(
+  'billing_provider_meter',
+  {
+    id: varchar('id', { length: 255 }).primaryKey(),
+
+    /** Billing provider ID (e.g., 'polar', 'stripe') */
+    providerId: varchar('provider_id', { length: 50 }).notNull(),
+
+    /** Internal metric ID */
+    metricId: varchar('metric_id', { length: 100 }).notNull(),
+
+    /** External meter ID in the provider */
+    externalMeterId: varchar('external_meter_id', { length: 255 }).notNull(),
+
+    /** External meter slug (Polar-specific) */
+    externalMeterSlug: varchar('external_meter_slug', { length: 255 }),
+
+    lastSyncedAt: timestamp('last_synced_at'),
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp('updated_at').onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex('provider_metric_unique_idx').on(table.providerId, table.metricId)
+  ]
 );

@@ -1,6 +1,7 @@
 export * from './api-key';
 export * from './app-store';
 export * from './auth';
+export * from './billing';
 export * from './customer';
 export * from './errors';
 export * from './organization';

@@ -78,16 +78,13 @@ export function OrganizationSettingsSidebar({
             url: `/${organizationSlug}/~/settings/general`,
             isActive: () =>
               pathname.startsWith(`/${organizationSlug}/~/settings/general`)
+          },
+          {
+            title: 'Billing',
+            url: `/${organizationSlug}/~/settings/billing`,
+            isActive: () =>
+              pathname.startsWith(`/${organizationSlug}/~/settings/billing`)
           }
-          // TODO: Add members settings and billing
-          // {
-          // 	title: "Members",
-          // 	url: `/~/${organizationSlug}/settings/members`,
-          // 	isActive: () =>
-          // 		routerState.location.pathname.startsWith(
-          // 			`/~/${organizationSlug}/settings/members`
-          // 		),
-          // },
         ]
       }
     ]

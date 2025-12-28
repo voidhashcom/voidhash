@@ -54,6 +54,8 @@ import { ProductPerkRpcsLive } from './rpcs/product-perk-rpcs';
 import { ProductRpcsLive } from './rpcs/product-rpcs';
 import { ProjectRpcsLive } from './rpcs/project-rpcs';
 import { UserRpcsLive } from './rpcs/user-rpcs';
+import { BillingRpcsLive } from './rpcs/billing-rpcs';
+import { PolarWebhookRouteLayer } from './routes/webhooks/polar';
 
 const ServicesLayer = Layer.mergeAll(
   ApiKeyService.Default,
@@ -127,6 +129,7 @@ const RpcRoutesLayer = RpcServer.layerHttpRouter({
   Layer.provide(
     Layer.mergeAll(
       ApiKeyRpcsLive,
+      BillingRpcsLive,
       CustomerRpcsLive,
       OrganizationRpcsLive,
       PaymentProviderConfigurationRpcsLive,
@@ -165,7 +168,8 @@ const AllRoutes = Layer.mergeAll(
   RpcRoutesLayer,
   HealthCheckRoute,
   YjsRouteLayer,
-  MimicPaywallRouteLayer
+  MimicPaywallRouteLayer,
+  PolarWebhookRouteLayer
 ).pipe(
   Layer.provide(
     HttpLayerRouter.cors({
