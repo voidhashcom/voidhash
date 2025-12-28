@@ -449,65 +449,73 @@ export const purchases = mysqlTable(
   (table) => [uniqueIndex('provider_key_idx').on(table.providerKey)]
 );
 
-export const subscriptions = mysqlTable('subscription', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  customerId: varchar('customer_id', { length: 255 }).notNull(),
-  status: tinyint('status').notNull().default(SubscriptionStatus.Active),
-  initialTransactionId: varchar('initial_transaction_id', {
-    length: 255
-  }).notNull(),
-  latestTransactionId: varchar('latest_transaction_id', {
-    length: 255
-  }).notNull(),
-  /**
-   * - This is the 'original_transaction_id' for Apple, or 'subscription_id' for Google
-   */
-  storeSubscriptionId: varchar('store_subscription_id', {
-    length: 255
-  }).notNull(),
-
-  paymentProviderConfigurationProductId: varchar(
-    'payment_provider_configuration_product_id',
-    {
+export const subscriptions = mysqlTable(
+  'subscription',
+  {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    customerId: varchar('customer_id', { length: 255 }).notNull(),
+    status: tinyint('status').notNull().default(SubscriptionStatus.Active),
+    initialTransactionId: varchar('initial_transaction_id', {
       length: 255
-    }
-  ).notNull(),
+    }).notNull(),
+    latestTransactionId: varchar('latest_transaction_id', {
+      length: 255
+    }).notNull(),
+    /**
+     * - This is the 'original_transaction_id' for Apple, or 'subscription_id' for Google
+     */
+    storeSubscriptionId: varchar('store_subscription_id', {
+      length: 255
+    }).notNull(),
 
-  /**
-   * The environment the subscription was purchased in
-   */
-  providerEnvironment: tinyint('provider_environment')
-    .notNull()
-    .default(ProviderEnvironment.Production),
+    paymentProviderConfigurationProductId: varchar(
+      'payment_provider_configuration_product_id',
+      {
+        length: 255
+      }
+    ).notNull(),
 
-  isTrial: boolean('is_trial').notNull().default(false),
+    /**
+     * The environment the subscription was purchased in
+     */
+    providerEnvironment: tinyint('provider_environment')
+      .notNull()
+      .default(ProviderEnvironment.Production),
 
-  /**
-   * The date the subscription started
-   */
-  startsAt: timestamp('starts_at').notNull(),
-  /**
-   * The date the subscription expires. Null if the subscription is not set to expire or if it is a one-time purchase
-   */
-  expiresAt: timestamp('expires_at'),
-  /**
-   * The date the subscription was purchased
-   */
-  purchasedAt: timestamp('purchased_at').notNull(),
-  /**
-   * Whether the subscription is set to cancel at the end of the current period
-   */
-  cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
-  /**
-   * The date the subscription was canceled
-   */
-  canceledAt: timestamp('canceled_at'),
+    isTrial: boolean('is_trial').notNull().default(false),
 
-  cancellationReason: varchar('cancellation_reason', { length: 255 }),
+    /**
+     * The date the subscription started
+     */
+    startsAt: timestamp('starts_at').notNull(),
+    /**
+     * The date the subscription expires. Null if the subscription is not set to expire or if it is a one-time purchase
+     */
+    expiresAt: timestamp('expires_at'),
+    /**
+     * The date the subscription was purchased
+     */
+    purchasedAt: timestamp('purchased_at').notNull(),
+    /**
+     * Whether the subscription is set to cancel at the end of the current period
+     */
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    /**
+     * The date the subscription was canceled
+     */
+    canceledAt: timestamp('canceled_at'),
 
-  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: timestamp('updated_at').onUpdateNow()
-});
+    cancellationReason: varchar('cancellation_reason', { length: 255 }),
+
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp('updated_at').onUpdateNow()
+  },
+  (table) => [
+    index('status_starts_at_idx').on(table.status, table.startsAt),
+    index('canceled_at_idx').on(table.canceledAt),
+    index('customer_id_idx').on(table.customerId)
+  ]
+);
 
 export const subscriptionRelations = relations(subscriptions, ({ one }) => ({
   paymentProviderConfigurationProduct: one(
@@ -519,28 +527,43 @@ export const subscriptionRelations = relations(subscriptions, ({ one }) => ({
   )
 }));
 
-export const transactions = mysqlTable('transaction', {
-  id: varchar('id', { length: 255 }).primaryKey(),
-  customerId: varchar('customer_id', { length: 255 }).notNull(),
-  amount: int('amount').notNull(),
-  currency: varchar('currency', { length: 3 }).notNull(),
+export const transactions = mysqlTable(
+  'transaction',
+  {
+    id: varchar('id', { length: 255 }).primaryKey(),
+    customerId: varchar('customer_id', { length: 255 }).notNull(),
+    amount: int('amount').notNull(),
+    currency: varchar('currency', { length: 3 }).notNull(),
+    /**
+     * Amount converted to USD cents for analytics.
+     * Populated at transaction ingestion time using exchange rates.
+     */
+    amountUsd: int('amount_usd'),
+    /**
+     * Exchange rate used for USD conversion.
+     * Stored as rate * 1,000,000 for precision.
+     * e.g., 1.25 USD/EUR stored as 1250000
+     */
+    exchangeRate: int('exchange_rate'),
 
-  paymentProviderConfigurationProductId: varchar(
-    'payment_provider_product_configuration_id',
-    {
+    paymentProviderConfigurationProductId: varchar(
+      'payment_provider_product_configuration_id',
+      {
+        length: 255
+      }
+    ).notNull(),
+    providerEnvironment: tinyint('provider_environment')
+      .notNull()
+      .default(ProviderEnvironment.Production),
+    storeTransactionId: varchar('store_transaction_id', {
       length: 255
-    }
-  ).notNull(),
-  providerEnvironment: tinyint('provider_environment')
-    .notNull()
-    .default(ProviderEnvironment.Production),
-  storeTransactionId: varchar('store_transaction_id', {
-    length: 255
-  }),
-  occurredAt: timestamp('occurred_at').notNull(),
-  createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: timestamp('updated_at').onUpdateNow()
-});
+    }),
+    occurredAt: timestamp('occurred_at').notNull(),
+    createdAt: timestamp('created_at').default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp('updated_at').onUpdateNow()
+  },
+  (table) => [index('occurred_at_idx').on(table.occurredAt)]
+);
 
 export const InAppOwnershipType = {
   FamilyShared: 1,

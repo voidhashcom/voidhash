@@ -8,6 +8,7 @@ import { RpcSerialization, RpcServer } from '@effect/rpc';
 import { VoidhashV1Api } from '@voidhash/api-spec';
 import { BetterAuth } from '@voidhash/auth/effect';
 import {
+  AnalyticsService,
   ApiKeyService,
   AppStoreServerAPIService,
   AppStoreService,
@@ -43,6 +44,7 @@ import { SdkGroupLive } from './routes/v1/sdk';
 import { UsersGroupLive } from './routes/v1/users';
 import { YjsRouteLayer } from './routes/yjs';
 import { RpcAuthLive } from './rpc-middlewares';
+import { AnalyticsRpcsLive } from './rpcs/analytics-rpcs';
 import { ApiKeyRpcsLive } from './rpcs/api-key-rpcs';
 import { CustomerRpcsLive } from './rpcs/customer-rpcs';
 import { OrganizationRpcsLive } from './rpcs/organization-rpcs';
@@ -56,6 +58,7 @@ import { ProjectRpcsLive } from './rpcs/project-rpcs';
 import { UserRpcsLive } from './rpcs/user-rpcs';
 
 const ServicesLayer = Layer.mergeAll(
+  AnalyticsService.Default,
   ApiKeyService.Default,
   AppStoreServerAPIService.Default,
   AppStoreService.Default,
@@ -126,6 +129,7 @@ const RpcRoutesLayer = RpcServer.layerHttpRouter({
   Layer.provide(RpcAuthLive),
   Layer.provide(
     Layer.mergeAll(
+      AnalyticsRpcsLive,
       ApiKeyRpcsLive,
       CustomerRpcsLive,
       OrganizationRpcsLive,

@@ -1,4 +1,5 @@
 export * from '@voidhash/shared/errors';
+export * from './analytics';
 export * from './api-keys';
 export * from './app-store';
 export * from './app-store-server-api';
