@@ -20,17 +20,24 @@ export async function updateOAuthClient(
   clientId: string,
   updates: {
     name?: string;
-    redirectUrls?: string;
+    redirectUris?: string;
     disabled?: boolean;
     type?: string;
     clientId?: string;
     clientSecret?: string;
   }
 ) {
+  // Map redirectUris to redirectUrls for the database (schema uses redirectUrls)
+  const { redirectUris, ...rest } = updates;
+  const dbUpdates: Record<string, unknown> = { ...rest };
+  if (redirectUris !== undefined) {
+    dbUpdates.redirectUrls = redirectUris;
+  }
+
   const [updated] = await db
     .update(oauthApplication)
     .set({
-      ...updates,
+      ...dbUpdates,
       updatedAt: new Date()
     })
     .where(eq(oauthApplication.clientId, clientId))

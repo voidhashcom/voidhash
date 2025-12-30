@@ -6,7 +6,9 @@ import {
   timestamp,
   boolean,
   int,
+  json,
   index,
+  uniqueIndex,
 } from "drizzle-orm/mysql-core";
 
 export const user = mysqlTable("user", {
@@ -95,14 +97,18 @@ export const jwks = mysqlTable("jwks", {
   expiresAt: timestamp("expires_at", { fsp: 3 }),
 });
 
-export const organization = mysqlTable("organization", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  slug: varchar("slug", { length: 255 }).notNull().unique(),
-  logo: text("logo"),
-  createdAt: timestamp("created_at", { fsp: 3 }).notNull(),
-  metadata: text("metadata"),
-});
+export const organization = mysqlTable(
+  "organization",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    slug: varchar("slug", { length: 255 }).notNull().unique(),
+    logo: text("logo"),
+    createdAt: timestamp("created_at", { fsp: 3 }).notNull(),
+    metadata: text("metadata"),
+  },
+  (table) => [uniqueIndex("organization_slug_uidx").on(table.slug)],
+);
 
 export const member = mysqlTable(
   "member",
@@ -161,7 +167,7 @@ export const apikey = mysqlTable(
     lastRefillAt: timestamp("last_refill_at", { fsp: 3 }),
     enabled: boolean("enabled").default(true),
     rateLimitEnabled: boolean("rate_limit_enabled").default(true),
-    rateLimitTimeWindow: int("rate_limit_time_window").default(86_400_000),
+    rateLimitTimeWindow: int("rate_limit_time_window").default(86400000),
     rateLimitMax: int("rate_limit_max").default(10),
     requestCount: int("request_count").default(0),
     remaining: int("remaining"),
@@ -178,73 +184,95 @@ export const apikey = mysqlTable(
   ],
 );
 
-export const oauthApplication = mysqlTable(
-  "oauth_application",
-  {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    name: text("name"),
-    icon: text("icon"),
-    metadata: text("metadata"),
-    clientId: varchar("client_id", { length: 255 }).unique(),
-    clientSecret: text("client_secret"),
-    redirectUrls: text("redirect_urls"),
-    type: text("type"),
-    disabled: boolean("disabled").default(false),
-    userId: varchar("user_id", { length: 36 }).references(() => user.id, {
-      onDelete: "cascade",
-    }),
-    createdAt: timestamp("created_at", { fsp: 3 }),
-    updatedAt: timestamp("updated_at", { fsp: 3 }),
-  },
-  (table) => [index("oauthApplication_userId_idx").on(table.userId)],
-);
+export const oauthClient = mysqlTable("oauth_client", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  clientId: varchar("client_id", { length: 255 }).notNull().unique(),
+  clientSecret: text("client_secret"),
+  disabled: boolean("disabled").default(false),
+  skipConsent: boolean("skip_consent"),
+  enableEndSession: boolean("enable_end_session"),
+  scopes: text("scopes", { mode: "json" }),
+  userId: varchar("user_id", { length: 36 }).references(() => user.id, {
+    onDelete: "cascade",
+  }),
+  createdAt: timestamp("created_at", { fsp: 3 }),
+  updatedAt: timestamp("updated_at", { fsp: 3 }),
+  name: text("name"),
+  uri: text("uri"),
+  icon: text("icon"),
+  contacts: text("contacts", { mode: "json" }),
+  tos: text("tos"),
+  policy: text("policy"),
+  softwareId: text("software_id"),
+  softwareVersion: text("software_version"),
+  softwareStatement: text("software_statement"),
+  redirectUris: text("redirect_uris", { mode: "json" }).notNull(),
+  postLogoutRedirectUris: text("post_logout_redirect_uris", { mode: "json" }),
+  tokenEndpointAuthMethod: text("token_endpoint_auth_method"),
+  grantTypes: text("grant_types", { mode: "json" }),
+  responseTypes: text("response_types", { mode: "json" }),
+  public: boolean("public"),
+  type: text("type"),
+  referenceId: text("reference_id"),
+  metadata: json("metadata", { mode: "json" }),
+});
 
-export const oauthAccessToken = mysqlTable(
-  "oauth_access_token",
-  {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    accessToken: varchar("access_token", { length: 255 }).unique(),
-    refreshToken: varchar("refresh_token", { length: 255 }).unique(),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", { fsp: 3 }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { fsp: 3 }),
-    clientId: varchar("client_id", { length: 36 }).references(
-      () => oauthApplication.clientId,
-      { onDelete: "cascade" },
-    ),
-    userId: varchar("user_id", { length: 36 }).references(() => user.id, {
-      onDelete: "cascade",
-    }),
-    scopes: text("scopes"),
-    createdAt: timestamp("created_at", { fsp: 3 }),
-    updatedAt: timestamp("updated_at", { fsp: 3 }),
-  },
-  (table) => [
-    index("oauthAccessToken_clientId_idx").on(table.clientId),
-    index("oauthAccessToken_userId_idx").on(table.userId),
-  ],
-);
+export const oauthRefreshToken = mysqlTable("oauth_refresh_token", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  token: text("token").notNull(),
+  clientId: varchar("client_id", { length: 36 })
+    .notNull()
+    .references(() => oauthClient.clientId, { onDelete: "cascade" }),
+  sessionId: varchar("session_id", { length: 36 }).references(
+    () => session.id,
+    { onDelete: "set null" },
+  ),
+  userId: varchar("user_id", { length: 36 })
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  referenceId: text("reference_id"),
+  expiresAt: timestamp("expires_at", { fsp: 3 }),
+  createdAt: timestamp("created_at", { fsp: 3 }),
+  revoked: timestamp("revoked", { fsp: 3 }),
+  scopes: text("scopes", { mode: "json" }).notNull(),
+});
 
-export const oauthConsent = mysqlTable(
-  "oauth_consent",
-  {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    clientId: varchar("client_id", { length: 36 }).references(
-      () => oauthApplication.clientId,
-      { onDelete: "cascade" },
-    ),
-    userId: varchar("user_id", { length: 36 }).references(() => user.id, {
-      onDelete: "cascade",
-    }),
-    scopes: text("scopes"),
-    createdAt: timestamp("created_at", { fsp: 3 }),
-    updatedAt: timestamp("updated_at", { fsp: 3 }),
-    consentGiven: boolean("consent_given"),
-  },
-  (table) => [
-    index("oauthConsent_clientId_idx").on(table.clientId),
-    index("oauthConsent_userId_idx").on(table.userId),
-  ],
-);
+export const oauthAccessToken = mysqlTable("oauth_access_token", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  token: varchar("token", { length: 255 }).unique(),
+  clientId: varchar("client_id", { length: 36 })
+    .notNull()
+    .references(() => oauthClient.clientId, { onDelete: "cascade" }),
+  sessionId: varchar("session_id", { length: 36 }).references(
+    () => session.id,
+    { onDelete: "set null" },
+  ),
+  userId: varchar("user_id", { length: 36 }).references(() => user.id, {
+    onDelete: "cascade",
+  }),
+  referenceId: text("reference_id"),
+  refreshId: varchar("refresh_id", { length: 36 }).references(
+    () => oauthRefreshToken.id,
+    { onDelete: "cascade" },
+  ),
+  expiresAt: timestamp("expires_at", { fsp: 3 }),
+  createdAt: timestamp("created_at", { fsp: 3 }),
+  scopes: text("scopes", { mode: "json" }).notNull(),
+});
+
+export const oauthConsent = mysqlTable("oauth_consent", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  clientId: varchar("client_id", { length: 36 })
+    .notNull()
+    .references(() => oauthClient.clientId, { onDelete: "cascade" }),
+  userId: varchar("user_id", { length: 36 }).references(() => user.id, {
+    onDelete: "cascade",
+  }),
+  referenceId: text("reference_id"),
+  scopes: text("scopes", { mode: "json" }).notNull(),
+  createdAt: timestamp("created_at", { fsp: 3 }),
+  updatedAt: timestamp("updated_at", { fsp: 3 }),
+});
 
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
@@ -252,16 +280,19 @@ export const userRelations = relations(user, ({ many }) => ({
   members: many(member),
   invitations: many(invitation),
   apikeys: many(apikey),
-  oauthApplications: many(oauthApplication),
+  oauthClients: many(oauthClient),
+  oauthRefreshTokens: many(oauthRefreshToken),
   oauthAccessTokens: many(oauthAccessToken),
   oauthConsents: many(oauthConsent),
 }));
 
-export const sessionRelations = relations(session, ({ one }) => ({
+export const sessionRelations = relations(session, ({ one, many }) => ({
   user: one(user, {
     fields: [session.userId],
     references: [user.id],
   }),
+  oauthRefreshTokens: many(oauthRefreshToken),
+  oauthAccessTokens: many(oauthAccessToken),
 }));
 
 export const accountRelations = relations(account, ({ one }) => ({
@@ -305,36 +336,61 @@ export const apikeyRelations = relations(apikey, ({ one }) => ({
   }),
 }));
 
-export const oauthApplicationRelations = relations(
-  oauthApplication,
+export const oauthClientRelations = relations(oauthClient, ({ one, many }) => ({
+  user: one(user, {
+    fields: [oauthClient.userId],
+    references: [user.id],
+  }),
+  oauthRefreshTokens: many(oauthRefreshToken),
+  oauthAccessTokens: many(oauthAccessToken),
+  oauthConsents: many(oauthConsent),
+}));
+
+export const oauthRefreshTokenRelations = relations(
+  oauthRefreshToken,
   ({ one, many }) => ({
+    oauthClient: one(oauthClient, {
+      fields: [oauthRefreshToken.clientId],
+      references: [oauthClient.clientId],
+    }),
+    session: one(session, {
+      fields: [oauthRefreshToken.sessionId],
+      references: [session.id],
+    }),
     user: one(user, {
-      fields: [oauthApplication.userId],
+      fields: [oauthRefreshToken.userId],
       references: [user.id],
     }),
     oauthAccessTokens: many(oauthAccessToken),
-    oauthConsents: many(oauthConsent),
   }),
 );
 
 export const oauthAccessTokenRelations = relations(
   oauthAccessToken,
   ({ one }) => ({
-    oauthApplication: one(oauthApplication, {
+    oauthClient: one(oauthClient, {
       fields: [oauthAccessToken.clientId],
-      references: [oauthApplication.clientId],
+      references: [oauthClient.clientId],
+    }),
+    session: one(session, {
+      fields: [oauthAccessToken.sessionId],
+      references: [session.id],
     }),
     user: one(user, {
       fields: [oauthAccessToken.userId],
       references: [user.id],
     }),
+    oauthRefreshToken: one(oauthRefreshToken, {
+      fields: [oauthAccessToken.refreshId],
+      references: [oauthRefreshToken.id],
+    }),
   }),
 );
 
 export const oauthConsentRelations = relations(oauthConsent, ({ one }) => ({
-  oauthApplication: one(oauthApplication, {
+  oauthClient: one(oauthClient, {
     fields: [oauthConsent.clientId],
-    references: [oauthApplication.clientId],
+    references: [oauthClient.clientId],
   }),
   user: one(user, {
     fields: [oauthConsent.userId],

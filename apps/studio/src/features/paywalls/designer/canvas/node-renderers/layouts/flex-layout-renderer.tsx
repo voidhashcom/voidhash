@@ -1,4 +1,4 @@
-import type { FlexNodeData } from '../../../state/schema';
+import type { FlexNodeData } from '@voidhash/mimic-schema';
 
 type FlexLayoutRendererProps = {
   style: FlexNodeData['style'];

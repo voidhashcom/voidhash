@@ -4,6 +4,13 @@ import type {
   PresenceSchema
 } from '@voidhash/mimic-schema';
 
+export type AvailableTool =
+  | 'cursor'
+  | 'text'
+  | 'rows'
+  | 'columns'
+  | 'scroll-view';
+
 export type DesignerStoreState = MimicSlice<
   typeof PaywallDesignerDocument,
   typeof PresenceSchema

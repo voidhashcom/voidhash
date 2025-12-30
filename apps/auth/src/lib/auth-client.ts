@@ -1,7 +1,7 @@
+import { oauthProviderClient } from '@better-auth/oauth-provider/client';
 import {
   adminClient,
   apiKeyClient,
-  oidcClient,
   organizationClient
 } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
@@ -10,7 +10,12 @@ import { env } from './env';
 export const createAuthClientOptions = (baseURL: string) => ({
   baseURL,
   basePath: '/auth/api/auth',
-  plugins: [organizationClient(), apiKeyClient(), adminClient(), oidcClient()]
+  plugins: [
+    organizationClient(),
+    apiKeyClient(),
+    adminClient(),
+    oauthProviderClient()
+  ]
 });
 
 export const authClient = createAuthClient(

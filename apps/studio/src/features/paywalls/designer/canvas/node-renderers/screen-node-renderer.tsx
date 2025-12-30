@@ -1,4 +1,4 @@
-import type { ScreenNodeData } from '../../state/schema';
+import type { ScreenNodeData } from '@voidhash/mimic-schema';
 import { Selectable } from '../helpers/selectable';
 import { FlexLayoutRenderer } from './layouts/flex-layout-renderer';
 

@@ -1,7 +1,6 @@
 'use client';
 
 import type { FlexDirection } from '@voidhash/mimic-schema';
-
 import { Schema } from 'effect';
 import {
   ArrowDownIcon,
@@ -115,12 +114,14 @@ function DimensionsSubSection({
   editable = true
 }: DimensionsSubSectionProps) {
   const store = usePaywallDesignerStore();
+  // This is a hacky solution, because we don't have a way to get correct type here.
   const parent = useStore(store, (state) => getNodeById(state, parentId));
+
   if (!parent) {
     return null;
   }
   const parentDirection =
-    parent.type === 'flex' ? parent.data.style.flexDirection : 'row';
+    parent.type === 'flex' ? parent.style.flexDirection : 'row';
   return (
     <PanelSubSection>
       <PanelSubSectionTitle>Dimensions</PanelSubSectionTitle>

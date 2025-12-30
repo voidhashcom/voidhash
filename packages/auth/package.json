@@ -27,6 +27,7 @@
     "typescript": "5.6.3"
   },
   "peerDependencies": {
-    "better-auth": "^1.4.4"
+    "@better-auth/oauth-provider": "^1.4.9",
+    "better-auth": "^1.4.9"
   }
 }

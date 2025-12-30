@@ -1,3 +1,4 @@
+import { oauthProvider } from '@better-auth/oauth-provider';
 import { type Database, db } from '@voidhash/db';
 import * as schema from '@voidhash/db/schema';
 import {
@@ -11,10 +12,10 @@ import {
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { nextCookies } from 'better-auth/next-js';
-import { admin, apiKey, oidcProvider, organization } from 'better-auth/plugins';
+import { admin, apiKey, jwt, organization } from 'better-auth/plugins';
 import { tanstackStartCookies } from 'better-auth/tanstack-start';
 
-// Mobile app OIDC client configuration
+// Mobile app OAuth client configuration
 const MOBILE_CLIENT_ID = 'voidhash-mobile-app';
 const MOBILE_CLIENT_SECRET = 'voidhash-mobile-secret';
 
@@ -30,6 +31,9 @@ const trustedOrigins = [
     ? ['localhost:8081']
     : [])
 ];
+
+// Set of trusted client IDs for caching
+const CACHED_TRUSTED_CLIENT_IDS = new Set([MOBILE_CLIENT_ID]);
 
 export const createBetterAuthOptions = (
   db: Database,
@@ -58,6 +62,7 @@ export const createBetterAuthOptions = (
   trustedOrigins,
 
   plugins: [
+    jwt(),
     organization(),
     apiKey({
       rateLimit: {
@@ -67,32 +72,11 @@ export const createBetterAuthOptions = (
     admin({
       adminUserIds: process.env.ADMIN_USER_IDS?.split(',').filter(Boolean) ?? []
     }),
-    oidcProvider({
+    oauthProvider({
       loginPage: '/auth/login',
-      consentPage: '/auth/consent',
-      trustedClients: [
-        {
-          clientId: MOBILE_CLIENT_ID,
-          clientSecret: MOBILE_CLIENT_SECRET,
-          name: 'Voidhash Mobile',
-          type: 'native',
-          redirectUrls: [
-            // Production - custom scheme
-            'voidhash://auth/callback',
-            // Development - custom scheme with path
-
-            ...(process.env.NEXT_PUBLIC_VERCEL_ENV === 'development'
-              ? [
-                  'http://localhost:8081/auth/callback',
-                  'voidhash-dev://auth/callback'
-                ]
-              : [])
-          ],
-          disabled: false,
-          skipConsent: true,
-          metadata: { internal: true }
-        }
-      ]
+      consentPage: '/auth/oauth/consent',
+      scopes: ['openid', 'profile', 'email', 'offline_access'],
+      cachedTrustedClients: CACHED_TRUSTED_CLIENT_IDS
     }),
     framework === 'next' ? nextCookies() : tanstackStartCookies()
   ]

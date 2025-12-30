@@ -1,3 +1,4 @@
+import type { TextNodeData } from '@voidhash/mimic-schema';
 import { useEffect, useRef } from 'react';
 import { useStore } from 'zustand/react';
 import {
@@ -9,7 +10,6 @@ import {
   usePaywallDesignerActions,
   usePaywallDesignerStore
 } from '../../state/designer-store';
-import type { TextNodeData } from '../../state/schema';
 import { Selectable } from '../helpers/selectable';
 
 export function TextNodeRenderer({ node }: { node: TextNodeData }) {

@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { zodValidator } from '@tanstack/zod-adapter';
 import {
   Button,
@@ -11,18 +11,16 @@ import {
   Logo
 } from '@voidhash/ui';
 import { CheckCircle, Shield, XCircle } from 'lucide-react';
-import Link from 'next/link';
 import { useState } from 'react';
 import { z } from 'zod';
 import { authClient } from '../../lib/auth-client';
 
 const consentSearchSchema = z.object({
-  consent_code: z.string().optional(),
   client_id: z.string().optional(),
   scope: z.string().optional()
 });
 
-export const Route = createFileRoute('/oidc/consent')({
+export const Route = createFileRoute('/oauth/consent')({
   component: ConsentPage,
   validateSearch: zodValidator(consentSearchSchema)
 });
@@ -31,7 +29,6 @@ function ConsentPageContent() {
   const searchParams = Route.useSearch();
   const [loading, setLoading] = useState(false);
 
-  const consentCode = searchParams.consent_code;
   const clientId = searchParams.client_id;
   const scope = searchParams.scope;
 
@@ -41,33 +38,30 @@ function ConsentPageContent() {
     const descriptions: Record<string, string> = {
       openid: 'Verify your identity',
       profile: 'Access your profile information (name, picture)',
-      email: 'Access your email address'
+      email: 'Access your email address',
+      offline_access: 'Stay signed in and access your data when you are not using the app'
     };
     return descriptions[scopeName] ?? scopeName;
   };
 
   const handleConsent = async (accept: boolean) => {
-    if (!consentCode) {
-      return;
-    }
-
     setLoading(true);
 
     try {
       const response = await authClient.oauth2.consent({
         accept,
-        consent_code: consentCode
+        scope: accept ? scope : undefined
       });
 
-      if (response.data?.redirectURI) {
-        window.location.href = response.data.redirectURI;
+      if (response.data?.uri) {
+        window.location.href = response.data.uri;
       }
     } catch {
       setLoading(false);
     }
   };
 
-  if (!(consentCode && clientId)) {
+  if (!clientId) {
     return (
       <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
         <Card className="w-full max-w-md">
@@ -80,7 +74,7 @@ function ConsentPageContent() {
             </CardDescription>
           </CardHeader>
           <CardFooter className="justify-center">
-            <Link href="/login">
+            <Link to="/login">
               <Button variant="outline">Return to Login</Button>
             </Link>
           </CardFooter>
@@ -94,7 +88,7 @@ function ConsentPageContent() {
       <div className="w-full max-w-md">
         <div className="flex flex-col gap-6">
           <div className="flex justify-center">
-            <Link href="/">
+            <Link to="/">
               <Logo />
             </Link>
           </div>

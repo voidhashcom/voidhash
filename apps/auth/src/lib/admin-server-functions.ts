@@ -11,7 +11,7 @@ import { auth, TRUSTED_CLIENTS } from './auth';
 
 const UpdateClientSchema = z.object({
   name: z.string().optional(),
-  redirectUrls: z.string().optional(),
+  redirectUris: z.string().optional(),
   disabled: z.boolean().optional(),
   type: z.string().optional()
 });
@@ -135,9 +135,7 @@ export const syncTrustedClients = createServerFn({ method: 'POST' }).handler(
     );
 
     const syncPromises = TRUSTED_CLIENTS.map(async (trustedClient) => {
-      const redirectUrls = Array.isArray(trustedClient.redirectUrls)
-        ? [...trustedClient.redirectUrls]
-        : [trustedClient.redirectUrls];
+      const redirectUris = [...trustedClient.redirectUris];
 
       const isExisting = existingClientIds.has(trustedClient.clientId);
 
@@ -146,7 +144,7 @@ export const syncTrustedClients = createServerFn({ method: 'POST' }).handler(
         await updateOAuthClient(trustedClient.clientId, {
           name: trustedClient.name,
           type: trustedClient.type,
-          redirectUrls: redirectUrls.join(','),
+          redirectUris: redirectUris.join(','),
           disabled: trustedClient.disabled ?? false,
           clientSecret: trustedClient.clientSecret
         });
@@ -161,36 +159,37 @@ export const syncTrustedClients = createServerFn({ method: 'POST' }).handler(
           const tokenEndpointAuthMethod: 'client_secret_basic' | 'none' =
             trustedClient.clientSecret ? 'client_secret_basic' : 'none';
 
-          const result = await auth.api.registerOAuthApplication({
+          // Use the new OAuth Provider's adminCreateOAuthClient endpoint
+          const result = await auth.api.adminCreateOAuthClient({
             body: {
-              redirect_uris: redirectUrls,
+              redirect_uris: redirectUris,
               client_name: trustedClient.name,
               scope: 'openid profile email',
               token_endpoint_auth_method: tokenEndpointAuthMethod,
               grant_types: ['authorization_code'] as 'authorization_code'[],
               response_types: ['code'] as 'code'[],
-              metadata: trustedClient.metadata ?? undefined
+              skip_consent: trustedClient.skipConsent
             },
             headers: request.headers
           });
 
-          if (!result?.client_id) {
+          const clientId =
+            result && 'client_id' in result ? result.client_id : null;
+
+          if (!clientId) {
             throw new Error('Failed to register OAuth application');
           }
 
           // If we have a specific trusted clientId and the registered clientId differs,
           // update the database to use the trusted clientId
-          if (
-            trustedClient.clientId &&
-            result.client_id !== trustedClient.clientId
-          ) {
+          if (trustedClient.clientId && clientId !== trustedClient.clientId) {
             // Update the clientId and clientSecret to match trusted client config
-            await updateOAuthClient(result.client_id, {
+            await updateOAuthClient(clientId as string, {
               clientId: trustedClient.clientId,
               clientSecret: trustedClient.clientSecret,
               name: trustedClient.name,
               type: trustedClient.type,
-              redirectUrls: redirectUrls.join(','),
+              redirectUris: redirectUris.join(','),
               disabled: trustedClient.disabled ?? false
             });
           }

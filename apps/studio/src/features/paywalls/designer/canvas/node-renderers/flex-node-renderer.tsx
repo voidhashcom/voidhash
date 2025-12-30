@@ -1,4 +1,4 @@
-import type { FlexNodeData } from '../../state/schema';
+import type { FlexNodeData } from '@voidhash/mimic-schema';
 import { Selectable } from '../helpers/selectable';
 import { FlexLayoutRenderer } from './layouts/flex-layout-renderer';
 

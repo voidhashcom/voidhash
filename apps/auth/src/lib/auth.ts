@@ -1,33 +1,34 @@
-// import { createBetterAuthOptions } from '@voidhash/auth';
-// import { db } from '@voidhash/db';
-// import { betterAuth } from 'better-auth';
-
-// export const auth = betterAuth(createBetterAuthOptions(db, 'tanstack-start'));
-
+import { oauthProvider } from '@better-auth/oauth-provider';
 import { db } from '@voidhash/db';
 import * as schema from '@voidhash/db/schema';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import {
-  admin,
-  apiKey,
-  type Client,
-  jwt,
-  oidcProvider,
-  organization
-} from 'better-auth/plugins';
+import { admin, apiKey, jwt, organization } from 'better-auth/plugins';
 import { tanstackStartCookies } from 'better-auth/tanstack-start';
 import { env } from './env';
 
-export const TRUSTED_CLIENTS: Client[] = [
+// Trusted client configuration for programmatic sync
+// These will be created/updated in the database via syncTrustedClients
+export interface TrustedClientConfig {
+  clientId: string;
+  clientSecret: string;
+  name: string;
+  type: 'web' | 'native' | 'user-agent-based';
+  redirectUris: string[];
+  disabled: boolean;
+  skipConsent: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export const TRUSTED_CLIENTS: TrustedClientConfig[] = [
   {
     clientId: env.VOIDHASH_STUDIO_CLIENT_ID,
     clientSecret: env.VOIDHASH_STUDIO_CLIENT_SECRET,
     name: 'Voidhash Studio',
     type: 'web',
-    redirectUrls: [env.VOIDHASH_STUDIO_REDIRECT_URL],
+    redirectUris: [env.VOIDHASH_STUDIO_REDIRECT_URL],
     disabled: false,
-    skipConsent: true, // Skip consent for this trusted client
+    skipConsent: true,
     metadata: { internal: true }
   },
   {
@@ -35,7 +36,7 @@ export const TRUSTED_CLIENTS: Client[] = [
     clientSecret: env.VOIDHASH_MOBILE_CLIENT_SECRET,
     name: 'Voidhash Mobile',
     type: 'native',
-    redirectUrls: [
+    redirectUris: [
       // Production - custom scheme
       'voidhash://auth/callback',
       // Development - custom scheme with path
@@ -50,7 +51,12 @@ export const TRUSTED_CLIENTS: Client[] = [
     skipConsent: true,
     metadata: { internal: true }
   }
-] as const;
+];
+
+// Set of trusted client IDs for caching
+export const CACHED_TRUSTED_CLIENT_IDS = new Set(
+  TRUSTED_CLIENTS.map((c) => c.clientId)
+);
 
 export const auth = betterAuth({
   baseURL: env.VITE_APP_AUTH_BASE_URL,
@@ -81,9 +87,7 @@ export const auth = betterAuth({
     }
   },
   plugins: [
-    jwt({
-      disableSettingJwtHeader: true
-    }),
+    jwt(),
     organization(),
     apiKey({
       rateLimit: {
@@ -91,11 +95,11 @@ export const auth = betterAuth({
       }
     }),
     admin(),
-    oidcProvider({
-      loginPage: '/auth/login',
-      useJWTPlugin: true,
-      consentPage: '/auth/consent',
-      trustedClients: TRUSTED_CLIENTS
+    oauthProvider({
+      loginPage: '/login',
+      consentPage: '/oauth/consent',
+      scopes: ['openid', 'profile', 'email', 'offline_access'],
+      cachedTrustedClients: CACHED_TRUSTED_CLIENT_IDS
     }),
     tanstackStartCookies()
   ]

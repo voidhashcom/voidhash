@@ -15,7 +15,7 @@ import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DevicesIndexRouteImport } from './routes/devices/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as OidcConsentRouteImport } from './routes/oidc/consent'
+import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminClientsNewRouteImport } from './routes/admin/clients/new'
 import { Route as AdminClientsClientIdRouteImport } from './routes/admin/clients/$clientId'
@@ -50,9 +50,9 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
-const OidcConsentRoute = OidcConsentRouteImport.update({
-  id: '/oidc/consent',
-  path: '/oidc/consent',
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -76,7 +76,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/sign-up': typeof SignUpRoute
-  '/oidc/consent': typeof OidcConsentRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/admin/': typeof AdminIndexRoute
   '/devices': typeof DevicesIndexRoute
   '/admin/clients/$clientId': typeof AdminClientsClientIdRoute
@@ -87,7 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/sign-up': typeof SignUpRoute
-  '/oidc/consent': typeof OidcConsentRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/admin': typeof AdminIndexRoute
   '/devices': typeof DevicesIndexRoute
   '/admin/clients/$clientId': typeof AdminClientsClientIdRoute
@@ -100,7 +100,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/sign-up': typeof SignUpRoute
-  '/oidc/consent': typeof OidcConsentRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/admin/': typeof AdminIndexRoute
   '/devices/': typeof DevicesIndexRoute
   '/admin/clients/$clientId': typeof AdminClientsClientIdRoute
@@ -114,7 +114,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/sign-up'
-    | '/oidc/consent'
+    | '/oauth/consent'
     | '/admin/'
     | '/devices'
     | '/admin/clients/$clientId'
@@ -125,7 +125,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/sign-up'
-    | '/oidc/consent'
+    | '/oauth/consent'
     | '/admin'
     | '/devices'
     | '/admin/clients/$clientId'
@@ -137,7 +137,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/sign-up'
-    | '/oidc/consent'
+    | '/oauth/consent'
     | '/admin/'
     | '/devices/'
     | '/admin/clients/$clientId'
@@ -150,7 +150,7 @@ export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
   SignUpRoute: typeof SignUpRoute
-  OidcConsentRoute: typeof OidcConsentRoute
+  OauthConsentRoute: typeof OauthConsentRoute
   DevicesIndexRoute: typeof DevicesIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
@@ -199,11 +199,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
-    '/oidc/consent': {
-      id: '/oidc/consent'
-      path: '/oidc/consent'
-      fullPath: '/oidc/consent'
-      preLoaderRoute: typeof OidcConsentRouteImport
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -251,7 +251,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
   LoginRoute: LoginRoute,
   SignUpRoute: SignUpRoute,
-  OidcConsentRoute: OidcConsentRoute,
+  OauthConsentRoute: OauthConsentRoute,
   DevicesIndexRoute: DevicesIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }

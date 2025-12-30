@@ -50,7 +50,7 @@ function ClientDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     name: client?.name || '',
-    redirectUrls: client?.redirectUrls || '',
+    redirectUris: client?.redirectUrls || '',
     disabled: client?.disabled
   });
 
@@ -64,7 +64,7 @@ function ClientDetailPage() {
       const data = await getClient({ data: { clientId } });
       setFormData({
         name: data.name || '',
-        redirectUrls: data.redirectUrls || '',
+        redirectUris: data.redirectUrls || '',
         disabled: data.disabled
       });
     } catch (error) {
@@ -91,7 +91,7 @@ function ClientDetailPage() {
           clientId,
           updates: {
             name: formData.name,
-            redirectUrls: formData.redirectUrls,
+            redirectUris: formData.redirectUris,
             disabled: formData.disabled ?? undefined
           }
         }
@@ -200,10 +200,10 @@ function ClientDetailPage() {
             <Input
               id="redirectUrls"
               onChange={(e) =>
-                setFormData({ ...formData, redirectUrls: e.target.value })
+                setFormData({ ...formData, redirectUris: e.target.value })
               }
               placeholder="https://app.example.com/callback"
-              value={formData.redirectUrls}
+              value={formData.redirectUris}
             />
             <p className="text-muted-foreground text-xs">
               Comma-separated list of allowed redirect URIs

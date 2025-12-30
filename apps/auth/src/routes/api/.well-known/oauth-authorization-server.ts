@@ -1,0 +1,18 @@
+import { oauthProviderAuthServerMetadata } from '@better-auth/oauth-provider';
+import { createFileRoute } from '@tanstack/react-router';
+import { auth } from '@/lib/auth';
+
+export const Route = createFileRoute('/api/.well-known/oauth-authorization-server')({
+  server: {
+    handlers: {
+      GET: ({ request }) => {
+        return oauthProviderAuthServerMetadata(auth, {
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET'
+          }
+        })(request);
+      }
+    }
+  }
+});
