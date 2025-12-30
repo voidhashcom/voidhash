@@ -1,4 +1,4 @@
-import { Primitive } from '@voidhash/mimic';
+import { Primitive, type Types } from '@voidhash/mimic';
 import {
   alignItems,
   alignSelf,
@@ -45,12 +45,7 @@ import {
   y,
   zIndex
 } from '../styles';
-import {
-  linkedVariables,
-  localVariables,
-  parentRefSchema,
-  states
-} from './base';
+import { linkedVariables, localVariables, states } from './base';
 import { FlexNode } from './flex-node';
 import { TextNode } from './text-node';
 
@@ -58,7 +53,6 @@ import { TextNode } from './text-node';
 export const ScreenNode = Primitive.TreeNode('screen', {
   data: Primitive.Struct({
     name: Primitive.String().default('Screen'),
-    parent: parentRefSchema,
     localVariables,
     linkedVariables,
     states,
@@ -122,7 +116,7 @@ export const ScreenNode = Primitive.TreeNode('screen', {
       alignSelf
     })
   }),
-  children: () => [FlexNode, TextNode] as const
+  children: [FlexNode, TextNode] as const
 });
 
-export type ScreenNodeData = Primitive.TypedTreeNodeState<typeof ScreenNode>;
+export type ScreenNodeData = Types.TreeNodeSnapshot<typeof ScreenNode>;

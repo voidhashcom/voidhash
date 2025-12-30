@@ -4,5 +4,10 @@ import { DesignerDetailPage } from '@/features/paywalls/designer/paywall-designe
 export const Route = createFileRoute(
   '/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id'
 )({
-  component: DesignerDetailPage
+  component: DesignerDetailPageComponent
 });
+
+function DesignerDetailPageComponent() {
+  const { id: paywallId } = Route.useParams();
+  return <DesignerDetailPage paywallId={paywallId} />;
+}

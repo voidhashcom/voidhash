@@ -5,6 +5,7 @@ import { CANVAS_DEFAULTS } from "../constants";
 import { clearSelection, saveCanvasState } from "../state/actions";
 import { usePaywallDesignerActions } from "../state/designer-store";
 import { NodeTreeRenderer } from "./node-tree-renderer";
+import { CursorsOverlay } from "./overlay/cursors-overlay";
 import { SelectionOverlay } from "./overlay/selection-overlay";
 import { Viewport, type ViewportTransform } from "./viewport";
 
@@ -92,6 +93,7 @@ export function Canvas() {
 						<NodeTreeRenderer />
 					</div>
 				</div>
+				{/* <CursorsOverlay /> */}
 			</Viewport>
 
 			{/* Pixi overlay for selection visualization */}

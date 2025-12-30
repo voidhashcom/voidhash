@@ -51,7 +51,7 @@ export function VariablesSection({
   onRemoveVariable,
   onUpdateVariable
 }: VariablesSectionProps) {
-  const variables = node.data.localVariables ?? [];
+  const variables = node.localVariables ?? [];
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<VariableTypeKey | null>(
     null

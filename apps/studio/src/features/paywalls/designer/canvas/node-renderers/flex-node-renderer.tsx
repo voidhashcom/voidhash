@@ -14,11 +14,7 @@ export function FlexNodeRenderer({
   return (
     <Selectable nodeId={node.id}>
       {(selectableProps) => (
-        <FlexLayoutRenderer
-          style={node.data.style}
-          {...selectableProps}
-          ref={ref}
-        >
+        <FlexLayoutRenderer style={node.style} {...selectableProps} ref={ref}>
           {children}
         </FlexLayoutRenderer>
       )}

@@ -11,8 +11,10 @@ import {
   PaywallDesignerDocument,
   PresenceSchema
 } from '@voidhash/mimic-schema';
+import { Effect } from 'effect';
 import { createContext, useContext, useRef } from 'react';
 import { create } from 'zustand';
+import { managedRuntime, VoidhashRpc } from '@/lib/effect-query';
 import { SHOW_GRID } from '../constants';
 import { commander } from './designer-commander';
 
@@ -30,17 +32,31 @@ export const createPaywallDesignerDocument = (
     presence: PresenceSchema,
     transport: WebSocketTransport.make({
       url: 'ws://localhost:5001/mimic/paywall-designer',
-      documentId
+      documentId,
+      authToken: async () => {
+        const t = await managedRuntime.runPromise(
+          VoidhashRpc.pipe(
+            Effect.flatMap((rpc) =>
+              rpc.RequestPaywallEditToken({ paywallId: documentId })
+            )
+          )
+        );
+        return t.token;
+      }
     }),
     initialPresence
   });
 
-function createPaywallDesignerStore(options: { name: string; color: string }) {
+function createPaywallDesignerStore(options: {
+  paywallId: string;
+  name: string;
+  color: string;
+}) {
   // Create final store with actions
   return create(
     commander.middleware(
       mimic(
-        createPaywallDesignerDocument('1', {
+        createPaywallDesignerDocument(options.paywallId, {
           cursor: null,
           user: { name: options.name, color: options.color },
           selectedNodeIds: []
@@ -88,6 +104,7 @@ const PaywallStoreContext = createContext<PaywallDesignerStoreType | null>(
 );
 
 interface PaywallDesignerStoreProviderProps {
+  paywallId: string;
   children: React.ReactNode;
 }
 
@@ -127,6 +144,7 @@ interface PaywallDesignerStoreProviderProps {
 // }
 
 export function PaywallDesignerStoreProvider({
+  paywallId,
   children
 }: PaywallDesignerStoreProviderProps) {
   const storeRef = useRef<PaywallDesignerStoreType | null>(null);
@@ -135,6 +153,7 @@ export function PaywallDesignerStoreProvider({
     // const storeState = createPaywallDesignerStoreState(doc, awareness);
     // const actions = createPaywallDesignerActions(storeState);
     storeRef.current = createPaywallDesignerStore({
+      paywallId,
       name: `User ${Math.floor(Math.random() * 1000)}`,
       color: `#${Math.floor(Math.random() * 16_777_215)
         .toString(16)

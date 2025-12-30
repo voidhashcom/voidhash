@@ -1,7 +1,6 @@
 export {
   linkedVariables,
   localVariables,
-  parentRefSchema,
   states,
   type Variable
 } from './base';

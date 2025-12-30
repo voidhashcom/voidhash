@@ -7,7 +7,11 @@
 
 import { PaywallService } from "@voidhash/core/services";
 import { Db } from "@voidhash/db/effect";
-import { MimicAuthService, MimicServer } from "@voidhash/mimic-effect";
+import {
+	MimicAuthService,
+	type MimicConfig,
+	MimicServer,
+} from "@voidhash/mimic-effect";
 import {
 	PaywallDesignerDocument,
 	PresenceSchema,
@@ -21,6 +25,8 @@ const PaywallMimicAuthLayer = MimicAuthService.layerEffect(
 		return MimicAuthService.makeEffect((token: string) =>
 			paywallService.validateEditToken(token).pipe(
 				Effect.map((result) => {
+					console.log("token", token);
+					console.log("result", result);
 					if (!result) {
 						return {
 							success: false as const,
@@ -49,12 +55,43 @@ const PaywallMimicAuthLayer = MimicAuthService.layerEffect(
  * Handles WebSocket connections at /mimic/paywall/:documentId
  * with short-lived token authentication.
  */
-export const MimicPaywallRouteLayer = MimicServer.layerHttpLayerRouter({
-	basePath: "/mimic/paywall-designer",
-	schema: PaywallDesignerDocument,
-	authLayer: PaywallMimicAuthLayer.pipe(
-		Layer.provide(PaywallService.Default),
-		Layer.provide(Db.Default),
-	),
-	presence: PresenceSchema,
-});
+export const MimicPaywallRouteLayer = MimicServer.layerHttpLayerRouter(
+	Effect.gen(function* () {
+		const paywallService = yield* PaywallService;
+		return {
+			basePath: "/mimic/paywall-designer",
+			schema: PaywallDesignerDocument,
+			presence: PresenceSchema,
+			authLayer: PaywallMimicAuthLayer.pipe(
+				Layer.provide(PaywallService.Default),
+				Layer.provide(Db.Default),
+			),
+			initial: (ctx: MimicConfig.InitialContext) =>
+				// biome-ignore lint/correctness/useYield: We don't need to yield here
+				Effect.gen(function* () {
+					// TODO: Get paywall from database. We need to add support for errors in mimic
+					// const paywall = yield* paywallService
+					// 	.getPaywallById(ctx.documentId)
+					// 	.pipe(Effect.catchAll());
+					return {
+						type: "root" as const,
+						name: "Untitled Paywall",
+						children: [
+							{
+								type: "screen" as const,
+								name: "root",
+								style: {
+									x: 0,
+									y: 0,
+									width: 390,
+									height: 844,
+									backgroundColor: "#ffffff",
+								},
+								children: [],
+							},
+						],
+					};
+				}),
+		};
+	}),
+);

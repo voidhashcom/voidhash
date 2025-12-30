@@ -1,7 +1,7 @@
 import type { FlexNodeData } from '../../../state/schema';
 
 type FlexLayoutRendererProps = {
-  style: FlexNodeData['data']['style'];
+  style: FlexNodeData['style'];
   children: React.ReactNode;
   initialStyle?: React.CSSProperties;
   ref?: React.RefObject<HTMLDivElement | null>;
