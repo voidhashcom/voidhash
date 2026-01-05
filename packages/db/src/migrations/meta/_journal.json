@@ -36,6 +36,13 @@
       "when": 1745517412799,
       "tag": "0004_sleepy_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1767200593279,
+      "tag": "0005_spooky_cloak",
+      "breakpoints": true
     }
   ]
 }

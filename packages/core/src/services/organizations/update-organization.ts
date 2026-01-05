@@ -1,4 +1,3 @@
-import { BetterAuth } from '@voidhash/auth/effect';
 import { eq, organization } from '@voidhash/db';
 import { Db } from '@voidhash/db/effect';
 import {
@@ -7,6 +6,7 @@ import {
   OrganizationServiceError
 } from '@voidhash/shared';
 import { Effect } from 'effect';
+import { BetterAuth } from '../../better-auth/better-auth-effect';
 import { checkOrganizationPermission } from '../../utils/permissions';
 
 const _getOrganizationById = (db: Db) =>

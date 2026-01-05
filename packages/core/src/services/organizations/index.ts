@@ -1,5 +1,5 @@
-import { BetterAuth } from '@voidhash/auth/effect';
 import { Effect } from 'effect';
+import { BetterAuth } from '../../better-auth/better-auth-effect';
 import { BillingService } from '../billing';
 import { createOrganization } from './create-organization';
 import { deleteOrganization } from './delete-organization';
@@ -23,4 +23,3 @@ export class OrganizationService extends Effect.Service<OrganizationService>()(
     })
   }
 ) {}
-

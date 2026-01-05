@@ -1,6 +1,6 @@
 import { HttpServerRequest } from '@effect/platform';
 import { AuthMiddleware } from '@voidhash/api-spec';
-import { BetterAuth } from '@voidhash/auth/effect';
+import { BetterAuth } from '@voidhash/core/better-auth/effect';
 import { hashKey } from '@voidhash/core/utils';
 import { apiKeys, eq, inArray, projects } from '@voidhash/db';
 import { Db } from '@voidhash/db/effect';

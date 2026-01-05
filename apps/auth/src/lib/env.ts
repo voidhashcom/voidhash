@@ -28,7 +28,11 @@ export const env = createEnv({
     VOIDHASH_STUDIO_CLIENT_SECRET: z.string(),
     VOIDHASH_STUDIO_REDIRECT_URL: z.string(),
     VOIDHASH_MOBILE_CLIENT_ID: z.string(),
-    VOIDHASH_MOBILE_CLIENT_SECRET: z.string()
+    VOIDHASH_MOBILE_CLIENT_SECRET: z.string(),
+
+    // Email (Resend)
+    RESEND_API_KEY: z.string().optional(),
+    EMAIL_FROM: z.string().default('Voidhash <noreply@voidhash.com>')
   },
   clientPrefix: 'VITE_',
   runtimeEnv: {

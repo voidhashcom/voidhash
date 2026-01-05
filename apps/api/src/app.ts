@@ -6,7 +6,7 @@ import {
 } from '@effect/platform';
 import { RpcSerialization, RpcServer } from '@effect/rpc';
 import { VoidhashV1Api } from '@voidhash/api-spec';
-import { BetterAuth } from '@voidhash/auth/effect';
+import { BetterAuth } from '@voidhash/core/better-auth/effect';
 import {
   AnalyticsService,
   ApiKeyService,

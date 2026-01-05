@@ -1,6 +1,6 @@
 import { Db } from '@voidhash/db/effect';
 import { Data, Effect } from 'effect';
-import { createBetterAuth } from '.';
+import { createBetterAuth } from './auth';
 
 export class BetterAuthError extends Data.TaggedError('BetterAuthError')<{
   readonly cause?: unknown;

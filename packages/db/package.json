@@ -20,13 +20,13 @@
     "@planetscale/database": "^1.19.0",
     "@voidhash/lib": "workspace:*",
     "dotenv": "^17.2.0",
-    "drizzle-orm": "^0.44.2",
+    "drizzle-orm": "^0.45.1",
     "drizzle-seed": "^0.3.1",
     "mysql2": "^3.13.0"
   },
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",
-    "drizzle-kit": "^0.31.4",
+    "drizzle-kit": "^0.31.8",
     "tsx": "^4.19.3",
     "typescript": "5.8.3"
   },

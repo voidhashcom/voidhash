@@ -22,12 +22,13 @@ import {
   Label,
   Switch
 } from '@voidhash/ui';
-import { ArrowLeft, Copy, Trash2 } from 'lucide-react';
+import { ArrowLeft, Copy, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   deleteAdminClient,
   getAdminClient,
+  rotateAdminClientSecret,
   updateAdminClient
 } from '../../../lib/admin-server-functions';
 
@@ -48,15 +49,18 @@ function ClientDetailPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [rotating, setRotating] = useState(false);
+  const [rotatedSecret, setRotatedSecret] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: client?.name || '',
-    redirectUris: client?.redirectUrls || '',
+    redirectUris: client?.redirectUris || '',
     disabled: client?.disabled
   });
 
   const getClient = useServerFn(getAdminClient);
   const updateClient = useServerFn(updateAdminClient);
   const deleteClient = useServerFn(deleteAdminClient);
+  const rotateClientSecret = useServerFn(rotateAdminClientSecret);
 
   const loadClient = async () => {
     try {
@@ -64,7 +68,7 @@ function ClientDetailPage() {
       const data = await getClient({ data: { clientId } });
       setFormData({
         name: data.name || '',
-        redirectUris: data.redirectUrls || '',
+        redirectUris: data.redirectUris || '',
         disabled: data.disabled
       });
     } catch (error) {
@@ -121,6 +125,24 @@ function ClientDetailPage() {
       toast.error(errorMessage);
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleRotateSecret = async () => {
+    try {
+      setRotating(true);
+      setRotatedSecret(null);
+      const result = await rotateClientSecret({ data: { clientId } });
+      setRotatedSecret(result.clientSecret);
+      toast.success('Client secret rotated successfully');
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to rotate client secret';
+      toast.error(errorMessage);
+    } finally {
+      setRotating(false);
     }
   };
 
@@ -182,6 +204,62 @@ function ClientDetailPage() {
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Client Secret</Label>
+            <div className="flex items-center gap-2">
+              {rotatedSecret ? (
+                <>
+                  <code className="flex-1 rounded bg-muted px-3 py-2 font-mono text-sm">
+                    {rotatedSecret}
+                  </code>
+                  <Button
+                    onClick={() => copyToClipboard(rotatedSecret)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <p className="flex-1 text-muted-foreground text-sm">
+                  Secret is hidden. Rotate to generate a new one.
+                </p>
+              )}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button disabled={rotating} size="sm" variant="outline">
+                    <RefreshCw
+                      className={`mr-2 h-4 w-4 ${rotating ? 'animate-spin' : ''}`}
+                    />
+                    {rotating ? 'Rotating...' : 'Rotate Secret'}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Rotate Client Secret?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will generate a new client secret. The old secret
+                      will be invalidated immediately. Make sure to update your
+                      application with the new secret.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRotateSecret}>
+                      Rotate Secret
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+            {rotatedSecret && (
+              <p className="text-amber-600 text-xs">
+                Copy this secret now. It won't be shown again after you leave
+                this page.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

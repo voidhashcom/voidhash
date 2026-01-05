@@ -1,5 +1,7 @@
 import { Config, Data, Effect } from 'effect';
-import { createRemoteJWKSet, type JWTPayload, jwtVerify } from 'jose';
+import type { JWTPayload } from 'jose';
+import { TRUSTED_CLIENT_IDS } from '../../../packages/core/src/better-auth/auth';
+import { serverClient } from '../../../packages/core/src/better-auth/server-client';
 
 export class JwtAuthError extends Data.TaggedError('JwtAuthError')<{
   readonly cause?: unknown;
@@ -19,7 +21,7 @@ export class JwtAuth extends Effect.Service<JwtAuth>()('app/JwtAuth', {
 
     // Create the JWKS once during service initialization
     const jwksUrl = new URL(`${authBaseUrl}/auth/api/auth/jwks`);
-    const jwks = createRemoteJWKSet(jwksUrl);
+    // const jwks = createRemoteJWKSet(jwksUrl);
 
     return {
       /**
@@ -28,16 +30,21 @@ export class JwtAuth extends Effect.Service<JwtAuth>()('app/JwtAuth', {
       validateToken: (token: string) =>
         Effect.tryPromise({
           try: async () => {
-            const { payload } = await jwtVerify(token, jwks, {
-              issuer: authBaseUrl
+            const payload = await serverClient.verifyAccessToken(token, {
+              verifyOptions: {
+                issuer: `${authBaseUrl}/auth/api/auth`,
+                audience: Array.from(TRUSTED_CLIENT_IDS)
+              },
+              jwksUrl: jwksUrl.toString()
             });
-            return payload as JwtAuthPayload;
+            return payload;
           },
-          catch: (error) =>
-            new JwtAuthError({
+          catch: (error) => {
+            return new JwtAuthError({
               message: 'JWT validation failed',
               cause: error
-            })
+            });
+          }
         }),
 
       /**

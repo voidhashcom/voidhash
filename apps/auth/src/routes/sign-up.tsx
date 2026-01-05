@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { zodValidator } from '@tanstack/zod-adapter';
 import {
   Button,
@@ -17,7 +17,6 @@ import {
   Input,
   Logo
 } from '@voidhash/ui';
-import Link from 'next/link';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -25,7 +24,8 @@ import { z } from 'zod/v3';
 import { authClient } from '../lib/auth-client';
 
 const signUpSearchSchema = z.object({
-  email: z.string().optional()
+  email: z.string().optional(),
+  next: z.string().optional()
 });
 
 export const Route = createFileRoute('/sign-up')({
@@ -86,7 +86,8 @@ export function SignUpPage() {
       to: '/login',
       search: {
         email: data.email,
-        signup: true
+        signup: true,
+        next: searchParams.next
       }
     });
     setLoading(false);
@@ -97,7 +98,7 @@ export function SignUpPage() {
       <div className="w-full max-w-sm">
         <div className="flex flex-col gap-6">
           <div className="flex justify-center">
-            <Link href="/login">
+            <Link to="/login">
               <Logo />
             </Link>
           </div>
@@ -177,7 +178,11 @@ export function SignUpPage() {
               </Form>
               <div className="mt-4 text-center text-sm">
                 Already have an account?{' '}
-                <Link className="underline underline-offset-4" href="/login">
+                <Link
+                  className="underline underline-offset-4"
+                  search={{ next: searchParams.next }}
+                  to="/login"
+                >
                   Login
                 </Link>
               </div>

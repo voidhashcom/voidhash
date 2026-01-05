@@ -1,8 +1,8 @@
-import { BetterAuth } from '@voidhash/auth/effect';
 import { createShortId, createSlug } from '@voidhash/lib';
 import { SLUG_BLACKLIST } from '@voidhash/lib/constants';
 import { AuthSession, OrganizationServiceError } from '@voidhash/shared';
 import { Effect, Either } from 'effect';
+import { BetterAuth } from '../../better-auth/better-auth-effect';
 import { BillingService } from '../billing';
 
 const _checkSlugAvailable = (betterAuth: BetterAuth) => (slug: string) =>
@@ -67,16 +67,18 @@ export const createOrganization = Effect.gen(function* () {
       }
 
       // Initialize billing for the new organization
-      yield* billingService.initializeOrganizationBilling({
-        organizationId: organization.id,
-        email: session?.user?.email
-      }).pipe(
-        Effect.catchAll((error) =>
-          Effect.logWarning(
-            `Failed to initialize billing for org ${organization.id}: ${error}`
+      yield* billingService
+        .initializeOrganizationBilling({
+          organizationId: organization.id,
+          email: session?.user?.email
+        })
+        .pipe(
+          Effect.catchAll((error) =>
+            Effect.logWarning(
+              `Failed to initialize billing for org ${organization.id}: ${error}`
+            )
           )
-        )
-      );
+        );
 
       return {
         id: organization.id,

@@ -29,7 +29,6 @@
     "@voidhash/mimic-schema": "workspace:*",
     "@voidhash/rpc": "workspace:*",
     "@voidhash/shared": "workspace:*",
-    "@voidhash/yjs-effect": "workspace:*",
     "effect": "catalog:",
     "jose": "^6.0.11"
   },

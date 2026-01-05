@@ -1,6 +1,13 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Badge,
   Button,
   Card,
@@ -8,6 +15,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Label,
   Table,
   TableBody,
   TableCell,
@@ -15,7 +23,7 @@ import {
   TableHeader,
   TableRow
 } from '@voidhash/ui';
-import { Plus, RefreshCw, Settings } from 'lucide-react';
+import { AlertCircle, Copy, Plus, RefreshCw, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -31,9 +39,19 @@ export const Route = createFileRoute('/admin/')({
   }
 });
 
+interface SyncedCredential {
+  clientId: string;
+  clientSecret: string;
+  name: string;
+}
+
 function AdminClientsPage() {
   const { clients } = Route.useLoaderData();
   const [syncing, setSyncing] = useState(false);
+  const [syncedCredentials, setSyncedCredentials] = useState<
+    SyncedCredential[]
+  >([]);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
   const syncClients = useServerFn(syncTrustedClients);
 
   const formatDate = (date: Date | null) => {
@@ -47,6 +65,10 @@ function AdminClientsPage() {
     try {
       setSyncing(true);
       const result = await syncClients();
+      const createdResults = result.results.filter(
+        (r: { action: string; clientSecret?: string }) =>
+          r.action === 'created' && r.clientSecret
+      );
       const createdCount = result.results.filter(
         (r: { action: string }) => r.action === 'created'
       ).length;
@@ -58,8 +80,27 @@ function AdminClientsPage() {
         toast.success(
           `Synced trusted clients: ${createdCount} created, ${updatedCount} updated`
         );
-        // Reload the page to show updated clients
-        window.location.reload();
+
+        // If new clients were created, show their credentials
+        if (createdResults.length > 0) {
+          setSyncedCredentials(
+            createdResults.map(
+              (r: {
+                clientId: string;
+                clientSecret?: string;
+                name: string;
+              }) => ({
+                clientId: r.clientId,
+                clientSecret: r.clientSecret ?? '',
+                name: r.name
+              })
+            )
+          );
+          setShowCredentialsDialog(true);
+        } else {
+          // Reload the page to show updated clients
+          window.location.reload();
+        }
       } else {
         toast.info('All trusted clients are already in sync');
       }
@@ -74,8 +115,120 @@ function AdminClientsPage() {
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
+  };
+
+  const handleCredentialsDialogClose = () => {
+    setShowCredentialsDialog(false);
+    setSyncedCredentials([]);
+    // Reload the page to show updated clients
+    window.location.reload();
+  };
+
   return (
     <div className="space-y-6">
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCredentialsDialogClose();
+          }
+        }}
+        open={showCredentialsDialog}
+      >
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              New Client Credentials
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Copy these credentials now. The client secrets will not be shown
+              again after you close this dialog.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="max-h-96 space-y-4 overflow-y-auto">
+            {syncedCredentials.map((cred) => (
+              <div
+                className="space-y-3 rounded-lg border bg-muted/50 p-4"
+                key={cred.clientId}
+              >
+                <div className="font-medium">{cred.name}</div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs">
+                    Client ID
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 break-all rounded bg-background px-3 py-2 font-mono text-sm">
+                      {cred.clientId}
+                    </code>
+                    <Button
+                      onClick={() => copyToClipboard(cred.clientId)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs">
+                    Client Secret
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 break-all rounded bg-background px-3 py-2 font-mono text-sm">
+                      {cred.clientSecret}
+                    </code>
+                    <Button
+                      onClick={() => copyToClipboard(cred.clientSecret)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs">
+                    Combined (clientId:clientSecret)
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 break-all rounded bg-background px-3 py-2 font-mono text-sm">
+                      {cred.clientId}:{cred.clientSecret}
+                    </code>
+                    <Button
+                      onClick={() =>
+                        copyToClipboard(`${cred.clientId}:${cred.clientSecret}`)
+                      }
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 text-yellow-600" />
+              <div className="text-sm text-yellow-800">
+                <strong>Important:</strong> Copy these credentials now. You
+                won&apos;t be able to see the client secrets again after closing
+                this dialog.
+              </div>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleCredentialsDialogClose}>
+              I&apos;ve copied the credentials
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-semibold text-2xl">OAuth Clients</h2>

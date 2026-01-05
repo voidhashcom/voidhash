@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { zodValidator } from '@tanstack/zod-adapter';
 import {
   Alert,
@@ -9,8 +9,7 @@ import {
   Label,
   Logo
 } from '@voidhash/ui';
-import { CheckCircle } from 'lucide-react';
-import Link from 'next/link';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -19,7 +18,8 @@ import { authClient } from '../lib/auth-client';
 const loginSearchSchema = z.object({
   email: z.string().default(''),
   next: z.string().optional(),
-  signup: z.boolean().default(false)
+  signup: z.boolean().default(false),
+  error: z.string().optional()
 });
 
 export const Route = createFileRoute('/login')({
@@ -29,8 +29,6 @@ export const Route = createFileRoute('/login')({
 
 export function LoginPage() {
   const searchParams = Route.useSearch();
-  const navigate = Route.useNavigate();
-
   const [email, setEmail] = useState(searchParams.email ?? '');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,25 +36,40 @@ export function LoginPage() {
   const signIn = async () => {
     setLoading(true);
     try {
-      const { error } = await authClient.signIn.email({
+      const { error, data } = await authClient.signIn.email({
         email,
         password,
-        rememberMe: true
+        fetchOptions: {
+          onSuccess: (ctx) => {
+            if (ctx.response.redirected && ctx.response.url) {
+              window.location.href = ctx.response.url;
+            }
+          }
+        }
       });
+
+      if (data?.redirect && data?.url) {
+        window.location.href = data.url;
+        return;
+      }
 
       if (error) {
         setLoading(false);
+        if (
+          error.code === 'RATE_LIMIT_EXCEEDED' ||
+          error.message?.includes('rate limit')
+        ) {
+          // Handle rate limiting
+          toast.error(
+            'Too many login attempts. Please wait a few minutes before trying again.'
+          );
+          return;
+        }
         toast.error(error.message ?? 'An unknown error occurred');
         return;
       }
 
-      const next = searchParams.next;
-
-      if (next && next.length > 1) {
-        window.location.href = next;
-      } else {
-        navigate({ to: '/' });
-      }
+      toast.error('An unknown error occurred. Please try again.');
     } catch (_error) {
       setLoading(false);
       toast.error('An unknown error occurred. Please try again.');
@@ -65,11 +78,24 @@ export function LoginPage() {
     }
   };
 
+  const signInWithGithub = async () => {
+    setLoading(true);
+    try {
+      await authClient.signIn.social({
+        provider: 'github'
+        // callbackURL: validNext ?? '/'
+      });
+    } catch (_error) {
+      setLoading(false);
+      toast.error('Failed to initiate GitHub login. Please try again.');
+    }
+  };
+
   return (
     <div className="grid min-h-svh bg-background lg:grid-cols-2">
       <div className="flex flex-col gap-4 bg-background p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
-          <Link className="flex items-center gap-2 font-medium" href="/login">
+          <Link className="flex items-center gap-2 font-medium" to="/login">
             <Logo />
           </Link>
         </div>
@@ -82,6 +108,18 @@ export function LoginPage() {
                 signIn();
               }}
             >
+              {searchParams.error === 'insufficient_permissions' && (
+                <div className="mb-6">
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Access Denied</AlertTitle>
+                    <AlertDescription>
+                      You don&apos;t have permission to access the requested
+                      page.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
               {searchParams.signup && (
                 <div className="mb-6">
                   <Alert>
@@ -103,7 +141,16 @@ export function LoginPage() {
               </div>
               <div className="grid gap-6">
                 <div className="flex flex-col gap-4">
-                  <Button className="w-full" variant="outline">
+                  <Button
+                    className="w-full"
+                    disabled={loading}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      signInWithGithub();
+                    }}
+                    type="button"
+                    variant="outline"
+                  >
                     <svg
                       aria-label="Github"
                       viewBox="0 0 24 24"
@@ -135,8 +182,14 @@ export function LoginPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <div className="flex items-center">
+                  <div className="flex items-center justify-between">
                     <Label htmlFor="password">Password</Label>
+                    <Link
+                      className="text-muted-foreground text-sm underline underline-offset-4 hover:text-primary"
+                      to="/forgot-password"
+                    >
+                      Forgot password?
+                    </Link>
                   </div>
                   <Input
                     id="password"
@@ -152,7 +205,11 @@ export function LoginPage() {
               </div>
               <div className="text-center text-sm">
                 Don&apos;t have an account?{' '}
-                <Link className="underline underline-offset-4" href="/sign-up">
+                <Link
+                  className="underline underline-offset-4"
+                  search={{ next: searchParams.next }}
+                  to="/sign-up"
+                >
                   Sign up
                 </Link>
               </div>
