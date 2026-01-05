@@ -1,4 +1,4 @@
-import type { FlexNodeData } from '../../state/schema';
+import type { FlexNodeData } from '@voidhash/mimic-schema';
 import { Selectable } from '../helpers/selectable';
 import { FlexLayoutRenderer } from './layouts/flex-layout-renderer';
 
@@ -14,11 +14,7 @@ export function FlexNodeRenderer({
   return (
     <Selectable nodeId={node.id}>
       {(selectableProps) => (
-        <FlexLayoutRenderer
-          style={node.data.style}
-          {...selectableProps}
-          ref={ref}
-        >
+        <FlexLayoutRenderer style={node.style} {...selectableProps} ref={ref}>
           {children}
         </FlexLayoutRenderer>
       )}

@@ -1,6 +1,6 @@
-import { BetterAuth } from '@voidhash/auth/effect';
 import { Db } from '@voidhash/db/effect';
 import { type Effect, Layer, ManagedRuntime, pipe } from 'effect';
+import { BetterAuth } from './better-auth/better-auth-effect';
 import { BillingService, UsageService } from './services';
 import { ApiKeyService } from './services/api-keys';
 import { CustomerService } from './services/customers';

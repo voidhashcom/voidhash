@@ -1,29 +1,60 @@
 // Inspired by https://github.com/unkeyed/examples/blob/main/unkey-cli/web/app/auth/devices/page.tsx
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { zodValidator } from '@tanstack/zod-adapter';
 import {
   Button,
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
   Logo
 } from '@voidhash/ui';
-import Link from 'next/link';
+import { AlertCircle, Clock, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { authClient } from '../../lib/auth-client';
+import {
+  DEVICE_CODE_EXPIRY_MS,
+  isDeviceCodeExpired,
+  isValidLocalRedirect
+} from '../../lib/validation';
 
 const devicesSearchSchema = z.object({
   code: z.string().optional(),
-  redirect: z.string().optional()
+  redirect: z.string().optional(),
+  expires: z.string().optional()
 });
 
 export const Route = createFileRoute('/devices/')({
   component: AuthDevicesPage,
-  validateSearch: zodValidator(devicesSearchSchema)
+  validateSearch: zodValidator(devicesSearchSchema),
+  beforeLoad: async ({ search }) => {
+    const session = await authClient.getSession();
+    if (!session.data?.session) {
+      // Build the redirect URL with all search params
+      const redirectParams = new URLSearchParams();
+      if (search.code) {
+        redirectParams.set('code', search.code);
+      }
+      if (search.redirect) {
+        redirectParams.set('redirect', search.redirect);
+      }
+      if (search.expires) {
+        redirectParams.set('expires', search.expires);
+      }
+      const nextUrl = `/devices?${redirectParams.toString()}`;
+
+      throw redirect({
+        to: '/login',
+        search: {
+          next: nextUrl
+        }
+      });
+    }
+  }
 });
 
 function CodeCharacter({ char }: { char: string }) {
@@ -40,7 +71,7 @@ function AuthDevicePageLayout({ children }: { children: React.ReactNode }) {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center gap-6">
           <div className="flex justify-center">
-            <Link href="/login">
+            <Link to="/login">
               <Logo />
             </Link>
           </div>
@@ -77,17 +108,53 @@ function Success() {
   );
 }
 
-function ErrorCard() {
+function ErrorCard({
+  title = 'An error occurred',
+  description = 'Please try again. If the problem persists, please contact us at support@voidhash.com.'
+}: {
+  title?: string;
+  description?: string;
+}) {
   return (
     <AuthDevicePageLayout>
       <Card className="mt-4 min-w-lg text-center">
         <CardHeader>
-          <CardTitle className="text-2xl">An error occurred</CardTitle>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+            <AlertCircle className="h-6 w-6 text-destructive" />
+          </div>
+          <CardTitle className="text-2xl">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </CardHeader>
+        <CardFooter className="justify-center">
+          <Link to="/login">
+            <Button variant="outline">Return to Login</Button>
+          </Link>
+        </CardFooter>
+      </Card>
+    </AuthDevicePageLayout>
+  );
+}
+
+function ExpiredCard() {
+  return (
+    <AuthDevicePageLayout>
+      <Card className="mt-4 min-w-lg text-center">
+        <CardHeader>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <Clock className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <CardTitle className="text-2xl">Code Expired</CardTitle>
           <CardDescription>
-            Please try again. If the problem persists, please contact us at
-            support@voidhash.com.
+            This authorization request has expired. Please return to your CLI
+            and try again.
           </CardDescription>
         </CardHeader>
+        <CardFooter className="justify-center">
+          <p className="text-muted-foreground text-xs">
+            Device codes expire after{' '}
+            {Math.floor(DEVICE_CODE_EXPIRY_MS / 60_000)} minutes for security.
+          </p>
+        </CardFooter>
       </Card>
     </AuthDevicePageLayout>
   );
@@ -100,10 +167,31 @@ export function AuthDevicesPage() {
 
   const searchParams = Route.useSearch();
 
-  const { code, redirect } = searchParams;
+  const { code, redirect: redirectUrl, expires } = searchParams;
 
-  if (!(code && redirect)) {
-    return <ErrorCard />;
+  // Check for missing parameters
+  if (!(code && redirectUrl)) {
+    return (
+      <ErrorCard
+        description="The authorization request is missing required parameters. Please return to your CLI and try again."
+        title="Invalid Request"
+      />
+    );
+  }
+
+  // Validate redirect URL is localhost (prevent SSRF)
+  if (!isValidLocalRedirect(redirectUrl)) {
+    return (
+      <ErrorCard
+        description="The redirect URL must be a localhost address. This is required for security."
+        title="Invalid Redirect"
+      />
+    );
+  }
+
+  // Check if code has expired
+  if (isDeviceCodeExpired(expires)) {
+    return <ExpiredCard />;
   }
 
   const confirm = async () => {
@@ -120,25 +208,24 @@ export function AuthDevicesPage() {
     }
 
     try {
-      const redirectUrl = new URL(redirect);
-      redirectUrl.searchParams.append('code', code);
-      redirectUrl.searchParams.append('key', data.key);
-      await fetch(redirectUrl.toString());
+      const url = new URL(redirectUrl);
+      url.searchParams.append('code', code);
+      url.searchParams.append('key', data.key);
+      await fetch(url.toString());
       setIsLoading(false);
       setSuccess(true);
     } catch (_error) {
-      toast.error('"Error redirecting back to local CLI. Is your CLI running?');
+      toast.error('Error redirecting back to local CLI. Is your CLI running?');
       setIsLoading(false);
-      return;
     }
   };
 
   const cancel = async () => {
     try {
       setIsLoading(true);
-      const redirectUrl = new URL(redirect);
-      redirectUrl.searchParams.append('cancelled', 'true');
-      await fetch(redirectUrl.toString());
+      const url = new URL(redirectUrl);
+      url.searchParams.append('cancelled', 'true');
+      await fetch(url.toString());
       setIsLoading(false);
       setCancelled(true);
     } catch (_error) {
@@ -185,7 +272,14 @@ export function AuthDevicesPage() {
               onClick={confirm}
               type="submit"
             >
-              Confirm code
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                'Confirm code'
+              )}
             </Button>
             <Button
               className="w-full"

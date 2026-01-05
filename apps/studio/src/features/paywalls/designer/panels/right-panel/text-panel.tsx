@@ -19,11 +19,11 @@ import { VariablesSection } from './sections/variables-section';
 export function TextPanel({ node }: { node: TextNodeData }) {
   const dispatch = usePaywallDesignerActions();
 
-  const handleNodeChange = (updatedNode: typeof node.data.style) => {
+  const handleNodeChange = (updatedNode: typeof node.style) => {
     dispatch(updateTextNode)({
       id: node.id,
       updates: {
-        style: { ...node.data.style, ...updatedNode }
+        style: { ...node.style, ...updatedNode }
       }
     });
   };
@@ -62,11 +62,8 @@ export function TextPanel({ node }: { node: TextNodeData }) {
           })
         }
       />
-      <TypographySection
-        node={node.data.style}
-        onNodeChange={handleNodeChange}
-      />
-      <TextFillSection node={node.data.style} onNodeChange={handleNodeChange} />
+      <TypographySection node={node.style} onNodeChange={handleNodeChange} />
+      <TextFillSection node={node.style} onNodeChange={handleNodeChange} />
     </>
   );
 }

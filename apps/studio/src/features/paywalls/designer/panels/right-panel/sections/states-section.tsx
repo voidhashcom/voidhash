@@ -41,7 +41,7 @@ export function StatesSection({
   onRemoveState,
   onUpdateState
 }: StatesSectionProps) {
-  const states = node.data.states ?? [];
+  const states = node.states ?? [];
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleAddState = (name: string, condition: DNF) => {

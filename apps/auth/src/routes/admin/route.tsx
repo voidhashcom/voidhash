@@ -1,31 +1,10 @@
-import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
-import { authClient } from '../../lib/auth-client';
+import { createFileRoute, Outlet } from '@tanstack/react-router';
+import { authAdminMiddleware } from '../../middleware/auth-admin';
 
 export const Route = createFileRoute('/admin')({
   component: AdminLayout,
-  beforeLoad: async () => {
-    const session = await authClient.getSession();
-    if (!session.data?.session) {
-      throw redirect({
-        to: '/login',
-        search: {
-          next: '/admin'
-        }
-      });
-    }
-
-    // Check if user has admin permissions
-    const { data: hasPermission } = await authClient.admin.hasPermission({
-      permissions: {
-        user: ['list']
-      }
-    });
-
-    if (!hasPermission) {
-      throw redirect({
-        to: '/'
-      });
-    }
+  server: {
+    middleware: [authAdminMiddleware]
   }
 });
 

@@ -55,40 +55,40 @@ export function FlexPanel({ node }: { node: FlexNodeData }) {
         }
       />
       <FlexLayoutSection
-        node={node.data.style}
+        node={node.style}
         onNodeChange={(updatedStyle) =>
           dispatch(updateFlexNode)({
             id: node.id,
-            updates: { style: { ...node.data.style, ...updatedStyle } }
+            updates: { style: { ...node.style, ...updatedStyle } }
           })
         }
         parentId={node.id}
       />
       <BorderRadiusSection
-        node={node.data.style}
+        node={node.style}
         onNodeChange={(updatedStyle) =>
           dispatch(updateFlexNode)({
             id: node.id,
-            updates: { style: { ...node.data.style, ...updatedStyle } }
+            updates: { style: { ...node.style, ...updatedStyle } }
           })
         }
       />
       <FillSection
-        node={node.data.style}
+        node={node.style}
         onNodeChange={(updatedStyle) =>
           dispatch(updateFlexNode)({
             id: node.id,
-            updates: { style: { ...node.data.style, ...updatedStyle } }
+            updates: { style: { ...node.style, ...updatedStyle } }
           })
         }
       />
 
       <BorderSection
-        node={node.data.style}
+        node={node.style}
         onNodeChange={(updatedStyle) =>
           dispatch(updateFlexNode)({
             id: node.id,
-            updates: { style: { ...node.data.style, ...updatedStyle } }
+            updates: { style: { ...node.style, ...updatedStyle } }
           })
         }
       />

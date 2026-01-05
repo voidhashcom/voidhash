@@ -1,4 +1,4 @@
-import type { ScreenNodeData } from '../../state/schema';
+import type { ScreenNodeData } from '@voidhash/mimic-schema';
 import { Selectable } from '../helpers/selectable';
 import { FlexLayoutRenderer } from './layouts/flex-layout-renderer';
 
@@ -15,30 +15,30 @@ export function ScreenNodeRenderer({
     <div
       className="absolute"
       ref={ref}
-      style={{ left: node.data.style.x, top: node.data.style.y }}
+      style={{ left: node.style.x, top: node.style.y }}
     >
       <Selectable nodeId={node.id}>
         {(selectableProps) => (
           <>
             <div
               style={{
-                width: node.data.style.width,
-                height: node.data.style.height,
+                width: node.style.width,
+                height: node.style.height,
                 boxSizing: 'border-box',
                 overflow: 'hidden',
-                backgroundColor: node.data.style.backgroundEnabled
-                  ? node.data.style.backgroundColor
+                backgroundColor: node.style.backgroundEnabled
+                  ? node.style.backgroundColor
                   : 'transparent'
               }}
               {...selectableProps}
             >
               <FlexLayoutRenderer
                 initialStyle={{
-                  width: node.data.style.width,
-                  height: node.data.style.height
+                  width: node.style.width,
+                  height: node.style.height
                 }}
                 style={{
-                  ...node.data.style,
+                  ...node.style,
                   borderRadiusTopLeft: 0,
                   borderRadiusTopRight: 0,
                   borderRadiusBottomRight: 0,

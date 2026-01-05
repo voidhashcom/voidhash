@@ -37,18 +37,12 @@ import {
   textAlign,
   zIndex
 } from '../styles';
-import {
-  linkedVariables,
-  localVariables,
-  parentRefSchema,
-  states
-} from './base';
+import { linkedVariables, localVariables, states } from './base';
 
 /** TextNode tree node schema */
 export const TextNode = Primitive.TreeNode('text', {
   data: Primitive.Struct({
     name: Primitive.String().default('Text'),
-    parent: parentRefSchema,
     text: Primitive.String().default('New Text'),
     localVariables,
     linkedVariables,
@@ -99,7 +93,7 @@ export const TextNode = Primitive.TreeNode('text', {
       alignSelf
     })
   }),
-  children: () => [] as const
+  children: [] as const
 });
 
-export type TextNodeData = Primitive.TypedTreeNodeState<typeof TextNode>;
+export type TextNodeData = Primitive.TreeNodeSnapshot<typeof TextNode>;

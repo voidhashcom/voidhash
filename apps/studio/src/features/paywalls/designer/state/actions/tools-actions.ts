@@ -5,8 +5,10 @@
  */
 
 import { commander } from '../designer-commander';
-import type { DesignerStoreState } from '../designer-store-state';
-import type { AvailableTool } from '../schema';
+import type {
+  AvailableTool,
+  DesignerStoreState
+} from '../designer-store-state';
 
 // =============================================================================
 // Tool Commands

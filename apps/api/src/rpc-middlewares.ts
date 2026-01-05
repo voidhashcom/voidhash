@@ -1,4 +1,4 @@
-import { inArray, projects } from '@voidhash/db';
+import { eq, inArray, member, projects, user } from '@voidhash/db';
 import { Db } from '@voidhash/db/effect';
 import { AuthMiddleware } from '@voidhash/rpc';
 import {
@@ -30,7 +30,8 @@ export const RpcAuthLive = Layer.effect(
           // Validate the JWT and get the payload
           const payload = yield* jwtAuth.validateToken(token);
 
-          if (!payload.sub) {
+          const sub = payload.sub;
+          if (!sub) {
             return yield* Effect.fail(
               new NotAuthenticatedError({
                 message: 'Invalid token: missing subject'
@@ -41,7 +42,7 @@ export const RpcAuthLive = Layer.effect(
           // Fetch user's organizations from the database
           const usersOrganizations = yield* dbService.use(async (db) => {
             return await db.query.member.findMany({
-              where: (member, { eq }) => eq(member.userId, payload.sub),
+              where: eq(member.userId, sub),
               with: {
                 organization: true
               }
@@ -64,7 +65,7 @@ export const RpcAuthLive = Layer.effect(
           // Fetch the user from the database
           const dbUser = yield* dbService.use(async (db) => {
             return await db.query.user.findFirst({
-              where: (user, { eq }) => eq(user.id, payload.sub)
+              where: eq(user.id, sub)
             });
           });
 

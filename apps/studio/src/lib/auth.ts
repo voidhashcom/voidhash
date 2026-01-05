@@ -29,6 +29,12 @@ export const auth = betterAuth({
       trustedProviders: ['voidhash-auth']
     }
   },
+  // trustedOrigins: [env.VITE_APP_AUTH_BASE_URL],
+  // advanced: {
+  //   crossSubDomainCookies: {
+  //     enabled: true
+  //   }
+  // },
   plugins: [
     genericOAuth({
       config: [
@@ -36,8 +42,9 @@ export const auth = betterAuth({
           providerId: 'voidhash-auth',
           clientId: env.VOIDHASH_AUTH_CLIENT_ID,
           clientSecret: env.VOIDHASH_AUTH_CLIENT_SECRET,
-          discoveryUrl: `${env.VITE_APP_AUTH_BASE_URL}/auth/api/auth/.well-known/openid-configuration`,
-          scopes: ['openid', 'email', 'profile']
+          discoveryUrl: `${env.VITE_APP_AUTH_BASE_URL}/auth/.well-known/openid-configuration`,
+          scopes: ['openid', 'email', 'profile'],
+          pkce: true
         }
       ]
     }),

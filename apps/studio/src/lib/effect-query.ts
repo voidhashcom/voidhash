@@ -3,10 +3,10 @@ import { FetchHttpClient } from '@effect/platform';
 import { RpcClient, RpcSerialization } from '@effect/rpc';
 import { QueryClient } from '@tanstack/react-query';
 import { RpcGroups } from '@voidhash/rpc';
-import { Effect, Layer } from 'effect';
+import { Effect, Layer, ManagedRuntime } from 'effect';
 import {
   createEffectQuery,
-  type createEffectQueryFromManagedRuntime
+  createEffectQueryFromManagedRuntime
 } from 'effect-query';
 import { authClient } from './auth-client';
 import { env } from './env';
@@ -58,16 +58,9 @@ export const LiveLayer = VoidhashRpc.Default.pipe(
 );
 
 export const queryClient = new QueryClient();
-export const eq = createEffectQuery(LiveLayer);
+export const managedRuntime = ManagedRuntime.make(LiveLayer);
+export const eq = createEffectQueryFromManagedRuntime(managedRuntime);
 
 export type EffectQueryType = ReturnType<
   typeof createEffectQueryFromManagedRuntime<typeof LiveLayer>
 >;
-
-export const exampleQuery = (effectQuery: EffectQueryType) =>
-  effectQuery.queryOptions({
-    queryKey: ['creative-metrics'],
-    queryFn: () => Effect.succeed(true),
-    refetchOnMount: false,
-    refetchOnWindowFocus: false
-  });

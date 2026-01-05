@@ -1,106 +1,63 @@
-import { type Database, db } from '@voidhash/db';
+import { oauthProvider } from '@better-auth/oauth-provider';
+import type { Database } from '@voidhash/db';
 import * as schema from '@voidhash/db/schema';
-import {
-  API_DOMAIN,
-  APP_DOMAIN,
-  AUTH_DOMAIN,
-  DOCS_DOMAIN,
-  STUDIO_DOMAIN,
-  WWW_DOMAIN
-} from '@voidhash/lib';
-import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { nextCookies } from 'better-auth/next-js';
-import { admin, apiKey, oidcProvider, organization } from 'better-auth/plugins';
+import { admin, apiKey, jwt, organization } from 'better-auth/plugins';
 import { tanstackStartCookies } from 'better-auth/tanstack-start';
+import type { Resend } from 'resend';
 
-// Mobile app OIDC client configuration
-const MOBILE_CLIENT_ID = 'voidhash-mobile-app';
-const MOBILE_CLIENT_SECRET = 'voidhash-mobile-secret';
-
-const trustedOrigins = [
-  // All domains our apps
-  WWW_DOMAIN,
-  STUDIO_DOMAIN,
-  API_DOMAIN,
-  DOCS_DOMAIN,
-  AUTH_DOMAIN,
-  // Vercel Mobile Web App
-  ...(process.env.NEXT_PUBLIC_VERCEL_ENV === 'development'
-    ? ['localhost:8081']
-    : [])
-];
-
-export const createBetterAuthOptions = (
-  db: Database,
-  framework: 'next' | 'tanstack-start'
-) => ({
-  baseURL: STUDIO_DOMAIN,
-  database: drizzleAdapter(db, {
-    provider: 'mysql',
-    schema
-  }),
-  socialProviders: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID as string,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET as string
-    }
-  },
-  emailAndPassword: {
-    enabled: true
-  },
-  advanced: {
-    crossSubDomainCookies: {
-      enabled: process.env.NODE_ENV === 'production',
-      domain: `.${APP_DOMAIN}`
-    }
-  },
-  trustedOrigins,
-
-  plugins: [
-    organization(),
-    apiKey({
-      rateLimit: {
-        enabled: false
-      }
+/**
+ * Creates a betterAuth instance with the provided database.
+ * Use this factory function when you need to inject a custom database instance.
+ */
+export const createBetterAuthOptions = ({
+  db,
+  baseURL,
+  trustedClientIds
+}: {
+  db: Database;
+  baseURL: string;
+  trustedClientIds: Set<string>;
+  resend?: Resend;
+  emailFrom?: string;
+}) => {
+  return {
+    baseURL,
+    basePath: '/auth/api/auth',
+    disabledPaths: ['/token'],
+    database: drizzleAdapter(db, {
+      provider: 'mysql',
+      schema
     }),
-    admin({
-      adminUserIds: process.env.ADMIN_USER_IDS?.split(',').filter(Boolean) ?? []
-    }),
-    oidcProvider({
-      loginPage: '/auth/login',
-      consentPage: '/auth/consent',
-      trustedClients: [
-        {
-          clientId: MOBILE_CLIENT_ID,
-          clientSecret: MOBILE_CLIENT_SECRET,
-          name: 'Voidhash Mobile',
-          type: 'native',
-          redirectUrls: [
-            // Production - custom scheme
-            'voidhash://auth/callback',
-            // Development - custom scheme with path
+    session: {
+      expiresIn: 8 * 60 * 60, // 8 hours
+      updateAge: 30 * 24 * 60 * 60, // 30 days,
+      storeSessionInDatabase: true
+    },
 
-            ...(process.env.NEXT_PUBLIC_VERCEL_ENV === 'development'
-              ? [
-                  'http://localhost:8081/auth/callback',
-                  'voidhash-dev://auth/callback'
-                ]
-              : [])
-          ],
-          disabled: false,
-          skipConsent: true,
-          metadata: { internal: true }
+    advanced: {
+      cookies: {
+        session_token: {
+          name: 'voidhash_auth_session_token'
         }
-      ]
-    }),
-    framework === 'next' ? nextCookies() : tanstackStartCookies()
-  ]
-});
-
-export const createBetterAuth = (db: Database) =>
-  betterAuth(createBetterAuthOptions(db, 'next'));
-
-export { MOBILE_CLIENT_ID, MOBILE_CLIENT_SECRET };
-
-export const auth = createBetterAuth(db);
+      }
+    },
+    plugins: [
+      jwt(),
+      organization(),
+      apiKey({
+        rateLimit: {
+          enabled: false
+        }
+      }),
+      admin(),
+      oauthProvider({
+        loginPage: '/auth/login',
+        consentPage: '/auth/oauth/consent',
+        scopes: ['openid', 'profile', 'email', 'offline_access'],
+        cachedTrustedClients: trustedClientIds
+      }),
+      tanstackStartCookies()
+    ]
+  };
+};

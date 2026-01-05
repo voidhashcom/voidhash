@@ -12,7 +12,10 @@
     ".": "./src/index.ts",
     "./services": "./src/services/index.ts",
     "./repositories": "./src/repositories/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./better-auth": "./src/better-auth/auth.ts",
+    "./better-auth/effect": "./src/better-auth/better-auth-effect.ts",
+    "./better-auth/server-client": "./src/better-auth/server-client.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

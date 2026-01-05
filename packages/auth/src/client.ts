@@ -1,8 +1,8 @@
+import { oauthProviderClient } from '@better-auth/oauth-provider/client';
 import { STUDIO_DOMAIN } from '@voidhash/lib';
 import {
   adminClient,
   apiKeyClient,
-  oidcClient,
   organizationClient
 } from 'better-auth/client/plugins';
 
@@ -25,7 +25,12 @@ export const getAuthBaseURL = (): string => {
 export const createAuthClientOptions = (baseURL: string) => ({
   baseURL,
   basePath: '/auth/api/auth',
-  plugins: [organizationClient(), apiKeyClient(), adminClient(), oidcClient()]
+  plugins: [
+    organizationClient(),
+    apiKeyClient(),
+    adminClient(),
+    oauthProviderClient()
+  ]
 });
 
 // export const authClient = createAuthClient(

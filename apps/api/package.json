@@ -25,11 +25,10 @@
     "@voidhash/core": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
-    "@voidhash/mimic-effect": "latest",
+    "@voidhash/mimic-effect": "catalog:",
     "@voidhash/mimic-schema": "workspace:*",
     "@voidhash/rpc": "workspace:*",
     "@voidhash/shared": "workspace:*",
-    "@voidhash/yjs-effect": "workspace:*",
     "effect": "catalog:",
     "jose": "^6.0.11"
   },

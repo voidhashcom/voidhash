@@ -16,7 +16,7 @@
     "test": "vitest run -c vitest.mts"
   },
   "dependencies": {
-    "@voidhash/mimic": "latest"
+    "@voidhash/mimic": "catalog:"
   },
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",
