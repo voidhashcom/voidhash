@@ -148,12 +148,9 @@ export function VariablesSection({
                       <NodeTextInput
                         className="flex-1"
                         label="Value"
-                        node={variable.value}
+                        node={variable.value.value}
                         onNodeChange={(updatedVar) =>
-                          handleUpdateVariableValue(
-                            variable.id,
-                            updatedVar.value
-                          )
+                          handleUpdateVariableValue(variable.id, updatedVar)
                         }
                         property="value"
                       />

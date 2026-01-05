@@ -1,27 +1,27 @@
 import { Primitive } from "@voidhash/mimic";
 
 export const stringVariableTypeSchema = Primitive.Struct({
-	key: Primitive.Literal("string").default("string"),
+	key: Primitive.Literal("string"),
 	value: Primitive.String().default(""),
 });
 
 export const numberVariableTypeSchema = Primitive.Struct({
-	key: Primitive.Literal("number").default("number"),
+	key: Primitive.Literal("number"),
 	value: Primitive.Number().default(0),
 });
 
 export const booleanVariableTypeSchema = Primitive.Struct({
-	key: Primitive.Literal("boolean").default("boolean"),
+	key: Primitive.Literal("boolean"),
 	value: Primitive.Boolean().default(false),
 });
 
 export const productVariableTypeSchema = Primitive.Struct({
-	key: Primitive.Literal("product").default("product"),
+	key: Primitive.Literal("product"),
 	value: Primitive.Struct({
 		productId: Primitive.Either(
 			Primitive.String(),
 			Primitive.Literal(null),
-		).default(null),
+		),
 	}).default({
 		productId: null,
 	}),
@@ -35,10 +35,7 @@ export const variableTypeSchema = Primitive.Union({
 		boolean: booleanVariableTypeSchema,
 		product: productVariableTypeSchema,
 	},
-}).default({
-	key: "string",
-	value: "",
-});
+})
 
 export const variableSchema = Primitive.Struct({
 	id: Primitive.String(),
