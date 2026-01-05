@@ -1,8 +1,7 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
+import { createFileRoute, Outlet } from '@tanstack/react-router';
 import { AuthProvider } from 'src/components/auth-context';
 import { authClient } from '@/lib/auth-client';
-import { env } from '@/lib/env';
 import { currentUserOptions } from '@/lib/tanstack-query';
 
 export const Route = createFileRoute('/_authenticated')({
