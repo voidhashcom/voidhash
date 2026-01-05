@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import type {
   BooleanVariableType,
@@ -6,33 +6,126 @@ import type {
   ScreenNodeData,
   TextNodeData,
   VariableType,
-  VariableTypeKey
-} from '@voidhash/mimic-schema';
+  VariableTypeKey,
+} from "@voidhash/mimic-schema";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@voidhash/ui';
-import { MinusIcon, PlusIcon } from 'lucide-react';
-import { useState } from 'react';
-import { PanelButton } from '@/features/designer/components/button';
+  DropdownMenuTrigger,
+} from "@voidhash/ui";
+import { InputGroup, InputGroupInput } from "@voidhash/ui/input-group";
+import { MinusIcon, PlusIcon } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { PanelButton } from "@/features/designer/components/button";
 import {
   PanelSection,
   PanelSectionContent,
   PanelSectionHeader,
   PanelSectionHeaderActions,
-  PanelSectionTitle
-} from '@/features/designer/components/panel-section';
+  PanelSectionTitle,
+} from "@/features/designer/components/panel-section";
 import {
   PanelToggleGroup,
-  PanelToggleGroupItem
-} from '@/features/designer/components/toggle-group';
-import { NodeTextInput } from '../inputs/text-input';
-import { AddVariableModal } from './add-variable-modal';
+  PanelToggleGroupItem,
+} from "@/features/designer/components/toggle-group";
+
+import { NodeTextInput } from "../inputs/text-input";
 
 type NodeWithVariables = FlexNodeData | ScreenNodeData | TextNodeData;
+
+interface PendingVariable {
+  name: string;
+  type: VariableTypeKey;
+}
+
+interface UsePendingVariableOptions {
+  existingVariableNames: Set<string>;
+  nodeId: string;
+  onAddVariable: (nodeId: string, type: VariableTypeKey, name: string) => void;
+}
+
+const usePendingVariable = ({
+  existingVariableNames,
+  nodeId,
+  onAddVariable,
+}: UsePendingVariableOptions) => {
+  const [pendingVariable, setPendingVariable] =
+    useState<PendingVariable | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startAdding = useCallback((type: VariableTypeKey) => {
+    setPendingVariable({ name: "", type });
+    // Use setTimeout to ensure the input is rendered before focusing
+    // This handles the timing issue when the dropdown menu closes
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 200);
+  }, []);
+
+  const cancel = useCallback(() => {
+    setPendingVariable(null);
+  }, []);
+
+  const save = useCallback(() => {
+    if (!pendingVariable) {
+      return;
+    }
+
+    const trimmedName = pendingVariable.name.trim();
+
+    // Silent cancellation for empty names
+    if (!trimmedName) {
+      setPendingVariable(null);
+      return;
+    }
+
+    // Validate max length
+    if (trimmedName.length > 32) {
+      toast.error("Variable name must be less than 32 characters");
+      setPendingVariable(null);
+      return;
+    }
+
+    // Validate uniqueness
+    if (existingVariableNames.has(trimmedName)) {
+      toast.error("A variable with this name already exists");
+      setPendingVariable(null);
+      return;
+    }
+
+    onAddVariable(nodeId, pendingVariable.type, trimmedName);
+    setPendingVariable(null);
+  }, [pendingVariable, existingVariableNames, nodeId, onAddVariable]);
+
+  const updateName = useCallback((name: string) => {
+    setPendingVariable((prev) => (prev ? { ...prev, name } : null));
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Escape") {
+        cancel();
+      } else if (e.key === "Enter") {
+        save();
+      }
+    },
+    [cancel, save]
+  );
+
+  return {
+    cancel,
+    handleKeyDown,
+    inputRef,
+    pendingVariable,
+    save,
+    startAdding,
+    updateName,
+  };
+};
 
 export interface VariablesSectionProps {
   node: NodeWithVariables;
@@ -45,36 +138,28 @@ export interface VariablesSectionProps {
   ) => void;
 }
 
-export function VariablesSection({
+export const VariablesSection = ({
   node,
   onAddVariable,
   onRemoveVariable,
-  onUpdateVariable
-}: VariablesSectionProps) {
+  onUpdateVariable,
+}: VariablesSectionProps) => {
   const variables = node.localVariables ?? [];
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<VariableTypeKey | null>(
-    null
-  );
+  const existingVariableNames = new Set(variables.map((v) => v.value.name));
 
-  const handleTypeSelect = (type: VariableTypeKey) => {
-    setSelectedType(type);
-    setIsModalOpen(true);
-  };
-
-  const handleAddVariable = (name: string) => {
-    if (!selectedType) {
-      return;
-    }
-
-    onAddVariable(node.id, selectedType, name);
-    setSelectedType(null);
-  };
-
-  const handleModalClose = () => {
-    setIsModalOpen(false);
-    setSelectedType(null);
-  };
+  const {
+    cancel,
+    handleKeyDown,
+    inputRef,
+    pendingVariable,
+    save,
+    startAdding,
+    updateName,
+  } = usePendingVariable({
+    existingVariableNames,
+    nodeId: node.id,
+    onAddVariable,
+  });
 
   const handleRemoveVariable = (variableId: string) => {
     onRemoveVariable(node.id, variableId);
@@ -101,33 +186,24 @@ export function VariablesSection({
               <PanelButton icon={<PlusIcon />} size="icon" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleTypeSelect('string')}>
+              <DropdownMenuItem onClick={() => startAdding("string")}>
                 Text
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleTypeSelect('number')}>
+              <DropdownMenuItem onClick={() => startAdding("number")}>
                 Number
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleTypeSelect('boolean')}>
+              <DropdownMenuItem onClick={() => startAdding("boolean")}>
                 Boolean (True / False)
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleTypeSelect('product')}>
+              <DropdownMenuItem onClick={() => startAdding("product")}>
                 Product
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {selectedType && (
-            <AddVariableModal
-              existingVariableNames={variables.map((v) => v.value.name)}
-              onAdd={handleAddVariable}
-              onClose={handleModalClose}
-              open={isModalOpen}
-              type={selectedType}
-            />
-          )}
         </PanelSectionHeaderActions>
       </PanelSectionHeader>
-      {variables.length > 0 && (
+      {(variables.length > 0 || pendingVariable) && (
         <PanelSectionContent>
           <div className="flex flex-col gap-2">
             {variables.map((variable) => {
@@ -144,7 +220,7 @@ export function VariablesSection({
                       }
                       property="name"
                     />
-                    {varType === 'string' && (
+                    {varType === "string" && (
                       <NodeTextInput
                         className="flex-1"
                         label="Value"
@@ -155,7 +231,7 @@ export function VariablesSection({
                         property="value"
                       />
                     )}
-                    {varType === 'number' && (
+                    {varType === "number" && (
                       <NodeTextInput
                         className="flex-1"
                         label="Value"
@@ -169,17 +245,17 @@ export function VariablesSection({
                         valueToString={(v) => String(v)}
                       />
                     )}
-                    {varType === 'boolean' && (
+                    {varType === "boolean" && (
                       <PanelToggleGroup
                         className="flex-1"
                         onValueChange={(value) =>
                           handleUpdateVariableValue(variable.id, {
-                            key: 'boolean',
-                            value: value === 'true'
+                            key: "boolean",
+                            value: value === "true",
                           } satisfies BooleanVariableType)
                         }
                         type="single"
-                        value={variable.value.value ? 'true' : 'false'}
+                        value={variable.value.value ? "true" : "false"}
                       >
                         <PanelToggleGroupItem className="flex-1" value="true">
                           True
@@ -189,7 +265,7 @@ export function VariablesSection({
                         </PanelToggleGroupItem>
                       </PanelToggleGroup>
                     )}
-                    {varType === 'product' && <div>TODO</div>}
+                    {varType === "product" && <div>TODO</div>}
                   </div>
                   <PanelButton
                     icon={<MinusIcon />}
@@ -199,9 +275,31 @@ export function VariablesSection({
                 </div>
               );
             })}
+            {pendingVariable && (
+              <div className="flex flex-row gap-2">
+                <div className="flex flex-1 flex-row gap-2">
+                  <InputGroup className="h-7 flex-1 rounded-sm border-none dark:bg-input/60">
+                    <InputGroupInput
+                      aria-label="Variable name"
+                      className="h-7 px-1 py-0 pl-2 text-xs"
+                      onBlur={save}
+                      onChange={(e) => updateName(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      ref={inputRef}
+                      value={pendingVariable.name}
+                    />
+                  </InputGroup>
+                </div>
+                <PanelButton
+                  icon={<MinusIcon />}
+                  onClick={cancel}
+                  size="icon"
+                />
+              </div>
+            )}
           </div>
         </PanelSectionContent>
       )}
     </PanelSection>
   );
-}
+};
