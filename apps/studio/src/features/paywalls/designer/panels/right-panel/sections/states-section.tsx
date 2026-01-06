@@ -76,30 +76,32 @@ export const StatesSection = ({
 					/>
 				</PanelSectionHeaderActions>
 			</PanelSectionHeader>
-			<PanelSectionContent>
-				<div className="flex flex-col">
-					<div
-						className={cn(
-							"flex h-7 items-center rounded-sm px-2 font-medium text-xs",
-							"bg-accent text-accent-foreground",
-							states.length > 0 && "rounded-b-none",
-						)}
-					>
-						Default
-					</div>
-					{states.map((state, index) => (
+			{states.length > 0 && (
+				<PanelSectionContent>
+					<div className="flex flex-col">
 						<div
 							className={cn(
-								"flex h-7 items-center rounded-sm px-2 font-medium text-muted-foreground text-xs",
-								index === 0 && "rounded-t-none",
+								"flex h-7 items-center rounded-sm px-2 font-medium text-xs",
+								"bg-accent text-accent-foreground",
+								states.length > 0 && "rounded-b-none",
 							)}
-							key={state.id}
 						>
-							{state.value.name}
+							Default
 						</div>
-					))}
-				</div>
-			</PanelSectionContent>
+						{states.map((state, index) => (
+							<div
+								className={cn(
+									"flex h-7 items-center rounded-sm px-2 font-medium text-muted-foreground text-xs",
+									index === 0 && "rounded-t-none",
+								)}
+								key={state.id}
+							>
+								{state.value.name}
+							</div>
+						))}
+					</div>
+				</PanelSectionContent>
+			)}
 			<StateManagerSheet
 				onAddState={handleAddState}
 				onOpenChange={setIsSheetOpen}
