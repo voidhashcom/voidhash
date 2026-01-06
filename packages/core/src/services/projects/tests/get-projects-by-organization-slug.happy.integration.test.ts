@@ -46,4 +46,3 @@ describe.sequential('getProjectsByOrganizationSlug happy path', () => {
     });
   });
 });
-

@@ -52,10 +52,7 @@ const _getOrganizationBilling = (db: Db) =>
 export const getUsageSummary = Effect.gen(function* () {
   const db = yield* Db;
   return Effect.fn('UsageService.getUsageSummary')(
-    function* (input: {
-      organizationId: string;
-      metricId: MetricIdValue;
-    }) {
+    function* (input: { organizationId: string; metricId: MetricIdValue }) {
       const period = getCurrentBillingPeriod();
 
       const aggregate = yield* _getUsageAggregate(db)({

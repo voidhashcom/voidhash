@@ -48,4 +48,3 @@ describe.sequential('createPerk happy path', () => {
     });
   });
 });
-

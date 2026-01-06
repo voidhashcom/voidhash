@@ -57,12 +57,11 @@ export const saveCanvasState = commander.action<{
   x: number;
   y: number;
 }>((ctx, params) => {
-    const state = ctx.getState();
-    ctx.setState({
-      canvas: { ...state.canvas, ...params }
-    } as Partial<DesignerStoreState>);
-  }
-);
+  const state = ctx.getState();
+  ctx.setState({
+    canvas: { ...state.canvas, ...params }
+  } as Partial<DesignerStoreState>);
+});
 
 /**
  * Update a node's bounding box (used for rendering overlays).
@@ -76,14 +75,13 @@ export const updateBoundingBox = commander.action<{
     height: number;
   };
 }>((ctx, params) => {
-    const state = ctx.getState();
-    const boundingBoxes = { ...state.canvas.boundingBoxes };
-    boundingBoxes[params.id] = params.boundingBox;
-    ctx.setState({
-      canvas: { ...state.canvas, boundingBoxes }
-    } as Partial<DesignerStoreState>);
-  }
-);
+  const state = ctx.getState();
+  const boundingBoxes = { ...state.canvas.boundingBoxes };
+  boundingBoxes[params.id] = params.boundingBox;
+  ctx.setState({
+    canvas: { ...state.canvas, boundingBoxes }
+  } as Partial<DesignerStoreState>);
+});
 
 // =============================================================================
 // Node Hover Commands
@@ -108,20 +106,18 @@ export const nodeMouseEnter = commander.action<{ id: string }>(
 /**
  * Handle mouse moving over a node.
  */
-export const nodeMouseOver = commander.action<{ id: string }>(
-  (ctx, params) => {
-    const state = ctx.getState();
-    if (state.textEditingNodeId) {
-      return { shouldPropagate: true };
-    }
-    if (!state.highlightedNodeId) {
-      ctx.setState({
-        highlightedNodeId: params.id
-      } as Partial<DesignerStoreState>);
-    }
+export const nodeMouseOver = commander.action<{ id: string }>((ctx, params) => {
+  const state = ctx.getState();
+  if (state.textEditingNodeId) {
     return { shouldPropagate: true };
   }
-);
+  if (!state.highlightedNodeId) {
+    ctx.setState({
+      highlightedNodeId: params.id
+    } as Partial<DesignerStoreState>);
+  }
+  return { shouldPropagate: true };
+});
 
 /**
  * Handle mouse leaving a node.
@@ -231,8 +227,6 @@ export const textEditingStarted = commander.action<{ id: string }>(
 /**
  * Mark that text editing has stopped.
  */
-export const textEditingStopped = commander.action<{ id: string }>(
-  (ctx) => {
-    ctx.setState({ textEditingNodeId: null } as Partial<DesignerStoreState>);
-  }
-);
+export const textEditingStopped = commander.action<{ id: string }>((ctx) => {
+  ctx.setState({ textEditingNodeId: null } as Partial<DesignerStoreState>);
+});

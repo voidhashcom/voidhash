@@ -100,7 +100,10 @@ export function UpgradeDialog({
 
             <ul className="mt-4 space-y-2">
               {planFeatures.map((feature) => (
-                <li key={feature.name} className="flex items-center gap-2 text-sm">
+                <li
+                  key={feature.name}
+                  className="flex items-center gap-2 text-sm"
+                >
                   {feature.free ? (
                     <>
                       <Check className="h-4 w-4 text-green-500" />
@@ -142,7 +145,10 @@ export function UpgradeDialog({
 
             <ul className="mt-4 space-y-2">
               {planFeatures.map((feature) => (
-                <li key={feature.name} className="flex items-center gap-2 text-sm">
+                <li
+                  key={feature.name}
+                  className="flex items-center gap-2 text-sm"
+                >
                   {feature.pro ? (
                     <>
                       <Check className="h-4 w-4 text-green-500" />
@@ -192,7 +198,10 @@ export function UpgradeDialog({
 
             <ul className="mt-4 space-y-2">
               {planFeatures.map((feature) => (
-                <li key={feature.name} className="flex items-center gap-2 text-sm">
+                <li
+                  key={feature.name}
+                  className="flex items-center gap-2 text-sm"
+                >
                   <Check className="h-4 w-4 text-green-500" />
                   <span>
                     {typeof feature.enterprise === 'string'

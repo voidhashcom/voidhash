@@ -760,10 +760,7 @@ export function LayersSection() {
   }, [activeId]);
 
   // The snapshot is already a tree structure from mimic
-  const tree = useMemo(
-    () => (nodes as SnapshotNode | null),
-    [nodes]
-  );
+  const tree = useMemo(() => nodes as SnapshotNode | null, [nodes]);
 
   // Expanded layers by selected nodes
   const expandedLayersBySelectedNodes = useMemo(

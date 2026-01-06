@@ -44,4 +44,3 @@ describe.sequential('getProjectBySlug happy path', () => {
     });
   });
 });
-

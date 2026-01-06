@@ -12,4 +12,3 @@ export class AppStoreService extends Effect.Service<AppStoreService>()(
     })
   }
 ) {}
-

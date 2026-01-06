@@ -24,4 +24,3 @@ export class CustomerService extends Effect.Service<CustomerService>()(
     })
   }
 ) {}
-

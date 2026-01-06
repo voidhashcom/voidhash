@@ -15,4 +15,3 @@ export class PerkService extends Effect.Service<PerkService>()('PerkService', {
     } as const;
   })
 }) {}
-

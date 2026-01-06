@@ -36,4 +36,3 @@ describe.sequential('deletePerk error path', () => {
     expect(error).toBeInstanceOf(PerkNotFoundError);
   });
 });
-

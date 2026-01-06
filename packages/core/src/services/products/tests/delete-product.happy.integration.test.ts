@@ -62,4 +62,3 @@ describe.sequential('deleteProduct happy path', () => {
     expect(value).toBe('deleted');
   });
 });
-

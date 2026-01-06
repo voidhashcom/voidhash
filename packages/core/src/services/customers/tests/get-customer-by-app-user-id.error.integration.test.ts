@@ -35,4 +35,3 @@ describe.sequential('getCustomerByAppUserId error path', () => {
     expect(error).toBeInstanceOf(CustomerNotFoundError);
   });
 });
-

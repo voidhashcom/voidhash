@@ -95,4 +95,3 @@ describe.sequential('mergeCustomers happy path', () => {
     });
   });
 });
-

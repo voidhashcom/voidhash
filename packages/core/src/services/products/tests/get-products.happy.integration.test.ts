@@ -93,4 +93,3 @@ describe.sequential('getProducts happy path', () => {
     });
   });
 });
-

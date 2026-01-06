@@ -27,7 +27,8 @@ export const createScreenNode = commander.undoableAction<
     initialValues?: unknown;
   },
   { nodeId: string | null }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
 
@@ -69,7 +70,8 @@ export const updateScreenNode = commander.undoableAction<
     updates: Primitive.InferUpdateInput<typeof ScreenNode>;
   },
   { previousData: Record<string, unknown> | null }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
 
@@ -121,7 +123,8 @@ export const addScreenNodeVariable = commander.undoableAction<
     name: string;
   },
   { variableId: string | null }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const { mimic } = ctx.getState();
     let variableId: string | null = null;
 
@@ -170,7 +173,8 @@ export const removeScreenNodeVariable = commander.undoableAction<
     variableId: string;
   },
   { removedVariable: unknown }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const { mimic } = ctx.getState();
 
     // Get the variable data for undo
@@ -217,7 +221,8 @@ export const updateScreenNodeVariable = commander.undoableAction<
     newValue?: unknown;
   },
   { previousName: string | null | undefined; previousValue: unknown }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const { mimic } = ctx.getState();
 
     // Get the previous variable data for undo
@@ -279,7 +284,8 @@ export const addScreenNodeState = commander.undoableAction<
     condition: unknown;
   },
   { stateId: string | null }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const { mimic } = ctx.getState();
     let stateId: string | null = null;
 
@@ -327,7 +333,8 @@ export const removeScreenNodeState = commander.undoableAction<
     stateId: string;
   },
   { removedState: unknown }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const { mimic } = ctx.getState();
 
     // Get the state data for undo
@@ -374,7 +381,8 @@ export const updateScreenNodeState = commander.undoableAction<
     newCondition?: unknown;
   },
   { previousName: string | null | undefined; previousCondition: unknown }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const { mimic } = ctx.getState();
 
     // Get the previous state data for undo
@@ -419,7 +427,10 @@ export const updateScreenNodeState = commander.undoableAction<
       if (result.previousName !== undefined) {
         stateProxy.name.set(result.previousName);
       }
-      if (result.previousCondition !== undefined && result.previousCondition !== null) {
+      if (
+        result.previousCondition !== undefined &&
+        result.previousCondition !== null
+      ) {
         stateProxy.condition.set(result.previousCondition as never);
       }
     });

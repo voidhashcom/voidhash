@@ -47,4 +47,3 @@ describe.sequential('createProduct happy path', () => {
     });
   });
 });
-

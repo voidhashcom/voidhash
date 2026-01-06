@@ -154,7 +154,8 @@ export const deleteNodes = commander.undoableAction<
       index: number;
     }>;
   }
->((ctx) => {
+>(
+  (ctx) => {
     const state = ctx.getState();
     const { mimic } = state;
 

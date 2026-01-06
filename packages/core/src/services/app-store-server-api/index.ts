@@ -21,4 +21,3 @@ export class AppStoreServerAPIService extends Effect.Service<AppStoreServerAPISe
 ) {}
 
 export type { TransactionInfoResult } from './initialize-sdk';
-

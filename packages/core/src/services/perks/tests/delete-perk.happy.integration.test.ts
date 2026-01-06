@@ -62,4 +62,3 @@ describe.sequential('deletePerk happy path', () => {
     expect(value).toBe('deleted');
   });
 });
-

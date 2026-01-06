@@ -28,4 +28,3 @@ describe.sequential('getUser error path', () => {
     expect(error).toBeInstanceOf(AuthenticationError);
   });
 });
-

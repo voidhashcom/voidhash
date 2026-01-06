@@ -47,4 +47,3 @@ describe.sequential('createOrganization happy path', () => {
     // Note: Organization cleanup is handled by the auth system, not directly in tests
   });
 });
-

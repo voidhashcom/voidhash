@@ -49,4 +49,3 @@ describe.sequential('createProject happy path', () => {
     });
   });
 });
-
