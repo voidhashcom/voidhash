@@ -3,13 +3,7 @@
 import { cn, useConfirmDialog } from "@voidhash/ui";
 import { InputGroup, InputGroupInput } from "@voidhash/ui/input-group";
 import { Sheet, SheetClose, SheetContent } from "@voidhash/ui/sheet";
-import {
-	MinusIcon,
-	PencilIcon,
-	PlusIcon,
-	Trash2Icon,
-	XIcon,
-} from "lucide-react";
+import { PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PANEL_DIMENSIONS } from "../../panels/constants";
 import { PanelButton } from "../ui/button";
@@ -233,39 +227,39 @@ export function StateManagerSheet({
 
 								{(states.length > 0 || isPending) && (
 									<PanelSectionContent className="border-border border-t pt-2">
-										<div className="flex flex-col gap-2">
-											{states.map((state) => (
-												<div className="flex flex-row gap-2" key={state.id}>
-													<PanelButton
-														className={cn(
-															"flex-1 justify-start rounded-l-0 border-l-2 text-left",
-															selectedStateId === state.id
-																? "border-l-primary"
-																: "border-l-transparent",
-														)}
-														variant="secondary"
-														onClick={() => handleSelectState(state.id)}
-														type="button"
-													>
-														{state.value.name}
-													</PanelButton>
-												</div>
+										<div className="flex flex-col">
+											{states.map((state, index) => (
+												<button
+													className={cn(
+														"flex h-7 w-full cursor-pointer items-center rounded-sm px-2 text-left font-medium text-muted-foreground text-xs transition-all hover:bg-accent/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+														selectedStateId === state.id &&
+															"bg-accent text-accent-foreground hover:bg-accent",
+														selectedStateId === state.id &&
+															index < states.length - 1 &&
+															"rounded-b-none",
+														selectedStateId === states[index - 1]?.id &&
+															"rounded-t-none",
+													)}
+													key={state.id}
+													onClick={() => handleSelectState(state.id)}
+													type="button"
+												>
+													{state.value.name}
+												</button>
 											))}
 											{isPending && (
-												<div className="flex flex-row gap-1">
-													<InputGroup className="h-7 flex-1 rounded-sm border-none dark:bg-input/60">
-														<InputGroupInput
-															aria-label="State name"
-															className="h-7 px-1 py-0 pl-2 text-xs"
-															onBlur={saveAdd}
-															onChange={(e) => updateAddName(e.target.value)}
-															onKeyDown={handleAddKeyDown}
-															placeholder="State name..."
-															ref={addInputRef}
-															value={pendingState ?? ""}
-														/>
-													</InputGroup>
-												</div>
+												<InputGroup className="h-7 flex-1 rounded-sm border-none dark:bg-input/60">
+													<InputGroupInput
+														aria-label="State name"
+														className="h-7 px-1 py-0 pl-2 text-xs"
+														onBlur={saveAdd}
+														onChange={(e) => updateAddName(e.target.value)}
+														onKeyDown={handleAddKeyDown}
+														placeholder="State name..."
+														ref={addInputRef}
+														value={pendingState ?? ""}
+													/>
+												</InputGroup>
 											)}
 										</div>
 									</PanelSectionContent>
@@ -293,7 +287,7 @@ export function StateManagerSheet({
 												/>
 											</InputGroup>
 										) : (
-											<div className="flex flex-row gap-1 items-center">
+											<div className="flex flex-row items-center gap-1">
 												<span className="mr-4">
 													{selectedState?.value.name ?? "Select a state"}
 												</span>
@@ -333,7 +327,7 @@ export function StateManagerSheet({
 												>
 													Cancel
 												</PanelButton>
-												<PanelButton onClick={handleSave}>
+												<PanelButton variant="default" onClick={handleSave}>
 													Save Changes
 												</PanelButton>
 											</>

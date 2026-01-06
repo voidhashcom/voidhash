@@ -6,6 +6,7 @@ import type {
 	ScreenNodeData,
 	TextNodeData,
 } from "@voidhash/mimic-schema";
+import { cn } from "@voidhash/ui";
 import { SettingsIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -75,21 +76,30 @@ export const StatesSection = ({
 					/>
 				</PanelSectionHeaderActions>
 			</PanelSectionHeader>
-			{states.length > 0 && (
-				<PanelSectionContent>
-					<div className="flex flex-col gap-1">
-						<div className="rounded-md border px-2 py-1.5 text-sm">Default</div>
-						{states.map((state) => (
-							<div
-								className="rounded-md border px-2 py-1.5 text-sm"
-								key={state.id}
-							>
-								{state.value.name}
-							</div>
-						))}
+			<PanelSectionContent>
+				<div className="flex flex-col">
+					<div
+						className={cn(
+							"flex h-7 items-center rounded-sm px-2 font-medium text-xs",
+							"bg-accent text-accent-foreground",
+							states.length > 0 && "rounded-b-none",
+						)}
+					>
+						Default
 					</div>
-				</PanelSectionContent>
-			)}
+					{states.map((state, index) => (
+						<div
+							className={cn(
+								"flex h-7 items-center rounded-sm px-2 font-medium text-muted-foreground text-xs",
+								index === 0 && "rounded-t-none",
+							)}
+							key={state.id}
+						>
+							{state.value.name}
+						</div>
+					))}
+				</div>
+			</PanelSectionContent>
 			<StateManagerSheet
 				onAddState={handleAddState}
 				onOpenChange={setIsSheetOpen}
