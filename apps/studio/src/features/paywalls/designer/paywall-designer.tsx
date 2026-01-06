@@ -5,6 +5,7 @@ import { Logo } from '@voidhash/ui';
 import { useEffect, useState } from 'react';
 import { useStore } from 'zustand/react';
 import { Canvas } from '../designer/canvas/canvas';
+import { PreviewCanvas } from '../designer/canvas/preview-canvas';
 import {
   PaywallDesignerStoreProvider,
   usePaywallDesignerStore
@@ -18,11 +19,13 @@ import { TopPanel } from './panels/top-panel';
 
 function DesignerContent() {
   useKeyboardShortcuts();
+  const store = usePaywallDesignerStore();
+  const mode = useStore(store, (state) => state.mode);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
       {/* Canvas layer - renders under the panels */}
-      <Canvas />
+      {mode === 'design' ? <Canvas /> : <PreviewCanvas />}
 
       {/* Panel overlays */}
       <TopPanel />

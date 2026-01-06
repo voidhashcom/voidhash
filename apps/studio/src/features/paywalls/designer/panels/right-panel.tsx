@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@voidhash/ui";
 import { useStore } from "zustand/react";
 import { Panel } from "@/features/paywalls/designer/components/ui/panel";
 import { usePaywallDesignerStore } from "../state/designer-store";
@@ -79,6 +80,7 @@ function SelectedNodePanel({ nodeId }: { nodeId: string }) {
 
 export function RightPanel() {
 	const store = usePaywallDesignerStore();
+	const isPreviewMode = useStore(store, (state) => state.mode === "preview");
 	const selectedNodeIds =
 		useStore(store, (state) => state.mimic.presence.self?.selectedNodeIds) ??
 		[];
@@ -86,7 +88,11 @@ export function RightPanel() {
 
 	return (
 		<div
-			className="fixed right-0 bottom-0 z-40 flex flex-col border-border border-l bg-sidebar"
+			className={cn(
+				"fixed right-0 bottom-0 z-40 flex flex-col border-border border-l bg-sidebar",
+				"transition-transform duration-300 ease-in-out",
+				isPreviewMode && "translate-x-full",
+			)}
 			style={{
 				top: PANEL_DIMENSIONS.TOP_HEIGHT,
 				width: PANEL_DIMENSIONS.RIGHT_WIDTH,

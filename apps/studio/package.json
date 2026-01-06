@@ -45,6 +45,7 @@
     "@voidhash/lib": "workspace:*",
     "@voidhash/mimic-react": "catalog:",
     "@voidhash/mimic-schema": "workspace:*",
+    "@voidhash/paywall-renderer-preact": "workspace:*",
     "@voidhash/paywall-renderer-web-core": "workspace:*",
     "@voidhash/rpc": "workspace:*",
     "@voidhash/shared": "workspace:*",

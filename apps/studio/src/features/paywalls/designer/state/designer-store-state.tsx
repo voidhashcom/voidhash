@@ -3,6 +3,7 @@ import type {
   PaywallDesignerDocument,
   PresenceSchema
 } from '@voidhash/mimic-schema';
+import type { SnapshotNode } from '@voidhash/paywall-renderer-web-core';
 
 export type AvailableTool =
   | 'cursor'
@@ -11,10 +12,15 @@ export type AvailableTool =
   | 'columns'
   | 'scroll-view';
 
+export type DesignerMode = 'design' | 'preview';
+
 export type DesignerStoreState = MimicSlice<
   typeof PaywallDesignerDocument,
   typeof PresenceSchema
 > & {
+  mode: DesignerMode;
+  previewSnapshot: SnapshotNode | null;
+  previewScale: number;
   debug: {
     showGrid: boolean;
   };

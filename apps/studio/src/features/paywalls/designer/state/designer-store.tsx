@@ -17,6 +17,7 @@ import { create } from 'zustand';
 import { managedRuntime, VoidhashRpc } from '@/lib/effect-query';
 import { SHOW_GRID } from '../constants';
 import { commander } from './designer-commander';
+import type { DesignerMode } from './designer-store-state';
 
 // ============================================================================
 // Store Factory
@@ -63,6 +64,9 @@ function createPaywallDesignerStore(options: {
         }),
         () => ({
           // Local browser state
+          mode: 'design' as DesignerMode,
+          previewSnapshot: null,
+          previewScale: 1,
           debug: {
             showGrid: SHOW_GRID
           },
