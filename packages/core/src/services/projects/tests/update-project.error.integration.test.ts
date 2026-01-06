@@ -37,4 +37,3 @@ describe.sequential('updateProject error path', () => {
     expect(error).toBeInstanceOf(ProjectNotFoundError);
   });
 });
-

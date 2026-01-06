@@ -40,7 +40,10 @@ const tierLabels: Record<string, string> = {
   enterprise: 'Enterprise'
 };
 
-const defaultStatusInfo = { label: 'No subscription', variant: 'secondary' as const };
+const defaultStatusInfo = {
+  label: 'No subscription',
+  variant: 'secondary' as const
+};
 
 const statusLabels = {
   none: defaultStatusInfo,
@@ -122,7 +125,8 @@ export function SubscriptionCard({
 
   const tier = billingInfo?.tier ?? 'free';
   const status = billingInfo?.subscriptionStatus ?? 'none';
-  const statusInfo = statusLabels[status as keyof typeof statusLabels] ?? defaultStatusInfo;
+  const statusInfo =
+    statusLabels[status as keyof typeof statusLabels] ?? defaultStatusInfo;
   const canUpgrade = tier === 'free' || tier === 'pro';
   const canCancel = status === 'active' && tier !== 'free';
 
@@ -162,7 +166,9 @@ export function SubscriptionCard({
               onClick={handleCancel}
               disabled={cancelStatus === 'pending'}
             >
-              {cancelStatus === 'pending' ? 'Canceling...' : 'Cancel Subscription'}
+              {cancelStatus === 'pending'
+                ? 'Canceling...'
+                : 'Cancel Subscription'}
             </Button>
           )}
           {canUpgrade && (

@@ -53,7 +53,10 @@ export function UsageStatsCard({
           </Badge>
         )}
         {isApproachingLimit && !isOverLimit && (
-          <Badge variant="outline" className="border-yellow-500 text-xs text-yellow-600">
+          <Badge
+            variant="outline"
+            className="border-yellow-500 text-xs text-yellow-600"
+          >
             Approaching limit
           </Badge>
         )}

@@ -9,4 +9,3 @@ export class UserService extends Effect.Service<UserService>()('UserService', {
     } as const;
   })
 }) {}
-

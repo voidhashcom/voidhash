@@ -1,7 +1,10 @@
 import { and, eq, usageAggregates } from '@voidhash/db';
 import { Db } from '@voidhash/db/effect';
 import { Effect } from 'effect';
-import { BillingServiceError, UsageLimitWarning } from '../../../billing/errors';
+import {
+  BillingServiceError,
+  UsageLimitWarning
+} from '../../../billing/errors';
 import { METRIC_DEFINITIONS } from '../../../billing/types';
 import type { MetricIdValue } from '../../../billing/types';
 
@@ -43,10 +46,7 @@ const _getUsageAggregate = (db: Db) =>
 export const checkLimit = Effect.gen(function* () {
   const db = yield* Db;
   return Effect.fn('UsageService.checkLimit')(
-    function* (input: {
-      organizationId: string;
-      metricId: MetricIdValue;
-    }) {
+    function* (input: { organizationId: string; metricId: MetricIdValue }) {
       const period = getCurrentBillingPeriod();
 
       const aggregate = yield* _getUsageAggregate(db)({

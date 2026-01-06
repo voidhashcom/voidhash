@@ -1,6 +1,6 @@
 "use client";
 
-import { Panel } from "@/features/designer/components/panel";
+import { Panel } from "@/features/paywalls/designer/components/ui/panel";
 import { PANEL_DIMENSIONS } from "./constants";
 
 import { LayersSection } from "./left-panel/layers-section";

@@ -75,4 +75,3 @@ describe.sequential('updateProduct happy path', () => {
     });
   });
 });
-

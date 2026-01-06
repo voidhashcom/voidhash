@@ -1,8 +1,19 @@
 import { cn } from '@voidhash/ui';
 
-export function Panel({ children }: { children: React.ReactNode }) {
+export function Panel({
+  children,
+  className
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="relative flex flex-1 flex-col divide-y divide-border">
+    <div
+      className={cn(
+        'relative flex flex-1 flex-col divide-y divide-border',
+        className
+      )}
+    >
       {children}
     </div>
   );

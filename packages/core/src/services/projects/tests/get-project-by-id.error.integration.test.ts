@@ -37,4 +37,3 @@ describe.sequential('getProjectById error path', () => {
     expect(value).toBeNull();
   });
 });
-

@@ -58,7 +58,10 @@ export const createMySQLAccessor = Effect.gen(function* () {
   const getRevenue = db.makeQuery(
     (
       execute,
-      { params, filters }: { params: TimeRangeParams; filters?: AnalyticsFilters }
+      {
+        params,
+        filters
+      }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
         const dateTrunc = getDateTruncSQL('t.occurred_at', params.granularity);
@@ -87,7 +90,10 @@ export const createMySQLAccessor = Effect.gen(function* () {
   const getMRR = db.makeQuery(
     (
       execute,
-      { params, filters }: { params: TimeRangeParams; filters?: AnalyticsFilters }
+      {
+        params,
+        filters
+      }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
         const dateTrunc = getDateTruncSQL('s.starts_at', params.granularity);
@@ -126,7 +132,10 @@ export const createMySQLAccessor = Effect.gen(function* () {
   const getActiveSubscriptions = db.makeQuery(
     (
       execute,
-      { params, filters }: { params: TimeRangeParams; filters?: AnalyticsFilters }
+      {
+        params,
+        filters
+      }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
         const dateTrunc = getDateTruncSQL('s.starts_at', params.granularity);
@@ -153,7 +162,10 @@ export const createMySQLAccessor = Effect.gen(function* () {
   const getNewSubscriptions = db.makeQuery(
     (
       execute,
-      { params, filters }: { params: TimeRangeParams; filters?: AnalyticsFilters }
+      {
+        params,
+        filters
+      }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
         const dateTrunc = getDateTruncSQL('s.created_at', params.granularity);
@@ -180,7 +192,10 @@ export const createMySQLAccessor = Effect.gen(function* () {
   const getChurnedSubscriptions = db.makeQuery(
     (
       execute,
-      { params, filters }: { params: TimeRangeParams; filters?: AnalyticsFilters }
+      {
+        params,
+        filters
+      }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
         const dateTrunc = getDateTruncSQL('s.canceled_at', params.granularity);
@@ -207,7 +222,10 @@ export const createMySQLAccessor = Effect.gen(function* () {
   const getTrials = db.makeQuery(
     (
       execute,
-      { params, filters }: { params: TimeRangeParams; filters?: AnalyticsFilters }
+      {
+        params,
+        filters
+      }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
         const dateTrunc = getDateTruncSQL('s.created_at', params.granularity);
@@ -234,7 +252,10 @@ export const createMySQLAccessor = Effect.gen(function* () {
   const getTrialConversions = db.makeQuery(
     (
       execute,
-      { params, filters }: { params: TimeRangeParams; filters?: AnalyticsFilters }
+      {
+        params,
+        filters
+      }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
         const dateTrunc = getDateTruncSQL('s.updated_at', params.granularity);
@@ -268,7 +289,10 @@ export const createMySQLAccessor = Effect.gen(function* () {
   const getCustomerCount = db.makeQuery(
     (
       execute,
-      { params, filters: _filters }: { params: TimeRangeParams; filters?: AnalyticsFilters }
+      {
+        params,
+        filters: _filters
+      }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
         const dateTrunc = getDateTruncSQL('c.created_at', params.granularity);
@@ -293,7 +317,10 @@ export const createMySQLAccessor = Effect.gen(function* () {
   const getNewCustomers = db.makeQuery(
     (
       execute,
-      { params, filters: _filters }: { params: TimeRangeParams; filters?: AnalyticsFilters }
+      {
+        params,
+        filters: _filters
+      }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
         const dateTrunc = getDateTruncSQL('c.created_at', params.granularity);
@@ -318,7 +345,10 @@ export const createMySQLAccessor = Effect.gen(function* () {
   const getPayingCustomerCount = db.makeQuery(
     (
       execute,
-      { params, filters }: { params: TimeRangeParams; filters?: AnalyticsFilters }
+      {
+        params,
+        filters
+      }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
         const dateTrunc = getDateTruncSQL('t.occurred_at', params.granularity);

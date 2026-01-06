@@ -61,10 +61,7 @@ function ConsentPageContent() {
     return descriptions[scopeName] ?? scopeName;
   };
 
-  const handleErrorRedirect = (
-    errorCode: string,
-    errorDescription: string
-  ) => {
+  const handleErrorRedirect = (errorCode: string, errorDescription: string) => {
     if (redirectUri) {
       try {
         const url = new URL(redirectUri);

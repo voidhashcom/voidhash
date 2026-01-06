@@ -16,7 +16,7 @@ export function PanelToggleGroup({
 	return (
 		<ToggleGroupPrimitive.Root
 			className={cn(
-				"inline-flex h-7 items-center rounded-sm bg-muted dark:bg-input/60",
+				"inline-flex h-7 items-center rounded-sm bg-input dark:bg-input/60",
 				className,
 			)}
 			{...props}

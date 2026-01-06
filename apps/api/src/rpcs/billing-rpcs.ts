@@ -14,7 +14,12 @@ export const BillingRpcsLive = BillingRpcsDef.toLayer(
       GetUsageSummaries: ({ organizationId }) =>
         usageService.getAllUsageSummaries({ organizationId }),
 
-      CreateCheckoutSession: ({ organizationId, tier, successUrl, cancelUrl }) =>
+      CreateCheckoutSession: ({
+        organizationId,
+        tier,
+        successUrl,
+        cancelUrl
+      }) =>
         billingService.createCheckoutSession({
           organizationId,
           tier,

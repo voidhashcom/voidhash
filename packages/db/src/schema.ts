@@ -953,6 +953,9 @@ export const billingProviderMeters = mysqlTable(
     updatedAt: timestamp('updated_at').onUpdateNow()
   },
   (table) => [
-    uniqueIndex('provider_metric_unique_idx').on(table.providerId, table.metricId)
+    uniqueIndex('provider_metric_unique_idx').on(
+      table.providerId,
+      table.metricId
+    )
   ]
 );

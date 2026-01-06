@@ -138,24 +138,22 @@ export const selectNode = commander.action<{ id: string; many: boolean }>(
 /**
  * Unselect a specific node.
  */
-export const unselectNode = commander.action<{ id: string }>(
-  (ctx, params) => {
-    const state = ctx.getState();
-    const { mimic } = state;
+export const unselectNode = commander.action<{ id: string }>((ctx, params) => {
+  const state = ctx.getState();
+  const { mimic } = state;
 
-    const currentPresence = mimic.document.presence?.self();
-    const selectedNodeIds = currentPresence?.selectedNodeIds ?? [];
-    const newSelectedNodeIds = selectedNodeIds.filter((id) => id !== params.id);
+  const currentPresence = mimic.document.presence?.self();
+  const selectedNodeIds = currentPresence?.selectedNodeIds ?? [];
+  const newSelectedNodeIds = selectedNodeIds.filter((id) => id !== params.id);
 
-    // Update presence for collaboration
-    if (currentPresence) {
-      mimic.document.presence?.set({
-        ...currentPresence,
-        selectedNodeIds: newSelectedNodeIds
-      });
-    }
+  // Update presence for collaboration
+  if (currentPresence) {
+    mimic.document.presence?.set({
+      ...currentPresence,
+      selectedNodeIds: newSelectedNodeIds
+    });
   }
-);
+});
 
 /**
  * Clear all selection.

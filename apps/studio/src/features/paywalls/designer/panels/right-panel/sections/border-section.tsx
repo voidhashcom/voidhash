@@ -15,8 +15,8 @@ import {
 	VaultIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { PanelButton } from "@/features/designer/components/button";
-import { ColorInput } from "@/features/designer/components/color-input";
+import { PanelButton } from "@/features/paywalls/designer/components/ui/button";
+import { ColorInput } from "@/features/paywalls/designer/components/ui/color-input";
 import {
 	PanelSection,
 	PanelSectionContent,
@@ -26,7 +26,7 @@ import {
 	PanelSubSection,
 	PanelSubSectionContent,
 	PanelSubSectionTitle,
-} from "@/features/designer/components/panel-section";
+} from "@/features/paywalls/designer/components/ui/panel-section";
 import type { NodeEditorProps, NodeWithProperties } from "../../types";
 import { TextInput } from "../inputs/text-input";
 

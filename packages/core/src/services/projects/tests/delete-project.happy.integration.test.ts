@@ -80,4 +80,3 @@ describe.sequential('deleteProject happy path', () => {
     expect(value).toBe('deleted');
   });
 });
-

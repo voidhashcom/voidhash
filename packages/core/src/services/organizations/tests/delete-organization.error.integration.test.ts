@@ -38,4 +38,3 @@ describe.sequential('deleteOrganization error path', () => {
     expect(Exit.isSuccess(result) || Exit.isFailure(result)).toBe(true);
   });
 });
-

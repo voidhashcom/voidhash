@@ -2,7 +2,9 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ProjectsList } from '@/features/organizations/projects/projects-list';
 import { Page } from '@/features/shell';
 
-export const Route = createFileRoute('/_authenticated/_dashboard/_organization/$organizationSlug/')({
+export const Route = createFileRoute(
+  '/_authenticated/_dashboard/_organization/$organizationSlug/'
+)({
   component: RouteComponent
 });
 

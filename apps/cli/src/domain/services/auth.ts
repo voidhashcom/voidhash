@@ -58,7 +58,10 @@ const runCallbackServer = (callbackEvents: PubSub.PubSub<CallbackEvent>) =>
             if (query.cancelled) {
               yield* callbackEvents.publish({ type: 'cancelled' });
               return yield* HttpServerResponse.text('Login cancelled').pipe(
-                HttpServerResponse.setHeader('Access-Control-Allow-Origin', '*'),
+                HttpServerResponse.setHeader(
+                  'Access-Control-Allow-Origin',
+                  '*'
+                ),
                 HttpServerResponse.setHeader(
                   'Access-Control-Allow-Methods',
                   'GET, OPTIONS'

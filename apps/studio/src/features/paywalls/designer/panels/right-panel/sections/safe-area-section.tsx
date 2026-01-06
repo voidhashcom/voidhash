@@ -6,7 +6,7 @@ import {
 	PanelSectionContent,
 	PanelSectionHeader,
 	PanelSectionTitle,
-} from "@/features/designer/components/panel-section";
+} from "@/features/paywalls/designer/components/ui/panel-section";
 
 interface SafeAreaSectionProps {
 	safeArea: {

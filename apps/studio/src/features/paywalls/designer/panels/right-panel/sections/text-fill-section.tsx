@@ -1,12 +1,12 @@
 "use client";
 
-import { ColorInput } from "@/features/designer/components/color-input";
+import { ColorInput } from "@/features/paywalls/designer/components/ui/color-input";
 import {
 	PanelSection,
 	PanelSectionContent,
 	PanelSectionHeader,
 	PanelSectionTitle,
-} from "@/features/designer/components/panel-section";
+} from "@/features/paywalls/designer/components/ui/panel-section";
 import type { NodeEditorProps } from "../../types";
 
 /** Properties needed for the layout section - individual style properties */

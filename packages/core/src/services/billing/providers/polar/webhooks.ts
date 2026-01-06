@@ -7,8 +7,14 @@ import { Db } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
 import { Effect } from 'effect';
 import crypto from 'node:crypto';
-import { BillingProviderError, BillingServiceError } from '../../../../billing/errors';
-import type { BillingTierNameValue, SubscriptionChangeEvent } from '../../../../billing/types';
+import {
+  BillingProviderError,
+  BillingServiceError
+} from '../../../../billing/errors';
+import type {
+  BillingTierNameValue,
+  SubscriptionChangeEvent
+} from '../../../../billing/types';
 import { BillingService } from '../../billing-service';
 import { PolarConfigService } from './config';
 
@@ -194,7 +200,9 @@ export const handlePolarWebhook = Effect.gen(function* () {
       });
 
       if (alreadyProcessed) {
-        yield* Effect.log(`Webhook event ${eventId} already processed, skipping`);
+        yield* Effect.log(
+          `Webhook event ${eventId} already processed, skipping`
+        );
         return;
       }
 
@@ -214,8 +222,7 @@ export const handlePolarWebhook = Effect.gen(function* () {
           case 'subscription.created':
           case 'subscription.updated':
           case 'subscription.active': {
-            const customerId =
-              event.data.customer_id ?? event.data.customerId;
+            const customerId = event.data.customer_id ?? event.data.customerId;
             if (!customerId) break;
 
             const subscriptionEvent: SubscriptionChangeEvent = {
@@ -244,8 +251,7 @@ export const handlePolarWebhook = Effect.gen(function* () {
 
           case 'subscription.canceled':
           case 'subscription.revoked': {
-            const customerId =
-              event.data.customer_id ?? event.data.customerId;
+            const customerId = event.data.customer_id ?? event.data.customerId;
             if (!customerId) break;
 
             const cancelEvent: SubscriptionChangeEvent = {

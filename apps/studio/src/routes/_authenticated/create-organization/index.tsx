@@ -54,7 +54,7 @@ function CreateOrganizationPage() {
       ...createOrganizationOptions(),
       onSuccess: (data) => {
         toast.success('Organization created successfully');
-        queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll(), });
+        queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
         navigate({
           to: '/$organizationSlug',
           params: {

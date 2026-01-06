@@ -14,4 +14,3 @@ export class SdkService extends Effect.Service<SdkService>()('SdkService', {
     } as const;
   })
 }) {}
-

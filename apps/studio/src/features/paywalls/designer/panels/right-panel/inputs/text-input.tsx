@@ -5,7 +5,7 @@ import { Schema as S } from "effect";
 import {
 	TextInput as BaseTextInput,
 	type TextInputProps as BaseTextInputProps,
-} from "@/features/designer/components/text-input";
+} from "@/features/paywalls/designer/components/ui/text-input";
 
 /**
  * Props for the node-aware TextInput wrapper.

@@ -56,7 +56,9 @@ export const createEditToken = Effect.gen(function* () {
       const paywall = yield* _getPaywallById(db)(paywallId);
       if (!paywall) {
         return yield* Effect.fail(
-          new PaywallNotFoundError({ message: `Paywall not found: ${paywallId}` })
+          new PaywallNotFoundError({
+            message: `Paywall not found: ${paywallId}`
+          })
         );
       }
 

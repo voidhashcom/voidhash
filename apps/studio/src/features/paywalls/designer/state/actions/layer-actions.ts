@@ -75,7 +75,8 @@ export const moveNode = commander.undoableAction<
     toIndex: number;
   },
   { originalParentId: string | null; originalIndex: number }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
 
@@ -130,7 +131,8 @@ export const moveNodeBefore = commander.undoableAction<
     siblingId: string;
   },
   { originalParentId: string | null; originalIndex: number }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
 
@@ -185,7 +187,8 @@ export const moveNodeAfter = commander.undoableAction<
     siblingId: string;
   },
   { originalParentId: string | null; originalIndex: number }
->((ctx, params) => {
+>(
+  (ctx, params) => {
     const state = ctx.getState();
     const { mimic } = state;
 

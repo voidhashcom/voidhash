@@ -34,4 +34,3 @@ describe.sequential('getOrganizationBySlug error path', () => {
     expect(error).toBeInstanceOf(OrganizationNotFoundError);
   });
 });
-
