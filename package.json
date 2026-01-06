@@ -44,7 +44,7 @@
     "typescript": "5.6.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.1.2",
+    "@biomejs/biome": "2.3.11",
     "dotenv-cli": "^8.0.0",
     "ultracite": "5.0.39"
   },
