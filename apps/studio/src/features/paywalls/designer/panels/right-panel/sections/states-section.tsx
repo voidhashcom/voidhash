@@ -72,7 +72,6 @@ export const StatesSection = ({
 						icon={<SettingsIcon />}
 						onClick={() => setIsSheetOpen(true)}
 						size="icon"
-						variant="ghost"
 					/>
 				</PanelSectionHeaderActions>
 			</PanelSectionHeader>
