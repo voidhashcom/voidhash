@@ -452,6 +452,9 @@ importers:
       '@voidhash/mimic-schema':
         specifier: workspace:*
         version: link:../../packages/mimic-schema
+      '@voidhash/paywall-renderer-preact':
+        specifier: workspace:*
+        version: link:../../packages/paywall-renderer-preact
       '@voidhash/paywall-renderer-web-core':
         specifier: workspace:*
         version: link:../../packages/paywall-renderer-web-core
