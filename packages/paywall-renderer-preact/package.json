@@ -1,0 +1,26 @@
+{
+	"name": "@voidhash/paywall-renderer-preact",
+	"version": "0.0.1-alpha.1",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/voidhashcom/voidhash",
+		"directory": "packages/paywall-renderer-preact"
+	},
+	"private": true,
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@voidhash/paywall-renderer-web-core": "workspace:*",
+		"preact": "^10.25.4",
+		"preact-render-to-string": "^6.5.13"
+	},
+	"devDependencies": {
+		"@voidhash/tsconfig": "workspace:*",
+		"typescript": "5.6.3"
+	}
+}
