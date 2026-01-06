@@ -1,4 +1,5 @@
 import type { TextNodeData } from '@voidhash/mimic-schema';
+import { buildTextStyles } from '@voidhash/paywall-renderer-web-core';
 import { useEffect, useRef } from 'react';
 import { useStore } from 'zustand/react';
 import {
@@ -106,13 +107,9 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
             ref={editableRef}
             role={elementRole}
             style={{
+              ...(buildTextStyles(node.style) as React.CSSProperties),
+              // Editor-specific overrides
               userSelect: isEditing ? 'text' : 'none',
-              fontSize: node.style.fontSize,
-              color: node.style.color,
-              fontWeight: node.style.fontWeight,
-              textAlign: node.style.textAlign,
-              lineHeight: node.style.lineHeight,
-              letterSpacing: node.style.letterSpacing,
               outline: isEditing ? '1px solid currentColor' : 'none',
               cursor: isEditing ? 'text' : 'default'
             }}
