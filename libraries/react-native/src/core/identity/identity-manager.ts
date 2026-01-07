@@ -1,24 +1,25 @@
-import { Effect } from 'effect';
-import { ANONYMOUS_USER_ID_PREFIX } from '../../constants';
-import { CacheManager } from '../caching/cache-manager';
-import { EventBusProvider } from '../event-bus';
-import { ApiClient } from '../networking/api-client';
-import { getCommonSdkHeaders } from '../utils/get-common-sdk-headers';
-import { CustomerAttributeManager } from './customer-attribute-manager';
-import { CustomerInfoManager } from './customer-info-manager';
+import { Effect } from "effect";
 
-const CACHE_KEY = 'appUserId';
+import { ANONYMOUS_USER_ID_PREFIX } from "../../constants";
+import { CacheManager } from "../caching/cache-manager";
+import { EventBusProvider } from "../event-bus";
+import { ApiClient } from "../networking/api-client";
+import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
+import { CustomerAttributeManager } from "./customer-attribute-manager";
+import { CustomerInfoManager } from "./customer-info-manager";
+
+const CACHE_KEY = "appUserId";
 
 export class IdentityManager extends Effect.Service<IdentityManager>()(
-  'rn-voidhash/IdentityManager',
+  "rn-voidhash/IdentityManager",
   {
     dependencies: [
       CacheManager.Default,
       CustomerAttributeManager.Default,
       CustomerInfoManager.Default,
-      ApiClient.Default
+      ApiClient.Default,
     ],
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       const cacheManager = yield* CacheManager;
       const customerAttributeManager = yield* CustomerAttributeManager;
       const customerInfoManager = yield* CustomerInfoManager;
@@ -30,7 +31,7 @@ export class IdentityManager extends Effect.Service<IdentityManager>()(
        * @returns The app user id.
        */
       const getAppUserId = () =>
-        Effect.gen(function* () {
+        Effect.gen(function* getAppUserId() {
           const appUserId = yield* getAppUserIdFromCache();
           if (appUserId) {
             yield* Effect.logDebug(`Using cached app user id: ${appUserId}`);
@@ -54,49 +55,49 @@ export class IdentityManager extends Effect.Service<IdentityManager>()(
           name?: string;
         }
       ) =>
-        Effect.gen(function* () {
+        Effect.gen(function* identify() {
           const currentAppUserId = yield* getAppUserId();
           yield* customerAttributeManager.syncCustomerAttributes(
             currentAppUserId
           );
           const commonHeaders = yield* getCommonSdkHeaders();
           const identifyRequest = yield* apiClient.sdk.identify({
+            headers: {
+              ...commonHeaders,
+              "x-app-user-id": currentAppUserId,
+            },
             payload: {
               appUserId,
               email: options.email,
-              name: options.name
+              name: options.name,
             },
-            headers: {
-              ...commonHeaders,
-              'x-app-user-id': currentAppUserId
-            }
           });
 
           yield* Effect.all([
             setAppUserIdInCache(appUserId),
-            customerInfoManager.cache(appUserId, identifyRequest)
+            customerInfoManager.cache(appUserId, identifyRequest),
           ]);
 
-          eventBus.emit('customer-identified');
-          eventBus.emit('customer-fetched', {
+          eventBus.emit("customer-identified");
+          eventBus.emit("customer-fetched", {
             ...identifyRequest,
-            appUserId
+            appUserId,
           });
         });
 
       const signOut = () =>
-        Effect.gen(function* () {
+        Effect.gen(function* signOut() {
           const currentAppUserId = yield* getAppUserId();
           yield* customerAttributeManager.syncCustomerAttributes(
             currentAppUserId
           );
           yield* cacheManager.clear();
-          eventBus.emit('customer-signed-out');
+          eventBus.emit("customer-signed-out");
         });
 
       // Helpers
       const generateAnonymousUserId = () =>
-        `${ANONYMOUS_USER_ID_PREFIX}${Math.random().toString(36).substring(2, 15)}`;
+        `${ANONYMOUS_USER_ID_PREFIX}${Math.random().toString(36).slice(2, 15)}`;
       const getAppUserIdFromCache = () =>
         cacheManager
           .get<string>(CACHE_KEY)
@@ -108,8 +109,8 @@ export class IdentityManager extends Effect.Service<IdentityManager>()(
         getAppUserId,
         getAppUserIdFromCache,
         identify,
-        signOut
+        signOut,
       } as const;
-    })
+    }),
   }
 ) {}

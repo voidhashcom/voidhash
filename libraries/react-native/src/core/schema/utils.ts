@@ -1,10 +1,10 @@
-import { ProductDefinition } from './products/base';
+import { ProductDefinition } from "./products/base";
 import type {
   AnySchemaConfiguration,
   ExtractSchemaConfigurations,
   ExtractSchemaProductDefinitions,
-  VoidhashSchema
-} from './types';
+  VoidhashSchema,
+} from "./types";
 
 export function extractProductDefinitions<TSchema extends VoidhashSchema>(
   schema: TSchema
@@ -34,11 +34,11 @@ export function extractSchemaConfigurations<TSchema extends VoidhashSchema>(
     // Check if this is a schema configuration by looking for the required properties
     if (
       value &&
-      typeof value === 'object' &&
-      'providers' in value &&
-      'perks' in value &&
-      'subscription' in value &&
-      typeof value.subscription === 'function'
+      typeof value === "object" &&
+      "providers" in value &&
+      "perks" in value &&
+      "subscription" in value &&
+      typeof value.subscription === "function"
     ) {
       // @ts-expect-error - TypeScript can't infer that key is a valid configuration key, but we know it is
       configurations[key] = value as AnySchemaConfiguration;

@@ -5,7 +5,7 @@ export class Transaction {
   readonly purchaseDate: number;
   readonly quantity: number;
   readonly isAcknowledged: boolean;
-  readonly platform: 'ios' | 'android';
+  readonly platform: "ios" | "android";
   readonly originalTransactionId?: string;
   readonly originalPurchaseDate?: number;
   readonly expirationDate?: number;
@@ -22,7 +22,7 @@ export class Transaction {
     purchaseDate: number,
     quantity: number,
     isAcknowledged: boolean,
-    platform: 'ios' | 'android',
+    platform: "ios" | "android",
     options?: {
       originalTransactionId?: string;
       originalPurchaseDate?: number;

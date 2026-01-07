@@ -1,4 +1,4 @@
-import type { DefinedPerks, DefinedProviders } from './types';
+import type { DefinedPerks, DefinedProviders } from "./types";
 
 export function paymentProviders<TConfig extends DefinedProviders>(
   config: TConfig

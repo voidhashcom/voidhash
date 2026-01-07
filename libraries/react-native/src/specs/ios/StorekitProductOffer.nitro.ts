@@ -1,7 +1,8 @@
-import type { HybridObject } from 'react-native-nitro-modules';
-import type { StorekitProductSubscriptionPeriod } from './StorekitProductSubscriptionPeriod.nitro';
+import type { HybridObject } from "react-native-nitro-modules";
 
-export interface StorekitProductOffer extends HybridObject<{ ios: 'swift' }> {
+import type { StorekitProductSubscriptionPeriod } from "./StorekitProductSubscriptionPeriod.nitro";
+
+export interface StorekitProductOffer extends HybridObject<{ ios: "swift" }> {
   readonly id?: string;
   readonly period: StorekitProductSubscriptionPeriod;
   readonly periodCount: number;

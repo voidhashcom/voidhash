@@ -1,11 +1,11 @@
-import { Effect } from 'effect';
+import { Effect } from "effect";
 
-export type Changeset = {};
+export interface Changeset {}
 
-export type MergePlan = {
+export interface MergePlan {
   local: Changeset;
   remote: Changeset;
-};
+}
 
 /**
  * With interaction with the user, creates a marge plan that resolves conflicts between local and remote data.
@@ -14,9 +14,9 @@ export type MergePlan = {
  * @returns
  */
 export const createMergePlan = (from: unknown, to: unknown) =>
-  Effect.gen(function* () {
+  Effect.gen(function* createMergePlan() {
     return yield* Effect.succeed({
       local: from,
-      remote: to
+      remote: to,
     });
   });

@@ -8,7 +8,7 @@ export class Product {
   readonly price: number;
   readonly currency: string;
   readonly type: string;
-  readonly platform: 'ios' | 'android';
+  readonly platform: "ios" | "android";
 
   constructor(
     id: string,
@@ -20,7 +20,7 @@ export class Product {
     price: number,
     currency: string,
     type: string,
-    platform: 'ios' | 'android'
+    platform: "ios" | "android"
   ) {
     this.id = id;
     this.slug = slug;
@@ -48,7 +48,7 @@ export class SubscriptionProduct extends Product {
     price: number,
     currency: string,
     type: string,
-    platform: 'ios' | 'android',
+    platform: "ios" | "android",
     interval: string
   ) {
     super(

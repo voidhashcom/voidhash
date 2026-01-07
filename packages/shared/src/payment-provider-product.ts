@@ -1,22 +1,22 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class PaymentProviderProductServiceError extends Schema.TaggedError<PaymentProviderProductServiceError>()(
-  'PaymentProviderProductServiceError',
+  "PaymentProviderProductServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class PaymentProviderProductValidationError extends Schema.TaggedError<PaymentProviderProductValidationError>()(
-  'PaymentProviderProductValidationError',
+  "PaymentProviderProductValidationError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}
 
 export class PaymentProviderProductNotFoundError extends Schema.TaggedError<PaymentProviderProductNotFoundError>()(
-  'PaymentProviderProductNotFoundError',
+  "PaymentProviderProductNotFoundError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}

@@ -1,8 +1,8 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class ActionForbiddenError extends Schema.TaggedError<ActionForbiddenError>()(
-  'ActionForbiddenError',
+  "ActionForbiddenError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}

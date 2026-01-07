@@ -1,19 +1,20 @@
-import { FileSystem } from '@effect/platform';
-import { Effect } from 'effect';
-import type { Writable } from '../../utils/types';
-import type { VoidhashConfigSchema } from '../schema/voidhash-config';
+import { FileSystem } from "@effect/platform";
+import { Effect } from "effect";
 
-export class Codegen extends Effect.Service<Codegen>()('voidhash-cli/Codegen', {
+import type { Writable } from "../../utils/types";
+import type { VoidhashConfigSchema } from "../schema/voidhash-config";
+
+export class Codegen extends Effect.Service<Codegen>()("voidhash-cli/Codegen", {
   dependencies: [],
   // Define how to create the service
-  effect: Effect.gen(function* () {
+  effect: Effect.gen(function* effect() {
     const fileSystem = yield* FileSystem.FileSystem;
 
     const generateVoidhashConfigFile = (
       path: string,
       config: Writable<typeof VoidhashConfigSchema.Type>
     ) =>
-      Effect.gen(function* () {
+      Effect.gen(function* generateVoidhashConfigFile() {
         const content = `import { defineConfig } from 'voidhash-cli';
 
 export default defineConfig({
@@ -25,14 +26,16 @@ export default defineConfig({
         yield* fileSystem.writeFileString(path, content);
       });
 
-    const generateClientFile = (path: string) => Effect.gen(function* () {});
+    const generateClientFile = (path: string) =>
+      Effect.gen(function* generateClientFile() {});
 
-    const generateSchemaFile = (path: string) => Effect.gen(function* () {});
+    const generateSchemaFile = (path: string) =>
+      Effect.gen(function* generateSchemaFile() {});
 
     return {
-      generateVoidhashConfigFile,
       generateClientFile,
-      generateSchemaFile
+      generateSchemaFile,
+      generateVoidhashConfigFile,
     } as const;
-  })
+  }),
 }) {}

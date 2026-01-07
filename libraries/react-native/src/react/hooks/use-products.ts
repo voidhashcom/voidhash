@@ -1,14 +1,15 @@
-import React, { useCallback, useMemo } from 'react';
-import type { VoidhashClient } from '../../client';
-import type { SubscriptionProduct } from '../../core/entities/product';
+import React, { useCallback, useMemo } from "react";
+
+import type { VoidhashClient } from "../../client";
+import type { SubscriptionProduct } from "../../core/entities/product";
 import type {
   ExtractSchemaProductDefinitions,
   InferGetProductResponseFromSchema,
   SubscriptionProductDefinition,
-  VoidhashSchema
-} from '../../core/schema';
-import type { VoidhashContext } from '../components/provider';
-import useAsyncFunction from './use-async-function';
+  VoidhashSchema,
+} from "../../core/schema";
+import type { VoidhashContext } from "../components/provider";
+import useAsyncFunction from "./use-async-function";
 
 export function productsHookFactory<TSchema extends VoidhashSchema>(
   client: VoidhashClient<TSchema>,
@@ -17,17 +18,14 @@ export function productsHookFactory<TSchema extends VoidhashSchema>(
   function useProducts() {
     const voidhashContext = React.useContext(vhContext);
 
-    const getProductsCallback = useCallback(
-      () => client.getProducts(),
-      [client]
-    );
+    const getProductsCallback = useCallback(() => client.getProducts(), []);
 
     const {
       data: products,
       isLoading,
-      error
+      error,
     } = useAsyncFunction(getProductsCallback, {
-      enabled: voidhashContext?.isInitialized
+      enabled: voidhashContext?.isInitialized,
     });
 
     const getProduct = useCallback(
@@ -64,21 +62,22 @@ export function productsHookFactory<TSchema extends VoidhashSchema>(
       [products]
     );
 
-    const data = useMemo(() => {
-      return {
+    const data = useMemo(
+      () => ({
         ...products,
         get: getProduct,
-        toList
-      };
-    }, [products, getProduct, toList]);
+        toList,
+      }),
+      [products, getProduct, toList]
+    );
 
     return {
       data: data as InferGetProductResponseFromSchema<TSchema> & {
         get: typeof getProduct;
         toList: typeof toList;
       },
+      error,
       isLoading,
-      error
     };
   }
   return useProducts;

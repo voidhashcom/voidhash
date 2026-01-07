@@ -1,8 +1,8 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class UserServiceError extends Schema.TaggedError<UserServiceError>()(
-  'UserServiceError',
+  "UserServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}

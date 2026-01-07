@@ -1,15 +1,16 @@
-import type { SdkCustomer } from '@voidhash/api-spec';
-import { Effect } from 'effect';
-import { CacheManager } from '../caching/cache-manager';
-import { EventBusProvider } from '../event-bus';
-import { ApiClient } from '../networking/api-client';
-import { getCommonSdkHeaders } from '../utils/get-common-sdk-headers';
+import type { SdkCustomer } from "@voidhash/api-spec";
+import { Effect } from "effect";
+
+import { CacheManager } from "../caching/cache-manager";
+import { EventBusProvider } from "../event-bus";
+import { ApiClient } from "../networking/api-client";
+import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 
 export class CustomerInfoManager extends Effect.Service<CustomerInfoManager>()(
-  'rn-voidhash/CustomerInfoManager',
+  "rn-voidhash/CustomerInfoManager",
   {
     dependencies: [CacheManager.Default, ApiClient.Default],
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       const cacheManager = yield* CacheManager;
       const apiClient = yield* ApiClient;
       const eventBus = yield* EventBusProvider;
@@ -23,37 +24,37 @@ export class CustomerInfoManager extends Effect.Service<CustomerInfoManager>()(
       const cache = (appUserId: string, customer: SdkCustomer) =>
         cacheManager.set(generateCustomerCacheKey(appUserId), customer, {
           ttl: 1000 * 60 * 60 * 24 * 2, // 2 days
-          staleTime: 1000 * 60 * 5 // 5 minutes
+          staleTime: 1000 * 60 * 5, // 5 minutes
         });
 
       const resetCache = (appUserId: string) =>
         cacheManager.delete(generateCustomerCacheKey(appUserId));
 
       const getCustomerFromServerAndCache = (appUserId: string) =>
-        Effect.gen(function* () {
+        Effect.gen(function* getCustomerFromServerAndCache() {
           const commonHeaders = yield* getCommonSdkHeaders();
           const result = yield* apiClient.sdk.getCustomer({
             headers: {
               ...commonHeaders,
-              'x-app-user-id': appUserId
-            }
+              "x-app-user-id": appUserId,
+            },
           });
-          eventBus.emit('customer-fetched', result);
+          eventBus.emit("customer-fetched", result);
           yield* cache(appUserId, result);
           return result;
         });
 
       const getCustomer = (
         appUserId: string,
-        cachePolicy: 'cache' | 'fetch' | 'fetch-while-stale'
+        cachePolicy: "cache" | "fetch" | "fetch-while-stale"
       ) =>
-        Effect.gen(function* () {
-          if (cachePolicy === 'cache') {
+        Effect.gen(function* getCustomer() {
+          if (cachePolicy === "cache") {
             const customerFromCache = yield* getCustomerFromCache(appUserId);
             return customerFromCache?.value ?? null;
           }
 
-          if (cachePolicy === 'fetch') {
+          if (cachePolicy === "fetch") {
             return yield* getCustomerFromServerAndCache(appUserId);
           }
 
@@ -72,11 +73,11 @@ export class CustomerInfoManager extends Effect.Service<CustomerInfoManager>()(
         });
 
       return {
+        cache,
         getCustomer,
         getCustomerFromCache,
-        cache,
-        resetCache
+        resetCache,
       } as const;
-    })
+    }),
   }
 ) {}

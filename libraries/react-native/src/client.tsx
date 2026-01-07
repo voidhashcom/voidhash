@@ -1,39 +1,40 @@
-import { FetchHttpClient } from '@effect/platform';
-import { Exit, Layer, ManagedRuntime, pipe } from 'effect';
-import { VoidhashEffectClient } from './client-effect';
-import { AsyncStorageCacheAdapter } from './core/caching/async-storage-cache';
-import { CacheManager } from './core/caching/cache-manager';
-import { type EventBus, EventBusProvider } from './core/event-bus';
-import { CustomerAttributeManager } from './core/identity/customer-attribute-manager';
-import { CustomerInfoManager } from './core/identity/customer-info-manager';
-import { IdentityManager } from './core/identity/identity-manager';
-import { ApiClient } from './core/networking/api-client';
-import { AppStoreAdapter } from './core/payment-adapters/app-store-adapter';
-import { GooglePlayAdapter } from './core/payment-adapters/google-play-adapter';
-import type { PlatformInfo } from './core/platform/platform-provider';
-import { ReactNativePlatformProvider } from './core/platform/react-native-platform-provider';
+import { FetchHttpClient } from "@effect/platform";
+import { Exit, Layer, ManagedRuntime, pipe } from "effect";
+
+import { VoidhashEffectClient } from "./client-effect";
+import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";
+import { CacheManager } from "./core/caching/cache-manager";
+import { type EventBus, EventBusProvider } from "./core/event-bus";
+import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
+import { CustomerInfoManager } from "./core/identity/customer-info-manager";
+import { IdentityManager } from "./core/identity/identity-manager";
+import { ApiClient } from "./core/networking/api-client";
+import { AppStoreAdapter } from "./core/payment-adapters/app-store-adapter";
+import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
+import type { PlatformInfo } from "./core/platform/platform-provider";
+import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
 import type {
   InferGetProductResponseFromSchema,
-  VoidhashSchema
-} from './core/schema';
-import { SdkConfiguration } from './core/sdk-configuration';
-import { VoidhashError } from './errors';
+  VoidhashSchema,
+} from "./core/schema";
+import { SdkConfiguration } from "./core/sdk-configuration";
+import { VoidhashError } from "./errors";
 
-export type VoidhashClientOptions<TSchema extends VoidhashSchema> = {
+export interface VoidhashClientOptions<TSchema extends VoidhashSchema> {
   baseUrl?: string;
   userId?: string;
   scheme?: string;
   schema: TSchema;
   debug?: boolean;
-};
+}
 
 const CreateEffectRuntime = (
-  platform: PlatformInfo['platform'],
+  platform: PlatformInfo["platform"],
   baseUrl: string,
   publishableKey: string,
   eventBus: EventBus
-) => {
-  return ManagedRuntime.make(
+) =>
+  ManagedRuntime.make(
     pipe(
       CustomerAttributeManager.Default,
       Layer.provideMerge(CustomerInfoManager.Default),
@@ -43,7 +44,7 @@ const CreateEffectRuntime = (
       Layer.provideMerge(ApiClient.Default),
       Layer.provideMerge(FetchHttpClient.layer),
       Layer.provideMerge(
-        platform === 'ios' ? AppStoreAdapter : GooglePlayAdapter
+        platform === "ios" ? AppStoreAdapter : GooglePlayAdapter
       ),
       Layer.provideMerge(Layer.succeed(EventBusProvider, eventBus)),
       Layer.provideMerge(ReactNativePlatformProvider),
@@ -52,7 +53,6 @@ const CreateEffectRuntime = (
       )
     )
   );
-};
 
 export class VoidhashClient<TSchema extends VoidhashSchema> {
   private _isInitialized = false;
@@ -77,7 +77,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     baseUrl: string,
     publishableKey: string,
     eventBus: EventBus,
-    platform: Exclude<PlatformInfo['platform'], 'unknown'>
+    platform: Exclude<PlatformInfo["platform"], "unknown">
   ) {
     this.initialAppUserId = initialAppUserId;
     this.scheme = scheme;
@@ -99,7 +99,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     const initializedClientResult = await this.effectRuntime.runPromiseExit(
       this.unitializedClient.init<TSchema>({
         initialAppUserId: this.initialAppUserId ?? undefined,
-        schema: this.schema
+        schema: this.schema,
       })
     );
 
@@ -109,7 +109,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     // TODO: Handle different erros that can happen properly
-    throw new VoidhashError('FAILED_TO_INITIALIZE_VOIDHASH_CLIENT');
+    throw new VoidhashError("FAILED_TO_INITIALIZE_VOIDHASH_CLIENT");
   }
 
   /**
@@ -129,7 +129,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     // TODO: Handle different erros that can happen properly
-    throw new VoidhashError('FAILED_TO_END_VOIDHASH_CLIENT');
+    throw new VoidhashError("FAILED_TO_END_VOIDHASH_CLIENT");
   }
 
   /**
@@ -156,7 +156,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     // TODO: Handle different erros that can happen properly
-    throw new VoidhashError('FAILED_TO_GET_CURRENT_CUSTOMER');
+    throw new VoidhashError("FAILED_TO_GET_CURRENT_CUSTOMER");
   }
 
   /**
@@ -181,7 +181,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     // TODO: Handle different erros that can happen properly
-    throw new VoidhashError('FAILED_TO_IDENTIFY');
+    throw new VoidhashError("FAILED_TO_IDENTIFY");
   }
 
   /**
@@ -199,7 +199,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     // TODO: Handle different erros that can happen properly
-    throw new VoidhashError('FAILED_TO_SIGN_OUT');
+    throw new VoidhashError("FAILED_TO_SIGN_OUT");
   }
 
   /**
@@ -220,7 +220,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     // TODO: Handle different erros that can happen properly
-    throw new VoidhashError('FAILED_TO_GET_PRODUCTS');
+    throw new VoidhashError("FAILED_TO_GET_PRODUCTS");
   }
 
   /**
@@ -236,7 +236,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
       InferGetProductResponseFromSchema<TSchema>[keyof InferGetProductResponseFromSchema<TSchema>]
     >,
     _options: {
-      method?: 'native';
+      method?: "native";
     }
   ) {
     this.ensureInitialized();
@@ -250,7 +250,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     // TODO: Handle different erros that can happen properly
-    throw new VoidhashError('FAILED_TO_PURCHASE');
+    throw new VoidhashError("FAILED_TO_PURCHASE");
   }
 
   // ===============================
@@ -275,7 +275,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     // TODO: Handle different erros that can happen properly
-    throw new VoidhashError('FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET');
+    throw new VoidhashError("FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET");
   }
 
   /**
@@ -296,7 +296,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     // TODO: Handle different erros that can happen properly
-    throw new VoidhashError('FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS');
+    throw new VoidhashError("FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS");
   }
 
   // ===============================
@@ -322,8 +322,8 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
   private ensureInitialized() {
     if (!this.initializedClient) {
       throw new VoidhashError(
-        'VOIDHASH_CLIENT_NOT_INITIALIZED',
-        new Error('ProductManager is not initialized')
+        "VOIDHASH_CLIENT_NOT_INITIALIZED",
+        new Error("ProductManager is not initialized")
       );
     }
   }

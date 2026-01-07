@@ -1,22 +1,23 @@
-import { Layer } from 'effect';
+import { Layer } from "effect";
+
 import {
   type PlatformInfo,
-  PlatformProvider
-} from '../platform/platform-provider';
+  PlatformProvider,
+} from "../platform/platform-provider";
 
 const defaultTestPlatformInfo: PlatformInfo = {
-  bundleId: 'com.voidhash.test',
+  appVersion: "1.0.0",
+  bundleId: "com.voidhash.test",
+  deviceBrand: "Test Brand",
+  deviceName: "Test Device",
+  isDebugBuild: true,
   locales: [
     {
-      languageTag: 'en-US'
-    }
+      languageTag: "en-US",
+    },
   ],
-  systemVersion: '1.0.0',
-  deviceName: 'Test Device',
-  deviceBrand: 'Test Brand',
-  appVersion: '1.0.0',
-  isDebugBuild: true,
-  platform: 'ios'
+  platform: "ios",
+  systemVersion: "1.0.0",
 };
 
 export const ReactNativePlatformProvider = (
@@ -24,5 +25,5 @@ export const ReactNativePlatformProvider = (
 ) =>
   Layer.succeed(PlatformProvider, {
     ...defaultTestPlatformInfo,
-    ...platformInfo
+    ...platformInfo,
   });

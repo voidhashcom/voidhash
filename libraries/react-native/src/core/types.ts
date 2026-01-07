@@ -57,23 +57,23 @@ export type FetchEsque = (
 ) => Promise<ResponseEsque>;
 
 // API
-export type CustomerResponse = {
+export interface CustomerResponse {
   customerId: string;
   name: null;
   email: null;
   appUserId: null;
-};
+}
 
-export type PaywallProduct = {
+export interface PaywallProduct {
   paywallProductId: string;
   productId: string;
   displayName: string;
   price: null | number;
   nativePurchaseAvailable: boolean;
   webCheckoutAvailable: boolean;
-};
+}
 
-export type ConfigurationResponse = {
+export interface ConfigurationResponse {
   paywalls: {
     paywallId: string;
     paywallProducts: {
@@ -102,9 +102,9 @@ export type ConfigurationResponse = {
     paymentProviderConfigurationId: string;
     providerId: string;
   }[];
-};
+}
 
-export type CheckoutSessionResponse = {
+export interface CheckoutSessionResponse {
   checkoutSessionId: string;
   checkoutUrl: string;
-};
+}

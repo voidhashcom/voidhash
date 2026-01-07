@@ -1,8 +1,9 @@
 // Credits: A lot of this was inspired by https://github.com/hyochan/expo-iap
-import type { HybridObject } from 'react-native-nitro-modules';
-import type { StorekitProductSubscription } from './StorekitProductSubscription.nitro';
+import type { HybridObject } from "react-native-nitro-modules";
 
-export interface StorekitProduct extends HybridObject<{ ios: 'swift' }> {
+import type { StorekitProductSubscription } from "./StorekitProductSubscription.nitro";
+
+export interface StorekitProduct extends HybridObject<{ ios: "swift" }> {
   readonly debugDescription?: string | null;
   readonly description: string;
   readonly displayName: string;

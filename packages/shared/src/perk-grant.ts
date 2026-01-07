@@ -1,8 +1,8 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class PerkGrantServiceError extends Schema.TaggedError<PerkGrantServiceError>()(
-  'PerkGrantServiceError',
+  "PerkGrantServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}

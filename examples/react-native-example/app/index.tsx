@@ -1,10 +1,11 @@
-import { MenuItem } from 'components/menu-item';
-import { useRouter } from 'expo-router';
-import { ActivityIndicator, Image, Text, View } from 'react-native';
-import { fakeAuthService, useCurrentUser } from 'utils/fake-auth-service';
-import { cn } from 'utils/lib';
-import { voidhash } from 'utils/voidhash/local.client';
-import { Logo } from '../components/logo';
+import { MenuItem } from "components/menu-item";
+import { useRouter } from "expo-router";
+import { ActivityIndicator, Image, Text, View } from "react-native";
+import { fakeAuthService, useCurrentUser } from "utils/fake-auth-service";
+import { cn } from "utils/lib";
+import { voidhash } from "utils/voidhash/local.client";
+
+import { Logo } from "../components/logo";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function HomeScreen() {
           <>
             <View
               className={cn(
-                'flex flex-row items-center gap-6 rounded-t-lg border-zinc-800 border-b bg-zinc-900 p-3'
+                "flex flex-row items-center gap-6 rounded-t-lg border-zinc-800 border-b bg-zinc-900 p-3"
               )}
             >
               <Image
@@ -64,20 +65,20 @@ export default function HomeScreen() {
           isFirst={!user}
           isLast
           onPress={() => {
-            router.push('/menu/sign-in');
+            router.push("/menu/sign-in");
           }}
-          title={user ? 'Switch account' : 'Sign in'}
+          title={user ? "Switch account" : "Sign in"}
         />
       </View>
       <View className="mt-8 flex-1 justify-start">
         <MenuItem
           isFirst
-          onPress={() => router.push('/menu/paywall')}
+          onPress={() => router.push("/menu/paywall")}
           title="Paywall"
         />
         <MenuItem
           isLast
-          onPress={() => router.push('/menu/customer')}
+          onPress={() => router.push("/menu/customer")}
           title="Customer"
         />
         <View className="mt-8">

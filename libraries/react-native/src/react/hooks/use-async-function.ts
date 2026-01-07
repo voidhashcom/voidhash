@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
-import { UnknownVoidhashError, VoidhashError } from '../../errors';
+import { useCallback, useEffect, useReducer, useRef } from "react";
+
+import { UnknownVoidhashError, VoidhashError } from "../../errors";
 
 interface State<T> {
   data?: T | undefined;
@@ -9,13 +10,13 @@ interface State<T> {
 
 // discriminated union type
 type Action<T> =
-  | { type: 'loading' }
-  | { type: 'executed'; payload: T }
-  | { type: 'error'; payload: VoidhashError };
+  | { type: "loading" }
+  | { type: "executed"; payload: T }
+  | { type: "error"; payload: VoidhashError };
 
-type UseAsyncFunctionOptions = {
+interface UseAsyncFunctionOptions {
   enabled?: boolean;
-};
+}
 
 type UseAsyncFunctionReturn<T> = State<T> & {
   refetch: () => Promise<void>;
@@ -29,22 +30,26 @@ function useAsyncFunction<T = unknown>(
   const cancelRequest = useRef<boolean>(false);
 
   const initialState: State<T> = {
-    error: undefined,
     data: undefined,
-    isLoading: false
+    error: undefined,
+    isLoading: false,
   };
 
   // Keep state logic separated
   const asyncFnReducer = (state: State<T>, action: Action<T>): State<T> => {
     switch (action.type) {
-      case 'loading':
+      case "loading": {
         return { ...initialState, isLoading: true };
-      case 'executed':
+      }
+      case "executed": {
         return { ...initialState, data: action.payload, isLoading: false };
-      case 'error':
+      }
+      case "error": {
         return { ...initialState, error: action.payload, isLoading: false };
-      default:
+      }
+      default: {
         return state;
+      }
     }
   };
 
@@ -52,7 +57,7 @@ function useAsyncFunction<T = unknown>(
 
   const executeAsyncFunction = useCallback(async () => {
     cancelRequest.current = false;
-    dispatch({ type: 'loading' });
+    dispatch({ type: "loading" });
 
     try {
       const data = await asyncFn();
@@ -61,21 +66,21 @@ function useAsyncFunction<T = unknown>(
         return;
       }
 
-      dispatch({ type: 'executed', payload: data });
+      dispatch({ payload: data, type: "executed" });
     } catch (error) {
       if (cancelRequest.current) {
         return;
       }
 
       if (error instanceof VoidhashError) {
-        dispatch({ type: 'error', payload: error });
+        dispatch({ payload: error, type: "error" });
       }
 
       dispatch({
-        type: 'error',
         payload: new UnknownVoidhashError(
           error instanceof Error ? error : new Error(error as string)
-        )
+        ),
+        type: "error",
       });
     }
   }, [asyncFn]);
@@ -100,7 +105,7 @@ function useAsyncFunction<T = unknown>(
 
   return {
     ...state,
-    refetch
+    refetch,
   };
 }
 

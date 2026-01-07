@@ -1,17 +1,18 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: we use it for GoogleBilling that is only available on Android */
 
-import { ProductNotFoundError } from '@voidhash/shared';
-import { Effect, Layer } from 'effect';
-import { GoogleBilling } from '../../nitro';
-import type { GoogleBillingProductDetail } from '../../specs/android/GoogleBillingProductDetail.nitro';
-import type { GoogleBillingPurchase } from '../../specs/android/GoogleBillingPurchase.nitro';
-import { Product, type SubscriptionProduct } from '../entities/product';
-import { Transaction } from '../entities/transaction';
+import { ProductNotFoundError } from "@voidhash/shared";
+import { Effect, Layer } from "effect";
+
+import { GoogleBilling } from "../../nitro";
+import type { GoogleBillingProductDetail } from "../../specs/android/GoogleBillingProductDetail.nitro";
+import type { GoogleBillingPurchase } from "../../specs/android/GoogleBillingPurchase.nitro";
+import { Product, type SubscriptionProduct } from "../entities/product";
+import { Transaction } from "../entities/transaction";
 import {
   type ExtractSchemaProductDefinitions,
   ProductDefinition,
-  type VoidhashSchema
-} from '../schema';
+  type VoidhashSchema,
+} from "../schema";
 import {
   FailedToAcknowledgePurchaseError,
   FailedToBuyProductError,
@@ -22,124 +23,58 @@ import {
   GetPurchaseHistoryError,
   NativeAdapterNotInitializedError,
   PurchasePendingError,
-  UserCancelledError
-} from './errors';
-import { PaymentAdapter } from './payment-adapter';
+  UserCancelledError,
+} from "./errors";
+import { PaymentAdapter } from "./payment-adapter";
 
 export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
-  initConnection(
-    onPurchase?: (transaction: Transaction) => void
-  ): Effect.Effect<void, FailedToInitializeNativeAdapterError, never> {
-    return Effect.gen(function* () {
+  acknowledgePurchase(
+    transaction: Transaction
+  ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never> {
+    return Effect.gen(function* acknowledgePurchase() {
       if (!GoogleBilling) {
         return yield* Effect.fail(
-          new FailedToInitializeNativeAdapterError({
-            message: 'Google Billing is not available on this platform'
+          new FailedToAcknowledgePurchaseError({
+            message: "Google Billing is not available on this platform",
           })
         );
       }
 
-      const onPurchaseCallback = onPurchase
-        ? (nativePurchase: GoogleBillingPurchase) => {
-            const transaction =
-              mapGoogleBillingPurchaseToTransaction(nativePurchase);
-            onPurchase(transaction);
-          }
-        : undefined;
-
-      yield* Effect.tryPromise({
-        try: () => GoogleBilling!.initConnection(onPurchaseCallback),
-        catch: (error) =>
-          new FailedToInitializeNativeAdapterError({
-            message: 'Failed to initialize native adapter',
-            cause: error
-          })
+      Effect.logDebug("Attempting to acknowledge purchase", {
+        transactionId: transaction.id,
       });
 
-      return yield* Effect.succeed(undefined);
-    });
-  },
-
-  endConnection(): Effect.Effect<void, FailedToEndNativeAdapterError, never> {
-    return Effect.tryPromise({
-      try: () => GoogleBilling!.endConnection(),
-      catch: (error) =>
-        new FailedToEndNativeAdapterError({
-          message: 'Failed to end native adapter',
-          cause: error
-        })
-    });
-  },
-
-  getProducts<
-    TSchema extends VoidhashSchema,
-    TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>
-  >(
-    productDefinitions: TDefinedProducts
-  ): Effect.Effect<
-    Product[],
-    NativeAdapterNotInitializedError | FailedToGetProductsError,
-    never
-  > {
-    return Effect.gen(function* () {
-      if (!GoogleBilling) {
+      if (!transaction.purchaseToken) {
         return yield* Effect.fail(
-          new NativeAdapterNotInitializedError({
-            message: 'Google Billing is not available on this platform'
+          new FailedToAcknowledgePurchaseError({
+            message: "Purchase token is required for acknowledgment",
           })
         );
       }
 
-      const productIds = Object.values(productDefinitions).map((product) => {
-        if (product instanceof ProductDefinition) {
-          return {
-            slug: product.slug,
-            id: product.configuration.providers.googlePlay?.productId
-          };
-        }
-        return null;
-      });
-
-      const inappProducts = yield* Effect.tryPromise({
-        try: () =>
-          GoogleBilling!.getItemsByType(
-            'inapp',
-            productIds
-              .map((pair) => pair?.id)
-              .filter((id): id is string => id !== null)
-          ),
+      const result = yield* Effect.tryPromise({
         catch: (error) =>
-          new FailedToGetProductsError({
-            message: 'Failed to get products',
-            cause: error
-          })
-      });
-
-      const subsProducts = yield* Effect.tryPromise({
+          new FailedToAcknowledgePurchaseError({
+            cause: error,
+            message: "Failed to acknowledge purchase",
+          }),
         try: () =>
-          GoogleBilling!.getItemsByType(
-            'subs',
-            productIds
-              .map((pair) => pair?.id)
-              .filter((id): id is string => id !== null)
-          ),
-        catch: (error) =>
-          new FailedToGetProductsError({
-            message: 'Failed to get products',
-            cause: error
-          })
+          GoogleBilling!.acknowledgePurchase(transaction.purchaseToken!),
       });
 
-      const allProducts = [...inappProducts, ...subsProducts];
-      return yield* Effect.succeed(
-        allProducts.map((nativeProduct) =>
-          mapGoogleBillingProductToProduct(
-            productIds.find((pair) => pair?.id === nativeProduct.id)?.slug ??
-              '',
-            nativeProduct
-          )
-        )
-      );
+      if (result.responseCode !== 0) {
+        return yield* Effect.fail(
+          new FailedToAcknowledgePurchaseError({
+            cause: new Error(result.message),
+            message: "Failed to acknowledge purchase",
+          })
+        );
+      }
+
+      Effect.logDebug("Purchase acknowledged successfully", {
+        transactionId: transaction.id,
+      });
+      return yield* Effect.void;
     });
   },
 
@@ -156,71 +91,71 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
     | FailedToBuyProductError,
     never
   > {
-    return Effect.gen(function* () {
+    return Effect.gen(function* buyProduct() {
       if (!GoogleBilling) {
         return yield* Effect.fail(
           new NativeAdapterNotInitializedError({
-            message: 'Google Billing is not available on this platform'
+            message: "Google Billing is not available on this platform",
           })
         );
       }
 
-      Effect.logDebug('Attempting to buy product', { productId: product.id });
+      Effect.logDebug("Attempting to buy product", { productId: product.id });
 
       // Determine product type based on the product's type field
-      const productType: 'inapp' | 'subs' =
-        product.type === 'subs' ? 'subs' : 'inapp';
+      const productType: "inapp" | "subs" =
+        product.type === "subs" ? "subs" : "inapp";
 
       const nativePurchases = yield* Effect.tryPromise({
-        try: () =>
-          GoogleBilling!.buyItemByType({
-            type: productType,
-            skuArr: [product.id],
-            purchaseToken: undefined,
-            replacementMode: undefined,
-            obfuscatedAccountId: appAccountToken,
-            obfuscatedProfileId: undefined,
-            offerTokenArr: undefined,
-            isOfferPersonalized: false
-          }),
         catch: (error) => {
           if (error instanceof Error) {
-            if (error.message.startsWith('USER_CANCELLED')) {
+            if (error.message.startsWith("USER_CANCELLED")) {
               return new UserCancelledError({
-                message: 'User cancelled the purchase'
+                message: "User cancelled the purchase",
               });
             }
 
-            if (error.message.startsWith('PURCHASE_PENDING')) {
+            if (error.message.startsWith("PURCHASE_PENDING")) {
               return new PurchasePendingError({
-                message: 'Purchase is pending'
+                message: "Purchase is pending",
               });
             }
 
-            if (error.message.startsWith('GOOGLE_BILLING_NOT_INITIALIZED')) {
+            if (error.message.startsWith("GOOGLE_BILLING_NOT_INITIALIZED")) {
               return new NativeAdapterNotInitializedError({
-                message: 'Native adapter not initialized'
+                message: "Native adapter not initialized",
               });
             }
 
-            if (error.message.startsWith('SKU_NOT_FOUND')) {
+            if (error.message.startsWith("SKU_NOT_FOUND")) {
               return new ProductNotFoundError({
-                message: 'Product not found'
+                message: "Product not found",
               });
             }
           }
 
           return new FailedToBuyProductError({
-            message: 'Failed to buy product',
-            cause: error
+            cause: error,
+            message: "Failed to buy product",
           });
-        }
+        },
+        try: () =>
+          GoogleBilling!.buyItemByType({
+            isOfferPersonalized: false,
+            obfuscatedAccountId: appAccountToken,
+            obfuscatedProfileId: undefined,
+            offerTokenArr: undefined,
+            purchaseToken: undefined,
+            replacementMode: undefined,
+            skuArr: [product.id],
+            type: productType,
+          }),
       });
 
       if (nativePurchases.length === 0) {
         return yield* Effect.fail(
           new FailedToBuyProductError({
-            message: 'No purchase returned from Google Billing'
+            message: "No purchase returned from Google Billing",
           })
         );
       }
@@ -228,116 +163,22 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
       const transaction = mapGoogleBillingPurchaseToTransaction(
         nativePurchases[0]
       );
-      Effect.logDebug('Purchase successful', {
-        transactionId: transaction.id
+      Effect.logDebug("Purchase successful", {
+        transactionId: transaction.id,
       });
 
       return yield* Effect.succeed(transaction);
     });
   },
 
-  acknowledgePurchase(
-    transaction: Transaction
-  ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never> {
-    return Effect.gen(function* () {
-      if (!GoogleBilling) {
-        return yield* Effect.fail(
-          new FailedToAcknowledgePurchaseError({
-            message: 'Google Billing is not available on this platform'
-          })
-        );
-      }
-
-      Effect.logDebug('Attempting to acknowledge purchase', {
-        transactionId: transaction.id
-      });
-
-      if (!transaction.purchaseToken) {
-        return yield* Effect.fail(
-          new FailedToAcknowledgePurchaseError({
-            message: 'Purchase token is required for acknowledgment'
-          })
-        );
-      }
-
-      const result = yield* Effect.tryPromise({
-        try: () =>
-          GoogleBilling!.acknowledgePurchase(transaction.purchaseToken!),
-        catch: (error) =>
-          new FailedToAcknowledgePurchaseError({
-            message: 'Failed to acknowledge purchase',
-            cause: error
-          })
-      });
-
-      if (result.responseCode !== 0) {
-        return yield* Effect.fail(
-          new FailedToAcknowledgePurchaseError({
-            message: 'Failed to acknowledge purchase',
-            cause: new Error(result.message)
-          })
-        );
-      }
-
-      Effect.logDebug('Purchase acknowledged successfully', {
-        transactionId: transaction.id
-      });
-      return yield* Effect.succeed(undefined);
-    });
-  },
-
-  getPurchaseHistory(
-    onlyIncludeActiveItems = false
-  ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never> {
-    return Effect.gen(function* () {
-      if (!GoogleBilling) {
-        return yield* Effect.fail(
-          new GetPurchaseHistoryError({
-            message: 'Google Billing is not available on this platform'
-          })
-        );
-      }
-
-      Effect.logDebug('Getting purchase history', { onlyIncludeActiveItems });
-
-      const inappPurchases = yield* Effect.tryPromise({
-        try: () => GoogleBilling!.getAvailableItemsByType('inapp'),
-        catch: (error) =>
-          new GetPurchaseHistoryError({
-            message: 'Failed to get in-app purchase history',
-            cause: error
-          })
-      });
-
-      const subsPurchases = yield* Effect.tryPromise({
-        try: () => GoogleBilling!.getAvailableItemsByType('subs'),
-        catch: (error) =>
-          new GetPurchaseHistoryError({
-            message: 'Failed to get subscription purchase history',
-            cause: error
-          })
-      });
-
-      const allPurchases = [...inappPurchases, ...subsPurchases];
-      const transactions = allPurchases.map((purchase) =>
-        mapGoogleBillingPurchaseToTransaction(purchase)
-      );
-
-      if (onlyIncludeActiveItems) {
-        const activeTransactions = transactions.filter(
-          // TODO: Check if this is the correct way to do this
-          (t) => t.isAutoRenewing || t.productId.includes('inapp')
-        );
-        Effect.logDebug('Filtered active transactions', {
-          count: activeTransactions.length
-        });
-        return yield* Effect.succeed(activeTransactions);
-      }
-
-      Effect.logDebug('Retrieved all purchase history', {
-        count: transactions.length
-      });
-      return yield* Effect.succeed(transactions);
+  endConnection(): Effect.Effect<void, FailedToEndNativeAdapterError, never> {
+    return Effect.tryPromise({
+      catch: (error) =>
+        new FailedToEndNativeAdapterError({
+          cause: error,
+          message: "Failed to end native adapter",
+        }),
+      try: () => GoogleBilling!.endConnection(),
     });
   },
 
@@ -349,10 +190,170 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
     // Google Billing doesn't have a direct equivalent to pending transactions
     // Pending transactions are typically handled through the purchase callback
     Effect.logDebug(
-      'Getting pending transactions (Google Play returns empty array)'
+      "Getting pending transactions (Google Play returns empty array)"
     );
     return Effect.succeed([]);
-  }
+  },
+
+  getProducts<
+    TSchema extends VoidhashSchema,
+    TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>,
+  >(
+    productDefinitions: TDefinedProducts
+  ): Effect.Effect<
+    Product[],
+    NativeAdapterNotInitializedError | FailedToGetProductsError,
+    never
+  > {
+    return Effect.gen(function* getProducts() {
+      if (!GoogleBilling) {
+        return yield* Effect.fail(
+          new NativeAdapterNotInitializedError({
+            message: "Google Billing is not available on this platform",
+          })
+        );
+      }
+
+      const productIds = Object.values(productDefinitions).map((product) => {
+        if (product instanceof ProductDefinition) {
+          return {
+            id: product.configuration.providers.googlePlay?.productId,
+            slug: product.slug,
+          };
+        }
+        return null;
+      });
+
+      const inappProducts = yield* Effect.tryPromise({
+        catch: (error) =>
+          new FailedToGetProductsError({
+            cause: error,
+            message: "Failed to get products",
+          }),
+        try: () =>
+          GoogleBilling!.getItemsByType(
+            "inapp",
+            productIds
+              .map((pair) => pair?.id)
+              .filter((id): id is string => id !== null)
+          ),
+      });
+
+      const subsProducts = yield* Effect.tryPromise({
+        catch: (error) =>
+          new FailedToGetProductsError({
+            cause: error,
+            message: "Failed to get products",
+          }),
+        try: () =>
+          GoogleBilling!.getItemsByType(
+            "subs",
+            productIds
+              .map((pair) => pair?.id)
+              .filter((id): id is string => id !== null)
+          ),
+      });
+
+      const allProducts = [...inappProducts, ...subsProducts];
+      return yield* Effect.succeed(
+        allProducts.map((nativeProduct) =>
+          mapGoogleBillingProductToProduct(
+            productIds.find((pair) => pair?.id === nativeProduct.id)?.slug ??
+              "",
+            nativeProduct
+          )
+        )
+      );
+    });
+  },
+
+  getPurchaseHistory(
+    onlyIncludeActiveItems = false
+  ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never> {
+    return Effect.gen(function* getPurchaseHistory() {
+      if (!GoogleBilling) {
+        return yield* Effect.fail(
+          new GetPurchaseHistoryError({
+            message: "Google Billing is not available on this platform",
+          })
+        );
+      }
+
+      Effect.logDebug("Getting purchase history", { onlyIncludeActiveItems });
+
+      const inappPurchases = yield* Effect.tryPromise({
+        catch: (error) =>
+          new GetPurchaseHistoryError({
+            cause: error,
+            message: "Failed to get in-app purchase history",
+          }),
+        try: () => GoogleBilling!.getAvailableItemsByType("inapp"),
+      });
+
+      const subsPurchases = yield* Effect.tryPromise({
+        catch: (error) =>
+          new GetPurchaseHistoryError({
+            cause: error,
+            message: "Failed to get subscription purchase history",
+          }),
+        try: () => GoogleBilling!.getAvailableItemsByType("subs"),
+      });
+
+      const allPurchases = [...inappPurchases, ...subsPurchases];
+      const transactions = allPurchases.map((purchase) =>
+        mapGoogleBillingPurchaseToTransaction(purchase)
+      );
+
+      if (onlyIncludeActiveItems) {
+        const activeTransactions = transactions.filter(
+          // TODO: Check if this is the correct way to do this
+          (t) => t.isAutoRenewing || t.productId.includes("inapp")
+        );
+        Effect.logDebug("Filtered active transactions", {
+          count: activeTransactions.length,
+        });
+        return yield* Effect.succeed(activeTransactions);
+      }
+
+      Effect.logDebug("Retrieved all purchase history", {
+        count: transactions.length,
+      });
+      return yield* Effect.succeed(transactions);
+    });
+  },
+
+  initConnection(
+    onPurchase?: (transaction: Transaction) => void
+  ): Effect.Effect<void, FailedToInitializeNativeAdapterError, never> {
+    return Effect.gen(function* initConnection() {
+      if (!GoogleBilling) {
+        return yield* Effect.fail(
+          new FailedToInitializeNativeAdapterError({
+            message: "Google Billing is not available on this platform",
+          })
+        );
+      }
+
+      const onPurchaseCallback = onPurchase
+        ? (nativePurchase: GoogleBillingPurchase) => {
+            const transaction =
+              mapGoogleBillingPurchaseToTransaction(nativePurchase);
+            onPurchase(transaction);
+          }
+        : undefined;
+
+      yield* Effect.tryPromise({
+        catch: (error) =>
+          new FailedToInitializeNativeAdapterError({
+            cause: error,
+            message: "Failed to initialize native adapter",
+          }),
+        try: () => GoogleBilling!.initConnection(onPurchaseCallback),
+      });
+
+      return yield* Effect.void;
+    });
+  },
 });
 
 // Helper functions for mapping Google Billing objects to our domain objects
@@ -367,10 +368,10 @@ function mapGoogleBillingProductToProduct(
     nativeProduct.description,
     nativeProduct.displayName,
     nativeProduct.displayPrice,
-    Number.parseFloat(nativeProduct.displayPrice.replace(/[^0-9.]/g, '')), // Extract numeric price
+    Number.parseFloat(nativeProduct.displayPrice.replaceAll(/[^0-9.]/g, "")), // Extract numeric price
     nativeProduct.currency,
     nativeProduct.type,
-    'android'
+    "android"
   );
 }
 
@@ -384,11 +385,11 @@ function mapGoogleBillingPurchaseToTransaction(
     nativePurchase.purchaseTime,
     1, // Google Billing doesn't expose quantity in the same way
     nativePurchase.isAcknowledged,
-    'android',
+    "android",
     {
+      isAutoRenewing: nativePurchase.isAutoRenewing,
       purchaseToken: nativePurchase.purchaseToken,
       receipt: nativePurchase.originalJson,
-      isAutoRenewing: nativePurchase.isAutoRenewing
     }
   );
 }

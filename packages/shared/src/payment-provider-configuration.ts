@@ -1,36 +1,36 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class PaymentProviderConfigurationServiceError extends Schema.TaggedError<PaymentProviderConfigurationServiceError>()(
-  'PaymentProviderConfigurationServiceError',
+  "PaymentProviderConfigurationServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class PaymentProviderConfigurationNotFoundError extends Schema.TaggedError<PaymentProviderConfigurationNotFoundError>()(
-  'PaymentProviderConfigurationNotFoundError',
+  "PaymentProviderConfigurationNotFoundError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}
 
 export class PaymentProviderConfigurationValidationError extends Schema.TaggedError<PaymentProviderConfigurationValidationError>()(
-  'PaymentProviderConfigurationValidationError',
+  "PaymentProviderConfigurationValidationError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class PaymentProviderConfigurationKeyUnavailableError extends Schema.TaggedError<PaymentProviderConfigurationKeyUnavailableError>()(
-  'PaymentProviderConfigurationKeyUnavailableError',
+  "PaymentProviderConfigurationKeyUnavailableError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}
 
 export class PaymentProviderAlreadyExistsError extends Schema.TaggedError<PaymentProviderAlreadyExistsError>()(
-  'PaymentProviderAlreadyExistsError',
+  "PaymentProviderAlreadyExistsError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}

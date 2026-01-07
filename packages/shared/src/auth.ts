@@ -1,19 +1,19 @@
-import { HttpApiSchema } from '@effect/platform';
-import { Context, Schema } from 'effect';
+import { HttpApiSchema } from "@effect/platform";
+import { Context, Schema } from "effect";
 
 export class AuthenticationError extends Schema.TaggedError<AuthenticationError>()(
-  'AuthenticationError',
+  "AuthenticationError",
   {
+    cause: Schema.String,
     message: Schema.String,
-    cause: Schema.String
   },
   HttpApiSchema.annotations({ status: 500 })
 ) {}
 
 export class NotAuthenticatedError extends Schema.TaggedError<NotAuthenticatedError>()(
-  'NotAuthenticatedError',
+  "NotAuthenticatedError",
   {
-    message: Schema.String
+    message: Schema.String,
   },
   HttpApiSchema.annotations({ status: 401 })
 ) {}
@@ -21,63 +21,63 @@ export class NotAuthenticatedError extends Schema.TaggedError<NotAuthenticatedEr
 export const SessionOrganizationSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
+  permissions: Schema.Array(Schema.String),
   slug: Schema.String,
-  permissions: Schema.Array(Schema.String)
 });
 
 export const SessionProjectSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
-  slug: Schema.String,
   organizationId: Schema.String,
-  permissions: Schema.Array(Schema.String)
+  permissions: Schema.Array(Schema.String),
+  slug: Schema.String,
 });
 
 const SessionOrganizationsSchema = Schema.Array(SessionOrganizationSchema);
 const SessionProjectsSchema = Schema.Array(SessionProjectSchema);
 
 export const SessionCustomerSchema = Schema.Struct({
-  appUserId: Schema.String
+  appUserId: Schema.String,
 });
 
 export const SessionUserSchema = Schema.Struct({
-  name: Schema.String,
-  id: Schema.String,
   createdAt: Schema.Date,
-  updatedAt: Schema.Date,
   email: Schema.String,
   emailVerified: Schema.Boolean,
-  image: Schema.NullOr(Schema.String)
+  id: Schema.String,
+  image: Schema.NullOr(Schema.String),
+  name: Schema.String,
+  updatedAt: Schema.Date,
 });
 
 export const UserSessionSchema = Schema.Struct({
-  method: Schema.Literal('user'),
-  name: Schema.String,
-  user: SessionUserSchema,
-  customer: Schema.Null,
   cookie: Schema.NullOr(Schema.String),
+  customer: Schema.Null,
+  method: Schema.Literal("user"),
+  name: Schema.String,
   organizations: SessionOrganizationsSchema,
-  projects: SessionProjectsSchema
+  projects: SessionProjectsSchema,
+  user: SessionUserSchema,
 });
 
 export const SecretKeySessionSchema = Schema.Struct({
-  method: Schema.Literal('secret-key'),
-  name: Schema.String,
-  user: Schema.Null,
-  customer: Schema.Null,
   cookie: Schema.Null,
+  customer: Schema.Null,
+  method: Schema.Literal("secret-key"),
+  name: Schema.String,
   organizations: SessionOrganizationsSchema,
-  projects: SessionProjectsSchema
+  projects: SessionProjectsSchema,
+  user: Schema.Null,
 });
 
 export const PublishableKeySessionSchema = Schema.Struct({
-  method: Schema.Literal('publishable-key'),
-  name: Schema.String,
-  user: Schema.Null,
-  customer: SessionCustomerSchema,
   cookie: Schema.Null,
+  customer: SessionCustomerSchema,
+  method: Schema.Literal("publishable-key"),
+  name: Schema.String,
   organizations: SessionOrganizationsSchema,
-  projects: SessionProjectsSchema
+  projects: SessionProjectsSchema,
+  user: Schema.Null,
 });
 
 export const AuthSessionSchema = Schema.Union(
@@ -147,7 +147,7 @@ export type AnyAuthSession =
   | SecretKeySession
   | PublishableKeySession;
 
-export class AuthSession extends Context.Tag('shared/auth/AuthSession')<
+export class AuthSession extends Context.Tag("shared/auth/AuthSession")<
   AuthSession,
   UserSession | SecretKeySession | PublishableKeySession
 >() {}

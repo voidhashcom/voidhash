@@ -1,7 +1,7 @@
-import { useRouter } from 'expo-router';
-import { Image, Pressable, Text, View } from 'react-native';
-import { fakeAuthService, users } from 'utils/fake-auth-service';
-import { voidhash } from 'utils/voidhash/local.client';
+import { useRouter } from "expo-router";
+import { Image, Pressable, Text, View } from "react-native";
+import { fakeAuthService, users } from "utils/fake-auth-service";
+import { voidhash } from "utils/voidhash/local.client";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -12,7 +12,7 @@ export default function HomeScreen() {
     // This syncs the current user with Voidhash. Make sure the identifier passed is unique and hard to guess.
     await voidhash.client.identify(user.id, {
       email: user.email,
-      name: user.name
+      name: user.name,
     });
 
     router.back();

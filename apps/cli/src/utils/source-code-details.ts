@@ -1,19 +1,20 @@
-import { Context, Effect } from 'effect';
-import type { PackageJsonSchema } from '../domain/schema/package-json';
-import { SourceCode } from '../domain/services/source-code';
-import type { PackageManager, SourceCodeLanguage } from '../domain/types';
-import { checkIsExpoProject } from './source-code';
+import { Context, Effect } from "effect";
 
-export type SourceCodeDetailsType = {
+import type { PackageJsonSchema } from "../domain/schema/package-json";
+import { SourceCode } from "../domain/services/source-code";
+import type { PackageManager, SourceCodeLanguage } from "../domain/types";
+import { checkIsExpoProject } from "./source-code";
+
+export interface SourceCodeDetailsType {
   language: SourceCodeLanguage;
   packageManager: PackageManager;
   srcDir: string;
   isExpoProject: boolean;
   monorepoRootPath: string | null;
   packageJson: typeof PackageJsonSchema.Type;
-};
+}
 
-export class SourceCodeDetails extends Context.Tag('app/SourceCodeDetails')<
+export class SourceCodeDetails extends Context.Tag("app/SourceCodeDetails")<
   SourceCodeDetails,
   SourceCodeDetailsType
 >() {
@@ -27,33 +28,32 @@ export class SourceCodeDetails extends Context.Tag('app/SourceCodeDetails')<
  * Retrieves details about the source code environment, including language, package manager,
  * source directory, Expo project status, monorepo root path, and package.json contents.
  */
-export const retrieveSourceCodeDetails = () => {
-  return Effect.gen(function* () {
+export const retrieveSourceCodeDetails = () =>
+  Effect.gen(function* retrieveSourceCodeDetails() {
     const sourceCode = yield* SourceCode;
     const [packageJson, monorepoRootPath, language, srcDir] = yield* Effect.all(
       [
         sourceCode.loadPackageJson(),
         sourceCode.detectMonorepoRootPath(),
         sourceCode.detectSrcLanguage(),
-        sourceCode.retrieveSrcDir()
+        sourceCode.retrieveSrcDir(),
       ],
       {
-        concurrency: 'unbounded'
+        concurrency: "unbounded",
       }
     );
 
     const packageManager = yield* sourceCode.detectPackageManager(
-      monorepoRootPath ?? './'
+      monorepoRootPath ?? "./"
     );
     const isExpoProject = checkIsExpoProject(packageJson);
 
     return {
-      language,
-      packageManager,
       isExpoProject,
-      srcDir,
+      language,
       monorepoRootPath,
-      packageJson
+      packageJson,
+      packageManager,
+      srcDir,
     };
   });
-};

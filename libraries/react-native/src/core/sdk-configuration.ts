@@ -1,7 +1,7 @@
-import { Context } from 'effect';
+import { Context } from "effect";
 
 export class SdkConfiguration extends Context.Tag(
-  'rn-voidhash/SdkConfiguration'
+  "rn-voidhash/SdkConfiguration"
 )<
   SdkConfiguration,
   {

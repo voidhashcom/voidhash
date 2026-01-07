@@ -12,14 +12,14 @@ export class FailedToEndNativeAdapterError extends VoidhashError {}
 export class NotInitializedError extends VoidhashError {
   constructor() {
     super(
-      'Voidhash Client was not initialized. Call init() before calling this method.'
+      "Voidhash Client was not initialized. Call init() before calling this method."
     );
   }
 }
 
 export class SchemeNotSetError extends VoidhashError {
   constructor() {
-    super('Scheme is not set in expo.config.ts.');
+    super("Scheme is not set in expo.config.ts.");
   }
 }
 
@@ -40,6 +40,6 @@ export class PurchaseCancelledError extends VoidhashError {}
 
 export class UnknownVoidhashError extends VoidhashError {
   constructor(cause?: Error) {
-    super('Unknown Voidhash error', cause);
+    super("Unknown Voidhash error", cause);
   }
 }

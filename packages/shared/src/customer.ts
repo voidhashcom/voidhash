@@ -1,16 +1,16 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class CustomerServiceError extends Schema.TaggedError<CustomerServiceError>()(
-  'CustomerServiceError',
+  "CustomerServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class CustomerNotFoundError extends Schema.TaggedError<CustomerNotFoundError>()(
-  'CustomerNotFoundError',
+  "CustomerNotFoundError",
   {
-    id: Schema.NonEmptyString
+    id: Schema.NonEmptyString,
   }
 ) {
   toString(): string {
@@ -19,9 +19,9 @@ export class CustomerNotFoundError extends Schema.TaggedError<CustomerNotFoundEr
 }
 
 export class CustomerInvalidAnonymousIdError extends Schema.TaggedError<CustomerInvalidAnonymousIdError>()(
-  'CustomerInvalidAnonymousIdError',
+  "CustomerInvalidAnonymousIdError",
   {
-    id: Schema.NonEmptyString
+    id: Schema.NonEmptyString,
   }
 ) {
   toString(): string {
