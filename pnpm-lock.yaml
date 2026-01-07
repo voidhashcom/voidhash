@@ -25,14 +25,14 @@ catalogs:
       specifier: ^5.90.5
       version: 5.90.12
     '@voidhash/mimic':
-      specifier: 0.0.7
-      version: 0.0.7
+      specifier: 0.0.8
+      version: 0.0.8
     '@voidhash/mimic-effect':
-      specifier: 0.0.7
-      version: 0.0.7
+      specifier: 0.0.8
+      version: 0.0.8
     '@voidhash/mimic-react':
-      specifier: 0.0.7
-      version: 0.0.7
+      specifier: 0.0.8
+      version: 0.0.8
     effect:
       specifier: ^3.18.4
       version: 3.19.13
@@ -117,7 +117,7 @@ importers:
         version: link:../../packages/lib
       '@voidhash/mimic-effect':
         specifier: 'catalog:'
-        version: 0.0.7(@voidhash/mimic@0.0.7(effect@3.19.13))(effect@3.19.13)
+        version: 0.0.8(@voidhash/mimic@0.0.8(effect@3.19.13))(effect@3.19.13)
       '@voidhash/mimic-schema':
         specifier: workspace:*
         version: link:../../packages/mimic-schema
@@ -448,7 +448,7 @@ importers:
         version: link:../../packages/lib
       '@voidhash/mimic-react':
         specifier: 'catalog:'
-        version: 0.0.7(@types/react@19.1.17)(@voidhash/mimic@0.0.7(effect@3.19.13))(effect@3.19.13)(react@19.1.1)(use-sync-external-store@1.6.0(react@19.1.1))
+        version: 0.0.8(@types/react@19.1.17)(@voidhash/mimic@0.0.8(effect@3.19.13))(effect@3.19.13)(react@19.1.1)(use-sync-external-store@1.6.0(react@19.1.1))
       '@voidhash/mimic-schema':
         specifier: workspace:*
         version: link:../../packages/mimic-schema
@@ -1025,7 +1025,7 @@ importers:
     dependencies:
       '@voidhash/mimic':
         specifier: 'catalog:'
-        version: 0.0.7(effect@3.19.13)
+        version: 0.0.8(effect@3.19.13)
       effect:
         specifier: 'catalog:'
         version: 3.19.13
@@ -6577,21 +6577,21 @@ packages:
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
 
-  '@voidhash/mimic-effect@0.0.7':
-    resolution: {integrity: sha512-T8+Gxsh9pt0f/4JMkHEkRZiJHzsaZ9VtK2+UONxhO3105+1hEJLQ0Q3Jj8QuxcH0gr+/AD+KvAHZ0wDJbBaYuA==}
+  '@voidhash/mimic-effect@0.0.8':
+    resolution: {integrity: sha512-nzMinQHChdbLih4lpl73G7MvIyEMnMOqxgdMbOOLaPac09c5QI2RzSFog6qW9UO1cU24VjQFlHps8x2SzNkXrA==}
     peerDependencies:
-      '@voidhash/mimic': 0.0.7
+      '@voidhash/mimic': 0.0.8
       effect: ^3.19.12
 
-  '@voidhash/mimic-react@0.0.7':
-    resolution: {integrity: sha512-ExZij+4PSntmCfAhgJBGRo+09IqfUCxRO0Rj2+N8OiO+eNVS1njE9YcpDa3Qsgp9nc8DrXguC+yD0jYvJJ8Gzw==}
+  '@voidhash/mimic-react@0.0.8':
+    resolution: {integrity: sha512-oaNbyrtlC4cB+evgUHGpv3qpCFKbBaxcPgTXYKN+EbstatF0GLrh8Oh4m9fHb2FzZYRe7fH5xZIeMuwJKMCWHw==}
     peerDependencies:
-      '@voidhash/mimic': 0.0.7
+      '@voidhash/mimic': 0.0.8
       effect: ^3.16.0
       react: 19.1.1
 
-  '@voidhash/mimic@0.0.7':
-    resolution: {integrity: sha512-VEkkrJA7ewNpk44gAaHfDXqbHJku0rJxsi6rNrbQMRrOm/xFP7IcTzSmdWhXjc11F76QOrXfw07lFN+FLb4Whg==}
+  '@voidhash/mimic@0.0.8':
+    resolution: {integrity: sha512-1kUkbXNoGoKRm2iT6wUffTeZKiEjwsbiIFq42uX5M7Fq4svfHi192GfrlwK6cXWEubwmNL8sSZBOwYn5WJ43bw==}
     peerDependencies:
       effect: ^3.19.12
 
@@ -19634,15 +19634,15 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
-  '@voidhash/mimic-effect@0.0.7(@voidhash/mimic@0.0.7(effect@3.19.13))(effect@3.19.13)':
+  '@voidhash/mimic-effect@0.0.8(@voidhash/mimic@0.0.8(effect@3.19.13))(effect@3.19.13)':
     dependencies:
       '@effect/platform': 0.93.8(effect@3.19.13)
-      '@voidhash/mimic': 0.0.7(effect@3.19.13)
+      '@voidhash/mimic': 0.0.8(effect@3.19.13)
       effect: 3.19.13
 
-  '@voidhash/mimic-react@0.0.7(@types/react@19.1.17)(@voidhash/mimic@0.0.7(effect@3.19.13))(effect@3.19.13)(react@19.1.1)(use-sync-external-store@1.6.0(react@19.1.1))':
+  '@voidhash/mimic-react@0.0.8(@types/react@19.1.17)(@voidhash/mimic@0.0.8(effect@3.19.13))(effect@3.19.13)(react@19.1.1)(use-sync-external-store@1.6.0(react@19.1.1))':
     dependencies:
-      '@voidhash/mimic': 0.0.7(effect@3.19.13)
+      '@voidhash/mimic': 0.0.8(effect@3.19.13)
       effect: 3.19.13
       react: 19.1.1
       zustand: 5.0.9(@types/react@19.1.17)(react@19.1.1)(use-sync-external-store@1.6.0(react@19.1.1))
@@ -19651,7 +19651,7 @@ snapshots:
       - immer
       - use-sync-external-store
 
-  '@voidhash/mimic@0.0.7(effect@3.19.13)':
+  '@voidhash/mimic@0.0.8(effect@3.19.13)':
     dependencies:
       effect: 3.19.13
 
