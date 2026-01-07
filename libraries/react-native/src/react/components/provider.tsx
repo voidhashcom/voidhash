@@ -1,16 +1,16 @@
-import React, { createContext, type ReactNode } from 'react';
+import React, { type ReactNode, createContext } from "react";
 
-import type { VoidhashClient } from '../../client';
-import type { VoidhashSchema } from '../../core/schema';
+import type { VoidhashClient } from "../../client";
+import type { VoidhashSchema } from "../../core/schema";
 
-type VoidhashProviderBaseProps = {
+export interface VoidhashProviderBaseProps {
   children: ReactNode;
-};
+}
 
-export type VoidhashContext<TSchema extends VoidhashSchema> = {
+export interface VoidhashContext<TSchema extends VoidhashSchema> {
   isInitialized: boolean;
   client: VoidhashClient<TSchema>;
-};
+}
 
 export function voidhashProviderFactory<TSchema extends VoidhashSchema>(
   initialClient: VoidhashClient<TSchema>
@@ -30,8 +30,8 @@ export function voidhashProviderFactory<TSchema extends VoidhashSchema>(
     return (
       <VoidhashContext.Provider
         value={{
+          client: client.current,
           isInitialized,
-          client: client.current
         }}
       >
         {children}
@@ -42,12 +42,12 @@ export function voidhashProviderFactory<TSchema extends VoidhashSchema>(
   function useVoidhash() {
     const context = React.useContext(VoidhashContext);
     if (!context) {
-      throw new Error('useVoidhash must be used within a VoidhashProvider');
+      throw new Error("useVoidhash must be used within a VoidhashProvider");
     }
     return context;
   }
 
-  return { provider: VoidhashProvider, context: VoidhashContext, useVoidhash };
+  return { context: VoidhashContext, provider: VoidhashProvider, useVoidhash };
 
   // React.useEffect(() => {
   //   const listener = Linking.addEventListener("url", (event) => {

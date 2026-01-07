@@ -1,16 +1,16 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class ProjectServiceError extends Schema.TaggedError<ProjectServiceError>()(
-  'ProjectServiceError',
+  "ProjectServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class ProjectNotFoundError extends Schema.TaggedError<ProjectNotFoundError>()(
-  'ProjectNotFoundError',
+  "ProjectNotFoundError",
   {
-    projectId: Schema.String
+    projectId: Schema.String,
   }
 ) {
   toString(): string {

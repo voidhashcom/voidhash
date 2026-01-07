@@ -1,8 +1,9 @@
-import { Layer } from 'effect';
-import Constants from 'expo-constants';
-import * as Localization from 'expo-localization';
-import { Platform as RNPlatform } from 'react-native';
-import { PlatformProvider } from './platform-provider';
+import { Layer } from "effect";
+import Constants from "expo-constants";
+import * as Localization from "expo-localization";
+import { Platform as RNPlatform } from "react-native";
+
+import { PlatformProvider } from "./platform-provider";
 
 function getBundleId(): string | null {
   const bundleId =
@@ -22,15 +23,15 @@ function getLocales() {
 }
 
 function getSystemVersion(): string {
-  return String(Constants.systemVersion || 'unknown');
+  return String(Constants.systemVersion || "unknown");
 }
 
 function getDeviceName(): string {
-  return Constants.deviceName || 'unknown';
+  return Constants.deviceName || "unknown";
 }
 
 function getDeviceBrand(): string {
-  return Constants.deviceBrand || 'unknown';
+  return Constants.deviceBrand || "unknown";
 }
 
 function getAppVersion(): string | undefined {
@@ -40,31 +41,31 @@ function getAppVersion(): string | undefined {
 function isDebugBuild(): boolean {
   try {
     // biome-ignore lint/correctness/noUndeclaredVariables: __DEV__ is defined by Expo
-    return typeof __DEV__ !== 'undefined' && __DEV__;
+    return typeof __DEV__ !== "undefined" && __DEV__;
   } catch {
     return false;
   }
 }
 
-function getPlatform(): 'ios' | 'android' | 'unknown' {
-  if (RNPlatform.OS === 'ios') {
-    return 'ios';
+function getPlatform(): "ios" | "android" | "unknown" {
+  if (RNPlatform.OS === "ios") {
+    return "ios";
   }
 
-  if (RNPlatform.OS === 'android') {
-    return 'android';
+  if (RNPlatform.OS === "android") {
+    return "android";
   }
 
-  return 'unknown';
+  return "unknown";
 }
 
 export const ReactNativePlatformProvider = Layer.succeed(PlatformProvider, {
-  bundleId: getBundleId(),
-  locales: getLocales(),
-  systemVersion: getSystemVersion(),
-  deviceName: getDeviceName(),
-  deviceBrand: getDeviceBrand(),
   appVersion: getAppVersion(),
+  bundleId: getBundleId(),
+  deviceBrand: getDeviceBrand(),
+  deviceName: getDeviceName(),
   isDebugBuild: isDebugBuild(),
-  platform: getPlatform()
+  locales: getLocales(),
+  platform: getPlatform(),
+  systemVersion: getSystemVersion(),
 });

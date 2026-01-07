@@ -1,9 +1,10 @@
-import type { SubscriptionProduct } from '@voidhash/react-native/build/core/entities/product';
-import { Button } from 'components/button';
-import { useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
-import { voidhash } from 'utils/voidhash/local.client';
-import { cn } from '../../utils/lib';
+import type { SubscriptionProduct } from "@voidhash/react-native/build/core/entities/product";
+import { Button } from "components/button";
+import { useState } from "react";
+import { Text, TouchableOpacity, View } from "react-native";
+import { voidhash } from "utils/voidhash/local.client";
+
+import { cn } from "../../utils/lib";
 
 export default function HomeScreen() {
   const [selectedProduct, setSelectedProduct] =
@@ -46,8 +47,8 @@ export default function HomeScreen() {
             <TouchableOpacity
               activeOpacity={0.8}
               className={cn(
-                'w-full flex-row rounded-lg border border-zinc-900 bg-zinc-950 p-3',
-                selectedProduct?.slug === product.slug && 'bg-zinc-900'
+                "w-full flex-row rounded-lg border border-zinc-900 bg-zinc-950 p-3",
+                selectedProduct?.slug === product.slug && "bg-zinc-900"
               )}
               disabled={isPurchasing}
               key={product.slug}
@@ -70,7 +71,7 @@ export default function HomeScreen() {
           className="mt-4"
           onPress={handlePurchase}
           // disabled={!selectedProduct || isPurchasing}
-          title={isPurchasing ? 'Purchasing...' : 'Continue'}
+          title={isPurchasing ? "Purchasing..." : "Continue"}
         />
       </View>
     </View>

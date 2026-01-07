@@ -1,12 +1,15 @@
-import { HttpApi, HttpApiEndpoint, HttpApiGroup } from '@effect/platform';
+import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "@effect/platform";
 import {
   ApiKeyNotFoundError,
   ApiKeyServiceError,
   AuthenticationError,
+  ChangesetDeploymentServiceError,
   CustomerInvalidAnonymousIdError,
   CustomerNotFoundError,
   CustomerServiceError,
   OrganizationServiceError,
+  PaymentProviderConfigurationServiceError,
+  PaymentProviderProductServiceError,
   PerkServiceError,
   ProductPerkServiceError,
   ProductPerkValidationError,
@@ -16,11 +19,12 @@ import {
   SdkCustomerNotFoundError,
   SdkServiceError,
   SdkValidationError,
-  UserServiceError
-} from '@voidhash/shared';
-import { ActionForbiddenError } from '@voidhash/shared/errors';
-import { Schema } from 'effect';
-import { AuthMiddleware } from './middlewares';
+  UserServiceError,
+} from "@voidhash/shared";
+import { ActionForbiddenError } from "@voidhash/shared/errors";
+import { Schema } from "effect";
+
+import { AuthMiddleware } from "./middlewares";
 import {
   ApiKey,
   ApiKeyIdParam,
@@ -32,8 +36,12 @@ import {
   CreateSecretKeyBody,
   Customer,
   CustomerIdParam,
+  DeployChangesetBody,
+  DeployChangesetResponse,
   Organization,
   OrganizationIdParam,
+  PaymentProviderConfiguration,
+  PaymentProviderProduct,
   Perk,
   Product,
   ProductIdParam,
@@ -44,62 +52,62 @@ import {
   SdkIdentifyBody,
   SdkSyncCustomerAttributesBody,
   Session,
-  User
-} from './schema';
+  User,
+} from "./schema";
 
-export const VoidhashV1Api = HttpApi.make('VoidhashV1Api')
+export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
   .add(
-    HttpApiGroup.make('auth')
+    HttpApiGroup.make("auth")
       .add(
-        HttpApiEndpoint.get('session')`/session`
+        HttpApiEndpoint.get("session")`/session`
           .addSuccess(Session)
           .addError(ActionForbiddenError, { status: 403 })
           .middleware(AuthMiddleware)
       )
-      .prefix('/auth')
+      .prefix("/auth")
   )
   .add(
-    HttpApiGroup.make('api_keys')
+    HttpApiGroup.make("api_keys")
       .add(
-        HttpApiEndpoint.post('createSecretKey')`/`
+        HttpApiEndpoint.post("createSecretKey")`/`
           .addSuccess(ApiKeyWithRawKey)
           .setPayload(CreateSecretKeyBody)
           .addError(ApiKeyServiceError, { status: 500 })
           .addError(ActionForbiddenError, { status: 403 })
       )
       .add(
-        HttpApiEndpoint.get('listApiKeys')`/`
+        HttpApiEndpoint.get("listApiKeys")`/`
           .addSuccess(Schema.Array(ApiKey))
           .addError(ApiKeyServiceError, { status: 500 })
           .addError(ActionForbiddenError, { status: 403 })
       )
       .add(
-        HttpApiEndpoint.get('getApiKeyById')`/${ApiKeyIdParam}`
+        HttpApiEndpoint.get("getApiKeyById")`/${ApiKeyIdParam}`
           .addSuccess(ApiKey)
           .addError(ApiKeyServiceError, { status: 500 })
           .addError(ApiKeyNotFoundError, { status: 404 })
           .addError(ActionForbiddenError, { status: 403 })
       )
       .add(
-        HttpApiEndpoint.post('rotateSecretKey')`/${ApiKeyIdParam}/rotate`
+        HttpApiEndpoint.post("rotateSecretKey")`/${ApiKeyIdParam}/rotate`
           .addSuccess(ApiKeyWithRawKey)
           .addError(ApiKeyServiceError, { status: 500 })
           .addError(ApiKeyNotFoundError, { status: 404 })
           .addError(ActionForbiddenError, { status: 403 })
       )
       .add(
-        HttpApiEndpoint.del('deleteApiKey')`/${ApiKeyIdParam}`
+        HttpApiEndpoint.del("deleteApiKey")`/${ApiKeyIdParam}`
           .addError(ApiKeyServiceError, { status: 500 })
           .addError(ApiKeyNotFoundError, { status: 404 })
           .addError(ActionForbiddenError, { status: 403 })
       )
       .middleware(AuthMiddleware)
-      .prefix('/api-keys')
+      .prefix("/api-keys")
   )
   .add(
-    HttpApiGroup.make('customers')
+    HttpApiGroup.make("customers")
       .add(
-        HttpApiEndpoint.post('createCustomer')`/`
+        HttpApiEndpoint.post("createCustomer")`/`
           .setPayload(CreateCustomerBody)
           .addSuccess(Customer)
           .addError(ActionForbiddenError, { status: 403 })
@@ -107,56 +115,56 @@ export const VoidhashV1Api = HttpApi.make('VoidhashV1Api')
           .addError(CustomerServiceError, { status: 500 })
       )
       .add(
-        HttpApiEndpoint.get('listCustomers')`/`
+        HttpApiEndpoint.get("listCustomers")`/`
           .addSuccess(Schema.Array(Customer))
           .addError(ActionForbiddenError, { status: 403 })
           .addError(CustomerServiceError, { status: 500 })
       )
       .add(
-        HttpApiEndpoint.get('getCustomerById')`/${CustomerIdParam}`
+        HttpApiEndpoint.get("getCustomerById")`/${CustomerIdParam}`
           .addSuccess(Customer)
           .addError(ActionForbiddenError, { status: 403 })
           .addError(CustomerNotFoundError, { status: 404 })
           .addError(CustomerServiceError, { status: 500 })
       )
       .add(
-        HttpApiEndpoint.get('byAppUserId')`/by-app-user-id/${AppUserIdParam}`
+        HttpApiEndpoint.get("byAppUserId")`/by-app-user-id/${AppUserIdParam}`
           .addSuccess(Customer)
           .addError(ActionForbiddenError, { status: 403 })
           .addError(CustomerNotFoundError, { status: 404 })
           .addError(CustomerServiceError, { status: 500 })
       )
       .middleware(AuthMiddleware)
-      .prefix('/customers')
+      .prefix("/customers")
   )
   .add(
-    HttpApiGroup.make('organizations')
+    HttpApiGroup.make("organizations")
       .add(
-        HttpApiEndpoint.post('createOrganization')`/`
+        HttpApiEndpoint.post("createOrganization")`/`
           .setPayload(CreateOrganizationBody)
           .addSuccess(Organization)
           .addError(OrganizationServiceError, { status: 500 })
       )
       .middleware(AuthMiddleware)
-      .prefix('/organizations')
+      .prefix("/organizations")
   )
   .add(
-    HttpApiGroup.make('perks')
+    HttpApiGroup.make("perks")
       .add(
-        HttpApiEndpoint.get('listPerks')`/`
+        HttpApiEndpoint.get("listPerks")`/`
           .addSuccess(Schema.Array(Perk))
 
           .addError(ActionForbiddenError, { status: 403 })
           .addError(PerkServiceError, { status: 500 })
       )
       .middleware(AuthMiddleware)
-      .prefix('/perks')
+      .prefix("/perks")
   )
   .add(
-    HttpApiGroup.make('projects')
+    HttpApiGroup.make("projects")
 
       .add(
-        HttpApiEndpoint.post('createProject')`/`
+        HttpApiEndpoint.post("createProject")`/`
           .setPayload(CreateProjectBody)
           .addSuccess(Project)
 
@@ -165,32 +173,32 @@ export const VoidhashV1Api = HttpApi.make('VoidhashV1Api')
           .addError(ProjectServiceError, { status: 500 })
       )
       .add(
-        HttpApiEndpoint.get('listProjects')`/${OrganizationIdParam}`
+        HttpApiEndpoint.get("listProjects")`/${OrganizationIdParam}`
           .addSuccess(Schema.Array(Project))
 
           .addError(ActionForbiddenError, { status: 403 })
           .addError(ProjectServiceError, { status: 500 })
       )
       .middleware(AuthMiddleware)
-      .prefix('/projects')
+      .prefix("/projects")
   )
   .add(
-    HttpApiGroup.make('products')
+    HttpApiGroup.make("products")
       .add(
-        HttpApiEndpoint.get('listProducts')`/`
+        HttpApiEndpoint.get("listProducts")`/`
           .addSuccess(Schema.Array(Product))
 
           .addError(ActionForbiddenError, { status: 403 })
           .addError(ProductServiceError, { status: 500 })
       )
       .middleware(AuthMiddleware)
-      .prefix('/products')
+      .prefix("/products")
   )
   .add(
-    HttpApiGroup.make('product_perks')
+    HttpApiGroup.make("product_perks")
       .add(
         HttpApiEndpoint.get(
-          'listProductPerksByProductId'
+          "listProductPerksByProductId"
         )`/by-product-id/${ProductIdParam}`
           .addSuccess(Schema.Array(ProductPerk))
 
@@ -199,12 +207,12 @@ export const VoidhashV1Api = HttpApi.make('VoidhashV1Api')
           .addError(ProductPerkValidationError, { status: 400 })
       )
       .middleware(AuthMiddleware)
-      .prefix('/product-perks')
+      .prefix("/product-perks")
   )
   .add(
-    HttpApiGroup.make('sdk')
+    HttpApiGroup.make("sdk")
       .add(
-        HttpApiEndpoint.get('getCustomer')`/get-customer`
+        HttpApiEndpoint.get("getCustomer")`/get-customer`
           .addSuccess(SdkCustomer)
           .setHeaders(SdkHeaders)
           .addError(AuthenticationError, { status: 401 })
@@ -213,7 +221,7 @@ export const VoidhashV1Api = HttpApi.make('VoidhashV1Api')
           .addError(SdkValidationError, { status: 400 })
       )
       .add(
-        HttpApiEndpoint.post('identify')`/identify`
+        HttpApiEndpoint.post("identify")`/identify`
           .setPayload(SdkIdentifyBody)
           .addSuccess(SdkCustomer)
           .setHeaders(SdkHeaders)
@@ -224,7 +232,7 @@ export const VoidhashV1Api = HttpApi.make('VoidhashV1Api')
       )
       .add(
         HttpApiEndpoint.post(
-          'syncCustomerAttributes'
+          "syncCustomerAttributes"
         )`/sync-customer-attributes`
           .setPayload(SdkSyncCustomerAttributesBody)
           .addSuccess(SdkCustomer)
@@ -234,18 +242,53 @@ export const VoidhashV1Api = HttpApi.make('VoidhashV1Api')
           .addError(SdkValidationError, { status: 400 })
       )
       .middleware(AuthMiddleware)
-      .prefix('/sdk')
+      .prefix("/sdk")
   )
   .add(
-    HttpApiGroup.make('users')
+    HttpApiGroup.make("users")
       .add(
-        HttpApiEndpoint.get('getUser')`/current`
+        HttpApiEndpoint.get("getUser")`/current`
           .addSuccess(User)
           .addError(AuthenticationError, { status: 401 })
           .addError(UserServiceError, { status: 500 })
       )
       .middleware(AuthMiddleware)
-      .prefix('/users')
+      .prefix("/users")
+  )
+  .add(
+    HttpApiGroup.make("payment_provider_configurations")
+      .add(
+        HttpApiEndpoint.get("listPaymentProviderConfigurations")`/`
+          .addSuccess(Schema.Array(PaymentProviderConfiguration))
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(PaymentProviderConfigurationServiceError, { status: 500 })
+      )
+      .middleware(AuthMiddleware)
+      .prefix("/payment-provider-configurations")
+  )
+  .add(
+    HttpApiGroup.make("payment_provider_products")
+      .add(
+        HttpApiEndpoint.get("listPaymentProviderProducts")`/`
+          .addSuccess(Schema.Array(PaymentProviderProduct))
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(PaymentProviderProductServiceError, { status: 500 })
+      )
+      .middleware(AuthMiddleware)
+      .prefix("/payment-provider-products")
+  )
+  .add(
+    HttpApiGroup.make("changesets")
+      .add(
+        HttpApiEndpoint.post("deployChangeset")`/deploy`
+          .setPayload(DeployChangesetBody)
+          .addSuccess(DeployChangesetResponse)
+          .addError(AuthenticationError, { status: 401 })
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(ChangesetDeploymentServiceError, { status: 500 })
+      )
+      .middleware(AuthMiddleware)
+      .prefix("/changesets")
   )
 
-  .prefix('/api/v1');
+  .prefix("/api/v1");

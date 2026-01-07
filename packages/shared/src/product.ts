@@ -1,15 +1,26 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class ProductServiceError extends Schema.TaggedError<ProductServiceError>()(
-  'ProductServiceError',
+  "ProductServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
-export class ProductNotFoundError extends Schema.TaggedError<ProductNotFoundError>()(
-  'ProductNotFoundError',
+export class ProductSlugAlreadyExistsError extends Schema.TaggedError<ProductSlugAlreadyExistsError>()(
+  "ProductSlugAlreadyExistsError",
   {
-    message: Schema.String
+    slug: Schema.String,
+  }
+) {
+  toString(): string {
+    return `The following product slug already exists: ${this.slug}`;
+  }
+}
+
+export class ProductNotFoundError extends Schema.TaggedError<ProductNotFoundError>()(
+  "ProductNotFoundError",
+  {
+    message: Schema.String,
   }
 ) {}

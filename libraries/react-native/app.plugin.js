@@ -3,4 +3,4 @@
 // const withMyConfigPlugins = (config) => {
 //   return withPlugins(config, [])
 // }
-module.exports = require('./plugin/build/withVoidhashReactNative');
+module.exports = require("./plugin/build/withVoidhashReactNative");

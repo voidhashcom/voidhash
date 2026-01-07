@@ -1,1 +1,1 @@
-export * from './get-common-sdk-headers';
+export * from "./get-common-sdk-headers";

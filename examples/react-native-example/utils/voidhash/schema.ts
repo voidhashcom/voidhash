@@ -1,44 +1,27 @@
-import { schemaConfiguration, unlockablePerk } from '@voidhash/react-native';
+import { schemaConfiguration, unlockablePerk } from "@voidhash/react-native";
 
 export const sc = schemaConfiguration({
-  providers: {
-    googlePlay: true,
-    appleAppStore: true
-  },
   perks: {
-    allAccess: unlockablePerk('all-access', {
-      name: 'All Access'
-    })
-  }
+    allAccess: unlockablePerk("all-access", { name: "All Access" }),
+  },
+  providers: {
+  },
 });
 
-export const monthlySub = sc.subscription('monthly_sub', {
-  name: 'Monthly',
+export const monthlySub = sc.subscription("monthly_sub", {
+  name: "Monthly",
   perks: {
-    allAccess: true
+    allAccess: true,
   },
   providers: {
-    googlePlay: {
-      productId: 'com.voidhash.example.monthly'
-    },
-    appleAppStore: {
-      productId: 'test_group_monthly'
-    }
-  }
+  },
 });
 
-export const yearlySub = sc.subscription('yearly_sub', {
-  name: 'Yearly',
+export const yearlySub = sc.subscription("yearly_sub", {
+  name: "Yearly",
   perks: {
-    allAccess: true
+    allAccess: true,
   },
   providers: {
-    googlePlay: {
-      productId: 'com.voidhash.example.yearly',
-      basePlanId: 'com.voidhash.example.yearly.base'
-    },
-    appleAppStore: {
-      productId: 'test_group_yearly'
-    }
-  }
+  },
 });

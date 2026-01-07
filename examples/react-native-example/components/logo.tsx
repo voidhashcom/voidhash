@@ -1,26 +1,27 @@
-import type * as React from 'react';
-import { type StyleProp, View, type ViewStyle } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import type * as React from "react";
 
-type LogoProps = {
+import { type StyleProp, View, type ViewStyle } from "react-native";
+import Svg, { Path } from "react-native-svg";
+
+interface LogoProps {
   style?: StyleProp<ViewStyle>;
-  variant?: 'default' | 'short' | 'symbol';
-  color?: 'dual-tone' | 'mono';
+  variant?: "default" | "short" | "symbol";
+  color?: "dual-tone" | "mono";
   height?: number;
   className?: string;
-};
+}
 
 export const Logo: React.FC<LogoProps> = ({
   style,
-  variant = 'default',
-  color = 'mono',
+  variant = "default",
+  color = "mono",
   height = 28,
-  className
+  className,
 }) => {
-  const currentColor = '#FFF';
-  const symbolColor = color === 'dual-tone' ? '#005EFF' : currentColor;
+  const currentColor = "#FFF";
+  const symbolColor = color === "dual-tone" ? "#005EFF" : currentColor;
 
-  if (variant === 'short') {
+  if (variant === "short") {
     return (
       <View className={className} style={style}>
         <Svg height={32} viewBox="0 0 321 108" width={(height * 96) / 32}>
@@ -42,7 +43,7 @@ export const Logo: React.FC<LogoProps> = ({
     );
   }
 
-  if (variant === 'symbol') {
+  if (variant === "symbol") {
     return (
       <View className={className} style={style}>
         <Svg height={32} viewBox="0 0 112 56" width={(height * 64) / 32}>

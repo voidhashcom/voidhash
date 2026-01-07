@@ -1,9 +1,9 @@
 // Inspired by https://github.dev/drizzle-team/drizzle-orm
 
-import { Data, Effect } from 'effect';
+import { Data, Effect } from "effect";
 
 export class FailedToLoadJsFileError extends Data.TaggedError(
-  'FailedToLoadJsFileError'
+  "FailedToLoadJsFileError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
@@ -11,59 +11,56 @@ export class FailedToLoadJsFileError extends Data.TaggedError(
 
 const assertES5 = ({ unregister }: { unregister: () => void }) =>
   Effect.try({
-    try: () => require('./_es5.ts'),
+    try: () => require("./_es5.ts"),
     // biome-ignore lint/suspicious/noExplicitAny: yolo
     catch: (e: any) => {
       unregister();
-      if ('errors' in e && Array.isArray(e.errors) && e.errors.length > 0) {
-        const es5Error =
-          // biome-ignore lint/suspicious/noExplicitAny: yolo
-          (e.errors as any[]).filter((it) =>
-            it.text?.includes(`("es5") is not supported yet`)
-          ).length > 0;
+      if ("errors" in e && Array.isArray(e.errors) && e.errors.length > 0) {
+        // biome-ignore lint/suspicious/noExplicitAny: yolo
+        const es5Error = (e.errors as any[]).some((it) =>
+          it.text?.includes(`("es5") is not supported yet`)
+        );
         if (es5Error) {
           return new FailedToLoadJsFileError({
-            message: 'An error occurred while trying to load .js/ts file.',
-            cause: e
+            cause: e,
+            message: "An error occurred while trying to load .js/ts file.",
           });
         }
       }
 
       return new FailedToLoadJsFileError({
-        message: 'An error occurred while loading the source code',
-        cause: e
+        cause: e,
+        message: "An error occurred while loading the source code",
       });
-    }
+    },
   });
 
 export const safeRegister = () =>
-  Effect.gen(function* () {
+  Effect.gen(function* safeRegister() {
     const { register } = yield* Effect.tryPromise({
-      try: () => import('esbuild-register/dist/node'),
-      catch: (e) => {
-        return new FailedToLoadJsFileError({
-          message: 'An error occurred while trying to load .js/ts file.',
-          cause: e
-        });
-      }
+      catch: (e) =>
+        new FailedToLoadJsFileError({
+          cause: e,
+          message: "An error occurred while trying to load .js/ts file.",
+        }),
+      try: () => import("esbuild-register/dist/node"),
     });
     const res: { unregister: () => void } = yield* Effect.try({
+      catch: (e) =>
+        new FailedToLoadJsFileError({
+          cause: e,
+          message: "An error occurred while trying to load .js/ts file.",
+        }),
       try: () =>
         register({
-          format: 'cjs',
-          loader: 'ts'
+          format: "cjs",
+          loader: "ts",
         }),
-      catch: (e) => {
-        return new FailedToLoadJsFileError({
-          message: 'An error occurred while trying to load .js/ts file.',
-          cause: e
-        });
-      }
     }).pipe(
       Effect.orElse(() =>
         Effect.succeed({
           // biome-ignore lint/suspicious/noEmptyBlockStatements: it is on purpose an empty function. It is here instead of try-catch due to tsx.
-          unregister(): void {}
+          unregister(): void {},
         })
       )
     );

@@ -1,8 +1,8 @@
-import { Prompt } from '@effect/cli';
-import { FileSystem } from '@effect/platform';
-import { Data, Effect } from 'effect';
+import { Prompt } from "@effect/cli";
+import { FileSystem } from "@effect/platform";
+import { Data, Effect } from "effect";
 
-export class FileExistsError extends Data.TaggedError('FileExistsError')<{
+export class FileExistsError extends Data.TaggedError("FileExistsError")<{
   readonly message: string;
 }> {}
 
@@ -17,7 +17,7 @@ export const assertFileCanBeCreated = (
   filename: string,
   pathToAssert: string
 ) =>
-  Effect.gen(function* () {
+  Effect.gen(function* assertFileCanBeCreated() {
     const fileSystem = yield* FileSystem.FileSystem;
 
     const fileExists = yield* fileSystem.exists(pathToAssert);
@@ -25,12 +25,12 @@ export const assertFileCanBeCreated = (
       // Ask user if they want to overwrite the file
       const overwrite = yield* Prompt.run(
         Prompt.confirm({
-          message: `File ${filename} already exists. Do you want to overwrite it?`
+          message: `File ${filename} already exists. Do you want to overwrite it?`,
         })
       );
       if (!overwrite) {
         return yield* Effect.fail(
-          new FileExistsError({ message: 'File already exists' })
+          new FileExistsError({ message: "File already exists" })
         );
       }
 

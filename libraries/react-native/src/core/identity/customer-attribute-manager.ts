@@ -1,18 +1,19 @@
-import { Effect } from 'effect';
-import { CacheManager } from '../caching/cache-manager';
-import { ApiClient } from '../networking/api-client';
-import { getCommonSdkHeaders } from '../utils/get-common-sdk-headers';
+import { Effect } from "effect";
 
-type CustomerAttributes = {
+import { CacheManager } from "../caching/cache-manager";
+import { ApiClient } from "../networking/api-client";
+import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
+
+interface CustomerAttributes {
   email?: string;
   name?: string;
-};
+}
 
 export class CustomerAttributeManager extends Effect.Service<CustomerAttributeManager>()(
-  'rn-voidhash/CustomerAttributeManager',
+  "rn-voidhash/CustomerAttributeManager",
   {
     dependencies: [CacheManager.Default, ApiClient.Default],
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       const cacheManager = yield* CacheManager;
       const apiClient = yield* ApiClient;
 
@@ -33,12 +34,12 @@ export class CustomerAttributeManager extends Effect.Service<CustomerAttributeMa
         );
 
       const syncCustomerAttributes = (appUserId: string) =>
-        Effect.gen(function* () {
+        Effect.gen(function* syncCustomerAttributes() {
           let attributes = yield* getCustomerAttributes(appUserId);
           if (!attributes) {
             attributes = {
+              email: undefined,
               name: undefined,
-              email: undefined
             };
             yield* setCustomerAttributes(appUserId, attributes);
           }
@@ -46,12 +47,12 @@ export class CustomerAttributeManager extends Effect.Service<CustomerAttributeMa
           yield* apiClient.sdk.syncCustomerAttributes({
             headers: {
               ...commonHeaders,
-              'x-app-user-id': appUserId
+              "x-app-user-id": appUserId,
             },
             payload: {
+              email: attributes.email,
               name: attributes.name,
-              email: attributes.email
-            }
+            },
           });
         });
 
@@ -61,8 +62,8 @@ export class CustomerAttributeManager extends Effect.Service<CustomerAttributeMa
       return {
         getCustomerAttributes,
         setCustomerAttributes,
-        syncCustomerAttributes
+        syncCustomerAttributes,
       } as const;
-    })
+    }),
   }
 ) {}

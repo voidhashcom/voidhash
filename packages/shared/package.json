@@ -1,19 +1,20 @@
 {
   "name": "@voidhash/shared",
   "version": "0.0.1-alpha.1",
-  "type": "module",
+  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/voidhashcom/voidhash",
     "directory": "packages/shared"
   },
-  "private": true,
+  "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./errors": "./src/errors.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run -c vitest.unit.mts"
   },
   "dependencies": {},
   "devDependencies": {

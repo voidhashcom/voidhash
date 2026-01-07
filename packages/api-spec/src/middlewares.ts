@@ -1,34 +1,34 @@
-import { HttpApiMiddleware, HttpApiSecurity } from '@effect/platform';
+import { HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
 import {
-  AuthenticationError,
   AuthSession,
-  NotAuthenticatedError
-} from '@voidhash/shared';
-import { Schema } from 'effect';
+  AuthenticationError,
+  NotAuthenticatedError,
+} from "@voidhash/shared";
+import { Schema } from "effect";
 
 export class AuthMiddleware extends HttpApiMiddleware.Tag<AuthMiddleware>()(
-  'Http/AuthenticationMiddleware',
+  "Http/AuthenticationMiddleware",
   {
     // Optionally define the error schema for the middleware
-    provides: AuthSession,
     failure: Schema.Union(AuthenticationError, NotAuthenticatedError),
+    provides: AuthSession,
     security: {
       apiKey: HttpApiSecurity.apiKey({
-        key: 'x-api-key',
-        in: 'header'
-      }),
-      secretKey: HttpApiSecurity.apiKey({
-        key: 'x-secret-key',
-        in: 'header'
-      }),
-      publishableKey: HttpApiSecurity.apiKey({
-        key: 'x-publishable-key',
-        in: 'header'
+        in: "header",
+        key: "x-api-key",
       }),
       betterAuthCookie: HttpApiSecurity.apiKey({
-        key: '__Secure-better-auth.session_token',
-        in: 'cookie'
-      })
-    }
+        in: "cookie",
+        key: "__Secure-better-auth.session_token",
+      }),
+      publishableKey: HttpApiSecurity.apiKey({
+        in: "header",
+        key: "x-publishable-key",
+      }),
+      secretKey: HttpApiSecurity.apiKey({
+        in: "header",
+        key: "x-secret-key",
+      }),
+    },
   }
 ) {}

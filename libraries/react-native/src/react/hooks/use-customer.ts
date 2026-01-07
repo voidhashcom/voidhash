@@ -1,9 +1,10 @@
-import type { SdkCustomer } from '@voidhash/api-spec';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { VoidhashClient } from '../../client';
-import type { VoidhashSchema } from '../../core/schema';
-import type { VoidhashContext } from '../components/provider';
-import useAsyncFunction from './use-async-function';
+import type { SdkCustomer } from "@voidhash/api-spec";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+
+import type { VoidhashClient } from "../../client";
+import type { VoidhashSchema } from "../../core/schema";
+import type { VoidhashContext } from "../components/provider";
+import useAsyncFunction from "./use-async-function";
 
 export function currentCustomerHookFactory<TSchema extends VoidhashSchema>(
   client: VoidhashClient<TSchema>,
@@ -26,44 +27,45 @@ export function currentCustomerHookFactory<TSchema extends VoidhashSchema>(
     // Loading customer
     const getCustomerCallback = useCallback(
       () => client.getCurrentCustomer(),
-      [client]
+      []
     );
 
     const {
       data: loadedCustomer,
       isLoading,
       error,
-      refetch
+      refetch,
     } = useAsyncFunction(getCustomerCallback, {
-      enabled: voidhashContext?.isInitialized
+      enabled: voidhashContext?.isInitialized,
     });
 
     // Listen for customer updates. Update state if there was a change. This is used to sync state between uses of this hook and for background updates.
     useEffect(() => {
       const eventBus = client.internal_getEventBus();
-      const removeListener = eventBus.on('customer-fetched', (newCustomer) => {
+      const removeListener = eventBus.on("customer-fetched", (newCustomer) => {
         setCustomerIfDifferent(newCustomer);
       });
 
       return () => {
         removeListener();
       };
-    }, [client, setCustomerIfDifferent]);
+    }, [setCustomerIfDifferent]);
 
     // Processing
-    const data = useMemo(() => {
-      return {
-        ...customer
-      };
-    }, [customer]);
+    const data = useMemo(
+      () => ({
+        ...customer,
+      }),
+      [customer]
+    );
 
     setCustomerIfDifferent(loadedCustomer ?? null);
 
     return {
       data,
-      isLoading,
       error,
-      refetch
+      isLoading,
+      refetch,
     };
   }
   return useCurrentCustomer;

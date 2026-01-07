@@ -1,12 +1,10 @@
-import type { ConfigPlugin } from 'expo/config-plugins';
-import { createRunOncePlugin } from 'expo/config-plugins';
+import type { ConfigPlugin } from "expo/config-plugins";
+import { createRunOncePlugin } from "expo/config-plugins";
 
 // biome-ignore lint/nursery/useJsonImportAttribute: skip
-import pkg from '../../package.json';
+import pkg from "../../package.json";
 
-const withVoidhashReactNative: ConfigPlugin<void> = (config) => {
-  return config;
-};
+const withVoidhashReactNative: ConfigPlugin<void> = (config) => config;
 
 export default createRunOncePlugin(
   withVoidhashReactNative,

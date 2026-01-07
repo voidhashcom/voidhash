@@ -1,2 +1,2 @@
-// @ts-ignore
+// @ts-expect-error
 /// <reference types="nativewind/types" />

@@ -1,13 +1,13 @@
 // Credits: A lot of this was inspired by https://github.com/hyochan/expo-iap
-import type { HybridObject } from 'react-native-nitro-modules';
+import type { HybridObject } from "react-native-nitro-modules";
 
-export type StorekitProductPurchaseOffer = {
+export interface StorekitProductPurchaseOffer {
   id: string;
   type: number;
   paymentMode: string;
-};
+}
 
-export interface StorekitTransaction extends HybridObject<{ ios: 'swift' }> {
+export interface StorekitTransaction extends HybridObject<{ ios: "swift" }> {
   readonly id: string;
   readonly ids: string[];
   readonly transactionId: string;

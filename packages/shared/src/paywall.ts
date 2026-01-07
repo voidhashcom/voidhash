@@ -1,23 +1,23 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class PaywallServiceError extends Schema.TaggedError<PaywallServiceError>()(
-  'PaywallServiceError',
+  "PaywallServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class PaywallNotFoundError extends Schema.TaggedError<PaywallNotFoundError>()(
-  'PaywallNotFoundError',
+  "PaywallNotFoundError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}
 
 export class PaywallSlugAlreadyExistsError extends Schema.TaggedError<PaywallSlugAlreadyExistsError>()(
-  'PaywallSlugAlreadyExistsError',
+  "PaywallSlugAlreadyExistsError",
   {
-    slug: Schema.String
+    slug: Schema.String,
   }
 ) {
   toString(): string {

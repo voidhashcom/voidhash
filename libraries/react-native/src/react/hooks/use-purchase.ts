@@ -1,16 +1,17 @@
-import { useCallback, useState } from 'react';
-import type { VoidhashClient } from '../../client';
+import { useCallback, useState } from "react";
+
+import type { VoidhashClient } from "../../client";
 import type {
   InferGetProductResponseFromSchema,
-  VoidhashSchema
-} from '../../core/schema';
+  VoidhashSchema,
+} from "../../core/schema";
 
-export type UsePurchaseOptions = {
-  method?: 'native';
+export interface UsePurchaseOptions {
+  method?: "native";
   onSuccess?: () => void;
   onError?: (error: Error) => void;
   onSettled?: () => void;
-};
+}
 
 export function purchaseHookFactory<TSchema extends VoidhashSchema>(
   client: VoidhashClient<TSchema>
@@ -26,7 +27,7 @@ export function purchaseHookFactory<TSchema extends VoidhashSchema>(
           null
         >,
         options?: {
-          method?: 'native';
+          method?: "native";
           onSuccess?: () => void;
           onError?: (error: Error) => void;
           onSettled?: () => void;
@@ -39,7 +40,7 @@ export function purchaseHookFactory<TSchema extends VoidhashSchema>(
 
         client
           .purchase(product, {
-            method: methodToUse
+            method: methodToUse,
           })
           .then(() => {
             options?.onSuccess?.();
@@ -56,13 +57,13 @@ export function purchaseHookFactory<TSchema extends VoidhashSchema>(
             hookOptions?.onSettled?.();
           });
       },
-      [client, hookOptions]
+      [hookOptions]
     );
 
     return {
-      purchase,
+      error,
       isLoading,
-      error
+      purchase,
     };
   }
   return usePurchase;

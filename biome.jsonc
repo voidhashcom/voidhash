@@ -3,8 +3,8 @@
   "extends": ["ultracite"],
   "javascript": {
     "formatter": {
-      "trailingCommas": "none"
-    }
+      "trailingCommas": "none",
+    },
   },
   "linter": {
     "rules": {
@@ -14,20 +14,20 @@
         "noDoneCallback": "off",
         "noExportedImports": "off",
         "useDefaultSwitchClause": "off",
-        "noNamespace": "off"
+        "noNamespace": "off",
       },
 
       "complexity": {
-        "noExcessiveCognitiveComplexity": "off"
+        "noExcessiveCognitiveComplexity": "off",
       },
 
       "performance": {
-        "noNamespaceImport": "off"
+        "noNamespaceImport": "off",
       },
       "nursery": {
         "noNestedComponentDefinitions": "off",
-        "noShadow": "off"
-      }
-    }
-  }
+        "noShadow": "off",
+      },
+    },
+  },
 }

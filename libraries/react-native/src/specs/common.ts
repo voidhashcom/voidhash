@@ -1,6 +1,6 @@
-export type ProductType = 'inapp' | 'subs';
+export type ProductType = "inapp" | "subs";
 
-export type BaseProduct = {
+export interface BaseProduct {
   id: string;
   title: string;
   description: string;
@@ -9,4 +9,4 @@ export type BaseProduct = {
   displayPrice: string;
   currency: string;
   price?: number;
-};
+}
