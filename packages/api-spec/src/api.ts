@@ -3,10 +3,13 @@ import {
   ApiKeyNotFoundError,
   ApiKeyServiceError,
   AuthenticationError,
+  ChangesetDeploymentServiceError,
   CustomerInvalidAnonymousIdError,
   CustomerNotFoundError,
   CustomerServiceError,
   OrganizationServiceError,
+  PaymentProviderConfigurationServiceError,
+  PaymentProviderProductServiceError,
   PerkServiceError,
   ProductPerkServiceError,
   ProductPerkValidationError,
@@ -33,8 +36,12 @@ import {
   CreateSecretKeyBody,
   Customer,
   CustomerIdParam,
+  DeployChangesetBody,
+  DeployChangesetResponse,
   Organization,
   OrganizationIdParam,
+  PaymentProviderConfiguration,
+  PaymentProviderProduct,
   Perk,
   Product,
   ProductIdParam,
@@ -247,6 +254,40 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
       )
       .middleware(AuthMiddleware)
       .prefix("/users")
+  )
+  .add(
+    HttpApiGroup.make("payment_provider_configurations")
+      .add(
+        HttpApiEndpoint.get("listPaymentProviderConfigurations")`/`
+          .addSuccess(Schema.Array(PaymentProviderConfiguration))
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(PaymentProviderConfigurationServiceError, { status: 500 })
+      )
+      .middleware(AuthMiddleware)
+      .prefix("/payment-provider-configurations")
+  )
+  .add(
+    HttpApiGroup.make("payment_provider_products")
+      .add(
+        HttpApiEndpoint.get("listPaymentProviderProducts")`/`
+          .addSuccess(Schema.Array(PaymentProviderProduct))
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(PaymentProviderProductServiceError, { status: 500 })
+      )
+      .middleware(AuthMiddleware)
+      .prefix("/payment-provider-products")
+  )
+  .add(
+    HttpApiGroup.make("changesets")
+      .add(
+        HttpApiEndpoint.post("deployChangeset")`/deploy`
+          .setPayload(DeployChangesetBody)
+          .addSuccess(DeployChangesetResponse)
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(ChangesetDeploymentServiceError, { status: 500 })
+      )
+      .middleware(AuthMiddleware)
+      .prefix("/changesets")
   )
 
   .prefix("/api/v1");
