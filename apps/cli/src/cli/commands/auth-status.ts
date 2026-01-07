@@ -2,12 +2,20 @@ import { Command } from "@effect/cli";
 import { Console, Effect } from "effect";
 
 import { Auth } from "../../domain/services/auth";
+import { userError } from "../../utils/error-formatter";
+import { debugOption } from "../shared-options";
 
-export const authStatusCommand = Command.make("status", {}, () =>
+export const authStatusCommand = Command.make("status", { debug: debugOption }, () =>
   Effect.gen(function* authStatusCommand() {
     const auth = yield* Auth;
     const user = yield* auth.getSignedInSession.pipe(
       Effect.catchTags({
+        FailedToGetSessionError: () =>
+          Effect.fail(
+            userError(
+              "Failed to get user session. Please try again or run 'voidhash auth login'."
+            )
+          ),
         NoSignedInUserError: () => Effect.succeed(null),
       })
     );

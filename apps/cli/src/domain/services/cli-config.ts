@@ -35,16 +35,20 @@ export class CliConfig extends Effect.Service<CliConfig>()(
        */
       const readConfig = () =>
         Effect.gen(function* readConfig() {
+          yield* Effect.logDebug(`Reading config from ${filePath}`);
           if (!fileSystem.exists(filePath)) {
+            yield* Effect.logDebug("Config file not found, using defaults");
             return yield* Effect.succeed(emptyConfig);
           }
           const configString = yield* fileSystem.readFileString(filePath);
           const configJson = JSON.parse(configString);
+          yield* Effect.logDebug("Config file loaded successfully");
           return yield* Schema.decodeUnknown(CliConfigSchema)({
             ...emptyConfig,
             ...configJson,
           });
         }).pipe(
+          Effect.withSpan("CliConfig.readConfig"),
           Effect.catchTags({
             BadArgument: (e) =>
               Effect.fail(
@@ -79,6 +83,7 @@ export class CliConfig extends Effect.Service<CliConfig>()(
        */
       const writeToConfig = (config: Partial<typeof CliConfigSchema.Type>) =>
         Effect.gen(function* writeToConfig() {
+          yield* Effect.logDebug(`Writing config to ${filePath}`);
           const currentConfig = yield* readConfig().pipe(
             Effect.orElse(() => Effect.succeed({}))
           );
@@ -89,7 +94,8 @@ export class CliConfig extends Effect.Service<CliConfig>()(
             filePath,
             JSON.stringify(validatedConfig)
           );
-        });
+          yield* Effect.logDebug("Config file written successfully");
+        }).pipe(Effect.withSpan("CliConfig.writeToConfig"));
 
       /**
        * Resets the configuration to the default values. If authenticated, persists the authentication state.
@@ -98,13 +104,15 @@ export class CliConfig extends Effect.Service<CliConfig>()(
        */
       const resetConfig = () =>
         Effect.gen(function* resetConfig() {
+          yield* Effect.logDebug("Resetting config to defaults");
           const config = yield* readConfig();
 
           yield* writeToConfig({
             ...emptyConfig,
             api_key: config.api_key ?? null,
           });
-        });
+          yield* Effect.logDebug("Config reset complete");
+        }).pipe(Effect.withSpan("CliConfig.resetConfig"));
 
       return {
         readConfig,

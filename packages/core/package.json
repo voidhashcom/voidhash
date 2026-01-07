@@ -36,6 +36,7 @@
     "typescript": "5.8.3"
   },
   "peerDependencies": {
+    "@effect/experimental": "catalog:",
     "@effect/workflow": "catalog:",
     "effect": "catalog:"
   }

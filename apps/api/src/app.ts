@@ -1,10 +1,13 @@
+import { ClusterWorkflowEngine } from "@effect/cluster";
 import {
 	HttpApiBuilder,
 	HttpApiScalar,
 	HttpLayerRouter,
 	HttpServerResponse,
 } from "@effect/platform";
+import { BunClusterSocket } from "@effect/platform-bun";
 import { RpcSerialization, RpcServer } from "@effect/rpc";
+import { MysqlClient } from "@effect/sql-mysql2";
 import { VoidhashV1Api } from "@voidhash/api-spec";
 import { BetterAuth } from "@voidhash/core/better-auth/effect";
 import {
@@ -32,7 +35,7 @@ import {
 import { Db } from "@voidhash/db/effect";
 import { DOCS_DOMAIN, STUDIO_DOMAIN, WWW_DOMAIN } from "@voidhash/lib";
 import { RpcGroups } from "@voidhash/rpc";
-import { Effect, Layer } from "effect";
+import { Duration, Effect, Layer, Redacted, Schedule } from "effect";
 
 import { AuthMiddlewareLive } from "./api-middlewares";
 import { JwtAuth } from "./jwt-auth";
@@ -169,6 +172,34 @@ const AllRoutes = Layer.mergeAll(
 );
 
 // ==============================
+// Workflow Engine
+// ==============================
+const WorkflowEngineLayer = ClusterWorkflowEngine.layer.pipe(
+	Layer.provideMerge(
+		BunClusterSocket.layer().pipe(
+			Layer.retry(
+				Schedule.exponential(Duration.millis(100)).pipe(
+					Schedule.intersect(Schedule.recurs(5)),
+				),
+			),
+		),
+	),
+	Layer.provideMerge(
+		MysqlClient.layer({
+			database: process.env.DATABASE_NAME,
+			host: process.env.DATABASE_HOST,
+			password: Redacted.make(process.env.DATABASE_PASSWORD ?? ""),
+			poolConfig: {
+				ssl: process.env.DATABASE_HOST?.includes("psdb.cloud")
+					? { rejectUnauthorized: true }
+					: undefined,
+			},
+			username: process.env.DATABASE_USERNAME,
+		}),
+	),
+);
+
+// ==============================
 // Services
 // ==============================
 const PolarBillingProviderConfigLayer = Layer.succeed(PolarConfigService, {
@@ -207,6 +238,7 @@ const ServicesLayer = Layer.mergeAll(
 ).pipe(
 	Layer.provideMerge(PolarBillingProviderLayer),
 	Layer.provideMerge(UsageService.Default),
+	Layer.provideMerge(WorkflowEngineLayer),
 	Layer.provideMerge(
 		Layer.mergeAll(BetterAuth.Default, Db.Default, JwtAuth.Default),
 	),

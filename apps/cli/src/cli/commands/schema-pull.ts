@@ -6,10 +6,12 @@ import { Auth } from "../../domain/services/auth";
 import { Codegen } from "../../domain/services/codegen";
 import { SchemaService } from "../../domain/services/schema";
 import { SourceCode } from "../../domain/services/source-code";
+import { debugOption } from "../shared-options";
 
 export const schemaPullCommand = Command.make(
   "pull",
   {
+    debug: debugOption,
     force: Options.boolean("force").pipe(
       Options.withDescription("Skip confirmation prompt"),
       Options.withDefault(false)
