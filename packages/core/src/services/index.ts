@@ -4,6 +4,7 @@ export * from "./api-keys";
 export * from "./app-store";
 export * from "./app-store-server-api";
 export * from "./billing";
+export * from "./changeset-deployment";
 export * from "./customers";
 export * from "./organizations";
 export * from "./payment-provider-configurations";

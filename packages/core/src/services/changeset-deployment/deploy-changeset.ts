@@ -61,6 +61,10 @@ export const deployChangeset = Effect.gen(function* deployChangeset() {
     (effect) =>
       effect.pipe(
         Effect.catchTags({
+          DatabaseError: (error) =>
+            new ChangesetDeploymentServiceError({
+              cause: String(error.cause),
+            }),
           DeployChangesetError: (error) =>
             new ChangesetDeploymentServiceError({
               cause: error.message,

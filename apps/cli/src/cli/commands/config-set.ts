@@ -2,13 +2,14 @@ import { Args, Command, HelpDoc, ValidationError } from "@effect/cli";
 import { Console, Effect } from "effect";
 
 import { CliConfig } from "../../domain/services/cli-config";
+import { debugOption } from "../shared-options";
 
 const keyArg = Args.text({ name: "key" });
 const valueArg = Args.text({ name: "value" });
 
 export const configSetCommand = Command.make(
   "set",
-  { key: keyArg, value: valueArg },
+  { debug: debugOption, key: keyArg, value: valueArg },
   ({ key, value }) =>
     Effect.gen(function* configSetCommand() {
       const cliConfig = yield* CliConfig;

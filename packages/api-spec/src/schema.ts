@@ -1,4 +1,5 @@
 import { HttpApiSchema } from "@effect/platform";
+import { ChangesetSchema } from "@voidhash/shared";
 import { Schema } from "effect";
 
 export const PublishableKeyAuthHeaders = Schema.Struct({
@@ -142,6 +143,7 @@ export class Product extends Schema.Class<Product>("Product")({
   id: Schema.String,
   name: Schema.String,
   projectId: Schema.String,
+  slug: Schema.String,
   type: ProductType,
 }) {}
 
@@ -155,6 +157,50 @@ export class ProductPerk extends Schema.Class<ProductPerk>("ProductPerk")({
   id: Schema.String,
   perkId: Schema.String,
   productId: Schema.String,
+}) {}
+
+// ========================================================
+// Payment Provider Configurations
+// ========================================================
+
+export class PaymentProviderConfiguration extends Schema.Class<PaymentProviderConfiguration>(
+  "PaymentProviderConfiguration"
+)({
+  enabled: Schema.Boolean,
+  id: Schema.String,
+  name: Schema.String,
+  projectId: Schema.String,
+  providerId: Schema.String,
+}) {}
+
+// ========================================================
+// Payment Provider Products
+// ========================================================
+
+export class PaymentProviderProduct extends Schema.Class<PaymentProviderProduct>(
+  "PaymentProviderProduct"
+)({
+  configuration: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  id: Schema.String,
+  paymentProviderConfigurationId: Schema.String,
+  productId: Schema.String,
+  providerId: Schema.String,
+}) {}
+
+// ========================================================
+// Changesets
+// ========================================================
+
+export class DeployChangesetBody extends Schema.Class<DeployChangesetBody>(
+  "DeployChangesetBody"
+)({
+  changeset: ChangesetSchema,
+}) {}
+
+export class DeployChangesetResponse extends Schema.Class<DeployChangesetResponse>(
+  "DeployChangesetResponse"
+)({
+  deploymentId: Schema.String,
 }) {}
 
 // ========================================================

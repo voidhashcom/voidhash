@@ -2,8 +2,9 @@ import { Command, HelpDoc, ValidationError } from "@effect/cli";
 import { Console, Effect } from "effect";
 
 import { CliConfig } from "../../domain/services/cli-config";
+import { debugOption } from "../shared-options";
 
-export const configResetCommand = Command.make("reset", {}, () =>
+export const configResetCommand = Command.make("reset", { debug: debugOption }, () =>
   Effect.gen(function* configResetCommand() {
     const cliConfig = yield* CliConfig;
 

@@ -1,3 +1,4 @@
+import { SCHEMA_KIND, SchemaKind } from "./constants";
 import {
   type SubscriptionDefinitionProperties,
   subscription as createSubscription,
@@ -39,6 +40,7 @@ export interface SchemaConfiguration<
   TProviders extends DefinedProviders,
   TPerks extends DefinedPerks,
 > {
+  readonly [SCHEMA_KIND]: typeof SchemaKind.SchemaConfiguration;
   providers: TProviders;
   perks: TPerks;
   subscription: (
@@ -86,6 +88,7 @@ export function schemaConfiguration<
   const { providers, perks } = config;
 
   return {
+    [SCHEMA_KIND]: SchemaKind.SchemaConfiguration,
     providers,
     perks,
     /**

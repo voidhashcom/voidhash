@@ -2,10 +2,11 @@ import { Command } from "@effect/cli";
 import { Console, Effect } from "effect";
 
 import { CliConfig } from "../../domain/services/cli-config";
+import { debugOption } from "../shared-options";
 import { configResetCommand } from "./config-reset";
 import { configSetCommand } from "./config-set";
 
-export const configCommand = Command.make("config", {}, () =>
+export const configCommand = Command.make("config", { debug: debugOption }, () =>
   Effect.gen(function* configCommand() {
     const cliConfig = yield* CliConfig;
     yield* Console.log("Current configuration:");

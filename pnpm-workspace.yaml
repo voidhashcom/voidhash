@@ -5,15 +5,16 @@ packages:
   - examples/*
 
 catalog:
-  "@effect/cli": ^0.71.0
-  "@effect/rpc": "^0.72.1"
-  "@effect/language-service": ^0.48.0
-  "@effect/platform": ^0.92.1
-  "@effect/cluster": "^0.52.9"
-  "@effect/platform-node": ^0.98.4
-  "@effect/platform-bun": "^0.83.0"
-  "@effect/vitest": ^0.26.0
-  "@effect/workflow": ^0.11.5
+  "@effect/cli": ^0.73.0
+  "@effect/rpc": ^0.73.0
+  "@effect/language-service": ^0.64.1
+  "@effect/platform": ^0.94.1
+  "@effect/cluster": ^0.56.1
+  "@effect/platform-node": ^0.104.0
+  "@effect/platform-bun": ^0.87.0
+  "@effect/vitest": ^0.27.0
+  "@effect/workflow": ^0.16.0
+  "@effect/experimental": ^0.58.0
   "@tanstack/react-query": ^5.90.5
   "@trpc/client": ^11.1.0
   "@trpc/server": ^11.1.0
@@ -23,7 +24,7 @@ catalog:
   "@voidhash/mimic": 0.0.8
   "@voidhash/mimic-react": 0.0.8
   "@voidhash/mimic-effect": 0.0.8
-  effect: ^3.18.4
+  effect: ^3.19.14
   superjson: ^2.2.2
 
 catalogs:
