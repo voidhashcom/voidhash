@@ -82,8 +82,7 @@ describe.sequential('getProducts happy path', () => {
     );
     expect(testProduct).toMatchObject({
       projectId: h.resources.project.id,
-      name: 'Test Product',
-      slug: 'test-product'
+      name: 'Test Product'
     });
 
     t.onTestFinished(async () => {

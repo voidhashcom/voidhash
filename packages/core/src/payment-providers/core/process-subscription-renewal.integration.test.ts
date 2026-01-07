@@ -18,7 +18,7 @@
 // 	InsertProductPerk,
 // 	productPerks,
 // } from "@voidhash/db";
-// import { describe, expect, test } from "vitest";
+// import { describe, expect, it, test } from "vitest";
 // import { processSubscriptionRenewal } from "./process-subscription-renewal";
 // import { processSubscriptionCreation } from "./process-subscription-creation";
 

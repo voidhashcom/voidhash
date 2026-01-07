@@ -1,16 +1,16 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class ProductServiceError extends Schema.TaggedError<ProductServiceError>()(
-  'ProductServiceError',
+  "ProductServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class ProductSlugAlreadyExistsError extends Schema.TaggedError<ProductSlugAlreadyExistsError>()(
-  'ProductSlugAlreadyExistsError',
+  "ProductSlugAlreadyExistsError",
   {
-    slug: Schema.String
+    slug: Schema.String,
   }
 ) {
   toString(): string {
@@ -19,8 +19,8 @@ export class ProductSlugAlreadyExistsError extends Schema.TaggedError<ProductSlu
 }
 
 export class ProductNotFoundError extends Schema.TaggedError<ProductNotFoundError>()(
-  'ProductNotFoundError',
+  "ProductNotFoundError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}

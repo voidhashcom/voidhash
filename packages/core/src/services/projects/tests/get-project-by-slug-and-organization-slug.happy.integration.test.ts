@@ -45,4 +45,3 @@ describe.sequential('getProjectBySlugAndOrganizationSlug happy path', () => {
     });
   });
 });
-

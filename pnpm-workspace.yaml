@@ -3,27 +3,34 @@ packages:
   - apps/*
   - libraries/*
   - examples/*
+
 catalog:
-  "@types/react": ^18.3.14
-  "@types/react-dom": ^18.3.2
+  "@effect/cli": ^0.71.0
+  "@effect/rpc": "^0.72.1"
+  "@effect/language-service": ^0.48.0
+  "@effect/platform": ^0.92.1
+  "@effect/cluster": "^0.52.9"
+  "@effect/platform-node": ^0.98.4
+  "@effect/platform-bun": "^0.83.0"
+  "@effect/vitest": ^0.26.0
+  "@effect/workflow": ^0.11.5
+  "@tanstack/react-query": ^5.90.5
   "@trpc/client": ^11.1.0
   "@trpc/server": ^11.1.0
-  "@tanstack/react-query": ^5.90.5
   "@trpc/tanstack-react-query": ^11.1.0
-  "effect": "^3.18.4"
-  "@effect/platform-node": "^0.100.0"
-  "@effect/platform-bun": "^0.83.0"
-  "@effect/platform": "^0.93.0"
-  "@effect/cluster": "^0.52.9"
-  "@effect/cli": "^0.72.1"
-  "@effect/rpc": "^0.72.1"
-  "@effect/language-service": "^0.55.3"
-  "@effect/vitest": "^0.27.0"
+  "@types/react": ^18.3.14
+  "@types/react-dom": ^18.3.2
+  "@voidhash/mimic": 0.0.8
+  "@voidhash/mimic-react": 0.0.8
+  "@voidhash/mimic-effect": 0.0.8
+  effect: ^3.18.4
   superjson: ^2.2.2
+
 catalogs:
   react18:
     react: 18.3.1
     react-dom: 18.3.1
+
 onlyBuiltDependencies:
   - "@parcel/watcher"
   - "@tailwindcss/oxide"

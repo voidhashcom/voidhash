@@ -34,4 +34,3 @@ describe.sequential('getCustomerPurchases error path', () => {
     expect(error).toBeInstanceOf(CustomerNotFoundError);
   });
 });
-

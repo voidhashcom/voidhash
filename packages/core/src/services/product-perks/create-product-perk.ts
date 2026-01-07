@@ -1,26 +1,27 @@
 import {
-  eq,
   type InsertProductPerk,
+  eq,
   perks,
   productPerks,
-  products
-} from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { generateId } from '@voidhash/lib';
+  products,
+} from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { generateId } from "@voidhash/lib";
 import {
   AuthSession,
   ProductPerkServiceError,
-  ProductPerkValidationError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
+  ProductPerkValidationError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { checkProjectPermission } from "../../utils/permissions";
 
 const _getProductById = (db: Db) =>
   db.makeQuery((execute, id: string) =>
     execute(
       async (db) =>
         await db.query.products.findFirst({
-          where: eq(products.id, id)
+          where: eq(products.id, id),
         })
     )
   );
@@ -37,10 +38,10 @@ const _createProductPerkRecord = (db: Db) =>
     execute(async (db) => await db.insert(productPerks).values(productPerk))
   );
 
-export const createProductPerk = Effect.gen(function* () {
+export const createProductPerk = Effect.gen(function* createProductPerk() {
   const db = yield* Db;
-  return Effect.fn('createProductPerk')(
-    function* (input: { productId: string; perkId: string }) {
+  return Effect.fn("createProductPerk")(
+    function* createProductPerk(input: { productId: string; perkId: string }) {
       const session = yield* AuthSession;
 
       // Get product to check authorization
@@ -48,7 +49,7 @@ export const createProductPerk = Effect.gen(function* () {
       if (!product) {
         return yield* Effect.fail(
           new ProductPerkValidationError({
-            message: `Product ${input.productId} not found`
+            message: `Product ${input.productId} not found`,
           })
         );
       }
@@ -56,7 +57,7 @@ export const createProductPerk = Effect.gen(function* () {
       // SECURITY: Authorization check
       yield* checkProjectPermission(
         product.projectId,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to create product perks for project ${product.projectId}`
       );
 
@@ -65,7 +66,7 @@ export const createProductPerk = Effect.gen(function* () {
       if (!perk) {
         return yield* Effect.fail(
           new ProductPerkValidationError({
-            message: `Perk ${input.perkId} not found`
+            message: `Perk ${input.perkId} not found`,
           })
         );
       }
@@ -73,14 +74,14 @@ export const createProductPerk = Effect.gen(function* () {
       // SECURITY: Authorization check
       yield* checkProjectPermission(
         perk.projectId,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to create product perks in project ${product.projectId}`
       );
 
       const newProductPerk = {
-        id: generateId('productPerk'),
+        id: generateId("productPerk"),
+        perkId: input.perkId,
         productId: input.productId,
-        perkId: input.perkId
       };
 
       yield* _createProductPerkRecord(db)(newProductPerk);
@@ -96,8 +97,8 @@ export const createProductPerk = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new ProductPerkServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

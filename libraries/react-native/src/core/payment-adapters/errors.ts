@@ -1,82 +1,82 @@
-import { Data } from 'effect';
+import { Data } from "effect";
 
 export class NativeAdapterNotInitializedError extends Data.TaggedError(
-  'NativeAdapterNotInitializedError'
+  "NativeAdapterNotInitializedError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class FailedToInitializeNativeAdapterError extends Data.TaggedError(
-  'FailedToInitializeNativeAdapterError'
+  "FailedToInitializeNativeAdapterError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class FailedToEndNativeAdapterError extends Data.TaggedError(
-  'FailedToEndNativeAdapterError'
+  "FailedToEndNativeAdapterError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class FailedToGetProductsError extends Data.TaggedError(
-  'FailedToGetProductsError'
+  "FailedToGetProductsError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class FailedToBuyProductError extends Data.TaggedError(
-  'FailedToBuyProductError'
+  "FailedToBuyProductError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
-export class UserCancelledError extends Data.TaggedError('UserCancelledError')<{
+export class UserCancelledError extends Data.TaggedError("UserCancelledError")<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class PurchasePendingError extends Data.TaggedError(
-  'PurchasePendingError'
+  "PurchasePendingError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class FailedToAcknowledgePurchaseError extends Data.TaggedError(
-  'FailedToAcknowledgePurchaseError'
+  "FailedToAcknowledgePurchaseError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class GetPurchaseHistoryError extends Data.TaggedError(
-  'GetPurchaseHistoryError'
+  "GetPurchaseHistoryError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class GetPendingTransactionsError extends Data.TaggedError(
-  'GetPendingTransactionsError'
+  "GetPendingTransactionsError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class FailedToPresentCodeRedemptionSheetError extends Data.TaggedError(
-  'FailedToPresentCodeRedemptionSheetError'
+  "FailedToPresentCodeRedemptionSheetError"
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class FailedToShowManageSubscriptionsError extends Data.TaggedError(
-  'FailedToShowManageSubscriptionsError'
+  "FailedToShowManageSubscriptionsError"
 )<{
   readonly message: string;
   readonly cause?: unknown;

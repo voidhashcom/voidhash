@@ -34,4 +34,3 @@ describe.sequential('getOrganizationById error path', () => {
     expect(error).toBeInstanceOf(OrganizationNotFoundError);
   });
 });
-

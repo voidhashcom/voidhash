@@ -34,4 +34,3 @@ describe.sequential('getPerkById error path', () => {
     expect(error).toBeInstanceOf(PerkNotFoundError);
   });
 });
-

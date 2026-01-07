@@ -1,11 +1,11 @@
-import { Effect } from 'effect';
+import { Effect } from "effect";
 
 export class OrganizationService extends Effect.Service<OrganizationService>()(
-  'voidhash-cli/services/OrganizationService',
+  "voidhash-cli/services/OrganizationService",
   {
     dependencies: [],
-    scoped: Effect.gen(function* () {
+    scoped: Effect.gen(function* scoped() {
       return {} as const;
-    })
+    }),
   }
 ) {}

@@ -1,15 +1,16 @@
-import { Effect } from 'effect';
-import { ApiClient } from '../../utils/api-client';
-import { OrganizationServiceError } from './errors';
+import { Effect } from "effect";
 
-export const getSession = Effect.gen(function* () {
+import { ApiClient } from "../../utils/api-client";
+import { OrganizationServiceError } from "../organization/errors";
+
+export const getSession = Effect.gen(function* getSession() {
   const client = yield* ApiClient;
-  return Effect.fn('getSession')(
-    function* (input: { name: string }) {
+  return Effect.fn("getSession")(
+    function* getSession(input: { name: string }) {
       const organization = yield* client.organizations.createOrganization({
         payload: {
-          name: input.name
-        }
+          name: input.name,
+        },
       });
 
       return organization;
@@ -17,11 +18,11 @@ export const getSession = Effect.gen(function* () {
     (effect) =>
       effect.pipe(
         Effect.catchAll((error) => {
-          if (error._tag === 'NotAuthenticatedError') {
+          if (error._tag === "NotAuthenticatedError") {
             return Effect.fail(
               new OrganizationServiceError({
                 message:
-                  'Failed to create an organization because you are not authenticated.'
+                  "Failed to create an organization because you are not authenticated.",
               })
             );
           }
@@ -29,7 +30,7 @@ export const getSession = Effect.gen(function* () {
           return Effect.fail(
             new OrganizationServiceError({
               message:
-                'Failed to create an organization because of an unknown error. Please try again. If the problem persists, please contact us at support@voidhash.com'
+                "Failed to create an organization because of an unknown error. Please try again. If the problem persists, please contact us at support@voidhash.com",
             })
           );
         })

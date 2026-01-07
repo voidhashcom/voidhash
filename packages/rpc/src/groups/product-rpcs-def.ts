@@ -1,82 +1,83 @@
-import { Rpc, RpcGroup } from '@effect/rpc';
+import { Rpc, RpcGroup } from "@effect/rpc";
 import {
   ActionForbiddenError,
   ProductNotFoundError,
   ProductServiceError,
-  ProductSlugAlreadyExistsError
-} from '@voidhash/shared';
-import { Schema } from 'effect';
-import { AuthMiddleware } from '../middlewares';
+  ProductSlugAlreadyExistsError,
+} from "@voidhash/shared";
+import { Schema } from "effect";
+
+import { AuthMiddleware } from "../middlewares";
 
 export const ProductType = Schema.Literal(
-  'subscription',
-  'one-time',
-  'one-time-consumable'
+  "subscription",
+  "one-time",
+  "one-time-consumable"
 );
 
 export const Product = Schema.Struct({
   id: Schema.String,
-  type: ProductType,
   name: Schema.String,
-  projectId: Schema.String
+  projectId: Schema.String,
+  type: ProductType,
 });
 
 export class ProductRpcsDef extends RpcGroup.make(
-  Rpc.make('ListProducts', {
+  Rpc.make("ListProducts", {
+    error: Schema.Union(ActionForbiddenError, ProductServiceError),
     payload: Schema.Struct({
-      projectId: Schema.String
+      projectId: Schema.String,
     }),
     success: Schema.Array(Product),
-    error: Schema.Union(ActionForbiddenError, ProductServiceError)
   }),
-  Rpc.make('GetProduct', {
-    payload: Schema.Struct({
-      id: Schema.String
-    }),
-    success: Product,
+  Rpc.make("GetProduct", {
     error: Schema.Union(
       ActionForbiddenError,
       ProductServiceError,
       ProductNotFoundError
-    )
-  }),
-  Rpc.make('CreateProduct', {
+    ),
     payload: Schema.Struct({
-      projectId: Schema.String,
-      name: Schema.String,
-      slug: Schema.String
+      id: Schema.String,
     }),
-    success: Schema.Struct({
-      id: Schema.String
-    }),
+    success: Product,
+  }),
+  Rpc.make("CreateProduct", {
     error: Schema.Union(
       ActionForbiddenError,
       ProductServiceError,
       ProductSlugAlreadyExistsError
-    )
+    ),
+    payload: Schema.Struct({
+      name: Schema.String,
+      projectId: Schema.String,
+      slug: Schema.String,
+    }),
+    success: Schema.Struct({
+      id: Schema.String,
+    }),
   }),
-  Rpc.make('UpdateProduct', {
+  Rpc.make("UpdateProduct", {
+    error: Schema.Union(
+      ActionForbiddenError,
+      ProductServiceError,
+      ProductNotFoundError
+    ),
     payload: Schema.Struct({
       id: Schema.String,
       name: Schema.String,
-      slug: Schema.optional(Schema.String)
+      slug: Schema.optional(Schema.String),
     }),
     success: Schema.Void,
-    error: Schema.Union(
-      ActionForbiddenError,
-      ProductServiceError,
-      ProductNotFoundError
-    )
   }),
-  Rpc.make('DeleteProduct', {
-    payload: Schema.Struct({
-      id: Schema.String
-    }),
-    success: Schema.Void,
+  Rpc.make("DeleteProduct", {
     error: Schema.Union(
       ActionForbiddenError,
       ProductServiceError,
       ProductNotFoundError
-    )
+    ),
+    payload: Schema.Struct({
+      id: Schema.String,
+    }),
+    success: Schema.Void,
   })
 ).middleware(AuthMiddleware) {}

@@ -1,10 +1,11 @@
-'use client';
+"use client";
 // import { ChevronRight } from 'lucide-react';
-import { motion } from 'motion/react';
-import { Button } from '../button';
+import { motion } from "motion/react";
+
+import { Button } from "../button";
 // import { Button } from '../button';
-import { RefractionStripes } from '../refraction-stripes';
-import { SectionContainer } from '../section/section-container';
+import { RefractionStripes } from "../refraction-stripes";
+import { SectionContainer } from "../section/section-container";
 
 export function Hero() {
   return (
@@ -63,7 +64,7 @@ export function Hero() {
             <motion.div
               animate={{ opacity: 1, translateY: 0 }}
               initial={{ opacity: 0, translateY: 100 }}
-              transition={{ duration: 3, ease: 'easeInOut', delay: 0.1 }}
+              transition={{ delay: 0.1, duration: 3, ease: "easeInOut" }}
             >
               <svg
                 className="w-full text-background"
@@ -159,19 +160,19 @@ export function Hero() {
                   <motion.linearGradient
                     animate={{
                       gradientTransform: [
-                        'rotate(0 0 0) translate(0 50)',
-                        'rotate(-6 0 0) translate(0 -100)'
+                        "rotate(0 0 0) translate(0 50)",
+                        "rotate(-6 0 0) translate(0 -100)",
                       ],
-                      opacity: [0.7, 1]
+                      opacity: [0.7, 1],
                     }}
                     gradientUnits="userSpaceOnUse"
                     id="paint0_linear_1135_42"
                     transition={{
-                      duration: 3,
                       delay: 1,
-                      ease: 'easeInOut',
-                      repeatType: 'reverse',
-                      repeat: Number.POSITIVE_INFINITY
+                      duration: 3,
+                      ease: "easeInOut",
+                      repeat: Number.POSITIVE_INFINITY,
+                      repeatType: "reverse",
                     }}
                     x1="680.5"
                     x2="680.5"
@@ -196,17 +197,17 @@ export function Hero() {
                   <motion.linearGradient
                     animate={{
                       gradientTransform: [
-                        'rotate(0 0 0) translate(0 300)',
-                        'rotate(4 0 0) translate(0 -100)'
-                      ]
+                        "rotate(0 0 0) translate(0 300)",
+                        "rotate(4 0 0) translate(0 -100)",
+                      ],
                     }}
                     gradientUnits="userSpaceOnUse"
                     id="paint2_linear_1135_42"
                     transition={{
                       duration: 4,
-                      ease: 'easeInOut',
-                      repeatType: 'reverse',
-                      repeat: Number.POSITIVE_INFINITY
+                      ease: "easeInOut",
+                      repeat: Number.POSITIVE_INFINITY,
+                      repeatType: "reverse",
                     }}
                     x1="635.277"
                     x2="838.798"

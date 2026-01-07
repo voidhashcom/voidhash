@@ -1,8 +1,9 @@
-import { and, type CustomerTypeValue, customers, eq } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { AuthSession, CustomerServiceError } from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
+import { type CustomerTypeValue, and, customers, eq } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { AuthSession, CustomerServiceError } from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { checkProjectPermission } from "../../utils/permissions";
 
 const _getCustomers = (db: Db) =>
   db.makeQuery(
@@ -10,7 +11,7 @@ const _getCustomers = (db: Db) =>
       execute,
       {
         projectId,
-        type
+        type,
       }: {
         projectId: string;
         type: CustomerTypeValue | null;
@@ -22,24 +23,27 @@ const _getCustomers = (db: Db) =>
             where: and(
               eq(customers.projectId, projectId),
               type !== null ? eq(customers.type, type) : undefined
-            )
+            ),
           })
       )
   );
 
-export const getCustomers = Effect.gen(function* () {
+export const getCustomers = Effect.gen(function* getCustomers() {
   const db = yield* Db;
-  return Effect.fn('getCustomers')(
-    function* (input: { projectId: string; type?: CustomerTypeValue }) {
+  return Effect.fn("getCustomers")(
+    function* getCustomers(input: {
+      projectId: string;
+      type?: CustomerTypeValue;
+    }) {
       const session = yield* AuthSession;
       yield* checkProjectPermission(
         input.projectId,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to access customers for project ${input.projectId}`
       );
       return yield* _getCustomers(db)({
         projectId: input.projectId,
-        type: input.type ?? null
+        type: input.type ?? null,
       });
     },
     (effect) =>
@@ -47,8 +51,8 @@ export const getCustomers = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new CustomerServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

@@ -1,15 +1,15 @@
-import { Effect } from 'effect';
-import { validateTransaction } from './validate-transaction';
+import { Effect } from "effect";
+
+import { validateTransaction } from "./validate-transaction";
 
 export class AppStoreService extends Effect.Service<AppStoreService>()(
-  'AppStoreService',
+  "AppStoreService",
   {
     dependencies: [],
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       return {
-        validateTransaction: yield* validateTransaction
+        validateTransaction: yield* validateTransaction,
       } as const;
-    })
+    }),
   }
 ) {}
-

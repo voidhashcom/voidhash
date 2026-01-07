@@ -1,25 +1,26 @@
-import { FetchHttpClient, HttpApiClient, HttpClient } from '@effect/platform';
-import { VoidhashV1Api } from '@voidhash/api-spec';
-import { Effect } from 'effect';
-import { CliConfig } from '../domain/services/cli-config';
+import { FetchHttpClient, HttpApiClient, HttpClient } from "@effect/platform";
+import { VoidhashV1Api } from "@voidhash/api-spec";
+import { Effect } from "effect";
+
+import { CliConfig } from "../domain/services/cli-config";
 
 export class ApiClient extends Effect.Service<ApiClient>()(
-  'example/ApiClient',
+  "example/ApiClient",
   {
     dependencies: [FetchHttpClient.layer, CliConfig.Default],
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       const cliConfig = yield* CliConfig;
       return yield* HttpApiClient.make(VoidhashV1Api, {
-        baseUrl: 'http://localhost:5001',
+        baseUrl: "http://localhost:5001",
         transformClient: (client) =>
           client.pipe(
             HttpClient.mapRequestEffect((request) =>
-              Effect.gen(function* () {
+              Effect.gen(function* transformClient() {
                 const config = yield* cliConfig
                   .readConfig()
                   .pipe(
                     Effect.catchAll(() =>
-                      Effect.dieMessage('Failed to read config')
+                      Effect.dieMessage("Failed to read config")
                     )
                   );
 
@@ -27,13 +28,13 @@ export class ApiClient extends Effect.Service<ApiClient>()(
                   ...request,
                   headers: {
                     ...request.headers,
-                    ...(config.api_key ? { 'x-api-key': config.api_key } : {})
-                  }
+                    ...(config.api_key ? { "x-api-key": config.api_key } : {}),
+                  },
                 };
               })
             )
-          )
+          ),
       });
-    })
+    }),
   }
 ) {}

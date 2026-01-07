@@ -1,30 +1,32 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import './globals.css';
-import { Navigation } from '@/components/navbar/navigation';
-import { ThemeProvider } from '../components/theme-provider';
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+
+import "./globals.css";
+import { Navigation } from "@/components/navbar/navigation";
+
+import { ThemeProvider } from "../components/theme-provider";
 
 const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin']
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
 });
 
 const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin']
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
-  title: 'Voidhash - Payments made simple',
-  description:
-    'Voidhash is an open-source subscription management platform simplifying integrations, analytics, and revenue growth for apps and digital products.',
   appleWebApp: {
-    title: 'Voidhash'
-  }
+    title: "Voidhash",
+  },
+  description:
+    "Voidhash is an open-source subscription management platform simplifying integrations, analytics, and revenue growth for apps and digital products.",
+  title: "Voidhash - Payments made simple",
 };
 
 export default function RootLayout({
-  children
+  children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {

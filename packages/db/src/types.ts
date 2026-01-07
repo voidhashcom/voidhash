@@ -1,5 +1,10 @@
-import type { InferInsertModel, InferSelectModel, Table } from 'drizzle-orm';
-import type * as schema from './schema';
+import type {
+  InferInsertModel,
+  InferSelectModel,
+  Table,
+} from "drizzle-orm";
+
+import type * as schema from "./schema";
 
 // biome-ignore lint/suspicious/noExplicitAny: should be ok
 type InferUpdateModel<T extends Table<any>> = Partial<InferSelectModel<T>> & {
@@ -102,4 +107,50 @@ export type AppStoreTransaction = InferSelectModel<
 >;
 export type InsertAppStoreTransaction = InferInsertModel<
   typeof schema.appStoreTransactions
+>;
+
+export type Paywall = InferSelectModel<typeof schema.paywalls>;
+export type InsertPaywall = InferInsertModel<typeof schema.paywalls>;
+
+export type PaywallEditToken = InferSelectModel<
+  typeof schema.paywallEditTokens
+>;
+export type InsertPaywallEditToken = InferInsertModel<
+  typeof schema.paywallEditTokens
+>;
+
+// Billing Types
+export type OrganizationBilling = InferSelectModel<
+  typeof schema.organizationBilling
+>;
+export type InsertOrganizationBilling = InferInsertModel<
+  typeof schema.organizationBilling
+>;
+export type UpdateOrganizationBilling = InferUpdateModel<
+  typeof schema.organizationBilling
+>;
+
+export type UsageRecord = InferSelectModel<typeof schema.usageRecords>;
+export type InsertUsageRecord = InferInsertModel<typeof schema.usageRecords>;
+
+export type UsageAggregate = InferSelectModel<typeof schema.usageAggregates>;
+export type InsertUsageAggregate = InferInsertModel<
+  typeof schema.usageAggregates
+>;
+export type UpdateUsageAggregate = InferUpdateModel<
+  typeof schema.usageAggregates
+>;
+
+export type BillingWebhookEvent = InferSelectModel<
+  typeof schema.billingWebhookEvents
+>;
+export type InsertBillingWebhookEvent = InferInsertModel<
+  typeof schema.billingWebhookEvents
+>;
+
+export type BillingProviderMeter = InferSelectModel<
+  typeof schema.billingProviderMeters
+>;
+export type InsertBillingProviderMeter = InferInsertModel<
+  typeof schema.billingProviderMeters
 >;

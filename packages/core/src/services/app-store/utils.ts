@@ -1,12 +1,13 @@
-import type { JWSTransactionDecodedPayload } from '@apple/app-store-server-library';
-import type { PaymentProviderConfiguration } from '@voidhash/db';
-import { parseISO4217CurrencyCode } from '@voidhash/lib/constants';
+import type { JWSTransactionDecodedPayload } from "@apple/app-store-server-library";
+import type { PaymentProviderConfiguration } from "@voidhash/db";
+import { parseISO4217CurrencyCode } from "@voidhash/lib/constants";
 import {
   AppStoreNotEnabledForFollowingBundleIdError,
-  AppStoreServiceError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { appStore } from '../../payment-providers';
+  AppStoreServiceError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { appStore } from "../../payment-providers";
 
 /**
  * Finds the active App Store payment provider configuration by bundle ID
@@ -18,42 +19,42 @@ export const getActiveAppStorePaymentProviderConfiguration = (
   paymentProviderConfigurations: PaymentProviderConfiguration[],
   bundleId: string
 ) =>
-  Effect.gen(function* () {
+  Effect.gen(function* getActiveAppStorePaymentProviderConfiguration() {
     const paymentProviderConfiguration = paymentProviderConfigurations.find(
       (paymentProviderConfiguration) =>
         paymentProviderConfiguration.paymentProviderKey ===
           appStore.createGlobalKey({
-            bundleId
+            bundleId,
           }) && paymentProviderConfiguration.enabled
     );
 
     if (!paymentProviderConfiguration) {
       return yield* Effect.fail(
         new AppStoreNotEnabledForFollowingBundleIdError({
-          bundleId
+          bundleId,
         })
       );
     }
 
     return {
       ...paymentProviderConfiguration,
-      configuration: paymentProviderConfiguration.configuration
+      configuration: paymentProviderConfiguration.configuration,
     };
   });
 
 export const ensureEncodedTransactionHasRequiredFields = (
   decodedTransaction: JWSTransactionDecodedPayload
 ) =>
-  Effect.gen(function* () {
-    const productId = decodedTransaction.productId;
-    const appAccountToken = decodedTransaction.appAccountToken;
-    const currency = decodedTransaction.currency;
-    const transactionId = decodedTransaction.transactionId;
+  Effect.gen(function* ensureEncodedTransactionHasRequiredFields() {
+    const { productId } = decodedTransaction;
+    const { appAccountToken } = decodedTransaction;
+    const { currency } = decodedTransaction;
+    const { transactionId } = decodedTransaction;
 
     if (!transactionId) {
       return yield* Effect.fail(
         new AppStoreServiceError({
-          cause: 'Transaction does not contain transaction ID'
+          cause: "Transaction does not contain transaction ID",
         })
       );
     }
@@ -61,7 +62,7 @@ export const ensureEncodedTransactionHasRequiredFields = (
     if (!productId) {
       return yield* Effect.fail(
         new AppStoreServiceError({
-          cause: 'Transaction does not contain product ID'
+          cause: "Transaction does not contain product ID",
         })
       );
     }
@@ -69,7 +70,7 @@ export const ensureEncodedTransactionHasRequiredFields = (
     if (!appAccountToken) {
       return yield* Effect.fail(
         new AppStoreServiceError({
-          cause: 'Transaction does not contain customer ID (appAccountToken)'
+          cause: "Transaction does not contain customer ID (appAccountToken)",
         })
       );
     }
@@ -77,7 +78,7 @@ export const ensureEncodedTransactionHasRequiredFields = (
     if (!currency) {
       return yield* Effect.fail(
         new AppStoreServiceError({
-          cause: 'Transaction does not contain currency'
+          cause: "Transaction does not contain currency",
         })
       );
     }
@@ -88,6 +89,6 @@ export const ensureEncodedTransactionHasRequiredFields = (
       ...decodedTransaction,
       currency: currencyStrict,
       customerId: appAccountToken,
-      productId
+      productId,
     });
   });

@@ -1,12 +1,13 @@
-import { eq, perks } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
+import { eq, perks } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
 import {
   AuthSession,
   PerkNotFoundError,
-  PerkServiceError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
+  PerkServiceError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { checkProjectPermission } from "../../utils/permissions";
 
 const _getPerkById = (db: Db) =>
   db.makeQuery((execute, id: string) =>
@@ -15,16 +16,16 @@ const _getPerkById = (db: Db) =>
     )
   );
 
-export const getPerkById = Effect.gen(function* () {
+export const getPerkById = Effect.gen(function* getPerkById() {
   const db = yield* Db;
-  return Effect.fn('getPerkById')(
-    function* (id: string) {
+  return Effect.fn("getPerkById")(
+    function* getPerkById(id: string) {
       const session = yield* AuthSession;
       const perk = yield* _getPerkById(db)(id);
       if (!perk) {
         return yield* Effect.fail(
           new PerkNotFoundError({
-            message: 'Perk not found'
+            message: "Perk not found",
           })
         );
       }
@@ -32,7 +33,7 @@ export const getPerkById = Effect.gen(function* () {
       // SECURITY: Authorization check
       yield* checkProjectPermission(
         perk.projectId,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to access perk ${id} for project ${perk.projectId}`
       );
 
@@ -43,8 +44,8 @@ export const getPerkById = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new PerkServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

@@ -1,15 +1,17 @@
-import { BetterAuth } from '@voidhash/auth/effect';
-import { createShortId, createSlug } from '@voidhash/lib';
-import { SLUG_BLACKLIST } from '@voidhash/lib/constants';
-import { AuthSession, OrganizationServiceError } from '@voidhash/shared';
-import { Effect, Either } from 'effect';
+import { createShortId, createSlug } from "@voidhash/lib";
+import { SLUG_BLACKLIST } from "@voidhash/lib/constants";
+import { AuthSession, OrganizationServiceError } from "@voidhash/shared";
+import { Effect, Either } from "effect";
+
+import { BetterAuth } from "../../better-auth/better-auth-effect";
+import { BillingService } from "../billing";
 
 const _checkSlugAvailable = (betterAuth: BetterAuth) => (slug: string) =>
-  Effect.gen(function* () {
+  Effect.gen(function* _checkSlugAvailable() {
     const res = yield* Effect.either(
       betterAuth.use(async (client) =>
         client.api.checkOrganizationSlug({
-          body: { slug }
+          body: { slug },
         })
       )
     );
@@ -20,7 +22,7 @@ const _checkSlugAvailable = (betterAuth: BetterAuth) => (slug: string) =>
         error.cause &&
         error.cause &&
         // biome-ignore lint/suspicious/noExplicitAny: is ok
-        (error.cause as any).body?.code === 'SLUG_IS_TAKEN'
+        (error.cause as any).body?.code === "SLUG_IS_TAKEN"
       ) {
         return false;
       }
@@ -30,10 +32,12 @@ const _checkSlugAvailable = (betterAuth: BetterAuth) => (slug: string) =>
     return true;
   });
 
-export const createOrganization = Effect.gen(function* () {
+export const createOrganization = Effect.gen(function* createOrganization() {
   const betterAuth = yield* BetterAuth;
-  return Effect.fn('createOrganization')(
-    function* (input: { name: string }) {
+  const billingService = yield* BillingService;
+
+  return Effect.fn("createOrganization")(
+    function* createOrganization(input: { name: string }) {
       const session = yield* AuthSession;
 
       let slug = createSlug(input.name);
@@ -49,24 +53,38 @@ export const createOrganization = Effect.gen(function* () {
       const organization = yield* betterAuth.use(async (client) =>
         client.api.createOrganization({
           body: {
-            userId: session?.user?.id,
             name: input.name,
-            slug
-          }
+            slug,
+            userId: session?.user?.id,
+          },
         })
       );
       if (!organization) {
         return yield* Effect.fail(
           new OrganizationServiceError({
-            cause: 'Organization was not created.'
+            cause: "Organization was not created.",
           })
         );
       }
 
+      // Initialize billing for the new organization
+      yield* billingService
+        .initializeOrganizationBilling({
+          email: session?.user?.email,
+          organizationId: organization.id,
+        })
+        .pipe(
+          Effect.catchAll((error) =>
+            Effect.logWarning(
+              `Failed to initialize billing for org ${organization.id}: ${error}`
+            )
+          )
+        );
+
       return {
         id: organization.id,
         name: organization.name,
-        slug
+        slug,
       };
     },
     (effect) =>
@@ -74,8 +92,8 @@ export const createOrganization = Effect.gen(function* () {
         Effect.catchTags({
           BetterAuthError: (error) =>
             new OrganizationServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

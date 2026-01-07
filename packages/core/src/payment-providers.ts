@@ -1,5 +1,6 @@
-import { Schema } from 'effect';
-import type { PaymentProvider } from './types';
+import { Schema } from "effect";
+
+import type { PaymentProvider } from "./types";
 
 export const createPaymentProvider = <
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
@@ -7,7 +8,7 @@ export const createPaymentProvider = <
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   TProductConfigurationSchema extends Schema.Struct<any>,
   TCreateGlobalKeyConfiguration extends object,
-  TCreateProductKeyConfiguration extends object
+  TCreateProductKeyConfiguration extends object,
 >(
   options: PaymentProvider<
     TGlobalConfigurationSchema,
@@ -15,72 +16,67 @@ export const createPaymentProvider = <
     TCreateGlobalKeyConfiguration,
     TCreateProductKeyConfiguration
   >
-) => {
-  return {
+) =>
+  ({
     ...options,
     validateGlobalConfiguration: (configuration: Record<string, unknown>) =>
       Schema.decodeUnknown(options.globalConfigurationSchema)(configuration),
     validateProductConfiguration: (configuration: Record<string, unknown>) =>
-      Schema.decodeUnknown(options.productConfigurationSchema)(configuration)
-  };
-};
+      Schema.decodeUnknown(options.productConfigurationSchema)(configuration),
+  });
 
 export const appStore = createPaymentProvider({
-  id: 'apple-app-store',
-  title: 'App Store',
-  type: 'native',
-  defaultProductConfiguration: {
-    productId: ''
-  },
-  createGlobalKey: (configuration: { bundleId: string }) => {
-    return `${configuration.bundleId}`;
-  },
-  createProductKey: (configuration: { productId: string }) => {
-    return `${configuration.productId}`;
-  },
-  productConfigurationSchema: Schema.Struct({
-    productId: Schema.String
-  }),
+  createGlobalKey: (configuration: { bundleId: string }) =>
+    `${configuration.bundleId}`,
+  createProductKey: (configuration: { productId: string }) =>
+    `${configuration.productId}`,
   defaultGlobalConfiguration: {
-    issuerId: '',
-    bundleId: '',
-    keyId: '',
-    privateKey: ''
+    bundleId: "",
+    issuerId: "",
+    keyId: "",
+    privateKey: "",
+  },
+  defaultProductConfiguration: {
+    productId: "",
   },
   globalConfigurationSchema: Schema.Struct({
-    issuerId: Schema.String.pipe(Schema.minLength(1)),
     bundleId: Schema.String.pipe(Schema.minLength(1)),
+    issuerId: Schema.String.pipe(Schema.minLength(1)),
     keyId: Schema.String.pipe(Schema.minLength(1)),
-    privateKey: Schema.String.pipe(Schema.minLength(1))
-  })
+    privateKey: Schema.String.pipe(Schema.minLength(1)),
+  }),
+  id: "apple-app-store",
+  productConfigurationSchema: Schema.Struct({
+    productId: Schema.String,
+  }),
+  title: "App Store",
+  type: "native",
 });
 
 export const stripe = createPaymentProvider({
-  id: 'stripe',
-  title: 'Stripe',
-  type: 'web-checkout',
-  defaultProductConfiguration: {
-    productId: '',
-    priceId: ''
-  },
-  createGlobalKey: (configuration: { secretKey: string }) => {
-    return `${configuration.secretKey}`;
-  },
-  createProductKey: (configuration: { productId: string; priceId: string }) => {
-    return `${configuration.productId}-${configuration.priceId}`;
-  },
-  productConfigurationSchema: Schema.Struct({
-    productId: Schema.String.pipe(Schema.minLength(1)),
-    priceId: Schema.String.pipe(Schema.minLength(1))
-  }),
+  createGlobalKey: (configuration: { secretKey: string }) =>
+    `${configuration.secretKey}`,
+  createProductKey: (configuration: { productId: string; priceId: string }) =>
+    `${configuration.productId}-${configuration.priceId}`,
   defaultGlobalConfiguration: {
-    secretKey: '',
-    webhookSecret: ''
+    secretKey: "",
+    webhookSecret: "",
+  },
+  defaultProductConfiguration: {
+    priceId: "",
+    productId: "",
   },
   globalConfigurationSchema: Schema.Struct({
     secretKey: Schema.String.pipe(Schema.minLength(1)),
-    webhookSecret: Schema.String.pipe(Schema.minLength(1))
-  })
+    webhookSecret: Schema.String.pipe(Schema.minLength(1)),
+  }),
+  id: "stripe",
+  productConfigurationSchema: Schema.Struct({
+    priceId: Schema.String.pipe(Schema.minLength(1)),
+    productId: Schema.String.pipe(Schema.minLength(1)),
+  }),
+  title: "Stripe",
+  type: "web-checkout",
 });
 
 export const paymentProviders = [appStore, stripe] as const;

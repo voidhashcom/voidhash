@@ -3,29 +3,29 @@ import {
   CustomerUnlockedPerkStatus,
   type PaymentProviderConfigurationProduct,
   type ProductPerk,
-  type Subscription
-} from '@voidhash/db';
-import { SubscriptionStatus } from '@voidhash/lib/constants';
+  type Subscription,
+} from "@voidhash/db";
+import { SubscriptionStatus } from "@voidhash/lib/constants";
 
-export type PerkOperationCreation = {
-  status: 'create';
+export interface PerkOperationCreation {
+  status: "create";
   perkId: string;
   unlockedBySubscriptionId: string;
   expiresAt: Date | null;
-};
+}
 
-export type PerkOperationReactivation = {
-  status: 'reactivate';
+export interface PerkOperationReactivation {
+  status: "reactivate";
   perkId: string;
   unlockedBySubscriptionId: string;
   expiresAt: Date | null;
-};
+}
 
-export type PerkOperationExpiration = {
-  status: 'expire';
+export interface PerkOperationExpiration {
+  status: "expire";
   perkId: string;
   unlockedBySubscriptionId: string;
-};
+}
 
 export type PerkOperation =
   | PerkOperationCreation
@@ -78,10 +78,10 @@ export const extractPerksToUnlockFromSubscriptions = (
         return !existingPerk;
       })
       .map((perk) => ({
-        perkId: perk.perkId,
-        unlockedBySubscriptionId: subscription.id,
         expiresAt: subscription.expiresAt,
-        status: 'create' as const
+        perkId: perk.perkId,
+        status: "create" as const,
+        unlockedBySubscriptionId: subscription.id,
       }));
 
     const perksToUnlockByReactivation = perksToUnlock
@@ -95,10 +95,10 @@ export const extractPerksToUnlockFromSubscriptions = (
         );
       })
       .map((perk) => ({
-        perkId: perk.perkId,
-        unlockedBySubscriptionId: subscription.id,
         expiresAt: subscription.expiresAt,
-        status: 'reactivate' as const
+        perkId: perk.perkId,
+        status: "reactivate" as const,
+        unlockedBySubscriptionId: subscription.id,
       }));
 
     return [...perksToUnlockByCreation, ...perksToUnlockByReactivation];
@@ -130,8 +130,8 @@ export const extractPerksToDeactivateFromSubscriptions = (
       // We will deactivate all perks for inactive subscriptions.
       return subscription.unlockedPerks.map((unlockedPerk) => ({
         perkId: unlockedPerk.perkId,
+        status: "expire",
         unlockedBySubscriptionId: subscription.id,
-        status: 'expire'
       }));
     }
 
@@ -146,13 +146,13 @@ export const extractPerksToDeactivateFromSubscriptions = (
       })
       .map((unlockedPerk) => ({
         ...unlockedPerk,
-        status: CustomerUnlockedPerkStatus.Expired
+        status: CustomerUnlockedPerkStatus.Expired,
       }));
 
     return perksToDeactivate.map((perk) => ({
       perkId: perk.perkId,
+      status: "expire",
       unlockedBySubscriptionId: subscription.id,
-      status: 'expire'
     }));
   });
 };
@@ -161,8 +161,8 @@ const enrichSubscriptionsWithPerks = (
   subscriptions: Subscription[],
   unlockedPerks: CustomerUnlockedPerk[],
   unlockablePerks: ProductPerk[]
-) => {
-  return subscriptions.map((subscription) => ({
+) =>
+  subscriptions.map((subscription) => ({
     ...subscription,
     unlockedPerks: unlockedPerks.filter(
       (unlockedPerk) =>
@@ -172,6 +172,5 @@ const enrichSubscriptionsWithPerks = (
       (unlockablePerk) =>
         unlockablePerk.productId ===
         subscription.paymentProviderConfigurationProductId
-    )
+    ),
   }));
-};

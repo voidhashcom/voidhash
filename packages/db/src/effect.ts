@@ -1,8 +1,9 @@
-import { Cause, Context, Data, Effect, Exit, Option, Runtime } from 'effect';
-import type { Transaction } from '.';
-import { createDb, type db } from '.';
+import { Cause, Context, Data, Effect, Exit, Option, Runtime } from "effect";
 
-export class DatabaseError extends Data.TaggedError('DatabaseError')<{
+import type { Transaction } from ".";
+import { createDb, type db } from ".";
+
+export class DatabaseError extends Data.TaggedError("DatabaseError")<{
   readonly cause?: unknown;
   readonly message: string;
 }> {}
@@ -10,7 +11,7 @@ export class DatabaseError extends Data.TaggedError('DatabaseError')<{
 type TransactionContextShape = <U>(
   fn: (client: Transaction) => Promise<U>
 ) => Effect.Effect<U, DatabaseError>;
-export class TransactionContext extends Context.Tag('TransactionContext')<
+export class TransactionContext extends Context.Tag("TransactionContext")<
   TransactionContext,
   TransactionContextShape
 >() {
@@ -24,24 +25,24 @@ export class TransactionContext extends Context.Tag('TransactionContext')<
 
 type Client = typeof db;
 
-export class Db extends Effect.Service<Db>()('app/Db', {
+export class Db extends Effect.Service<Db>()("app/Db", {
   dependencies: [],
-  scoped: Effect.gen(function* () {
+  scoped: Effect.gen(function* scoped() {
     const { mysql, drizzle: db } = createDb();
     yield* Effect.addFinalizer(() => Effect.promise(() => mysql.end()));
 
-    const use = Effect.fn(<T,>(fn: (client: Client) => Promise<T>) =>
+    const use = Effect.fn(<T>(fn: (client: Client) => Promise<T>) =>
       Effect.tryPromise({
-        try: () => fn(db),
         catch: (cause) =>
           new DatabaseError({
-            message: 'Failed to execute transaction',
-            cause
-          })
+            cause,
+            message: "Failed to execute transaction",
+          }),
+        try: () => fn(db),
       })
     );
 
-    const transaction = Effect.fn('Database.transaction')(
+    const transaction = Effect.fn("Database.transaction")(
       <T, E, R>(
         txExecute: (tx: TransactionContextShape) => Effect.Effect<T, E, R>
       ) =>
@@ -53,33 +54,33 @@ export class Db extends Effect.Service<Db>()('app/Db', {
                 // biome-ignore lint/suspicious/noExplicitAny: transaction wrapper
                 const txWrapper = (fn: (client: Transaction) => Promise<any>) =>
                   Effect.tryPromise({
-                    try: () => fn(tx),
                     catch: (cause) =>
                       new DatabaseError({
-                        message: 'Failed to execute transaction',
-                        cause
-                      })
+                        cause,
+                        message: "Failed to execute transaction",
+                      }),
+                    try: () => fn(tx),
                   });
 
                 const result = await runPromiseExit(txExecute(txWrapper));
                 Exit.match(result, {
-                  onSuccess: (value) => {
-                    resume(Effect.succeed(value));
-                  },
                   onFailure: (cause) => {
                     if (Cause.isFailType(cause)) {
                       resume(Effect.fail(cause.error));
                     } else {
                       resume(Effect.die(cause));
                     }
-                  }
+                  },
+                  onSuccess: (value) => {
+                    resume(Effect.succeed(value));
+                  },
                 });
-              }).catch((cause) => {
+              }).catch((error) => {
                 resume(
                   Effect.fail(
                     new DatabaseError({
-                      message: 'Failed to execute transaction',
-                      cause
+                      cause: error,
+                      message: "Failed to execute transaction",
                     })
                   )
                 );
@@ -107,9 +108,9 @@ export class Db extends Effect.Service<Db>()('app/Db', {
       };
 
     return {
-      use,
       makeQuery,
-      transaction
+      transaction,
+      use,
     };
-  })
+  }),
 }) {}

@@ -92,4 +92,3 @@ describe.sequential('getProjects happy path', () => {
     });
   });
 });
-

@@ -1,10 +1,10 @@
-import './global.css';
-import { RootProvider } from 'fumadocs-ui/provider/next';
-import { Geist } from 'next/font/google';
-import type { ReactNode } from 'react';
+import "./global.css";
+import { RootProvider } from "fumadocs-ui/provider/next";
+import { Geist } from "next/font/google";
+import type { ReactNode } from "react";
 
 const geist = Geist({
-  subsets: ['latin']
+  subsets: ["latin"],
 });
 
 export default function Layout({ children }: { children: ReactNode }) {

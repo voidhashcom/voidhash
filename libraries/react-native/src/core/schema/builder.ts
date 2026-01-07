@@ -1,51 +1,51 @@
 import {
+  type SubscriptionDefinitionProperties,
   subscription as createSubscription,
-  type SubscriptionDefinitionProperties
-} from './products/subscription';
+} from "./products/subscription";
 import type {
   DefinedPerks,
   DefinedProviders,
   InferProductConfigurationPerks,
-  InferProductConfigurationProviders
-} from './types';
+  InferProductConfigurationProviders,
+} from "./types";
 
 /**
  * Configuration for creating a schema configuration
  */
-export type SchemaConfig<
+export interface SchemaConfig<
   TProviders extends DefinedProviders,
-  TPerks extends DefinedPerks
-> = {
+  TPerks extends DefinedPerks,
+> {
   providers: TProviders;
   perks: TPerks;
-};
+}
 
 /**
  * Simplified subscription configuration that doesn't require callback functions
  */
-export type SubscriptionConfig<
+export interface SubscriptionConfig<
   TProviders extends DefinedProviders,
-  TPerks extends DefinedPerks
-> = {
+  TPerks extends DefinedPerks,
+> {
   name: string;
-  perks: Omit<InferProductConfigurationPerks<TPerks>, '_'>;
-  providers: Omit<InferProductConfigurationProviders<TProviders>, '_'>;
-};
+  perks: Omit<InferProductConfigurationPerks<TPerks>, "_">;
+  providers: Omit<InferProductConfigurationProviders<TProviders>, "_">;
+}
 
 /**
  * Schema configuration object with access to providers, perks, and product builders
  */
-export type SchemaConfiguration<
+export interface SchemaConfiguration<
   TProviders extends DefinedProviders,
-  TPerks extends DefinedPerks
-> = {
+  TPerks extends DefinedPerks,
+> {
   providers: TProviders;
   perks: TPerks;
   subscription: (
     slug: string,
     subscriptionConfig: SubscriptionConfig<TProviders, TPerks>
   ) => ReturnType<typeof createSubscription>;
-};
+}
 
 /**
  * Creates a schema configuration with improved DX.
@@ -79,7 +79,7 @@ export type SchemaConfiguration<
  */
 export function schemaConfiguration<
   TProviders extends DefinedProviders,
-  TPerks extends DefinedPerks
+  TPerks extends DefinedPerks,
 >(
   config: SchemaConfig<TProviders, TPerks>
 ): SchemaConfiguration<TProviders, TPerks> {
@@ -94,8 +94,8 @@ export function schemaConfiguration<
     subscription: (
       slug: string,
       subscriptionConfig: SubscriptionConfig<TProviders, TPerks>
-    ) => {
-      return createSubscription(slug, (s) => {
+    ) =>
+      createSubscription(slug, (s) => {
         const perksConfig = s.configurePerks(
           perks,
           () => subscriptionConfig.perks
@@ -108,12 +108,11 @@ export function schemaConfiguration<
         return {
           name: subscriptionConfig.name,
           perks: perksConfig,
-          providers: providersConfig
+          providers: providersConfig,
         } as SubscriptionDefinitionProperties & {
           perks: InferProductConfigurationPerks<TPerks>;
           providers: InferProductConfigurationProviders<TProviders>;
         };
-      });
-    }
+      }),
   };
 }

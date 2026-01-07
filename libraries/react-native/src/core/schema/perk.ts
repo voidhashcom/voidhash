@@ -12,6 +12,4 @@ export class UnlockablePerkDefinition extends PerkDefinition {}
 export const unlockablePerk = (
   slug: string,
   params: { name: string }
-): UnlockablePerkDefinition => {
-  return new UnlockablePerkDefinition(slug, params);
-};
+): UnlockablePerkDefinition => new UnlockablePerkDefinition(slug, params);

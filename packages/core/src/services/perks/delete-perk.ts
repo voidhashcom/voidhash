@@ -1,12 +1,13 @@
-import { eq, perks } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
+import { eq, perks } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
 import {
   AuthSession,
   PerkNotFoundError,
-  PerkServiceError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
+  PerkServiceError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { checkProjectPermission } from "../../utils/permissions";
 
 const _getPerkById = (db: Db) =>
   db.makeQuery((execute, id: string) =>
@@ -20,16 +21,16 @@ const _deletePerkRecord = (db: Db) =>
     execute(async (db) => db.delete(perks).where(eq(perks.id, id)))
   );
 
-export const deletePerk = Effect.gen(function* () {
+export const deletePerk = Effect.gen(function* deletePerk() {
   const db = yield* Db;
-  return Effect.fn('deletePerk')(
-    function* (input: { perkId: string }) {
+  return Effect.fn("deletePerk")(
+    function* deletePerk(input: { perkId: string }) {
       const session = yield* AuthSession;
       const perk = yield* _getPerkById(db)(input.perkId);
       if (!perk) {
         return yield* Effect.fail(
           new PerkNotFoundError({
-            message: `Perk with id ${input.perkId} not found`
+            message: `Perk with id ${input.perkId} not found`,
           })
         );
       }
@@ -37,7 +38,7 @@ export const deletePerk = Effect.gen(function* () {
       // SECURITY: Authorization check
       yield* checkProjectPermission(
         perk.projectId,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to delete perk ${input.perkId}`
       );
 
@@ -49,8 +50,8 @@ export const deletePerk = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new PerkServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

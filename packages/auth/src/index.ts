@@ -1,68 +1,62 @@
-import { type Database, db } from '@voidhash/db';
-import * as schema from '@voidhash/db/schema';
-import {
-  API_DOMAIN,
-  APP_DOMAIN,
-  DOCS_DOMAIN,
-  STUDIO_DOMAIN,
-  WWW_DOMAIN
-} from '@voidhash/lib';
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { nextCookies } from 'better-auth/next-js';
-import { apiKey, organization } from 'better-auth/plugins';
+import { oauthProvider } from "@better-auth/oauth-provider";
+import type { Database } from "@voidhash/db";
+import * as schema from "@voidhash/db/schema";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { admin, apiKey, jwt, organization } from "better-auth/plugins";
+import { tanstackStartCookies } from "better-auth/tanstack-start";
+import type { Resend } from "resend";
 
-export const createBetterAuth = (db: Database) =>
-  betterAuth({
-    baseURL: STUDIO_DOMAIN,
-    database: drizzleAdapter(db, {
-      provider: 'mysql',
-      schema
+/**
+ * Creates a betterAuth instance with the provided database.
+ * Use this factory function when you need to inject a custom database instance.
+ */
+export const createBetterAuthOptions = ({
+  db,
+  baseURL,
+  trustedClientIds,
+}: {
+  db: Database;
+  baseURL: string;
+  trustedClientIds: Set<string>;
+  resend?: Resend;
+  emailFrom?: string;
+}) => ({
+  advanced: {
+    cookies: {
+      session_token: {
+        name: "voidhash_auth_session_token",
+      },
+    },
+  },
+  basePath: "/auth/api/auth",
+  baseURL,
+  database: drizzleAdapter(db, {
+    provider: "mysql",
+    schema,
+  }),
+  disabledPaths: ["/token"],
+
+  plugins: [
+    jwt(),
+    organization(),
+    apiKey({
+      enableSessionForAPIKeys: true,
+      rateLimit: {
+        enabled: false,
+      },
     }),
-    socialProviders: {
-      github: {
-        clientId: process.env.GITHUB_CLIENT_ID as string,
-        clientSecret: process.env.GITHUB_CLIENT_SECRET as string
-      }
-    },
-    emailAndPassword: {
-      enabled: true
-    },
-    advanced: {
-      crossSubDomainCookies: {
-        enabled: process.env.NODE_ENV === 'production',
-        domain: `.${APP_DOMAIN}`
-      }
-    },
-    trustedOrigins: [WWW_DOMAIN, STUDIO_DOMAIN, API_DOMAIN, DOCS_DOMAIN],
-    plugins: [
-      organization(),
-      apiKey({
-        enableSessionForAPIKeys: true,
-        rateLimit: {
-          enabled: false
-        }
-      }),
-      nextCookies()
-    ]
-  });
-
-export const auth = createBetterAuth(db);
-
-// export const auth = betterAuth({
-//   baseURL: APP_DOMAIN,
-//   database: drizzleAdapter(db, {
-//     provider: 'mysql',
-//     schema
-//   }),
-//   socialProviders: {
-//     github: {
-//       clientId: process.env.GITHUB_CLIENT_ID as string,
-//       clientSecret: process.env.GITHUB_CLIENT_SECRET as string
-//     }
-//   },
-//   emailAndPassword: {
-//     enabled: true
-//   },
-//   plugins: [organization(), apiKey(), nextCookies()]
-// });
+    admin(),
+    oauthProvider({
+      cachedTrustedClients: trustedClientIds,
+      consentPage: "/auth/oauth/consent",
+      loginPage: "/auth/login",
+      scopes: ["openid", "profile", "email", "offline_access"],
+    }),
+    tanstackStartCookies(),
+  ],
+  session: {
+    expiresIn: 8 * 60 * 60, // 8 hours
+    updateAge: 30 * 24 * 60 * 60, // 30 days,
+    storeSessionInDatabase: true,
+  },
+});

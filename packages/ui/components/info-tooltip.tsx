@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '@voidhash/ui';
-import { InfoIcon } from 'lucide-react';
-import { useState } from 'react';
-import { useDebouncedCallback } from 'use-debounce';
+import { Tooltip, TooltipContent, TooltipTrigger } from "@voidhash/ui";
+import { InfoIcon } from "lucide-react";
+import { useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 export function InfoTooltip({ info }: { info: string }) {
   const [showAppUserIdTooltip, setShowAppUserIdTooltip] = useState(false);

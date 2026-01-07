@@ -1,12 +1,12 @@
 {
   "name": "@voidhash/emails",
   "version": "0.0.1-alpha.1",
-  "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/voidhashcom/voidhash",
     "directory": "packages/emails"
   },
+  "type": "module",
   "main": "./index.ts",
   "exports": {
     ".": "./index.ts"
@@ -18,14 +18,14 @@
   "dependencies": {
     "@react-email/components": "0.0.34"
   },
-  "peerDependencies": {
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
-  },
   "devDependencies": {
     "@types/react": "^19.1.5",
     "@types/react-dom": "^19.1.5",
     "react-email": "3.0.7",
     "typescript": "5.6.3"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   }
 }

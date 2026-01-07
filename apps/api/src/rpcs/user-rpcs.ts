@@ -1,12 +1,12 @@
-import { UserService } from '@voidhash/core/services';
-import { UserRpcsDef } from '@voidhash/rpc';
-import { Effect, Layer } from 'effect';
+import { UserService } from "@voidhash/core/services";
+import { UserRpcsDef } from "@voidhash/rpc";
+import { Effect, Layer } from "effect";
 
 export const UserRpcsLive = UserRpcsDef.toLayer(
-  Effect.gen(function* () {
+  Effect.gen(function* UserRpcsLive() {
     const userService = yield* UserService;
     return {
-      CurrentUser: () => userService.getUser()
+      CurrentUser: () => userService.getUser(),
     };
   })
 ).pipe(

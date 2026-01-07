@@ -1,12 +1,12 @@
 {
   "name": "@voidhash/tinybird",
   "version": "0.0.1-alpha.1",
-  "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/voidhashcom/voidhash",
     "directory": "packages/tinybird"
   },
+  "type": "module",
   "scripts": {
     "tb:build": "tb build",
     "tb:deploy": "tb deploy",

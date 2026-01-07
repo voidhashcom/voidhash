@@ -1,18 +1,22 @@
-import { Db } from '@voidhash/db/effect';
-import { AuthSession, ProjectServiceError } from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
-import { _getProjectBySlug } from './utils';
+import { Db } from "@voidhash/db/effect";
+import { AuthSession, ProjectServiceError } from "@voidhash/shared";
+import { Effect } from "effect";
 
-export const getProjectBySlug = Effect.gen(function* () {
+import { checkProjectPermission } from "../../utils/permissions";
+import { _getProjectBySlug } from "./utils";
+
+export const getProjectBySlug = Effect.gen(function* getProjectBySlug() {
   const db = yield* Db;
-  return Effect.fn('getProjectBySlug')(
-    function* (input: { organizationId: string; slug: string }) {
+  return Effect.fn("getProjectBySlug")(
+    function* getProjectBySlug(input: {
+      organizationId: string;
+      slug: string;
+    }) {
       const session = yield* AuthSession;
 
       const project = yield* _getProjectBySlug(db)({
+        organizationId: input.organizationId,
         projectSlug: input.slug,
-        organizationId: input.organizationId
       });
 
       if (!project) {
@@ -22,7 +26,7 @@ export const getProjectBySlug = Effect.gen(function* () {
       // SECURITY: Authorization check for project
       yield* checkProjectPermission(
         project.id,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to access project ${project.id}`
       );
 
@@ -33,8 +37,8 @@ export const getProjectBySlug = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new ProjectServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

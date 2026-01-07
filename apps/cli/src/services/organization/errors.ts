@@ -1,8 +1,8 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class OrganizationServiceError extends Schema.TaggedError<OrganizationServiceError>()(
-  'OrganizationServiceError',
+  "OrganizationServiceError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}

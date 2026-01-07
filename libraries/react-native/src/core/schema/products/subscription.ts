@@ -1,22 +1,23 @@
 import type {
   DefinedPerks,
   DefinedProviders,
-  InferProductDefinitionConfigurationFn
-} from '../types';
-import { ProductDefinition, productConfigurationFactory } from './base';
+  InferProductDefinitionConfigurationFn,
+} from "../types";
+import { ProductDefinition, productConfigurationFactory } from "./base";
 
-export type SubscriptionDefinitionProperties = {
+export interface SubscriptionDefinitionProperties
+  extends Record<string, unknown> {
   name: string;
-};
+}
 
 const subscriptionConfigurationFactory = productConfigurationFactory();
 
 export class SubscriptionProductDefinition<
   TDefinitionProperties extends SubscriptionDefinitionProperties,
   TDefinedProviders extends DefinedProviders = DefinedProviders,
-  TDefinedPerks extends DefinedPerks = DefinedPerks
+  TDefinedPerks extends DefinedPerks = DefinedPerks,
 > extends ProductDefinition<
-  'subscription',
+  "subscription",
   TDefinitionProperties,
   ReturnType<
     InferProductDefinitionConfigurationFn<TDefinedProviders, TDefinedPerks>
@@ -25,7 +26,7 @@ export class SubscriptionProductDefinition<
 
 export function subscription<
   TDefinedProviders extends DefinedProviders,
-  TDefinedPerks extends DefinedPerks
+  TDefinedPerks extends DefinedPerks,
 >(
   slug: string,
   configurationFn: InferProductDefinitionConfigurationFn<
@@ -35,17 +36,17 @@ export function subscription<
   >
 ) {
   const configuration = configurationFn({
+    configurePerks: subscriptionConfigurationFactory.configurePerks,
     configureProviders: subscriptionConfigurationFactory.configureProviders,
-    configurePerks: subscriptionConfigurationFactory.configurePerks
   });
 
   const properties: SubscriptionDefinitionProperties = {
-    name: configuration.name
+    name: configuration.name,
   };
 
   return new SubscriptionProductDefinition<
     SubscriptionDefinitionProperties,
     TDefinedProviders,
     TDefinedPerks
-  >('subscription', slug, properties, configuration);
+  >("subscription", slug, properties, configuration);
 }

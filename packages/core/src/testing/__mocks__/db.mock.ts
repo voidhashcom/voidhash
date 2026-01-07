@@ -1,8 +1,8 @@
-import { Context, Data, Effect } from 'effect';
-import { vi } from 'vitest';
+import { Context, Data, Effect } from "effect";
+import { vi } from "vitest";
 
 // Mock the database error class
-export class DatabaseError extends Data.TaggedError('DatabaseError')<{
+export class DatabaseError extends Data.TaggedError("DatabaseError")<{
   readonly cause?: unknown;
   readonly message: string;
 }> {}
@@ -12,7 +12,7 @@ type TransactionContextShape = <U>(
   fn: (client: unknown) => Promise<U>
 ) => Effect.Effect<U, DatabaseError>;
 
-export class TransactionContext extends Context.Tag('TransactionContext')<
+export class TransactionContext extends Context.Tag("TransactionContext")<
   TransactionContext,
   TransactionContextShape
 >() {
@@ -26,7 +26,7 @@ export class TransactionContext extends Context.Tag('TransactionContext')<
 
 // Mock database client
 export const mockDb = {
-  transaction: vi.fn()
+  transaction: vi.fn(),
   // Add other database methods as needed for your tests
 };
 
@@ -43,48 +43,40 @@ export const Db = Effect.Service<{
   transaction: <T, E, R>(
     txExecute: (tx: TransactionContextShape) => Effect.Effect<T, E, R>
   ) => Effect.Effect<T, DatabaseError | E, R>;
-}>()('app/Db', {
+}>()("app/Db", {
   dependencies: [],
   effect: Effect.succeed({
+    makeQuery: vi.fn().mockImplementation(() => () => Effect.succeed({})),
+    transaction: vi.fn().mockImplementation(() => Effect.succeed({})),
     use: vi
       .fn()
       .mockImplementation((fn: (client: unknown) => Promise<unknown>) =>
         Effect.tryPromise({
-          try: () => fn(mockDb),
           catch: (cause) =>
             new DatabaseError({
-              message: 'Mock database error',
-              cause
-            })
+              cause,
+              message: "Mock database error",
+            }),
+          try: () => fn(mockDb),
         })
       ),
-    makeQuery: vi.fn().mockImplementation(() => () => {
-      return Effect.succeed({}); // Mock successful result
-    }),
-    transaction: vi.fn().mockImplementation(() => {
-      return Effect.succeed({}); // Mock successful transaction
-    })
-  })
+  }),
 });
 
 // Export mock utilities for testing
 export const createMockDb = () => ({
+  makeQuery: vi.fn().mockImplementation(() => () => Effect.succeed({})),
+  transaction: vi.fn().mockImplementation(() => Effect.succeed({})),
   use: vi.fn().mockImplementation((fn: (client: unknown) => Promise<unknown>) =>
     Effect.tryPromise({
-      try: () => fn(mockDb),
       catch: (cause) =>
         new DatabaseError({
-          message: 'Mock database error',
-          cause
-        })
+          cause,
+          message: "Mock database error",
+        }),
+      try: () => fn(mockDb),
     })
   ),
-  makeQuery: vi.fn().mockImplementation(() => () => {
-    return Effect.succeed({});
-  }),
-  transaction: vi.fn().mockImplementation(() => {
-    return Effect.succeed({});
-  })
 });
 
 // Mock transaction

@@ -1,10 +1,10 @@
 // Credits: A lot of this was inspired by https://github.com/hyochan/expo-iap
-import type { HybridObject } from 'react-native-nitro-modules';
+import type { HybridObject } from "react-native-nitro-modules";
 
-import type { StorekitProduct } from './StorekitProduct.nitro';
-import type { StorekitTransaction } from './StorekitTransaction.nitro';
+import type { StorekitProduct } from "./StorekitProduct.nitro";
+import type { StorekitTransaction } from "./StorekitTransaction.nitro";
 
-export interface Storekit extends HybridObject<{ ios: 'swift' }> {
+export interface Storekit extends HybridObject<{ ios: "swift" }> {
   initConnection(
     onTransaction?: (transaction: StorekitTransaction) => void
   ): Promise<boolean>;

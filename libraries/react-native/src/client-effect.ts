@@ -1,170 +1,163 @@
-import { Effect } from 'effect';
-import { CacheManager } from './core/caching/cache-manager';
-import type { Product } from './core/entities/product';
-import { CustomerAttributeManager } from './core/identity/customer-attribute-manager';
-import { CustomerInfoManager } from './core/identity/customer-info-manager';
-import { IdentityManager } from './core/identity/identity-manager';
-import { PaymentAdapter } from './core/payment-adapters/payment-adapter';
+import { Effect } from "effect";
+
+import { CacheManager } from "./core/caching/cache-manager";
+import type { Product } from "./core/entities/product";
+import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
+import { CustomerInfoManager } from "./core/identity/customer-info-manager";
+import { IdentityManager } from "./core/identity/identity-manager";
+import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import type {
   ExtractSchemaProductDefinitions,
   ExtractSchemaProductKeys,
   InferGetProductResponseFromSchema,
-  VoidhashSchema
-} from './core/schema';
-import { extractProductDefinitions } from './core/schema/utils';
-import { UnsupportedPlatformError } from './errors';
+  VoidhashSchema,
+} from "./core/schema";
+import { extractProductDefinitions } from "./core/schema/utils";
+import { UnsupportedPlatformError } from "./errors";
 
-const makeUnitializedClient = () => {
-  return {
-    init: <TSchema extends VoidhashSchema>(initOptions: {
-      initialAppUserId?: string;
-      schema: TSchema;
-    }) =>
-      Effect.gen(function* () {
-        const identityManager = yield* IdentityManager;
-        const customerAttributeManager = yield* CustomerAttributeManager;
-        const customerInfoManager = yield* CustomerInfoManager;
+const makeUnitializedClient = () => ({
+  init: <TSchema extends VoidhashSchema>(initOptions: {
+    initialAppUserId?: string;
+    schema: TSchema;
+  }) =>
+    Effect.gen(function* init() {
+      const identityManager = yield* IdentityManager;
+      const customerAttributeManager = yield* CustomerAttributeManager;
+      const customerInfoManager = yield* CustomerInfoManager;
 
-        if (initOptions.initialAppUserId) {
-          // Identify as the user which ID was passed during SDK initialization
-          yield* Effect.logDebug('Initializing with initial user id', {
-            appUserId: initOptions.initialAppUserId
-          });
+      if (initOptions.initialAppUserId) {
+        // Identify as the user which ID was passed during SDK initialization
+        yield* Effect.logDebug("Initializing with initial user id", {
+          appUserId: initOptions.initialAppUserId,
+        });
 
-          // Sync customer attributes before identify to not lose historical customer data
-          const appUserId = yield* identityManager.getAppUserIdFromCache();
-          if (appUserId) {
-            yield* customerAttributeManager.syncCustomerAttributes(appUserId);
-          }
-
-          yield* identityManager.identify(initOptions.initialAppUserId, {});
-        } else {
-          // If no user ID was passed during SDK initialization, fetch the last identified customer from the server
-          const appUserId = yield* identityManager.getAppUserId();
-          yield* Effect.logDebug('Initializing without initial user id', {
-            appUserId
-          });
-
+        // Sync customer attributes before identify to not lose historical customer data
+        const appUserId = yield* identityManager.getAppUserIdFromCache();
+        if (appUserId) {
           yield* customerAttributeManager.syncCustomerAttributes(appUserId);
-
-          // We don't need the result immediately. We do this to pre-fetch fresh customer data in the background.
-          yield* customerInfoManager.getCustomer(appUserId, 'fetch');
         }
 
-        // Return the initialized client
-        return makeInitializedClient<TSchema>({
-          schema: initOptions.schema
+        yield* identityManager.identify(initOptions.initialAppUserId, {});
+      } else {
+        // If no user ID was passed during SDK initialization, fetch the last identified customer from the server
+        const appUserId = yield* identityManager.getAppUserId();
+        yield* Effect.logDebug("Initializing without initial user id", {
+          appUserId,
         });
-      })
-  } as const;
-};
+
+        yield* customerAttributeManager.syncCustomerAttributes(appUserId);
+
+        // We don't need the result immediately. We do this to pre-fetch fresh customer data in the background.
+        yield* customerInfoManager.getCustomer(appUserId, "fetch");
+      }
+
+      // Return the initialized client
+      return makeInitializedClient<TSchema>({
+        schema: initOptions.schema,
+      });
+    }),
+});
 
 const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
   schema: TSchema;
-}) => {
-  return {
-    end: () =>
-      Effect.gen(function* () {
-        const paymentAdapter = yield* PaymentAdapter;
-        return yield* paymentAdapter.endConnection();
-      }),
+}) => ({
+  end: () =>
+    Effect.gen(function* end() {
+      const paymentAdapter = yield* PaymentAdapter;
+      return yield* paymentAdapter.endConnection();
+    }),
 
-    getCurrentCustomer: (forceFetch = false) =>
-      Effect.gen(function* () {
-        const identityManager = yield* IdentityManager;
-        const customerInfoManager = yield* CustomerInfoManager;
+  getCurrentCustomer: (forceFetch = false) =>
+    Effect.gen(function* getCurrentCustomer() {
+      const identityManager = yield* IdentityManager;
+      const customerInfoManager = yield* CustomerInfoManager;
 
-        const appUserId = yield* identityManager.getAppUserId();
-        const customer = yield* customerInfoManager.getCustomer(
-          appUserId,
-          forceFetch ? 'fetch' : 'fetch-while-stale'
+      const appUserId = yield* identityManager.getAppUserId();
+      const customer = yield* customerInfoManager.getCustomer(
+        appUserId,
+        forceFetch ? "fetch" : "fetch-while-stale"
+      );
+
+      return customer;
+    }),
+
+  getProducts: () =>
+    Effect.gen(function* getProducts() {
+      const productDefinitions = extractProductDefinitions(options.schema);
+      const nativeProducts = yield* loadProductsCached(productDefinitions);
+      return mapNativeProductsToProductMap(productDefinitions, nativeProducts);
+    }),
+
+  identify: (
+    appUserId: string,
+    options: {
+      email?: string;
+      name?: string;
+    }
+  ) =>
+    Effect.gen(function* identify() {
+      const identityManager = yield* IdentityManager;
+      return yield* identityManager.identify(appUserId, options);
+    }),
+
+  iosPresentCodeRedemptionSheet: () =>
+    Effect.gen(function* iosPresentCodeRedemptionSheet() {
+      const paymentAdapter = yield* PaymentAdapter;
+      const { presentCodeRedemptionSheet } = paymentAdapter;
+      if (!presentCodeRedemptionSheet) {
+        return yield* Effect.fail(
+          new UnsupportedPlatformError(
+            "Present code redemption sheet is not supported on this platform"
+          )
         );
-
-        return customer;
-      }),
-
-    identify: (
-      appUserId: string,
-      options: {
-        email?: string;
-        name?: string;
       }
-    ) =>
-      Effect.gen(function* () {
-        const identityManager = yield* IdentityManager;
-        return yield* identityManager.identify(appUserId, options);
-      }),
+      return yield* presentCodeRedemptionSheet();
+    }),
 
-    signOut: () =>
-      Effect.gen(function* () {
-        const identityManager = yield* IdentityManager;
-        return yield* identityManager.signOut();
-      }),
-
-    getProducts: () =>
-      Effect.gen(function* () {
-        const productDefinitions = extractProductDefinitions(options.schema);
-        const nativeProducts = yield* loadProductsCached(productDefinitions);
-        return mapNativeProductsToProductMap(
-          productDefinitions,
-          nativeProducts
+  iosShowManageSubscriptions: () =>
+    Effect.gen(function* iosShowManageSubscriptions() {
+      const paymentAdapter = yield* PaymentAdapter;
+      const { showManageSubscriptions } = paymentAdapter;
+      if (!showManageSubscriptions) {
+        return yield* Effect.fail(
+          new UnsupportedPlatformError(
+            "Show manage subscriptions is not supported on this platform"
+          )
         );
-      }),
-
-    purchase: <TSchemaOverload extends VoidhashSchema>(
-      product: NonNullable<
-        InferGetProductResponseFromSchema<TSchemaOverload>[keyof InferGetProductResponseFromSchema<TSchemaOverload>]
-      >,
-      _options: {
-        method?: 'native';
       }
-    ) =>
-      Effect.gen(function* () {
-        const paymentAdapter = yield* PaymentAdapter;
-        const transaction = yield* paymentAdapter.buyProduct(product);
-        // TODO: Send transaction to backend
-        yield* Effect.logDebug('Transaction bought', {
-          transaction
-        });
+      return yield* showManageSubscriptions();
+    }),
 
-        return;
-      }),
+  purchase: <TSchemaOverload extends VoidhashSchema>(
+    product: NonNullable<
+      InferGetProductResponseFromSchema<TSchemaOverload>[keyof InferGetProductResponseFromSchema<TSchemaOverload>]
+    >,
+    _options: {
+      method?: "native";
+    }
+  ) =>
+    Effect.gen(function* purchase() {
+      const paymentAdapter = yield* PaymentAdapter;
+      const transaction = yield* paymentAdapter.buyProduct(product);
+      // TODO: Send transaction to backend
+      yield* Effect.logDebug("Transaction bought", {
+        transaction,
+      });
 
-    iosPresentCodeRedemptionSheet: () =>
-      Effect.gen(function* () {
-        const paymentAdapter = yield* PaymentAdapter;
-        const presentCodeRedemptionSheet =
-          paymentAdapter.presentCodeRedemptionSheet;
-        if (!presentCodeRedemptionSheet) {
-          return yield* Effect.fail(
-            new UnsupportedPlatformError(
-              'Present code redemption sheet is not supported on this platform'
-            )
-          );
-        }
-        return yield* presentCodeRedemptionSheet();
-      }),
+      return;
+    }),
 
-    iosShowManageSubscriptions: () =>
-      Effect.gen(function* () {
-        const paymentAdapter = yield* PaymentAdapter;
-        const showManageSubscriptions = paymentAdapter.showManageSubscriptions;
-        if (!showManageSubscriptions) {
-          return yield* Effect.fail(
-            new UnsupportedPlatformError(
-              'Show manage subscriptions is not supported on this platform'
-            )
-          );
-        }
-        return yield* showManageSubscriptions();
-      })
-  } as const;
-};
+  signOut: () =>
+    Effect.gen(function* signOut() {
+      const identityManager = yield* IdentityManager;
+      return yield* identityManager.signOut();
+    }),
+});
 
 const loadProductsCached = <TSchema extends VoidhashSchema>(
   productDefinitions: ExtractSchemaProductDefinitions<TSchema>
 ) =>
-  Effect.gen(function* () {
+  Effect.gen(function* loadProductsCached() {
     const cacheManager = yield* CacheManager;
     const paymentAdapter = yield* PaymentAdapter;
 
@@ -176,8 +169,8 @@ const loadProductsCached = <TSchema extends VoidhashSchema>(
       cachedProducts &&
       !(cachedProducts.isStale || cachedProducts.isExpired)
     ) {
-      yield* Effect.logDebug('Products fetched from cache', {
-        products: cachedProducts.value
+      yield* Effect.logDebug("Products fetched from cache", {
+        products: cachedProducts.value,
       });
       return cachedProducts.value;
     }
@@ -185,13 +178,13 @@ const loadProductsCached = <TSchema extends VoidhashSchema>(
     const nativeProducts =
       yield* paymentAdapter.getProducts(productDefinitions);
 
-    yield* Effect.logDebug('Products fetched from native adapter', {
-      products: nativeProducts
+    yield* Effect.logDebug("Products fetched from native adapter", {
+      products: nativeProducts,
     });
 
     // Store products in cache
     yield* cacheManager.set(cacheKey, nativeProducts, {
-      ttl: 1000 * 60 * 60 * 24 // 24 hours
+      ttl: 1000 * 60 * 60 * 24, // 24 hours
     });
 
     return nativeProducts;
@@ -224,11 +217,9 @@ const mapNativeProductsToProductMap = <TSchema extends VoidhashSchema>(
 
 const generateCacheKeyFromProductDefinitions = <TSchema extends VoidhashSchema>(
   productDefinitions: ExtractSchemaProductDefinitions<TSchema>
-) => {
-  return `native-products:${JSON.stringify(productDefinitions)}`;
-};
+) => `native-products:${JSON.stringify(productDefinitions)}`;
 
 export const VoidhashEffectClient = {
+  makeInitializedClient,
   makeUnitializedClient,
-  makeInitializedClient
 } as const;

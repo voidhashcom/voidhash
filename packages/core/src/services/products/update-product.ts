@@ -1,19 +1,20 @@
-import { eq, products } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
+import { eq, products } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
 import {
   AuthSession,
   ProductNotFoundError,
-  ProductServiceError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
+  ProductServiceError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { checkProjectPermission } from "../../utils/permissions";
 
 const _getProductById = (db: Db) =>
   db.makeQuery((execute, id: string) =>
     execute(
       async (db) =>
         await db.query.products.findFirst({
-          where: eq(products.id, id)
+          where: eq(products.id, id),
         })
     )
   );
@@ -33,10 +34,14 @@ const _updateProductRecord = (db: Db) =>
       )
   );
 
-export const updateProduct = Effect.gen(function* () {
+export const updateProduct = Effect.gen(function* updateProduct() {
   const db = yield* Db;
-  return Effect.fn('updateProduct')(
-    function* (input: { id: string; name: string; slug?: string }) {
+  return Effect.fn("updateProduct")(
+    function* updateProduct(input: {
+      id: string;
+      name: string;
+      slug?: string;
+    }) {
       const session = yield* AuthSession;
 
       // Get the product to check authorization
@@ -44,7 +49,7 @@ export const updateProduct = Effect.gen(function* () {
       if (!existingProduct) {
         return yield* Effect.fail(
           new ProductNotFoundError({
-            message: `Product ${input.id} not found`
+            message: `Product ${input.id} not found`,
           })
         );
       }
@@ -52,7 +57,7 @@ export const updateProduct = Effect.gen(function* () {
       // SECURITY: Authorization check
       yield* checkProjectPermission(
         existingProduct.projectId,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to update product ${input.id} for project ${existingProduct.projectId}`
       );
 
@@ -69,8 +74,8 @@ export const updateProduct = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new ProductServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

@@ -1,13 +1,13 @@
-import { Button } from 'components/button';
-import { Platform, Text, View } from 'react-native';
-import { voidhash } from 'utils/voidhash/local.client';
+import { Button } from "components/button";
+import { Platform, Text, View } from "react-native";
+import { voidhash } from "utils/voidhash/local.client";
 
 export default function HomeScreen() {
   const { client } = voidhash.useVoidhash();
   const {
     data: customer,
     isLoading: isCustomerLoading,
-    error: customerError
+    error: customerError,
   } = voidhash.useCurrentCustomer();
 
   if (isCustomerLoading) {
@@ -26,7 +26,7 @@ export default function HomeScreen() {
           {JSON.stringify(customerError, null, 2)}
         </Text>
 
-        {Platform.OS === 'ios' && (
+        {Platform.OS === "ios" && (
           <View className="mt-4 gap-4">
             <Button
               className="bg-zinc-800"

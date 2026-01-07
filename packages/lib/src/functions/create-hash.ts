@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/nursery/noBitwiseOperators:ok here */
-import { subtle } from 'uncrypto';
+import { subtle } from "uncrypto";
 
 //inspired by oslo implementation by pilcrowonpaper: https://github.com/pilcrowonpaper/oslo/blob/main/src/encoding/base64.ts
 
@@ -15,18 +15,18 @@ export type TypedArray =
   | BigInt64Array
   | BigUint64Array;
 
-export type SHAFamily = 'SHA-1' | 'SHA-256' | 'SHA-384' | 'SHA-512';
+export type SHAFamily = "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
 export type EncodingFormat =
-  | 'hex'
-  | 'base64'
-  | 'base64url'
-  | 'base64urlnopad'
-  | 'none';
+  | "hex"
+  | "base64"
+  | "base64url"
+  | "base64urlnopad"
+  | "none";
 
 function getAlphabet(urlSafe: boolean): string {
   return urlSafe
-    ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
-    : 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 }
 
 function base64Encode(
@@ -34,7 +34,7 @@ function base64Encode(
   alphabet: string,
   padding: boolean
 ): string {
-  let result = '';
+  let result = "";
   let buffer = 0;
   let shift = 0;
 
@@ -43,17 +43,17 @@ function base64Encode(
     shift += 8;
     while (shift >= 6) {
       shift -= 6;
-      result += alphabet[(buffer >> shift) & 0x3f];
+      result += alphabet[(buffer >> shift) & 0x3F];
     }
   }
 
   if (shift > 0) {
-    result += alphabet[(buffer << (6 - shift)) & 0x3f];
+    result += alphabet[(buffer << (6 - shift)) & 0x3F];
   }
 
   if (padding) {
     const padCount = (4 - (result.length % 4)) % 4;
-    result += '='.repeat(padCount);
+    result += "=".repeat(padCount);
   }
 
   return result;
@@ -70,7 +70,7 @@ function base64Decode(data: string, alphabet: string): Uint8Array {
   let bitsCollected = 0;
 
   for (const char of data) {
-    if (char === '=') {
+    if (char === "=") {
       break;
     }
     const value = decodeMap.get(char);
@@ -82,7 +82,7 @@ function base64Decode(data: string, alphabet: string): Uint8Array {
 
     if (bitsCollected >= 8) {
       bitsCollected -= 8;
-      result.push((buffer >> bitsCollected) & 0xff);
+      result.push((buffer >> bitsCollected) & 0xFF);
     }
   }
 
@@ -105,77 +105,80 @@ function toUint8Array(data: ArrayBuffer | TypedArray): Uint8Array {
 }
 
 const base64 = {
+  decode(data: string | ArrayBuffer | TypedArray) {
+    if (typeof data !== "string") {
+      // biome-ignore lint/style/noParameterAssign: ok here
+      data = new TextDecoder().decode(toUint8Array(data));
+    }
+    const urlSafe = data.includes("-") || data.includes("_");
+    const alphabet = getAlphabet(urlSafe);
+    return base64Decode(data, alphabet);
+  },
   encode(
     data: ArrayBuffer | TypedArray | string,
     options: { padding?: boolean } = {}
   ) {
     const alphabet = getAlphabet(false);
     const buffer =
-      typeof data === 'string'
+      typeof data === "string"
         ? new TextEncoder().encode(data)
         : toUint8Array(data);
     return base64Encode(buffer, alphabet, options.padding ?? true);
   },
-  decode(data: string | ArrayBuffer | TypedArray) {
-    if (typeof data !== 'string') {
-      // biome-ignore lint/style/noParameterAssign: ok here
-      data = new TextDecoder().decode(toUint8Array(data));
-    }
-    const urlSafe = data.includes('-') || data.includes('_');
-    const alphabet = getAlphabet(urlSafe);
-    return base64Decode(data, alphabet);
-  }
 };
 
 export const base64Url = {
+  decode(data: string) {
+    const urlSafe = data.includes("-") || data.includes("_");
+    const alphabet = getAlphabet(urlSafe);
+    return base64Decode(data, alphabet);
+  },
   encode(
     data: ArrayBuffer | TypedArray | string,
     options: { padding?: boolean } = {}
   ) {
     const alphabet = getAlphabet(true);
     const buffer =
-      typeof data === 'string'
+      typeof data === "string"
         ? new TextEncoder().encode(data)
         : toUint8Array(data);
     return base64Encode(buffer, alphabet, options.padding ?? true);
   },
-  decode(data: string) {
-    const urlSafe = data.includes('-') || data.includes('_');
-    const alphabet = getAlphabet(urlSafe);
-    return base64Decode(data, alphabet);
-  }
 };
 
-export function createHash<Encoding extends EncodingFormat = 'none'>(
+export function createHash<Encoding extends EncodingFormat = "none">(
   algorithm: SHAFamily,
   encoding?: Encoding
 ) {
   return {
     digest: async (
       input: string | ArrayBuffer | TypedArray
-    ): Promise<Encoding extends 'none' ? ArrayBuffer : string> => {
+    ): Promise<Encoding extends "none" ? ArrayBuffer : string> => {
       const encoder = new TextEncoder();
-      const data =
-        typeof input === 'string' ? encoder.encode(input) : toUint8Array(input);
+      const encoded =
+        typeof input === "string" ? encoder.encode(input) : toUint8Array(input);
+      // Ensure we have a Uint8Array with ArrayBuffer backing (not SharedArrayBuffer)
+      // by always creating a copy to guarantee ArrayBuffer backing
+      const data = new Uint8Array(encoded);
       const hashBuffer = await subtle.digest(algorithm, data);
 
-      if (encoding === 'hex') {
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
+      if (encoding === "hex") {
+        const hashArray = [...new Uint8Array(hashBuffer)];
         const hashHex = hashArray
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('');
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
         // biome-ignore lint/suspicious/noExplicitAny: ok
         return hashHex as any;
       }
 
       if (
-        encoding === 'base64' ||
-        encoding === 'base64url' ||
-        encoding === 'base64urlnopad'
+        encoding === "base64" ||
+        encoding === "base64url" ||
+        encoding === "base64urlnopad"
       ) {
-        if (encoding.includes('url')) {
+        if (encoding.includes("url")) {
           return base64Url.encode(hashBuffer, {
-            padding: encoding !== 'base64urlnopad'
+            padding: encoding !== "base64urlnopad",
             // biome-ignore lint/suspicious/noExplicitAny: ok
           }) as any;
         }
@@ -185,6 +188,6 @@ export function createHash<Encoding extends EncodingFormat = 'none'>(
       }
       // biome-ignore lint/suspicious/noExplicitAny: ok
       return hashBuffer as any;
-    }
+    },
   };
 }

@@ -1,11 +1,11 @@
-import { Text, TouchableOpacity } from 'react-native';
-import { cn } from 'utils/lib';
+import { Text, TouchableOpacity } from "react-native";
+import { cn } from "utils/lib";
 
 export function MenuItem({
   title,
   onPress,
   isFirst,
-  isLast
+  isLast,
 }: {
   title: string;
   onPress: () => void;
@@ -15,10 +15,10 @@ export function MenuItem({
   return (
     <TouchableOpacity
       className={cn(
-        'border-zinc-800 bg-zinc-900 p-4',
-        isFirst && 'rounded-t-lg',
-        isLast && 'rounded-b-lg',
-        !isLast && 'border-b'
+        "border-zinc-800 bg-zinc-900 p-4",
+        isFirst && "rounded-t-lg",
+        isLast && "rounded-b-lg",
+        !isLast && "border-b"
       )}
       onPress={onPress}
     >

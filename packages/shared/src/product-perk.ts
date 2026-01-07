@@ -1,15 +1,15 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class ProductPerkServiceError extends Schema.TaggedError<ProductPerkServiceError>()(
-  'ProductPerkServiceError',
+  "ProductPerkServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class ProductPerkValidationError extends Schema.TaggedError<ProductPerkValidationError>()(
-  'ProductPerkValidationError',
+  "ProductPerkValidationError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}

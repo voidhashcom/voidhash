@@ -1,26 +1,27 @@
-import os from 'node:os';
-import { FileSystem, Path } from '@effect/platform';
-import { Effect, Schema } from 'effect';
+import { FileSystem, Path } from "@effect/platform";
+import { Effect, Schema } from "effect";
+import os from "node:os";
+
 import {
   CONFIG_FILE_NAME,
   DEFAULT_API_URL,
-  DEFAULT_WEB_URL
-} from '../../constants';
-import { FailedToReadCliConfigError } from '../errors/cli-config';
-import { CliConfigSchema } from '../schema/cli-config';
+  DEFAULT_WEB_URL,
+} from "../../constants";
+import { FailedToReadCliConfigError } from "../errors/cli-config";
+import { CliConfigSchema } from "../schema/cli-config";
 
 export const emptyConfig = {
   api_key: null,
   api_url: DEFAULT_API_URL,
-  web_url: DEFAULT_WEB_URL
+  web_url: DEFAULT_WEB_URL,
 } satisfies typeof CliConfigSchema.Type;
 
 export class CliConfig extends Effect.Service<CliConfig>()(
-  'voidhash-cli/CliConfig',
+  "voidhash-cli/CliConfig",
   {
     dependencies: [],
     // Define how to create the service
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
 
@@ -33,7 +34,7 @@ export class CliConfig extends Effect.Service<CliConfig>()(
        * @returns An Effect that yields the parsed configuration object, or fails with a ConfigFileNotFoundError if the config file does not exist, or a Schema.DecodeError if the file contents are invalid.
        */
       const readConfig = () =>
-        Effect.gen(function* () {
+        Effect.gen(function* readConfig() {
           if (!fileSystem.exists(filePath)) {
             return yield* Effect.succeed(emptyConfig);
           }
@@ -41,31 +42,31 @@ export class CliConfig extends Effect.Service<CliConfig>()(
           const configJson = JSON.parse(configString);
           return yield* Schema.decodeUnknown(CliConfigSchema)({
             ...emptyConfig,
-            ...configJson
+            ...configJson,
           });
         }).pipe(
           Effect.catchTags({
             BadArgument: (e) =>
               Effect.fail(
                 new FailedToReadCliConfigError({
-                  message: 'Failed to read config',
-                  cause: e
-                })
-              ),
-            SystemError: (e) =>
-              Effect.fail(
-                new FailedToReadCliConfigError({
-                  message: 'Failed to read config',
-                  cause: e
+                  cause: e,
+                  message: "Failed to read config",
                 })
               ),
             ParseError: (e) =>
               Effect.fail(
                 new FailedToReadCliConfigError({
-                  message: 'Failed to read config',
-                  cause: e
+                  cause: e,
+                  message: "Failed to read config",
                 })
-              )
+              ),
+            SystemError: (e) =>
+              Effect.fail(
+                new FailedToReadCliConfigError({
+                  cause: e,
+                  message: "Failed to read config",
+                })
+              ),
           })
         );
 
@@ -77,7 +78,7 @@ export class CliConfig extends Effect.Service<CliConfig>()(
        * @returns An Effect that writes the merged configuration to disk.
        */
       const writeToConfig = (config: Partial<typeof CliConfigSchema.Type>) =>
-        Effect.gen(function* () {
+        Effect.gen(function* writeToConfig() {
           const currentConfig = yield* readConfig().pipe(
             Effect.orElse(() => Effect.succeed({}))
           );
@@ -96,20 +97,20 @@ export class CliConfig extends Effect.Service<CliConfig>()(
        * @returns An Effect that resets the configuration to the default values.
        */
       const resetConfig = () =>
-        Effect.gen(function* () {
+        Effect.gen(function* resetConfig() {
           const config = yield* readConfig();
 
           yield* writeToConfig({
             ...emptyConfig,
-            api_key: config.api_key ?? null
+            api_key: config.api_key ?? null,
           });
         });
 
       return {
         readConfig,
+        resetConfig,
         writeToConfig,
-        resetConfig
       } as const;
-    })
+    }),
   }
 ) {}

@@ -1,36 +1,36 @@
-import { HttpApiBuilder } from '@effect/platform';
-import { VoidhashV1Api } from '@voidhash/api-spec';
-import { AuthSession } from '@voidhash/shared';
-import { Effect } from 'effect';
+import { HttpApiBuilder } from "@effect/platform";
+import { VoidhashV1Api } from "@voidhash/api-spec";
+import { AuthSession } from "@voidhash/shared";
+import { Effect } from "effect";
 
 export const AuthGroupLive = HttpApiBuilder.group(
   VoidhashV1Api,
-  'auth',
+  "auth",
   (handlers) =>
-    handlers.handle('session', () =>
-      Effect.gen(function* () {
+    handlers.handle("session", () =>
+      Effect.gen(function* AuthGroupLive() {
         const authSession = yield* AuthSession;
         const method =
-          authSession.method === 'user'
-            ? 'api-key'
+          authSession.method === "user"
+            ? "api-key"
             : (authSession.method as
-                | 'api-key'
-                | 'publishable-key'
-                | 'secret-key');
+                | "api-key"
+                | "publishable-key"
+                | "secret-key");
         return {
           method,
           name: authSession.name,
           organizations: authSession.organizations.map((o) => ({
             id: o.id,
+            name: o.name,
             slug: o.slug,
-            name: o.name
           })),
           projects: authSession.projects.map((p) => ({
             id: p.id,
-            slug: p.slug,
             name: p.name,
-            organizationId: p.organizationId
-          }))
+            organizationId: p.organizationId,
+            slug: p.slug,
+          })),
         };
       })
     )

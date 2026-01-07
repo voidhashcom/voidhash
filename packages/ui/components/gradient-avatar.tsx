@@ -1,14 +1,14 @@
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 function simpleHash(str: string): number {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
+    const char = str.codePointAt(i) ?? 0;
     // biome-ignore lint/nursery/noBitwiseOperators: required
     hash = (hash << 5) - hash + char;
     // biome-ignore lint/style/useShorthandAssign: required
     // biome-ignore lint/nursery/noBitwiseOperators: required
-    hash = hash & hash; // Convert to 32-bit integer
+    hash &= hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
 }
@@ -56,7 +56,7 @@ const HSL2RGB = (HBase: number, S: number, L: number) => {
  * @returns {String} 6 digits hex starting with #
  */
 const RGB2HEX = (RGBArray: number[]) => {
-  let hex = '#';
+  let hex = "#";
   for (const value of RGBArray) {
     if (value < 16) {
       hex += 0;
@@ -93,18 +93,18 @@ class ColorHash {
     // biome-ignore lint/style/noNonNullAssertion: required
     this.S = S!;
 
-    if (typeof options.hue === 'number') {
-      options.hue = { min: options.hue, max: options.hue };
+    if (typeof options.hue === "number") {
+      options.hue = { max: options.hue, min: options.hue };
     }
-    if (typeof options.hue === 'object' && !Array.isArray(options.hue)) {
+    if (typeof options.hue === "object" && !Array.isArray(options.hue)) {
       options.hue = [options.hue];
     }
-    if (typeof options.hue === 'undefined') {
+    if (typeof options.hue === "undefined") {
       options.hue = [];
     }
     this.hueRanges = options.hue.map((range) => ({
-      min: typeof range.min === 'undefined' ? 0 : range.min,
-      max: typeof range.max === 'undefined' ? 360 : range.max
+      max: typeof range.max === "undefined" ? 360 : range.max,
+      min: typeof range.min === "undefined" ? 0 : range.min,
     }));
   }
 
@@ -180,19 +180,19 @@ class ColorHash {
   }
 }
 
-const colorHash = new ColorHash({ saturation: 1.0 });
+const colorHash = new ColorHash({ saturation: 1 });
 
 const stringToColours = (s: string): string[] => colorHash.hexPair(s);
 
 const generateColours = (s: string): [string, string] => {
-  const s1 = s.substring(0, s.length / 2);
+  const s1 = s.slice(0, s.length / 2);
   const [c1, c2] = stringToColours(s1);
   // biome-ignore lint/style/noNonNullAssertion: required
   return [c1!, c2!];
 };
 
 const generateDataUrl = (s: string): string => {
-  const [c1, c2] = generateColours(s ?? 'null');
+  const [c1, c2] = generateColours(s ?? "null");
   const size = 256;
   const svg = `
 <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -214,7 +214,7 @@ export function GradientAvatar({
   className,
   alt,
   fallback,
-  gradientUrl
+  gradientUrl,
 }: {
   src?: string;
   className?: string;

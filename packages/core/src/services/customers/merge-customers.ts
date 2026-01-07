@@ -1,7 +1,7 @@
-import { customers, eq, type UpdateCustomer } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { CustomerServiceError } from '@voidhash/shared';
-import { Effect } from 'effect';
+import { type UpdateCustomer, customers, eq } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { CustomerServiceError } from "@voidhash/shared";
+import { Effect } from "effect";
 
 const _updateCustomerRecord = (db: Db) =>
   db.makeQuery((execute, customer: UpdateCustomer) =>
@@ -14,14 +14,14 @@ const _updateCustomerRecord = (db: Db) =>
     })
   );
 
-export const mergeCustomers = Effect.gen(function* () {
+export const mergeCustomers = Effect.gen(function* mergeCustomers() {
   const db = yield* Db;
-  return Effect.fn('mergeCustomers')(
-    function* (fromCustomerId: string, toCustomerId: string) {
+  return Effect.fn("mergeCustomers")(
+    function* mergeCustomers(fromCustomerId: string, toCustomerId: string) {
       return yield* _updateCustomerRecord(db)({
+        archivedAt: new Date(),
         id: fromCustomerId,
         parentCustomerId: toCustomerId,
-        archivedAt: new Date()
       });
 
       // TODO: Update all the customer's subscriptions to the new customer
@@ -35,8 +35,8 @@ export const mergeCustomers = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new CustomerServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

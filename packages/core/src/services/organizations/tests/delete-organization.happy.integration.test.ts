@@ -41,4 +41,3 @@ describe.sequential('deleteOrganization happy path', () => {
     expect(value).toBe('deleted');
   });
 });
-

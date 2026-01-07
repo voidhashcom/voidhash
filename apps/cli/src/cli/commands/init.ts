@@ -1,15 +1,16 @@
-import { Command, HelpDoc, Prompt, ValidationError } from '@effect/cli';
-import { Path } from '@effect/platform';
-import { Console, Effect } from 'effect';
-import { Auth } from '../../domain/services/auth';
-import { Codegen } from '../../domain/services/codegen';
-import { SourceCode } from '../../domain/services/source-code';
-import { assertFileCanBeCreated } from '../../utils/fs';
-import { selectOrganization } from '../../utils/organizations/select-organization';
-import { selectProject } from '../../utils/projects/select-project';
+import { Command, HelpDoc, Prompt, ValidationError } from "@effect/cli";
+import { Path } from "@effect/platform";
+import { Console, Effect } from "effect";
 
-export const initCommand = Command.make('init', {}, () =>
-  Effect.gen(function* () {
+import { Auth } from "../../domain/services/auth";
+import { Codegen } from "../../domain/services/codegen";
+import { SourceCode } from "../../domain/services/source-code";
+import { assertFileCanBeCreated } from "../../utils/fs";
+import { selectOrganization } from "../../utils/organizations/select-organization";
+import { selectProject } from "../../utils/projects/select-project";
+
+export const initCommand = Command.make("init", {}, () =>
+  Effect.gen(function* initCommand() {
     const auth = yield* Auth;
     const sourceCode = yield* SourceCode;
     const codegen = yield* Codegen;
@@ -18,7 +19,7 @@ export const initCommand = Command.make('init', {}, () =>
     const voidhashConfig = yield* sourceCode
       .loadVoidhashConfig()
       .pipe(
-        Effect.catchTag('VoidhashConfigNotFoundError', () =>
+        Effect.catchTag("VoidhashConfigNotFoundError", () =>
           Effect.succeed(null)
         )
       );
@@ -27,11 +28,11 @@ export const initCommand = Command.make('init', {}, () =>
       const shouldContinue = yield* Prompt.run(
         Prompt.confirm({
           message:
-            'Voidhash was already initialized in this project. This will overwrite the existing configuration. Do you want to continue?'
+            "Voidhash was already initialized in this project. This will overwrite the existing configuration. Do you want to continue?",
         })
       );
       if (!shouldContinue) {
-        return yield* Console.log('Initialization cancelled.');
+        return yield* Console.log("Initialization cancelled.");
       }
       yield* sourceCode.deleteVoidhashConfig();
     }
@@ -39,17 +40,17 @@ export const initCommand = Command.make('init', {}, () =>
     // Sign in
     const session = yield* auth.getSignedInSession
       .pipe(
-        Effect.catchTag('NoSignedInUserError', () =>
-          Effect.gen(function* () {
+        Effect.catchTag("NoSignedInUserError", () =>
+          Effect.gen(function* session() {
             const shouldContinue = yield* Prompt.run(
               Prompt.confirm({
                 message:
-                  'You are not logged in. In the next step, we will open a browser window to sign you in. Do you want to continue?'
+                  "You are not logged in. In the next step, we will open a browser window to sign you in. Do you want to continue?",
               })
             );
             if (!shouldContinue) {
               return yield* Effect.fail(
-                ValidationError.invalidValue(HelpDoc.p('Login cancelled.'))
+                ValidationError.invalidValue(HelpDoc.p("Login cancelled."))
               );
             }
             return yield* auth.login.pipe(
@@ -60,18 +61,18 @@ export const initCommand = Command.make('init', {}, () =>
       )
       .pipe(
         Effect.catchTags({
-          NoSignedInUserError: () =>
-            Effect.fail(
-              ValidationError.invalidValue(
-                HelpDoc.p('We were unable to sign you in. Please try it again.')
-              )
-            ),
           FailedToGetSessionError: (e) =>
             Effect.fail(
               ValidationError.invalidValue(
-                HelpDoc.p('Failed to get user session. Please try again.')
+                HelpDoc.p("Failed to get user session. Please try again.")
               )
-            ).pipe(Effect.tapError(() => Effect.logDebug(e)))
+            ).pipe(Effect.tapError(() => Effect.logDebug(e))),
+          NoSignedInUserError: () =>
+            Effect.fail(
+              ValidationError.invalidValue(
+                HelpDoc.p("We were unable to sign you in. Please try it again.")
+              )
+            ),
           // TODO: handle other errors
         })
       );
@@ -88,22 +89,22 @@ export const initCommand = Command.make('init', {}, () =>
     // Select folder path
 
     const srcFolderPath = yield* sourceCode.retrieveSrcDir();
-    const hasSrcDir = srcFolderPath.endsWith('src');
+    const hasSrcDir = srcFolderPath.endsWith("src");
 
     const voidhashFilesFolderPath = yield* Prompt.run(
       Prompt.text({
+        default: hasSrcDir ? "./src/utils/voidhash" : "./utils/voidhash",
         message:
-          'Select the folder where you want to create the Voidhash schema and client',
-        default: hasSrcDir ? './src/utils/voidhash' : './utils/voidhash'
+          "Select the folder where you want to create the Voidhash schema and client",
       })
     );
 
     // File names
     const language = yield* sourceCode.detectSrcLanguage();
-    const schemaFileName = language === 'ts' ? 'schema.ts' : 'schema.js';
-    const clientFileName = language === 'ts' ? 'client.ts' : 'client.js';
+    const schemaFileName = language === "ts" ? "schema.ts" : "schema.js";
+    const clientFileName = language === "ts" ? "client.ts" : "client.js";
     const configFileName =
-      language === 'ts' ? 'voidhash.config.ts' : 'voidhash.config.js';
+      language === "ts" ? "voidhash.config.ts" : "voidhash.config.js";
 
     // File paths
     const schemaFilePath = path.resolve(
@@ -127,13 +128,13 @@ export const initCommand = Command.make('init', {}, () =>
     // yield* codegen.generateSchemaFile(schemaFilePath);
     // yield* codegen.generateClientFile(clientFilePath);
     yield* codegen.generateVoidhashConfigFile(configFilePath, {
-      team: organization.slug,
       project: project.slug,
-      schema: path.relative(path.resolve(), schemaFilePath)
+      schema: path.relative(path.resolve(), schemaFilePath),
+      team: organization.slug,
     });
 
     // Generate voidhash.config.ts, voidhash client and schema
 
     // const sourceCodeDetails = yield* retrieveSourceCodeDetails();
   })
-).pipe(Command.withDescription('Initialize a new Voidhash project.'));
+).pipe(Command.withDescription("Initialize a new Voidhash project."));

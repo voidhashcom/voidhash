@@ -1,0 +1,30 @@
+{
+  "name": "@voidhash/mimic-schema",
+  "version": "0.0.1-alpha.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/mimic"
+  },
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run -c vitest.mts"
+  },
+  "dependencies": {
+    "@voidhash/mimic": "catalog:"
+  },
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "5.8.3",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

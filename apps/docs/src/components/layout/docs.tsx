@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import {
   Collapsible,
   CollapsibleContent,
@@ -12,17 +12,18 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider
-} from '@voidhash/ui';
-import { usePathname } from 'fumadocs-core/framework';
-import type { PageTree } from 'fumadocs-core/server';
-import { TreeContextProvider, useTreeContext } from 'fumadocs-ui/contexts/tree';
-import { ChevronRight } from 'lucide-react';
-import { CirclePlay } from 'lucide-static';
-import NextLink from 'next/link';
-import { type ReactElement, type ReactNode, useMemo } from 'react';
-import { NavBar } from '../nav-bar';
-import { DocsThemeToggle } from '../theme-toggle';
+  SidebarProvider,
+} from "@voidhash/ui";
+import { usePathname } from "fumadocs-core/framework";
+import type { PageTree } from "fumadocs-core/server";
+import { TreeContextProvider, useTreeContext } from "fumadocs-ui/contexts/tree";
+import { ChevronRight } from "lucide-react";
+import { CirclePlay } from "lucide-static";
+import NextLink from "next/link";
+import { type ReactElement, type ReactNode, useMemo } from "react";
+
+import { NavBar } from "../nav-bar";
+import { DocsThemeToggle } from "../theme-toggle";
 
 export interface DocsLayoutProps {
   tree: PageTree.Root;
@@ -66,16 +67,16 @@ function DocsSidebar() {
         isActive?: () => boolean;
       }[];
     } | null {
-      if (node.type === 'page') {
+      if (node.type === "page") {
         return {
           icon: node.icon as unknown as ReactElement,
-          title: typeof node.name === 'string' ? node.name : String(node.name),
+          isActive: () => pathname === node.url,
+          title: typeof node.name === "string" ? node.name : String(node.name),
           url: node.url,
-          isActive: () => pathname === node.url
         };
       }
 
-      if (node.type === 'folder') {
+      if (node.type === "folder") {
         const items = node.children
           .map(transformNode)
           .filter((item): item is NonNullable<typeof item> => item !== null);
@@ -83,13 +84,13 @@ function DocsSidebar() {
         if (node.index) {
           return {
             icon: node.icon as unknown as ReactElement,
-            title:
-              typeof node.name === 'string' ? node.name : String(node.name),
-            url: node.index.url,
             isActive: () =>
               pathname === node.index?.url ||
               items.some((item) => item.isActive?.()),
-            items: items.length > 0 ? items : undefined
+            items: items.length > 0 ? items : undefined,
+            title:
+              typeof node.name === "string" ? node.name : String(node.name),
+            url: node.index.url,
           };
         }
 
@@ -97,11 +98,11 @@ function DocsSidebar() {
         if (items.length > 0) {
           return {
             icon: node.icon as unknown as ReactElement,
-            title:
-              typeof node.name === 'string' ? node.name : String(node.name),
-            url: '#',
             isActive: () => items.some((item) => item.isActive?.()),
-            items
+            items,
+            title:
+              typeof node.name === "string" ? node.name : String(node.name),
+            url: "#",
           };
         }
       }
@@ -111,22 +112,22 @@ function DocsSidebar() {
 
     const itemsWithDefaultGroup: PageTree.Node[] = [
       {
-        $id: 'get-started',
-        name: 'Get Started',
+        $id: "get-started",
+        children: root.children.filter((item) => item.type === "page"),
         icon: CirclePlay as unknown as ReactElement,
-        type: 'folder',
         index: {
-          $id: 'index.mdx',
+          $id: "index.mdx",
           $ref: {
-            file: 'index.mdx'
+            file: "index.mdx",
           },
-          type: 'page',
-          name: 'Index',
-          url: '/docs'
+          name: "Index",
+          type: "page",
+          url: "/docs",
         },
-        children: root.children.filter((item) => item.type === 'page')
+        name: "Get Started",
+        type: "folder",
       },
-      ...root.children.filter((item) => item.type === 'folder')
+      ...root.children.filter((item) => item.type === "folder"),
     ];
 
     const transformedItems = itemsWithDefaultGroup
@@ -160,9 +161,9 @@ function DocsSidebar() {
 
 export function NavMain({
   link: Link,
-  groups
+  groups,
 }: {
-  link: typeof NextLink | 'a';
+  link: typeof NextLink | "a";
   defaultOpenNested?: boolean;
   groups: {
     title: string;
@@ -179,7 +180,7 @@ export function NavMain({
       }[];
     }[];
   }[];
-  tooltips?: 'enabled' | 'disabled';
+  tooltips?: "enabled" | "disabled";
 }) {
   return (
     <>
@@ -200,10 +201,10 @@ export function NavMain({
                   className="*:-ml-0.5 *:mr-2 *:size-4 *:text-muted-foreground"
                   // biome-ignore lint/security/noDangerouslySetInnerHtml: It is safe - they are static icons
                   dangerouslySetInnerHTML={{
-                    __html: group.icon as unknown as string
+                    __html: group.icon as unknown as string,
                   }}
                 />
-                {group.title}{' '}
+                {group.title}{" "}
                 <ChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
               </CollapsibleTrigger>
             </SidebarGroupLabel>

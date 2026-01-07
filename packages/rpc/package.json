@@ -1,13 +1,13 @@
 {
   "name": "@voidhash/rpc",
   "version": "0.0.1-alpha.1",
-  "type": "module",
+  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/voidhashcom/voidhash",
     "directory": "packages/rpc"
   },
-  "private": true,
+  "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },

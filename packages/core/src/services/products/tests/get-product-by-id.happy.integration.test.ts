@@ -60,7 +60,6 @@ describe.sequential('getProductById happy path', () => {
     expect(value.product).toMatchObject({
       id: value.testProductId,
       name: 'Test Product By ID',
-      slug: 'test-product-by-id',
       projectId: h.resources.project.id
     });
 

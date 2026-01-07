@@ -1,11 +1,12 @@
-import { Effect, Schema } from 'effect';
-import { appStore, stripe } from '../../payment-providers';
+import { Effect, Schema } from "effect";
+
+import { appStore, stripe } from "../../payment-providers";
 
 export const validateProductConfigurationAndCreateProductKey = (
   providerId: string,
   configuration: Record<string, unknown>
 ) =>
-  Effect.gen(function* () {
+  Effect.gen(function* validateProductConfigurationAndCreateProductKey() {
     // Stripe
     if (providerId === stripe.id) {
       const parsedConfiguration = yield* Schema.decodeUnknown(
@@ -14,7 +15,7 @@ export const validateProductConfigurationAndCreateProductKey = (
 
       return yield* Effect.succeed({
         parsedConfiguration,
-        productKey: stripe.createProductKey(parsedConfiguration)
+        productKey: stripe.createProductKey(parsedConfiguration),
       });
     }
 
@@ -26,7 +27,7 @@ export const validateProductConfigurationAndCreateProductKey = (
 
       return yield* Effect.succeed({
         parsedConfiguration,
-        productKey: appStore.createProductKey(parsedConfiguration)
+        productKey: appStore.createProductKey(parsedConfiguration),
       });
     }
 

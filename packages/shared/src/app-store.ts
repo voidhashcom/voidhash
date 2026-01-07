@@ -1,16 +1,16 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class AppStoreServiceError extends Schema.TaggedError<AppStoreServiceError>()(
-  'AppStoreServiceError',
+  "AppStoreServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class AppStoreNotEnabledForFollowingBundleIdError extends Schema.TaggedError<AppStoreNotEnabledForFollowingBundleIdError>()(
-  'AppStoreNotEnabledForFollowingBundleIdError',
+  "AppStoreNotEnabledForFollowingBundleIdError",
   {
-    bundleId: Schema.String
+    bundleId: Schema.String,
   }
 ) {
   toString(): string {

@@ -1,25 +1,25 @@
-import { PaymentProviderProductService } from '@voidhash/core/services';
-import { PaymentProviderProductRpcsDef } from '@voidhash/rpc';
-import { Effect, Layer } from 'effect';
+import { PaymentProviderProductService } from "@voidhash/core/services";
+import { PaymentProviderProductRpcsDef } from "@voidhash/rpc";
+import { Effect, Layer } from "effect";
 
 export const PaymentProviderProductRpcsLive =
   PaymentProviderProductRpcsDef.toLayer(
-    Effect.gen(function* () {
+    Effect.gen(function* PaymentProviderProductRpcsLive() {
       const paymentProviderProductService =
         yield* PaymentProviderProductService;
       return {
+        CreatePaymentProviderProduct: (input) =>
+          paymentProviderProductService.createPaymentProviderProduct(input),
+        DeletePaymentProviderProduct: (input) =>
+          paymentProviderProductService.deletePaymentProviderProduct(input),
         ListProviderProductsByProductId: ({ productId }) =>
           paymentProviderProductService.getProviderProductsByProductId(
             productId
           ),
-        CreatePaymentProviderProduct: (input) =>
-          paymentProviderProductService.createPaymentProviderProduct(input),
+        SetActivePaymentProviderProduct: (input) =>
+          paymentProviderProductService.setActivePaymentProviderProduct(input),
         UpdatePaymentProviderProduct: (input) =>
           paymentProviderProductService.updatePaymentProviderProduct(input),
-        DeletePaymentProviderProduct: (input) =>
-          paymentProviderProductService.deletePaymentProviderProduct(input),
-        SetActivePaymentProviderProduct: (input) =>
-          paymentProviderProductService.setActivePaymentProviderProduct(input)
       };
     })
   ).pipe(Layer.provide(PaymentProviderProductService.Default));

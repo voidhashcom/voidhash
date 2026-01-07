@@ -4,107 +4,108 @@ import {
   AppStoreServerAPIClient,
   SignedDataVerifier,
   type TransactionInfoResponse,
-  VerificationException
-} from '@apple/app-store-server-library';
-import { Effect } from 'effect';
+  VerificationException,
+} from "@apple/app-store-server-library";
+import { Effect } from "effect";
+
 import {
   APPLE_ROOT_CA_G2,
   APPLE_ROOT_CA_G3,
-  APPLE_ROOT_CERTIFICATE
-} from '../../payment-providers/app-store/constants';
+  APPLE_ROOT_CERTIFICATE,
+} from "../../payment-providers/app-store/constants";
 import {
   AppStoreRateLimitExceededError,
   AppStoreSignedTransactionInfoNotFoundError,
   AppStoreTransactionNotFoundError,
   AppStoreUnauthorizedError,
-  AppStoreVerificationException
-} from '../../utils/apple-app-store-api';
-import { AppStoreGeneralError } from '../app-store-server-api';
+  AppStoreVerificationException,
+} from "../../utils/apple-app-store-api";
+import { AppStoreGeneralError } from "../app-store-server-api";
 
-export type TransactionInfoResult = {
-  environment: 'production' | 'sandbox';
+export interface TransactionInfoResult {
+  environment: "production" | "sandbox";
   transactionInfo: TransactionInfoResponse;
-};
+}
 
-export const initializeSdk = Effect.gen(function* () {
-  return Effect.fn('initializeSdk')(function* (input: {
+export const initializeSdk = Effect.gen(function* initializeSdk() {
+  return Effect.fn("initializeSdk")(function* initializeSdk(input: {
     privateKey: string;
     keyId: string;
     issuerId: string;
     bundleId: string;
   }) {
-    const createClient = (environment: 'production' | 'sandbox') =>
+    const createClient = (environment: "production" | "sandbox") =>
       new AppStoreServerAPIClient(
         input.privateKey,
         input.keyId,
         input.issuerId,
         input.bundleId,
-        environment === 'production'
+        environment === "production"
           ? AppStoreEnvironment.PRODUCTION
           : AppStoreEnvironment.SANDBOX
       );
 
     const getTransactionInfoFn = (
       transactionId: string,
-      environment: 'production' | 'sandbox'
+      environment: "production" | "sandbox"
     ) =>
       Effect.tryPromise({
+        catch: (cause) => {
+          if (cause instanceof APIException) {
+            if (cause.httpStatusCode === 404) {
+              Effect.logDebug("Transaction not found", {
+                environment,
+                transactionId,
+              });
+              return new AppStoreTransactionNotFoundError({
+                transactionId,
+              });
+            }
+
+            if (cause.httpStatusCode === 401) {
+              Effect.logDebug("Unauthorized", {
+                environment,
+                transactionId,
+              });
+              return new AppStoreUnauthorizedError({
+                message: "Unauthorized",
+              });
+            }
+
+            if (cause.httpStatusCode === 429) {
+              Effect.logDebug("Rate limit exceeded", {
+                environment,
+                transactionId,
+              });
+              return new AppStoreRateLimitExceededError({
+                message: "Rate limit exceeded",
+              });
+            }
+
+            return new AppStoreGeneralError({
+              cause,
+              message:
+                cause.errorMessage ?? "Failed to execute App Store Server API",
+            });
+          }
+
+          return new AppStoreGeneralError({
+            cause,
+            message: "Failed to execute App Store Server API",
+          });
+        },
         try: async () => {
-          Effect.logDebug('Getting transaction info', {
+          Effect.logDebug("Getting transaction info", {
+            environment,
             transactionId,
-            environment
           });
           const client = createClient(environment);
           const transactionInf = await client.getTransactionInfo(transactionId);
           return {
             environment,
-            transactionInfo: transactionInf
+            transactionInfo: transactionInf,
           };
         },
-        catch: (cause) => {
-          if (cause instanceof APIException) {
-            if (cause.httpStatusCode === 404) {
-              Effect.logDebug('Transaction not found', {
-                transactionId,
-                environment
-              });
-              return new AppStoreTransactionNotFoundError({
-                transactionId
-              });
-            }
-
-            if (cause.httpStatusCode === 401) {
-              Effect.logDebug('Unauthorized', {
-                transactionId,
-                environment
-              });
-              return new AppStoreUnauthorizedError({
-                message: 'Unauthorized'
-              });
-            }
-
-            if (cause.httpStatusCode === 429) {
-              Effect.logDebug('Rate limit exceeded', {
-                transactionId,
-                environment
-              });
-              return new AppStoreRateLimitExceededError({
-                message: 'Rate limit exceeded'
-              });
-            }
-
-            return new AppStoreGeneralError({
-              message:
-                cause.errorMessage ?? 'Failed to execute App Store Server API',
-              cause
-            });
-          }
-
-          return new AppStoreGeneralError({
-            message: 'Failed to execute App Store Server API',
-            cause
-          });
-        }
       });
 
     return {
@@ -114,9 +115,9 @@ export const initializeSdk = Effect.gen(function* () {
        * @returns The transaction info
        */
       getTransactionInfo: (transactionId: string) =>
-        getTransactionInfoFn(transactionId, 'production').pipe(
-          Effect.catchTag('AppStoreTransactionNotFoundError', () =>
-            getTransactionInfoFn(transactionId, 'sandbox')
+        getTransactionInfoFn(transactionId, "production").pipe(
+          Effect.catchTag("AppStoreTransactionNotFoundError", () =>
+            getTransactionInfoFn(transactionId, "sandbox")
           )
         ),
 
@@ -126,62 +127,61 @@ export const initializeSdk = Effect.gen(function* () {
        * @returns The decoded transaction
        */
       decodeTransaction: (transactionInfoResult: TransactionInfoResult) =>
-        Effect.gen(function* () {
-          Effect.logDebug('Decoding transaction');
+        Effect.gen(function* decodeTransaction() {
+          Effect.logDebug("Decoding transaction");
           const appleRootCertificate = Buffer.from(
             APPLE_ROOT_CERTIFICATE,
-            'base64'
+            "base64"
           );
-          const appleRootCertificate2 = Buffer.from(APPLE_ROOT_CA_G2, 'base64');
-          const appleRootCertificate3 = Buffer.from(APPLE_ROOT_CA_G3, 'base64');
+          const appleRootCertificate2 = Buffer.from(APPLE_ROOT_CA_G2, "base64");
+          const appleRootCertificate3 = Buffer.from(APPLE_ROOT_CA_G3, "base64");
           const certificates = [
             appleRootCertificate,
             appleRootCertificate2,
-            appleRootCertificate3
+            appleRootCertificate3,
           ];
 
           const verifier = new SignedDataVerifier(
             certificates,
             true,
-            transactionInfoResult.environment === 'production'
+            transactionInfoResult.environment === "production"
               ? AppStoreEnvironment.PRODUCTION
               : AppStoreEnvironment.SANDBOX,
             input.bundleId
           );
 
-          const signedTransactionInfo =
-            transactionInfoResult.transactionInfo.signedTransactionInfo;
+          const { signedTransactionInfo } =
+            transactionInfoResult.transactionInfo;
 
           if (!signedTransactionInfo) {
-            Effect.logDebug('Signed transaction info is not found');
+            Effect.logDebug("Signed transaction info is not found");
             return yield* Effect.fail(
               new AppStoreSignedTransactionInfoNotFoundError({
-                message: 'Signed transaction info is not found'
+                message: "Signed transaction info is not found",
               })
             );
           }
 
           return yield* Effect.tryPromise({
-            try: () => {
-              return verifier.verifyAndDecodeTransaction(signedTransactionInfo);
-            },
             catch: (cause) => {
               if (cause instanceof VerificationException) {
-                Effect.logDebug('Verification exception', {
-                  cause
+                Effect.logDebug("Verification exception", {
+                  cause,
                 });
                 return new AppStoreVerificationException({
-                  message: 'Failed to decode transaction'
+                  message: "Failed to decode transaction",
                 });
               }
 
               return new AppStoreGeneralError({
-                message: 'Failed to decode transaction',
-                cause
+                cause,
+                message: "Failed to decode transaction",
               });
-            }
+            },
+            try: () =>
+              verifier.verifyAndDecodeTransaction(signedTransactionInfo),
           });
-        })
+        }),
     };
   });
 });

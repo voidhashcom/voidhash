@@ -1,92 +1,93 @@
-import { Rpc, RpcGroup } from '@effect/rpc';
+import { Rpc, RpcGroup } from "@effect/rpc";
 import {
   ActionForbiddenError,
   PaymentProviderProductNotFoundError,
   PaymentProviderProductServiceError,
-  PaymentProviderProductValidationError
-} from '@voidhash/shared';
-import { Schema } from 'effect';
-import { AuthMiddleware } from '../middlewares';
+  PaymentProviderProductValidationError,
+} from "@voidhash/shared";
+import { Schema } from "effect";
+
+import { AuthMiddleware } from "../middlewares";
 
 export const PaymentProviderProduct = Schema.Struct({
-  id: Schema.String,
-  createdAt: Schema.NullOr(Schema.Date),
-  updatedAt: Schema.NullOr(Schema.Date),
   configuration: Schema.NullOr(Schema.Object),
+  createdAt: Schema.NullOr(Schema.Date),
+  id: Schema.String,
+  isActive: Schema.Boolean,
   paymentProviderConfigurationId: Schema.String,
-  providerProductKey: Schema.String,
   productId: Schema.String,
-  isActive: Schema.Boolean
+  providerProductKey: Schema.String,
+  updatedAt: Schema.NullOr(Schema.Date),
 });
 
 export class PaymentProviderProductRpcsDef extends RpcGroup.make(
-  Rpc.make('ListProviderProductsByProductId', {
-    payload: Schema.Struct({
-      productId: Schema.String
-    }),
-    success: Schema.Array(PaymentProviderProduct),
+  Rpc.make("ListProviderProductsByProductId", {
     error: Schema.Union(
       ActionForbiddenError,
       PaymentProviderProductValidationError,
       PaymentProviderProductServiceError
-    )
-  }),
-  Rpc.make('CreatePaymentProviderProduct', {
+    ),
     payload: Schema.Struct({
       productId: Schema.String,
-      paymentProviderConfigurationId: Schema.String,
-      configuration: Schema.Record({
-        key: Schema.String,
-        value: Schema.Unknown
-      })
     }),
-    success: Schema.Struct({
-      id: Schema.String
-    }),
+    success: Schema.Array(PaymentProviderProduct),
+  }),
+  Rpc.make("CreatePaymentProviderProduct", {
     error: Schema.Union(
       ActionForbiddenError,
       PaymentProviderProductValidationError,
       PaymentProviderProductServiceError
-    )
-  }),
-  Rpc.make('UpdatePaymentProviderProduct', {
+    ),
     payload: Schema.Struct({
-      id: Schema.String,
       configuration: Schema.Record({
         key: Schema.String,
-        value: Schema.Unknown
-      })
+        value: Schema.Unknown,
+      }),
+      paymentProviderConfigurationId: Schema.String,
+      productId: Schema.String,
     }),
-    success: Schema.Void,
+    success: Schema.Struct({
+      id: Schema.String,
+    }),
+  }),
+  Rpc.make("UpdatePaymentProviderProduct", {
     error: Schema.Union(
       ActionForbiddenError,
       PaymentProviderProductValidationError,
       PaymentProviderProductNotFoundError,
       PaymentProviderProductServiceError
-    )
-  }),
-  Rpc.make('DeletePaymentProviderProduct', {
+    ),
     payload: Schema.Struct({
-      id: Schema.String
+      configuration: Schema.Record({
+        key: Schema.String,
+        value: Schema.Unknown,
+      }),
+      id: Schema.String,
     }),
     success: Schema.Void,
+  }),
+  Rpc.make("DeletePaymentProviderProduct", {
     error: Schema.Union(
       ActionForbiddenError,
       PaymentProviderProductValidationError,
       PaymentProviderProductServiceError
-    )
-  }),
-  Rpc.make('SetActivePaymentProviderProduct', {
+    ),
     payload: Schema.Struct({
-      productId: Schema.String,
+      id: Schema.String,
+    }),
+    success: Schema.Void,
+  }),
+  Rpc.make("SetActivePaymentProviderProduct", {
+    error: Schema.Union(
+      ActionForbiddenError,
+      PaymentProviderProductValidationError,
+      PaymentProviderProductServiceError
+    ),
+    payload: Schema.Struct({
       paymentProviderConfigurationId: Schema.String,
-      providerProductKey: Schema.String
+      productId: Schema.String,
+      providerProductKey: Schema.String,
     }),
     success: Schema.Void,
-    error: Schema.Union(
-      ActionForbiddenError,
-      PaymentProviderProductValidationError,
-      PaymentProviderProductServiceError
-    )
   })
 ).middleware(AuthMiddleware) {}

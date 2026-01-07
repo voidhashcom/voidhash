@@ -1,19 +1,20 @@
-import type { SVGProps } from 'react';
-import { cn } from '../lib/utils';
+import type { SVGProps } from "react";
+
+import { cn } from "../lib/utils";
 
 export const Logo = ({
   className,
-  variant = 'default',
-  color = 'mono'
+  variant = "default",
+  color = "mono",
 }: SVGProps<SVGSVGElement> & {
-  variant?: 'default' | 'short' | 'symbol';
-  color?: 'dual-tone' | 'mono';
+  variant?: "default" | "short" | "symbol";
+  color?: "dual-tone" | "mono";
 }) => {
-  const symbolColor = color === 'dual-tone' ? '#005EFF' : 'currentColor';
-  if (variant === 'short') {
+  const symbolColor = color === "dual-tone" ? "#005EFF" : "currentColor";
+  if (variant === "short") {
     return (
       <svg
-        className={cn('h-4 text-black dark:text-white', className)}
+        className={cn("h-4 text-black dark:text-white", className)}
         fill="none"
         viewBox="0 0 321 108"
         xmlns="http://www.w3.org/2000/svg"
@@ -35,10 +36,10 @@ export const Logo = ({
     );
   }
 
-  if (variant === 'symbol') {
+  if (variant === "symbol") {
     return (
       <svg
-        className={cn('h-4 text-black dark:text-white', className)}
+        className={cn("h-4 text-black dark:text-white", className)}
         fill="none"
         viewBox="0 0 112 56"
         xmlns="http://www.w3.org/2000/svg"
@@ -68,7 +69,7 @@ export const Logo = ({
 
   return (
     <svg
-      className={cn('h-6 text-black dark:text-white', className)}
+      className={cn("h-6 text-black dark:text-white", className)}
       fill="none"
       viewBox="0 0 505 108"
       xmlns="http://www.w3.org/2000/svg"

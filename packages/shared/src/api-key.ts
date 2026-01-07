@@ -1,15 +1,15 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class ApiKeyServiceError extends Schema.TaggedError<ApiKeyServiceError>()(
-  'ApiKeyServiceError',
+  "ApiKeyServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class ApiKeyNotFoundError extends Schema.TaggedError<ApiKeyNotFoundError>()(
-  'ApiKeyNotFoundError',
+  "ApiKeyNotFoundError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}

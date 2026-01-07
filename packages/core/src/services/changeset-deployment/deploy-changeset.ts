@@ -1,13 +1,14 @@
-import { ChangesetDeploymentStatus, changesetDeployments } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { generateId } from '@voidhash/lib';
+import { ChangesetDeploymentStatus, changesetDeployments } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { generateId } from "@voidhash/lib";
 import {
   AuthSession,
   ChangesetDeploymentServiceError,
-  type ChangesetSchema
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { DeployChangesetWorkflow } from './workflows/deploy-changeset-workflow';
+  type ChangesetSchema,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { DeployChangesetWorkflow } from "./workflows/deploy-changeset-workflow";
 
 const _createChangesetDeploymentRecord = (db: Db) =>
   db.makeQuery(
@@ -22,39 +23,39 @@ const _createChangesetDeploymentRecord = (db: Db) =>
       execute(
         async (db) =>
           await db.insert(changesetDeployments).values({
+            changeset: input.changeset,
             id: input.id,
             projectId: input.projectId,
-            changeset: input.changeset,
-            status: ChangesetDeploymentStatus.Pending
+            status: ChangesetDeploymentStatus.Pending,
           })
       )
   );
 
-export const deployChangeset = Effect.gen(function* () {
+export const deployChangeset = Effect.gen(function* deployChangeset() {
   const db = yield* Db;
-  return Effect.fn('deployChangeset')(
-    function* (input: {
+  return Effect.fn("deployChangeset")(
+    function* deployChangeset(input: {
       projectId: string;
       changeset: typeof ChangesetSchema.Type;
     }) {
       const authSession = yield* AuthSession;
       // TODO: There should be a check to see if the deployment already exists to prevent multiple deployments simultaneously.
-      const deploymentId = generateId('changesetDeployment');
+      const deploymentId = generateId("changesetDeployment");
       yield* _createChangesetDeploymentRecord(db)({
+        changeset: input.changeset,
         id: deploymentId,
         projectId: input.projectId,
-        changeset: input.changeset
       });
 
       yield* DeployChangesetWorkflow.execute({
+        authSession,
+        changeset: input.changeset,
         deploymentId,
         projectId: input.projectId,
-        changeset: input.changeset,
-        authSession
       });
 
       return {
-        id: deploymentId
+        id: deploymentId,
       };
     },
     (effect) =>
@@ -62,8 +63,8 @@ export const deployChangeset = Effect.gen(function* () {
         Effect.catchTags({
           DeployChangesetError: (error) =>
             new ChangesetDeploymentServiceError({
-              cause: error.message
-            })
+              cause: error.message,
+            }),
         })
       )
   );
