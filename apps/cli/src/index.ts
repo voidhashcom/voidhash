@@ -1,9 +1,7 @@
-type Config = {
+interface Config {
   schema: string;
   team: string;
   project: string;
-};
+}
 
-export const defineConfig = (config: Config) => {
-  return config;
-};
+export const defineConfig = (config: Config) => config;

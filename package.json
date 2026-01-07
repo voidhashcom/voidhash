@@ -1,14 +1,41 @@
 {
   "name": "@voidhash/root",
-  "private": true,
-  "type": "module",
   "version": "0.0.1-alpha.1",
-  "packageManager": "pnpm@10.19.0",
+  "private": true,
   "license": "AGPL-3.0",
-  "resolutions": {
-    "react": "19.1.1",
-    "react-dom": "19.1.1"
+  "workspaces": {
+    "packages": [
+      "packages/*",
+      "apps/*",
+      "libraries/*",
+      "examples/*"
+    ],
+    "catalogs": {
+      "react18": {
+        "react": "18.3.1",
+        "react-dom": "18.3.1"
+      }
+    },
+    "catalog": {
+      "@types/react": "^18.3.14",
+      "@types/react-dom": "^18.3.2",
+      "@trpc/client": "^11.1.0",
+      "@trpc/server": "^11.1.0",
+      "@tanstack/react-query": "^5.90.5",
+      "@trpc/tanstack-react-query": "^11.1.0",
+      "effect": "^3.18.4",
+      "@effect/platform-node": "^0.100.0",
+      "@effect/platform-bun": "^0.83.0",
+      "@effect/platform": "^0.93.0",
+      "@effect/cluster": "^0.52.9",
+      "@effect/cli": "^0.72.1",
+      "@effect/rpc": "^0.72.1",
+      "@effect/language-service": "^0.55.3",
+      "@effect/vitest": "^0.27.0",
+      "superjson": "^2.2.2"
+    }
   },
+  "type": "module",
   "scripts": {
     "build": "turbo build",
     "dev": "turbo  dev",
@@ -48,33 +75,9 @@
     "dotenv-cli": "^8.0.0",
     "ultracite": "5.0.39"
   },
-  "workspaces": {
-    "packages": [
-      "packages/*",
-      "apps/*",
-      "libraries/*",
-      "examples/*"
-    ],
-    "catalogs": {
-      "react18": {
-        "react": "18.3.1",
-        "react-dom": "18.3.1"
-      }
-    },
-    "catalog": {
-      "@types/react": "^18.3.14",
-      "@types/react-dom": "^18.3.2",
-      "@trpc/client": "^11.1.0",
-      "@trpc/server": "^11.1.0",
-      "@tanstack/react-query": "^5.90.5",
-      "@trpc/tanstack-react-query": "^11.1.0",
-      "effect": "^3.18.4",
-      "@effect/platform-node": "^0.98.4",
-      "@effect/platform": "^0.92.1",
-      "@effect/cli": "^0.71.0",
-      "@effect/language-service": "^0.48.0",
-      "@effect/vitest": "^0.26.0",
-      "superjson": "^2.2.2"
-    }
-  }
+  "resolutions": {
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "packageManager": "pnpm@10.19.0"
 }

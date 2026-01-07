@@ -1,20 +1,21 @@
 import {
+  type InsertPaywallEditToken,
   and,
   eq,
   gt,
-  type InsertPaywallEditToken,
   paywallEditTokens,
-  paywalls
-} from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { generateId } from '@voidhash/lib';
+  paywalls,
+} from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { generateId } from "@voidhash/lib";
 import {
   AuthSession,
   PaywallNotFoundError,
-  PaywallServiceError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
+  PaywallServiceError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { checkProjectPermission } from "../../utils/permissions";
 
 const TOKEN_EXPIRY_MINUTES = 5;
 
@@ -28,7 +29,7 @@ const _getPaywallById = (db: Db) =>
     execute(
       async (db) =>
         await db.query.paywalls.findFirst({
-          where: eq(paywalls.id, paywallId)
+          where: eq(paywalls.id, paywallId),
         })
     )
   );
@@ -41,15 +42,15 @@ const _getValidToken = (db: Db) =>
           where: and(
             eq(paywallEditTokens.token, token),
             gt(paywallEditTokens.expiresAt, new Date())
-          )
+          ),
         })
     )
   );
 
-export const createEditToken = Effect.gen(function* () {
+export const createEditToken = Effect.gen(function* createEditToken() {
   const db = yield* Db;
-  return Effect.fn('createEditToken')(
-    function* (paywallId: string) {
+  return Effect.fn("createEditToken")(
+    function* createEditToken(paywallId: string) {
       const session = yield* AuthSession;
 
       // Fetch paywall to get projectId
@@ -57,7 +58,7 @@ export const createEditToken = Effect.gen(function* () {
       if (!paywall) {
         return yield* Effect.fail(
           new PaywallNotFoundError({
-            message: `Paywall not found: ${paywallId}`
+            message: `Paywall not found: ${paywallId}`,
           })
         );
       }
@@ -65,7 +66,7 @@ export const createEditToken = Effect.gen(function* () {
       // SECURITY: Authorization check
       yield* checkProjectPermission(
         paywall.projectId,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to edit paywall ${paywallId}`
       );
 
@@ -74,11 +75,11 @@ export const createEditToken = Effect.gen(function* () {
       const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000);
 
       const newToken: InsertPaywallEditToken = {
-        id: generateId('paywallEditToken'),
-        token,
+        expiresAt,
+        id: generateId("paywallEditToken"),
         paywallId,
-        userId: session?.user?.id ?? '',
-        expiresAt
+        token,
+        userId: session?.user?.id ?? "",
       };
 
       yield* _createTokenRecord(db)(newToken);
@@ -87,8 +88,8 @@ export const createEditToken = Effect.gen(function* () {
       );
 
       return {
+        expiresAt,
         token,
-        expiresAt
       };
     },
     (effect) =>
@@ -96,17 +97,17 @@ export const createEditToken = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new PaywallServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );
 });
 
-export const validateEditToken = Effect.gen(function* () {
+export const validateEditToken = Effect.gen(function* validateEditToken() {
   const db = yield* Db;
-  return Effect.fn('validateEditToken')(
-    function* (token: string) {
+  return Effect.fn("validateEditToken")(
+    function* validateEditToken(token: string) {
       const tokenRecord = yield* _getValidToken(db)(token);
 
       if (!tokenRecord) {
@@ -114,8 +115,8 @@ export const validateEditToken = Effect.gen(function* () {
       }
 
       return {
+        paywallId: tokenRecord.paywallId,
         userId: tokenRecord.userId,
-        paywallId: tokenRecord.paywallId
       };
     },
     (effect) =>
@@ -123,8 +124,8 @@ export const validateEditToken = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new PaywallServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

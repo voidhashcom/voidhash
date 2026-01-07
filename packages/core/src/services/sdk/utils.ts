@@ -1,5 +1,5 @@
-import { and, customers, type Customer as DbCustomer, eq } from '@voidhash/db';
-import type { Db } from '@voidhash/db/effect';
+import { type Customer as DbCustomer, and, customers, eq } from "@voidhash/db";
+import type { Db } from "@voidhash/db/effect";
 
 export const _getCustomerByAppUserId = (db: Db) =>
   db.makeQuery(
@@ -7,7 +7,7 @@ export const _getCustomerByAppUserId = (db: Db) =>
       execute,
       {
         projectId,
-        appUserId
+        appUserId,
       }: {
         projectId: string;
         appUserId: string;
@@ -19,7 +19,7 @@ export const _getCustomerByAppUserId = (db: Db) =>
             where: and(
               eq(customers.projectId, projectId),
               eq(customers.appUserId, appUserId)
-            )
+            ),
           })
       )
   );
@@ -29,14 +29,14 @@ export const _getCustomerById = (db: Db) =>
     execute(
       async (db) =>
         await db.query.customers.findFirst({
-          where: eq(customers.id, id)
+          where: eq(customers.id, id),
         })
     )
   );
 
 export const _updateCustomerRecord = (db: Db) =>
   db.makeQuery(
-    (execute, customer: Omit<Partial<DbCustomer>, 'id'> & { id: string }) =>
+    (execute, customer: Omit<Partial<DbCustomer>, "id"> & { id: string }) =>
       execute(async (db) => {
         await db
           .update(customers)

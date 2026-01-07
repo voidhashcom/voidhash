@@ -1,47 +1,48 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
-  CardTitle
-} from '@voidhash/ui';
-import { useAuth } from 'src/components/auth-context';
-import { ProductDetailAddPerkButton } from '@/features/products/product-detail-add-perk-button';
-import { ProductDetailAddProductButton } from '@/features/products/product-detail-add-product-button';
-import { ProductsDetailPageSkeleton } from '@/features/products/product-detail-page-skeleton';
-import { ProductDetailPaymentProvidersEmptyState } from '@/features/products/product-detail-payment-providers-empty-state';
-import { ProductDetailPerksEmptyState } from '@/features/products/product-detail-perks-empty-state';
-import { ProductDetailPerkRecord } from '@/features/products/product-detail-product-perk-record';
-import { ProductDetailProviderProductRecord } from '@/features/products/product-detail-provider-product-record';
-import { PaymentProviderLogo } from '@/features/projects/settings/payment-providers/payment-provider-logo';
-import { Page } from '@/features/shell';
-import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { paymentProviders } from '@/lib/payment-providers/payment-providers';
+  CardTitle,
+} from "@voidhash/ui";
+import { useAuth } from "src/components/auth-context";
+
+import { ProductDetailAddPerkButton } from "@/features/products/product-detail-add-perk-button";
+import { ProductDetailAddProductButton } from "@/features/products/product-detail-add-product-button";
+import { ProductsDetailPageSkeleton } from "@/features/products/product-detail-page-skeleton";
+import { ProductDetailPaymentProvidersEmptyState } from "@/features/products/product-detail-payment-providers-empty-state";
+import { ProductDetailPerksEmptyState } from "@/features/products/product-detail-perks-empty-state";
+import { ProductDetailPerkRecord } from "@/features/products/product-detail-product-perk-record";
+import { ProductDetailProviderProductRecord } from "@/features/products/product-detail-provider-product-record";
+import { PaymentProviderLogo } from "@/features/projects/settings/payment-providers/payment-provider-logo";
+import { Page } from "@/features/shell";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
 import {
   getProductOptions,
   listPaymentProviderConfigurationsOptions,
   listPerksOptions,
   listProductPerksByProductIdOptions,
-  listProviderProductsByProductIdOptions
-} from '@/lib/tanstack-query';
-import { CurrentUser } from '@/lib/utils/current-user';
+  listProviderProductsByProductIdOptions,
+} from "@/lib/tanstack-query";
+import { CurrentUser } from "@/lib/utils/current-user";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id'
+  "/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id"
 )({
-  pendingComponent: ProductDetailPageSkeleton,
+  component: ProductDetailPage,
   errorComponent: ProductDetailPageError,
-  component: ProductDetailPage
+  pendingComponent: ProductDetailPageSkeleton,
 });
 
 function ProductDetailPageError() {
   return (
     <VoidhashErrorCard
       error={{
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'An error occurred loading the product'
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An error occurred loading the product",
       }}
     />
   );
@@ -62,7 +63,7 @@ function ProductDetailPage() {
   );
 
   if (!project) {
-    throw new Error('Project not found');
+    throw new Error("Project not found");
   }
 
   const { data: product } = useSuspenseQuery(
@@ -75,7 +76,7 @@ function ProductDetailPage() {
 
   const { data: paymentProviderConfigurations } = useSuspenseQuery(
     listPaymentProviderConfigurationsOptions({
-      projectId: project.id
+      projectId: project.id,
     })
   );
 
@@ -101,13 +102,13 @@ function ProductDetailPage() {
       }
 
       return {
-        paymentProvider,
-        id: paymentProviderConfiguration.id,
-        name: paymentProviderConfiguration.name,
+        configuration: paymentProviderConfiguration,
         enabled:
           !!paymentProviderConfiguration &&
           paymentProviderConfiguration.enabled,
-        configuration: paymentProviderConfiguration
+        id: paymentProviderConfiguration.id,
+        name: paymentProviderConfiguration.name,
+        paymentProvider,
       };
     })
     .filter(
@@ -128,13 +129,13 @@ function ProductDetailPage() {
     <Page
       breadcrumbs={[
         {
-          title: 'Products',
-          url: `/${organizationSlug}/${projectSlug}/products`
+          title: "Products",
+          url: `/${organizationSlug}/${projectSlug}/products`,
         },
         {
           title: product.name,
-          url: `/${organizationSlug}/${projectSlug}/products/${id}`
-        }
+          url: `/${organizationSlug}/${projectSlug}/products/${id}`,
+        },
       ]}
       className="p-0 py-8"
     >
@@ -227,11 +228,11 @@ function ProductDetailPage() {
                     ).length === 0 && (
                       <div className="flex h-full flex-col items-center justify-center py-6">
                         <div className="text-muted-foreground">
-                          You haven&apos;t added any{' '}
+                          You haven&apos;t added any{" "}
                           {
                             paymentProviderWithConfiguration.paymentProvider
                               .title
-                          }{' '}
+                          }{" "}
                           product yet.
                         </div>
                         <div className="mt-4">
@@ -272,11 +273,11 @@ function ProductDetailPage() {
                         />
                       ))}
                   </CardContent>
-                  {(providerProducts ?? []).filter(
+                  {(providerProducts ?? []).some(
                     (providerProduct) =>
                       providerProduct.paymentProviderConfigurationId ===
                       paymentProviderWithConfiguration.id
-                  ).length > 0 && (
+                  ) && (
                     <CardFooter className="flex items-baseline justify-between border-border border-t bg-background py-3 [.border-t]:pt-3">
                       <ProductDetailAddProductButton
                         paymentProviderConfigurationId={

@@ -3,21 +3,22 @@ import {
   eq,
   isNull,
   paymentProviderConfigurationProducts,
-  paymentProviderConfigurations
-} from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
+  paymentProviderConfigurations,
+} from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
 import {
   AppStoreServiceError,
   AuthSession,
-  PaymentProviderProductServiceError
-} from '@voidhash/shared';
-import { Effect, Schema } from 'effect';
-import { appStore } from '../../payment-providers';
-import { AppStoreServerAPIService } from '../app-store-server-api';
+  PaymentProviderProductServiceError,
+} from "@voidhash/shared";
+import { Effect, Schema } from "effect";
+
+import { appStore } from "../../payment-providers";
+import { AppStoreServerAPIService } from "../app-store-server-api";
 import {
   ensureEncodedTransactionHasRequiredFields,
-  getActiveAppStorePaymentProviderConfiguration
-} from './utils';
+  getActiveAppStorePaymentProviderConfiguration,
+} from "./utils";
 
 const _getPaymentProviderConfigurationsByProjectId = (db: Db) =>
   db.makeQuery((execute, projectId: string) =>
@@ -27,7 +28,7 @@ const _getPaymentProviderConfigurationsByProjectId = (db: Db) =>
           where: and(
             eq(paymentProviderConfigurations.projectId, projectId),
             isNull(paymentProviderConfigurations.deletedAt)
-          )
+          ),
         })
     )
   );
@@ -38,7 +39,7 @@ const _getProviderProductByPrimaryKey = (db: Db) =>
       execute,
       {
         paymentProviderConfigurationId,
-        providerProductKey
+        providerProductKey,
       }: {
         paymentProviderConfigurationId: string;
         providerProductKey: string;
@@ -56,27 +57,30 @@ const _getProviderProductByPrimaryKey = (db: Db) =>
                 paymentProviderConfigurationProducts.providerProductKey,
                 providerProductKey
               )
-            )
+            ),
           })
       )
   );
 
-export const validateTransaction = Effect.gen(function* () {
+export const validateTransaction = Effect.gen(function* validateTransaction() {
   const db = yield* Db;
-  return Effect.fn('validateTransaction')(
-    function* (input: { transactionId: string; bundleId: string }) {
+  return Effect.fn("validateTransaction")(
+    function* validateTransaction(input: {
+      transactionId: string;
+      bundleId: string;
+    }) {
       const session = yield* AuthSession;
       const appStoreServerAPIService = yield* AppStoreServerAPIService;
 
-      Effect.logDebug('Validating transaction', {
+      Effect.logDebug("Validating transaction", {
+        bundleId: input.bundleId,
         transactionId: input.transactionId,
-        bundleId: input.bundleId
       });
 
       const projectId = session.projects[0]?.id;
       if (!projectId) {
         return yield* Effect.dieMessage(
-          'Project ID does not exist in the session'
+          "Project ID does not exist in the session"
         );
       }
 
@@ -115,13 +119,13 @@ export const validateTransaction = Effect.gen(function* () {
         yield* _getProviderProductByPrimaryKey(db)({
           paymentProviderConfigurationId:
             appStorePaymentProviderConfiguration.id,
-          providerProductKey: decodedTransaction.productId
+          providerProductKey: decodedTransaction.productId,
         });
 
       if (!paymentProviderConfigurationProduct) {
         return yield* Effect.fail(
           new PaymentProviderProductServiceError({
-            cause: 'Payment provider configuration product not found. '
+            cause: "Payment provider configuration product not found. ",
           })
         );
       }
@@ -131,7 +135,7 @@ export const validateTransaction = Effect.gen(function* () {
       // const transactionId = decodedTransaction.transactionId;
 
       return {
-        success: true
+        success: true,
       };
 
       // return yield* db.transaction((tx) =>
@@ -161,32 +165,32 @@ export const validateTransaction = Effect.gen(function* () {
         Effect.catchTags({
           AppStoreGeneralError: (error) =>
             new AppStoreServiceError({
-              cause: String(error.cause)
+              cause: String(error.cause),
             }),
           AppStoreSignedTransactionInfoNotFoundError: (error) =>
             new AppStoreServiceError({
-              cause: String(error.cause)
+              cause: String(error.cause),
             }),
           AppStoreVerificationException: (error) =>
             new AppStoreServiceError({
-              cause: String(error.cause)
+              cause: String(error.cause),
             }),
           DatabaseError: (error) =>
             new AppStoreServiceError({
-              cause: String(error.cause)
+              cause: String(error.cause),
             }),
           InvalidISO4217CurrencyCodeError: (error) =>
             new AppStoreServiceError({
-              cause: String(error.cause)
+              cause: String(error.cause),
             }),
           ParseError: (error) =>
             new AppStoreServiceError({
-              cause: String(error.cause)
+              cause: String(error.cause),
             }),
           PaymentProviderProductServiceError: (error) =>
             new AppStoreServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

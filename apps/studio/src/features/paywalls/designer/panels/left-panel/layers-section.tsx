@@ -1,7 +1,6 @@
-'use client';
+"use client";
 
 import {
-  closestCenter,
   DndContext,
   type DragEndEvent,
   type DragMoveEvent,
@@ -9,15 +8,16 @@ import {
   type DragStartEvent,
   MeasuringStrategy,
   PointerSensor,
+  closestCenter,
   useSensor,
-  useSensors
-} from '@dnd-kit/core';
+  useSensors,
+} from "@dnd-kit/core";
 import {
   SortableContext,
   useSortable,
-  verticalListSortingStrategy
-} from '@dnd-kit/sortable';
-import { cn } from '@voidhash/ui';
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { cn } from "@voidhash/ui";
 import {
   ChevronDown,
   ChevronRight,
@@ -25,16 +25,17 @@ import {
   Rows2Icon,
   Smartphone,
   SquareDashedIcon,
-  TypeIcon
-} from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useStore } from 'zustand/react';
-import { useShallow } from 'zustand/react/shallow';
-import { moveNode, selectNode, unselectNode } from '../../state/actions';
+  TypeIcon,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStore } from "zustand/react";
+import { useShallow } from "zustand/react/shallow";
+
+import { moveNode, selectNode, unselectNode } from "../../state/actions";
 import {
   usePaywallDesignerActions,
-  usePaywallDesignerStore
-} from '../../state/designer-store';
+  usePaywallDesignerStore,
+} from "../../state/designer-store";
 
 // ============================================================================
 // Types
@@ -74,10 +75,10 @@ interface Projection {
 const INDENTATION_WIDTH = 16;
 
 const ALLOWED_CHILDREN: Record<string, string[]> = {
-  root: ['screen'],
-  screen: ['flex', 'text'],
-  flex: ['flex', 'text'],
-  text: []
+  flex: ["flex", "text"],
+  root: ["screen"],
+  screen: ["flex", "text"],
+  text: [],
 };
 
 function canBeChildOf(childType: string, parentType: string): boolean {
@@ -85,18 +86,18 @@ function canBeChildOf(childType: string, parentType: string): boolean {
 }
 
 const typeIcons = {
-  screen: Smartphone,
-  text: TypeIcon,
-  row: Columns2Icon,
   column: Rows2Icon,
   flex: SquareDashedIcon,
-  root: null
+  root: null,
+  row: Columns2Icon,
+  screen: Smartphone,
+  text: TypeIcon,
 } as const;
 
 const measuring = {
   droppable: {
-    strategy: MeasuringStrategy.Always
-  }
+    strategy: MeasuringStrategy.Always,
+  },
 };
 
 // ============================================================================
@@ -110,22 +111,22 @@ function flattenTree(
   parentId: string | null = null,
   result: FlattenedNode[] = []
 ): FlattenedNode[] {
-  if (node.type === 'root') {
+  if (node.type === "root") {
     for (const child of node.children ?? []) {
       flattenTree(child, expandedLayers, depth, node.id, result);
     }
     return result;
   }
 
-  const canHaveChildren = node.type === 'screen' || node.type === 'flex';
+  const canHaveChildren = node.type === "screen" || node.type === "flex";
 
   result.push({
-    id: node.id,
-    node,
+    canHaveChildren,
     depth,
-    parentId,
+    id: node.id,
     index: result.length,
-    canHaveChildren
+    node,
+    parentId,
   });
 
   const isExpanded = expandedLayers.has(node.id);
@@ -221,17 +222,17 @@ function getProjection(
     // Try to use the parent's parent instead
     const parentItem = items.find((item) => item.id === parentId);
     if (parentItem) {
-      parentId = parentItem.parentId;
-      depth = parentItem.depth;
+      ({ parentId } = parentItem);
+      ({ depth } = parentItem);
     } else {
       return null;
     }
   }
 
   // Validate parent-child relationship
-  if (parentId === 'root') {
+  if (parentId === "root") {
     // Root can only contain screens
-    if (!canBeChildOf(activeNodeType, 'root')) {
+    if (!canBeChildOf(activeNodeType, "root")) {
       return null;
     }
   } else {
@@ -244,9 +245,9 @@ function getProjection(
       // Try to find a valid ancestor
       let currentParentId = parentItem.parentId;
       while (currentParentId) {
-        if (currentParentId === 'root') {
-          if (canBeChildOf(activeNodeType, 'root')) {
-            parentId = 'root';
+        if (currentParentId === "root") {
+          if (canBeChildOf(activeNodeType, "root")) {
+            parentId = "root";
             depth = 0;
             break;
           }
@@ -263,13 +264,13 @@ function getProjection(
         }
         currentParentId = ancestorItem.parentId;
       }
-      if (!currentParentId && parentId !== 'root') {
+      if (!currentParentId && parentId !== "root") {
         return null;
       }
     }
   }
 
-  return { depth, parentId, overId, isAbove };
+  return { depth, isAbove, overId, parentId };
 }
 
 function getMaxDepth(previousItem: FlattenedNode | undefined): number {
@@ -299,7 +300,7 @@ function getParentId(
   items: FlattenedNode[]
 ): string | null {
   if (!previousItem) {
-    return 'root';
+    return "root";
   }
 
   if (depth === previousItem.depth + 1 && previousItem.canHaveChildren) {
@@ -316,7 +317,7 @@ function getParentId(
     current = items.find((item) => item.id === current?.parentId);
   }
 
-  return current?.parentId ?? 'root';
+  return current?.parentId ?? "root";
 }
 
 function getSiblingAfter(
@@ -383,7 +384,7 @@ function getTargetIndex(
   const siblingIndex = children.findIndex(
     (child) => child.id === beforeSiblingId
   );
-  return siblingIndex >= 0 ? siblingIndex : children.length;
+  return siblingIndex !== -1 ? siblingIndex : children.length;
 }
 
 function getHighlightedNodeIds(
@@ -411,9 +412,9 @@ function getHighlightedNodeIds(
   }
 
   // If parentId is "root", highlight entire tree
-  if (projectedParentId === 'root') {
+  if (projectedParentId === "root") {
     function collectAllIds(node: SnapshotNode): void {
-      if (node.type !== 'root') {
+      if (node.type !== "root") {
         highlightedIds.add(node.id);
       }
       for (const child of node.children ?? []) {
@@ -450,7 +451,7 @@ function isDescendantOfSelected(
 
   let currentParentId = item.parentId;
   while (currentParentId) {
-    if (currentParentId === 'root') {
+    if (currentParentId === "root") {
       break;
     }
     if (selectedNodeIds.includes(currentParentId)) {
@@ -470,7 +471,7 @@ function isDescendantOfSelected(
 // Components
 // ============================================================================
 
-const END_DROP_ZONE_ID = '__end-drop-zone__';
+const END_DROP_ZONE_ID = "__end-drop-zone__";
 
 interface SortableTreeItemProps {
   id: string;
@@ -507,22 +508,22 @@ function SortableTreeItem({
   isLast,
   isFirst,
   isHighlighted,
-  isChildOfSelected
+  isChildOfSelected,
 }: SortableTreeItemProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({ id });
 
   const iconType = (() => {
-    if (node.type === 'flex') {
+    if (node.type === "flex") {
       if (!hasChildren) {
-        return 'flex';
+        return "flex";
       }
-      return node.style?.flexDirection === 'column' ? 'column' : 'row';
+      return node.style?.flexDirection === "column" ? "column" : "row";
     }
     return node.type;
   })();
 
   const Icon = typeIcons[iconType];
-  const displayName = node.name ?? 'Unknown';
+  const displayName = node.name ?? "Unknown";
 
   const isActiveItem = id === activeId;
   const isDraggingSomething = activeId !== null;
@@ -539,12 +540,12 @@ function SortableTreeItem({
     isLast && projected && projected.overId === END_DROP_ZONE_ID;
 
   const indentStyle: React.CSSProperties = {
-    paddingLeft: `${depth * indentationWidth}px`
+    paddingLeft: `${depth * indentationWidth}px`,
   };
 
   // Apply opacity dimming when dragging and not highlighted
   const opacityClass =
-    isDraggingSomething && !isActiveItem && !isHighlighted ? 'opacity-40' : '';
+    isDraggingSomething && !isActiveItem && !isHighlighted ? "opacity-40" : "";
 
   const handleClick = (e: React.MouseEvent) => {
     if (isSelected && e.shiftKey) {
@@ -561,7 +562,7 @@ function SortableTreeItem({
 
   return (
     <div
-      className={cn('relative', isDragging && 'opacity-40', opacityClass)}
+      className={cn("relative", isDragging && "opacity-40", opacityClass)}
       data-id={id}
       ref={setNodeRef}
     >
@@ -570,8 +571,8 @@ function SortableTreeItem({
         <div
           className="pointer-events-none absolute right-0 left-0 z-10 h-0.5 bg-primary"
           style={{
+            marginLeft: `${(projected?.depth ?? depth) * indentationWidth}px`,
             top: -1,
-            marginLeft: `${(projected?.depth ?? depth) * indentationWidth}px`
           }}
         />
       )}
@@ -581,14 +582,14 @@ function SortableTreeItem({
       {/** biome-ignore lint/nursery/noNoninteractiveElementInteractions: dnd-kit handles interactions via attributes */}
       <div
         className={cn(
-          'flex h-7 items-center gap-1 rounded-sm px-1 hover:bg-accent/50',
-          isSelected && 'bg-accent text-accent-foreground hover:bg-accent',
-          isSelected && hasChildren && isExpanded && 'rounded-b-none',
-          !isLast && 'rounded-b-none',
-          isChildOfSelected && !isFirst && 'rounded-t-none',
+          "flex h-7 items-center gap-1 rounded-sm px-1 hover:bg-accent/50",
+          isSelected && "bg-accent text-accent-foreground hover:bg-accent",
+          isSelected && hasChildren && isExpanded && "rounded-b-none",
+          !isLast && "rounded-b-none",
+          isChildOfSelected && !isFirst && "rounded-t-none",
           isChildOfSelected &&
             !isSelected &&
-            'bg-accent/40 text-accent-foreground/80'
+            "bg-accent/40 text-accent-foreground/80"
         )}
         onClick={handleClick}
         style={indentStyle}
@@ -633,7 +634,7 @@ function SortableTreeItem({
           className="pointer-events-none absolute right-0 left-0 z-10 h-0.5 bg-primary"
           style={{
             bottom: -1,
-            marginLeft: `${(projected?.depth ?? depth) * indentationWidth}px`
+            marginLeft: `${(projected?.depth ?? depth) * indentationWidth}px`,
           }}
         />
       )}
@@ -644,7 +645,7 @@ function SortableTreeItem({
           className="pointer-events-none absolute right-0 left-0 z-10 h-0.5 bg-primary"
           style={{
             bottom: -1,
-            marginLeft: `${(projected?.depth ?? 0) * indentationWidth}px`
+            marginLeft: `${(projected?.depth ?? 0) * indentationWidth}px`,
           }}
         />
       )}
@@ -672,13 +673,13 @@ const getExpandedLayersBySelectedNodes = (
       return new Set([]);
     }
 
-    const childrenExpandedIds = children.flatMap((child) =>
-      Array.from(reduceExpandedNodeIdsToSet(child, selectedIds))
-    );
+    const childrenExpandedIds = children.flatMap((child) => [
+      ...reduceExpandedNodeIdsToSet(child, selectedIds),
+    ]);
 
     return new Set([
       ...childrenExpandedIds,
-      ...(childrenExpandedIds.length > 0 ? [node.id] : [])
+      ...(childrenExpandedIds.length > 0 ? [node.id] : []),
     ]);
   };
 
@@ -755,8 +756,8 @@ export function LayersSection() {
       }
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    return () => document.removeEventListener('mousemove', handleMouseMove);
+    document.addEventListener("mousemove", handleMouseMove);
+    return () => document.removeEventListener("mousemove", handleMouseMove);
   }, [activeId]);
 
   // The snapshot is already a tree structure from mimic
@@ -766,7 +767,7 @@ export function LayersSection() {
   const expandedLayersBySelectedNodes = useMemo(
     () =>
       tree
-        ? getExpandedLayersBySelectedNodes(tree, Array.from(selectedNodeIds))
+        ? getExpandedLayersBySelectedNodes(tree, [...selectedNodeIds])
         : new Set<string>([]),
     [tree, selectedNodeIds]
   );
@@ -789,11 +790,7 @@ export function LayersSection() {
   }, [expandedLayersBySelectedNodes, expandedLayers]);
 
   const allExpandedLayers = useMemo(
-    () =>
-      new Set([
-        ...Array.from(expandedLayers),
-        ...Array.from(expandedLayersBySelectedNodes)
-      ]),
+    () => new Set([...expandedLayers, ...expandedLayersBySelectedNodes]),
     [expandedLayers, expandedLayersBySelectedNodes]
   );
 
@@ -837,16 +834,16 @@ export function LayersSection() {
 
       // Calculate max depth based on last item
       const maxDepth = lastItem
-        ? lastItem.canHaveChildren
+        ? (lastItem.canHaveChildren
           ? lastItem.depth + 1
-          : lastItem.depth
+          : lastItem.depth)
         : 0;
       const minDepth = 0;
 
       let depth = Math.max(minDepth, Math.min(maxDepth, projectedDepth));
 
       // Find valid parent at this depth
-      let parentId: string | null = 'root';
+      let parentId: string | null = "root";
       if (lastItem && depth > 0) {
         // Walk up from last item to find parent at target depth
         let current: FlattenedNode | undefined = lastItem;
@@ -869,19 +866,19 @@ export function LayersSection() {
 
       // Validate parent-child relationship
       const parentType =
-        parentId === 'root'
-          ? 'root'
+        parentId === "root"
+          ? "root"
           : (flattenedItems.find((item) => item.id === parentId)?.node.type ??
-            'root');
+            "root");
       if (!canBeChildOf(activeItem.node.type, parentType)) {
         return null;
       }
 
       return {
         depth,
-        parentId,
+        isAbove: false,
         overId: END_DROP_ZONE_ID,
-        isAbove: false
+        parentId,
       };
     }
     return getProjection(
@@ -916,7 +913,7 @@ export function LayersSection() {
     if (!(projected && tree)) {
       // When no valid projection, highlight everything to avoid full dimming
       if (activeId && tree) {
-        return getHighlightedNodeIds('root', tree);
+        return getHighlightedNodeIds("root", tree);
       }
       return ids;
     }
@@ -936,7 +933,7 @@ export function LayersSection() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 }
+      activationConstraint: { distance: 5 },
     })
   );
 
@@ -1078,15 +1075,15 @@ export function LayersSection() {
       }
 
       const { parentId, isAbove } = projected;
-      const newParentId = parentId ?? 'root';
+      const newParentId = parentId ?? "root";
 
       // Handle end drop zone - place at end of parent
       if (over.id === END_DROP_ZONE_ID) {
         const toIndex = getTargetIndex(tree, null, newParentId);
         dispatch(moveNode)({
-          nodeId: active.id as string,
           newParentId,
-          toIndex
+          nodeId: active.id as string,
+          toIndex,
         });
         return;
       }
@@ -1110,9 +1107,9 @@ export function LayersSection() {
 
       const toIndex = getTargetIndex(tree, beforeSiblingId, newParentId);
       dispatch(moveNode)({
-        nodeId: active.id as string,
         newParentId,
-        toIndex
+        nodeId: active.id as string,
+        toIndex,
       });
     },
     [dispatch, flattenedItems, projected, resetState, tree]
@@ -1151,7 +1148,7 @@ export function LayersSection() {
                 onToggle={toggleLayer}
                 onUnselect={handleUnselect}
                 projected={projected}
-                selectedNodeIds={Array.from(selectedNodeIds)}
+                selectedNodeIds={[...selectedNodeIds]}
               />
             ))
           ) : (
@@ -1166,7 +1163,7 @@ export function LayersSection() {
               <div
                 className="pointer-events-none relative h-0.5 bg-primary"
                 style={{
-                  marginLeft: `${projected.depth * INDENTATION_WIDTH}px`
+                  marginLeft: `${projected.depth * INDENTATION_WIDTH}px`,
                 }}
               />
             )}
@@ -1206,7 +1203,7 @@ function SortableTreeItemWrapper({
   isLast,
   highlightedIds,
   flattenedItems,
-  selectedNodeIds
+  selectedNodeIds,
 }: SortableTreeItemWrapperProps) {
   const store = usePaywallDesignerStore();
   const isSelected = useStore(

@@ -1,19 +1,20 @@
-'use client';
+"use client";
 
-import { useQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
-import { Badge, Card, CardHeader, CardTitle, cn } from '@voidhash/ui';
-import { ChevronRightIcon } from 'lucide-react';
-import { useParams } from 'next/navigation';
-import { useAuth } from 'src/components/auth-context';
-import { Page } from 'src/features/shell';
-import { VoidhashErrorCard } from 'src/features/shell/components/voidhash-error-card';
-import { paymentProviders } from 'src/lib/payment-providers/payment-providers';
-import { listPaymentProviderConfigurationsOptions } from 'src/lib/tanstack-query';
-import { CurrentUser } from 'src/lib/utils/current-user';
-import { PaymentProviderLogo } from './payment-provider-logo';
-import { PaymentProvidersNewStoreDropdown } from './payment-providers-new-store-dropdown';
-import { SetupPaymentProviderButton } from './setup-payment-provider-button';
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { Badge, Card, CardHeader, CardTitle, cn } from "@voidhash/ui";
+import { ChevronRightIcon } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useAuth } from "src/components/auth-context";
+import { Page } from "src/features/shell";
+import { VoidhashErrorCard } from "src/features/shell/components/voidhash-error-card";
+import { paymentProviders } from "src/lib/payment-providers/payment-providers";
+import { listPaymentProviderConfigurationsOptions } from "src/lib/tanstack-query";
+import { CurrentUser } from "src/lib/utils/current-user";
+
+import { PaymentProviderLogo } from "./payment-provider-logo";
+import { PaymentProvidersNewStoreDropdown } from "./payment-providers-new-store-dropdown";
+import { SetupPaymentProviderButton } from "./setup-payment-provider-button";
 
 export const PaymentProvidersPage = () => {
   const params = useParams();
@@ -29,24 +30,24 @@ export const PaymentProvidersPage = () => {
 
   const {
     data: paymentProviderConfigurations,
-    status: paymentProviderConfigurationsStatus
+    status: paymentProviderConfigurationsStatus,
   } = useQuery({
     ...listPaymentProviderConfigurationsOptions({
-      projectId: project?.id ?? ''
+      projectId: project?.id ?? "",
     }),
-    enabled: !!project?.id
+    enabled: !!project?.id,
   });
 
-  if (paymentProviderConfigurationsStatus === 'pending') {
+  if (paymentProviderConfigurationsStatus === "pending") {
     return <div>Loading...</div>;
   }
 
-  if (paymentProviderConfigurationsStatus === 'error' || !project) {
+  if (paymentProviderConfigurationsStatus === "error" || !project) {
     return (
       <VoidhashErrorCard
         error={{
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'An error occured loading the payment providers'
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An error occured loading the payment providers",
         }}
       />
     );
@@ -57,25 +58,25 @@ export const PaymentProvidersPage = () => {
       const paymentProvider = paymentProviders.find(
         (pp) => pp.id === p.providerId
       );
-      if (!paymentProvider || paymentProvider.type !== 'native') {
+      if (!paymentProvider || paymentProvider.type !== "native") {
         return null;
       }
       return {
         ...p,
-        provider: paymentProvider
+        provider: paymentProvider,
       };
     })
     .filter(Boolean);
 
   const webCheckoutProvidersWithConfigurations = paymentProviders
-    .filter((p) => p.type === 'web-checkout')
+    .filter((p) => p.type === "web-checkout")
     .map((paymentProvider) => {
       const paymentProvidersConfiguration = paymentProviderConfigurations?.find(
         (p) => p.providerId === paymentProvider.id
       );
       return {
         ...paymentProvidersConfiguration,
-        provider: paymentProvider
+        provider: paymentProvider,
       };
     });
 
@@ -91,11 +92,11 @@ export const PaymentProvidersPage = () => {
         </p>
 
         <div className="mt-8">
-          <Card className={cn('grid gap-0 divide-y p-0')}>
+          <Card className={cn("grid gap-0 divide-y p-0")}>
             <CardHeader
               className={cn(
-                'gap-0 pr-3',
-                applicationsWithConfiguration.length > 0 ? 'py-3' : 'py-6'
+                "gap-0 pr-3",
+                applicationsWithConfiguration.length > 0 ? "py-3" : "py-6"
               )}
             >
               <div className="flex items-center justify-between">
@@ -135,9 +136,9 @@ export const PaymentProvidersPage = () => {
                       className="absolute inset-0 h-full w-full"
                       params={{
                         organizationSlug,
-                        projectSlug,
                         paymentProviderConfigurationId:
-                          paymentProviderConfiguration.id
+                          paymentProviderConfiguration.id,
+                        projectSlug,
                       }}
                       to="/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId"
                     />
@@ -170,7 +171,7 @@ export const PaymentProvidersPage = () => {
         </div>
 
         <div className="mt-8">
-          <Card className={cn('grid gap-0 divide-y p-0')}>
+          <Card className={cn("grid gap-0 divide-y p-0")}>
             <CardHeader className="gap-0 py-6 pr-3">
               <div className="flex items-center justify-between">
                 <CardTitle>Web Checkout Providers</CardTitle>
@@ -190,9 +191,9 @@ export const PaymentProvidersPage = () => {
                       className="absolute inset-0 h-full w-full"
                       params={{
                         organizationSlug,
-                        projectSlug,
                         paymentProviderConfigurationId:
-                          paymentProviderConfiguration.id
+                          paymentProviderConfiguration.id,
+                        projectSlug,
                       }}
                       to="/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId"
                     />

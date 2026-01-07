@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { copyNodes, cutNodes, deleteNodes, pasteNodes } from '../state/actions';
-import { usePaywallDesignerActions } from '../state/designer-store';
+import { useEffect } from "react";
+
+import { copyNodes, cutNodes, deleteNodes, pasteNodes } from "../state/actions";
+import { usePaywallDesignerActions } from "../state/designer-store";
 
 /**
  * Checks if the event target is an editable element that should take priority
@@ -13,10 +14,10 @@ function isEditableElement(target: EventTarget | null): boolean {
     return false;
   }
 
-  const tagName = target.tagName;
-  const isInput = tagName === 'INPUT' || tagName === 'TEXTAREA';
+  const { tagName } = target;
+  const isInput = tagName === "INPUT" || tagName === "TEXTAREA";
   const isContentEditable =
-    target.contentEditable === 'true' || target.isContentEditable;
+    target.contentEditable === "true" || target.isContentEditable;
 
   return isInput || isContentEditable;
 }
@@ -35,41 +36,41 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const modKey = isMac ? e.metaKey : e.ctrlKey;
 
       // Cmd/Ctrl + C: Copy
-      if (modKey && e.key === 'c') {
+      if (modKey && e.key === "c") {
         e.preventDefault();
         dispatch(copyNodes)({});
         return;
       }
 
       // Cmd/Ctrl + X: Cut
-      if (modKey && e.key === 'x') {
+      if (modKey && e.key === "x") {
         e.preventDefault();
         dispatch(cutNodes)({});
         return;
       }
 
       // Cmd/Ctrl + V: Paste
-      if (modKey && e.key === 'v') {
+      if (modKey && e.key === "v") {
         e.preventDefault();
         dispatch(pasteNodes)({});
         return;
       }
 
       // Backspace or Delete: Delete selected nodes
-      if (e.key === 'Backspace' || e.key === 'Delete') {
+      if (e.key === "Backspace" || e.key === "Delete") {
         e.preventDefault();
         dispatch(deleteNodes)({});
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [dispatch]);
 }

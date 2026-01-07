@@ -1,26 +1,26 @@
-import type { SdkCustomer } from '@voidhash/api-spec';
-import { Context } from 'effect';
+import type { SdkCustomer } from "@voidhash/api-spec";
+import { Context } from "effect";
 
-export type CustomerFetchedEvent = {
-  type: 'customer-fetched';
+export interface CustomerFetchedEvent {
+  type: "customer-fetched";
   customer: SdkCustomer;
-};
+}
 
-export type CustomerSignedOutEvent = {
-  type: 'customer-signed-out';
-};
+export interface CustomerSignedOutEvent {
+  type: "customer-signed-out";
+}
 
-export type CustomerIdentifiedEvent = {
-  type: 'customer-identified';
-};
+export interface CustomerIdentifiedEvent {
+  type: "customer-identified";
+}
 
-export type VoidhashEvents = {
-  'customer-fetched': SdkCustomer;
+export interface VoidhashEvents {
+  "customer-fetched": SdkCustomer;
   // biome-ignore lint/suspicious/noConfusingVoidType: it specifies that the event has no payload
-  'customer-signed-out': void;
+  "customer-signed-out": void;
   // biome-ignore lint/suspicious/noConfusingVoidType: it specifies that the event has no payload
-  'customer-identified': void;
-};
+  "customer-identified": void;
+}
 
 export type VoidhashClientEvent = keyof VoidhashEvents;
 
@@ -28,9 +28,9 @@ export class EventBus {
   private listeners: {
     [key in VoidhashClientEvent]: ((...args: VoidhashEvents[key][]) => void)[];
   } = {
-    'customer-fetched': [],
-    'customer-signed-out': [],
-    'customer-identified': []
+    "customer-fetched": [],
+    "customer-identified": [],
+    "customer-signed-out": [],
   };
 
   on<TEvent extends VoidhashClientEvent>(
@@ -58,5 +58,5 @@ export class EventBus {
 }
 
 export class EventBusProvider extends Context.Tag(
-  'rn-voidhash/EventBusProvider'
+  "rn-voidhash/EventBusProvider"
 )<EventBusProvider, EventBus>() {}

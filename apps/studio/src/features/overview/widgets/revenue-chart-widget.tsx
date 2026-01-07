@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Card,
@@ -8,26 +8,26 @@ import {
   type ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
-} from '@voidhash/ui';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+  ChartTooltipContent,
+} from "@voidhash/ui";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
-export const description = 'A line chart';
+export const description = "A line chart";
 
 const chartData = [
-  { month: 'January', revenue: 186 },
-  { month: 'February', revenue: 305 },
-  { month: 'March', revenue: 237 },
-  { month: 'April', revenue: 73 },
-  { month: 'May', revenue: 209 },
-  { month: 'June', revenue: 214 }
+  { month: "January", revenue: 186 },
+  { month: "February", revenue: 305 },
+  { month: "March", revenue: 237 },
+  { month: "April", revenue: 73 },
+  { month: "May", revenue: 209 },
+  { month: "June", revenue: 214 },
 ];
 
 const chartConfig = {
   revenue: {
-    label: 'Revenue',
-    color: 'var(--chart-1)'
-  }
+    color: "var(--chart-1)",
+    label: "Revenue",
+  },
 } satisfies ChartConfig;
 
 export function RevenueChartWidget() {
@@ -51,7 +51,7 @@ export function RevenueChartWidget() {
             data={chartData}
             margin={{
               left: 12,
-              right: 12
+              right: 12,
             }}
           >
             <CartesianGrid vertical={false} />

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Card,
@@ -8,26 +8,26 @@ import {
   type ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
-} from '@voidhash/ui';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+  ChartTooltipContent,
+} from "@voidhash/ui";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
-export const description = 'A line chart for ARPPU';
+export const description = "A line chart for ARPPU";
 
 const chartData = [
-  { month: 'January', arppu: 24.8 },
-  { month: 'February', arppu: 30.4 },
-  { month: 'March', arppu: 23.6 },
-  { month: 'April', arppu: 7.2 },
-  { month: 'May', arppu: 20.8 },
-  { month: 'June', arppu: 21.4 }
+  { arppu: 24.8, month: "January" },
+  { arppu: 30.4, month: "February" },
+  { arppu: 23.6, month: "March" },
+  { arppu: 7.2, month: "April" },
+  { arppu: 20.8, month: "May" },
+  { arppu: 21.4, month: "June" },
 ];
 
 const chartConfig = {
   arppu: {
-    label: 'ARPPU',
-    color: 'var(--chart-1)'
-  }
+    color: "var(--chart-1)",
+    label: "ARPPU",
+  },
 } satisfies ChartConfig;
 
 export function ARPPUChartWidget() {
@@ -51,7 +51,7 @@ export function ARPPUChartWidget() {
             data={chartData}
             margin={{
               left: 12,
-              right: 12
+              right: 12,
             }}
           >
             <CartesianGrid vertical={false} />

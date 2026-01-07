@@ -1,34 +1,34 @@
-export type HSV = {
+export interface HSV {
   h: number;
   s: number;
   v: number;
-};
+}
 
-export type RGB = {
+export interface RGB {
   r: number;
   g: number;
   b: number;
-};
+}
 
-export type RGBA = {
+export interface RGBA {
   r: number;
   g: number;
   b: number;
   a: number;
-};
+}
 
-export type ColorMode = 'hex' | 'rgb';
+export type ColorMode = "hex" | "rgb";
 
 const HEX_REGEX = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
 export function hexToRgb(hex: string): RGB {
   const result = HEX_REGEX.exec(hex);
   if (!result) {
-    return { r: 255, g: 255, b: 255 };
+    return { b: 255, g: 255, r: 255 };
   }
   return {
-    r: Number.parseInt(result.at(1) ?? 'ff', 16),
-    g: Number.parseInt(result.at(2) ?? 'ff', 16),
-    b: Number.parseInt(result.at(3) ?? 'ff', 16)
+    b: Number.parseInt(result.at(3) ?? "ff", 16),
+    g: Number.parseInt(result.at(2) ?? "ff", 16),
+    r: Number.parseInt(result.at(1) ?? "ff", 16),
   };
 }
 
@@ -106,9 +106,9 @@ export function hsvToRgb(h: number, s: number, v: number): RGB {
   }
 
   return {
-    r: Math.round((r + m) * 255),
+    b: Math.round((b + m) * 255),
     g: Math.round((g + m) * 255),
-    b: Math.round((b + m) * 255)
+    r: Math.round((r + m) * 255),
   };
 }
 
@@ -118,13 +118,13 @@ const RGBA_REGEX =
 export function parseRgba(rgba: string): RGBA {
   const match = RGBA_REGEX.exec(rgba);
   if (!match) {
-    return { r: 255, g: 255, b: 255, a: 1 };
+    return { a: 1, b: 255, g: 255, r: 255 };
   }
   return {
-    r: Math.min(255, Math.max(0, Number.parseInt(match.at(1) ?? '255', 10))),
-    g: Math.min(255, Math.max(0, Number.parseInt(match.at(2) ?? '255', 10))),
-    b: Math.min(255, Math.max(0, Number.parseInt(match.at(3) ?? '255', 10))),
-    a: Math.min(1, Math.max(0, Number.parseFloat(match.at(4) ?? '1')))
+    a: Math.min(1, Math.max(0, Number.parseFloat(match.at(4) ?? "1"))),
+    b: Math.min(255, Math.max(0, Number.parseInt(match.at(3) ?? "255", 10))),
+    g: Math.min(255, Math.max(0, Number.parseInt(match.at(2) ?? "255", 10))),
+    r: Math.min(255, Math.max(0, Number.parseInt(match.at(1) ?? "255", 10))),
   };
 }
 
@@ -149,6 +149,6 @@ export function rgbaToHexOpacity(rgba: string): {
   const { r, g, b, a } = parseRgba(rgba);
   return {
     hex: rgbToHex(r, g, b),
-    opacity: Math.round(a * 100)
+    opacity: Math.round(a * 100),
   };
 }

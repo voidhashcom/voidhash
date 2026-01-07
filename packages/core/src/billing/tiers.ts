@@ -1,93 +1,93 @@
 import {
   BillingTierName,
-  MetricId,
   type BillingTierNameValue,
-  type TierDefinition
-} from './types';
+  MetricId,
+  type TierDefinition,
+} from "./types";
 
 /**
  * Tier definitions with usage limits
  * Limits are per billing period (monthly)
  */
 export const TIER_DEFINITIONS: Record<BillingTierNameValue, TierDefinition> = {
-  free: {
-    id: BillingTierName.Free,
-    name: 'Free',
+  enterprise: {
+    id: BillingTierName.Enterprise,
     limits: [
       {
+        limit: null,
         metricId: MetricId.PaywallConversions,
+        warnAt: null,
+      },
+      {
+        limit: null,
+        metricId: MetricId.MonthlyTrackedRevenue,
+        warnAt: null,
+      },
+      {
+        limit: null,
+        metricId: MetricId.ApiCalls,
+        warnAt: null,
+      },
+      {
+        limit: null,
+        metricId: MetricId.ActiveCustomers,
+        warnAt: null,
+      },
+    ],
+    name: "Enterprise",
+  },
+  free: {
+    id: BillingTierName.Free,
+    limits: [
+      {
         limit: 100,
-        warnAt: 80
+        metricId: MetricId.PaywallConversions,
+        warnAt: 80,
       },
       {
         metricId: MetricId.MonthlyTrackedRevenue,
-        limit: 1000000, // $10,000 in cents
-        warnAt: 800000
+        limit: 1_000_000, // $10,000 in cents
+        warnAt: 800_000,
       },
       {
+        limit: 10_000,
         metricId: MetricId.ApiCalls,
-        limit: 10000,
-        warnAt: 8000
+        warnAt: 8000,
       },
       {
-        metricId: MetricId.ActiveCustomers,
         limit: 500,
-        warnAt: 400
-      }
-    ]
+        metricId: MetricId.ActiveCustomers,
+        warnAt: 400,
+      },
+    ],
+    name: "Free",
   },
   pro: {
     id: BillingTierName.Pro,
-    name: 'Pro',
     limits: [
       {
+        limit: 10_000,
         metricId: MetricId.PaywallConversions,
-        limit: 10000,
-        warnAt: 8000
+        warnAt: 8000,
       },
       {
         metricId: MetricId.MonthlyTrackedRevenue,
-        limit: 100000000, // $1,000,000 in cents
-        warnAt: 80000000
+        limit: 100_000_000, // $1,000,000 in cents
+        warnAt: 80_000_000,
       },
       {
+        limit: 1_000_000,
         metricId: MetricId.ApiCalls,
-        limit: 1000000,
-        warnAt: 800000
+        warnAt: 800_000,
       },
       {
         metricId: MetricId.ActiveCustomers,
         limit: null, // Unlimited
-        warnAt: null
-      }
-    ]
+        warnAt: null,
+      },
+    ],
+    name: "Pro",
   },
-  enterprise: {
-    id: BillingTierName.Enterprise,
-    name: 'Enterprise',
-    limits: [
-      {
-        metricId: MetricId.PaywallConversions,
-        limit: null,
-        warnAt: null
-      },
-      {
-        metricId: MetricId.MonthlyTrackedRevenue,
-        limit: null,
-        warnAt: null
-      },
-      {
-        metricId: MetricId.ApiCalls,
-        limit: null,
-        warnAt: null
-      },
-      {
-        metricId: MetricId.ActiveCustomers,
-        limit: null,
-        warnAt: null
-      }
-    ]
-  }
 };
 
 /**

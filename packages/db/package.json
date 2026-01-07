@@ -1,12 +1,12 @@
 {
   "name": "@voidhash/db",
   "version": "0.0.1-alpha.1",
-  "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/voidhashcom/voidhash",
     "directory": "packages/db"
   },
+  "type": "module",
   "main": "./index.ts",
   "exports": {
     ".": "./src/index.ts",
@@ -19,6 +19,7 @@
   "dependencies": {
     "@planetscale/database": "^1.19.0",
     "@voidhash/lib": "workspace:*",
+    "@voidhash/shared": "workspace:*",
     "dotenv": "^17.2.0",
     "drizzle-orm": "^0.45.1",
     "drizzle-seed": "^0.3.1",

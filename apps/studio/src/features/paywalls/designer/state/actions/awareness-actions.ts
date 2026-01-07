@@ -5,7 +5,7 @@
  * Cursor positions, user info, etc.
  */
 
-import { commander } from '../designer-commander';
+import { commander } from "../designer-commander";
 
 // =============================================================================
 // Awareness Commands
@@ -23,7 +23,7 @@ export const updateCursor = commander.action<{ x: number; y: number } | null>(
     if (currentPresence) {
       mimic.document.presence?.set({
         ...currentPresence,
-        cursor: params
+        cursor: params,
       });
     }
   }
@@ -43,8 +43,8 @@ export const updateUser = commander.action<{ name?: string; color?: string }>(
         ...currentPresence,
         user: {
           ...currentPresence.user,
-          ...params
-        }
+          ...params,
+        },
       });
     }
   }

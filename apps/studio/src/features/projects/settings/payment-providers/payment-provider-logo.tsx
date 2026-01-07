@@ -1,19 +1,20 @@
-import type { paymentProviders } from 'src/lib/payment-providers/payment-providers';
-import { AppleLogo } from './logos/apple-logo';
-import { StripeLogo } from './logos/stripe-logo';
+import type { paymentProviders } from "src/lib/payment-providers/payment-providers";
+
+import { AppleLogo } from "./logos/apple-logo";
+import { StripeLogo } from "./logos/stripe-logo";
 
 export function PaymentProviderLogo({
   providerId,
-  className
+  className,
 }: {
-  providerId: (typeof paymentProviders)[number]['id'];
+  providerId: (typeof paymentProviders)[number]["id"];
   className?: string;
 }) {
-  if (providerId === 'apple-app-store') {
+  if (providerId === "apple-app-store") {
     return <AppleLogo className={className} />;
   }
 
-  if (providerId === 'stripe') {
+  if (providerId === "stripe") {
     return <StripeLogo className={className} />;
   }
 

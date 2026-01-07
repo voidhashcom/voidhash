@@ -1,33 +1,34 @@
-'use client';
+"use client";
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
   CardFooter,
   CardHeader,
-  CardTitle
-} from '@voidhash/ui';
-import { useParams } from 'next/navigation';
-import { useAuth } from 'src/components/auth-context';
-import { Page } from 'src/features/shell';
-import { VoidhashErrorCard } from 'src/features/shell/components/voidhash-error-card';
-import { paymentProviders } from 'src/lib/payment-providers/payment-providers';
+  CardTitle,
+} from "@voidhash/ui";
+import { useParams } from "next/navigation";
+import { useAuth } from "src/components/auth-context";
+import { Page } from "src/features/shell";
+import { VoidhashErrorCard } from "src/features/shell/components/voidhash-error-card";
+import { paymentProviders } from "src/lib/payment-providers/payment-providers";
 import {
   getProductOptions,
   listPaymentProviderConfigurationsOptions,
   listPerksOptions,
   listProductPerksByProductIdOptions,
-  listProviderProductsByProductIdOptions
-} from 'src/lib/tanstack-query';
-import { CurrentUser } from 'src/lib/utils/current-user';
-import { PaymentProviderLogo } from '../projects/settings/payment-providers/payment-provider-logo';
-import { ProductDetailAddPerkButton } from './product-detail-add-perk-button';
-import { ProductDetailAddProductButton } from './product-detail-add-product-button';
-import { ProductDetailPaymentProvidersEmptyState } from './product-detail-payment-providers-empty-state';
-import { ProductDetailPerksEmptyState } from './product-detail-perks-empty-state';
-import { ProductDetailPerkRecord } from './product-detail-product-perk-record';
-import { ProductDetailProviderProductRecord } from './product-detail-provider-product-record';
+  listProviderProductsByProductIdOptions,
+} from "src/lib/tanstack-query";
+import { CurrentUser } from "src/lib/utils/current-user";
+
+import { PaymentProviderLogo } from "../projects/settings/payment-providers/payment-provider-logo";
+import { ProductDetailAddPerkButton } from "./product-detail-add-perk-button";
+import { ProductDetailAddProductButton } from "./product-detail-add-product-button";
+import { ProductDetailPaymentProvidersEmptyState } from "./product-detail-payment-providers-empty-state";
+import { ProductDetailPerksEmptyState } from "./product-detail-perks-empty-state";
+import { ProductDetailPerkRecord } from "./product-detail-product-perk-record";
+import { ProductDetailProviderProductRecord } from "./product-detail-provider-product-record";
 
 export const ProductDetailPage = () => {
   const params = useParams();
@@ -44,58 +45,58 @@ export const ProductDetailPage = () => {
 
   const { data: product, status: productStatus } = useQuery({
     ...getProductOptions({ productId: id }),
-    enabled: !!id
+    enabled: !!id,
   });
 
   const { data: providerProducts, status: providerProductsStatus } = useQuery({
     ...listProviderProductsByProductIdOptions({ productId: id }),
-    enabled: !!id
+    enabled: !!id,
   });
 
   const {
     data: paymentProviderConfigurations,
-    status: paymentProviderConfigurationsStatus
+    status: paymentProviderConfigurationsStatus,
   } = useQuery({
     ...listPaymentProviderConfigurationsOptions({
-      projectId: project?.id ?? ''
+      projectId: project?.id ?? "",
     }),
-    enabled: !!project?.id
+    enabled: !!project?.id,
   });
 
   const { data: perks, status: perksStatus } = useQuery({
-    ...listPerksOptions({ projectId: project?.id ?? '' }),
-    enabled: !!project?.id
+    ...listPerksOptions({ projectId: project?.id ?? "" }),
+    enabled: !!project?.id,
   });
 
   const { data: productPerks, status: productPerksStatus } = useQuery({
     ...listProductPerksByProductIdOptions({ productId: id }),
-    enabled: !!id
+    enabled: !!id,
   });
 
   if (
-    productStatus === 'pending' ||
-    providerProductsStatus === 'pending' ||
-    paymentProviderConfigurationsStatus === 'pending' ||
-    perksStatus === 'pending' ||
-    productPerksStatus === 'pending'
+    productStatus === "pending" ||
+    providerProductsStatus === "pending" ||
+    paymentProviderConfigurationsStatus === "pending" ||
+    perksStatus === "pending" ||
+    productPerksStatus === "pending"
   ) {
     return <div>Loading...</div>;
   }
 
   if (
-    productStatus === 'error' ||
-    providerProductsStatus === 'error' ||
-    paymentProviderConfigurationsStatus === 'error' ||
-    perksStatus === 'error' ||
-    productPerksStatus === 'error' ||
+    productStatus === "error" ||
+    providerProductsStatus === "error" ||
+    paymentProviderConfigurationsStatus === "error" ||
+    perksStatus === "error" ||
+    productPerksStatus === "error" ||
     !product ||
     !project
   ) {
     return (
       <VoidhashErrorCard
         error={{
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'An error occured loading the product'
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An error occured loading the product",
         }}
       />
     );
@@ -115,13 +116,13 @@ export const ProductDetailPage = () => {
       }
 
       return {
-        paymentProvider,
-        id: paymentProviderConfiguration.id,
-        name: paymentProviderConfiguration.name,
+        configuration: paymentProviderConfiguration,
         enabled:
           !!paymentProviderConfiguration &&
           paymentProviderConfiguration.enabled,
-        configuration: paymentProviderConfiguration
+        id: paymentProviderConfiguration.id,
+        name: paymentProviderConfiguration.name,
+        paymentProvider,
       };
     })
     .filter(
@@ -142,13 +143,13 @@ export const ProductDetailPage = () => {
     <Page
       breadcrumbs={[
         {
-          title: 'Products',
-          url: `/${organizationSlug}/${projectSlug}/products`
+          title: "Products",
+          url: `/${organizationSlug}/${projectSlug}/products`,
         },
         {
           title: product.name,
-          url: `/${organizationSlug}/${projectSlug}/products/${id}`
-        }
+          url: `/${organizationSlug}/${projectSlug}/products/${id}`,
+        },
       ]}
       className="p-0 py-8"
     >
@@ -245,11 +246,11 @@ export const ProductDetailPage = () => {
                     ).length === 0 && (
                       <div className="flex h-full flex-col items-center justify-center py-6">
                         <div className="text-muted-foreground">
-                          You haven&apos;t added any{' '}
+                          You haven&apos;t added any{" "}
                           {
                             paymentProviderWithConfiguration.paymentProvider
                               .title
-                          }{' '}
+                          }{" "}
                           product yet.
                         </div>
                         <div className="mt-4">
@@ -290,11 +291,11 @@ export const ProductDetailPage = () => {
                         />
                       ))}
                   </CardContent>
-                  {(providerProducts ?? []).filter(
+                  {(providerProducts ?? []).some(
                     (providerProduct) =>
                       providerProduct.paymentProviderConfigurationId ===
                       paymentProviderWithConfiguration.id
-                  ).length > 0 && (
+                  ) && (
                     <CardFooter className="flex items-baseline justify-between border-border border-t bg-background py-3 [.border-t]:pt-3">
                       <ProductDetailAddProductButton
                         paymentProviderConfigurationId={

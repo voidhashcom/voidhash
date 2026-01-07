@@ -1,16 +1,16 @@
-'use client';
-import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import { Button } from '@voidhash/ui';
-import { toast } from 'sonner';
-import { paymentProviders } from 'src/lib/payment-providers/payment-providers';
-import { createPaymentProviderConfigurationOptions } from 'src/lib/tanstack-query';
+"use client";
+import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { Button } from "@voidhash/ui";
+import { toast } from "sonner";
+import { paymentProviders } from "src/lib/payment-providers/payment-providers";
+import { createPaymentProviderConfigurationOptions } from "src/lib/tanstack-query";
 
 export function SetupPaymentProviderButton({
   projectId,
   providerId,
   organizationSlug,
-  projectSlug
+  projectSlug,
 }: {
   projectId: string;
   providerId: string;
@@ -28,18 +28,18 @@ export function SetupPaymentProviderButton({
       );
       if (data.id) {
         navigate({
-          to: '/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId',
           params: {
             organizationSlug,
+            paymentProviderConfigurationId: data.id,
             projectSlug,
-            paymentProviderConfigurationId: data.id
-          }
+          },
+          to: "/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId",
         });
       }
     },
     onError: () => {
       toast.error(`Failed to save ${paymentProvider?.title} configuration`);
-    }
+    },
   });
 
   if (!paymentProvider) {
@@ -48,11 +48,11 @@ export function SetupPaymentProviderButton({
 
   return (
     <Button
-      disabled={status === 'pending'}
+      disabled={status === "pending"}
       onClick={() =>
         createPaymentProviderConfiguration({
           projectId,
-          providerId
+          providerId,
         })
       }
       variant="outline"

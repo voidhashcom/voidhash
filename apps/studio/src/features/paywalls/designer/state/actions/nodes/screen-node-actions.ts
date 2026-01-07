@@ -5,12 +5,13 @@
  * Uses undoable actions for undo/redo support.
  */
 
-import type { Primitive } from '@voidhash/mimic';
-import { ScreenNode } from '@voidhash/mimic-schema';
-import type { VariableTypeKey } from '../core';
-import { commander } from '../../designer-commander';
-import { selectNode } from '../selection-actions';
-import { setActiveTool } from '../tools-actions';
+import type { Primitive } from "@voidhash/mimic";
+import { ScreenNode } from "@voidhash/mimic-schema";
+
+import { commander } from "../../designer-commander";
+import type { VariableTypeKey } from "../core";
+import { selectNode } from "../selection-actions";
+import { setActiveTool } from "../tools-actions";
 
 // =============================================================================
 // Screen Node Commands
@@ -43,7 +44,7 @@ export const createScreenNode = commander.undoableAction<
     if (newNodeId) {
       // Select the new node and switch to cursor tool
       ctx.dispatch(selectNode)({ id: newNodeId, many: false });
-      ctx.dispatch(setActiveTool)({ tool: 'cursor' });
+      ctx.dispatch(setActiveTool)({ tool: "cursor" });
     }
 
     return { nodeId: newNodeId ?? null };
@@ -140,15 +141,15 @@ export const addScreenNodeVariable = commander.undoableAction<
         id: variableId,
         name: params.name,
         value: {
-          key: params.type
-        }
+          key: params.type,
+        },
       });
     });
 
     return { variableId };
   },
   (ctx, params, result) => {
-    const variableId = result.variableId;
+    const { variableId } = result;
     if (variableId === null) {
       return;
     }
@@ -297,9 +298,9 @@ export const addScreenNodeState = commander.undoableAction<
       stateId = `state-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       const newState = {
+        condition: params.condition,
         id: stateId,
         name: params.name,
-        condition: params.condition
       };
 
       proxy.data.states.push(newState as never);
@@ -308,7 +309,7 @@ export const addScreenNodeState = commander.undoableAction<
     return { stateId };
   },
   (ctx, params, result) => {
-    const stateId = result.stateId;
+    const { stateId } = result;
     if (stateId === null) {
       return;
     }
@@ -388,7 +389,7 @@ export const updateScreenNodeState = commander.undoableAction<
     // Get the previous state data for undo
     const node = mimic.document.root.node(params.nodeId)?.as(ScreenNode);
     if (!node) {
-      return { previousName: null, previousCondition: null };
+      return { previousCondition: null, previousName: null };
     }
     const state = node.data.states.at(params.stateId);
 
@@ -410,7 +411,7 @@ export const updateScreenNodeState = commander.undoableAction<
       }
     });
 
-    return { previousName, previousCondition };
+    return { previousCondition, previousName };
   },
   (ctx, params, result) => {
     const { mimic } = ctx.getState();

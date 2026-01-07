@@ -1,11 +1,12 @@
-import { createAuthClient } from 'better-auth/client';
-import { genericOAuthClient } from 'better-auth/client/plugins';
-import { env } from './env';
+import { createAuthClient } from "better-auth/client";
+import { genericOAuthClient } from "better-auth/client/plugins";
+
+import { env } from "./env";
 
 export const createAuthClientOptions = (baseURL: string) => ({
+  basePath: "/studio/api/auth",
   baseURL,
-  basePath: '/studio/api/auth',
-  plugins: [genericOAuthClient()]
+  plugins: [genericOAuthClient()],
 });
 
 export const authClient = createAuthClient(

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiKeyWithRawKey } from '@voidhash/rpc';
-import { Button } from '@voidhash/ui/button';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ApiKeyWithRawKey } from "@voidhash/rpc";
+import { Button } from "@voidhash/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,27 +11,27 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
-} from '@voidhash/ui/dialog';
+  DialogTrigger,
+} from "@voidhash/ui/dialog";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '@voidhash/ui/form';
-import { Input } from '@voidhash/ui/input';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { createSecretKeyOptions, queryKeys } from 'src/lib/tanstack-query';
-import { z } from 'zod/v3';
+  FormMessage,
+} from "@voidhash/ui/form";
+import { Input } from "@voidhash/ui/input";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { createSecretKeyOptions, queryKeys } from "src/lib/tanstack-query";
+import { z } from "zod/v3";
 
 const createSecretKeySchema = z.object({
   name: z
     .string()
-    .min(3, 'Name must be at least 3 characters long')
-    .max(32, 'Name must be less than 32 characters')
+    .min(3, "Name must be at least 3 characters long")
+    .max(32, "Name must be less than 32 characters"),
 });
 
 type CreateSecretKeyForm = z.infer<typeof createSecretKeySchema>;
@@ -49,13 +49,13 @@ export function CreateSecretKeyModal({
   onClose,
   trigger,
   projectId,
-  onSuccess
+  onSuccess,
 }: CreateSecretKeyModalProps) {
   const form = useForm<CreateSecretKeyForm>({
-    resolver: zodResolver(createSecretKeySchema),
     defaultValues: {
-      name: ''
-    }
+      name: "",
+    },
+    resolver: zodResolver(createSecretKeySchema),
   });
 
   const queryClient = useQueryClient();
@@ -64,12 +64,12 @@ export function CreateSecretKeyModal({
       ...createSecretKeyOptions(),
       onSuccess: (data) => {
         onSuccess?.(data);
-        toast.success('Key successfully created');
+        toast.success("Key successfully created");
         queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
       },
       onError: () => {
-        toast.error('Failed to create key');
-      }
+        toast.error("Failed to create key");
+      },
     });
 
   const handleOpenChange = (open: boolean) => {
@@ -115,12 +115,12 @@ export function CreateSecretKeyModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={createSecretKeyStatus === 'pending'}
+                disabled={createSecretKeyStatus === "pending"}
                 type="submit"
               >
-                {createSecretKeyStatus === 'pending'
-                  ? 'Creating Key...'
-                  : 'Create Key'}
+                {createSecretKeyStatus === "pending"
+                  ? "Creating Key..."
+                  : "Create Key"}
               </Button>
             </DialogFooter>
           </form>

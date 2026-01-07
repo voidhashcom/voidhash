@@ -1,20 +1,29 @@
-import { Command } from '@effect/cli';
-import { Console, Effect } from 'effect';
-import { Auth } from '../../domain/services/auth';
+import { Command } from "@effect/cli";
+import { Console, Effect } from "effect";
 
-export const authStatusCommand = Command.make('status', {}, () =>
-  Effect.gen(function* () {
+import { Auth } from "../../domain/services/auth";
+import { userError } from "../../utils/error-formatter";
+import { debugOption } from "../shared-options";
+
+export const authStatusCommand = Command.make("status", { debug: debugOption }, () =>
+  Effect.gen(function* authStatusCommand() {
     const auth = yield* Auth;
     const user = yield* auth.getSignedInSession.pipe(
       Effect.catchTags({
-        NoSignedInUserError: () => Effect.succeed(null)
+        FailedToGetSessionError: () =>
+          Effect.fail(
+            userError(
+              "Failed to get user session. Please try again or run 'voidhash auth login'."
+            )
+          ),
+        NoSignedInUserError: () => Effect.succeed(null),
       })
     );
 
     if (user) {
       yield* Console.log(`Logged in as ${user.name}`);
     } else {
-      yield* Console.log('Not logged in');
+      yield* Console.log("Not logged in");
     }
   })
-).pipe(Command.withDescription('Check the status of the Voidhash CLI.'));
+).pipe(Command.withDescription("Check the status of the Voidhash CLI."));

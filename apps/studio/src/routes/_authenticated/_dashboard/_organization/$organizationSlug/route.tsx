@@ -1,27 +1,28 @@
-import { createFileRoute, Outlet, useLocation } from '@tanstack/react-router';
-import { SidebarInset, useSidebar } from '@voidhash/ui';
-import { useEffect } from 'react';
-import { NavBar } from '@/features/shell';
-import { OrganizationSettingsSidebar } from '@/features/shell/organization-settings-sidebar';
-import { OrganizationSidebar } from '@/features/shell/organization-sidebar';
+import { Outlet, createFileRoute, useLocation } from "@tanstack/react-router";
+import { SidebarInset, useSidebar } from "@voidhash/ui";
+import { useEffect } from "react";
+
+import { NavBar } from "@/features/shell";
+import { OrganizationSettingsSidebar } from "@/features/shell/organization-settings-sidebar";
+import { OrganizationSidebar } from "@/features/shell/organization-sidebar";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_organization/$organizationSlug'
+  "/_authenticated/_dashboard/_organization/$organizationSlug"
 )({
-  component: OrganizationLayout
+  component: OrganizationLayout,
 });
 
 export function LayoutSidebar({
   organizationSidebar,
-  organizationSettingsSidebar
+  organizationSettingsSidebar,
 }: {
   organizationSidebar: React.ReactNode;
   organizationSettingsSidebar: React.ReactNode;
 }) {
   const pathname = useLocation({
-    select: (location) => location.pathname
+    select: (location) => location.pathname,
   });
-  const isSettingsRoute = pathname.includes('/settings');
+  const isSettingsRoute = pathname.includes("/settings");
 
   const { setOpen } = useSidebar();
   useEffect(() => {

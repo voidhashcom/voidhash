@@ -1,18 +1,19 @@
-'use client';
+"use client";
 
-import type { Perk } from '@voidhash/rpc';
+import type { Perk } from "@voidhash/rpc";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle
-} from '@voidhash/ui';
-import { ProductDetailAddPerkButton } from './product-detail-add-perk-button';
+  CardTitle,
+} from "@voidhash/ui";
+
+import { ProductDetailAddPerkButton } from "./product-detail-add-perk-button";
 
 export function ProductDetailPerksEmptyState({
   productId,
-  perks
+  perks,
 }: {
   productId: string;
   perks: (typeof Perk.Type)[];

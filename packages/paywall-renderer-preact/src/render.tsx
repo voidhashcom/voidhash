@@ -1,10 +1,11 @@
 import type {
   RenderOptions,
   RenderResult,
-  SnapshotNode
-} from '@voidhash/paywall-renderer-web-core';
-import render from 'preact-render-to-string';
-import { Paywall } from './components/paywall';
+  SnapshotNode,
+} from "@voidhash/paywall-renderer-web-core";
+import render from "preact-render-to-string";
+
+import { Paywall } from "./components/paywall";
 
 export function renderPaywall(
   snapshot: SnapshotNode,

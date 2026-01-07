@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
   Card,
@@ -15,25 +15,25 @@ import {
   FormField,
   FormItem,
   FormMessage,
-  Input
-} from '@voidhash/ui';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { queryKeys } from 'src/lib/tanstack-query';
-import { updateOrganizationOptions } from 'src/lib/tanstack-query/organizations';
-import { z } from 'zod/v3';
+  Input,
+} from "@voidhash/ui";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { queryKeys } from "src/lib/tanstack-query";
+import { updateOrganizationOptions } from "src/lib/tanstack-query/organizations";
+import { z } from "zod/v3";
 
 const updateTeamNameSchema = z.object({
   name: z
     .string()
-    .min(1, 'Team name is required')
-    .max(32, 'Team name must be less than 32 characters')
+    .min(1, "Team name is required")
+    .max(32, "Team name must be less than 32 characters"),
 });
 
 type UpdateTeamNameForm = z.infer<typeof updateTeamNameSchema>;
 
 export function TeamNameForm({
-  organization
+  organization,
 }: {
   organization: {
     id: string;
@@ -41,22 +41,22 @@ export function TeamNameForm({
   };
 }) {
   const form = useForm<UpdateTeamNameForm>({
-    resolver: zodResolver(updateTeamNameSchema),
     defaultValues: {
-      name: organization?.name
-    }
+      name: organization?.name,
+    },
+    resolver: zodResolver(updateTeamNameSchema),
   });
 
   const queryClient = useQueryClient();
   const { mutate: updateTeamName, status: updateTeamNameStatus } = useMutation({
     ...updateOrganizationOptions(),
     onSuccess: () => {
-      toast.success('Team name updated successfully');
+      toast.success("Team name updated successfully");
       queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
     },
     onError: () => {
-      toast.error('Failed to update team name');
-    }
+      toast.error("Failed to update team name");
+    },
   });
 
   const onSubmit = (data: UpdateTeamNameForm) => {
@@ -64,8 +64,8 @@ export function TeamNameForm({
       return;
     }
     updateTeamName({
+      name: data.name,
       organizationId: organization.id,
-      name: data.name
     });
   };
 
@@ -104,10 +104,10 @@ export function TeamNameForm({
             </div>
             <div>
               <Button
-                disabled={updateTeamNameStatus === 'pending'}
+                disabled={updateTeamNameStatus === "pending"}
                 type="submit"
               >
-                {updateTeamNameStatus === 'pending' ? 'Saving...' : 'Save'}
+                {updateTeamNameStatus === "pending" ? "Saving..." : "Save"}
               </Button>
             </div>
           </CardFooter>

@@ -1,13 +1,13 @@
 import {
+  type InsertApiKey,
+  type InsertProject,
   and,
   apiKeys,
   eq,
-  type InsertApiKey,
-  type InsertProject,
   organization,
-  projects
-} from '@voidhash/db';
-import type { Db } from '@voidhash/db/effect';
+  projects,
+} from "@voidhash/db";
+import type { Db } from "@voidhash/db/effect";
 
 export const _createApiKeyRecord = (db: Db) =>
   db.makeQuery((execute, apiKey: InsertApiKey) =>
@@ -27,7 +27,7 @@ export const _getOrganizationBySlug = (db: Db) =>
     execute(
       async (db) =>
         await db.query.organization.findFirst({
-          where: eq(organization.slug, slug)
+          where: eq(organization.slug, slug),
         })
     )
   );
@@ -38,7 +38,7 @@ export const _getProjectBySlug = (db: Db) =>
       execute,
       {
         projectSlug,
-        organizationId
+        organizationId,
       }: { projectSlug: string; organizationId: string }
     ) =>
       execute(
@@ -47,7 +47,7 @@ export const _getProjectBySlug = (db: Db) =>
             where: and(
               eq(projects.slug, projectSlug),
               eq(projects.organizationId, organizationId)
-            )
+            ),
           })
       )
   );
@@ -57,7 +57,7 @@ export const _getProjectById = (db: Db) =>
     execute(
       async (db) =>
         await db.query.projects.findFirst({
-          where: eq(projects.id, id)
+          where: eq(projects.id, id),
         })
     )
   );
@@ -67,7 +67,7 @@ export const _getProjectsByOrganizationId = (db: Db) =>
     execute(
       async (db) =>
         await db.query.projects.findMany({
-          where: eq(projects.organizationId, organizationId)
+          where: eq(projects.organizationId, organizationId),
         })
     )
   );

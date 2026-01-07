@@ -1,1 +1,1 @@
-export const BASE_PATH = '/studio';
+export const BASE_PATH = "/studio";

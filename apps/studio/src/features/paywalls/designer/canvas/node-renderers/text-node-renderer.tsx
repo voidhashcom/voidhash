@@ -1,17 +1,18 @@
-import type { TextNodeData } from '@voidhash/mimic-schema';
-import { buildTextStyles } from '@voidhash/paywall-renderer-web-core';
-import { useEffect, useRef } from 'react';
-import { useStore } from 'zustand/react';
+import type { TextNodeData } from "@voidhash/mimic-schema";
+import { buildTextStyles } from "@voidhash/paywall-renderer-web-core";
+import { useEffect, useRef } from "react";
+import { useStore } from "zustand/react";
+
 import {
   textEditingStarted,
   textEditingStopped,
-  updateTextNode
-} from '../../state/actions';
+  updateTextNode,
+} from "../../state/actions";
 import {
   usePaywallDesignerActions,
-  usePaywallDesignerStore
-} from '../../state/designer-store';
-import { Selectable } from '../helpers/selectable';
+  usePaywallDesignerStore,
+} from "../../state/designer-store";
+import { Selectable } from "../helpers/selectable";
 
 export function TextNodeRenderer({ node }: { node: TextNodeData }) {
   const store = usePaywallDesignerStore();
@@ -63,23 +64,23 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
   };
 
   const handleBlur = () => {
-    const finalValue = editableRef.current?.textContent ?? '';
+    const finalValue = editableRef.current?.textContent ?? "";
     dispatch(textEditingStopped)({ id: node.id });
     // Save the changes
     if (finalValue !== node.text) {
       dispatch(updateTextNode)({
         id: node.id,
-        updates: { text: finalValue }
+        updates: { text: finalValue },
       });
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       e.currentTarget.blur();
     }
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       // Reset content to original value
       if (editableRef.current) {
         editableRef.current.textContent = node.text;
@@ -92,13 +93,13 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
     <Selectable nodeId={node.id}>
       {(selectableProps) => {
         const { role, onMouseDown, ...otherSelectableProps } = selectableProps;
-        const elementRole = isEditing ? 'textbox' : role;
+        const elementRole = isEditing ? "textbox" : role;
         return (
           // biome-ignore lint/a11y/noStaticElementInteractions: We need a div to support both selectable (button role) and editable (textbox role) modes
           // biome-ignore lint/nursery/noNoninteractiveElementInteractions: We need a div to support both selectable (button role) and editable (textbox role) modes
           <div
             contentEditable={isEditing}
-            key={isEditing ? 'editing' : 'display'}
+            key={isEditing ? "editing" : "display"}
             onBlur={handleBlur}
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
@@ -109,9 +110,9 @@ export function TextNodeRenderer({ node }: { node: TextNodeData }) {
             style={{
               ...(buildTextStyles(node.style) as React.CSSProperties),
               // Editor-specific overrides
-              userSelect: isEditing ? 'text' : 'none',
-              outline: isEditing ? '1px solid currentColor' : 'none',
-              cursor: isEditing ? 'text' : 'default'
+              userSelect: isEditing ? "text" : "none",
+              outline: isEditing ? "1px solid currentColor" : "none",
+              cursor: isEditing ? "text" : "default",
             }}
             suppressContentEditableWarning
             {...otherSelectableProps}

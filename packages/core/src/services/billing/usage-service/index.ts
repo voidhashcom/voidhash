@@ -1,14 +1,15 @@
-import { Effect } from 'effect';
-import { checkLimit } from './check-limit';
-import { getUsage } from './get-usage';
-import { getAllUsageSummaries, getUsageSummary } from './get-usage-summary';
-import { recordUsage } from './record-usage';
+import { Effect } from "effect";
+
+import { checkLimit } from "./check-limit";
+import { getUsage } from "./get-usage";
+import { getAllUsageSummaries, getUsageSummary } from "./get-usage-summary";
+import { recordUsage } from "./record-usage";
 
 export class UsageService extends Effect.Service<UsageService>()(
-  'UsageService',
+  "UsageService",
   {
     dependencies: [],
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       return {
         /**
          * Record a usage event for a metric
@@ -35,8 +36,8 @@ export class UsageService extends Effect.Service<UsageService>()(
          * Check if approaching or over limit (returns warning or null)
          * Use this for warn-only enforcement
          */
-        checkLimit: yield* checkLimit
+        checkLimit: yield* checkLimit,
       } as const;
-    })
+    }),
   }
 ) {}

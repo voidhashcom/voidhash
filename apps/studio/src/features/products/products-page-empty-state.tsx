@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Button,
@@ -6,10 +6,11 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle
-} from '@voidhash/ui';
-import { useState } from 'react';
-import { CreateProductModal } from './create-product-modal';
+  CardTitle,
+} from "@voidhash/ui";
+import { useState } from "react";
+
+import { CreateProductModal } from "./create-product-modal";
 
 export function ProductsPageEmptyState({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);

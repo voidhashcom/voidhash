@@ -1,9 +1,9 @@
-import { Link } from '@tanstack/react-router';
-import { Logo } from '@voidhash/ui';
+import { Link } from "@tanstack/react-router";
+import { Logo } from "@voidhash/ui";
 
 export function NavBarLogo({
   organizationSlug,
-  projectSlug
+  projectSlug,
 }: {
   organizationSlug: string | null;
   projectSlug: string | null;
@@ -11,16 +11,16 @@ export function NavBarLogo({
   const homeLink = (() => {
     if (organizationSlug && !projectSlug) {
       return {
-        href: `/${organizationSlug}`
+        href: `/${organizationSlug}`,
       } as const;
     }
     if (organizationSlug && projectSlug) {
       return {
-        href: `/${organizationSlug}/${projectSlug}`
+        href: `/${organizationSlug}/${projectSlug}`,
       } as const;
     }
     return {
-      href: '/'
+      href: "/",
     } as const;
   })();
 

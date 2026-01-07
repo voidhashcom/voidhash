@@ -5,7 +5,7 @@
  * Selection state is stored in presence for real-time collaboration.
  */
 
-import { commander } from '../designer-commander';
+import { commander } from "../designer-commander";
 
 // =============================================================================
 // Helper Types
@@ -81,7 +81,7 @@ export const selectNode = commander.action<{ id: string; many: boolean }>(
       if (currentPresence) {
         mimic.document.presence?.set({
           ...currentPresence,
-          selectedNodeIds: [params.id]
+          selectedNodeIds: [params.id],
         });
       }
       return;
@@ -115,21 +115,21 @@ export const selectNode = commander.action<{ id: string; many: boolean }>(
 
     // Remove all children of the newly selected node
     const flattenedSubtree = flattenSnapshot(nodeSubtree);
-    const nodeIdsToUnselect = flattenedSubtree
-      .map((node) => node.id)
-      .filter((id) => id !== params.id);
-
-    const newSelectedNodeIds = [...selectedNodeIds, params.id].filter(
-      (id) => !nodeIdsToUnselect.includes(id)
+    const nodeIdsToUnselect = new Set(
+      flattenedSubtree.map((node) => node.id).filter((id) => id !== params.id)
     );
 
-    const uniqueSelectedNodeIds = Array.from(new Set(newSelectedNodeIds));
+    const newSelectedNodeIds = [...selectedNodeIds, params.id].filter(
+      (id) => !nodeIdsToUnselect.has(id)
+    );
+
+    const uniqueSelectedNodeIds = [...new Set(newSelectedNodeIds)];
 
     // Update presence for collaboration
     if (currentPresence) {
       mimic.document.presence?.set({
         ...currentPresence,
-        selectedNodeIds: uniqueSelectedNodeIds
+        selectedNodeIds: uniqueSelectedNodeIds,
       });
     }
   }
@@ -150,7 +150,7 @@ export const unselectNode = commander.action<{ id: string }>((ctx, params) => {
   if (currentPresence) {
     mimic.document.presence?.set({
       ...currentPresence,
-      selectedNodeIds: newSelectedNodeIds
+      selectedNodeIds: newSelectedNodeIds,
     });
   }
 });
@@ -168,7 +168,7 @@ export const clearSelection = commander.action((ctx) => {
   if (currentPresence) {
     mimic.document.presence?.set({
       ...currentPresence,
-      selectedNodeIds: []
+      selectedNodeIds: [],
     });
   }
 });

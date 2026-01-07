@@ -1,5 +1,6 @@
-import type { DNF, VariableType } from '@voidhash/mimic-schema';
-import type { VariableInputValue } from '../variables/types';
+import type { DNF, VariableType } from "@voidhash/mimic-schema";
+
+import type { VariableInputValue } from "../variables/types";
 
 /**
  * Variable with nested value structure (as stored in CRDT).
@@ -48,12 +49,12 @@ export type LocalOperand = VariableInputValue;
  */
 export interface LocalPredicate {
   type:
-    | 'equals'
-    | 'not-equals'
-    | 'greater-than'
-    | 'greater-than-or-equal'
-    | 'less-than'
-    | 'less-than-or-equal';
+    | "equals"
+    | "not-equals"
+    | "greater-than"
+    | "greater-than-or-equal"
+    | "less-than"
+    | "less-than-or-equal";
   value: {
     left: LocalOperand;
     right: LocalOperand;
@@ -64,7 +65,7 @@ export interface LocalPredicate {
  * Local conjunction (AND group) for editing.
  */
 export interface LocalConjunction {
-  type: 'and';
+  type: "and";
   value: LocalPredicate[];
 }
 
@@ -72,6 +73,6 @@ export interface LocalConjunction {
  * Local DNF (Disjunctive Normal Form) for editing.
  */
 export interface LocalDNF {
-  type: 'or';
+  type: "or";
   value: LocalConjunction[];
 }

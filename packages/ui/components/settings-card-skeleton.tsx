@@ -4,17 +4,16 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle
-} from './ui/card';
-
-import { Skeleton } from './ui/skeleton';
+  CardTitle,
+} from "./ui/card";
+import { Skeleton } from "./ui/skeleton";
 
 export function SettingsCardSkeleton({
   description = true,
   footer = true,
   content = false,
   instructions = true,
-  action = true
+  action = true,
 }: {
   description?: boolean;
   footer?: boolean;

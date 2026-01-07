@@ -1,18 +1,18 @@
-import { oauthProviderOpenIdConfigMetadata } from '@better-auth/oauth-provider';
-import { createFileRoute } from '@tanstack/react-router';
-import { auth } from '../../lib/auth';
+import { oauthProviderOpenIdConfigMetadata } from "@better-auth/oauth-provider";
+import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/.well-known/openid-configuration')({
+import { auth } from "../../lib/auth";
+
+export const Route = createFileRoute("/.well-known/openid-configuration")({
   server: {
     handlers: {
-      GET: ({ request }) => {
-        return oauthProviderOpenIdConfigMetadata(auth, {
+      GET: ({ request }) =>
+        oauthProviderOpenIdConfigMetadata(auth, {
           headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET'
-          }
-        })(request);
-      }
-    }
-  }
+            "Access-Control-Allow-Methods": "GET",
+            "Access-Control-Allow-Origin": "*",
+          },
+        })(request),
+    },
+  },
 });

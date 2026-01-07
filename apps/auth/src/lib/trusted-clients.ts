@@ -1,10 +1,10 @@
-import { env } from './env';
+import { env } from "./env";
 
 export interface TrustedClientConfig {
   clientId: string;
   clientSecret: string;
   name: string;
-  type: 'web' | 'native' | 'user-agent-based';
+  type: "web" | "native" | "user-agent-based";
   redirectUris: string[];
   disabled: boolean;
   skipConsent: boolean;
@@ -16,35 +16,35 @@ export const TRUSTED_CLIENTS: TrustedClientConfig[] = [
   {
     clientId: env.VOIDHASH_STUDIO_CLIENT_ID,
     clientSecret: env.VOIDHASH_STUDIO_CLIENT_SECRET,
-    name: 'Voidhash Studio',
-    type: 'web',
-    redirectUris: [env.VOIDHASH_STUDIO_REDIRECT_URL],
     disabled: false,
-    skipConsent: true,
     enable_end_session: true,
-    metadata: { internal: true }
+    metadata: { internal: true },
+    name: "Voidhash Studio",
+    redirectUris: [env.VOIDHASH_STUDIO_REDIRECT_URL],
+    skipConsent: true,
+    type: "web",
   },
   {
     clientId: env.VOIDHASH_MOBILE_CLIENT_ID,
     clientSecret: env.VOIDHASH_MOBILE_CLIENT_SECRET,
-    name: 'Voidhash Mobile',
-    type: 'native',
+    disabled: false,
     enable_end_session: false,
+    metadata: { internal: true },
+    name: "Voidhash Mobile",
     redirectUris: [
       // Production - custom scheme
-      'voidhash://auth/callback',
+      "voidhash://auth/callback",
       // Development - custom scheme with path
-      ...(process.env.NEXT_PUBLIC_VERCEL_ENV === 'development'
+      ...(process.env.NEXT_PUBLIC_VERCEL_ENV === "development"
         ? [
-            'http://localhost:8081/auth/callback',
-            'voidhash-dev://auth/callback'
+            "http://localhost:8081/auth/callback",
+            "voidhash-dev://auth/callback",
           ]
-        : [])
+        : []),
     ],
-    disabled: false,
     skipConsent: true,
-    metadata: { internal: true }
-  }
+    type: "native",
+  },
 ];
 
 // Set of trusted client IDs for caching

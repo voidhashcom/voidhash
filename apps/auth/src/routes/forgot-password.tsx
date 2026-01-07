@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 import {
   Alert,
   AlertDescription,
@@ -11,19 +12,27 @@ import {
   CardTitle,
   Input,
   Label,
-  Logo
-} from '@voidhash/ui';
-import { ArrowLeft, CheckCircle, Loader2, Mail } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { authClient } from '../lib/auth-client';
+  Logo,
+} from "@voidhash/ui";
+import { ArrowLeft, CheckCircle, Loader2, Mail } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { z } from "zod";
 
-export const Route = createFileRoute('/forgot-password')({
-  component: ForgotPasswordPage
+import { authClient } from "../lib/auth-client";
+
+const forgotPasswordSearchSchema = z.object({
+  next: z.string().optional(),
+});
+
+export const Route = createFileRoute("/forgot-password")({
+  component: ForgotPasswordPage,
+  validateSearch: zodValidator(forgotPasswordSearchSchema),
 });
 
 export function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
+  const searchParams = Route.useSearch();
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
@@ -32,20 +41,23 @@ export function ForgotPasswordPage() {
     setLoading(true);
 
     try {
+      const resetRedirectUrl = searchParams.next
+        ? `/reset-password?next=${encodeURIComponent(searchParams.next)}`
+        : "/reset-password";
       const { error } = await authClient.requestPasswordReset({
         email,
-        redirectTo: '/reset-password'
+        redirectTo: resetRedirectUrl,
       });
 
       if (error) {
-        toast.error(error.message ?? 'An error occurred. Please try again.');
+        toast.error(error.message ?? "An error occurred. Please try again.");
         setLoading(false);
         return;
       }
 
       setEmailSent(true);
-    } catch (_error) {
-      toast.error('An error occurred. Please try again.');
+    } catch {
+      toast.error("An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -68,7 +80,7 @@ export function ForgotPasswordPage() {
                 </div>
                 <CardTitle className="text-2xl">Check your email</CardTitle>
                 <CardDescription>
-                  We&apos;ve sent a password reset link to{' '}
+                  We&apos;ve sent a password reset link to{" "}
                   <span className="font-medium text-foreground">{email}</span>
                 </CardDescription>
               </CardHeader>
@@ -77,12 +89,12 @@ export function ForgotPasswordPage() {
                   <Mail className="h-4 w-4" />
                   <AlertTitle>Didn&apos;t receive the email?</AlertTitle>
                   <AlertDescription>
-                    Check your spam folder or{' '}
+                    Check your spam folder or{" "}
                     <button
                       className="underline underline-offset-4"
                       onClick={() => {
                         setEmailSent(false);
-                        setEmail('');
+                        setEmail("");
                       }}
                       type="button"
                     >
@@ -93,6 +105,7 @@ export function ForgotPasswordPage() {
                 <div className="text-center">
                   <Link
                     className="inline-flex items-center gap-2 text-muted-foreground text-sm hover:text-foreground"
+                    search={{ next: searchParams.next }}
                     to="/login"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -145,12 +158,13 @@ export function ForgotPasswordPage() {
                       Sending...
                     </>
                   ) : (
-                    'Send reset link'
+                    "Send reset link"
                   )}
                 </Button>
                 <div className="text-center">
                   <Link
                     className="inline-flex items-center gap-2 text-muted-foreground text-sm hover:text-foreground"
+                    search={{ next: searchParams.next }}
                     to="/login"
                   >
                     <ArrowLeft className="h-4 w-4" />

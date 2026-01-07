@@ -1,10 +1,11 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { DesignerDetailPage } from '@/features/paywalls/designer/paywall-designer';
+import { createFileRoute } from "@tanstack/react-router";
+
+import { DesignerDetailPage } from "@/features/paywalls/designer/paywall-designer";
 
 export const Route = createFileRoute(
-  '/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id'
+  "/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id"
 )({
-  component: DesignerDetailPageComponent
+  component: DesignerDetailPageComponent,
 });
 
 function DesignerDetailPageComponent() {

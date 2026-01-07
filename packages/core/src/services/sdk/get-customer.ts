@@ -1,25 +1,26 @@
-import { Db, TransactionContext } from '@voidhash/db/effect';
+import { Db, TransactionContext } from "@voidhash/db/effect";
 import {
-  AuthenticationError,
   AuthSession,
+  AuthenticationError,
   SdkCustomerNotFoundError,
   SdkServiceError,
-  SdkValidationError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { _getCustomerByAppUserId, _getCustomerById } from './utils';
+  SdkValidationError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
 
-export const getCustomer = Effect.gen(function* () {
+import { _getCustomerByAppUserId, _getCustomerById } from "./utils";
+
+export const getCustomer = Effect.gen(function* getCustomer() {
   const db = yield* Db;
-  return Effect.fn('getCustomer')(
-    function* () {
+  return Effect.fn("getCustomer")(
+    function* getCustomer() {
       const session = yield* AuthSession;
 
       const appUserId = session?.customer?.appUserId;
       if (!appUserId) {
         return yield* Effect.fail(
           new SdkValidationError({
-            message: 'App user ID not found'
+            message: "App user ID not found",
           })
         );
       }
@@ -29,20 +30,20 @@ export const getCustomer = Effect.gen(function* () {
         return yield* Effect.fail(
           new AuthenticationError({
             cause:
-              'No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.',
+              "No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.",
             message:
-              'No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.'
+              "No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.",
           })
         );
       }
 
       const result = yield* db.transaction((tx) =>
         TransactionContext.provide(tx)(
-          Effect.gen(function* () {
+          Effect.gen(function* result() {
             // Try to get existing customer
             const customer = yield* _getCustomerByAppUserId(db)({
               appUserId,
-              projectId
+              projectId,
             });
 
             if (customer) {
@@ -59,7 +60,7 @@ export const getCustomer = Effect.gen(function* () {
             // Customer not found and not anonymous ID
             return yield* Effect.fail(
               new SdkCustomerNotFoundError({
-                message: 'Customer not found'
+                message: "Customer not found",
               })
             );
           })
@@ -69,16 +70,16 @@ export const getCustomer = Effect.gen(function* () {
       if (!result) {
         return yield* Effect.fail(
           new SdkCustomerNotFoundError({
-            message: 'Customer not found'
+            message: "Customer not found",
           })
         );
       }
 
       return {
         appUserId: result.appUserId,
-        name: result.name,
+        customerId: result.id,
         email: result.email,
-        customerId: result.id
+        name: result.name,
       };
     },
     (effect) =>
@@ -86,8 +87,8 @@ export const getCustomer = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new SdkServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

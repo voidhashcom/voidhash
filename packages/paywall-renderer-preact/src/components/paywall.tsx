@@ -1,11 +1,12 @@
-import type { SnapshotNode } from '@voidhash/paywall-renderer-web-core';
-import { Flex } from './flex';
-import { Screen } from './screen';
-import { Text } from './text';
+import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 
-type PaywallProps = {
+import { Flex } from "./flex";
+import { Screen } from "./screen";
+import { Text } from "./text";
+
+interface PaywallProps {
   snapshot: SnapshotNode;
-};
+}
 
 export function Paywall({ snapshot }: PaywallProps) {
   return <Node node={snapshot} />;
@@ -17,15 +18,20 @@ function Node({ node }: { node: SnapshotNode }) {
   ));
 
   switch (node.type) {
-    case 'root':
+    case "root": {
       return <>{children}</>;
-    case 'screen':
+    }
+    case "screen": {
       return <Screen node={node}>{children}</Screen>;
-    case 'flex':
+    }
+    case "flex": {
       return <Flex node={node}>{children}</Flex>;
-    case 'text':
+    }
+    case "text": {
       return <Text node={node} />;
-    default:
+    }
+    default: {
       throw new Error(`Unknown node type: ${(node as SnapshotNode).type}`);
+    }
   }
 }

@@ -1,7 +1,7 @@
-import { Page } from 'src/features/shell';
+import { Page } from "src/features/shell";
 
 export function BillingSettingsLayout({
-  children
+  children,
 }: {
   children: React.ReactNode;
 }) {

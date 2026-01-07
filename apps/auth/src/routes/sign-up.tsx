@@ -1,6 +1,6 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { zodValidator } from '@tanstack/zod-adapter';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 import {
   Button,
   Card,
@@ -15,40 +15,41 @@ import {
   FormLabel,
   FormMessage,
   Input,
-  Logo
-} from '@voidhash/ui';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod/v3';
-import { authClient } from '../lib/auth-client';
+  Logo,
+} from "@voidhash/ui";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod/v3";
+
+import { authClient } from "../lib/auth-client";
 
 const signUpSearchSchema = z.object({
   email: z.string().optional(),
-  next: z.string().optional()
+  next: z.string().optional(),
 });
 
-export const Route = createFileRoute('/sign-up')({
+export const Route = createFileRoute("/sign-up")({
   component: SignUpPage,
-  validateSearch: zodValidator(signUpSearchSchema)
+  validateSearch: zodValidator(signUpSearchSchema),
 });
 
 const signUpSchema = z
   .object({
-    name: z.string().min(2, 'Name must be at least 2 characters'),
-    email: z.string().email('Please enter a valid email address'),
+    confirmPassword: z.string(),
+    email: z.string().email("Please enter a valid email address"),
+    name: z.string().min(2, "Name must be at least 2 characters"),
     password: z
       .string()
-      .min(8, 'Password must be at least 8 characters')
+      .min(8, "Password must be at least 8 characters")
       .regex(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+        "Password must contain at least one uppercase letter, one lowercase letter, and one number"
       ),
-    confirmPassword: z.string()
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword']
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
   });
 
 type SignUpForm = z.infer<typeof signUpSchema>;
@@ -59,36 +60,36 @@ export function SignUpPage() {
   const navigate = Route.useNavigate();
 
   const form = useForm<SignUpForm>({
-    resolver: zodResolver(signUpSchema),
     defaultValues: {
-      name: '',
-      email: searchParams.email ?? '',
-      password: '',
-      confirmPassword: ''
-    }
+      confirmPassword: "",
+      email: searchParams.email ?? "",
+      name: "",
+      password: "",
+    },
+    resolver: zodResolver(signUpSchema),
   });
 
   const onSubmit = async (data: SignUpForm) => {
     setLoading(true);
     const { error } = await authClient.signUp.email({
       email: data.email,
+      name: data.name,
       password: data.password,
-      name: data.name
     });
 
     if (error) {
-      toast.error(error.message ?? 'An unknown error occurred');
+      toast.error(error.message ?? "An unknown error occurred");
       setLoading(false);
       return;
     }
 
     navigate({
-      to: '/login',
       search: {
         email: data.email,
+        next: searchParams.next,
         signup: true,
-        next: searchParams.next
-      }
+      },
+      to: "/login",
     });
     setLoading(false);
   };
@@ -172,12 +173,12 @@ export function SignUpPage() {
                     )}
                   />
                   <Button className="w-full" disabled={loading} type="submit">
-                    {loading ? 'Loading...' : 'Sign Up'}
+                    {loading ? "Loading..." : "Sign Up"}
                   </Button>
                 </form>
               </Form>
               <div className="mt-4 text-center text-sm">
-                Already have an account?{' '}
+                Already have an account?{" "}
                 <Link
                   className="underline underline-offset-4"
                   search={{ next: searchParams.next }}

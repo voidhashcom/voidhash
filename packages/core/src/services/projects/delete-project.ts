@@ -1,17 +1,18 @@
-import { Db } from '@voidhash/db/effect';
+import { Db } from "@voidhash/db/effect";
 import {
   AuthSession,
   ProjectNotFoundError,
-  ProjectServiceError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
-import { _deleteProjectRecord, _getProjectById } from './utils';
+  ProjectServiceError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
 
-export const deleteProject = Effect.gen(function* () {
+import { checkProjectPermission } from "../../utils/permissions";
+import { _deleteProjectRecord, _getProjectById } from "./utils";
+
+export const deleteProject = Effect.gen(function* deleteProject() {
   const db = yield* Db;
-  return Effect.fn('deleteProject')(
-    function* (input: { id: string }) {
+  return Effect.fn("deleteProject")(
+    function* deleteProject(input: { id: string }) {
       const session = yield* AuthSession;
 
       // First check if project exists
@@ -19,7 +20,7 @@ export const deleteProject = Effect.gen(function* () {
       if (!project) {
         return yield* Effect.fail(
           new ProjectNotFoundError({
-            projectId: input.id
+            projectId: input.id,
           })
         );
       }
@@ -27,7 +28,7 @@ export const deleteProject = Effect.gen(function* () {
       // SECURITY: Authorization check
       yield* checkProjectPermission(
         input.id,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to delete project ${input.id}`
       );
 
@@ -36,15 +37,15 @@ export const deleteProject = Effect.gen(function* () {
 
       yield* Effect.log(`Deleted project ${input.id}`);
 
-      return yield* Effect.succeed(undefined);
+      return yield* Effect.void;
     },
     (effect) =>
       effect.pipe(
         Effect.catchTags({
           DatabaseError: (error) =>
             new ProjectServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

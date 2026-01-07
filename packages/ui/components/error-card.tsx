@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { cn } from '../lib/utils';
-import { Logo } from './logo';
-import { Button } from './ui/button';
+import { cn } from "../lib/utils";
+import { Logo } from "./logo";
+import { Button } from "./ui/button";
 
 export function ErrorCard({
   title,
   description,
   onRetry,
-  className
+  className,
 }: {
   title: string;
   description: string;
@@ -18,7 +18,7 @@ export function ErrorCard({
   return (
     <div
       className={cn(
-        'flex flex-1 flex-col items-center justify-center gap-6',
+        "flex flex-1 flex-col items-center justify-center gap-6",
         className
       )}
     >

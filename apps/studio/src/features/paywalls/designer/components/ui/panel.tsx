@@ -1,8 +1,8 @@
-import { cn } from '@voidhash/ui';
+import { cn } from "@voidhash/ui";
 
 export function Panel({
   children,
-  className
+  className,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -10,7 +10,7 @@ export function Panel({
   return (
     <div
       className={cn(
-        'relative flex flex-1 flex-col divide-y divide-border',
+        "relative flex flex-1 flex-col divide-y divide-border",
         className
       )}
     >
@@ -21,7 +21,7 @@ export function Panel({
 
 export function PanelFooter({
   children,
-  className
+  className,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -29,7 +29,7 @@ export function PanelFooter({
   return (
     <div
       className={cn(
-        'sticky right-0 bottom-0 left-0 bg-sidebar px-4 pt-4 pb-4',
+        "sticky right-0 bottom-0 left-0 bg-sidebar px-4 pt-4 pb-4",
         className
       )}
     >

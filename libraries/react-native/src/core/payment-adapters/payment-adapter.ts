@@ -1,11 +1,12 @@
-import type { ProductNotFoundError } from '@voidhash/shared';
-import { Context, type Effect } from 'effect';
-import type { Product, SubscriptionProduct } from '../entities/product';
-import type { Transaction } from '../entities/transaction';
+import type { ProductNotFoundError } from "@voidhash/shared";
+import { Context, type Effect } from "effect";
+
+import type { Product, SubscriptionProduct } from "../entities/product";
+import type { Transaction } from "../entities/transaction";
 import type {
   ExtractSchemaProductDefinitions,
-  VoidhashSchema
-} from '../schema';
+  VoidhashSchema,
+} from "../schema";
 import type {
   FailedToAcknowledgePurchaseError,
   FailedToBuyProductError,
@@ -18,10 +19,10 @@ import type {
   GetPurchaseHistoryError,
   NativeAdapterNotInitializedError,
   PurchasePendingError,
-  UserCancelledError
-} from './errors';
+  UserCancelledError,
+} from "./errors";
 
-export class PaymentAdapter extends Context.Tag('rn-voidhash/PaymentAdapter')<
+export class PaymentAdapter extends Context.Tag("rn-voidhash/PaymentAdapter")<
   PaymentAdapter,
   {
     initConnection(
@@ -32,7 +33,7 @@ export class PaymentAdapter extends Context.Tag('rn-voidhash/PaymentAdapter')<
 
     getProducts<
       TSchema extends VoidhashSchema,
-      TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>
+      TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>,
     >(
       productDefinitions: TDefinedProducts
     ): Effect.Effect<

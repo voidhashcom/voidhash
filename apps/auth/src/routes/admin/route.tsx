@@ -1,11 +1,12 @@
-import { createFileRoute, Outlet } from '@tanstack/react-router';
-import { authAdminMiddleware } from '../../middleware/auth-admin';
+import { Outlet, createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/admin')({
+import { authAdminMiddleware } from "../../middleware/auth-admin";
+
+export const Route = createFileRoute("/admin")({
   component: AdminLayout,
   server: {
-    middleware: [authAdminMiddleware]
-  }
+    middleware: [authAdminMiddleware],
+  },
 });
 
 function AdminLayout() {

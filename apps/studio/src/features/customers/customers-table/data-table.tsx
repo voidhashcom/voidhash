@@ -1,21 +1,20 @@
-'use client';
+"use client";
 
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from "@tanstack/react-router";
 import {
   type ColumnDef,
   flexRender,
   getCoreRowModel,
-  useReactTable
-} from '@tanstack/react-table';
-
+  useReactTable,
+} from "@tanstack/react-table";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
-} from '@voidhash/ui';
+  TableRow,
+} from "@voidhash/ui";
 
 interface DataTableProps<TData extends { id: string }, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -28,12 +27,12 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   organizationSlug,
-  projectSlug
+  projectSlug,
 }: DataTableProps<TData & { id: string }, TValue>) {
   const table = useReactTable({
-    data,
     columns,
-    getCoreRowModel: getCoreRowModel()
+    data,
+    getCoreRowModel: getCoreRowModel(),
   });
 
   const navigate = useNavigate();
@@ -44,18 +43,16 @@ export function DataTable<TData, TValue>({
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                return (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                );
-              })}
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </TableHead>
+              ))}
             </TableRow>
           ))}
         </TableHeader>
@@ -64,16 +61,16 @@ export function DataTable<TData, TValue>({
             table.getRowModel().rows.map((row) => (
               <TableRow
                 className="cursor-pointer"
-                data-state={row.getIsSelected() && 'selected'}
+                data-state={row.getIsSelected() && "selected"}
                 key={row.id}
                 onClick={() => {
                   navigate({
-                    to: '/$organizationSlug/$projectSlug/customers/$id',
                     params: {
+                      id: row.original.id,
                       organizationSlug,
                       projectSlug,
-                      id: row.original.id
-                    }
+                    },
+                    to: "/$organizationSlug/$projectSlug/customers/$id",
                   });
                 }}
               >

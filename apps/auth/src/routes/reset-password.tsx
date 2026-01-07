@@ -1,6 +1,6 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { zodValidator } from '@tanstack/zod-adapter';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 import {
   Alert,
   AlertDescription,
@@ -17,38 +17,40 @@ import {
   FormLabel,
   FormMessage,
   Input,
-  Logo
-} from '@voidhash/ui';
-import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod';
-import { authClient } from '../lib/auth-client';
+  Logo,
+} from "@voidhash/ui";
+import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { authClient } from "../lib/auth-client";
 
 const resetPasswordSearchSchema = z.object({
-  token: z.string().optional()
+  next: z.string().optional(),
+  token: z.string().optional(),
 });
 
-export const Route = createFileRoute('/reset-password')({
+export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
-  validateSearch: zodValidator(resetPasswordSearchSchema)
+  validateSearch: zodValidator(resetPasswordSearchSchema),
 });
 
 const resetPasswordSchema = z
   .object({
+    confirmPassword: z.string(),
     password: z
       .string()
-      .min(8, 'Password must be at least 8 characters')
+      .min(8, "Password must be at least 8 characters")
       .regex(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+        "Password must contain at least one uppercase letter, one lowercase letter, and one number"
       ),
-    confirmPassword: z.string()
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword']
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
   });
 
 type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
@@ -60,18 +62,18 @@ export function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<ResetPasswordForm>({
-    resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
-      password: '',
-      confirmPassword: ''
-    }
+      confirmPassword: "",
+      password: "",
+    },
+    resolver: zodResolver(resetPasswordSchema),
   });
 
-  const token = searchParams.token;
+  const { token } = searchParams;
 
   const onSubmit = async (data: ResetPasswordForm) => {
     if (!token) {
-      setError('Invalid or missing reset token');
+      setError("Invalid or missing reset token");
       return;
     }
 
@@ -81,17 +83,17 @@ export function ResetPasswordPage() {
     try {
       const { error: resetError } = await authClient.resetPassword({
         newPassword: data.password,
-        token
+        token,
       });
 
       if (resetError) {
-        if (resetError.message?.includes('expired')) {
+        if (resetError.message?.includes("expired")) {
           setError(
-            'This password reset link has expired. Please request a new one.'
+            "This password reset link has expired. Please request a new one."
           );
         } else {
           setError(
-            resetError.message ?? 'An error occurred. Please try again.'
+            resetError.message ?? "An error occurred. Please try again."
           );
         }
         setLoading(false);
@@ -99,9 +101,9 @@ export function ResetPasswordPage() {
       }
 
       setSuccess(true);
-      toast.success('Password reset successfully!');
-    } catch (_error) {
-      setError('An unexpected error occurred. Please try again.');
+      toast.success("Password reset successfully!");
+    } catch {
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -129,7 +131,11 @@ export function ResetPasswordPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link className="w-full" to="/forgot-password">
+                <Link
+                  className="w-full"
+                  search={{ next: searchParams.next }}
+                  to="/forgot-password"
+                >
                   <Button className="w-full" variant="outline">
                     Request new reset link
                   </Button>
@@ -164,7 +170,11 @@ export function ResetPasswordPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link className="w-full" to="/login">
+                <Link
+                  className="w-full"
+                  search={{ next: searchParams.next }}
+                  to="/login"
+                >
                   <Button className="w-full">Continue to Login</Button>
                 </Link>
               </CardContent>
@@ -248,7 +258,7 @@ export function ResetPasswordPage() {
                         Resetting...
                       </>
                     ) : (
-                      'Reset Password'
+                      "Reset Password"
                     )}
                   </Button>
                 </form>

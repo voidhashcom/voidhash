@@ -1,20 +1,20 @@
-import type { Schema } from 'effect';
+import type { Schema } from "effect";
 
-export type ApiKey = {
+export interface ApiKey {
   key: string;
   rawKey?: string;
   isPublic: boolean;
   end: string;
   prefix: string;
-};
+}
 
-export type CustomerMetadata = {
+export interface CustomerMetadata {
   appUserId: string;
   publishableKey: string;
   platform: string;
-  sdk: 'react-native';
+  sdk: "react-native";
   sdkVersion: string;
-  platformFlavor: 'native';
+  platformFlavor: "native";
   platformFlavorVersion?: string;
   platformVersion?: string;
   platformDevice?: string;
@@ -23,21 +23,21 @@ export type CustomerMetadata = {
   clientLocale?: string;
   clientVersion?: string;
   clientBundleId: string;
-  observerMode: 'false';
+  observerMode: "false";
   nonce?: string;
   storefront?: string;
-  isDebugBuild: 'true' | 'false';
-  isBackgrounded: 'false';
-};
+  isDebugBuild: "true" | "false";
+  isBackgrounded: "false";
+}
 
-export type PaymentProvider<
+export interface PaymentProvider<
   TGlobalConfigurationSchema,
   TProductConfigurationSchema,
   TCreateGlobalKeyConfiguration extends object,
-  TCreateProductKeyConfiguration extends object
-> = {
+  TCreateProductKeyConfiguration extends object,
+> {
   id: string;
-  type: 'native' | 'web-checkout';
+  type: "native" | "web-checkout";
   title: string;
   createGlobalKey: (configuration: TCreateGlobalKeyConfiguration) => string;
   defaultGlobalConfiguration: Schema.Schema.Type<TGlobalConfigurationSchema>;
@@ -45,4 +45,4 @@ export type PaymentProvider<
   createProductKey: (configuration: TCreateProductKeyConfiguration) => string;
   defaultProductConfiguration: Schema.Schema.Type<TProductConfigurationSchema>;
   productConfigurationSchema: TProductConfigurationSchema;
-};
+}

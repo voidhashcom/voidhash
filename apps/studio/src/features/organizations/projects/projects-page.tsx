@@ -1,7 +1,8 @@
-'use client';
-import { useParams } from 'next/navigation';
-import { Page } from 'src/features/shell';
-import { ProjectsList } from './projects-list';
+"use client";
+import { useParams } from "next/navigation";
+import { Page } from "src/features/shell";
+
+import { ProjectsList } from "./projects-list";
 
 export function ProjectsPage() {
   const { organizationSlug } = useParams();

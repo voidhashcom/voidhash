@@ -1,14 +1,15 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useAuth } from 'src/components/auth-context';
-import { SettingsGeneralLayout } from '@/features/organizations/settings/general/settings-general-layout';
-import { TeamDelete } from '@/features/organizations/settings/general/team-delete';
-import { TeamNameForm } from '@/features/organizations/settings/general/team-name';
-import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
+import { createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "src/components/auth-context";
+
+import { SettingsGeneralLayout } from "@/features/organizations/settings/general/settings-general-layout";
+import { TeamDelete } from "@/features/organizations/settings/general/team-delete";
+import { TeamNameForm } from "@/features/organizations/settings/general/team-name";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/general'
+  "/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/general"
 )({
-  component: SettingsGeneralPage
+  component: SettingsGeneralPage,
 });
 
 export function SettingsGeneralPage() {
@@ -22,8 +23,8 @@ export function SettingsGeneralPage() {
     return (
       <VoidhashErrorCard
         error={{
-          code: 'NOT_FOUND',
-          message: 'Organization not found'
+          code: "NOT_FOUND",
+          message: "Organization not found",
         }}
       />
     );

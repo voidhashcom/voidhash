@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Perk } from '@voidhash/rpc';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Perk } from "@voidhash/rpc";
 import {
   Button,
   Command,
@@ -10,46 +10,46 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  cn,
   Popover,
   PopoverContent,
-  PopoverTrigger
-} from '@voidhash/ui';
-import { Check } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { createProductPerkOptions, queryKeys } from 'src/lib/tanstack-query';
+  PopoverTrigger,
+  cn,
+} from "@voidhash/ui";
+import { Check } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { createProductPerkOptions, queryKeys } from "src/lib/tanstack-query";
 
 export function ProductDetailAddPerkButton({
   productId,
   perks,
-  variant = 'default'
+  variant = "default",
 }: {
   productId: string;
   perks: (typeof Perk.Type)[];
-  variant?: 'default' | 'secondary';
+  variant?: "default" | "secondary";
 }) {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState("");
 
   const queryClient = useQueryClient();
   const { mutate: createProductPerk } = useMutation({
     ...createProductPerkOptions(),
     onSuccess: () => {
-      toast.success('Perk added');
+      toast.success("Perk added");
       queryClient.invalidateQueries({
-        queryKey: queryKeys.productPerk.listByProduct({ productId })
+        queryKey: queryKeys.productPerk.listByProduct({ productId }),
       });
     },
     onError: () => {
-      toast.error('Failed to add perk');
-    }
+      toast.error("Failed to add perk");
+    },
   });
 
   const handleSelect = (perkId: string) => {
     createProductPerk({
+      perkId,
       productId,
-      perkId
     });
     setValue(perkId);
     setOpen(false);
@@ -74,15 +74,15 @@ export function ProductDetailAddPerkButton({
                   key={perk.id}
                   onSelect={() => {
                     handleSelect(perk.id);
-                    setValue('');
+                    setValue("");
                     setOpen(false);
                   }}
                   value={perk.id}
                 >
                   <Check
                     className={cn(
-                      'mr-2 h-4 w-4',
-                      value === perk.id ? 'opacity-100' : 'opacity-0'
+                      "mr-2 h-4 w-4",
+                      value === perk.id ? "opacity-100" : "opacity-0"
                     )}
                   />
                   {perk.name}

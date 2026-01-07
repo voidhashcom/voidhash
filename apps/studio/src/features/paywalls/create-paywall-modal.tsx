@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@voidhash/ui/button';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@voidhash/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,35 +10,35 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
-} from '@voidhash/ui/dialog';
+  DialogTrigger,
+} from "@voidhash/ui/dialog";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '@voidhash/ui/form';
-import { Input } from '@voidhash/ui/input';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { createPaywallOptions, queryKeys } from 'src/lib/tanstack-query';
-import { z } from 'zod/v3';
+  FormMessage,
+} from "@voidhash/ui/form";
+import { Input } from "@voidhash/ui/input";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { createPaywallOptions, queryKeys } from "src/lib/tanstack-query";
+import { z } from "zod/v3";
 
 const createPaywallSchema = z.object({
   name: z
     .string()
-    .min(3, 'Name must be at least 3 characters long')
-    .max(32, 'Name must be less than 32 characters'),
+    .min(3, "Name must be at least 3 characters long")
+    .max(32, "Name must be less than 32 characters"),
   slug: z
     .string()
-    .min(3, 'Slug must be at least 3 characters long')
-    .max(32, 'Slug must be less than 32 characters')
+    .min(3, "Slug must be at least 3 characters long")
+    .max(32, "Slug must be less than 32 characters")
     .regex(
       /^[\da-z-]+$/,
-      'Slug can only contain lowercase letters, numbers, and hyphens'
-    )
+      "Slug can only contain lowercase letters, numbers, and hyphens"
+    ),
 });
 
 type CreatePaywallForm = z.infer<typeof createPaywallSchema>;
@@ -56,14 +56,14 @@ export function CreatePaywallModal({
   onClose,
   trigger,
   projectId,
-  onSuccess
+  onSuccess,
 }: CreatePaywallModalProps) {
   const form = useForm<CreatePaywallForm>({
-    resolver: zodResolver(createPaywallSchema),
     defaultValues: {
-      name: '',
-      slug: ''
-    }
+      name: "",
+      slug: "",
+    },
+    resolver: zodResolver(createPaywallSchema),
   });
 
   const queryClient = useQueryClient();
@@ -71,15 +71,15 @@ export function CreatePaywallModal({
     ...createPaywallOptions(),
     onSuccess: (data) => {
       onSuccess?.(data);
-      toast.success('Paywall created successfully');
+      toast.success("Paywall created successfully");
       queryClient.invalidateQueries({
-        queryKey: queryKeys.paywall.list({ projectId })
+        queryKey: queryKeys.paywall.list({ projectId }),
       });
       handleOpenChange(false);
     },
     onError: () => {
-      toast.error('Failed to create paywall');
-    }
+      toast.error("Failed to create paywall");
+    },
   });
 
   const handleOpenChange = (open: boolean) => {
@@ -97,11 +97,11 @@ export function CreatePaywallModal({
   const handleNameChange = (name: string) => {
     const slug = name
       .toLowerCase()
-      .replaceAll(/[^\da-z\s-]/g, '')
-      .replaceAll(/\s+/g, '-')
-      .replaceAll(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-    form.setValue('slug', slug);
+      .replaceAll(/[^\da-z\s-]/g, "")
+      .replaceAll(/\s+/g, "-")
+      .replaceAll(/-+/g, "-")
+      .replaceAll(/^-|-$/g, "");
+    form.setValue("slug", slug);
   };
 
   return (
@@ -157,12 +157,12 @@ export function CreatePaywallModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={createPaywallStatus === 'pending'}
+                disabled={createPaywallStatus === "pending"}
                 type="submit"
               >
-                {createPaywallStatus === 'pending'
-                  ? 'Creating Paywall...'
-                  : 'Create Paywall'}
+                {createPaywallStatus === "pending"
+                  ? "Creating Paywall..."
+                  : "Create Paywall"}
               </Button>
             </DialogFooter>
           </form>

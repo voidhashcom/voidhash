@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { PipetteIcon } from 'lucide-react';
+import { PipetteIcon } from "lucide-react";
 
-export type EyedropperButtonProps = {
+export interface EyedropperButtonProps {
   onColorPick: (color: string) => void;
-};
+}
 
 export function EyedropperButton({ onColorPick }: EyedropperButtonProps) {
   const handleEyedropper = async () => {
-    if (!('EyeDropper' in window)) {
+    if (!("EyeDropper" in window)) {
       return;
     }
 
@@ -24,7 +24,7 @@ export function EyedropperButton({ onColorPick }: EyedropperButtonProps) {
     }
   };
 
-  if (!('EyeDropper' in window)) {
+  if (!("EyeDropper" in window)) {
     return null;
   }
 

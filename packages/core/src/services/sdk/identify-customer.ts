@@ -1,24 +1,25 @@
 import {
   CustomerOrigin,
   CustomerType,
-  type Customer as DbCustomer
-} from '@voidhash/db';
-import { Db, TransactionContext } from '@voidhash/db/effect';
+  type Customer as DbCustomer,
+} from "@voidhash/db";
+import { Db, TransactionContext } from "@voidhash/db/effect";
 import {
-  AuthenticationError,
   AuthSession,
+  AuthenticationError,
   SdkCustomerAlreadyIdentifiedError,
-  SdkServiceError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { CustomerService } from '../customers';
-import { _getCustomerByAppUserId, _getCustomerById } from './utils';
+  SdkServiceError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
 
-export const identifyCustomer = Effect.gen(function* () {
+import { CustomerService } from "../customers";
+import { _getCustomerByAppUserId, _getCustomerById } from "./utils";
+
+export const identifyCustomer = Effect.gen(function* identifyCustomer() {
   const db = yield* Db;
   const customerService = yield* CustomerService;
-  return Effect.fn('identifyCustomer')(
-    function* (input: {
+  return Effect.fn("identifyCustomer")(
+    function* identifyCustomer(input: {
       appUserId: string;
       name: string | null;
       email: string | null;
@@ -30,16 +31,16 @@ export const identifyCustomer = Effect.gen(function* () {
         return yield* Effect.fail(
           new AuthenticationError({
             cause:
-              'No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.',
+              "No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.",
             message:
-              'No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.'
+              "No projects with granted access found in your authentication session. Make sure you are using compatible authentication method.",
           })
         );
       }
 
       const result = yield* db.transaction((tx) =>
         TransactionContext.provide(tx)(
-          Effect.gen(function* () {
+          Effect.gen(function* result() {
             const currentAppUserId = session?.customer?.appUserId;
 
             // Get current customer if exists
@@ -47,7 +48,7 @@ export const identifyCustomer = Effect.gen(function* () {
             if (currentAppUserId) {
               currentCustomer = yield* _getCustomerByAppUserId(db)({
                 appUserId: currentAppUserId,
-                projectId
+                projectId,
               });
             }
 
@@ -63,7 +64,7 @@ export const identifyCustomer = Effect.gen(function* () {
               if (!parentCustomer) {
                 return yield* Effect.die(
                   new Error(
-                    'parentCustomer is null event though it should exist'
+                    "parentCustomer is null event though it should exist"
                   )
                 );
               }
@@ -71,7 +72,7 @@ export const identifyCustomer = Effect.gen(function* () {
               if (parentCustomer.appUserId !== input.appUserId) {
                 return yield* Effect.fail(
                   new SdkCustomerAlreadyIdentifiedError({
-                    appUserId: input.appUserId
+                    appUserId: input.appUserId,
                   })
                 );
               }
@@ -82,27 +83,27 @@ export const identifyCustomer = Effect.gen(function* () {
             // Get identifying as customer if exists
             let identifyingAsCustomer = yield* _getCustomerByAppUserId(db)({
               appUserId: input.appUserId,
-              projectId
+              projectId,
             });
 
             // If identifying as customer doesn't exist, create a new one
             if (!identifyingAsCustomer) {
               yield* customerService.createCustomer({
-                projectId,
                 appUserId: input.appUserId,
-                name: input.name ?? null,
                 email: input.email ?? null,
-                origin: CustomerOrigin.IOS // TODO: Make this dynamic
+                name: input.name ?? null,
+                origin: CustomerOrigin.IOS,
+                projectId, // TODO: Make this dynamic
               });
 
               identifyingAsCustomer = yield* _getCustomerByAppUserId(db)({
                 appUserId: input.appUserId,
-                projectId
+                projectId,
               });
 
               if (!identifyingAsCustomer) {
                 return yield* Effect.dieMessage(
-                  'identifyingAsCustomer is null event though it should exist'
+                  "identifyingAsCustomer is null event though it should exist"
                 );
               }
             }
@@ -121,12 +122,12 @@ export const identifyCustomer = Effect.gen(function* () {
             // Get updated identified customer
             const updatedCustomer = yield* _getCustomerByAppUserId(db)({
               appUserId: input.appUserId,
-              projectId
+              projectId,
             });
 
             if (!updatedCustomer) {
               return yield* Effect.dieMessage(
-                'updatedCustomer is null event though it should exist'
+                "updatedCustomer is null event though it should exist"
               );
             }
 
@@ -141,22 +142,22 @@ export const identifyCustomer = Effect.gen(function* () {
 
       return {
         appUserId: result.appUserId,
-        name: result.name,
+        customerId: result.id,
         email: result.email,
-        customerId: result.id
+        name: result.name,
       };
     },
     (effect) =>
       effect.pipe(
         Effect.catchTags({
-          DatabaseError: (error) =>
-            new SdkServiceError({
-              cause: String(error.cause)
-            }),
           CustomerServiceError: (error) =>
             new SdkServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
+          DatabaseError: (error) =>
+            new SdkServiceError({
+              cause: String(error.cause),
+            }),
         })
       )
   );

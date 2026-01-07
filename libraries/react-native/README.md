@@ -12,10 +12,8 @@ npm install @voidhash/react-native
 
 No additional setup necessary.
 
-
 ### Configure for iOS
 
 Run `npx pod-install` after installing the npm package.
 
 # Contributing
-

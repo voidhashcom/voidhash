@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
 import {
   DropdownMenu,
   DropdownMenuTrigger,
-  GradientAvatar
-} from '@voidhash/ui';
-import { useAuth } from 'src/components/auth-context';
-import { NavUserDropdown } from './nav-user-dropdown';
+  GradientAvatar,
+} from "@voidhash/ui";
+import { useAuth } from "src/components/auth-context";
+
+import { NavUserDropdown } from "./nav-user-dropdown";
 
 export function NavUser() {
   const { user } = useAuth();

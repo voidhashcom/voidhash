@@ -1,5 +1,6 @@
-import { type NextRequest, NextResponse } from 'next/server';
-import { parse } from './utils/parse';
+import { type NextRequest, NextResponse } from "next/server";
+
+import { parse } from "./utils/parse";
 
 export default function ApiMiddleware(req: NextRequest) {
   const { fullPath } = parse(req);

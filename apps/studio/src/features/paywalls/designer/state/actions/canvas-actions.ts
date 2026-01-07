@@ -4,11 +4,11 @@
  * These commands manage canvas interactions and UI state.
  */
 
-import { commander } from '../designer-commander';
-import type { DesignerStoreState } from '../designer-store-state';
-import { createFlexNode } from './nodes/flex-node-actions';
-import { createTextNode } from './nodes/text-node-actions';
-import { selectNode, unselectNode } from './selection-actions';
+import { commander } from "../designer-commander";
+import type { DesignerStoreState } from "../designer-store-state";
+import { createFlexNode } from "./nodes/flex-node-actions";
+import { createTextNode } from "./nodes/text-node-actions";
+import { selectNode, unselectNode } from "./selection-actions";
 
 // =============================================================================
 // Helper to get nodes from snapshot as a flat map
@@ -59,7 +59,7 @@ export const saveCanvasState = commander.action<{
 }>((ctx, params) => {
   const state = ctx.getState();
   ctx.setState({
-    canvas: { ...state.canvas, ...params }
+    canvas: { ...state.canvas, ...params },
   } as Partial<DesignerStoreState>);
 });
 
@@ -79,7 +79,7 @@ export const updateBoundingBox = commander.action<{
   const boundingBoxes = { ...state.canvas.boundingBoxes };
   boundingBoxes[params.id] = params.boundingBox;
   ctx.setState({
-    canvas: { ...state.canvas, boundingBoxes }
+    canvas: { ...state.canvas, boundingBoxes },
   } as Partial<DesignerStoreState>);
 });
 
@@ -97,7 +97,7 @@ export const nodeMouseEnter = commander.action<{ id: string }>(
       return { shouldPropagate: true };
     }
     ctx.setState({
-      highlightedNodeId: params.id
+      highlightedNodeId: params.id,
     } as Partial<DesignerStoreState>);
     return { shouldPropagate: true };
   }
@@ -113,7 +113,7 @@ export const nodeMouseOver = commander.action<{ id: string }>((ctx, params) => {
   }
   if (!state.highlightedNodeId) {
     ctx.setState({
-      highlightedNodeId: params.id
+      highlightedNodeId: params.id,
     } as Partial<DesignerStoreState>);
   }
   return { shouldPropagate: true };
@@ -170,7 +170,7 @@ export const nodeClicked = commander.action<{ id: string; shiftKey: boolean }>(
     const selectedNodeIds = mimic.presence?.self?.selectedNodeIds ?? [];
 
     switch (tool) {
-      case 'cursor': {
+      case "cursor": {
         const isSelected = selectedNodeIds.includes(params.id);
         if (isSelected) {
           if (params.shiftKey) {
@@ -185,26 +185,29 @@ export const nodeClicked = commander.action<{ id: string; shiftKey: boolean }>(
         break;
       }
 
-      case 'text':
+      case "text": {
         ctx.dispatch(createTextNode)({ parentId: params.id });
         break;
+      }
 
-      case 'columns':
+      case "columns": {
         ctx.dispatch(createFlexNode)({
-          parentId: params.id,
           initialValues: {
-            style: { flexDirection: 'column' },
-            name: 'Column'
-          }
-        });
-        break;
-
-      case 'rows':
-        ctx.dispatch(createFlexNode)({
+            name: "Column",
+            style: { flexDirection: "column" },
+          },
           parentId: params.id,
-          initialValues: { style: { flexDirection: 'row' }, name: 'Row' }
         });
         break;
+      }
+
+      case "rows": {
+        ctx.dispatch(createFlexNode)({
+          initialValues: { name: "Row", style: { flexDirection: "row" } },
+          parentId: params.id,
+        });
+        break;
+      }
     }
   }
 );
@@ -219,7 +222,7 @@ export const nodeClicked = commander.action<{ id: string; shiftKey: boolean }>(
 export const textEditingStarted = commander.action<{ id: string }>(
   (ctx, params) => {
     ctx.setState({
-      textEditingNodeId: params.id
+      textEditingNodeId: params.id,
     } as Partial<DesignerStoreState>);
   }
 );

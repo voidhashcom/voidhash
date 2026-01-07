@@ -1,31 +1,39 @@
-import { sql } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { SubscriptionStatus } from '@voidhash/lib';
-import { Effect } from 'effect';
+import { sql } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { SubscriptionStatus } from "@voidhash/lib";
+import { Effect } from "effect";
+
 import type {
   AnalyticsDataAccessor,
   AnalyticsDataPoint,
   AnalyticsFilters,
   TimeGranularity,
-  TimeRangeParams
-} from './types';
+  TimeRangeParams,
+} from "./types";
 
 const getDateTruncSQL = (column: string, granularity: TimeGranularity) => {
   switch (granularity) {
-    case 'hour':
+    case "hour": {
       return sql`DATE_FORMAT(${sql.raw(column)}, '%Y-%m-%d %H:00:00')`;
-    case 'day':
+    }
+    case "day": {
       return sql`DATE(${sql.raw(column)})`;
-    case 'week':
+    }
+    case "week": {
       return sql`DATE(DATE_SUB(${sql.raw(column)}, INTERVAL WEEKDAY(${sql.raw(column)}) DAY))`;
-    case 'month':
+    }
+    case "month": {
       return sql`DATE_FORMAT(${sql.raw(column)}, '%Y-%m-01')`;
-    case 'quarter':
+    }
+    case "quarter": {
       return sql`MAKEDATE(YEAR(${sql.raw(column)}), 1) + INTERVAL QUARTER(${sql.raw(column)}) QUARTER - INTERVAL 1 QUARTER`;
-    case 'year':
+    }
+    case "year": {
       return sql`DATE_FORMAT(${sql.raw(column)}, '%Y-01-01')`;
-    default:
+    }
+    default: {
       return sql`DATE(${sql.raw(column)})`;
+    }
   }
 };
 
@@ -48,11 +56,11 @@ const parseRowsToDataPoints = (result: unknown): AnalyticsDataPoint[] => {
   const rows = extractRows(result);
   return rows.map((row) => ({
     timestamp: new Date(row.period),
-    value: Number(row.total)
+    value: Number(row.total),
   }));
 };
 
-export const createMySQLAccessor = Effect.gen(function* () {
+export const createMySQLAccessor = Effect.gen(function* createMySQLAccessor() {
   const db = yield* Db;
 
   const getRevenue = db.makeQuery(
@@ -60,11 +68,11 @@ export const createMySQLAccessor = Effect.gen(function* () {
       execute,
       {
         params,
-        filters
+        filters,
       }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
-        const dateTrunc = getDateTruncSQL('t.occurred_at', params.granularity);
+        const dateTrunc = getDateTruncSQL("t.occurred_at", params.granularity);
 
         const result = await dbClient.execute(sql`
           SELECT
@@ -82,7 +90,7 @@ export const createMySQLAccessor = Effect.gen(function* () {
 
         return parseRowsToDataPoints(result).map((dp) => ({
           ...dp,
-          value: dp.value / 100 // Convert from cents
+          value: dp.value / 100, // Convert from cents
         }));
       })
   );
@@ -92,11 +100,11 @@ export const createMySQLAccessor = Effect.gen(function* () {
       execute,
       {
         params,
-        filters
+        filters,
       }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
-        const dateTrunc = getDateTruncSQL('s.starts_at', params.granularity);
+        const dateTrunc = getDateTruncSQL("s.starts_at", params.granularity);
 
         // MRR calculation: Sum of active subscription revenues normalized to monthly
         const result = await dbClient.execute(sql`
@@ -124,7 +132,7 @@ export const createMySQLAccessor = Effect.gen(function* () {
 
         return parseRowsToDataPoints(result).map((dp) => ({
           ...dp,
-          value: dp.value / 100 // Convert from cents
+          value: dp.value / 100, // Convert from cents
         }));
       })
   );
@@ -134,11 +142,11 @@ export const createMySQLAccessor = Effect.gen(function* () {
       execute,
       {
         params,
-        filters
+        filters,
       }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
-        const dateTrunc = getDateTruncSQL('s.starts_at', params.granularity);
+        const dateTrunc = getDateTruncSQL("s.starts_at", params.granularity);
 
         const result = await dbClient.execute(sql`
           SELECT
@@ -164,11 +172,11 @@ export const createMySQLAccessor = Effect.gen(function* () {
       execute,
       {
         params,
-        filters
+        filters,
       }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
-        const dateTrunc = getDateTruncSQL('s.created_at', params.granularity);
+        const dateTrunc = getDateTruncSQL("s.created_at", params.granularity);
 
         const result = await dbClient.execute(sql`
           SELECT
@@ -194,11 +202,11 @@ export const createMySQLAccessor = Effect.gen(function* () {
       execute,
       {
         params,
-        filters
+        filters,
       }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
-        const dateTrunc = getDateTruncSQL('s.canceled_at', params.granularity);
+        const dateTrunc = getDateTruncSQL("s.canceled_at", params.granularity);
 
         const result = await dbClient.execute(sql`
           SELECT
@@ -224,11 +232,11 @@ export const createMySQLAccessor = Effect.gen(function* () {
       execute,
       {
         params,
-        filters
+        filters,
       }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
-        const dateTrunc = getDateTruncSQL('s.created_at', params.granularity);
+        const dateTrunc = getDateTruncSQL("s.created_at", params.granularity);
 
         const result = await dbClient.execute(sql`
           SELECT
@@ -254,11 +262,11 @@ export const createMySQLAccessor = Effect.gen(function* () {
       execute,
       {
         params,
-        filters
+        filters,
       }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
-        const dateTrunc = getDateTruncSQL('s.updated_at', params.granularity);
+        const dateTrunc = getDateTruncSQL("s.updated_at", params.granularity);
 
         // Count subscriptions that were trials and are now active (non-trial)
         const result = await dbClient.execute(sql`
@@ -291,11 +299,11 @@ export const createMySQLAccessor = Effect.gen(function* () {
       execute,
       {
         params,
-        filters: _filters
+        filters: _filters,
       }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
-        const dateTrunc = getDateTruncSQL('c.created_at', params.granularity);
+        const dateTrunc = getDateTruncSQL("c.created_at", params.granularity);
 
         // Cumulative customer count up to each period
         const result = await dbClient.execute(sql`
@@ -319,11 +327,11 @@ export const createMySQLAccessor = Effect.gen(function* () {
       execute,
       {
         params,
-        filters: _filters
+        filters: _filters,
       }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
-        const dateTrunc = getDateTruncSQL('c.created_at', params.granularity);
+        const dateTrunc = getDateTruncSQL("c.created_at", params.granularity);
 
         const result = await dbClient.execute(sql`
           SELECT
@@ -347,11 +355,11 @@ export const createMySQLAccessor = Effect.gen(function* () {
       execute,
       {
         params,
-        filters
+        filters,
       }: { params: TimeRangeParams; filters?: AnalyticsFilters }
     ) =>
       execute(async (dbClient) => {
-        const dateTrunc = getDateTruncSQL('t.occurred_at', params.granularity);
+        const dateTrunc = getDateTruncSQL("t.occurred_at", params.granularity);
 
         const result = await dbClient.execute(sql`
           SELECT
@@ -373,15 +381,15 @@ export const createMySQLAccessor = Effect.gen(function* () {
   );
 
   return {
-    getRevenue,
-    getMRR,
     getActiveSubscriptions,
-    getNewSubscriptions,
     getChurnedSubscriptions,
-    getTrials,
-    getTrialConversions,
     getCustomerCount,
+    getMRR,
     getNewCustomers,
-    getPayingCustomerCount
+    getNewSubscriptions,
+    getPayingCustomerCount,
+    getRevenue,
+    getTrialConversions,
+    getTrials,
   } satisfies AnalyticsDataAccessor;
 });

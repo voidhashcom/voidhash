@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router';
+import { Link } from "@tanstack/react-router";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -6,17 +6,17 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-  cn,
   Separator,
-  Skeleton
-} from '@voidhash/ui';
-import { Fragment } from 'react';
+  Skeleton,
+  cn,
+} from "@voidhash/ui";
+import { Fragment } from "react";
 
 export function Page({
   children,
   breadcrumbs,
-  className
-}: React.ComponentProps<'div'> & {
+  className,
+}: React.ComponentProps<"div"> & {
   breadcrumbs?: {
     title: string;
     url?: string;
@@ -61,7 +61,7 @@ export function Page({
           </div>
         </header>
       )}
-      <div className={cn('p-4 py-8', className)}>{children}</div>
+      <div className={cn("p-4 py-8", className)}>{children}</div>
     </>
   );
 }

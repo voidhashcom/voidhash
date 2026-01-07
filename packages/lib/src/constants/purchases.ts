@@ -1,6 +1,6 @@
 export const PurchaseType = {
   OneTime: 1,
-  OneTimeConsumable: 2
+  OneTimeConsumable: 2,
 } as const;
 
 export type PurchaseTypeValue =

@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
 import {
   type ColumnDef,
   flexRender,
   getCoreRowModel,
-  useReactTable
-} from '@tanstack/react-table';
+  useReactTable,
+} from "@tanstack/react-table";
 import {
   Button,
   DropdownMenu,
@@ -17,9 +17,9 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
-} from '@voidhash/ui';
-import { EllipsisIcon } from 'lucide-react';
+  TableRow,
+} from "@voidhash/ui";
+import { EllipsisIcon } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -35,13 +35,13 @@ interface DataTableProps<TData, TValue> {
 export function DataTable<TData, TValue>({
   columns,
   data,
-  emptyMessage = 'No data',
-  actions = []
+  emptyMessage = "No data",
+  actions = [],
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
-    data,
     columns,
-    getCoreRowModel: getCoreRowModel()
+    data,
+    getCoreRowModel: getCoreRowModel(),
   });
 
   return (
@@ -50,18 +50,16 @@ export function DataTable<TData, TValue>({
         <TableHeader className="bg-surface-2">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                return (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                );
-              })}
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </TableHead>
+              ))}
               <th />
             </TableRow>
           ))}
@@ -70,7 +68,7 @@ export function DataTable<TData, TValue>({
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow
-                data-state={row.getIsSelected() && 'selected'}
+                data-state={row.getIsSelected() && "selected"}
                 key={row.id}
               >
                 {row.getVisibleCells().map((cell) => (
@@ -84,7 +82,7 @@ export function DataTable<TData, TValue>({
                   <span className="flex h-full w-full items-center justify-end px-2">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant={'outline'}>
+                        <Button variant="outline">
                           {/* <span className="mr-2">Actions</span> */}
                           <span className="flex items-center space-x-1">
                             <EllipsisIcon

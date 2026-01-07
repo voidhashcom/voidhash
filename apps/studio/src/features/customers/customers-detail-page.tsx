@@ -1,20 +1,21 @@
-'use client';
+"use client";
 
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@voidhash/ui';
-import { format } from 'date-fns';
-import { Clock4Icon } from 'lucide-react';
-import { useParams } from 'next/navigation';
-import { getCustomerByIdOptions } from 'src/lib/tanstack-query/customers';
-import { Page } from '../shell';
-import { VoidhashErrorCard } from '../shell/components/voidhash-error-card';
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@voidhash/ui";
+import { format } from "date-fns";
+import { Clock4Icon } from "lucide-react";
+import { useParams } from "next/navigation";
+import { getCustomerByIdOptions } from "src/lib/tanstack-query/customers";
+
+import { Page } from "../shell";
+import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
 
 export const CustomerDetailPage = () => {
   const { id: customerId, organizationSlug, projectSlug } = useParams();
 
   const {
     data: customer,
-    status
+    status,
     // error
   } = useQuery(getCustomerByIdOptions({ customerId: customerId as string }));
 
@@ -43,15 +44,15 @@ export const CustomerDetailPage = () => {
   //   });
   // }
 
-  if (status === 'pending') {
+  if (status === "pending") {
     return <Page className="p-0 py-8 pt-3">Loading customer...</Page>;
   }
 
-  if (status === 'error') {
+  if (status === "error") {
     return (
       <VoidhashErrorCard
         error={{
-          code: 'INTERNAL_SERVER_ERROR'
+          code: "INTERNAL_SERVER_ERROR",
         }}
       />
     );
@@ -64,13 +65,13 @@ export const CustomerDetailPage = () => {
     <Page
       breadcrumbs={[
         {
-          title: 'Customers',
-          url: `/${organizationSlug}/${projectSlug}/customers`
+          title: "Customers",
+          url: `/${organizationSlug}/${projectSlug}/customers`,
         },
         {
           title,
-          url: `/${organizationSlug}/${projectSlug}/customers/${customerId}`
-        }
+          url: `/${organizationSlug}/${projectSlug}/customers/${customerId}`,
+        },
       ]}
       className="p-0 py-8 pt-3"
     >
@@ -132,7 +133,7 @@ export const CustomerDetailPage = () => {
                   <div className="mt-1 flex flex-row items-center gap-2">
                     <Clock4Icon className="h-4 w-4 text-muted-foreground" />
                     <p className="text-muted-foreground">
-                      {format(customer.createdAt, 'MMM d, yyyy')}
+                      {format(customer.createdAt, "MMM d, yyyy")}
                     </p>
                   </div>
                 </div>

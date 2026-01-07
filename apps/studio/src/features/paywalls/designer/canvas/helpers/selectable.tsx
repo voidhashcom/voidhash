@@ -1,24 +1,25 @@
-import { useStore } from 'zustand/react';
-import { useShallow } from 'zustand/react/shallow';
+import { useStore } from "zustand/react";
+import { useShallow } from "zustand/react/shallow";
+
 import {
   nodeClicked,
   nodeMouseEnter,
   nodeMouseLeave,
-  nodeMouseOver
-} from '../../state/actions';
+  nodeMouseOver,
+} from "../../state/actions";
 import {
   usePaywallDesignerActions,
-  usePaywallDesignerStore
-} from '../../state/designer-store';
+  usePaywallDesignerStore,
+} from "../../state/designer-store";
 
-export type SelectableProps = {
+export interface SelectableProps {
   children: ({
     isSelected,
     onMouseDown,
     onMouseEnter,
     onMouseLeave,
     onMouseOver,
-    role
+    role,
   }: {
     isSelected: boolean;
     onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -28,7 +29,7 @@ export type SelectableProps = {
     role: string;
   }) => React.ReactNode;
   nodeId: string;
-};
+}
 
 export function Selectable({ children, nodeId }: SelectableProps) {
   const store = usePaywallDesignerStore();
@@ -75,7 +76,7 @@ export function Selectable({ children, nodeId }: SelectableProps) {
         onMouseEnter: handleMouseEnter,
         onMouseLeave: handleMouseLeave,
         onMouseOver: handleMouseOver,
-        role: 'button'
+        role: "button",
       })}
     </>
   );

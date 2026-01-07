@@ -1,12 +1,13 @@
-import { eq, paywalls } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
+import { eq, paywalls } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
 import {
   AuthSession,
   PaywallNotFoundError,
-  PaywallServiceError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
+  PaywallServiceError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { checkProjectPermission } from "../../utils/permissions";
 
 const _getPaywallById = (db: Db) =>
   db.makeQuery((execute, id: string) =>
@@ -21,16 +22,16 @@ const _deletePaywallRecord = (db: Db) =>
     execute(async (db) => db.delete(paywalls).where(eq(paywalls.id, id)))
   );
 
-export const deletePaywall = Effect.gen(function* () {
+export const deletePaywall = Effect.gen(function* deletePaywall() {
   const db = yield* Db;
-  return Effect.fn('deletePaywall')(
-    function* (input: { paywallId: string }) {
+  return Effect.fn("deletePaywall")(
+    function* deletePaywall(input: { paywallId: string }) {
       const session = yield* AuthSession;
       const paywall = yield* _getPaywallById(db)(input.paywallId);
       if (!paywall) {
         return yield* Effect.fail(
           new PaywallNotFoundError({
-            message: `Paywall with id ${input.paywallId} not found`
+            message: `Paywall with id ${input.paywallId} not found`,
           })
         );
       }
@@ -38,7 +39,7 @@ export const deletePaywall = Effect.gen(function* () {
       // SECURITY: Authorization check
       yield* checkProjectPermission(
         paywall.projectId,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to delete paywall ${input.paywallId}`
       );
 
@@ -50,8 +51,8 @@ export const deletePaywall = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new PaywallServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

@@ -1,36 +1,36 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { InfoTooltip } from '@voidhash/ui';
-import { Button } from '@voidhash/ui/button';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { InfoTooltip } from "@voidhash/ui";
+import { Button } from "@voidhash/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
-} from '@voidhash/ui/dialog';
+  DialogTrigger,
+} from "@voidhash/ui/dialog";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '@voidhash/ui/form';
-import { Input } from '@voidhash/ui/input';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { createCustomerOptions, queryKeys } from 'src/lib/tanstack-query';
-import { z } from 'zod/v3';
+  FormMessage,
+} from "@voidhash/ui/form";
+import { Input } from "@voidhash/ui/input";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { createCustomerOptions, queryKeys } from "src/lib/tanstack-query";
+import { z } from "zod/v3";
 
 // Extract the relevant parts from createCustomerInputSchema for the form
 const createCustomerFormSchema = z.object({
   appUserId: z.string().min(1),
+  email: z.string().email().optional(),
   name: z.string().optional(),
-  email: z.string().email().optional()
 });
 
 type CreateCustomerForm = z.infer<typeof createCustomerFormSchema>;
@@ -46,27 +46,27 @@ export function CreateCustomerModal({
   open,
   onClose,
   trigger,
-  projectId
+  projectId,
 }: CreateCustomerModalProps) {
   const form = useForm<CreateCustomerForm>({
-    resolver: zodResolver(createCustomerFormSchema),
     defaultValues: {
-      appUserId: '',
-      name: '',
-      email: ''
-    }
+      appUserId: "",
+      email: "",
+      name: "",
+    },
+    resolver: zodResolver(createCustomerFormSchema),
   });
 
   const queryClient = useQueryClient();
   const { mutate: createCustomer, status: createCustomerStatus } = useMutation({
     ...createCustomerOptions(),
     onSuccess: () => {
-      toast.success('Customer created successfully');
+      toast.success("Customer created successfully");
       queryClient.invalidateQueries({ queryKey: queryKeys.customer.all });
     },
     onError: () => {
-      toast.error('Failed to create customer');
-    }
+      toast.error("Failed to create customer");
+    },
   });
 
   const handleOpenChange = (open: boolean) => {
@@ -99,7 +99,7 @@ export function CreateCustomerModal({
               render={({ field }) => (
                 <FormItem className="space-y-1">
                   <FormLabel>
-                    App User ID{' '}
+                    App User ID{" "}
                     <InfoTooltip info="App User ID links your application's user identifier with its corresponding Voidhash customer profile." />
                   </FormLabel>
                   <FormControl>
@@ -142,12 +142,12 @@ export function CreateCustomerModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={createCustomerStatus === 'pending'}
+                disabled={createCustomerStatus === "pending"}
                 type="submit"
               >
-                {createCustomerStatus === 'pending'
-                  ? 'Creating Customer...'
-                  : 'Create Customer'}
+                {createCustomerStatus === "pending"
+                  ? "Creating Customer..."
+                  : "Create Customer"}
               </Button>
             </DialogFooter>
           </form>

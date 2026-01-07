@@ -1,26 +1,27 @@
-'use client';
+"use client";
+
+import type * as React from "react";
 
 import {
-  cn,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from '@voidhash/ui';
-import { InputGroup, InputGroupAddon } from '@voidhash/ui/input-group';
-import type * as React from 'react';
+  SelectValue,
+  cn,
+} from "@voidhash/ui";
+import { InputGroup, InputGroupAddon } from "@voidhash/ui/input-group";
 
-export type SelectInputProps<T extends string> = {
+export interface SelectInputProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
-  options: Array<{ value: T; label: string }>;
+  options: { value: T; label: string }[];
   label: string;
   icon?: React.ReactNode;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-};
+}
 
 export function SelectInput<T extends string>({
   value,
@@ -30,13 +31,13 @@ export function SelectInput<T extends string>({
   icon,
   placeholder,
   disabled = false,
-  className
+  className,
 }: SelectInputProps<T>) {
   const selectedOption = options.find((opt) => opt.value === value);
 
   return (
     <InputGroup
-      className={cn('h-7 rounded-sm border-none dark:bg-input/60', className)}
+      className={cn("h-7 rounded-sm border-none dark:bg-input/60", className)}
     >
       {icon ? (
         <InputGroupAddon className="py-1 pr-0.5 pl-2">

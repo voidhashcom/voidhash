@@ -1,22 +1,23 @@
-import type { TextNodeData } from '@voidhash/mimic-schema';
-import type { Properties } from 'csstype';
-import { px } from './utils';
+import type { TextNodeData } from "@voidhash/mimic-schema";
+import type { Properties } from "csstype";
 
-export function buildTextStyles(style: TextNodeData['style']): Properties {
+import { px } from "./utils";
+
+export function buildTextStyles(style: TextNodeData["style"]): Properties {
   const styles: Properties = {
+    color: style.color,
     display: style.display,
     fontSize: px(style.fontSize),
     fontWeight: style.fontWeight,
-    color: style.color,
-    textAlign: style.textAlign,
-    lineHeight: style.lineHeight,
     letterSpacing: px(style.letterSpacing),
-    marginTop: px(style.marginTop ?? 0),
-    marginRight: px(style.marginRight ?? 0),
+    lineHeight: style.lineHeight,
     marginBottom: px(style.marginBottom ?? 0),
     marginLeft: px(style.marginLeft ?? 0),
+    marginRight: px(style.marginRight ?? 0),
+    marginTop: px(style.marginTop ?? 0),
     opacity: style.opacity,
-    overflow: style.overflow
+    overflow: style.overflow,
+    textAlign: style.textAlign,
   };
 
   // Min/max constraints
@@ -47,7 +48,7 @@ export function buildTextStyles(style: TextNodeData['style']): Properties {
   if (style.flex !== null) {
     styles.flex = style.flex;
   }
-  if (style.alignSelf !== 'auto') {
+  if (style.alignSelf !== "auto") {
     styles.alignSelf = style.alignSelf;
   }
 

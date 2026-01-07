@@ -1,19 +1,20 @@
 import type {
   FlexNodeData,
   ScreenNodeData,
-  TextNodeData
-} from '@voidhash/mimic-schema';
-import { useLayoutEffect, useRef } from 'react';
-import { useStore } from 'zustand/react';
-import { updateBoundingBox } from '../state/actions';
+  TextNodeData,
+} from "@voidhash/mimic-schema";
+import { useLayoutEffect, useRef } from "react";
+import { useStore } from "zustand/react";
+
+import { updateBoundingBox } from "../state/actions";
 import {
   usePaywallDesignerActions,
-  usePaywallDesignerStore
-} from '../state/designer-store';
-import { FlexNodeRenderer } from './node-renderers/flex-node-renderer';
-import { ScreenNodeRenderer } from './node-renderers/screen-node-renderer';
-import { TextNodeRenderer } from './node-renderers/text-node-renderer';
-import { useViewport } from './viewport';
+  usePaywallDesignerStore,
+} from "../state/designer-store";
+import { FlexNodeRenderer } from "./node-renderers/flex-node-renderer";
+import { ScreenNodeRenderer } from "./node-renderers/screen-node-renderer";
+import { TextNodeRenderer } from "./node-renderers/text-node-renderer";
+import { useViewport } from "./viewport";
 
 /** Snapshot node structure from mimic - the tree is already structured */
 interface SnapshotNode {
@@ -35,7 +36,7 @@ export function NodeRenderer({ node }: { node: SnapshotNode }) {
   // Measure node bounding box on render
   useLayoutEffect(() => {
     // Skip measurement for root nodes
-    if (node.type === 'root') {
+    if (node.type === "root") {
       return;
     }
 
@@ -57,13 +58,13 @@ export function NodeRenderer({ node }: { node: SnapshotNode }) {
       const canvasHeight = rect.height / transform.scale;
 
       dispatch(updateBoundingBox)({
-        id: node.id,
         boundingBox: {
+          height: canvasHeight,
+          width: canvasWidth,
           x: canvasCoords.x,
           y: canvasCoords.y,
-          width: canvasWidth,
-          height: canvasHeight
-        }
+        },
+        id: node.id,
       });
     };
 
@@ -79,7 +80,7 @@ export function NodeRenderer({ node }: { node: SnapshotNode }) {
     };
   }, [node.id, node.type, viewport, dispatch]);
 
-  if (node.type === 'root') {
+  if (node.type === "root") {
     return (
       <>
         {children.map((child) => (
@@ -88,7 +89,7 @@ export function NodeRenderer({ node }: { node: SnapshotNode }) {
       </>
     );
   }
-  if (node.type === 'screen') {
+  if (node.type === "screen") {
     return (
       <ScreenNodeRenderer
         node={node as unknown as ScreenNodeData}
@@ -100,7 +101,7 @@ export function NodeRenderer({ node }: { node: SnapshotNode }) {
       </ScreenNodeRenderer>
     );
   }
-  if (node.type === 'text') {
+  if (node.type === "text") {
     return (
       <div ref={elementRef}>
         <TextNodeRenderer node={node as unknown as TextNodeData} />
@@ -108,7 +109,7 @@ export function NodeRenderer({ node }: { node: SnapshotNode }) {
     );
   }
 
-  if (node.type === 'flex') {
+  if (node.type === "flex") {
     return (
       <FlexNodeRenderer node={node as unknown as FlexNodeData} ref={elementRef}>
         {children.map((child) => (

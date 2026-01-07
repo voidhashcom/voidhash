@@ -1,16 +1,17 @@
-'use client';
+"use client";
 
-import { useQuery } from '@tanstack/react-query';
-import { Card } from '@voidhash/ui';
-import { useParams } from 'next/navigation';
-import { useAuth } from 'src/components/auth-context';
-import { VoidhashErrorCard } from 'src/features/shell/components/voidhash-error-card';
-import { listPerksOptions } from 'src/lib/tanstack-query/perks';
-import { CurrentUser } from 'src/lib/utils/current-user';
-import { CreatePerkModalButton } from './create-perk-modal-button';
-import { PerkRecord } from './perk-record';
-import { PerksPageEmptyState } from './perks-page-empty-state';
-import { PerksPageSkeleton } from './perks-page-skeleton';
+import { useQuery } from "@tanstack/react-query";
+import { Card } from "@voidhash/ui";
+import { useParams } from "next/navigation";
+import { useAuth } from "src/components/auth-context";
+import { VoidhashErrorCard } from "src/features/shell/components/voidhash-error-card";
+import { listPerksOptions } from "src/lib/tanstack-query/perks";
+import { CurrentUser } from "src/lib/utils/current-user";
+
+import { CreatePerkModalButton } from "./create-perk-modal-button";
+import { PerkRecord } from "./perk-record";
+import { PerksPageEmptyState } from "./perks-page-empty-state";
+import { PerksPageSkeleton } from "./perks-page-skeleton";
 
 export const PerksPage = () => {
   const { organizationSlug, projectSlug } = useParams();
@@ -21,20 +22,20 @@ export const PerksPage = () => {
     projectSlug as string
   );
   const { data: perks, status: perksStatus } = useQuery({
-    ...listPerksOptions({ projectId: project?.id ?? '' }),
-    enabled: !!project?.id
+    ...listPerksOptions({ projectId: project?.id ?? "" }),
+    enabled: !!project?.id,
   });
 
-  if (perksStatus === 'pending') {
+  if (perksStatus === "pending") {
     return <PerksPageSkeleton />;
   }
 
-  if (perksStatus === 'error' || !project) {
+  if (perksStatus === "error" || !project) {
     return (
       <VoidhashErrorCard
         error={{
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'An error occured loading the perks'
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An error occured loading the perks",
         }}
       />
     );

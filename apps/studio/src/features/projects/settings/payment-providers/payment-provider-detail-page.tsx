@@ -1,13 +1,14 @@
-'use client';
+"use client";
 
-import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'next/navigation';
-import { useAuth } from 'src/components/auth-context';
-import { Page } from 'src/features/shell';
-import { VoidhashErrorCard } from 'src/features/shell/components/voidhash-error-card';
-import { getPaymentProviderConfigurationOptions } from 'src/lib/tanstack-query';
-import { CurrentUser } from 'src/lib/utils/current-user';
-import { PaymentProviderDetailConfiguration } from './payment-provider-detail-configuration';
+import { useQuery } from "@tanstack/react-query";
+import { useParams } from "next/navigation";
+import { useAuth } from "src/components/auth-context";
+import { Page } from "src/features/shell";
+import { VoidhashErrorCard } from "src/features/shell/components/voidhash-error-card";
+import { getPaymentProviderConfigurationOptions } from "src/lib/tanstack-query";
+import { CurrentUser } from "src/lib/utils/current-user";
+
+import { PaymentProviderDetailConfiguration } from "./payment-provider-detail-configuration";
 
 export const PaymentProviderDetailPage = () => {
   const params = useParams();
@@ -25,28 +26,29 @@ export const PaymentProviderDetailPage = () => {
 
   const {
     data: paymentProviderConfiguration,
-    status: paymentProviderConfigurationStatus
+    status: paymentProviderConfigurationStatus,
   } = useQuery({
     ...getPaymentProviderConfigurationOptions({
-      id: paymentProviderConfigurationId
+      id: paymentProviderConfigurationId,
     }),
-    enabled: !!paymentProviderConfigurationId
+    enabled: !!paymentProviderConfigurationId,
   });
 
-  if (paymentProviderConfigurationStatus === 'pending') {
+  if (paymentProviderConfigurationStatus === "pending") {
     return <div>Loading...</div>;
   }
 
   if (
-    paymentProviderConfigurationStatus === 'error' ||
+    paymentProviderConfigurationStatus === "error" ||
     !project ||
     !paymentProviderConfiguration
   ) {
     return (
       <VoidhashErrorCard
         error={{
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'An error occured loading the payment provider configuration'
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            "An error occured loading the payment provider configuration",
         }}
       />
     );
@@ -56,13 +58,13 @@ export const PaymentProviderDetailPage = () => {
     <Page
       breadcrumbs={[
         {
-          title: 'Payment Providers',
-          url: `/${organizationSlug}/${projectSlug}/settings/payment-providers`
+          title: "Payment Providers",
+          url: `/${organizationSlug}/${projectSlug}/settings/payment-providers`,
         },
         {
           title: paymentProviderConfiguration.name,
-          url: `/${organizationSlug}/${projectSlug}/settings/payment-providers/${paymentProviderConfiguration.id}`
-        }
+          url: `/${organizationSlug}/${projectSlug}/settings/payment-providers/${paymentProviderConfiguration.id}`,
+        },
       ]}
       className="flex flex-1 flex-col p-0 pt-3 pb-0"
     >

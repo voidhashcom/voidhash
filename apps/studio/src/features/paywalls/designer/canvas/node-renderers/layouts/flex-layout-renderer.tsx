@@ -1,12 +1,12 @@
-import type { FlexNodeData } from '@voidhash/mimic-schema';
-import { buildFlexStyles } from '@voidhash/paywall-renderer-web-core';
+import type { FlexNodeData } from "@voidhash/mimic-schema";
+import { buildFlexStyles } from "@voidhash/paywall-renderer-web-core";
 
-type FlexLayoutRendererProps = {
-  style: FlexNodeData['style'];
+interface FlexLayoutRendererProps {
+  style: FlexNodeData["style"];
   children: React.ReactNode;
   initialStyle?: React.CSSProperties;
   ref?: React.RefObject<HTMLDivElement | null>;
-};
+}
 
 export function FlexLayoutRenderer({
   children,
@@ -20,7 +20,7 @@ export function FlexLayoutRenderer({
       ref={ref}
       style={{
         ...(buildFlexStyles(style) as React.CSSProperties),
-        ...initialStyle
+        ...initialStyle,
       }}
       {...rest}
     >

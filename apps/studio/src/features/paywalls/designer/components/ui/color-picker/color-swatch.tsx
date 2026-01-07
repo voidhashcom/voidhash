@@ -1,21 +1,22 @@
-import { cn } from '@voidhash/ui';
-import { CheckerboardBackground } from './checkerboard-background';
+import { cn } from "@voidhash/ui";
 
-export type ColorSwatchProps = {
+import { CheckerboardBackground } from "./checkerboard-background";
+
+export interface ColorSwatchProps {
   color: string;
   opacity?: number;
   className?: string;
-};
+}
 
 export function ColorSwatch({
   color,
   opacity = 100,
-  className
+  className,
 }: ColorSwatchProps) {
   return (
     <div
       className={cn(
-        'relative size-5 shrink-0 overflow-hidden rounded-[3px]',
+        "relative size-5 shrink-0 overflow-hidden rounded-[3px]",
         className
       )}
     >
@@ -24,7 +25,7 @@ export function ColorSwatch({
         className="absolute inset-0"
         style={{
           backgroundColor: `#${color}`,
-          opacity: opacity / 100
+          opacity: opacity / 100,
         }}
       />
       <div className="absolute inset-0 rounded-[3px] ring-1 ring-white/20 ring-inset" />

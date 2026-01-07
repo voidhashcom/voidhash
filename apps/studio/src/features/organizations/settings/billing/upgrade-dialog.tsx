@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
 import {
   Button,
-  cn,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
-} from '@voidhash/ui';
-import { Check } from 'lucide-react';
+  DialogTitle,
+  cn,
+} from "@voidhash/ui";
+import { Check } from "lucide-react";
 
 interface UpgradeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentTier: 'free' | 'pro' | 'enterprise';
-  onUpgrade: (tier: 'pro' | 'enterprise') => void;
+  currentTier: "free" | "pro" | "enterprise";
+  onUpgrade: (tier: "pro" | "enterprise") => void;
   isLoading: boolean;
 }
 
@@ -29,41 +29,41 @@ interface PlanFeature {
 
 const planFeatures: PlanFeature[] = [
   {
-    name: 'Paywall conversions',
-    free: '100/mo',
-    pro: '10,000/mo',
-    enterprise: 'Unlimited'
+    enterprise: "Unlimited",
+    free: "100/mo",
+    name: "Paywall conversions",
+    pro: "10,000/mo",
   },
   {
-    name: 'Monthly tracked revenue',
-    free: '$10,000',
-    pro: '$1,000,000',
-    enterprise: 'Unlimited'
+    enterprise: "Unlimited",
+    free: "$10,000",
+    name: "Monthly tracked revenue",
+    pro: "$1,000,000",
   },
   {
-    name: 'API calls',
-    free: '10,000/mo',
-    pro: '1,000,000/mo',
-    enterprise: 'Unlimited'
+    enterprise: "Unlimited",
+    free: "10,000/mo",
+    name: "API calls",
+    pro: "1,000,000/mo",
   },
   {
-    name: 'Active customers',
-    free: '500',
-    pro: 'Unlimited',
-    enterprise: 'Unlimited'
+    enterprise: "Unlimited",
+    free: "500",
+    name: "Active customers",
+    pro: "Unlimited",
   },
   {
-    name: 'Priority support',
+    enterprise: true,
     free: false,
+    name: "Priority support",
     pro: true,
-    enterprise: true
   },
   {
-    name: 'Custom integrations',
+    enterprise: true,
     free: false,
+    name: "Custom integrations",
     pro: false,
-    enterprise: true
-  }
+  },
 ];
 
 export function UpgradeDialog({
@@ -71,7 +71,7 @@ export function UpgradeDialog({
   onOpenChange,
   currentTier,
   onUpgrade,
-  isLoading
+  isLoading,
 }: UpgradeDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -87,8 +87,8 @@ export function UpgradeDialog({
           {/* Free Plan */}
           <div
             className={cn(
-              'rounded-lg border p-4',
-              currentTier === 'free' && 'border-primary'
+              "rounded-lg border p-4",
+              currentTier === "free" && "border-primary"
             )}
           >
             <h3 className="font-semibold">Free</h3>
@@ -108,7 +108,7 @@ export function UpgradeDialog({
                     <>
                       <Check className="h-4 w-4 text-green-500" />
                       <span>
-                        {typeof feature.free === 'string'
+                        {typeof feature.free === "string"
                           ? `${feature.name}: ${feature.free}`
                           : feature.name}
                       </span>
@@ -122,7 +122,7 @@ export function UpgradeDialog({
               ))}
             </ul>
 
-            {currentTier === 'free' && (
+            {currentTier === "free" && (
               <Button className="mt-4 w-full" disabled variant="outline">
                 Current Plan
               </Button>
@@ -132,8 +132,8 @@ export function UpgradeDialog({
           {/* Pro Plan */}
           <div
             className={cn(
-              'rounded-lg border p-4',
-              currentTier === 'pro' && 'border-primary'
+              "rounded-lg border p-4",
+              currentTier === "pro" && "border-primary"
             )}
           >
             <h3 className="font-semibold">Pro</h3>
@@ -153,7 +153,7 @@ export function UpgradeDialog({
                     <>
                       <Check className="h-4 w-4 text-green-500" />
                       <span>
-                        {typeof feature.pro === 'string'
+                        {typeof feature.pro === "string"
                           ? `${feature.name}: ${feature.pro}`
                           : feature.name}
                       </span>
@@ -167,26 +167,26 @@ export function UpgradeDialog({
               ))}
             </ul>
 
-            {currentTier === 'pro' ? (
+            {currentTier === "pro" ? (
               <Button className="mt-4 w-full" disabled variant="outline">
                 Current Plan
               </Button>
-            ) : currentTier === 'free' ? (
+            ) : (currentTier === "free" ? (
               <Button
                 className="mt-4 w-full"
-                onClick={() => onUpgrade('pro')}
+                onClick={() => onUpgrade("pro")}
                 disabled={isLoading}
               >
-                {isLoading ? 'Loading...' : 'Upgrade to Pro'}
+                {isLoading ? "Loading..." : "Upgrade to Pro"}
               </Button>
-            ) : null}
+            ) : null)}
           </div>
 
           {/* Enterprise Plan */}
           <div
             className={cn(
-              'rounded-lg border p-4',
-              currentTier === 'enterprise' && 'border-primary'
+              "rounded-lg border p-4",
+              currentTier === "enterprise" && "border-primary"
             )}
           >
             <h3 className="font-semibold">Enterprise</h3>
@@ -204,7 +204,7 @@ export function UpgradeDialog({
                 >
                   <Check className="h-4 w-4 text-green-500" />
                   <span>
-                    {typeof feature.enterprise === 'string'
+                    {typeof feature.enterprise === "string"
                       ? `${feature.name}: ${feature.enterprise}`
                       : feature.name}
                   </span>
@@ -212,17 +212,17 @@ export function UpgradeDialog({
               ))}
             </ul>
 
-            {currentTier === 'enterprise' ? (
+            {currentTier === "enterprise" ? (
               <Button className="mt-4 w-full" disabled variant="outline">
                 Current Plan
               </Button>
             ) : (
               <Button
                 className="mt-4 w-full"
-                onClick={() => onUpgrade('enterprise')}
+                onClick={() => onUpgrade("enterprise")}
                 disabled={isLoading}
               >
-                {isLoading ? 'Loading...' : 'Upgrade to Enterprise'}
+                {isLoading ? "Loading..." : "Upgrade to Enterprise"}
               </Button>
             )}
           </div>

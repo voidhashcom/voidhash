@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { zodValidator } from '@tanstack/zod-adapter';
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 import {
   Alert,
   AlertDescription,
@@ -10,31 +10,32 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-  Logo
-} from '@voidhash/ui';
+  Logo,
+} from "@voidhash/ui";
 import {
   AlertCircle,
   CheckCircle,
   Loader2,
   Shield,
-  XCircle
-} from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { z } from 'zod';
-import { authClient } from '../../lib/auth-client';
+  XCircle,
+} from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { authClient } from "../../lib/auth-client";
 
 const consentSearchSchema = z.object({
   client_id: z.string().optional(),
-  scope: z.string().optional(),
   redirect_uri: z.string().optional(),
+  response_type: z.string().optional(),
+  scope: z.string().optional(),
   state: z.string().optional(),
-  response_type: z.string().optional()
 });
 
-export const Route = createFileRoute('/oauth/consent')({
+export const Route = createFileRoute("/oauth/consent")({
   component: ConsentPage,
-  validateSearch: zodValidator(consentSearchSchema)
+  validateSearch: zodValidator(consentSearchSchema),
 });
 
 function ConsentPageContent() {
@@ -44,19 +45,19 @@ function ConsentPageContent() {
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   const clientId = searchParams.client_id;
-  const scope = searchParams.scope;
+  const { scope } = searchParams;
   const redirectUri = searchParams.redirect_uri;
-  const state = searchParams.state;
+  const { state } = searchParams;
 
-  const scopes = scope?.split(' ') ?? [];
+  const scopes = scope?.split(" ") ?? [];
 
   const getScopeDescription = (scopeName: string) => {
     const descriptions: Record<string, string> = {
-      openid: 'Verify your identity',
-      profile: 'Access your profile information (name, picture)',
-      email: 'Access your email address',
+      email: "Access your email address",
       offline_access:
-        'Stay signed in and access your data when you are not using the app'
+        "Stay signed in and access your data when you are not using the app",
+      openid: "Verify your identity",
+      profile: "Access your profile information (name, picture)",
     };
     return descriptions[scopeName] ?? scopeName;
   };
@@ -65,17 +66,17 @@ function ConsentPageContent() {
     if (redirectUri) {
       try {
         const url = new URL(redirectUri);
-        url.searchParams.set('error', errorCode);
-        url.searchParams.set('error_description', errorDescription);
+        url.searchParams.set("error", errorCode);
+        url.searchParams.set("error_description", errorDescription);
         if (state) {
-          url.searchParams.set('state', state);
+          url.searchParams.set("state", state);
         }
         setIsRedirecting(true);
         window.location.href = url.toString();
       } catch {
         // Invalid redirect URI, show error in page
         setError(
-          'Unable to redirect back to application. Invalid redirect URI.'
+          "Unable to redirect back to application. Invalid redirect URI."
         );
       }
     } else {
@@ -90,13 +91,13 @@ function ConsentPageContent() {
     try {
       const response = await authClient.oauth2.consent({
         accept,
-        scope: accept ? scope : undefined
+        scope: accept ? scope : undefined,
       });
 
       if (response.error) {
         setLoading(false);
         const errorMessage =
-          response.error.message ?? 'Failed to process authorization request.';
+          response.error.message ?? "Failed to process authorization request.";
         toast.error(errorMessage);
         setError(errorMessage);
         return;
@@ -109,19 +110,19 @@ function ConsentPageContent() {
         // No redirect URI returned when accepting, this shouldn't happen
         setLoading(false);
         setError(
-          'Authorization was processed but no redirect was provided. Please try again.'
+          "Authorization was processed but no redirect was provided. Please try again."
         );
       } else {
         // User denied, redirect with access_denied error
         handleErrorRedirect(
-          'access_denied',
-          'User denied the authorization request'
+          "access_denied",
+          "User denied the authorization request"
         );
       }
-    } catch (_error) {
+    } catch {
       setLoading(false);
       const errorMessage =
-        'An unexpected error occurred. Please try again or contact support.';
+        "An unexpected error occurred. Please try again or contact support.";
       toast.error(errorMessage);
       setError(errorMessage);
     }
@@ -186,7 +187,7 @@ function ConsentPageContent() {
               </div>
               <CardTitle className="text-xl">Authorize Application</CardTitle>
               <CardDescription>
-                <span className="font-medium text-foreground">{clientId}</span>{' '}
+                <span className="font-medium text-foreground">{clientId}</span>{" "}
                 wants to access your account
               </CardDescription>
             </CardHeader>

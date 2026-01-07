@@ -1,5 +1,5 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@voidhash/ui/button';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@voidhash/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,19 +7,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
-} from '@voidhash/ui/dialog';
+  DialogTrigger,
+} from "@voidhash/ui/dialog";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '@voidhash/ui/form';
-import { Input } from '@voidhash/ui/input';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod/v3';
+  FormMessage,
+} from "@voidhash/ui/form";
+import { Input } from "@voidhash/ui/input";
+import { useForm } from "react-hook-form";
+import { z } from "zod/v3";
 
 interface DeleteOrganizationModalProps {
   open: boolean;
@@ -29,31 +29,31 @@ interface DeleteOrganizationModalProps {
   organizationSlug: string;
 }
 
-type DeleteOrganizationForm = {
+interface DeleteOrganizationForm {
   confirmation: string;
-};
+}
 
 export function DeleteOrganizationModal({
   open,
   onClose,
   onDelete,
   trigger,
-  organizationSlug
+  organizationSlug,
 }: DeleteOrganizationModalProps) {
   const deleteOrganizationSchema = z.object({
     confirmation: z
       .string()
       .refine((value) => value === `${organizationSlug}`, {
         message:
-          'Please enter the text exactly as it is shown to confirm deletion'
-      })
+          "Please enter the text exactly as it is shown to confirm deletion",
+      }),
   });
 
   const form = useForm<DeleteOrganizationForm>({
-    resolver: zodResolver(deleteOrganizationSchema),
     defaultValues: {
-      confirmation: ''
-    }
+      confirmation: "",
+    },
+    resolver: zodResolver(deleteOrganizationSchema),
   });
 
   const handleOpenChange = (open: boolean) => {
@@ -90,10 +90,10 @@ export function DeleteOrganizationModal({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    Please type{' '}
+                    Please type{" "}
                     <span className="select-text font-mono">
                       {organizationSlug}
-                    </span>{' '}
+                    </span>{" "}
                     to confirm
                   </FormLabel>
                   <FormControl>

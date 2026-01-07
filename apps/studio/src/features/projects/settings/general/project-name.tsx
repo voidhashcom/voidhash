@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
   Card,
@@ -15,35 +15,35 @@ import {
   FormField,
   FormItem,
   FormMessage,
-  Input
-} from '@voidhash/ui';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { queryKeys } from 'src/lib/tanstack-query';
-import { updateProjectOptions } from 'src/lib/tanstack-query/projects';
-import { z } from 'zod/v3';
+  Input,
+} from "@voidhash/ui";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { queryKeys } from "src/lib/tanstack-query";
+import { updateProjectOptions } from "src/lib/tanstack-query/projects";
+import { z } from "zod/v3";
 
 const updateProjectNameSchema = z.object({
   name: z
     .string()
-    .min(1, 'Project name is required')
-    .max(32, 'Project name must be less than 32 characters')
+    .min(1, "Project name is required")
+    .max(32, "Project name must be less than 32 characters"),
 });
 
 type UpdateProjectNameForm = z.infer<typeof updateProjectNameSchema>;
 
 export function ProjectNameForm({
   projectId,
-  projectName
+  projectName,
 }: {
   projectId: string;
   projectName: string;
 }) {
   const form = useForm<UpdateProjectNameForm>({
-    resolver: zodResolver(updateProjectNameSchema),
     defaultValues: {
-      name: projectName
-    }
+      name: projectName,
+    },
+    resolver: zodResolver(updateProjectNameSchema),
   });
 
   const queryClient = useQueryClient();
@@ -51,18 +51,18 @@ export function ProjectNameForm({
     useMutation({
       ...updateProjectOptions(),
       onSuccess: () => {
-        toast.success('Project name updated successfully');
+        toast.success("Project name updated successfully");
         queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
       },
       onError: () => {
-        toast.error('Failed to update project name');
-      }
+        toast.error("Failed to update project name");
+      },
     });
 
   const onSubmit = (data: UpdateProjectNameForm) => {
     updateProjectName({
       id: projectId,
-      name: data.name
+      name: data.name,
     });
   };
 
@@ -100,10 +100,10 @@ export function ProjectNameForm({
             </div>
             <div>
               <Button
-                disabled={updateProjectNameStatus === 'pending'}
+                disabled={updateProjectNameStatus === "pending"}
                 type="submit"
               >
-                {updateProjectNameStatus === 'pending' ? 'Saving...' : 'Save'}
+                {updateProjectNameStatus === "pending" ? "Saving..." : "Save"}
               </Button>
             </div>
           </CardFooter>

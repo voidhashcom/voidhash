@@ -1,29 +1,29 @@
-import { AnalyticsService } from '@voidhash/core/services';
-import type { AnalyticsFilters } from '@voidhash/core/services';
-import { AnalyticsRpcsDef } from '@voidhash/rpc';
-import { Effect, Layer } from 'effect';
+import type { AnalyticsFilters } from "@voidhash/core/services";
+import { AnalyticsService } from "@voidhash/core/services";
+import { AnalyticsRpcsDef } from "@voidhash/rpc";
+import { Effect, Layer } from "effect";
 
 const ALL_METRICS = [
-  'mrr',
-  'arr',
-  'revenue',
-  'churn_rate',
-  'customer_count',
-  'new_customers',
-  'retention',
-  'arpu',
-  'arppu',
-  'active_subscriptions',
-  'new_subscriptions',
-  'churned_subscriptions',
-  'trials',
-  'trial_conversions'
+  "mrr",
+  "arr",
+  "revenue",
+  "churn_rate",
+  "customer_count",
+  "new_customers",
+  "retention",
+  "arpu",
+  "arppu",
+  "active_subscriptions",
+  "new_subscriptions",
+  "churned_subscriptions",
+  "trials",
+  "trial_conversions",
 ] as const;
 
 type MetricType = (typeof ALL_METRICS)[number];
 
 export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
-  Effect.gen(function* () {
+  Effect.gen(function* AnalyticsRpcsLive() {
     const analyticsService = yield* AnalyticsService;
 
     return {
@@ -35,39 +35,39 @@ export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
         startDate,
         endDate,
         compareToPreviousPeriod,
-        filters
+        filters,
       }) =>
         analyticsService.getAnalytics({
-          projectId,
-          metrics: [...metrics] as MetricType[],
-          timeRange,
-          granularity,
-          startDate,
-          endDate,
           compareToPreviousPeriod: compareToPreviousPeriod ?? false,
+          endDate,
           filters: filters
             ? ({
                 productIds: filters.productIds
                   ? [...filters.productIds]
                   : undefined,
+                providerEnvironment: filters.providerEnvironment,
                 subscriptionStatuses: filters.subscriptionStatuses
                   ? [...filters.subscriptionStatuses]
                   : undefined,
-                providerEnvironment: filters.providerEnvironment
               } satisfies AnalyticsFilters)
-            : undefined
+            : undefined,
+          granularity,
+          metrics: [...metrics] as MetricType[],
+          projectId,
+          startDate,
+          timeRange,
         }),
 
       GetDashboardOverview: ({ projectId, timeRange, startDate, endDate }) =>
         analyticsService.getAnalytics({
-          projectId,
-          metrics: [...ALL_METRICS] as MetricType[],
-          timeRange,
-          granularity: 'day',
-          startDate,
+          compareToPreviousPeriod: true,
           endDate,
-          compareToPreviousPeriod: true
-        })
+          granularity: "day",
+          metrics: [...ALL_METRICS] as MetricType[],
+          projectId,
+          startDate,
+          timeRange,
+        }),
     };
   })
 ).pipe(Layer.provide(AnalyticsService.Default));

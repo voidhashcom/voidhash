@@ -1,34 +1,34 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Product } from '@voidhash/rpc';
-import { Button } from '@voidhash/ui/button';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Product } from "@voidhash/rpc";
+import { Button } from "@voidhash/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
-} from '@voidhash/ui/dialog';
+  DialogTitle,
+} from "@voidhash/ui/dialog";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '@voidhash/ui/form';
-import { Input } from '@voidhash/ui/input';
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { queryKeys, updateProductOptions } from 'src/lib/tanstack-query';
-import { z } from 'zod/v3';
+  FormMessage,
+} from "@voidhash/ui/form";
+import { Input } from "@voidhash/ui/input";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { queryKeys, updateProductOptions } from "src/lib/tanstack-query";
+import { z } from "zod/v3";
 
 const updateProductSchema = z.object({
-  name: z.string().min(1)
+  name: z.string().min(1),
 });
 type UpdateProductForm = z.infer<typeof updateProductSchema>;
 
@@ -43,29 +43,29 @@ interface EditProductModalProps {
 export function EditProductModal({
   open,
   onClose,
-  product
+  product,
 }: EditProductModalProps) {
   const form = useForm<UpdateProductForm>({
-    resolver: zodResolver(updateProductSchema),
     defaultValues: {
-      name: ''
-    }
+      name: "",
+    },
+    resolver: zodResolver(updateProductSchema),
   });
 
   const queryClient = useQueryClient();
   const { mutate: updateProduct, status: updateProductStatus } = useMutation({
     ...updateProductOptions(),
     onSuccess: () => {
-      toast.success('Product updated successfully');
+      toast.success("Product updated successfully");
       queryClient.invalidateQueries({
-        queryKey: queryKeys.product.list({ projectId: product.projectId })
+        queryKey: queryKeys.product.list({ projectId: product.projectId }),
       });
       onClose?.();
       handleOpenChange(false);
     },
     onError: () => {
-      toast.error('Failed to update the product');
-    }
+      toast.error("Failed to update the product");
+    },
   });
 
   const handleOpenChange = (open: boolean) => {
@@ -76,13 +76,13 @@ export function EditProductModal({
   };
 
   const onSubmit = (data: UpdateProductForm) => {
-    updateProduct({ ...data, productId: product.id });
+    updateProduct({ ...data, id: product.id });
   };
 
   useEffect(() => {
     if (!open) {
       form.reset({
-        name: product.name
+        name: product.name,
       });
     }
   }, [open, form, product.name]);
@@ -115,12 +115,12 @@ export function EditProductModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={updateProductStatus === 'pending'}
+                disabled={updateProductStatus === "pending"}
                 type="submit"
               >
-                {updateProductStatus === 'pending'
-                  ? 'Saving...'
-                  : 'Save Changes'}
+                {updateProductStatus === "pending"
+                  ? "Saving..."
+                  : "Save Changes"}
               </Button>
             </DialogFooter>
           </form>

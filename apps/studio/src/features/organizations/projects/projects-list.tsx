@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router';
+import { Link } from "@tanstack/react-router";
 import {
   Button,
   Card,
@@ -6,15 +6,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  GradientAvatar
-} from '@voidhash/ui';
-import { EllipsisVerticalIcon } from 'lucide-react';
-import { useAuth } from 'src/components/auth-context';
-import { VoidhashErrorCard } from 'src/features/shell/components/voidhash-error-card';
-import { EmptyState } from './empty-state';
+  GradientAvatar,
+} from "@voidhash/ui";
+import { EllipsisVerticalIcon } from "lucide-react";
+import { useAuth } from "src/components/auth-context";
+import { VoidhashErrorCard } from "src/features/shell/components/voidhash-error-card";
+
+import { EmptyState } from "./empty-state";
 
 export const ProjectsList = ({
-  organizationSlug
+  organizationSlug,
 }: {
   organizationSlug: string;
 }) => {
@@ -27,8 +28,8 @@ export const ProjectsList = ({
     return (
       <VoidhashErrorCard
         error={{
-          code: 'NOT_FOUND',
-          message: 'Organization not found'
+          code: "NOT_FOUND",
+          message: "Organization not found",
         }}
       />
     );

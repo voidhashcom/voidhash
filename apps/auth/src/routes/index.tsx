@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { Link, createFileRoute } from "@tanstack/react-router";
 import {
   Button,
   Card,
@@ -7,17 +7,18 @@ import {
   CardHeader,
   CardTitle,
   Logo,
-  Spinner
-} from '@voidhash/ui';
-import { LogOut, Settings, User } from 'lucide-react';
-import { authMiddleware } from 'src/middleware/auth';
-import { authClient } from '../lib/auth-client';
+  Spinner,
+} from "@voidhash/ui";
+import { LogOut, Settings, User } from "lucide-react";
+import { authMiddleware } from "src/middleware/auth";
 
-export const Route = createFileRoute('/')({
+import { authClient } from "../lib/auth-client";
+
+export const Route = createFileRoute("/")({
   component: HomePage,
   server: {
-    middleware: [authMiddleware]
-  }
+    middleware: [authMiddleware],
+  },
 });
 
 export function HomePage() {
@@ -26,7 +27,7 @@ export function HomePage() {
 
   const handleSignOut = async () => {
     await authClient.signOut();
-    window.location.href = '/login';
+    window.location.href = "/login";
   };
 
   if (isPending) {
@@ -51,7 +52,7 @@ export function HomePage() {
                 {user?.image ? (
                   // biome-ignore lint/performance/noImgElement: only a small avatar
                   <img
-                    alt={user.name ?? 'User'}
+                    alt={user.name ?? "User"}
                     className="h-16 w-16 rounded-full object-cover"
                     src={user.image}
                   />
@@ -60,7 +61,7 @@ export function HomePage() {
                 )}
               </div>
               <CardTitle className="text-xl">
-                Welcome, {user?.name ?? 'User'}
+                Welcome, {user?.name ?? "User"}
               </CardTitle>
               <CardDescription>{user?.email}</CardDescription>
             </CardHeader>
@@ -72,7 +73,7 @@ export function HomePage() {
               </p>
 
               <div className="flex flex-col gap-2">
-                {user?.role === 'admin' && (
+                {user?.role === "admin" && (
                   <Link to="/admin">
                     <Button className="w-full" variant="outline">
                       <Settings className="mr-2 h-4 w-4" />

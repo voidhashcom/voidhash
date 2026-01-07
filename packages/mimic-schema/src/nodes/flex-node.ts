@@ -1,4 +1,5 @@
-import { Primitive } from '@voidhash/mimic';
+import { Primitive } from "@voidhash/mimic";
+
 import {
   alignItems,
   alignSelf,
@@ -47,17 +48,18 @@ import {
   shadowOffsetY,
   shadowOpacity,
   width,
-  zIndex
-} from '../styles';
-import { linkedVariables, localVariables, states } from './base';
-import { TextNode } from './text-node';
+  zIndex,
+} from "../styles";
+import { linkedVariables, localVariables, states } from "./base";
+import { TextNode } from "./text-node";
 
 /** FlexNode tree node schema */
-export const FlexNode = Primitive.TreeNode('flex', {
+export const FlexNode = Primitive.TreeNode("flex", {
+  children: [Primitive.TreeNodeSelf, TextNode] as const,
   data: Primitive.Struct({
-    name: Primitive.String().default('Flex'),
-    localVariables,
     linkedVariables,
+    localVariables,
+    name: Primitive.String().default("Flex"),
     states,
     style: Primitive.Struct({
       // Padding
@@ -119,10 +121,9 @@ export const FlexNode = Primitive.TreeNode('flex', {
       flexGrow,
       flexShrink,
       flexBasis,
-      alignSelf: alignSelf.default('stretch')
-    })
+      alignSelf: alignSelf.default("stretch"),
+    }),
   }),
-  children: [Primitive.TreeNodeSelf, TextNode] as const
 });
 
 export type FlexNodeData = Primitive.TreeNodeSnapshot<typeof FlexNode>;

@@ -1,6 +1,6 @@
-'use client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiKey, ApiKeyWithRawKey } from '@voidhash/rpc';
+"use client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ApiKey, ApiKeyWithRawKey } from "@voidhash/rpc";
 import {
   Button,
   DropdownMenu,
@@ -11,17 +11,18 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-  useConfirmDialog
-} from '@voidhash/ui';
-import { EllipsisVerticalIcon } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
+  useConfirmDialog,
+} from "@voidhash/ui";
+import { EllipsisVerticalIcon } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import {
   deleteApiKeyOptions,
   queryKeys,
-  rotateSecretKeyOptions
-} from 'src/lib/tanstack-query';
-import { SecretKeyRevealModal } from './secret-key-reveal-modal';
+  rotateSecretKeyOptions,
+} from "src/lib/tanstack-query";
+
+import { SecretKeyRevealModal } from "./secret-key-reveal-modal";
 
 export function ApiKeyRecord({ apiKey }: { apiKey: typeof ApiKey.Type }) {
   const queryClient = useQueryClient();
@@ -32,7 +33,7 @@ export function ApiKeyRecord({ apiKey }: { apiKey: typeof ApiKey.Type }) {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
+    toast.success("Copied to clipboard");
   };
 
   // Rotate key
@@ -40,24 +41,24 @@ export function ApiKeyRecord({ apiKey }: { apiKey: typeof ApiKey.Type }) {
     useMutation({
       ...rotateSecretKeyOptions(),
       onSuccess: () => {
-        toast.success('Key successfully rotated');
+        toast.success("Key successfully rotated");
         queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
       },
       onError: () => {
-        toast.error('Failed to rotate key');
-      }
+        toast.error("Failed to rotate key");
+      },
     });
 
   const handleRotateKey = async () => {
     const res = await openDialog({
-      title: 'Rotate key',
+      confirmText: "Rotate",
       description:
-        'Are you sure you want to rotate this key? It may break any services that are using it.',
-      confirmText: 'Rotate'
+        "Are you sure you want to rotate this key? It may break any services that are using it.",
+      title: "Rotate key",
     });
     if (res) {
       rotateSecretKey({
-        apiKeyId: apiKey.id
+        apiKeyId: apiKey.id,
       });
     }
   };
@@ -67,24 +68,24 @@ export function ApiKeyRecord({ apiKey }: { apiKey: typeof ApiKey.Type }) {
     useMutation({
       ...deleteApiKeyOptions(),
       onSuccess: () => {
-        toast.success('Key successfully deleted');
+        toast.success("Key successfully deleted");
         queryClient.invalidateQueries({ queryKey: queryKeys.apiKey.all });
       },
       onError: () => {
-        toast.error('Failed to delete key');
-      }
+        toast.error("Failed to delete key");
+      },
     });
 
   const handleDeleteKey = async () => {
     const res = await openDialog({
-      title: 'Delete key',
+      confirmText: "Delete",
       description:
-        'Are you sure you want to delete this key? It may break any services that are using it. This action cannot be undone.',
-      confirmText: 'Delete'
+        "Are you sure you want to delete this key? It may break any services that are using it. This action cannot be undone.",
+      title: "Delete key",
     });
     if (res) {
       deleteSecretKey({
-        apiKeyId: apiKey.id
+        apiKeyId: apiKey.id,
       });
     }
   };
@@ -131,14 +132,14 @@ export function ApiKeyRecord({ apiKey }: { apiKey: typeof ApiKey.Type }) {
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  disabled={rotateSecretKeyStatus === 'pending'}
+                  disabled={rotateSecretKeyStatus === "pending"}
                   onClick={handleRotateKey}
                 >
                   Rotate key
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  disabled={deleteSecretKeyStatus === 'pending'}
+                  disabled={deleteSecretKeyStatus === "pending"}
                   onClick={handleDeleteKey}
                 >
                   Delete key

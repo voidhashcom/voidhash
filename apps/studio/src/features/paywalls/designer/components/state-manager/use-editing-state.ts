@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
 
 interface UseEditingStateOptions {
   existingStateNames: Set<string>;
@@ -18,7 +18,7 @@ interface EditingState {
  */
 export function useEditingState({
   existingStateNames,
-  onUpdateStateName
+  onUpdateStateName,
 }: UseEditingStateOptions) {
   const [editingState, setEditingState] = useState<EditingState | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -27,7 +27,7 @@ export function useEditingState({
     setEditingState({
       id: stateId,
       name: currentName,
-      originalName: currentName
+      originalName: currentName,
     });
     setTimeout(() => {
       inputRef.current?.focus();
@@ -52,7 +52,7 @@ export function useEditingState({
     }
 
     if (trimmedName.length > 32) {
-      toast.error('State name must be less than 32 characters');
+      toast.error("State name must be less than 32 characters");
       setEditingState(null);
       return;
     }
@@ -61,7 +61,7 @@ export function useEditingState({
       existingStateNames.has(trimmedName) &&
       trimmedName !== editingState.originalName
     ) {
-      toast.error('A state with this name already exists');
+      toast.error("A state with this name already exists");
       setEditingState(null);
       return;
     }
@@ -76,9 +76,9 @@ export function useEditingState({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         cancel();
-      } else if (e.key === 'Enter') {
+      } else if (e.key === "Enter") {
         save();
       }
     },
@@ -93,6 +93,6 @@ export function useEditingState({
     isEditing: (stateId: string) => editingState?.id === stateId,
     save,
     startEditing,
-    updateName
+    updateName,
   };
 }

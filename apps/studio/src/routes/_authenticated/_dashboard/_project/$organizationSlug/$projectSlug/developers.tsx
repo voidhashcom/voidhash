@@ -1,11 +1,12 @@
-import { createFileRoute, Outlet } from '@tanstack/react-router';
-import { DevelopersTabBar } from '@/features/developers/developers-tab-bar';
-import { Page } from '@/features/shell';
+import { Outlet, createFileRoute } from "@tanstack/react-router";
+
+import { DevelopersTabBar } from "@/features/developers/developers-tab-bar";
+import { Page } from "@/features/shell";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers'
+  "/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers"
 )({
-  component: DevelopersLayout
+  component: DevelopersLayout,
 });
 
 function DevelopersLayout() {
@@ -13,25 +14,25 @@ function DevelopersLayout() {
 
   const tabs = [
     {
-      label: 'Overview',
-      path: `/${organizationSlug}/${projectSlug}/developers`
+      label: "Overview",
+      path: `/${organizationSlug}/${projectSlug}/developers`,
     },
     {
-      label: 'API Keys',
-      path: `/${organizationSlug}/${projectSlug}/developers/api-keys`
+      label: "API Keys",
+      path: `/${organizationSlug}/${projectSlug}/developers/api-keys`,
     },
     // {
     //   label: 'Paywall Locations',
     //   path: `/${organizationSlug}/${projectSlug}/developers/paywall-locations`
     // },
     {
-      label: 'Perks',
-      path: `/${organizationSlug}/${projectSlug}/developers/perks`
+      label: "Perks",
+      path: `/${organizationSlug}/${projectSlug}/developers/perks`,
     },
     {
-      label: 'Webhooks',
-      path: `/${organizationSlug}/${projectSlug}/developers/webhooks`
-    }
+      label: "Webhooks",
+      path: `/${organizationSlug}/${projectSlug}/developers/webhooks`,
+    },
   ];
 
   return (

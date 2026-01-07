@@ -1,18 +1,19 @@
-'use client';
+"use client";
 
 import {
   UnderlineTabs,
   UnderlineTabsContent,
   UnderlineTabsList,
-  UnderlineTabsTrigger
-} from '@voidhash/ui';
-import { useParams } from 'next/navigation';
-import { useAuth } from 'src/components/auth-context';
-import { VoidhashErrorCard } from 'src/features/shell/components/voidhash-error-card';
-import { CurrentUser } from 'src/lib/utils/current-user';
-import { Page } from '../shell';
-import { CreateCustomerButton } from './create-customer-button';
-import { CustomersTable } from './customers-table';
+  UnderlineTabsTrigger,
+} from "@voidhash/ui";
+import { useParams } from "next/navigation";
+import { useAuth } from "src/components/auth-context";
+import { VoidhashErrorCard } from "src/features/shell/components/voidhash-error-card";
+import { CurrentUser } from "src/lib/utils/current-user";
+
+import { Page } from "../shell";
+import { CreateCustomerButton } from "./create-customer-button";
+import { CustomersTable } from "./customers-table";
 
 export const CustomersPage = () => {
   const { organizationSlug, projectSlug } = useParams();
@@ -28,9 +29,9 @@ export const CustomersPage = () => {
     return (
       <VoidhashErrorCard
         error={{
-          code: 'INTERNAL_SERVER_ERROR',
-          title: 'Project not found',
-          message: 'The project you are looking for does not exist.'
+          code: "INTERNAL_SERVER_ERROR",
+          message: "The project you are looking for does not exist.",
+          title: "Project not found",
         }}
       />
     );

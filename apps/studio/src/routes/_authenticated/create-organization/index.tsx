@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Button,
   Card,
@@ -17,24 +17,25 @@ import {
   FormLabel,
   FormMessage,
   Input,
-  Logo
-} from '@voidhash/ui';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod/v3';
-import { authClient } from '@/lib/auth-client';
-import { queryKeys } from '@/lib/tanstack-query';
-import { createOrganizationOptions } from '@/lib/tanstack-query/organizations';
+  Logo,
+} from "@voidhash/ui";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod/v3";
 
-export const Route = createFileRoute('/_authenticated/create-organization/')({
-  component: CreateOrganizationPage
+import { authClient } from "@/lib/auth-client";
+import { queryKeys } from "@/lib/tanstack-query";
+import { createOrganizationOptions } from "@/lib/tanstack-query/organizations";
+
+export const Route = createFileRoute("/_authenticated/create-organization/")({
+  component: CreateOrganizationPage,
 });
 
 const createOrganizationFormSchema = z.object({
   name: z
     .string()
-    .min(3, 'Organization name must be at least 3 characters')
-    .max(32, 'Organization name must be less than 32 characters')
+    .min(3, "Organization name must be at least 3 characters")
+    .max(32, "Organization name must be less than 32 characters"),
 });
 
 type CreateOrganizationForm = z.infer<typeof createOrganizationFormSchema>;
@@ -42,10 +43,10 @@ type CreateOrganizationForm = z.infer<typeof createOrganizationFormSchema>;
 function CreateOrganizationPage() {
   const navigate = useNavigate();
   const form = useForm<CreateOrganizationForm>({
-    resolver: zodResolver(createOrganizationFormSchema),
     defaultValues: {
-      name: ''
-    }
+      name: "",
+    },
+    resolver: zodResolver(createOrganizationFormSchema),
   });
 
   const queryClient = useQueryClient();
@@ -53,18 +54,18 @@ function CreateOrganizationPage() {
     useMutation({
       ...createOrganizationOptions(),
       onSuccess: (data) => {
-        toast.success('Organization created successfully');
+        toast.success("Organization created successfully");
         queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
         navigate({
-          to: '/$organizationSlug',
           params: {
-            organizationSlug: data.slug
-          }
+            organizationSlug: data.slug,
+          },
+          to: "/$organizationSlug",
         });
       },
       onError: () => {
-        toast.error('Failed to create organization');
-      }
+        toast.error("Failed to create organization");
+      },
     });
 
   const onSubmit = (data: CreateOrganizationForm) => {
@@ -73,7 +74,7 @@ function CreateOrganizationPage() {
 
   const signOut = async () => {
     await authClient.signOut();
-    navigate({ to: '/' });
+    navigate({ to: "/" });
   };
 
   return (
@@ -113,12 +114,12 @@ function CreateOrganizationPage() {
                   />
                   <Button
                     className="w-full"
-                    disabled={createOrganizationStatus === 'pending'}
+                    disabled={createOrganizationStatus === "pending"}
                     type="submit"
                   >
-                    {createOrganizationStatus === 'pending'
-                      ? 'Creating Organization...'
-                      : 'Create Organization'}
+                    {createOrganizationStatus === "pending"
+                      ? "Creating Organization..."
+                      : "Create Organization"}
                   </Button>
                 </form>
               </Form>
@@ -131,7 +132,7 @@ function CreateOrganizationPage() {
             </CardContent>
           </Card>
           <div className="text-center text-muted-foreground text-sm">
-            Signed in to a wrong account?{' '}
+            Signed in to a wrong account?{" "}
             <button
               className="cursor-pointer text-foreground underline underline-offset-4"
               onClick={signOut}

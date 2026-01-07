@@ -1,18 +1,19 @@
-'use client';
+"use client";
 
-import { useQuery } from '@tanstack/react-query';
-import { Card } from '@voidhash/ui';
-import { useParams } from 'next/navigation';
-import { useAuth } from 'src/components/auth-context';
-import { Page } from 'src/features/shell';
-import { VoidhashErrorCard } from 'src/features/shell/components/voidhash-error-card';
-import { listProductsOptions } from 'src/lib/tanstack-query/products';
-import { CurrentUser } from 'src/lib/utils/current-user';
-import { CreateProductModalButton } from './create-product-modal-button';
-import { ProductRecord } from './product-record';
-import { ProductRecordConfigurationStateIndicator } from './product-record-configuration-state-indicator';
-import { ProductsPageEmptyState } from './products-page-empty-state';
-import { ProductsPageSkeleton } from './products-page-skeleton';
+import { useQuery } from "@tanstack/react-query";
+import { Card } from "@voidhash/ui";
+import { useParams } from "next/navigation";
+import { useAuth } from "src/components/auth-context";
+import { Page } from "src/features/shell";
+import { VoidhashErrorCard } from "src/features/shell/components/voidhash-error-card";
+import { listProductsOptions } from "src/lib/tanstack-query/products";
+import { CurrentUser } from "src/lib/utils/current-user";
+
+import { CreateProductModalButton } from "./create-product-modal-button";
+import { ProductRecord } from "./product-record";
+import { ProductRecordConfigurationStateIndicator } from "./product-record-configuration-state-indicator";
+import { ProductsPageEmptyState } from "./products-page-empty-state";
+import { ProductsPageSkeleton } from "./products-page-skeleton";
 
 export const ProductsPage = () => {
   const { organizationSlug, projectSlug } = useParams();
@@ -23,20 +24,20 @@ export const ProductsPage = () => {
     projectSlug as string
   );
   const { data: products, status: productsStatus } = useQuery({
-    ...listProductsOptions({ projectId: project?.id ?? '' }),
-    enabled: !!project?.id
+    ...listProductsOptions({ projectId: project?.id ?? "" }),
+    enabled: !!project?.id,
   });
 
-  if (productsStatus === 'pending') {
+  if (productsStatus === "pending") {
     return <ProductsPageSkeleton />;
   }
 
-  if (productsStatus === 'error' || !project) {
+  if (productsStatus === "error" || !project) {
     return (
       <VoidhashErrorCard
         error={{
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'An error occured loading the products'
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An error occured loading the products",
         }}
       />
     );

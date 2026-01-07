@@ -6,68 +6,64 @@
 
 // export default nextConfig;
 
-import path from 'node:path';
-import { AUTH_DOMAIN, DOCS_DOMAIN, STUDIO_DOMAIN } from '@voidhash/lib';
-import type { NextConfig } from 'next';
+import { AUTH_DOMAIN, DOCS_DOMAIN, STUDIO_DOMAIN } from "@voidhash/lib";
+import type { NextConfig } from "next";
+import path from "node:path";
 
-const STUDIO_BASE_PATH = '/studio';
-const DOCS_BASE_PATH = '/docs';
-const AUTH_BASE_PATH = '/auth';
+const STUDIO_BASE_PATH = "/studio";
+const DOCS_BASE_PATH = "/docs";
+const AUTH_BASE_PATH = "/auth";
 
 const nextConfig: NextConfig = {
   turbopack: {
-    root: path.join(__dirname, '../../..')
+    root: path.join(__dirname, "../../.."),
   },
   // biome-ignore lint/suspicious/useAwait: async is required
-  redirects: async () => {
-    return [
-      // Redirect to dashboard if user is authenticated
-      {
-        source: '/',
-        has: [
-          {
-            type: 'cookie',
-            key: 'better-auth.session_token'
-          }
-        ],
-        permanent: false,
-        destination: STUDIO_BASE_PATH
-      }
-    ];
-  },
+  redirects: async () => [
+    // Redirect to dashboard if user is authenticated
+    {
+      destination: STUDIO_BASE_PATH,
+      has: [
+        {
+          key: "better-auth.session_token",
+          type: "cookie",
+        },
+      ],
+      permanent: false,
+      source: "/",
+    },
+  ],
   // biome-ignore lint/suspicious/useAwait: async is required
-  rewrites: async () => {
-    return [
-      {
-        source: STUDIO_BASE_PATH,
-        destination: `${STUDIO_DOMAIN}/studio`
-      },
-      {
-        source: `${STUDIO_BASE_PATH}/:path*`,
-        destination: `${STUDIO_DOMAIN}/studio/:path*`
-      },
-      {
-        source: DOCS_BASE_PATH,
-        destination: `${DOCS_DOMAIN}/docs`
-      },
-      {
-        source: `${DOCS_BASE_PATH}/:path*`,
-        destination: `${DOCS_DOMAIN}/docs/:path+`
-      },
-      {
-        source: AUTH_BASE_PATH,
-        destination: `${AUTH_DOMAIN}/auth`
-      },
-      {
-        source: `${AUTH_BASE_PATH}/:path*`,
-        destination: `${AUTH_DOMAIN}/auth/:path+`
-      }
-    ];
-  }
+  rewrites: async () => [
+    {
+      destination: `${STUDIO_DOMAIN}/studio`,
+      source: STUDIO_BASE_PATH,
+    },
+    {
+      destination: `${STUDIO_DOMAIN}/studio/:path*`,
+      source: `${STUDIO_BASE_PATH}/:path*`,
+    },
+    {
+      destination: `${DOCS_DOMAIN}/docs`,
+      source: DOCS_BASE_PATH,
+    },
+    {
+      destination: `${DOCS_DOMAIN}/docs/:path+`,
+      source: `${DOCS_BASE_PATH}/:path*`,
+    },
+    {
+      destination: `${AUTH_DOMAIN}/auth`,
+      source: AUTH_BASE_PATH,
+    },
+    {
+      destination: `${AUTH_DOMAIN}/auth/:path+`,
+      source: `${AUTH_BASE_PATH}/:path*`,
+    },
+  ],
 };
 
-if (process.env.NODE_ENV === 'development') {
-  nextConfig.outputFileTracingRoot = path.join(__dirname, '../../../');
+if (process.env.NODE_ENV === "development") {
+  nextConfig.outputFileTracingRoot = path.join(__dirname, "../../../");
 }
 
 export default nextConfig;

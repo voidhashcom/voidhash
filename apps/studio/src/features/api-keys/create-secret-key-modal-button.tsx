@@ -1,13 +1,14 @@
-'use client';
+"use client";
 
-import type { ApiKeyWithRawKey } from '@voidhash/rpc';
-import { Button } from '@voidhash/ui/button';
-import { useState } from 'react';
-import { CreateSecretKeyModal } from './create-secret-key-modal';
-import { SecretKeyRevealModal } from './secret-key-reveal-modal';
+import type { ApiKeyWithRawKey } from "@voidhash/rpc";
+import { Button } from "@voidhash/ui/button";
+import { useState } from "react";
+
+import { CreateSecretKeyModal } from "./create-secret-key-modal";
+import { SecretKeyRevealModal } from "./secret-key-reveal-modal";
 
 export function CreateSecretKeyModalButton({
-  projectId
+  projectId,
 }: {
   projectId: string;
 }) {

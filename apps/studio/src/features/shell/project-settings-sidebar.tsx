@@ -1,50 +1,48 @@
-'use client';
-import { Link, useLocation } from '@tanstack/react-router';
-import type { User } from '@voidhash/api-spec';
+"use client";
+import type * as React from "react";
+
+import { Link, useLocation } from "@tanstack/react-router";
+import type { User } from "@voidhash/api-spec";
 import {
   GradientAvatar,
   Sidebar,
   SidebarContent,
   SidebarHeader,
-  Skeleton
-} from '@voidhash/ui';
-import { ChevronLeft } from 'lucide-react';
-import type * as React from 'react';
-import { useAuth } from 'src/components/auth-context';
-import { NavMain } from './nav-main';
+  Skeleton,
+} from "@voidhash/ui";
+import { ChevronLeft } from "lucide-react";
+import { useAuth } from "src/components/auth-context";
 
-type Organization = (typeof User.Type)['organizations'][number];
+import { NavMain } from "./nav-main";
+
+type Organization = (typeof User.Type)["organizations"][number];
 
 const ActiveOrganization = ({
-  activeOrganization
+  activeOrganization,
 }: {
   activeOrganization: Organization;
-}) => {
-  return (
-    <div className="group flex items-center gap-2">
-      <ChevronLeft className="-ml-1 absolute size-4 opacity-0 transition-opacity group-hover:opacity-100" />
-      <GradientAvatar
-        alt={activeOrganization.name}
-        className="h-4 w-4 scale-100 rounded-lg text-xs transition-all group-hover:scale-0 group-hover:opacity-0"
-        fallback={activeOrganization.id}
-        src={undefined}
-      />
+}) => (
+  <div className="group flex items-center gap-2">
+    <ChevronLeft className="-ml-1 absolute size-4 opacity-0 transition-opacity group-hover:opacity-100" />
+    <GradientAvatar
+      alt={activeOrganization.name}
+      className="h-4 w-4 scale-100 rounded-lg text-xs transition-all group-hover:scale-0 group-hover:opacity-0"
+      fallback={activeOrganization.id}
+      src={undefined}
+    />
 
-      <span className="truncate text-foreground- text-sm">
-        {activeOrganization.name}
-      </span>
-    </div>
-  );
-};
+    <span className="truncate text-foreground- text-sm">
+      {activeOrganization.name}
+    </span>
+  </div>
+);
 
-const ActiveOrganizationSkeleton = () => {
-  return (
-    <>
-      <Skeleton className="h-4 w-4 rounded-lg" />
-      <Skeleton className="h-4 w-24 rounded-lg" />
-    </>
-  );
-};
+const ActiveOrganizationSkeleton = () => (
+  <>
+    <Skeleton className="h-4 w-4 rounded-lg" />
+    <Skeleton className="h-4 w-24 rounded-lg" />
+  </>
+);
 
 export function ProjectSettingsSidebar({
   organizationSlug,
@@ -55,34 +53,34 @@ export function ProjectSettingsSidebar({
   projectSlug: string;
 }) {
   const pathname = useLocation({
-    select: (location) => location.pathname
+    select: (location) => location.pathname,
   });
   const { user } = useAuth();
 
   const data = {
     navMain: [
       {
-        title: 'Project',
         items: [
           {
-            title: 'General',
-            url: `/${organizationSlug}/${projectSlug}/settings/general`,
             isActive: () =>
               pathname.startsWith(
                 `/${organizationSlug}/${projectSlug}/settings/general`
-              )
+              ),
+            title: "General",
+            url: `/${organizationSlug}/${projectSlug}/settings/general`,
           },
           {
-            title: 'Payment Providers',
-            url: `/${organizationSlug}/${projectSlug}/settings/payment-providers`,
             isActive: () =>
               pathname.startsWith(
                 `/${organizationSlug}/${projectSlug}/settings/payment-providers`
-              )
-          }
-        ]
-      }
-    ]
+              ),
+            title: "Payment Providers",
+            url: `/${organizationSlug}/${projectSlug}/settings/payment-providers`,
+          },
+        ],
+        title: "Project",
+      },
+    ],
   };
 
   return (

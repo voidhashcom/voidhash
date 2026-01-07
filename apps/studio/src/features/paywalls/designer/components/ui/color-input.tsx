@@ -1,28 +1,29 @@
-'use client';
+"use client";
 
-import { cn, Popover, PopoverContent, PopoverTrigger } from '@voidhash/ui';
-import { InputGroup, InputGroupInput } from '@voidhash/ui/input-group';
-import { PercentIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { ColorPickerContent } from './color-picker/color-picker-content';
-import { ColorSwatch } from './color-picker/color-swatch';
-import { hexOpacityToRgba, rgbaToHexOpacity } from './color-picker/color-utils';
-import { TextInput } from './text-input';
+import { Popover, PopoverContent, PopoverTrigger, cn } from "@voidhash/ui";
+import { InputGroup, InputGroupInput } from "@voidhash/ui/input-group";
+import { PercentIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
-export type ColorInputProps = {
+import { ColorPickerContent } from "./color-picker/color-picker-content";
+import { ColorSwatch } from "./color-picker/color-swatch";
+import { hexOpacityToRgba, rgbaToHexOpacity } from "./color-picker/color-utils";
+import { TextInput } from "./text-input";
+
+export interface ColorInputProps {
   /** RGBA color string (e.g., "rgba(255, 255, 255, 1)") */
   value: string;
   /** Callback when color changes, returns RGBA string */
   onChange: (value: string) => void;
   className?: string;
-};
+}
 
 const HEX_REGEX = /^[0-9A-Fa-f]{6}$/;
 
 export function ColorInput({
-  value = 'rgba(255, 255, 255, 1)',
+  value = "rgba(255, 255, 255, 1)",
   onChange,
-  className
+  className,
 }: ColorInputProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -53,7 +54,7 @@ export function ColorInput({
   };
 
   const handleHexInputChange = (inputValue: string) => {
-    const cleaned = inputValue.replace('#', '').toUpperCase();
+    const cleaned = inputValue.replace("#", "").toUpperCase();
     setInternalHex(cleaned);
     if (HEX_REGEX.test(cleaned)) {
       emitChange(cleaned, internalOpacity);
@@ -68,7 +69,7 @@ export function ColorInput({
   };
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn("flex items-center gap-2", className)}>
       <InputGroup className="h-7 flex-1 rounded-sm border-none dark:bg-input/60">
         <Popover onOpenChange={setIsOpen} open={isOpen}>
           <PopoverTrigger asChild>

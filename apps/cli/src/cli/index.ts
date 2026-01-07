@@ -1,42 +1,58 @@
-import { Command } from '@effect/cli';
-import { FetchHttpClient } from '@effect/platform';
-import { NodeContext, NodeRuntime } from '@effect/platform-node';
-import { Effect, Layer } from 'effect';
-import { Auth } from '../domain/services/auth';
-import { CliConfig } from '../domain/services/cli-config';
-import { Codegen } from '../domain/services/codegen';
-import { SourceCode } from '../domain/services/source-code';
-import { authCommand } from './commands/auth';
-import { initCommand } from './commands/init';
-import { schemaCommand } from './commands/schema';
+import { Command } from "@effect/cli";
+import { FetchHttpClient } from "@effect/platform";
+import { NodeContext, NodeRuntime } from "@effect/platform-node";
+import { Effect, Layer, Logger, LogLevel } from "effect";
 
-const command = Command.make('voidhash').pipe(
-  Command.withDescription('Voidhash CLI application.'),
-  Command.withSubcommands([initCommand, authCommand, schemaCommand])
+import { Auth } from "../domain/services/auth";
+import { CliConfig } from "../domain/services/cli-config";
+import { Codegen } from "../domain/services/codegen";
+import { SchemaService } from "../domain/services/schema";
+import { SourceCode } from "../domain/services/source-code";
+import { ApiClient } from "../utils/api-client";
+import {
+  isDebugMode,
+  withValidationErrorHandler,
+} from "../utils/error-formatter";
+import { authCommand } from "./commands/auth";
+import { configCommand } from "./commands/config";
+import { initCommand } from "./commands/init";
+import { schemaCommand } from "./commands/schema";
+
+const command = Command.make("voidhash").pipe(
+  Command.withDescription("Voidhash CLI application."),
+  Command.withSubcommands([
+    initCommand,
+    authCommand,
+    schemaCommand,
+    configCommand,
+  ])
 );
 
 const cli = Command.run(command, {
-  name: 'Voidhash CLI',
-  version: '0.0.1-alpha.1'
+  name: "Voidhash CLI",
+  version: "0.0.1-alpha.1",
 });
 
-const cliEffect = Effect.suspend(() => cli(process.argv));
+// Apply debug log level if --debug flag is present
+const cliEffect = Effect.suspend(() => cli(process.argv)).pipe(
+  isDebugMode() ? Logger.withMinimumLogLevel(LogLevel.Debug) : (x) => x
+);
 
 const ServicesLayer = Layer.mergeAll(
-  CliConfig.Default,
   SourceCode.Default,
   Auth.Default,
-  Codegen.Default
+  Codegen.Default,
+  SchemaService.Default
 );
 
 const PlatformLayer = Layer.mergeAll(NodeContext.layer, FetchHttpClient.layer);
 
-const MainLayer = ServicesLayer.pipe(Layer.provideMerge(PlatformLayer));
+const MainLayer = ServicesLayer.pipe(
+  Layer.provideMerge(ApiClient.Default),
+  Layer.provideMerge(CliConfig.Default),
+  Layer.provideMerge(PlatformLayer)
+);
 
-NodeRuntime.runMain(cliEffect.pipe(Effect.provide(MainLayer)));
-
-// cliEffect.pipe(
-//   Effect.provide(MainLayer),
-//   Effect.tapErrorCause(Effect.logError),
-
-// );
+NodeRuntime.runMain(
+  cliEffect.pipe(Effect.provide(MainLayer), withValidationErrorHandler)
+);

@@ -1,4 +1,4 @@
-import type { Link as TanstackLink } from '@tanstack/react-router';
+import type { Link as TanstackLink } from "@tanstack/react-router";
 import {
   Collapsible,
   CollapsibleContent,
@@ -11,15 +11,15 @@ import {
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarMenuSubItem
-} from '@voidhash/ui';
-import { ChevronRight, type LucideIcon } from 'lucide-react';
+  SidebarMenuSubItem,
+} from "@voidhash/ui";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 
 export function NavMain({
   link: Link,
   groups,
-  tooltips = 'enabled',
-  defaultOpenNested = false
+  tooltips = "enabled",
+  defaultOpenNested = false,
 }: {
   link: typeof TanstackLink;
   defaultOpenNested?: boolean;
@@ -37,7 +37,7 @@ export function NavMain({
       }[];
     }[];
   }[];
-  tooltips?: 'enabled' | 'disabled';
+  tooltips?: "enabled" | "disabled";
 }) {
   return (
     <>
@@ -59,7 +59,7 @@ export function NavMain({
                       (!item.items?.length || item.items.length === 0) &&
                       item.isActive?.()
                     }
-                    tooltip={tooltips === 'enabled' ? item.title : null}
+                    tooltip={tooltips === "enabled" ? item.title : null}
                   >
                     <Link
                       // biome-ignore lint/suspicious/noExplicitAny: <explanation>

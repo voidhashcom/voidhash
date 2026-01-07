@@ -1,28 +1,29 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
-import { Skeleton } from '@voidhash/ui';
-import { useAuth } from 'src/components/auth-context';
-import { CreatePaywallCard } from '@/features/paywalls/create-paywall-card';
-import { PaywallCard } from '@/features/paywalls/paywall-card';
-import { PaywallCardSkeleton } from '@/features/paywalls/paywall-card-skeleton';
-import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { listPaywallsOptions } from '@/lib/tanstack-query/paywalls';
-import { CurrentUser } from '@/lib/utils/current-user';
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { Skeleton } from "@voidhash/ui";
+import { useAuth } from "src/components/auth-context";
+
+import { CreatePaywallCard } from "@/features/paywalls/create-paywall-card";
+import { PaywallCard } from "@/features/paywalls/paywall-card";
+import { PaywallCardSkeleton } from "@/features/paywalls/paywall-card-skeleton";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { listPaywallsOptions } from "@/lib/tanstack-query/paywalls";
+import { CurrentUser } from "@/lib/utils/current-user";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/'
+  "/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/"
 )({
-  pendingComponent: PaywallsPageSkeleton,
+  component: PaywallsPage,
   errorComponent: PaywallsPageError,
-  component: PaywallsPage
+  pendingComponent: PaywallsPageSkeleton,
 });
 
 function PaywallsPageError() {
   return (
     <VoidhashErrorCard
       error={{
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'An error occurred loading the paywalls'
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An error occurred loading the paywalls",
       }}
     />
   );
@@ -65,7 +66,7 @@ function PaywallsPage() {
   );
 
   if (!project) {
-    throw new Error('Project not found');
+    throw new Error("Project not found");
   }
 
   const { data: paywalls } = useSuspenseQuery(

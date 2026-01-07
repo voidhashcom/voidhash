@@ -1,35 +1,36 @@
-import { Prompt } from '@effect/cli';
-import { Effect } from 'effect';
-import { createProject } from './create-project';
+import { Prompt } from "@effect/cli";
+import { Effect } from "effect";
+
+import { createProject } from "./create-project";
 
 export const selectProject = (
   organizationId: string,
-  projects: ReadonlyArray<{ id: string; slug: string; name: string }>
+  projects: readonly { id: string; slug: string; name: string }[]
 ) =>
-  Effect.gen(function* () {
+  Effect.gen(function* selectProject() {
     if (projects.length === 0) {
       return yield* createProject({ organizationId });
     }
     const projectSlug = yield* Prompt.run(
       Prompt.select({
-        message: 'Select a project',
         choices: [
           ...projects.map((p) => ({
             title: ` ·  ${p.name}`,
-            value: p.slug
+            value: p.slug,
           })),
-          { title: '(+) Create new project', value: 'create-new-project' }
-        ]
+          { title: "(+) Create new project", value: "create-new-project" },
+        ],
+        message: "Select a project",
       })
     );
-    if (projectSlug === 'create-new-project') {
+    if (projectSlug === "create-new-project") {
       return yield* createProject({ organizationId });
     }
 
     const project = projects.find((p) => p.slug === projectSlug);
     if (!project) {
       return yield* Effect.dieMessage(
-        'Project not found even though it was selected and should exist.'
+        "Project not found even though it was selected and should exist."
       );
     }
     return project;

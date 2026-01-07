@@ -1,18 +1,22 @@
 import {
-  and,
-  eq,
   type InsertUsageAggregate,
   type InsertUsageRecord,
+  and,
+  eq,
   organizationBilling,
   usageAggregates,
-  usageRecords
-} from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { generateId } from '@voidhash/lib';
-import { Effect } from 'effect';
-import { BillingServiceError } from '../../../billing/errors';
-import { getTierLimitForMetric } from '../../../billing/tiers';
-import type { MetricIdValue, UsageRecordInput } from '../../../billing/types';
+  usageRecords,
+} from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { generateId } from "@voidhash/lib";
+import { Effect } from "effect";
+
+import { BillingServiceError } from "../../../billing/errors";
+import { getTierLimitForMetric } from "../../../billing/tiers";
+import type {
+  MetricIdValue,
+  UsageRecordInput,
+} from "../../../billing/types";
 
 /**
  * Get or create the current billing period for an organization
@@ -29,7 +33,7 @@ function getCurrentBillingPeriod(): { start: Date; end: Date } {
     59,
     999
   );
-  return { start, end };
+  return { end, start };
 }
 
 const _insertUsageRecord = (db: Db) =>
@@ -61,7 +65,7 @@ const _upsertUsageAggregate = (db: Db) =>
             eq(usageAggregates.organizationId, input.organizationId),
             eq(usageAggregates.metricId, input.metricId),
             eq(usageAggregates.periodStart, input.periodStart)
-          )
+          ),
         });
 
         if (existing) {
@@ -69,52 +73,53 @@ const _upsertUsageAggregate = (db: Db) =>
           await db
             .update(usageAggregates)
             .set({
-              totalValue: existing.totalValue + input.value,
               limitValue: input.limit,
-              warnThreshold: input.warnThreshold
+              totalValue: existing.totalValue + input.value,
+              warnThreshold: input.warnThreshold,
             })
             .where(eq(usageAggregates.id, existing.id));
 
           return {
             id: existing.id,
-            totalValue: existing.totalValue + input.value
+            totalValue: existing.totalValue + input.value,
           };
         }
 
         // Create new aggregate
         const newAggregate: InsertUsageAggregate = {
-          id: generateId('usageAggregate'),
-          organizationId: input.organizationId,
-          metricId: input.metricId,
-          periodStart: input.periodStart,
-          periodEnd: input.periodEnd,
-          totalValue: input.value,
+          id: generateId("usageAggregate"),
           limitValue: input.limit,
-          warnThreshold: input.warnThreshold
+          metricId: input.metricId,
+          organizationId: input.organizationId,
+          periodEnd: input.periodEnd,
+          periodStart: input.periodStart,
+          totalValue: input.value,
+          warnThreshold: input.warnThreshold,
         };
 
         await db.insert(usageAggregates).values(newAggregate);
 
         return {
           id: newAggregate.id,
-          totalValue: input.value
+          totalValue: input.value,
         };
       })
   );
 
 const _getOrganizationBilling = (db: Db) =>
   db.makeQuery((execute, organizationId: string) =>
-    execute(async (db) => {
-      return await db.query.organizationBilling.findFirst({
-        where: eq(organizationBilling.organizationId, organizationId)
-      });
-    })
+    execute(
+      async (db) =>
+        await db.query.organizationBilling.findFirst({
+          where: eq(organizationBilling.organizationId, organizationId),
+        })
+    )
   );
 
-export const recordUsage = Effect.gen(function* () {
+export const recordUsage = Effect.gen(function* recordUsage() {
   const db = yield* Db;
-  return Effect.fn('UsageService.recordUsage')(
-    function* (input: UsageRecordInput) {
+  return Effect.fn("UsageService.recordUsage")(
+    function* recordUsage(input: UsageRecordInput) {
       // Get the current billing period
       const period = getCurrentBillingPeriod();
 
@@ -124,11 +129,11 @@ export const recordUsage = Effect.gen(function* () {
       // Default to free tier if no billing record exists
       const tier = billing
         ? billing.tier === 1
-          ? 'free'
+          ? "free"
           : billing.tier === 2
-            ? 'pro'
-            : 'enterprise'
-        : 'free';
+            ? "pro"
+            : "enterprise"
+        : "free";
 
       // Get limits for this tier and metric
       const { limit, warnAt } = getTierLimitForMetric(
@@ -138,28 +143,28 @@ export const recordUsage = Effect.gen(function* () {
 
       // Create usage record
       const record: InsertUsageRecord = {
-        id: generateId('usageRecord'),
-        organizationId: input.organizationId,
-        metricId: input.metricId,
-        value: input.value,
-        periodStart: period.start,
-        periodEnd: period.end,
-        syncedToProvider: false,
+        id: generateId("usageRecord"),
         metadata: input.metadata ?? null,
-        occurredAt: new Date()
+        metricId: input.metricId,
+        occurredAt: new Date(),
+        organizationId: input.organizationId,
+        periodEnd: period.end,
+        periodStart: period.start,
+        syncedToProvider: false,
+        value: input.value,
       };
 
       yield* _insertUsageRecord(db)(record);
 
       // Update aggregate
       const aggregate = yield* _upsertUsageAggregate(db)({
-        organizationId: input.organizationId,
-        metricId: input.metricId,
-        periodStart: period.start,
-        periodEnd: period.end,
-        value: input.value,
         limit,
-        warnThreshold: warnAt
+        metricId: input.metricId,
+        organizationId: input.organizationId,
+        periodEnd: period.end,
+        periodStart: period.start,
+        value: input.value,
+        warnThreshold: warnAt,
       });
 
       yield* Effect.log(
@@ -167,10 +172,10 @@ export const recordUsage = Effect.gen(function* () {
       );
 
       return {
+        limit,
         recordId: record.id,
         totalValue: aggregate.totalValue,
-        limit,
-        warnAt
+        warnAt,
       };
     },
     (effect) =>
@@ -178,9 +183,9 @@ export const recordUsage = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new BillingServiceError({
-              message: 'Failed to record usage',
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+              message: "Failed to record usage",
+            }),
         })
       )
   );

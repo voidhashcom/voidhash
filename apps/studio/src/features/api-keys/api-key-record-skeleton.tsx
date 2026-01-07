@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { Skeleton } from '@voidhash/ui';
+import { Skeleton } from "@voidhash/ui";
 
 export function ApiKeyRecordSkeleton() {
   return (

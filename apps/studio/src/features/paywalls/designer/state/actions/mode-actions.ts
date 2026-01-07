@@ -4,12 +4,13 @@
  * These commands manage the designer mode (design vs preview).
  */
 
-import type { SnapshotNode } from '@voidhash/paywall-renderer-web-core';
-import { commander } from '../designer-commander';
+import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
+
+import { commander } from "../designer-commander";
 import type {
   DesignerMode,
-  DesignerStoreState
-} from '../designer-store-state';
+  DesignerStoreState,
+} from "../designer-store-state";
 
 // =============================================================================
 // Mode Commands
@@ -25,14 +26,12 @@ export const setMode = commander.action<{ mode: DesignerMode }>(
 
     // Capture snapshot only when entering preview mode
     const previewSnapshot =
-      params.mode === 'preview'
-        ? (state.mimic.snapshot as SnapshotNode)
-        : null;
+      params.mode === "preview" ? (state.mimic.snapshot as SnapshotNode) : null;
 
     ctx.setState({
       mode: params.mode,
-      previewSnapshot,
-      previewScale: 1 // Reset zoom to 100% when switching modes
+      previewScale: 1,
+      previewSnapshot, // Reset zoom to 100% when switching modes
     } as Partial<DesignerStoreState>);
   }
 );
@@ -46,7 +45,7 @@ export const setPreviewScale = commander.action<{ scale: number }>(
     // Clamp between 0.5 (50%) and 2.0 (200%)
     const clampedScale = Math.min(2, Math.max(0.5, params.scale));
     ctx.setState({
-      previewScale: clampedScale
+      previewScale: clampedScale,
     } as Partial<DesignerStoreState>);
   }
 );

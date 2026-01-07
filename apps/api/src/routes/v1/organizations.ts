@@ -1,17 +1,17 @@
-import { HttpApiBuilder } from '@effect/platform';
-import { VoidhashV1Api } from '@voidhash/api-spec';
-import { OrganizationService } from '@voidhash/core/services';
-import { Effect } from 'effect';
+import { HttpApiBuilder } from "@effect/platform";
+import { VoidhashV1Api } from "@voidhash/api-spec";
+import { OrganizationService } from "@voidhash/core/services";
+import { Effect } from "effect";
 
 export const OrganizationsGroupLive = HttpApiBuilder.group(
   VoidhashV1Api,
-  'organizations',
+  "organizations",
   (handlers) =>
-    Effect.gen(function* () {
+    Effect.gen(function* OrganizationsGroupLive() {
       const organizationService = yield* OrganizationService;
-      return handlers.handle('createOrganization', ({ payload }) =>
+      return handlers.handle("createOrganization", ({ payload }) =>
         organizationService.createOrganization({
-          name: payload.name
+          name: payload.name,
         })
       );
     })

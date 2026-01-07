@@ -1,21 +1,21 @@
-import { Effect } from 'effect';
-import { queryKeys } from 'src/lib/tanstack-query';
-import { eq, VoidhashRpc } from '../effect-query';
+import { Effect } from "effect";
+import { queryKeys } from "src/lib/tanstack-query";
+
+import { VoidhashRpc, eq } from "../effect-query";
 
 export const listProviderProductsByProductIdOptions = (options: {
   productId: string;
 }) =>
   eq.queryOptions({
-    queryKey: queryKeys.paymentProviderProduct.listByProduct(options),
     queryFn: () =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) => rpc.ListProviderProductsByProductId(options))
-      )
+      ),
+    queryKey: queryKeys.paymentProviderProduct.listByProduct(options),
   });
 
 export const createPaymentProviderProductOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['createPaymentProviderProduct'],
     mutationFn: (variables: {
       productId: string;
       paymentProviderConfigurationId: string;
@@ -23,37 +23,33 @@ export const createPaymentProviderProductOptions = () =>
     }) =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) => rpc.CreatePaymentProviderProduct(variables))
-      )
+      ),
+    mutationKey: ["createPaymentProviderProduct"],
   });
 
 export const updatePaymentProviderProductOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['updatePaymentProviderProduct'],
     mutationFn: (variables: {
-      paymentProviderConfigurationProductId: string;
+      id: string;
       configuration: Record<string, unknown>;
     }) =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) => rpc.UpdatePaymentProviderProduct(variables))
-      )
+      ),
+    mutationKey: ["updatePaymentProviderProduct"],
   });
 
 export const deletePaymentProviderProductOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['deletePaymentProviderProduct'],
-    mutationFn: (variables: {
-      productId: string;
-      paymentProviderConfigurationId: string;
-      providerProductKey: string;
-    }) =>
+    mutationFn: (variables: { id: string }) =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) => rpc.DeletePaymentProviderProduct(variables))
-      )
+      ),
+    mutationKey: ["deletePaymentProviderProduct"],
   });
 
 export const setActivePaymentProviderProductOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['setActivePaymentProviderProduct'],
     mutationFn: (variables: {
       productId: string;
       paymentProviderConfigurationId: string;
@@ -61,5 +57,6 @@ export const setActivePaymentProviderProductOptions = () =>
     }) =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) => rpc.SetActivePaymentProviderProduct(variables))
-      )
+      ),
+    mutationKey: ["setActivePaymentProviderProduct"],
   });

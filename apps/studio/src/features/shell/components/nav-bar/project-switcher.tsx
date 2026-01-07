@@ -1,36 +1,35 @@
-'use client';
+"use client";
 
-import { Link } from '@tanstack/react-router';
-import type { User } from '@voidhash/api-spec';
-import { GradientAvatar } from '@voidhash/ui';
-import { useAuth } from 'src/components/auth-context';
-import { NavSlashSeparator } from './nav-slash-separator';
-import { OrganizationProjectSwitcher } from './organization-project-switcher';
+import { Link } from "@tanstack/react-router";
+import type { User } from "@voidhash/api-spec";
+import { GradientAvatar } from "@voidhash/ui";
+import { useAuth } from "src/components/auth-context";
+
+import { NavSlashSeparator } from "./nav-slash-separator";
+import { OrganizationProjectSwitcher } from "./organization-project-switcher";
 
 const ProjectTitle = ({
-  project
+  project,
 }: {
-  project: (typeof User.Type)['projects'][number];
-}) => {
-  return (
-    <div className="flex items-center gap-2">
-      <GradientAvatar
-        alt={project.name}
-        className="h-6 w-6 rounded-lg text-xs"
-        fallback={project.id}
-        src={undefined}
-      />
+  project: (typeof User.Type)["projects"][number];
+}) => (
+  <div className="flex items-center gap-2">
+    <GradientAvatar
+      alt={project.name}
+      className="h-6 w-6 rounded-lg text-xs"
+      fallback={project.id}
+      src={undefined}
+    />
 
-      <span className="truncate text-foreground- text-sm">{project.name}</span>
-    </div>
-  );
-};
+    <span className="truncate text-foreground- text-sm">{project.name}</span>
+  </div>
+);
 
 const ProjectSwitcherShell = ({
   organizationSlug,
   projectSlug,
   projectTitle,
-  children
+  children,
 }: {
   organizationSlug: string | null;
   projectSlug: string | null;
@@ -46,8 +45,8 @@ const ProjectSwitcherShell = ({
       <div className="flex items-center gap-2">
         <Link
           params={{
-            organizationSlug: organizationSlug ?? '',
-            projectSlug: projectSlug ?? ''
+            organizationSlug: organizationSlug ?? "",
+            projectSlug: projectSlug ?? "",
           }}
           to="/$organizationSlug/$projectSlug"
         >
@@ -61,7 +60,7 @@ const ProjectSwitcherShell = ({
 
 export const ProjectSwitcher = ({
   organizationSlug,
-  projectSlug
+  projectSlug,
 }: {
   organizationSlug: string | null;
   projectSlug: string | null;

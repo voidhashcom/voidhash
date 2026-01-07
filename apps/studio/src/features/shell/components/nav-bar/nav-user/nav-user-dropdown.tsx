@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Avatar,
@@ -8,13 +8,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   GradientAvatar,
-  ThemeToggle
-} from '@voidhash/ui';
-import type { User } from 'better-auth';
-import { LogOut } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { authClient } from '@/lib/auth-client';
-import { env } from '@/lib/env';
+  ThemeToggle,
+} from "@voidhash/ui";
+import type { User } from "better-auth";
+import { LogOut } from "lucide-react";
+import { useTheme } from "next-themes";
+
+import { authClient } from "@/lib/auth-client";
+import { env } from "@/lib/env";
 
 export function NavUserDropdown({ user }: { user: User }) {
   const { setTheme, theme } = useTheme();
@@ -28,7 +29,7 @@ export function NavUserDropdown({ user }: { user: User }) {
     <DropdownMenuContent
       align="end"
       className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-      side={'bottom'}
+      side="bottom"
       sideOffset={4}
     >
       <DropdownMenuLabel className="p-0 font-normal">
@@ -66,7 +67,7 @@ export function NavUserDropdown({ user }: { user: User }) {
       <div className="flex w-full items-center justify-between gap-2 p-2">
         <span className="text-muted-foreground text-sm ">Theme</span>
         <div>
-          <ThemeToggle setTheme={setTheme} theme={theme ?? 'system'} />
+          <ThemeToggle setTheme={setTheme} theme={theme ?? "system"} />
         </div>
       </div>
       <DropdownMenuSeparator />

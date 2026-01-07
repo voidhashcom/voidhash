@@ -1,10 +1,14 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ProductType, ProductTypeLabels } from '@voidhash/lib/index';
-import { Badge, InfoTooltip, RadioGroup, RadioGroupItem } from '@voidhash/ui';
-import { Button } from '@voidhash/ui/button';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  ProductType,
+  ProductTypeLabels,
+  createSlug,
+} from "@voidhash/lib/index";
+import { Badge, InfoTooltip, RadioGroup, RadioGroupItem } from "@voidhash/ui";
+import { Button } from "@voidhash/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,41 +16,51 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
-} from '@voidhash/ui/dialog';
+  DialogTrigger,
+} from "@voidhash/ui/dialog";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '@voidhash/ui/form';
-import { Input } from '@voidhash/ui/input';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { createProductOptions, queryKeys } from 'src/lib/tanstack-query';
-import { z } from 'zod/v3';
+  FormMessage,
+} from "@voidhash/ui/form";
+import { Input } from "@voidhash/ui/input";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { createProductOptions, queryKeys } from "src/lib/tanstack-query";
+import { z } from "zod/v3";
 
 const createProductSchema = z.object({
   name: z
     .string()
-    .min(3, 'Name must be at least 3 characters long')
-    .max(32, 'Name must be less than 32 characters'),
+    .min(3, "Name must be at least 3 characters long")
+    .max(32, "Name must be less than 32 characters"),
 
-  type: z.nativeEnum(ProductType)
+  slug: z
+    .string()
+    .min(3, "Slug must be at least 3 characters long")
+    .max(32, "Slug must be less than 32 characters")
+    .regex(
+      /^[a-z0-9_-]+$/,
+      "Slug must contain only lowercase letters, numbers and hyphens"
+    ),
+
+  type: z.nativeEnum(ProductType),
 });
 
 type CreateProductForm = z.infer<typeof createProductSchema>;
 
 // Define a Product type matching the DB schema
-export type Product = {
+export interface Product {
   id: string;
   name: string;
   projectId: string;
   createdAt?: string;
   updatedAt?: string;
-};
+}
 
 interface CreateProductModalProps {
   open: boolean;
@@ -61,30 +75,40 @@ export function CreateProductModal({
   onClose,
   trigger,
   projectId,
-  onSuccess
+  onSuccess,
 }: CreateProductModalProps) {
   const form = useForm<CreateProductForm>({
-    resolver: zodResolver(createProductSchema),
     defaultValues: {
-      name: '',
-      type: ProductType.Subscription
-    }
+      name: "",
+      slug: "",
+      type: ProductType.Subscription,
+    },
+    resolver: zodResolver(createProductSchema),
   });
+
+  const name = form.watch("name");
+
+  // Automatically generate slug if name is changed and slug is not touched
+  useEffect(() => {
+    if (name && !form.formState.touchedFields.slug) {
+      form.setValue("slug", createSlug(name), { shouldValidate: false });
+    }
+  }, [name, form]);
 
   const queryClient = useQueryClient();
   const { mutate: createProduct, status: createProductStatus } = useMutation({
     ...createProductOptions(),
     onSuccess: (data) => {
       onSuccess?.(data);
-      toast.success('Product created successfully');
+      toast.success("Product created successfully");
       queryClient.invalidateQueries({
-        queryKey: queryKeys.product.list({ projectId })
+        queryKey: queryKeys.product.list({ projectId }),
       });
       handleOpenChange(false);
     },
     onError: () => {
-      toast.error('Failed to create product');
-    }
+      toast.error("Failed to create product");
+    },
   });
 
   const handleOpenChange = (open: boolean) => {
@@ -127,6 +151,21 @@ export function CreateProductModal({
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="slug"
+              render={({ field }) => (
+                <FormItem className="space-y-1">
+                  <FormLabel>Slug</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Product Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="type"
@@ -195,12 +234,12 @@ export function CreateProductModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={createProductStatus === 'pending'}
+                disabled={createProductStatus === "pending"}
                 type="submit"
               >
-                {createProductStatus === 'pending'
-                  ? 'Creating Product...'
-                  : 'Create Product'}
+                {createProductStatus === "pending"
+                  ? "Creating Product..."
+                  : "Create Product"}
               </Button>
             </DialogFooter>
           </form>

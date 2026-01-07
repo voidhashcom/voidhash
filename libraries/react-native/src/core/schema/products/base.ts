@@ -1,3 +1,4 @@
+import { SCHEMA_KIND, SchemaKind } from "../constants";
 import type {
   AnyDefinedPerks,
   AnyDefinedProviders,
@@ -5,8 +6,8 @@ import type {
   InferProductConfigurationProviders,
   ProductDefinitionConfiguration,
   ProductDefinitionConfigurePerksFn,
-  ProductDefinitionConfigureProvidersFn
-} from '../types';
+  ProductDefinitionConfigureProvidersFn,
+} from "../types";
 
 export abstract class ProductDefinition<
   TType,
@@ -14,11 +15,12 @@ export abstract class ProductDefinition<
   TProductDefinitionConfiguration extends ProductDefinitionConfiguration<
     AnyDefinedProviders,
     AnyDefinedPerks
-  >
+  >,
   // TProductDefinitionConfiguration extends ReturnType<
   //   SubscriptionProductDefinitionConfigurationFn<TProductProperties>
   // >,
 > {
+  readonly [SCHEMA_KIND] = SchemaKind.Product;
   type: TType;
   slug: string;
   private _properties: TProductProperties;
@@ -74,7 +76,7 @@ export function productConfigurationFactory() {
       typeof paymentProviders
     >;
     configuration._ = {
-      paymentProviders
+      paymentProviders,
     };
     return configuration;
   };
@@ -87,18 +89,18 @@ export function productConfigurationFactory() {
       typeof perks
     >;
     configuration._ = {
-      perks
+      perks,
     };
     return {
       ...configuration,
       _: {
-        perks
-      }
+        perks,
+      },
     };
   };
 
   return {
+    configurePerks,
     configureProviders,
-    configurePerks
   };
 }

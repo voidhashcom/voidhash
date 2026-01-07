@@ -1,13 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import { CANVAS_DEFAULTS } from '../constants';
-import { clearSelection, saveCanvasState } from '../state/actions';
-import { usePaywallDesignerActions } from '../state/designer-store';
-import { NodeTreeRenderer } from './node-tree-renderer';
-import { CursorsOverlay } from './overlay/cursors-overlay';
-import { SelectionOverlay } from './overlay/selection-overlay';
-import { Viewport, type ViewportTransform } from './viewport';
+import { useEffect, useRef } from "react";
+
+import { CANVAS_DEFAULTS } from "../constants";
+import { clearSelection, saveCanvasState } from "../state/actions";
+import { usePaywallDesignerActions } from "../state/designer-store";
+import { NodeTreeRenderer } from "./node-tree-renderer";
+import { CursorsOverlay } from "./overlay/cursors-overlay";
+import { SelectionOverlay } from "./overlay/selection-overlay";
+import { Viewport, type ViewportTransform } from "./viewport";
 
 export function Canvas() {
   const dispatch = usePaywallDesignerActions();
@@ -22,10 +23,10 @@ export function Canvas() {
     const originalHtmlOverscrollY = htmlElement.style.overscrollBehaviorY;
     const originalBodyOverscrollY = bodyElement.style.overscrollBehaviorY;
 
-    htmlElement.style.overscrollBehaviorX = 'none';
-    bodyElement.style.overscrollBehaviorX = 'none';
-    htmlElement.style.overscrollBehaviorY = 'none';
-    bodyElement.style.overscrollBehaviorY = 'none';
+    htmlElement.style.overscrollBehaviorX = "none";
+    bodyElement.style.overscrollBehaviorX = "none";
+    htmlElement.style.overscrollBehaviorY = "none";
+    bodyElement.style.overscrollBehaviorY = "none";
 
     return () => {
       htmlElement.style.overscrollBehaviorX = originalHtmlOverscrollX;
@@ -46,7 +47,7 @@ export function Canvas() {
     dispatch(saveCanvasState)({
       scale: newTransform.scale,
       x: newTransform.x,
-      y: newTransform.y
+      y: newTransform.y,
     });
   };
 
@@ -55,7 +56,7 @@ export function Canvas() {
       className="absolute inset-0 h-full w-full overflow-hidden"
       ref={containerRef}
       style={{
-        background: CANVAS_DEFAULTS.BACKGROUND_COLOR
+        background: CANVAS_DEFAULTS.BACKGROUND_COLOR,
       }}
     >
       <Viewport onTransformChange={handleTransformChange}>
@@ -67,7 +68,7 @@ export function Canvas() {
             height: CANVAS_DEFAULTS.WORLD_HEIGHT,
             // Center the canvas so screens at (0,0) appear in the middle-ish
             left: -CANVAS_DEFAULTS.WORLD_WIDTH / 2,
-            top: -CANVAS_DEFAULTS.WORLD_HEIGHT / 2
+            top: -CANVAS_DEFAULTS.WORLD_HEIGHT / 2,
           }}
         >
           <div
@@ -75,7 +76,7 @@ export function Canvas() {
             className="absolute inset-0"
             onClick={handleClearSelection}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') {
+              if (e.key === "Escape") {
                 dispatch(clearSelection)({});
               }
             }}
@@ -85,9 +86,9 @@ export function Canvas() {
           <div
             style={{
               // Offset to place (0,0) at center of the world
-              position: 'absolute',
               left: CANVAS_DEFAULTS.WORLD_WIDTH / 2,
-              top: CANVAS_DEFAULTS.WORLD_HEIGHT / 2
+              position: "absolute",
+              top: CANVAS_DEFAULTS.WORLD_HEIGHT / 2,
             }}
           >
             <NodeTreeRenderer />

@@ -1,5 +1,6 @@
-'use client';
-import { useCallback, useState } from 'react';
+"use client";
+import { useCallback, useState } from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,19 +9,19 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
-} from '../components/ui/alert-dialog';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 
-export type ConfirmDialogConfig = {
+export interface ConfirmDialogConfig {
   title: string;
   description: string;
   confirmInput?: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'default' | 'destructive';
-};
+  variant?: "default" | "destructive";
+}
 // Custom hook to manage the confirmation dialog
 export function useConfirmDialog() {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,11 +29,11 @@ export function useConfirmDialog() {
     ((resolve: boolean) => void) | null
   >(null);
   const [dialogConfig, setDialogConfig] = useState<ConfirmDialogConfig>({
-    title: '',
-    description: '',
+    cancelText: "Cancel",
     confirmInput: undefined,
-    confirmText: 'Confirm',
-    cancelText: 'Cancel'
+    confirmText: "Confirm",
+    description: "",
+    title: "",
   });
 
   const openDialog = useCallback((config: ConfirmDialogConfig) => {
@@ -55,9 +56,7 @@ export function useConfirmDialog() {
 
   const ConfirmationDialog = useCallback(() => {
     // biome-ignore lint/correctness/useHookAtTopLevel: Nested component
-    const [confirmInput, setConfirmInput] = useState<string | undefined>(
-      undefined
-    );
+    const [confirmInput, setConfirmInput] = useState<string | undefined>();
     return (
       <AlertDialog open={isOpen}>
         <AlertDialogContent>
@@ -70,10 +69,10 @@ export function useConfirmDialog() {
           {dialogConfig.confirmInput && (
             <div>
               <p className="mb-4">
-                Please type{' '}
+                Please type{" "}
                 <code className="mx-2 bg-slate-200">
                   {dialogConfig.confirmInput}
-                </code>{' '}
+                </code>{" "}
                 to confirm.
               </p>
               <Label className="sr-only" htmlFor="confirm-input">
@@ -90,7 +89,7 @@ export function useConfirmDialog() {
           )}
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancel}>
-              {dialogConfig.cancelText ?? 'Cancel'}
+              {dialogConfig.cancelText ?? "Cancel"}
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={
@@ -101,7 +100,7 @@ export function useConfirmDialog() {
               onClick={handleConfirm}
               variant={dialogConfig.variant}
             >
-              {dialogConfig.confirmText ?? 'Confirm'}
+              {dialogConfig.confirmText ?? "Confirm"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -109,5 +108,5 @@ export function useConfirmDialog() {
     );
   }, [isOpen, dialogConfig, handleConfirm, handleCancel]);
 
-  return { openDialog, ConfirmationDialog };
+  return { ConfirmationDialog, openDialog };
 }

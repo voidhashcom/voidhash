@@ -1,7 +1,8 @@
 // Credits: Inspired by https://github.com/unkeyed/unkey
-import type { TaskContext } from 'vitest';
-import { env } from './env';
-import { Harness } from './harness';
+import type { TaskContext } from "vitest";
+
+import { env } from "./env";
+import { Harness } from "./harness";
 // import { type StepRequest, type StepResponse, step } from './request';
 
 export class IntegrationHarness extends Harness {

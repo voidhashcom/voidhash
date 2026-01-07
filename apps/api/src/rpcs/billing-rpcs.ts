@@ -1,34 +1,34 @@
-import { BillingService, UsageService } from '@voidhash/core/services';
-import { BillingRpcsDef } from '@voidhash/rpc';
-import { Effect, Layer } from 'effect';
+import { BillingService, UsageService } from "@voidhash/core/services";
+import { BillingRpcsDef } from "@voidhash/rpc";
+import { Effect, Layer } from "effect";
 
 export const BillingRpcsLive = BillingRpcsDef.toLayer(
-  Effect.gen(function* () {
+  Effect.gen(function* BillingRpcsLive() {
     const billingService = yield* BillingService;
     const usageService = yield* UsageService;
 
     return {
-      GetOrganizationBilling: ({ organizationId }) =>
-        billingService.getOrganizationBilling({ organizationId }),
-
-      GetUsageSummaries: ({ organizationId }) =>
-        usageService.getAllUsageSummaries({ organizationId }),
+      CancelSubscription: ({ organizationId }) =>
+        billingService.cancelSubscription({ organizationId }),
 
       CreateCheckoutSession: ({
         organizationId,
         tier,
         successUrl,
-        cancelUrl
+        cancelUrl,
       }) =>
         billingService.createCheckoutSession({
+          cancelUrl,
           organizationId,
-          tier,
           successUrl,
-          cancelUrl
+          tier,
         }),
 
-      CancelSubscription: ({ organizationId }) =>
-        billingService.cancelSubscription({ organizationId })
+      GetOrganizationBilling: ({ organizationId }) =>
+        billingService.getOrganizationBilling({ organizationId }),
+
+      GetUsageSummaries: ({ organizationId }) =>
+        usageService.getAllUsageSummaries({ organizationId }),
     };
   })
 ).pipe(

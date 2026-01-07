@@ -1,27 +1,28 @@
-import { HttpApiBuilder, HttpServerRequest } from '@effect/platform';
-import { SdkHeaders, VoidhashV1Api } from '@voidhash/api-spec';
-import { SdkService } from '@voidhash/core/services';
-import { SdkValidationError } from '@voidhash/shared';
-import { Effect, Schema } from 'effect';
-import { getCustomerMetadataFromSdkHeaders } from '@/utils/sdk-headers';
+import { HttpApiBuilder, HttpServerRequest } from "@effect/platform";
+import { SdkHeaders, VoidhashV1Api } from "@voidhash/api-spec";
+import { SdkService } from "@voidhash/core/services";
+import { SdkValidationError } from "@voidhash/shared";
+import { Effect, Schema } from "effect";
+
+import { getCustomerMetadataFromSdkHeaders } from "@/utils/sdk-headers";
 
 export const SdkGroupLive = HttpApiBuilder.group(
   VoidhashV1Api,
-  'sdk',
+  "sdk",
   (handlers) =>
-    Effect.gen(function* () {
+    Effect.gen(function* SdkGroupLive() {
       const sdkService = yield* SdkService;
       return handlers
-        .handle('getCustomer', () => sdkService.getCustomer())
-        .handle('identify', ({ payload }) =>
+        .handle("getCustomer", () => sdkService.getCustomer())
+        .handle("identify", ({ payload }) =>
           sdkService.identifyCustomer({
             appUserId: payload.appUserId,
+            email: payload.email ?? null,
             name: payload.name ?? null,
-            email: payload.email ?? null
           })
         )
-        .handle('syncCustomerAttributes', ({ payload }) =>
-          Effect.gen(function* () {
+        .handle("syncCustomerAttributes", ({ payload }) =>
+          Effect.gen(function* SdkGroupLive() {
             const req = yield* HttpServerRequest.HttpServerRequest;
             const parsedHeaders = yield* Schema.decodeUnknown(SdkHeaders)(
               req.headers
@@ -30,18 +31,18 @@ export const SdkGroupLive = HttpApiBuilder.group(
                 ParseError: (error) =>
                   Effect.fail(
                     new SdkValidationError({
-                      message: error.message
+                      message: error.message,
                     })
-                  )
+                  ),
               })
             );
             const customerMetadata =
               getCustomerMetadataFromSdkHeaders(parsedHeaders);
 
             return yield* sdkService.syncCustomerAttributes({
-              name: payload.name,
+              customerMetadata,
               email: payload.email,
-              customerMetadata
+              name: payload.name,
             });
           })
         );

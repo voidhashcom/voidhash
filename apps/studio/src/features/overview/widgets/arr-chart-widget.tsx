@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Card,
@@ -8,26 +8,26 @@ import {
   type ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
-} from '@voidhash/ui';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+  ChartTooltipContent,
+} from "@voidhash/ui";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
-export const description = 'A line chart for ARR';
+export const description = "A line chart for ARR";
 
 const chartData = [
-  { month: 'January', arr: 223_200 },
-  { month: 'February', arr: 366_000 },
-  { month: 'March', arr: 284_400 },
-  { month: 'April', arr: 87_600 },
-  { month: 'May', arr: 250_800 },
-  { month: 'June', arr: 256_800 }
+  { arr: 223_200, month: "January" },
+  { arr: 366_000, month: "February" },
+  { arr: 284_400, month: "March" },
+  { arr: 87_600, month: "April" },
+  { arr: 250_800, month: "May" },
+  { arr: 256_800, month: "June" },
 ];
 
 const chartConfig = {
   arr: {
-    label: 'ARR',
-    color: 'var(--chart-1)'
-  }
+    color: "var(--chart-1)",
+    label: "ARR",
+  },
 } satisfies ChartConfig;
 
 export function ARRChartWidget() {
@@ -51,7 +51,7 @@ export function ARRChartWidget() {
             data={chartData}
             margin={{
               left: 12,
-              right: 12
+              right: 12,
             }}
           >
             <CartesianGrid vertical={false} />

@@ -5,7 +5,7 @@
  * Uses undoable actions for undo/redo support.
  */
 
-import { commander } from '../designer-commander';
+import { commander } from "../designer-commander";
 
 // =============================================================================
 // Helper Types
@@ -40,7 +40,7 @@ function findNodeInfo(
   }
 
   if (snapshot.id === nodeId) {
-    return { id: nodeId, type: snapshot.type, parentId, index };
+    return { id: nodeId, index, parentId, type: snapshot.type };
   }
 
   if (snapshot.children && Array.isArray(snapshot.children)) {
@@ -90,12 +90,12 @@ export const moveNode = commander.undoableAction<
     // Find original position for undo
     const originalInfo = findNodeInfo(snapshot, params.nodeId);
     if (!originalInfo) {
-      return { originalParentId: null, originalIndex: 0 };
+      return { originalIndex: 0, originalParentId: null };
     }
 
     // Don't move root nodes
-    if (originalInfo.type === 'root') {
-      return { originalParentId: null, originalIndex: 0 };
+    if (originalInfo.type === "root") {
+      return { originalIndex: 0, originalParentId: null };
     }
 
     // Perform the move
@@ -104,12 +104,12 @@ export const moveNode = commander.undoableAction<
     });
 
     return {
+      originalIndex: originalInfo.index,
       originalParentId: originalInfo.parentId,
-      originalIndex: originalInfo.index
     };
   },
   (ctx, params, result) => {
-    const originalParentId = result.originalParentId;
+    const { originalParentId } = result;
     if (originalParentId === null) {
       return;
     }
@@ -146,12 +146,12 @@ export const moveNodeBefore = commander.undoableAction<
     // Find original position for undo
     const originalInfo = findNodeInfo(snapshot, params.nodeId);
     if (!originalInfo) {
-      return { originalParentId: null, originalIndex: 0 };
+      return { originalIndex: 0, originalParentId: null };
     }
 
     // Don't move root nodes
-    if (originalInfo.type === 'root') {
-      return { originalParentId: null, originalIndex: 0 };
+    if (originalInfo.type === "root") {
+      return { originalIndex: 0, originalParentId: null };
     }
 
     // Perform the move
@@ -160,12 +160,12 @@ export const moveNodeBefore = commander.undoableAction<
     });
 
     return {
+      originalIndex: originalInfo.index,
       originalParentId: originalInfo.parentId,
-      originalIndex: originalInfo.index
     };
   },
   (ctx, params, result) => {
-    const originalParentId = result.originalParentId;
+    const { originalParentId } = result;
     if (originalParentId === null) {
       return;
     }
@@ -202,12 +202,12 @@ export const moveNodeAfter = commander.undoableAction<
     // Find original position for undo
     const originalInfo = findNodeInfo(snapshot, params.nodeId);
     if (!originalInfo) {
-      return { originalParentId: null, originalIndex: 0 };
+      return { originalIndex: 0, originalParentId: null };
     }
 
     // Don't move root nodes
-    if (originalInfo.type === 'root') {
-      return { originalParentId: null, originalIndex: 0 };
+    if (originalInfo.type === "root") {
+      return { originalIndex: 0, originalParentId: null };
     }
 
     // Perform the move
@@ -216,12 +216,12 @@ export const moveNodeAfter = commander.undoableAction<
     });
 
     return {
+      originalIndex: originalInfo.index,
       originalParentId: originalInfo.parentId,
-      originalIndex: originalInfo.index
     };
   },
   (ctx, params, result) => {
-    const originalParentId = result.originalParentId;
+    const { originalParentId } = result;
     if (originalParentId === null) {
       return;
     }

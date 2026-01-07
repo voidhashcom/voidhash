@@ -1,38 +1,49 @@
-import { Effect } from 'effect';
-import { queryKeys } from 'src/lib/tanstack-query';
-import { eq, VoidhashRpc } from '../effect-query';
+import { Effect } from "effect";
+import { queryKeys } from "src/lib/tanstack-query";
+
+import { VoidhashRpc, eq } from "../effect-query";
 
 export const listProductsOptions = (options: { projectId: string }) =>
   eq.queryOptions({
-    queryKey: queryKeys.product.list(options),
     queryFn: () =>
-      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.ListProducts(options)))
+      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.ListProducts(options))),
+    queryKey: queryKeys.product.list(options),
   });
 
 export const getProductOptions = (options: { productId: string }) =>
   eq.queryOptions({
-    queryKey: queryKeys.product.getProduct(options),
     queryFn: () =>
-      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.GetProduct(options)))
+      VoidhashRpc.pipe(
+        Effect.flatMap((rpc) =>
+          rpc.GetProduct({
+            id: options.productId,
+          })
+        )
+      ),
+    queryKey: queryKeys.product.getProduct(options),
   });
 
 export const createProductOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['createProduct'],
-    mutationFn: (variables: { projectId: string; name: string }) =>
-      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.CreateProduct(variables)))
+    mutationFn: (variables: {
+      projectId: string;
+      name: string;
+      slug: string;
+    }) =>
+      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.CreateProduct(variables))),
+    mutationKey: ["createProduct"],
   });
 
 export const updateProductOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['updateProduct'],
-    mutationFn: (variables: { productId: string; name: string }) =>
-      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.UpdateProduct(variables)))
+    mutationFn: (variables: { id: string; name: string; slug?: string }) =>
+      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.UpdateProduct(variables))),
+    mutationKey: ["updateProduct"],
   });
 
 export const deleteProductOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['deleteProduct'],
-    mutationFn: (variables: { productId: string }) =>
-      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.DeleteProduct(variables)))
+    mutationFn: (variables: { id: string }) =>
+      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.DeleteProduct(variables))),
+    mutationKey: ["deleteProduct"],
   });

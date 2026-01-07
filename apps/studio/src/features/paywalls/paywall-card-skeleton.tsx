@@ -1,4 +1,4 @@
-import { Skeleton } from '@voidhash/ui';
+import { Skeleton } from "@voidhash/ui";
 
 export function PaywallCardSkeleton() {
   return (

@@ -1,15 +1,16 @@
-import type { User } from '@voidhash/api-spec';
-import { AuthenticationError, AuthSession } from '@voidhash/shared';
-import { Effect, Option } from 'effect';
+import type { User } from "@voidhash/api-spec";
+import { AuthSession, AuthenticationError } from "@voidhash/shared";
+import { Effect, Option } from "effect";
 
-export const getUser = Effect.gen(function* () {
-  return Effect.fn('getUser')(function* () {
+export const getUser = Effect.gen(function* getUser() {
+  return Effect.fn("getUser")(function* getUser() {
+    yield* Effect.log("getUser");
     const maybeSession = yield* Effect.serviceOption(AuthSession);
     if (Option.isNone(maybeSession) || !maybeSession.value.user) {
       return yield* Effect.fail(
         new AuthenticationError({
-          message: 'User not found',
-          cause: 'User not found'
+          cause: "User not found",
+          message: "User not found",
         })
       );
     }
@@ -18,17 +19,17 @@ export const getUser = Effect.gen(function* () {
       ...session.user,
       organizations: session.organizations.map((o) => ({
         id: o.id,
+        logo: null,
         name: o.name,
         slug: o.slug,
-        logo: null
       })),
       projects: session.projects.map((p) => ({
         id: p.id,
-        name: p.name,
-        slug: p.slug,
         logo: null,
-        organizationId: p.organizationId
-      }))
+        name: p.name,
+        organizationId: p.organizationId,
+        slug: p.slug,
+      })),
     } satisfies typeof User.Type;
   });
 });

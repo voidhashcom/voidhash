@@ -1,6 +1,8 @@
-'use client';
+"use client";
 
-import { Link, useLocation, useParams } from '@tanstack/react-router';
+import type * as React from "react";
+
+import { Link, useLocation, useParams } from "@tanstack/react-router";
 import {
   GradientAvatar,
   Sidebar,
@@ -10,14 +12,14 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
-  SidebarMenuItem
-} from '@voidhash/ui';
-import type * as React from 'react';
-import { useAuth } from 'src/components/auth-context';
-import { NavMain } from './nav-main';
+  SidebarMenuItem,
+} from "@voidhash/ui";
+import { useAuth } from "src/components/auth-context";
+
+import { NavMain } from "./nav-main";
 
 const SidebarProjects = ({
-  organizationSlug
+  organizationSlug,
 }: {
   organizationSlug: string;
 }) => {
@@ -62,32 +64,32 @@ export function OrganizationSettingsSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const pathname = useLocation({
-    select: (location) => location.pathname
+    select: (location) => location.pathname,
   });
   const { organizationSlug } = useParams({
-    strict: false
+    strict: false,
   });
 
   const data = {
     navMain: [
       {
-        title: 'Team',
         items: [
           {
-            title: 'General',
-            url: `/${organizationSlug}/~/settings/general`,
             isActive: () =>
-              pathname.startsWith(`/${organizationSlug}/~/settings/general`)
+              pathname.startsWith(`/${organizationSlug}/~/settings/general`),
+            title: "General",
+            url: `/${organizationSlug}/~/settings/general`,
           },
           {
-            title: 'Billing',
-            url: `/${organizationSlug}/~/settings/billing`,
             isActive: () =>
-              pathname.startsWith(`/${organizationSlug}/~/settings/billing`)
-          }
-        ]
-      }
-    ]
+              pathname.startsWith(`/${organizationSlug}/~/settings/billing`),
+            title: "Billing",
+            url: `/${organizationSlug}/~/settings/billing`,
+          },
+        ],
+        title: "Team",
+      },
+    ],
   };
 
   return (
@@ -110,7 +112,7 @@ export function OrganizationSettingsSidebar({
           <SidebarGroupLabel>Projects</SidebarGroupLabel>
           <SidebarProjects
             organizationSlug={
-              typeof organizationSlug === 'string' ? organizationSlug : ''
+              typeof organizationSlug === "string" ? organizationSlug : ""
             }
           />
         </SidebarGroup>

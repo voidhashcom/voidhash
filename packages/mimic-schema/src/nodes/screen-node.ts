@@ -1,4 +1,5 @@
-import { Primitive, type Types } from '@voidhash/mimic';
+import { Primitive, type Types } from "@voidhash/mimic";
+
 import {
   alignItems,
   alignSelf,
@@ -43,18 +44,19 @@ import {
   shadowOpacity,
   x,
   y,
-  zIndex
-} from '../styles';
-import { linkedVariables, localVariables, states } from './base';
-import { FlexNode } from './flex-node';
-import { TextNode } from './text-node';
+  zIndex,
+} from "../styles";
+import { linkedVariables, localVariables, states } from "./base";
+import { FlexNode } from "./flex-node";
+import { TextNode } from "./text-node";
 
 /** ScreenNode tree node schema */
-export const ScreenNode = Primitive.TreeNode('screen', {
+export const ScreenNode = Primitive.TreeNode("screen", {
+  children: [FlexNode, TextNode] as const,
   data: Primitive.Struct({
-    name: Primitive.String().default('Screen'),
-    localVariables,
     linkedVariables,
+    localVariables,
+    name: Primitive.String().default("Screen"),
     states,
     style: Primitive.Struct({
       // Position
@@ -83,7 +85,7 @@ export const ScreenNode = Primitive.TreeNode('screen', {
       alignItems,
       flexDirection,
       // Background
-      backgroundColor: backgroundColor.default('rgba(255, 255, 255, 1)'),
+      backgroundColor: backgroundColor.default("rgba(255, 255, 255, 1)"),
       backgroundEnabled: backgroundEnabled.default(true),
       // Border
       borderWidthTop,
@@ -113,10 +115,9 @@ export const ScreenNode = Primitive.TreeNode('screen', {
       flexGrow,
       flexShrink,
       flexBasis,
-      alignSelf
-    })
+      alignSelf,
+    }),
   }),
-  children: [FlexNode, TextNode] as const
 });
 
 export type ScreenNodeData = Types.TreeNodeSnapshot<typeof ScreenNode>;

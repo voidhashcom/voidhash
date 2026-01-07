@@ -1,20 +1,21 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef } from 'react';
-import { hsvToRgb } from './color-utils';
+import { useCallback, useEffect, useRef } from "react";
 
-export type SaturationBrightnessPickerProps = {
+import { hsvToRgb } from "./color-utils";
+
+export interface SaturationBrightnessPickerProps {
   hue: number;
   saturation: number;
   brightness: number;
   onChange: (s: number, v: number) => void;
-};
+}
 
 export function SaturationBrightnessPicker({
   hue,
   saturation,
   brightness,
-  onChange
+  onChange,
 }: SaturationBrightnessPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -54,12 +55,12 @@ export function SaturationBrightnessPicker({
       isDragging.current = false;
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [updateColor]);
 
@@ -73,16 +74,16 @@ export function SaturationBrightnessPicker({
       className="relative h-[200px] w-full cursor-crosshair rounded-md"
       onKeyDown={(e) => {
         const step = e.shiftKey ? 0.1 : 0.01;
-        if (e.key === 'ArrowRight') {
+        if (e.key === "ArrowRight") {
           e.preventDefault();
           onChange(Math.min(1, saturation + step), brightness);
-        } else if (e.key === 'ArrowLeft') {
+        } else if (e.key === "ArrowLeft") {
           e.preventDefault();
           onChange(Math.max(0, saturation - step), brightness);
-        } else if (e.key === 'ArrowUp') {
+        } else if (e.key === "ArrowUp") {
           e.preventDefault();
           onChange(saturation, Math.min(1, brightness + step));
-        } else if (e.key === 'ArrowDown') {
+        } else if (e.key === "ArrowDown") {
           e.preventDefault();
           onChange(saturation, Math.max(0, brightness - step));
         }
@@ -98,14 +99,14 @@ export function SaturationBrightnessPicker({
       <div
         className="absolute inset-0 rounded-md"
         style={{
-          background: 'linear-gradient(to right, white, transparent)'
+          background: "linear-gradient(to right, white, transparent)",
         }}
       />
       {/* Black gradient (top to bottom) */}
       <div
         className="absolute inset-0 rounded-md"
         style={{
-          background: 'linear-gradient(to bottom, transparent, black)'
+          background: "linear-gradient(to bottom, transparent, black)",
         }}
       />
       {/* Picker handle */}
@@ -113,7 +114,7 @@ export function SaturationBrightnessPicker({
         className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute size-4 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(0,0,0,0.3)]"
         style={{
           left: `${saturation * 100}%`,
-          top: `${(1 - brightness) * 100}%`
+          top: `${(1 - brightness) * 100}%`,
         }}
       />
     </div>

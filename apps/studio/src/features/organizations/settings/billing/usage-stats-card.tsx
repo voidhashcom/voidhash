@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { Badge, Progress, cn } from '@voidhash/ui';
+import { Badge, Progress, cn } from "@voidhash/ui";
 
 interface UsageStatsCardProps {
   metricName: string;
@@ -13,19 +13,21 @@ interface UsageStatsCardProps {
 }
 
 function formatValue(value: number, metricName: string): string {
-  if (metricName.toLowerCase().includes('revenue')) {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+  if (metricName.toLowerCase().includes("revenue")) {
+    return new Intl.NumberFormat("en-US", {
+      currency: "USD",
+      maximumFractionDigits: 0,
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      style: "currency",
     }).format(value);
   }
-  return new Intl.NumberFormat('en-US').format(value);
+  return new Intl.NumberFormat("en-US").format(value);
 }
 
 function formatLimit(limit: number | null, metricName: string): string {
-  if (limit === null) return 'Unlimited';
+  if (limit === null) {
+    return "Unlimited";
+  }
   return formatValue(limit, metricName);
 }
 
@@ -36,7 +38,7 @@ export function UsageStatsCard({
   limit,
   percentUsed,
   isOverLimit,
-  isApproachingLimit
+  isApproachingLimit,
 }: UsageStatsCardProps) {
   const progressValue = percentUsed ?? 0;
 
@@ -76,9 +78,9 @@ export function UsageStatsCard({
           <Progress
             value={Math.min(progressValue, 100)}
             className={cn(
-              'mt-2 h-2',
-              isOverLimit && '[&>div]:bg-destructive',
-              isApproachingLimit && !isOverLimit && '[&>div]:bg-yellow-500'
+              "mt-2 h-2",
+              isOverLimit && "[&>div]:bg-destructive",
+              isApproachingLimit && !isOverLimit && "[&>div]:bg-yellow-500"
             )}
           />
         )}

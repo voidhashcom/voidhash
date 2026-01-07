@@ -1,18 +1,19 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef } from 'react';
-import { CheckerboardBackground } from './checkerboard-background';
+import { useCallback, useEffect, useRef } from "react";
 
-export type OpacitySliderProps = {
+import { CheckerboardBackground } from "./checkerboard-background";
+
+export interface OpacitySliderProps {
   color: string;
   opacity: number;
   onChange: (opacity: number) => void;
-};
+}
 
 export function OpacitySlider({
   color,
   opacity,
-  onChange
+  onChange,
 }: OpacitySliderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -49,12 +50,12 @@ export function OpacitySlider({
       isDragging.current = false;
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [updateOpacity]);
 
@@ -74,15 +75,15 @@ export function OpacitySlider({
       <div
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(to right, transparent, #${color})`
+          background: `linear-gradient(to right, transparent, #${color})`,
         }}
       />
       {/* Slider handle */}
       <div
         className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute top-1/2 size-3.5 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"
         style={{
+          backgroundColor: `#${color}`,
           left: `${opacity}%`,
-          backgroundColor: `#${color}`
         }}
       />
     </div>

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Card,
@@ -6,9 +6,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Skeleton
-} from '@voidhash/ui';
-import { UsageStatsCard } from './usage-stats-card';
+  Skeleton,
+} from "@voidhash/ui";
+
+import { UsageStatsCard } from "./usage-stats-card";
 
 interface UsageSummary {
   metricId: string;
@@ -26,15 +27,15 @@ interface UsageDashboardProps {
 }
 
 const metricDescriptions: Record<string, string> = {
-  paywall_conversions: 'Number of successful paywall conversions this period',
-  monthly_tracked_revenue: 'Total revenue tracked through Voidhash this period',
-  api_calls: 'Total API requests made to Voidhash this period',
-  active_customers: 'Number of unique customers with activity this period'
+  active_customers: "Number of unique customers with activity this period",
+  api_calls: "Total API requests made to Voidhash this period",
+  monthly_tracked_revenue: "Total revenue tracked through Voidhash this period",
+  paywall_conversions: "Number of successful paywall conversions this period",
 };
 
 export function UsageDashboard({
   usageSummaries,
-  isLoading
+  isLoading,
 }: UsageDashboardProps) {
   if (isLoading) {
     return (
@@ -87,7 +88,7 @@ export function UsageDashboard({
             <UsageStatsCard
               key={summary.metricId}
               metricName={summary.metricName}
-              description={metricDescriptions[summary.metricId] ?? ''}
+              description={metricDescriptions[summary.metricId] ?? ""}
               currentValue={summary.currentValue}
               limit={summary.limit}
               percentUsed={summary.percentUsed}

@@ -1,13 +1,14 @@
-'use client';
+"use client";
 
-import { MinusIcon, PlusIcon } from 'lucide-react';
-import { useStore } from 'zustand/react';
-import { setPreviewScale } from '../../state/actions';
+import { MinusIcon, PlusIcon } from "lucide-react";
+import { useStore } from "zustand/react";
+
+import { setPreviewScale } from "../../state/actions";
 import {
   usePaywallDesignerActions,
-  usePaywallDesignerStore
-} from '../../state/designer-store';
-import { PanelButton } from './button';
+  usePaywallDesignerStore,
+} from "../../state/designer-store";
+import { PanelButton } from "./button";
 
 const ZOOM_STEP = 0.1;
 const MIN_ZOOM = 0.5;

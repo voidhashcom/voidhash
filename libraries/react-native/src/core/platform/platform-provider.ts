@@ -1,6 +1,6 @@
-import { Context } from 'effect';
+import { Context } from "effect";
 
-export type PlatformInfo = {
+export interface PlatformInfo {
   bundleId: string | null;
   locales: { languageTag: string }[];
   systemVersion: string;
@@ -8,8 +8,8 @@ export type PlatformInfo = {
   deviceBrand: string;
   appVersion: string | undefined;
   isDebugBuild: boolean;
-  platform: 'ios' | 'android' | 'unknown';
-};
+  platform: "ios" | "android" | "unknown";
+}
 export class PlatformProvider extends Context.Tag(
-  'rn-voidhash/PlatformProvider'
+  "rn-voidhash/PlatformProvider"
 )<PlatformProvider, PlatformInfo>() {}

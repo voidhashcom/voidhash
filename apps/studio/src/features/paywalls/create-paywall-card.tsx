@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
-import { CreatePaywallModal } from './create-paywall-modal';
+import { Plus } from "lucide-react";
+import { useState } from "react";
+
+import { CreatePaywallModal } from "./create-paywall-modal";
 
 interface CreatePaywallCardProps {
   projectId: string;

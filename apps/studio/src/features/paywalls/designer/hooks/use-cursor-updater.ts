@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
-import { useViewport } from '../canvas/viewport';
-import { updateCursor } from '../state/actions';
-import { usePaywallDesignerActions } from '../state/designer-store';
+import { useEffect } from "react";
+
+import { useViewport } from "../canvas/viewport";
+import { updateCursor } from "../state/actions";
+import { usePaywallDesignerActions } from "../state/designer-store";
 
 export function useCursorUpdater() {
   const dispatch = usePaywallDesignerActions();
@@ -12,9 +13,9 @@ export function useCursorUpdater() {
       const canvasPos = screenToCanvas(e.clientX, e.clientY);
       dispatch(updateCursor)(canvasPos);
     };
-    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener("mousemove", handleMouseMove);
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener("mousemove", handleMouseMove);
     };
   }, [dispatch, screenToCanvas]);
 }

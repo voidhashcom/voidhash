@@ -34,6 +34,7 @@ describe.sequential('getProductById happy path', () => {
               id: testProductId,
               projectId: h.resources.project.id,
               name: 'Test Product By ID',
+              slug: 'test-product-by-id',
               type: 1, // Subscription
               createdAt: new Date(),
               updatedAt: new Date()

@@ -1,7 +1,8 @@
-'use client';
-import { Button } from '@voidhash/ui/button';
-import { useState } from 'react';
-import { CreateProductModal } from './create-product-modal';
+"use client";
+import { Button } from "@voidhash/ui/button";
+import { useState } from "react";
+
+import { CreateProductModal } from "./create-product-modal";
 
 export function CreateProductModalButton({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);

@@ -1,6 +1,7 @@
-import { Card } from '@voidhash/ui';
-import { Page } from 'src/features/shell';
-import { ProductRecordSkeleton } from './product-record-skeleton';
+import { Card } from "@voidhash/ui";
+import { Page } from "src/features/shell";
+
+import { ProductRecordSkeleton } from "./product-record-skeleton";
 
 export function ProductsPageSkeleton() {
   return (

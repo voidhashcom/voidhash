@@ -1,18 +1,18 @@
-'use client';
-import { Link, useLocation } from '@tanstack/react-router';
+"use client";
+import { Link, useLocation } from "@tanstack/react-router";
 import {
   UnderlineTabs,
   UnderlineTabsList,
-  UnderlineTabsTrigger
-} from '@voidhash/ui';
+  UnderlineTabsTrigger,
+} from "@voidhash/ui";
 
 export function DevelopersTabBar({
-  tabs
+  tabs,
 }: {
   tabs: { label: string; path: string }[];
 }) {
   const pathname = useLocation({
-    select: (location) => location.pathname
+    select: (location) => location.pathname,
   });
 
   return (

@@ -1,24 +1,24 @@
-'use client';
+"use client";
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   Button,
   Card,
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle
-} from '@voidhash/ui';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { DeleteOrganizationModal } from 'src/features/organizations/delete-organization-modal';
-import { queryKeys } from 'src/lib/tanstack-query';
-import { deleteOrganizationOptions } from 'src/lib/tanstack-query/organizations';
+  CardTitle,
+} from "@voidhash/ui";
+import { useState } from "react";
+import { toast } from "sonner";
+import { DeleteOrganizationModal } from "src/features/organizations/delete-organization-modal";
+import { queryKeys } from "src/lib/tanstack-query";
+import { deleteOrganizationOptions } from "src/lib/tanstack-query/organizations";
 
 export function TeamDelete({ organizationId }: { organizationId: string }) {
   const { organizationSlug } = useParams({
-    strict: false
+    strict: false,
   });
   const navigate = useNavigate();
 
@@ -27,25 +27,25 @@ export function TeamDelete({ organizationId }: { organizationId: string }) {
     useMutation({
       ...deleteOrganizationOptions(),
       onSuccess: () => {
-        toast.success('Organization deleted successfully');
+        toast.success("Organization deleted successfully");
         queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
-        navigate({ to: '/' });
+        navigate({ to: "/" });
       },
       onError: () => {
-        toast.error('Failed to delete organization');
-      }
+        toast.error("Failed to delete organization");
+      },
     });
 
   const handleDelete = () => {
     deleteOrganization({
-      organizationId
+      organizationId,
     });
   };
 
   // Delete modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
-  if (typeof organizationSlug !== 'string') {
+  if (typeof organizationSlug !== "string") {
     return null;
   }
 
@@ -62,20 +62,20 @@ export function TeamDelete({ organizationId }: { organizationId: string }) {
         <div className="text-muted-foreground" />
         <div>
           <DeleteOrganizationModal
-            key={deleteModalOpen ? 'open' : 'closed'}
+            key={deleteModalOpen ? "open" : "closed"}
             onClose={() => setDeleteModalOpen(false)}
             onDelete={handleDelete}
             open={deleteModalOpen}
             organizationSlug={organizationSlug}
             trigger={
               <Button
-                disabled={deleteOrganizationStatus === 'pending'}
+                disabled={deleteOrganizationStatus === "pending"}
                 onClick={() => setDeleteModalOpen(true)}
                 variant="destructive"
               >
-                {deleteOrganizationStatus === 'pending'
-                  ? 'Deleting...'
-                  : 'Delete Organization'}
+                {deleteOrganizationStatus === "pending"
+                  ? "Deleting..."
+                  : "Delete Organization"}
               </Button>
             }
           />

@@ -7,31 +7,31 @@
 import {
   HttpLayerRouter,
   HttpServerRequest,
-  HttpServerResponse
-} from '@effect/platform';
+  HttpServerResponse,
+} from "@effect/platform";
 import {
   BillingService,
-  handlePolarWebhook,
   PolarBillingProviderLive,
   type PolarConfig,
   PolarConfigService,
-  UsageService
-} from '@voidhash/core/services';
-import { Db } from '@voidhash/db/effect';
-import { Effect, Layer } from 'effect';
+  UsageService,
+  handlePolarWebhook,
+} from "@voidhash/core/services";
+import { Db } from "@voidhash/db/effect";
+import { Effect, Layer } from "effect";
 
 /**
  * Polar webhook configuration from environment
  */
 const polarConfig: PolarConfig = {
-  accessToken: process.env.POLAR_ACCESS_TOKEN ?? '',
-  organizationId: process.env.POLAR_ORGANIZATION_ID ?? '',
-  webhookSecret: process.env.POLAR_WEBHOOK_SECRET ?? '',
-  sandbox: process.env.POLAR_SANDBOX === 'true',
+  accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
+  organizationId: process.env.POLAR_ORGANIZATION_ID ?? "",
+  sandbox: process.env.POLAR_SANDBOX === "true",
   tierProductIds: {
-    pro: process.env.POLAR_PRO_PRODUCT_ID ?? '',
-    enterprise: process.env.POLAR_ENTERPRISE_PRODUCT_ID ?? ''
-  }
+    enterprise: process.env.POLAR_ENTERPRISE_PRODUCT_ID ?? "",
+    pro: process.env.POLAR_PRO_PRODUCT_ID ?? "",
+  },
+  webhookSecret: process.env.POLAR_WEBHOOK_SECRET ?? "",
 };
 
 const PolarConfigServiceLive = Layer.succeed(PolarConfigService, polarConfig);
@@ -48,21 +48,21 @@ const BillingServicesLayer = Layer.mergeAll(
 /**
  * Handle incoming Polar webhook
  */
-const handleWebhook = Effect.gen(function* () {
+const handleWebhook = Effect.gen(function* handleWebhook() {
   const request = yield* HttpServerRequest.HttpServerRequest;
 
   // Get raw body for signature verification
   const body = yield* request.text;
 
   // Extract standard webhook headers
-  const signature = request.headers['webhook-signature'] ?? '';
-  const webhookId = request.headers['webhook-id'] ?? '';
-  const timestamp = request.headers['webhook-timestamp'] ?? '';
+  const signature = request.headers["webhook-signature"] ?? "";
+  const webhookId = request.headers["webhook-id"] ?? "";
+  const timestamp = request.headers["webhook-timestamp"] ?? "";
 
   // Validate required headers
   if (!(signature && webhookId && timestamp)) {
     return yield* HttpServerResponse.json(
-      { error: 'Missing required webhook headers' },
+      { error: "Missing required webhook headers" },
       { status: 400 }
     );
   }
@@ -74,8 +74,8 @@ const handleWebhook = Effect.gen(function* () {
   yield* handler({
     payload: body,
     signature,
+    timestamp,
     webhookId,
-    timestamp
   });
 
   return yield* HttpServerResponse.json({ received: true });
@@ -84,26 +84,28 @@ const handleWebhook = Effect.gen(function* () {
 /**
  * Create the webhook route registration effect
  */
-const registerPolarWebhookRoute = Effect.gen(function* () {
-  const router = yield* HttpLayerRouter.HttpRouter;
+const registerPolarWebhookRoute = Effect.gen(
+  function* registerPolarWebhookRoute() {
+    const router = yield* HttpLayerRouter.HttpRouter;
 
-  yield* router.add(
-    'POST',
-    '/webhooks/polar',
-    handleWebhook.pipe(
-      Effect.provide(BillingServicesLayer),
-      Effect.catchAll((error) =>
-        Effect.gen(function* () {
-          yield* Effect.logError('Polar webhook error', error);
-          return yield* HttpServerResponse.json(
-            { error: 'Webhook processing failed' },
-            { status: 500 }
-          );
-        })
+    yield* router.add(
+      "POST",
+      "/webhooks/polar",
+      handleWebhook.pipe(
+        Effect.provide(BillingServicesLayer),
+        Effect.catchAll((error) =>
+          Effect.gen(function* registerPolarWebhookRoute() {
+            yield* Effect.logError("Polar webhook error", error);
+            return yield* HttpServerResponse.json(
+              { error: "Webhook processing failed" },
+              { status: 500 }
+            );
+          })
+        )
       )
-    )
-  );
-});
+    );
+  }
+);
 
 /**
  * Polar webhook route layer

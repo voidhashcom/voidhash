@@ -1,5 +1,6 @@
-import { Card } from '@voidhash/ui';
-import { PerkRecordSkeleton } from './perk-record-skeleton';
+import { Card } from "@voidhash/ui";
+
+import { PerkRecordSkeleton } from "./perk-record-skeleton";
 
 export function PerksPageSkeleton() {
   return (

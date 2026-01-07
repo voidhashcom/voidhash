@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import { renderPaywall } from '@voidhash/paywall-renderer-preact';
-import type { SnapshotNode } from '@voidhash/paywall-renderer-web-core';
-import { useMemo } from 'react';
-import { useStore } from 'zustand/react';
-import { CANVAS_DEFAULTS } from '../constants';
-import { PANEL_DIMENSIONS } from '../panels/constants';
-import { usePaywallDesignerStore } from '../state/designer-store';
+import { renderPaywall } from "@voidhash/paywall-renderer-preact";
+import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
+import { useMemo } from "react";
+import { useStore } from "zustand/react";
+
+import { CANVAS_DEFAULTS } from "../constants";
+import { PANEL_DIMENSIONS } from "../panels/constants";
+import { usePaywallDesignerStore } from "../state/designer-store";
 
 export function PreviewCanvas() {
   const store = usePaywallDesignerStore();
@@ -15,7 +16,7 @@ export function PreviewCanvas() {
 
   const html = useMemo(() => {
     if (!previewSnapshot) {
-      return '';
+      return "";
     }
     return renderPaywall(previewSnapshot as SnapshotNode).html;
   }, [previewSnapshot]);
@@ -24,11 +25,11 @@ export function PreviewCanvas() {
     <div
       className="absolute inset-0 flex items-center justify-center overflow-hidden"
       style={{
-        top: PANEL_DIMENSIONS.TOP_HEIGHT,
         backgroundColor: CANVAS_DEFAULTS.BACKGROUND_COLOR,
         backgroundImage:
-          'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)',
-        backgroundSize: '16px 16px'
+          "radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px)",
+        backgroundSize: "16px 16px",
+        top: PANEL_DIMENSIONS.TOP_HEIGHT,
       }}
     >
       {/* Phone mockup container - maintains aspect ratio and scales to fit */}
@@ -36,9 +37,9 @@ export function PreviewCanvas() {
         <div
           className="relative h-full max-h-[812px] w-full max-w-[375px]"
           style={{
-            aspectRatio: '375 / 812',
+            aspectRatio: "375 / 812",
             transform: `scale(${previewScale})`,
-            transformOrigin: 'center center'
+            transformOrigin: "center center",
           }}
         >
           {/* Phone frame */}

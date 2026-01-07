@@ -1,4 +1,4 @@
-import { Card, Skeleton } from '@voidhash/ui';
+import { Card, Skeleton } from "@voidhash/ui";
 
 export function ProjectsSkeleton() {
   return (

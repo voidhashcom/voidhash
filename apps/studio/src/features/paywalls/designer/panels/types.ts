@@ -1,7 +1,7 @@
 import type {
   AvailableStyleProperties,
-  StylePropertyTypes
-} from '@voidhash/mimic-schema';
+  StylePropertyTypes,
+} from "@voidhash/mimic-schema";
 
 /**
  * All style property names defined in @voidhash/mimic-schema/src/styles/properties.ts
@@ -59,7 +59,7 @@ export type NodeWithProperties<K extends StylePropertyName> = Pick<
  * }
  * ```
  */
-export type NodeEditorProps<K extends StylePropertyName> = {
+export interface NodeEditorProps<K extends StylePropertyName> {
   node: NodeWithProperties<K>;
   onNodeChange: (node: NodeWithProperties<K>) => void;
-};
+}

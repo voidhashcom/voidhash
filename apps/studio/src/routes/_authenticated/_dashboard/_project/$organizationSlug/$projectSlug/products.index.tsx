@@ -1,31 +1,32 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
-import { Card } from '@voidhash/ui';
-import { useAuth } from 'src/components/auth-context';
-import { CreateProductModalButton } from '@/features/products/create-product-modal-button';
-import { ProductRecord } from '@/features/products/product-record';
-import { ProductRecordConfigurationStateIndicator } from '@/features/products/product-record-configuration-state-indicator';
-import { ProductsPageEmptyState } from '@/features/products/products-page-empty-state';
-import { ProductsPageSkeleton } from '@/features/products/products-page-skeleton';
-import { Page } from '@/features/shell';
-import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { listProductsOptions } from '@/lib/tanstack-query/products';
-import { CurrentUser } from '@/lib/utils/current-user';
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { Card } from "@voidhash/ui";
+import { useAuth } from "src/components/auth-context";
+
+import { CreateProductModalButton } from "@/features/products/create-product-modal-button";
+import { ProductRecord } from "@/features/products/product-record";
+import { ProductRecordConfigurationStateIndicator } from "@/features/products/product-record-configuration-state-indicator";
+import { ProductsPageEmptyState } from "@/features/products/products-page-empty-state";
+import { ProductsPageSkeleton } from "@/features/products/products-page-skeleton";
+import { Page } from "@/features/shell";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { listProductsOptions } from "@/lib/tanstack-query/products";
+import { CurrentUser } from "@/lib/utils/current-user";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/'
+  "/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/"
 )({
-  pendingComponent: ProductsIndexPageSkeleton,
+  component: ProductsIndexPage,
   errorComponent: ProductsIndexPageError,
-  component: ProductsIndexPage
+  pendingComponent: ProductsIndexPageSkeleton,
 });
 
 function ProductsIndexPageError() {
   return (
     <VoidhashErrorCard
       error={{
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'An error occurred loading the products'
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An error occurred loading the products",
       }}
     />
   );
@@ -45,7 +46,7 @@ function ProductsIndexPage() {
   );
 
   if (!project) {
-    throw new Error('Project not found');
+    throw new Error("Project not found");
   }
 
   const { data: products } = useSuspenseQuery(

@@ -1,16 +1,16 @@
-import { Link } from '@tanstack/react-router';
+import { Link } from "@tanstack/react-router";
 import {
   Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle
-} from '@voidhash/ui';
+  CardTitle,
+} from "@voidhash/ui";
 
 export function ProductDetailPaymentProvidersEmptyState({
   projectSlug,
-  organizationSlug
+  organizationSlug,
 }: {
   projectSlug: string;
   organizationSlug: string;

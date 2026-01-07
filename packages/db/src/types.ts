@@ -1,5 +1,10 @@
-import type { InferInsertModel, InferSelectModel, Table } from 'drizzle-orm';
-import type * as schema from './schema';
+import type {
+  InferInsertModel,
+  InferSelectModel,
+  Table,
+} from "drizzle-orm";
+
+import type * as schema from "./schema";
 
 // biome-ignore lint/suspicious/noExplicitAny: should be ok
 type InferUpdateModel<T extends Table<any>> = Partial<InferSelectModel<T>> & {

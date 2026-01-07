@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
 /*
   This file is adapted from next-themes to work with tanstack start.
   next-themes can be found at https://github.com/pacocoursey/next-themes under the MIT license.
 */
 
-import * as React from 'react';
+import * as React from "react";
 
 interface ValueObject {
   [themeName: string]: string;
@@ -21,10 +21,10 @@ export interface UseThemeProps {
   /** Active theme name */
   theme?: string | undefined;
   /** If enableSystem is true, returns the System theme preference ("dark" or "light"), regardless what the active theme is */
-  systemTheme?: 'dark' | 'light' | undefined;
+  systemTheme?: "dark" | "light" | undefined;
 }
 
-export type Attribute = `data-${string}` | 'class';
+export type Attribute = `data-${string}` | "class";
 
 export interface ThemeProviderProps extends React.PropsWithChildren {
   /** List of all available theme names */
@@ -49,9 +49,9 @@ export interface ThemeProviderProps extends React.PropsWithChildren {
   nonce?: string | undefined;
 }
 
-const colorSchemes = ['light', 'dark'];
-const MEDIA = '(prefers-color-scheme: dark)';
-const isServer = typeof window === 'undefined';
+const colorSchemes = new Set(["light", "dark"]);
+const MEDIA = "(prefers-color-scheme: dark)";
+const isServer = typeof window === "undefined";
 const ThemeContext = React.createContext<UseThemeProps | undefined>(undefined);
 // biome-ignore lint/suspicious/noEmptyBlockStatements: default value
 const defaultContext: UseThemeProps = { setTheme: (_) => {}, themes: [] };
@@ -70,20 +70,20 @@ export const ThemeProviderTanstack = (
   return <Theme {...props} />;
 };
 
-const defaultThemes = ['light', 'dark'];
+const defaultThemes = ["light", "dark"];
 
 const Theme = ({
   forcedTheme,
   disableTransitionOnChange = false,
   enableSystem = true,
   enableColorScheme = true,
-  storageKey = 'theme',
+  storageKey = "theme",
   themes = defaultThemes,
-  defaultTheme = enableSystem ? 'system' : 'light',
-  attribute = 'data-theme',
+  defaultTheme = enableSystem ? "system" : "light",
+  attribute = "data-theme",
   value,
   children,
-  nonce
+  nonce,
 }: ThemeProviderProps) => {
   const [theme, setThemeState] = React.useState(() =>
     getTheme(storageKey, defaultTheme)
@@ -99,7 +99,7 @@ const Theme = ({
     }
 
     // If theme is system, resolve it before setting theme
-    if (theme === 'system' && enableSystem) {
+    if (theme === "system" && enableSystem) {
       resolved = getSystemTheme();
     }
 
@@ -108,12 +108,12 @@ const Theme = ({
     const d = document.documentElement;
 
     const handleAttribute = (attr: Attribute) => {
-      if (attr === 'class') {
+      if (attr === "class") {
         d.classList.remove(...attrs);
         if (name) {
           d.classList.add(name);
         }
-      } else if (attr.startsWith('data-')) {
+      } else if (attr.startsWith("data-")) {
         if (name) {
           d.setAttribute(attr, name);
         } else {
@@ -129,10 +129,8 @@ const Theme = ({
     }
 
     if (enableColorScheme) {
-      const fallback = colorSchemes.includes(defaultTheme)
-        ? defaultTheme
-        : null;
-      const colorScheme = colorSchemes.includes(resolved) ? resolved : fallback;
+      const fallback = colorSchemes.has(defaultTheme) ? defaultTheme : null;
+      const colorScheme = colorSchemes.has(resolved) ? resolved : fallback;
       // @ts-expect-error
       d.style.colorScheme = colorScheme;
     }
@@ -145,7 +143,7 @@ const Theme = ({
   const setTheme = React.useCallback(
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     (value: any) => {
-      const newTheme = typeof value === 'function' ? value(theme) : value;
+      const newTheme = typeof value === "function" ? value(theme) : value;
       setThemeState(newTheme);
 
       // Save to storage
@@ -163,8 +161,8 @@ const Theme = ({
     (e: MediaQueryListEvent | MediaQueryList) => {
       getSystemTheme(e);
 
-      if (theme === 'system' && enableSystem && !forcedTheme) {
-        applyTheme('system');
+      if (theme === "system" && enableSystem && !forcedTheme) {
+        applyTheme("system");
       }
     },
     [theme, forcedTheme]
@@ -194,8 +192,8 @@ const Theme = ({
       setTheme(theme);
     };
 
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, [setTheme]);
 
   // Whenever theme or forcedTheme changes, apply it
@@ -206,10 +204,10 @@ const Theme = ({
 
   const providerValue = React.useMemo(
     () => ({
-      theme,
-      setTheme,
       forcedTheme,
-      themes: enableSystem ? [...themes, 'system'] : themes
+      setTheme,
+      theme,
+      themes: enableSystem ? [...themes, "system"] : themes,
     }),
     [theme, setTheme, forcedTheme, enableSystem, themes]
   );
@@ -218,15 +216,15 @@ const Theme = ({
     <ThemeContext.Provider value={providerValue}>
       <ThemeScript
         {...{
-          forcedTheme,
-          storageKey,
           attribute,
-          enableSystem,
-          enableColorScheme,
           defaultTheme,
-          value,
+          enableColorScheme,
+          enableSystem,
+          forcedTheme,
+          nonce,
+          storageKey,
           themes,
-          nonce
+          value,
         }}
       />
       {children}
@@ -244,8 +242,8 @@ const ThemeScript = React.memo(
     defaultTheme,
     value,
     themes,
-    nonce
-  }: Omit<ThemeProviderProps, 'children'> & { defaultTheme: string }) => {
+    nonce,
+  }: Omit<ThemeProviderProps, "children"> & { defaultTheme: string }) => {
     const scriptArgs = JSON.stringify([
       attribute,
       storageKey,
@@ -254,16 +252,16 @@ const ThemeScript = React.memo(
       themes,
       value,
       enableSystem,
-      enableColorScheme
+      enableColorScheme,
     ]).slice(1, -1);
 
     return (
       <script
         // biome-ignore lint/security/noDangerouslySetInnerHtml: Needed to inject script before hydration
         dangerouslySetInnerHTML={{
-          __html: `(${script.toString()})(${scriptArgs})`
+          __html: `(${script.toString()})(${scriptArgs})`,
         }}
-        nonce={typeof window === 'undefined' ? nonce : ''}
+        nonce={typeof window === "undefined" ? nonce : ""}
         // biome-ignore lint/security/noDangerouslySetInnerHtml: Needed to inject script before hydration
         suppressHydrationWarning
       />
@@ -287,13 +285,13 @@ const getTheme = (key: string, fallback?: string) => {
 };
 
 const disableAnimation = () => {
-  const css = document.createElement('style');
-  css.appendChild(
+  const css = document.createElement("style");
+  css.append(
     document.createTextNode(
-      '*,*::before,*::after{-webkit-transition:none!important;-moz-transition:none!important;-o-transition:none!important;-ms-transition:none!important;transition:none!important}'
+      "*,*::before,*::after{-webkit-transition:none!important;-moz-transition:none!important;-o-transition:none!important;-ms-transition:none!important;transition:none!important}"
     )
   );
-  document.head.appendChild(css);
+  document.head.append(css);
 
   return () => {
     // Force restyle
@@ -309,7 +307,7 @@ const disableAnimation = () => {
 const getSystemTheme = (e?: MediaQueryList | MediaQueryListEvent) => {
   const event = e ?? window.matchMedia(MEDIA);
   const isDark = event.matches;
-  const systemTheme = isDark ? 'dark' : 'light';
+  const systemTheme = isDark ? "dark" : "light";
   return systemTheme;
 };
 
@@ -330,8 +328,8 @@ export const script: (...args: any[]) => void = (
   enableColorScheme
 ) => {
   const el = document.documentElement;
-  const systemThemes = ['light', 'dark'];
-  const isClass = attribute === 'class';
+  const systemThemes = new Set(["light", "dark"]);
+  const isClass = attribute === "class";
   const classes =
     isClass && value
       ? themes.map((t: string | number) => value[t] || t)
@@ -349,15 +347,15 @@ export const script: (...args: any[]) => void = (
   }
 
   function setColorScheme(theme: string) {
-    if (enableColorScheme && systemThemes.includes(theme)) {
+    if (enableColorScheme && systemThemes.has(theme)) {
       el.style.colorScheme = theme;
     }
   }
 
   function getSystemTheme() {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? 'dark'
-      : 'light';
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
   }
 
   if (forcedTheme) {
@@ -365,7 +363,7 @@ export const script: (...args: any[]) => void = (
   } else {
     try {
       const themeName = localStorage.getItem(storageKey) || defaultTheme;
-      const isSystem = enableSystem && themeName === 'system';
+      const isSystem = enableSystem && themeName === "system";
       const theme = isSystem ? getSystemTheme() : themeName;
       updateDOM(theme);
     } catch {

@@ -16,6 +16,7 @@
     "with-env": "dotenv -e .env --"
   },
   "dependencies": {
+    "@better-auth/oauth-provider": "^1.4.10",
     "@fontsource-variable/geist": "^5.2.8",
     "@fontsource-variable/geist-mono": "^5.2.7",
     "@tanstack/react-router": "^1.140.0",
@@ -24,7 +25,6 @@
     "@voidhash/auth": "workspace:*",
     "@voidhash/lib": "workspace:*",
     "@voidhash/ui": "workspace:*",
-    "@better-auth/oauth-provider": "^1.4.10",
     "better-auth": "^1.4.10",
     "cross-fetch": "^4.1.0",
     "drizzle-orm": "^0.45.1",
@@ -32,8 +32,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.60.0",
-    "slug": "^11.0.0",
     "resend": "^4.5.1",
+    "slug": "^11.0.0",
     "sonner": "^2.0.1",
     "vite-tsconfig-paths": "^5.1.4",
     "zod": "^4.1.13"

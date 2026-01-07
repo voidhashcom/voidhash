@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Button,
@@ -6,10 +6,11 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle
-} from '@voidhash/ui';
-import { useState } from 'react';
-import { CreatePerkModal } from './create-perk-modal';
+  CardTitle,
+} from "@voidhash/ui";
+import { useState } from "react";
+
+import { CreatePerkModal } from "./create-perk-modal";
 
 export function PerksPageEmptyState({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);

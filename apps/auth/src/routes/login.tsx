@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { zodValidator } from '@tanstack/zod-adapter';
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 import {
   Alert,
   AlertDescription,
@@ -7,30 +7,32 @@ import {
   Button,
   Input,
   Label,
-  Logo
-} from '@voidhash/ui';
-import { AlertCircle, CheckCircle } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { z } from 'zod';
-import { authClient } from '../lib/auth-client';
+  Logo,
+} from "@voidhash/ui";
+import { AlertCircle, CheckCircle } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { authClient } from "../lib/auth-client";
+import { isValidRedirect } from "../lib/validation";
 
 const loginSearchSchema = z.object({
-  email: z.string().default(''),
+  email: z.string().default(""),
+  error: z.string().optional(),
   next: z.string().optional(),
   signup: z.boolean().default(false),
-  error: z.string().optional()
 });
 
-export const Route = createFileRoute('/login')({
+export const Route = createFileRoute("/login")({
   component: LoginPage,
-  validateSearch: zodValidator(loginSearchSchema)
+  validateSearch: zodValidator(loginSearchSchema),
 });
 
 export function LoginPage() {
   const searchParams = Route.useSearch();
-  const [email, setEmail] = useState(searchParams.email ?? '');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(searchParams.email ?? "");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const signIn = async () => {
@@ -38,14 +40,14 @@ export function LoginPage() {
     try {
       const { error, data } = await authClient.signIn.email({
         email,
-        password,
         fetchOptions: {
           onSuccess: (ctx) => {
             if (ctx.response.redirected && ctx.response.url) {
               window.location.href = ctx.response.url;
             }
-          }
-        }
+          },
+        },
+        password,
       });
 
       if (data?.redirect && data?.url) {
@@ -53,26 +55,35 @@ export function LoginPage() {
         return;
       }
 
-      if (error) {
-        setLoading(false);
-        if (
-          error.code === 'RATE_LIMIT_EXCEEDED' ||
-          error.message?.includes('rate limit')
-        ) {
-          // Handle rate limiting
-          toast.error(
-            'Too many login attempts. Please wait a few minutes before trying again.'
-          );
-          return;
-        }
-        toast.error(error.message ?? 'An unknown error occurred');
+      // If no server redirect but we have a next param, use it
+      if (
+        searchParams.next &&
+        isValidRedirect(searchParams.next, window.location.origin)
+      ) {
+        window.location.href = searchParams.next;
         return;
       }
 
-      toast.error('An unknown error occurred. Please try again.');
-    } catch (_error) {
+      if (error) {
+        setLoading(false);
+        if (
+          error.code === "RATE_LIMIT_EXCEEDED" ||
+          error.message?.includes("rate limit")
+        ) {
+          // Handle rate limiting
+          toast.error(
+            "Too many login attempts. Please wait a few minutes before trying again."
+          );
+          return;
+        }
+        toast.error(error.message ?? "An unknown error occurred");
+        return;
+      }
+
+      toast.error("An unknown error occurred. Please try again.");
+    } catch {
       setLoading(false);
-      toast.error('An unknown error occurred. Please try again.');
+      toast.error("An unknown error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -80,14 +91,19 @@ export function LoginPage() {
 
   const signInWithGithub = async () => {
     setLoading(true);
+    const callbackURL =
+      searchParams.next &&
+      isValidRedirect(searchParams.next, window.location.origin)
+        ? searchParams.next
+        : "/";
     try {
       await authClient.signIn.social({
-        provider: 'github'
-        // callbackURL: validNext ?? '/'
+        callbackURL,
+        provider: "github",
       });
-    } catch (_error) {
+    } catch {
       setLoading(false);
-      toast.error('Failed to initiate GitHub login. Please try again.');
+      toast.error("Failed to initiate GitHub login. Please try again.");
     }
   };
 
@@ -108,7 +124,7 @@ export function LoginPage() {
                 signIn();
               }}
             >
-              {searchParams.error === 'insufficient_permissions' && (
+              {searchParams.error === "insufficient_permissions" && (
                 <div className="mb-6">
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -200,11 +216,11 @@ export function LoginPage() {
                   />
                 </div>
                 <Button className="w-full" disabled={loading} type="submit">
-                  {loading ? 'Loading...' : 'Login'}
+                  {loading ? "Loading..." : "Login"}
                 </Button>
               </div>
               <div className="text-center text-sm">
-                Don&apos;t have an account?{' '}
+                Don&apos;t have an account?{" "}
                 <Link
                   className="underline underline-offset-4"
                   search={{ next: searchParams.next }}

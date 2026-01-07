@@ -1,30 +1,31 @@
-'use client';
+"use client";
 
-import { Application, Graphics } from 'pixi.js';
-import { useCallback, useEffect, useRef } from 'react';
-import { CANVAS_DEFAULTS } from '../../constants';
-import { usePaywallDesignerStore } from '../../state/designer-store';
-import type { DesignerStoreState } from '../../state/designer-store-state';
+import { Application, Graphics } from "pixi.js";
+import { useCallback, useEffect, useRef } from "react";
+
+import { CANVAS_DEFAULTS } from "../../constants";
+import { usePaywallDesignerStore } from "../../state/designer-store";
+import type { DesignerStoreState } from "../../state/designer-store-state";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type SelectionBox = {
+interface SelectionBox {
   id: string;
   x: number;
   y: number;
   width: number;
   height: number;
-};
+}
 
 // ============================================================================
 // Selection Overlay Component
 // ============================================================================
 
-type SelectionOverlayProps = {
+interface SelectionOverlayProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
-};
+}
 
 export function SelectionOverlay({ containerRef }: SelectionOverlayProps) {
   const store = usePaywallDesignerStore();
@@ -78,7 +79,7 @@ export function SelectionOverlay({ containerRef }: SelectionOverlayProps) {
       const screenHeight = box.height * scale;
 
       graphics.rect(screenX, screenY, screenWidth, screenHeight);
-      graphics.stroke({ width: strokeWidth, color: strokeColor });
+      graphics.stroke({ color: strokeColor, width: strokeWidth });
     }
 
     // Draw node highlight
@@ -92,7 +93,7 @@ export function SelectionOverlay({ containerRef }: SelectionOverlayProps) {
         const screenHeight = box.height * scale;
 
         graphics.rect(screenX, screenY, screenWidth, screenHeight);
-        graphics.stroke({ width: highlightStrokeWidth, color: strokeColor });
+        graphics.stroke({ color: strokeColor, width: highlightStrokeWidth });
       }
     }
   };
@@ -119,7 +120,7 @@ export function SelectionOverlay({ containerRef }: SelectionOverlayProps) {
         autoDensity: true,
         backgroundAlpha: 0,
         resizeTo: resizeTarget ?? undefined,
-        resolution: typeof window !== 'undefined' ? window.devicePixelRatio : 1
+        resolution: typeof window !== "undefined" ? window.devicePixelRatio : 1,
       });
 
       // Check if component was unmounted during async init
@@ -129,7 +130,7 @@ export function SelectionOverlay({ containerRef }: SelectionOverlayProps) {
       }
 
       // Add canvas to DOM
-      container.appendChild(app.canvas);
+      container.append(app.canvas);
 
       // Create graphics for drawing selections
       const graphics = new Graphics();

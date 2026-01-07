@@ -5,12 +5,13 @@
  * Uses undoable actions for undo/redo support.
  */
 
-import type { Primitive } from '@voidhash/mimic';
-import { TextNode } from '@voidhash/mimic-schema';
-import { commander } from '../../designer-commander';
-import type { VariableTypeKey } from '../core';
-import { selectNode } from '../selection-actions';
-import { setActiveTool } from '../tools-actions';
+import type { Primitive } from "@voidhash/mimic";
+import { TextNode } from "@voidhash/mimic-schema";
+
+import { commander } from "../../designer-commander";
+import type { VariableTypeKey } from "../core";
+import { selectNode } from "../selection-actions";
+import { setActiveTool } from "../tools-actions";
 
 // =============================================================================
 // Text Node Commands
@@ -43,7 +44,7 @@ export const createTextNode = commander.undoableAction<
     if (newNodeId) {
       // Select the new node and switch to cursor tool
       ctx.dispatch(selectNode)({ id: newNodeId, many: false });
-      ctx.dispatch(setActiveTool)({ tool: 'cursor' });
+      ctx.dispatch(setActiveTool)({ tool: "cursor" });
     }
 
     return { nodeId: newNodeId ?? null };
@@ -110,15 +111,15 @@ export const updateTextNode = commander.undoableAction<
       const prev = result.previousData as Record<string, unknown>;
 
       // Restore previous values
-      if (prev.name && typeof prev.name === 'string') {
+      if (prev.name && typeof prev.name === "string") {
         proxy.data.name.set(prev.name);
       }
 
-      if (prev.text && typeof prev.text === 'string') {
+      if (prev.text && typeof prev.text === "string") {
         proxy.data.text.set(prev.text);
       }
 
-      if (prev.style && typeof prev.style === 'object') {
+      if (prev.style && typeof prev.style === "object") {
         const prevStyle = prev.style as Record<string, unknown>;
         for (const [key, value] of Object.entries(prevStyle)) {
           if (key in proxy.data.style && proxy.data.style[key]) {
@@ -157,15 +158,15 @@ export const addTextNodeVariable = commander.undoableAction<
         id: variableId,
         name: params.name,
         value: {
-          key: params.type
-        }
+          key: params.type,
+        },
       });
     });
 
     return { variableId };
   },
   (ctx, params, result) => {
-    const variableId = result.variableId;
+    const { variableId } = result;
     if (variableId === null) {
       return;
     }
@@ -314,9 +315,9 @@ export const addTextNodeState = commander.undoableAction<
       stateId = `state-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       const newState = {
+        condition: params.condition,
         id: stateId,
         name: params.name,
-        condition: params.condition
       };
 
       proxy.data.states.push(newState as never);
@@ -325,7 +326,7 @@ export const addTextNodeState = commander.undoableAction<
     return { stateId };
   },
   (ctx, params, result) => {
-    const stateId = result.stateId;
+    const { stateId } = result;
     if (stateId === null) {
       return;
     }
@@ -405,7 +406,7 @@ export const updateTextNodeState = commander.undoableAction<
     // Get the previous state data for undo
     const node = mimic.document.root.node(params.nodeId)?.as(TextNode);
     if (!node) {
-      return { previousName: null, previousCondition: null };
+      return { previousCondition: null, previousName: null };
     }
     const state = node.data.states.at(params.stateId);
 
@@ -427,7 +428,7 @@ export const updateTextNodeState = commander.undoableAction<
       }
     });
 
-    return { previousName, previousCondition };
+    return { previousCondition, previousName };
   },
   (ctx, params, result) => {
     const { mimic } = ctx.getState();

@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import type { Variable } from '@voidhash/mimic-schema';
+import type { Variable } from "@voidhash/mimic-schema";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from '@voidhash/ui';
-import { useMemo } from 'react';
+  SelectValue,
+} from "@voidhash/ui";
+import { useMemo } from "react";
 
 export interface VariableSelectorProps {
   variableId: string | null;
@@ -22,8 +22,8 @@ export function VariableSelector({
   variableId,
   onChange,
   variables,
-  placeholder = 'Select...',
-  className
+  placeholder = "Select...",
+  className,
 }: VariableSelectorProps) {
   const currentVariable = useMemo(() => {
     if (!variableId) {
@@ -33,8 +33,8 @@ export function VariableSelector({
   }, [variableId, variables]);
 
   return (
-    <Select onValueChange={onChange} value={variableId ?? ''}>
-      <SelectTrigger className={className ?? 'h-7 min-w-28 text-xs'} size="sm">
+    <Select onValueChange={onChange} value={variableId ?? ""}>
+      <SelectTrigger className={className ?? "h-7 min-w-28 text-xs"} size="sm">
         <SelectValue placeholder={placeholder}>
           {currentVariable?.name ?? placeholder}
         </SelectValue>

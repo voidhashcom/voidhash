@@ -1,5 +1,5 @@
 export const PANEL_DIMENSIONS = {
-  TOP_HEIGHT: 54,
   LEFT_WIDTH: 240,
-  RIGHT_WIDTH: 280
+  RIGHT_WIDTH: 280,
+  TOP_HEIGHT: 54,
 } as const;

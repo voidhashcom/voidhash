@@ -1,17 +1,17 @@
-import type { User } from '@voidhash/rpc';
-import { createContext, type ReactNode, useContext } from 'react';
+import type { User } from "@voidhash/rpc";
+import { type ReactNode, createContext, useContext } from "react";
 
-type AuthContextType = {
+interface AuthContextType {
   user: typeof User.Type;
-};
+}
 
 // Default context – will trigger error if used without provider
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-type AuthProviderProps = {
+interface AuthProviderProps {
   children: ReactNode;
   user: typeof User.Type;
-};
+}
 
 export function AuthProvider({ children, user }: AuthProviderProps) {
   return (
@@ -22,7 +22,7 @@ export function AuthProvider({ children, user }: AuthProviderProps) {
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

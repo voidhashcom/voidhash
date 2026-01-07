@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Card,
@@ -8,26 +8,26 @@ import {
   type ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
-} from '@voidhash/ui';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+  ChartTooltipContent,
+} from "@voidhash/ui";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
-export const description = 'A line chart for MRR';
+export const description = "A line chart for MRR";
 
 const chartData = [
-  { month: 'January', mrr: 18_600 },
-  { month: 'February', mrr: 30_500 },
-  { month: 'March', mrr: 23_700 },
-  { month: 'April', mrr: 7300 },
-  { month: 'May', mrr: 20_900 },
-  { month: 'June', mrr: 21_400 }
+  { month: "January", mrr: 18_600 },
+  { month: "February", mrr: 30_500 },
+  { month: "March", mrr: 23_700 },
+  { month: "April", mrr: 7300 },
+  { month: "May", mrr: 20_900 },
+  { month: "June", mrr: 21_400 },
 ];
 
 const chartConfig = {
   mrr: {
-    label: 'MRR',
-    color: 'var(--chart-1)'
-  }
+    color: "var(--chart-1)",
+    label: "MRR",
+  },
 } satisfies ChartConfig;
 
 export function MRRChartWidget() {
@@ -51,7 +51,7 @@ export function MRRChartWidget() {
             data={chartData}
             margin={{
               left: 12,
-              right: 12
+              right: 12,
             }}
           >
             <CartesianGrid vertical={false} />

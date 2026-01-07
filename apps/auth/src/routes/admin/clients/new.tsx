@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { zodValidator } from '@tanstack/zod-adapter';
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 import {
   Button,
   Card,
@@ -14,24 +14,25 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from '@voidhash/ui';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { z } from 'zod';
-import { authClient } from '../../../lib/auth-client';
+  SelectValue,
+} from "@voidhash/ui";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { z } from "zod";
+
+import { authClient } from "../../../lib/auth-client";
 
 const newClientSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  redirect_uris: z.string().min(1, 'At least one redirect URI is required'),
-  type: z.enum(['web', 'native', 'spa']),
-  scope: z.string().default('openid profile email')
+  name: z.string().min(1, "Name is required"),
+  redirect_uris: z.string().min(1, "At least one redirect URI is required"),
+  scope: z.string().default("openid profile email"),
+  type: z.enum(["web", "native", "spa"]),
 });
 
-export const Route = createFileRoute('/admin/clients/new')({
+export const Route = createFileRoute("/admin/clients/new")({
   component: NewClientPage,
-  validateSearch: zodValidator(newClientSchema.partial())
+  validateSearch: zodValidator(newClientSchema.partial()),
 });
 
 function NewClientPage() {
@@ -41,10 +42,10 @@ function NewClientPage() {
     clientSecret: string;
   } | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    redirect_uris: '',
-    type: 'web' as 'web' | 'native' | 'spa',
-    scope: 'openid profile email'
+    name: "",
+    redirect_uris: "",
+    scope: "openid profile email",
+    type: "web" as "web" | "native" | "spa",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,12 +54,12 @@ function NewClientPage() {
 
     try {
       const redirectUris = formData.redirect_uris
-        .split(',')
+        .split(",")
         .map((uri) => uri.trim())
         .filter(Boolean);
 
       if (redirectUris.length === 0) {
-        toast.error('At least one redirect URI is required');
+        toast.error("At least one redirect URI is required");
         setLoading(false);
         return;
       }
@@ -66,11 +67,11 @@ function NewClientPage() {
       const { data, error } = await authClient.oauth2.register({
         client_name: formData.name,
         redirect_uris: redirectUris,
-        scope: formData.scope
+        scope: formData.scope,
       });
 
       if (error) {
-        toast.error(error.message ?? 'Failed to create client');
+        toast.error(error.message ?? "Failed to create client");
         setLoading(false);
         return;
       }
@@ -78,12 +79,12 @@ function NewClientPage() {
       if (data?.client_id && data?.client_secret) {
         setCreatedClient({
           clientId: data.client_id,
-          clientSecret: data.client_secret
+          clientSecret: data.client_secret,
         });
-        toast.success('OAuth client created successfully');
+        toast.success("OAuth client created successfully");
       }
-    } catch (_error) {
-      toast.error('An error occurred while creating the client');
+    } catch {
+      toast.error("An error occurred while creating the client");
     } finally {
       setLoading(false);
     }
@@ -136,10 +137,10 @@ function NewClientPage() {
               onClick={() => {
                 setCreatedClient(null);
                 setFormData({
-                  name: '',
-                  redirect_uris: '',
-                  type: 'web',
-                  scope: 'openid profile email'
+                  name: "",
+                  redirect_uris: "",
+                  scope: "openid profile email",
+                  type: "web",
                 });
               }}
             >
@@ -200,7 +201,7 @@ function NewClientPage() {
                 onValueChange={(value) =>
                   setFormData({
                     ...formData,
-                    type: value as 'web' | 'native' | 'spa'
+                    type: value as "web" | "native" | "spa",
                   })
                 }
                 value={formData.type}
@@ -242,7 +243,7 @@ function NewClientPage() {
               </Button>
             </Link>
             <Button disabled={loading} type="submit">
-              {loading ? 'Creating...' : 'Create Client'}
+              {loading ? "Creating..." : "Create Client"}
             </Button>
           </CardFooter>
         </form>

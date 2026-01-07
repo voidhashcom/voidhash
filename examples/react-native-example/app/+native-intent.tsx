@@ -1,4 +1,4 @@
-import { expoRouterWithVoidhashCallback } from '@voidhash/react-native';
+import { expoRouterWithVoidhashCallback } from "@voidhash/react-native";
 
 export function redirectSystemPath(options: {
   path: string;

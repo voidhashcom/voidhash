@@ -1,5 +1,7 @@
-import type { Primitive } from '@voidhash/mimic';
-import type * as properties from './properties';
+import type { Primitive } from "@voidhash/mimic";
+
+import type * as properties from "./properties";
+
 import type {
   alignItems,
   alignSelf,
@@ -10,8 +12,8 @@ import type {
   fontWeight,
   justifyContent,
   overflow,
-  textAlign
-} from './properties';
+  textAlign,
+} from "./properties";
 
 /** Literal types for constrained properties - inferred from schema definitions */
 export type JustifyContent = Primitive.InferState<typeof justifyContent>;

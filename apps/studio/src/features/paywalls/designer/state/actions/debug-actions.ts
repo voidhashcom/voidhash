@@ -4,8 +4,8 @@
  * These commands manage debug settings (browser-only state).
  */
 
-import { commander } from '../designer-commander';
-import type { DesignerStoreState } from '../designer-store-state';
+import { commander } from "../designer-commander";
+import type { DesignerStoreState } from "../designer-store-state";
 
 // =============================================================================
 // Debug Commands
@@ -20,8 +20,8 @@ export const setShowGrid = commander.action<{ showGrid: boolean }>(
     ctx.setState({
       debug: {
         ...state.debug,
-        showGrid: params.showGrid
-      }
+        showGrid: params.showGrid,
+      },
     } as Partial<DesignerStoreState>);
   }
 );
@@ -34,7 +34,7 @@ export const toggleShowGrid = commander.action((ctx) => {
   ctx.setState({
     debug: {
       ...state.debug,
-      showGrid: !state.debug.showGrid
-    }
+      showGrid: !state.debug.showGrid,
+    },
   } as Partial<DesignerStoreState>);
 });

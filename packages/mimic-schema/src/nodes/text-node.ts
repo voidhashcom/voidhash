@@ -1,4 +1,5 @@
-import { Primitive } from '@voidhash/mimic';
+import { Primitive } from "@voidhash/mimic";
+
 import {
   alignSelf,
   borderColor,
@@ -35,17 +36,17 @@ import {
   shadowOffsetY,
   shadowOpacity,
   textAlign,
-  zIndex
-} from '../styles';
-import { linkedVariables, localVariables, states } from './base';
+  zIndex,
+} from "../styles";
+import { linkedVariables, localVariables, states } from "./base";
 
 /** TextNode tree node schema */
-export const TextNode = Primitive.TreeNode('text', {
+export const TextNode = Primitive.TreeNode("text", {
+  children: [] as const,
   data: Primitive.Struct({
-    name: Primitive.String().default('Text'),
-    text: Primitive.String().default('New Text'),
-    localVariables,
     linkedVariables,
+    localVariables,
+    name: Primitive.String().default("Text"),
     states,
     style: Primitive.Struct({
       // Margin
@@ -90,10 +91,10 @@ export const TextNode = Primitive.TreeNode('text', {
       flexGrow,
       flexShrink,
       flexBasis,
-      alignSelf
-    })
+      alignSelf,
+    }),
+    text: Primitive.String().default("New Text"),
   }),
-  children: [] as const
 });
 
 export type TextNodeData = Primitive.TreeNodeSnapshot<typeof TextNode>;

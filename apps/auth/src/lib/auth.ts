@@ -1,26 +1,27 @@
-import { createBetterAuthOptions } from '@voidhash/auth';
-import { db } from '@voidhash/db';
-import { betterAuth, type User } from 'better-auth';
-import { Resend } from 'resend';
-import { env } from './env';
+import { createBetterAuthOptions } from "@voidhash/auth";
+import { db } from "@voidhash/db";
+import { type User, betterAuth } from "better-auth";
+import { Resend } from "resend";
+
+import { env } from "./env";
 
 // Initialize Resend if API key is available
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
 export const auth = betterAuth({
   ...createBetterAuthOptions({
-    db,
     baseURL: env.VITE_APP_AUTH_BASE_URL,
+    db,
     trustedClientIds: new Set([
       env.VOIDHASH_STUDIO_CLIENT_ID,
-      env.VOIDHASH_MOBILE_CLIENT_ID
-    ])
+      env.VOIDHASH_MOBILE_CLIENT_ID,
+    ]),
   }),
   socialProviders: {
     github: {
       clientId: process.env.GITHUB_CLIENT_ID as string,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET as string
-    }
+      clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+    },
   },
   emailAndPassword: {
     enabled: true,
@@ -28,20 +29,18 @@ export const auth = betterAuth({
       if (!(resend && env.EMAIL_FROM)) {
         // biome-ignore lint/suspicious/noConsole: we want to log the error
         console.error(
-          'Resend not configured - cannot send password reset email'
+          "Resend not configured - cannot send password reset email"
         );
         return;
       }
 
       await resend.emails.send({
         from: env.EMAIL_FROM,
-        to: user.email,
-        subject: 'Reset your Voidhash password',
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
             <h1 style="color: #1a1a1a;">Reset your password</h1>
             <p style="color: #666; font-size: 16px; line-height: 1.5;">
-              Hi ${user.name || 'there'},
+              Hi ${user.name || "there"},
             </p>
             <p style="color: #666; font-size: 16px; line-height: 1.5;">
               We received a request to reset your password. Click the button below to choose a new password:
@@ -59,8 +58,10 @@ export const auth = betterAuth({
               Voidhash - Building the future
             </p>
           </div>
-        `
+        `,
+        subject: "Reset your Voidhash password",
+        to: user.email,
       });
-    }
-  }
+    },
+  },
 });

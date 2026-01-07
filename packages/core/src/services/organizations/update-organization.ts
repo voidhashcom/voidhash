@@ -1,29 +1,30 @@
-import { eq, organization } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
+import { eq, organization } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
 import {
   AuthSession,
   OrganizationNotFoundError,
-  OrganizationServiceError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { BetterAuth } from '../../better-auth/better-auth-effect';
-import { checkOrganizationPermission } from '../../utils/permissions';
+  OrganizationServiceError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { BetterAuth } from "../../better-auth/better-auth-effect";
+import { checkOrganizationPermission } from "../../utils/permissions";
 
 const _getOrganizationById = (db: Db) =>
   db.makeQuery((execute, id: string) =>
     execute(
       async (db) =>
         await db.query.organization.findFirst({
-          where: eq(organization.id, id)
+          where: eq(organization.id, id),
         })
     )
   );
 
-export const updateOrganization = Effect.gen(function* () {
+export const updateOrganization = Effect.gen(function* updateOrganization() {
   const betterAuth = yield* BetterAuth;
   const db = yield* Db;
-  return Effect.fn('updateOrganization')(
-    function* (
+  return Effect.fn("updateOrganization")(
+    function* updateOrganization(
       input: { organizationId: string; name: string },
       cookie: string
     ) {
@@ -34,7 +35,7 @@ export const updateOrganization = Effect.gen(function* () {
       if (!organizationResult) {
         return yield* Effect.fail(
           new OrganizationNotFoundError({
-            message: `Organization with id ${input.organizationId} not found`
+            message: `Organization with id ${input.organizationId} not found`,
           })
         );
       }
@@ -42,37 +43,37 @@ export const updateOrganization = Effect.gen(function* () {
       // SECURITY: Authorization check
       yield* checkOrganizationPermission(
         input.organizationId,
-        'organization:all',
+        "organization:all",
         `User ${session?.user?.id} is not authorized to update organization ${input.organizationId}`
       );
 
       yield* betterAuth.use(async (client) =>
         client.api.updateOrganization({
-          headers: new Headers({
-            cookie
-          }),
           body: {
-            organizationId: input.organizationId,
             data: {
-              name: input.name
-            }
-          }
+              name: input.name,
+            },
+            organizationId: input.organizationId,
+          },
+          headers: new Headers({
+            cookie,
+          }),
         })
       );
 
-      return yield* Effect.succeed(undefined);
+      return yield* Effect.void;
     },
     (effect) =>
       effect.pipe(
         Effect.catchTags({
-          DatabaseError: (error) =>
-            new OrganizationServiceError({
-              cause: String(error.cause)
-            }),
           BetterAuthError: (error) =>
             new OrganizationServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
+          DatabaseError: (error) =>
+            new OrganizationServiceError({
+              cause: String(error.cause),
+            }),
         })
       )
   );

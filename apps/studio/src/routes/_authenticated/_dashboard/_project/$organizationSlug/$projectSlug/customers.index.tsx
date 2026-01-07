@@ -1,21 +1,22 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute } from "@tanstack/react-router";
 import {
   UnderlineTabs,
   UnderlineTabsContent,
   UnderlineTabsList,
-  UnderlineTabsTrigger
-} from '@voidhash/ui';
-import { useAuth } from 'src/components/auth-context';
-import { CreateCustomerButton } from '@/features/customers/create-customer-button';
-import { CustomersTable } from '@/features/customers/customers-table';
-import { Page } from '@/features/shell';
-import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { CurrentUser } from '@/lib/utils/current-user';
+  UnderlineTabsTrigger,
+} from "@voidhash/ui";
+import { useAuth } from "src/components/auth-context";
+
+import { CreateCustomerButton } from "@/features/customers/create-customer-button";
+import { CustomersTable } from "@/features/customers/customers-table";
+import { Page } from "@/features/shell";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { CurrentUser } from "@/lib/utils/current-user";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/customers/'
+  "/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/customers/"
 )({
-  component: CustomersIndexPage
+  component: CustomersIndexPage,
 });
 
 function CustomersIndexPage() {
@@ -32,9 +33,9 @@ function CustomersIndexPage() {
     return (
       <VoidhashErrorCard
         error={{
-          code: 'INTERNAL_SERVER_ERROR',
-          title: 'Project not found',
-          message: 'The project you are looking for does not exist.'
+          code: "INTERNAL_SERVER_ERROR",
+          message: "The project you are looking for does not exist.",
+          title: "Project not found",
         }}
       />
     );

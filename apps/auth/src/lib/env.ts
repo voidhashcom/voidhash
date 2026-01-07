@@ -1,5 +1,5 @@
-import { createEnv } from '@t3-oss/env-core';
-import { z } from 'zod';
+import { createEnv } from "@t3-oss/env-core";
+import { z } from "zod";
 
 // import { env as authEnv } from "@voidhash/auth/env";
 
@@ -8,13 +8,13 @@ import { z } from 'zod';
 // The property 'env' *does* exist on `import.meta`, so those errors are likely caused by a misconfigured tsconfig or editor, but using the Vite documented approach is correct.
 
 export const env = createEnv({
-  shared: {
-    NODE_ENV: z
-      .enum(['development', 'production', 'test'])
-      .default('development')
-  },
   client: {
-    VITE_APP_AUTH_BASE_URL: z.string()
+    VITE_APP_AUTH_BASE_URL: z.string(),
+  },
+  clientPrefix: "VITE_",
+  runtimeEnv: {
+    ...process.env,
+    ...import.meta.env,
   },
   server: {
     DATABASE_HOST: z.string(),
@@ -32,11 +32,11 @@ export const env = createEnv({
 
     // Email (Resend)
     RESEND_API_KEY: z.string().optional(),
-    EMAIL_FROM: z.string().default('Voidhash <noreply@voidhash.com>')
+    EMAIL_FROM: z.string().default("Voidhash <noreply@voidhash.com>"),
   },
-  clientPrefix: 'VITE_',
-  runtimeEnv: {
-    ...process.env,
-    ...import.meta.env
-  }
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "production", "test"])
+      .default("development"),
+  },
 });

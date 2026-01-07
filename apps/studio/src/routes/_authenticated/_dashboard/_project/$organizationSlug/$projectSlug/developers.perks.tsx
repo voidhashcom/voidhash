@@ -1,29 +1,30 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
-import { Card } from '@voidhash/ui';
-import { useAuth } from 'src/components/auth-context';
-import { CreatePerkModalButton } from '@/features/perks/create-perk-modal-button';
-import { PerkRecord } from '@/features/perks/perk-record';
-import { PerksPageEmptyState } from '@/features/perks/perks-page-empty-state';
-import { PerksPageSkeleton as PerksPageSkeletonComponent } from '@/features/perks/perks-page-skeleton';
-import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { listPerksOptions } from '@/lib/tanstack-query/perks';
-import { CurrentUser } from '@/lib/utils/current-user';
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { Card } from "@voidhash/ui";
+import { useAuth } from "src/components/auth-context";
+
+import { CreatePerkModalButton } from "@/features/perks/create-perk-modal-button";
+import { PerkRecord } from "@/features/perks/perk-record";
+import { PerksPageEmptyState } from "@/features/perks/perks-page-empty-state";
+import { PerksPageSkeleton as PerksPageSkeletonComponent } from "@/features/perks/perks-page-skeleton";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { listPerksOptions } from "@/lib/tanstack-query/perks";
+import { CurrentUser } from "@/lib/utils/current-user";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers/perks'
+  "/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers/perks"
 )({
-  pendingComponent: PerksPageSkeleton,
+  component: PerksPage,
   errorComponent: PerksPageError,
-  component: PerksPage
+  pendingComponent: PerksPageSkeleton,
 });
 
 function PerksPageError() {
   return (
     <VoidhashErrorCard
       error={{
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'An error occurred loading the perks'
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An error occurred loading the perks",
       }}
     />
   );
@@ -43,7 +44,7 @@ function PerksPage() {
   );
 
   if (!project) {
-    throw new Error('Project not found');
+    throw new Error("Project not found");
   }
 
   const { data: perks } = useSuspenseQuery(

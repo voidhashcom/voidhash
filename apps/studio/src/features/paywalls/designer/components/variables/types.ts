@@ -1,11 +1,11 @@
-import type { VariableType } from '@voidhash/mimic-schema';
+import type { VariableType } from "@voidhash/mimic-schema";
 
 /**
  * Represents either a literal value or a reference to a variable.
  * This is the core type for the VariableInput component.
  */
 export interface VariableInputValue {
-  type: 'literal' | 'variable-reference';
+  type: "literal" | "variable-reference";
   value: VariableType | { id: string };
 }
 
@@ -14,8 +14,8 @@ export interface VariableInputValue {
  */
 export function isLiteralValue(
   value: VariableInputValue
-): value is { type: 'literal'; value: VariableType } {
-  return value.type === 'literal';
+): value is { type: "literal"; value: VariableType } {
+  return value.type === "literal";
 }
 
 /**
@@ -23,6 +23,6 @@ export function isLiteralValue(
  */
 export function isVariableReference(
   value: VariableInputValue
-): value is { type: 'variable-reference'; value: { id: string } } {
-  return value.type === 'variable-reference';
+): value is { type: "variable-reference"; value: { id: string } } {
+  return value.type === "variable-reference";
 }

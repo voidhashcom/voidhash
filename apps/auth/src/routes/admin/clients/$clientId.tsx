@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,26 +20,27 @@ import {
   CardTitle,
   Input,
   Label,
-  Switch
-} from '@voidhash/ui';
-import { ArrowLeft, Copy, RefreshCw, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
+  Switch,
+} from "@voidhash/ui";
+import { ArrowLeft, Copy, RefreshCw, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import {
   deleteAdminClient,
   getAdminClient,
   rotateAdminClientSecret,
-  updateAdminClient
-} from '../../../lib/admin-server-functions';
+  updateAdminClient,
+} from "../../../lib/admin-server-functions";
 
-export const Route = createFileRoute('/admin/clients/$clientId')({
+export const Route = createFileRoute("/admin/clients/$clientId")({
   component: ClientDetailPage,
   loader: async ({ params }) => {
     const client = await getAdminClient({
-      data: { clientId: params.clientId }
+      data: { clientId: params.clientId },
     });
     return { client };
-  }
+  },
 });
 
 function ClientDetailPage() {
@@ -52,9 +53,9 @@ function ClientDetailPage() {
   const [rotating, setRotating] = useState(false);
   const [rotatedSecret, setRotatedSecret] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: client?.name || '',
-    redirectUris: client?.redirectUris || '',
-    disabled: client?.disabled
+    disabled: client?.disabled,
+    name: client?.name || "",
+    redirectUris: client?.redirectUris || "",
   });
 
   const getClient = useServerFn(getAdminClient);
@@ -67,18 +68,18 @@ function ClientDetailPage() {
       setLoading(true);
       const data = await getClient({ data: { clientId } });
       setFormData({
-        name: data.name || '',
-        redirectUris: data.redirectUris || '',
-        disabled: data.disabled
+        disabled: data.disabled,
+        name: data.name || "",
+        redirectUris: data.redirectUris || "",
       });
     } catch (error) {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : 'Failed to load client details';
-      if (errorMessage === 'Client not found') {
-        toast.error('Client not found');
-        navigate({ to: '/admin' });
+          : "Failed to load client details";
+      if (errorMessage === "Client not found") {
+        toast.error("Client not found");
+        navigate({ to: "/admin" });
       } else {
         toast.error(errorMessage);
       }
@@ -94,18 +95,18 @@ function ClientDetailPage() {
         data: {
           clientId,
           updates: {
+            disabled: formData.disabled ?? undefined,
             name: formData.name,
             redirectUris: formData.redirectUris,
-            disabled: formData.disabled ?? undefined
-          }
-        }
+          },
+        },
       });
 
-      toast.success('Client updated successfully');
+      toast.success("Client updated successfully");
       await loadClient();
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to update client';
+        error instanceof Error ? error.message : "Failed to update client";
       toast.error(errorMessage);
     } finally {
       setSaving(false);
@@ -117,11 +118,11 @@ function ClientDetailPage() {
       setDeleting(true);
       await deleteClient({ data: { clientId } });
 
-      toast.success('Client deleted successfully');
-      navigate({ to: '/admin' });
+      toast.success("Client deleted successfully");
+      navigate({ to: "/admin" });
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to delete client';
+        error instanceof Error ? error.message : "Failed to delete client";
       toast.error(errorMessage);
     } finally {
       setDeleting(false);
@@ -134,12 +135,12 @@ function ClientDetailPage() {
       setRotatedSecret(null);
       const result = await rotateClientSecret({ data: { clientId } });
       setRotatedSecret(result.clientSecret);
-      toast.success('Client secret rotated successfully');
+      toast.success("Client secret rotated successfully");
     } catch (error) {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : 'Failed to rotate client secret';
+          : "Failed to rotate client secret";
       toast.error(errorMessage);
     } finally {
       setRotating(false);
@@ -148,7 +149,7 @@ function ClientDetailPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
+    toast.success("Copied to clipboard");
   };
 
   if (loading) {
@@ -176,7 +177,7 @@ function ClientDetailPage() {
         </Link>
         <div>
           <h2 className="font-semibold text-2xl">
-            {client.name || 'Unnamed Client'}
+            {client.name || "Unnamed Client"}
           </h2>
           <p className="mt-1 text-muted-foreground text-sm">
             Manage OAuth client settings
@@ -197,7 +198,7 @@ function ClientDetailPage() {
                 {client.clientId}
               </code>
               <Button
-                onClick={() => copyToClipboard(client.clientId ?? '')}
+                onClick={() => copyToClipboard(client.clientId ?? "")}
                 size="sm"
                 variant="outline"
               >
@@ -231,9 +232,9 @@ function ClientDetailPage() {
                 <AlertDialogTrigger asChild>
                   <Button disabled={rotating} size="sm" variant="outline">
                     <RefreshCw
-                      className={`mr-2 h-4 w-4 ${rotating ? 'animate-spin' : ''}`}
+                      className={`mr-2 h-4 w-4 ${rotating ? "animate-spin" : ""}`}
                     />
-                    {rotating ? 'Rotating...' : 'Rotate Secret'}
+                    {rotating ? "Rotating..." : "Rotate Secret"}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -332,7 +333,7 @@ function ClientDetailPage() {
             <AlertDialogTrigger asChild>
               <Button disabled={deleting} variant="destructive">
                 <Trash2 className="mr-2 h-4 w-4" />
-                {deleting ? 'Deleting...' : 'Delete Client'}
+                {deleting ? "Deleting..." : "Delete Client"}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -352,7 +353,7 @@ function ClientDetailPage() {
             </AlertDialogContent>
           </AlertDialog>
           <Button disabled={saving} onClick={handleSave}>
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? "Saving..." : "Save Changes"}
           </Button>
         </CardFooter>
       </Card>

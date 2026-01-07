@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { cn } from '@voidhash/ui';
-import { InputGroup, InputGroupInput } from '@voidhash/ui/input-group';
+import { cn } from "@voidhash/ui";
+import { InputGroup, InputGroupInput } from "@voidhash/ui/input-group";
 
 export interface StringInputProps {
   value: string;
@@ -13,13 +13,13 @@ export interface StringInputProps {
 export function StringInput({
   value,
   onChange,
-  placeholder = 'Value...',
-  className
+  placeholder = "Value...",
+  className,
 }: StringInputProps) {
   return (
     <InputGroup
       className={cn(
-        'h-7 min-w-20 flex-1 rounded-sm border-none dark:bg-input/60',
+        "h-7 min-w-20 flex-1 rounded-sm border-none dark:bg-input/60",
         className
       )}
     >

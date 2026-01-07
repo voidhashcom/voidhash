@@ -1,43 +1,44 @@
-'use client';
+"use client";
 
-import { useQuery } from '@tanstack/react-query';
-import { Badge } from '@voidhash/ui';
+import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@voidhash/ui";
 import {
   listPaymentProviderConfigurationsOptions,
-  listProviderProductsByProductIdOptions
-} from 'src/lib/tanstack-query';
-import { PaymentProviderLogo } from '../projects/settings/payment-providers/payment-provider-logo';
+  listProviderProductsByProductIdOptions,
+} from "src/lib/tanstack-query";
+
+import { PaymentProviderLogo } from "../projects/settings/payment-providers/payment-provider-logo";
 
 export function ProductRecordConfigurationStateIndicator({
   productId,
-  projectId
+  projectId,
 }: {
   productId: string;
   projectId: string;
 }) {
   const { data: providerProducts, status: providerProductsStatus } = useQuery({
     ...listProviderProductsByProductIdOptions({ productId }),
-    enabled: !!productId
+    enabled: !!productId,
   });
 
   const {
     data: paymentProviderConfigurations,
-    status: paymentProviderConfigurationsStatus
+    status: paymentProviderConfigurationsStatus,
   } = useQuery({
     ...listPaymentProviderConfigurationsOptions({ projectId }),
-    enabled: !!projectId
+    enabled: !!projectId,
   });
 
   if (
-    providerProductsStatus === 'error' ||
-    paymentProviderConfigurationsStatus === 'error'
+    providerProductsStatus === "error" ||
+    paymentProviderConfigurationsStatus === "error"
   ) {
     return <Badge>Loading error</Badge>;
   }
 
   if (
-    providerProductsStatus === 'pending' ||
-    paymentProviderConfigurationsStatus === 'pending'
+    providerProductsStatus === "pending" ||
+    paymentProviderConfigurationsStatus === "pending"
   ) {
     return <Badge>Loading...</Badge>;
   }
@@ -57,8 +58,8 @@ export function ProductRecordConfigurationStateIndicator({
     <div className="flex flex-row items-center gap-3">
       {paymentProviderConfigurations
         .filter((f) => !!f.enabled)
-        .map((paymentProviderConfiguration) => {
-          return providerProducts.some(
+        .map((paymentProviderConfiguration) =>
+          providerProducts.some(
             (providerProduct) =>
               providerProduct.paymentProviderConfigurationId ===
               paymentProviderConfiguration.id
@@ -68,12 +69,12 @@ export function ProductRecordConfigurationStateIndicator({
               key={paymentProviderConfiguration.providerId}
               providerId={
                 paymentProviderConfiguration.providerId as
-                  | 'stripe'
-                  | 'apple-app-store'
+                  | "stripe"
+                  | "apple-app-store"
               }
             />
-          ) : null;
-        })}
+          ) : null
+        )}
     </div>
   );
 }

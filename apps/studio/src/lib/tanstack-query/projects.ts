@@ -1,35 +1,36 @@
-import { Effect } from 'effect';
-import { queryKeys } from 'src/lib/tanstack-query';
-import { eq, VoidhashRpc } from '../effect-query';
+import { Effect } from "effect";
+import { queryKeys } from "src/lib/tanstack-query";
+
+import { VoidhashRpc, eq } from "../effect-query";
 
 export const listProjectsOptions = (options: { organizationId: string }) =>
   eq.queryOptions({
-    queryKey: queryKeys.project.list(options),
     queryFn: () =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) =>
           rpc.ListProjects({ organizationId: options.organizationId })
         )
-      )
+      ),
+    queryKey: queryKeys.project.list(options),
   });
 
 export const createProjectOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['createProject'],
     mutationFn: (variables: { name: string; organizationId: string }) =>
-      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.CreateProject(variables)))
+      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.CreateProject(variables))),
+    mutationKey: ["createProject"],
   });
 
 export const updateProjectOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['updateProject'],
     mutationFn: (variables: { id: string; name: string }) =>
-      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.UpdateProject(variables)))
+      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.UpdateProject(variables))),
+    mutationKey: ["updateProject"],
   });
 
 export const deleteProjectOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['deleteProject'],
     mutationFn: (variables: { id: string }) =>
-      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.DeleteProject(variables)))
+      VoidhashRpc.pipe(Effect.flatMap((rpc) => rpc.DeleteProject(variables))),
+    mutationKey: ["deleteProject"],
   });

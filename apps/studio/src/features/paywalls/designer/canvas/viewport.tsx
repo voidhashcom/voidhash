@@ -1,27 +1,28 @@
-'use client';
+"use client";
 
 import {
-  createContext,
   type PropsWithChildren,
+  createContext,
   useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
-  useRef
-} from 'react';
-import { CANVAS_DEFAULTS, INIT_SCREEN_DATA } from '../constants';
+  useRef,
+} from "react";
+
+import { CANVAS_DEFAULTS, INIT_SCREEN_DATA } from "../constants";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type ViewportTransform = {
+export interface ViewportTransform {
   x: number;
   y: number;
   scale: number;
-};
+}
 
-type ViewportContextValue = {
+interface ViewportContextValue {
   /**
    * Convert a point from screen/viewport coordinates to canvas coordinates
    */
@@ -40,7 +41,7 @@ type ViewportContextValue = {
    * Get the current viewport transform (for reading purposes)
    */
   getTransform: () => ViewportTransform;
-};
+}
 
 const ViewportContext = createContext<ViewportContextValue | null>(null);
 
@@ -58,9 +59,9 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
 
   // Store transform in ref to avoid re-renders during pan/zoom
   const transformRef = useRef<ViewportTransform>({
+    scale: 0.8,
     x: 0,
-    y: 0,
-    scale: 0.8 // Start at 80% zoom (matching pixi-viewport's zoomPercent(-0.2))
+    y: 0, // Start at 80% zoom (matching pixi-viewport's zoomPercent(-0.2))
   });
 
   // Touch tracking for pinch gestures
@@ -79,7 +80,7 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
     }
 
     const { x, y, scale } = transformRef.current;
-    onTransformChange?.({ x, y, scale });
+    onTransformChange?.({ scale, x, y });
     content.style.transform = `matrix(${scale}, 0, 0, ${scale}, ${x}, ${y})`;
   }, [onTransformChange]);
 
@@ -130,9 +131,9 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
       // Zoom towards the point: adjust position so the point stays in the same place
       const scaleRatio = clampedScale / scale;
       transformRef.current = {
+        scale: clampedScale,
         x: pointX - (pointX - x) * scaleRatio,
         y: pointY - (pointY - y) * scaleRatio,
-        scale: clampedScale
       };
 
       applyTransform();
@@ -179,10 +180,10 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
       }
     };
 
-    container.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
-      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener("wheel", handleWheel);
     };
   }, [pan, zoomAtPoint]);
 
@@ -203,7 +204,7 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
       const rect = container.getBoundingClientRect();
       return {
         x: (touch1.clientX + touch2.clientX) / 2 - rect.left,
-        y: (touch1.clientY + touch2.clientY) / 2 - rect.top
+        y: (touch1.clientY + touch2.clientY) / 2 - rect.top,
       };
     };
 
@@ -224,9 +225,9 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
 
       touchStateRef.current = {
         initialDistance: getDistance(touch1, touch2),
-        initialScale: transformRef.current.scale,
         initialMidpoint: midpoint,
-        lastMidpoint: midpoint
+        initialScale: transformRef.current.scale,
+        lastMidpoint: midpoint,
       };
     };
 
@@ -287,26 +288,26 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
       e.preventDefault();
     };
 
-    container.addEventListener('touchstart', handleTouchStart, {
-      passive: false
+    container.addEventListener("touchstart", handleTouchStart, {
+      passive: false,
     });
-    container.addEventListener('touchmove', handleTouchMove, {
-      passive: false
+    container.addEventListener("touchmove", handleTouchMove, {
+      passive: false,
     });
-    container.addEventListener('touchend', handleTouchEnd);
-    container.addEventListener('touchcancel', handleTouchEnd);
-    container.addEventListener('gesturestart', handleGestureStart);
-    container.addEventListener('gesturechange', handleGestureChange);
-    container.addEventListener('gestureend', handleGestureEnd);
+    container.addEventListener("touchend", handleTouchEnd);
+    container.addEventListener("touchcancel", handleTouchEnd);
+    container.addEventListener("gesturestart", handleGestureStart);
+    container.addEventListener("gesturechange", handleGestureChange);
+    container.addEventListener("gestureend", handleGestureEnd);
 
     return () => {
-      container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchmove', handleTouchMove);
-      container.removeEventListener('touchend', handleTouchEnd);
-      container.removeEventListener('touchcancel', handleTouchEnd);
-      container.removeEventListener('gesturestart', handleGestureStart);
-      container.removeEventListener('gesturechange', handleGestureChange);
-      container.removeEventListener('gestureend', handleGestureEnd);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchEnd);
+      container.removeEventListener("gesturestart", handleGestureStart);
+      container.removeEventListener("gesturechange", handleGestureChange);
+      container.removeEventListener("gestureend", handleGestureEnd);
     };
   }, [pan, zoomAtPoint]);
 
@@ -327,7 +328,7 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
 
       return {
         x: (relativeX - x) / scale,
-        y: (relativeY - y) / scale
+        y: (relativeY - y) / scale,
       };
     },
     []
@@ -346,20 +347,18 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
       // Convert from canvas coordinates to screen coordinates
       return {
         x: canvasX * scale + x + rect.left,
-        y: canvasY * scale + y + rect.top
+        y: canvasY * scale + y + rect.top,
       };
     },
     []
   );
 
-  const getTransform = useCallback(() => {
-    return { ...transformRef.current };
-  }, []);
+  const getTransform = useCallback(() => ({ ...transformRef.current }), []);
 
   const contextValue: ViewportContextValue = {
-    screenToCanvas,
     canvasToScreen,
-    getTransform
+    getTransform,
+    screenToCanvas,
   };
 
   return (
@@ -367,15 +366,15 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
       <div
         className="absolute inset-0 overflow-hidden"
         ref={containerRef}
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: "none" }}
       >
         <div
           className="absolute origin-top-left"
           ref={contentRef}
           style={{
             // Will be updated via JS for performance
-            transform: 'matrix(1, 0, 0, 1, 0, 0)',
-            willChange: 'transform'
+            transform: "matrix(1, 0, 0, 1, 0, 0)",
+            willChange: "transform",
           }}
         >
           {children}
@@ -397,7 +396,7 @@ export function Viewport({ children, onTransformChange }: ViewportProps) {
 export function useViewport() {
   const context = useContext(ViewportContext);
   if (!context) {
-    throw new Error('useViewport must be used within a Viewport');
+    throw new Error("useViewport must be used within a Viewport");
   }
   return context;
 }

@@ -1,44 +1,42 @@
-import { AppleLogo } from 'src/features/projects/settings/payment-providers/logos/apple-logo';
-import { z } from 'zod/v3';
-import { createPaymentProvider } from './core';
+import { AppleLogo } from "src/features/projects/settings/payment-providers/logos/apple-logo";
+import { z } from "zod/v3";
+
+import { createPaymentProvider } from "./core";
 import type {
   PaymentProviderConfigurationSheetSection,
-  PaymentProviderProductEditorSheetSection
-} from './types';
+  PaymentProviderProductEditorSheetSection,
+} from "./types";
 
 const appStoreGlobalConfigurationSchema = z.object({
-  issuerId: z.string().min(1, {
-    message: 'Issuer ID is required'
-  }),
   bundleId: z.string().min(1, {
-    message: 'Bundle ID is required'
+    message: "Bundle ID is required",
+  }),
+  issuerId: z.string().min(1, {
+    message: "Issuer ID is required",
   }),
   keyId: z.string().min(1, {
-    message: 'Key ID is required'
+    message: "Key ID is required",
   }),
   privateKey: z.string().min(1, {
-    message: 'Private key is required'
-  })
+    message: "Private key is required",
+  }),
 });
 
 const appStoreProductConfigurationSchema = z.object({
   productId: z.string().min(1, {
-    message: 'Product ID is required'
-  })
+    message: "Product ID is required",
+  }),
 });
 
 export const appleAppStore = createPaymentProvider({
-  id: 'apple-app-store',
-  title: 'Apple App Store',
-  type: 'native',
-  logo: AppleLogo,
-  globalConfigurationSchema: appStoreGlobalConfigurationSchema,
-  productConfigurationSchema: appStoreProductConfigurationSchema,
   defaultGlobalConfiguration: {
-    issuerId: '',
-    bundleId: '',
-    keyId: '',
-    privateKey: ''
+    bundleId: "",
+    issuerId: "",
+    keyId: "",
+    privateKey: "",
+  },
+  defaultProductConfiguration: {
+    productId: "",
   },
   getGlobalConfigurationSheet(): {
     sections: PaymentProviderConfigurationSheetSection[];
@@ -46,48 +44,44 @@ export const appleAppStore = createPaymentProvider({
     return {
       sections: [
         {
-          key: 'bundleId',
-          type: 'text-input',
-          name: 'bundleId',
-          label: 'Bundle ID',
           input: {
-            type: 'text',
-            placeholder: 'com.example.app'
-          }
+            placeholder: "com.example.app",
+            type: "text",
+          },
+          key: "bundleId",
+          label: "Bundle ID",
+          name: "bundleId",
+          type: "text-input",
         },
         {
-          key: 'issuerId',
-          type: 'text-input',
-          name: 'issuerId',
-          label: 'Issuer ID',
           input: {
-            type: 'text',
-            placeholder: '00000000-0000-0000-0000-000000000000'
-          }
+            placeholder: "00000000-0000-0000-0000-000000000000",
+            type: "text",
+          },
+          key: "issuerId",
+          label: "Issuer ID",
+          name: "issuerId",
+          type: "text-input",
         },
         {
-          key: 'keyId',
-          type: 'text-input',
-          name: 'keyId',
-          label: 'Key ID',
           input: {
-            type: 'text',
-            placeholder: 'XXXXXXXXXX'
-          }
+            placeholder: "XXXXXXXXXX",
+            type: "text",
+          },
+          key: "keyId",
+          label: "Key ID",
+          name: "keyId",
+          type: "text-input",
         },
         {
-          key: 'privateKey',
-          name: 'privateKey',
-          type: 'p8-upload',
-          label: 'Private Key (.p8 file)',
-          successMessage: 'Private key was successfully attached'
-        }
-      ]
+          key: "privateKey",
+          label: "Private Key (.p8 file)",
+          name: "privateKey",
+          successMessage: "Private key was successfully attached",
+          type: "p8-upload",
+        },
+      ],
     };
-  },
-  productConfigurationKeyProperties: ['productId'],
-  defaultProductConfiguration: {
-    productId: ''
   },
   getProductConfigurationSheet(): {
     sections: PaymentProviderProductEditorSheetSection[];
@@ -95,16 +89,23 @@ export const appleAppStore = createPaymentProvider({
     return {
       sections: [
         {
-          key: 'productId',
-          type: 'text-input',
-          name: 'productId',
-          label: 'Product ID',
           input: {
-            type: 'text',
-            placeholder: 'example_app.1_month_subscription'
-          }
-        }
-      ]
+            placeholder: "example_app.1_month_subscription",
+            type: "text",
+          },
+          key: "productId",
+          label: "Product ID",
+          name: "productId",
+          type: "text-input",
+        },
+      ],
     };
-  }
+  },
+  globalConfigurationSchema: appStoreGlobalConfigurationSchema,
+  id: "apple-app-store",
+  logo: AppleLogo,
+  productConfigurationKeyProperties: ["productId"],
+  productConfigurationSchema: appStoreProductConfigurationSchema,
+  title: "Apple App Store",
+  type: "native",
 });

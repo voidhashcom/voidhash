@@ -1,5 +1,5 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@voidhash/ui/button';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@voidhash/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,19 +7,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
-} from '@voidhash/ui/dialog';
+  DialogTrigger,
+} from "@voidhash/ui/dialog";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '@voidhash/ui/form';
-import { Input } from '@voidhash/ui/input';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod/v3';
+  FormMessage,
+} from "@voidhash/ui/form";
+import { Input } from "@voidhash/ui/input";
+import { useForm } from "react-hook-form";
+import { z } from "zod/v3";
 
 interface DeleteProjectModalProps {
   open: boolean;
@@ -30,9 +30,9 @@ interface DeleteProjectModalProps {
   projectSlug: string;
 }
 
-type DeleteProjectForm = {
+interface DeleteProjectForm {
   confirmation: string;
-};
+}
 
 export function DeleteProjectModal({
   open,
@@ -40,22 +40,22 @@ export function DeleteProjectModal({
   onDelete,
   trigger,
   organizationSlug,
-  projectSlug
+  projectSlug,
 }: DeleteProjectModalProps) {
   const deleteProjectSchema = z.object({
     confirmation: z
       .string()
       .refine((value) => value === `${organizationSlug}/${projectSlug}`, {
         message:
-          'Please enter the text exactly as it is shown to confirm deletion'
-      })
+          "Please enter the text exactly as it is shown to confirm deletion",
+      }),
   });
 
   const form = useForm<DeleteProjectForm>({
-    resolver: zodResolver(deleteProjectSchema),
     defaultValues: {
-      confirmation: ''
-    }
+      confirmation: "",
+    },
+    resolver: zodResolver(deleteProjectSchema),
   });
 
   const handleOpenChange = (open: boolean) => {
@@ -92,10 +92,10 @@ export function DeleteProjectModal({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="inline select-text text-muted-foreground leading-relaxed">
-                    Please type{' '}
+                    Please type{" "}
                     <span className="font-mono text-foreground">
                       {organizationSlug}/{projectSlug}
-                    </span>{' '}
+                    </span>{" "}
                     to confirm.
                   </FormLabel>
                   <FormControl>

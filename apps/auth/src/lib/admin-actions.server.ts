@@ -1,6 +1,5 @@
-import { db, oauthClient } from '@voidhash/db';
-
-import { eq } from 'drizzle-orm';
+import { db, oauthClient } from "@voidhash/db";
+import { eq } from "drizzle-orm";
 
 export async function getOAuthClients() {
   const clients = await db.select().from(oauthClient);
@@ -24,7 +23,7 @@ export async function changeOAuthClientId(
     .update(oauthClient)
     .set({
       clientId: newClientId,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
     .where(eq(oauthClient.clientId, clientId));
 }

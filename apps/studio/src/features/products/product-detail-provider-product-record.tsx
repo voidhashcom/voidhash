@@ -1,32 +1,33 @@
-'use client';
+"use client";
 
-import { useMutation } from '@tanstack/react-query';
-import type { PaymentProviderProduct } from '@voidhash/rpc';
+import { useMutation } from "@tanstack/react-query";
+import type { PaymentProviderProduct } from "@voidhash/rpc";
 import {
   Badge,
   Button,
-  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  useConfirmDialog
-} from '@voidhash/ui';
-import { format } from 'date-fns';
-import { Clock4Icon, EllipsisVerticalIcon } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { paymentProviders } from 'src/lib/payment-providers/payment-providers';
+  cn,
+  useConfirmDialog,
+} from "@voidhash/ui";
+import { format } from "date-fns";
+import { Clock4Icon, EllipsisVerticalIcon } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { paymentProviders } from "src/lib/payment-providers/payment-providers";
 import {
   deletePaymentProviderProductOptions,
-  setActivePaymentProviderProductOptions
-} from 'src/lib/tanstack-query';
-import { ProviderProductSheet } from './provider-product-sheet';
+  setActivePaymentProviderProductOptions,
+} from "src/lib/tanstack-query";
+
+import { ProviderProductSheet } from "./provider-product-sheet";
 
 export function ProductDetailProviderProductRecord({
   paymentProviderId,
   paymentProviderConfigurationId,
-  providerProduct
+  providerProduct,
 }: {
   paymentProviderId: string;
   paymentProviderConfigurationId: string;
@@ -46,12 +47,12 @@ export function ProductDetailProviderProductRecord({
       },
       onError: () => {
         toast.error(`Failed to delete ${paymentProvider?.title} product`);
-      }
+      },
     });
 
   const {
     mutate: setActiveProviderProduct,
-    status: setActiveProviderProductStatus
+    status: setActiveProviderProductStatus,
   } = useMutation({
     ...setActivePaymentProviderProductOptions(),
     onSuccess: () => {
@@ -59,20 +60,20 @@ export function ProductDetailProviderProductRecord({
     },
     onError: () => {
       toast.error(`Failed to activate ${paymentProvider?.title} product`);
-    }
+    },
   });
 
   const handleSetActiveProviderProduct = () => {
     setActiveProviderProduct({
-      productId: providerProduct.productId,
       paymentProviderConfigurationId,
-      providerProductKey: providerProduct.providerProductKey
+      productId: providerProduct.productId,
+      providerProductKey: providerProduct.providerProductKey,
     });
   };
 
-  const isPending = deleteProviderProductStatus === 'pending';
+  const isPending = deleteProviderProductStatus === "pending";
   const isSettingActiveProviderProduct =
-    setActiveProviderProductStatus === 'pending';
+    setActiveProviderProductStatus === "pending";
 
   const { ConfirmationDialog, openDialog } = useConfirmDialog();
 
@@ -82,8 +83,8 @@ export function ProductDetailProviderProductRecord({
     }
 
     const res = await openDialog({
-      title: 'Delete product',
-      description: `Are you sure you want to delete this ${paymentProvider.title} product? This may break access for customers who have already purchased this.`
+      description: `Are you sure you want to delete this ${paymentProvider.title} product? This may break access for customers who have already purchased this.`,
+      title: "Delete product",
     });
 
     if (!res) {
@@ -91,9 +92,7 @@ export function ProductDetailProviderProductRecord({
     }
 
     deleteProviderProduct({
-      productId: providerProduct.productId,
-      paymentProviderConfigurationId,
-      providerProductKey: providerProduct.providerProductKey
+      id: providerProduct.id,
     });
   };
 
@@ -108,8 +107,8 @@ export function ProductDetailProviderProductRecord({
     >
       <div
         className={cn(
-          'flex flex-row gap-2',
-          !providerProduct.isActive && 'opacity-50'
+          "flex flex-row gap-2",
+          !providerProduct.isActive && "opacity-50"
         )}
       >
         {paymentProvider.productConfigurationKeyProperties.map((key) => (
@@ -127,13 +126,13 @@ export function ProductDetailProviderProductRecord({
           )}
           <div
             className={cn(
-              'flex flex-row items-center gap-1',
-              !providerProduct.isActive && 'opacity-50'
+              "flex flex-row items-center gap-1",
+              !providerProduct.isActive && "opacity-50"
             )}
           >
             <Clock4Icon className="h-4 w-4" />
             <span className="text-muted-foreground text-sm">
-              {format(providerProduct.createdAt ?? new Date(), 'MMM d, yyyy')}
+              {format(providerProduct.createdAt ?? new Date(), "MMM d, yyyy")}
             </span>
           </div>
           <div />
@@ -152,13 +151,13 @@ export function ProductDetailProviderProductRecord({
               disabled={isSettingActiveProviderProduct}
               onSelect={handleSetActiveProviderProduct}
             >
-              {isSettingActiveProviderProduct ? 'Activating...' : 'Activate'}
+              {isSettingActiveProviderProduct ? "Activating..." : "Activate"}
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={isPending}
               onSelect={handleDeleteProviderProduct}
             >
-              {isPending ? 'Deleting...' : 'Delete'}
+              {isPending ? "Deleting..." : "Delete"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -166,7 +165,7 @@ export function ProductDetailProviderProductRecord({
       <ConfirmationDialog />
       <ProviderProductSheet
         configuration={providerProduct.configuration}
-        mode={'edit'}
+        mode="edit"
         onClose={() => setOpenEditSheet(false)}
         open={openEditSheet}
         paymentProviderConfigurationId={paymentProviderConfigurationId}

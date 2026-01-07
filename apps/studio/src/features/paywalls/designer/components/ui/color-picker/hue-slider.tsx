@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from "react";
 
-export type HueSliderProps = {
+export interface HueSliderProps {
   hue: number;
   onChange: (hue: number) => void;
-};
+}
 
 export function HueSlider({ hue, onChange }: HueSliderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,12 +43,12 @@ export function HueSlider({ hue, onChange }: HueSliderProps) {
       isDragging.current = false;
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [updateHue]);
 
@@ -64,7 +64,7 @@ export function HueSlider({ hue, onChange }: HueSliderProps) {
       role="slider"
       style={{
         background:
-          'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)'
+          "linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)",
       }}
       tabIndex={0}
     >
@@ -72,8 +72,8 @@ export function HueSlider({ hue, onChange }: HueSliderProps) {
       <div
         className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute top-1/2 size-3.5 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"
         style={{
+          backgroundColor: `hsl(${hue}, 100%, 50%)`,
           left: `${(hue / 360) * 100}%`,
-          backgroundColor: `hsl(${hue}, 100%, 50%)`
         }}
       />
     </div>

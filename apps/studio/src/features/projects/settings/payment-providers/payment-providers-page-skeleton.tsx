@@ -1,6 +1,6 @@
-import { Card, Skeleton } from '@voidhash/ui';
-import { Page } from 'src/features/shell';
-import { paymentProviders } from 'src/lib/payment-providers/payment-providers';
+import { Card, Skeleton } from "@voidhash/ui";
+import { Page } from "src/features/shell";
+import { paymentProviders } from "src/lib/payment-providers/payment-providers";
 
 export function PaymentProvidersPageSkeleton() {
   return (

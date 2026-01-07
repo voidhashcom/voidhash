@@ -1,7 +1,8 @@
 /** biome-ignore-all lint/correctness/useYield: Only mocks */
-import { Effect, Layer } from 'effect';
-import { vi } from 'vitest';
-import { BillingProviderError } from '../../billing/errors';
+import { Effect, Layer } from "effect";
+import { vi } from "vitest";
+
+import { BillingProviderError } from "../../billing/errors";
 import type {
   BillingTierNameValue,
   CheckoutSessionResult,
@@ -9,15 +10,15 @@ import type {
   CustomerInfo,
   MetricIdValue,
   SubscriptionInfo,
-  UsageRecordInput
-} from '../../billing/types';
-import { BillingTierName } from '../../billing/types';
+  UsageRecordInput,
+} from "../../billing/types";
+import { BillingTierName } from "../../billing/types";
 import {
   BillingProvider,
-  type BillingProviderService
-} from '../../services/billing/providers/billing-provider';
+  type BillingProviderService,
+} from "../../services/billing/providers/billing-provider";
 
-const PROVIDER_ID = 'mock';
+const PROVIDER_ID = "mock";
 
 /**
  * Mock customer data store
@@ -27,7 +28,7 @@ export interface MockCustomerData {
   externalCustomerId: string;
   email?: string;
   tier: BillingTierNameValue;
-  subscriptionStatus: 'none' | 'active' | 'canceled' | 'past_due' | 'trialing';
+  subscriptionStatus: "none" | "active" | "canceled" | "past_due" | "trialing";
 }
 
 /**
@@ -36,7 +37,7 @@ export interface MockCustomerData {
 export interface MockSubscriptionData {
   externalSubscriptionId: string;
   externalCustomerId: string;
-  status: 'active' | 'canceled' | 'past_due' | 'trialing';
+  status: "active" | "canceled" | "past_due" | "trialing";
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
   tier: BillingTierNameValue;
@@ -80,13 +81,13 @@ export interface MockBillingState {
  * Create initial mock billing state
  */
 export const createMockBillingState = (): MockBillingState => ({
-  customers: new Map(),
-  subscriptions: new Map(),
-  usageRecords: [],
   checkoutSessions: new Map(),
+  customers: new Map(),
+  nextCheckoutId: 1,
   nextCustomerId: 1,
   nextSubscriptionId: 1,
-  nextCheckoutId: 1
+  subscriptions: new Map(),
+  usageRecords: [],
 });
 
 /**
@@ -95,12 +96,12 @@ export const createMockBillingState = (): MockBillingState => ({
 export const createMockCustomer = (
   overrides: Partial<MockCustomerData> = {}
 ): MockCustomerData => ({
-  organizationId: 'org_test_123',
-  externalCustomerId: 'cust_mock_123',
-  email: 'test@example.com',
+  organizationId: "org_test_123",
+  externalCustomerId: "cust_mock_123",
+  email: "test@example.com",
   tier: BillingTierName.Free,
-  subscriptionStatus: 'none',
-  ...overrides
+  subscriptionStatus: "none",
+  ...overrides,
 });
 
 /**
@@ -114,13 +115,13 @@ export const createMockSubscription = (
   periodEnd.setMonth(periodEnd.getMonth() + 1);
 
   return {
-    externalSubscriptionId: 'sub_mock_123',
-    externalCustomerId: 'cust_mock_123',
-    status: 'active',
+    externalSubscriptionId: "sub_mock_123",
+    externalCustomerId: "cust_mock_123",
+    status: "active",
     currentPeriodStart: now,
     currentPeriodEnd: periodEnd,
     tier: BillingTierName.Pro,
-    ...overrides
+    ...overrides,
   };
 };
 
@@ -130,9 +131,9 @@ export const createMockSubscription = (
 export const createMockCheckoutSession = (
   overrides: Partial<CheckoutSessionResult> = {}
 ): CheckoutSessionResult => ({
-  id: 'checkout_mock_123',
-  url: 'https://mock-billing.example.com/checkout/checkout_mock_123',
-  ...overrides
+  id: "checkout_mock_123",
+  url: "https://mock-billing.example.com/checkout/checkout_mock_123",
+  ...overrides,
 });
 
 /**
@@ -142,46 +143,49 @@ export const createMockBillingProvider = (
   state: MockBillingState = createMockBillingState()
 ): BillingProviderService => {
   const service: BillingProviderService = {
-    config: {
-      id: PROVIDER_ID,
-      name: 'Mock Billing Provider'
-    },
+    cancelSubscription: vi.fn((externalSubscriptionId: string) =>
+      Effect.gen(function* cancelSubscription() {
+        const subscription = state.subscriptions.get(externalSubscriptionId);
 
-    syncCustomer: vi.fn((organizationId: string, email?: string) =>
-      Effect.gen(function* () {
-        const existing = state.customers.get(organizationId);
-
-        if (existing) {
-          return {
-            organizationId,
-            externalCustomerId: existing.externalCustomerId,
-            tier: existing.tier,
-            subscriptionStatus: existing.subscriptionStatus
-          } as CustomerInfo;
+        if (!subscription) {
+          return yield* Effect.fail(
+            new BillingProviderError({
+              message: "Subscription not found",
+              provider: PROVIDER_ID,
+            })
+          );
         }
 
-        const externalCustomerId = `cust_mock_${state.nextCustomerId++}`;
-        const customer: MockCustomerData = {
-          organizationId,
-          externalCustomerId,
-          email,
-          tier: BillingTierName.Free,
-          subscriptionStatus: 'none'
+        subscription.status = "canceled";
+      })
+    ),
+
+    config: {
+      id: PROVIDER_ID,
+      name: "Mock Billing Provider",
+    },
+
+    createCheckoutSession: vi.fn((input: CreateCheckoutInput) =>
+      Effect.gen(function* createCheckoutSession() {
+        const checkoutId = `checkout_mock_${state.nextCheckoutId++}`;
+        const session: MockCheckoutSession = {
+          customerId: input.externalCustomerId,
+          id: checkoutId,
+          tier: input.tier,
+          url: `https://mock-billing.example.com/checkout/${checkoutId}`,
         };
 
-        state.customers.set(organizationId, customer);
+        state.checkoutSessions.set(checkoutId, session);
 
         return {
-          organizationId,
-          externalCustomerId,
-          tier: BillingTierName.Free,
-          subscriptionStatus: 'none'
-        } as CustomerInfo;
+          id: checkoutId,
+          url: session.url,
+        } as CheckoutSessionResult;
       })
     ),
 
     getCustomer: vi.fn((organizationId: string) =>
-      Effect.gen(function* () {
+      Effect.gen(function* getCustomer() {
         const customer = state.customers.get(organizationId);
 
         if (!customer) {
@@ -189,25 +193,44 @@ export const createMockBillingProvider = (
         }
 
         return {
-          organizationId,
           externalCustomerId: customer.externalCustomerId,
+          organizationId,
+          subscriptionStatus: customer.subscriptionStatus,
           tier: customer.tier,
-          subscriptionStatus: customer.subscriptionStatus
         } as CustomerInfo;
       })
     ),
 
-    recordUsageToProvider: vi.fn(
-      (record: UsageRecordInput & { externalCustomerId: string }) =>
-        Effect.gen(function* () {
-          state.usageRecords.push({
-            externalCustomerId: record.externalCustomerId,
-            metricId: record.metricId,
-            value: record.value,
-            timestamp: new Date(),
-            metadata: record.metadata
-          });
-        })
+    getProductIdForTier: vi.fn((tier: BillingTierNameValue) =>
+      Effect.succeed(
+        tier === BillingTierName.Enterprise
+          ? "prod_mock_enterprise"
+          : (tier === BillingTierName.Pro
+            ? "prod_mock_pro"
+            : null)
+      )
+    ),
+
+    getSubscription: vi.fn((externalCustomerId: string) =>
+      Effect.gen(function* getSubscription() {
+        const subscription = [...state.subscriptions.values()].find(
+          (s) =>
+            s.externalCustomerId === externalCustomerId &&
+            (s.status === "active" || s.status === "trialing")
+        );
+
+        if (!subscription) {
+          return null;
+        }
+
+        return {
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          currentPeriodStart: subscription.currentPeriodStart,
+          externalSubscriptionId: subscription.externalSubscriptionId,
+          status: subscription.status,
+          tier: subscription.tier,
+        } as SubscriptionInfo;
+      })
     ),
 
     getUsageFromProvider: vi.fn(
@@ -217,7 +240,7 @@ export const createMockBillingProvider = (
         periodStart: Date,
         periodEnd: Date
       ) =>
-        Effect.gen(function* () {
+        Effect.gen(function* getUsageFromProvider() {
           const records = state.usageRecords.filter(
             (r) =>
               r.externalCustomerId === externalCustomerId &&
@@ -230,79 +253,57 @@ export const createMockBillingProvider = (
         })
     ),
 
-    createCheckoutSession: vi.fn((input: CreateCheckoutInput) =>
-      Effect.gen(function* () {
-        const checkoutId = `checkout_mock_${state.nextCheckoutId++}`;
-        const session: MockCheckoutSession = {
-          id: checkoutId,
-          url: `https://mock-billing.example.com/checkout/${checkoutId}`,
-          customerId: input.externalCustomerId,
-          tier: input.tier
+    recordUsageToProvider: vi.fn(
+      (record: UsageRecordInput & { externalCustomerId: string }) =>
+        Effect.gen(function* recordUsageToProvider() {
+          state.usageRecords.push({
+            externalCustomerId: record.externalCustomerId,
+            metadata: record.metadata,
+            metricId: record.metricId,
+            timestamp: new Date(),
+            value: record.value,
+          });
+        })
+    ),
+
+    syncCustomer: vi.fn((organizationId: string, email?: string) =>
+      Effect.gen(function* syncCustomer() {
+        const existing = state.customers.get(organizationId);
+
+        if (existing) {
+          return {
+            externalCustomerId: existing.externalCustomerId,
+            organizationId,
+            subscriptionStatus: existing.subscriptionStatus,
+            tier: existing.tier,
+          } as CustomerInfo;
+        }
+
+        const externalCustomerId = `cust_mock_${state.nextCustomerId++}`;
+        const customer: MockCustomerData = {
+          email,
+          externalCustomerId,
+          organizationId,
+          subscriptionStatus: "none",
+          tier: BillingTierName.Free,
         };
 
-        state.checkoutSessions.set(checkoutId, session);
+        state.customers.set(organizationId, customer);
 
         return {
-          id: checkoutId,
-          url: session.url
-        } as CheckoutSessionResult;
-      })
-    ),
-
-    getSubscription: vi.fn((externalCustomerId: string) =>
-      Effect.gen(function* () {
-        const subscription = Array.from(state.subscriptions.values()).find(
-          (s) =>
-            s.externalCustomerId === externalCustomerId &&
-            (s.status === 'active' || s.status === 'trialing')
-        );
-
-        if (!subscription) {
-          return null;
-        }
-
-        return {
-          externalSubscriptionId: subscription.externalSubscriptionId,
-          status: subscription.status,
-          currentPeriodStart: subscription.currentPeriodStart,
-          currentPeriodEnd: subscription.currentPeriodEnd,
-          tier: subscription.tier
-        } as SubscriptionInfo;
-      })
-    ),
-
-    cancelSubscription: vi.fn((externalSubscriptionId: string) =>
-      Effect.gen(function* () {
-        const subscription = state.subscriptions.get(externalSubscriptionId);
-
-        if (!subscription) {
-          return yield* Effect.fail(
-            new BillingProviderError({
-              message: 'Subscription not found',
-              provider: PROVIDER_ID
-            })
-          );
-        }
-
-        subscription.status = 'canceled';
+          externalCustomerId,
+          organizationId,
+          subscriptionStatus: "none",
+          tier: BillingTierName.Free,
+        } as CustomerInfo;
       })
     ),
 
     syncMeters: vi.fn(() =>
-      Effect.gen(function* () {
-        yield* Effect.log('Mock: syncMeters called');
+      Effect.gen(function* syncMeters() {
+        yield* Effect.log("Mock: syncMeters called");
       })
     ),
-
-    getProductIdForTier: vi.fn((tier: BillingTierNameValue) =>
-      Effect.succeed(
-        tier === BillingTierName.Enterprise
-          ? 'prod_mock_enterprise'
-          : tier === BillingTierName.Pro
-            ? 'prod_mock_pro'
-            : null
-      )
-    )
   };
 
   return service;
@@ -339,7 +340,7 @@ export const createMockBillingProviderWithData = (options: {
 
   return {
     provider: createMockBillingProvider(state),
-    state
+    state,
   };
 };
 
@@ -376,12 +377,12 @@ export const simulateCheckoutCompletion = (
   periodEnd.setMonth(periodEnd.getMonth() + 1);
 
   const subscription: MockSubscriptionData = {
-    externalSubscriptionId: `sub_mock_${state.nextSubscriptionId++}`,
-    externalCustomerId: session.customerId,
-    status: 'active',
-    currentPeriodStart: now,
     currentPeriodEnd: periodEnd,
-    tier: session.tier
+    currentPeriodStart: now,
+    externalCustomerId: session.customerId,
+    externalSubscriptionId: `sub_mock_${state.nextSubscriptionId++}`,
+    status: "active",
+    tier: session.tier,
   };
 
   state.subscriptions.set(subscription.externalSubscriptionId, subscription);
@@ -390,7 +391,7 @@ export const simulateCheckoutCompletion = (
   for (const customer of state.customers.values()) {
     if (customer.externalCustomerId === session.customerId) {
       customer.tier = session.tier;
-      customer.subscriptionStatus = 'active';
+      customer.subscriptionStatus = "active";
       break;
     }
   }
@@ -410,12 +411,12 @@ export const simulateSubscriptionCancellation = (
     return false;
   }
 
-  subscription.status = 'canceled';
+  subscription.status = "canceled";
 
   // Update customer status
   for (const customer of state.customers.values()) {
     if (customer.externalCustomerId === subscription.externalCustomerId) {
-      customer.subscriptionStatus = 'canceled';
+      customer.subscriptionStatus = "canceled";
       break;
     }
   }

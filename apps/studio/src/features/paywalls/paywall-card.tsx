@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { Link } from '@tanstack/react-router';
-import type { Paywall } from '@voidhash/rpc';
-import { Smartphone } from 'lucide-react';
+import { Link } from "@tanstack/react-router";
+import type { Paywall } from "@voidhash/rpc";
+import { Smartphone } from "lucide-react";
 
 interface PaywallCardProps {
   paywall: typeof Paywall.Type;
@@ -13,12 +13,12 @@ interface PaywallCardProps {
 export function PaywallCard({
   paywall,
   organizationSlug,
-  projectSlug
+  projectSlug,
 }: PaywallCardProps) {
   return (
     <Link
       className="group flex flex-col overflow-hidden rounded-xl border bg-card transition-all hover:border-foreground/20 hover:shadow-lg"
-      params={{ organizationSlug, projectSlug, id: paywall.id }}
+      params={{ id: paywall.id, organizationSlug, projectSlug }}
       to="/$organizationSlug/$projectSlug/design/$id"
     >
       {/* Preview Area */}

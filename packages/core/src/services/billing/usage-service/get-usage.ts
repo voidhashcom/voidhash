@@ -1,8 +1,9 @@
-import { and, eq, usageAggregates } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { Effect } from 'effect';
-import { BillingServiceError } from '../../../billing/errors';
-import type { MetricIdValue } from '../../../billing/types';
+import { and, eq, usageAggregates } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { Effect } from "effect";
+
+import { BillingServiceError } from "../../../billing/errors";
+import type { MetricIdValue } from "../../../billing/types";
 
 /**
  * Get or create the current billing period for an organization
@@ -19,7 +20,7 @@ function getCurrentBillingPeriod(): { start: Date; end: Date } {
     59,
     999
   );
-  return { start, end };
+  return { end, start };
 }
 
 const _getUsageAggregate = (db: Db) =>
@@ -28,27 +29,30 @@ const _getUsageAggregate = (db: Db) =>
       execute,
       input: { organizationId: string; metricId: string; periodStart: Date }
     ) =>
-      execute(async (db) => {
-        return db.query.usageAggregates.findFirst({
+      execute(async (db) =>
+        db.query.usageAggregates.findFirst({
           where: and(
             eq(usageAggregates.organizationId, input.organizationId),
             eq(usageAggregates.metricId, input.metricId),
             eq(usageAggregates.periodStart, input.periodStart)
-          )
-        });
-      })
+          ),
+        })
+      )
   );
 
-export const getUsage = Effect.gen(function* () {
+export const getUsage = Effect.gen(function* getUsage() {
   const db = yield* Db;
-  return Effect.fn('UsageService.getUsage')(
-    function* (input: { organizationId: string; metricId: MetricIdValue }) {
+  return Effect.fn("UsageService.getUsage")(
+    function* getUsage(input: {
+      organizationId: string;
+      metricId: MetricIdValue;
+    }) {
       const period = getCurrentBillingPeriod();
 
       const aggregate = yield* _getUsageAggregate(db)({
-        organizationId: input.organizationId,
         metricId: input.metricId,
-        periodStart: period.start
+        organizationId: input.organizationId,
+        periodStart: period.start,
       });
 
       return aggregate?.totalValue ?? 0;
@@ -58,9 +62,9 @@ export const getUsage = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new BillingServiceError({
-              message: 'Failed to get usage',
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+              message: "Failed to get usage",
+            }),
         })
       )
   );

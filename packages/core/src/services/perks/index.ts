@@ -1,17 +1,20 @@
-import { Effect } from 'effect';
-import { createPerk } from './create-perk';
-import { deletePerk } from './delete-perk';
-import { getPerkById } from './get-perk-by-id';
-import { getPerks } from './get-perks';
+import { Effect } from "effect";
 
-export class PerkService extends Effect.Service<PerkService>()('PerkService', {
+import { createPerk } from "./create-perk";
+import { deletePerk } from "./delete-perk";
+import { getPerkById } from "./get-perk-by-id";
+import { getPerks } from "./get-perks";
+import { updatePerk } from "./update-perk";
+
+export class PerkService extends Effect.Service<PerkService>()("PerkService", {
   dependencies: [],
-  effect: Effect.gen(function* () {
+  effect: Effect.gen(function* effect() {
     return {
       createPerk: yield* createPerk,
-      getPerks: yield* getPerks,
+      deletePerk: yield* deletePerk,
       getPerkById: yield* getPerkById,
-      deletePerk: yield* deletePerk
+      getPerks: yield* getPerks,
+      updatePerk: yield* updatePerk,
     } as const;
-  })
+  }),
 }) {}

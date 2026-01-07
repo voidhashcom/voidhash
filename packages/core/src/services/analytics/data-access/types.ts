@@ -1,5 +1,5 @@
-import type { Effect } from 'effect';
-import type { DatabaseError } from '@voidhash/db/effect';
+import type { DatabaseError } from "@voidhash/db/effect";
+import type { Effect } from "effect";
 
 export interface AnalyticsDataPoint {
   timestamp: Date;
@@ -7,12 +7,12 @@ export interface AnalyticsDataPoint {
 }
 
 export type TimeGranularity =
-  | 'hour'
-  | 'day'
-  | 'week'
-  | 'month'
-  | 'quarter'
-  | 'year';
+  | "hour"
+  | "day"
+  | "week"
+  | "month"
+  | "quarter"
+  | "year";
 
 export interface TimeRangeParams {
   startDate: Date;

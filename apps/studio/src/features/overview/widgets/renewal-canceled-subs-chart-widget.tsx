@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Card,
@@ -8,26 +8,26 @@ import {
   type ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
-} from '@voidhash/ui';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+  ChartTooltipContent,
+} from "@voidhash/ui";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
-export const description = 'A line chart for Renewal Canceled Subscriptions';
+export const description = "A line chart for Renewal Canceled Subscriptions";
 
 const chartData = [
-  { month: 'January', renewalCanceledSubs: 5 },
-  { month: 'February', renewalCanceledSubs: 8 },
-  { month: 'March', renewalCanceledSubs: 6 },
-  { month: 'April', renewalCanceledSubs: 10 },
-  { month: 'May', renewalCanceledSubs: 7 },
-  { month: 'June', renewalCanceledSubs: 9 }
+  { month: "January", renewalCanceledSubs: 5 },
+  { month: "February", renewalCanceledSubs: 8 },
+  { month: "March", renewalCanceledSubs: 6 },
+  { month: "April", renewalCanceledSubs: 10 },
+  { month: "May", renewalCanceledSubs: 7 },
+  { month: "June", renewalCanceledSubs: 9 },
 ];
 
 const chartConfig = {
   renewalCanceledSubs: {
-    label: 'Renewal Canceled',
-    color: 'var(--chart-1)'
-  }
+    color: "var(--chart-1)",
+    label: "Renewal Canceled",
+  },
 } satisfies ChartConfig;
 
 export function RenewalCanceledSubsChartWidget() {
@@ -51,7 +51,7 @@ export function RenewalCanceledSubsChartWidget() {
             data={chartData}
             margin={{
               left: 12,
-              right: 12
+              right: 12,
             }}
           >
             <CartesianGrid vertical={false} />

@@ -1,4 +1,4 @@
-import type { PackageJsonSchema } from '../domain/schema/package-json';
+import type { PackageJsonSchema } from "../domain/schema/package-json";
 
 /**
  * Returns a relative path prefix based on the given directory depth.
@@ -6,9 +6,8 @@ import type { PackageJsonSchema } from '../domain/schema/package-json';
  * @param depth - The number of directory levels to go up.
  * @returns The relative path prefix (e.g., './' for 0, '../' for 1, etc.).
  */
-export const relativePathPrefixFromDepth = (depth: number) => {
-  return depth === 0 ? './' : `${'../'.repeat(depth)}`;
-};
+export const relativePathPrefixFromDepth = (depth: number) =>
+  depth === 0 ? "./" : `${"../".repeat(depth)}`;
 
 /**
  * Checks if the project is an Expo project.
@@ -18,6 +17,4 @@ export const relativePathPrefixFromDepth = (depth: number) => {
  */
 export const checkIsExpoProject = (
   packageJson: typeof PackageJsonSchema.Type
-) => {
-  return packageJson.dependencies?.expo !== undefined;
-};
+) => packageJson.dependencies?.expo !== undefined;

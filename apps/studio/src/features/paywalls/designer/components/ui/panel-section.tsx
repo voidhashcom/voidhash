@@ -1,8 +1,8 @@
-import { cn } from '@voidhash/ui';
+import { cn } from "@voidhash/ui";
 
 export function PanelSection({
   children,
-  className
+  className,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -12,7 +12,7 @@ export function PanelSection({
 
 export function PanelSectionHeader({
   children,
-  className
+  className,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -20,7 +20,7 @@ export function PanelSectionHeader({
   return (
     <div
       className={cn(
-        'my-2 flex h-7 flex-row items-center justify-between px-4',
+        "my-2 flex h-7 flex-row items-center justify-between px-4",
         className
       )}
     >
@@ -31,24 +31,24 @@ export function PanelSectionHeader({
 
 export function PanelSectionTitle({
   children,
-  className
+  className,
 }: {
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn('font-medium text-sm', className)}>{children}</div>;
+  return <div className={cn("font-medium text-sm", className)}>{children}</div>;
 }
 
 export function PanelSectionHeaderActions({
   children,
-  className
+  className,
 }: {
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <div
-      className={cn('flex flex-row items-center justify-end gap-2', className)}
+      className={cn("flex flex-row items-center justify-end gap-2", className)}
     >
       {children}
     </div>
@@ -57,17 +57,17 @@ export function PanelSectionHeaderActions({
 
 export function PanelSectionContent({
   children,
-  className
+  className,
 }: {
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn('space-y-4 px-4 pb-4', className)}>{children}</div>;
+  return <div className={cn("space-y-4 px-4 pb-4", className)}>{children}</div>;
 }
 
 export function PanelSubSection({
   children,
-  className
+  className,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -77,13 +77,13 @@ export function PanelSubSection({
 
 export function PanelSubSectionTitle({
   children,
-  className
+  className,
 }: {
   children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn('font-medium text-muted-foreground text-xs', className)}>
+    <div className={cn("font-medium text-muted-foreground text-xs", className)}>
       {children}
     </div>
   );
@@ -91,10 +91,10 @@ export function PanelSubSectionTitle({
 
 export function PanelSubSectionContent({
   children,
-  className
+  className,
 }: {
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn('pt-2', className)}>{children}</div>;
+  return <div className={cn("pt-2", className)}>{children}</div>;
 }

@@ -1,4 +1,4 @@
-import type { User } from '@voidhash/rpc';
+import type { User } from "@voidhash/rpc";
 
 function getProjectBySlugs(
   currentUser: typeof User.Type,
@@ -17,5 +17,5 @@ function getProjectBySlugs(
 }
 
 export const CurrentUser = {
-  getProjectBySlugs
+  getProjectBySlugs,
 } as const;

@@ -1,16 +1,17 @@
-'use client';
-import { Card, CardContent, CardDescription, CardTitle } from '@voidhash/ui';
-import { Link, usePathname } from 'fumadocs-core/framework';
+"use client";
+import { Card, CardContent, CardDescription, CardTitle } from "@voidhash/ui";
+import { Link, usePathname } from "fumadocs-core/framework";
 import type {
   PageTree,
   TableOfContents,
-  TOCItemType
-} from 'fumadocs-core/server';
-import { AnchorProvider, useActiveAnchors } from 'fumadocs-core/toc';
-import { useTreeContext } from 'fumadocs-ui/contexts/tree';
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { type ComponentProps, type ReactNode, useMemo } from 'react';
-import { cn } from '../../lib/cn';
+  TOCItemType,
+} from "fumadocs-core/server";
+import { AnchorProvider, useActiveAnchors } from "fumadocs-core/toc";
+import { useTreeContext } from "fumadocs-ui/contexts/tree";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { type ComponentProps, type ReactNode, useMemo } from "react";
+
+import { cn } from "../../lib/cn";
 
 export interface DocsPageProps {
   toc?: TableOfContents;
@@ -41,33 +42,33 @@ export function DocsPage({ toc = [], ...props }: DocsPageProps) {
   );
 }
 
-export function DocsBody(props: ComponentProps<'div'>) {
+export function DocsBody(props: ComponentProps<"div">) {
   return (
-    <div {...props} className={cn('prose ', props.className)}>
+    <div {...props} className={cn("prose ", props.className)}>
       {props.children}
     </div>
   );
 }
 
-export function DocsDescription(props: ComponentProps<'p'>) {
+export function DocsDescription(props: ComponentProps<"p">) {
   // don't render if no description provided
   if (props.children === undefined) {
     return null;
   }
 
   return (
-    <p {...props} className={cn('mt-1 text-muted-foreground', props.className)}>
+    <p {...props} className={cn("mt-1 text-muted-foreground", props.className)}>
       {props.children}
     </p>
   );
 }
 
-export function DocsTitle(props: ComponentProps<'h1'>) {
+export function DocsTitle(props: ComponentProps<"h1">) {
   return (
     <h1
       {...props}
       className={cn(
-        'mt-8 font-semibold text-3xl tracking-right',
+        "mt-8 font-semibold text-3xl tracking-right",
         props.className
       )}
     >
@@ -82,12 +83,12 @@ function TocItem({ item }: { item: TOCItemType }) {
   return (
     <a
       className={cn(
-        'py-1 text-fd-foreground/80 text-sm',
-        isActive && 'text-fd-primary'
+        "py-1 text-fd-foreground/80 text-sm",
+        isActive && "text-fd-primary"
       )}
       href={item.url}
       style={{
-        paddingLeft: Math.max(0, item.depth - 2) * 16
+        paddingLeft: Math.max(0, item.depth - 2) * 16,
       }}
     >
       {item.title}
@@ -103,9 +104,9 @@ function Footer() {
 
     function scan(items: PageTree.Node[]) {
       for (const item of items) {
-        if (item.type === 'page') {
+        if (item.type === "page") {
           result.push(item);
-        } else if (item.type === 'folder') {
+        } else if (item.type === "folder") {
           if (item.index) {
             result.push(item.index);
           }
@@ -125,8 +126,8 @@ function Footer() {
       return {};
     }
     return {
+      next: flatten[idx + 1],
       previous: flatten[idx - 1],
-      next: flatten[idx + 1]
     };
   }, [flatten, pathname]);
 
@@ -137,7 +138,7 @@ function Footer() {
           <Card className="rounded-none hover:bg-card">
             <CardContent>
               <CardDescription className="mt-1 flex items-center">
-                <ChevronLeftIcon className="-ml-1 mr-1 size-4" />{' '}
+                <ChevronLeftIcon className="-ml-1 mr-1 size-4" />{" "}
                 <span>Previous Page</span>
               </CardDescription>
               <CardTitle className="mt-2 font-normal text-md">
@@ -153,7 +154,7 @@ function Footer() {
             <CardContent className="flex w-full flex-col items-end">
               <CardDescription className="mt-1 flex items-center">
                 <span>Next Page</span>
-                <ChevronRightIcon className="-mr-1 ml-1 size-4" />{' '}
+                <ChevronRightIcon className="-mr-1 ml-1 size-4" />{" "}
               </CardDescription>
               <CardTitle className="mt-2 font-normal text-md">
                 {next.name}

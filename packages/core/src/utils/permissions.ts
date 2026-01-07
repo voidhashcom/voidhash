@@ -1,13 +1,16 @@
-import type { OrganizationPermission, ProjectPermission } from '@voidhash/lib';
-import { ActionForbiddenError, AuthSession } from '@voidhash/shared';
-import { Effect } from 'effect';
+import type {
+  OrganizationPermission,
+  ProjectPermission,
+} from "@voidhash/lib";
+import { ActionForbiddenError, AuthSession } from "@voidhash/shared";
+import { Effect } from "effect";
 
 export const checkProjectPermission = (
   projectId: string,
   permission: ProjectPermission,
   message: string
 ) =>
-  Effect.gen(function* () {
+  Effect.gen(function* checkProjectPermission() {
     const session = yield* AuthSession;
     const hasPermission = session?.projects.some(
       (p) => p.id === projectId && p.permissions.includes(permission)
@@ -20,7 +23,7 @@ export const checkOrganizationPermission = (
   permission: OrganizationPermission,
   message: string
 ) =>
-  Effect.gen(function* () {
+  Effect.gen(function* checkOrganizationPermission() {
     const session = yield* AuthSession;
     const hasPermission = session?.organizations.some(
       (o) => o.id === organizationId && o.permissions.includes(permission)
@@ -29,12 +32,12 @@ export const checkOrganizationPermission = (
   });
 
 const processPermissionCheck = (hasPermission: boolean, message: string) =>
-  Effect.gen(function* () {
+  Effect.gen(function* processPermissionCheck() {
     if (!hasPermission) {
       yield* Effect.logWarning(message);
       return yield* Effect.fail(
         new ActionForbiddenError({
-          message
+          message,
         })
       );
     }

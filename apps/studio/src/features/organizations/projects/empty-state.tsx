@@ -1,18 +1,18 @@
-'use client';
+"use client";
 import {
   Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle
-} from '@voidhash/ui';
-import { useState } from 'react';
-import { CreateProjectModal } from 'src/features/projects/create-project-modal';
+  CardTitle,
+} from "@voidhash/ui";
+import { useState } from "react";
+import { CreateProjectModal } from "src/features/projects/create-project-modal";
 
 export function EmptyState({
   organizationId,
-  organizationSlug
+  organizationSlug,
 }: {
   organizationId: string;
   organizationSlug: string;

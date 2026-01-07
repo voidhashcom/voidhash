@@ -1,47 +1,46 @@
-import { Effect } from 'effect';
-import { queryKeys } from 'src/lib/tanstack-query';
-import { eq, VoidhashRpc } from '../effect-query';
+import { Effect } from "effect";
+import { queryKeys } from "src/lib/tanstack-query";
+
+import { VoidhashRpc, eq } from "../effect-query";
 
 export const listPaymentProviderConfigurationsOptions = (options: {
   projectId: string;
-}) => {
-  return eq.queryOptions({
-    queryKey: queryKeys.paymentProviderConfiguration.list(options),
+}) =>
+  eq.queryOptions({
     queryFn: () =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) => rpc.ListPaymentProviderConfigurations(options))
-      )
+      ),
+    queryKey: queryKeys.paymentProviderConfiguration.list(options),
   });
-};
 
 export const getPaymentProviderConfigurationOptions = (options: {
   id: string;
 }) =>
   eq.queryOptions({
+    queryFn: () =>
+      VoidhashRpc.pipe(
+        Effect.flatMap((rpc) => rpc.GetPaymentProviderConfiguration(options))
+      ),
     queryKey:
       queryKeys.paymentProviderConfiguration.getPaymentProviderConfiguration(
         options
       ),
-    queryFn: () =>
-      VoidhashRpc.pipe(
-        Effect.flatMap((rpc) => rpc.GetPaymentProviderConfiguration(options))
-      )
   });
 
 export const createPaymentProviderConfigurationOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['createPaymentProviderConfiguration'],
     mutationFn: (variables: { projectId: string; providerId: string }) =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) =>
           rpc.CreatePaymentProviderConfiguration(variables)
         )
-      )
+      ),
+    mutationKey: ["createPaymentProviderConfiguration"],
   });
 
 export const updatePaymentProviderConfigurationOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['updatePaymentProviderConfiguration'],
     mutationFn: (variables: {
       id: string;
       enabled: boolean;
@@ -52,16 +51,17 @@ export const updatePaymentProviderConfigurationOptions = () =>
         Effect.flatMap((rpc) =>
           rpc.UpdatePaymentProviderConfiguration(variables)
         )
-      )
+      ),
+    mutationKey: ["updatePaymentProviderConfiguration"],
   });
 
 export const deletePaymentProviderConfigurationOptions = () =>
   eq.mutationOptions({
-    mutationKey: ['deletePaymentProviderConfiguration'],
     mutationFn: (variables: { paymentProviderConfigurationId: string }) =>
       VoidhashRpc.pipe(
         Effect.flatMap((rpc) =>
           rpc.DeletePaymentProviderConfiguration(variables)
         )
-      )
+      ),
+    mutationKey: ["deletePaymentProviderConfiguration"],
   });

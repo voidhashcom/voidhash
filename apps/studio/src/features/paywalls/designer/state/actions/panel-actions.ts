@@ -4,8 +4,8 @@
  * These commands manage viewport panel dimensions (browser-only state).
  */
 
-import { commander } from '../designer-commander';
-import type { DesignerStoreState } from '../designer-store-state';
+import { commander } from "../designer-commander";
+import type { DesignerStoreState } from "../designer-store-state";
 
 // =============================================================================
 // Panel Commands
@@ -22,9 +22,9 @@ export const setTopPanelHeight = commander.action<{ height: number }>(
         ...state.viewport,
         panels: {
           ...state.viewport.panels,
-          top: { height: params.height }
-        }
-      }
+          top: { height: params.height },
+        },
+      },
     } as Partial<DesignerStoreState>);
   }
 );
@@ -40,9 +40,9 @@ export const setBottomPanelHeight = commander.action<{ height: number }>(
         ...state.viewport,
         panels: {
           ...state.viewport.panels,
-          bottom: { height: params.height }
-        }
-      }
+          bottom: { height: params.height },
+        },
+      },
     } as Partial<DesignerStoreState>);
   }
 );
@@ -58,9 +58,9 @@ export const setLeftPanelWidth = commander.action<{ width: number }>(
         ...state.viewport,
         panels: {
           ...state.viewport.panels,
-          left: { width: params.width }
-        }
-      }
+          left: { width: params.width },
+        },
+      },
     } as Partial<DesignerStoreState>);
   }
 );
@@ -76,9 +76,9 @@ export const setRightPanelWidth = commander.action<{ width: number }>(
         ...state.viewport,
         panels: {
           ...state.viewport.panels,
-          right: { width: params.width }
-        }
-      }
+          right: { width: params.width },
+        },
+      },
     } as Partial<DesignerStoreState>);
   }
 );

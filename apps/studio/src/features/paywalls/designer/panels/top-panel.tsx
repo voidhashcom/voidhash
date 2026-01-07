@@ -1,30 +1,31 @@
-'use client';
+"use client";
 
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Logo
-} from '@voidhash/ui';
-import { ChevronDownIcon } from 'lucide-react';
-import { PANEL_DIMENSIONS } from './constants';
+  Logo,
+} from "@voidhash/ui";
+import { ChevronDownIcon } from "lucide-react";
+
+import { PANEL_DIMENSIONS } from "./constants";
 
 export function TopPanel() {
   const navigate = useNavigate();
   const { organizationSlug, projectSlug } = useParams({
-    strict: false
+    strict: false,
   });
 
   const handleGoToDashboard = () => {
     navigate({
-      to: '/$organizationSlug/$projectSlug',
       params: {
-        organizationSlug: organizationSlug ?? '',
-        projectSlug: projectSlug ?? ''
-      }
+        organizationSlug: organizationSlug ?? "",
+        projectSlug: projectSlug ?? "",
+      },
+      to: "/$organizationSlug/$projectSlug",
     });
   };
 

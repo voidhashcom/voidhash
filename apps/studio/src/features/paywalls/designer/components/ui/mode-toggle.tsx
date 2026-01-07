@@ -1,13 +1,14 @@
-'use client';
+"use client";
 
-import { useStore } from 'zustand/react';
-import { setMode } from '../../state/actions';
+import { useStore } from "zustand/react";
+
+import { setMode } from "../../state/actions";
 import {
   usePaywallDesignerActions,
-  usePaywallDesignerStore
-} from '../../state/designer-store';
-import type { DesignerMode } from '../../state/designer-store-state';
-import { PanelToggleGroup, PanelToggleGroupItem } from './toggle-group';
+  usePaywallDesignerStore,
+} from "../../state/designer-store";
+import type { DesignerMode } from "../../state/designer-store-state";
+import { PanelToggleGroup, PanelToggleGroupItem } from "./toggle-group";
 
 export function ModeToggle() {
   const store = usePaywallDesignerStore();

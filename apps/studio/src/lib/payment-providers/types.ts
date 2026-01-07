@@ -1,12 +1,12 @@
-import type { z } from 'zod/v3';
+import type { z } from "zod/v3";
 
-export type PaymentProvider<
+export interface PaymentProvider<
   TGlobalConfigurationSchema extends z.ZodSchema,
-  TProductConfigurationSchema extends z.ZodSchema
-> = {
+  TProductConfigurationSchema extends z.ZodSchema,
+> {
   id: string;
   title: string;
-  type: 'native' | 'web-checkout';
+  type: "native" | "web-checkout";
   logo: React.ComponentType;
   globalConfigurationSchema: TGlobalConfigurationSchema;
   productConfigurationSchema: TProductConfigurationSchema;
@@ -19,34 +19,34 @@ export type PaymentProvider<
   getProductConfigurationSheet: (params: CreateProductEditorSheetParams) => {
     sections: PaymentProviderProductEditorSheetSection[];
   };
-};
+}
 
-type PaymentProviderTextInputSection = {
-  type: 'text-input';
+interface PaymentProviderTextInputSection {
+  type: "text-input";
   name: string;
   label: string;
   input: {
-    type: 'text' | 'password';
+    type: "text" | "password";
     placeholder?: string;
   };
-};
+}
 
-type PaymentProviderCopyTextSection = {
-  type: 'copy-text';
+interface PaymentProviderCopyTextSection {
+  type: "copy-text";
   label: string;
   text: string;
-};
+}
 
-type PaymentProviderP8UploadSection = {
-  type: 'p8-upload';
+interface PaymentProviderP8UploadSection {
+  type: "p8-upload";
   name: string;
   label: string;
   successMessage: string;
-};
+}
 
-export type CreateConfigurationSheetParams = {
+export interface CreateConfigurationSheetParams {
   projectId: string;
-};
+}
 
 export type PaymentProviderConfigurationSheetSection = {
   key: string;
@@ -56,9 +56,9 @@ export type PaymentProviderConfigurationSheetSection = {
   | PaymentProviderP8UploadSection
 );
 
-export type CreateProductEditorSheetParams = {
+export interface CreateProductEditorSheetParams {
   productId: string;
-};
+}
 
 export type PaymentProviderProductEditorSheetSection = {
   key: string;

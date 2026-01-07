@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import type { PaymentProviderConfiguration } from '@voidhash/rpc';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import type { PaymentProviderConfiguration } from "@voidhash/rpc";
 import {
   Badge,
   Button,
@@ -22,25 +22,26 @@ import {
   FormMessage,
   Input,
   Label,
-  useConfirmDialog
-} from '@voidhash/ui';
-import { CheckCircleIcon, EllipsisVerticalIcon, XIcon } from 'lucide-react';
-import { Fragment, useState } from 'react';
-import { type SubmitErrorHandler, useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { paymentProviders } from 'src/lib/payment-providers/payment-providers';
+  useConfirmDialog,
+} from "@voidhash/ui";
+import { CheckCircleIcon, EllipsisVerticalIcon, XIcon } from "lucide-react";
+import { Fragment, useState } from "react";
+import { type SubmitErrorHandler, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { paymentProviders } from "src/lib/payment-providers/payment-providers";
 import {
   deletePaymentProviderConfigurationOptions,
-  updatePaymentProviderConfigurationOptions
-} from 'src/lib/tanstack-query';
-import type { z } from 'zod/v3';
-import { PaymentProviderLogo } from './payment-provider-logo';
+  updatePaymentProviderConfigurationOptions,
+} from "src/lib/tanstack-query";
+import type { z } from "zod/v3";
+
+import { PaymentProviderLogo } from "./payment-provider-logo";
 
 export function PaymentProviderDetailConfiguration({
   organizationSlug,
   projectSlug,
   project,
-  paymentProviderConfiguration
+  paymentProviderConfiguration,
 }: {
   organizationSlug: string;
   projectSlug: string;
@@ -59,8 +60,8 @@ export function PaymentProviderDetailConfiguration({
 
   // biome-ignore lint/suspicious/noExplicitAny: zod
   const form = useForm<any>({
+    defaultValues: paymentProviderConfiguration.configuration,
     resolver: zodResolver(paymentProvider?.globalConfigurationSchema),
-    defaultValues: paymentProviderConfiguration.configuration
   });
 
   const { mutate: updateConfiguration, status: updateStatus } = useMutation({
@@ -72,7 +73,7 @@ export function PaymentProviderDetailConfiguration({
     },
     onError: () => {
       toast.error(`Failed to save ${paymentProvider?.title} configuration`);
-    }
+    },
   });
 
   // Delete payment provider configuration
@@ -84,25 +85,25 @@ export function PaymentProviderDetailConfiguration({
         `${paymentProvider?.title} configuration deleted successfully`
       );
       navigate({
-        to: '/$organizationSlug/$projectSlug/settings/payment-providers',
         params: {
           organizationSlug,
-          projectSlug
-        }
+          projectSlug,
+        },
+        to: "/$organizationSlug/$projectSlug/settings/payment-providers",
       });
     },
     onError: () => {
       toast.error(`Failed to delete ${paymentProvider?.title} configuration`);
-    }
+    },
   });
 
-  const isPending = updateStatus === 'pending';
-  const isDeleting = deleteStatus === 'pending';
+  const isPending = updateStatus === "pending";
+  const isDeleting = deleteStatus === "pending";
 
   const handleDeletePaymentProviderConfiguration = async (id: string) => {
     const res = await openDialog({
-      title: 'Delete payment provider',
-      description: 'Are you sure you want to delete this payment provider?'
+      description: "Are you sure you want to delete this payment provider?",
+      title: "Delete payment provider",
     });
 
     if (!res) {
@@ -110,7 +111,7 @@ export function PaymentProviderDetailConfiguration({
     }
 
     deleteConfiguration({
-      paymentProviderConfigurationId: id
+      paymentProviderConfigurationId: id,
     });
   };
 
@@ -118,10 +119,10 @@ export function PaymentProviderDetailConfiguration({
     data: z.infer<typeof paymentProvider.globalConfigurationSchema>
   ) => {
     updateConfiguration({
-      id: paymentProviderConfiguration.id,
+      configuration: data,
       enabled: paymentProviderConfiguration.enabled,
+      id: paymentProviderConfiguration.id,
       name,
-      configuration: data
     });
   };
 
@@ -130,7 +131,7 @@ export function PaymentProviderDetailConfiguration({
   > = (errors) => {
     // Log validation errors for debugging
     // biome-ignore lint/suspicious/noConsole: error handling
-    console.error('Form validation errors:', errors);
+    console.error("Form validation errors:", errors);
   };
 
   if (!paymentProvider) {
@@ -142,7 +143,7 @@ export function PaymentProviderDetailConfiguration({
   }
 
   const configurationSheet = paymentProvider.getGlobalConfigurationSheet({
-    projectId: project.id
+    projectId: project.id,
   });
 
   const handleP8FileChange = (name: string, file: File) => {
@@ -165,9 +166,9 @@ export function PaymentProviderDetailConfiguration({
     // Case 1: Form is invalid and provider is currently enabled
     if (!isValid && isCurrentlyEnabled) {
       const shouldContinue = await openDialog({
-        title: 'Invalid Configuration',
         description:
-          'The current configuration is invalid. If you continue, the payment provider will be disabled. Do you want to proceed?'
+          "The current configuration is invalid. If you continue, the payment provider will be disabled. Do you want to proceed?",
+        title: "Invalid Configuration",
       });
 
       if (!shouldContinue) {
@@ -177,10 +178,10 @@ export function PaymentProviderDetailConfiguration({
       // Submit with enabled set to false
       await form.handleSubmit((data) =>
         updateConfiguration({
-          id: paymentProviderConfiguration.id,
+          configuration: data,
           enabled: false,
+          id: paymentProviderConfiguration.id,
           name,
-          configuration: data
         })
       )(e);
       return;
@@ -189,17 +190,17 @@ export function PaymentProviderDetailConfiguration({
     // Case 2: Form is valid and provider is currently disabled
     if (isValid && !isCurrentlyEnabled) {
       const shouldEnable = (await openDialog({
-        title: 'Enable Payment Provider',
-        description: 'Would you like to enable this payment provider?'
+        description: "Would you like to enable this payment provider?",
+        title: "Enable Payment Provider",
       })) as boolean;
 
       // Submit with enabled based on user choice
       await form.handleSubmit((data) =>
         updateConfiguration({
-          id: paymentProviderConfiguration.id,
+          configuration: data,
           enabled: shouldEnable,
+          id: paymentProviderConfiguration.id,
           name,
-          configuration: data
         })
       )(e);
       return;
@@ -230,7 +231,7 @@ export function PaymentProviderDetailConfiguration({
               </div>
               <div className="flex items-center gap-4">
                 <Button disabled={isPending} type="submit">
-                  {isPending ? 'Saving...' : 'Save changes'}
+                  {isPending ? "Saving..." : "Save changes"}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -288,7 +289,7 @@ export function PaymentProviderDetailConfiguration({
                 </div>
 
                 <div className="flex-1 space-y-6 px-4 ">
-                  {paymentProvider.type === 'native' && (
+                  {paymentProvider.type === "native" && (
                     <div>
                       <Label htmlFor="name">Name</Label>
                       <Input
@@ -302,7 +303,7 @@ export function PaymentProviderDetailConfiguration({
 
                   {configurationSheet?.sections.map((section) => (
                     <Fragment key={section.key}>
-                      {section.type === 'text-input' && (
+                      {section.type === "text-input" && (
                         <FormField
                           control={form.control}
                           name={section.name}
@@ -321,7 +322,7 @@ export function PaymentProviderDetailConfiguration({
                           )}
                         />
                       )}
-                      {section.type === 'copy-text' && (
+                      {section.type === "copy-text" && (
                         <div className="mt-4">
                           <Label>{section.label}</Label>
                           <div className="mt-2 rounded-md border border-input bg-muted p-3 font-mono text-foreground">
@@ -329,7 +330,7 @@ export function PaymentProviderDetailConfiguration({
                           </div>
                         </div>
                       )}
-                      {section.type === 'p8-upload' && (
+                      {section.type === "p8-upload" && (
                         <FormField
                           control={form.control}
                           name="privateKey"
@@ -348,7 +349,7 @@ export function PaymentProviderDetailConfiguration({
                                     <Button
                                       onClick={(e) => {
                                         e.preventDefault();
-                                        field.onChange('');
+                                        field.onChange("");
                                       }}
                                       variant="outline"
                                     >

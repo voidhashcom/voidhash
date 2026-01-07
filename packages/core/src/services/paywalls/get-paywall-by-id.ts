@@ -1,12 +1,13 @@
-import { eq, paywalls } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
+import { eq, paywalls } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
 import {
   AuthSession,
   PaywallNotFoundError,
-  PaywallServiceError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
+  PaywallServiceError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { checkProjectPermission } from "../../utils/permissions";
 
 const _getPaywallById = (db: Db) =>
   db.makeQuery((execute, id: string) =>
@@ -16,16 +17,16 @@ const _getPaywallById = (db: Db) =>
     )
   );
 
-export const getPaywallById = Effect.gen(function* () {
+export const getPaywallById = Effect.gen(function* getPaywallById() {
   const db = yield* Db;
-  return Effect.fn('getPaywallById')(
-    function* (id: string) {
+  return Effect.fn("getPaywallById")(
+    function* getPaywallById(id: string) {
       const session = yield* AuthSession;
       const paywall = yield* _getPaywallById(db)(id);
       if (!paywall) {
         return yield* Effect.fail(
           new PaywallNotFoundError({
-            message: 'Paywall not found'
+            message: "Paywall not found",
           })
         );
       }
@@ -33,7 +34,7 @@ export const getPaywallById = Effect.gen(function* () {
       // SECURITY: Authorization check
       yield* checkProjectPermission(
         paywall.projectId,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to access paywall ${id} for project ${paywall.projectId}`
       );
 
@@ -44,8 +45,8 @@ export const getPaywallById = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new PaywallServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

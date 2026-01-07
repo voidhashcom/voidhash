@@ -1,16 +1,16 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class AnalyticsServiceError extends Schema.TaggedError<AnalyticsServiceError>()(
-  'AnalyticsServiceError',
+  "AnalyticsServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class InvalidTimeRangeError extends Schema.TaggedError<InvalidTimeRangeError>()(
-  'InvalidTimeRangeError',
+  "InvalidTimeRangeError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {
   toString(): string {
@@ -19,10 +19,10 @@ export class InvalidTimeRangeError extends Schema.TaggedError<InvalidTimeRangeEr
 }
 
 export class InvalidMetricError extends Schema.TaggedError<InvalidMetricError>()(
-  'InvalidMetricError',
+  "InvalidMetricError",
   {
+    message: Schema.String,
     metric: Schema.String,
-    message: Schema.String
   }
 ) {
   toString(): string {

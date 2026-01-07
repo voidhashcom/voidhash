@@ -1,20 +1,20 @@
-import { HttpApiBuilder } from '@effect/platform';
-import { VoidhashV1Api } from '@voidhash/api-spec';
-import { CustomerService } from '@voidhash/core/services';
-import { extractAuthorizedProjectId } from '@voidhash/core/utils';
-import { CustomerOrigin } from '@voidhash/db';
-import { AuthSession } from '@voidhash/shared';
-import { Effect } from 'effect';
+import { HttpApiBuilder } from "@effect/platform";
+import { VoidhashV1Api } from "@voidhash/api-spec";
+import { CustomerService } from "@voidhash/core/services";
+import { extractAuthorizedProjectId } from "@voidhash/core/utils";
+import { CustomerOrigin } from "@voidhash/db";
+import { AuthSession } from "@voidhash/shared";
+import { Effect } from "effect";
 
 export const CustomersGroupLive = HttpApiBuilder.group(
   VoidhashV1Api,
-  'customers',
+  "customers",
   (handlers) =>
-    Effect.gen(function* () {
+    Effect.gen(function* CustomersGroupLive() {
       const customerService = yield* CustomerService;
       return handlers
-        .handle('createCustomer', ({ payload }) =>
-          Effect.gen(function* () {
+        .handle("createCustomer", ({ payload }) =>
+          Effect.gen(function* CustomersGroupLive() {
             const authSession = yield* AuthSession;
             const projectId = yield* extractAuthorizedProjectId(authSession);
             return yield* customerService.createCustomer({
@@ -22,30 +22,30 @@ export const CustomersGroupLive = HttpApiBuilder.group(
               projectId,
               origin: CustomerOrigin.API,
               name: payload.name ?? null,
-              email: payload.email ?? null
+              email: payload.email ?? null,
             });
           })
         )
-        .handle('listCustomers', () =>
-          Effect.gen(function* () {
+        .handle("listCustomers", () =>
+          Effect.gen(function* CustomersGroupLive() {
             const authSession = yield* AuthSession;
             const projectId = yield* extractAuthorizedProjectId(authSession);
             return yield* customerService.getCustomers({ projectId });
           })
         )
-        .handle('getCustomerById', ({ path: { customerId } }) =>
+        .handle("getCustomerById", ({ path: { customerId } }) =>
           customerService.getCustomerById(customerId)
         )
-        .handle('byAppUserId', ({ path: { appUserId } }) => {
-          return Effect.gen(function* () {
+        .handle("byAppUserId", ({ path: { appUserId } }) =>
+          Effect.gen(function* CustomersGroupLive() {
             const authSession = yield* AuthSession;
             const projectId = yield* extractAuthorizedProjectId(authSession);
             return yield* customerService.getCustomerByAppUserId(
               appUserId,
               projectId
             );
-          });
-        });
+          })
+        );
     })
 );
 

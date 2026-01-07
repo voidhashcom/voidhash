@@ -1,28 +1,29 @@
-import type { FlexNodeData } from '@voidhash/mimic-schema';
-import type { Properties } from 'csstype';
-import { px, pxOrAuto } from './utils';
+import type { FlexNodeData } from "@voidhash/mimic-schema";
+import type { Properties } from "csstype";
 
-export function buildFlexStyles(style: FlexNodeData['style']): Properties {
+import { px, pxOrAuto } from "./utils";
+
+export function buildFlexStyles(style: FlexNodeData["style"]): Properties {
   const styles: Properties = {
+    alignItems: style.alignItems,
+    boxSizing: "border-box",
     display: style.display,
-    position: 'relative',
-    boxSizing: 'border-box',
     flexDirection: style.flexDirection,
     gap: px(style.gap ?? 0),
+    height: pxOrAuto(style.height),
     justifyContent: style.justifyContent,
-    alignItems: style.alignItems,
-    paddingTop: px(style.paddingTop ?? 0),
-    paddingRight: px(style.paddingRight ?? 0),
-    paddingBottom: px(style.paddingBottom ?? 0),
-    paddingLeft: px(style.paddingLeft ?? 0),
-    marginTop: px(style.marginTop ?? 0),
-    marginRight: px(style.marginRight ?? 0),
     marginBottom: px(style.marginBottom ?? 0),
     marginLeft: px(style.marginLeft ?? 0),
-    width: pxOrAuto(style.width),
-    height: pxOrAuto(style.height),
+    marginRight: px(style.marginRight ?? 0),
+    marginTop: px(style.marginTop ?? 0),
     opacity: style.opacity,
-    overflow: style.overflow
+    overflow: style.overflow,
+    paddingBottom: px(style.paddingBottom ?? 0),
+    paddingLeft: px(style.paddingLeft ?? 0),
+    paddingRight: px(style.paddingRight ?? 0),
+    paddingTop: px(style.paddingTop ?? 0),
+    position: "relative",
+    width: pxOrAuto(style.width),
   };
 
   // Min/max constraints
@@ -43,7 +44,7 @@ export function buildFlexStyles(style: FlexNodeData['style']): Properties {
   if (style.backgroundEnabled) {
     styles.backgroundColor = style.backgroundColor;
   } else {
-    styles.backgroundColor = 'transparent';
+    styles.backgroundColor = "transparent";
   }
 
   // Border
@@ -66,7 +67,7 @@ export function buildFlexStyles(style: FlexNodeData['style']): Properties {
   if (style.flex !== null) {
     styles.flex = style.flex;
   }
-  if (style.alignSelf !== 'auto') {
+  if (style.alignSelf !== "auto") {
     styles.alignSelf = style.alignSelf;
   }
 

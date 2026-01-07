@@ -1,17 +1,17 @@
-import { SettingsCardSkeleton, Skeleton } from '@voidhash/ui';
-import { Page } from 'src/features/shell';
+import { SettingsCardSkeleton, Skeleton } from "@voidhash/ui";
+import { Page } from "src/features/shell";
 
 export function ProductsDetailPageSkeleton() {
   return (
     <Page
       breadcrumbs={[
         {
-          title: 'Products'
+          title: "Products",
         },
         {
-          title: 'Product',
-          isLoading: true
-        }
+          isLoading: true,
+          title: "Product",
+        },
       ]}
     >
       {/* Key is used to reload the default form data when the organization slug changes */}

@@ -1,39 +1,43 @@
-import { AuthSession, OrganizationServiceError } from '@voidhash/shared';
-import { Effect } from 'effect';
-import { BetterAuth } from '../../better-auth/better-auth-effect';
-import { checkOrganizationPermission } from '../../utils/permissions';
+import { AuthSession, OrganizationServiceError } from "@voidhash/shared";
+import { Effect } from "effect";
 
-export const deleteOrganization = Effect.gen(function* () {
+import { BetterAuth } from "../../better-auth/better-auth-effect";
+import { checkOrganizationPermission } from "../../utils/permissions";
+
+export const deleteOrganization = Effect.gen(function* deleteOrganization() {
   const betterAuth = yield* BetterAuth;
-  return Effect.fn('deleteOrganization')(
-    function* (input: { organizationId: string }, cookie: string) {
+  return Effect.fn("deleteOrganization")(
+    function* deleteOrganization(
+      input: { organizationId: string },
+      cookie: string
+    ) {
       const session = yield* AuthSession;
 
       // SECURITY: Authorization check
       yield* checkOrganizationPermission(
         input.organizationId,
-        'organization:all',
+        "organization:all",
         `User ${session?.user?.id} is not authorized to delete organization ${input.organizationId}`
       );
 
       yield* betterAuth.use(async (client) =>
         client.api.deleteOrganization({
+          body: { organizationId: input.organizationId },
           headers: new Headers({
-            cookie
+            cookie,
           }),
-          body: { organizationId: input.organizationId }
         })
       );
 
-      return yield* Effect.succeed(undefined);
+      return yield* Effect.void;
     },
     (effect) =>
       effect.pipe(
         Effect.catchTags({
           BetterAuthError: (error) =>
             new OrganizationServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

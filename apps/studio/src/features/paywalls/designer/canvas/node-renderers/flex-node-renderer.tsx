@@ -1,11 +1,12 @@
-import type { FlexNodeData } from '@voidhash/mimic-schema';
-import { Selectable } from '../helpers/selectable';
-import { FlexLayoutRenderer } from './layouts/flex-layout-renderer';
+import type { FlexNodeData } from "@voidhash/mimic-schema";
+
+import { Selectable } from "../helpers/selectable";
+import { FlexLayoutRenderer } from "./layouts/flex-layout-renderer";
 
 export function FlexNodeRenderer({
   node,
   children,
-  ref
+  ref,
 }: {
   node: FlexNodeData;
   children: React.ReactNode;

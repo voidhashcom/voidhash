@@ -4,11 +4,11 @@
  * These commands manage the currently active design tool.
  */
 
-import { commander } from '../designer-commander';
+import { commander } from "../designer-commander";
 import type {
   AvailableTool,
-  DesignerStoreState
-} from '../designer-store-state';
+  DesignerStoreState,
+} from "../designer-store-state";
 
 // =============================================================================
 // Tool Commands
@@ -20,7 +20,7 @@ import type {
 export const setActiveTool = commander.action<{ tool: AvailableTool }>(
   (ctx, params) => {
     ctx.setState({
-      tools: { activeTool: params.tool }
+      tools: { activeTool: params.tool },
     } as Partial<DesignerStoreState>);
   }
 );

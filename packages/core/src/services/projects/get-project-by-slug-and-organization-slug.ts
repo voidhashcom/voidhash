@@ -1,47 +1,53 @@
-import { Db } from '@voidhash/db/effect';
-import { AuthSession, ProjectServiceError } from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
-import { _getOrganizationBySlug, _getProjectBySlug } from './utils';
+import { Db } from "@voidhash/db/effect";
+import { AuthSession, ProjectServiceError } from "@voidhash/shared";
+import { Effect } from "effect";
 
-export const getProjectBySlugAndOrganizationSlug = Effect.gen(function* () {
-  const db = yield* Db;
-  return Effect.fn('getProjectBySlugAndOrganizationSlug')(
-    function* (input: { organizationSlug: string; projectSlug: string }) {
-      const session = yield* AuthSession;
-      const organization = yield* _getOrganizationBySlug(db)(
-        input.organizationSlug
-      );
-      if (!organization) {
-        return null;
-      }
+import { checkProjectPermission } from "../../utils/permissions";
+import { _getOrganizationBySlug, _getProjectBySlug } from "./utils";
 
-      const project = yield* _getProjectBySlug(db)({
-        projectSlug: input.projectSlug,
-        organizationId: organization.id
-      });
+export const getProjectBySlugAndOrganizationSlug = Effect.gen(
+  function* getProjectBySlugAndOrganizationSlug() {
+    const db = yield* Db;
+    return Effect.fn("getProjectBySlugAndOrganizationSlug")(
+      function* getProjectBySlugAndOrganizationSlug(input: {
+        organizationSlug: string;
+        projectSlug: string;
+      }) {
+        const session = yield* AuthSession;
+        const organization = yield* _getOrganizationBySlug(db)(
+          input.organizationSlug
+        );
+        if (!organization) {
+          return null;
+        }
 
-      if (!project) {
-        return null;
-      }
+        const project = yield* _getProjectBySlug(db)({
+          organizationId: organization.id,
+          projectSlug: input.projectSlug,
+        });
 
-      // SECURITY: Authorization check for project
-      yield* checkProjectPermission(
-        project.id,
-        'project:all',
-        `User ${session?.user?.id} is not authorized to access project ${project.id}`
-      );
+        if (!project) {
+          return null;
+        }
 
-      return project;
-    },
-    (effect) =>
-      effect.pipe(
-        Effect.catchTags({
-          DatabaseError: (error) =>
-            new ProjectServiceError({
-              cause: String(error.cause)
-            })
-        })
-      )
-  );
-});
+        // SECURITY: Authorization check for project
+        yield* checkProjectPermission(
+          project.id,
+          "project:all",
+          `User ${session?.user?.id} is not authorized to access project ${project.id}`
+        );
+
+        return project;
+      },
+      (effect) =>
+        effect.pipe(
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new ProjectServiceError({
+                cause: String(error.cause),
+              }),
+          })
+        )
+    );
+  }
+);

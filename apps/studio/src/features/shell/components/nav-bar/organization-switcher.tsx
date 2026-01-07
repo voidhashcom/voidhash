@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import { Link } from '@tanstack/react-router';
-import { GradientAvatar } from '@voidhash/ui/gradient-avatar';
-import { useAuth } from 'src/components/auth-context';
-import { OrganizationProjectSwitcher } from './organization-project-switcher';
+import { Link } from "@tanstack/react-router";
+import { GradientAvatar } from "@voidhash/ui/gradient-avatar";
+import { useAuth } from "src/components/auth-context";
+
+import { OrganizationProjectSwitcher } from "./organization-project-switcher";
 
 export function OrganizationSwitcher({
-  organizationSlug
+  organizationSlug,
 }: {
   organizationSlug: string | null;
 }) {
@@ -21,7 +22,7 @@ export function OrganizationSwitcher({
   return (
     <div className="flex items-center gap-2">
       <Link
-        params={{ organizationSlug: organizationSlug ?? '' }}
+        params={{ organizationSlug: organizationSlug ?? "" }}
         to="/$organizationSlug"
       >
         <div className="flex items-center gap-2">

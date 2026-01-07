@@ -1,27 +1,28 @@
-import { Effect } from 'effect';
-import { CacheAdapter } from './cache-adapter';
+import { Effect } from "effect";
 
-const CACHE_KEYS_KEY = 'cache-keys';
+import { CacheAdapter } from "./cache-adapter";
 
-type CacheEnvelope<T> = {
+const CACHE_KEYS_KEY = "cache-keys";
+
+interface CacheEnvelope<T> {
   value: T;
   expiresAt: number | null;
   createdAt: number;
   staleAt: number | null;
-};
+}
 
 type CacheHit<T> = CacheEnvelope<T> & {
   isStale: boolean;
   isExpired: boolean;
 };
 export class CacheManager extends Effect.Service<CacheManager>()(
-  'rn-voidhash/CacheManager',
+  "rn-voidhash/CacheManager",
   {
     dependencies: [],
-    effect: Effect.gen(function* () {
+    effect: Effect.gen(function* effect() {
       const cache = yield* CacheAdapter;
       const get = <T>(key: string) =>
-        Effect.gen(function* () {
+        Effect.gen(function* get() {
           const cachedValue = yield* cache.get(key);
           if (cachedValue) {
             const cacheHit = JSON.parse(cachedValue) as CacheEnvelope<T>;
@@ -41,7 +42,7 @@ export class CacheManager extends Effect.Service<CacheManager>()(
             return {
               ...cacheHit,
               isExpired,
-              isStale
+              isStale,
             } satisfies CacheHit<T>;
           }
           return null;
@@ -56,28 +57,28 @@ export class CacheManager extends Effect.Service<CacheManager>()(
           cache.set(
             key,
             JSON.stringify({
-              value,
+              createdAt: Date.now(),
               expiresAt: options?.ttl ? Date.now() + options.ttl : null,
               staleAt: options?.staleTime
                 ? Date.now() + options.staleTime
                 : null,
-              createdAt: Date.now()
+              value,
             } satisfies CacheEnvelope<T>)
           ),
-          storeCacheKey(key)
+          storeCacheKey(key),
         ]);
 
       const deleteValue = (key: string) => cache.delete(key);
 
       const clear = () =>
-        Effect.gen(function* () {
+        Effect.gen(function* clear() {
           const cacheKeys = yield* getCacheKeys();
           yield* Effect.all(cacheKeys.map((key) => cache.delete(key)));
           yield* cache.delete(CACHE_KEYS_KEY);
         });
 
       const getCacheKeys = () =>
-        Effect.gen(function* () {
+        Effect.gen(function* getCacheKeys() {
           const cacheKeys = yield* cache.get(CACHE_KEYS_KEY);
           if (cacheKeys) {
             return JSON.parse(cacheKeys) as string[];
@@ -86,7 +87,7 @@ export class CacheManager extends Effect.Service<CacheManager>()(
         });
 
       const storeCacheKey = (key: string) =>
-        Effect.gen(function* () {
+        Effect.gen(function* storeCacheKey() {
           const cacheKeys = yield* cache.get(CACHE_KEYS_KEY);
           if (cacheKeys) {
             const cacheKeysArray = JSON.parse(cacheKeys) as string[];
@@ -98,12 +99,12 @@ export class CacheManager extends Effect.Service<CacheManager>()(
         });
 
       return {
-        get,
-        set: setValue,
-        delete: deleteValue,
         clear,
-        getCacheKeys
+        delete: deleteValue,
+        get,
+        getCacheKeys,
+        set: setValue,
       } as const;
-    })
+    }),
   }
 ) {}

@@ -1,79 +1,80 @@
-import { Rpc, RpcGroup } from '@effect/rpc';
+import { Rpc, RpcGroup } from "@effect/rpc";
 import {
   ActionForbiddenError,
   ApiKeyNotFoundError,
-  ApiKeyServiceError
-} from '@voidhash/shared';
-import { Schema } from 'effect';
-import { AuthMiddleware } from '../middlewares';
+  ApiKeyServiceError,
+} from "@voidhash/shared";
+import { Schema } from "effect";
+
+import { AuthMiddleware } from "../middlewares";
 
 export const ApiKey = Schema.Struct({
-  id: Schema.String,
-  name: Schema.String,
   end: Schema.String,
-  key: Schema.String,
-  prefix: Schema.String,
+  id: Schema.String,
   isPublic: Schema.Boolean,
-  projectId: Schema.String
+  key: Schema.String,
+  name: Schema.String,
+  prefix: Schema.String,
+  projectId: Schema.String,
 });
 
 export const ApiKeyWithRawKey = Schema.Struct({
-  id: Schema.String,
-  name: Schema.String,
   end: Schema.String,
-  prefix: Schema.String,
+  id: Schema.String,
   isPublic: Schema.Boolean,
+  name: Schema.String,
+  prefix: Schema.String,
   projectId: Schema.String,
-  rawKey: Schema.String
+  rawKey: Schema.String,
 });
 
 export class ApiKeyRpcsDef extends RpcGroup.make(
-  Rpc.make('CreateSecretKey', {
+  Rpc.make("CreateSecretKey", {
+    error: Schema.Union(ApiKeyServiceError, ActionForbiddenError),
+    payload: {
+      name: Schema.String,
+      projectId: Schema.String,
+    },
     success: ApiKeyWithRawKey,
+  }),
+  Rpc.make("ListApiKeys", {
+    error: Schema.Union(ApiKeyServiceError, ActionForbiddenError),
     payload: {
       projectId: Schema.String,
-      name: Schema.String
     },
-    error: Schema.Union(ApiKeyServiceError, ActionForbiddenError)
-  }),
-  Rpc.make('ListApiKeys', {
     success: Schema.Array(ApiKey),
-    payload: {
-      projectId: Schema.String
-    },
-    error: Schema.Union(ApiKeyServiceError, ActionForbiddenError)
   }),
-  Rpc.make('GetApiKeyById', {
+  Rpc.make("GetApiKeyById", {
+    error: Schema.Union(
+      ApiKeyServiceError,
+      ApiKeyNotFoundError,
+      ActionForbiddenError
+    ),
+    payload: {
+      apiKeyId: Schema.String,
+    },
     success: ApiKey,
-    payload: {
-      apiKeyId: Schema.String
-    },
+  }),
+  Rpc.make("RotateSecretKey", {
     error: Schema.Union(
       ApiKeyServiceError,
       ApiKeyNotFoundError,
       ActionForbiddenError
-    )
-  }),
-  Rpc.make('RotateSecretKey', {
+    ),
+    payload: {
+      apiKeyId: Schema.String,
+    },
     success: ApiKeyWithRawKey,
-    payload: {
-      apiKeyId: Schema.String
-    },
-    error: Schema.Union(
-      ApiKeyServiceError,
-      ApiKeyNotFoundError,
-      ActionForbiddenError
-    )
   }),
-  Rpc.make('DeleteApiKey', {
-    success: Schema.Void,
-    payload: {
-      apiKeyId: Schema.String
-    },
+  Rpc.make("DeleteApiKey", {
     error: Schema.Union(
       ApiKeyServiceError,
       ApiKeyNotFoundError,
       ActionForbiddenError
-    )
+    ),
+    payload: {
+      apiKeyId: Schema.String,
+    },
+    success: Schema.Void,
   })
 ).middleware(AuthMiddleware) {}

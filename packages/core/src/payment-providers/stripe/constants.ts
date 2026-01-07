@@ -1,12 +1,12 @@
-import type Stripe from 'stripe';
+import type Stripe from "stripe";
 
 export const ALLOWED_EVENTS: Stripe.Event.Type[] = [
-  'checkout.session.completed',
-  'customer.subscription.created',
-  'customer.subscription.updated',
-  'customer.subscription.deleted',
-  'customer.subscription.paused',
-  'customer.subscription.resumed'
+  "checkout.session.completed",
+  "customer.subscription.created",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+  "customer.subscription.paused",
+  "customer.subscription.resumed",
   // "customer.subscription.pending_update_applied",
   // "customer.subscription.pending_update_expired",
   // "customer.subscription.trial_will_end",

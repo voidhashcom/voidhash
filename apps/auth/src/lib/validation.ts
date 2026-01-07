@@ -8,7 +8,7 @@
  */
 export const isValidRedirect = (url: string, origin: string): boolean => {
   // Allow relative paths that don't start with // (protocol-relative URLs)
-  if (url.startsWith('/') && !url.startsWith('//')) {
+  if (url.startsWith("/") && !url.startsWith("//")) {
     return true;
   }
 
@@ -28,9 +28,9 @@ export const isValidLocalRedirect = (url: string): boolean => {
   try {
     const parsed = new URL(url);
     return (
-      parsed.hostname === 'localhost' ||
-      parsed.hostname === '127.0.0.1' ||
-      parsed.hostname === '[::1]'
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "[::1]"
     );
   } catch {
     return false;

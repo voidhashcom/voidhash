@@ -1,10 +1,4 @@
-import {
-  CustomerOrigin,
-  CustomerType,
-  customers,
-  eq,
-  type InsertCustomer
-} from '@voidhash/db';
+import { CustomerOrigin, CustomerType, customers, eq } from '@voidhash/db';
 import { ANONYMOUS_USER_ID_PREFIX } from '@voidhash/lib';
 import { AuthSession } from '@voidhash/shared';
 import { Effect, Exit, pipe } from 'effect';

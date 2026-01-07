@@ -1,18 +1,18 @@
-import type { MimicSlice } from '@voidhash/mimic-react/zustand';
+import type { MimicSlice } from "@voidhash/mimic-react/zustand";
 import type {
   PaywallDesignerDocument,
-  PresenceSchema
-} from '@voidhash/mimic-schema';
-import type { SnapshotNode } from '@voidhash/paywall-renderer-web-core';
+  PresenceSchema,
+} from "@voidhash/mimic-schema";
+import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 
 export type AvailableTool =
-  | 'cursor'
-  | 'text'
-  | 'rows'
-  | 'columns'
-  | 'scroll-view';
+  | "cursor"
+  | "text"
+  | "rows"
+  | "columns"
+  | "scroll-view";
 
-export type DesignerMode = 'design' | 'preview';
+export type DesignerMode = "design" | "preview";
 
 export type DesignerStoreState = MimicSlice<
   typeof PaywallDesignerDocument,

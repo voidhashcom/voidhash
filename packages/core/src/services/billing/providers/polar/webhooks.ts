@@ -1,36 +1,37 @@
 import {
+  type InsertBillingWebhookEvent,
   billingWebhookEvents,
   eq,
-  type InsertBillingWebhookEvent
-} from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { generateId } from '@voidhash/lib';
-import { Effect } from 'effect';
-import crypto from 'node:crypto';
+} from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { generateId } from "@voidhash/lib";
+import { Effect } from "effect";
+import crypto from "node:crypto";
+
 import {
   BillingProviderError,
-  BillingServiceError
-} from '../../../../billing/errors';
+  BillingServiceError,
+} from "../../../../billing/errors";
 import type {
   BillingTierNameValue,
-  SubscriptionChangeEvent
-} from '../../../../billing/types';
-import { BillingService } from '../../billing-service';
-import { PolarConfigService } from './config';
+  SubscriptionChangeEvent,
+} from "../../../../billing/types";
+import { BillingService } from "../../billing-service";
+import { PolarConfigService } from "./config";
 
 /**
  * Polar webhook event types we handle
  */
 type PolarWebhookEventType =
-  | 'subscription.created'
-  | 'subscription.updated'
-  | 'subscription.active'
-  | 'subscription.canceled'
-  | 'subscription.revoked'
-  | 'order.created'
-  | 'order.paid'
-  | 'customer.created'
-  | 'customer.updated';
+  | "subscription.created"
+  | "subscription.updated"
+  | "subscription.active"
+  | "subscription.canceled"
+  | "subscription.revoked"
+  | "order.created"
+  | "order.paid"
+  | "customer.created"
+  | "customer.updated";
 
 interface PolarWebhookPayload {
   type: PolarWebhookEventType;
@@ -54,7 +55,10 @@ const _checkWebhookProcessed = (db: Db) =>
     (execute, input: { providerId: string; externalEventId: string }) =>
       execute(async (db) => {
         const existing = await db.query.billingWebhookEvents.findFirst({
-          where: eq(billingWebhookEvents.externalEventId, input.externalEventId)
+          where: eq(
+            billingWebhookEvents.externalEventId,
+            input.externalEventId
+          ),
         });
         return existing !== undefined;
       })
@@ -99,19 +103,19 @@ function verifyPolarWebhookSignature(
   secret: string
 ): boolean {
   const signedContent = `${webhookId}.${timestamp}.${payload}`;
-  const secretBytes = Buffer.from(secret.split('_')[1] ?? secret, 'base64');
+  const secretBytes = Buffer.from(secret.split("_")[1] ?? secret, "base64");
   const expectedSignature = crypto
-    .createHmac('sha256', secretBytes)
+    .createHmac("sha256", secretBytes)
     .update(signedContent)
-    .digest('base64');
+    .digest("base64");
 
   // Signature header can have multiple signatures separated by space
-  const signatures = signature.split(' ');
+  const signatures = signature.split(" ");
   for (const sig of signatures) {
-    const sigParts = sig.split(',');
+    const sigParts = sig.split(",");
     for (const part of sigParts) {
-      if (part.startsWith('v1,')) {
-        const sigValue = part.substring(3);
+      if (part.startsWith("v1,")) {
+        const sigValue = part.slice(3);
         if (sigValue === expectedSignature) {
           return true;
         }
@@ -130,10 +134,16 @@ function mapProductIdToTier(
   productId: string | undefined,
   config: { tierProductIds: { pro: string; enterprise: string } }
 ): BillingTierNameValue | undefined {
-  if (!productId) return undefined;
-  if (productId === config.tierProductIds.enterprise) return 'enterprise';
-  if (productId === config.tierProductIds.pro) return 'pro';
-  return 'free';
+  if (!productId) {
+    return undefined;
+  }
+  if (productId === config.tierProductIds.enterprise) {
+    return "enterprise";
+  }
+  if (productId === config.tierProductIds.pro) {
+    return "pro";
+  }
+  return "free";
 }
 
 /**
@@ -141,31 +151,36 @@ function mapProductIdToTier(
  */
 function mapPolarStatus(
   status: string | undefined
-): 'active' | 'canceled' | 'past_due' | 'trialing' {
+): "active" | "canceled" | "past_due" | "trialing" {
   switch (status) {
-    case 'active':
-      return 'active';
-    case 'canceled':
-    case 'revoked':
-      return 'canceled';
-    case 'past_due':
-    case 'incomplete':
-    case 'unpaid':
-      return 'past_due';
-    case 'trialing':
-      return 'trialing';
-    default:
-      return 'active';
+    case "active": {
+      return "active";
+    }
+    case "canceled":
+    case "revoked": {
+      return "canceled";
+    }
+    case "past_due":
+    case "incomplete":
+    case "unpaid": {
+      return "past_due";
+    }
+    case "trialing": {
+      return "trialing";
+    }
+    default: {
+      return "active";
+    }
   }
 }
 
-export const handlePolarWebhook = Effect.gen(function* () {
+export const handlePolarWebhook = Effect.gen(function* handlePolarWebhook() {
   const db = yield* Db;
   const config = yield* PolarConfigService;
   const billingService = yield* BillingService;
 
-  return Effect.fn('handlePolarWebhook')(
-    function* (input: {
+  return Effect.fn("handlePolarWebhook")(
+    function* handlePolarWebhook(input: {
       payload: string;
       signature: string;
       webhookId: string;
@@ -183,8 +198,8 @@ export const handlePolarWebhook = Effect.gen(function* () {
       if (!isValid) {
         return yield* Effect.fail(
           new BillingProviderError({
-            message: 'Invalid webhook signature',
-            provider: 'polar'
+            message: "Invalid webhook signature",
+            provider: "polar",
           })
         );
       }
@@ -195,8 +210,8 @@ export const handlePolarWebhook = Effect.gen(function* () {
 
       // Check idempotency
       const alreadyProcessed = yield* _checkWebhookProcessed(db)({
-        providerId: 'polar',
-        externalEventId: eventId
+        externalEventId: eventId,
+        providerId: "polar",
       });
 
       if (alreadyProcessed) {
@@ -207,76 +222,83 @@ export const handlePolarWebhook = Effect.gen(function* () {
       }
 
       // Record webhook event
-      const webhookEventId = generateId('billingWebhookEvent');
+      const webhookEventId = generateId("billingWebhookEvent");
       yield* _insertWebhookEvent(db)({
-        id: webhookEventId,
-        providerId: 'polar',
-        externalEventId: eventId,
         eventType: event.type,
-        payload: event as unknown as object
+        externalEventId: eventId,
+        id: webhookEventId,
+        payload: event as unknown as object,
+        providerId: "polar",
       });
 
       // Process based on event type
       try {
         switch (event.type) {
-          case 'subscription.created':
-          case 'subscription.updated':
-          case 'subscription.active': {
+          case "subscription.created":
+          case "subscription.updated":
+          case "subscription.active": {
             const customerId = event.data.customer_id ?? event.data.customerId;
-            if (!customerId) break;
+            if (!customerId) {
+              break;
+            }
 
             const subscriptionEvent: SubscriptionChangeEvent = {
-              externalSubscriptionId: event.data.id,
-              externalCustomerId: customerId,
-              status: mapPolarStatus(event.data.status),
-              currentPeriodStart: event.data.current_period_start
-                ? new Date(event.data.current_period_start)
-                : event.data.currentPeriodStart
-                  ? new Date(event.data.currentPeriodStart)
-                  : undefined,
               currentPeriodEnd: event.data.current_period_end
                 ? new Date(event.data.current_period_end)
-                : event.data.currentPeriodEnd
+                : (event.data.currentPeriodEnd
                   ? new Date(event.data.currentPeriodEnd)
-                  : undefined,
+                  : undefined),
+              currentPeriodStart: event.data.current_period_start
+                ? new Date(event.data.current_period_start)
+                : (event.data.currentPeriodStart
+                  ? new Date(event.data.currentPeriodStart)
+                  : undefined),
+              externalCustomerId: customerId,
+              externalSubscriptionId: event.data.id,
+              status: mapPolarStatus(event.data.status),
               tier: mapProductIdToTier(
                 event.data.product_id ?? event.data.productId,
                 config
-              )
+              ),
             };
 
             yield* billingService.handleSubscriptionChange(subscriptionEvent);
             break;
           }
 
-          case 'subscription.canceled':
-          case 'subscription.revoked': {
+          case "subscription.canceled":
+          case "subscription.revoked": {
             const customerId = event.data.customer_id ?? event.data.customerId;
-            if (!customerId) break;
+            if (!customerId) {
+              break;
+            }
 
             const cancelEvent: SubscriptionChangeEvent = {
-              externalSubscriptionId: event.data.id,
               externalCustomerId: customerId,
-              status: 'canceled'
+              externalSubscriptionId: event.data.id,
+              status: "canceled",
             };
 
             yield* billingService.handleSubscriptionChange(cancelEvent);
             break;
           }
 
-          case 'order.paid':
+          case "order.paid": {
             // Handle one-time payments if needed
             yield* Effect.log(`Order paid: ${event.data.id}`);
             break;
+          }
 
-          case 'customer.created':
-          case 'customer.updated':
+          case "customer.created":
+          case "customer.updated": {
             // Customer events can be used for sync if needed
             yield* Effect.log(`Customer event: ${event.type} ${event.data.id}`);
             break;
+          }
 
-          default:
+          default: {
             yield* Effect.log(`Unhandled webhook event type: ${event.type}`);
+          }
         }
 
         // Mark as processed
@@ -284,8 +306,8 @@ export const handlePolarWebhook = Effect.gen(function* () {
       } catch (error) {
         // Mark with error
         yield* _markWebhookError(db)({
+          error: String(error),
           id: webhookEventId,
-          error: String(error)
         });
         throw error;
       }
@@ -295,9 +317,9 @@ export const handlePolarWebhook = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new BillingServiceError({
-              message: 'Failed to process webhook',
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+              message: "Failed to process webhook",
+            }),
         })
       )
   );

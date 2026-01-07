@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
-import type { TextNodeData } from '@voidhash/mimic-schema';
+import type { TextNodeData } from "@voidhash/mimic-schema";
+
 import {
   addTextNodeState,
   addTextNodeVariable,
@@ -8,13 +9,13 @@ import {
   removeTextNodeVariable,
   updateTextNode,
   updateTextNodeState,
-  updateTextNodeVariable
-} from '../../state/actions';
-import { usePaywallDesignerActions } from '../../state/designer-store';
-import { StatesSection } from './sections/states-section';
-import { TextFillSection } from './sections/text-fill-section';
-import { TypographySection } from './sections/typography-section';
-import { VariablesSection } from './sections/variables-section';
+  updateTextNodeVariable,
+} from "../../state/actions";
+import { usePaywallDesignerActions } from "../../state/designer-store";
+import { StatesSection } from "./sections/states-section";
+import { TextFillSection } from "./sections/text-fill-section";
+import { TypographySection } from "./sections/typography-section";
+import { VariablesSection } from "./sections/variables-section";
 
 export function TextPanel({ node }: { node: TextNodeData }) {
   const dispatch = usePaywallDesignerActions();
@@ -23,8 +24,8 @@ export function TextPanel({ node }: { node: TextNodeData }) {
     dispatch(updateTextNode)({
       id: node.id,
       updates: {
-        style: { ...node.style, ...updatedNode }
-      }
+        style: { ...node.style, ...updatedNode },
+      },
     });
   };
 
@@ -33,7 +34,7 @@ export function TextPanel({ node }: { node: TextNodeData }) {
       <VariablesSection
         node={node}
         onAddVariable={(nodeId, type, name) =>
-          dispatch(addTextNodeVariable)({ nodeId, type, name })
+          dispatch(addTextNodeVariable)({ name, nodeId, type })
         }
         onRemoveVariable={(nodeId, variableId) =>
           dispatch(removeTextNodeVariable)({ nodeId, variableId })
@@ -42,14 +43,14 @@ export function TextPanel({ node }: { node: TextNodeData }) {
           dispatch(updateTextNodeVariable)({
             nodeId,
             variableId,
-            ...updates
+            ...updates,
           })
         }
       />
       <StatesSection
         node={node}
         onAddState={(nodeId, name, condition) =>
-          dispatch(addTextNodeState)({ nodeId, name, condition })
+          dispatch(addTextNodeState)({ condition, name, nodeId })
         }
         onRemoveState={(nodeId, stateId) =>
           dispatch(removeTextNodeState)({ nodeId, stateId })
@@ -58,7 +59,7 @@ export function TextPanel({ node }: { node: TextNodeData }) {
           dispatch(updateTextNodeState)({
             nodeId,
             stateId,
-            ...updates
+            ...updates,
           })
         }
       />

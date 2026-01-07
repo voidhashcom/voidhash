@@ -1,4 +1,4 @@
-import type { Viewport } from 'pixi-viewport';
+import type { Viewport } from "pixi-viewport";
 
 export interface ViewportState {
   zoom: number;

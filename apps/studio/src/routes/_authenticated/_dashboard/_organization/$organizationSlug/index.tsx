@@ -1,11 +1,12 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { ProjectsList } from '@/features/organizations/projects/projects-list';
-import { Page } from '@/features/shell';
+import { createFileRoute } from "@tanstack/react-router";
+
+import { ProjectsList } from "@/features/organizations/projects/projects-list";
+import { Page } from "@/features/shell";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_organization/$organizationSlug/'
+  "/_authenticated/_dashboard/_organization/$organizationSlug/"
 )({
-  component: RouteComponent
+  component: RouteComponent,
 });
 
 function RouteComponent() {

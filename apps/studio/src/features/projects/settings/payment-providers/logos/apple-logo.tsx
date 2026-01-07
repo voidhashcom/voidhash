@@ -1,9 +1,9 @@
-import { cn } from '@voidhash/ui';
+import { cn } from "@voidhash/ui";
 
 export function AppleLogo({ className }: { className?: string }) {
   return (
     <svg
-      className={cn(className, 'w-4 text-black dark:text-white')}
+      className={cn(className, "w-4 text-black dark:text-white")}
       height="1000"
       viewBox="0 0 814 1000"
       width="814"

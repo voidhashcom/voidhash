@@ -1,33 +1,34 @@
-import { eq, organizationBilling } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { Effect } from 'effect';
+import { eq, organizationBilling } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { Effect } from "effect";
+
 import {
   BillingServiceError,
-  OrganizationBillingNotFoundError
-} from '../../../billing/errors';
-import { BillingProvider } from '../providers/billing-provider';
+  OrganizationBillingNotFoundError,
+} from "../../../billing/errors";
+import { BillingProvider } from "../providers/billing-provider";
 
 const _getOrganizationBilling = (db: Db) =>
   db.makeQuery((execute, organizationId: string) =>
-    execute(async (db) => {
-      return db.query.organizationBilling.findFirst({
-        where: eq(organizationBilling.organizationId, organizationId)
-      });
-    })
+    execute(async (db) =>
+      db.query.organizationBilling.findFirst({
+        where: eq(organizationBilling.organizationId, organizationId),
+      })
+    )
   );
 
-export const cancelSubscription = Effect.gen(function* () {
+export const cancelSubscription = Effect.gen(function* cancelSubscription() {
   const db = yield* Db;
   const billingProvider = yield* BillingProvider;
 
-  return Effect.fn('BillingService.cancelSubscription')(
-    function* (input: { organizationId: string }) {
+  return Effect.fn("BillingService.cancelSubscription")(
+    function* cancelSubscription(input: { organizationId: string }) {
       const billing = yield* _getOrganizationBilling(db)(input.organizationId);
 
       if (!billing) {
         return yield* Effect.fail(
           new OrganizationBillingNotFoundError({
-            organizationId: input.organizationId
+            organizationId: input.organizationId,
           })
         );
       }
@@ -35,7 +36,7 @@ export const cancelSubscription = Effect.gen(function* () {
       if (!billing.externalSubscriptionId) {
         return yield* Effect.fail(
           new BillingServiceError({
-            message: 'Organization does not have an active subscription'
+            message: "Organization does not have an active subscription",
           })
         );
       }
@@ -52,16 +53,16 @@ export const cancelSubscription = Effect.gen(function* () {
     (effect) =>
       effect.pipe(
         Effect.catchTags({
-          DatabaseError: (error) =>
-            new BillingServiceError({
-              message: 'Failed to cancel subscription',
-              cause: String(error.cause)
-            }),
           BillingProviderError: (error) =>
             new BillingServiceError({
+              cause: error.cause,
               message: `Billing provider error: ${error.message}`,
-              cause: error.cause
-            })
+            }),
+          DatabaseError: (error) =>
+            new BillingServiceError({
+              cause: String(error.cause),
+              message: "Failed to cancel subscription",
+            }),
         })
       )
   );

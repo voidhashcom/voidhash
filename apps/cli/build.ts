@@ -1,48 +1,49 @@
-import * as esbuild from 'esbuild';
-import * as tsup from 'tsup';
-import pkg from './package.json' with { type: 'json' };
+import * as esbuild from "esbuild";
+import * as tsup from "tsup";
+
+import pkg from "./package.json" with { type: "json" };
 
 esbuild.buildSync({
-  entryPoints: ['./src/cli/index.ts'],
-  bundle: true,
-  outfile: 'dist/bin.cjs',
-  format: 'cjs',
-  target: 'node16',
-  platform: 'node',
-  define: {
-    'process.env.VOIDHASH_CLI_VERSION': `"${pkg.version}"`
-  },
-  external: ['esbuild'],
   banner: {
-    js: '#!/usr/bin/env node'
-  }
+    js: "#!/usr/bin/env node",
+  },
+  bundle: true,
+  define: {
+    "process.env.VOIDHASH_CLI_VERSION": `"${pkg.version}"`,
+  },
+  entryPoints: ["./src/cli/index.ts"],
+  external: ["esbuild"],
+  format: "cjs",
+  outfile: "dist/bin.cjs",
+  platform: "node",
+  target: "node16",
 });
 
 const main = async () => {
   await tsup.build({
-    entryPoints: ['./src/index.ts'],
-    outDir: './dist',
-    external: ['esbuild'],
-    splitting: false,
     dts: true,
-    format: ['cjs', 'esm'],
+    entryPoints: ["./src/index.ts"],
+    external: ["esbuild"],
+    format: ["cjs", "esm"],
+    outDir: "./dist",
     outExtension: (ctx) => {
-      if (ctx.format === 'cjs') {
+      if (ctx.format === "cjs") {
         return {
-          dts: '.d.ts',
-          js: '.js'
+          dts: ".d.ts",
+          js: ".js",
         };
       }
       return {
-        dts: '.d.mts',
-        js: '.mjs'
+        dts: ".d.mts",
+        js: ".mjs",
       };
-    }
+    },
+    splitting: false,
   });
 };
 
-main().catch((e) => {
+main().catch((error) => {
   // biome-ignore lint/suspicious/noConsole: User facing console error.
-  console.error(e);
+  console.error(error);
   process.exit(1);
 });

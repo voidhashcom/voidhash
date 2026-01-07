@@ -1,82 +1,70 @@
-import { and, eq, productPerks, products } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
+import { eq, productPerks } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
 import {
   AuthSession,
   ProductPerkServiceError,
-  ProductPerkValidationError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
+  ProductPerkValidationError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
 
-const _getProductById = (db: Db) =>
+import { checkProjectPermission } from "../../utils/permissions";
+
+const _getProductPerkById = (db: Db) =>
   db.makeQuery((execute, id: string) =>
     execute(
       async (db) =>
-        await db.query.products.findFirst({
-          where: eq(products.id, id)
+        await db.query.productPerks.findFirst({
+          where: eq(productPerks.id, id),
+          with: {
+            product: true,
+          },
         })
     )
   );
 
 const _deleteProductPerkRecord = (db: Db) =>
-  db.makeQuery(
-    (execute, { productId, perkId }: { productId: string; perkId: string }) =>
-      execute(
-        async (db) =>
-          await db
-            .delete(productPerks)
-            .where(
-              and(
-                eq(productPerks.productId, productId),
-                eq(productPerks.perkId, perkId)
-              )
-            )
-      )
+  db.makeQuery((execute, id: string) =>
+    execute(
+      async (db) => await db.delete(productPerks).where(eq(productPerks.id, id))
+    )
   );
 
-export const deleteProductPerk = Effect.gen(function* () {
+export const deleteProductPerk = Effect.gen(function* deleteProductPerk() {
   const db = yield* Db;
-  return Effect.fn('deleteProductPerk')(
-    function* (input: { productId: string; perkId: string }) {
+  return Effect.fn("deleteProductPerk")(
+    function* deleteProductPerk(input: { id: string }) {
       const session = yield* AuthSession;
 
-      const product = yield* _getProductById(db)(input.productId);
+      const productPerk = yield* _getProductPerkById(db)(input.id);
 
-      if (!product) {
+      if (!productPerk) {
         return yield* Effect.fail(
           new ProductPerkValidationError({
-            message: `Product ${input.productId} not found`
+            message: `Product perk ${input.id} not found`,
           })
         );
       }
 
       // SECURITY: Authorization check
       yield* checkProjectPermission(
-        product.projectId,
-        'project:all',
-        `User ${session?.user?.id} is not authorized to delete product perks for product ${input.productId}`
+        productPerk.product.projectId,
+        "project:all",
+        `User ${session?.user?.id} is not authorized to delete product perks for project ${productPerk.product.projectId}`
       );
 
-      yield* _deleteProductPerkRecord(db)({
-        productId: input.productId,
-        perkId: input.perkId
-      });
+      yield* _deleteProductPerkRecord(db)(input.id);
 
-      yield* Effect.log(
-        `Deleted product perk ${input.perkId} from product ${input.productId}`
-      );
+      yield* Effect.log(`Deleted product perk ${input.id}`);
 
       return;
-
-      // TODO: Think about deleting already granted perks.
     },
     (effect) =>
       effect.pipe(
         Effect.catchTags({
           DatabaseError: (error) =>
             new ProductPerkServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

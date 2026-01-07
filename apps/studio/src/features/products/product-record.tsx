@@ -1,26 +1,27 @@
-'use client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
-import type { Product } from '@voidhash/rpc';
+"use client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import type { Product } from "@voidhash/rpc";
 import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  useConfirmDialog
-} from '@voidhash/ui';
-import { EllipsisVerticalIcon } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { deleteProductOptions, queryKeys } from 'src/lib/tanstack-query';
-import { EditProductModal } from './edit-product-modal';
+  useConfirmDialog,
+} from "@voidhash/ui";
+import { EllipsisVerticalIcon } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { deleteProductOptions, queryKeys } from "src/lib/tanstack-query";
+
+import { EditProductModal } from "./edit-product-modal";
 
 export function ProductRecord({
   product,
   configurationStateIndicator,
   organizationSlug,
-  projectSlug
+  projectSlug,
 }: {
   product: typeof Product.Type;
   configurationStateIndicator: React.ReactNode;
@@ -33,23 +34,23 @@ export function ProductRecord({
   const { mutate: deleteProduct, status: deleteProductStatus } = useMutation({
     ...deleteProductOptions(),
     onSuccess: () => {
-      toast.success('Product successfully deleted');
+      toast.success("Product successfully deleted");
       queryClient.invalidateQueries({
-        queryKey: queryKeys.product.list({ projectId: product.projectId })
+        queryKey: queryKeys.product.list({ projectId: product.projectId }),
       });
     },
     onError: () => {
-      toast.error('Failed to delete product');
-    }
+      toast.error("Failed to delete product");
+    },
   });
 
   const { ConfirmationDialog, openDialog } = useConfirmDialog();
 
   const handleDeleteProduct = async () => {
     const res = await openDialog({
-      title: 'Delete product',
       description:
-        'Are you sure you want to delete this product? This may break access for customers who have already purchased this.'
+        "Are you sure you want to delete this product? This may break access for customers who have already purchased this.",
+      title: "Delete product",
     });
 
     if (!res) {
@@ -57,7 +58,7 @@ export function ProductRecord({
     }
 
     deleteProduct({
-      productId: product.id
+      id: product.id,
     });
   };
 
@@ -65,7 +66,7 @@ export function ProductRecord({
     <div className="group relative isolate px-6 py-4 hover:bg-accent/30">
       <Link
         className="absolute inset-0 h-full w-full"
-        params={{ organizationSlug, projectSlug, id: product.id }}
+        params={{ id: product.id, organizationSlug, projectSlug }}
         to="/$organizationSlug/$projectSlug/products/$id"
       />
       <div className="flex flex-row items-center justify-between">
@@ -92,12 +93,12 @@ export function ProductRecord({
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer"
-                disabled={deleteProductStatus === 'pending'}
+                disabled={deleteProductStatus === "pending"}
                 onClick={handleDeleteProduct}
               >
-                {deleteProductStatus === 'pending'
-                  ? 'Deleting...'
-                  : 'Delete product'}
+                {deleteProductStatus === "pending"
+                  ? "Deleting..."
+                  : "Delete product"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

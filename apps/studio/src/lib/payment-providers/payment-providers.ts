@@ -1,3 +1,3 @@
-import { appleAppStore } from './app-store';
+import { appleAppStore } from "./app-store";
 
 export const paymentProviders = [appleAppStore];

@@ -1,4 +1,4 @@
-import { Context } from 'effect';
+import { Context } from "effect";
 
 /**
  * Polar.sh configuration
@@ -36,7 +36,7 @@ export interface PolarConfig {
 /**
  * Effect Context Tag for PolarConfig
  */
-export class PolarConfigService extends Context.Tag('PolarConfigService')<
+export class PolarConfigService extends Context.Tag("PolarConfigService")<
   PolarConfigService,
   PolarConfig
 >() {}

@@ -1,11 +1,12 @@
-'use client';
+"use client";
 
-import { useParams } from 'next/navigation';
-import { useAuth } from 'src/components/auth-context';
-import { VoidhashErrorCard } from 'src/features/shell/components/voidhash-error-card';
-import { ProjectDelete } from './project-delete';
-import { ProjectNameForm } from './project-name';
-import { ProjectSettingsGeneralLayout } from './project-settings-general-layout';
+import { useParams } from "next/navigation";
+import { useAuth } from "src/components/auth-context";
+import { VoidhashErrorCard } from "src/features/shell/components/voidhash-error-card";
+
+import { ProjectDelete } from "./project-delete";
+import { ProjectNameForm } from "./project-name";
+import { ProjectSettingsGeneralLayout } from "./project-settings-general-layout";
 
 export function ProjectSettingsGeneralPage() {
   const { projectSlug } = useParams();
@@ -15,7 +16,7 @@ export function ProjectSettingsGeneralPage() {
   if (!project) {
     return (
       <VoidhashErrorCard
-        error={{ code: 'NOT_FOUND', message: 'Project not found' }}
+        error={{ code: "NOT_FOUND", message: "Project not found" }}
       />
     );
   }

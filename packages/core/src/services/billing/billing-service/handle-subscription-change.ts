@@ -2,20 +2,21 @@ import {
   BillingSubscriptionStatus,
   BillingTier,
   eq,
-  organizationBilling
-} from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { Effect } from 'effect';
-import { BillingServiceError } from '../../../billing/errors';
-import type { SubscriptionChangeEvent } from '../../../billing/types';
+  organizationBilling,
+} from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { Effect } from "effect";
+
+import { BillingServiceError } from "../../../billing/errors";
+import type { SubscriptionChangeEvent } from "../../../billing/types";
 
 const _getOrganizationBillingByExternalCustomerId = (db: Db) =>
   db.makeQuery((execute, externalCustomerId: string) =>
-    execute(async (db) => {
-      return db.query.organizationBilling.findFirst({
-        where: eq(organizationBilling.externalCustomerId, externalCustomerId)
-      });
-    })
+    execute(async (db) =>
+      db.query.organizationBilling.findFirst({
+        where: eq(organizationBilling.externalCustomerId, externalCustomerId),
+      })
+    )
   );
 
 const _updateOrganizationBilling = (db: Db) =>
@@ -35,11 +36,11 @@ const _updateOrganizationBilling = (db: Db) =>
         await db
           .update(organizationBilling)
           .set({
-            tier: input.tier,
-            subscriptionStatus: input.subscriptionStatus,
-            externalSubscriptionId: input.externalSubscriptionId,
+            currentPeriodEnd: input.currentPeriodEnd,
             currentPeriodStart: input.currentPeriodStart,
-            currentPeriodEnd: input.currentPeriodEnd
+            externalSubscriptionId: input.externalSubscriptionId,
+            subscriptionStatus: input.subscriptionStatus,
+            tier: input.tier,
           })
           .where(eq(organizationBilling.id, input.id));
       })
@@ -50,12 +51,15 @@ const _updateOrganizationBilling = (db: Db) =>
  */
 function mapTierToValue(tier: string | undefined): number {
   switch (tier) {
-    case 'pro':
+    case "pro": {
       return BillingTier.Pro;
-    case 'enterprise':
+    }
+    case "enterprise": {
       return BillingTier.Enterprise;
-    default:
+    }
+    default: {
       return BillingTier.Free;
+    }
   }
 }
 
@@ -63,62 +67,69 @@ function mapTierToValue(tier: string | undefined): number {
  * Map subscription status to database value
  */
 function mapStatusToValue(
-  status: 'active' | 'canceled' | 'past_due' | 'trialing'
+  status: "active" | "canceled" | "past_due" | "trialing"
 ): number {
   switch (status) {
-    case 'active':
+    case "active": {
       return BillingSubscriptionStatus.Active;
-    case 'canceled':
+    }
+    case "canceled": {
       return BillingSubscriptionStatus.Canceled;
-    case 'past_due':
+    }
+    case "past_due": {
       return BillingSubscriptionStatus.PastDue;
-    case 'trialing':
+    }
+    case "trialing": {
       return BillingSubscriptionStatus.Trialing;
-    default:
+    }
+    default: {
       return BillingSubscriptionStatus.None;
+    }
   }
 }
 
-export const handleSubscriptionChange = Effect.gen(function* () {
-  const db = yield* Db;
+export const handleSubscriptionChange = Effect.gen(
+  function* handleSubscriptionChange() {
+    const db = yield* Db;
 
-  return Effect.fn('BillingService.handleSubscriptionChange')(
-    function* (event: SubscriptionChangeEvent) {
-      // Find organization by external customer ID
-      const billing = yield* _getOrganizationBillingByExternalCustomerId(db)(
-        event.externalCustomerId
-      );
-
-      if (!billing) {
-        yield* Effect.log(
-          `No billing record found for external customer ${event.externalCustomerId}`
+    return Effect.fn("BillingService.handleSubscriptionChange")(
+      function* handleSubscriptionChange(event: SubscriptionChangeEvent) {
+        // Find organization by external customer ID
+        const billing = yield* _getOrganizationBillingByExternalCustomerId(db)(
+          event.externalCustomerId
         );
-        return;
-      }
 
-      // Update billing record
-      yield* _updateOrganizationBilling(db)({
-        id: billing.id,
-        tier: event.tier ? mapTierToValue(event.tier) : billing.tier,
-        subscriptionStatus: mapStatusToValue(event.status),
-        externalSubscriptionId: event.externalSubscriptionId,
-        currentPeriodStart: event.currentPeriodStart ?? null,
-        currentPeriodEnd: event.currentPeriodEnd ?? null
-      });
+        if (!billing) {
+          yield* Effect.log(
+            `No billing record found for external customer ${event.externalCustomerId}`
+          );
+          return;
+        }
 
-      yield* Effect.log(
-        `Updated billing for org ${billing.organizationId}: status=${event.status}, tier=${event.tier ?? 'unchanged'}`
-      );
-    },
-    (effect) =>
-      effect.pipe(
-        Effect.catchTags({
-          DatabaseError: (error) =>
-            new BillingServiceError({
-              message: 'Failed to handle subscription change',
-              cause: String(error.cause)
-            })
-        })
-      )
-  );
-});
+        // Update billing record
+        yield* _updateOrganizationBilling(db)({
+          currentPeriodEnd: event.currentPeriodEnd ?? null,
+          currentPeriodStart: event.currentPeriodStart ?? null,
+          externalSubscriptionId: event.externalSubscriptionId,
+          id: billing.id,
+          subscriptionStatus: mapStatusToValue(event.status),
+          tier: event.tier ? mapTierToValue(event.tier) : billing.tier,
+        });
+
+        yield* Effect.log(
+          `Updated billing for org ${billing.organizationId}: status=${event.status}, tier=${event.tier ?? "unchanged"}`
+        );
+      },
+      (effect) =>
+        effect.pipe(
+          Effect.catchTags({
+            DatabaseError: (error) =>
+              new BillingServiceError({
+                cause: String(error.cause),
+                message: "Failed to handle subscription change",
+              }),
+          })
+        )
+    );
+  }
+);

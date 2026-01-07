@@ -1,23 +1,23 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class SdkServiceError extends Schema.TaggedError<SdkServiceError>()(
-  'SdkServiceError',
+  "SdkServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class SdkCustomerNotFoundError extends Schema.TaggedError<SdkCustomerNotFoundError>()(
-  'SdkCustomerNotFoundError',
+  "SdkCustomerNotFoundError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}
 
 export class SdkCustomerAlreadyIdentifiedError extends Schema.TaggedError<SdkCustomerAlreadyIdentifiedError>()(
-  'SdkCustomerAlreadyIdentifiedError',
+  "SdkCustomerAlreadyIdentifiedError",
   {
-    appUserId: Schema.String
+    appUserId: Schema.String,
   }
 ) {
   toString(): string {
@@ -26,8 +26,8 @@ export class SdkCustomerAlreadyIdentifiedError extends Schema.TaggedError<SdkCus
 }
 
 export class SdkValidationError extends Schema.TaggedError<SdkValidationError>()(
-  'SdkValidationError',
+  "SdkValidationError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}

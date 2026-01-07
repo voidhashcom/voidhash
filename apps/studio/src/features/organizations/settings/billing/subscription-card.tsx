@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
   Button,
@@ -10,20 +10,21 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-  Skeleton
-} from '@voidhash/ui';
-import { toast } from 'sonner';
+  Skeleton,
+} from "@voidhash/ui";
+import { useState } from "react";
+import { toast } from "sonner";
 import {
   cancelSubscriptionOptions,
   createCheckoutSessionOptions,
-  queryKeys
-} from 'src/lib/tanstack-query';
-import { UpgradeDialog } from './upgrade-dialog';
-import { useState } from 'react';
+  queryKeys,
+} from "src/lib/tanstack-query";
+
+import { UpgradeDialog } from "./upgrade-dialog";
 
 interface BillingInfo {
-  tier: 'free' | 'pro' | 'enterprise';
-  subscriptionStatus: 'none' | 'active' | 'canceled' | 'past_due' | 'trialing';
+  tier: "free" | "pro" | "enterprise";
+  subscriptionStatus: "none" | "active" | "canceled" | "past_due" | "trialing";
   currentPeriodStart: Date | null;
   currentPeriodEnd: Date | null;
 }
@@ -35,28 +36,28 @@ interface SubscriptionCardProps {
 }
 
 const tierLabels: Record<string, string> = {
-  free: 'Free',
-  pro: 'Pro',
-  enterprise: 'Enterprise'
+  enterprise: "Enterprise",
+  free: "Free",
+  pro: "Pro",
 };
 
 const defaultStatusInfo = {
-  label: 'No subscription',
-  variant: 'secondary' as const
+  label: "No subscription",
+  variant: "secondary" as const,
 };
 
 const statusLabels = {
+  active: { label: "Active", variant: "default" as const },
+  canceled: { label: "Canceled", variant: "destructive" as const },
   none: defaultStatusInfo,
-  active: { label: 'Active', variant: 'default' as const },
-  canceled: { label: 'Canceled', variant: 'destructive' as const },
-  past_due: { label: 'Past due', variant: 'destructive' as const },
-  trialing: { label: 'Trial', variant: 'outline' as const }
+  past_due: { label: "Past due", variant: "destructive" as const },
+  trialing: { label: "Trial", variant: "outline" as const },
 };
 
 export function SubscriptionCard({
   organizationId,
   billingInfo,
-  isLoading
+  isLoading,
 }: SubscriptionCardProps) {
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -67,45 +68,47 @@ export function SubscriptionCard({
       window.location.href = data.url;
     },
     onError: () => {
-      toast.error('Failed to create checkout session');
-    }
+      toast.error("Failed to create checkout session");
+    },
   });
 
   const { mutate: cancelSubscription, status: cancelStatus } = useMutation({
     ...cancelSubscriptionOptions(),
     onSuccess: () => {
-      toast.success('Subscription canceled');
+      toast.success("Subscription canceled");
       queryClient.invalidateQueries({
-        queryKey: queryKeys.billing.getOrganizationBilling(organizationId)
+        queryKey: queryKeys.billing.getOrganizationBilling(organizationId),
       });
     },
     onError: () => {
-      toast.error('Failed to cancel subscription');
-    }
+      toast.error("Failed to cancel subscription");
+    },
   });
 
-  const handleUpgrade = (tier: 'pro' | 'enterprise') => {
+  const handleUpgrade = (tier: "pro" | "enterprise") => {
     createCheckout({
+      cancelUrl: window.location.href,
       organizationId,
-      tier,
       successUrl: `${window.location.origin}${window.location.pathname}?upgrade=success`,
-      cancelUrl: window.location.href
+      tier,
     });
     setUpgradeDialogOpen(false);
   };
 
   const handleCancel = () => {
-    if (confirm('Are you sure you want to cancel your subscription?')) {
+    if (confirm("Are you sure you want to cancel your subscription?")) {
       cancelSubscription({ organizationId });
     }
   };
 
   const formatDate = (date: Date | null) => {
-    if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    if (!date) {
+      return "N/A";
+    }
+    return new Date(date).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     });
   };
 
@@ -123,12 +126,12 @@ export function SubscriptionCard({
     );
   }
 
-  const tier = billingInfo?.tier ?? 'free';
-  const status = billingInfo?.subscriptionStatus ?? 'none';
+  const tier = billingInfo?.tier ?? "free";
+  const status = billingInfo?.subscriptionStatus ?? "none";
   const statusInfo =
     statusLabels[status as keyof typeof statusLabels] ?? defaultStatusInfo;
-  const canUpgrade = tier === 'free' || tier === 'pro';
-  const canCancel = status === 'active' && tier !== 'free';
+  const canUpgrade = tier === "free" || tier === "pro";
+  const canCancel = status === "active" && tier !== "free";
 
   return (
     <>
@@ -153,7 +156,7 @@ export function SubscriptionCard({
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Billing period</span>
               <span>
-                {formatDate(billingInfo.currentPeriodStart)} -{' '}
+                {formatDate(billingInfo.currentPeriodStart)} -{" "}
                 {formatDate(billingInfo.currentPeriodEnd)}
               </span>
             </div>
@@ -164,19 +167,19 @@ export function SubscriptionCard({
             <Button
               variant="outline"
               onClick={handleCancel}
-              disabled={cancelStatus === 'pending'}
+              disabled={cancelStatus === "pending"}
             >
-              {cancelStatus === 'pending'
-                ? 'Canceling...'
-                : 'Cancel Subscription'}
+              {cancelStatus === "pending"
+                ? "Canceling..."
+                : "Cancel Subscription"}
             </Button>
           )}
           {canUpgrade && (
             <Button
               onClick={() => setUpgradeDialogOpen(true)}
-              disabled={checkoutStatus === 'pending'}
+              disabled={checkoutStatus === "pending"}
             >
-              {checkoutStatus === 'pending' ? 'Loading...' : 'Upgrade Plan'}
+              {checkoutStatus === "pending" ? "Loading..." : "Upgrade Plan"}
             </Button>
           )}
         </CardFooter>
@@ -187,7 +190,7 @@ export function SubscriptionCard({
         onOpenChange={setUpgradeDialogOpen}
         currentTier={tier}
         onUpgrade={handleUpgrade}
-        isLoading={checkoutStatus === 'pending'}
+        isLoading={checkoutStatus === "pending"}
       />
     </>
   );

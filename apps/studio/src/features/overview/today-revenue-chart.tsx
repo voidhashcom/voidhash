@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Card,
@@ -7,66 +7,66 @@ import {
   type ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
-} from '@voidhash/ui';
-import * as React from 'react';
-import { CartesianGrid, Line, LineChart, XAxis } from 'recharts';
+  ChartTooltipContent,
+} from "@voidhash/ui";
+import * as React from "react";
+import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 
-export const description = 'An interactive line chart';
+export const description = "An interactive line chart";
 
 const chartData = [
   {
-    date: '2024-04-01',
+    date: "2024-04-01",
     gross: 222,
     withoutTax: 150,
-    withoutTaxAndStoreFees: 100
+    withoutTaxAndStoreFees: 100,
   },
   {
-    date: '2024-04-02',
+    date: "2024-04-02",
     gross: 97,
     withoutTax: 180,
-    withoutTaxAndStoreFees: 100
+    withoutTaxAndStoreFees: 100,
   },
   {
-    date: '2024-04-03',
+    date: "2024-04-03",
     gross: 167,
     withoutTax: 120,
-    withoutTaxAndStoreFees: 100
+    withoutTaxAndStoreFees: 100,
   },
   {
-    date: '2024-04-04',
+    date: "2024-04-04",
     gross: 242,
     withoutTax: 260,
-    withoutTaxAndStoreFees: 100
+    withoutTaxAndStoreFees: 100,
   },
   {
-    date: '2024-04-05',
+    date: "2024-04-05",
     gross: 373,
     withoutTax: 290,
-    withoutTaxAndStoreFees: 100
-  }
+    withoutTaxAndStoreFees: 100,
+  },
 ];
 
 const chartConfig = {
-  views: {
-    label: 'Page Views'
-  },
   gross: {
-    label: 'Gross',
-    color: 'var(--chart-1)'
+    color: "var(--chart-1)",
+    label: "Gross",
+  },
+  views: {
+    label: "Page Views",
   },
   withoutTax: {
-    label: 'Without tax',
-    color: 'var(--chart-2)'
+    color: "var(--chart-2)",
+    label: "Without tax",
   },
   withoutTaxAndStoreFees: {
-    label: 'Without tax and store fees',
-    color: 'var(--chart-3)'
-  }
+    color: "var(--chart-3)",
+    label: "Without tax and store fees",
+  },
 } satisfies ChartConfig;
 
 export function TodayRevenueChart() {
-  const [activeChart] = React.useState<keyof typeof chartConfig>('gross');
+  const [activeChart] = React.useState<keyof typeof chartConfig>("gross");
 
   return (
     <Card className="py-4 sm:py-0">
@@ -96,7 +96,7 @@ export function TodayRevenueChart() {
             data={chartData}
             margin={{
               left: 12,
-              right: 12
+              right: 12,
             }}
           >
             <CartesianGrid vertical={false} />
@@ -106,9 +106,9 @@ export function TodayRevenueChart() {
               minTickGap={32}
               tickFormatter={(value) => {
                 const date = new Date(value);
-                return date.toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric'
+                return date.toLocaleDateString("en-US", {
+                  day: "numeric",
+                  month: "short",
                 });
               }}
               tickLine={false}
@@ -118,13 +118,13 @@ export function TodayRevenueChart() {
               content={
                 <ChartTooltipContent
                   className="w-[150px]"
-                  labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    });
-                  }}
+                  labelFormatter={(value) =>
+                    new Date(value).toLocaleDateString("en-US", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  }
                   nameKey="views"
                 />
               }

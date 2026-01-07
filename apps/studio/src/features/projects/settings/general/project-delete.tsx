@@ -1,52 +1,52 @@
-'use client';
+"use client";
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   Button,
   Card,
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle
-} from '@voidhash/ui';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { DeleteProjectModal } from 'src/features/projects/delete-project-modal';
-import { queryKeys } from 'src/lib/tanstack-query';
-import { deleteProjectOptions } from 'src/lib/tanstack-query/projects';
+  CardTitle,
+} from "@voidhash/ui";
+import { useState } from "react";
+import { toast } from "sonner";
+import { DeleteProjectModal } from "src/features/projects/delete-project-modal";
+import { queryKeys } from "src/lib/tanstack-query";
+import { deleteProjectOptions } from "src/lib/tanstack-query/projects";
 
 export function ProjectDelete({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const { organizationSlug, projectSlug } = useParams({
-    strict: false
+    strict: false,
   });
 
   const queryClient = useQueryClient();
   const { mutate: deleteProject, status: deleteProjectStatus } = useMutation({
     ...deleteProjectOptions(),
     onSuccess: () => {
-      toast.success('Project deleted successfully');
+      toast.success("Project deleted successfully");
       queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
       navigate({
-        to: '/'
+        to: "/",
       });
     },
     onError: () => {
-      toast.error('Failed to delete project');
-    }
+      toast.error("Failed to delete project");
+    },
   });
 
   const handleDelete = () => {
     deleteProject({
-      id: projectId
+      id: projectId,
     });
   };
 
   // Delete modal
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
-  if (typeof organizationSlug !== 'string' || typeof projectSlug !== 'string') {
+  if (typeof organizationSlug !== "string" || typeof projectSlug !== "string") {
     return null;
   }
 
@@ -63,7 +63,7 @@ export function ProjectDelete({ projectId }: { projectId: string }) {
         <div className="text-muted-foreground" />
         <div>
           <DeleteProjectModal
-            key={deleteModalOpen ? 'open' : 'closed'}
+            key={deleteModalOpen ? "open" : "closed"}
             onClose={() => setDeleteModalOpen(false)}
             onDelete={handleDelete}
             open={deleteModalOpen}
@@ -71,13 +71,13 @@ export function ProjectDelete({ projectId }: { projectId: string }) {
             projectSlug={projectSlug}
             trigger={
               <Button
-                disabled={deleteProjectStatus === 'pending'}
+                disabled={deleteProjectStatus === "pending"}
                 onClick={() => setDeleteModalOpen(true)}
                 variant="destructive"
               >
-                {deleteProjectStatus === 'pending'
-                  ? 'Deleting...'
-                  : 'Delete Project'}
+                {deleteProjectStatus === "pending"
+                  ? "Deleting..."
+                  : "Delete Project"}
               </Button>
             }
           />

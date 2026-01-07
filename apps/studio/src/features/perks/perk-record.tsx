@@ -1,6 +1,6 @@
-'use client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Perk } from '@voidhash/rpc';
+"use client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Perk } from "@voidhash/rpc";
 import {
   Button,
   DropdownMenu,
@@ -11,11 +11,11 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-  useConfirmDialog
-} from '@voidhash/ui';
-import { CopyIcon, EllipsisVerticalIcon } from 'lucide-react';
-import { toast } from 'sonner';
-import { deletePerkOptions, queryKeys } from 'src/lib/tanstack-query';
+  useConfirmDialog,
+} from "@voidhash/ui";
+import { CopyIcon, EllipsisVerticalIcon } from "lucide-react";
+import { toast } from "sonner";
+import { deletePerkOptions, queryKeys } from "src/lib/tanstack-query";
 // import { EditProductModal } from "./edit-product-modal";
 
 export function PerkRecord({ perk }: { perk: typeof Perk.Type }) {
@@ -25,20 +25,20 @@ export function PerkRecord({ perk }: { perk: typeof Perk.Type }) {
   const { mutate: deletePerk, status: deletePerkStatus } = useMutation({
     ...deletePerkOptions(),
     onSuccess: () => {
-      toast.success('Perk successfully deleted');
+      toast.success("Perk successfully deleted");
       queryClient.invalidateQueries({ queryKey: queryKeys.perk.all });
     },
     onError: () => {
-      toast.error('Failed to delete perk');
-    }
+      toast.error("Failed to delete perk");
+    },
   });
 
   const { ConfirmationDialog, openDialog } = useConfirmDialog();
 
   const handleDeletePerk = async () => {
     const res = await openDialog({
-      title: 'Delete perk',
-      description: 'Are you sure you want to delete this perk?'
+      description: "Are you sure you want to delete this perk?",
+      title: "Delete perk",
     });
 
     if (!res) {
@@ -46,7 +46,7 @@ export function PerkRecord({ perk }: { perk: typeof Perk.Type }) {
     }
 
     deletePerk({
-      perkId: perk.id
+      perkId: perk.id,
     });
   };
 
@@ -72,7 +72,7 @@ export function PerkRecord({ perk }: { perk: typeof Perk.Type }) {
                   onClick={(e) => {
                     e.preventDefault();
                     navigator.clipboard.writeText(perk.slug);
-                    toast.success('Slug (ID) copied to clipboard');
+                    toast.success("Slug (ID) copied to clipboard");
                   }}
                   size="icon"
                   variant="outline"
@@ -104,10 +104,10 @@ export function PerkRecord({ perk }: { perk: typeof Perk.Type }) {
 
               <DropdownMenuItem
                 className="cursor-pointer"
-                disabled={deletePerkStatus === 'pending'}
+                disabled={deletePerkStatus === "pending"}
                 onClick={handleDeletePerk}
               >
-                {deletePerkStatus === 'pending' ? 'Deleting...' : 'Delete perk'}
+                {deletePerkStatus === "pending" ? "Deleting..." : "Delete perk"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -2,20 +2,18 @@ import type {
   DNF,
   Variable,
   VariableType,
-  VariableTypeKey
-} from '@voidhash/mimic-schema';
-import {
-  VARIABLE_TYPE_REGISTRY,
-  type PredicateType
-} from '../../constants';
-import { createDefaultOperand } from '../variables/utils';
+  VariableTypeKey,
+} from "@voidhash/mimic-schema";
+
+import { type PredicateType, VARIABLE_TYPE_REGISTRY } from "../../constants";
+import { createDefaultOperand } from "../variables/utils";
 import type {
   CRDTVariable,
   LocalConjunction,
   LocalDNF,
   LocalOperand,
-  LocalPredicate
-} from './types';
+  LocalPredicate,
+} from "./types";
 
 /**
  * Derive PREDICATES_BY_TYPE from VARIABLE_TYPE_REGISTRY.
@@ -25,7 +23,7 @@ export const PREDICATES_BY_TYPE: Record<VariableTypeKey, PredicateType[]> =
   Object.fromEntries(
     Object.entries(VARIABLE_TYPE_REGISTRY).map(([key, config]) => [
       key,
-      [...config.predicates]
+      [...config.predicates],
     ])
   ) as Record<VariableTypeKey, PredicateType[]>;
 
@@ -36,7 +34,7 @@ export function toFlatVariable(crdtVar: CRDTVariable): Variable {
   return {
     id: crdtVar.id,
     name: crdtVar.value.name,
-    value: crdtVar.value.value
+    value: crdtVar.value.value,
   };
 }
 
@@ -55,7 +53,7 @@ export function getCRDTVariableType(
   variables: readonly CRDTVariable[]
 ): VariableTypeKey {
   const variable = variables.find((v) => v.id === variableId);
-  return variable?.value.value.key ?? 'boolean';
+  return variable?.value.value.key ?? "boolean";
 }
 
 /**
@@ -63,27 +61,27 @@ export function getCRDTVariableType(
  */
 export function createDefaultCondition(): DNF {
   return {
-    type: 'or',
+    type: "or",
     value: [
       {
-        type: 'and',
+        type: "and",
         value: [
           {
-            type: 'equals',
+            type: "equals",
             value: {
               left: {
-                type: 'literal',
-                value: { key: 'boolean', value: true }
+                type: "literal",
+                value: { key: "boolean", value: true },
               },
               right: {
-                type: 'literal',
-                value: { key: 'boolean', value: true }
-              }
-            }
-          }
-        ]
-      }
-    ]
+                type: "literal",
+                value: { key: "boolean", value: true },
+              },
+            },
+          },
+        ],
+      },
+    ],
   } as unknown as DNF;
 }
 
@@ -97,20 +95,20 @@ export function createDefaultPredicate(
   if (firstVariable) {
     const varType = firstVariable.value.value.key;
     return {
-      type: 'equals',
+      type: "equals",
       value: {
-        left: { type: 'variable-reference', value: { id: firstVariable.id } },
-        right: createDefaultOperand(varType)
-      }
+        left: { type: "variable-reference", value: { id: firstVariable.id } },
+        right: createDefaultOperand(varType),
+      },
     };
   }
   // Fallback when no variables exist
   return {
-    type: 'equals',
+    type: "equals",
     value: {
-      left: createDefaultOperand('boolean'),
-      right: createDefaultOperand('boolean')
-    }
+      left: createDefaultOperand("boolean"),
+      right: createDefaultOperand("boolean"),
+    },
   };
 }
 
@@ -121,8 +119,8 @@ export function createDefaultConjunction(
   variables: readonly CRDTVariable[]
 ): LocalConjunction {
   return {
-    type: 'and',
-    value: [createDefaultPredicate(variables)]
+    type: "and",
+    value: [createDefaultPredicate(variables)],
   };
 }
 
@@ -133,7 +131,7 @@ export function getOperandType(
   operand: LocalOperand,
   variables: readonly CRDTVariable[]
 ): VariableTypeKey {
-  if (operand.type === 'literal') {
+  if (operand.type === "literal") {
     return (operand.value as VariableType).key;
   }
   const variableRef = operand.value as { id: string };
@@ -146,26 +144,26 @@ export function getOperandType(
 export function dnfToLocal(dnf: DNF): LocalDNF {
   const conjunctions = Array.isArray(dnf.value) ? dnf.value : [];
   return {
-    type: 'or',
+    type: "or",
     value: conjunctions.map((conj) => {
       const predicates = Array.isArray(conj.value) ? conj.value : [];
       return {
-        type: 'and' as const,
+        type: "and" as const,
         value: predicates.map((pred) => ({
-          type: pred.type as LocalPredicate['type'],
+          type: pred.type as LocalPredicate["type"],
           value: {
             left: {
-              type: pred.value.left.type as 'literal' | 'variable-reference',
-              value: pred.value.left.value
+              type: pred.value.left.type as "literal" | "variable-reference",
+              value: pred.value.left.value,
             },
             right: {
-              type: pred.value.right.type as 'literal' | 'variable-reference',
-              value: pred.value.right.value
-            }
-          }
-        }))
+              type: pred.value.right.type as "literal" | "variable-reference",
+              value: pred.value.right.value,
+            },
+          },
+        })),
       };
-    })
+    }),
   };
 }
 
@@ -174,23 +172,23 @@ export function dnfToLocal(dnf: DNF): LocalDNF {
  */
 export function localToDnf(local: LocalDNF): DNF {
   return {
-    type: 'or',
+    type: "or",
     value: local.value.map((conj) => ({
-      type: 'and' as const,
+      type: "and" as const,
       value: conj.value.map((pred) => ({
         type: pred.type,
         value: {
           left: {
             type: pred.value.left.type,
-            value: pred.value.left.value
+            value: pred.value.left.value,
           },
           right: {
             type: pred.value.right.type,
-            value: pred.value.right.value
-          }
-        }
-      }))
-    }))
+            value: pred.value.right.value,
+          },
+        },
+      })),
+    })),
   } as unknown as DNF;
 }
 

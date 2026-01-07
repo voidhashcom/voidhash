@@ -1,14 +1,15 @@
-import type { Primitive } from '@voidhash/mimic';
+import type { Primitive } from "@voidhash/mimic";
+
 import type {
   booleanVariableTypeSchema,
   numberVariableTypeSchema,
   productVariableTypeSchema,
   stringVariableTypeSchema,
-  variableTypeSchema
-} from './variables';
+  variableTypeSchema,
+} from "./variables";
 
 export type VariableType = Primitive.InferState<typeof variableTypeSchema>;
-export type VariableTypeKey = VariableType['key'];
+export type VariableTypeKey = VariableType["key"];
 export type StringVariableType = Primitive.InferState<
   typeof stringVariableTypeSchema
 >;

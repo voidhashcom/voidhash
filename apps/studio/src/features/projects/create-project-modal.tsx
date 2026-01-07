@@ -1,37 +1,37 @@
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
-import { Input } from '@voidhash/ui';
-import { Button } from '@voidhash/ui/button';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { Input } from "@voidhash/ui";
+import { Button } from "@voidhash/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
-} from '@voidhash/ui/dialog';
+  DialogTrigger,
+} from "@voidhash/ui/dialog";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '@voidhash/ui/form';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { queryKeys } from 'src/lib/tanstack-query';
-import { createProjectOptions } from 'src/lib/tanstack-query/projects';
-import { z } from 'zod/v3';
+  FormMessage,
+} from "@voidhash/ui/form";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { queryKeys } from "src/lib/tanstack-query";
+import { createProjectOptions } from "src/lib/tanstack-query/projects";
+import { z } from "zod/v3";
 
 const createProjectSchema = z.object({
   name: z
     .string()
-    .min(1, 'Project name is required')
-    .max(32, 'Project name must be less than 32 characters')
+    .min(1, "Project name is required")
+    .max(32, "Project name must be less than 32 characters"),
 });
 
 type CreateProjectForm = z.infer<typeof createProjectSchema>;
@@ -49,34 +49,34 @@ export function CreateProjectModal({
   onClose,
   trigger,
   organizationId,
-  organizationSlug
+  organizationSlug,
 }: CreateProjectModalProps) {
   const navigate = useNavigate();
 
   const form = useForm<CreateProjectForm>({
-    resolver: zodResolver(createProjectSchema),
     defaultValues: {
-      name: ''
-    }
+      name: "",
+    },
+    resolver: zodResolver(createProjectSchema),
   });
 
   const queryClient = useQueryClient();
   const { mutate: createProject, status: createProjectStatus } = useMutation({
     ...createProjectOptions(),
     onSuccess: (data) => {
-      toast.success('Project created successfully');
+      toast.success("Project created successfully");
       queryClient.invalidateQueries({ queryKey: queryKeys.invalidateAll() });
       navigate({
-        to: '/$organizationSlug/$projectSlug',
         params: {
           organizationSlug,
-          projectSlug: data.slug
-        }
+          projectSlug: data.slug,
+        },
+        to: "/$organizationSlug/$projectSlug",
       });
     },
     onError: () => {
-      toast.error('Failed to create project');
-    }
+      toast.error("Failed to create project");
+    },
   });
 
   const handleOpenChange = (open: boolean) => {
@@ -89,7 +89,7 @@ export function CreateProjectModal({
   const onSubmit = (data: CreateProjectForm) => {
     createProject({
       name: data.name,
-      organizationId
+      organizationId,
     });
   };
 
@@ -122,12 +122,12 @@ export function CreateProjectModal({
             <DialogFooter>
               <Button
                 className="mt-4 w-full"
-                disabled={createProjectStatus === 'pending'}
+                disabled={createProjectStatus === "pending"}
                 type="submit"
               >
-                {createProjectStatus === 'pending'
-                  ? 'Creating Project...'
-                  : 'Create Project'}
+                {createProjectStatus === "pending"
+                  ? "Creating Project..."
+                  : "Create Project"}
               </Button>
             </DialogFooter>
           </form>

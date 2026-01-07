@@ -1,13 +1,14 @@
-import { and, eq, type InsertPaywall, paywalls } from '@voidhash/db';
-import { Db } from '@voidhash/db/effect';
-import { generateId } from '@voidhash/lib';
+import { type InsertPaywall, and, eq, paywalls } from "@voidhash/db";
+import { Db } from "@voidhash/db/effect";
+import { generateId } from "@voidhash/lib";
 import {
   AuthSession,
   PaywallServiceError,
-  PaywallSlugAlreadyExistsError
-} from '@voidhash/shared';
-import { Effect } from 'effect';
-import { checkProjectPermission } from '../../utils/permissions';
+  PaywallSlugAlreadyExistsError,
+} from "@voidhash/shared";
+import { Effect } from "effect";
+
+import { checkProjectPermission } from "../../utils/permissions";
 
 const _createPaywallRecord = (db: Db) =>
   db.makeQuery((execute, paywall: InsertPaywall) =>
@@ -22,41 +23,45 @@ const _getPaywallBySlug = (db: Db) =>
           where: and(
             eq(paywalls.slug, input.slug),
             eq(paywalls.projectId, input.projectId)
-          )
+          ),
         })
     )
   );
 
-export const createPaywall = Effect.gen(function* () {
+export const createPaywall = Effect.gen(function* createPaywall() {
   const db = yield* Db;
-  return Effect.fn('createPaywall')(
-    function* (input: { projectId: string; name: string; slug: string }) {
+  return Effect.fn("createPaywall")(
+    function* createPaywall(input: {
+      projectId: string;
+      name: string;
+      slug: string;
+    }) {
       const session = yield* AuthSession;
 
       // SECURITY: Authorization check
       yield* checkProjectPermission(
         input.projectId,
-        'project:all',
+        "project:all",
         `User ${session?.user?.id} is not authorized to create paywalls for project ${input.projectId}`
       );
 
       const paywall = yield* _getPaywallBySlug(db)({
+        projectId: input.projectId,
         slug: input.slug,
-        projectId: input.projectId
       });
       if (paywall) {
         return yield* Effect.fail(
           new PaywallSlugAlreadyExistsError({
-            slug: input.slug
+            slug: input.slug,
           })
         );
       }
 
       const newPaywall = {
-        id: generateId('paywall'),
-        slug: input.slug,
+        id: generateId("paywall"),
+        name: input.name,
         projectId: input.projectId,
-        name: input.name
+        slug: input.slug,
       };
 
       yield* _createPaywallRecord(db)(newPaywall);
@@ -65,7 +70,7 @@ export const createPaywall = Effect.gen(function* () {
       );
 
       return {
-        id: newPaywall.id
+        id: newPaywall.id,
       };
     },
     (effect) =>
@@ -73,8 +78,8 @@ export const createPaywall = Effect.gen(function* () {
         Effect.catchTags({
           DatabaseError: (error) =>
             new PaywallServiceError({
-              cause: String(error.cause)
-            })
+              cause: String(error.cause),
+            }),
         })
       )
   );

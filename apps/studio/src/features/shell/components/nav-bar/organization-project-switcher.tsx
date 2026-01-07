@@ -1,18 +1,19 @@
-'use client';
-import { Link } from '@tanstack/react-router';
-import type { User } from '@voidhash/api-spec';
+"use client";
+import { Link } from "@tanstack/react-router";
+import type { User } from "@voidhash/api-spec";
 import {
   Button,
-  cn,
   GradientAvatar,
   Popover,
   PopoverContent,
-  PopoverTrigger
-} from '@voidhash/ui';
-import { Check, ChevronsUpDown, Plus } from 'lucide-react';
-import * as React from 'react';
-import { CreateOrganizationModal } from '../../../organizations/create-organization-modal';
-import { CreateProjectModal } from '../../../projects/create-project-modal';
+  PopoverTrigger,
+  cn,
+} from "@voidhash/ui";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import * as React from "react";
+
+import { CreateOrganizationModal } from "../../../organizations/create-organization-modal";
+import { CreateProjectModal } from "../../../projects/create-project-modal";
 
 type UserType = typeof User.Type;
 
@@ -21,12 +22,12 @@ function OrganizationProjectSwitcherProjects({
   organizationSlug,
   activeProjectId,
   projects,
-  onProjectClick
+  onProjectClick,
 }: {
   organizationId: string;
   organizationSlug: string;
   activeProjectId?: string;
-  projects: UserType['projects'];
+  projects: UserType["projects"];
   onProjectClick?: () => void;
 }) {
   // Create project modal
@@ -82,14 +83,14 @@ function OrganizationProjectSwitcherProjects({
 export function OrganizationProjectSwitcher({
   user,
   activeProject,
-  activeOrganization
+  activeOrganization,
 }: {
   user: {
-    projects: UserType['projects'];
-    organizations: UserType['organizations'];
+    projects: UserType["projects"];
+    organizations: UserType["organizations"];
   };
-  activeProject: UserType['projects'][number] | null;
-  activeOrganization: UserType['organizations'][number];
+  activeProject: UserType["projects"][number] | null;
+  activeOrganization: UserType["organizations"][number];
 }) {
   const [open, setOpen] = React.useState(false);
   const me = user;
@@ -112,8 +113,8 @@ export function OrganizationProjectSwitcher({
       <PopoverTrigger asChild>
         <Button
           className="px-1 focus-visible:ring-0 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-          size={'icon'}
-          variant={'ghost'}
+          size="icon"
+          variant="ghost"
         >
           <ChevronsUpDown className="text-muted-foreground" />
         </Button>
@@ -121,7 +122,7 @@ export function OrganizationProjectSwitcher({
       <PopoverContent
         align="start"
         className="w-[--radix-popover-trigger-width] min-w-56 rounded-lg p-0"
-        side={'bottom'}
+        side="bottom"
         sideOffset={4}
       >
         {activeOrganization && (
@@ -138,10 +139,10 @@ export function OrganizationProjectSwitcher({
               {organizations.map((organization, index) => (
                 <Link
                   className={cn(
-                    'flex w-full items-center gap-2 p-2 text-foreground text-sm hover:bg-accent/50 hover:text-accent-foreground',
+                    "flex w-full items-center gap-2 p-2 text-foreground text-sm hover:bg-accent/50 hover:text-accent-foreground",
                     organization.slug ===
                       (highlightedOrganization?.slug ??
-                        activeOrganization?.slug) && 'bg-accent/50'
+                        activeOrganization?.slug) && "bg-accent/50"
                   )}
                   key={organization.name}
                   onClick={() => setOpen(false)}
@@ -189,7 +190,7 @@ export function OrganizationProjectSwitcher({
                 organizationSlug={
                   highlightedOrganization?.slug ??
                   activeOrganization.slug ??
-                  '-'
+                  "-"
                 }
                 projects={user.projects.filter(
                   (p) => p.organizationId === highlightedOrganization?.id

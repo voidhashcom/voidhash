@@ -5,8 +5,8 @@
  * Uses undoable actions for undo/redo support on delete operations.
  */
 
-import { commander } from '../designer-commander';
-import { clearSelection, selectNode } from './selection-actions';
+import { commander } from "../designer-commander";
+import { clearSelection, selectNode } from "./selection-actions";
 
 // =============================================================================
 // Helper Types
@@ -40,7 +40,7 @@ interface ClipboardData {
 /**
  * Container node types that can accept children.
  */
-const CONTAINER_TYPES = new Set(['root', 'screen', 'flex']);
+const CONTAINER_TYPES = new Set(["root", "screen", "flex"]);
 
 /**
  * Checks if a node type is a container that can accept children.
@@ -108,10 +108,10 @@ function serializeNode(node: NodeSnapshot): SerializedNode {
   const { id, type, children, parentId: _parentId, ...data } = node;
   // parentId is destructured and ignored to avoid issues
   return {
+    children: (children ?? []).map(serializeNode),
+    data,
     id,
     type,
-    data,
-    children: (children ?? []).map(serializeNode)
   };
 }
 
@@ -148,11 +148,11 @@ function generateId(): string {
 export const deleteNodes = commander.undoableAction<
   Record<string, never>,
   {
-    deletedNodes: Array<{
+    deletedNodes: {
       serialized: SerializedNode;
       parentId: string | null;
       index: number;
-    }>;
+    }[];
   }
 >(
   (ctx) => {
@@ -162,20 +162,20 @@ export const deleteNodes = commander.undoableAction<
     const selectedNodeIds = mimic.presence?.self?.selectedNodeIds ?? [];
     if (selectedNodeIds.length === 0) {
       return {
-        deletedNodes: [] as Array<{
+        deletedNodes: [] as {
           serialized: SerializedNode;
           parentId: string | null;
           index: number;
-        }>
+        }[],
       };
     }
 
     const snapshot = mimic.snapshot as NodeSnapshot | null;
-    const deletedNodes: Array<{
+    const deletedNodes: {
       serialized: SerializedNode;
       parentId: string | null;
       index: number;
-    }> = [];
+    }[] = [];
 
     // Capture state before deletion
     for (const selectedId of selectedNodeIds) {
@@ -185,7 +185,7 @@ export const deleteNodes = commander.undoableAction<
       }
 
       // Prevent deletion of root and screen nodes
-      if (node.type === 'root' || node.type === 'screen') {
+      if (node.type === "root" || node.type === "screen") {
         continue;
       }
 
@@ -202,7 +202,7 @@ export const deleteNodes = commander.undoableAction<
             for (let i = 0; i < parent.children.length; i++) {
               const child = parent.children[i];
               if (child && child.id === targetId) {
-                return { parentId: parent.id, index: i };
+                return { index: i, parentId: parent.id };
               }
               if (child) {
                 const found = findParentAndIndex(child, targetId);
@@ -217,15 +217,15 @@ export const deleteNodes = commander.undoableAction<
 
         const parentInfo = findParentAndIndex(snapshot, selectedId);
         if (parentInfo) {
-          parentId = parentInfo.parentId;
-          index = parentInfo.index;
+          ({ parentId } = parentInfo);
+          ({ index } = parentInfo);
         }
       }
 
       deletedNodes.push({
-        serialized: serializeNode(node),
+        index,
         parentId,
-        index
+        serialized: serializeNode(node),
       });
     }
 
@@ -304,7 +304,7 @@ export const copyNodes = commander.action(async (ctx) => {
   // Filter out root and screen nodes
   const nodeIdsToCopy = selectedNodeIds.filter((id) => {
     const node = nodes[id];
-    return node && node.type !== 'root' && node.type !== 'screen';
+    return node && node.type !== "root" && node.type !== "screen";
   });
 
   if (nodeIdsToCopy.length === 0) {
@@ -354,7 +354,7 @@ export const copyNodes = commander.action(async (ctx) => {
   const clipboardData: ClipboardData = {
     __voidhash: true,
     nodes: serializedNodes,
-    originalParentId
+    originalParentId,
   };
 
   try {
@@ -412,7 +412,7 @@ export const pasteNodes = commander.action(async (ctx) => {
       if (
         selectedNode &&
         isContainerType(selectedNode.type) &&
-        selectedNode.type !== 'root'
+        selectedNode.type !== "root"
       ) {
         // Paste as child of selected container
         targetParentId = firstSelectedId;
@@ -451,7 +451,7 @@ export const pasteNodes = commander.action(async (ctx) => {
           { type: serialized.type } as never,
           {
             ...serialized.data,
-            id: newId
+            id: newId,
           } as never
         );
 

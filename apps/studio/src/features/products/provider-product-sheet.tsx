@@ -1,8 +1,8 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: any */
-'use client';
+"use client";
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
 import {
   Button,
   CopyText,
@@ -18,17 +18,17 @@ import {
   SheetContent,
   SheetFooter,
   SheetHeader,
-  SheetTitle
-} from '@voidhash/ui';
-import { Fragment, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { paymentProviders } from 'src/lib/payment-providers/payment-providers';
+  SheetTitle,
+} from "@voidhash/ui";
+import { Fragment, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { paymentProviders } from "src/lib/payment-providers/payment-providers";
 import {
   createPaymentProviderProductOptions,
-  updatePaymentProviderProductOptions
-} from 'src/lib/tanstack-query';
-import { z } from 'zod/v3';
+  updatePaymentProviderProductOptions,
+} from "src/lib/tanstack-query";
+import { z } from "zod/v3";
 
 export function ProviderProductSheet({
   open,
@@ -38,7 +38,7 @@ export function ProviderProductSheet({
   paymentProviderConfigurationId,
   providerId,
   configuration,
-  mode
+  mode,
 }: {
   open: boolean;
   onClose: () => void;
@@ -46,7 +46,7 @@ export function ProviderProductSheet({
   paymentProviderConfigurationId: string;
   paymentProviderConfigurationProductId?: string;
   providerId: string;
-  mode: 'add' | 'edit';
+  mode: "add" | "edit";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   configuration?: any;
 }) {
@@ -54,10 +54,10 @@ export function ProviderProductSheet({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const form = useForm<any>({
+    defaultValues: paymentProvider?.defaultProductConfiguration,
     resolver: zodResolver(
       paymentProvider?.productConfigurationSchema ?? z.object({})
     ),
-    defaultValues: paymentProvider?.defaultProductConfiguration
   });
 
   const { mutate: create, status: createStatus } = useMutation({
@@ -70,7 +70,7 @@ export function ProviderProductSheet({
     },
     onError: () => {
       toast.error(`Failed to save ${paymentProvider?.title} configuration`);
-    }
+    },
   });
 
   const { mutate: update, status: updateStatus } = useMutation({
@@ -83,26 +83,26 @@ export function ProviderProductSheet({
     },
     onError: () => {
       toast.error(`Failed to save ${paymentProvider?.title} configuration`);
-    }
+    },
   });
 
-  const isPending = createStatus === 'pending' || updateStatus === 'pending';
+  const isPending = createStatus === "pending" || updateStatus === "pending";
 
   const onSubmit = (data: any) => {
-    if (mode === 'add') {
+    if (mode === "add") {
       create({
-        productId,
+        configuration: data,
         paymentProviderConfigurationId,
-        configuration: data
+        productId,
       });
     } else {
       if (!paymentProviderConfigurationProductId) {
-        toast.error('An error occurred while saving the configuration');
+        toast.error("An error occurred while saving the configuration");
         return;
       }
       update({
-        paymentProviderConfigurationProductId,
-        configuration: data
+        configuration: data,
+        id: paymentProviderConfigurationProductId,
       });
     }
   };
@@ -120,7 +120,7 @@ export function ProviderProductSheet({
   }
 
   const configurationSheet = paymentProvider.getProductConfigurationSheet({
-    productId
+    productId,
   });
 
   return (
@@ -135,7 +135,7 @@ export function ProviderProductSheet({
       <SheetContent className="sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle>
-            {mode === 'add'
+            {mode === "add"
               ? `Add ${paymentProvider.title} Product`
               : `Edit ${paymentProvider.title} Product`}
           </SheetTitle>
@@ -157,7 +157,7 @@ export function ProviderProductSheet({
             <div className="flex-1 space-y-6 px-4 ">
               {configurationSheet.sections.map((section) => (
                 <Fragment key={section.key}>
-                  {section.type === 'text-input' && (
+                  {section.type === "text-input" && (
                     <FormField
                       control={form.control}
                       name={section.name}
@@ -176,7 +176,7 @@ export function ProviderProductSheet({
                       )}
                     />
                   )}
-                  {section.type === 'copy-text' && (
+                  {section.type === "copy-text" && (
                     <div className="mt-4">
                       <Label>{section.label}</Label>
                       <div className="mt-2 rounded-md bg-muted p-3">
@@ -199,7 +199,7 @@ export function ProviderProductSheet({
                   Cancel
                 </Button>
                 <Button disabled={isPending} type="submit">
-                  {isPending ? 'Saving...' : mode === 'add' ? 'Add' : 'Save'}
+                  {isPending ? "Saving..." : (mode === "add" ? "Add" : "Save")}
                 </Button>
               </div>
             </SheetFooter>

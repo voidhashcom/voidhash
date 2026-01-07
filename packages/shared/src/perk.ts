@@ -1,23 +1,23 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 export class PerkServiceError extends Schema.TaggedError<PerkServiceError>()(
-  'PerkServiceError',
+  "PerkServiceError",
   {
-    cause: Schema.String
+    cause: Schema.String,
   }
 ) {}
 
 export class PerkNotFoundError extends Schema.TaggedError<PerkNotFoundError>()(
-  'PerkNotFoundError',
+  "PerkNotFoundError",
   {
-    message: Schema.String
+    message: Schema.String,
   }
 ) {}
 
 export class PerkSlugAlreadyExistsError extends Schema.TaggedError<PerkSlugAlreadyExistsError>()(
-  'PerkSlugAlreadyExistsError',
+  "PerkSlugAlreadyExistsError",
   {
-    slug: Schema.String
+    slug: Schema.String,
   }
 ) {
   toString(): string {

@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,22 +21,23 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
-} from '@voidhash/ui';
-import { AlertCircle, Copy, Plus, RefreshCw, Settings } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
+  TableRow,
+} from "@voidhash/ui";
+import { AlertCircle, Copy, Plus, RefreshCw, Settings } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import {
   getAdminClients,
-  syncTrustedClients
-} from '../../lib/admin-server-functions';
+  syncTrustedClients,
+} from "../../lib/admin-server-functions";
 
-export const Route = createFileRoute('/admin/')({
+export const Route = createFileRoute("/admin/")({
   component: AdminClientsPage,
   loader: async () => {
     const clients = await getAdminClients();
     return { clients };
-  }
+  },
 });
 
 interface SyncedCredential {
@@ -56,7 +57,7 @@ function AdminClientsPage() {
 
   const formatDate = (date: Date | null) => {
     if (!date) {
-      return 'N/A';
+      return "N/A";
     }
     return new Date(date).toLocaleDateString();
   };
@@ -67,13 +68,13 @@ function AdminClientsPage() {
       const result = await syncClients();
       const createdResults = result.results.filter(
         (r: { action: string; clientSecret?: string }) =>
-          r.action === 'created' && r.clientSecret
+          r.action === "created" && r.clientSecret
       );
       const createdCount = result.results.filter(
-        (r: { action: string }) => r.action === 'created'
+        (r: { action: string }) => r.action === "created"
       ).length;
       const updatedCount = result.results.filter(
-        (r: { action: string }) => r.action === 'updated'
+        (r: { action: string }) => r.action === "updated"
       ).length;
 
       if (createdCount > 0 || updatedCount > 0) {
@@ -91,8 +92,8 @@ function AdminClientsPage() {
                 name: string;
               }) => ({
                 clientId: r.clientId,
-                clientSecret: r.clientSecret ?? '',
-                name: r.name
+                clientSecret: r.clientSecret ?? "",
+                name: r.name,
               })
             )
           );
@@ -102,13 +103,13 @@ function AdminClientsPage() {
           window.location.reload();
         }
       } else {
-        toast.info('All trusted clients are already in sync');
+        toast.info("All trusted clients are already in sync");
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : 'Failed to sync trusted clients';
+          : "Failed to sync trusted clients";
       toast.error(errorMessage);
     } finally {
       setSyncing(false);
@@ -117,7 +118,7 @@ function AdminClientsPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
+    toast.success("Copied to clipboard");
   };
 
   const handleCredentialsDialogClose = () => {
@@ -243,7 +244,7 @@ function AdminClientsPage() {
             variant="outline"
           >
             <RefreshCw
-              className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`}
+              className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`}
             />
             Sync Trusted Clients
           </Button>
@@ -294,18 +295,18 @@ function AdminClientsPage() {
                 {clients.map((client) => (
                   <TableRow key={client.id}>
                     <TableCell className="font-medium">
-                      {client.name || 'Unnamed'}
+                      {client.name || "Unnamed"}
                     </TableCell>
                     <TableCell>
                       <code className="rounded bg-muted px-2 py-1 text-xs">
-                        {client.clientId ?? ''}
+                        {client.clientId ?? ""}
                       </code>
                     </TableCell>
                     <TableCell>
                       {client.type ? (
                         <Badge variant="outline">{client.type}</Badge>
                       ) : (
-                        'N/A'
+                        "N/A"
                       )}
                     </TableCell>
                     <TableCell>
@@ -318,7 +319,7 @@ function AdminClientsPage() {
                     <TableCell>{formatDate(client.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <Link
-                        params={{ clientId: client.clientId ?? '' }}
+                        params={{ clientId: client.clientId ?? "" }}
                         to="/admin/clients/$clientId"
                       >
                         <Button size="sm" variant="outline">

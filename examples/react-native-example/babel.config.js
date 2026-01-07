@@ -2,10 +2,10 @@ module.exports = (api) => {
   api.cache(true);
   const plugins = [];
   return {
+    plugins,
     presets: [
-      ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
-      'nativewind/babel'
+      ["babel-preset-expo", { jsxImportSource: "nativewind" }],
+      "nativewind/babel",
     ],
-    plugins
   };
 };

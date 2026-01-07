@@ -1,7 +1,8 @@
-'use client';
-import { Button } from '@voidhash/ui/button';
-import { useState } from 'react';
-import { CreatePerkModal } from './create-perk-modal';
+"use client";
+import { Button } from "@voidhash/ui/button";
+import { useState } from "react";
+
+import { CreatePerkModal } from "./create-perk-modal";
 
 export function CreatePerkModalButton({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);

@@ -1,8 +1,9 @@
 /** biome-ignore-all lint/a11y/noStaticElementInteractions: shadcn */
 /** biome-ignore-all lint/nursery/noNoninteractiveElementInteractions: shadcn */
-import { UploadIcon } from 'lucide-react';
-import * as React from 'react';
-import { cn } from '../../lib/utils';
+import { UploadIcon } from "lucide-react";
+import * as React from "react";
+
+import { cn } from "../../lib/utils";
 
 interface DropzoneProps extends React.HTMLAttributes<HTMLDivElement> {
   onFileChange: (file: File) => void;
@@ -44,7 +45,7 @@ export function Dropzone({
     e.stopPropagation();
     setIsDragging(false);
 
-    const files = Array.from(e.dataTransfer.files);
+    const files = [...e.dataTransfer.files];
     if (files.length > 0) {
       const file = files[0];
       if (maxSize && file && file.size > maxSize) {
@@ -57,7 +58,7 @@ export function Dropzone({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+    const { files } = e.target;
     if (files && files.length > 0) {
       const file = files[0];
       if (maxSize && file && file.size > maxSize) {
@@ -72,10 +73,10 @@ export function Dropzone({
   return (
     <div
       className={cn(
-        'group relative isolate flex w-full cursor-pointer select-none flex-col items-center justify-center rounded-lg border border-dashed p-6 transition-colors focus-within:border-primary/50 focus-within:ring-3 focus-within:ring-ring/50',
+        "group relative isolate flex w-full cursor-pointer select-none flex-col items-center justify-center rounded-lg border border-dashed p-6 transition-colors focus-within:border-primary/50 focus-within:ring-3 focus-within:ring-ring/50",
         isDragging
-          ? 'border-primary/50 bg-primary/5'
-          : 'border-border hover:border-primary/50',
+          ? "border-primary/50 bg-primary/5"
+          : "border-border hover:border-primary/50",
         className
       )}
       onDragEnter={handleDragEnter}

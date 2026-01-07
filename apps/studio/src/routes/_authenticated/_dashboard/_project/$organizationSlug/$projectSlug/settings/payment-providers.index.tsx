@@ -1,32 +1,33 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { Badge, Card, CardHeader, CardTitle, cn } from '@voidhash/ui';
-import { ChevronRightIcon } from 'lucide-react';
-import { useAuth } from 'src/components/auth-context';
-import { PaymentProviderLogo } from '@/features/projects/settings/payment-providers/payment-provider-logo';
-import { PaymentProvidersNewStoreDropdown } from '@/features/projects/settings/payment-providers/payment-providers-new-store-dropdown';
-import { PaymentProvidersPageSkeleton } from '@/features/projects/settings/payment-providers/payment-providers-page-skeleton';
-import { SetupPaymentProviderButton } from '@/features/projects/settings/payment-providers/setup-payment-provider-button';
-import { Page } from '@/features/shell';
-import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { paymentProviders } from '@/lib/payment-providers/payment-providers';
-import { listPaymentProviderConfigurationsOptions } from '@/lib/tanstack-query';
-import { CurrentUser } from '@/lib/utils/current-user';
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { Badge, Card, CardHeader, CardTitle, cn } from "@voidhash/ui";
+import { ChevronRightIcon } from "lucide-react";
+import { useAuth } from "src/components/auth-context";
+
+import { PaymentProviderLogo } from "@/features/projects/settings/payment-providers/payment-provider-logo";
+import { PaymentProvidersNewStoreDropdown } from "@/features/projects/settings/payment-providers/payment-providers-new-store-dropdown";
+import { PaymentProvidersPageSkeleton } from "@/features/projects/settings/payment-providers/payment-providers-page-skeleton";
+import { SetupPaymentProviderButton } from "@/features/projects/settings/payment-providers/setup-payment-provider-button";
+import { Page } from "@/features/shell";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { paymentProviders } from "@/lib/payment-providers/payment-providers";
+import { listPaymentProviderConfigurationsOptions } from "@/lib/tanstack-query";
+import { CurrentUser } from "@/lib/utils/current-user";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/'
+  "/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/"
 )({
-  pendingComponent: PaymentProvidersIndexPageSkeleton,
+  component: PaymentProvidersIndexPage,
   errorComponent: PaymentProvidersIndexPageError,
-  component: PaymentProvidersIndexPage
+  pendingComponent: PaymentProvidersIndexPageSkeleton,
 });
 
 function PaymentProvidersIndexPageError() {
   return (
     <VoidhashErrorCard
       error={{
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'An error occurred loading the payment providers'
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An error occurred loading the payment providers",
       }}
     />
   );
@@ -47,12 +48,12 @@ function PaymentProvidersIndexPage() {
   );
 
   if (!project) {
-    throw new Error('Project not found');
+    throw new Error("Project not found");
   }
 
   const { data: paymentProviderConfigurations } = useSuspenseQuery(
     listPaymentProviderConfigurationsOptions({
-      projectId: project.id
+      projectId: project.id,
     })
   );
 
@@ -61,25 +62,25 @@ function PaymentProvidersIndexPage() {
       const paymentProvider = paymentProviders.find(
         (pp) => pp.id === p.providerId
       );
-      if (!paymentProvider || paymentProvider.type !== 'native') {
+      if (!paymentProvider || paymentProvider.type !== "native") {
         return null;
       }
       return {
         ...p,
-        provider: paymentProvider
+        provider: paymentProvider,
       };
     })
     .filter(Boolean);
 
   const webCheckoutProvidersWithConfigurations = paymentProviders
-    .filter((p) => p.type === 'web-checkout')
+    .filter((p) => p.type === "web-checkout")
     .map((paymentProvider) => {
       const paymentProvidersConfiguration = paymentProviderConfigurations?.find(
         (p) => p.providerId === paymentProvider.id
       );
       return {
         ...paymentProvidersConfiguration,
-        provider: paymentProvider
+        provider: paymentProvider,
       };
     });
 
@@ -94,11 +95,11 @@ function PaymentProvidersIndexPage() {
         </p>
 
         <div className="mt-8">
-          <Card className={cn('grid gap-0 divide-y p-0')}>
+          <Card className={cn("grid gap-0 divide-y p-0")}>
             <CardHeader
               className={cn(
-                'gap-0 pr-3',
-                applicationsWithConfiguration.length > 0 ? 'py-3' : 'py-6'
+                "gap-0 pr-3",
+                applicationsWithConfiguration.length > 0 ? "py-3" : "py-6"
               )}
             >
               <div className="flex items-center justify-between">
@@ -138,9 +139,9 @@ function PaymentProvidersIndexPage() {
                       className="absolute inset-0 h-full w-full"
                       params={{
                         organizationSlug,
-                        projectSlug,
                         paymentProviderConfigurationId:
-                          paymentProviderConfiguration.id
+                          paymentProviderConfiguration.id,
+                        projectSlug,
                       }}
                       to="/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId"
                     />
@@ -173,7 +174,7 @@ function PaymentProvidersIndexPage() {
         </div>
 
         <div className="mt-8">
-          <Card className={cn('grid gap-0 divide-y p-0')}>
+          <Card className={cn("grid gap-0 divide-y p-0")}>
             <CardHeader className="gap-0 py-6 pr-3">
               <div className="flex items-center justify-between">
                 <CardTitle>Web Checkout Providers</CardTitle>
@@ -193,9 +194,9 @@ function PaymentProvidersIndexPage() {
                       className="absolute inset-0 h-full w-full"
                       params={{
                         organizationSlug,
-                        projectSlug,
                         paymentProviderConfigurationId:
-                          paymentProviderConfiguration.id
+                          paymentProviderConfiguration.id,
+                        projectSlug,
                       }}
                       to="/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId"
                     />

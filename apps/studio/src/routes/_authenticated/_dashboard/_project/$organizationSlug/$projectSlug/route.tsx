@@ -1,27 +1,28 @@
-import { createFileRoute, Outlet, useLocation } from '@tanstack/react-router';
-import { SidebarInset, useSidebar } from '@voidhash/ui';
-import { useEffect } from 'react';
-import { NavBar } from '@/features/shell';
-import { ProjectSettingsSidebar } from '@/features/shell/project-settings-sidebar';
-import { ProjectSidebar } from '@/features/shell/project-sidebar';
+import { Outlet, createFileRoute, useLocation } from "@tanstack/react-router";
+import { SidebarInset, useSidebar } from "@voidhash/ui";
+import { useEffect } from "react";
+
+import { NavBar } from "@/features/shell";
+import { ProjectSettingsSidebar } from "@/features/shell/project-settings-sidebar";
+import { ProjectSidebar } from "@/features/shell/project-sidebar";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug'
+  "/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug"
 )({
-  component: ProjectLayout
+  component: ProjectLayout,
 });
 
 export function LayoutSidebar({
   projectSidebar,
-  projectSettingsSidebar
+  projectSettingsSidebar,
 }: {
   projectSidebar: React.ReactNode;
   projectSettingsSidebar: React.ReactNode;
 }) {
   const pathname = useLocation({
-    select: (location) => location.pathname
+    select: (location) => location.pathname,
   });
-  const isSettingsRoute = pathname.includes('/settings');
+  const isSettingsRoute = pathname.includes("/settings");
 
   const { setOpen } = useSidebar();
   useEffect(() => {

@@ -4,12 +4,12 @@ export type {
   ProductVariableType,
   StringVariableType,
   VariableType,
-  VariableTypeKey
-} from './types';
+  VariableTypeKey,
+} from "./types";
 export {
   booleanVariableTypeSchema,
   numberVariableTypeSchema,
   productVariableTypeSchema,
   stringVariableTypeSchema,
-  variableTypeSchema
-} from './variables';
+  variableTypeSchema,
+} from "./variables";

@@ -1,28 +1,29 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
-import { Card } from '@voidhash/ui';
-import { useAuth } from 'src/components/auth-context';
-import { ApiKeyRecord } from '@/features/api-keys/api-key-record';
-import { ApiKeyRecordSkeleton } from '@/features/api-keys/api-key-record-skeleton';
-import { CreateSecretKeyModalButton } from '@/features/api-keys/create-secret-key-modal-button';
-import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
-import { listApiKeysOptions } from '@/lib/tanstack-query';
-import { CurrentUser } from '@/lib/utils/current-user';
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { Card } from "@voidhash/ui";
+import { useAuth } from "src/components/auth-context";
+
+import { ApiKeyRecord } from "@/features/api-keys/api-key-record";
+import { ApiKeyRecordSkeleton } from "@/features/api-keys/api-key-record-skeleton";
+import { CreateSecretKeyModalButton } from "@/features/api-keys/create-secret-key-modal-button";
+import { VoidhashErrorCard } from "@/features/shell/components/voidhash-error-card";
+import { listApiKeysOptions } from "@/lib/tanstack-query";
+import { CurrentUser } from "@/lib/utils/current-user";
 
 export const Route = createFileRoute(
-  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers/api-keys'
+  "/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/developers/api-keys"
 )({
-  pendingComponent: ProjectApiKeysPageSkeleton,
+  component: ProjectApiKeysPage,
   errorComponent: ProjectApiKeysPageError,
-  component: ProjectApiKeysPage
+  pendingComponent: ProjectApiKeysPageSkeleton,
 });
 
 export function ProjectApiKeysPageError() {
   return (
     <VoidhashErrorCard
       error={{
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'An error occured loading the api keys'
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An error occured loading the api keys",
       }}
     />
   );
@@ -60,7 +61,7 @@ export function ProjectApiKeysPage() {
   );
 
   if (!project) {
-    throw new Error('Project not found');
+    throw new Error("Project not found");
   }
 
   const { data: apiKeys } = useSuspenseQuery(

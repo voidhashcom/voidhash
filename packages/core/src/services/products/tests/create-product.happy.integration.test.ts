@@ -13,7 +13,8 @@ describe.sequential('createProduct happy path', () => {
     const integrationTestRunner = createIntegrationTestRunner();
     const input = {
       projectId: h.resources.project.id,
-      name: 'Test Product'
+      name: 'Test Product',
+      slug: 'test-product'
     };
     const result = await integrationTestRunner(
       Effect.gen(function* () {

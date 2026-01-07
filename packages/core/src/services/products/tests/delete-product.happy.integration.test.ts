@@ -1,4 +1,4 @@
-import { eq, type InsertProduct, products } from '@voidhash/db';
+import { type InsertProduct, products } from '@voidhash/db';
 import { Db } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
 import { AuthSession } from '@voidhash/shared';
@@ -34,13 +34,14 @@ describe.sequential('deleteProduct happy path', () => {
               id: testProductId,
               projectId: h.resources.project.id,
               name: 'Product To Delete',
+              slug: 'product-to-delete',
               type: 1,
               createdAt: new Date(),
               updatedAt: new Date()
             });
 
             yield* productService.deleteProduct({
-              productId: testProductId
+              id: testProductId
             });
 
             return 'deleted';

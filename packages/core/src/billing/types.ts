@@ -1,14 +1,14 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
 // ============================================
 // METRIC DEFINITIONS
 // ============================================
 
 export const MetricId = {
-  PaywallConversions: 'paywall_conversions',
-  MonthlyTrackedRevenue: 'monthly_tracked_revenue',
-  ApiCalls: 'api_calls',
-  ActiveCustomers: 'active_customers'
+  ActiveCustomers: "active_customers",
+  ApiCalls: "api_calls",
+  MonthlyTrackedRevenue: "monthly_tracked_revenue",
+  PaywallConversions: "paywall_conversions",
 } as const;
 
 export type MetricIdValue = (typeof MetricId)[keyof typeof MetricId];
@@ -18,38 +18,38 @@ export interface MetricDefinition {
   name: string;
   description: string;
   unit: string;
-  aggregationType: 'sum' | 'max' | 'last';
+  aggregationType: "sum" | "max" | "last";
 }
 
 export const METRIC_DEFINITIONS: Record<MetricIdValue, MetricDefinition> = {
-  paywall_conversions: {
-    id: 'paywall_conversions',
-    name: 'Paywall Conversions',
-    description: 'Number of successful paywall conversions',
-    unit: 'conversions',
-    aggregationType: 'sum'
-  },
-  monthly_tracked_revenue: {
-    id: 'monthly_tracked_revenue',
-    name: 'Monthly Tracked Revenue',
-    description: 'Total revenue tracked through the platform',
-    unit: 'cents',
-    aggregationType: 'sum'
+  active_customers: {
+    aggregationType: "max",
+    description: "Number of active customers in the period",
+    id: "active_customers",
+    name: "Active Customers",
+    unit: "customers",
   },
   api_calls: {
-    id: 'api_calls',
-    name: 'API Calls',
-    description: 'Number of API calls made',
-    unit: 'calls',
-    aggregationType: 'sum'
+    aggregationType: "sum",
+    description: "Number of API calls made",
+    id: "api_calls",
+    name: "API Calls",
+    unit: "calls",
   },
-  active_customers: {
-    id: 'active_customers',
-    name: 'Active Customers',
-    description: 'Number of active customers in the period',
-    unit: 'customers',
-    aggregationType: 'max'
-  }
+  monthly_tracked_revenue: {
+    aggregationType: "sum",
+    description: "Total revenue tracked through the platform",
+    id: "monthly_tracked_revenue",
+    name: "Monthly Tracked Revenue",
+    unit: "cents",
+  },
+  paywall_conversions: {
+    aggregationType: "sum",
+    description: "Number of successful paywall conversions",
+    id: "paywall_conversions",
+    name: "Paywall Conversions",
+    unit: "conversions",
+  },
 };
 
 // ============================================
@@ -57,9 +57,9 @@ export const METRIC_DEFINITIONS: Record<MetricIdValue, MetricDefinition> = {
 // ============================================
 
 export const BillingTierName = {
-  Free: 'free',
-  Pro: 'pro',
-  Enterprise: 'enterprise'
+  Enterprise: "enterprise",
+  Free: "free",
+  Pro: "pro",
 } as const;
 
 export type BillingTierNameValue =
@@ -111,7 +111,7 @@ export interface CustomerInfo {
   organizationId: string;
   externalCustomerId: string | null;
   tier: BillingTierNameValue;
-  subscriptionStatus: 'none' | 'active' | 'canceled' | 'past_due' | 'trialing';
+  subscriptionStatus: "none" | "active" | "canceled" | "past_due" | "trialing";
 }
 
 export interface CreateCheckoutInput {
@@ -129,7 +129,7 @@ export interface CheckoutSessionResult {
 
 export interface SubscriptionInfo {
   externalSubscriptionId: string;
-  status: 'active' | 'canceled' | 'past_due' | 'trialing';
+  status: "active" | "canceled" | "past_due" | "trialing";
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
   tier: BillingTierNameValue;
@@ -142,7 +142,7 @@ export interface SubscriptionInfo {
 export interface OrganizationBillingInfo {
   organizationId: string;
   tier: BillingTierNameValue;
-  subscriptionStatus: 'none' | 'active' | 'canceled' | 'past_due' | 'trialing';
+  subscriptionStatus: "none" | "active" | "canceled" | "past_due" | "trialing";
   currentPeriodStart: Date | null;
   currentPeriodEnd: Date | null;
   usageSummaries: UsageSummary[];
@@ -155,7 +155,7 @@ export interface OrganizationBillingInfo {
 export interface SubscriptionChangeEvent {
   externalSubscriptionId: string;
   externalCustomerId: string;
-  status: 'active' | 'canceled' | 'past_due' | 'trialing';
+  status: "active" | "canceled" | "past_due" | "trialing";
   currentPeriodStart?: Date;
   currentPeriodEnd?: Date;
   tier?: BillingTierNameValue;
@@ -166,31 +166,31 @@ export interface SubscriptionChangeEvent {
 // ============================================
 
 export const UsageSummarySchema = Schema.Struct({
+  currentValue: Schema.Number,
+  isApproachingLimit: Schema.Boolean,
+  isOverLimit: Schema.Boolean,
+  limit: Schema.NullOr(Schema.Number),
   metricId: Schema.String,
   metricName: Schema.String,
-  currentValue: Schema.Number,
-  limit: Schema.NullOr(Schema.Number),
   percentUsed: Schema.NullOr(Schema.Number),
-  isOverLimit: Schema.Boolean,
-  isApproachingLimit: Schema.Boolean
 });
 
 export const OrganizationBillingInfoSchema = Schema.Struct({
-  organizationId: Schema.String,
-  tier: Schema.Literal('free', 'pro', 'enterprise'),
-  subscriptionStatus: Schema.Literal(
-    'none',
-    'active',
-    'canceled',
-    'past_due',
-    'trialing'
-  ),
-  currentPeriodStart: Schema.NullOr(Schema.Date),
   currentPeriodEnd: Schema.NullOr(Schema.Date),
-  usageSummaries: Schema.Array(UsageSummarySchema)
+  currentPeriodStart: Schema.NullOr(Schema.Date),
+  organizationId: Schema.String,
+  subscriptionStatus: Schema.Literal(
+    "none",
+    "active",
+    "canceled",
+    "past_due",
+    "trialing"
+  ),
+  tier: Schema.Literal("free", "pro", "enterprise"),
+  usageSummaries: Schema.Array(UsageSummarySchema),
 });
 
 export const CheckoutSessionResultSchema = Schema.Struct({
   id: Schema.String,
-  url: Schema.String
+  url: Schema.String,
 });

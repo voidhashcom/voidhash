@@ -1,39 +1,40 @@
-'use client';
+"use client";
 
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from '@voidhash/ui';
+  SelectValue,
+} from "@voidhash/ui";
 import {
   InputGroup,
   InputGroupAddon,
-  InputGroupInput
-} from '@voidhash/ui/input-group';
-import { PercentIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { TextInput } from '../text-input';
+  InputGroupInput,
+} from "@voidhash/ui/input-group";
+import { PercentIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { TextInput } from "../text-input";
 import {
   type ColorMode,
   type HSV,
   hexToRgb,
   hsvToRgb,
   rgbToHex,
-  rgbToHsv
-} from './color-utils';
-import { EyedropperButton } from './eyedropper-button';
-import { HueSlider } from './hue-slider';
-import { OpacitySlider } from './opacity-slider';
-import { SaturationBrightnessPicker } from './saturation-brightness-picker';
+  rgbToHsv,
+} from "./color-utils";
+import { EyedropperButton } from "./eyedropper-button";
+import { HueSlider } from "./hue-slider";
+import { OpacitySlider } from "./opacity-slider";
+import { SaturationBrightnessPicker } from "./saturation-brightness-picker";
 
-export type ColorPickerContentProps = {
+export interface ColorPickerContentProps {
   color: string;
   opacity: number;
   onColorChange: (color: string) => void;
   onOpacityChange: (opacity: number) => void;
-};
+}
 
 const HEX_REGEX = /^[0-9A-Fa-f]{6}$/;
 
@@ -41,9 +42,9 @@ export function ColorPickerContent({
   color,
   opacity,
   onColorChange,
-  onOpacityChange
+  onOpacityChange,
 }: ColorPickerContentProps) {
-  const [mode, setMode] = useState<ColorMode>('hex');
+  const [mode, setMode] = useState<ColorMode>("hex");
   const rgb = hexToRgb(color);
   const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
 
@@ -91,7 +92,7 @@ export function ColorPickerContent({
     }
   };
 
-  const handleRgbInputChange = (channel: 'r' | 'g' | 'b', value: string) => {
+  const handleRgbInputChange = (channel: "r" | "g" | "b", value: string) => {
     const num = Number.parseInt(value, 10);
     if (Number.isNaN(num)) {
       return;
@@ -150,7 +151,7 @@ export function ColorPickerContent({
           </SelectContent>
         </Select>
 
-        {mode === 'hex' ? (
+        {mode === "hex" ? (
           <>
             <InputGroup className="h-7 flex-1 rounded-sm border-none dark:bg-input/60">
               <InputGroupInput
@@ -188,7 +189,7 @@ export function ColorPickerContent({
                 className="h-7 px-1.5 py-0 text-center text-xs"
                 max={255}
                 min={0}
-                onChange={(e) => handleRgbInputChange('r', e.target.value)}
+                onChange={(e) => handleRgbInputChange("r", e.target.value)}
                 type="number"
                 value={rgbInput.r}
               />
@@ -199,7 +200,7 @@ export function ColorPickerContent({
                 className="h-7 px-1.5 py-0 text-center text-xs"
                 max={255}
                 min={0}
-                onChange={(e) => handleRgbInputChange('g', e.target.value)}
+                onChange={(e) => handleRgbInputChange("g", e.target.value)}
                 type="number"
                 value={rgbInput.g}
               />
@@ -210,7 +211,7 @@ export function ColorPickerContent({
                 className="h-7 px-1.5 py-0 text-center text-xs"
                 max={255}
                 min={0}
-                onChange={(e) => handleRgbInputChange('b', e.target.value)}
+                onChange={(e) => handleRgbInputChange("b", e.target.value)}
                 type="number"
                 value={rgbInput.b}
               />

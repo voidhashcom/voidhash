@@ -1,10 +1,10 @@
-import { NavBarLogo } from './nav-bar-logo';
-import { NavUser } from './nav-user/nav-user';
-import { OrganizationSwitcher } from './organization-switcher';
-import { ProjectSwitcher } from './project-switcher';
+import { NavBarLogo } from "./nav-bar-logo";
+import { NavUser } from "./nav-user/nav-user";
+import { OrganizationSwitcher } from "./organization-switcher";
+import { ProjectSwitcher } from "./project-switcher";
 export function NavBar({
   organizationSlug,
-  projectSlug
+  projectSlug,
 }: {
   organizationSlug: string | null;
   projectSlug: string | null;

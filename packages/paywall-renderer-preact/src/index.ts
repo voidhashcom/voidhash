@@ -1,6 +1,6 @@
-export { renderPaywall } from './render';
+export { renderPaywall } from "./render";
 export type {
   RenderOptions,
   RenderResult,
-  SnapshotNode
-} from '@voidhash/paywall-renderer-web-core';
+  SnapshotNode,
+} from "@voidhash/paywall-renderer-web-core";

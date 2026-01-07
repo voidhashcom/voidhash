@@ -1,5 +1,8 @@
-import { Context, Effect } from 'effect';
-import type { BillingProviderError } from '../../../billing/errors';
+import  { type Effect } from "effect";
+
+import { Context } from "effect";
+
+import type { BillingProviderError } from "../../../billing/errors";
 import type {
   BillingProviderConfig,
   BillingTierNameValue,
@@ -8,8 +11,8 @@ import type {
   CustomerInfo,
   MetricIdValue,
   SubscriptionInfo,
-  UsageRecordInput
-} from '../../../billing/types';
+  UsageRecordInput,
+} from "../../../billing/types";
 
 /**
  * Abstract billing provider interface
@@ -76,7 +79,7 @@ export interface BillingProviderService {
 /**
  * Effect Context Tag for BillingProvider
  */
-export class BillingProvider extends Context.Tag('BillingProvider')<
+export class BillingProvider extends Context.Tag("BillingProvider")<
   BillingProvider,
   BillingProviderService
 >() {}

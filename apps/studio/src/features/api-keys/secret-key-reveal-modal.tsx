@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import type { ApiKeyWithRawKey } from '@voidhash/rpc';
-import { Button } from '@voidhash/ui/button';
-import { CopyText } from '@voidhash/ui/copy-text';
+import type { ApiKeyWithRawKey } from "@voidhash/rpc";
+import { Button } from "@voidhash/ui/button";
+import { CopyText } from "@voidhash/ui/copy-text";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
-} from '@voidhash/ui/dialog';
+  DialogTitle,
+} from "@voidhash/ui/dialog";
 
 interface SecretKeyRevealModalProps {
   open: boolean;
@@ -22,7 +22,7 @@ export function SecretKeyRevealModal({
   open,
   onClose,
 
-  apiKey
+  apiKey,
 }: SecretKeyRevealModalProps) {
   const handleOpenChange = (open: boolean) => {
     if (!open) {

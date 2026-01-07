@@ -34,13 +34,15 @@ describe.sequential('updateProduct happy path', () => {
               id: testProductId,
               projectId: h.resources.project.id,
               name: 'Original Product Name',
+              slug: 'original-product-name',
               type: 1,
               createdAt: new Date(),
               updatedAt: new Date()
             });
 
             yield* productService.updateProduct({
-              productId: testProductId,
+              id: testProductId,
+              slug: 'updated-product-name',
               name: 'Updated Product Name'
             });
 
