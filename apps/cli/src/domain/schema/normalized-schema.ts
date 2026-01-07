@@ -61,3 +61,38 @@ export function createEmptyNormalizedSchema(): NormalizedSchema {
     products: new Map(),
   };
 }
+
+/**
+ * Create an initial schema with a starter template:
+ * - One "all-access" perk
+ * - Two subscription products (monthly and yearly)
+ * - No providers configured
+ */
+export function createInitialNormalizedSchema(): NormalizedSchema {
+  return {
+    enabledProviders: new Set(),
+    perks: new Map([["all-access", { slug: "all-access", name: "All Access" }]]),
+    products: new Map([
+      [
+        "monthly_sub",
+        {
+          slug: "monthly_sub",
+          name: "Monthly",
+          type: "subscription",
+          perks: ["all-access"],
+          providers: [],
+        },
+      ],
+      [
+        "yearly_sub",
+        {
+          slug: "yearly_sub",
+          name: "Yearly",
+          type: "subscription",
+          perks: ["all-access"],
+          providers: [],
+        },
+      ],
+    ]),
+  };
+}

@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { authClient } from "../lib/auth-client";
+import { isValidRedirect } from "../lib/validation";
 
 const loginSearchSchema = z.object({
   email: z.string().default(""),
@@ -54,6 +55,15 @@ export function LoginPage() {
         return;
       }
 
+      // If no server redirect but we have a next param, use it
+      if (
+        searchParams.next &&
+        isValidRedirect(searchParams.next, window.location.origin)
+      ) {
+        window.location.href = searchParams.next;
+        return;
+      }
+
       if (error) {
         setLoading(false);
         if (
@@ -81,10 +91,15 @@ export function LoginPage() {
 
   const signInWithGithub = async () => {
     setLoading(true);
+    const callbackURL =
+      searchParams.next &&
+      isValidRedirect(searchParams.next, window.location.origin)
+        ? searchParams.next
+        : "/";
     try {
       await authClient.signIn.social({
+        callbackURL,
         provider: "github",
-        // callbackURL: validNext ?? '/'
       });
     } catch {
       setLoading(false);

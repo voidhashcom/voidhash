@@ -1,4 +1,5 @@
 import { FileSystem, Path } from "@effect/platform";
+import Module from "node:module";
 import { Effect } from "effect";
 
 import {
@@ -11,6 +12,52 @@ import {
   createEmptyNormalizedSchema,
 } from "../../domain/schema/normalized-schema";
 import { safeRegister } from "../js-loading/js-file-loading";
+
+// Extended Module type to include internal _resolveFilename method
+interface ModuleInternal {
+  _resolveFilename: (
+    request: string,
+    parent: unknown,
+    isMain: boolean,
+    options: unknown
+  ) => string;
+}
+
+/**
+ * Sets up module resolution alias to redirect @voidhash/react-native imports
+ * to the schema-only exports. This prevents the CLI from loading the full
+ * React Native package which requires native bindings.
+ *
+ * @returns A cleanup function to restore original module resolution
+ */
+function setupSchemaModuleAlias(): () => void {
+  const moduleInternal = Module as unknown as ModuleInternal;
+  const originalResolve = moduleInternal._resolveFilename;
+
+  moduleInternal._resolveFilename = function (
+    request: string,
+    parent: unknown,
+    isMain: boolean,
+    options: unknown
+  ) {
+    // Redirect @voidhash/react-native to its schema-only exports
+    if (request === "@voidhash/react-native") {
+      // Resolve the schema subpath using the original resolver
+      return originalResolve.call(
+        this,
+        "@voidhash/react-native/schema",
+        parent,
+        isMain,
+        options
+      );
+    }
+    return originalResolve.call(this, request, parent, isMain, options);
+  };
+
+  return () => {
+    moduleInternal._resolveFilename = originalResolve;
+  };
+}
 
 /**
  * Symbol used to identify schema entity types at runtime.
@@ -183,6 +230,10 @@ export const loadLocalSchema = (schemaPath: string) =>
       )
     );
 
+    // Set up module alias to redirect @voidhash/react-native to schema-only exports
+    // This prevents loading React Native native bindings in the CLI
+    const removeAlias = setupSchemaModuleAlias();
+
     // Load the schema module
     let schemaModule: Record<string, unknown>;
     try {
@@ -190,6 +241,7 @@ export const loadLocalSchema = (schemaPath: string) =>
       delete require.cache[require.resolve(absolutePath)];
       schemaModule = require(absolutePath);
     } catch (e) {
+      removeAlias();
       unregister();
       return yield* Effect.fail(
         new LocalSchemaParseError({
@@ -198,6 +250,7 @@ export const loadLocalSchema = (schemaPath: string) =>
       );
     }
 
+    removeAlias();
     unregister();
 
     // Create the normalized schema

@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 import {
   Alert,
   AlertDescription,
@@ -16,14 +17,21 @@ import {
 import { ArrowLeft, CheckCircle, Loader2, Mail } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { authClient } from "../lib/auth-client";
 
+const forgotPasswordSearchSchema = z.object({
+  next: z.string().optional(),
+});
+
 export const Route = createFileRoute("/forgot-password")({
   component: ForgotPasswordPage,
+  validateSearch: zodValidator(forgotPasswordSearchSchema),
 });
 
 export function ForgotPasswordPage() {
+  const searchParams = Route.useSearch();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
@@ -33,9 +41,12 @@ export function ForgotPasswordPage() {
     setLoading(true);
 
     try {
+      const resetRedirectUrl = searchParams.next
+        ? `/reset-password?next=${encodeURIComponent(searchParams.next)}`
+        : "/reset-password";
       const { error } = await authClient.requestPasswordReset({
         email,
-        redirectTo: "/reset-password",
+        redirectTo: resetRedirectUrl,
       });
 
       if (error) {
@@ -94,6 +105,7 @@ export function ForgotPasswordPage() {
                 <div className="text-center">
                   <Link
                     className="inline-flex items-center gap-2 text-muted-foreground text-sm hover:text-foreground"
+                    search={{ next: searchParams.next }}
                     to="/login"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -152,6 +164,7 @@ export function ForgotPasswordPage() {
                 <div className="text-center">
                   <Link
                     className="inline-flex items-center gap-2 text-muted-foreground text-sm hover:text-foreground"
+                    search={{ next: searchParams.next }}
                     to="/login"
                   >
                     <ArrowLeft className="h-4 w-4" />

@@ -217,27 +217,30 @@ const PolarBillingProviderLayer = PolarBillingProviderLive.pipe(
 	Layer.provideMerge(PolarBillingProviderConfigLayer),
 );
 
-const ServicesLayer = Layer.mergeAll(
-	AnalyticsService.Default,
-	ApiKeyService.Default,
-	AppStoreServerAPIService.Default,
-	AppStoreService.Default,
-	ChangesetDeploymentService.Default,
-	CustomerService.Default,
-	OrganizationService.Default,
-	PaymentProviderProductService.Default,
-	PaymentProviderConfigurationService.Default,
-	PerkGrantService.Default,
-	PerkService.Default,
-	ProductPerkService.Default,
-	PaywallService.Default,
-	ProductService.Default,
-	ProjectService.Default,
-	SdkService.Default,
-	UserService.Default,
-).pipe(
+const ServicesLayer = ChangesetDeploymentService.Default.pipe(
+	Layer.provideMerge(
+		Layer.mergeAll(
+			AnalyticsService.Default,
+			ApiKeyService.Default,
+			AppStoreServerAPIService.Default,
+			AppStoreService.Default,
+			CustomerService.Default,
+			OrganizationService.Default,
+			PaymentProviderProductService.Default,
+			PaymentProviderConfigurationService.Default,
+			PerkGrantService.Default,
+			PerkService.Default,
+			ProductPerkService.Default,
+			PaywallService.Default,
+			ProductService.Default,
+			ProjectService.Default,
+			SdkService.Default,
+			UserService.Default,
+		),
+	),
 	Layer.provideMerge(PolarBillingProviderLayer),
 	Layer.provideMerge(UsageService.Default),
+
 	Layer.provideMerge(WorkflowEngineLayer),
 	Layer.provideMerge(
 		Layer.mergeAll(BetterAuth.Default, Db.Default, JwtAuth.Default),

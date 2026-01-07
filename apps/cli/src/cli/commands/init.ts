@@ -2,6 +2,7 @@ import { Command, Prompt } from "@effect/cli";
 import { Path } from "@effect/platform";
 import { Console, Effect } from "effect";
 
+import { createInitialNormalizedSchema } from "../../domain/schema/normalized-schema";
 import { Auth } from "../../domain/services/auth";
 import { Codegen } from "../../domain/services/codegen";
 import { SourceCode } from "../../domain/services/source-code";
@@ -113,24 +114,29 @@ export const initCommand = Command.make("init", { debug: debugOption }, () =>
 		);
 		const configFilePath = path.resolve(configFileName);
 
-		yield* Console.log(schemaFilePath, clientFilePath, configFilePath);
-
 		// Assert files can be created
 		yield* assertFileCanBeCreated(schemaFileName, schemaFilePath);
 		yield* assertFileCanBeCreated(clientFileName, clientFilePath);
 		yield* assertFileCanBeCreated(configFileName, configFilePath);
 
 		// Generate files
-		// yield* codegen.generateSchemaFile(schemaFilePath);
-		// yield* codegen.generateClientFile(clientFilePath);
 		yield* codegen.generateVoidhashConfigFile(configFilePath, {
 			project: project.slug,
 			schema: path.relative(path.resolve(), schemaFilePath),
 			team: organization.slug,
 		});
 
-		// Generate voidhash.config.ts, voidhash client and schema
+		// Generate initial schema file
+		const initialSchema = createInitialNormalizedSchema();
+		yield* codegen.generateSchemaFile(schemaFilePath, initialSchema);
 
-		// const sourceCodeDetails = yield* retrieveSourceCodeDetails();
+		yield* Console.log("\nVoidhash initialized successfully!");
+		yield* Console.log(`  Config: ${configFilePath}`);
+		yield* Console.log(`  Schema: ${schemaFilePath}`);
+		yield* Console.log(`\nNext steps:`);
+		yield* Console.log(`  1. Add your products and perks to the schema file.`);
+		yield* Console.log(
+			`  2. Run \`voidhash-cli schema push\` to push your schema to the server.`,
+		);
 	}),
 ).pipe(Command.withDescription("Initialize a new Voidhash project."));

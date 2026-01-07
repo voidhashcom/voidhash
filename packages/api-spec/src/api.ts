@@ -283,6 +283,7 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         HttpApiEndpoint.post("deployChangeset")`/deploy`
           .setPayload(DeployChangesetBody)
           .addSuccess(DeployChangesetResponse)
+          .addError(AuthenticationError, { status: 401 })
           .addError(ActionForbiddenError, { status: 403 })
           .addError(ChangesetDeploymentServiceError, { status: 500 })
       )

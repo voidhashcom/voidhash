@@ -28,6 +28,7 @@ import { z } from "zod";
 import { authClient } from "../lib/auth-client";
 
 const resetPasswordSearchSchema = z.object({
+  next: z.string().optional(),
   token: z.string().optional(),
 });
 
@@ -130,7 +131,11 @@ export function ResetPasswordPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link className="w-full" to="/forgot-password">
+                <Link
+                  className="w-full"
+                  search={{ next: searchParams.next }}
+                  to="/forgot-password"
+                >
                   <Button className="w-full" variant="outline">
                     Request new reset link
                   </Button>
@@ -165,7 +170,11 @@ export function ResetPasswordPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link className="w-full" to="/login">
+                <Link
+                  className="w-full"
+                  search={{ next: searchParams.next }}
+                  to="/login"
+                >
                   <Button className="w-full">Continue to Login</Button>
                 </Link>
               </CardContent>
