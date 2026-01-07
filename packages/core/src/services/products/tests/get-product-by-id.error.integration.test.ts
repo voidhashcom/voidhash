@@ -34,4 +34,3 @@ describe.sequential('getProductById error path', () => {
     expect(error).toBeInstanceOf(ProductNotFoundError);
   });
 });
-

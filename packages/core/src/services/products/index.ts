@@ -21,4 +21,3 @@ export class ProductService extends Effect.Service<ProductService>()(
     })
   }
 ) {}
-

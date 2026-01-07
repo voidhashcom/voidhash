@@ -42,4 +42,3 @@ describe.sequential('getUser happy path', () => {
     expect(value.projects.length).toBeGreaterThan(0);
   });
 });
-

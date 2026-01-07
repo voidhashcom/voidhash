@@ -7,6 +7,7 @@ export * from './components/logo';
 export * from './components/settings-card-skeleton';
 export * from './components/spinner';
 export * from './components/theme-provider';
+export * from './components/theme-provider-tanstack';
 export * from './components/theme-toggle';
 export * from './components/ui/accordion';
 export * from './components/ui/alert';

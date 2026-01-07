@@ -41,4 +41,3 @@ describe.sequential('getOrganizationById happy path', () => {
     });
   });
 });
-

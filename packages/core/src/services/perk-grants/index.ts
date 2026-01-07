@@ -12,4 +12,3 @@ export class PerkGrantService extends Effect.Service<PerkGrantService>()(
     })
   }
 ) {}
-

@@ -34,4 +34,3 @@ describe.sequential('getCustomersUnlockedPerks error path', () => {
     expect(error).toBeInstanceOf(CustomerNotFoundError);
   });
 });
-

@@ -7,11 +7,12 @@
     "baseUrl": ".",
     "paths": {
       "@voidhash/lib/*": ["../../packages/lib/src/*"],
-      "@/pages/*": ["pages/*"],
-      "@/styles/*": ["styles/*"],
-      "@/ui/*": ["ui/*"],
-      "@/lib/*": ["lib/*"],
-      "@/features/*": ["features/*"]
+      "@/pages/*": ["src/pages/*"],
+      "@/styles/*": ["src/styles/*"],
+      "@/ui/*": ["src/ui/*"],
+      "@/lib/*": ["src/lib/*"],
+      "@/features/*": ["src/features/*"],
+      "@/routes/*": ["src/routes/*"]
     },
     "downlevelIteration": true,
     "forceConsistentCasingInFileNames": true,
@@ -34,16 +35,6 @@
       }
     ]
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    "@/features/trpc/query-client.tsx",
-    "@/features/trpc/react.tsx",
-    "@/features/trpc/server.tsx",
-    "trigger.config.ts",
-    "vitest.integration.mts"
-  ],
-  "exclude": ["**/node_modules/**", ".next"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["**/node_modules/**"]
 }

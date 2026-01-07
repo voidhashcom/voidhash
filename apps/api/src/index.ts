@@ -8,11 +8,12 @@ const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 5001;
 
 AppLive.pipe(
   Layer.provide(DevTools.layer()),
-  Layer.provide(
+  Layer.provideMerge(
     BunHttpServer.layer({
       port
     })
   ),
+  // @ts-expect-error - Layer.launch is not typed correctly
   Layer.launch,
   BunRuntime.runMain
 );

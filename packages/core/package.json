@@ -12,7 +12,10 @@
     ".": "./src/index.ts",
     "./services": "./src/services/index.ts",
     "./repositories": "./src/repositories/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./better-auth": "./src/better-auth/auth.ts",
+    "./better-auth/effect": "./src/better-auth/better-auth-effect.ts",
+    "./better-auth/server-client": "./src/better-auth/server-client.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -20,11 +23,13 @@
     "test:integration": "vitest run -c vitest.integration.mts --bail=1"
   },
   "dependencies": {
-    "@voidhash/auth": "workspace:*",
+    "@polar-sh/sdk": "^0.31.0",
     "@voidhash/api-spec": "workspace:*",
+    "@voidhash/auth": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
-    "@voidhash/shared": "workspace:*"
+    "@voidhash/shared": "workspace:*",
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",

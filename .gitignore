@@ -294,3 +294,5 @@ yalc.lock
 
 # Typescript
 **/tsconfig.tsbuildinfo
+
+resources/

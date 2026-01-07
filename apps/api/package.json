@@ -16,6 +16,7 @@
     "test:integration": "vitest run -c vitest.integration.mts --bail=1"
   },
   "dependencies": {
+    "@effect-aws/client-s3": "^1.10.7",
     "@effect/platform": "catalog:",
     "@effect/platform-bun": "^0.81.1",
     "@effect/platform-node": "catalog:",
@@ -24,9 +25,12 @@
     "@voidhash/core": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
+    "@voidhash/mimic-effect": "catalog:",
+    "@voidhash/mimic-schema": "workspace:*",
     "@voidhash/rpc": "workspace:*",
     "@voidhash/shared": "workspace:*",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "jose": "^6.0.11"
   },
   "devDependencies": {
     "@types/node": "^20",

@@ -1,4 +1,10 @@
-import { CustomerOrigin, customers, eq, or, type InsertCustomer } from '@voidhash/db';
+import {
+  CustomerOrigin,
+  customers,
+  eq,
+  or,
+  type InsertCustomer
+} from '@voidhash/db';
 import { Db } from '@voidhash/db/effect';
 import { generateId } from '@voidhash/lib';
 import { AuthSession } from '@voidhash/shared';
@@ -101,4 +107,3 @@ describe.sequential('getCustomerByAppUserId happy path', () => {
     });
   });
 });
-

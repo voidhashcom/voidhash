@@ -25,4 +25,3 @@ export class PaymentProviderConfigurationService extends Effect.Service<PaymentP
     })
   }
 ) {}
-

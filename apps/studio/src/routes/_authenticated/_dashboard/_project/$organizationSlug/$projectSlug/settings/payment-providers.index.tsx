@@ -1,0 +1,247 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { Badge, Card, CardHeader, CardTitle, cn } from '@voidhash/ui';
+import { ChevronRightIcon } from 'lucide-react';
+import { useAuth } from 'src/components/auth-context';
+import { PaymentProviderLogo } from '@/features/projects/settings/payment-providers/payment-provider-logo';
+import { PaymentProvidersNewStoreDropdown } from '@/features/projects/settings/payment-providers/payment-providers-new-store-dropdown';
+import { PaymentProvidersPageSkeleton } from '@/features/projects/settings/payment-providers/payment-providers-page-skeleton';
+import { SetupPaymentProviderButton } from '@/features/projects/settings/payment-providers/setup-payment-provider-button';
+import { Page } from '@/features/shell';
+import { VoidhashErrorCard } from '@/features/shell/components/voidhash-error-card';
+import { paymentProviders } from '@/lib/payment-providers/payment-providers';
+import { listPaymentProviderConfigurationsOptions } from '@/lib/tanstack-query';
+import { CurrentUser } from '@/lib/utils/current-user';
+
+export const Route = createFileRoute(
+  '/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/payment-providers/'
+)({
+  pendingComponent: PaymentProvidersIndexPageSkeleton,
+  errorComponent: PaymentProvidersIndexPageError,
+  component: PaymentProvidersIndexPage
+});
+
+function PaymentProvidersIndexPageError() {
+  return (
+    <VoidhashErrorCard
+      error={{
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'An error occurred loading the payment providers'
+      }}
+    />
+  );
+}
+
+function PaymentProvidersIndexPageSkeleton() {
+  return <PaymentProvidersPageSkeleton />;
+}
+
+function PaymentProvidersIndexPage() {
+  const { organizationSlug, projectSlug } = Route.useParams();
+
+  const { user } = useAuth();
+  const project = CurrentUser.getProjectBySlugs(
+    user,
+    organizationSlug as string,
+    projectSlug as string
+  );
+
+  if (!project) {
+    throw new Error('Project not found');
+  }
+
+  const { data: paymentProviderConfigurations } = useSuspenseQuery(
+    listPaymentProviderConfigurationsOptions({
+      projectId: project.id
+    })
+  );
+
+  const applicationsWithConfiguration = (paymentProviderConfigurations ?? [])
+    .map((p) => {
+      const paymentProvider = paymentProviders.find(
+        (pp) => pp.id === p.providerId
+      );
+      if (!paymentProvider || paymentProvider.type !== 'native') {
+        return null;
+      }
+      return {
+        ...p,
+        provider: paymentProvider
+      };
+    })
+    .filter(Boolean);
+
+  const webCheckoutProvidersWithConfigurations = paymentProviders
+    .filter((p) => p.type === 'web-checkout')
+    .map((paymentProvider) => {
+      const paymentProvidersConfiguration = paymentProviderConfigurations?.find(
+        (p) => p.providerId === paymentProvider.id
+      );
+      return {
+        ...paymentProvidersConfiguration,
+        provider: paymentProvider
+      };
+    });
+
+  return (
+    <Page>
+      <div className="mx-auto max-w-4xl">
+        <h1 className="font-normal text-3xl tracking-right">
+          Payment Providers
+        </h1>
+        <p className="mt-3 text-muted-foreground">
+          Configure your payment providers.
+        </p>
+
+        <div className="mt-8">
+          <Card className={cn('grid gap-0 divide-y p-0')}>
+            <CardHeader
+              className={cn(
+                'gap-0 pr-3',
+                applicationsWithConfiguration.length > 0 ? 'py-3' : 'py-6'
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle>Stores</CardTitle>
+                {applicationsWithConfiguration.length > 0 && (
+                  <PaymentProvidersNewStoreDropdown
+                    organizationSlug={organizationSlug}
+                    project={project}
+                    projectSlug={projectSlug}
+                  />
+                )}
+              </div>
+            </CardHeader>
+            {applicationsWithConfiguration.length === 0 && (
+              <div className="flex h-full flex-col items-center justify-center py-6">
+                <div className="text-muted-foreground">
+                  You haven&apos;t configured any stores for this project.
+                </div>
+                <div className="mt-4">
+                  <PaymentProvidersNewStoreDropdown
+                    organizationSlug={organizationSlug}
+                    project={project}
+                    projectSlug={projectSlug}
+                  />
+                </div>
+              </div>
+            )}
+
+            {applicationsWithConfiguration?.map(
+              (paymentProviderConfiguration) =>
+                paymentProviderConfiguration?.provider ? (
+                  <div
+                    className="group relative isolate px-6 py-4 hover:bg-accent/30"
+                    key={paymentProviderConfiguration.id}
+                  >
+                    <Link
+                      className="absolute inset-0 h-full w-full"
+                      params={{
+                        organizationSlug,
+                        projectSlug,
+                        paymentProviderConfigurationId:
+                          paymentProviderConfiguration.id
+                      }}
+                      to="/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId"
+                    />
+
+                    <div className="flex flex-row items-center justify-between">
+                      <div className="flex flex-1 items-center gap-4">
+                        <div className="flex h-8 w-8 items-center justify-center">
+                          <PaymentProviderLogo
+                            className="h-full w-full"
+                            providerId={
+                              paymentProviderConfiguration.provider.id
+                            }
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <p>{paymentProviderConfiguration.name}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {paymentProviderConfiguration.enabled && (
+                          <Badge>Enabled</Badge>
+                        )}
+                        <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </div>
+                ) : null
+            )}
+          </Card>
+        </div>
+
+        <div className="mt-8">
+          <Card className={cn('grid gap-0 divide-y p-0')}>
+            <CardHeader className="gap-0 py-6 pr-3">
+              <div className="flex items-center justify-between">
+                <CardTitle>Web Checkout Providers</CardTitle>
+              </div>
+            </CardHeader>
+            {webCheckoutProvidersWithConfigurations?.map(
+              (paymentProviderConfiguration) => (
+                <div
+                  className="group relative isolate px-6 py-4 hover:bg-accent/30"
+                  key={
+                    paymentProviderConfiguration.id ??
+                    paymentProviderConfiguration.provider.id
+                  }
+                >
+                  {paymentProviderConfiguration.id && (
+                    <Link
+                      className="absolute inset-0 h-full w-full"
+                      params={{
+                        organizationSlug,
+                        projectSlug,
+                        paymentProviderConfigurationId:
+                          paymentProviderConfiguration.id
+                      }}
+                      to="/$organizationSlug/$projectSlug/settings/payment-providers/$paymentProviderConfigurationId"
+                    />
+                  )}
+
+                  <div className="flex flex-row items-center justify-between">
+                    <div className="flex flex-1 items-center gap-4">
+                      <div className="flex h-8 w-8 items-center justify-center">
+                        <PaymentProviderLogo
+                          className="h-full w-full"
+                          providerId={paymentProviderConfiguration.provider.id}
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <p>{paymentProviderConfiguration.provider.title}</p>
+                      </div>
+                    </div>
+
+                    {paymentProviderConfiguration.id && (
+                      <div className="flex items-center gap-2">
+                        {paymentProviderConfiguration.enabled ? (
+                          <Badge>Enabled</Badge>
+                        ) : (
+                          <Badge variant="outline">Disabled</Badge>
+                        )}
+                        <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+
+                    {!paymentProviderConfiguration.id && (
+                      <div className="flex items-center gap-2">
+                        <SetupPaymentProviderButton
+                          organizationSlug={organizationSlug}
+                          projectId={project.id}
+                          projectSlug={projectSlug}
+                          providerId={paymentProviderConfiguration.provider.id}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            )}
+          </Card>
+        </div>
+      </div>
+    </Page>
+  );
+}

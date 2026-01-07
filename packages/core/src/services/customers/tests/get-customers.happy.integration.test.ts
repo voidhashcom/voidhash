@@ -112,4 +112,3 @@ describe.sequential('getCustomers happy path', () => {
     });
   });
 });
-

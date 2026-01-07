@@ -42,4 +42,3 @@ describe.sequential('updateOrganization happy path', () => {
     expect(value).toBe('updated');
   });
 });
-
