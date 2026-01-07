@@ -16,9 +16,9 @@ import { safeRegister } from "../js-loading/js-file-loading";
  * Symbol used to identify schema entity types at runtime.
  * Must match the symbol used in @voidhash/react-native schema definitions.
  */
-const SCHEMA_KIND = Symbol.for("voidhash.schema.kind");
+export const SCHEMA_KIND = Symbol.for("voidhash.schema.kind");
 
-const SchemaKind = {
+export const SchemaKind = {
   Perk: "perk",
   Product: "product",
   SchemaConfiguration: "schema-configuration",
@@ -27,7 +27,7 @@ const SchemaKind = {
 /**
  * Check if a value is a SchemaConfiguration object using the schema kind symbol
  */
-function isSchemaConfiguration(
+export function isSchemaConfiguration(
   value: unknown
 ): value is {
   perks: Record<string, { slug: string; name: string }>;
@@ -45,7 +45,7 @@ function isSchemaConfiguration(
 /**
  * Check if a value is a PerkDefinition instance using the schema kind symbol
  */
-function isPerkDefinition(
+export function isPerkDefinition(
   value: unknown
 ): value is { slug: string; name: string } {
   return (
@@ -58,7 +58,7 @@ function isPerkDefinition(
 /**
  * Check if a value is a ProductDefinition instance using the schema kind symbol
  */
-function isProductDefinition(
+export function isProductDefinition(
   value: unknown
 ): value is {
   type: string;
@@ -79,7 +79,7 @@ function isProductDefinition(
 /**
  * Extract perk slugs from a product's configuration
  */
-function extractPerkSlugs(
+export function extractPerkSlugs(
   perksConfig: Record<string, boolean | { _: unknown }> | undefined,
   allPerks: Map<string, { slug: string; name: string }>
 ): string[] {
@@ -112,7 +112,7 @@ function extractPerkSlugs(
 /**
  * Extract provider configurations from a product
  */
-function extractProviderConfigs(
+export function extractProviderConfigs(
   providersConfig: Record<string, unknown> | undefined
 ): { providerId: ProviderId; configuration: Record<string, unknown> }[] {
   if (!providersConfig) return [];
@@ -144,7 +144,7 @@ function extractProviderConfigs(
  * Convert slug to camelCase variable name
  * e.g., "all-access" -> "allAccess", "monthly_sub" -> "monthlySub"
  */
-function slugToCamelCase(slug: string): string {
+export function slugToCamelCase(slug: string): string {
   return slug
     .split(/[-_]/)
     .map((part, i) =>

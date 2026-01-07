@@ -35,18 +35,17 @@ export class SchemaService extends Effect.Service<SchemaService>()(
 			 */
 			const fetchRemoteSchema = () =>
 				Effect.gen(function* fetchRemoteSchema() {
+					yield* Effect.logDebug("Fetching remote schema from API");
 					const schema = createEmptyNormalizedSchema();
 
 					// 1. Fetch all perks
 					const remotePerks = yield* apiClient.perks.listPerks();
-					Effect.forEach(remotePerks, (perk) =>
-						Effect.sync(() => {
-							schema.perks.set(perk.slug, {
-								name: perk.name,
-								slug: perk.slug,
-							});
-						}),
-					);
+					for (const perk of remotePerks) {
+						schema.perks.set(perk.slug, {
+							name: perk.name,
+							slug: perk.slug,
+						});
+					}
 
 					// 2. Fetch all products
 					const remoteProducts = yield* apiClient.products.listProducts();
@@ -54,16 +53,14 @@ export class SchemaService extends Effect.Service<SchemaService>()(
 					// 3. Fetch payment provider configurations
 					const providerConfigs =
 						yield* apiClient.payment_provider_configurations.listPaymentProviderConfigurations();
-					Effect.forEach(providerConfigs, (config) =>
-						Effect.sync(() => {
-							if (
-								config.providerId === "appleAppStore" ||
-								config.providerId === "googlePlay"
-							) {
-								schema.enabledProviders.add(config.providerId);
-							}
-						}),
-					);
+					for (const config of providerConfigs) {
+						if (
+							config.providerId === "appleAppStore" ||
+							config.providerId === "googlePlay"
+						) {
+							schema.enabledProviders.add(config.providerId);
+						}
+					}
 
 					// 4. Fetch all payment provider products
 					const providerProducts =
@@ -74,22 +71,20 @@ export class SchemaService extends Effect.Service<SchemaService>()(
 						string,
 						{ providerId: ProviderId; configuration: Record<string, unknown> }[]
 					>();
-					Effect.forEach(providerProducts, (pp) =>
-						Effect.sync(() => {
-							if (
-								pp.providerId !== "appleAppStore" &&
-								pp.providerId !== "googlePlay"
-							) {
-								return;
-							}
-							const existing = productProviderMap.get(pp.productId) || [];
-							existing.push({
-								configuration: pp.configuration as Record<string, unknown>,
-								providerId: pp.providerId,
-							});
-							productProviderMap.set(pp.productId, existing);
-						}),
-					);
+					for (const pp of providerProducts) {
+						if (
+							pp.providerId !== "appleAppStore" &&
+							pp.providerId !== "googlePlay"
+						) {
+							continue;
+						}
+						const existing = productProviderMap.get(pp.productId) || [];
+						existing.push({
+							configuration: pp.configuration as Record<string, unknown>,
+							providerId: pp.providerId,
+						});
+						productProviderMap.set(pp.productId, existing);
+					}
 
 					// 5. For each product, fetch its perks
 
@@ -130,8 +125,12 @@ export class SchemaService extends Effect.Service<SchemaService>()(
 						},
 					);
 
+					yield* Effect.logDebug(
+						`Fetched ${schema.perks.size} perks, ${schema.products.size} products`
+					);
 					return schema;
 				}).pipe(
+					Effect.withSpan("SchemaService.fetchRemoteSchema"),
 					Effect.catchAll(
 						(e) =>
 							new RemoteSchemaFetchError({
@@ -147,6 +146,12 @@ export class SchemaService extends Effect.Service<SchemaService>()(
 				apiClient.payment_provider_configurations
 					.listPaymentProviderConfigurations()
 					.pipe(
+						Effect.tap((configs) =>
+							Effect.logDebug(
+								`Fetched ${configs.length} provider configurations`
+							)
+						),
+						Effect.withSpan("SchemaService.fetchProviderConfigurations"),
 						Effect.catchAll(
 							(e) =>
 								new RemoteSchemaFetchError({
@@ -173,37 +178,43 @@ export class SchemaService extends Effect.Service<SchemaService>()(
 			 * Deploy a single change to the server
 			 */
 			const deployChange = (change: Change) =>
-				apiClient.changesets
-					.deployChangeset({
-						payload: { changeset: { changes: [change] } },
-					})
-					.pipe(
-						Effect.catchAll(
-							(e) =>
-								new ChangeDeploymentError({
-									cause: e,
-									change: formatChange(change),
-								}),
-						),
-					);
+				Effect.logDebug(`Deploying change: ${formatChange(change)}`).pipe(
+					Effect.andThen(
+						apiClient.changesets.deployChangeset({
+							payload: { changeset: { changes: [change] } },
+						})
+					),
+					Effect.withSpan("SchemaService.deployChange"),
+					Effect.catchAll(
+						(e) =>
+							new ChangeDeploymentError({
+								cause: e,
+								change: formatChange(change),
+							})
+					)
+				);
 
 			/**
 			 * Deploy an entire changeset to the server
 			 */
 			const deployChangeset = (changeset: typeof ChangesetSchema.Type) =>
-				apiClient.changesets
-					.deployChangeset({
-						payload: { changeset },
-					})
-					.pipe(
-						Effect.catchAll(
-							(e) =>
-								new ChangeDeploymentError({
-									cause: e,
-									change: "Full changeset deployment",
-								}),
-						),
-					);
+				Effect.logDebug(
+					`Deploying changeset with ${changeset.changes.length} changes`
+				).pipe(
+					Effect.andThen(
+						apiClient.changesets.deployChangeset({
+							payload: { changeset },
+						})
+					),
+					Effect.withSpan("SchemaService.deployChangeset"),
+					Effect.catchAll(
+						(e) =>
+							new ChangeDeploymentError({
+								cause: e,
+								change: "Full changeset deployment",
+							})
+					)
+				);
 
 			return {
 				buildChangeset,

@@ -1,14 +1,17 @@
-import { Command, HelpDoc, Options, Prompt, ValidationError } from "@effect/cli";
+import { Command, Options, Prompt } from "@effect/cli";
 import { Console, Effect } from "effect";
 
 import { MissingProviderConfigurationError } from "../../domain/errors/schema";
 import { Auth } from "../../domain/services/auth";
 import { formatChange, SchemaService } from "../../domain/services/schema";
 import { SourceCode } from "../../domain/services/source-code";
+import { userError } from "../../utils/error-formatter";
+import { debugOption } from "../shared-options";
 
 export const schemaPushCommand = Command.make(
   "push",
   {
+    debug: debugOption,
     dryRun: Options.boolean("dry-run").pipe(
       Options.withDescription("Preview changes without applying"),
       Options.withDefault(false)
@@ -29,10 +32,8 @@ export const schemaPushCommand = Command.make(
       yield* auth.getSignedInSession.pipe(
         Effect.catchTag("NoSignedInUserError", () =>
           Effect.fail(
-            ValidationError.invalidValue(
-              HelpDoc.p(
-                "You must be logged in to push schema. Run 'voidhash auth login' first."
-              )
+            userError(
+              "You must be logged in to push schema. Run 'voidhash auth login' first."
             )
           )
         )
@@ -42,11 +43,7 @@ export const schemaPushCommand = Command.make(
       const config = yield* sourceCode.loadVoidhashConfig().pipe(
         Effect.catchTag("VoidhashConfigNotFoundError", () =>
           Effect.fail(
-            ValidationError.invalidValue(
-              HelpDoc.p(
-                "voidhash.config.ts not found. Run 'voidhash init' to create one."
-              )
-            )
+            userError("voidhash.config.ts not found. Run 'voidhash init' to create one.")
           )
         )
       );
@@ -57,18 +54,10 @@ export const schemaPushCommand = Command.make(
         .loadLocalSchema(config.schema)
         .pipe(
           Effect.catchTag("LocalSchemaNotFoundError", (e) =>
-            Effect.fail(
-              ValidationError.invalidValue(
-                HelpDoc.p(`Schema file not found: ${e.path}`)
-              )
-            )
+            Effect.fail(userError(`Schema file not found: ${e.path}`))
           ),
           Effect.catchTag("LocalSchemaParseError", (e) =>
-            Effect.fail(
-              ValidationError.invalidValue(
-                HelpDoc.p(`Failed to parse schema: ${e.message}`)
-              )
-            )
+            Effect.fail(userError(`Failed to parse schema: ${e.message}`))
           )
         );
 
@@ -79,11 +68,7 @@ export const schemaPushCommand = Command.make(
       yield* Console.log("\nFetching remote schema...");
       const remoteSchema = yield* schemaService.fetchRemoteSchema().pipe(
         Effect.catchTag("RemoteSchemaFetchError", (e) =>
-          Effect.fail(
-            ValidationError.invalidValue(
-              HelpDoc.p(`Failed to fetch remote schema: ${String(e.cause)}`)
-            )
-          )
+          Effect.fail(userError(`Failed to fetch remote schema: ${String(e.cause)}`))
         )
       );
 
@@ -96,11 +81,7 @@ export const schemaPushCommand = Command.make(
         .pipe(
           Effect.catchTag("RemoteSchemaFetchError", (e) =>
             Effect.fail(
-              ValidationError.invalidValue(
-                HelpDoc.p(
-                  `Failed to fetch provider configurations: ${String(e.cause)}`
-                )
-              )
+              userError(`Failed to fetch provider configurations: ${String(e.cause)}`)
             )
           )
         );

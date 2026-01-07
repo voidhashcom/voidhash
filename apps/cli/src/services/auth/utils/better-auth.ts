@@ -19,6 +19,7 @@ export class BetterAuthClient extends Effect.Service<BetterAuthClient>()(
       const cliConfig = yield* CliConfig;
       const config = yield* cliConfig.readConfig();
       const authClient: ReturnType<typeof createAuthClient> = createAuthClient({
+        basePath: "/auth/api/auth",
         baseURL: config.web_url ?? "https://voidhash.com",
         plugins: [apiKeyClient()],
       });
