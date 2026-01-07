@@ -14,7 +14,6 @@ AppLive.pipe(
 			port,
 		}),
 	),
-	// @ts-expect-error - Layer.launch is not typed correctly
 	Layer.launch,
 	BunRuntime.runMain,
 );

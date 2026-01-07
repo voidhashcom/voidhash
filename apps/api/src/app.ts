@@ -153,12 +153,22 @@ const HealthCheckRoute = Layer.effectDiscard(
 );
 
 // ==============================
+// Mimic Route Dependencies
+// ==============================
+// MimicPaywallRouteLayer requires PaywallService (and its dependencies)
+// We provide these explicitly so the layer can capture the runtime
+const MimicPaywallWithDeps = MimicPaywallRouteLayer.pipe(
+	Layer.provide(PaywallService.Default),
+	Layer.provide(Db.Default),
+);
+
+// ==============================
 // All Routes
 // ==============================
 const AllRoutes = Layer.mergeAll(
 	ApiRoutesLayer,
 	RpcRoutesLayer,
-	MimicPaywallRouteLayer,
+	MimicPaywallWithDeps,
 	PolarWebhookRouteLayer,
 	ApiDocsLayer,
 	HealthCheckRoute,
