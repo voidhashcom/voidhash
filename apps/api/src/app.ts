@@ -12,6 +12,7 @@ import {
 	ApiKeyService,
 	AppStoreServerAPIService,
 	AppStoreService,
+	ChangesetDeploymentService,
 	CustomerService,
 	OrganizationService,
 	PaymentProviderConfigurationService,
@@ -46,6 +47,9 @@ import { ProductsGroupLive } from "./routes/v1/products";
 import { ProjectsGroupLive } from "./routes/v1/projects";
 import { SdkGroupLive } from "./routes/v1/sdk";
 import { UsersGroupLive } from "./routes/v1/users";
+import { ChangesetsGroupLive } from "./routes/v1/changesets";
+import { PaymentProviderConfigurationsGroupLive } from "./routes/v1/payment-provider-configurations";
+import { PaymentProviderProductsGroupLive } from "./routes/v1/payment-provider-products";
 import { PolarWebhookRouteLayer } from "./routes/webhooks/polar";
 import { RpcAuthLive } from "./rpc-middlewares";
 import { AnalyticsRpcsLive } from "./rpcs/analytics-rpcs";
@@ -68,8 +72,11 @@ import { UserRpcsLive } from "./rpcs/user-rpcs";
 const V1GroupsLayer = Layer.mergeAll(
 	ApiKeysGroupLive,
 	AuthGroupLive,
+	ChangesetsGroupLive,
 	CustomersGroupLive,
 	OrganizationsGroupLive,
+	PaymentProviderConfigurationsGroupLive,
+	PaymentProviderProductsGroupLive,
 	PerksGroupLive,
 	ProductPerksGroupLive,
 	ProductsGroupLive,
@@ -184,6 +191,7 @@ const ServicesLayer = Layer.mergeAll(
 	ApiKeyService.Default,
 	AppStoreServerAPIService.Default,
 	AppStoreService.Default,
+	ChangesetDeploymentService.Default,
 	CustomerService.Default,
 	OrganizationService.Default,
 	PaymentProviderProductService.Default,

@@ -6,6 +6,7 @@ import { Effect, Layer } from "effect";
 import { Auth } from "../domain/services/auth";
 import { CliConfig } from "../domain/services/cli-config";
 import { Codegen } from "../domain/services/codegen";
+import { SchemaService } from "../domain/services/schema";
 import { SourceCode } from "../domain/services/source-code";
 import { ApiClient } from "../utils/api-client";
 import { authCommand } from "./commands/auth";
@@ -33,7 +34,8 @@ const cliEffect = Effect.suspend(() => cli(process.argv));
 const ServicesLayer = Layer.mergeAll(
   SourceCode.Default,
   Auth.Default,
-  Codegen.Default
+  Codegen.Default,
+  SchemaService.Default
 );
 
 const PlatformLayer = Layer.mergeAll(NodeContext.layer, FetchHttpClient.layer);

@@ -47,6 +47,7 @@ export const getProductById = Effect.gen(function* getProductById() {
         id: product.id,
         name: product.name,
         projectId: product.projectId,
+        slug: product.slug,
         type: dbProductTypeToApiProductType(product.type as ProductTypeValue),
       } satisfies typeof Product.Type;
     },
