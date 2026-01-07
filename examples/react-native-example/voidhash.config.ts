@@ -1,7 +1,7 @@
-import { defineConfig } from "voidhash-cli";
+import { defineConfig } from 'voidhash-cli';
 
 export default defineConfig({
-  project: "dev",
-  schema: "utils/voidhash/schema.ts",
-  team: "voidhash-sro",
+  team: 'voidhash-sro',
+  project: 'dev',
+  schema: 'utils/voidhash/schema.ts'
 });

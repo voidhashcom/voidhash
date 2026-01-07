@@ -1,3 +1,4 @@
+import { SCHEMA_KIND, SchemaKind } from "../constants";
 import type {
   AnyDefinedPerks,
   AnyDefinedProviders,
@@ -19,6 +20,7 @@ export abstract class ProductDefinition<
   //   SubscriptionProductDefinitionConfigurationFn<TProductProperties>
   // >,
 > {
+  readonly [SCHEMA_KIND] = SchemaKind.Product;
   type: TType;
   slug: string;
   private _properties: TProductProperties;
