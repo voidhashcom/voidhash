@@ -11,6 +11,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./services": "./src/services/index.ts",
+    "./services/paywall-design": "./src/services/paywall-design/index.ts",
     "./repositories": "./src/repositories/index.ts",
     "./utils": "./src/utils/index.ts",
     "./better-auth": "./src/better-auth/auth.ts",
@@ -23,12 +24,15 @@
     "test:integration": "vitest run -c vitest.integration.mts --bail=1"
   },
   "dependencies": {
+    "@effect-aws/client-s3": "^1.7.1",
     "@polar-sh/sdk": "^0.31.0",
     "@voidhash/api-spec": "workspace:*",
     "@voidhash/auth": "workspace:*",
     "@voidhash/db": "workspace:*",
     "@voidhash/lib": "workspace:*",
+    "@voidhash/mimic-effect": "catalog:",
     "@voidhash/shared": "workspace:*",
+    "ioredis": "^5.4.2",
     "yjs": "^13.6.27"
   },
   "devDependencies": {

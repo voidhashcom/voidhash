@@ -765,6 +765,82 @@ export const paywallEditTokenRelations = relations(
   })
 );
 
+// Paywall Design States (stores the Mimic document state for each paywall)
+export const paywallDesignStates = mysqlTable("paywall_design_state", {
+  // Primary key - same as paywall ID (1:1 relationship)
+  paywallId: varchar("paywall_id", { length: 255 }).primaryKey(),
+
+  // Document state as JSON blob
+  state: json("state").$type<unknown>().notNull(),
+
+  // Schema version for migrations (starts at 1)
+  schemaVersion: int("schema_version").notNull().default(1),
+
+  // Optimistic concurrency control - increments on each save
+  version: int("version").notNull().default(0),
+
+  // Redis sync checkpoint (for crash recovery)
+  redisCheckpoint: varchar("redis_checkpoint", { length: 255 }),
+
+  // Timestamps
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").onUpdateNow(),
+
+  // Soft delete - design data is preserved when paywall is deleted
+  deletedAt: timestamp("deleted_at"),
+});
+
+export const paywallDesignStateRelations = relations(
+  paywallDesignStates,
+  ({ one }) => ({
+    paywall: one(paywalls, {
+      fields: [paywallDesignStates.paywallId],
+      references: [paywalls.id],
+    }),
+  })
+);
+
+// Paywall Published Versions (stores S3 references to published designs)
+export const paywallPublishedVersions = mysqlTable(
+  "paywall_published_version",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    paywallId: varchar("paywall_id", { length: 255 }).notNull(),
+
+    // S3 reference
+    s3Key: varchar("s3_key", { length: 512 }).notNull(),
+    s3Bucket: varchar("s3_bucket", { length: 255 }).notNull(),
+
+    // Version info
+    version: int("version").notNull(),
+    schemaVersion: int("schema_version").notNull(),
+
+    // Metadata
+    publishedBy: varchar("published_by", { length: 255 }).notNull(),
+    publishedAt: timestamp("published_at").default(sql`CURRENT_TIMESTAMP`),
+
+    // Only one version can be active per paywall
+    isActive: boolean("is_active").notNull().default(false),
+  },
+  (table) => [
+    index("paywall_published_paywall_id_idx").on(table.paywallId),
+    uniqueIndex("paywall_published_version_idx").on(
+      table.paywallId,
+      table.version
+    ),
+  ]
+);
+
+export const paywallPublishedVersionRelations = relations(
+  paywallPublishedVersions,
+  ({ one }) => ({
+    paywall: one(paywalls, {
+      fields: [paywallPublishedVersions.paywallId],
+      references: [paywalls.id],
+    }),
+  })
+);
+
 // ============================================
 // BILLING TABLES
 // ============================================

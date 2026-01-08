@@ -13,6 +13,7 @@ const prefixes = {
 	paywall: "pw",
 	paywallEditToken: "pw_et",
 	paywallProduct: "pw_prod",
+	paywallPublishedVersion: "pw_pub",
 	paymentProviderConfiguration: "pp_conf",
 	paymentProviderProduct: "pp_prod",
 	product: "prod",

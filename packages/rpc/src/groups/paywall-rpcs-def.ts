@@ -2,6 +2,7 @@ import { Rpc, RpcGroup } from "@effect/rpc";
 import {
   ActionForbiddenError,
   PaywallNotFoundError,
+  PaywallPublishError,
   PaywallServiceError,
   PaywallSlugAlreadyExistsError,
 } from "@voidhash/shared";
@@ -63,5 +64,56 @@ export class PaywallRpcsDef extends RpcGroup.make(
       expiresAt: Schema.DateFromNumber,
       token: Schema.String,
     }),
+  }),
+  Rpc.make("PublishPaywall", {
+    error: Schema.Union(
+      ActionForbiddenError,
+      PaywallServiceError,
+      PaywallNotFoundError,
+      PaywallPublishError
+    ),
+    payload: Schema.Struct({
+      paywallId: Schema.String,
+    }),
+    success: Schema.Struct({
+      id: Schema.String,
+      s3Bucket: Schema.String,
+      s3Key: Schema.String,
+      version: Schema.Number,
+    }),
+  }),
+  Rpc.make("GetPublishedPaywallVersions", {
+    error: Schema.Union(
+      ActionForbiddenError,
+      PaywallServiceError,
+      PaywallNotFoundError,
+      PaywallPublishError
+    ),
+    payload: Schema.Struct({
+      paywallId: Schema.String,
+    }),
+    success: Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        isActive: Schema.Boolean,
+        publishedAt: Schema.DateFromString,
+        s3Bucket: Schema.String,
+        s3Key: Schema.String,
+        version: Schema.Number,
+      })
+    ),
+  }),
+  Rpc.make("SetActivePaywallVersion", {
+    error: Schema.Union(
+      ActionForbiddenError,
+      PaywallServiceError,
+      PaywallNotFoundError,
+      PaywallPublishError
+    ),
+    payload: Schema.Struct({
+      paywallId: Schema.String,
+      version: Schema.Number,
+    }),
+    success: Schema.Void,
   })
 ).middleware(AuthMiddleware) {}
