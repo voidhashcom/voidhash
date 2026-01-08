@@ -24,3 +24,10 @@ export class PaywallSlugAlreadyExistsError extends Schema.TaggedError<PaywallSlu
     return `The following paywall slug already exists: ${this.slug}`;
   }
 }
+
+export class PaywallPublishError extends Schema.TaggedError<PaywallPublishError>()(
+  "PaywallPublishError",
+  {
+    message: Schema.String,
+  }
+) {}
