@@ -349,21 +349,54 @@ export const layer = (
 
 /**
  * Create layer from environment variables
+ * @throws {Error} if S3_ACCESS_KEY or S3_SECRET_KEY are not set
  */
-export const layerFromEnv = (): Layer.Layer<S3PublishStoreTag, never, Db | S3Service> =>
-  layer({
-    accessKeyId: process.env.S3_ACCESS_KEY ?? "voidhashadmin",
+export const layerFromEnv = (): Layer.Layer<S3PublishStoreTag, never, Db | S3Service> => {
+  const accessKeyId = process.env.S3_ACCESS_KEY;
+  const secretAccessKey = process.env.S3_SECRET_KEY;
+
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error("S3_ACCESS_KEY and S3_SECRET_KEY environment variables are required");
+  }
+
+  return layer({
+    accessKeyId,
     bucket: process.env.S3_PAYWALL_BUCKET ?? "voidhash-paywall-designs",
     endpoint: process.env.S3_ENDPOINT,
     forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
     region: process.env.S3_REGION ?? "us-east-1",
-    secretAccessKey: process.env.S3_SECRET_KEY ?? "voidhashadmin",
+    secretAccessKey,
   });
+};
 
 /**
  * Create S3 client layer from environment
+ * @throws {Error} if S3_ACCESS_KEY or S3_SECRET_KEY are not set
  */
-export const S3ClientLayer: Layer.Layer<S3Service> = S3.layer({
+export const makeS3ClientLayer = (): Layer.Layer<S3Service> => {
+  const accessKeyId = process.env.S3_ACCESS_KEY;
+  const secretAccessKey = process.env.S3_SECRET_KEY;
+
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error("S3_ACCESS_KEY and S3_SECRET_KEY environment variables are required");
+  }
+
+  return S3.layer({
+    credentials: {
+      accessKeyId,
+      secretAccessKey,
+    },
+    endpoint: process.env.S3_ENDPOINT,
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
+    region: process.env.S3_REGION ?? "us-east-1",
+  });
+};
+
+/**
+ * S3 client layer for testing with local S3 (MinIO/RustFS)
+ * Uses hardcoded defaults - DO NOT use in production
+ */
+export const S3ClientLayerTest: Layer.Layer<S3Service> = S3.layer({
   credentials: {
     accessKeyId: process.env.S3_ACCESS_KEY ?? "voidhashadmin",
     secretAccessKey: process.env.S3_SECRET_KEY ?? "voidhashadmin",
@@ -372,6 +405,11 @@ export const S3ClientLayer: Layer.Layer<S3Service> = S3.layer({
   forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
   region: process.env.S3_REGION ?? "us-east-1",
 });
+
+/**
+ * @deprecated Use makeS3ClientLayer() for production or S3ClientLayerTest for tests
+ */
+export const S3ClientLayer = S3ClientLayerTest;
 
 /**
  * Default layer using environment variables

@@ -1,8 +1,8 @@
 import { PaywallService } from "@voidhash/core/services";
 import {
+  makeS3ClientLayer,
   mysqlSnapshotStoreLayer,
   s3PublishStoreLayerFromEnv,
-  S3ClientLayer,
 } from "@voidhash/core/services/paywall-design";
 import { PaywallRpcsDef } from "@voidhash/rpc";
 import { PaywallPublishError } from "@voidhash/shared";
@@ -12,7 +12,7 @@ import { Effect, Layer } from "effect";
 const PublishStorageLayers = Layer.mergeAll(
   mysqlSnapshotStoreLayer,
   s3PublishStoreLayerFromEnv(),
-).pipe(Layer.provide(S3ClientLayer));
+).pipe(Layer.provide(makeS3ClientLayer()));
 
 export const PaywallRpcsLive = PaywallRpcsDef.toLayer(
   Effect.gen(function* PaywallRpcsLive() {

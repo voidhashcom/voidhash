@@ -15,7 +15,7 @@ import { createIntegrationTestRunner } from "../../../integration-test-runtime";
 import { IntegrationHarness } from "../../../testing/integration-harness";
 import {
   layer as s3Layer,
-  S3ClientLayer,
+  S3ClientLayerTest,
   S3PublishStoreTag,
   type S3Config,
 } from "../s3-publish-store";
@@ -62,7 +62,7 @@ describe.sequential("s3-publish-store integration", () => {
         return publishResult;
       }).pipe(
         Effect.provide(s3Layer(testConfig)),
-        Effect.provide(S3ClientLayer),
+        Effect.provide(S3ClientLayerTest),
         Effect.provide(Db.Default)
       )
     );
@@ -117,7 +117,7 @@ describe.sequential("s3-publish-store integration", () => {
         return { v1, v2, v3 };
       }).pipe(
         Effect.provide(s3Layer(testConfig)),
-        Effect.provide(S3ClientLayer),
+        Effect.provide(S3ClientLayerTest),
         Effect.provide(Db.Default)
       )
     );
@@ -165,7 +165,7 @@ describe.sequential("s3-publish-store integration", () => {
         return active;
       }).pipe(
         Effect.provide(s3Layer(testConfig)),
-        Effect.provide(S3ClientLayer),
+        Effect.provide(S3ClientLayerTest),
         Effect.provide(Db.Default)
       )
     );
@@ -218,7 +218,7 @@ describe.sequential("s3-publish-store integration", () => {
         return versions;
       }).pipe(
         Effect.provide(s3Layer(testConfig)),
-        Effect.provide(S3ClientLayer),
+        Effect.provide(S3ClientLayerTest),
         Effect.provide(Db.Default)
       )
     );
@@ -271,7 +271,7 @@ describe.sequential("s3-publish-store integration", () => {
         return active;
       }).pipe(
         Effect.provide(s3Layer(testConfig)),
-        Effect.provide(S3ClientLayer),
+        Effect.provide(S3ClientLayerTest),
         Effect.provide(Db.Default)
       )
     );
@@ -314,7 +314,7 @@ describe.sequential("s3-publish-store integration", () => {
         return versions;
       }).pipe(
         Effect.provide(s3Layer(testConfig)),
-        Effect.provide(S3ClientLayer),
+        Effect.provide(S3ClientLayerTest),
         Effect.provide(Db.Default)
       )
     );

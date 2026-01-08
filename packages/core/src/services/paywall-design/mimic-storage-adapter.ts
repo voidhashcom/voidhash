@@ -176,10 +176,11 @@ const makePaywallDesignStorage = Effect.gen(function* () {
         catch: (error) => error,
         try: () => migrateStateSync(state),
       }).pipe(
-        Effect.catchAll((error) => {
-          Effect.logWarning("Schema migration failed, using original state", error);
-          return Effect.succeed(state);
-        })
+        Effect.catchAll((error) =>
+          Effect.logWarning("Schema migration failed, using original state", error).pipe(
+            Effect.as(state)
+          )
+        )
       ),
 
     // Transform state before save - currently a pass-through
