@@ -1,0 +1,29 @@
+{
+	"name": "@voidhash/redis",
+	"version": "0.0.1-alpha.1",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/voidhashcom/voidhash",
+		"directory": "packages/redis"
+	},
+	"type": "module",
+	"main": "./index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"dotenv": "^17.2.0",
+		"ioredis": "^5.4.2"
+	},
+	"devDependencies": {
+		"@voidhash/tsconfig": "workspace:*",
+		"tsx": "^4.19.3",
+		"typescript": "5.8.3"
+	},
+	"peerDependencies": {
+		"effect": "catalog:"
+	}
+}
