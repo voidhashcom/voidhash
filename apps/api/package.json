@@ -1,44 +1,45 @@
 {
-  "name": "@voidhash/api",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun --env disable --sourcemap=external",
-    "start": "bun run dist/index.js",
-    "typecheck": "tsc --noEmit",
-    "lint": "biome check .",
-    "format": "biome format . --write",
-    "test": "vitest run -c vitest.unit.mts",
-    "test:integration": "vitest run -c vitest.integration.mts --bail=1"
-  },
-  "dependencies": {
-    "@effect-aws/client-s3": "^1.10.7",
-    "@effect/cluster": "catalog:",
-    "@effect/platform": "catalog:",
-    "@effect/platform-bun": "catalog:",
-    "@effect/platform-node": "catalog:",
-    "@effect/sql-mysql2": "^0.49.0",
-    "@voidhash/api-spec": "workspace:*",
-    "@voidhash/auth": "workspace:*",
-    "@voidhash/core": "workspace:*",
-    "@voidhash/db": "workspace:*",
-    "@voidhash/lib": "workspace:*",
-    "@voidhash/mimic-effect": "catalog:",
-    "@voidhash/mimic-schema": "workspace:*",
-    "@voidhash/rpc": "workspace:*",
-    "@voidhash/shared": "workspace:*",
-    "effect": "catalog:",
-    "jose": "^6.0.11"
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@voidhash/tsconfig": "workspace:*",
-    "typescript": "^5"
-  },
-  "engines": {
-    "bun": ">=1.2.20"
-  }
+	"name": "@voidhash/api",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "bun run --watch src/index.ts",
+		"build": "bun build ./src/index.ts --outdir ./dist --target bun --env disable --sourcemap=external",
+		"start": "bun run dist/index.js",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check .",
+		"format": "biome format . --write",
+		"test": "vitest run -c vitest.unit.mts",
+		"test:integration": "vitest run -c vitest.integration.mts --bail=1"
+	},
+	"dependencies": {
+		"@effect-aws/client-s3": "^1.10.7",
+		"@effect/cluster": "catalog:",
+		"@effect/platform": "catalog:",
+		"@effect/platform-bun": "catalog:",
+		"@effect/platform-node": "catalog:",
+		"@effect/sql-mysql2": "^0.49.0",
+		"@voidhash/api-spec": "workspace:*",
+		"@voidhash/auth": "workspace:*",
+		"@voidhash/core": "workspace:*",
+		"@voidhash/db": "workspace:*",
+		"@voidhash/lib": "workspace:*",
+		"@voidhash/mimic-effect": "catalog:",
+		"@voidhash/mimic-schema": "workspace:*",
+		"@voidhash/redis": "workspace:*",
+		"@voidhash/rpc": "workspace:*",
+		"@voidhash/shared": "workspace:*",
+		"effect": "catalog:",
+		"jose": "^6.0.11"
+	},
+	"devDependencies": {
+		"@types/node": "^20",
+		"@types/react": "^19",
+		"@types/react-dom": "^19",
+		"@voidhash/tsconfig": "workspace:*",
+		"typescript": "^5"
+	},
+	"engines": {
+		"bun": ">=1.2.20"
+	}
 }

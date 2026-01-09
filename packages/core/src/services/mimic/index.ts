@@ -5,7 +5,6 @@
  */
 
 export {
-	RedisMimicHotStorageFromEnv,
 	RedisMimicHotStorageLive,
 	type RedisMimicHotStorageConfig,
 } from "./redis-mimic-hot-storage";
