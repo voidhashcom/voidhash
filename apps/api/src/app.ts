@@ -1,6 +1,5 @@
 import { ClusterWorkflowEngine, RunnerAddress } from "@effect/cluster";
 import {
-	HttpApiBuilder,
 	HttpApiScalar,
 	HttpLayerRouter,
 	HttpServerResponse,
@@ -33,14 +32,16 @@ import {
 	UsageService,
 	UserService,
 } from "@voidhash/core/services";
+import { PaywallMimicColdStorageLive } from "@voidhash/core/services/paywall-design";
 import { Db } from "@voidhash/db/effect";
 import { DOCS_DOMAIN, STUDIO_DOMAIN, WWW_DOMAIN } from "@voidhash/lib";
+import { Redis } from "@voidhash/redis";
 import { RpcGroups } from "@voidhash/rpc";
 import { Duration, Effect, Layer, Option, Redacted, Schedule } from "effect";
 
 import { AuthMiddlewareLive } from "./api-middlewares";
 import { JwtAuth } from "./jwt-auth";
-import { MimicPaywallRoute, MimicPaywallEngine } from "./routes/mimic-paywall";
+import { MimicPaywallEngine, MimicPaywallRoute } from "./routes/mimic-paywall";
 import { ApiKeysGroupLive } from "./routes/v1/api-keys";
 import { AuthGroupLive } from "./routes/v1/auth";
 import { ChangesetsGroupLive } from "./routes/v1/changesets";
@@ -69,95 +70,11 @@ import { ProductPerkRpcsLive } from "./rpcs/product-perk-rpcs";
 import { ProductRpcsLive } from "./rpcs/product-rpcs";
 import { ProjectRpcsLive } from "./rpcs/project-rpcs";
 import { UserRpcsLive } from "./rpcs/user-rpcs";
-import { PaywallMimicColdStorageLive } from "@voidhash/core/services/paywall-design";
-import { Redis } from "@voidhash/redis";
 
 // ==============================
-// API ROUTES
+// 1. INFRASTRUCTURE
 // ==============================
-const V1GroupsLayer = Layer.mergeAll(
-	ApiKeysGroupLive,
-	AuthGroupLive,
-	ChangesetsGroupLive,
-	CustomersGroupLive,
-	OrganizationsGroupLive,
-	PaymentProviderConfigurationsGroupLive,
-	PaymentProviderProductsGroupLive,
-	PerksGroupLive,
-	ProductPerksGroupLive,
-	ProductsGroupLive,
-	ProjectsGroupLive,
-	SdkGroupLive,
-	UsersGroupLive,
-);
 
-const V1ApiRoutes = HttpLayerRouter.addHttpApi(VoidhashV1Api, {
-	openapiPath: "/api/docs/openapi.json",
-}).pipe(Layer.provide(V1GroupsLayer), Layer.provide(AuthMiddlewareLive));
-
-// const DocsRoute = HttpApiScalar.layer({
-//   path: '/api/docs'
-// }).pipe(Layer.provide(V1ApiRoutes));
-
-const ApiDocsLayer = HttpApiScalar.layerHttpLayerRouter({
-	api: VoidhashV1Api,
-	path: "/api/docs",
-});
-
-const ApiRoutesLayer = Layer.mergeAll(
-	V1ApiRoutes,
-	HttpApiBuilder.middlewareCors({
-		allowedOrigins: [WWW_DOMAIN, STUDIO_DOMAIN, DOCS_DOMAIN],
-		credentials: true,
-	}),
-);
-
-// ==============================
-// RPC
-// ==============================
-const RpcRoutesLayer = RpcServer.layerHttpRouter({
-	group: RpcGroups,
-	path: "/rpc",
-	protocol: "http",
-}).pipe(
-	Layer.provide(RpcSerialization.layerNdjson),
-	Layer.provide(RpcAuthLive),
-	Layer.provide(
-		Layer.mergeAll(
-			AnalyticsRpcsLive,
-			ApiKeyRpcsLive,
-			BillingRpcsLive,
-			CustomerRpcsLive,
-			OrganizationRpcsLive,
-			PaymentProviderConfigurationRpcsLive,
-			PaymentProviderProductRpcsLive,
-			PerkRpcsLive,
-			ProductPerkRpcsLive,
-			ProductRpcsLive,
-			ProjectRpcsLive,
-			PaywallRpcsLive,
-			UserRpcsLive,
-		),
-	),
-	Layer.provide(AuthMiddlewareLive),
-);
-
-// ==============================
-// Health Check
-// ==============================
-const HealthCheckRoute = Layer.effectDiscard(
-	Effect.gen(function* HealthCheckRoute() {
-		// First, we need to access the `HttpRouter` service
-		const router = yield* HttpLayerRouter.HttpRouter;
-
-		// Then, we can add a new route to the router
-		yield* router.add("GET", "/health", HttpServerResponse.text("OK"));
-	}),
-);
-
-// ==============================
-// Cluster Infrastructure (shared between WorkflowEngine and Mimic)
-// ==============================
 const runnerHost = process.env.CLUSTER_RUNNER_HOST ?? "localhost";
 const runnerPort = process.env.CLUSTER_RUNNER_PORT
 	? Number.parseInt(process.env.CLUSTER_RUNNER_PORT, 10)
@@ -189,8 +106,15 @@ const ClusterInfrastructure = BunClusterSocket.layer({
 	),
 );
 
+const RedisLive = Redis.layer({
+	host: process.env.REDIS_HOST,
+	port: process.env.REDIS_PORT
+		? Number.parseInt(process.env.REDIS_PORT, 10)
+		: 6379,
+});
+
 // ==============================
-// Mimic Engine
+// 2. STORAGE
 // ==============================
 
 const MimicHotStorageLayer = RedisMimicHotStorageLive({
@@ -199,45 +123,23 @@ const MimicHotStorageLayer = RedisMimicHotStorageLive({
 
 const MimicColdStorageLayer = PaywallMimicColdStorageLive;
 
+// ==============================
+// 3. ENGINES
+// ==============================
+
+const WorkflowEngineLayer = ClusterWorkflowEngine.layer.pipe(
+	Layer.provideMerge(ClusterInfrastructure),
+);
+
 const MimicEngineLayer = MimicPaywallEngine.pipe(
 	Layer.provide(MimicHotStorageLayer),
 	Layer.provide(MimicColdStorageLayer),
 );
 
-const MimicPaywallRouteLayer = MimicPaywallRoute.pipe(
-	Layer.provideMerge(ClusterInfrastructure),
-	Layer.provide(MimicEngineLayer),
-);
+// ==============================
+// 4. BILLING
+// ==============================
 
-// ==============================
-// All Routes
-// ==============================
-const AllRoutes = Layer.mergeAll(
-	ApiRoutesLayer,
-	RpcRoutesLayer,
-	MimicPaywallRouteLayer,
-	PolarWebhookRouteLayer,
-	ApiDocsLayer,
-	HealthCheckRoute,
-).pipe(
-	Layer.provide(
-		HttpLayerRouter.cors({
-			allowedOrigins: [WWW_DOMAIN, STUDIO_DOMAIN, DOCS_DOMAIN],
-			credentials: true,
-		}),
-	),
-);
-
-// ==============================
-// Workflow Engine (also exposes Sharding, Runners, MessageStorage from ClusterInfrastructure)
-// ==============================
-const WorkflowEngineLayer = ClusterWorkflowEngine.layer.pipe(
-	Layer.provideMerge(ClusterInfrastructure),
-);
-
-// ==============================
-// Services
-// ==============================
 const PolarBillingProviderConfigLayer = Layer.succeed(PolarConfigService, {
 	accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
 	organizationId: process.env.POLAR_ORGANIZATION_ID ?? "",
@@ -253,40 +155,133 @@ const PolarBillingProviderLayer = PolarBillingProviderLive.pipe(
 	Layer.provideMerge(PolarBillingProviderConfigLayer),
 );
 
-const RedisLive = Redis.layer({
-	host: process.env.REDIS_HOST,
-	port: process.env.REDIS_PORT
-		? Number.parseInt(process.env.REDIS_PORT, 10)
-		: 6379,
-});
+// ==============================
+// 5. SERVICES
+// ==============================
+
+const BusinessServices = Layer.mergeAll(
+	AnalyticsService.Default,
+	ApiKeyService.Default,
+	AppStoreServerAPIService.Default,
+	AppStoreService.Default,
+	CustomerService.Default,
+	OrganizationService.Default,
+	PaymentProviderProductService.Default,
+	PaymentProviderConfigurationService.Default,
+	PerkGrantService.Default,
+	PerkService.Default,
+	ProductPerkService.Default,
+	PaywallService.Default,
+	ProductService.Default,
+	ProjectService.Default,
+	SdkService.Default,
+	UserService.Default,
+);
+
+const CoreDependencies = Layer.mergeAll(
+	BetterAuth.Default,
+	Db.Default,
+	RedisLive,
+	JwtAuth.Default,
+);
 
 const ServicesLayer = ChangesetDeploymentService.Default.pipe(
-	Layer.provideMerge(
-		Layer.mergeAll(
-			AnalyticsService.Default,
-			ApiKeyService.Default,
-			AppStoreServerAPIService.Default,
-			AppStoreService.Default,
-			CustomerService.Default,
-			OrganizationService.Default,
-			PaymentProviderProductService.Default,
-			PaymentProviderConfigurationService.Default,
-			PerkGrantService.Default,
-			PerkService.Default,
-			ProductPerkService.Default,
-			PaywallService.Default,
-			ProductService.Default,
-			ProjectService.Default,
-			SdkService.Default,
-			UserService.Default,
-		),
-	),
+	Layer.provideMerge(BusinessServices),
 	Layer.provideMerge(PolarBillingProviderLayer),
 	Layer.provideMerge(UsageService.Default),
-	// WorkflowEngineLayer provides WorkflowEngine, and ClusterInfrastructure provides Sharding + MessageStorage
 	Layer.provideMerge(WorkflowEngineLayer),
-	Layer.provideMerge(
-		Layer.mergeAll(BetterAuth.Default, Db.Default, RedisLive, JwtAuth.Default),
+	Layer.provideMerge(CoreDependencies),
+);
+
+// ==============================
+// 6. ROUTE HANDLERS
+// ==============================
+
+const V1GroupsLayer = Layer.mergeAll(
+	ApiKeysGroupLive,
+	AuthGroupLive,
+	ChangesetsGroupLive,
+	CustomersGroupLive,
+	OrganizationsGroupLive,
+	PaymentProviderConfigurationsGroupLive,
+	PaymentProviderProductsGroupLive,
+	PerksGroupLive,
+	ProductPerksGroupLive,
+	ProductsGroupLive,
+	ProjectsGroupLive,
+	SdkGroupLive,
+	UsersGroupLive,
+);
+
+const RpcHandlersLayer = Layer.mergeAll(
+	AnalyticsRpcsLive,
+	ApiKeyRpcsLive,
+	BillingRpcsLive,
+	CustomerRpcsLive,
+	OrganizationRpcsLive,
+	PaymentProviderConfigurationRpcsLive,
+	PaymentProviderProductRpcsLive,
+	PerkRpcsLive,
+	ProductPerkRpcsLive,
+	ProductRpcsLive,
+	ProjectRpcsLive,
+	PaywallRpcsLive,
+	UserRpcsLive,
+);
+
+// ==============================
+// 7. ROUTES
+// ==============================
+
+const V1ApiRoutes = HttpLayerRouter.addHttpApi(VoidhashV1Api, {
+	openapiPath: "/api/docs/openapi.json",
+}).pipe(Layer.provide(V1GroupsLayer), Layer.provide(AuthMiddlewareLive));
+
+const ApiDocsLayer = HttpApiScalar.layerHttpLayerRouter({
+	api: VoidhashV1Api,
+	path: "/api/docs",
+});
+
+const RpcRoutesLayer = RpcServer.layerHttpRouter({
+	group: RpcGroups,
+	path: "/rpc",
+	protocol: "http",
+}).pipe(
+	Layer.provide(RpcSerialization.layerNdjson),
+	Layer.provide(RpcAuthLive),
+	Layer.provide(RpcHandlersLayer),
+	Layer.provide(AuthMiddlewareLive),
+);
+
+const MimicPaywallRouteLayer = MimicPaywallRoute.pipe(
+	Layer.provideMerge(ClusterInfrastructure),
+	Layer.provide(MimicEngineLayer),
+);
+
+const HealthCheckRoute = Layer.effectDiscard(
+	Effect.gen(function* HealthCheckRoute() {
+		const router = yield* HttpLayerRouter.HttpRouter;
+		yield* router.add("GET", "/health", HttpServerResponse.text("OK"));
+	}),
+);
+
+// ==============================
+// 8. APPLICATION
+// ==============================
+
+const AllRoutes = Layer.mergeAll(
+	V1ApiRoutes,
+	RpcRoutesLayer,
+	MimicPaywallRouteLayer,
+	PolarWebhookRouteLayer,
+	ApiDocsLayer,
+	HealthCheckRoute,
+).pipe(
+	Layer.provide(
+		HttpLayerRouter.cors({
+			allowedOrigins: [WWW_DOMAIN, STUDIO_DOMAIN, DOCS_DOMAIN],
+			credentials: true,
+		}),
 	),
 );
 
