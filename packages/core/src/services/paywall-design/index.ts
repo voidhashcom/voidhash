@@ -1,14 +1,19 @@
 /**
  * Paywall Design Persistence Services
  *
- * Provides a 3-tier persistence layer for the Mimic-based paywall designer:
- * - Redis: Safety buffer for real-time crash recovery
- * - MySQL: Canonical state storage with soft deletes
+ * Provides persistence for the Mimic-based paywall designer:
+ * - MySQL: Canonical state storage with soft deletes (via PaywallMimicColdStorageLive)
+ * - Redis: WAL for real-time crash recovery (via RedisMimicHotStorageFromEnv from mimic service)
  * - S3: Published versions for CDN delivery
  */
 
 // Error types
-export * from "./errors";
+export {
+  MySqlSnapshotError,
+  S3PublishError,
+  SchemaMigrationError,
+  VersionConflictError,
+} from "./errors";
 
 // Schema migration
 export {
@@ -21,17 +26,6 @@ export {
   type VersionedState,
 } from "./schema-migration";
 
-// Redis operations log
-export {
-  Default as RedisOperationsLogDefault,
-  layer as redisOperationsLogLayer,
-  layerFromEnv as redisOperationsLogLayerFromEnv,
-  RedisOperationsLogTag,
-  type RedisConfig,
-  type RedisOperationsLog,
-  type RedisStateSnapshot,
-} from "./redis-operations-log";
-
 // MySQL snapshot store
 export {
   Default as MySqlSnapshotStoreDefault,
@@ -42,15 +36,6 @@ export {
   type SaveDesignStateInput,
   type SaveDesignStateResult,
 } from "./mysql-snapshot-store";
-
-// Debounce manager
-export {
-  Default as DebounceManagerDefault,
-  DebounceManagerTag,
-  layer as debounceManagerLayer,
-  type DebounceManager,
-  type FlushFn,
-} from "./debounce-manager";
 
 // S3 publish store
 export {
@@ -68,12 +53,5 @@ export {
   type S3PublishStore,
 } from "./s3-publish-store";
 
-// Main storage adapter (deprecated - use PaywallMimicColdStorageLive with RedisMimicHotStorageFromEnv)
-// export {
-//   FullStorageLayerFromEnv,
-//   makeFullStorageLayer,
-//   PaywallDesignStorageLayer,
-// } from "./mimic-storage-adapter";
-
-// Mimic cluster storage
+// Mimic cold storage (MySQL-based)
 export { PaywallMimicColdStorageLive } from "./paywall-mimic-cold-storage";

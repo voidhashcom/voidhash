@@ -402,7 +402,7 @@ export const S3ClientLayerTest: Layer.Layer<S3Service> = S3.layer({
     secretAccessKey: process.env.S3_SECRET_KEY ?? "voidhashadmin",
   },
   endpoint: process.env.S3_ENDPOINT ?? "http://localhost:9000",
-  forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
+  forcePathStyle: true, // Always true for local testing
   region: process.env.S3_REGION ?? "us-east-1",
 });
 
@@ -412,7 +412,15 @@ export const S3ClientLayerTest: Layer.Layer<S3Service> = S3.layer({
 export const S3ClientLayer = S3ClientLayerTest;
 
 /**
- * Default layer using environment variables
+ * Default layer with local development defaults (falls back to test credentials)
+ * For production, use layerFromEnv() which validates environment variables are set.
  */
 export const Default: Layer.Layer<S3PublishStoreTag, never, Db | S3Service> =
-  layerFromEnv();
+  layer({
+    accessKeyId: process.env.S3_ACCESS_KEY ?? "voidhashadmin",
+    bucket: process.env.S3_PAYWALL_BUCKET ?? "voidhash-paywall-designs",
+    endpoint: process.env.S3_ENDPOINT ?? "http://localhost:9000",
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true" || !process.env.S3_ENDPOINT,
+    region: process.env.S3_REGION ?? "us-east-1",
+    secretAccessKey: process.env.S3_SECRET_KEY ?? "voidhashadmin",
+  });

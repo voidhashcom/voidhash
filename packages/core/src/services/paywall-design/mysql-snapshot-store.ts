@@ -125,9 +125,10 @@ const makeMySqlSnapshotStore = Effect.gen(function* () {
 					})
 					.where(eq(paywallDesignStates.paywallId, input.paywallId));
 
-				// MySQL returns affectedRows in the result
-				const affectedRows = (result as unknown as { affectedRows: number })
-					.affectedRows;
+				// MySQL returns affectedRows in the result array
+				const affectedRows = Array.isArray(result)
+					? (result[0] as { affectedRows?: number })?.affectedRows ?? 0
+					: (result as unknown as { affectedRows?: number })?.affectedRows ?? 0;
 				return {
 					newVersion: input.expectedVersion + 1,
 					success: affectedRows > 0,
