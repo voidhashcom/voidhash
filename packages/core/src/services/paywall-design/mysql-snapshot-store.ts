@@ -6,8 +6,8 @@
  */
 
 import {
+	and,
 	eq,
-	isNull,
 	paywallDesignStates,
 	sql,
 	type InferSelectModel,
@@ -111,9 +111,10 @@ const makeMySqlSnapshotStore = Effect.gen(function* () {
 						state: input.state,
 						version: 1,
 					});
-					return { newVersion: 1, success: true };
+					return { affectedRows: 1, newVersion: 1 };
 				}
-				// Update existing record with version check
+				// Update existing record with optimistic locking via WHERE clause
+				// This is the authoritative check - prevents race conditions
 				const result = await client
 					.update(paywallDesignStates)
 					.set({
@@ -123,15 +124,20 @@ const makeMySqlSnapshotStore = Effect.gen(function* () {
 						state: input.state,
 						version: sql`${paywallDesignStates.version} + 1`,
 					})
-					.where(eq(paywallDesignStates.paywallId, input.paywallId));
+					.where(
+						and(
+							eq(paywallDesignStates.paywallId, input.paywallId),
+							eq(paywallDesignStates.version, input.expectedVersion),
+						),
+					);
 
 				// MySQL returns affectedRows in the result array
 				const affectedRows = Array.isArray(result)
 					? (result[0] as { affectedRows?: number })?.affectedRows ?? 0
 					: (result as unknown as { affectedRows?: number })?.affectedRows ?? 0;
 				return {
+					affectedRows,
 					newVersion: input.expectedVersion + 1,
-					success: affectedRows > 0,
 				};
 			}),
 	);
@@ -173,14 +179,15 @@ const makeMySqlSnapshotStore = Effect.gen(function* () {
 
 		save: (input: SaveDesignStateInput) =>
 			Effect.gen(function* () {
-				// Check if record exists
+				// Check if record exists (fast-path optimization)
 				const existing = yield* loadQuery(input.paywallId).pipe(
 					Effect.catchAll(() => Effect.succeed(null)),
 				);
 
 				const isInsert = !existing;
 
-				// Verify version for updates
+				// Fast-path version check (avoids unnecessary DB round-trip)
+				// The authoritative check is in the SQL WHERE clause
 				if (
 					!isInsert &&
 					existing &&
@@ -207,7 +214,23 @@ const makeMySqlSnapshotStore = Effect.gen(function* () {
 					),
 				);
 
-				return result;
+				// Check if update succeeded (handles race condition)
+				// If affectedRows is 0 on update, version changed between load and update
+				if (!isInsert && result.affectedRows === 0) {
+					// Re-fetch to get actual version for error message
+					const current = yield* loadQuery(input.paywallId).pipe(
+						Effect.catchAll(() => Effect.succeed(null)),
+					);
+					return yield* Effect.fail(
+						new VersionConflictError({
+							actualVersion: current?.version ?? -1,
+							expectedVersion: input.expectedVersion,
+							paywallId: input.paywallId,
+						}),
+					);
+				}
+
+				return { newVersion: result.newVersion, success: true };
 			}),
 
 		softDelete: (paywallId: string) =>
