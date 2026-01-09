@@ -3,16 +3,19 @@
  *
  * Provides real-time collaborative editing for paywalls with:
  * - Short-lived token authentication via PaywallService
- * - 3-tier persistence: Redis (safety) -> MySQL (canonical) -> S3 (published)
- * - Debounced saves with max delay guarantee
+ * - Cluster-based document management for horizontal scaling
+ * - 2-tier persistence: Redis (WAL) + MySQL (snapshots)
  */
 
-import { FullStorageLayerFromEnv } from "@voidhash/core/services/paywall-design";
+import { RedisMimicHotStorageFromEnv } from "@voidhash/core/services/mimic";
+import { PaywallMimicColdStorageLive } from "@voidhash/core/services/paywall-design";
 import { and, eq, gt, paywallEditTokens } from "@voidhash/db";
 import { Db } from "@voidhash/db/effect";
 import {
+  AuthenticationError,
+  type InitialContext,
   MimicAuthService,
-  type MimicConfig,
+  MimicClusterServerEngine,
   MimicServer,
 } from "@voidhash/mimic-effect";
 import {
@@ -40,36 +43,35 @@ const validateEditToken = (db: Db, token: string) =>
     )(token)
     .pipe(
       Effect.map((record) =>
-        record
-          ? { paywallId: record.paywallId, userId: record.userId }
-          : null
+        record ? { paywallId: record.paywallId, userId: record.userId } : null
       ),
       Effect.catchAll(() => Effect.succeed(null))
     );
 
-// Custom auth layer - validates tokens directly against DB
-// Note: We provide Db.Default here so the layer doesn't require external dependencies
-const PaywallMimicAuthLayer = MimicAuthService.layerEffect(
-  Effect.gen(function* () {
+/**
+ * Auth layer - validates tokens directly against DB
+ */
+const PaywallMimicAuthLayer = MimicAuthService.make(
+  Effect.gen(function* PaywallMimicAuthLayer() {
     const db = yield* Db;
-    return MimicAuthService.makeEffect((token: string) =>
-      validateEditToken(db, token).pipe(
-        Effect.map((result) => {
-          if (!result) {
-            return {
-              error: "Invalid or expired token",
-              success: false as const,
-            };
-          }
-          return {
-            success: true as const,
-            userId: result.userId,
-          };
-        })
-      )
-    );
-  })
-).pipe(Layer.provide(Db.Default));
+    return {
+      authenticate: (token: string, _documentId: string) =>
+        validateEditToken(db, token).pipe(
+          Effect.flatMap((result) => {
+            if (!result) {
+              return Effect.fail(
+                new AuthenticationError({ reason: "Invalid or expired token" })
+              );
+            }
+            return Effect.succeed({
+              permission: "write" as const,
+              userId: result.userId,
+            });
+          })
+        ),
+    };
+  }).pipe(Effect.provide(Db.Default))
+);
 
 /**
  * Default initial state for new paywall documents.
@@ -95,38 +97,42 @@ const defaultInitialState = {
 };
 
 /**
- * Mimic Paywall route layer
- *
- * Handles WebSocket connections at /mimic/paywall-designer/doc/:documentId
- * with short-lived token authentication and persistent storage.
+ * Storage layers - ColdStorage (MySQL) + HotStorage (Redis WAL)
+ */
+const StorageLayers = Layer.mergeAll(
+  PaywallMimicColdStorageLive,
+  RedisMimicHotStorageFromEnv
+).pipe(Layer.provide(Db.Default));
+
+/**
+ * Engine layer using MimicClusterServerEngine
+ * Each document becomes a cluster Entity with automatic sharding
+ */
+const MimicPaywallEngine = MimicClusterServerEngine.make({
+  initial: (_ctx: InitialContext) => Effect.succeed(defaultInitialState),
+  presence: PresenceSchema,
+  schema: PaywallDesignerDocument,
+  shardGroup: "mimic-paywall-documents",
+});
+
+/**
+ * WebSocket route layer
+ * Handles connections at /mimic/paywall-designer/doc/:documentId
+ */
+const MimicPaywallRoute = MimicServer.layerHttpLayerRouter({
+  path: "/mimic/paywall-designer",
+});
+
+/**
+ * Mimic Paywall route layer - requires Sharding from cluster infrastructure
  *
  * Data flow:
- * 1. On connect: Load state from Redis (fast) or MySQL (canonical)
- * 2. On edit: Save immediately to Redis, debounced to MySQL
- * 3. On disconnect: Flush any pending MySQL saves
+ * 1. On connect: Load state from MySQL snapshot + replay Redis WAL
+ * 2. On edit: Append to Redis WAL, periodic snapshots to MySQL
+ * 3. On disconnect: Entity may be garbage collected after idle timeout
  */
-export const MimicPaywallRouteLayer = MimicServer.layerHttpLayerRouter(
-  Effect.succeed({
-    // Auth layer validates tokens directly against DB (no AuthSession needed)
-    authLayer: PaywallMimicAuthLayer,
-    basePath: "/mimic/paywall-designer",
-
-    // Custom storage layer with Redis + MySQL persistence
-    // Note: Redis connection errors are converted to defects (crash on startup)
-    // because we require Redis to be available for real-time persistence
-    storageLayer: FullStorageLayerFromEnv.pipe(
-      Layer.provide(Db.Default),
-      Layer.orDie
-    ),
-
-    // Initial state for new documents
-    // The paywall name could be customized by loading from DB, but since auth
-    // has already validated access and storage will load persisted state first,
-    // we use a simple default here. The name will be updated on first edit.
-    initial: (_ctx: MimicConfig.InitialContext) =>
-      Effect.succeed(defaultInitialState),
-
-    presence: PresenceSchema,
-    schema: PaywallDesignerDocument,
-  })
+export const MimicPaywallRouteLayer = MimicPaywallRoute.pipe(
+  Layer.provide(MimicPaywallEngine),
+  Layer.provide(StorageLayers),
+  Layer.provide(PaywallMimicAuthLayer)
 );

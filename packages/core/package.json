@@ -11,6 +11,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./services": "./src/services/index.ts",
+    "./services/mimic": "./src/services/mimic/index.ts",
     "./services/paywall-design": "./src/services/paywall-design/index.ts",
     "./repositories": "./src/repositories/index.ts",
     "./utils": "./src/utils/index.ts",

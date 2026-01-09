@@ -68,9 +68,12 @@ export {
   type S3PublishStore,
 } from "./s3-publish-store";
 
-// Main storage adapter
-export {
-  FullStorageLayerFromEnv,
-  makeFullStorageLayer,
-  PaywallDesignStorageLayer,
-} from "./mimic-storage-adapter";
+// Main storage adapter (deprecated - use PaywallMimicColdStorageLive with RedisMimicHotStorageFromEnv)
+// export {
+//   FullStorageLayerFromEnv,
+//   makeFullStorageLayer,
+//   PaywallDesignStorageLayer,
+// } from "./mimic-storage-adapter";
+
+// Mimic cluster storage
+export { PaywallMimicColdStorageLive } from "./paywall-mimic-cold-storage";
