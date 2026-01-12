@@ -1,8 +1,22 @@
+/**
+ * Integration tests for s3-publish-store
+ *
+ * Requires S3-compatible storage (RustFS/MinIO) to be running via docker-compose.
+ * Tests actual S3 operations with real data.
+ *
+ * TODO: Re-enable these tests once S3 infrastructure is set up
+ */
+
+import { describe, test } from "vitest";
+
+describe.skip("s3-publish-store integration", () => {
+	test("placeholder - tests are disabled until S3 infrastructure is ready", () => {
+		// Tests below are commented out until S3 is set up
+	});
+});
+
 // /**
-//  * Integration tests for s3-publish-store
-//  *
-//  * Requires S3-compatible storage (RustFS/MinIO) to be running via docker-compose.
-//  * Tests actual S3 operations with real data.
+//  * Original tests (commented out)
 //  */
 
 // import { paywallPublishedVersions, eq } from "@voidhash/db";

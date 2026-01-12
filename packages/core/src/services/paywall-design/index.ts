@@ -28,3 +28,4 @@ export {
 
 // Mimic cold storage (MySQL-based)
 export { PaywallMimicColdStorageLive } from "./paywall-mimic-cold-storage";
+export { RedisMimicHotStorageLive } from "./redis-mimic-hot-storage";

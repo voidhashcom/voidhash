@@ -5,15 +5,19 @@
  * Stores periodic snapshots of paywall design state.
  */
 
-// biome-ignore assist/source/organizeImports: TODO: fix
-import { CURRENT_SCHEMA_VERSION, migrateStateSync } from "./schema-migration";
-import { ColdStorage, type StoredDocument } from "@voidhash/mimic-effect";
+import {
+	ColdStorage,
+	ColdStorageError,
+	type StoredDocument,
+} from "@voidhash/mimic-effect";
 import { eq, paywallDesignStates, sql } from "@voidhash/db";
 import { Db } from "@voidhash/db/effect";
 import { Effect } from "effect";
 
+import { CURRENT_SCHEMA_VERSION, migrateStateSync } from "./schema-migration";
+
 export const PaywallMimicColdStorageLive = ColdStorage.make(
-	Effect.gen(function* PaywallMimicColdStorageLive() {
+	Effect.gen(function* () {
 		const db = yield* Db;
 
 		const loadQuery = db.makeQuery((execute, paywallId: string) =>
@@ -71,7 +75,15 @@ export const PaywallMimicColdStorageLive = ColdStorage.make(
 			delete: (documentId: string) =>
 				softDeleteQuery(documentId).pipe(
 					Effect.asVoid,
-					Effect.catchAll(() => Effect.void),
+					Effect.catchAll((cause) =>
+						Effect.fail(
+							new ColdStorageError({
+								documentId,
+								operation: "delete",
+								cause,
+							}),
+						),
+					),
 				),
 
 			load: (documentId: string) =>
@@ -86,8 +98,14 @@ export const PaywallMimicColdStorageLive = ColdStorage.make(
 								}
 							: undefined,
 					),
-					Effect.catchAll(() =>
-						Effect.succeed(undefined as StoredDocument | undefined),
+					Effect.catchAll((cause) =>
+						Effect.fail(
+							new ColdStorageError({
+								documentId,
+								operation: "load",
+								cause,
+							}),
+						),
 					),
 				),
 
@@ -99,7 +117,15 @@ export const PaywallMimicColdStorageLive = ColdStorage.make(
 					version: document.version,
 				}).pipe(
 					Effect.asVoid,
-					Effect.catchAll(() => Effect.void),
+					Effect.catchAll((cause) =>
+						Effect.fail(
+							new ColdStorageError({
+								documentId,
+								operation: "save",
+								cause,
+							}),
+						),
+					),
 				),
 		};
 	}),

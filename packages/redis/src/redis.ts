@@ -13,7 +13,7 @@ const redisFactory = (options: RedisOptions) =>
 	Effect.gen(function* createRedisClient() {
 		const redis = yield* Effect.acquireRelease(
 			Effect.sync(() => {
-				const client = new Redis(options);
+				const client = new Redis({ ...options, lazyConnect: true });
 				return client;
 			}),
 			(client) => Effect.promise(() => client.quit()),
