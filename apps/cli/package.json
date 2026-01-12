@@ -36,6 +36,7 @@
     "@effect/platform": "catalog:",
     "@effect/platform-node": "catalog:",
     "@voidhash/api-spec": "workspace:*",
+    "@voidhash/shared": "workspace:*",
     "better-auth": "^1.4.10",
     "effect": "catalog:",
     "esbuild-register": "^3.6.0",
