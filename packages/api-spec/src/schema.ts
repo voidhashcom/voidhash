@@ -308,3 +308,122 @@ export class User extends Schema.Class<User>("User")({
   ),
   updatedAt: Schema.Date,
 }) {}
+
+// ========================================================
+// Webhooks
+// ========================================================
+
+export const WebhookEventType = Schema.Literal(
+  "customer.created",
+  "customer.updated",
+  "customer.deleted",
+  "subscription.created",
+  "subscription.renewed",
+  "subscription.cancelled",
+  "subscription.expired",
+  "purchase.completed",
+  "purchase.refunded"
+);
+
+export const WebhookEndpointStatus = Schema.Literal("active", "disabled", "failed");
+
+export const WebhookDeliveryStatus = Schema.Literal(
+  "pending",
+  "in_progress",
+  "succeeded",
+  "failed",
+  "exhausted"
+);
+
+export class WebhookEndpoint extends Schema.Class<WebhookEndpoint>(
+  "WebhookEndpoint"
+)({
+  consecutiveFailures: Schema.Number,
+  createdAt: Schema.NullOr(Schema.Date),
+  description: Schema.NullOr(Schema.String),
+  events: Schema.Array(WebhookEventType),
+  id: Schema.String,
+  lastSuccessAt: Schema.NullOr(Schema.Date),
+  name: Schema.String,
+  projectId: Schema.String,
+  secret: Schema.String,
+  status: WebhookEndpointStatus,
+  url: Schema.String,
+}) {}
+
+export class CreateWebhookEndpointBody extends Schema.Class<CreateWebhookEndpointBody>(
+  "CreateWebhookEndpointBody"
+)({
+  description: Schema.optional(Schema.String),
+  events: Schema.Array(Schema.String),
+  name: Schema.String,
+  url: Schema.String,
+}) {}
+
+export class UpdateWebhookEndpointBody extends Schema.Class<UpdateWebhookEndpointBody>(
+  "UpdateWebhookEndpointBody"
+)({
+  description: Schema.optional(Schema.NullOr(Schema.String)),
+  events: Schema.optional(Schema.Array(Schema.String)),
+  name: Schema.optional(Schema.String),
+  status: Schema.optional(Schema.Literal("active", "disabled")),
+  url: Schema.optional(Schema.String),
+}) {}
+
+export const WebhookEndpointIdParam = HttpApiSchema.param(
+  "endpointId",
+  Schema.String
+);
+
+export class WebhookDelivery extends Schema.Class<WebhookDelivery>(
+  "WebhookDelivery"
+)({
+  attemptCount: Schema.Number,
+  completedAt: Schema.NullOr(Schema.Date),
+  createdAt: Schema.NullOr(Schema.Date),
+  eventOccurredAt: Schema.Date,
+  eventType: Schema.String,
+  id: Schema.String,
+  maxAttempts: Schema.Number,
+  nextAttemptAt: Schema.NullOr(Schema.Date),
+  payload: Schema.Unknown,
+  projectId: Schema.String,
+  status: WebhookDeliveryStatus,
+  webhookEndpointId: Schema.String,
+}) {}
+
+export class WebhookDeliveryAttempt extends Schema.Class<WebhookDeliveryAttempt>(
+  "WebhookDeliveryAttempt"
+)({
+  attemptNumber: Schema.Number,
+  createdAt: Schema.NullOr(Schema.Date),
+  durationMs: Schema.NullOr(Schema.Number),
+  errorMessage: Schema.NullOr(Schema.String),
+  id: Schema.String,
+  responseBody: Schema.NullOr(Schema.String),
+  statusCode: Schema.NullOr(Schema.Number),
+  succeeded: Schema.Boolean,
+}) {}
+
+export class WebhookDeliveryWithAttempts extends Schema.Class<WebhookDeliveryWithAttempts>(
+  "WebhookDeliveryWithAttempts"
+)({
+  attemptCount: Schema.Number,
+  attempts: Schema.Array(WebhookDeliveryAttempt),
+  completedAt: Schema.NullOr(Schema.Date),
+  createdAt: Schema.NullOr(Schema.Date),
+  eventOccurredAt: Schema.Date,
+  eventType: Schema.String,
+  id: Schema.String,
+  maxAttempts: Schema.Number,
+  nextAttemptAt: Schema.NullOr(Schema.Date),
+  payload: Schema.Unknown,
+  projectId: Schema.String,
+  status: WebhookDeliveryStatus,
+  webhookEndpointId: Schema.String,
+}) {}
+
+export const WebhookDeliveryIdParam = HttpApiSchema.param(
+  "deliveryId",
+  Schema.String
+);

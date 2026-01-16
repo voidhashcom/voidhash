@@ -34,6 +34,10 @@ const prefixes = {
 	usageAggregate: "usage_agg",
 	billingWebhookEvent: "bill_wh",
 	billingProviderMeter: "bill_meter",
+	// Webhooks
+	webhookEndpoint: "wh_ep",
+	webhookDelivery: "wh_del",
+	webhookDeliveryAttempt: "wh_att",
 } as const;
 
 export const generateId = <TPrefix extends keyof typeof prefixes>(
