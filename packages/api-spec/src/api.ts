@@ -20,6 +20,10 @@ import {
   SdkServiceError,
   SdkValidationError,
   UserServiceError,
+  WebhookDeliveryNotFoundError,
+  WebhookEndpointNotFoundError,
+  WebhookServiceError,
+  WebhookValidationError,
 } from "@voidhash/shared";
 import { ActionForbiddenError } from "@voidhash/shared/errors";
 import { Schema } from "effect";
@@ -34,6 +38,7 @@ import {
   CreateOrganizationBody,
   CreateProjectBody,
   CreateSecretKeyBody,
+  CreateWebhookEndpointBody,
   Customer,
   CustomerIdParam,
   DeployChangesetBody,
@@ -52,7 +57,13 @@ import {
   SdkIdentifyBody,
   SdkSyncCustomerAttributesBody,
   Session,
+  UpdateWebhookEndpointBody,
   User,
+  WebhookDelivery,
+  WebhookDeliveryIdParam,
+  WebhookDeliveryWithAttempts,
+  WebhookEndpoint,
+  WebhookEndpointIdParam,
 } from "./schema";
 
 export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
@@ -289,6 +300,82 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
       )
       .middleware(AuthMiddleware)
       .prefix("/changesets")
+  )
+  .add(
+    HttpApiGroup.make("webhooks")
+      .add(
+        HttpApiEndpoint.post("createWebhookEndpoint")`/endpoints`
+          .setPayload(CreateWebhookEndpointBody)
+          .addSuccess(WebhookEndpoint)
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(WebhookValidationError, { status: 400 })
+          .addError(WebhookServiceError, { status: 500 })
+      )
+      .add(
+        HttpApiEndpoint.get("listWebhookEndpoints")`/endpoints`
+          .addSuccess(Schema.Array(WebhookEndpoint))
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(WebhookServiceError, { status: 500 })
+      )
+      .add(
+        HttpApiEndpoint.get("getWebhookEndpoint")`/endpoints/${WebhookEndpointIdParam}`
+          .addSuccess(WebhookEndpoint)
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(WebhookEndpointNotFoundError, { status: 404 })
+          .addError(WebhookServiceError, { status: 500 })
+      )
+      .add(
+        HttpApiEndpoint.patch("updateWebhookEndpoint")`/endpoints/${WebhookEndpointIdParam}`
+          .setPayload(UpdateWebhookEndpointBody)
+          .addSuccess(WebhookEndpoint)
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(WebhookEndpointNotFoundError, { status: 404 })
+          .addError(WebhookValidationError, { status: 400 })
+          .addError(WebhookServiceError, { status: 500 })
+      )
+      .add(
+        HttpApiEndpoint.del("deleteWebhookEndpoint")`/endpoints/${WebhookEndpointIdParam}`
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(WebhookEndpointNotFoundError, { status: 404 })
+          .addError(WebhookServiceError, { status: 500 })
+      )
+      .add(
+        HttpApiEndpoint.post("rotateWebhookSecret")`/endpoints/${WebhookEndpointIdParam}/rotate-secret`
+          .addSuccess(WebhookEndpoint)
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(WebhookEndpointNotFoundError, { status: 404 })
+          .addError(WebhookServiceError, { status: 500 })
+      )
+      .add(
+        HttpApiEndpoint.post("testWebhookEndpoint")`/endpoints/${WebhookEndpointIdParam}/test`
+          .addSuccess(WebhookDelivery)
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(WebhookEndpointNotFoundError, { status: 404 })
+          .addError(WebhookServiceError, { status: 500 })
+      )
+      .add(
+        HttpApiEndpoint.get("listWebhookDeliveries")`/deliveries`
+          .addSuccess(Schema.Array(WebhookDelivery))
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(WebhookServiceError, { status: 500 })
+      )
+      .add(
+        HttpApiEndpoint.get("getWebhookDelivery")`/deliveries/${WebhookDeliveryIdParam}`
+          .addSuccess(WebhookDeliveryWithAttempts)
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(WebhookDeliveryNotFoundError, { status: 404 })
+          .addError(WebhookServiceError, { status: 500 })
+      )
+      .add(
+        HttpApiEndpoint.post("retryWebhookDelivery")`/deliveries/${WebhookDeliveryIdParam}/retry`
+          .addSuccess(WebhookDelivery)
+          .addError(ActionForbiddenError, { status: 403 })
+          .addError(WebhookDeliveryNotFoundError, { status: 404 })
+          .addError(WebhookValidationError, { status: 400 })
+          .addError(WebhookServiceError, { status: 500 })
+      )
+      .middleware(AuthMiddleware)
+      .prefix("/webhooks")
   )
 
   .prefix("/api/v1");

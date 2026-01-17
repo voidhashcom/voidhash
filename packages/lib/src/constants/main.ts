@@ -1,6 +1,3 @@
-export const SHORT_DOMAIN =
-	process.env.NEXT_PUBLIC_APP_SHORT_DOMAIN || "voidha.sh";
-
 export const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "voidhash.com";
 
 type VERCEL_ENV = "production" | "preview" | "development";
