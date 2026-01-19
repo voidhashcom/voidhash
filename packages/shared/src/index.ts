@@ -7,6 +7,7 @@ export * from "./billing";
 export * from "./customer";
 export * from "./deploy-changeset";
 export * from "./errors";
+export * from "./google-play";
 export * from "./organization";
 export * from "./payment-provider-configuration";
 export * from "./payment-provider-product";
