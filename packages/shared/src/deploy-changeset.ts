@@ -1,11 +1,8 @@
 import { Schema } from "effect";
 
-export class ChangesetDeploymentServiceError extends Schema.TaggedError<ChangesetDeploymentServiceError>()(
-  "ChangesetDeploymentServiceError",
-  {
-    cause: Schema.Unknown,
-  }
-) {}
+// ChangesetDeploymentServiceError has been moved to:
+// - @voidhash/api-spec/errors (API layer)
+// - @voidhash-internal/core/domain/errors (domain layer)
 
 // Perks
 export const PerkCreateChangeSchema = Schema.Struct({

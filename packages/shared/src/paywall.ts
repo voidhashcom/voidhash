@@ -1,33 +1,3 @@
-import { Schema } from "effect";
-
-export class PaywallServiceError extends Schema.TaggedError<PaywallServiceError>()(
-  "PaywallServiceError",
-  {
-    cause: Schema.String,
-  }
-) {}
-
-export class PaywallNotFoundError extends Schema.TaggedError<PaywallNotFoundError>()(
-  "PaywallNotFoundError",
-  {
-    message: Schema.String,
-  }
-) {}
-
-export class PaywallSlugAlreadyExistsError extends Schema.TaggedError<PaywallSlugAlreadyExistsError>()(
-  "PaywallSlugAlreadyExistsError",
-  {
-    slug: Schema.String,
-  }
-) {
-  toString(): string {
-    return `The following paywall slug already exists: ${this.slug}`;
-  }
-}
-
-export class PaywallPublishError extends Schema.TaggedError<PaywallPublishError>()(
-  "PaywallPublishError",
-  {
-    message: Schema.String,
-  }
-) {}
+// Errors have been moved to:
+// - @voidhash/api-spec/errors (API layer)
+// - @voidhash-internal/core/domain/errors (domain layer)

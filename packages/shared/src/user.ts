@@ -1,8 +1,3 @@
-import { Schema } from "effect";
-
-export class UserServiceError extends Schema.TaggedError<UserServiceError>()(
-  "UserServiceError",
-  {
-    cause: Schema.String,
-  }
-) {}
+// Errors have been moved to:
+// - @voidhash/api-spec/errors (API layer)
+// - @voidhash-internal/core/domain/errors (domain layer)

@@ -1,22 +1,4 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Context, Schema } from "effect";
-
-export class AuthenticationError extends Schema.TaggedError<AuthenticationError>()(
-  "AuthenticationError",
-  {
-    cause: Schema.String,
-    message: Schema.String,
-  },
-  HttpApiSchema.annotations({ status: 500 })
-) {}
-
-export class NotAuthenticatedError extends Schema.TaggedError<NotAuthenticatedError>()(
-  "NotAuthenticatedError",
-  {
-    message: Schema.String,
-  },
-  HttpApiSchema.annotations({ status: 401 })
-) {}
 
 export const SessionOrganizationSchema = Schema.Struct({
   id: Schema.String,

@@ -1,15 +1,3 @@
-import { Schema } from "effect";
-
-export class ProductPerkServiceError extends Schema.TaggedError<ProductPerkServiceError>()(
-  "ProductPerkServiceError",
-  {
-    cause: Schema.String,
-  }
-) {}
-
-export class ProductPerkValidationError extends Schema.TaggedError<ProductPerkValidationError>()(
-  "ProductPerkValidationError",
-  {
-    message: Schema.String,
-  }
-) {}
+// Errors have been moved to:
+// - @voidhash/api-spec/errors (API layer)
+// - @voidhash-internal/core/domain/errors (domain layer)

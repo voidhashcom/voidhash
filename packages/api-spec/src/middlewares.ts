@@ -1,10 +1,8 @@
 import { HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
-import {
-  AuthSession,
-  AuthenticationError,
-  NotAuthenticatedError,
-} from "@voidhash/shared";
+import { AuthSession } from "@voidhash/shared";
 import { Schema } from "effect";
+
+import { AuthenticationError, NotAuthenticatedError } from "./errors";
 
 export class AuthMiddleware extends HttpApiMiddleware.Tag<AuthMiddleware>()(
   "Http/AuthenticationMiddleware",

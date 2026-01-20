@@ -1,15 +1,3 @@
-import { Schema } from "effect";
-
-export class ApiKeyServiceError extends Schema.TaggedError<ApiKeyServiceError>()(
-  "ApiKeyServiceError",
-  {
-    cause: Schema.String,
-  }
-) {}
-
-export class ApiKeyNotFoundError extends Schema.TaggedError<ApiKeyNotFoundError>()(
-  "ApiKeyNotFoundError",
-  {
-    message: Schema.String,
-  }
-) {}
+// Errors have been moved to:
+// - @voidhash/api-spec/errors (API layer)
+// - @voidhash-internal/core/domain/errors (domain layer)

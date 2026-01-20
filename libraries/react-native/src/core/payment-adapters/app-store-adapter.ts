@@ -1,6 +1,5 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: we use it for Storekit that is only available on iOS */
 
-import { ProductNotFoundError } from "@voidhash/shared";
 import { Effect, Layer } from "effect";
 
 import {
@@ -24,6 +23,7 @@ import {
   GetPendingTransactionsError,
   GetPurchaseHistoryError,
   NativeAdapterNotInitializedError,
+  ProductNotFoundError,
   PurchasePendingError,
   UserCancelledError,
 } from "./errors";
