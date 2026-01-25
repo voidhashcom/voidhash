@@ -1,6 +1,7 @@
 import { HttpApiSchema } from "@effect/platform";
-import { ChangesetSchema } from "@voidhash/shared";
 import { Schema } from "effect";
+
+import { ChangesetSchema } from "./changeset";
 
 export const PublishableKeyAuthHeaders = Schema.Struct({
   "x-app-user-id": Schema.String,
