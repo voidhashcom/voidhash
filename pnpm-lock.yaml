@@ -310,9 +310,6 @@ importers:
       '@effect/platform':
         specifier: 'catalog:'
         version: 0.94.1(effect@3.19.14)
-      '@voidhash/shared':
-        specifier: workspace:*
-        version: link:../shared
       effect:
         specifier: 'catalog:'
         version: 3.19.14
@@ -7618,6 +7615,7 @@ packages:
   tar@7.5.2:
     resolution: {integrity: sha512-7NyxrTE4Anh8km8iEy7o0QYPs+0JKBTj5ZaqHg6B39erLg0qYXN3BijtShwbsNSvQ+LN75+KV+C4QR/f6Gwnpg==}
     engines: {node: '>=18'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
 
   taze@0.18.0:
     resolution: {integrity: sha512-aL8g+4tZvfhsn147u9dRP2eUE2MV+HfJe1sAtSJp46b0Gd8AjyqlJ2uDwnJfM1XNv301Mvh98RkXQw27sco5tQ==}
@@ -10085,7 +10083,7 @@ snapshots:
       postcss: 8.4.49
       resolve-from: 5.0.0
     optionalDependencies:
-      expo: 54.0.30(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.21)(react-native@0.79.5(@babel/core@7.28.5)(@types/react@19.0.14)(react@19.1.1))(react@19.1.1)
+      expo: 54.0.30(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.21)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.1))(react@19.1.1)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -10176,7 +10174,7 @@ snapshots:
       '@expo/json-file': 10.0.8
       '@react-native/normalize-colors': 0.81.5
       debug: 4.4.3
-      expo: 54.0.30(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.21)(react-native@0.79.5(@babel/core@7.28.5)(@types/react@19.0.14)(react@19.1.1))(react@19.1.1)
+      expo: 54.0.30(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.21)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.1))(react@19.1.1)
       resolve-from: 5.0.0
       semver: 7.7.3
       xml2js: 0.6.0
@@ -12628,7 +12626,7 @@ snapshots:
       resolve-from: 5.0.0
     optionalDependencies:
       '@babel/runtime': 7.28.4
-      expo: 54.0.30(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.21)(react-native@0.79.5(@babel/core@7.28.5)(@types/react@19.0.14)(react@19.1.1))(react@19.1.1)
+      expo: 54.0.30(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.21)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.1))(react@19.1.1)
     transitivePeerDependencies:
       - '@babel/core'
       - supports-color
@@ -14067,7 +14065,7 @@ snapshots:
 
   expo-keep-awake@15.0.8(expo@54.0.30)(react@19.1.1):
     dependencies:
-      expo: 54.0.30(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.21)(react-native@0.79.5(@babel/core@7.28.5)(@types/react@19.0.14)(react@19.1.1))(react@19.1.1)
+      expo: 54.0.30(@babel/core@7.28.5)(@expo/metro-runtime@6.1.2)(expo-router@6.0.21)(react-native@0.81.5(@babel/core@7.28.5)(@types/react@19.1.17)(react@19.1.1))(react@19.1.1)
       react: 19.1.1
 
   expo-linking@8.0.11(expo@54.0.30)(react-native@0.79.5(@babel/core@7.28.5)(@types/react@19.0.14)(react@19.1.1))(react@19.1.1):
