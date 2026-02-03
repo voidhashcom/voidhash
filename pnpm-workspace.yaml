@@ -22,9 +22,9 @@ catalog:
   "@trpc/tanstack-react-query": ^11.1.0
   "@types/react": ^18.3.14
   "@types/react-dom": ^18.3.2
-  "@voidhash/mimic": v1.0.0-beta.12
-  "@voidhash/mimic-react": v1.0.0-beta.12
-  "@voidhash/mimic-effect": v1.0.0-beta.12
+  "@voidhash/mimic": v1.0.0-beta.14
+  "@voidhash/mimic-react": v1.0.0-beta.14
+  "@voidhash/mimic-effect": v1.0.0-beta.14
   effect: ^3.19.14
   superjson: ^2.2.2
 
