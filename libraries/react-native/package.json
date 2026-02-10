@@ -48,7 +48,7 @@
 	},
 	"scripts": {
 		"postinstall": "tsc || exit 0;",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "tsgo --noEmit",
 		"build": "expo-module build",
 		"test": "expo-module test",
 		"clean": "rm -rf android/build node_modules/**/android/build lib",

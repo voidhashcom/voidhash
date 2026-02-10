@@ -13,7 +13,7 @@
     "./errors": "./src/errors/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "dependencies": {},
   "devDependencies": {
