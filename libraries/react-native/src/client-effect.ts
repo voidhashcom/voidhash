@@ -15,6 +15,7 @@ import type {
   VoidhashSchema,
 } from "./core/schema";
 import { extractProductDefinitions } from "./core/schema/utils";
+import { getCommonSdkHeaders } from "./core/utils/get-common-sdk-headers";
 import { UnsupportedPlatformError } from "./errors";
 
 const makeUnitializedClient = () => ({
@@ -74,14 +75,13 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
       const cacheManager = yield* CacheManager;
       const apiClient = yield* ApiClient;
       const eventBus = yield* EventBusProvider;
+      const identityManager = yield* IdentityManager;
 
       const cacheKey = `feature-flags:${flagKeys?.sort().join(",") ?? "all"}`;
       const cached = yield* cacheManager.get<{
-        flags: Array<{
-          enabled: boolean;
-          key: string;
-          payload: unknown | null;
-          variantKey: string | null;
+        readonly flags: ReadonlyArray<{
+          readonly enabled: boolean;
+          readonly key: string;
         }>;
       }>(cacheKey);
 
@@ -89,7 +89,13 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         return cached.value;
       }
 
+      const commonHeaders = yield* getCommonSdkHeaders();
+      const appUserId = yield* identityManager.getAppUserId();
       const result = yield* apiClient.sdk.evaluateFeatureFlags({
+        headers: {
+          ...commonHeaders,
+          "x-app-user-id": appUserId,
+        },
         payload: { flagKeys },
       });
 

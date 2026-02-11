@@ -15,11 +15,9 @@ export interface CustomerIdentifiedEvent {
 }
 
 export interface FeatureFlagsFetchedEvent {
-  flags: Array<{
-    enabled: boolean;
-    key: string;
-    payload: unknown | null;
-    variantKey: string | null;
+  readonly flags: ReadonlyArray<{
+    readonly enabled: boolean;
+    readonly key: string;
   }>;
 }
 
