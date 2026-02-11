@@ -2,9 +2,11 @@ import { Effect } from "effect";
 
 import { CacheManager } from "./core/caching/cache-manager";
 import type { Product } from "./core/entities/product";
+import { EventBusProvider } from "./core/event-bus";
 import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
 import { CustomerInfoManager } from "./core/identity/customer-info-manager";
 import { IdentityManager } from "./core/identity/identity-manager";
+import { ApiClient } from "./core/networking/api-client";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import type {
   ExtractSchemaProductDefinitions,
@@ -65,6 +67,39 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
     Effect.gen(function* end() {
       const paymentAdapter = yield* PaymentAdapter;
       return yield* paymentAdapter.endConnection();
+    }),
+
+  getFeatureFlags: (flagKeys?: string[]) =>
+    Effect.gen(function* getFeatureFlags() {
+      const cacheManager = yield* CacheManager;
+      const apiClient = yield* ApiClient;
+      const eventBus = yield* EventBusProvider;
+
+      const cacheKey = `feature-flags:${flagKeys?.sort().join(",") ?? "all"}`;
+      const cached = yield* cacheManager.get<{
+        flags: Array<{
+          enabled: boolean;
+          key: string;
+          payload: unknown | null;
+          variantKey: string | null;
+        }>;
+      }>(cacheKey);
+
+      if (cached && !cached.isExpired && !cached.isStale) {
+        return cached.value;
+      }
+
+      const result = yield* apiClient.sdk.evaluateFeatureFlags({
+        payload: { flagKeys },
+      });
+
+      yield* cacheManager.set(cacheKey, result, {
+        ttl: 1000 * 60 * 5, // 5 minutes
+      });
+
+      eventBus.emit("feature-flags-fetched", result);
+
+      return result;
     }),
 
   getCurrentCustomer: (forceFetch = false) =>

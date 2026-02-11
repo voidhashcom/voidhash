@@ -203,6 +203,25 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
   }
 
   /**
+   * Returns feature flag evaluation results.
+   * @param flagKeys - Optional array of specific flag keys to evaluate. If omitted, evaluates all flags.
+   * @returns Feature flags evaluation result with enabled status, variant keys, and payloads.
+   */
+  async getFeatureFlags(flagKeys?: string[]) {
+    this.ensureInitialized();
+    const result = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.getFeatureFlags(flagKeys)
+    );
+
+    if (Exit.isSuccess(result)) {
+      return result.value;
+    }
+
+    throw new VoidhashError("FAILED_TO_GET_FEATURE_FLAGS");
+  }
+
+  /**
    * Returns products available on the current platform.
    * @throws {NotInitializedError} If the voidhash client is not initialized
    * @throws {FailedToGetProductsError} If the payment adapter fails to get products
