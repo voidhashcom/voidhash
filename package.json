@@ -17,22 +17,22 @@
       }
     },
     "catalog": {
-      "@types/react": "^18.3.14",
-      "@types/react-dom": "^18.3.2",
+      "@types/react": "^19.1.0",
+      "@types/react-dom": "^19.1.0",
       "@trpc/client": "^11.1.0",
       "@trpc/server": "^11.1.0",
-      "@tanstack/react-query": "^5.90.5",
+      "@tanstack/react-query": "^5.90.21",
       "@trpc/tanstack-react-query": "^11.1.0",
-      "effect": "^3.18.4",
-      "@effect/platform-node": "^0.100.0",
-      "@effect/platform-bun": "^0.83.0",
-      "@effect/platform": "^0.93.0",
-      "@effect/cluster": "^0.52.9",
-      "@effect/cli": "^0.72.1",
-      "@effect/rpc": "^0.72.1",
-      "@effect/language-service": "^0.55.3",
+      "effect": "^3.19.14",
+      "@effect/platform-node": "^0.104.0",
+      "@effect/platform-bun": "^0.87.0",
+      "@effect/platform": "^0.94.1",
+      "@effect/cluster": "^0.56.1",
+      "@effect/cli": "^0.73.0",
+      "@effect/rpc": "^0.73.0",
+      "@effect/language-service": "^0.64.1",
       "@effect/vitest": "^0.27.0",
-      "superjson": "^2.2.2"
+      "better-auth": "^1.4.18"
     }
   },
   "type": "module",
@@ -66,8 +66,8 @@
     "ultracite": "5.0.39"
   },
   "resolutions": {
-    "react": "19.1.1",
-    "react-dom": "19.1.1"
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   },
   "packageManager": "pnpm@10.19.0"
 }
