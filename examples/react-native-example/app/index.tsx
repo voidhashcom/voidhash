@@ -77,6 +77,10 @@ export default function HomeScreen() {
           title="Paywall"
         />
         <MenuItem
+          onPress={() => router.push("/menu/webview-smoke")}
+          title="WebView smoke"
+        />
+        <MenuItem
           isLast
           onPress={() => router.push("/menu/customer")}
           title="Customer"
