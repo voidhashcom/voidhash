@@ -52,10 +52,8 @@ import {
   ProductIdParam,
   ProductPerk,
   Project,
-  EvaluateExperimentsBody,
   EvaluateFeatureFlagsBody,
   SdkCustomer,
-  SdkExperimentsResponse,
   SdkFeatureFlagsResponse,
   SdkHeaders,
   SdkIdentifyBody,
@@ -254,14 +252,6 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         HttpApiEndpoint.post("evaluateFeatureFlags")`/evaluate-flags`
           .setPayload(EvaluateFeatureFlagsBody)
           .addSuccess(SdkFeatureFlagsResponse)
-          .setHeaders(SdkHeaders)
-          .addError(AuthenticationError)
-          .addError(SdkServiceError)
-      )
-      .add(
-        HttpApiEndpoint.post("evaluateExperiments")`/evaluate-experiments`
-          .setPayload(EvaluateExperimentsBody)
-          .addSuccess(SdkExperimentsResponse)
           .setHeaders(SdkHeaders)
           .addError(AuthenticationError)
           .addError(SdkServiceError)

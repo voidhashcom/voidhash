@@ -82,6 +82,8 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         readonly flags: ReadonlyArray<{
           readonly enabled: boolean;
           readonly key: string;
+          readonly payload: unknown | null;
+          readonly variantKey: string | null;
         }>;
       }>(cacheKey);
 
@@ -250,7 +252,11 @@ const mapNativeProductsToProductMap = <TSchema extends VoidhashSchema>(
     if (nativeProduct) {
       productMap[productDefinitionKey as ExtractSchemaProductKeys<TSchema>] =
         nativeProduct as InferGetProductResponseFromSchema<TSchema>[ExtractSchemaProductKeys<TSchema>];
+      continue;
     }
+
+    productMap[productDefinitionKey as ExtractSchemaProductKeys<TSchema>] =
+      null as InferGetProductResponseFromSchema<TSchema>[ExtractSchemaProductKeys<TSchema>];
   }
 
   return productMap;

@@ -18,6 +18,8 @@ export interface FeatureFlagsFetchedEvent {
   readonly flags: ReadonlyArray<{
     readonly enabled: boolean;
     readonly key: string;
+    readonly payload: unknown | null;
+    readonly variantKey: string | null;
   }>;
 }
 

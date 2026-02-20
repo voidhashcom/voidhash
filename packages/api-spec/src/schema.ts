@@ -444,35 +444,12 @@ export class SdkFeatureFlagResult extends Schema.Class<SdkFeatureFlagResult>(
 )({
   enabled: Schema.Boolean,
   key: Schema.String,
+  payload: Schema.NullOr(Schema.Unknown),
+  variantKey: Schema.NullOr(Schema.String),
 }) {}
 
 export class SdkFeatureFlagsResponse extends Schema.Class<SdkFeatureFlagsResponse>(
   "SdkFeatureFlagsResponse"
 )({
   flags: Schema.Array(SdkFeatureFlagResult),
-}) {}
-
-// ========================================================
-// Experiments (SDK)
-// ========================================================
-
-export class EvaluateExperimentsBody extends Schema.Class<EvaluateExperimentsBody>(
-  "EvaluateExperimentsBody"
-)({
-  experimentKeys: Schema.Array(Schema.String),
-}) {}
-
-export class SdkExperimentResult extends Schema.Class<SdkExperimentResult>(
-  "SdkExperimentResult"
-)({
-  enabled: Schema.Boolean,
-  key: Schema.String,
-  payload: Schema.NullOr(Schema.Unknown),
-  variantKey: Schema.NullOr(Schema.String),
-}) {}
-
-export class SdkExperimentsResponse extends Schema.Class<SdkExperimentsResponse>(
-  "SdkExperimentsResponse"
-)({
-  experiments: Schema.Array(SdkExperimentResult),
 }) {}

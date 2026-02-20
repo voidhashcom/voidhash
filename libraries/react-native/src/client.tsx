@@ -105,6 +105,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
 
     if (Exit.isSuccess(initializedClientResult)) {
       this.initializedClient = initializedClientResult.value;
+      this._isInitialized = true;
       return;
     }
 

@@ -66,7 +66,11 @@ export function featureFlagsHookFactory<TSchema extends VoidhashSchema>(
       (key: string) => {
         const flag = flags?.flags.find((f) => f.key === key);
         return flag
-          ? { enabled: flag.enabled }
+          ? {
+              enabled: flag.enabled,
+              payload: flag.payload,
+              variantKey: flag.variantKey,
+            }
           : null;
       },
       [flags]
