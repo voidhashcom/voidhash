@@ -18,6 +18,10 @@
     },
     "GoogleBilling": {
       "kotlin": "HybridGoogleBilling"
+    },
+    "PaywallWebView": {
+      "swift": "HybridPaywallWebView",
+      "kotlin": "HybridPaywallWebView"
     }
   },
   "ignorePaths": ["**/node_modules"]

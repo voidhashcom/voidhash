@@ -42,6 +42,12 @@ export default function RootLayout() {
               headerTransparent: true,
             }}
           />
+          <Stack.Screen
+            name="menu/webview-smoke"
+            options={{
+              headerTitle: "WebView Smoke",
+            }}
+          />
           <Stack.Screen name="+not-found" />
         </Stack>
       </voidhash.Provider>
