@@ -20,18 +20,47 @@ type Changeset = typeof ChangesetSchema.Type;
  * Only includes creates and updates, NOT deletes.
  * 
  * Order:
- * 1. Create perks
- * 2. Update perks
- * 3. Create products
- * 4. Update products
- * 5. Create product-perks (for new products)
- * 6. Create payment-provider-products (for new products)
- * 7. Update payment-provider-products (for updated products)
+ * 1. Create locations
+ * 2. Update locations
+ * 3. Create perks
+ * 4. Update perks
+ * 5. Create products
+ * 6. Update products
+ * 7. Create product-perks (for new products)
+ * 8. Create payment-provider-products (for new products)
+ * 9. Update payment-provider-products (for updated products)
+ * 10. Archive locations
  */
 export function buildChangeset(diff: SchemaDiff): Changeset {
   const changes: Change[] = [];
 
-  // 1. Create perks (first, as products depend on them)
+  // 1. Create locations
+  for (const location of diff.locations.toCreate) {
+    changes.push({
+      changeType: "create-paywall-location",
+      key: location.slug,
+      payload: {
+        description: location.description,
+        name: location.name,
+        slug: location.slug,
+      },
+    });
+  }
+
+  // 2. Update locations
+  for (const { local } of diff.locations.toUpdate) {
+    changes.push({
+      changeType: "update-paywall-location",
+      key: local.slug,
+      payload: {
+        description: local.description,
+        name: local.name,
+        slug: local.slug,
+      },
+    });
+  }
+
+  // 3. Create perks (first, as products depend on them)
   for (const perk of diff.perks.toCreate) {
     changes.push({
       changeType: "create-perk",
@@ -40,7 +69,7 @@ export function buildChangeset(diff: SchemaDiff): Changeset {
     });
   }
 
-  // 2. Update perks
+  // 4. Update perks
   for (const { local } of diff.perks.toUpdate) {
     changes.push({
       changeType: "update-perk",
@@ -49,7 +78,7 @@ export function buildChangeset(diff: SchemaDiff): Changeset {
     });
   }
 
-  // 3. Create products
+  // 5. Create products
   for (const product of diff.products.toCreate) {
     changes.push({
       changeType: "create-product",
@@ -80,7 +109,7 @@ export function buildChangeset(diff: SchemaDiff): Changeset {
     }
   }
 
-  // 4. Update products
+  // 6. Update products
   for (const { local, remote } of diff.products.toUpdate) {
     // Check if product name changed
     if (local.name !== remote.name) {
@@ -150,6 +179,15 @@ export function buildChangeset(diff: SchemaDiff): Changeset {
     // Note: We don't delete payment-provider-products here (no deletes in push)
   }
 
+  // 10. Archive locations
+  for (const location of diff.locations.toArchive) {
+    changes.push({
+      changeType: "archive-paywall-location",
+      key: location.slug,
+      payload: { slug: location.slug },
+    });
+  }
+
   return { changes };
 }
 
@@ -159,6 +197,12 @@ export function buildChangeset(diff: SchemaDiff): Changeset {
 
 export function formatChange(change: Change): string {
   switch (change.changeType) {
+    case "create-paywall-location":
+      return `+ Create paywall location: ${change.payload.slug} ("${change.payload.name}")`;
+    case "update-paywall-location":
+      return `~ Update paywall location: ${change.payload.slug} ("${change.payload.name}")`;
+    case "archive-paywall-location":
+      return `- Archive paywall location: ${change.payload.slug}`;
     case "create-perk":
       return `+ Create perk: ${change.payload.slug} ("${change.payload.name}")`;
     case "update-perk":
@@ -188,6 +232,10 @@ export function formatChange(change: Change): string {
 
 export function formatChangeShort(change: Change): string {
   switch (change.changeType) {
+    case "create-paywall-location":
+    case "update-paywall-location":
+    case "archive-paywall-location":
+      return `PaywallLocation: ${change.payload.slug}`;
     case "create-perk":
     case "update-perk":
     case "delete-perk":

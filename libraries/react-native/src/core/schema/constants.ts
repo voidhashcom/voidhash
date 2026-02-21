@@ -7,6 +7,7 @@ export const SCHEMA_KIND = Symbol.for("voidhash.schema.kind");
 
 export const SchemaKind = {
   Perk: "perk",
+  PaywallLocation: "paywall-location",
   Product: "product",
   SchemaConfiguration: "schema-configuration",
 } as const;

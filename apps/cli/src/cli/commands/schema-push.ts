@@ -65,6 +65,7 @@ export const schemaPushCommand = Command.make(
           )
         );
 
+      yield* Console.log(`  Found ${localSchema.locations.size} paywall locations`);
       yield* Console.log(`  Found ${localSchema.perks.size} perks`);
       yield* Console.log(`  Found ${localSchema.products.size} products`);
 
@@ -80,6 +81,7 @@ export const schemaPushCommand = Command.make(
           )
         );
 
+      yield* Console.log(`  Found ${remoteSchema.locations.size} paywall locations`);
       yield* Console.log(`  Found ${remoteSchema.perks.size} perks`);
       yield* Console.log(`  Found ${remoteSchema.products.size} products`);
 

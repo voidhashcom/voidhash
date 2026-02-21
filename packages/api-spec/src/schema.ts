@@ -131,6 +131,18 @@ export class Perk extends Schema.Class<Perk>("Perk")({
 }) {}
 
 // ========================================================
+// Paywall Locations
+// ========================================================
+
+export class PaywallLocation extends Schema.Class<PaywallLocation>("PaywallLocation")({
+  description: Schema.NullOr(Schema.String),
+  id: Schema.String,
+  name: Schema.String,
+  projectId: Schema.String,
+  slug: Schema.String,
+}) {}
+
+// ========================================================
 // Products
 // ========================================================
 
@@ -452,4 +464,55 @@ export class SdkFeatureFlagsResponse extends Schema.Class<SdkFeatureFlagsRespons
   "SdkFeatureFlagsResponse"
 )({
   flags: Schema.Array(SdkFeatureFlagResult),
+}) {}
+
+// ========================================================
+// Paywall Resolution (SDK)
+// ========================================================
+
+export class SdkResolvePaywallBody extends Schema.Class<SdkResolvePaywallBody>(
+  "SdkResolvePaywallBody"
+)({
+  locationSlug: Schema.String,
+}) {}
+
+const SdkResolvedPaywallShowingType = Schema.Literal(
+  "paywall_release",
+  "feature_flag"
+);
+
+const SdkResolvedPaywallShowingPaywall = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  slug: Schema.String,
+});
+
+const SdkResolvedPaywallShowingPaywallRelease = Schema.Struct({
+  htmlUrl: Schema.String,
+  publishedAt: Schema.NullOr(Schema.Date),
+  releaseId: Schema.String,
+  version: Schema.Number,
+});
+
+export class SdkResolvedPaywallShowing extends Schema.Class<SdkResolvedPaywallShowing>(
+  "SdkResolvedPaywallShowing"
+)({
+  id: Schema.String,
+  paywall: Schema.NullOr(SdkResolvedPaywallShowingPaywall),
+  paywallId: Schema.NullOr(Schema.String),
+  paywallRelease: Schema.NullOr(SdkResolvedPaywallShowingPaywallRelease),
+  paywallReleaseId: Schema.NullOr(Schema.String),
+  startedAt: Schema.Date,
+  type: SdkResolvedPaywallShowingType,
+}) {}
+
+export class SdkResolvedPaywall extends Schema.Class<SdkResolvedPaywall>(
+  "SdkResolvedPaywall"
+)({
+  location: Schema.Struct({
+    id: Schema.String,
+    name: Schema.String,
+    slug: Schema.String,
+  }),
+  showing: SdkResolvedPaywallShowing,
 }) {}

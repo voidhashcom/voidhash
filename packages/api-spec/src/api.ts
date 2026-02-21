@@ -13,6 +13,7 @@ import {
   OrganizationServiceError,
   PaymentProviderConfigurationServiceError,
   PaymentProviderProductServiceError,
+  PaywallLocationServiceError,
   PerkServiceError,
   ProductPerkServiceError,
   ProductPerkValidationError,
@@ -47,6 +48,7 @@ import {
   OrganizationIdParam,
   PaymentProviderConfiguration,
   PaymentProviderProduct,
+  PaywallLocation,
   Perk,
   Product,
   ProductIdParam,
@@ -57,6 +59,8 @@ import {
   SdkFeatureFlagsResponse,
   SdkHeaders,
   SdkIdentifyBody,
+  SdkResolvePaywallBody,
+  SdkResolvedPaywall,
   SdkSyncCustomerAttributesBody,
   Session,
   UpdateWebhookEndpointBody,
@@ -173,6 +177,17 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
       .prefix("/perks")
   )
   .add(
+    HttpApiGroup.make("paywall_locations")
+      .add(
+        HttpApiEndpoint.get("listPaywallLocations")`/`
+          .addSuccess(Schema.Array(PaywallLocation))
+          .addError(ActionForbiddenError)
+          .addError(PaywallLocationServiceError)
+      )
+      .middleware(AuthMiddleware)
+      .prefix("/paywall-locations")
+  )
+  .add(
     HttpApiGroup.make("projects")
       .add(
         HttpApiEndpoint.post("createProject")`/`
@@ -255,6 +270,15 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
           .setHeaders(SdkHeaders)
           .addError(AuthenticationError)
           .addError(SdkServiceError)
+      )
+      .add(
+        HttpApiEndpoint.post("resolvePaywall")`/resolve-paywall`
+          .setPayload(SdkResolvePaywallBody)
+          .addSuccess(Schema.NullOr(SdkResolvedPaywall))
+          .setHeaders(SdkHeaders)
+          .addError(AuthenticationError)
+          .addError(SdkServiceError)
+          .addError(SdkValidationError)
       )
       .middleware(AuthMiddleware)
       .prefix("/sdk")

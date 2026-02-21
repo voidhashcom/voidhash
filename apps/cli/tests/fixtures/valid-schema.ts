@@ -33,3 +33,12 @@ export const yearlyPlan = schema.subscription("yearly-plan", {
 		googlePlay: { productId: "yearly_subscription", basePlanId: "base-yearly" },
 	},
 });
+
+export const onboardingUpsell = schema.location("onboarding-upsell", {
+	description: "Shown after onboarding",
+	name: "Onboarding Upsell",
+});
+
+export const settingsPaywall = schema.location("settings-paywall", {
+	name: "Settings Paywall",
+});

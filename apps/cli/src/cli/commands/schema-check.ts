@@ -48,6 +48,7 @@ export const schemaCheckCommand = Command.make("check", { debug: debugOption }, 
       )
     );
 
+    yield* Console.log(`  Found ${localSchema.locations.size} paywall locations`);
     yield* Console.log(`  Found ${localSchema.perks.size} perks`);
     yield* Console.log(`  Found ${localSchema.products.size} products`);
     yield* Console.log(
@@ -62,6 +63,7 @@ export const schemaCheckCommand = Command.make("check", { debug: debugOption }, 
       )
     );
 
+    yield* Console.log(`  Found ${remoteSchema.locations.size} paywall locations`);
     yield* Console.log(`  Found ${remoteSchema.perks.size} perks`);
     yield* Console.log(`  Found ${remoteSchema.products.size} products`);
 
@@ -98,6 +100,30 @@ export const schemaCheckCommand = Command.make("check", { debug: debugOption }, 
 
     // Check results
     const issues: string[] = [];
+
+    if (diff.locations.toCreate.length > 0) {
+      issues.push(`${diff.locations.toCreate.length} paywall locations missing from server`);
+      yield* Console.log("\nMissing paywall locations:");
+      for (const location of diff.locations.toCreate) {
+        yield* Console.log(`  + ${location.slug} ("${location.name}")`);
+      }
+    }
+
+    if (diff.locations.toUpdate.length > 0) {
+      issues.push(`${diff.locations.toUpdate.length} paywall locations need updating`);
+      yield* Console.log("\nOutdated paywall locations:");
+      for (const { local, remote } of diff.locations.toUpdate) {
+        yield* Console.log(`  ~ ${local.slug}: "${remote.name}" -> "${local.name}"`);
+      }
+    }
+
+    if (diff.locations.toArchive.length > 0) {
+      issues.push(`${diff.locations.toArchive.length} paywall locations should be archived`);
+      yield* Console.log("\nPaywall locations to archive (remote-only):");
+      for (const location of diff.locations.toArchive) {
+        yield* Console.log(`  - ${location.slug} ("${location.name}")`);
+      }
+    }
 
     if (diff.perks.toCreate.length > 0) {
       issues.push(`${diff.perks.toCreate.length} perks missing from server`);
