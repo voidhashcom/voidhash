@@ -1,4 +1,5 @@
 import { SCHEMA_KIND, SchemaKind } from "./constants";
+import { PaywallLocationDefinition } from "./paywall-location";
 import {
   type SubscriptionDefinitionProperties,
   subscription as createSubscription,
@@ -33,6 +34,11 @@ export interface SubscriptionConfig<
   providers: Omit<InferProductConfigurationProviders<TProviders>, "_">;
 }
 
+export interface LocationConfig {
+  description?: string;
+  name: string;
+}
+
 /**
  * Schema configuration object with access to providers, perks, and product builders
  */
@@ -47,6 +53,10 @@ export interface SchemaConfiguration<
     slug: string,
     subscriptionConfig: SubscriptionConfig<TProviders, TPerks>
   ) => ReturnType<typeof createSubscription>;
+  location: <TSlug extends string>(
+    slug: TSlug,
+    locationConfig: LocationConfig
+  ) => PaywallLocationDefinition<TSlug>;
 }
 
 /**
@@ -116,6 +126,14 @@ export function schemaConfiguration<
           perks: InferProductConfigurationPerks<TPerks>;
           providers: InferProductConfigurationProviders<TProviders>;
         };
+      }),
+    location: <TSlug extends string>(
+      slug: TSlug,
+      locationConfig: LocationConfig
+    ) =>
+      new PaywallLocationDefinition(slug, {
+        description: locationConfig.description,
+        name: locationConfig.name,
       }),
   };
 }

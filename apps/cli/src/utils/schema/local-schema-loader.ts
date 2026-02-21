@@ -67,6 +67,7 @@ export const SCHEMA_KIND = Symbol.for("voidhash.schema.kind");
 
 export const SchemaKind = {
   Perk: "perk",
+  PaywallLocation: "paywall-location",
   Product: "product",
   SchemaConfiguration: "schema-configuration",
 } as const;
@@ -79,6 +80,7 @@ export function isSchemaConfiguration(
 ): value is {
   perks: Record<string, { slug: string; name: string }>;
   providers: Record<string, boolean>;
+  location: unknown;
   subscription: unknown;
 } {
   return (
@@ -86,6 +88,24 @@ export function isSchemaConfiguration(
     typeof value === "object" &&
     (value as Record<symbol, unknown>)[SCHEMA_KIND] ===
       SchemaKind.SchemaConfiguration
+  );
+}
+
+/**
+ * Check if a value is a PaywallLocationDefinition instance using the schema kind symbol
+ */
+export function isPaywallLocationDefinition(
+  value: unknown
+): value is {
+  description: string | null;
+  name: string;
+  slug: string;
+} {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    (value as Record<symbol, unknown>)[SCHEMA_KIND] ===
+      SchemaKind.PaywallLocation
   );
 }
 
@@ -301,6 +321,17 @@ export const loadLocalSchema = (schemaPath: string) =>
           providers,
           slug: value.slug,
           type: "subscription", // For now, only subscription is supported
+        });
+      }
+    }
+
+    // Third pass: extract paywall locations
+    for (const [, value] of Object.entries(schemaModule)) {
+      if (isPaywallLocationDefinition(value)) {
+        schema.locations.set(value.slug, {
+          description: value.description,
+          name: value.name,
+          slug: value.slug,
         });
       }
     }

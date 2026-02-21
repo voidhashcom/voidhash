@@ -41,11 +41,23 @@ export const NormalizedProductSchema = Schema.Struct({
 export type NormalizedProduct = typeof NormalizedProductSchema.Type;
 
 // ========================================================
+// Normalized Paywall Location
+// ========================================================
+
+export const NormalizedPaywallLocationSchema = Schema.Struct({
+  description: Schema.NullOr(Schema.String),
+  name: Schema.String,
+  slug: Schema.String,
+});
+export type NormalizedPaywallLocation = typeof NormalizedPaywallLocationSchema.Type;
+
+// ========================================================
 // Complete Normalized Schema
 // ========================================================
 
 export interface NormalizedSchema {
   enabledProviders: Set<ProviderId>; // providers used in schema
+  locations: Map<string, NormalizedPaywallLocation>; // keyed by slug
   perks: Map<string, NormalizedPerk>; // keyed by slug
   products: Map<string, NormalizedProduct>; // keyed by slug
 }
@@ -57,6 +69,7 @@ export interface NormalizedSchema {
 export function createEmptyNormalizedSchema(): NormalizedSchema {
   return {
     enabledProviders: new Set(),
+    locations: new Map(),
     perks: new Map(),
     products: new Map(),
   };
@@ -71,6 +84,7 @@ export function createEmptyNormalizedSchema(): NormalizedSchema {
 export function createInitialNormalizedSchema(): NormalizedSchema {
   return {
     enabledProviders: new Set(),
+    locations: new Map(),
     perks: new Map([["all-access", { slug: "all-access", name: "All Access" }]]),
     products: new Map([
       [

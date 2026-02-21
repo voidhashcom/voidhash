@@ -1,12 +1,12 @@
 import { NodeFileSystem, NodePath } from "@effect/platform-node";
-import { expect, it } from "@effect/vitest";
 import { Effect, Exit, Layer } from "effect";
 import path from "node:path";
-import { describe } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
 	extractPerkSlugs,
 	extractProviderConfigs,
+	isPaywallLocationDefinition,
 	isPerkDefinition,
 	isProductDefinition,
 	isSchemaConfiguration,
@@ -204,6 +204,7 @@ describe("type guards", () => {
 				[SCHEMA_KIND]: SchemaKind.SchemaConfiguration,
 				perks: {},
 				providers: {},
+				location: () => {},
 				subscription: () => {},
 			};
 			expect(isSchemaConfiguration(obj)).toBe(true);
@@ -220,7 +221,12 @@ describe("type guards", () => {
 		});
 
 		it("returns false for object without symbol", () => {
-			const obj = { perks: {}, providers: {}, subscription: () => {} };
+			const obj = {
+				perks: {},
+				providers: {},
+				location: () => {},
+				subscription: () => {},
+			};
 			expect(isSchemaConfiguration(obj)).toBe(false);
 		});
 
@@ -229,9 +235,35 @@ describe("type guards", () => {
 				[SCHEMA_KIND]: SchemaKind.Perk,
 				perks: {},
 				providers: {},
+				location: () => {},
 				subscription: () => {},
 			};
 			expect(isSchemaConfiguration(obj)).toBe(false);
+		});
+	});
+
+	describe("isPaywallLocationDefinition", () => {
+		it("returns true for object with correct symbol", () => {
+			const obj = {
+				[SCHEMA_KIND]: SchemaKind.PaywallLocation,
+				description: "Shown after onboarding",
+				name: "Onboarding",
+				slug: "onboarding",
+			};
+			expect(isPaywallLocationDefinition(obj)).toBe(true);
+		});
+
+		it("returns false for null", () => {
+			expect(isPaywallLocationDefinition(null)).toBe(false);
+		});
+
+		it("returns false for non-object", () => {
+			expect(isPaywallLocationDefinition("string")).toBe(false);
+		});
+
+		it("returns false for object without symbol", () => {
+			const obj = { name: "Onboarding", slug: "onboarding" };
+			expect(isPaywallLocationDefinition(obj)).toBe(false);
 		});
 	});
 
@@ -294,10 +326,11 @@ describe("type guards", () => {
 describe("loadLocalSchema", () => {
 	const fixturesPath = path.resolve(__dirname, "../../fixtures");
 
-	it.effect(
+	it(
 		"fails with LocalSchemaNotFoundError when file doesn't exist",
-		() =>
-			Effect.gen(function* () {
+		async () => {
+			await Effect.runPromise(
+				Effect.gen(function* () {
 				const result = yield* Effect.exit(
 					loadLocalSchema("/non/existent/path.ts"),
 				);
@@ -307,11 +340,14 @@ describe("loadLocalSchema", () => {
 					const error = result.cause;
 					expect(error._tag).toBe("Fail");
 				}
-			}).pipe(Effect.provide(TestLayer)),
+				}).pipe(Effect.provide(TestLayer)),
+			);
+		},
 	);
 
-	it.effect("extracts perks from SchemaConfiguration", () =>
-		Effect.gen(function* () {
+	it("extracts perks from SchemaConfiguration", async () => {
+		await Effect.runPromise(
+			Effect.gen(function* () {
 			const schemaPath = path.join(fixturesPath, "valid-schema.ts");
 			const result = yield* loadLocalSchema(schemaPath);
 
@@ -321,21 +357,25 @@ describe("loadLocalSchema", () => {
 
 			const allAccessPerk = result.perks.get("all-access");
 			expect(allAccessPerk?.name).toBe("All Access");
-		}).pipe(Effect.provide(TestLayer)),
-	);
+			}).pipe(Effect.provide(TestLayer)),
+		);
+	});
 
-	it.effect("extracts enabled providers from SchemaConfiguration", () =>
-		Effect.gen(function* () {
+	it("extracts enabled providers from SchemaConfiguration", async () => {
+		await Effect.runPromise(
+			Effect.gen(function* () {
 			const schemaPath = path.join(fixturesPath, "valid-schema.ts");
 			const result = yield* loadLocalSchema(schemaPath);
 
 			expect(result.enabledProviders.has("appleAppStore")).toBe(true);
 			expect(result.enabledProviders.has("googlePlay")).toBe(true);
-		}).pipe(Effect.provide(TestLayer)),
-	);
+			}).pipe(Effect.provide(TestLayer)),
+		);
+	});
 
-	it.effect("extracts products with perks and providers", () =>
-		Effect.gen(function* () {
+	it("extracts products with perks and providers", async () => {
+		await Effect.runPromise(
+			Effect.gen(function* () {
 			const schemaPath = path.join(fixturesPath, "valid-schema.ts");
 			const result = yield* loadLocalSchema(schemaPath);
 
@@ -352,17 +392,42 @@ describe("loadLocalSchema", () => {
 			expect(yearlyPlan?.name).toBe("Yearly Plan");
 			expect(yearlyPlan?.perks).toContain("all-access");
 			expect(yearlyPlan?.perks).toContain("premium-features");
-		}).pipe(Effect.provide(TestLayer)),
-	);
+			}).pipe(Effect.provide(TestLayer)),
+		);
+	});
 
-	it.effect("handles empty schema", () =>
-		Effect.gen(function* () {
+	it("extracts paywall locations", async () => {
+		await Effect.runPromise(
+			Effect.gen(function* () {
+			const schemaPath = path.join(fixturesPath, "valid-schema.ts");
+			const result = yield* loadLocalSchema(schemaPath);
+
+			expect(result.locations.size).toBe(2);
+			expect(result.locations.has("onboarding-upsell")).toBe(true);
+			expect(result.locations.has("settings-paywall")).toBe(true);
+
+			const onboardingUpsell = result.locations.get("onboarding-upsell");
+			expect(onboardingUpsell?.name).toBe("Onboarding Upsell");
+			expect(onboardingUpsell?.description).toBe("Shown after onboarding");
+
+			const settingsPaywall = result.locations.get("settings-paywall");
+			expect(settingsPaywall?.name).toBe("Settings Paywall");
+			expect(settingsPaywall?.description).toBeNull();
+			}).pipe(Effect.provide(TestLayer)),
+		);
+	});
+
+	it("handles empty schema", async () => {
+		await Effect.runPromise(
+			Effect.gen(function* () {
 			const schemaPath = path.join(fixturesPath, "empty-schema.ts");
 			const result = yield* loadLocalSchema(schemaPath);
 
 			expect(result.perks.size).toBe(0);
 			expect(result.products.size).toBe(0);
+			expect(result.locations.size).toBe(0);
 			expect(result.enabledProviders.size).toBe(0);
-		}).pipe(Effect.provide(TestLayer)),
-	);
+			}).pipe(Effect.provide(TestLayer)),
+		);
+	});
 });

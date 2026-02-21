@@ -1,4 +1,5 @@
 import type {
+  NormalizedPaywallLocation,
   NormalizedPerk,
   NormalizedProduct,
   NormalizedSchema,
@@ -20,7 +21,15 @@ export interface ProductDiff {
   toUpdate: { local: NormalizedProduct; remote: NormalizedProduct }[];
 }
 
+export interface PaywallLocationDiff {
+  remoteOnly: NormalizedPaywallLocation[];
+  toArchive: NormalizedPaywallLocation[];
+  toCreate: NormalizedPaywallLocation[];
+  toUpdate: { local: NormalizedPaywallLocation; remote: NormalizedPaywallLocation }[];
+}
+
 export interface SchemaDiff {
+  locations: PaywallLocationDiff;
   perks: PerkDiff;
   products: ProductDiff;
 }
@@ -73,6 +82,17 @@ function productsEqual(a: NormalizedProduct, b: NormalizedProduct): boolean {
   );
 }
 
+function locationsEqual(
+  a: NormalizedPaywallLocation,
+  b: NormalizedPaywallLocation
+): boolean {
+  return (
+    a.slug === b.slug &&
+    a.name === b.name &&
+    (a.description ?? null) === (b.description ?? null)
+  );
+}
+
 // ========================================================
 // Diff Algorithm
 // ========================================================
@@ -89,9 +109,28 @@ export function computeDiff(
   remote: NormalizedSchema
 ): SchemaDiff {
   const diff: SchemaDiff = {
+    locations: { remoteOnly: [], toArchive: [], toCreate: [], toUpdate: [] },
     perks: { remoteOnly: [], toCreate: [], toUpdate: [] },
     products: { remoteOnly: [], toCreate: [], toUpdate: [] },
   };
+
+  // Compare paywall locations
+  for (const [slug, localLocation] of local.locations) {
+    const remoteLocation = remote.locations.get(slug);
+    if (!remoteLocation) {
+      diff.locations.toCreate.push(localLocation);
+    } else if (!locationsEqual(localLocation, remoteLocation)) {
+      diff.locations.toUpdate.push({ local: localLocation, remote: remoteLocation });
+    }
+  }
+
+  // Find remote-only locations (active on server, absent locally)
+  for (const [slug, remoteLocation] of remote.locations) {
+    if (!local.locations.has(slug)) {
+      diff.locations.remoteOnly.push(remoteLocation);
+      diff.locations.toArchive.push(remoteLocation);
+    }
+  }
 
   // Compare perks
   for (const [slug, localPerk] of local.perks) {
@@ -135,6 +174,10 @@ export function computeDiff(
 // ========================================================
 
 export interface DiffSummary {
+  locationsToArchive: number;
+  locationsToCreate: number;
+  locationsToUpdate: number;
+  locationsRemoteOnly: number;
   perksToCreate: number;
   perksToUpdate: number;
   perksRemoteOnly: number;
@@ -145,6 +188,10 @@ export interface DiffSummary {
 }
 
 export function summarizeDiff(diff: SchemaDiff): DiffSummary {
+  const locationsToCreate = diff.locations.toCreate.length;
+  const locationsToUpdate = diff.locations.toUpdate.length;
+  const locationsToArchive = diff.locations.toArchive.length;
+  const locationsRemoteOnly = diff.locations.remoteOnly.length;
   const perksToCreate = diff.perks.toCreate.length;
   const perksToUpdate = diff.perks.toUpdate.length;
   const perksRemoteOnly = diff.perks.remoteOnly.length;
@@ -153,12 +200,23 @@ export function summarizeDiff(diff: SchemaDiff): DiffSummary {
   const productsRemoteOnly = diff.products.remoteOnly.length;
 
   return {
+    locationsRemoteOnly,
+    locationsToArchive,
+    locationsToCreate,
+    locationsToUpdate,
     perksRemoteOnly,
     perksToCreate,
     perksToUpdate,
     productsRemoteOnly,
     productsToCreate,
     productsToUpdate,
-    totalChanges: perksToCreate + perksToUpdate + productsToCreate + productsToUpdate,
+    totalChanges:
+      locationsToCreate +
+      locationsToUpdate +
+      locationsToArchive +
+      perksToCreate +
+      perksToUpdate +
+      productsToCreate +
+      productsToUpdate,
   };
 }

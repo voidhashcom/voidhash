@@ -8,6 +8,7 @@ export * from "./customer";
 export * from "./organization";
 export * from "./payment-provider";
 export * from "./paywall";
+export * from "./paywall-location";
 export * from "./perk";
 export * from "./product";
 export * from "./product-perk";

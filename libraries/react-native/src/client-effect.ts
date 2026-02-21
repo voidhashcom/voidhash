@@ -9,6 +9,7 @@ import { IdentityManager } from "./core/identity/identity-manager";
 import { ApiClient } from "./core/networking/api-client";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import type {
+  ExtractSchemaPaywallLocationSlugs,
   ExtractSchemaProductDefinitions,
   ExtractSchemaProductKeys,
   InferGetProductResponseFromSchema,
@@ -17,6 +18,11 @@ import type {
 import { extractProductDefinitions } from "./core/schema/utils";
 import { getCommonSdkHeaders } from "./core/utils/get-common-sdk-headers";
 import { UnsupportedPlatformError } from "./errors";
+
+type InferGetPaywallLocationInput<TSchema extends VoidhashSchema> =
+  [ExtractSchemaPaywallLocationSlugs<TSchema>] extends [never]
+    ? string
+    : ExtractSchemaPaywallLocationSlugs<TSchema>;
 
 const makeUnitializedClient = () => ({
   init: <TSchema extends VoidhashSchema>(initOptions: {
@@ -82,6 +88,8 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         readonly flags: ReadonlyArray<{
           readonly enabled: boolean;
           readonly key: string;
+          readonly payload: unknown | null;
+          readonly variantKey: string | null;
         }>;
       }>(cacheKey);
 
@@ -106,6 +114,25 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
       eventBus.emit("feature-flags-fetched", result);
 
       return result;
+    }),
+
+  getPaywallForLocation: (
+    locationSlug: InferGetPaywallLocationInput<TSchema>
+  ) =>
+    Effect.gen(function* getPaywallForLocation() {
+      const apiClient = yield* ApiClient;
+      const identityManager = yield* IdentityManager;
+
+      const commonHeaders = yield* getCommonSdkHeaders();
+      const appUserId = yield* identityManager.getAppUserId();
+
+      return yield* apiClient.sdk.resolvePaywall({
+        headers: {
+          ...commonHeaders,
+          "x-app-user-id": appUserId,
+        },
+        payload: { locationSlug },
+      });
     }),
 
   getCurrentCustomer: (forceFetch = false) =>
@@ -250,7 +277,11 @@ const mapNativeProductsToProductMap = <TSchema extends VoidhashSchema>(
     if (nativeProduct) {
       productMap[productDefinitionKey as ExtractSchemaProductKeys<TSchema>] =
         nativeProduct as InferGetProductResponseFromSchema<TSchema>[ExtractSchemaProductKeys<TSchema>];
+      continue;
     }
+
+    productMap[productDefinitionKey as ExtractSchemaProductKeys<TSchema>] =
+      null as InferGetProductResponseFromSchema<TSchema>[ExtractSchemaProductKeys<TSchema>];
   }
 
   return productMap;

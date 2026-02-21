@@ -65,13 +65,18 @@ export const schemaPullCommand = Command.make(
 
       // Display summary
       yield* Console.log(`\nRemote schema contains:`);
+      yield* Console.log(`  ${remoteSchema.locations.size} paywall locations`);
       yield* Console.log(`  ${remoteSchema.perks.size} perks`);
       yield* Console.log(`  ${remoteSchema.products.size} products`);
       yield* Console.log(
         `  Providers: ${[...remoteSchema.enabledProviders].join(", ") || "none"}`
       );
 
-      if (remoteSchema.perks.size === 0 && remoteSchema.products.size === 0) {
+      if (
+        remoteSchema.locations.size === 0 &&
+        remoteSchema.perks.size === 0 &&
+        remoteSchema.products.size === 0
+      ) {
         yield* Console.log(
           "\nRemote schema is empty. Nothing to pull."
         );

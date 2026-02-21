@@ -131,6 +131,18 @@ export class Perk extends Schema.Class<Perk>("Perk")({
 }) {}
 
 // ========================================================
+// Paywall Locations
+// ========================================================
+
+export class PaywallLocation extends Schema.Class<PaywallLocation>("PaywallLocation")({
+  description: Schema.NullOr(Schema.String),
+  id: Schema.String,
+  name: Schema.String,
+  projectId: Schema.String,
+  slug: Schema.String,
+}) {}
+
+// ========================================================
 // Products
 // ========================================================
 
@@ -444,6 +456,8 @@ export class SdkFeatureFlagResult extends Schema.Class<SdkFeatureFlagResult>(
 )({
   enabled: Schema.Boolean,
   key: Schema.String,
+  payload: Schema.NullOr(Schema.Unknown),
+  variantKey: Schema.NullOr(Schema.String),
 }) {}
 
 export class SdkFeatureFlagsResponse extends Schema.Class<SdkFeatureFlagsResponse>(
@@ -453,26 +467,52 @@ export class SdkFeatureFlagsResponse extends Schema.Class<SdkFeatureFlagsRespons
 }) {}
 
 // ========================================================
-// Experiments (SDK)
+// Paywall Resolution (SDK)
 // ========================================================
 
-export class EvaluateExperimentsBody extends Schema.Class<EvaluateExperimentsBody>(
-  "EvaluateExperimentsBody"
+export class SdkResolvePaywallBody extends Schema.Class<SdkResolvePaywallBody>(
+  "SdkResolvePaywallBody"
 )({
-  experimentKeys: Schema.Array(Schema.String),
+  locationSlug: Schema.String,
 }) {}
 
-export class SdkExperimentResult extends Schema.Class<SdkExperimentResult>(
-  "SdkExperimentResult"
+const SdkResolvedPaywallShowingType = Schema.Literal(
+  "paywall_release",
+  "feature_flag"
+);
+
+const SdkResolvedPaywallShowingPaywall = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  slug: Schema.String,
+});
+
+const SdkResolvedPaywallShowingPaywallRelease = Schema.Struct({
+  htmlUrl: Schema.String,
+  publishedAt: Schema.NullOr(Schema.Date),
+  releaseId: Schema.String,
+  version: Schema.Number,
+});
+
+export class SdkResolvedPaywallShowing extends Schema.Class<SdkResolvedPaywallShowing>(
+  "SdkResolvedPaywallShowing"
 )({
-  enabled: Schema.Boolean,
-  key: Schema.String,
-  payload: Schema.NullOr(Schema.Unknown),
-  variantKey: Schema.NullOr(Schema.String),
+  id: Schema.String,
+  paywall: Schema.NullOr(SdkResolvedPaywallShowingPaywall),
+  paywallId: Schema.NullOr(Schema.String),
+  paywallRelease: Schema.NullOr(SdkResolvedPaywallShowingPaywallRelease),
+  paywallReleaseId: Schema.NullOr(Schema.String),
+  startedAt: Schema.Date,
+  type: SdkResolvedPaywallShowingType,
 }) {}
 
-export class SdkExperimentsResponse extends Schema.Class<SdkExperimentsResponse>(
-  "SdkExperimentsResponse"
+export class SdkResolvedPaywall extends Schema.Class<SdkResolvedPaywall>(
+  "SdkResolvedPaywall"
 )({
-  experiments: Schema.Array(SdkExperimentResult),
+  location: Schema.Struct({
+    id: Schema.String,
+    name: Schema.String,
+    slug: Schema.String,
+  }),
+  showing: SdkResolvedPaywallShowing,
 }) {}

@@ -14,11 +14,17 @@ import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
 import type { PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
 import type {
+  ExtractSchemaPaywallLocationSlugs,
   InferGetProductResponseFromSchema,
   VoidhashSchema,
 } from "./core/schema";
 import { SdkConfiguration } from "./core/sdk-configuration";
 import { VoidhashError } from "./errors";
+
+type InferGetPaywallLocationInput<TSchema extends VoidhashSchema> =
+  [ExtractSchemaPaywallLocationSlugs<TSchema>] extends [never]
+    ? string
+    : ExtractSchemaPaywallLocationSlugs<TSchema>;
 
 export interface VoidhashClientOptions<TSchema extends VoidhashSchema> {
   baseUrl?: string;
@@ -54,6 +60,14 @@ const CreateEffectRuntime = (
     )
   );
 
+type UninitializedEffectClient = ReturnType<
+  typeof VoidhashEffectClient.makeUnitializedClient
+>;
+
+type InitializedEffectClient<TSchema extends VoidhashSchema> = ReturnType<
+  typeof VoidhashEffectClient.makeInitializedClient<TSchema>
+>;
+
 export class VoidhashClient<TSchema extends VoidhashSchema> {
   private _isInitialized = false;
   private initialAppUserId: string | null;
@@ -63,12 +77,8 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
 
   private effectRuntime: ReturnType<typeof CreateEffectRuntime>;
 
-  private unitializedClient: ReturnType<
-    typeof VoidhashEffectClient.makeUnitializedClient
-  >;
-  private initializedClient?: ReturnType<
-    typeof VoidhashEffectClient.makeInitializedClient
-  >;
+  private unitializedClient: UninitializedEffectClient;
+  private initializedClient?: InitializedEffectClient<TSchema>;
 
   constructor(
     initialAppUserId: string | null,
@@ -105,6 +115,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
 
     if (Exit.isSuccess(initializedClientResult)) {
       this.initializedClient = initializedClientResult.value;
+      this._isInitialized = true;
       return;
     }
 
@@ -219,6 +230,25 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     throw new VoidhashError("FAILED_TO_GET_FEATURE_FLAGS");
+  }
+
+  /**
+   * Resolves the currently assigned paywall showing for a location slug.
+   */
+  async getPaywallForLocation(
+    locationSlug: InferGetPaywallLocationInput<TSchema>
+  ) {
+    this.ensureInitialized();
+    const result = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.getPaywallForLocation(locationSlug)
+    );
+
+    if (Exit.isSuccess(result)) {
+      return result.value;
+    }
+
+    throw new VoidhashError("FAILED_TO_GET_PAYWALL_FOR_LOCATION");
   }
 
   /**
