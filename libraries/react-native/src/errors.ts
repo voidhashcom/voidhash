@@ -38,6 +38,14 @@ export class PurchasePendingError extends VoidhashError {}
 
 export class PurchaseCancelledError extends VoidhashError {}
 
+export class ReadOnlyModePurchaseNotAllowedError extends VoidhashError {
+  constructor() {
+    super(
+      "Read-only mode is enabled. Purchasing is disabled for observer-only operation."
+    );
+  }
+}
+
 export class UnknownVoidhashError extends VoidhashError {
   constructor(cause?: Error) {
     super("Unknown Voidhash error", cause);

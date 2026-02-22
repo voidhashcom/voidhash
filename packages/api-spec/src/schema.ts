@@ -249,7 +249,7 @@ const CommonSdkHeaders = Schema.Struct({
   "x-is-backgrounded": Schema.Literal("false"),
   "x-is-debug-build": Schema.Literal("true", "false"),
   "x-nonce": Schema.optional(Schema.String),
-  "x-observer-mode": Schema.Literal("false"),
+  "x-observer-mode": Schema.Literal("true", "false"),
   "x-platform": Schema.String,
   "x-platform-brand": Schema.optional(Schema.String),
   "x-platform-device": Schema.optional(Schema.String),
@@ -282,6 +282,22 @@ export class SdkSyncCustomerAttributesBody extends Schema.Class<SdkSyncCustomerA
 )({
   email: Schema.optional(Schema.String),
   name: Schema.optional(Schema.String),
+}) {}
+
+export const SdkSyncTransactionBody = Schema.Struct({
+  platform: Schema.Literal("ios", "android"),
+  productId: Schema.String,
+  purchaseDate: Schema.Number,
+  purchaseToken: Schema.optional(Schema.String),
+  quantity: Schema.Number,
+  receipt: Schema.optional(Schema.String),
+  transactionId: Schema.String,
+});
+
+export class SdkSyncTransactionResponse extends Schema.Class<SdkSyncTransactionResponse>(
+  "SdkSyncTransactionResponse"
+)({
+  accepted: Schema.Boolean,
 }) {}
 
 export class SdkCustomer extends Schema.Class<SdkCustomer>("SdkCustomer")({

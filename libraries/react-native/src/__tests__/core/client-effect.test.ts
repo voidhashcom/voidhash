@@ -4,6 +4,7 @@ import { VoidhashEffectClient } from "../../client-effect";
 import { ANONYMOUS_USER_ID_PREFIX } from "../../constants";
 import { CacheManager } from "../../core/caching/cache-manager";
 import { Product, SubscriptionProduct } from "../../core/entities/product";
+import { Transaction } from "../../core/entities/transaction";
 import { CustomerAttributeManager } from "../../core/identity/customer-attribute-manager";
 import {
   createApiClientDouble,
@@ -239,6 +240,174 @@ describe("VoidhashEffectClient", () => {
 
       expect(paymentDouble.state.buyProductCalls).toHaveLength(1);
       expect(paymentDouble.state.buyProductCalls[0]?.slug).toBe("monthly_sub");
+      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+      expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(1);
+    } finally {
+      await harness.runtime.dispose();
+    }
+  });
+
+  it("startTransactionObserver delegates to payment adapter initConnection", async () => {
+    const schema = createTestSchema();
+    const apiDouble = createApiClientDouble();
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+
+    try {
+      await harness.runtime.runPromise(
+        initializedClient.startTransactionObserver()
+      );
+
+      expect(paymentDouble.state.initConnectionCalls).toBe(1);
+    } finally {
+      await harness.runtime.dispose();
+    }
+  });
+
+  it("processObservedTransaction sets observer header and skips acknowledge in read-only mode", async () => {
+    const schema = createTestSchema();
+    const apiDouble = createApiClientDouble();
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+      readOnly: true,
+    });
+    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const transaction = new Transaction(
+      "tx-id",
+      "tx-id",
+      "monthly-id",
+      1_700_000_000_000,
+      1,
+      false,
+      "ios"
+    );
+
+    try {
+      await harness.runtime.runPromise(
+        initializedClient.processObservedTransaction(transaction)
+      );
+
+      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+      expect(apiDouble.state.syncTransactionCalls[0]?.headers["x-observer-mode"]).toBe(
+        "true"
+      );
+      expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(0);
+    } finally {
+      await harness.runtime.dispose();
+    }
+  });
+
+  it("processObservedTransaction dedupes repeated transaction processing", async () => {
+    const schema = createTestSchema();
+    const apiDouble = createApiClientDouble();
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const transaction = new Transaction(
+      "tx-id",
+      "tx-id",
+      "monthly-id",
+      1_700_000_000_000,
+      1,
+      false,
+      "ios"
+    );
+
+    try {
+      await harness.runtime.runPromise(
+        initializedClient.processObservedTransaction(transaction)
+      );
+      await harness.runtime.runPromise(
+        initializedClient.processObservedTransaction(transaction)
+      );
+
+      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+    } finally {
+      await harness.runtime.dispose();
+    }
+  });
+
+  it("reconcileObservedTransactions merges pending and history with dedupe", async () => {
+    const schema = createTestSchema();
+    const apiDouble = createApiClientDouble();
+    const transaction = new Transaction(
+      "tx-id",
+      "tx-id",
+      "monthly-id",
+      1_700_000_000_000,
+      1,
+      false,
+      "ios"
+    );
+    const paymentDouble = createPaymentAdapterDouble({
+      pendingTransactions: [transaction],
+      purchaseHistory: [transaction],
+    });
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+
+    try {
+      await harness.runtime.runPromise(
+        initializedClient.reconcileObservedTransactions()
+      );
+
+      expect(apiDouble.state.syncTransactionCalls).toHaveLength(1);
+    } finally {
+      await harness.runtime.dispose();
+    }
+  });
+
+  it("sync failure does not acknowledge transaction", async () => {
+    const schema = createTestSchema();
+    const apiDouble = createApiClientDouble({
+      syncTransactionShouldFail: true,
+    });
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const transaction = new Transaction(
+      "tx-id",
+      "tx-id",
+      "monthly-id",
+      1_700_000_000_000,
+      1,
+      false,
+      "ios"
+    );
+
+    try {
+      await expect(
+        harness.runtime.runPromise(
+          initializedClient.processObservedTransaction(transaction)
+        )
+      ).rejects.toThrow("syncTransaction failed");
+
+      expect(paymentDouble.state.acknowledgePurchaseCalls).toHaveLength(0);
     } finally {
       await harness.runtime.dispose();
     }

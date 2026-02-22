@@ -2,6 +2,7 @@ import { Effect } from "effect";
 
 import { CacheManager } from "./core/caching/cache-manager";
 import type { Product } from "./core/entities/product";
+import type { Transaction } from "./core/entities/transaction";
 import { EventBusProvider } from "./core/event-bus";
 import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
 import { CustomerInfoManager } from "./core/identity/customer-info-manager";
@@ -16,6 +17,7 @@ import type {
   VoidhashSchema,
 } from "./core/schema";
 import { extractProductDefinitions } from "./core/schema/utils";
+import { SdkConfiguration } from "./core/sdk-configuration";
 import { getCommonSdkHeaders } from "./core/utils/get-common-sdk-headers";
 import { UnsupportedPlatformError } from "./errors";
 
@@ -23,6 +25,8 @@ type InferGetPaywallLocationInput<TSchema extends VoidhashSchema> =
   [ExtractSchemaPaywallLocationSlugs<TSchema>] extends [never]
     ? string
     : ExtractSchemaPaywallLocationSlugs<TSchema>;
+
+const PROCESSED_TRANSACTION_TTL_MS = 1000 * 60 * 30;
 
 const makeUnitializedClient = () => ({
   init: <TSchema extends VoidhashSchema>(initOptions: {
@@ -69,158 +73,259 @@ const makeUnitializedClient = () => ({
 
 const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
   schema: TSchema;
-}) => ({
-  end: () =>
-    Effect.gen(function* end() {
-      const paymentAdapter = yield* PaymentAdapter;
-      return yield* paymentAdapter.endConnection();
-    }),
+}) => {
+  const inFlightTransactionKeys = new Set<string>();
 
-  getFeatureFlags: (flagKeys?: string[]) =>
-    Effect.gen(function* getFeatureFlags() {
+  const processObservedTransaction = (transaction: Transaction) =>
+    Effect.gen(function* processObservedTransaction() {
+      const transactionProcessingKey =
+        buildTransactionProcessingKey(transaction);
+      if (inFlightTransactionKeys.has(transactionProcessingKey)) {
+        return;
+      }
+
       const cacheManager = yield* CacheManager;
-      const apiClient = yield* ApiClient;
-      const eventBus = yield* EventBusProvider;
-      const identityManager = yield* IdentityManager;
-
-      const cacheKey = `feature-flags:${flagKeys?.sort().join(",") ?? "all"}`;
-      const cached = yield* cacheManager.get<{
-        readonly flags: ReadonlyArray<{
-          readonly enabled: boolean;
-          readonly key: string;
-          readonly payload: unknown | null;
-          readonly variantKey: string | null;
-        }>;
-      }>(cacheKey);
-
-      if (cached && !cached.isExpired && !cached.isStale) {
-        return cached.value;
-      }
-
-      const commonHeaders = yield* getCommonSdkHeaders();
-      const appUserId = yield* identityManager.getAppUserId();
-      const result = yield* apiClient.sdk.evaluateFeatureFlags({
-        headers: {
-          ...commonHeaders,
-          "x-app-user-id": appUserId,
-        },
-        payload: { flagKeys },
-      });
-
-      yield* cacheManager.set(cacheKey, result, {
-        ttl: 1000 * 60 * 5, // 5 minutes
-      });
-
-      eventBus.emit("feature-flags-fetched", result);
-
-      return result;
-    }),
-
-  getPaywallForLocation: (
-    locationSlug: InferGetPaywallLocationInput<TSchema>
-  ) =>
-    Effect.gen(function* getPaywallForLocation() {
-      const apiClient = yield* ApiClient;
-      const identityManager = yield* IdentityManager;
-
-      const commonHeaders = yield* getCommonSdkHeaders();
-      const appUserId = yield* identityManager.getAppUserId();
-
-      return yield* apiClient.sdk.resolvePaywall({
-        headers: {
-          ...commonHeaders,
-          "x-app-user-id": appUserId,
-        },
-        payload: { locationSlug },
-      });
-    }),
-
-  getCurrentCustomer: (forceFetch = false) =>
-    Effect.gen(function* getCurrentCustomer() {
-      const identityManager = yield* IdentityManager;
-      const customerInfoManager = yield* CustomerInfoManager;
-
-      const appUserId = yield* identityManager.getAppUserId();
-      const customer = yield* customerInfoManager.getCustomer(
-        appUserId,
-        forceFetch ? "fetch" : "fetch-while-stale"
+      const processedTransactionCacheKey =
+        getProcessedTransactionCacheKey(transactionProcessingKey);
+      const cachedTransaction = yield* cacheManager.get<boolean>(
+        processedTransactionCacheKey
       );
-
-      return customer;
-    }),
-
-  getProducts: () =>
-    Effect.gen(function* getProducts() {
-      const productDefinitions = extractProductDefinitions(options.schema);
-      const nativeProducts = yield* loadProductsCached(productDefinitions);
-      return mapNativeProductsToProductMap(productDefinitions, nativeProducts);
-    }),
-
-  identify: (
-    appUserId: string,
-    options: {
-      email?: string;
-      name?: string;
-    }
-  ) =>
-    Effect.gen(function* identify() {
-      const identityManager = yield* IdentityManager;
-      return yield* identityManager.identify(appUserId, options);
-    }),
-
-  iosPresentCodeRedemptionSheet: () =>
-    Effect.gen(function* iosPresentCodeRedemptionSheet() {
-      const paymentAdapter = yield* PaymentAdapter;
-      const { presentCodeRedemptionSheet } = paymentAdapter;
-      if (!presentCodeRedemptionSheet) {
-        return yield* Effect.fail(
-          new UnsupportedPlatformError(
-            "Present code redemption sheet is not supported on this platform"
-          )
-        );
+      if (
+        cachedTransaction &&
+        !cachedTransaction.isExpired &&
+        cachedTransaction.value
+      ) {
+        return;
       }
-      return yield* presentCodeRedemptionSheet();
-    }),
 
-  iosShowManageSubscriptions: () =>
-    Effect.gen(function* iosShowManageSubscriptions() {
-      const paymentAdapter = yield* PaymentAdapter;
-      const { showManageSubscriptions } = paymentAdapter;
-      if (!showManageSubscriptions) {
-        return yield* Effect.fail(
-          new UnsupportedPlatformError(
-            "Show manage subscriptions is not supported on this platform"
-          )
-        );
+      inFlightTransactionKeys.add(transactionProcessingKey);
+      try {
+        const apiClient = yield* ApiClient;
+        const identityManager = yield* IdentityManager;
+        const paymentAdapter = yield* PaymentAdapter;
+        const sdkConfiguration = yield* SdkConfiguration;
+
+        const commonHeaders = yield* getCommonSdkHeaders();
+        const appUserId = yield* identityManager.getAppUserId();
+        if (transaction.platform === "android" && !transaction.purchaseToken) {
+          yield* Effect.logWarning(
+            "Skipping observed Android transaction without purchase token",
+            {
+              transactionId: transaction.transactionId,
+            }
+          );
+          return;
+        }
+
+        yield* apiClient.sdk.syncTransaction({
+          headers: {
+            ...commonHeaders,
+            "x-app-user-id": appUserId,
+          },
+          payload: mapTransactionToSyncPayload(transaction),
+        });
+
+        yield* cacheManager.set(processedTransactionCacheKey, true, {
+          ttl: PROCESSED_TRANSACTION_TTL_MS,
+        });
+
+        if (!sdkConfiguration.readOnly) {
+          yield* paymentAdapter.acknowledgePurchase(transaction);
+        }
+      } finally {
+        inFlightTransactionKeys.delete(transactionProcessingKey);
       }
-      return yield* showManageSubscriptions();
-    }),
+    });
 
-  purchase: <TSchemaOverload extends VoidhashSchema>(
-    product: NonNullable<
-      InferGetProductResponseFromSchema<TSchemaOverload>[keyof InferGetProductResponseFromSchema<TSchemaOverload>]
-    >,
-    _options: {
-      method?: "native";
-    }
-  ) =>
-    Effect.gen(function* purchase() {
-      const paymentAdapter = yield* PaymentAdapter;
-      const transaction = yield* paymentAdapter.buyProduct(product);
-      // TODO: Send transaction to backend
-      yield* Effect.logDebug("Transaction bought", {
-        transaction,
-      });
+  return {
+    end: () =>
+      Effect.gen(function* end() {
+        const paymentAdapter = yield* PaymentAdapter;
+        return yield* paymentAdapter.endConnection();
+      }),
 
-      return;
-    }),
+    getFeatureFlags: (flagKeys?: string[]) =>
+      Effect.gen(function* getFeatureFlags() {
+        const cacheManager = yield* CacheManager;
+        const apiClient = yield* ApiClient;
+        const eventBus = yield* EventBusProvider;
+        const identityManager = yield* IdentityManager;
 
-  signOut: () =>
-    Effect.gen(function* signOut() {
-      const identityManager = yield* IdentityManager;
-      return yield* identityManager.signOut();
-    }),
-});
+        const cacheKey = `feature-flags:${flagKeys?.sort().join(",") ?? "all"}`;
+        const cached = yield* cacheManager.get<{
+          readonly flags: ReadonlyArray<{
+            readonly enabled: boolean;
+            readonly key: string;
+            readonly payload: unknown | null;
+            readonly variantKey: string | null;
+          }>;
+        }>(cacheKey);
+
+        if (cached && !cached.isExpired && !cached.isStale) {
+          return cached.value;
+        }
+
+        const commonHeaders = yield* getCommonSdkHeaders();
+        const appUserId = yield* identityManager.getAppUserId();
+        const result = yield* apiClient.sdk.evaluateFeatureFlags({
+          headers: {
+            ...commonHeaders,
+            "x-app-user-id": appUserId,
+          },
+          payload: { flagKeys },
+        });
+
+        yield* cacheManager.set(cacheKey, result, {
+          ttl: 1000 * 60 * 5, // 5 minutes
+        });
+
+        eventBus.emit("feature-flags-fetched", result);
+
+        return result;
+      }),
+
+    getPaywallForLocation: (
+      locationSlug: InferGetPaywallLocationInput<TSchema>
+    ) =>
+      Effect.gen(function* getPaywallForLocation() {
+        const apiClient = yield* ApiClient;
+        const identityManager = yield* IdentityManager;
+
+        const commonHeaders = yield* getCommonSdkHeaders();
+        const appUserId = yield* identityManager.getAppUserId();
+
+        return yield* apiClient.sdk.resolvePaywall({
+          headers: {
+            ...commonHeaders,
+            "x-app-user-id": appUserId,
+          },
+          payload: { locationSlug },
+        });
+      }),
+
+    getCurrentCustomer: (forceFetch = false) =>
+      Effect.gen(function* getCurrentCustomer() {
+        const identityManager = yield* IdentityManager;
+        const customerInfoManager = yield* CustomerInfoManager;
+
+        const appUserId = yield* identityManager.getAppUserId();
+        const customer = yield* customerInfoManager.getCustomer(
+          appUserId,
+          forceFetch ? "fetch" : "fetch-while-stale"
+        );
+
+        return customer;
+      }),
+
+    getProducts: () =>
+      Effect.gen(function* getProducts() {
+        const productDefinitions = extractProductDefinitions(options.schema);
+        const nativeProducts = yield* loadProductsCached(productDefinitions);
+        return mapNativeProductsToProductMap(productDefinitions, nativeProducts);
+      }),
+
+    identify: (
+      appUserId: string,
+      options: {
+        email?: string;
+        name?: string;
+      }
+    ) =>
+      Effect.gen(function* identify() {
+        const identityManager = yield* IdentityManager;
+        return yield* identityManager.identify(appUserId, options);
+      }),
+
+    iosPresentCodeRedemptionSheet: () =>
+      Effect.gen(function* iosPresentCodeRedemptionSheet() {
+        const paymentAdapter = yield* PaymentAdapter;
+        const { presentCodeRedemptionSheet } = paymentAdapter;
+        if (!presentCodeRedemptionSheet) {
+          return yield* Effect.fail(
+            new UnsupportedPlatformError(
+              "Present code redemption sheet is not supported on this platform"
+            )
+          );
+        }
+        return yield* presentCodeRedemptionSheet();
+      }),
+
+    iosShowManageSubscriptions: () =>
+      Effect.gen(function* iosShowManageSubscriptions() {
+        const paymentAdapter = yield* PaymentAdapter;
+        const { showManageSubscriptions } = paymentAdapter;
+        if (!showManageSubscriptions) {
+          return yield* Effect.fail(
+            new UnsupportedPlatformError(
+              "Show manage subscriptions is not supported on this platform"
+            )
+          );
+        }
+        return yield* showManageSubscriptions();
+      }),
+
+    processObservedTransaction,
+
+    purchase: <TSchemaOverload extends VoidhashSchema>(
+      product: NonNullable<
+        InferGetProductResponseFromSchema<TSchemaOverload>[keyof InferGetProductResponseFromSchema<TSchemaOverload>]
+      >,
+      _options: {
+        method?: "native";
+      }
+    ) =>
+      Effect.gen(function* purchase() {
+        const paymentAdapter = yield* PaymentAdapter;
+        const transaction = yield* paymentAdapter.buyProduct(product);
+        yield* processObservedTransaction(transaction);
+      }),
+
+    reconcileObservedTransactions: () =>
+      Effect.gen(function* reconcileObservedTransactions() {
+        const paymentAdapter = yield* PaymentAdapter;
+        const [pendingTransactions, purchasedTransactions] = yield* Effect.all([
+          paymentAdapter.getPendingTransactions(),
+          paymentAdapter.getPurchaseHistory(true),
+        ]);
+
+        const observedTransactionsByKey = new Map<string, Transaction>();
+        for (const transaction of [
+          ...pendingTransactions,
+          ...purchasedTransactions,
+        ]) {
+          observedTransactionsByKey.set(
+            buildTransactionProcessingKey(transaction),
+            transaction
+          );
+        }
+
+        for (const transaction of observedTransactionsByKey.values()) {
+          yield* processObservedTransaction(transaction).pipe(
+            Effect.catchAll((error) =>
+              Effect.logWarning("Failed to process observed transaction", {
+                error,
+                transactionId: transaction.transactionId,
+              })
+            )
+          );
+        }
+      }),
+
+    signOut: () =>
+      Effect.gen(function* signOut() {
+        const identityManager = yield* IdentityManager;
+        return yield* identityManager.signOut();
+      }),
+
+    startTransactionObserver: (
+      onPurchase?: (transaction: Transaction) => void
+    ) =>
+      Effect.gen(function* startTransactionObserver() {
+        const paymentAdapter = yield* PaymentAdapter;
+        return yield* paymentAdapter.initConnection(onPurchase);
+      }),
+  };
+};
 
 const loadProductsCached = <TSchema extends VoidhashSchema>(
   productDefinitions: ExtractSchemaProductDefinitions<TSchema>
@@ -285,6 +390,35 @@ const mapNativeProductsToProductMap = <TSchema extends VoidhashSchema>(
   }
 
   return productMap;
+};
+
+const buildTransactionProcessingKey = (transaction: Transaction) =>
+  `${transaction.platform}:${transaction.transactionId}:${transaction.purchaseDate}`;
+
+const getProcessedTransactionCacheKey = (transactionProcessingKey: string) =>
+  `processed-transaction:${transactionProcessingKey}`;
+
+const mapTransactionToSyncPayload = (transaction: Transaction) => {
+  if (transaction.platform === "ios") {
+    return {
+      platform: "ios" as const,
+      productId: transaction.productId,
+      purchaseDate: transaction.purchaseDate,
+      quantity: transaction.quantity,
+      receipt: transaction.receipt,
+      transactionId: transaction.transactionId,
+    };
+  }
+
+  return {
+    platform: "android" as const,
+    productId: transaction.productId,
+    purchaseDate: transaction.purchaseDate,
+    purchaseToken: transaction.purchaseToken ?? "",
+    quantity: transaction.quantity,
+    receipt: transaction.receipt,
+    transactionId: transaction.transactionId,
+  };
 };
 
 const generateCacheKeyFromProductDefinitions = <TSchema extends VoidhashSchema>(
