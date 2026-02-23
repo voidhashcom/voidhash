@@ -47,6 +47,17 @@ export class SchemaService extends Effect.Service<SchemaService>()(
 						});
 					}
 
+					// 1b. Fetch all active paywall locations
+					const remoteLocations =
+						yield* apiClient.paywall_locations.listPaywallLocations();
+					for (const location of remoteLocations) {
+						schema.locations.set(location.slug, {
+							description: location.description,
+							name: location.name,
+							slug: location.slug,
+						});
+					}
+
 					// 2. Fetch all products
 					const remoteProducts = yield* apiClient.products.listProducts();
 
@@ -126,7 +137,7 @@ export class SchemaService extends Effect.Service<SchemaService>()(
 					);
 
 					yield* Effect.logDebug(
-						`Fetched ${schema.perks.size} perks, ${schema.products.size} products`
+						`Fetched ${schema.locations.size} locations, ${schema.perks.size} perks, ${schema.products.size} products`
 					);
 					return schema;
 				}).pipe(

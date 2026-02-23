@@ -1,17 +1,15 @@
 import { HttpApiMiddleware, HttpApiSecurity } from "@effect/platform";
-import {
-  AuthSession,
-  AuthenticationError,
-  NotAuthenticatedError,
-} from "@voidhash/shared";
 import { Schema } from "effect";
+
+import { ApiAuthSession } from "./auth";
+import { AuthenticationError, NotAuthenticatedError } from "./errors";
 
 export class AuthMiddleware extends HttpApiMiddleware.Tag<AuthMiddleware>()(
   "Http/AuthenticationMiddleware",
   {
     // Optionally define the error schema for the middleware
     failure: Schema.Union(AuthenticationError, NotAuthenticatedError),
-    provides: AuthSession,
+    provides: ApiAuthSession,
     security: {
       apiKey: HttpApiSecurity.apiKey({
         in: "header",

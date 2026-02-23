@@ -1,5 +1,8 @@
 import { HttpApi, HttpApiEndpoint, HttpApiGroup } from "@effect/platform";
+import { Schema } from "effect";
+
 import {
+  ActionForbiddenError,
   ApiKeyNotFoundError,
   ApiKeyServiceError,
   AuthenticationError,
@@ -10,6 +13,7 @@ import {
   OrganizationServiceError,
   PaymentProviderConfigurationServiceError,
   PaymentProviderProductServiceError,
+  PaywallLocationServiceError,
   PerkServiceError,
   ProductPerkServiceError,
   ProductPerkValidationError,
@@ -24,10 +28,7 @@ import {
   WebhookEndpointNotFoundError,
   WebhookServiceError,
   WebhookValidationError,
-} from "@voidhash/shared";
-import { ActionForbiddenError } from "@voidhash/shared/errors";
-import { Schema } from "effect";
-
+} from "./errors";
 import { AuthMiddleware } from "./middlewares";
 import {
   ApiKey,
@@ -47,15 +48,22 @@ import {
   OrganizationIdParam,
   PaymentProviderConfiguration,
   PaymentProviderProduct,
+  PaywallLocation,
   Perk,
   Product,
   ProductIdParam,
   ProductPerk,
   Project,
+  EvaluateFeatureFlagsBody,
   SdkCustomer,
+  SdkFeatureFlagsResponse,
   SdkHeaders,
   SdkIdentifyBody,
+  SdkResolvePaywallBody,
+  SdkResolvedPaywall,
   SdkSyncCustomerAttributesBody,
+  SdkSyncTransactionBody,
+  SdkSyncTransactionResponse,
   Session,
   UpdateWebhookEndpointBody,
   User,
@@ -72,7 +80,7 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
       .add(
         HttpApiEndpoint.get("session")`/session`
           .addSuccess(Session)
-          .addError(ActionForbiddenError, { status: 403 })
+          .addError(ActionForbiddenError)
           .middleware(AuthMiddleware)
       )
       .prefix("/auth")
@@ -83,34 +91,34 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         HttpApiEndpoint.post("createSecretKey")`/`
           .addSuccess(ApiKeyWithRawKey)
           .setPayload(CreateSecretKeyBody)
-          .addError(ApiKeyServiceError, { status: 500 })
-          .addError(ActionForbiddenError, { status: 403 })
+          .addError(ApiKeyServiceError)
+          .addError(ActionForbiddenError)
       )
       .add(
         HttpApiEndpoint.get("listApiKeys")`/`
           .addSuccess(Schema.Array(ApiKey))
-          .addError(ApiKeyServiceError, { status: 500 })
-          .addError(ActionForbiddenError, { status: 403 })
+          .addError(ApiKeyServiceError)
+          .addError(ActionForbiddenError)
       )
       .add(
         HttpApiEndpoint.get("getApiKeyById")`/${ApiKeyIdParam}`
           .addSuccess(ApiKey)
-          .addError(ApiKeyServiceError, { status: 500 })
-          .addError(ApiKeyNotFoundError, { status: 404 })
-          .addError(ActionForbiddenError, { status: 403 })
+          .addError(ApiKeyServiceError)
+          .addError(ApiKeyNotFoundError)
+          .addError(ActionForbiddenError)
       )
       .add(
         HttpApiEndpoint.post("rotateSecretKey")`/${ApiKeyIdParam}/rotate`
           .addSuccess(ApiKeyWithRawKey)
-          .addError(ApiKeyServiceError, { status: 500 })
-          .addError(ApiKeyNotFoundError, { status: 404 })
-          .addError(ActionForbiddenError, { status: 403 })
+          .addError(ApiKeyServiceError)
+          .addError(ApiKeyNotFoundError)
+          .addError(ActionForbiddenError)
       )
       .add(
         HttpApiEndpoint.del("deleteApiKey")`/${ApiKeyIdParam}`
-          .addError(ApiKeyServiceError, { status: 500 })
-          .addError(ApiKeyNotFoundError, { status: 404 })
-          .addError(ActionForbiddenError, { status: 403 })
+          .addError(ApiKeyServiceError)
+          .addError(ApiKeyNotFoundError)
+          .addError(ActionForbiddenError)
       )
       .middleware(AuthMiddleware)
       .prefix("/api-keys")
@@ -121,29 +129,29 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         HttpApiEndpoint.post("createCustomer")`/`
           .setPayload(CreateCustomerBody)
           .addSuccess(Customer)
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(CustomerInvalidAnonymousIdError, { status: 400 })
-          .addError(CustomerServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(CustomerInvalidAnonymousIdError)
+          .addError(CustomerServiceError)
       )
       .add(
         HttpApiEndpoint.get("listCustomers")`/`
           .addSuccess(Schema.Array(Customer))
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(CustomerServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(CustomerServiceError)
       )
       .add(
         HttpApiEndpoint.get("getCustomerById")`/${CustomerIdParam}`
           .addSuccess(Customer)
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(CustomerNotFoundError, { status: 404 })
-          .addError(CustomerServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(CustomerNotFoundError)
+          .addError(CustomerServiceError)
       )
       .add(
         HttpApiEndpoint.get("byAppUserId")`/by-app-user-id/${AppUserIdParam}`
           .addSuccess(Customer)
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(CustomerNotFoundError, { status: 404 })
-          .addError(CustomerServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(CustomerNotFoundError)
+          .addError(CustomerServiceError)
       )
       .middleware(AuthMiddleware)
       .prefix("/customers")
@@ -154,7 +162,7 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         HttpApiEndpoint.post("createOrganization")`/`
           .setPayload(CreateOrganizationBody)
           .addSuccess(Organization)
-          .addError(OrganizationServiceError, { status: 500 })
+          .addError(OrganizationServiceError)
       )
       .middleware(AuthMiddleware)
       .prefix("/organizations")
@@ -164,31 +172,38 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
       .add(
         HttpApiEndpoint.get("listPerks")`/`
           .addSuccess(Schema.Array(Perk))
-
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(PerkServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(PerkServiceError)
       )
       .middleware(AuthMiddleware)
       .prefix("/perks")
   )
   .add(
+    HttpApiGroup.make("paywall_locations")
+      .add(
+        HttpApiEndpoint.get("listPaywallLocations")`/`
+          .addSuccess(Schema.Array(PaywallLocation))
+          .addError(ActionForbiddenError)
+          .addError(PaywallLocationServiceError)
+      )
+      .middleware(AuthMiddleware)
+      .prefix("/paywall-locations")
+  )
+  .add(
     HttpApiGroup.make("projects")
-
       .add(
         HttpApiEndpoint.post("createProject")`/`
           .setPayload(CreateProjectBody)
           .addSuccess(Project)
-
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(AuthenticationError, { status: 401 })
-          .addError(ProjectServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(AuthenticationError)
+          .addError(ProjectServiceError)
       )
       .add(
         HttpApiEndpoint.get("listProjects")`/${OrganizationIdParam}`
           .addSuccess(Schema.Array(Project))
-
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(ProjectServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(ProjectServiceError)
       )
       .middleware(AuthMiddleware)
       .prefix("/projects")
@@ -198,9 +213,8 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
       .add(
         HttpApiEndpoint.get("listProducts")`/`
           .addSuccess(Schema.Array(Product))
-
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(ProductServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(ProductServiceError)
       )
       .middleware(AuthMiddleware)
       .prefix("/products")
@@ -212,10 +226,9 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
           "listProductPerksByProductId"
         )`/by-product-id/${ProductIdParam}`
           .addSuccess(Schema.Array(ProductPerk))
-
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(ProductPerkServiceError, { status: 500 })
-          .addError(ProductPerkValidationError, { status: 400 })
+          .addError(ActionForbiddenError)
+          .addError(ProductPerkServiceError)
+          .addError(ProductPerkValidationError)
       )
       .middleware(AuthMiddleware)
       .prefix("/product-perks")
@@ -226,20 +239,20 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         HttpApiEndpoint.get("getCustomer")`/get-customer`
           .addSuccess(SdkCustomer)
           .setHeaders(SdkHeaders)
-          .addError(AuthenticationError, { status: 401 })
-          .addError(SdkServiceError, { status: 500 })
-          .addError(SdkCustomerNotFoundError, { status: 404 })
-          .addError(SdkValidationError, { status: 400 })
+          .addError(AuthenticationError)
+          .addError(SdkServiceError)
+          .addError(SdkCustomerNotFoundError)
+          .addError(SdkValidationError)
       )
       .add(
         HttpApiEndpoint.post("identify")`/identify`
           .setPayload(SdkIdentifyBody)
           .addSuccess(SdkCustomer)
           .setHeaders(SdkHeaders)
-          .addError(AuthenticationError, { status: 401 })
-          .addError(SdkServiceError, { status: 500 })
-          .addError(SdkValidationError, { status: 400 })
-          .addError(SdkCustomerAlreadyIdentifiedError, { status: 409 })
+          .addError(AuthenticationError)
+          .addError(SdkServiceError)
+          .addError(SdkValidationError)
+          .addError(SdkCustomerAlreadyIdentifiedError)
       )
       .add(
         HttpApiEndpoint.post(
@@ -248,9 +261,35 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
           .setPayload(SdkSyncCustomerAttributesBody)
           .addSuccess(SdkCustomer)
           .setHeaders(SdkHeaders)
-          .addError(AuthenticationError, { status: 401 })
-          .addError(SdkServiceError, { status: 500 })
-          .addError(SdkValidationError, { status: 400 })
+          .addError(AuthenticationError)
+          .addError(SdkServiceError)
+          .addError(SdkValidationError)
+      )
+      .add(
+        HttpApiEndpoint.post("syncTransaction")`/sync-transaction`
+          .setPayload(SdkSyncTransactionBody)
+          .addSuccess(SdkSyncTransactionResponse)
+          .setHeaders(SdkHeaders)
+          .addError(AuthenticationError)
+          .addError(SdkServiceError)
+          .addError(SdkValidationError)
+      )
+      .add(
+        HttpApiEndpoint.post("evaluateFeatureFlags")`/evaluate-flags`
+          .setPayload(EvaluateFeatureFlagsBody)
+          .addSuccess(SdkFeatureFlagsResponse)
+          .setHeaders(SdkHeaders)
+          .addError(AuthenticationError)
+          .addError(SdkServiceError)
+      )
+      .add(
+        HttpApiEndpoint.post("resolvePaywall")`/resolve-paywall`
+          .setPayload(SdkResolvePaywallBody)
+          .addSuccess(Schema.NullOr(SdkResolvedPaywall))
+          .setHeaders(SdkHeaders)
+          .addError(AuthenticationError)
+          .addError(SdkServiceError)
+          .addError(SdkValidationError)
       )
       .middleware(AuthMiddleware)
       .prefix("/sdk")
@@ -260,8 +299,8 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
       .add(
         HttpApiEndpoint.get("getUser")`/current`
           .addSuccess(User)
-          .addError(AuthenticationError, { status: 401 })
-          .addError(UserServiceError, { status: 500 })
+          .addError(AuthenticationError)
+          .addError(UserServiceError)
       )
       .middleware(AuthMiddleware)
       .prefix("/users")
@@ -271,8 +310,8 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
       .add(
         HttpApiEndpoint.get("listPaymentProviderConfigurations")`/`
           .addSuccess(Schema.Array(PaymentProviderConfiguration))
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(PaymentProviderConfigurationServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(PaymentProviderConfigurationServiceError)
       )
       .middleware(AuthMiddleware)
       .prefix("/payment-provider-configurations")
@@ -282,8 +321,8 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
       .add(
         HttpApiEndpoint.get("listPaymentProviderProducts")`/`
           .addSuccess(Schema.Array(PaymentProviderProduct))
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(PaymentProviderProductServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(PaymentProviderProductServiceError)
       )
       .middleware(AuthMiddleware)
       .prefix("/payment-provider-products")
@@ -294,9 +333,9 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         HttpApiEndpoint.post("deployChangeset")`/deploy`
           .setPayload(DeployChangesetBody)
           .addSuccess(DeployChangesetResponse)
-          .addError(AuthenticationError, { status: 401 })
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(ChangesetDeploymentServiceError, { status: 500 })
+          .addError(AuthenticationError)
+          .addError(ActionForbiddenError)
+          .addError(ChangesetDeploymentServiceError)
       )
       .middleware(AuthMiddleware)
       .prefix("/changesets")
@@ -307,72 +346,72 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         HttpApiEndpoint.post("createWebhookEndpoint")`/endpoints`
           .setPayload(CreateWebhookEndpointBody)
           .addSuccess(WebhookEndpoint)
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(WebhookValidationError, { status: 400 })
-          .addError(WebhookServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(WebhookValidationError)
+          .addError(WebhookServiceError)
       )
       .add(
         HttpApiEndpoint.get("listWebhookEndpoints")`/endpoints`
           .addSuccess(Schema.Array(WebhookEndpoint))
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(WebhookServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(WebhookServiceError)
       )
       .add(
         HttpApiEndpoint.get("getWebhookEndpoint")`/endpoints/${WebhookEndpointIdParam}`
           .addSuccess(WebhookEndpoint)
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(WebhookEndpointNotFoundError, { status: 404 })
-          .addError(WebhookServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(WebhookEndpointNotFoundError)
+          .addError(WebhookServiceError)
       )
       .add(
         HttpApiEndpoint.patch("updateWebhookEndpoint")`/endpoints/${WebhookEndpointIdParam}`
           .setPayload(UpdateWebhookEndpointBody)
           .addSuccess(WebhookEndpoint)
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(WebhookEndpointNotFoundError, { status: 404 })
-          .addError(WebhookValidationError, { status: 400 })
-          .addError(WebhookServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(WebhookEndpointNotFoundError)
+          .addError(WebhookValidationError)
+          .addError(WebhookServiceError)
       )
       .add(
         HttpApiEndpoint.del("deleteWebhookEndpoint")`/endpoints/${WebhookEndpointIdParam}`
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(WebhookEndpointNotFoundError, { status: 404 })
-          .addError(WebhookServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(WebhookEndpointNotFoundError)
+          .addError(WebhookServiceError)
       )
       .add(
         HttpApiEndpoint.post("rotateWebhookSecret")`/endpoints/${WebhookEndpointIdParam}/rotate-secret`
           .addSuccess(WebhookEndpoint)
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(WebhookEndpointNotFoundError, { status: 404 })
-          .addError(WebhookServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(WebhookEndpointNotFoundError)
+          .addError(WebhookServiceError)
       )
       .add(
         HttpApiEndpoint.post("testWebhookEndpoint")`/endpoints/${WebhookEndpointIdParam}/test`
           .addSuccess(WebhookDelivery)
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(WebhookEndpointNotFoundError, { status: 404 })
-          .addError(WebhookServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(WebhookEndpointNotFoundError)
+          .addError(WebhookServiceError)
       )
       .add(
         HttpApiEndpoint.get("listWebhookDeliveries")`/deliveries`
           .addSuccess(Schema.Array(WebhookDelivery))
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(WebhookServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(WebhookServiceError)
       )
       .add(
         HttpApiEndpoint.get("getWebhookDelivery")`/deliveries/${WebhookDeliveryIdParam}`
           .addSuccess(WebhookDeliveryWithAttempts)
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(WebhookDeliveryNotFoundError, { status: 404 })
-          .addError(WebhookServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(WebhookDeliveryNotFoundError)
+          .addError(WebhookServiceError)
       )
       .add(
         HttpApiEndpoint.post("retryWebhookDelivery")`/deliveries/${WebhookDeliveryIdParam}/retry`
           .addSuccess(WebhookDelivery)
-          .addError(ActionForbiddenError, { status: 403 })
-          .addError(WebhookDeliveryNotFoundError, { status: 404 })
-          .addError(WebhookValidationError, { status: 400 })
-          .addError(WebhookServiceError, { status: 500 })
+          .addError(ActionForbiddenError)
+          .addError(WebhookDeliveryNotFoundError)
+          .addError(WebhookValidationError)
+          .addError(WebhookServiceError)
       )
       .middleware(AuthMiddleware)
       .prefix("/webhooks")

@@ -14,24 +14,32 @@ import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
 import type { PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
 import type {
+  ExtractSchemaPaywallLocationSlugs,
   InferGetProductResponseFromSchema,
   VoidhashSchema,
 } from "./core/schema";
 import { SdkConfiguration } from "./core/sdk-configuration";
-import { VoidhashError } from "./errors";
+import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "./errors";
+
+type InferGetPaywallLocationInput<TSchema extends VoidhashSchema> =
+  [ExtractSchemaPaywallLocationSlugs<TSchema>] extends [never]
+    ? string
+    : ExtractSchemaPaywallLocationSlugs<TSchema>;
 
 export interface VoidhashClientOptions<TSchema extends VoidhashSchema> {
   baseUrl?: string;
-  userId?: string;
-  scheme?: string;
-  schema: TSchema;
   debug?: boolean;
+  readOnly?: boolean;
+  schema: TSchema;
+  scheme?: string;
+  userId?: string;
 }
 
 const CreateEffectRuntime = (
   platform: PlatformInfo["platform"],
   baseUrl: string,
   publishableKey: string,
+  readOnly: boolean,
   eventBus: EventBus
 ) =>
   ManagedRuntime.make(
@@ -49,26 +57,31 @@ const CreateEffectRuntime = (
       Layer.provideMerge(Layer.succeed(EventBusProvider, eventBus)),
       Layer.provideMerge(ReactNativePlatformProvider),
       Layer.provideMerge(
-        Layer.succeed(SdkConfiguration, { baseUrl, publishableKey })
+        Layer.succeed(SdkConfiguration, { baseUrl, publishableKey, readOnly })
       )
     )
   );
 
+type UninitializedEffectClient = ReturnType<
+  typeof VoidhashEffectClient.makeUnitializedClient
+>;
+
+type InitializedEffectClient<TSchema extends VoidhashSchema> = ReturnType<
+  typeof VoidhashEffectClient.makeInitializedClient<TSchema>
+>;
+
 export class VoidhashClient<TSchema extends VoidhashSchema> {
   private _isInitialized = false;
   private initialAppUserId: string | null;
+  private readOnly: boolean;
   private scheme: string;
   private schema: TSchema;
   private eventBus: EventBus;
 
   private effectRuntime: ReturnType<typeof CreateEffectRuntime>;
 
-  private unitializedClient: ReturnType<
-    typeof VoidhashEffectClient.makeUnitializedClient
-  >;
-  private initializedClient?: ReturnType<
-    typeof VoidhashEffectClient.makeInitializedClient
-  >;
+  private unitializedClient: UninitializedEffectClient;
+  private initializedClient?: InitializedEffectClient<TSchema>;
 
   constructor(
     initialAppUserId: string | null,
@@ -76,10 +89,12 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     schema: TSchema,
     baseUrl: string,
     publishableKey: string,
+    readOnly: boolean,
     eventBus: EventBus,
     platform: Exclude<PlatformInfo["platform"], "unknown">
   ) {
     this.initialAppUserId = initialAppUserId;
+    this.readOnly = readOnly;
     this.scheme = scheme;
     this.schema = schema;
     this.eventBus = eventBus;
@@ -87,6 +102,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
       platform,
       baseUrl,
       publishableKey,
+      readOnly,
       eventBus
     );
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
@@ -104,7 +120,25 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     );
 
     if (Exit.isSuccess(initializedClientResult)) {
-      this.initializedClient = initializedClientResult.value;
+      const initializedClient = initializedClientResult.value;
+      const observerResult = await this.effectRuntime.runPromiseExit(
+        initializedClient.startTransactionObserver((transaction) => {
+          void this.effectRuntime.runPromiseExit(
+            initializedClient.processObservedTransaction(transaction)
+          );
+        })
+      );
+
+      if (!Exit.isSuccess(observerResult)) {
+        throw new VoidhashError("FAILED_TO_INITIALIZE_VOIDHASH_CLIENT");
+      }
+
+      void this.effectRuntime.runPromiseExit(
+        initializedClient.reconcileObservedTransactions()
+      );
+
+      this.initializedClient = initializedClient;
+      this._isInitialized = true;
       return;
     }
 
@@ -203,6 +237,44 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
   }
 
   /**
+   * Returns feature flag evaluation results.
+   * @param flagKeys - Optional array of specific flag keys to evaluate. If omitted, evaluates all flags.
+   * @returns Feature flags evaluation result with enabled status, variant keys, and payloads.
+   */
+  async getFeatureFlags(flagKeys?: string[]) {
+    this.ensureInitialized();
+    const result = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.getFeatureFlags(flagKeys)
+    );
+
+    if (Exit.isSuccess(result)) {
+      return result.value;
+    }
+
+    throw new VoidhashError("FAILED_TO_GET_FEATURE_FLAGS");
+  }
+
+  /**
+   * Resolves the currently assigned paywall showing for a location slug.
+   */
+  async getPaywallForLocation(
+    locationSlug: InferGetPaywallLocationInput<TSchema>
+  ) {
+    this.ensureInitialized();
+    const result = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.getPaywallForLocation(locationSlug)
+    );
+
+    if (Exit.isSuccess(result)) {
+      return result.value;
+    }
+
+    throw new VoidhashError("FAILED_TO_GET_PAYWALL_FOR_LOCATION");
+  }
+
+  /**
    * Returns products available on the current platform.
    * @throws {NotInitializedError} If the voidhash client is not initialized
    * @throws {FailedToGetProductsError} If the payment adapter fails to get products
@@ -240,6 +312,10 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
   ) {
     this.ensureInitialized();
+    if (this.readOnly) {
+      throw new ReadOnlyModePurchaseNotAllowedError();
+    }
+
     const purchaseResult = await this.effectRuntime.runPromiseExit(
       // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
       this.initializedClient!.purchase<TSchema>(product, _options)

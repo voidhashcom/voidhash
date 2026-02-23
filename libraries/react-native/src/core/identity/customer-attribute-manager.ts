@@ -12,7 +12,7 @@ interface CustomerAttributes {
 export class CustomerAttributeManager extends Effect.Service<CustomerAttributeManager>()(
   "rn-voidhash/CustomerAttributeManager",
   {
-    dependencies: [CacheManager.Default, ApiClient.Default],
+    dependencies: [CacheManager.Default],
     effect: Effect.gen(function* effect() {
       const cacheManager = yield* CacheManager;
       const apiClient = yield* ApiClient;

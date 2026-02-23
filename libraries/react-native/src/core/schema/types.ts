@@ -1,5 +1,6 @@
 import type { SubscriptionProduct } from "../entities/product";
 import type { PerkDefinition } from "./perk";
+import type { PaywallLocationDefinition } from "./paywall-location";
 import type { ProductDefinition } from "./products/base";
 
 export type Simplify<T> = {
@@ -94,6 +95,7 @@ export type InferProductConfigurationPerks<TDefinedPerks extends DefinedPerks> =
 
 export type AnyDefinedProviders = DefinedProviders;
 export type AnyDefinedPerks = DefinedPerks;
+export type AnyPaywallLocationDefinition = PaywallLocationDefinition<string>;
 export type AnyProductDefinition = ProductDefinition<
   // biome-ignore lint/suspicious/noExplicitAny: ok
   any,
@@ -113,6 +115,8 @@ export interface AnySchemaConfiguration {
   perks: AnyDefinedPerks;
   // biome-ignore lint/suspicious/noExplicitAny: needed for flexibility
   subscription: (...args: any[]) => AnyProductDefinition;
+  // biome-ignore lint/suspicious/noExplicitAny: needed for flexibility
+  location: (...args: any[]) => AnyPaywallLocationDefinition;
 }
 
 export interface ProductDefinitionConfiguration<
@@ -177,7 +181,7 @@ export type InferGetProductResponseFromSchema<TSchema extends VoidhashSchema> =
  */
 export type VoidhashSchema = Record<
   string,
-  AnyProductDefinition | AnySchemaConfiguration
+  AnyProductDefinition | AnySchemaConfiguration | AnyPaywallLocationDefinition
 >;
 
 export type ExtractSchemaKeys<TSchema extends VoidhashSchema> = keyof TSchema;
@@ -201,3 +205,25 @@ export type ExtractSchemaConfigurations<TSchema extends VoidhashSchema> = {
     ? TSchema[K]
     : never;
 };
+
+export type ExtractSchemaPaywallLocationKeys<TSchema extends VoidhashSchema> = {
+  [K in keyof TSchema]: TSchema[K] extends AnyPaywallLocationDefinition
+    ? K
+    : never;
+}[keyof TSchema];
+
+export type ExtractSchemaPaywallLocationDefinitions<
+  TSchema extends VoidhashSchema,
+> = {
+  [K in ExtractSchemaPaywallLocationKeys<TSchema>]: TSchema[K] extends AnyPaywallLocationDefinition
+    ? TSchema[K]
+    : never;
+};
+
+export type ExtractSchemaPaywallLocationSlugs<
+  TSchema extends VoidhashSchema,
+> = {
+  [K in ExtractSchemaPaywallLocationKeys<TSchema>]: TSchema[K] extends AnyPaywallLocationDefinition
+    ? TSchema[K]["slug"]
+    : never;
+}[ExtractSchemaPaywallLocationKeys<TSchema>];

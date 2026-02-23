@@ -48,7 +48,7 @@
 	},
 	"scripts": {
 		"postinstall": "tsc || exit 0;",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "tsgo --noEmit",
 		"build": "expo-module build",
 		"test": "expo-module test",
 		"clean": "rm -rf android/build node_modules/**/android/build lib",
@@ -91,11 +91,21 @@
 		"react-native-nitro-modules": "0.26.4"
 	},
 	"jest": {
+		"moduleNameMapper": {
+			"^msgpackr$": "<rootDir>/../../node_modules/msgpackr/dist/node.cjs"
+		},
 		"modulePathIgnorePatterns": [
-			"<rootDir>/lib/"
+			"<rootDir>/lib/",
+			"<rootDir>/build/"
 		],
 		"preset": "expo-module-scripts",
 		"projects": [],
+		"setupFiles": [
+			"<rootDir>/jest.setup.ts"
+		],
+		"testPathIgnorePatterns": [
+			"<rootDir>/src/__tests__/helpers/"
+		],
 		"testEnvironment": "jest-fixed-jsdom"
 	},
 	"packageManager": "bun@1.3.1"

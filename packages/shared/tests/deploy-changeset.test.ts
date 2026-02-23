@@ -9,7 +9,7 @@ describe("sortChangeset", () => {
         {
           changeType: "delete-perk",
           key: "delete-1",
-          payload: { id: "perk-1" },
+          payload: { slug: "perk-1" },
         },
         {
           changeType: "create-perk",
@@ -19,7 +19,7 @@ describe("sortChangeset", () => {
         {
           changeType: "update-perk",
           key: "update-1",
-          payload: { id: "perk-1", name: "Updated Perk 1", slug: "perk-1" },
+          payload: { name: "Updated Perk 1", slug: "perk-1" },
         },
       ],
     };
@@ -38,7 +38,7 @@ describe("sortChangeset", () => {
         {
           changeType: "delete-perk",
           key: "delete-1",
-          payload: { id: "perk-1" },
+          payload: { slug: "perk-1" },
         },
         {
           changeType: "create-perk",

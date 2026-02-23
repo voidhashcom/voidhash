@@ -1,6 +1,7 @@
 import { HttpApiSchema } from "@effect/platform";
-import { ChangesetSchema } from "@voidhash/shared";
 import { Schema } from "effect";
+
+import { ChangesetSchema } from "./changeset";
 
 export const PublishableKeyAuthHeaders = Schema.Struct({
   "x-app-user-id": Schema.String,
@@ -130,6 +131,18 @@ export class Perk extends Schema.Class<Perk>("Perk")({
 }) {}
 
 // ========================================================
+// Paywall Locations
+// ========================================================
+
+export class PaywallLocation extends Schema.Class<PaywallLocation>("PaywallLocation")({
+  description: Schema.NullOr(Schema.String),
+  id: Schema.String,
+  name: Schema.String,
+  projectId: Schema.String,
+  slug: Schema.String,
+}) {}
+
+// ========================================================
 // Products
 // ========================================================
 
@@ -236,7 +249,7 @@ const CommonSdkHeaders = Schema.Struct({
   "x-is-backgrounded": Schema.Literal("false"),
   "x-is-debug-build": Schema.Literal("true", "false"),
   "x-nonce": Schema.optional(Schema.String),
-  "x-observer-mode": Schema.Literal("false"),
+  "x-observer-mode": Schema.Literal("true", "false"),
   "x-platform": Schema.String,
   "x-platform-brand": Schema.optional(Schema.String),
   "x-platform-device": Schema.optional(Schema.String),
@@ -269,6 +282,22 @@ export class SdkSyncCustomerAttributesBody extends Schema.Class<SdkSyncCustomerA
 )({
   email: Schema.optional(Schema.String),
   name: Schema.optional(Schema.String),
+}) {}
+
+export const SdkSyncTransactionBody = Schema.Struct({
+  platform: Schema.Literal("ios", "android"),
+  productId: Schema.String,
+  purchaseDate: Schema.Number,
+  purchaseToken: Schema.optional(Schema.String),
+  quantity: Schema.Number,
+  receipt: Schema.optional(Schema.String),
+  transactionId: Schema.String,
+});
+
+export class SdkSyncTransactionResponse extends Schema.Class<SdkSyncTransactionResponse>(
+  "SdkSyncTransactionResponse"
+)({
+  accepted: Schema.Boolean,
 }) {}
 
 export class SdkCustomer extends Schema.Class<SdkCustomer>("SdkCustomer")({
@@ -427,3 +456,79 @@ export const WebhookDeliveryIdParam = HttpApiSchema.param(
   "deliveryId",
   Schema.String
 );
+
+// ========================================================
+// Feature Flags (SDK)
+// ========================================================
+
+export class EvaluateFeatureFlagsBody extends Schema.Class<EvaluateFeatureFlagsBody>(
+  "EvaluateFeatureFlagsBody"
+)({
+  flagKeys: Schema.optional(Schema.Array(Schema.String)),
+}) {}
+
+export class SdkFeatureFlagResult extends Schema.Class<SdkFeatureFlagResult>(
+  "SdkFeatureFlagResult"
+)({
+  enabled: Schema.Boolean,
+  key: Schema.String,
+  payload: Schema.NullOr(Schema.Unknown),
+  variantKey: Schema.NullOr(Schema.String),
+}) {}
+
+export class SdkFeatureFlagsResponse extends Schema.Class<SdkFeatureFlagsResponse>(
+  "SdkFeatureFlagsResponse"
+)({
+  flags: Schema.Array(SdkFeatureFlagResult),
+}) {}
+
+// ========================================================
+// Paywall Resolution (SDK)
+// ========================================================
+
+export class SdkResolvePaywallBody extends Schema.Class<SdkResolvePaywallBody>(
+  "SdkResolvePaywallBody"
+)({
+  locationSlug: Schema.String,
+}) {}
+
+const SdkResolvedPaywallShowingType = Schema.Literal(
+  "paywall_release",
+  "feature_flag"
+);
+
+const SdkResolvedPaywallShowingPaywall = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  slug: Schema.String,
+});
+
+const SdkResolvedPaywallShowingPaywallRelease = Schema.Struct({
+  htmlUrl: Schema.String,
+  publishedAt: Schema.NullOr(Schema.Date),
+  releaseId: Schema.String,
+  version: Schema.Number,
+});
+
+export class SdkResolvedPaywallShowing extends Schema.Class<SdkResolvedPaywallShowing>(
+  "SdkResolvedPaywallShowing"
+)({
+  id: Schema.String,
+  paywall: Schema.NullOr(SdkResolvedPaywallShowingPaywall),
+  paywallId: Schema.NullOr(Schema.String),
+  paywallRelease: Schema.NullOr(SdkResolvedPaywallShowingPaywallRelease),
+  paywallReleaseId: Schema.NullOr(Schema.String),
+  startedAt: Schema.Date,
+  type: SdkResolvedPaywallShowingType,
+}) {}
+
+export class SdkResolvedPaywall extends Schema.Class<SdkResolvedPaywall>(
+  "SdkResolvedPaywall"
+)({
+  location: Schema.Struct({
+    id: Schema.String,
+    name: Schema.String,
+    slug: Schema.String,
+  }),
+  showing: SdkResolvedPaywallShowing,
+}) {}

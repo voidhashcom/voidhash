@@ -1,18 +1,14 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: we use it for Storekit that is only available on iOS */
 
-import { ProductNotFoundError } from "@voidhash/shared";
 import { Effect, Layer } from "effect";
 
-import {
-  type ExtractSchemaProductDefinitions,
-  ProductDefinition,
-  type VoidhashSchema,
-} from "../..";
 import { Storekit } from "../../nitro";
 import type { StorekitProduct } from "../../specs/ios/StorekitProduct.nitro";
 import type { StorekitTransaction } from "../../specs/ios/StorekitTransaction.nitro";
 import { Product, type SubscriptionProduct } from "../entities/product";
 import { Transaction } from "../entities/transaction";
+import type { ExtractSchemaProductDefinitions, VoidhashSchema } from "../schema";
+import { ProductDefinition } from "../schema/products/base";
 import {
   FailedToAcknowledgePurchaseError,
   FailedToBuyProductError,
@@ -24,6 +20,7 @@ import {
   GetPendingTransactionsError,
   GetPurchaseHistoryError,
   NativeAdapterNotInitializedError,
+  ProductNotFoundError,
   PurchasePendingError,
   UserCancelledError,
 } from "./errors";

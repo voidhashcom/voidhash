@@ -17,7 +17,6 @@ export class IdentityManager extends Effect.Service<IdentityManager>()(
       CacheManager.Default,
       CustomerAttributeManager.Default,
       CustomerInfoManager.Default,
-      ApiClient.Default,
     ],
     effect: Effect.gen(function* effect() {
       const cacheManager = yield* CacheManager;

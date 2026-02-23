@@ -81,3 +81,9 @@ export class FailedToShowManageSubscriptionsError extends Data.TaggedError(
   readonly message: string;
   readonly cause?: unknown;
 }> {}
+
+export class ProductNotFoundError extends Data.TaggedError(
+  "ProductNotFoundError"
+)<{
+  readonly message: string;
+}> {}

@@ -14,12 +14,22 @@ export interface CustomerIdentifiedEvent {
   type: "customer-identified";
 }
 
+export interface FeatureFlagsFetchedEvent {
+  readonly flags: ReadonlyArray<{
+    readonly enabled: boolean;
+    readonly key: string;
+    readonly payload: unknown | null;
+    readonly variantKey: string | null;
+  }>;
+}
+
 export interface VoidhashEvents {
   "customer-fetched": SdkCustomer;
   // biome-ignore lint/suspicious/noConfusingVoidType: it specifies that the event has no payload
   "customer-signed-out": void;
   // biome-ignore lint/suspicious/noConfusingVoidType: it specifies that the event has no payload
   "customer-identified": void;
+  "feature-flags-fetched": FeatureFlagsFetchedEvent;
 }
 
 export type VoidhashClientEvent = keyof VoidhashEvents;
@@ -31,6 +41,7 @@ export class EventBus {
     "customer-fetched": [],
     "customer-identified": [],
     "customer-signed-out": [],
+    "feature-flags-fetched": [],
   };
 
   on<TEvent extends VoidhashClientEvent>(

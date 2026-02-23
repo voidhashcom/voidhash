@@ -1,11 +1,37 @@
 import { Schema } from "effect";
 
-export class ChangesetDeploymentServiceError extends Schema.TaggedError<ChangesetDeploymentServiceError>()(
-  "ChangesetDeploymentServiceError",
-  {
-    cause: Schema.Unknown,
-  }
-) {}
+// ChangesetDeploymentServiceError has been moved to:
+// - @voidhash/api-spec/errors (API layer)
+// - @voidhash-internal/core/domain/errors (domain layer)
+
+// Paywall Locations
+export const PaywallLocationCreateChangeSchema = Schema.Struct({
+  changeType: Schema.Literal("create-paywall-location"),
+  key: Schema.String,
+  payload: Schema.Struct({
+    description: Schema.optional(Schema.NullOr(Schema.String)),
+    name: Schema.String,
+    slug: Schema.String,
+  }),
+});
+
+export const PaywallLocationUpdateChangeSchema = Schema.Struct({
+  changeType: Schema.Literal("update-paywall-location"),
+  key: Schema.String,
+  payload: Schema.Struct({
+    description: Schema.optional(Schema.NullOr(Schema.String)),
+    name: Schema.String,
+    slug: Schema.String,
+  }),
+});
+
+export const PaywallLocationArchiveChangeSchema = Schema.Struct({
+  changeType: Schema.Literal("archive-paywall-location"),
+  key: Schema.String,
+  payload: Schema.Struct({
+    slug: Schema.String,
+  }),
+});
 
 // Perks
 export const PerkCreateChangeSchema = Schema.Struct({
@@ -111,6 +137,9 @@ export const PaymentProviderProductDeleteChangeSchema = Schema.Struct({
 });
 
 export const ChangeSchema = Schema.Union(
+  PaywallLocationCreateChangeSchema,
+  PaywallLocationUpdateChangeSchema,
+  PaywallLocationArchiveChangeSchema,
   PerkCreateChangeSchema,
   PerkUpdateChangeSchema,
   PerkDeleteChangeSchema,
@@ -130,13 +159,16 @@ export const ChangesetSchema = Schema.Struct({
 
 export function sortChangeset(changeset: typeof ChangesetSchema.Type) {
   const sortedChangeTypesByPriority: (typeof ChangeSchema.Type.changeType)[] = [
+    "create-paywall-location",
     "create-perk",
     "create-product",
+    "update-paywall-location",
     "update-perk",
     "update-product",
     "create-product-perk",
     "create-payment-provider-product",
     "update-payment-provider-product",
+    "archive-paywall-location",
     "delete-product-perk",
     "delete-payment-provider-product",
     "delete-product",

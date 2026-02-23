@@ -8,6 +8,7 @@ import {
 import { computeDiff } from "../../../src/utils/schema/diff";
 import {
 	createProviderConfig,
+	createTestPaywallLocation,
 	createTestPerk,
 	createTestProduct,
 	createTestSchema,
@@ -23,6 +24,92 @@ describe("buildChangeset", () => {
 			const changeset = buildChangeset(diff);
 
 			expect(changeset.changes).toHaveLength(0);
+		});
+	});
+
+	describe("paywall location changes", () => {
+		it("generates create-paywall-location for new locations", () => {
+			const local = createTestSchema({
+				locations: [
+					createTestPaywallLocation({
+						description: "Shown on launch",
+						name: "Onboarding",
+						slug: "onboarding",
+					}),
+				],
+			});
+			const remote = createTestSchema({});
+			const diff = computeDiff(local, remote);
+
+			const changeset = buildChangeset(diff);
+
+			expect(changeset.changes).toHaveLength(1);
+			expect(changeset.changes[0]).toEqual({
+				changeType: "create-paywall-location",
+				key: "onboarding",
+				payload: {
+					description: "Shown on launch",
+					name: "Onboarding",
+					slug: "onboarding",
+				},
+			});
+		});
+
+		it("generates update-paywall-location for updated locations", () => {
+			const local = createTestSchema({
+				locations: [
+					createTestPaywallLocation({
+						description: null,
+						name: "Onboarding New",
+						slug: "onboarding",
+					}),
+				],
+			});
+			const remote = createTestSchema({
+				locations: [
+					createTestPaywallLocation({
+						description: "Shown on launch",
+						name: "Onboarding Old",
+						slug: "onboarding",
+					}),
+				],
+			});
+			const diff = computeDiff(local, remote);
+
+			const changeset = buildChangeset(diff);
+
+			expect(changeset.changes).toHaveLength(1);
+			expect(changeset.changes[0]).toEqual({
+				changeType: "update-paywall-location",
+				key: "onboarding",
+				payload: {
+					description: null,
+					name: "Onboarding New",
+					slug: "onboarding",
+				},
+			});
+		});
+
+		it("generates archive-paywall-location for remote-only locations", () => {
+			const local = createTestSchema({});
+			const remote = createTestSchema({
+				locations: [
+					createTestPaywallLocation({
+						name: "Onboarding",
+						slug: "onboarding",
+					}),
+				],
+			});
+			const diff = computeDiff(local, remote);
+
+			const changeset = buildChangeset(diff);
+
+			expect(changeset.changes).toHaveLength(1);
+			expect(changeset.changes[0]).toEqual({
+				changeType: "archive-paywall-location",
+				key: "onboarding",
+				payload: { slug: "onboarding" },
+			});
 		});
 	});
 
@@ -452,6 +539,31 @@ describe("buildChangeset", () => {
 	});
 
 	describe("ordering", () => {
+		it("orders: create-paywall-location before create-perk", () => {
+			const local = createTestSchema({
+				locations: [
+					createTestPaywallLocation({
+						name: "Onboarding",
+						slug: "onboarding",
+					}),
+				],
+				perks: [createTestPerk({ slug: "new-perk", name: "New" })],
+			});
+			const remote = createTestSchema({});
+			const diff = computeDiff(local, remote);
+
+			const changeset = buildChangeset(diff);
+
+			const locationIndex = changeset.changes.findIndex(
+				(c) => c.changeType === "create-paywall-location",
+			);
+			const perkIndex = changeset.changes.findIndex(
+				(c) => c.changeType === "create-perk",
+			);
+
+			expect(locationIndex).toBeLessThan(perkIndex);
+		});
+
 		it("orders: create-perk before update-perk", () => {
 			const local = createTestSchema({
 				perks: [
@@ -527,10 +639,85 @@ describe("buildChangeset", () => {
 			expect(productIndex).toBeLessThan(perkIndex);
 			expect(productIndex).toBeLessThan(providerIndex);
 		});
+
+		it("orders: archive-paywall-location after creates/updates", () => {
+			const local = createTestSchema({
+				locations: [
+					createTestPaywallLocation({
+						name: "Onboarding New",
+						slug: "onboarding",
+					}),
+				],
+				perks: [createTestPerk({ slug: "new-perk", name: "New" })],
+			});
+			const remote = createTestSchema({
+				locations: [
+					createTestPaywallLocation({
+						name: "Legacy",
+						slug: "legacy",
+					}),
+					createTestPaywallLocation({
+						description: "Old",
+						name: "Onboarding Old",
+						slug: "onboarding",
+					}),
+				],
+			});
+			const diff = computeDiff(local, remote);
+			const changeset = buildChangeset(diff);
+
+			const createLocationIndex = changeset.changes.findIndex(
+				(c) => c.changeType === "create-paywall-location",
+			);
+			const updateLocationIndex = changeset.changes.findIndex(
+				(c) => c.changeType === "update-paywall-location",
+			);
+			const archiveLocationIndex = changeset.changes.findIndex(
+				(c) => c.changeType === "archive-paywall-location",
+			);
+
+			expect(createLocationIndex).toBe(-1);
+			expect(updateLocationIndex).toBeGreaterThan(-1);
+			expect(archiveLocationIndex).toBeGreaterThan(updateLocationIndex);
+		});
 	});
 });
 
 describe("formatChange", () => {
+	it("formats paywall location changes correctly", () => {
+		expect(
+			formatChange({
+				changeType: "create-paywall-location",
+				key: "onboarding",
+				payload: {
+					description: "Shown after onboarding",
+					name: "Onboarding",
+					slug: "onboarding",
+				},
+			}),
+		).toBe('+ Create paywall location: onboarding ("Onboarding")');
+
+		expect(
+			formatChange({
+				changeType: "update-paywall-location",
+				key: "onboarding",
+				payload: {
+					description: null,
+					name: "Onboarding Updated",
+					slug: "onboarding",
+				},
+			}),
+		).toBe('~ Update paywall location: onboarding ("Onboarding Updated")');
+
+		expect(
+			formatChange({
+				changeType: "archive-paywall-location",
+				key: "onboarding",
+				payload: { slug: "onboarding" },
+			}),
+		).toBe("- Archive paywall location: onboarding");
+	});
+
 	it("formats create-perk correctly", () => {
 		const result = formatChange({
 			changeType: "create-perk",
@@ -652,6 +839,40 @@ describe("formatChange", () => {
 });
 
 describe("formatChangeShort", () => {
+	it("formats paywall location changes correctly", () => {
+		expect(
+			formatChangeShort({
+				changeType: "create-paywall-location",
+				key: "onboarding",
+				payload: {
+					description: "Shown after onboarding",
+					name: "Onboarding",
+					slug: "onboarding",
+				},
+			}),
+		).toBe("PaywallLocation: onboarding");
+
+		expect(
+			formatChangeShort({
+				changeType: "update-paywall-location",
+				key: "onboarding",
+				payload: {
+					description: null,
+					name: "Onboarding Updated",
+					slug: "onboarding",
+				},
+			}),
+		).toBe("PaywallLocation: onboarding");
+
+		expect(
+			formatChangeShort({
+				changeType: "archive-paywall-location",
+				key: "onboarding",
+				payload: { slug: "onboarding" },
+			}),
+		).toBe("PaywallLocation: onboarding");
+	});
+
 	it("formats perk changes correctly", () => {
 		expect(
 			formatChangeShort({

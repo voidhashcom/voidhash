@@ -3,12 +3,87 @@ import { describe, expect, it } from "vitest";
 import { computeDiff, summarizeDiff } from "../../../src/utils/schema/diff";
 import {
 	createProviderConfig,
+	createTestPaywallLocation,
 	createTestPerk,
 	createTestProduct,
 	createTestSchema,
 } from "../../helpers/schema-factories";
 
 describe("computeDiff", () => {
+	describe("locations", () => {
+		it("returns empty diff for identical locations", () => {
+			const location = createTestPaywallLocation({
+				slug: "onboarding",
+				name: "Onboarding",
+			});
+			const local = createTestSchema({ locations: [location] });
+			const remote = createTestSchema({ locations: [location] });
+
+			const diff = computeDiff(local, remote);
+
+			expect(diff.locations.toCreate).toHaveLength(0);
+			expect(diff.locations.toUpdate).toHaveLength(0);
+			expect(diff.locations.remoteOnly).toHaveLength(0);
+			expect(diff.locations.toArchive).toHaveLength(0);
+		});
+
+		it("identifies locations to create (local only)", () => {
+			const localLocation = createTestPaywallLocation({
+				slug: "onboarding",
+				name: "Onboarding",
+			});
+			const local = createTestSchema({ locations: [localLocation] });
+			const remote = createTestSchema({ locations: [] });
+
+			const diff = computeDiff(local, remote);
+
+			expect(diff.locations.toCreate).toHaveLength(1);
+			expect(diff.locations.toCreate[0]).toEqual(localLocation);
+			expect(diff.locations.toUpdate).toHaveLength(0);
+			expect(diff.locations.remoteOnly).toHaveLength(0);
+			expect(diff.locations.toArchive).toHaveLength(0);
+		});
+
+		it("identifies locations to update (same slug, different metadata)", () => {
+			const localLocation = createTestPaywallLocation({
+				description: null,
+				slug: "onboarding",
+				name: "Onboarding New",
+			});
+			const remoteLocation = createTestPaywallLocation({
+				description: "Shown after launch",
+				slug: "onboarding",
+				name: "Onboarding Old",
+			});
+			const local = createTestSchema({ locations: [localLocation] });
+			const remote = createTestSchema({ locations: [remoteLocation] });
+
+			const diff = computeDiff(local, remote);
+
+			expect(diff.locations.toCreate).toHaveLength(0);
+			expect(diff.locations.toUpdate).toHaveLength(1);
+			expect(diff.locations.toUpdate[0]).toEqual({
+				local: localLocation,
+				remote: remoteLocation,
+			});
+		});
+
+		it("identifies remote-only locations to archive", () => {
+			const remoteLocation = createTestPaywallLocation({
+				slug: "onboarding",
+				name: "Onboarding",
+			});
+			const local = createTestSchema({ locations: [] });
+			const remote = createTestSchema({ locations: [remoteLocation] });
+
+			const diff = computeDiff(local, remote);
+
+			expect(diff.locations.remoteOnly).toHaveLength(1);
+			expect(diff.locations.toArchive).toHaveLength(1);
+			expect(diff.locations.toArchive[0]).toEqual(remoteLocation);
+		});
+	});
+
 	describe("perks", () => {
 		it("returns empty diff for identical schemas", () => {
 			const perk = createTestPerk({ slug: "perk-1", name: "Perk 1" });
@@ -413,6 +488,10 @@ describe("summarizeDiff", () => {
 		const summary = summarizeDiff(diff);
 
 		expect(summary.perksToCreate).toBe(0);
+		expect(summary.locationsToCreate).toBe(0);
+		expect(summary.locationsToUpdate).toBe(0);
+		expect(summary.locationsToArchive).toBe(0);
+		expect(summary.locationsRemoteOnly).toBe(0);
 		expect(summary.perksToUpdate).toBe(0);
 		expect(summary.perksRemoteOnly).toBe(0);
 		expect(summary.productsToCreate).toBe(0);
@@ -507,8 +586,20 @@ describe("summarizeDiff", () => {
 		expect(summary.productsRemoteOnly).toBe(2);
 	});
 
-	it("totalChanges includes only creates and updates, not remoteOnly", () => {
+	it("totalChanges includes location archive actions derived from remote-only locations", () => {
 		const local = createTestSchema({
+			locations: [
+				createTestPaywallLocation({
+					description: null,
+					slug: "new-location",
+					name: "New Location",
+				}),
+				createTestPaywallLocation({
+					description: null,
+					slug: "updated-location",
+					name: "Updated Local",
+				}),
+			],
 			perks: [
 				createTestPerk({ slug: "new-perk", name: "New" }),
 				createTestPerk({ slug: "updated-perk", name: "Updated Local" }),
@@ -519,6 +610,17 @@ describe("summarizeDiff", () => {
 			],
 		});
 		const remote = createTestSchema({
+			locations: [
+				createTestPaywallLocation({
+					description: "Old description",
+					slug: "updated-location",
+					name: "Updated Remote",
+				}),
+				createTestPaywallLocation({
+					slug: "remote-only-location",
+					name: "Remote Only",
+				}),
+			],
 			perks: [
 				createTestPerk({ slug: "updated-perk", name: "Updated Remote" }),
 				createTestPerk({ slug: "remote-only-perk", name: "Remote Only" }),
@@ -535,9 +637,11 @@ describe("summarizeDiff", () => {
 
 		const summary = summarizeDiff(diff);
 
-		// 1 perk to create + 1 perk to update + 1 product to create + 1 product to update = 4
-		// Remote-only items should NOT be counted
-		expect(summary.totalChanges).toBe(4);
+		// 1 location to create + 1 location to update + 1 location to archive +
+		// 1 perk to create + 1 perk to update + 1 product to create + 1 product to update = 7
+		expect(summary.totalChanges).toBe(7);
+		expect(summary.locationsRemoteOnly).toBe(1);
+		expect(summary.locationsToArchive).toBe(1);
 		expect(summary.perksRemoteOnly).toBe(1);
 		expect(summary.productsRemoteOnly).toBe(1);
 	});

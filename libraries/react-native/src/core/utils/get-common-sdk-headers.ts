@@ -32,7 +32,7 @@ export const getCommonSdkHeaders = (): Effect.Effect<
       "x-is-backgrounded": "false",
       "x-is-debug-build": platformProvider.isDebugBuild ? "true" : "false",
       "x-nonce": crypto.randomUUID(),
-      "x-observer-mode": "false",
+      "x-observer-mode": sdkConfig.readOnly ? "true" : "false",
       "x-platform": platformProvider.platform,
       "x-platform-brand": platformProvider.deviceBrand,
       "x-platform-device": platformProvider.deviceName,

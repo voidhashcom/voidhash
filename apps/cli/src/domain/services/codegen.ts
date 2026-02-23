@@ -20,6 +20,10 @@ function slugToCamelCase(slug: string): string {
     .join("");
 }
 
+function toTsStringLiteral(value: string): string {
+  return JSON.stringify(value);
+}
+
 /**
  * Generate TypeScript code for a schema file
  */
@@ -55,7 +59,7 @@ function generateSchemaCode(schema: NormalizedSchema): string {
   for (const perk of sortedPerks) {
     const varName = slugToCamelCase(perk.slug);
     lines.push(
-      `    ${varName}: unlockablePerk("${perk.slug}", { name: "${perk.name}" }),`
+      `    ${varName}: unlockablePerk(${toTsStringLiteral(perk.slug)}, { name: ${toTsStringLiteral(perk.name)} }),`
     );
   }
   lines.push("  },");
@@ -71,14 +75,33 @@ function generateSchemaCode(schema: NormalizedSchema): string {
   lines.push("});");
   lines.push("");
 
+  // Paywall locations
+  const sortedLocations = [...schema.locations.values()].sort((a, b) =>
+    a.slug.localeCompare(b.slug)
+  );
+  for (const location of sortedLocations) {
+    const varName = slugToCamelCase(location.slug);
+    lines.push(
+      `export const ${varName} = sc.location(${toTsStringLiteral(location.slug)}, {`
+    );
+    lines.push(`  name: ${toTsStringLiteral(location.name)},`);
+    if (location.description !== null) {
+      lines.push(`  description: ${toTsStringLiteral(location.description)},`);
+    }
+    lines.push("});");
+    lines.push("");
+  }
+
   // Products
   const sortedProducts = [...schema.products.values()].sort((a, b) =>
     a.slug.localeCompare(b.slug)
   );
   for (const product of sortedProducts) {
     const varName = slugToCamelCase(product.slug);
-    lines.push(`export const ${varName} = sc.subscription("${product.slug}", {`);
-    lines.push(`  name: "${product.name}",`);
+    lines.push(
+      `export const ${varName} = sc.subscription(${toTsStringLiteral(product.slug)}, {`
+    );
+    lines.push(`  name: ${toTsStringLiteral(product.name)},`);
 
     // Perks
     lines.push("  perks: {");

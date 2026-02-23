@@ -1,5 +1,6 @@
 import {
 	createEmptyNormalizedSchema,
+	type NormalizedPaywallLocation,
 	type NormalizedPerk,
 	type NormalizedProduct,
 	type NormalizedSchema,
@@ -36,16 +37,35 @@ export function createTestProduct(
 }
 
 /**
+ * Create a test paywall location with optional overrides
+ */
+export function createTestPaywallLocation(
+	overrides: Partial<NormalizedPaywallLocation> = {},
+): NormalizedPaywallLocation {
+	return {
+		description: null,
+		name: "Test Location",
+		slug: "test-location",
+		...overrides,
+	};
+}
+
+/**
  * Create a test schema with optional perks, products, and providers
  */
 export function createTestSchema(
 	options: {
 		perks?: NormalizedPerk[];
 		products?: NormalizedProduct[];
+		locations?: NormalizedPaywallLocation[];
 		enabledProviders?: ProviderId[];
 	} = {},
 ): NormalizedSchema {
 	const schema = createEmptyNormalizedSchema();
+
+	for (const location of options.locations ?? []) {
+		schema.locations.set(location.slug, location);
+	}
 
 	for (const perk of options.perks ?? []) {
 		schema.perks.set(perk.slug, perk);
