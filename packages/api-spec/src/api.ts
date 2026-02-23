@@ -62,6 +62,8 @@ import {
   SdkResolvePaywallBody,
   SdkResolvedPaywall,
   SdkSyncCustomerAttributesBody,
+  SdkSyncTransactionBody,
+  SdkSyncTransactionResponse,
   Session,
   UpdateWebhookEndpointBody,
   User,
@@ -258,6 +260,15 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         )`/sync-customer-attributes`
           .setPayload(SdkSyncCustomerAttributesBody)
           .addSuccess(SdkCustomer)
+          .setHeaders(SdkHeaders)
+          .addError(AuthenticationError)
+          .addError(SdkServiceError)
+          .addError(SdkValidationError)
+      )
+      .add(
+        HttpApiEndpoint.post("syncTransaction")`/sync-transaction`
+          .setPayload(SdkSyncTransactionBody)
+          .addSuccess(SdkSyncTransactionResponse)
           .setHeaders(SdkHeaders)
           .addError(AuthenticationError)
           .addError(SdkServiceError)

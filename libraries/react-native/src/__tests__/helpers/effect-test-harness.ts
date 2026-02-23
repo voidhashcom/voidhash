@@ -34,12 +34,14 @@ export interface ApiClientDoubleState {
   readonly getCustomerCalls: ApiSdkCall[];
   readonly identifyCalls: ApiSdkCall[];
   readonly syncCustomerAttributesCalls: ApiSdkCall[];
+  readonly syncTransactionCalls: ApiSdkCall[];
 }
 
 export interface ApiClientDoubleOptions {
   evaluateFeatureFlagsResult?: FeatureFlagsResult;
   getCustomerResult?: SdkCustomer;
   identifyResult?: SdkCustomer;
+  syncTransactionShouldFail?: boolean;
 }
 
 export function createSdkCustomer(appUserId: string): SdkCustomer {
@@ -57,6 +59,7 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
     getCustomerCalls: [],
     identifyCalls: [],
     syncCustomerAttributesCalls: [],
+    syncTransactionCalls: [],
   };
 
   const apiClient = {
@@ -94,6 +97,13 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
         state.syncCustomerAttributesCalls.push(request);
         return Effect.void;
       },
+      syncTransaction: (request: ApiSdkCall) => {
+        state.syncTransactionCalls.push(request);
+        if (options.syncTransactionShouldFail) {
+          return Effect.fail(new Error("syncTransaction failed"));
+        }
+        return Effect.succeed({ accepted: true });
+      },
     },
   };
 
@@ -104,13 +114,19 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
 }
 
 export interface PaymentAdapterDoubleState {
+  acknowledgePurchaseCalls: Transaction[];
   buyProductCalls: SubscriptionProduct[];
   endConnectionCalls: number;
   getProductsCalls: number;
   initConnectionCalls: number;
+  onPurchaseCallback?: (transaction: Transaction) => void;
 }
 
 export interface PaymentAdapterDoubleOptions {
+  buyProductTransaction?: Transaction;
+  listenerTransaction?: Transaction;
+  pendingTransactions?: Transaction[];
+  purchaseHistory?: Transaction[];
   products?: Product[];
 }
 
@@ -118,40 +134,51 @@ export function createPaymentAdapterDouble(
   options: PaymentAdapterDoubleOptions = {}
 ) {
   const state: PaymentAdapterDoubleState = {
+    acknowledgePurchaseCalls: [],
     buyProductCalls: [],
     endConnectionCalls: 0,
     getProductsCalls: 0,
     initConnectionCalls: 0,
+    onPurchaseCallback: undefined,
   };
 
   const paymentAdapter = {
-    acknowledgePurchase: () => Effect.void,
+    acknowledgePurchase: (transaction: Transaction) => {
+      state.acknowledgePurchaseCalls.push(transaction);
+      return Effect.void;
+    },
     buyProduct: (product: SubscriptionProduct) => {
       state.buyProductCalls.push(product);
       return Effect.succeed(
-        new Transaction(
-          "tx-id",
-          "tx-id",
-          product.slug,
-          Date.now(),
-          1,
-          false,
-          "ios"
-        )
+        options.buyProductTransaction ??
+          new Transaction(
+            "tx-id",
+            "tx-id",
+            product.slug,
+            Date.now(),
+            1,
+            false,
+            "ios"
+          )
       );
     },
     endConnection: () => {
       state.endConnectionCalls += 1;
       return Effect.void;
     },
-    getPendingTransactions: () => Effect.succeed([]),
+    getPendingTransactions: () =>
+      Effect.succeed(options.pendingTransactions ?? []),
     getProducts: () => {
       state.getProductsCalls += 1;
       return Effect.succeed(options.products ?? []);
     },
-    getPurchaseHistory: () => Effect.succeed([]),
-    initConnection: () => {
+    getPurchaseHistory: () => Effect.succeed(options.purchaseHistory ?? []),
+    initConnection: (onPurchase?: (transaction: Transaction) => void) => {
       state.initConnectionCalls += 1;
+      state.onPurchaseCallback = onPurchase;
+      if (onPurchase && options.listenerTransaction) {
+        onPurchase(options.listenerTransaction);
+      }
       return Effect.void;
     },
   };
@@ -187,6 +214,7 @@ export interface EffectTestHarnessOptions {
   eventBus?: EventBus;
   paymentAdapter: PaymentAdapter;
   platform?: Partial<PlatformInfo>;
+  readOnly?: boolean;
 }
 
 const defaultPlatformInfo: PlatformInfo = {
@@ -222,6 +250,7 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
       Layer.succeed(SdkConfiguration, {
         baseUrl: "https://api.voidhash.test",
         publishableKey: "pk_test",
+        readOnly: options.readOnly ?? false,
       })
     )
   );

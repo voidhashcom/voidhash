@@ -35,16 +35,20 @@ jest.mock("../core/platform/react-native-platform-provider", () => {
 
 import { VoidhashClient } from "../client";
 import { EventBus } from "../core/event-bus";
-import { VoidhashError } from "../errors";
+import {
+  ReadOnlyModePurchaseNotAllowedError,
+  VoidhashError,
+} from "../errors";
 import { createTestSchema } from "./helpers/test-schema";
 
-function createClient() {
+function createClient(readOnly = false) {
   return new VoidhashClient(
     null,
     "voidhash",
     createTestSchema(),
     "https://api.voidhash.test",
     "pk_test",
+    readOnly,
     new EventBus(),
     "ios"
   );
@@ -56,13 +60,19 @@ describe("VoidhashClient", () => {
       const client = createClient();
       const initializedClient = {
         end: () => "end-effect",
+        processObservedTransaction: () => "process-observed-effect",
+        reconcileObservedTransactions: () => "reconcile-observed-effect",
+        startTransactionObserver: () => "start-observer-effect",
       };
 
       (client as unknown as Record<string, unknown>).unitializedClient = {
         init: () => "init-effect",
       };
       (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.succeed(initializedClient)),
+        runPromiseExit: jest
+          .fn()
+          .mockResolvedValueOnce(Exit.succeed(initializedClient))
+          .mockResolvedValue(Exit.succeed(undefined)),
       };
 
       await client.init();
@@ -74,6 +84,9 @@ describe("VoidhashClient", () => {
       const client = createClient();
       const initializedClient = {
         end: () => "end-effect",
+        processObservedTransaction: () => "process-observed-effect",
+        reconcileObservedTransactions: () => "reconcile-observed-effect",
+        startTransactionObserver: () => "start-observer-effect",
       };
 
       (client as unknown as Record<string, unknown>).unitializedClient = {
@@ -83,6 +96,8 @@ describe("VoidhashClient", () => {
         runPromiseExit: jest
           .fn()
           .mockResolvedValueOnce(Exit.succeed(initializedClient))
+          .mockResolvedValueOnce(Exit.succeed(undefined))
+          .mockResolvedValueOnce(Exit.succeed(undefined))
           .mockResolvedValueOnce(Exit.succeed(undefined)),
       };
 
@@ -129,6 +144,26 @@ describe("VoidhashClient", () => {
           message: "FAILED_TO_IDENTIFY",
         })
       );
+    });
+
+    it("throws when purchasing in read-only mode", async () => {
+      const client = createClient(true);
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        purchase: () => "purchase-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: jest.fn().mockResolvedValue(Exit.succeed(undefined)),
+      };
+
+      await expect(
+        client.purchase(
+          {
+            id: "monthly-id",
+          } as never,
+          {}
+        )
+      ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
     });
   });
 });
