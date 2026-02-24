@@ -29,7 +29,6 @@ namespace margelo::nitro::voidhash {
     // C++ constructor (called from Java via `initHybrid()`)
     explicit JHybridGoogleBillingProductDetailSpec(jni::alias_ref<jhybridobject> jThis) :
       HybridObject(HybridGoogleBillingProductDetailSpec::TAG),
-      HybridBase(jThis),
       _javaPart(jni::make_global(jThis)) {}
 
   public:
@@ -40,7 +39,6 @@ namespace margelo::nitro::voidhash {
 
   public:
     size_t getExternalMemorySize() noexcept override;
-    void dispose() noexcept override;
 
   public:
     inline const jni::global_ref<JHybridGoogleBillingProductDetailSpec::javaobject>& getJavaPart() const noexcept {
@@ -57,8 +55,8 @@ namespace margelo::nitro::voidhash {
     std::string getPlatform() override;
     std::string getCurrency() override;
     std::string getDisplayPrice() override;
-    std::optional<std::vector<std::shared_ptr<HybridGoogleBillingSubscriptionOfferDetailsSpec>>> getSubscriptionOfferDetails() override;
-    std::optional<std::shared_ptr<HybridGoogleBillingOneTimePurchaseOfferDetailsSpec>> getOneTimePurchaseOfferDetails() override;
+    std::optional<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingSubscriptionOfferDetailsSpec>>> getSubscriptionOfferDetails() override;
+    std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingOneTimePurchaseOfferDetailsSpec>> getOneTimePurchaseOfferDetails() override;
 
   public:
     // Methods

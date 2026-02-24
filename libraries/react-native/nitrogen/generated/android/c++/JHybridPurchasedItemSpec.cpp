@@ -31,11 +31,6 @@ namespace margelo::nitro::voidhash {
     return method(_javaPart);
   }
 
-  void JHybridPurchasedItemSpec::dispose() noexcept {
-    static const auto method = javaClassStatic()->getMethod<void()>("dispose");
-    method(_javaPart);
-  }
-
   // Properties
   PurchasedItemType JHybridPurchasedItemSpec::getType() {
     static const auto method = javaClassStatic()->getMethod<jni::local_ref<JPurchasedItemType>()>("getType");

@@ -17,9 +17,9 @@ namespace margelo::nitro::voidhash { class HybridStorekitProductOfferSpec; }
 // Forward declaration of `HybridStorekitProductSubscriptionPeriodSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridStorekitProductSubscriptionPeriodSpec; }
 
+#include <optional>
 #include <memory>
 #include "HybridStorekitProductOfferSpec.hpp"
-#include <optional>
 #include <vector>
 #include <string>
 #include "HybridStorekitProductSubscriptionPeriodSpec.hpp"
@@ -52,20 +52,18 @@ namespace margelo::nitro::voidhash {
     }
 
   public:
+    // Get memory pressure
     inline size_t getExternalMemorySize() noexcept override {
       return _swiftPart.getMemorySize();
-    }
-    void dispose() noexcept override {
-      _swiftPart.dispose();
     }
 
   public:
     // Properties
-    inline std::optional<std::shared_ptr<HybridStorekitProductOfferSpec>> getIntroductoryOffer() noexcept override {
+    inline std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>> getIntroductoryOffer() noexcept override {
       auto __result = _swiftPart.getIntroductoryOffer();
       return __result;
     }
-    inline std::vector<std::shared_ptr<HybridStorekitProductOfferSpec>> getPromotionalOffers() noexcept override {
+    inline std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>> getPromotionalOffers() noexcept override {
       auto __result = _swiftPart.getPromotionalOffers();
       return __result;
     }
@@ -73,7 +71,7 @@ namespace margelo::nitro::voidhash {
       auto __result = _swiftPart.getSubscriptionGroupID();
       return __result;
     }
-    inline std::shared_ptr<HybridStorekitProductSubscriptionPeriodSpec> getSubscriptionPeriod() noexcept override {
+    inline std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec> getSubscriptionPeriod() noexcept override {
       auto __result = _swiftPart.getSubscriptionPeriod();
       return __result;
     }

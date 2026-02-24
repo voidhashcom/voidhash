@@ -61,8 +61,8 @@ using namespace margelo::nitro::voidhash::views;
   [self setContentView:view];
 }
 
-- (void) updateProps:(const std::shared_ptr<const react::Props>&)props
-            oldProps:(const std::shared_ptr<const react::Props>&)oldProps {
+- (void) updateProps:(const react::Props::Shared&)props
+            oldProps:(const react::Props::Shared&)oldProps {
   // 1. Downcast props
   const auto& newViewPropsConst = *std::static_pointer_cast<HybridPaywallWebViewProps const>(props);
   auto& newViewProps = const_cast<HybridPaywallWebViewProps&>(newViewPropsConst);

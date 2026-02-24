@@ -8,6 +8,8 @@
 #pragma once
 
 // Forward declarations of C++ defined types
+// Forward declaration of `HybridPaywallPresenterSpec` to properly resolve imports.
+namespace margelo::nitro::voidhash { class HybridPaywallPresenterSpec; }
 // Forward declaration of `HybridPaywallWebViewSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridPaywallWebViewSpec; }
 // Forward declaration of `HybridPurchasedItemSpec` to properly resolve imports.
@@ -70,6 +72,7 @@ namespace margelo::nitro::voidhash { struct StorekitProductPurchaseOffer; }
 namespace margelo::nitro::voidhash { enum class StorekitProductSubscriptionPeriodUnit; }
 
 // Include C++ defined types
+#include "HybridPaywallPresenterSpec.hpp"
 #include "HybridPaywallWebViewSpec.hpp"
 #include "HybridPurchasedItemSpec.hpp"
 #include "HybridStorekitProductOfferSpec.hpp"
@@ -119,6 +122,8 @@ namespace margelo::nitro::voidhash { enum class StorekitProductSubscriptionPerio
 #include <NitroModules/DateToChronoDate.hpp>
 
 // Forward declarations of Swift defined types
+// Forward declaration of `HybridPaywallPresenterSpec_cxx` to properly resolve imports.
+namespace NitroVoidhash { class HybridPaywallPresenterSpec_cxx; }
 // Forward declaration of `HybridPaywallWebViewSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridPaywallWebViewSpec_cxx; }
 // Forward declaration of `HybridPurchasedItemSpec_cxx` to properly resolve imports.

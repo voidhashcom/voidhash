@@ -25,12 +25,12 @@ namespace margelo::nitro::voidhash { struct GoogleBillingBuyItemByTypeParams; }
 namespace margelo::nitro::voidhash { class HybridGoogleBillingAcknowledgeResultSpec; }
 
 #include <NitroModules/Promise.hpp>
+#include <optional>
+#include <functional>
 #include <memory>
 #include "HybridGoogleBillingPurchaseSpec.hpp"
-#include <functional>
-#include <optional>
-#include "HybridGoogleBillingProductDetailSpec.hpp"
 #include <vector>
+#include "HybridGoogleBillingProductDetailSpec.hpp"
 #include "GoogleBillingProductType.hpp"
 #include <string>
 #include "GoogleBillingBuyItemByTypeParams.hpp"
@@ -67,12 +67,12 @@ namespace margelo::nitro::voidhash {
 
     public:
       // Methods
-      virtual std::shared_ptr<Promise<bool>> initConnection(const std::optional<std::function<void(const std::shared_ptr<HybridGoogleBillingPurchaseSpec>& /* purchase */)>>& onPurchase) = 0;
+      virtual std::shared_ptr<Promise<bool>> initConnection(const std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPurchaseSpec>& /* purchase */)>>& onPurchase) = 0;
       virtual std::shared_ptr<Promise<bool>> endConnection() = 0;
-      virtual std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridGoogleBillingProductDetailSpec>>>> getItemsByType(GoogleBillingProductType type, const std::vector<std::string>& skus) = 0;
-      virtual std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridGoogleBillingPurchaseSpec>>>> buyItemByType(const GoogleBillingBuyItemByTypeParams& params) = 0;
-      virtual std::shared_ptr<Promise<std::shared_ptr<HybridGoogleBillingAcknowledgeResultSpec>>> acknowledgePurchase(const std::string& token) = 0;
-      virtual std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridGoogleBillingPurchaseSpec>>>> getAvailableItemsByType(GoogleBillingProductType type) = 0;
+      virtual std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingProductDetailSpec>>>> getItemsByType(GoogleBillingProductType type, const std::vector<std::string>& skus) = 0;
+      virtual std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPurchaseSpec>>>> buyItemByType(const GoogleBillingBuyItemByTypeParams& params) = 0;
+      virtual std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingAcknowledgeResultSpec>>> acknowledgePurchase(const std::string& token) = 0;
+      virtual std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPurchaseSpec>>>> getAvailableItemsByType(GoogleBillingProductType type) = 0;
 
     protected:
       // Hybrid Setup

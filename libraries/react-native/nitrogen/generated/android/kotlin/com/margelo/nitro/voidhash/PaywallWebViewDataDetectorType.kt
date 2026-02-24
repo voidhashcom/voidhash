@@ -15,14 +15,18 @@ import com.facebook.proguard.annotations.DoNotStrip
  */
 @DoNotStrip
 @Keep
-enum class PaywallWebViewDataDetectorType(@DoNotStrip @Keep val value: Int) {
-  NONE(0),
-  PHONENUMBER(1),
-  LINK(2),
-  ADDRESS(3),
-  CALENDAREVENT(4),
-  TRACKINGNUMBER(5),
-  FLIGHTNUMBER(6),
-  LOOKUPSUGGESTION(7),
-  ALL(8);
+enum class PaywallWebViewDataDetectorType {
+  NONE,
+  PHONENUMBER,
+  LINK,
+  ADDRESS,
+  CALENDAREVENT,
+  TRACKINGNUMBER,
+  FLIGHTNUMBER,
+  LOOKUPSUGGESTION,
+  ALL;
+
+  @DoNotStrip
+  @Keep
+  private val _ordinal = ordinal
 }

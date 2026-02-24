@@ -8,6 +8,8 @@
 #pragma once
 
 // Forward declarations of C++ defined types
+// Forward declaration of `HybridPaywallPresenterSpec` to properly resolve imports.
+namespace margelo::nitro::voidhash { class HybridPaywallPresenterSpec; }
 // Forward declaration of `HybridPaywallWebViewSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridPaywallWebViewSpec; }
 // Forward declaration of `HybridPurchasedItemSpec` to properly resolve imports.
@@ -58,6 +60,8 @@ namespace margelo::nitro::voidhash { struct PaywallWebViewSource; }
 namespace margelo::nitro::voidhash { struct StorekitProductPurchaseOffer; }
 
 // Forward declarations of Swift defined types
+// Forward declaration of `HybridPaywallPresenterSpec_cxx` to properly resolve imports.
+namespace NitroVoidhash { class HybridPaywallPresenterSpec_cxx; }
 // Forward declaration of `HybridPaywallWebViewSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridPaywallWebViewSpec_cxx; }
 // Forward declaration of `HybridPurchasedItemSpec_cxx` to properly resolve imports.
@@ -78,6 +82,7 @@ namespace NitroVoidhash { class HybridStorekitTransactionSpec_cxx; }
 namespace NitroVoidhash { class HybridVoidhashSpec_cxx; }
 
 // Include C++ defined types
+#include "HybridPaywallPresenterSpec.hpp"
 #include "HybridPaywallWebViewSpec.hpp"
 #include "HybridPurchasedItemSpec.hpp"
 #include "HybridStorekitProductOfferSpec.hpp"
@@ -118,19 +123,182 @@ namespace NitroVoidhash { class HybridVoidhashSpec_cxx; }
  */
 namespace margelo::nitro::voidhash::bridge::swift {
 
+  // pragma MARK: std::shared_ptr<Promise<bool>>
+  /**
+   * Specialized version of `std::shared_ptr<Promise<bool>>`.
+   */
+  using std__shared_ptr_Promise_bool__ = std::shared_ptr<Promise<bool>>;
+  inline std::shared_ptr<Promise<bool>> create_std__shared_ptr_Promise_bool__() {
+    return Promise<bool>::create();
+  }
+  inline PromiseHolder<bool> wrap_std__shared_ptr_Promise_bool__(std::shared_ptr<Promise<bool>> promise) {
+    return PromiseHolder<bool>(std::move(promise));
+  }
+  
+  // pragma MARK: std::function<void(bool /* result */)>
+  /**
+   * Specialized version of `std::function<void(bool)>`.
+   */
+  using Func_void_bool = std::function<void(bool /* result */)>;
+  /**
+   * Wrapper class for a `std::function<void(bool / * result * /)>`, this can be used from Swift.
+   */
+  class Func_void_bool_Wrapper final {
+  public:
+    explicit Func_void_bool_Wrapper(std::function<void(bool /* result */)>&& func): _function(std::make_unique<std::function<void(bool /* result */)>>(std::move(func))) {}
+    inline void call(bool result) const {
+      _function->operator()(result);
+    }
+  private:
+    std::unique_ptr<std::function<void(bool /* result */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_bool create_Func_void_bool(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_bool_Wrapper wrap_Func_void_bool(Func_void_bool value) {
+    return Func_void_bool_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::function<void(const std::exception_ptr& /* error */)>
+  /**
+   * Specialized version of `std::function<void(const std::exception_ptr&)>`.
+   */
+  using Func_void_std__exception_ptr = std::function<void(const std::exception_ptr& /* error */)>;
+  /**
+   * Wrapper class for a `std::function<void(const std::exception_ptr& / * error * /)>`, this can be used from Swift.
+   */
+  class Func_void_std__exception_ptr_Wrapper final {
+  public:
+    explicit Func_void_std__exception_ptr_Wrapper(std::function<void(const std::exception_ptr& /* error */)>&& func): _function(std::make_unique<std::function<void(const std::exception_ptr& /* error */)>>(std::move(func))) {}
+    inline void call(std::exception_ptr error) const {
+      _function->operator()(error);
+    }
+  private:
+    std::unique_ptr<std::function<void(const std::exception_ptr& /* error */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_std__exception_ptr create_Func_void_std__exception_ptr(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_std__exception_ptr_Wrapper wrap_Func_void_std__exception_ptr(Func_void_std__exception_ptr value) {
+    return Func_void_std__exception_ptr_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::function<void(const std::string& /* rawEvent */)>
+  /**
+   * Specialized version of `std::function<void(const std::string&)>`.
+   */
+  using Func_void_std__string = std::function<void(const std::string& /* rawEvent */)>;
+  /**
+   * Wrapper class for a `std::function<void(const std::string& / * rawEvent * /)>`, this can be used from Swift.
+   */
+  class Func_void_std__string_Wrapper final {
+  public:
+    explicit Func_void_std__string_Wrapper(std::function<void(const std::string& /* rawEvent */)>&& func): _function(std::make_unique<std::function<void(const std::string& /* rawEvent */)>>(std::move(func))) {}
+    inline void call(std::string rawEvent) const {
+      _function->operator()(rawEvent);
+    }
+  private:
+    std::unique_ptr<std::function<void(const std::string& /* rawEvent */)>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void_std__string create_Func_void_std__string(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_std__string_Wrapper wrap_Func_void_std__string(Func_void_std__string value) {
+    return Func_void_std__string_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::optional<std::function<void(const std::string& /* rawEvent */)>>
+  /**
+   * Specialized version of `std::optional<std::function<void(const std::string& / * rawEvent * /)>>`.
+   */
+  using std__optional_std__function_void_const_std__string_____rawEvent______ = std::optional<std::function<void(const std::string& /* rawEvent */)>>;
+  inline std::optional<std::function<void(const std::string& /* rawEvent */)>> create_std__optional_std__function_void_const_std__string_____rawEvent______(const std::function<void(const std::string& /* rawEvent */)>& value) {
+    return std::optional<std::function<void(const std::string& /* rawEvent */)>>(value);
+  }
+  
+  // pragma MARK: std::function<void()>
+  /**
+   * Specialized version of `std::function<void()>`.
+   */
+  using Func_void = std::function<void()>;
+  /**
+   * Wrapper class for a `std::function<void()>`, this can be used from Swift.
+   */
+  class Func_void_Wrapper final {
+  public:
+    explicit Func_void_Wrapper(std::function<void()>&& func): _function(std::make_unique<std::function<void()>>(std::move(func))) {}
+    inline void call() const {
+      _function->operator()();
+    }
+  private:
+    std::unique_ptr<std::function<void()>> _function;
+  } SWIFT_NONCOPYABLE;
+  Func_void create_Func_void(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_Wrapper wrap_Func_void(Func_void value) {
+    return Func_void_Wrapper(std::move(value));
+  }
+  
+  // pragma MARK: std::optional<std::function<void()>>
+  /**
+   * Specialized version of `std::optional<std::function<void()>>`.
+   */
+  using std__optional_std__function_void____ = std::optional<std::function<void()>>;
+  inline std::optional<std::function<void()>> create_std__optional_std__function_void____(const std::function<void()>& value) {
+    return std::optional<std::function<void()>>(value);
+  }
+  
+  // pragma MARK: std::shared_ptr<Promise<void>>
+  /**
+   * Specialized version of `std::shared_ptr<Promise<void>>`.
+   */
+  using std__shared_ptr_Promise_void__ = std::shared_ptr<Promise<void>>;
+  inline std::shared_ptr<Promise<void>> create_std__shared_ptr_Promise_void__() {
+    return Promise<void>::create();
+  }
+  inline PromiseHolder<void> wrap_std__shared_ptr_Promise_void__(std::shared_ptr<Promise<void>> promise) {
+    return PromiseHolder<void>(std::move(promise));
+  }
+  
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec>
+  /**
+   * Specialized version of `std::shared_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec>`.
+   */
+  using std__shared_ptr_margelo__nitro__voidhash__HybridPaywallPresenterSpec_ = std::shared_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec>;
+  std::shared_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridPaywallPresenterSpec_(void* _Nonnull swiftUnsafePointer);
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridPaywallPresenterSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridPaywallPresenterSpec_ cppType);
+  
+  // pragma MARK: std::weak_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec>
+  using std__weak_ptr_margelo__nitro__voidhash__HybridPaywallPresenterSpec_ = std::weak_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec>;
+  inline std__weak_ptr_margelo__nitro__voidhash__HybridPaywallPresenterSpec_ weakify_std__shared_ptr_margelo__nitro__voidhash__HybridPaywallPresenterSpec_(const std::shared_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec>& strong) { return strong; }
+  
+  // pragma MARK: Result<std::shared_ptr<Promise<bool>>>
+  using Result_std__shared_ptr_Promise_bool___ = Result<std::shared_ptr<Promise<bool>>>;
+  inline Result_std__shared_ptr_Promise_bool___ create_Result_std__shared_ptr_Promise_bool___(const std::shared_ptr<Promise<bool>>& value) {
+    return Result<std::shared_ptr<Promise<bool>>>::withValue(value);
+  }
+  inline Result_std__shared_ptr_Promise_bool___ create_Result_std__shared_ptr_Promise_bool___(const std::exception_ptr& error) {
+    return Result<std::shared_ptr<Promise<bool>>>::withError(error);
+  }
+  
+  // pragma MARK: Result<std::shared_ptr<Promise<void>>>
+  using Result_std__shared_ptr_Promise_void___ = Result<std::shared_ptr<Promise<void>>>;
+  inline Result_std__shared_ptr_Promise_void___ create_Result_std__shared_ptr_Promise_void___(const std::shared_ptr<Promise<void>>& value) {
+    return Result<std::shared_ptr<Promise<void>>>::withValue(value);
+  }
+  inline Result_std__shared_ptr_Promise_void___ create_Result_std__shared_ptr_Promise_void___(const std::exception_ptr& error) {
+    return Result<std::shared_ptr<Promise<void>>>::withError(error);
+  }
+  
+  // pragma MARK: Result<void>
+  using Result_void_ = Result<void>;
+  inline Result_void_ create_Result_void_() {
+    return Result<void>::withValue();
+  }
+  inline Result_void_ create_Result_void_(const std::exception_ptr& error) {
+    return Result<void>::withError(error);
+  }
+  
   // pragma MARK: std::optional<std::string>
   /**
    * Specialized version of `std::optional<std::string>`.
    */
   using std__optional_std__string_ = std::optional<std::string>;
-  inline std::optional<std::string> create_std__optional_std__string_(const std::string& value) noexcept {
+  inline std::optional<std::string> create_std__optional_std__string_(const std::string& value) {
     return std::optional<std::string>(value);
-  }
-  inline bool has_value_std__optional_std__string_(const std::optional<std::string>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::string get_std__optional_std__string_(const std::optional<std::string>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::vector<PaywallWebViewHeader>
@@ -138,7 +306,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::vector<PaywallWebViewHeader>`.
    */
   using std__vector_PaywallWebViewHeader_ = std::vector<PaywallWebViewHeader>;
-  inline std::vector<PaywallWebViewHeader> create_std__vector_PaywallWebViewHeader_(size_t size) noexcept {
+  inline std::vector<PaywallWebViewHeader> create_std__vector_PaywallWebViewHeader_(size_t size) {
     std::vector<PaywallWebViewHeader> vector;
     vector.reserve(size);
     return vector;
@@ -149,14 +317,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::vector<PaywallWebViewHeader>>`.
    */
   using std__optional_std__vector_PaywallWebViewHeader__ = std::optional<std::vector<PaywallWebViewHeader>>;
-  inline std::optional<std::vector<PaywallWebViewHeader>> create_std__optional_std__vector_PaywallWebViewHeader__(const std::vector<PaywallWebViewHeader>& value) noexcept {
+  inline std::optional<std::vector<PaywallWebViewHeader>> create_std__optional_std__vector_PaywallWebViewHeader__(const std::vector<PaywallWebViewHeader>& value) {
     return std::optional<std::vector<PaywallWebViewHeader>>(value);
-  }
-  inline bool has_value_std__optional_std__vector_PaywallWebViewHeader__(const std::optional<std::vector<PaywallWebViewHeader>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::vector<PaywallWebViewHeader> get_std__optional_std__vector_PaywallWebViewHeader__(const std::optional<std::vector<PaywallWebViewHeader>>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::optional<PaywallWebViewSource>
@@ -164,14 +326,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<PaywallWebViewSource>`.
    */
   using std__optional_PaywallWebViewSource_ = std::optional<PaywallWebViewSource>;
-  inline std::optional<PaywallWebViewSource> create_std__optional_PaywallWebViewSource_(const PaywallWebViewSource& value) noexcept {
+  inline std::optional<PaywallWebViewSource> create_std__optional_PaywallWebViewSource_(const PaywallWebViewSource& value) {
     return std::optional<PaywallWebViewSource>(value);
-  }
-  inline bool has_value_std__optional_PaywallWebViewSource_(const std::optional<PaywallWebViewSource>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline PaywallWebViewSource get_std__optional_PaywallWebViewSource_(const std::optional<PaywallWebViewSource>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::vector<PaywallWebViewDataDetectorType>
@@ -179,7 +335,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::vector<PaywallWebViewDataDetectorType>`.
    */
   using std__vector_PaywallWebViewDataDetectorType_ = std::vector<PaywallWebViewDataDetectorType>;
-  inline std::vector<PaywallWebViewDataDetectorType> create_std__vector_PaywallWebViewDataDetectorType_(size_t size) noexcept {
+  inline std::vector<PaywallWebViewDataDetectorType> create_std__vector_PaywallWebViewDataDetectorType_(size_t size) {
     std::vector<PaywallWebViewDataDetectorType> vector;
     vector.reserve(size);
     return vector;
@@ -190,7 +346,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::vector<std::string>`.
    */
   using std__vector_std__string_ = std::vector<std::string>;
-  inline std::vector<std::string> create_std__vector_std__string_(size_t size) noexcept {
+  inline std::vector<std::string> create_std__vector_std__string_(size_t size) {
     std::vector<std::string> vector;
     vector.reserve(size);
     return vector;
@@ -207,14 +363,14 @@ namespace margelo::nitro::voidhash::bridge::swift {
   class Func_void_PaywallWebViewNavigationEvent_Wrapper final {
   public:
     explicit Func_void_PaywallWebViewNavigationEvent_Wrapper(std::function<void(const PaywallWebViewNavigationEvent& /* event */)>&& func): _function(std::make_unique<std::function<void(const PaywallWebViewNavigationEvent& /* event */)>>(std::move(func))) {}
-    inline void call(PaywallWebViewNavigationEvent event) const noexcept {
+    inline void call(PaywallWebViewNavigationEvent event) const {
       _function->operator()(event);
     }
   private:
     std::unique_ptr<std::function<void(const PaywallWebViewNavigationEvent& /* event */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_PaywallWebViewNavigationEvent create_Func_void_PaywallWebViewNavigationEvent(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_PaywallWebViewNavigationEvent_Wrapper wrap_Func_void_PaywallWebViewNavigationEvent(Func_void_PaywallWebViewNavigationEvent value) noexcept {
+  Func_void_PaywallWebViewNavigationEvent create_Func_void_PaywallWebViewNavigationEvent(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_PaywallWebViewNavigationEvent_Wrapper wrap_Func_void_PaywallWebViewNavigationEvent(Func_void_PaywallWebViewNavigationEvent value) {
     return Func_void_PaywallWebViewNavigationEvent_Wrapper(std::move(value));
   }
   
@@ -223,14 +379,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::function<void(const PaywallWebViewNavigationEvent& / * event * /)>>`.
    */
   using std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______ = std::optional<std::function<void(const PaywallWebViewNavigationEvent& /* event */)>>;
-  inline std::optional<std::function<void(const PaywallWebViewNavigationEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______(const std::function<void(const PaywallWebViewNavigationEvent& /* event */)>& value) noexcept {
+  inline std::optional<std::function<void(const PaywallWebViewNavigationEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______(const std::function<void(const PaywallWebViewNavigationEvent& /* event */)>& value) {
     return std::optional<std::function<void(const PaywallWebViewNavigationEvent& /* event */)>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______(const std::optional<std::function<void(const PaywallWebViewNavigationEvent& /* event */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void(const PaywallWebViewNavigationEvent& /* event */)> get_std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______(const std::optional<std::function<void(const PaywallWebViewNavigationEvent& /* event */)>>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::function<void(const PaywallWebViewProgressEvent& /* event */)>
@@ -244,14 +394,14 @@ namespace margelo::nitro::voidhash::bridge::swift {
   class Func_void_PaywallWebViewProgressEvent_Wrapper final {
   public:
     explicit Func_void_PaywallWebViewProgressEvent_Wrapper(std::function<void(const PaywallWebViewProgressEvent& /* event */)>&& func): _function(std::make_unique<std::function<void(const PaywallWebViewProgressEvent& /* event */)>>(std::move(func))) {}
-    inline void call(PaywallWebViewProgressEvent event) const noexcept {
+    inline void call(PaywallWebViewProgressEvent event) const {
       _function->operator()(event);
     }
   private:
     std::unique_ptr<std::function<void(const PaywallWebViewProgressEvent& /* event */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_PaywallWebViewProgressEvent create_Func_void_PaywallWebViewProgressEvent(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_PaywallWebViewProgressEvent_Wrapper wrap_Func_void_PaywallWebViewProgressEvent(Func_void_PaywallWebViewProgressEvent value) noexcept {
+  Func_void_PaywallWebViewProgressEvent create_Func_void_PaywallWebViewProgressEvent(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_PaywallWebViewProgressEvent_Wrapper wrap_Func_void_PaywallWebViewProgressEvent(Func_void_PaywallWebViewProgressEvent value) {
     return Func_void_PaywallWebViewProgressEvent_Wrapper(std::move(value));
   }
   
@@ -260,14 +410,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::function<void(const PaywallWebViewProgressEvent& / * event * /)>>`.
    */
   using std__optional_std__function_void_const_PaywallWebViewProgressEvent_____event______ = std::optional<std::function<void(const PaywallWebViewProgressEvent& /* event */)>>;
-  inline std::optional<std::function<void(const PaywallWebViewProgressEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewProgressEvent_____event______(const std::function<void(const PaywallWebViewProgressEvent& /* event */)>& value) noexcept {
+  inline std::optional<std::function<void(const PaywallWebViewProgressEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewProgressEvent_____event______(const std::function<void(const PaywallWebViewProgressEvent& /* event */)>& value) {
     return std::optional<std::function<void(const PaywallWebViewProgressEvent& /* event */)>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void_const_PaywallWebViewProgressEvent_____event______(const std::optional<std::function<void(const PaywallWebViewProgressEvent& /* event */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void(const PaywallWebViewProgressEvent& /* event */)> get_std__optional_std__function_void_const_PaywallWebViewProgressEvent_____event______(const std::optional<std::function<void(const PaywallWebViewProgressEvent& /* event */)>>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::function<void(const PaywallWebViewErrorEvent& /* event */)>
@@ -281,14 +425,14 @@ namespace margelo::nitro::voidhash::bridge::swift {
   class Func_void_PaywallWebViewErrorEvent_Wrapper final {
   public:
     explicit Func_void_PaywallWebViewErrorEvent_Wrapper(std::function<void(const PaywallWebViewErrorEvent& /* event */)>&& func): _function(std::make_unique<std::function<void(const PaywallWebViewErrorEvent& /* event */)>>(std::move(func))) {}
-    inline void call(PaywallWebViewErrorEvent event) const noexcept {
+    inline void call(PaywallWebViewErrorEvent event) const {
       _function->operator()(event);
     }
   private:
     std::unique_ptr<std::function<void(const PaywallWebViewErrorEvent& /* event */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_PaywallWebViewErrorEvent create_Func_void_PaywallWebViewErrorEvent(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_PaywallWebViewErrorEvent_Wrapper wrap_Func_void_PaywallWebViewErrorEvent(Func_void_PaywallWebViewErrorEvent value) noexcept {
+  Func_void_PaywallWebViewErrorEvent create_Func_void_PaywallWebViewErrorEvent(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_PaywallWebViewErrorEvent_Wrapper wrap_Func_void_PaywallWebViewErrorEvent(Func_void_PaywallWebViewErrorEvent value) {
     return Func_void_PaywallWebViewErrorEvent_Wrapper(std::move(value));
   }
   
@@ -297,14 +441,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::function<void(const PaywallWebViewErrorEvent& / * event * /)>>`.
    */
   using std__optional_std__function_void_const_PaywallWebViewErrorEvent_____event______ = std::optional<std::function<void(const PaywallWebViewErrorEvent& /* event */)>>;
-  inline std::optional<std::function<void(const PaywallWebViewErrorEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewErrorEvent_____event______(const std::function<void(const PaywallWebViewErrorEvent& /* event */)>& value) noexcept {
+  inline std::optional<std::function<void(const PaywallWebViewErrorEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewErrorEvent_____event______(const std::function<void(const PaywallWebViewErrorEvent& /* event */)>& value) {
     return std::optional<std::function<void(const PaywallWebViewErrorEvent& /* event */)>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void_const_PaywallWebViewErrorEvent_____event______(const std::optional<std::function<void(const PaywallWebViewErrorEvent& /* event */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void(const PaywallWebViewErrorEvent& /* event */)> get_std__optional_std__function_void_const_PaywallWebViewErrorEvent_____event______(const std::optional<std::function<void(const PaywallWebViewErrorEvent& /* event */)>>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>
@@ -318,14 +456,14 @@ namespace margelo::nitro::voidhash::bridge::swift {
   class Func_void_PaywallWebViewHttpErrorEvent_Wrapper final {
   public:
     explicit Func_void_PaywallWebViewHttpErrorEvent_Wrapper(std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>&& func): _function(std::make_unique<std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>>(std::move(func))) {}
-    inline void call(PaywallWebViewHttpErrorEvent event) const noexcept {
+    inline void call(PaywallWebViewHttpErrorEvent event) const {
       _function->operator()(event);
     }
   private:
     std::unique_ptr<std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_PaywallWebViewHttpErrorEvent create_Func_void_PaywallWebViewHttpErrorEvent(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_PaywallWebViewHttpErrorEvent_Wrapper wrap_Func_void_PaywallWebViewHttpErrorEvent(Func_void_PaywallWebViewHttpErrorEvent value) noexcept {
+  Func_void_PaywallWebViewHttpErrorEvent create_Func_void_PaywallWebViewHttpErrorEvent(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_PaywallWebViewHttpErrorEvent_Wrapper wrap_Func_void_PaywallWebViewHttpErrorEvent(Func_void_PaywallWebViewHttpErrorEvent value) {
     return Func_void_PaywallWebViewHttpErrorEvent_Wrapper(std::move(value));
   }
   
@@ -334,14 +472,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::function<void(const PaywallWebViewHttpErrorEvent& / * event * /)>>`.
    */
   using std__optional_std__function_void_const_PaywallWebViewHttpErrorEvent_____event______ = std::optional<std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>>;
-  inline std::optional<std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewHttpErrorEvent_____event______(const std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>& value) noexcept {
+  inline std::optional<std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewHttpErrorEvent_____event______(const std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>& value) {
     return std::optional<std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void_const_PaywallWebViewHttpErrorEvent_____event______(const std::optional<std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)> get_std__optional_std__function_void_const_PaywallWebViewHttpErrorEvent_____event______(const std::optional<std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::function<void(const PaywallWebViewMessageEvent& /* event */)>
@@ -355,14 +487,14 @@ namespace margelo::nitro::voidhash::bridge::swift {
   class Func_void_PaywallWebViewMessageEvent_Wrapper final {
   public:
     explicit Func_void_PaywallWebViewMessageEvent_Wrapper(std::function<void(const PaywallWebViewMessageEvent& /* event */)>&& func): _function(std::make_unique<std::function<void(const PaywallWebViewMessageEvent& /* event */)>>(std::move(func))) {}
-    inline void call(PaywallWebViewMessageEvent event) const noexcept {
+    inline void call(PaywallWebViewMessageEvent event) const {
       _function->operator()(event);
     }
   private:
     std::unique_ptr<std::function<void(const PaywallWebViewMessageEvent& /* event */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_PaywallWebViewMessageEvent create_Func_void_PaywallWebViewMessageEvent(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_PaywallWebViewMessageEvent_Wrapper wrap_Func_void_PaywallWebViewMessageEvent(Func_void_PaywallWebViewMessageEvent value) noexcept {
+  Func_void_PaywallWebViewMessageEvent create_Func_void_PaywallWebViewMessageEvent(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_PaywallWebViewMessageEvent_Wrapper wrap_Func_void_PaywallWebViewMessageEvent(Func_void_PaywallWebViewMessageEvent value) {
     return Func_void_PaywallWebViewMessageEvent_Wrapper(std::move(value));
   }
   
@@ -371,14 +503,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::function<void(const PaywallWebViewMessageEvent& / * event * /)>>`.
    */
   using std__optional_std__function_void_const_PaywallWebViewMessageEvent_____event______ = std::optional<std::function<void(const PaywallWebViewMessageEvent& /* event */)>>;
-  inline std::optional<std::function<void(const PaywallWebViewMessageEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewMessageEvent_____event______(const std::function<void(const PaywallWebViewMessageEvent& /* event */)>& value) noexcept {
+  inline std::optional<std::function<void(const PaywallWebViewMessageEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewMessageEvent_____event______(const std::function<void(const PaywallWebViewMessageEvent& /* event */)>& value) {
     return std::optional<std::function<void(const PaywallWebViewMessageEvent& /* event */)>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void_const_PaywallWebViewMessageEvent_____event______(const std::optional<std::function<void(const PaywallWebViewMessageEvent& /* event */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void(const PaywallWebViewMessageEvent& /* event */)> get_std__optional_std__function_void_const_PaywallWebViewMessageEvent_____event______(const std::optional<std::function<void(const PaywallWebViewMessageEvent& /* event */)>>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>
@@ -392,14 +518,14 @@ namespace margelo::nitro::voidhash::bridge::swift {
   class Func_void_PaywallWebViewOpenWindowEvent_Wrapper final {
   public:
     explicit Func_void_PaywallWebViewOpenWindowEvent_Wrapper(std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>&& func): _function(std::make_unique<std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>>(std::move(func))) {}
-    inline void call(PaywallWebViewOpenWindowEvent event) const noexcept {
+    inline void call(PaywallWebViewOpenWindowEvent event) const {
       _function->operator()(event);
     }
   private:
     std::unique_ptr<std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_PaywallWebViewOpenWindowEvent create_Func_void_PaywallWebViewOpenWindowEvent(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_PaywallWebViewOpenWindowEvent_Wrapper wrap_Func_void_PaywallWebViewOpenWindowEvent(Func_void_PaywallWebViewOpenWindowEvent value) noexcept {
+  Func_void_PaywallWebViewOpenWindowEvent create_Func_void_PaywallWebViewOpenWindowEvent(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_PaywallWebViewOpenWindowEvent_Wrapper wrap_Func_void_PaywallWebViewOpenWindowEvent(Func_void_PaywallWebViewOpenWindowEvent value) {
     return Func_void_PaywallWebViewOpenWindowEvent_Wrapper(std::move(value));
   }
   
@@ -408,14 +534,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::function<void(const PaywallWebViewOpenWindowEvent& / * event * /)>>`.
    */
   using std__optional_std__function_void_const_PaywallWebViewOpenWindowEvent_____event______ = std::optional<std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>>;
-  inline std::optional<std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewOpenWindowEvent_____event______(const std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>& value) noexcept {
+  inline std::optional<std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewOpenWindowEvent_____event______(const std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>& value) {
     return std::optional<std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void_const_PaywallWebViewOpenWindowEvent_____event______(const std::optional<std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)> get_std__optional_std__function_void_const_PaywallWebViewOpenWindowEvent_____event______(const std::optional<std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>
@@ -429,14 +549,14 @@ namespace margelo::nitro::voidhash::bridge::swift {
   class Func_void_PaywallWebViewFileDownloadEvent_Wrapper final {
   public:
     explicit Func_void_PaywallWebViewFileDownloadEvent_Wrapper(std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>&& func): _function(std::make_unique<std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>>(std::move(func))) {}
-    inline void call(PaywallWebViewFileDownloadEvent event) const noexcept {
+    inline void call(PaywallWebViewFileDownloadEvent event) const {
       _function->operator()(event);
     }
   private:
     std::unique_ptr<std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_PaywallWebViewFileDownloadEvent create_Func_void_PaywallWebViewFileDownloadEvent(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_PaywallWebViewFileDownloadEvent_Wrapper wrap_Func_void_PaywallWebViewFileDownloadEvent(Func_void_PaywallWebViewFileDownloadEvent value) noexcept {
+  Func_void_PaywallWebViewFileDownloadEvent create_Func_void_PaywallWebViewFileDownloadEvent(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_PaywallWebViewFileDownloadEvent_Wrapper wrap_Func_void_PaywallWebViewFileDownloadEvent(Func_void_PaywallWebViewFileDownloadEvent value) {
     return Func_void_PaywallWebViewFileDownloadEvent_Wrapper(std::move(value));
   }
   
@@ -445,14 +565,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::function<void(const PaywallWebViewFileDownloadEvent& / * event * /)>>`.
    */
   using std__optional_std__function_void_const_PaywallWebViewFileDownloadEvent_____event______ = std::optional<std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>>;
-  inline std::optional<std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewFileDownloadEvent_____event______(const std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>& value) noexcept {
+  inline std::optional<std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewFileDownloadEvent_____event______(const std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>& value) {
     return std::optional<std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void_const_PaywallWebViewFileDownloadEvent_____event______(const std::optional<std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)> get_std__optional_std__function_void_const_PaywallWebViewFileDownloadEvent_____event______(const std::optional<std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>
@@ -466,14 +580,14 @@ namespace margelo::nitro::voidhash::bridge::swift {
   class Func_void_PaywallWebViewRenderProcessGoneEvent_Wrapper final {
   public:
     explicit Func_void_PaywallWebViewRenderProcessGoneEvent_Wrapper(std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>&& func): _function(std::make_unique<std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>>(std::move(func))) {}
-    inline void call(PaywallWebViewRenderProcessGoneEvent event) const noexcept {
+    inline void call(PaywallWebViewRenderProcessGoneEvent event) const {
       _function->operator()(event);
     }
   private:
     std::unique_ptr<std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_PaywallWebViewRenderProcessGoneEvent create_Func_void_PaywallWebViewRenderProcessGoneEvent(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_PaywallWebViewRenderProcessGoneEvent_Wrapper wrap_Func_void_PaywallWebViewRenderProcessGoneEvent(Func_void_PaywallWebViewRenderProcessGoneEvent value) noexcept {
+  Func_void_PaywallWebViewRenderProcessGoneEvent create_Func_void_PaywallWebViewRenderProcessGoneEvent(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_PaywallWebViewRenderProcessGoneEvent_Wrapper wrap_Func_void_PaywallWebViewRenderProcessGoneEvent(Func_void_PaywallWebViewRenderProcessGoneEvent value) {
     return Func_void_PaywallWebViewRenderProcessGoneEvent_Wrapper(std::move(value));
   }
   
@@ -482,14 +596,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::function<void(const PaywallWebViewRenderProcessGoneEvent& / * event * /)>>`.
    */
   using std__optional_std__function_void_const_PaywallWebViewRenderProcessGoneEvent_____event______ = std::optional<std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>>;
-  inline std::optional<std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewRenderProcessGoneEvent_____event______(const std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>& value) noexcept {
+  inline std::optional<std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewRenderProcessGoneEvent_____event______(const std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>& value) {
     return std::optional<std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void_const_PaywallWebViewRenderProcessGoneEvent_____event______(const std::optional<std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)> get_std__optional_std__function_void_const_PaywallWebViewRenderProcessGoneEvent_____event______(const std::optional<std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::function<void(const PaywallWebViewBaseEvent& /* event */)>
@@ -503,14 +611,14 @@ namespace margelo::nitro::voidhash::bridge::swift {
   class Func_void_PaywallWebViewBaseEvent_Wrapper final {
   public:
     explicit Func_void_PaywallWebViewBaseEvent_Wrapper(std::function<void(const PaywallWebViewBaseEvent& /* event */)>&& func): _function(std::make_unique<std::function<void(const PaywallWebViewBaseEvent& /* event */)>>(std::move(func))) {}
-    inline void call(PaywallWebViewBaseEvent event) const noexcept {
+    inline void call(PaywallWebViewBaseEvent event) const {
       _function->operator()(event);
     }
   private:
     std::unique_ptr<std::function<void(const PaywallWebViewBaseEvent& /* event */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_PaywallWebViewBaseEvent create_Func_void_PaywallWebViewBaseEvent(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_PaywallWebViewBaseEvent_Wrapper wrap_Func_void_PaywallWebViewBaseEvent(Func_void_PaywallWebViewBaseEvent value) noexcept {
+  Func_void_PaywallWebViewBaseEvent create_Func_void_PaywallWebViewBaseEvent(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_PaywallWebViewBaseEvent_Wrapper wrap_Func_void_PaywallWebViewBaseEvent(Func_void_PaywallWebViewBaseEvent value) {
     return Func_void_PaywallWebViewBaseEvent_Wrapper(std::move(value));
   }
   
@@ -519,14 +627,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::function<void(const PaywallWebViewBaseEvent& / * event * /)>>`.
    */
   using std__optional_std__function_void_const_PaywallWebViewBaseEvent_____event______ = std::optional<std::function<void(const PaywallWebViewBaseEvent& /* event */)>>;
-  inline std::optional<std::function<void(const PaywallWebViewBaseEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewBaseEvent_____event______(const std::function<void(const PaywallWebViewBaseEvent& /* event */)>& value) noexcept {
+  inline std::optional<std::function<void(const PaywallWebViewBaseEvent& /* event */)>> create_std__optional_std__function_void_const_PaywallWebViewBaseEvent_____event______(const std::function<void(const PaywallWebViewBaseEvent& /* event */)>& value) {
     return std::optional<std::function<void(const PaywallWebViewBaseEvent& /* event */)>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void_const_PaywallWebViewBaseEvent_____event______(const std::optional<std::function<void(const PaywallWebViewBaseEvent& /* event */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void(const PaywallWebViewBaseEvent& /* event */)> get_std__optional_std__function_void_const_PaywallWebViewBaseEvent_____event______(const std::optional<std::function<void(const PaywallWebViewBaseEvent& /* event */)>>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>
@@ -540,15 +642,15 @@ namespace margelo::nitro::voidhash::bridge::swift {
   class Func_bool_PaywallWebViewShouldStartLoadRequest_Wrapper final {
   public:
     explicit Func_bool_PaywallWebViewShouldStartLoadRequest_Wrapper(std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>&& func): _function(std::make_unique<std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>>(std::move(func))) {}
-    inline bool call(PaywallWebViewShouldStartLoadRequest event) const noexcept {
+    inline bool call(PaywallWebViewShouldStartLoadRequest event) const {
       auto __result = _function->operator()(event);
       return __result;
     }
   private:
     std::unique_ptr<std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_bool_PaywallWebViewShouldStartLoadRequest create_Func_bool_PaywallWebViewShouldStartLoadRequest(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_bool_PaywallWebViewShouldStartLoadRequest_Wrapper wrap_Func_bool_PaywallWebViewShouldStartLoadRequest(Func_bool_PaywallWebViewShouldStartLoadRequest value) noexcept {
+  Func_bool_PaywallWebViewShouldStartLoadRequest create_Func_bool_PaywallWebViewShouldStartLoadRequest(void* _Nonnull swiftClosureWrapper);
+  inline Func_bool_PaywallWebViewShouldStartLoadRequest_Wrapper wrap_Func_bool_PaywallWebViewShouldStartLoadRequest(Func_bool_PaywallWebViewShouldStartLoadRequest value) {
     return Func_bool_PaywallWebViewShouldStartLoadRequest_Wrapper(std::move(value));
   }
   
@@ -557,496 +659,355 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<std::function<bool(const PaywallWebViewShouldStartLoadRequest& / * event * /)>>`.
    */
   using std__optional_std__function_bool_const_PaywallWebViewShouldStartLoadRequest_____event______ = std::optional<std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>>;
-  inline std::optional<std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>> create_std__optional_std__function_bool_const_PaywallWebViewShouldStartLoadRequest_____event______(const std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>& value) noexcept {
+  inline std::optional<std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>> create_std__optional_std__function_bool_const_PaywallWebViewShouldStartLoadRequest_____event______(const std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>& value) {
     return std::optional<std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>>(value);
   }
-  inline bool has_value_std__optional_std__function_bool_const_PaywallWebViewShouldStartLoadRequest_____event______(const std::optional<std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)> get_std__optional_std__function_bool_const_PaywallWebViewShouldStartLoadRequest_____event______(const std::optional<std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>>& optional) noexcept {
-    return *optional;
-  }
   
-  // pragma MARK: std::shared_ptr<HybridPaywallWebViewSpec>
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>
   /**
-   * Specialized version of `std::shared_ptr<HybridPaywallWebViewSpec>`.
+   * Specialized version of `std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>`.
    */
-  using std__shared_ptr_HybridPaywallWebViewSpec_ = std::shared_ptr<HybridPaywallWebViewSpec>;
-  std::shared_ptr<HybridPaywallWebViewSpec> create_std__shared_ptr_HybridPaywallWebViewSpec_(void* _Nonnull swiftUnsafePointer) noexcept;
-  void* _Nonnull get_std__shared_ptr_HybridPaywallWebViewSpec_(std__shared_ptr_HybridPaywallWebViewSpec_ cppType) noexcept;
+  using std__shared_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_ = std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>;
+  std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_(void* _Nonnull swiftUnsafePointer);
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_ cppType);
   
-  // pragma MARK: std::weak_ptr<HybridPaywallWebViewSpec>
-  using std__weak_ptr_HybridPaywallWebViewSpec_ = std::weak_ptr<HybridPaywallWebViewSpec>;
-  inline std__weak_ptr_HybridPaywallWebViewSpec_ weakify_std__shared_ptr_HybridPaywallWebViewSpec_(const std::shared_ptr<HybridPaywallWebViewSpec>& strong) noexcept { return strong; }
+  // pragma MARK: std::weak_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>
+  using std__weak_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_ = std::weak_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>;
+  inline std__weak_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_ weakify_std__shared_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_(const std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>& strong) { return strong; }
   
-  // pragma MARK: Result<void>
-  using Result_void_ = Result<void>;
-  inline Result_void_ create_Result_void_() noexcept {
-    return Result<void>::withValue();
-  }
-  inline Result_void_ create_Result_void_(const std::exception_ptr& error) noexcept {
-    return Result<void>::withError(error);
-  }
-  
-  // pragma MARK: std::shared_ptr<HybridPurchasedItemSpec>
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>
   /**
-   * Specialized version of `std::shared_ptr<HybridPurchasedItemSpec>`.
+   * Specialized version of `std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>`.
    */
-  using std__shared_ptr_HybridPurchasedItemSpec_ = std::shared_ptr<HybridPurchasedItemSpec>;
-  std::shared_ptr<HybridPurchasedItemSpec> create_std__shared_ptr_HybridPurchasedItemSpec_(void* _Nonnull swiftUnsafePointer) noexcept;
-  void* _Nonnull get_std__shared_ptr_HybridPurchasedItemSpec_(std__shared_ptr_HybridPurchasedItemSpec_ cppType) noexcept;
+  using std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_ = std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>;
+  std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_(void* _Nonnull swiftUnsafePointer);
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_ cppType);
   
-  // pragma MARK: std::weak_ptr<HybridPurchasedItemSpec>
-  using std__weak_ptr_HybridPurchasedItemSpec_ = std::weak_ptr<HybridPurchasedItemSpec>;
-  inline std__weak_ptr_HybridPurchasedItemSpec_ weakify_std__shared_ptr_HybridPurchasedItemSpec_(const std::shared_ptr<HybridPurchasedItemSpec>& strong) noexcept { return strong; }
+  // pragma MARK: std::weak_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>
+  using std__weak_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_ = std::weak_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>;
+  inline std__weak_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_ weakify_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_(const std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>& strong) { return strong; }
   
-  // pragma MARK: std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>>
+  // pragma MARK: std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>>
   /**
-   * Specialized version of `std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>>`.
+   * Specialized version of `std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>>`.
    */
-  using std__shared_ptr_Promise_std__shared_ptr_HybridPurchasedItemSpec___ = std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>>;
-  inline std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>> create_std__shared_ptr_Promise_std__shared_ptr_HybridPurchasedItemSpec___() noexcept {
-    return Promise<std::shared_ptr<HybridPurchasedItemSpec>>::create();
+  using std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec___ = std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>>;
+  inline std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>> create_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec___() {
+    return Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>::create();
   }
-  inline PromiseHolder<std::shared_ptr<HybridPurchasedItemSpec>> wrap_std__shared_ptr_Promise_std__shared_ptr_HybridPurchasedItemSpec___(std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>> promise) noexcept {
-    return PromiseHolder<std::shared_ptr<HybridPurchasedItemSpec>>(std::move(promise));
+  inline PromiseHolder<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>> wrap_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec___(std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>> promise) {
+    return PromiseHolder<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>(std::move(promise));
   }
   
-  // pragma MARK: std::function<void(const std::shared_ptr<HybridPurchasedItemSpec>& /* result */)>
+  // pragma MARK: std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>& /* result */)>
   /**
-   * Specialized version of `std::function<void(const std::shared_ptr<HybridPurchasedItemSpec>&)>`.
+   * Specialized version of `std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>&)>`.
    */
-  using Func_void_std__shared_ptr_HybridPurchasedItemSpec_ = std::function<void(const std::shared_ptr<HybridPurchasedItemSpec>& /* result */)>;
+  using Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_ = std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>& /* result */)>;
   /**
-   * Wrapper class for a `std::function<void(const std::shared_ptr<HybridPurchasedItemSpec>& / * result * /)>`, this can be used from Swift.
+   * Wrapper class for a `std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>& / * result * /)>`, this can be used from Swift.
    */
-  class Func_void_std__shared_ptr_HybridPurchasedItemSpec__Wrapper final {
+  class Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec__Wrapper final {
   public:
-    explicit Func_void_std__shared_ptr_HybridPurchasedItemSpec__Wrapper(std::function<void(const std::shared_ptr<HybridPurchasedItemSpec>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::shared_ptr<HybridPurchasedItemSpec>& /* result */)>>(std::move(func))) {}
-    inline void call(std::shared_ptr<HybridPurchasedItemSpec> result) const noexcept {
+    explicit Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec__Wrapper(std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>& /* result */)>>(std::move(func))) {}
+    inline void call(std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec> result) const {
       _function->operator()(result);
     }
   private:
-    std::unique_ptr<std::function<void(const std::shared_ptr<HybridPurchasedItemSpec>& /* result */)>> _function;
+    std::unique_ptr<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>& /* result */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_std__shared_ptr_HybridPurchasedItemSpec_ create_Func_void_std__shared_ptr_HybridPurchasedItemSpec_(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_std__shared_ptr_HybridPurchasedItemSpec__Wrapper wrap_Func_void_std__shared_ptr_HybridPurchasedItemSpec_(Func_void_std__shared_ptr_HybridPurchasedItemSpec_ value) noexcept {
-    return Func_void_std__shared_ptr_HybridPurchasedItemSpec__Wrapper(std::move(value));
+  Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_ create_Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec__Wrapper wrap_Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_(Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_ value) {
+    return Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec__Wrapper(std::move(value));
   }
   
-  // pragma MARK: std::function<void(const std::exception_ptr& /* error */)>
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridVoidhashSpec>
   /**
-   * Specialized version of `std::function<void(const std::exception_ptr&)>`.
+   * Specialized version of `std::shared_ptr<margelo::nitro::voidhash::HybridVoidhashSpec>`.
    */
-  using Func_void_std__exception_ptr = std::function<void(const std::exception_ptr& /* error */)>;
+  using std__shared_ptr_margelo__nitro__voidhash__HybridVoidhashSpec_ = std::shared_ptr<margelo::nitro::voidhash::HybridVoidhashSpec>;
+  std::shared_ptr<margelo::nitro::voidhash::HybridVoidhashSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridVoidhashSpec_(void* _Nonnull swiftUnsafePointer);
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridVoidhashSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridVoidhashSpec_ cppType);
+  
+  // pragma MARK: std::weak_ptr<margelo::nitro::voidhash::HybridVoidhashSpec>
+  using std__weak_ptr_margelo__nitro__voidhash__HybridVoidhashSpec_ = std::weak_ptr<margelo::nitro::voidhash::HybridVoidhashSpec>;
+  inline std__weak_ptr_margelo__nitro__voidhash__HybridVoidhashSpec_ weakify_std__shared_ptr_margelo__nitro__voidhash__HybridVoidhashSpec_(const std::shared_ptr<margelo::nitro::voidhash::HybridVoidhashSpec>& strong) { return strong; }
+  
+  // pragma MARK: Result<std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>>>
+  using Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec____ = Result<std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>>>;
+  inline Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec____ create_Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec____(const std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>>& value) {
+    return Result<std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>>>::withValue(value);
+  }
+  inline Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec____ create_Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec____(const std::exception_ptr& error) {
+    return Result<std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>>>::withError(error);
+  }
+  
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>
   /**
-   * Wrapper class for a `std::function<void(const std::exception_ptr& / * error * /)>`, this can be used from Swift.
+   * Specialized version of `std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>`.
    */
-  class Func_void_std__exception_ptr_Wrapper final {
+  using std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ = std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>;
+  std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_(void* _Nonnull swiftUnsafePointer);
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ cppType);
+  
+  // pragma MARK: std::weak_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>
+  using std__weak_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ = std::weak_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>;
+  inline std__weak_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ weakify_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& strong) { return strong; }
+  
+  // pragma MARK: std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>
+  /**
+   * Specialized version of `std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>&)>`.
+   */
+  using Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ = std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>;
+  /**
+   * Wrapper class for a `std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& / * transaction * /)>`, this can be used from Swift.
+   */
+  class Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__Wrapper final {
   public:
-    explicit Func_void_std__exception_ptr_Wrapper(std::function<void(const std::exception_ptr& /* error */)>&& func): _function(std::make_unique<std::function<void(const std::exception_ptr& /* error */)>>(std::move(func))) {}
-    inline void call(std::exception_ptr error) const noexcept {
-      _function->operator()(error);
-    }
-  private:
-    std::unique_ptr<std::function<void(const std::exception_ptr& /* error */)>> _function;
-  } SWIFT_NONCOPYABLE;
-  Func_void_std__exception_ptr create_Func_void_std__exception_ptr(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_std__exception_ptr_Wrapper wrap_Func_void_std__exception_ptr(Func_void_std__exception_ptr value) noexcept {
-    return Func_void_std__exception_ptr_Wrapper(std::move(value));
-  }
-  
-  // pragma MARK: std::shared_ptr<HybridVoidhashSpec>
-  /**
-   * Specialized version of `std::shared_ptr<HybridVoidhashSpec>`.
-   */
-  using std__shared_ptr_HybridVoidhashSpec_ = std::shared_ptr<HybridVoidhashSpec>;
-  std::shared_ptr<HybridVoidhashSpec> create_std__shared_ptr_HybridVoidhashSpec_(void* _Nonnull swiftUnsafePointer) noexcept;
-  void* _Nonnull get_std__shared_ptr_HybridVoidhashSpec_(std__shared_ptr_HybridVoidhashSpec_ cppType) noexcept;
-  
-  // pragma MARK: std::weak_ptr<HybridVoidhashSpec>
-  using std__weak_ptr_HybridVoidhashSpec_ = std::weak_ptr<HybridVoidhashSpec>;
-  inline std__weak_ptr_HybridVoidhashSpec_ weakify_std__shared_ptr_HybridVoidhashSpec_(const std::shared_ptr<HybridVoidhashSpec>& strong) noexcept { return strong; }
-  
-  // pragma MARK: Result<std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>>>
-  using Result_std__shared_ptr_Promise_std__shared_ptr_HybridPurchasedItemSpec____ = Result<std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>>>;
-  inline Result_std__shared_ptr_Promise_std__shared_ptr_HybridPurchasedItemSpec____ create_Result_std__shared_ptr_Promise_std__shared_ptr_HybridPurchasedItemSpec____(const std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>>& value) noexcept {
-    return Result<std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>>>::withValue(value);
-  }
-  inline Result_std__shared_ptr_Promise_std__shared_ptr_HybridPurchasedItemSpec____ create_Result_std__shared_ptr_Promise_std__shared_ptr_HybridPurchasedItemSpec____(const std::exception_ptr& error) noexcept {
-    return Result<std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>>>::withError(error);
-  }
-  
-  // pragma MARK: std::shared_ptr<Promise<bool>>
-  /**
-   * Specialized version of `std::shared_ptr<Promise<bool>>`.
-   */
-  using std__shared_ptr_Promise_bool__ = std::shared_ptr<Promise<bool>>;
-  inline std::shared_ptr<Promise<bool>> create_std__shared_ptr_Promise_bool__() noexcept {
-    return Promise<bool>::create();
-  }
-  inline PromiseHolder<bool> wrap_std__shared_ptr_Promise_bool__(std::shared_ptr<Promise<bool>> promise) noexcept {
-    return PromiseHolder<bool>(std::move(promise));
-  }
-  
-  // pragma MARK: std::function<void(bool /* result */)>
-  /**
-   * Specialized version of `std::function<void(bool)>`.
-   */
-  using Func_void_bool = std::function<void(bool /* result */)>;
-  /**
-   * Wrapper class for a `std::function<void(bool / * result * /)>`, this can be used from Swift.
-   */
-  class Func_void_bool_Wrapper final {
-  public:
-    explicit Func_void_bool_Wrapper(std::function<void(bool /* result */)>&& func): _function(std::make_unique<std::function<void(bool /* result */)>>(std::move(func))) {}
-    inline void call(bool result) const noexcept {
-      _function->operator()(result);
-    }
-  private:
-    std::unique_ptr<std::function<void(bool /* result */)>> _function;
-  } SWIFT_NONCOPYABLE;
-  Func_void_bool create_Func_void_bool(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_bool_Wrapper wrap_Func_void_bool(Func_void_bool value) noexcept {
-    return Func_void_bool_Wrapper(std::move(value));
-  }
-  
-  // pragma MARK: std::shared_ptr<HybridStorekitTransactionSpec>
-  /**
-   * Specialized version of `std::shared_ptr<HybridStorekitTransactionSpec>`.
-   */
-  using std__shared_ptr_HybridStorekitTransactionSpec_ = std::shared_ptr<HybridStorekitTransactionSpec>;
-  std::shared_ptr<HybridStorekitTransactionSpec> create_std__shared_ptr_HybridStorekitTransactionSpec_(void* _Nonnull swiftUnsafePointer) noexcept;
-  void* _Nonnull get_std__shared_ptr_HybridStorekitTransactionSpec_(std__shared_ptr_HybridStorekitTransactionSpec_ cppType) noexcept;
-  
-  // pragma MARK: std::weak_ptr<HybridStorekitTransactionSpec>
-  using std__weak_ptr_HybridStorekitTransactionSpec_ = std::weak_ptr<HybridStorekitTransactionSpec>;
-  inline std__weak_ptr_HybridStorekitTransactionSpec_ weakify_std__shared_ptr_HybridStorekitTransactionSpec_(const std::shared_ptr<HybridStorekitTransactionSpec>& strong) noexcept { return strong; }
-  
-  // pragma MARK: std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>
-  /**
-   * Specialized version of `std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>&)>`.
-   */
-  using Func_void_std__shared_ptr_HybridStorekitTransactionSpec_ = std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>;
-  /**
-   * Wrapper class for a `std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& / * transaction * /)>`, this can be used from Swift.
-   */
-  class Func_void_std__shared_ptr_HybridStorekitTransactionSpec__Wrapper final {
-  public:
-    explicit Func_void_std__shared_ptr_HybridStorekitTransactionSpec__Wrapper(std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>&& func): _function(std::make_unique<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>>(std::move(func))) {}
-    inline void call(std::shared_ptr<HybridStorekitTransactionSpec> transaction) const noexcept {
+    explicit Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__Wrapper(std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>&& func): _function(std::make_unique<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>>(std::move(func))) {}
+    inline void call(std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec> transaction) const {
       _function->operator()(transaction);
     }
   private:
-    std::unique_ptr<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>> _function;
+    std::unique_ptr<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_std__shared_ptr_HybridStorekitTransactionSpec_ create_Func_void_std__shared_ptr_HybridStorekitTransactionSpec_(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_std__shared_ptr_HybridStorekitTransactionSpec__Wrapper wrap_Func_void_std__shared_ptr_HybridStorekitTransactionSpec_(Func_void_std__shared_ptr_HybridStorekitTransactionSpec_ value) noexcept {
-    return Func_void_std__shared_ptr_HybridStorekitTransactionSpec__Wrapper(std::move(value));
+  Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ create_Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__Wrapper wrap_Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_(Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ value) {
+    return Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__Wrapper(std::move(value));
   }
   
-  // pragma MARK: std::optional<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>>
+  // pragma MARK: std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>>
   /**
-   * Specialized version of `std::optional<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& / * transaction * /)>>`.
+   * Specialized version of `std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& / * transaction * /)>>`.
    */
-  using std__optional_std__function_void_const_std__shared_ptr_HybridStorekitTransactionSpec______transaction______ = std::optional<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>>;
-  inline std::optional<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>> create_std__optional_std__function_void_const_std__shared_ptr_HybridStorekitTransactionSpec______transaction______(const std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>& value) noexcept {
-    return std::optional<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>>(value);
-  }
-  inline bool has_value_std__optional_std__function_void_const_std__shared_ptr_HybridStorekitTransactionSpec______transaction______(const std::optional<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)> get_std__optional_std__function_void_const_std__shared_ptr_HybridStorekitTransactionSpec______transaction______(const std::optional<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>>& optional) noexcept {
-    return *optional;
+  using std__optional_std__function_void_const_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec______transaction______ = std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>>;
+  inline std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>> create_std__optional_std__function_void_const_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec______transaction______(const std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>& value) {
+    return std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>>(value);
   }
   
-  // pragma MARK: std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>
+  // pragma MARK: std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>
   /**
-   * Specialized version of `std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>`.
+   * Specialized version of `std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>`.
    */
-  using std__vector_std__shared_ptr_HybridStorekitTransactionSpec__ = std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>;
-  inline std::vector<std::shared_ptr<HybridStorekitTransactionSpec>> create_std__vector_std__shared_ptr_HybridStorekitTransactionSpec__(size_t size) noexcept {
-    std::vector<std::shared_ptr<HybridStorekitTransactionSpec>> vector;
+  using std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__ = std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>;
+  inline std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>> create_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__(size_t size) {
+    std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>> vector;
     vector.reserve(size);
     return vector;
   }
   
-  // pragma MARK: std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>>
+  // pragma MARK: std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>
   /**
-   * Specialized version of `std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>>`.
+   * Specialized version of `std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>`.
    */
-  using std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec____ = std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>>;
-  inline std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>> create_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec____() noexcept {
-    return Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>::create();
+  using std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____ = std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>;
+  inline std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>> create_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____() {
+    return Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>::create();
   }
-  inline PromiseHolder<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>> wrap_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec____(std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>> promise) noexcept {
-    return PromiseHolder<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>(std::move(promise));
+  inline PromiseHolder<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>> wrap_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____(std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>> promise) {
+    return PromiseHolder<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>(std::move(promise));
   }
   
-  // pragma MARK: std::function<void(const std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>& /* result */)>
+  // pragma MARK: std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>& /* result */)>
   /**
-   * Specialized version of `std::function<void(const std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>&)>`.
+   * Specialized version of `std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>&)>`.
    */
-  using Func_void_std__vector_std__shared_ptr_HybridStorekitTransactionSpec__ = std::function<void(const std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>& /* result */)>;
+  using Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__ = std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>& /* result */)>;
   /**
-   * Wrapper class for a `std::function<void(const std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>& / * result * /)>`, this can be used from Swift.
+   * Wrapper class for a `std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>& / * result * /)>`, this can be used from Swift.
    */
-  class Func_void_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___Wrapper final {
+  class Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___Wrapper final {
   public:
-    explicit Func_void_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___Wrapper(std::function<void(const std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>& /* result */)>>(std::move(func))) {}
-    inline void call(std::vector<std::shared_ptr<HybridStorekitTransactionSpec>> result) const noexcept {
+    explicit Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___Wrapper(std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>& /* result */)>>(std::move(func))) {}
+    inline void call(std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>> result) const {
       _function->operator()(result);
     }
   private:
-    std::unique_ptr<std::function<void(const std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>& /* result */)>> _function;
+    std::unique_ptr<std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>& /* result */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_std__vector_std__shared_ptr_HybridStorekitTransactionSpec__ create_Func_void_std__vector_std__shared_ptr_HybridStorekitTransactionSpec__(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___Wrapper wrap_Func_void_std__vector_std__shared_ptr_HybridStorekitTransactionSpec__(Func_void_std__vector_std__shared_ptr_HybridStorekitTransactionSpec__ value) noexcept {
-    return Func_void_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___Wrapper(std::move(value));
+  Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__ create_Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___Wrapper wrap_Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__(Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__ value) {
+    return Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___Wrapper(std::move(value));
   }
   
-  // pragma MARK: std::shared_ptr<HybridStorekitProductSpec>
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>
   /**
-   * Specialized version of `std::shared_ptr<HybridStorekitProductSpec>`.
+   * Specialized version of `std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>`.
    */
-  using std__shared_ptr_HybridStorekitProductSpec_ = std::shared_ptr<HybridStorekitProductSpec>;
-  std::shared_ptr<HybridStorekitProductSpec> create_std__shared_ptr_HybridStorekitProductSpec_(void* _Nonnull swiftUnsafePointer) noexcept;
-  void* _Nonnull get_std__shared_ptr_HybridStorekitProductSpec_(std__shared_ptr_HybridStorekitProductSpec_ cppType) noexcept;
+  using std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_ = std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>;
+  std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_(void* _Nonnull swiftUnsafePointer);
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_ cppType);
   
-  // pragma MARK: std::weak_ptr<HybridStorekitProductSpec>
-  using std__weak_ptr_HybridStorekitProductSpec_ = std::weak_ptr<HybridStorekitProductSpec>;
-  inline std__weak_ptr_HybridStorekitProductSpec_ weakify_std__shared_ptr_HybridStorekitProductSpec_(const std::shared_ptr<HybridStorekitProductSpec>& strong) noexcept { return strong; }
+  // pragma MARK: std::weak_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>
+  using std__weak_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_ = std::weak_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>;
+  inline std__weak_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_ weakify_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>& strong) { return strong; }
   
-  // pragma MARK: std::vector<std::shared_ptr<HybridStorekitProductSpec>>
+  // pragma MARK: std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>
   /**
-   * Specialized version of `std::vector<std::shared_ptr<HybridStorekitProductSpec>>`.
+   * Specialized version of `std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>`.
    */
-  using std__vector_std__shared_ptr_HybridStorekitProductSpec__ = std::vector<std::shared_ptr<HybridStorekitProductSpec>>;
-  inline std::vector<std::shared_ptr<HybridStorekitProductSpec>> create_std__vector_std__shared_ptr_HybridStorekitProductSpec__(size_t size) noexcept {
-    std::vector<std::shared_ptr<HybridStorekitProductSpec>> vector;
+  using std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__ = std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>;
+  inline std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>> create_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__(size_t size) {
+    std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>> vector;
     vector.reserve(size);
     return vector;
   }
   
-  // pragma MARK: std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>>
+  // pragma MARK: std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>>
   /**
-   * Specialized version of `std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>>`.
+   * Specialized version of `std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>>`.
    */
-  using std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec____ = std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>>;
-  inline std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>> create_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec____() noexcept {
-    return Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>::create();
+  using std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec____ = std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>>;
+  inline std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>> create_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec____() {
+    return Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>::create();
   }
-  inline PromiseHolder<std::vector<std::shared_ptr<HybridStorekitProductSpec>>> wrap_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec____(std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>> promise) noexcept {
-    return PromiseHolder<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>(std::move(promise));
+  inline PromiseHolder<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>> wrap_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec____(std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>> promise) {
+    return PromiseHolder<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>(std::move(promise));
   }
   
-  // pragma MARK: std::function<void(const std::vector<std::shared_ptr<HybridStorekitProductSpec>>& /* result */)>
+  // pragma MARK: std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>& /* result */)>
   /**
-   * Specialized version of `std::function<void(const std::vector<std::shared_ptr<HybridStorekitProductSpec>>&)>`.
+   * Specialized version of `std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>&)>`.
    */
-  using Func_void_std__vector_std__shared_ptr_HybridStorekitProductSpec__ = std::function<void(const std::vector<std::shared_ptr<HybridStorekitProductSpec>>& /* result */)>;
+  using Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__ = std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>& /* result */)>;
   /**
-   * Wrapper class for a `std::function<void(const std::vector<std::shared_ptr<HybridStorekitProductSpec>>& / * result * /)>`, this can be used from Swift.
+   * Wrapper class for a `std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>& / * result * /)>`, this can be used from Swift.
    */
-  class Func_void_std__vector_std__shared_ptr_HybridStorekitProductSpec___Wrapper final {
+  class Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec___Wrapper final {
   public:
-    explicit Func_void_std__vector_std__shared_ptr_HybridStorekitProductSpec___Wrapper(std::function<void(const std::vector<std::shared_ptr<HybridStorekitProductSpec>>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::vector<std::shared_ptr<HybridStorekitProductSpec>>& /* result */)>>(std::move(func))) {}
-    inline void call(std::vector<std::shared_ptr<HybridStorekitProductSpec>> result) const noexcept {
+    explicit Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec___Wrapper(std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>& /* result */)>&& func): _function(std::make_unique<std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>& /* result */)>>(std::move(func))) {}
+    inline void call(std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>> result) const {
       _function->operator()(result);
     }
   private:
-    std::unique_ptr<std::function<void(const std::vector<std::shared_ptr<HybridStorekitProductSpec>>& /* result */)>> _function;
+    std::unique_ptr<std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>& /* result */)>> _function;
   } SWIFT_NONCOPYABLE;
-  Func_void_std__vector_std__shared_ptr_HybridStorekitProductSpec__ create_Func_void_std__vector_std__shared_ptr_HybridStorekitProductSpec__(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_std__vector_std__shared_ptr_HybridStorekitProductSpec___Wrapper wrap_Func_void_std__vector_std__shared_ptr_HybridStorekitProductSpec__(Func_void_std__vector_std__shared_ptr_HybridStorekitProductSpec__ value) noexcept {
-    return Func_void_std__vector_std__shared_ptr_HybridStorekitProductSpec___Wrapper(std::move(value));
+  Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__ create_Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__(void* _Nonnull swiftClosureWrapper);
+  inline Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec___Wrapper wrap_Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__(Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__ value) {
+    return Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec___Wrapper(std::move(value));
   }
   
-  // pragma MARK: std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>>
+  // pragma MARK: std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>
   /**
-   * Specialized version of `std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>>`.
+   * Specialized version of `std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>`.
    */
-  using std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec___ = std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>>;
-  inline std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>> create_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec___() noexcept {
-    return Promise<std::shared_ptr<HybridStorekitTransactionSpec>>::create();
+  using std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___ = std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>;
+  inline std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>> create_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___() {
+    return Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>::create();
   }
-  inline PromiseHolder<std::shared_ptr<HybridStorekitTransactionSpec>> wrap_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec___(std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>> promise) noexcept {
-    return PromiseHolder<std::shared_ptr<HybridStorekitTransactionSpec>>(std::move(promise));
+  inline PromiseHolder<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>> wrap_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___(std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>> promise) {
+    return PromiseHolder<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>(std::move(promise));
   }
   
-  // pragma MARK: std::shared_ptr<Promise<void>>
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitSpec>
   /**
-   * Specialized version of `std::shared_ptr<Promise<void>>`.
+   * Specialized version of `std::shared_ptr<margelo::nitro::voidhash::HybridStorekitSpec>`.
    */
-  using std__shared_ptr_Promise_void__ = std::shared_ptr<Promise<void>>;
-  inline std::shared_ptr<Promise<void>> create_std__shared_ptr_Promise_void__() noexcept {
-    return Promise<void>::create();
+  using std__shared_ptr_margelo__nitro__voidhash__HybridStorekitSpec_ = std::shared_ptr<margelo::nitro::voidhash::HybridStorekitSpec>;
+  std::shared_ptr<margelo::nitro::voidhash::HybridStorekitSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitSpec_(void* _Nonnull swiftUnsafePointer);
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridStorekitSpec_ cppType);
+  
+  // pragma MARK: std::weak_ptr<margelo::nitro::voidhash::HybridStorekitSpec>
+  using std__weak_ptr_margelo__nitro__voidhash__HybridStorekitSpec_ = std::weak_ptr<margelo::nitro::voidhash::HybridStorekitSpec>;
+  inline std__weak_ptr_margelo__nitro__voidhash__HybridStorekitSpec_ weakify_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitSpec_(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitSpec>& strong) { return strong; }
+  
+  // pragma MARK: Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>>
+  using Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_____ = Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>>;
+  inline Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_____ create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_____(const std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>& value) {
+    return Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>>::withValue(value);
   }
-  inline PromiseHolder<void> wrap_std__shared_ptr_Promise_void__(std::shared_ptr<Promise<void>> promise) noexcept {
-    return PromiseHolder<void>(std::move(promise));
+  inline Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_____ create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_____(const std::exception_ptr& error) {
+    return Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>>::withError(error);
   }
   
-  // pragma MARK: std::function<void()>
+  // pragma MARK: Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>>>
+  using Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_____ = Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>>>;
+  inline Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_____ create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_____(const std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>>& value) {
+    return Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>>>::withValue(value);
+  }
+  inline Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_____ create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_____(const std::exception_ptr& error) {
+    return Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>>>::withError(error);
+  }
+  
+  // pragma MARK: Result<std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>
+  using Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____ = Result<std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>;
+  inline Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____ create_Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____(const std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>& value) {
+    return Result<std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>::withValue(value);
+  }
+  inline Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____ create_Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____(const std::exception_ptr& error) {
+    return Result<std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>>::withError(error);
+  }
+  
+  // pragma MARK: Result<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>
+  using Result_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___ = Result<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>;
+  inline Result_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___ create_Result_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>& value) {
+    return Result<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>::withValue(value);
+  }
+  inline Result_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___ create_Result_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___(const std::exception_ptr& error) {
+    return Result<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>::withError(error);
+  }
+  
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>
   /**
-   * Specialized version of `std::function<void()>`.
+   * Specialized version of `std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>`.
    */
-  using Func_void = std::function<void()>;
+  using std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec_ = std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>;
+  std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec_(void* _Nonnull swiftUnsafePointer);
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec_ cppType);
+  
+  // pragma MARK: std::weak_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>
+  using std__weak_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec_ = std::weak_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>;
+  inline std__weak_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec_ weakify_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec_(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>& strong) { return strong; }
+  
+  // pragma MARK: std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>>
   /**
-   * Wrapper class for a `std::function<void()>`, this can be used from Swift.
+   * Specialized version of `std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>>`.
    */
-  class Func_void_Wrapper final {
-  public:
-    explicit Func_void_Wrapper(std::function<void()>&& func): _function(std::make_unique<std::function<void()>>(std::move(func))) {}
-    inline void call() const noexcept {
-      _function->operator()();
-    }
-  private:
-    std::unique_ptr<std::function<void()>> _function;
-  } SWIFT_NONCOPYABLE;
-  Func_void create_Func_void(void* _Nonnull swiftClosureWrapper) noexcept;
-  inline Func_void_Wrapper wrap_Func_void(Func_void value) noexcept {
-    return Func_void_Wrapper(std::move(value));
+  using std__optional_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec__ = std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>>;
+  inline std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>> create_std__optional_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec__(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>& value) {
+    return std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>>(value);
   }
   
-  // pragma MARK: std::shared_ptr<HybridStorekitSpec>
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec>
   /**
-   * Specialized version of `std::shared_ptr<HybridStorekitSpec>`.
+   * Specialized version of `std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec>`.
    */
-  using std__shared_ptr_HybridStorekitSpec_ = std::shared_ptr<HybridStorekitSpec>;
-  std::shared_ptr<HybridStorekitSpec> create_std__shared_ptr_HybridStorekitSpec_(void* _Nonnull swiftUnsafePointer) noexcept;
-  void* _Nonnull get_std__shared_ptr_HybridStorekitSpec_(std__shared_ptr_HybridStorekitSpec_ cppType) noexcept;
+  using std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionPeriodSpec_ = std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec>;
+  std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionPeriodSpec_(void* _Nonnull swiftUnsafePointer);
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionPeriodSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionPeriodSpec_ cppType);
   
-  // pragma MARK: std::weak_ptr<HybridStorekitSpec>
-  using std__weak_ptr_HybridStorekitSpec_ = std::weak_ptr<HybridStorekitSpec>;
-  inline std__weak_ptr_HybridStorekitSpec_ weakify_std__shared_ptr_HybridStorekitSpec_(const std::shared_ptr<HybridStorekitSpec>& strong) noexcept { return strong; }
+  // pragma MARK: std::weak_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec>
+  using std__weak_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionPeriodSpec_ = std::weak_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec>;
+  inline std__weak_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionPeriodSpec_ weakify_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionPeriodSpec_(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec>& strong) { return strong; }
   
-  // pragma MARK: Result<std::shared_ptr<Promise<bool>>>
-  using Result_std__shared_ptr_Promise_bool___ = Result<std::shared_ptr<Promise<bool>>>;
-  inline Result_std__shared_ptr_Promise_bool___ create_Result_std__shared_ptr_Promise_bool___(const std::shared_ptr<Promise<bool>>& value) noexcept {
-    return Result<std::shared_ptr<Promise<bool>>>::withValue(value);
-  }
-  inline Result_std__shared_ptr_Promise_bool___ create_Result_std__shared_ptr_Promise_bool___(const std::exception_ptr& error) noexcept {
-    return Result<std::shared_ptr<Promise<bool>>>::withError(error);
-  }
-  
-  // pragma MARK: Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>>>
-  using Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec_____ = Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>>>;
-  inline Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec_____ create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec_____(const std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>>& value) noexcept {
-    return Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>>>::withValue(value);
-  }
-  inline Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec_____ create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec_____(const std::exception_ptr& error) noexcept {
-    return Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>>>::withError(error);
-  }
-  
-  // pragma MARK: Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>>>
-  using Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec_____ = Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>>>;
-  inline Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec_____ create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec_____(const std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>>& value) noexcept {
-    return Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>>>::withValue(value);
-  }
-  inline Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec_____ create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec_____(const std::exception_ptr& error) noexcept {
-    return Result<std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>>>::withError(error);
-  }
-  
-  // pragma MARK: Result<std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>>>
-  using Result_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec____ = Result<std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>>>;
-  inline Result_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec____ create_Result_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec____(const std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>>& value) noexcept {
-    return Result<std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>>>::withValue(value);
-  }
-  inline Result_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec____ create_Result_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec____(const std::exception_ptr& error) noexcept {
-    return Result<std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>>>::withError(error);
-  }
-  
-  // pragma MARK: Result<std::shared_ptr<Promise<void>>>
-  using Result_std__shared_ptr_Promise_void___ = Result<std::shared_ptr<Promise<void>>>;
-  inline Result_std__shared_ptr_Promise_void___ create_Result_std__shared_ptr_Promise_void___(const std::shared_ptr<Promise<void>>& value) noexcept {
-    return Result<std::shared_ptr<Promise<void>>>::withValue(value);
-  }
-  inline Result_std__shared_ptr_Promise_void___ create_Result_std__shared_ptr_Promise_void___(const std::exception_ptr& error) noexcept {
-    return Result<std::shared_ptr<Promise<void>>>::withError(error);
-  }
-  
-  // pragma MARK: Result<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>
-  using Result_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___ = Result<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>;
-  inline Result_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___ create_Result_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___(const std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>& value) noexcept {
-    return Result<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>::withValue(value);
-  }
-  inline Result_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___ create_Result_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___(const std::exception_ptr& error) noexcept {
-    return Result<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>::withError(error);
-  }
-  
-  // pragma MARK: std::shared_ptr<HybridStorekitProductSubscriptionSpec>
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>
   /**
-   * Specialized version of `std::shared_ptr<HybridStorekitProductSubscriptionSpec>`.
+   * Specialized version of `std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>`.
    */
-  using std__shared_ptr_HybridStorekitProductSubscriptionSpec_ = std::shared_ptr<HybridStorekitProductSubscriptionSpec>;
-  std::shared_ptr<HybridStorekitProductSubscriptionSpec> create_std__shared_ptr_HybridStorekitProductSubscriptionSpec_(void* _Nonnull swiftUnsafePointer) noexcept;
-  void* _Nonnull get_std__shared_ptr_HybridStorekitProductSubscriptionSpec_(std__shared_ptr_HybridStorekitProductSubscriptionSpec_ cppType) noexcept;
+  using std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec_ = std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>;
+  std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec_(void* _Nonnull swiftUnsafePointer);
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec_ cppType);
   
-  // pragma MARK: std::weak_ptr<HybridStorekitProductSubscriptionSpec>
-  using std__weak_ptr_HybridStorekitProductSubscriptionSpec_ = std::weak_ptr<HybridStorekitProductSubscriptionSpec>;
-  inline std__weak_ptr_HybridStorekitProductSubscriptionSpec_ weakify_std__shared_ptr_HybridStorekitProductSubscriptionSpec_(const std::shared_ptr<HybridStorekitProductSubscriptionSpec>& strong) noexcept { return strong; }
+  // pragma MARK: std::weak_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>
+  using std__weak_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec_ = std::weak_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>;
+  inline std__weak_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec_ weakify_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec_(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>& strong) { return strong; }
   
-  // pragma MARK: std::optional<std::shared_ptr<HybridStorekitProductSubscriptionSpec>>
+  // pragma MARK: std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>>
   /**
-   * Specialized version of `std::optional<std::shared_ptr<HybridStorekitProductSubscriptionSpec>>`.
+   * Specialized version of `std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>>`.
    */
-  using std__optional_std__shared_ptr_HybridStorekitProductSubscriptionSpec__ = std::optional<std::shared_ptr<HybridStorekitProductSubscriptionSpec>>;
-  inline std::optional<std::shared_ptr<HybridStorekitProductSubscriptionSpec>> create_std__optional_std__shared_ptr_HybridStorekitProductSubscriptionSpec__(const std::shared_ptr<HybridStorekitProductSubscriptionSpec>& value) noexcept {
-    return std::optional<std::shared_ptr<HybridStorekitProductSubscriptionSpec>>(value);
-  }
-  inline bool has_value_std__optional_std__shared_ptr_HybridStorekitProductSubscriptionSpec__(const std::optional<std::shared_ptr<HybridStorekitProductSubscriptionSpec>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::shared_ptr<HybridStorekitProductSubscriptionSpec> get_std__optional_std__shared_ptr_HybridStorekitProductSubscriptionSpec__(const std::optional<std::shared_ptr<HybridStorekitProductSubscriptionSpec>>& optional) noexcept {
-    return *optional;
+  using std__optional_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec__ = std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>>;
+  inline std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>> create_std__optional_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec__(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>& value) {
+    return std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>>(value);
   }
   
-  // pragma MARK: std::shared_ptr<HybridStorekitProductSubscriptionPeriodSpec>
+  // pragma MARK: std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>>
   /**
-   * Specialized version of `std::shared_ptr<HybridStorekitProductSubscriptionPeriodSpec>`.
+   * Specialized version of `std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>>`.
    */
-  using std__shared_ptr_HybridStorekitProductSubscriptionPeriodSpec_ = std::shared_ptr<HybridStorekitProductSubscriptionPeriodSpec>;
-  std::shared_ptr<HybridStorekitProductSubscriptionPeriodSpec> create_std__shared_ptr_HybridStorekitProductSubscriptionPeriodSpec_(void* _Nonnull swiftUnsafePointer) noexcept;
-  void* _Nonnull get_std__shared_ptr_HybridStorekitProductSubscriptionPeriodSpec_(std__shared_ptr_HybridStorekitProductSubscriptionPeriodSpec_ cppType) noexcept;
-  
-  // pragma MARK: std::weak_ptr<HybridStorekitProductSubscriptionPeriodSpec>
-  using std__weak_ptr_HybridStorekitProductSubscriptionPeriodSpec_ = std::weak_ptr<HybridStorekitProductSubscriptionPeriodSpec>;
-  inline std__weak_ptr_HybridStorekitProductSubscriptionPeriodSpec_ weakify_std__shared_ptr_HybridStorekitProductSubscriptionPeriodSpec_(const std::shared_ptr<HybridStorekitProductSubscriptionPeriodSpec>& strong) noexcept { return strong; }
-  
-  // pragma MARK: std::shared_ptr<HybridStorekitProductOfferSpec>
-  /**
-   * Specialized version of `std::shared_ptr<HybridStorekitProductOfferSpec>`.
-   */
-  using std__shared_ptr_HybridStorekitProductOfferSpec_ = std::shared_ptr<HybridStorekitProductOfferSpec>;
-  std::shared_ptr<HybridStorekitProductOfferSpec> create_std__shared_ptr_HybridStorekitProductOfferSpec_(void* _Nonnull swiftUnsafePointer) noexcept;
-  void* _Nonnull get_std__shared_ptr_HybridStorekitProductOfferSpec_(std__shared_ptr_HybridStorekitProductOfferSpec_ cppType) noexcept;
-  
-  // pragma MARK: std::weak_ptr<HybridStorekitProductOfferSpec>
-  using std__weak_ptr_HybridStorekitProductOfferSpec_ = std::weak_ptr<HybridStorekitProductOfferSpec>;
-  inline std__weak_ptr_HybridStorekitProductOfferSpec_ weakify_std__shared_ptr_HybridStorekitProductOfferSpec_(const std::shared_ptr<HybridStorekitProductOfferSpec>& strong) noexcept { return strong; }
-  
-  // pragma MARK: std::optional<std::shared_ptr<HybridStorekitProductOfferSpec>>
-  /**
-   * Specialized version of `std::optional<std::shared_ptr<HybridStorekitProductOfferSpec>>`.
-   */
-  using std__optional_std__shared_ptr_HybridStorekitProductOfferSpec__ = std::optional<std::shared_ptr<HybridStorekitProductOfferSpec>>;
-  inline std::optional<std::shared_ptr<HybridStorekitProductOfferSpec>> create_std__optional_std__shared_ptr_HybridStorekitProductOfferSpec__(const std::shared_ptr<HybridStorekitProductOfferSpec>& value) noexcept {
-    return std::optional<std::shared_ptr<HybridStorekitProductOfferSpec>>(value);
-  }
-  inline bool has_value_std__optional_std__shared_ptr_HybridStorekitProductOfferSpec__(const std::optional<std::shared_ptr<HybridStorekitProductOfferSpec>>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline std::shared_ptr<HybridStorekitProductOfferSpec> get_std__optional_std__shared_ptr_HybridStorekitProductOfferSpec__(const std::optional<std::shared_ptr<HybridStorekitProductOfferSpec>>& optional) noexcept {
-    return *optional;
-  }
-  
-  // pragma MARK: std::vector<std::shared_ptr<HybridStorekitProductOfferSpec>>
-  /**
-   * Specialized version of `std::vector<std::shared_ptr<HybridStorekitProductOfferSpec>>`.
-   */
-  using std__vector_std__shared_ptr_HybridStorekitProductOfferSpec__ = std::vector<std::shared_ptr<HybridStorekitProductOfferSpec>>;
-  inline std::vector<std::shared_ptr<HybridStorekitProductOfferSpec>> create_std__vector_std__shared_ptr_HybridStorekitProductOfferSpec__(size_t size) noexcept {
-    std::vector<std::shared_ptr<HybridStorekitProductOfferSpec>> vector;
+  using std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec__ = std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>>;
+  inline std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>> create_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec__(size_t size) {
+    std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>> vector;
     vector.reserve(size);
     return vector;
   }
@@ -1056,14 +1017,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<double>`.
    */
   using std__optional_double_ = std::optional<double>;
-  inline std::optional<double> create_std__optional_double_(const double& value) noexcept {
+  inline std::optional<double> create_std__optional_double_(const double& value) {
     return std::optional<double>(value);
-  }
-  inline bool has_value_std__optional_double_(const std::optional<double>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline double get_std__optional_double_(const std::optional<double>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::optional<bool>
@@ -1071,14 +1026,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<bool>`.
    */
   using std__optional_bool_ = std::optional<bool>;
-  inline std::optional<bool> create_std__optional_bool_(const bool& value) noexcept {
+  inline std::optional<bool> create_std__optional_bool_(const bool& value) {
     return std::optional<bool>(value);
-  }
-  inline bool has_value_std__optional_bool_(const std::optional<bool>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline bool get_std__optional_bool_(const std::optional<bool>& optional) noexcept {
-    return *optional;
   }
   
   // pragma MARK: std::optional<StorekitProductPurchaseOffer>
@@ -1086,14 +1035,8 @@ namespace margelo::nitro::voidhash::bridge::swift {
    * Specialized version of `std::optional<StorekitProductPurchaseOffer>`.
    */
   using std__optional_StorekitProductPurchaseOffer_ = std::optional<StorekitProductPurchaseOffer>;
-  inline std::optional<StorekitProductPurchaseOffer> create_std__optional_StorekitProductPurchaseOffer_(const StorekitProductPurchaseOffer& value) noexcept {
+  inline std::optional<StorekitProductPurchaseOffer> create_std__optional_StorekitProductPurchaseOffer_(const StorekitProductPurchaseOffer& value) {
     return std::optional<StorekitProductPurchaseOffer>(value);
-  }
-  inline bool has_value_std__optional_StorekitProductPurchaseOffer_(const std::optional<StorekitProductPurchaseOffer>& optional) noexcept {
-    return optional.has_value();
-  }
-  inline StorekitProductPurchaseOffer get_std__optional_StorekitProductPurchaseOffer_(const std::optional<StorekitProductPurchaseOffer>& optional) noexcept {
-    return *optional;
   }
 
 } // namespace margelo::nitro::voidhash::bridge::swift

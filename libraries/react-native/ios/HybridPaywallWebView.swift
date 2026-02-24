@@ -106,7 +106,7 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
     }
 
     var javaScriptEnabled: Bool = true {
-        didSet { webView.configuration.preferences.javaScriptEnabled = javaScriptEnabled }
+        didSet { updateJavaScriptConfig() }
     }
     var cacheEnabled: Bool = true
     var incognito: Bool = false
@@ -174,7 +174,7 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
     }
 
     var overScrollMode: PaywallWebViewOverScrollModeType = .always
-    var cacheMode: PaywallWebViewCacheMode = .load_default
+    var cacheMode: PaywallWebViewCacheMode = .loadDefault
     var mixedContentMode: PaywallWebViewMixedContentMode = .never
     var androidLayerType: PaywallWebViewAndroidLayerType = .none
     var geolocationEnabled: Bool = false
@@ -192,7 +192,7 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
         didSet { webView.scrollView.bounces = pullToRefreshEnabled || bounces }
     }
 
-    var dataDetectorTypes: [PaywallWebViewDataDetectorType] = [.phoneNumber]
+    var dataDetectorTypes: [PaywallWebViewDataDetectorType] = [.phonenumber]
     var originWhitelist: [String] = ["http://*", "https://*"]
 
     var messagingEnabled: Bool = false {
@@ -211,13 +211,10 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
     var onContentProcessDidTerminate: ((PaywallWebViewBaseEvent) -> Void)?
     var onShouldStartLoadWithRequest: ((PaywallWebViewShouldStartLoadRequest) -> Bool)?
 
-    init() {
+    override init() {
         let config = WKWebViewConfiguration()
-        config.preferences.javaScriptEnabled = true
         config.allowsInlineMediaPlayback = false
-        if #available(iOS 14.0, *) {
-            config.defaultWebpagePreferences.allowsContentJavaScript = true
-        }
+        config.defaultWebpagePreferences.allowsContentJavaScript = true
 
         webView = WKWebView(frame: .zero, configuration: config)
         delegate = PaywallWebViewDelegate(owner: nil)
@@ -462,6 +459,8 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
             return .reload
         case .formResubmitted:
             return .formresubmit
+        case .other:
+            return .other
         @unknown default:
             return .other
         }
@@ -469,12 +468,14 @@ class HybridPaywallWebView: HybridPaywallWebViewSpec {
 
     private func updateMediaConfig() {
         webView.configuration.allowsInlineMediaPlayback = allowsInlineMediaPlayback
-        if #available(iOS 14.0, *) {
-            webView.configuration.defaultWebpagePreferences.allowsContentJavaScript = javaScriptEnabled
-        }
+        updateJavaScriptConfig()
         webView.configuration.allowsAirPlayForMediaPlayback = allowsAirPlayForMediaPlayback
         webView.configuration.allowsPictureInPictureMediaPlayback =
             allowsPictureInPictureMediaPlayback
+    }
+
+    private func updateJavaScriptConfig() {
+        webView.configuration.defaultWebpagePreferences.allowsContentJavaScript = javaScriptEnabled
     }
 
     private func updateUserAgent() {

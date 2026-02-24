@@ -54,8 +54,7 @@ public extension PaywallWebViewShouldStartLoadRequest {
     @inline(__always)
     get {
       return { () -> String? in
-        if bridge.has_value_std__optional_std__string_(self.__mainDocumentURL) {
-          let __unwrapped = bridge.get_std__optional_std__string_(self.__mainDocumentURL)
+        if let __unwrapped = self.__mainDocumentURL.value {
           return String(__unwrapped)
         } else {
           return nil

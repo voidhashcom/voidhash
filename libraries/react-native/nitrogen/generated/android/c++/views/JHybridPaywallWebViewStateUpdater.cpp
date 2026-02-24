@@ -8,6 +8,7 @@
 #include "JHybridPaywallWebViewStateUpdater.hpp"
 #include "views/HybridPaywallWebViewComponent.hpp"
 #include <NitroModules/NitroDefines.hpp>
+#include <NitroModules/JNISharedPtr.hpp>
 
 namespace margelo::nitro::voidhash::views {
 
@@ -18,7 +19,7 @@ void JHybridPaywallWebViewStateUpdater::updateViewProps(jni::alias_ref<jni::JCla
                                            jni::alias_ref<JHybridPaywallWebViewSpec::javaobject> javaView,
                                            jni::alias_ref<JStateWrapper::javaobject> stateWrapperInterface) {
   JHybridPaywallWebViewSpec* view = javaView->cthis();
-
+  
   // Get concrete StateWrapperImpl from passed StateWrapper interface object
   jobject rawStateWrapper = stateWrapperInterface.get();
   if (!stateWrapperInterface->isInstanceOf(react::StateWrapperImpl::javaClassStatic())) {
@@ -230,7 +231,7 @@ void JHybridPaywallWebViewStateUpdater::updateViewProps(jni::alias_ref<jni::JCla
     // hybridRef changed - call it with new this
     const auto& maybeFunc = props.hybridRef.value;
     if (maybeFunc.has_value()) {
-      std::shared_ptr<JHybridPaywallWebViewSpec> shared = javaView->cthis()->shared_cast<JHybridPaywallWebViewSpec>();
+      auto shared = JNISharedPtr::make_shared_from_jni<JHybridPaywallWebViewSpec>(jni::make_global(javaView));
       maybeFunc.value()(shared);
     }
     // TODO: Set isDirty = false

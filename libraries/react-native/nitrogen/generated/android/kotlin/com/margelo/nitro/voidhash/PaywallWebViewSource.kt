@@ -11,7 +11,6 @@ import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
 import com.margelo.nitro.core.*
 
-
 /**
  * Represents the JavaScript object/struct "PaywallWebViewSource".
  */
@@ -21,23 +20,11 @@ data class PaywallWebViewSource
   @DoNotStrip
   @Keep
   constructor(
-    @DoNotStrip
-    @Keep
     val uri: String?,
-    @DoNotStrip
-    @Keep
     val method: String?,
-    @DoNotStrip
-    @Keep
     val body: String?,
-    @DoNotStrip
-    @Keep
     val headers: Array<PaywallWebViewHeader>?,
-    @DoNotStrip
-    @Keep
     val html: String?,
-    @DoNotStrip
-    @Keep
     val baseUrl: String?
   ) {
   /* main constructor */

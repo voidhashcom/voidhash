@@ -49,18 +49,18 @@ namespace margelo::nitro::voidhash { struct PaywallWebViewBaseEvent; }
 // Forward declaration of `PaywallWebViewShouldStartLoadRequest` to properly resolve imports.
 namespace margelo::nitro::voidhash { struct PaywallWebViewShouldStartLoadRequest; }
 
-#include "PaywallWebViewSource.hpp"
 #include <optional>
+#include "PaywallWebViewSource.hpp"
 #include <string>
-#include "PaywallWebViewHeader.hpp"
 #include <vector>
+#include "PaywallWebViewHeader.hpp"
 #include "PaywallWebViewOverScrollModeType.hpp"
 #include "PaywallWebViewCacheMode.hpp"
 #include "PaywallWebViewMixedContentMode.hpp"
 #include "PaywallWebViewAndroidLayerType.hpp"
 #include "PaywallWebViewDataDetectorType.hpp"
-#include "PaywallWebViewNavigationEvent.hpp"
 #include <functional>
+#include "PaywallWebViewNavigationEvent.hpp"
 #include "PaywallWebViewNavigationType.hpp"
 #include "PaywallWebViewProgressEvent.hpp"
 #include "PaywallWebViewErrorEvent.hpp"
@@ -100,11 +100,9 @@ namespace margelo::nitro::voidhash {
     }
 
   public:
+    // Get memory pressure
     inline size_t getExternalMemorySize() noexcept override {
       return _swiftPart.getMemorySize();
-    }
-    void dispose() noexcept override {
-      _swiftPart.dispose();
     }
 
   public:

@@ -10,10 +10,11 @@
 // Forward declaration of `HybridGoogleBillingPricingPhaseSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridGoogleBillingPricingPhaseSpec; }
 
+#include <vector>
 #include <memory>
 #include "HybridGoogleBillingPricingPhaseSpec.hpp"
-#include <vector>
 #include "JHybridGoogleBillingPricingPhaseSpec.hpp"
+#include <NitroModules/JNISharedPtr.hpp>
 
 namespace margelo::nitro::voidhash {
 
@@ -32,22 +33,17 @@ namespace margelo::nitro::voidhash {
     return method(_javaPart);
   }
 
-  void JHybridGoogleBillingPricingPhasesSpec::dispose() noexcept {
-    static const auto method = javaClassStatic()->getMethod<void()>("dispose");
-    method(_javaPart);
-  }
-
   // Properties
-  std::vector<std::shared_ptr<HybridGoogleBillingPricingPhaseSpec>> JHybridGoogleBillingPricingPhasesSpec::getPricingPhaseList() {
+  std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPricingPhaseSpec>> JHybridGoogleBillingPricingPhasesSpec::getPricingPhaseList() {
     static const auto method = javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JHybridGoogleBillingPricingPhaseSpec::javaobject>>()>("getPricingPhaseList");
     auto __result = method(_javaPart);
     return [&]() {
       size_t __size = __result->size();
-      std::vector<std::shared_ptr<HybridGoogleBillingPricingPhaseSpec>> __vector;
+      std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPricingPhaseSpec>> __vector;
       __vector.reserve(__size);
       for (size_t __i = 0; __i < __size; __i++) {
         auto __element = __result->getElement(__i);
-        __vector.push_back(__element->cthis()->shared_cast<JHybridGoogleBillingPricingPhaseSpec>());
+        __vector.push_back(JNISharedPtr::make_shared_from_jni<JHybridGoogleBillingPricingPhaseSpec>(jni::make_global(__element)));
       }
       return __vector;
     }();

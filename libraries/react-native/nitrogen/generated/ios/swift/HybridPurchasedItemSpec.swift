@@ -19,9 +19,8 @@ public protocol HybridPurchasedItemSpec_protocol: HybridObject {
 }
 
 /// See ``HybridPurchasedItemSpec``
-open class HybridPurchasedItemSpec_base {
+public class HybridPurchasedItemSpec_base {
   private weak var cxxWrapper: HybridPurchasedItemSpec_cxx? = nil
-  public init() { }
   public func getCxxWrapper() -> HybridPurchasedItemSpec_cxx {
   #if DEBUG
     guard self is HybridPurchasedItemSpec else {

@@ -42,18 +42,20 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ StorekitProductPurchaseOffer <> JS StorekitProductPurchaseOffer (object)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::StorekitProductPurchaseOffer> final {
-    static inline margelo::nitro::voidhash::StorekitProductPurchaseOffer fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<StorekitProductPurchaseOffer> final {
+    static inline StorekitProductPurchaseOffer fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::voidhash::StorekitProductPurchaseOffer(
+      return StorekitProductPurchaseOffer(
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, "id")),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, "type")),
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, "paymentMode"))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::voidhash::StorekitProductPurchaseOffer& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const StorekitProductPurchaseOffer& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, "id", JSIConverter<std::string>::toJSI(runtime, arg.id));
       obj.setProperty(runtime, "type", JSIConverter<double>::toJSI(runtime, arg.type));

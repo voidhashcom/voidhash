@@ -27,6 +27,7 @@ target_sources(
   # Autolinking Setup
   ../nitrogen/generated/android/NitroVoidhashOnLoad.cpp
   # Shared Nitrogen C++ sources
+  ../nitrogen/generated/shared/c++/HybridPaywallPresenterSpec.cpp
   ../nitrogen/generated/shared/c++/HybridPaywallWebViewSpec.cpp
   ../nitrogen/generated/shared/c++/views/HybridPaywallWebViewComponent.cpp
   ../nitrogen/generated/shared/c++/HybridPurchasedItemSpec.cpp
@@ -47,6 +48,7 @@ target_sources(
   ../nitrogen/generated/shared/c++/HybridStorekitProductSubscriptionPeriodSpec.cpp
   ../nitrogen/generated/shared/c++/HybridStorekitTransactionSpec.cpp
   # Android-specific Nitrogen C++ sources
+  ../nitrogen/generated/android/c++/JHybridPaywallPresenterSpec.cpp
   ../nitrogen/generated/android/c++/JHybridPaywallWebViewSpec.cpp
   ../nitrogen/generated/android/c++/views/JHybridPaywallWebViewStateUpdater.cpp
   ../nitrogen/generated/android/c++/JHybridPurchasedItemSpec.cpp

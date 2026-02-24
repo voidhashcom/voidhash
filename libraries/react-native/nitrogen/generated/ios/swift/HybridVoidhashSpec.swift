@@ -18,9 +18,8 @@ public protocol HybridVoidhashSpec_protocol: HybridObject {
 }
 
 /// See ``HybridVoidhashSpec``
-open class HybridVoidhashSpec_base {
+public class HybridVoidhashSpec_base {
   private weak var cxxWrapper: HybridVoidhashSpec_cxx? = nil
-  public init() { }
   public func getCxxWrapper() -> HybridVoidhashSpec_cxx {
   #if DEBUG
     guard self is HybridVoidhashSpec else {

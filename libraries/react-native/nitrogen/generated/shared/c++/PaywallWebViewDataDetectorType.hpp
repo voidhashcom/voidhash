@@ -44,36 +44,38 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ PaywallWebViewDataDetectorType <> JS PaywallWebViewDataDetectorType (union)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::PaywallWebViewDataDetectorType> final {
-    static inline margelo::nitro::voidhash::PaywallWebViewDataDetectorType fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<PaywallWebViewDataDetectorType> final {
+    static inline PaywallWebViewDataDetectorType fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       std::string unionValue = JSIConverter<std::string>::fromJSI(runtime, arg);
       switch (hashString(unionValue.c_str(), unionValue.size())) {
-        case hashString("none"): return margelo::nitro::voidhash::PaywallWebViewDataDetectorType::NONE;
-        case hashString("phoneNumber"): return margelo::nitro::voidhash::PaywallWebViewDataDetectorType::PHONENUMBER;
-        case hashString("link"): return margelo::nitro::voidhash::PaywallWebViewDataDetectorType::LINK;
-        case hashString("address"): return margelo::nitro::voidhash::PaywallWebViewDataDetectorType::ADDRESS;
-        case hashString("calendarEvent"): return margelo::nitro::voidhash::PaywallWebViewDataDetectorType::CALENDAREVENT;
-        case hashString("trackingNumber"): return margelo::nitro::voidhash::PaywallWebViewDataDetectorType::TRACKINGNUMBER;
-        case hashString("flightNumber"): return margelo::nitro::voidhash::PaywallWebViewDataDetectorType::FLIGHTNUMBER;
-        case hashString("lookupSuggestion"): return margelo::nitro::voidhash::PaywallWebViewDataDetectorType::LOOKUPSUGGESTION;
-        case hashString("all"): return margelo::nitro::voidhash::PaywallWebViewDataDetectorType::ALL;
+        case hashString("none"): return PaywallWebViewDataDetectorType::NONE;
+        case hashString("phoneNumber"): return PaywallWebViewDataDetectorType::PHONENUMBER;
+        case hashString("link"): return PaywallWebViewDataDetectorType::LINK;
+        case hashString("address"): return PaywallWebViewDataDetectorType::ADDRESS;
+        case hashString("calendarEvent"): return PaywallWebViewDataDetectorType::CALENDAREVENT;
+        case hashString("trackingNumber"): return PaywallWebViewDataDetectorType::TRACKINGNUMBER;
+        case hashString("flightNumber"): return PaywallWebViewDataDetectorType::FLIGHTNUMBER;
+        case hashString("lookupSuggestion"): return PaywallWebViewDataDetectorType::LOOKUPSUGGESTION;
+        case hashString("all"): return PaywallWebViewDataDetectorType::ALL;
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert \"" + unionValue + "\" to enum PaywallWebViewDataDetectorType - invalid value!");
       }
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, margelo::nitro::voidhash::PaywallWebViewDataDetectorType arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, PaywallWebViewDataDetectorType arg) {
       switch (arg) {
-        case margelo::nitro::voidhash::PaywallWebViewDataDetectorType::NONE: return JSIConverter<std::string>::toJSI(runtime, "none");
-        case margelo::nitro::voidhash::PaywallWebViewDataDetectorType::PHONENUMBER: return JSIConverter<std::string>::toJSI(runtime, "phoneNumber");
-        case margelo::nitro::voidhash::PaywallWebViewDataDetectorType::LINK: return JSIConverter<std::string>::toJSI(runtime, "link");
-        case margelo::nitro::voidhash::PaywallWebViewDataDetectorType::ADDRESS: return JSIConverter<std::string>::toJSI(runtime, "address");
-        case margelo::nitro::voidhash::PaywallWebViewDataDetectorType::CALENDAREVENT: return JSIConverter<std::string>::toJSI(runtime, "calendarEvent");
-        case margelo::nitro::voidhash::PaywallWebViewDataDetectorType::TRACKINGNUMBER: return JSIConverter<std::string>::toJSI(runtime, "trackingNumber");
-        case margelo::nitro::voidhash::PaywallWebViewDataDetectorType::FLIGHTNUMBER: return JSIConverter<std::string>::toJSI(runtime, "flightNumber");
-        case margelo::nitro::voidhash::PaywallWebViewDataDetectorType::LOOKUPSUGGESTION: return JSIConverter<std::string>::toJSI(runtime, "lookupSuggestion");
-        case margelo::nitro::voidhash::PaywallWebViewDataDetectorType::ALL: return JSIConverter<std::string>::toJSI(runtime, "all");
+        case PaywallWebViewDataDetectorType::NONE: return JSIConverter<std::string>::toJSI(runtime, "none");
+        case PaywallWebViewDataDetectorType::PHONENUMBER: return JSIConverter<std::string>::toJSI(runtime, "phoneNumber");
+        case PaywallWebViewDataDetectorType::LINK: return JSIConverter<std::string>::toJSI(runtime, "link");
+        case PaywallWebViewDataDetectorType::ADDRESS: return JSIConverter<std::string>::toJSI(runtime, "address");
+        case PaywallWebViewDataDetectorType::CALENDAREVENT: return JSIConverter<std::string>::toJSI(runtime, "calendarEvent");
+        case PaywallWebViewDataDetectorType::TRACKINGNUMBER: return JSIConverter<std::string>::toJSI(runtime, "trackingNumber");
+        case PaywallWebViewDataDetectorType::FLIGHTNUMBER: return JSIConverter<std::string>::toJSI(runtime, "flightNumber");
+        case PaywallWebViewDataDetectorType::LOOKUPSUGGESTION: return JSIConverter<std::string>::toJSI(runtime, "lookupSuggestion");
+        case PaywallWebViewDataDetectorType::ALL: return JSIConverter<std::string>::toJSI(runtime, "all");
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert PaywallWebViewDataDetectorType to JS - invalid value: "
                                     + std::to_string(static_cast<int>(arg)) + "!");

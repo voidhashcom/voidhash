@@ -495,12 +495,12 @@ namespace margelo::nitro::voidhash::views {
         throw std::runtime_error(std::string("PaywallWebView.onShouldStartLoadWithRequest: ") + exc.what());
       }
     }()),
-    hybridRef([&]() -> CachedProp<std::optional<std::function<void(const std::shared_ptr<HybridPaywallWebViewSpec>& /* ref */)>>> {
+    hybridRef([&]() -> CachedProp<std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>& /* ref */)>>> {
       try {
         const react::RawValue* rawValue = rawProps.at("hybridRef", nullptr, nullptr);
         if (rawValue == nullptr) return sourceProps.hybridRef;
         const auto& [runtime, value] = (std::pair<jsi::Runtime*, jsi::Value>)*rawValue;
-        return CachedProp<std::optional<std::function<void(const std::shared_ptr<HybridPaywallWebViewSpec>& /* ref */)>>>::fromRawValue(*runtime, value.asObject(*runtime).getProperty(*runtime, "f"), sourceProps.hybridRef);
+        return CachedProp<std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>& /* ref */)>>>::fromRawValue(*runtime, value.asObject(*runtime).getProperty(*runtime, "f"), sourceProps.hybridRef);
       } catch (const std::exception& exc) {
         throw std::runtime_error(std::string("PaywallWebView.hybridRef: ") + exc.what());
       }
@@ -615,9 +615,9 @@ namespace margelo::nitro::voidhash::views {
     : ConcreteComponentDescriptor(parameters,
                                   react::RawPropsParser(/* enableJsiParser */ true)) {}
 
-  std::shared_ptr<const react::Props> HybridPaywallWebViewComponentDescriptor::cloneProps(const react::PropsParserContext& context,
-                                                                                          const std::shared_ptr<const react::Props>& props,
-                                                                                          react::RawProps rawProps) const {
+  react::Props::Shared HybridPaywallWebViewComponentDescriptor::cloneProps(const react::PropsParserContext& context,
+                                                                           const react::Props::Shared& props,
+                                                                           react::RawProps rawProps) const {
     // 1. Prepare raw props parser
     rawProps.parse(rawPropsParser_);
     // 2. Copy props with Nitro's cached copy constructor

@@ -18,10 +18,10 @@ namespace margelo::nitro::voidhash { class HybridStorekitTransactionSpec; }
 namespace margelo::nitro::voidhash { class HybridStorekitProductSpec; }
 
 #include <NitroModules/Promise.hpp>
+#include <optional>
+#include <functional>
 #include <memory>
 #include "HybridStorekitTransactionSpec.hpp"
-#include <functional>
-#include <optional>
 #include <vector>
 #include "HybridStorekitProductSpec.hpp"
 #include <string>
@@ -54,11 +54,9 @@ namespace margelo::nitro::voidhash {
     }
 
   public:
+    // Get memory pressure
     inline size_t getExternalMemorySize() noexcept override {
       return _swiftPart.getMemorySize();
-    }
-    void dispose() noexcept override {
-      _swiftPart.dispose();
     }
 
   public:
@@ -67,7 +65,7 @@ namespace margelo::nitro::voidhash {
 
   public:
     // Methods
-    inline std::shared_ptr<Promise<bool>> initConnection(const std::optional<std::function<void(const std::shared_ptr<HybridStorekitTransactionSpec>& /* transaction */)>>& onTransaction) override {
+    inline std::shared_ptr<Promise<bool>> initConnection(const std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>>& onTransaction) override {
       auto __result = _swiftPart.initConnection(onTransaction);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
@@ -83,7 +81,7 @@ namespace margelo::nitro::voidhash {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitTransactionSpec>>>> getPurchasedItems(bool onlyIncludeActiveItems) override {
+    inline std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>>> getPurchasedItems(bool onlyIncludeActiveItems) override {
       auto __result = _swiftPart.getPurchasedItems(std::forward<decltype(onlyIncludeActiveItems)>(onlyIncludeActiveItems));
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
@@ -91,7 +89,7 @@ namespace margelo::nitro::voidhash {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridStorekitProductSpec>>>> getItems(const std::vector<std::string>& skus) override {
+    inline std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>>> getItems(const std::vector<std::string>& skus) override {
       auto __result = _swiftPart.getItems(skus);
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
@@ -99,7 +97,7 @@ namespace margelo::nitro::voidhash {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline std::shared_ptr<Promise<std::shared_ptr<HybridStorekitTransactionSpec>>> buyProduct(const std::string& sku, const std::string& appAccountToken, double quantity) override {
+    inline std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>> buyProduct(const std::string& sku, const std::string& appAccountToken, double quantity) override {
       auto __result = _swiftPart.buyProduct(sku, appAccountToken, std::forward<decltype(quantity)>(quantity));
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());
@@ -115,7 +113,7 @@ namespace margelo::nitro::voidhash {
       auto __value = std::move(__result.value());
       return __value;
     }
-    inline std::vector<std::shared_ptr<HybridStorekitTransactionSpec>> getPendingTransactions() override {
+    inline std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>> getPendingTransactions() override {
       auto __result = _swiftPart.getPendingTransactions();
       if (__result.hasError()) [[unlikely]] {
         std::rethrow_exception(__result.error());

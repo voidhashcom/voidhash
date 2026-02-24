@@ -15,8 +15,12 @@ import com.facebook.proguard.annotations.DoNotStrip
  */
 @DoNotStrip
 @Keep
-enum class PaywallWebViewAndroidLayerType(@DoNotStrip @Keep val value: Int) {
-  NONE(0),
-  SOFTWARE(1),
-  HARDWARE(2);
+enum class PaywallWebViewAndroidLayerType {
+  NONE,
+  SOFTWARE,
+  HARDWARE;
+
+  @DoNotStrip
+  @Keep
+  private val _ordinal = ordinal
 }

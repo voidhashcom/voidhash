@@ -32,8 +32,7 @@ public extension PaywallWebViewErrorEvent {
     @inline(__always)
     get {
       return { () -> String? in
-        if bridge.has_value_std__optional_std__string_(self.__domain) {
-          let __unwrapped = bridge.get_std__optional_std__string_(self.__domain)
+        if let __unwrapped = self.__domain.value {
           return String(__unwrapped)
         } else {
           return nil

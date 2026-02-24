@@ -9,8 +9,8 @@
 
 
 
-#include <string>
 #include <optional>
+#include <string>
 
 namespace margelo::nitro::voidhash {
 
@@ -27,11 +27,6 @@ namespace margelo::nitro::voidhash {
   size_t JHybridGoogleBillingAcknowledgeResultSpec::getExternalMemorySize() noexcept {
     static const auto method = javaClassStatic()->getMethod<jlong()>("getMemorySize");
     return method(_javaPart);
-  }
-
-  void JHybridGoogleBillingAcknowledgeResultSpec::dispose() noexcept {
-    static const auto method = javaClassStatic()->getMethod<void()>("dispose");
-    method(_javaPart);
   }
 
   // Properties

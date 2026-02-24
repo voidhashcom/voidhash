@@ -15,8 +15,12 @@ import com.facebook.proguard.annotations.DoNotStrip
  */
 @DoNotStrip
 @Keep
-enum class PaywallWebViewOverScrollModeType(@DoNotStrip @Keep val value: Int) {
-  NEVER(0),
-  ALWAYS(1),
-  CONTENT(2);
+enum class PaywallWebViewOverScrollModeType {
+  NEVER,
+  ALWAYS,
+  CONTENT;
+
+  @DoNotStrip
+  @Keep
+  private val _ordinal = ordinal
 }

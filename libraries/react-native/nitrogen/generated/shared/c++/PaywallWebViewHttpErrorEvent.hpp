@@ -47,12 +47,14 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ PaywallWebViewHttpErrorEvent <> JS PaywallWebViewHttpErrorEvent (object)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::PaywallWebViewHttpErrorEvent> final {
-    static inline margelo::nitro::voidhash::PaywallWebViewHttpErrorEvent fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<PaywallWebViewHttpErrorEvent> final {
+    static inline PaywallWebViewHttpErrorEvent fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::voidhash::PaywallWebViewHttpErrorEvent(
+      return PaywallWebViewHttpErrorEvent(
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, "description")),
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, "statusCode")),
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, "url")),
@@ -63,7 +65,7 @@ namespace margelo::nitro {
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, "lockIdentifier"))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::voidhash::PaywallWebViewHttpErrorEvent& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const PaywallWebViewHttpErrorEvent& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, "description", JSIConverter<std::string>::toJSI(runtime, arg.description));
       obj.setProperty(runtime, "statusCode", JSIConverter<double>::toJSI(runtime, arg.statusCode));

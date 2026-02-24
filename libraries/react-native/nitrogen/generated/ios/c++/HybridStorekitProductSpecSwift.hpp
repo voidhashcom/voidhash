@@ -15,8 +15,8 @@ namespace NitroVoidhash { class HybridStorekitProductSpec_cxx; }
 // Forward declaration of `HybridStorekitProductSubscriptionSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridStorekitProductSubscriptionSpec; }
 
-#include <string>
 #include <optional>
+#include <string>
 #include <memory>
 #include "HybridStorekitProductSubscriptionSpec.hpp"
 
@@ -48,11 +48,9 @@ namespace margelo::nitro::voidhash {
     }
 
   public:
+    // Get memory pressure
     inline size_t getExternalMemorySize() noexcept override {
       return _swiftPart.getMemorySize();
-    }
-    void dispose() noexcept override {
-      _swiftPart.dispose();
     }
 
   public:
@@ -83,7 +81,7 @@ namespace margelo::nitro::voidhash {
     inline double getPrice() noexcept override {
       return _swiftPart.getPrice();
     }
-    inline std::optional<std::shared_ptr<HybridStorekitProductSubscriptionSpec>> getSubscription() noexcept override {
+    inline std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>> getSubscription() noexcept override {
       auto __result = _swiftPart.getSubscription();
       return __result;
     }

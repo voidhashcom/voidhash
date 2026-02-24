@@ -11,7 +11,6 @@ import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
 import com.margelo.nitro.core.*
 
-
 /**
  * Represents the JavaScript object/struct "PaywallWebViewRenderProcessGoneEvent".
  */
@@ -21,8 +20,6 @@ data class PaywallWebViewRenderProcessGoneEvent
   @DoNotStrip
   @Keep
   constructor(
-    @DoNotStrip
-    @Keep
     val didCrash: Boolean
   ) {
   /* main constructor */

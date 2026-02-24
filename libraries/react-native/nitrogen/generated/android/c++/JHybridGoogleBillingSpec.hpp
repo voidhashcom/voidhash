@@ -29,7 +29,6 @@ namespace margelo::nitro::voidhash {
     // C++ constructor (called from Java via `initHybrid()`)
     explicit JHybridGoogleBillingSpec(jni::alias_ref<jhybridobject> jThis) :
       HybridObject(HybridGoogleBillingSpec::TAG),
-      HybridBase(jThis),
       _javaPart(jni::make_global(jThis)) {}
 
   public:
@@ -40,7 +39,6 @@ namespace margelo::nitro::voidhash {
 
   public:
     size_t getExternalMemorySize() noexcept override;
-    void dispose() noexcept override;
 
   public:
     inline const jni::global_ref<JHybridGoogleBillingSpec::javaobject>& getJavaPart() const noexcept {
@@ -53,12 +51,12 @@ namespace margelo::nitro::voidhash {
 
   public:
     // Methods
-    std::shared_ptr<Promise<bool>> initConnection(const std::optional<std::function<void(const std::shared_ptr<HybridGoogleBillingPurchaseSpec>& /* purchase */)>>& onPurchase) override;
+    std::shared_ptr<Promise<bool>> initConnection(const std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPurchaseSpec>& /* purchase */)>>& onPurchase) override;
     std::shared_ptr<Promise<bool>> endConnection() override;
-    std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridGoogleBillingProductDetailSpec>>>> getItemsByType(GoogleBillingProductType type, const std::vector<std::string>& skus) override;
-    std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridGoogleBillingPurchaseSpec>>>> buyItemByType(const GoogleBillingBuyItemByTypeParams& params) override;
-    std::shared_ptr<Promise<std::shared_ptr<HybridGoogleBillingAcknowledgeResultSpec>>> acknowledgePurchase(const std::string& token) override;
-    std::shared_ptr<Promise<std::vector<std::shared_ptr<HybridGoogleBillingPurchaseSpec>>>> getAvailableItemsByType(GoogleBillingProductType type) override;
+    std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingProductDetailSpec>>>> getItemsByType(GoogleBillingProductType type, const std::vector<std::string>& skus) override;
+    std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPurchaseSpec>>>> buyItemByType(const GoogleBillingBuyItemByTypeParams& params) override;
+    std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingAcknowledgeResultSpec>>> acknowledgePurchase(const std::string& token) override;
+    std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPurchaseSpec>>>> getAvailableItemsByType(GoogleBillingProductType type) override;
 
   private:
     friend HybridBase;

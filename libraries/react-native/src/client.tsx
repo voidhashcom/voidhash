@@ -1,5 +1,5 @@
 import { FetchHttpClient } from "@effect/platform";
-import { Exit, Layer, ManagedRuntime, pipe } from "effect";
+import { Cause, Exit, Layer, ManagedRuntime, pipe } from "effect";
 
 import { VoidhashEffectClient } from "./client-effect";
 import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";
@@ -61,6 +61,15 @@ const CreateEffectRuntime = (
       )
     )
   );
+
+const toErrorWithMessage = (code: string, unknownCause: unknown) => {
+  const cause =
+    unknownCause instanceof Error
+      ? unknownCause
+      : new Error(String(unknownCause));
+
+  return new VoidhashError(`${code}: ${cause.message}`, cause);
+};
 
 type UninitializedEffectClient = ReturnType<
   typeof VoidhashEffectClient.makeUnitializedClient
@@ -130,7 +139,10 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
       );
 
       if (!Exit.isSuccess(observerResult)) {
-        throw new VoidhashError("FAILED_TO_INITIALIZE_VOIDHASH_CLIENT");
+        throw toErrorWithMessage(
+          "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
+          Cause.squash(observerResult.cause)
+        );
       }
 
       void this.effectRuntime.runPromiseExit(
@@ -143,7 +155,10 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     }
 
     // TODO: Handle different erros that can happen properly
-    throw new VoidhashError("FAILED_TO_INITIALIZE_VOIDHASH_CLIENT");
+    throw toErrorWithMessage(
+      "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
+      Cause.squash(initializedClientResult.cause)
+    );
   }
 
   /**
@@ -327,6 +342,23 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
 
     // TODO: Handle different erros that can happen properly
     throw new VoidhashError("FAILED_TO_PURCHASE");
+  }
+
+  /**
+   * Restores purchases by reconciling pending/past store transactions and refreshing customer state.
+   */
+  async restorePurchases() {
+    this.ensureInitialized();
+    const restoreResult = await this.effectRuntime.runPromiseExit(
+      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+      this.initializedClient!.restorePurchases()
+    );
+
+    if (Exit.isSuccess(restoreResult)) {
+      return;
+    }
+
+    throw new VoidhashError("FAILED_TO_RESTORE_PURCHASES");
   }
 
   // ===============================

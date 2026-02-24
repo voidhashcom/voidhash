@@ -15,7 +15,11 @@ import com.facebook.proguard.annotations.DoNotStrip
  */
 @DoNotStrip
 @Keep
-enum class GoogleBillingProductType(@DoNotStrip @Keep val value: Int) {
-  INAPP(0),
-  SUBS(1);
+enum class GoogleBillingProductType {
+  INAPP,
+  SUBS;
+
+  @DoNotStrip
+  @Keep
+  private val _ordinal = ordinal
 }

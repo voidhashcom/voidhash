@@ -17,7 +17,7 @@ import NitroModules
  * - Other HybridObjects need to be wrapped/unwrapped from the Swift TCxx wrapper
  * - Throwing methods need to be wrapped with a Result<T, Error> type, as exceptions cannot be propagated to C++
  */
-open class HybridPaywallWebViewSpec_cxx {
+public class HybridPaywallWebViewSpec_cxx {
   /**
    * The Swift <> C++ bridge's namespace (`margelo::nitro::voidhash::bridge::swift`)
    * from `NitroVoidhash-Swift-Cxx-Bridge.hpp`.
@@ -33,7 +33,7 @@ open class HybridPaywallWebViewSpec_cxx {
   /**
    * Holds a weak pointer to the C++ class that wraps the Swift class.
    */
-  private var __cxxPart: bridge.std__weak_ptr_HybridPaywallWebViewSpec_
+  private var __cxxPart: bridge.std__weak_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_
 
   /**
    * Create a new `HybridPaywallWebViewSpec_cxx` that wraps the given `HybridPaywallWebViewSpec`.
@@ -72,15 +72,15 @@ open class HybridPaywallWebViewSpec_cxx {
 
   /**
    * Gets (or creates) the C++ part of this Hybrid Object.
-   * The C++ part is a `std::shared_ptr<HybridPaywallWebViewSpec>`.
+   * The C++ part is a `std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>`.
    */
-  public func getCxxPart() -> bridge.std__shared_ptr_HybridPaywallWebViewSpec_ {
+  public func getCxxPart() -> bridge.std__shared_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_ {
     let cachedCxxPart = self.__cxxPart.lock()
     if cachedCxxPart.__convertToBool() {
       return cachedCxxPart
     } else {
-      let newCxxPart = bridge.create_std__shared_ptr_HybridPaywallWebViewSpec_(self.toUnsafe())
-      __cxxPart = bridge.weakify_std__shared_ptr_HybridPaywallWebViewSpec_(newCxxPart)
+      let newCxxPart = bridge.create_std__shared_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_(self.toUnsafe())
+      __cxxPart = bridge.weakify_std__shared_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_(newCxxPart)
       return newCxxPart
     }
   }
@@ -94,15 +94,6 @@ open class HybridPaywallWebViewSpec_cxx {
   @inline(__always)
   public var memorySize: Int {
     return MemoryHelper.getSizeOf(self.__implementation) + self.__implementation.memorySize
-  }
-
-  /**
-   * Call dispose() on the Swift class.
-   * This _may_ be called manually from JS.
-   */
-  @inline(__always)
-  public func dispose() {
-    self.__implementation.dispose()
   }
 
   // Properties
@@ -120,8 +111,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.source = { () -> PaywallWebViewSource? in
-        if bridge.has_value_std__optional_PaywallWebViewSource_(newValue) {
-          let __unwrapped = bridge.get_std__optional_PaywallWebViewSource_(newValue)
+        if let __unwrapped = newValue.value {
           return __unwrapped
         } else {
           return nil
@@ -177,8 +167,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.userAgent = { () -> String? in
-        if bridge.has_value_std__optional_std__string_(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__string_(newValue)
+        if let __unwrapped = newValue.value {
           return String(__unwrapped)
         } else {
           return nil
@@ -201,8 +190,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.applicationNameForUserAgent = { () -> String? in
-        if bridge.has_value_std__optional_std__string_(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__string_(newValue)
+        if let __unwrapped = newValue.value {
           return String(__unwrapped)
         } else {
           return nil
@@ -225,8 +213,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.injectedJavaScript = { () -> String? in
-        if bridge.has_value_std__optional_std__string_(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__string_(newValue)
+        if let __unwrapped = newValue.value {
           return String(__unwrapped)
         } else {
           return nil
@@ -249,8 +236,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.injectedJavaScriptBeforeContentLoaded = { () -> String? in
-        if bridge.has_value_std__optional_std__string_(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__string_(newValue)
+        if let __unwrapped = newValue.value {
           return String(__unwrapped)
         } else {
           return nil
@@ -596,8 +582,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onLoadingStart = { () -> ((_ event: PaywallWebViewNavigationEvent) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewNavigationEvent) -> Void in
             let __wrappedFunction = bridge.wrap_Func_void_PaywallWebViewNavigationEvent(__unwrapped)
             return { (__event: PaywallWebViewNavigationEvent) -> Void in
@@ -628,8 +613,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onLoadingProgress = { () -> ((_ event: PaywallWebViewProgressEvent) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_PaywallWebViewProgressEvent_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_PaywallWebViewProgressEvent_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewProgressEvent) -> Void in
             let __wrappedFunction = bridge.wrap_Func_void_PaywallWebViewProgressEvent(__unwrapped)
             return { (__event: PaywallWebViewProgressEvent) -> Void in
@@ -660,8 +644,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onLoadingFinish = { () -> ((_ event: PaywallWebViewNavigationEvent) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewNavigationEvent) -> Void in
             let __wrappedFunction = bridge.wrap_Func_void_PaywallWebViewNavigationEvent(__unwrapped)
             return { (__event: PaywallWebViewNavigationEvent) -> Void in
@@ -692,8 +675,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onLoadingError = { () -> ((_ event: PaywallWebViewErrorEvent) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_PaywallWebViewErrorEvent_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_PaywallWebViewErrorEvent_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewErrorEvent) -> Void in
             let __wrappedFunction = bridge.wrap_Func_void_PaywallWebViewErrorEvent(__unwrapped)
             return { (__event: PaywallWebViewErrorEvent) -> Void in
@@ -724,8 +706,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onHttpError = { () -> ((_ event: PaywallWebViewHttpErrorEvent) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_PaywallWebViewHttpErrorEvent_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_PaywallWebViewHttpErrorEvent_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewHttpErrorEvent) -> Void in
             let __wrappedFunction = bridge.wrap_Func_void_PaywallWebViewHttpErrorEvent(__unwrapped)
             return { (__event: PaywallWebViewHttpErrorEvent) -> Void in
@@ -756,8 +737,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onMessage = { () -> ((_ event: PaywallWebViewMessageEvent) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_PaywallWebViewMessageEvent_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_PaywallWebViewMessageEvent_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewMessageEvent) -> Void in
             let __wrappedFunction = bridge.wrap_Func_void_PaywallWebViewMessageEvent(__unwrapped)
             return { (__event: PaywallWebViewMessageEvent) -> Void in
@@ -788,8 +768,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onOpenWindow = { () -> ((_ event: PaywallWebViewOpenWindowEvent) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_PaywallWebViewOpenWindowEvent_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_PaywallWebViewOpenWindowEvent_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewOpenWindowEvent) -> Void in
             let __wrappedFunction = bridge.wrap_Func_void_PaywallWebViewOpenWindowEvent(__unwrapped)
             return { (__event: PaywallWebViewOpenWindowEvent) -> Void in
@@ -820,8 +799,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onFileDownload = { () -> ((_ event: PaywallWebViewFileDownloadEvent) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_PaywallWebViewFileDownloadEvent_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_PaywallWebViewFileDownloadEvent_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewFileDownloadEvent) -> Void in
             let __wrappedFunction = bridge.wrap_Func_void_PaywallWebViewFileDownloadEvent(__unwrapped)
             return { (__event: PaywallWebViewFileDownloadEvent) -> Void in
@@ -852,8 +830,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onRenderProcessGone = { () -> ((_ event: PaywallWebViewRenderProcessGoneEvent) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_PaywallWebViewRenderProcessGoneEvent_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_PaywallWebViewRenderProcessGoneEvent_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewRenderProcessGoneEvent) -> Void in
             let __wrappedFunction = bridge.wrap_Func_void_PaywallWebViewRenderProcessGoneEvent(__unwrapped)
             return { (__event: PaywallWebViewRenderProcessGoneEvent) -> Void in
@@ -884,8 +861,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onContentProcessDidTerminate = { () -> ((_ event: PaywallWebViewBaseEvent) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_PaywallWebViewBaseEvent_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_PaywallWebViewBaseEvent_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewBaseEvent) -> Void in
             let __wrappedFunction = bridge.wrap_Func_void_PaywallWebViewBaseEvent(__unwrapped)
             return { (__event: PaywallWebViewBaseEvent) -> Void in
@@ -916,8 +892,7 @@ open class HybridPaywallWebViewSpec_cxx {
     @inline(__always)
     set {
       self.__implementation.onShouldStartLoadWithRequest = { () -> ((_ event: PaywallWebViewShouldStartLoadRequest) -> Bool)? in
-        if bridge.has_value_std__optional_std__function_bool_const_PaywallWebViewShouldStartLoadRequest_____event______(newValue) {
-          let __unwrapped = bridge.get_std__optional_std__function_bool_const_PaywallWebViewShouldStartLoadRequest_____event______(newValue)
+        if let __unwrapped = newValue.value {
           return { () -> (PaywallWebViewShouldStartLoadRequest) -> Bool in
             let __wrappedFunction = bridge.wrap_Func_bool_PaywallWebViewShouldStartLoadRequest(__unwrapped)
             return { (__event: PaywallWebViewShouldStartLoadRequest) -> Bool in

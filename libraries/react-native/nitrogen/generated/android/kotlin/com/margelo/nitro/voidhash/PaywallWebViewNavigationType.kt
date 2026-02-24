@@ -15,11 +15,15 @@ import com.facebook.proguard.annotations.DoNotStrip
  */
 @DoNotStrip
 @Keep
-enum class PaywallWebViewNavigationType(@DoNotStrip @Keep val value: Int) {
-  CLICK(0),
-  FORMSUBMIT(1),
-  BACKFORWARD(2),
-  RELOAD(3),
-  FORMRESUBMIT(4),
-  OTHER(5);
+enum class PaywallWebViewNavigationType {
+  CLICK,
+  FORMSUBMIT,
+  BACKFORWARD,
+  RELOAD,
+  FORMRESUBMIT,
+  OTHER;
+
+  @DoNotStrip
+  @Keep
+  private val _ordinal = ordinal
 }

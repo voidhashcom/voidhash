@@ -40,16 +40,18 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ PaywallWebViewOpenWindowEvent <> JS PaywallWebViewOpenWindowEvent (object)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::PaywallWebViewOpenWindowEvent> final {
-    static inline margelo::nitro::voidhash::PaywallWebViewOpenWindowEvent fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<PaywallWebViewOpenWindowEvent> final {
+    static inline PaywallWebViewOpenWindowEvent fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::voidhash::PaywallWebViewOpenWindowEvent(
+      return PaywallWebViewOpenWindowEvent(
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, "targetUrl"))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::voidhash::PaywallWebViewOpenWindowEvent& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const PaywallWebViewOpenWindowEvent& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, "targetUrl", JSIConverter<std::string>::toJSI(runtime, arg.targetUrl));
       return obj;

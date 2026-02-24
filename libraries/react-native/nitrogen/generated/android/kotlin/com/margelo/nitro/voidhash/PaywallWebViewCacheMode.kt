@@ -15,9 +15,13 @@ import com.facebook.proguard.annotations.DoNotStrip
  */
 @DoNotStrip
 @Keep
-enum class PaywallWebViewCacheMode(@DoNotStrip @Keep val value: Int) {
-  LOAD_DEFAULT(0),
-  LOAD_CACHE_ONLY(1),
-  LOAD_CACHE_ELSE_NETWORK(2),
-  LOAD_NO_CACHE(3);
+enum class PaywallWebViewCacheMode {
+  LOAD_DEFAULT,
+  LOAD_CACHE_ONLY,
+  LOAD_CACHE_ELSE_NETWORK,
+  LOAD_NO_CACHE;
+
+  @DoNotStrip
+  @Keep
+  private val _ordinal = ordinal
 }

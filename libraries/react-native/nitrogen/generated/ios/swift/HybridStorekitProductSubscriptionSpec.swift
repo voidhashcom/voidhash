@@ -21,9 +21,8 @@ public protocol HybridStorekitProductSubscriptionSpec_protocol: HybridObject {
 }
 
 /// See ``HybridStorekitProductSubscriptionSpec``
-open class HybridStorekitProductSubscriptionSpec_base {
+public class HybridStorekitProductSubscriptionSpec_base {
   private weak var cxxWrapper: HybridStorekitProductSubscriptionSpec_cxx? = nil
-  public init() { }
   public func getCxxWrapper() -> HybridStorekitProductSubscriptionSpec_cxx {
   #if DEBUG
     guard self is HybridStorekitProductSubscriptionSpec else {

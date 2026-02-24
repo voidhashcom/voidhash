@@ -15,7 +15,11 @@ import com.facebook.proguard.annotations.DoNotStrip
  */
 @DoNotStrip
 @Keep
-enum class PurchasedItemType(@DoNotStrip @Keep val value: Int) {
-  SUBSCRIPTION(0),
-  INAPP(1);
+enum class PurchasedItemType {
+  SUBSCRIPTION,
+  INAPP;
+
+  @DoNotStrip
+  @Keep
+  private val _ordinal = ordinal
 }

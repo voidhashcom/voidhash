@@ -1,10 +1,12 @@
 import { useRouter } from "expo-router";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fakeAuthService, users } from "utils/fake-auth-service";
 import { voidhash } from "utils/voidhash/local.client";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const handleSignIn = async (email: string) => {
     const user = await fakeAuthService.signIn(email);
@@ -18,22 +20,30 @@ export default function HomeScreen() {
     router.back();
   };
 
+  const containerStyle = [
+    styles.container,
+    {
+      paddingBottom: Math.max(16, insets.bottom + 16),
+      paddingTop: Math.max(32, insets.top + 16),
+    },
+  ];
+
   return (
-    <View className="flex-1 justify-between bg-black px-4 pt-32 pt-safe-4 pb-safe-offset-4">
+    <View style={containerStyle}>
       <View>
-        <Text className="font-bold text-2xl text-white">Sign in</Text>
-        <Text className="mt-2 text-zinc-400">Tap to sign in</Text>
-        <View className="mt-8 flex flex-row gap-8">
+        <Text style={styles.title}>Sign in</Text>
+        <Text style={styles.subtitle}>Tap to sign in</Text>
+        <View style={styles.userGrid}>
           {Object.values(users).map((user) => (
             <Pressable
-              className="aspect-square flex-1"
               key={user.id}
               onPress={() => handleSignIn(user.email)}
+              style={styles.userCard}
             >
-              <Image className="h-full w-full" source={user.avatar} />
-              <View className="pt-4">
-                <Text className="font-semibold text-white">{user.name}</Text>
-                <Text className="mt-2 text-zinc-400">{user.email}</Text>
+              <Image source={user.avatar} style={styles.avatar} />
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>{user.name}</Text>
+                <Text style={styles.userEmail}>{user.email}</Text>
               </View>
             </Pressable>
           ))}
@@ -42,3 +52,46 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: "#000000",
+    flex: 1,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+  },
+  title: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "700",
+  },
+  subtitle: {
+    color: "#a1a1aa",
+    marginTop: 8,
+  },
+  userGrid: {
+    columnGap: 32,
+    flexDirection: "row",
+    marginTop: 32,
+  },
+  userCard: {
+    aspectRatio: 1,
+    flex: 1,
+  },
+  avatar: {
+    borderRadius: 8,
+    height: "100%",
+    width: "100%",
+  },
+  userInfo: {
+    paddingTop: 16,
+  },
+  userName: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  userEmail: {
+    color: "#a1a1aa",
+    marginTop: 8,
+  },
+});

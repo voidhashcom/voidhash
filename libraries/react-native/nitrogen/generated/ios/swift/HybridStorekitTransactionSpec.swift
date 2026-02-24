@@ -43,9 +43,8 @@ public protocol HybridStorekitTransactionSpec_protocol: HybridObject {
 }
 
 /// See ``HybridStorekitTransactionSpec``
-open class HybridStorekitTransactionSpec_base {
+public class HybridStorekitTransactionSpec_base {
   private weak var cxxWrapper: HybridStorekitTransactionSpec_cxx? = nil
-  public init() { }
   public func getCxxWrapper() -> HybridStorekitTransactionSpec_cxx {
   #if DEBUG
     guard self is HybridStorekitTransactionSpec else {

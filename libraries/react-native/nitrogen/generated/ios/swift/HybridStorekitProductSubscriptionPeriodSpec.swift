@@ -19,9 +19,8 @@ public protocol HybridStorekitProductSubscriptionPeriodSpec_protocol: HybridObje
 }
 
 /// See ``HybridStorekitProductSubscriptionPeriodSpec``
-open class HybridStorekitProductSubscriptionPeriodSpec_base {
+public class HybridStorekitProductSubscriptionPeriodSpec_base {
   private weak var cxxWrapper: HybridStorekitProductSubscriptionPeriodSpec_cxx? = nil
-  public init() { }
   public func getCxxWrapper() -> HybridStorekitProductSubscriptionPeriodSpec_cxx {
   #if DEBUG
     guard self is HybridStorekitProductSubscriptionPeriodSpec else {

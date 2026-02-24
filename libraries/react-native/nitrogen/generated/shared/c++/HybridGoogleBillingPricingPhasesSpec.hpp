@@ -16,9 +16,9 @@
 // Forward declaration of `HybridGoogleBillingPricingPhaseSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridGoogleBillingPricingPhaseSpec; }
 
+#include <vector>
 #include <memory>
 #include "HybridGoogleBillingPricingPhaseSpec.hpp"
-#include <vector>
 
 namespace margelo::nitro::voidhash {
 
@@ -47,7 +47,7 @@ namespace margelo::nitro::voidhash {
 
     public:
       // Properties
-      virtual std::vector<std::shared_ptr<HybridGoogleBillingPricingPhaseSpec>> getPricingPhaseList() = 0;
+      virtual std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPricingPhaseSpec>> getPricingPhaseList() = 0;
 
     public:
       // Methods

@@ -11,7 +11,6 @@ import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
 import com.margelo.nitro.core.*
 
-
 /**
  * Represents the JavaScript object/struct "PaywallWebViewFileDownloadEvent".
  */
@@ -21,8 +20,6 @@ data class PaywallWebViewFileDownloadEvent
   @DoNotStrip
   @Keep
   constructor(
-    @DoNotStrip
-    @Keep
     val downloadUrl: String
   ) {
   /* main constructor */

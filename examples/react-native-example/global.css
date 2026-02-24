@@ -1,4 +1,0 @@
-/** biome-ignore-all lint/nursery/noUnknownAtRule: tailwind is ok */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;

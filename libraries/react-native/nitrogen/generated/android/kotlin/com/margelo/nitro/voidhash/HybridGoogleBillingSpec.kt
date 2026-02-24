@@ -44,7 +44,7 @@ abstract class HybridGoogleBillingSpec: HybridObject() {
   
   @DoNotStrip
   @Keep
-  private fun initConnection_cxx(onPurchase: Func_void_std__shared_ptr_HybridGoogleBillingPurchaseSpec_?): Promise<Boolean> {
+  private fun initConnection_cxx(onPurchase: Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridGoogleBillingPurchaseSpec_?): Promise<Boolean> {
     val __result = initConnection(onPurchase?.let { it })
     return __result
   }

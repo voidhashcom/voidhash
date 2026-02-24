@@ -65,3 +65,64 @@ export type PaywallBridgeEnvelope =
   | PaywallBridgeRestoreEnvelope
   | PaywallBridgeOpenExternalEnvelope
   | PaywallBridgeLogEnvelope;
+
+export type PaywallBridgeResponseStatus = "success" | "error";
+
+export interface PaywallBridgeResponseErrorPayload {
+  code: string;
+  message: string;
+}
+
+export interface PaywallBridgeResponseEnvelope {
+  version: typeof PAYWALL_BRIDGE_VERSION;
+  type: "response";
+  requestId?: string;
+  payload: {
+    action: PaywallBridgeActionType;
+    status: PaywallBridgeResponseStatus;
+    data?: Record<string, unknown>;
+    error?: PaywallBridgeResponseErrorPayload;
+  };
+}
+
+export function createPaywallBridgeSuccessResponse(
+  action: PaywallBridgeActionType,
+  requestId?: string,
+  data?: Record<string, unknown>
+): string {
+  const response: PaywallBridgeResponseEnvelope = {
+    version: PAYWALL_BRIDGE_VERSION,
+    type: "response",
+    requestId,
+    payload: {
+      action,
+      status: "success",
+      data,
+    },
+  };
+
+  return JSON.stringify(response);
+}
+
+export function createPaywallBridgeErrorResponse(
+  action: PaywallBridgeActionType,
+  code: string,
+  message: string,
+  requestId?: string
+): string {
+  const response: PaywallBridgeResponseEnvelope = {
+    version: PAYWALL_BRIDGE_VERSION,
+    type: "response",
+    requestId,
+    payload: {
+      action,
+      status: "error",
+      error: {
+        code,
+        message,
+      },
+    },
+  };
+
+  return JSON.stringify(response);
+}

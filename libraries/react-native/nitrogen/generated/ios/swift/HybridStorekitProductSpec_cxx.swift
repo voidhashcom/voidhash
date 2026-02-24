@@ -17,7 +17,7 @@ import NitroModules
  * - Other HybridObjects need to be wrapped/unwrapped from the Swift TCxx wrapper
  * - Throwing methods need to be wrapped with a Result<T, Error> type, as exceptions cannot be propagated to C++
  */
-open class HybridStorekitProductSpec_cxx {
+public class HybridStorekitProductSpec_cxx {
   /**
    * The Swift <> C++ bridge's namespace (`margelo::nitro::voidhash::bridge::swift`)
    * from `NitroVoidhash-Swift-Cxx-Bridge.hpp`.
@@ -33,7 +33,7 @@ open class HybridStorekitProductSpec_cxx {
   /**
    * Holds a weak pointer to the C++ class that wraps the Swift class.
    */
-  private var __cxxPart: bridge.std__weak_ptr_HybridStorekitProductSpec_
+  private var __cxxPart: bridge.std__weak_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_
 
   /**
    * Create a new `HybridStorekitProductSpec_cxx` that wraps the given `HybridStorekitProductSpec`.
@@ -72,15 +72,15 @@ open class HybridStorekitProductSpec_cxx {
 
   /**
    * Gets (or creates) the C++ part of this Hybrid Object.
-   * The C++ part is a `std::shared_ptr<HybridStorekitProductSpec>`.
+   * The C++ part is a `std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>`.
    */
-  public func getCxxPart() -> bridge.std__shared_ptr_HybridStorekitProductSpec_ {
+  public func getCxxPart() -> bridge.std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_ {
     let cachedCxxPart = self.__cxxPart.lock()
     if cachedCxxPart.__convertToBool() {
       return cachedCxxPart
     } else {
-      let newCxxPart = bridge.create_std__shared_ptr_HybridStorekitProductSpec_(self.toUnsafe())
-      __cxxPart = bridge.weakify_std__shared_ptr_HybridStorekitProductSpec_(newCxxPart)
+      let newCxxPart = bridge.create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_(self.toUnsafe())
+      __cxxPart = bridge.weakify_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_(newCxxPart)
       return newCxxPart
     }
   }
@@ -94,15 +94,6 @@ open class HybridStorekitProductSpec_cxx {
   @inline(__always)
   public var memorySize: Int {
     return MemoryHelper.getSizeOf(self.__implementation) + self.__implementation.memorySize
-  }
-
-  /**
-   * Call dispose() on the Swift class.
-   * This _may_ be called manually from JS.
-   */
-  @inline(__always)
-  public func dispose() {
-    self.__implementation.dispose()
   }
 
   // Properties
@@ -161,12 +152,12 @@ open class HybridStorekitProductSpec_cxx {
     }
   }
   
-  public final var subscription: bridge.std__optional_std__shared_ptr_HybridStorekitProductSubscriptionSpec__ {
+  public final var subscription: bridge.std__optional_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec__ {
     @inline(__always)
     get {
-      return { () -> bridge.std__optional_std__shared_ptr_HybridStorekitProductSubscriptionSpec__ in
+      return { () -> bridge.std__optional_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec__ in
         if let __unwrappedValue = self.__implementation.subscription {
-          return bridge.create_std__optional_std__shared_ptr_HybridStorekitProductSubscriptionSpec__({ () -> bridge.std__shared_ptr_HybridStorekitProductSubscriptionSpec_ in
+          return bridge.create_std__optional_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec__({ () -> bridge.std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec_ in
             let __cxxWrapped = __unwrappedValue.getCxxWrapper()
             return __cxxWrapped.getCxxPart()
           }())

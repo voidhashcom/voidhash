@@ -7,7 +7,6 @@
 
 import NitroModules
 
-
 /**
  * Wraps a Swift `(_ event: PaywallWebViewMessageEvent) -> Void` as a class.
  * This class can be used from C++, e.g. to wrap the Swift closure as a `std::function`.

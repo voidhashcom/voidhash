@@ -165,5 +165,39 @@ describe("VoidhashClient", () => {
         )
       ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
     });
+
+    it("maps restorePurchases effect failures to VoidhashError", async () => {
+      const client = createClient();
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        restorePurchases: () => "restore-purchases-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+      };
+
+      await expect(client.restorePurchases()).rejects.toEqual(
+        expect.objectContaining<Partial<VoidhashError>>({
+          message: "FAILED_TO_RESTORE_PURCHASES",
+        })
+      );
+    });
+
+    it("resolves restorePurchases when effect succeeds", async () => {
+      const client = createClient();
+      const runPromiseExit = jest
+        .fn()
+        .mockResolvedValue(Exit.succeed(undefined));
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        restorePurchases: () => "restore-purchases-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit,
+      };
+
+      await expect(client.restorePurchases()).resolves.toBeUndefined();
+      expect(runPromiseExit).toHaveBeenCalledTimes(1);
+    });
   });
 });

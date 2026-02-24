@@ -46,17 +46,17 @@ namespace margelo::nitro::voidhash { struct PaywallWebViewBaseEvent; }
 // Forward declaration of `PaywallWebViewShouldStartLoadRequest` to properly resolve imports.
 namespace margelo::nitro::voidhash { struct PaywallWebViewShouldStartLoadRequest; }
 
-#include "PaywallWebViewSource.hpp"
 #include <optional>
+#include "PaywallWebViewSource.hpp"
 #include <string>
 #include "PaywallWebViewOverScrollModeType.hpp"
 #include "PaywallWebViewCacheMode.hpp"
 #include "PaywallWebViewMixedContentMode.hpp"
 #include "PaywallWebViewAndroidLayerType.hpp"
-#include "PaywallWebViewDataDetectorType.hpp"
 #include <vector>
-#include "PaywallWebViewNavigationEvent.hpp"
+#include "PaywallWebViewDataDetectorType.hpp"
 #include <functional>
+#include "PaywallWebViewNavigationEvent.hpp"
 #include "PaywallWebViewProgressEvent.hpp"
 #include "PaywallWebViewErrorEvent.hpp"
 #include "PaywallWebViewHttpErrorEvent.hpp"

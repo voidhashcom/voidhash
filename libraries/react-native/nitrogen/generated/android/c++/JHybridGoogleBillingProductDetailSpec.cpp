@@ -13,11 +13,12 @@ namespace margelo::nitro::voidhash { class HybridGoogleBillingSubscriptionOfferD
 namespace margelo::nitro::voidhash { class HybridGoogleBillingOneTimePurchaseOfferDetailsSpec; }
 
 #include <string>
+#include <optional>
+#include <vector>
 #include <memory>
 #include "HybridGoogleBillingSubscriptionOfferDetailsSpec.hpp"
-#include <vector>
-#include <optional>
 #include "JHybridGoogleBillingSubscriptionOfferDetailsSpec.hpp"
+#include <NitroModules/JNISharedPtr.hpp>
 #include "HybridGoogleBillingOneTimePurchaseOfferDetailsSpec.hpp"
 #include "JHybridGoogleBillingOneTimePurchaseOfferDetailsSpec.hpp"
 
@@ -36,11 +37,6 @@ namespace margelo::nitro::voidhash {
   size_t JHybridGoogleBillingProductDetailSpec::getExternalMemorySize() noexcept {
     static const auto method = javaClassStatic()->getMethod<jlong()>("getMemorySize");
     return method(_javaPart);
-  }
-
-  void JHybridGoogleBillingProductDetailSpec::dispose() noexcept {
-    static const auto method = javaClassStatic()->getMethod<void()>("dispose");
-    method(_javaPart);
   }
 
   // Properties
@@ -84,24 +80,24 @@ namespace margelo::nitro::voidhash {
     auto __result = method(_javaPart);
     return __result->toStdString();
   }
-  std::optional<std::vector<std::shared_ptr<HybridGoogleBillingSubscriptionOfferDetailsSpec>>> JHybridGoogleBillingProductDetailSpec::getSubscriptionOfferDetails() {
+  std::optional<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingSubscriptionOfferDetailsSpec>>> JHybridGoogleBillingProductDetailSpec::getSubscriptionOfferDetails() {
     static const auto method = javaClassStatic()->getMethod<jni::local_ref<jni::JArrayClass<JHybridGoogleBillingSubscriptionOfferDetailsSpec::javaobject>>()>("getSubscriptionOfferDetails");
     auto __result = method(_javaPart);
     return __result != nullptr ? std::make_optional([&]() {
       size_t __size = __result->size();
-      std::vector<std::shared_ptr<HybridGoogleBillingSubscriptionOfferDetailsSpec>> __vector;
+      std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingSubscriptionOfferDetailsSpec>> __vector;
       __vector.reserve(__size);
       for (size_t __i = 0; __i < __size; __i++) {
         auto __element = __result->getElement(__i);
-        __vector.push_back(__element->cthis()->shared_cast<JHybridGoogleBillingSubscriptionOfferDetailsSpec>());
+        __vector.push_back(JNISharedPtr::make_shared_from_jni<JHybridGoogleBillingSubscriptionOfferDetailsSpec>(jni::make_global(__element)));
       }
       return __vector;
     }()) : std::nullopt;
   }
-  std::optional<std::shared_ptr<HybridGoogleBillingOneTimePurchaseOfferDetailsSpec>> JHybridGoogleBillingProductDetailSpec::getOneTimePurchaseOfferDetails() {
+  std::optional<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingOneTimePurchaseOfferDetailsSpec>> JHybridGoogleBillingProductDetailSpec::getOneTimePurchaseOfferDetails() {
     static const auto method = javaClassStatic()->getMethod<jni::local_ref<JHybridGoogleBillingOneTimePurchaseOfferDetailsSpec::javaobject>()>("getOneTimePurchaseOfferDetails");
     auto __result = method(_javaPart);
-    return __result != nullptr ? std::make_optional(__result->cthis()->shared_cast<JHybridGoogleBillingOneTimePurchaseOfferDetailsSpec>()) : std::nullopt;
+    return __result != nullptr ? std::make_optional(JNISharedPtr::make_shared_from_jni<JHybridGoogleBillingOneTimePurchaseOfferDetailsSpec>(jni::make_global(__result))) : std::nullopt;
   }
 
   // Methods

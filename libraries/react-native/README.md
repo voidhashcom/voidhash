@@ -28,6 +28,46 @@ Observer reconciliation:
 - Client-side dedupe key is `platform + transactionId + purchaseDate`.
 - The server endpoint is idempotent by store transaction identity to tolerate retries/duplicates.
 
+## Native paywall preloading + presentation
+
+The SDK exposes `usePaywallByLocation(locationSlug, options?)` to preload and present paywalls with a native full-screen presenter.
+
+```ts
+const { show } = voidhash.usePaywallByLocation("onboarding", {
+  onError: (error, context) => {
+    console.error("Paywall action failed", context.action, error.message);
+  },
+  onPurchase: ({ productId, requestId }) => {
+    console.log("Purchase succeeded", productId, requestId);
+  },
+  onRestore: ({ requestId }) => {
+    console.log("Restore succeeded", requestId);
+  },
+});
+
+const didShow = await show();
+if (!didShow) {
+  // no published paywall for this location
+}
+```
+
+Behavior:
+
+- Paywall assignment is resolved in JS (`getPaywallForLocation`), then preloaded in native (Swift/Kotlin).
+- Presentation is native full-screen (no React Native `Modal` dependency).
+- Preload runs on hook mount and when app returns to foreground.
+- Pre-rendered native WebViews stay warm while hook instances are active for a location.
+
+Bridge actions:
+
+- Supported incoming actions: `purchase`, `restore`, `close`, `openExternal`, `log`.
+- `purchase` and `restore` return structured response envelopes back to the paywall page (`success` / `error`).
+- Successful `purchase` or `restore` auto-dismisses the presenter modal.
+- Hook callbacks:
+  - `onPurchase` fires after successful native purchase bridge action.
+  - `onRestore` fires after successful native restore bridge action.
+  - `onError` fires when `purchase` or `restore` bridge action fails.
+
 ### Add the package to your npm dependencies
 
 ```

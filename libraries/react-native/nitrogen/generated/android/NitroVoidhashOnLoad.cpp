@@ -15,6 +15,9 @@
 #include <fbjni/fbjni.h>
 #include <NitroModules/HybridObjectRegistry.hpp>
 
+#include "JHybridPaywallPresenterSpec.hpp"
+#include "JFunc_void_std__string.hpp"
+#include "JFunc_void.hpp"
 #include "JHybridPaywallWebViewSpec.hpp"
 #include "JFunc_void_PaywallWebViewNavigationEvent.hpp"
 #include "JFunc_void_PaywallWebViewProgressEvent.hpp"
@@ -30,7 +33,7 @@
 #include "JHybridPurchasedItemSpec.hpp"
 #include "JHybridVoidhashSpec.hpp"
 #include "JHybridGoogleBillingSpec.hpp"
-#include "JFunc_void_std__shared_ptr_HybridGoogleBillingPurchaseSpec_.hpp"
+#include "JFunc_void_std__shared_ptr_margelo__nitro__voidhash__HybridGoogleBillingPurchaseSpec_.hpp"
 #include "JHybridGoogleBillingAcknowledgeResultSpec.hpp"
 #include "JHybridGoogleBillingConsumeResultSpec.hpp"
 #include "JHybridGoogleBillingOneTimePurchaseOfferDetailsSpec.hpp"
@@ -39,6 +42,7 @@
 #include "JHybridGoogleBillingPricingPhaseSpec.hpp"
 #include "JHybridGoogleBillingPricingPhasesSpec.hpp"
 #include "JHybridGoogleBillingSubscriptionOfferDetailsSpec.hpp"
+#include <NitroModules/JNISharedPtr.hpp>
 #include <NitroModules/DefaultConstructableObject.hpp>
 
 namespace margelo::nitro::voidhash {
@@ -50,6 +54,9 @@ int initialize(JavaVM* vm) {
 
   return facebook::jni::initialize(vm, [] {
     // Register native JNI methods
+    margelo::nitro::voidhash::JHybridPaywallPresenterSpec::registerNatives();
+    margelo::nitro::voidhash::JFunc_void_std__string_cxx::registerNatives();
+    margelo::nitro::voidhash::JFunc_void_cxx::registerNatives();
     margelo::nitro::voidhash::JHybridPaywallWebViewSpec::registerNatives();
     margelo::nitro::voidhash::JFunc_void_PaywallWebViewNavigationEvent_cxx::registerNatives();
     margelo::nitro::voidhash::JFunc_void_PaywallWebViewProgressEvent_cxx::registerNatives();
@@ -65,7 +72,7 @@ int initialize(JavaVM* vm) {
     margelo::nitro::voidhash::JHybridPurchasedItemSpec::registerNatives();
     margelo::nitro::voidhash::JHybridVoidhashSpec::registerNatives();
     margelo::nitro::voidhash::JHybridGoogleBillingSpec::registerNatives();
-    margelo::nitro::voidhash::JFunc_void_std__shared_ptr_HybridGoogleBillingPurchaseSpec__cxx::registerNatives();
+    margelo::nitro::voidhash::JFunc_void_std__shared_ptr_margelo__nitro__voidhash__HybridGoogleBillingPurchaseSpec__cxx::registerNatives();
     margelo::nitro::voidhash::JHybridGoogleBillingAcknowledgeResultSpec::registerNatives();
     margelo::nitro::voidhash::JHybridGoogleBillingConsumeResultSpec::registerNatives();
     margelo::nitro::voidhash::JHybridGoogleBillingOneTimePurchaseOfferDetailsSpec::registerNatives();
@@ -81,7 +88,8 @@ int initialize(JavaVM* vm) {
       []() -> std::shared_ptr<HybridObject> {
         static DefaultConstructableObject<JHybridVoidhashSpec::javaobject> object("com/margelo/nitro/voidhash/HybridVoidhash");
         auto instance = object.create();
-        return instance->cthis()->shared();
+        auto globalRef = jni::make_global(instance);
+        return JNISharedPtr::make_shared_from_jni<JHybridVoidhashSpec>(globalRef);
       }
     );
     HybridObjectRegistry::registerHybridObjectConstructor(
@@ -89,7 +97,8 @@ int initialize(JavaVM* vm) {
       []() -> std::shared_ptr<HybridObject> {
         static DefaultConstructableObject<JHybridGoogleBillingSpec::javaobject> object("com/margelo/nitro/voidhash/HybridGoogleBilling");
         auto instance = object.create();
-        return instance->cthis()->shared();
+        auto globalRef = jni::make_global(instance);
+        return JNISharedPtr::make_shared_from_jni<JHybridGoogleBillingSpec>(globalRef);
       }
     );
     HybridObjectRegistry::registerHybridObjectConstructor(
@@ -97,7 +106,17 @@ int initialize(JavaVM* vm) {
       []() -> std::shared_ptr<HybridObject> {
         static DefaultConstructableObject<JHybridPaywallWebViewSpec::javaobject> object("com/margelo/nitro/voidhash/HybridPaywallWebView");
         auto instance = object.create();
-        return instance->cthis()->shared();
+        auto globalRef = jni::make_global(instance);
+        return JNISharedPtr::make_shared_from_jni<JHybridPaywallWebViewSpec>(globalRef);
+      }
+    );
+    HybridObjectRegistry::registerHybridObjectConstructor(
+      "PaywallPresenter",
+      []() -> std::shared_ptr<HybridObject> {
+        static DefaultConstructableObject<JHybridPaywallPresenterSpec::javaobject> object("com/margelo/nitro/voidhash/HybridPaywallPresenter");
+        auto instance = object.create();
+        auto globalRef = jni::make_global(instance);
+        return JNISharedPtr::make_shared_from_jni<JHybridPaywallPresenterSpec>(globalRef);
       }
     );
   });
