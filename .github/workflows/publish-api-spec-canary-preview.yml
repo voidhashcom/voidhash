@@ -1,0 +1,55 @@
+name: Publish API Spec Canary (Preview)
+
+on:
+  push:
+    branches:
+      - preview
+    paths:
+      - packages/api-spec/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - package.json
+      - .github/workflows/publish-api-spec-canary-preview.yml
+
+permissions:
+  contents: read
+
+concurrency: api-spec-canary-preview-${{ github.ref }}
+
+jobs:
+  publish-canary:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck api-spec
+        run: pnpm --filter @voidhash/api-spec typecheck
+
+      - name: Publish canary from preview
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA::7}"
+          canary_version="$(SHORT_SHA="$short_sha" node -e 'const fs=require("node:fs"); const p="./packages/api-spec/package.json"; const pkg=JSON.parse(fs.readFileSync(p,"utf8")); const run=process.env.GITHUB_RUN_NUMBER; const attempt=process.env.GITHUB_RUN_ATTEMPT; const sha=process.env.SHORT_SHA; pkg.version=`${pkg.version}-canary.${run}.${attempt}.${sha}`; fs.writeFileSync(p, JSON.stringify(pkg,null,2)+"\n"); process.stdout.write(pkg.version);')"
+          echo "Publishing @voidhash/api-spec@${canary_version}"
+          cd packages/api-spec
+          npm publish --tag canary --access public

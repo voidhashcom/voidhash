@@ -1,0 +1,65 @@
+name: Publish API Spec Stable
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: api-spec-stable-${{ github.ref }}
+
+jobs:
+  publish-stable:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    outputs:
+      published_version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Ensure main branch trigger
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "This workflow can only run from main. Current ref: ${GITHUB_REF}" >&2
+            exit 1
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck api-spec
+        run: pnpm --filter @voidhash/api-spec typecheck
+
+      - name: Resolve package version
+        id: version
+        run: |
+          version="$(node -p "require('./packages/api-spec/package.json').version")"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if version already exists
+        run: |
+          if npm view "@voidhash/api-spec@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "@voidhash/api-spec@${{ steps.version.outputs.version }} already exists on npm." >&2
+            exit 1
+          fi
+
+      - name: Publish stable
+        working-directory: packages/api-spec
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --tag latest --access public
