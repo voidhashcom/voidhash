@@ -211,6 +211,7 @@ export function createInMemoryCacheAdapter() {
 export interface EffectTestHarnessOptions {
   apiClient: ApiClient;
   cacheAdapter: ReturnType<typeof createInMemoryCacheAdapter>["adapter"];
+  debug?: boolean;
   eventBus?: EventBus;
   paymentAdapter: PaymentAdapter;
   platform?: Partial<PlatformInfo>;
@@ -249,6 +250,7 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
     Layer.provideMerge(
       Layer.succeed(SdkConfiguration, {
         baseUrl: "https://api.voidhash.test",
+        debug: options.debug ?? false,
         publishableKey: "pk_test",
         readOnly: options.readOnly ?? false,
       })

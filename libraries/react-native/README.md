@@ -28,6 +28,23 @@ Observer reconciliation:
 - Client-side dedupe key is `platform + transactionId + purchaseDate`.
 - The server endpoint is idempotent by store transaction identity to tolerate retries/duplicates.
 
+## HTTP debug mode
+
+Enable verbose HTTP logging when debugging request/response flow:
+
+```ts
+createVoidhashClient("pk_test", schema, {
+  debug: true,
+  scheme: "myapp",
+});
+```
+
+When enabled, the SDK logs:
+
+- Outgoing request method, URL, headers (with sensitive values redacted), and body summary.
+- Incoming response status, headers, and request duration.
+- HTTP/client errors with reason and status when available.
+
 ## Native paywall preloading + presentation
 
 The SDK exposes `usePaywallByLocation(locationSlug, options?)` to preload and present paywalls with a native full-screen presenter.

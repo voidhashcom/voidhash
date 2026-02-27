@@ -38,6 +38,7 @@ export interface VoidhashClientOptions<TSchema extends VoidhashSchema> {
 const CreateEffectRuntime = (
   platform: PlatformInfo["platform"],
   baseUrl: string,
+  debug: boolean,
   publishableKey: string,
   readOnly: boolean,
   eventBus: EventBus
@@ -57,7 +58,12 @@ const CreateEffectRuntime = (
       Layer.provideMerge(Layer.succeed(EventBusProvider, eventBus)),
       Layer.provideMerge(ReactNativePlatformProvider),
       Layer.provideMerge(
-        Layer.succeed(SdkConfiguration, { baseUrl, publishableKey, readOnly })
+        Layer.succeed(SdkConfiguration, {
+          baseUrl,
+          debug,
+          publishableKey,
+          readOnly,
+        })
       )
     )
   );
@@ -100,7 +106,8 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     publishableKey: string,
     readOnly: boolean,
     eventBus: EventBus,
-    platform: Exclude<PlatformInfo["platform"], "unknown">
+    platform: Exclude<PlatformInfo["platform"], "unknown">,
+    debug = false
   ) {
     this.initialAppUserId = initialAppUserId;
     this.readOnly = readOnly;
@@ -110,6 +117,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     this.effectRuntime = CreateEffectRuntime(
       platform,
       baseUrl,
+      debug,
       publishableKey,
       readOnly,
       eventBus

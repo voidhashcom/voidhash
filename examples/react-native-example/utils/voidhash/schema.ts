@@ -8,11 +8,6 @@ export const sc = schemaConfiguration({
   },
 });
 
-export const examplePaywallLocation = sc.location("example-paywall", {
-  name: "Example Paywall",
-  description: "A paywall for testing purposes",
-})
-
 export const monthlySub = sc.subscription("monthly_sub", {
   name: "Monthly",
   perks: {
