@@ -44,12 +44,12 @@ namespace margelo::nitro::voidhash { struct PaywallWebViewBaseEvent; }
 // Forward declaration of `PaywallWebViewShouldStartLoadRequest` to properly resolve imports.
 namespace margelo::nitro::voidhash { struct PaywallWebViewShouldStartLoadRequest; }
 
-#include "PaywallWebViewSource.hpp"
 #include <optional>
+#include "PaywallWebViewSource.hpp"
 #include "JPaywallWebViewSource.hpp"
 #include <string>
-#include "PaywallWebViewHeader.hpp"
 #include <vector>
+#include "PaywallWebViewHeader.hpp"
 #include "JPaywallWebViewHeader.hpp"
 #include "PaywallWebViewOverScrollModeType.hpp"
 #include "JPaywallWebViewOverScrollModeType.hpp"
@@ -61,8 +61,8 @@ namespace margelo::nitro::voidhash { struct PaywallWebViewShouldStartLoadRequest
 #include "JPaywallWebViewAndroidLayerType.hpp"
 #include "PaywallWebViewDataDetectorType.hpp"
 #include "JPaywallWebViewDataDetectorType.hpp"
-#include "PaywallWebViewNavigationEvent.hpp"
 #include <functional>
+#include "PaywallWebViewNavigationEvent.hpp"
 #include "JFunc_void_PaywallWebViewNavigationEvent.hpp"
 #include "JPaywallWebViewNavigationEvent.hpp"
 #include "PaywallWebViewNavigationType.hpp"
@@ -110,11 +110,6 @@ namespace margelo::nitro::voidhash {
   size_t JHybridPaywallWebViewSpec::getExternalMemorySize() noexcept {
     static const auto method = javaClassStatic()->getMethod<jlong()>("getMemorySize");
     return method(_javaPart);
-  }
-
-  void JHybridPaywallWebViewSpec::dispose() noexcept {
-    static const auto method = javaClassStatic()->getMethod<void()>("dispose");
-    method(_javaPart);
   }
 
   // Properties

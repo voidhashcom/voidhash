@@ -11,7 +11,6 @@ import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
 import com.margelo.nitro.core.*
 
-
 /**
  * Represents the JavaScript object/struct "PaywallWebViewHttpErrorEvent".
  */
@@ -21,29 +20,13 @@ data class PaywallWebViewHttpErrorEvent
   @DoNotStrip
   @Keep
   constructor(
-    @DoNotStrip
-    @Keep
     val description: String,
-    @DoNotStrip
-    @Keep
     val statusCode: Double,
-    @DoNotStrip
-    @Keep
     val url: String,
-    @DoNotStrip
-    @Keep
     val loading: Boolean,
-    @DoNotStrip
-    @Keep
     val title: String,
-    @DoNotStrip
-    @Keep
     val canGoBack: Boolean,
-    @DoNotStrip
-    @Keep
     val canGoForward: Boolean,
-    @DoNotStrip
-    @Keep
     val lockIdentifier: Double
   ) {
   /* main constructor */

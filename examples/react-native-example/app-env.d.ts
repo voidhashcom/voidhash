@@ -1,2 +1,1 @@
-// @ts-expect-error
-/// <reference types="nativewind/types" />
+// App-level ambient type declarations can be added here when needed.

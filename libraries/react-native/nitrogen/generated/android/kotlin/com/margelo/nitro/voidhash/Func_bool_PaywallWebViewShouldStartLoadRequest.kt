@@ -13,7 +13,6 @@ import com.facebook.proguard.annotations.DoNotStrip
 import com.margelo.nitro.core.*
 import dalvik.annotation.optimization.FastNative
 
-
 /**
  * Represents the JavaScript callback `(event: struct) => bool`.
  * This can be either implemented in C++ (in which case it might be a callback coming from JS),

@@ -10,8 +10,8 @@
 #include <fbjni/fbjni.h>
 #include <functional>
 
-#include "PaywallWebViewRenderProcessGoneEvent.hpp"
 #include <functional>
+#include "PaywallWebViewRenderProcessGoneEvent.hpp"
 #include "JPaywallWebViewRenderProcessGoneEvent.hpp"
 
 namespace margelo::nitro::voidhash {

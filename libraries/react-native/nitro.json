@@ -22,6 +22,10 @@
     "PaywallWebView": {
       "swift": "HybridPaywallWebView",
       "kotlin": "HybridPaywallWebView"
+    },
+    "PaywallPresenter": {
+      "swift": "HybridPaywallPresenter",
+      "kotlin": "HybridPaywallPresenter"
     }
   },
   "ignorePaths": ["**/node_modules"]

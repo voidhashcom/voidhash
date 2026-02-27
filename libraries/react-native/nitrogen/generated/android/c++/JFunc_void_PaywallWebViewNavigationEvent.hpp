@@ -10,13 +10,13 @@
 #include <fbjni/fbjni.h>
 #include <functional>
 
-#include "PaywallWebViewNavigationEvent.hpp"
 #include <functional>
+#include "PaywallWebViewNavigationEvent.hpp"
 #include "JPaywallWebViewNavigationEvent.hpp"
 #include "PaywallWebViewNavigationType.hpp"
 #include "JPaywallWebViewNavigationType.hpp"
-#include <string>
 #include <optional>
+#include <string>
 
 namespace margelo::nitro::voidhash {
 

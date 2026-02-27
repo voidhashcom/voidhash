@@ -8,7 +8,6 @@ interface LogoProps {
 	variant?: "default" | "short" | "symbol";
 	color?: "dual-tone" | "mono";
 	height?: number;
-	className?: string;
 }
 
 export const Logo: React.FC<LogoProps> = ({
@@ -16,14 +15,13 @@ export const Logo: React.FC<LogoProps> = ({
 	variant = "default",
 	color = "mono",
 	height = 28,
-	className,
 }) => {
 	const currentColor = "#FFF";
 	const symbolColor = color === "dual-tone" ? "#005EFF" : currentColor;
 
 	if (variant === "symbol") {
 		return (
-			<View className={className} style={style}>
+			<View style={style}>
 				<Svg height={height} viewBox="0 0 120 61" width={(height * 120) / 61}>
 					{/* Voidhash Symbol Logo */}
 					<Path
@@ -37,7 +35,7 @@ export const Logo: React.FC<LogoProps> = ({
 
 	// Default and short variants use the full logo
 	return (
-		<View className={className} style={style}>
+		<View style={style}>
 			<Svg height={height} viewBox="0 0 414 78" width={(height * 414) / 78}>
 				{/* Voidhash Full Logo */}
 				<Path

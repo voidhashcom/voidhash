@@ -30,11 +30,6 @@ namespace margelo::nitro::voidhash {
     return method(_javaPart);
   }
 
-  void JHybridGoogleBillingPurchaseSpec::dispose() noexcept {
-    static const auto method = javaClassStatic()->getMethod<void()>("dispose");
-    method(_javaPart);
-  }
-
   // Properties
   std::string JHybridGoogleBillingPurchaseSpec::getId() {
     static const auto method = javaClassStatic()->getMethod<jni::local_ref<jni::JString>()>("getId");

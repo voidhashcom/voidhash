@@ -74,9 +74,8 @@ public protocol HybridPaywallWebViewSpec_protocol: HybridObject, HybridView {
 }
 
 /// See ``HybridPaywallWebViewSpec``
-open class HybridPaywallWebViewSpec_base {
+public class HybridPaywallWebViewSpec_base {
   private weak var cxxWrapper: HybridPaywallWebViewSpec_cxx? = nil
-  public init() { }
   public func getCxxWrapper() -> HybridPaywallWebViewSpec_cxx {
   #if DEBUG
     guard self is HybridPaywallWebViewSpec else {

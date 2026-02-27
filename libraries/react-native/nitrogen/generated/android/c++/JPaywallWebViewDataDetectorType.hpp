@@ -29,7 +29,7 @@ namespace margelo::nitro::voidhash {
     [[nodiscard]]
     PaywallWebViewDataDetectorType toCpp() const {
       static const auto clazz = javaClassStatic();
-      static const auto fieldOrdinal = clazz->getField<int>("value");
+      static const auto fieldOrdinal = clazz->getField<int>("_ordinal");
       int ordinal = this->getFieldValue(fieldOrdinal);
       return static_cast<PaywallWebViewDataDetectorType>(ordinal);
     }

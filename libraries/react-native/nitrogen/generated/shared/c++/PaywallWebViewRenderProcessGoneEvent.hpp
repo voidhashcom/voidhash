@@ -40,16 +40,18 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ PaywallWebViewRenderProcessGoneEvent <> JS PaywallWebViewRenderProcessGoneEvent (object)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::PaywallWebViewRenderProcessGoneEvent> final {
-    static inline margelo::nitro::voidhash::PaywallWebViewRenderProcessGoneEvent fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<PaywallWebViewRenderProcessGoneEvent> final {
+    static inline PaywallWebViewRenderProcessGoneEvent fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::voidhash::PaywallWebViewRenderProcessGoneEvent(
+      return PaywallWebViewRenderProcessGoneEvent(
         JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, "didCrash"))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::voidhash::PaywallWebViewRenderProcessGoneEvent& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const PaywallWebViewRenderProcessGoneEvent& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, "didCrash", JSIConverter<bool>::toJSI(runtime, arg.didCrash));
       return obj;

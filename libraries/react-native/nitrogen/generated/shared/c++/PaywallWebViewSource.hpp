@@ -21,10 +21,10 @@
 // Forward declaration of `PaywallWebViewHeader` to properly resolve imports.
 namespace margelo::nitro::voidhash { struct PaywallWebViewHeader; }
 
-#include <string>
 #include <optional>
-#include "PaywallWebViewHeader.hpp"
+#include <string>
 #include <vector>
+#include "PaywallWebViewHeader.hpp"
 
 namespace margelo::nitro::voidhash {
 
@@ -49,26 +49,28 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ PaywallWebViewSource <> JS PaywallWebViewSource (object)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::PaywallWebViewSource> final {
-    static inline margelo::nitro::voidhash::PaywallWebViewSource fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<PaywallWebViewSource> final {
+    static inline PaywallWebViewSource fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::voidhash::PaywallWebViewSource(
+      return PaywallWebViewSource(
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, "uri")),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, "method")),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, "body")),
-        JSIConverter<std::optional<std::vector<margelo::nitro::voidhash::PaywallWebViewHeader>>>::fromJSI(runtime, obj.getProperty(runtime, "headers")),
+        JSIConverter<std::optional<std::vector<PaywallWebViewHeader>>>::fromJSI(runtime, obj.getProperty(runtime, "headers")),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, "html")),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, "baseUrl"))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::voidhash::PaywallWebViewSource& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const PaywallWebViewSource& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, "uri", JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.uri));
       obj.setProperty(runtime, "method", JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.method));
       obj.setProperty(runtime, "body", JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.body));
-      obj.setProperty(runtime, "headers", JSIConverter<std::optional<std::vector<margelo::nitro::voidhash::PaywallWebViewHeader>>>::toJSI(runtime, arg.headers));
+      obj.setProperty(runtime, "headers", JSIConverter<std::optional<std::vector<PaywallWebViewHeader>>>::toJSI(runtime, arg.headers));
       obj.setProperty(runtime, "html", JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.html));
       obj.setProperty(runtime, "baseUrl", JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.baseUrl));
       return obj;
@@ -81,7 +83,7 @@ namespace margelo::nitro {
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, "uri"))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, "method"))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, "body"))) return false;
-      if (!JSIConverter<std::optional<std::vector<margelo::nitro::voidhash::PaywallWebViewHeader>>>::canConvert(runtime, obj.getProperty(runtime, "headers"))) return false;
+      if (!JSIConverter<std::optional<std::vector<PaywallWebViewHeader>>>::canConvert(runtime, obj.getProperty(runtime, "headers"))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, "html"))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, "baseUrl"))) return false;
       return true;

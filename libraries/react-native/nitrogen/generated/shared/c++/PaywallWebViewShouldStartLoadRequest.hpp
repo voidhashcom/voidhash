@@ -22,8 +22,8 @@
 namespace margelo::nitro::voidhash { enum class PaywallWebViewNavigationType; }
 
 #include "PaywallWebViewNavigationType.hpp"
-#include <string>
 #include <optional>
+#include <string>
 
 namespace margelo::nitro::voidhash {
 
@@ -51,14 +51,16 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ PaywallWebViewShouldStartLoadRequest <> JS PaywallWebViewShouldStartLoadRequest (object)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::PaywallWebViewShouldStartLoadRequest> final {
-    static inline margelo::nitro::voidhash::PaywallWebViewShouldStartLoadRequest fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<PaywallWebViewShouldStartLoadRequest> final {
+    static inline PaywallWebViewShouldStartLoadRequest fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::voidhash::PaywallWebViewShouldStartLoadRequest(
+      return PaywallWebViewShouldStartLoadRequest(
         JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, "isTopFrame")),
-        JSIConverter<margelo::nitro::voidhash::PaywallWebViewNavigationType>::fromJSI(runtime, obj.getProperty(runtime, "navigationType")),
+        JSIConverter<PaywallWebViewNavigationType>::fromJSI(runtime, obj.getProperty(runtime, "navigationType")),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, "mainDocumentURL")),
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, "url")),
         JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, "loading")),
@@ -68,10 +70,10 @@ namespace margelo::nitro {
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, "lockIdentifier"))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::voidhash::PaywallWebViewShouldStartLoadRequest& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const PaywallWebViewShouldStartLoadRequest& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, "isTopFrame", JSIConverter<bool>::toJSI(runtime, arg.isTopFrame));
-      obj.setProperty(runtime, "navigationType", JSIConverter<margelo::nitro::voidhash::PaywallWebViewNavigationType>::toJSI(runtime, arg.navigationType));
+      obj.setProperty(runtime, "navigationType", JSIConverter<PaywallWebViewNavigationType>::toJSI(runtime, arg.navigationType));
       obj.setProperty(runtime, "mainDocumentURL", JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.mainDocumentURL));
       obj.setProperty(runtime, "url", JSIConverter<std::string>::toJSI(runtime, arg.url));
       obj.setProperty(runtime, "loading", JSIConverter<bool>::toJSI(runtime, arg.loading));
@@ -87,7 +89,7 @@ namespace margelo::nitro {
       }
       jsi::Object obj = value.getObject(runtime);
       if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, "isTopFrame"))) return false;
-      if (!JSIConverter<margelo::nitro::voidhash::PaywallWebViewNavigationType>::canConvert(runtime, obj.getProperty(runtime, "navigationType"))) return false;
+      if (!JSIConverter<PaywallWebViewNavigationType>::canConvert(runtime, obj.getProperty(runtime, "navigationType"))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, "mainDocumentURL"))) return false;
       if (!JSIConverter<std::string>::canConvert(runtime, obj.getProperty(runtime, "url"))) return false;
       if (!JSIConverter<bool>::canConvert(runtime, obj.getProperty(runtime, "loading"))) return false;

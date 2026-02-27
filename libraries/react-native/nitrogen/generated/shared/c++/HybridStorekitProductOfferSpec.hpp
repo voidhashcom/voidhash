@@ -16,8 +16,8 @@
 // Forward declaration of `HybridStorekitProductSubscriptionPeriodSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridStorekitProductSubscriptionPeriodSpec; }
 
-#include <string>
 #include <optional>
+#include <string>
 #include <memory>
 #include "HybridStorekitProductSubscriptionPeriodSpec.hpp"
 
@@ -49,7 +49,7 @@ namespace margelo::nitro::voidhash {
     public:
       // Properties
       virtual std::optional<std::string> getId() = 0;
-      virtual std::shared_ptr<HybridStorekitProductSubscriptionPeriodSpec> getPeriod() = 0;
+      virtual std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec> getPeriod() = 0;
       virtual double getPeriodCount() = 0;
       virtual std::string getPaymentMode() = 0;
       virtual std::string getType() = 0;

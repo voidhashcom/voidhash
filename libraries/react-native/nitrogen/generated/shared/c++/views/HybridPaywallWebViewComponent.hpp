@@ -16,6 +16,7 @@
 #include <react/renderer/components/view/ConcreteViewShadowNode.h>
 #include <react/renderer/components/view/ViewProps.h>
 
+#include <optional>
 #include "PaywallWebViewSource.hpp"
 #include <optional>
 #include <string>
@@ -25,52 +26,51 @@
 #include <string>
 #include <optional>
 #include <string>
-#include <optional>
 #include "PaywallWebViewOverScrollModeType.hpp"
 #include "PaywallWebViewCacheMode.hpp"
 #include "PaywallWebViewMixedContentMode.hpp"
 #include "PaywallWebViewAndroidLayerType.hpp"
+#include <vector>
 #include "PaywallWebViewDataDetectorType.hpp"
 #include <vector>
 #include <string>
-#include <vector>
-#include "PaywallWebViewNavigationEvent.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
+#include "PaywallWebViewNavigationEvent.hpp"
+#include <optional>
+#include <functional>
 #include "PaywallWebViewProgressEvent.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
 #include "PaywallWebViewNavigationEvent.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
 #include "PaywallWebViewErrorEvent.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
 #include "PaywallWebViewHttpErrorEvent.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
 #include "PaywallWebViewMessageEvent.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
 #include "PaywallWebViewOpenWindowEvent.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
 #include "PaywallWebViewFileDownloadEvent.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
 #include "PaywallWebViewRenderProcessGoneEvent.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
 #include "PaywallWebViewBaseEvent.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
 #include "PaywallWebViewShouldStartLoadRequest.hpp"
-#include <functional>
 #include <optional>
+#include <functional>
 #include <memory>
 #include "HybridPaywallWebViewSpec.hpp"
-#include <functional>
-#include <optional>
 
 namespace margelo::nitro::voidhash::views {
 
@@ -140,7 +140,7 @@ namespace margelo::nitro::voidhash::views {
     CachedProp<std::optional<std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>>> onRenderProcessGone;
     CachedProp<std::optional<std::function<void(const PaywallWebViewBaseEvent& /* event */)>>> onContentProcessDidTerminate;
     CachedProp<std::optional<std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>>> onShouldStartLoadWithRequest;
-    CachedProp<std::optional<std::function<void(const std::shared_ptr<HybridPaywallWebViewSpec>& /* ref */)>>> hybridRef;
+    CachedProp<std::optional<std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>& /* ref */)>>> hybridRef;
 
   private:
     static bool filterObjectKeys(const std::string& propName);
@@ -191,9 +191,9 @@ namespace margelo::nitro::voidhash::views {
     /**
      * A faster path for cloning props - reuses the caching logic from `HybridPaywallWebViewProps`.
      */
-    std::shared_ptr<const react::Props> cloneProps(const react::PropsParserContext& context,
-                                                   const std::shared_ptr<const react::Props>& props,
-                                                   react::RawProps rawProps) const override;
+    react::Props::Shared cloneProps(const react::PropsParserContext& context,
+                                    const react::Props::Shared& props,
+                                    react::RawProps rawProps) const override;
 #ifdef ANDROID
     void adopt(react::ShadowNode& shadowNode) const override;
 #endif

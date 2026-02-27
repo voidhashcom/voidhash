@@ -15,8 +15,12 @@ import com.facebook.proguard.annotations.DoNotStrip
  */
 @DoNotStrip
 @Keep
-enum class PaywallWebViewMixedContentMode(@DoNotStrip @Keep val value: Int) {
-  NEVER(0),
-  ALWAYS(1),
-  COMPATIBILITY(2);
+enum class PaywallWebViewMixedContentMode {
+  NEVER,
+  ALWAYS,
+  COMPATIBILITY;
+
+  @DoNotStrip
+  @Keep
+  private val _ordinal = ordinal
 }

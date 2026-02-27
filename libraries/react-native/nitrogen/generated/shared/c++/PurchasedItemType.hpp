@@ -37,22 +37,24 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ PurchasedItemType <> JS PurchasedItemType (union)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::PurchasedItemType> final {
-    static inline margelo::nitro::voidhash::PurchasedItemType fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<PurchasedItemType> final {
+    static inline PurchasedItemType fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       std::string unionValue = JSIConverter<std::string>::fromJSI(runtime, arg);
       switch (hashString(unionValue.c_str(), unionValue.size())) {
-        case hashString("subscription"): return margelo::nitro::voidhash::PurchasedItemType::SUBSCRIPTION;
-        case hashString("inapp"): return margelo::nitro::voidhash::PurchasedItemType::INAPP;
+        case hashString("subscription"): return PurchasedItemType::SUBSCRIPTION;
+        case hashString("inapp"): return PurchasedItemType::INAPP;
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert \"" + unionValue + "\" to enum PurchasedItemType - invalid value!");
       }
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, margelo::nitro::voidhash::PurchasedItemType arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, PurchasedItemType arg) {
       switch (arg) {
-        case margelo::nitro::voidhash::PurchasedItemType::SUBSCRIPTION: return JSIConverter<std::string>::toJSI(runtime, "subscription");
-        case margelo::nitro::voidhash::PurchasedItemType::INAPP: return JSIConverter<std::string>::toJSI(runtime, "inapp");
+        case PurchasedItemType::SUBSCRIPTION: return JSIConverter<std::string>::toJSI(runtime, "subscription");
+        case PurchasedItemType::INAPP: return JSIConverter<std::string>::toJSI(runtime, "inapp");
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert PurchasedItemType to JS - invalid value: "
                                     + std::to_string(static_cast<int>(arg)) + "!");

@@ -29,7 +29,6 @@ namespace margelo::nitro::voidhash {
     // C++ constructor (called from Java via `initHybrid()`)
     explicit JHybridVoidhashSpec(jni::alias_ref<jhybridobject> jThis) :
       HybridObject(HybridVoidhashSpec::TAG),
-      HybridBase(jThis),
       _javaPart(jni::make_global(jThis)) {}
 
   public:
@@ -40,7 +39,6 @@ namespace margelo::nitro::voidhash {
 
   public:
     size_t getExternalMemorySize() noexcept override;
-    void dispose() noexcept override;
 
   public:
     inline const jni::global_ref<JHybridVoidhashSpec::javaobject>& getJavaPart() const noexcept {
@@ -53,7 +51,7 @@ namespace margelo::nitro::voidhash {
 
   public:
     // Methods
-    std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>> purchase(const std::string& sku) override;
+    std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>> purchase(const std::string& sku) override;
 
   private:
     friend HybridBase;

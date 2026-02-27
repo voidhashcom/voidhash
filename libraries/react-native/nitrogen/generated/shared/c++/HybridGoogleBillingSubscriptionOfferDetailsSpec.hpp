@@ -53,7 +53,7 @@ namespace margelo::nitro::voidhash {
       virtual std::optional<std::string> getOfferId() = 0;
       virtual std::string getOfferToken() = 0;
       virtual std::vector<std::string> getOfferTags() = 0;
-      virtual std::shared_ptr<HybridGoogleBillingPricingPhasesSpec> getPricingPhases() = 0;
+      virtual std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPricingPhasesSpec> getPricingPhases() = 0;
 
     public:
       // Methods

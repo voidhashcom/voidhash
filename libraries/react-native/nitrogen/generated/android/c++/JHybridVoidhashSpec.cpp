@@ -10,11 +10,12 @@
 // Forward declaration of `HybridPurchasedItemSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridPurchasedItemSpec; }
 
+#include <NitroModules/Promise.hpp>
 #include <memory>
 #include "HybridPurchasedItemSpec.hpp"
-#include <NitroModules/Promise.hpp>
 #include <NitroModules/JPromise.hpp>
 #include "JHybridPurchasedItemSpec.hpp"
+#include <NitroModules/JNISharedPtr.hpp>
 #include <string>
 
 namespace margelo::nitro::voidhash {
@@ -34,23 +35,18 @@ namespace margelo::nitro::voidhash {
     return method(_javaPart);
   }
 
-  void JHybridVoidhashSpec::dispose() noexcept {
-    static const auto method = javaClassStatic()->getMethod<void()>("dispose");
-    method(_javaPart);
-  }
-
   // Properties
   
 
   // Methods
-  std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>> JHybridVoidhashSpec::purchase(const std::string& sku) {
+  std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>> JHybridVoidhashSpec::purchase(const std::string& sku) {
     static const auto method = javaClassStatic()->getMethod<jni::local_ref<JPromise::javaobject>(jni::alias_ref<jni::JString> /* sku */)>("purchase");
     auto __result = method(_javaPart, jni::make_jstring(sku));
     return [&]() {
-      auto __promise = Promise<std::shared_ptr<HybridPurchasedItemSpec>>::create();
+      auto __promise = Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>::create();
       __result->cthis()->addOnResolvedListener([=](const jni::alias_ref<jni::JObject>& __boxedResult) {
         auto __result = jni::static_ref_cast<JHybridPurchasedItemSpec::javaobject>(__boxedResult);
-        __promise->resolve(__result->cthis()->shared_cast<JHybridPurchasedItemSpec>());
+        __promise->resolve(JNISharedPtr::make_shared_from_jni<JHybridPurchasedItemSpec>(jni::make_global(__result)));
       });
       __result->cthis()->addOnRejectedListener([=](const jni::alias_ref<jni::JThrowable>& __throwable) {
         jni::JniException __jniError(__throwable);

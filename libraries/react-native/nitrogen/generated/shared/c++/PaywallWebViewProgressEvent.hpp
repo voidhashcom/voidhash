@@ -46,12 +46,14 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ PaywallWebViewProgressEvent <> JS PaywallWebViewProgressEvent (object)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::PaywallWebViewProgressEvent> final {
-    static inline margelo::nitro::voidhash::PaywallWebViewProgressEvent fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<PaywallWebViewProgressEvent> final {
+    static inline PaywallWebViewProgressEvent fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::voidhash::PaywallWebViewProgressEvent(
+      return PaywallWebViewProgressEvent(
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, "progress")),
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, "url")),
         JSIConverter<bool>::fromJSI(runtime, obj.getProperty(runtime, "loading")),
@@ -61,7 +63,7 @@ namespace margelo::nitro {
         JSIConverter<double>::fromJSI(runtime, obj.getProperty(runtime, "lockIdentifier"))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::voidhash::PaywallWebViewProgressEvent& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const PaywallWebViewProgressEvent& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, "progress", JSIConverter<double>::toJSI(runtime, arg.progress));
       obj.setProperty(runtime, "url", JSIConverter<std::string>::toJSI(runtime, arg.url));

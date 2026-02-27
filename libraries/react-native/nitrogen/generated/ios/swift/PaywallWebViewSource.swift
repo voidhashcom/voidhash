@@ -68,8 +68,7 @@ public extension PaywallWebViewSource {
     @inline(__always)
     get {
       return { () -> String? in
-        if bridge.has_value_std__optional_std__string_(self.__uri) {
-          let __unwrapped = bridge.get_std__optional_std__string_(self.__uri)
+        if let __unwrapped = self.__uri.value {
           return String(__unwrapped)
         } else {
           return nil
@@ -92,8 +91,7 @@ public extension PaywallWebViewSource {
     @inline(__always)
     get {
       return { () -> String? in
-        if bridge.has_value_std__optional_std__string_(self.__method) {
-          let __unwrapped = bridge.get_std__optional_std__string_(self.__method)
+        if let __unwrapped = self.__method.value {
           return String(__unwrapped)
         } else {
           return nil
@@ -116,8 +114,7 @@ public extension PaywallWebViewSource {
     @inline(__always)
     get {
       return { () -> String? in
-        if bridge.has_value_std__optional_std__string_(self.__body) {
-          let __unwrapped = bridge.get_std__optional_std__string_(self.__body)
+        if let __unwrapped = self.__body.value {
           return String(__unwrapped)
         } else {
           return nil
@@ -140,8 +137,7 @@ public extension PaywallWebViewSource {
     @inline(__always)
     get {
       return { () -> [PaywallWebViewHeader]? in
-        if bridge.has_value_std__optional_std__vector_PaywallWebViewHeader__(self.__headers) {
-          let __unwrapped = bridge.get_std__optional_std__vector_PaywallWebViewHeader__(self.__headers)
+        if let __unwrapped = self.__headers.value {
           return __unwrapped.map({ __item in __item })
         } else {
           return nil
@@ -170,8 +166,7 @@ public extension PaywallWebViewSource {
     @inline(__always)
     get {
       return { () -> String? in
-        if bridge.has_value_std__optional_std__string_(self.__html) {
-          let __unwrapped = bridge.get_std__optional_std__string_(self.__html)
+        if let __unwrapped = self.__html.value {
           return String(__unwrapped)
         } else {
           return nil
@@ -194,8 +189,7 @@ public extension PaywallWebViewSource {
     @inline(__always)
     get {
       return { () -> String? in
-        if bridge.has_value_std__optional_std__string_(self.__baseUrl) {
-          let __unwrapped = bridge.get_std__optional_std__string_(self.__baseUrl)
+        if let __unwrapped = self.__baseUrl.value {
           return String(__unwrapped)
         } else {
           return nil

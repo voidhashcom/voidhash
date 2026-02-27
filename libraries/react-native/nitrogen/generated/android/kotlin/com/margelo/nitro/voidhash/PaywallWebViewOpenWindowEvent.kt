@@ -11,7 +11,6 @@ import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
 import com.margelo.nitro.core.*
 
-
 /**
  * Represents the JavaScript object/struct "PaywallWebViewOpenWindowEvent".
  */
@@ -21,8 +20,6 @@ data class PaywallWebViewOpenWindowEvent
   @DoNotStrip
   @Keep
   constructor(
-    @DoNotStrip
-    @Keep
     val targetUrl: String
   ) {
   /* main constructor */

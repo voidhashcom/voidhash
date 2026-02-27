@@ -137,6 +137,37 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
       }
     });
 
+  const reconcileObservedTransactions = () =>
+    Effect.gen(function* reconcileObservedTransactions() {
+      const paymentAdapter = yield* PaymentAdapter;
+      const [pendingTransactions, purchasedTransactions] = yield* Effect.all([
+        paymentAdapter.getPendingTransactions(),
+        paymentAdapter.getPurchaseHistory(true),
+      ]);
+
+      const observedTransactionsByKey = new Map<string, Transaction>();
+      for (const transaction of [
+        ...pendingTransactions,
+        ...purchasedTransactions,
+      ]) {
+        observedTransactionsByKey.set(
+          buildTransactionProcessingKey(transaction),
+          transaction
+        );
+      }
+
+      for (const transaction of observedTransactionsByKey.values()) {
+        yield* processObservedTransaction(transaction).pipe(
+          Effect.catchAll((error) =>
+            Effect.logWarning("Failed to process observed transaction", {
+              error,
+              transactionId: transaction.transactionId,
+            })
+          )
+        );
+      }
+    });
+
   return {
     end: () =>
       Effect.gen(function* end() {
@@ -280,36 +311,18 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         yield* processObservedTransaction(transaction);
       }),
 
-    reconcileObservedTransactions: () =>
-      Effect.gen(function* reconcileObservedTransactions() {
-        const paymentAdapter = yield* PaymentAdapter;
-        const [pendingTransactions, purchasedTransactions] = yield* Effect.all([
-          paymentAdapter.getPendingTransactions(),
-          paymentAdapter.getPurchaseHistory(true),
-        ]);
+    restorePurchases: () =>
+      Effect.gen(function* restorePurchases() {
+        const customerInfoManager = yield* CustomerInfoManager;
+        const identityManager = yield* IdentityManager;
 
-        const observedTransactionsByKey = new Map<string, Transaction>();
-        for (const transaction of [
-          ...pendingTransactions,
-          ...purchasedTransactions,
-        ]) {
-          observedTransactionsByKey.set(
-            buildTransactionProcessingKey(transaction),
-            transaction
-          );
-        }
+        yield* reconcileObservedTransactions();
 
-        for (const transaction of observedTransactionsByKey.values()) {
-          yield* processObservedTransaction(transaction).pipe(
-            Effect.catchAll((error) =>
-              Effect.logWarning("Failed to process observed transaction", {
-                error,
-                transactionId: transaction.transactionId,
-              })
-            )
-          );
-        }
+        const appUserId = yield* identityManager.getAppUserId();
+        yield* customerInfoManager.getCustomer(appUserId, "fetch");
       }),
+
+    reconcileObservedTransactions: () => reconcileObservedTransactions(),
 
     signOut: () =>
       Effect.gen(function* signOut() {

@@ -12,6 +12,7 @@ import { useRetrieveGooglePlayProduct } from "./react/hooks/google-play/use-retr
 import { useRetrieveGooglePlayProducts } from "./react/hooks/google-play/use-retrieve-google-play-products";
 import { currentCustomerHookFactory } from "./react/hooks/use-customer";
 import { featureFlagsHookFactory } from "./react/hooks/use-feature-flags";
+import { paywallByLocationHookFactory } from "./react/hooks/use-paywall-by-location";
 import { productsHookFactory } from "./react/hooks/use-products";
 import { purchaseHookFactory } from "./react/hooks/use-purchase";
 
@@ -21,6 +22,7 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
   options: Omit<VoidhashClientOptions<TSchema>, "schema">
 ) {
   const baseUrl = options.baseUrl || "https://api.voidhash.com";
+  const debug = options.debug ?? false;
   const initialAppUserId = options.userId ?? null;
   const readOnly = options.readOnly ?? false;
   const scheme =
@@ -44,7 +46,8 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
     publishableKey,
     readOnly,
     eventBus,
-    platform
+    platform,
+    debug
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);
@@ -62,6 +65,7 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
     },
     useCurrentCustomer: currentCustomerHookFactory(client, context),
     useFeatureFlags: featureFlagsHookFactory(client, context),
+    usePaywallByLocation: paywallByLocationHookFactory(client, context),
     useProducts: productsHookFactory(client, context),
     usePurchase: purchaseHookFactory(client),
     useVoidhash,

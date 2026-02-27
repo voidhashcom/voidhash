@@ -16,6 +16,7 @@ namespace margelo::nitro::voidhash { class HybridGoogleBillingPricingPhasesSpec;
 #include <memory>
 #include "HybridGoogleBillingPricingPhasesSpec.hpp"
 #include "JHybridGoogleBillingPricingPhasesSpec.hpp"
+#include <NitroModules/JNISharedPtr.hpp>
 
 namespace margelo::nitro::voidhash {
 
@@ -32,11 +33,6 @@ namespace margelo::nitro::voidhash {
   size_t JHybridGoogleBillingSubscriptionOfferDetailsSpec::getExternalMemorySize() noexcept {
     static const auto method = javaClassStatic()->getMethod<jlong()>("getMemorySize");
     return method(_javaPart);
-  }
-
-  void JHybridGoogleBillingSubscriptionOfferDetailsSpec::dispose() noexcept {
-    static const auto method = javaClassStatic()->getMethod<void()>("dispose");
-    method(_javaPart);
   }
 
   // Properties
@@ -69,10 +65,10 @@ namespace margelo::nitro::voidhash {
       return __vector;
     }();
   }
-  std::shared_ptr<HybridGoogleBillingPricingPhasesSpec> JHybridGoogleBillingSubscriptionOfferDetailsSpec::getPricingPhases() {
+  std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPricingPhasesSpec> JHybridGoogleBillingSubscriptionOfferDetailsSpec::getPricingPhases() {
     static const auto method = javaClassStatic()->getMethod<jni::local_ref<JHybridGoogleBillingPricingPhasesSpec::javaobject>()>("getPricingPhases");
     auto __result = method(_javaPart);
-    return __result->cthis()->shared_cast<JHybridGoogleBillingPricingPhasesSpec>();
+    return JNISharedPtr::make_shared_from_jni<JHybridGoogleBillingPricingPhasesSpec>(jni::make_global(__result));
   }
 
   // Methods

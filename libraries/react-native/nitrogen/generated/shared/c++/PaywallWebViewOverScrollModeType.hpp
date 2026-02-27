@@ -38,24 +38,26 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ PaywallWebViewOverScrollModeType <> JS PaywallWebViewOverScrollModeType (union)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::PaywallWebViewOverScrollModeType> final {
-    static inline margelo::nitro::voidhash::PaywallWebViewOverScrollModeType fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<PaywallWebViewOverScrollModeType> final {
+    static inline PaywallWebViewOverScrollModeType fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       std::string unionValue = JSIConverter<std::string>::fromJSI(runtime, arg);
       switch (hashString(unionValue.c_str(), unionValue.size())) {
-        case hashString("never"): return margelo::nitro::voidhash::PaywallWebViewOverScrollModeType::NEVER;
-        case hashString("always"): return margelo::nitro::voidhash::PaywallWebViewOverScrollModeType::ALWAYS;
-        case hashString("content"): return margelo::nitro::voidhash::PaywallWebViewOverScrollModeType::CONTENT;
+        case hashString("never"): return PaywallWebViewOverScrollModeType::NEVER;
+        case hashString("always"): return PaywallWebViewOverScrollModeType::ALWAYS;
+        case hashString("content"): return PaywallWebViewOverScrollModeType::CONTENT;
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert \"" + unionValue + "\" to enum PaywallWebViewOverScrollModeType - invalid value!");
       }
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, margelo::nitro::voidhash::PaywallWebViewOverScrollModeType arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, PaywallWebViewOverScrollModeType arg) {
       switch (arg) {
-        case margelo::nitro::voidhash::PaywallWebViewOverScrollModeType::NEVER: return JSIConverter<std::string>::toJSI(runtime, "never");
-        case margelo::nitro::voidhash::PaywallWebViewOverScrollModeType::ALWAYS: return JSIConverter<std::string>::toJSI(runtime, "always");
-        case margelo::nitro::voidhash::PaywallWebViewOverScrollModeType::CONTENT: return JSIConverter<std::string>::toJSI(runtime, "content");
+        case PaywallWebViewOverScrollModeType::NEVER: return JSIConverter<std::string>::toJSI(runtime, "never");
+        case PaywallWebViewOverScrollModeType::ALWAYS: return JSIConverter<std::string>::toJSI(runtime, "always");
+        case PaywallWebViewOverScrollModeType::CONTENT: return JSIConverter<std::string>::toJSI(runtime, "content");
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert PaywallWebViewOverScrollModeType to JS - invalid value: "
                                     + std::to_string(static_cast<int>(arg)) + "!");

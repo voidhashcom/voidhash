@@ -17,7 +17,7 @@ import NitroModules
  * - Other HybridObjects need to be wrapped/unwrapped from the Swift TCxx wrapper
  * - Throwing methods need to be wrapped with a Result<T, Error> type, as exceptions cannot be propagated to C++
  */
-open class HybridStorekitSpec_cxx {
+public class HybridStorekitSpec_cxx {
   /**
    * The Swift <> C++ bridge's namespace (`margelo::nitro::voidhash::bridge::swift`)
    * from `NitroVoidhash-Swift-Cxx-Bridge.hpp`.
@@ -33,7 +33,7 @@ open class HybridStorekitSpec_cxx {
   /**
    * Holds a weak pointer to the C++ class that wraps the Swift class.
    */
-  private var __cxxPart: bridge.std__weak_ptr_HybridStorekitSpec_
+  private var __cxxPart: bridge.std__weak_ptr_margelo__nitro__voidhash__HybridStorekitSpec_
 
   /**
    * Create a new `HybridStorekitSpec_cxx` that wraps the given `HybridStorekitSpec`.
@@ -72,15 +72,15 @@ open class HybridStorekitSpec_cxx {
 
   /**
    * Gets (or creates) the C++ part of this Hybrid Object.
-   * The C++ part is a `std::shared_ptr<HybridStorekitSpec>`.
+   * The C++ part is a `std::shared_ptr<margelo::nitro::voidhash::HybridStorekitSpec>`.
    */
-  public func getCxxPart() -> bridge.std__shared_ptr_HybridStorekitSpec_ {
+  public func getCxxPart() -> bridge.std__shared_ptr_margelo__nitro__voidhash__HybridStorekitSpec_ {
     let cachedCxxPart = self.__cxxPart.lock()
     if cachedCxxPart.__convertToBool() {
       return cachedCxxPart
     } else {
-      let newCxxPart = bridge.create_std__shared_ptr_HybridStorekitSpec_(self.toUnsafe())
-      __cxxPart = bridge.weakify_std__shared_ptr_HybridStorekitSpec_(newCxxPart)
+      let newCxxPart = bridge.create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitSpec_(self.toUnsafe())
+      __cxxPart = bridge.weakify_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitSpec_(newCxxPart)
       return newCxxPart
     }
   }
@@ -96,29 +96,19 @@ open class HybridStorekitSpec_cxx {
     return MemoryHelper.getSizeOf(self.__implementation) + self.__implementation.memorySize
   }
 
-  /**
-   * Call dispose() on the Swift class.
-   * This _may_ be called manually from JS.
-   */
-  @inline(__always)
-  public func dispose() {
-    self.__implementation.dispose()
-  }
-
   // Properties
   
 
   // Methods
   @inline(__always)
-  public final func initConnection(onTransaction: bridge.std__optional_std__function_void_const_std__shared_ptr_HybridStorekitTransactionSpec______transaction______) -> bridge.Result_std__shared_ptr_Promise_bool___ {
+  public final func initConnection(onTransaction: bridge.std__optional_std__function_void_const_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec______transaction______) -> bridge.Result_std__shared_ptr_Promise_bool___ {
     do {
       let __result = try self.__implementation.initConnection(onTransaction: { () -> ((_ transaction: (any HybridStorekitTransactionSpec)) -> Void)? in
-        if bridge.has_value_std__optional_std__function_void_const_std__shared_ptr_HybridStorekitTransactionSpec______transaction______(onTransaction) {
-          let __unwrapped = bridge.get_std__optional_std__function_void_const_std__shared_ptr_HybridStorekitTransactionSpec______transaction______(onTransaction)
+        if let __unwrapped = onTransaction.value {
           return { () -> ((any HybridStorekitTransactionSpec)) -> Void in
-            let __wrappedFunction = bridge.wrap_Func_void_std__shared_ptr_HybridStorekitTransactionSpec_(__unwrapped)
+            let __wrappedFunction = bridge.wrap_Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_(__unwrapped)
             return { (__transaction: (any HybridStorekitTransactionSpec)) -> Void in
-              __wrappedFunction.call({ () -> bridge.std__shared_ptr_HybridStorekitTransactionSpec_ in
+              __wrappedFunction.call({ () -> bridge.std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ in
                 let __cxxWrapped = __transaction.getCxxWrapper()
                 return __cxxWrapped.getCxxPart()
               }())
@@ -163,17 +153,17 @@ open class HybridStorekitSpec_cxx {
   }
   
   @inline(__always)
-  public final func getPurchasedItems(onlyIncludeActiveItems: Bool) -> bridge.Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec_____ {
+  public final func getPurchasedItems(onlyIncludeActiveItems: Bool) -> bridge.Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_____ {
     do {
       let __result = try self.__implementation.getPurchasedItems(onlyIncludeActiveItems: onlyIncludeActiveItems)
-      let __resultCpp = { () -> bridge.std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec____ in
-        let __promise = bridge.create_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec____()
-        let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec____(__promise)
+      let __resultCpp = { () -> bridge.std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____ in
+        let __promise = bridge.create_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____()
+        let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____(__promise)
         __result
-          .then({ __result in __promiseHolder.resolve({ () -> bridge.std__vector_std__shared_ptr_HybridStorekitTransactionSpec__ in
-              var __vector = bridge.create_std__vector_std__shared_ptr_HybridStorekitTransactionSpec__(__result.count)
+          .then({ __result in __promiseHolder.resolve({ () -> bridge.std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__ in
+              var __vector = bridge.create_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__(__result.count)
               for __item in __result {
-                __vector.push_back({ () -> bridge.std__shared_ptr_HybridStorekitTransactionSpec_ in
+                __vector.push_back({ () -> bridge.std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ in
                   let __cxxWrapped = __item.getCxxWrapper()
                   return __cxxWrapped.getCxxPart()
                 }())
@@ -183,25 +173,25 @@ open class HybridStorekitSpec_cxx {
           .catch({ __error in __promiseHolder.reject(__error.toCpp()) })
         return __promise
       }()
-      return bridge.create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec_____(__resultCpp)
+      return bridge.create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_____(__resultCpp)
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()
-      return bridge.create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitTransactionSpec_____(__exceptionPtr)
+      return bridge.create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_____(__exceptionPtr)
     }
   }
   
   @inline(__always)
-  public final func getItems(skus: bridge.std__vector_std__string_) -> bridge.Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec_____ {
+  public final func getItems(skus: bridge.std__vector_std__string_) -> bridge.Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_____ {
     do {
       let __result = try self.__implementation.getItems(skus: skus.map({ __item in String(__item) }))
-      let __resultCpp = { () -> bridge.std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec____ in
-        let __promise = bridge.create_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec____()
-        let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec____(__promise)
+      let __resultCpp = { () -> bridge.std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec____ in
+        let __promise = bridge.create_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec____()
+        let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec____(__promise)
         __result
-          .then({ __result in __promiseHolder.resolve({ () -> bridge.std__vector_std__shared_ptr_HybridStorekitProductSpec__ in
-              var __vector = bridge.create_std__vector_std__shared_ptr_HybridStorekitProductSpec__(__result.count)
+          .then({ __result in __promiseHolder.resolve({ () -> bridge.std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__ in
+              var __vector = bridge.create_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__(__result.count)
               for __item in __result {
-                __vector.push_back({ () -> bridge.std__shared_ptr_HybridStorekitProductSpec_ in
+                __vector.push_back({ () -> bridge.std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_ in
                   let __cxxWrapped = __item.getCxxWrapper()
                   return __cxxWrapped.getCxxPart()
                 }())
@@ -211,32 +201,32 @@ open class HybridStorekitSpec_cxx {
           .catch({ __error in __promiseHolder.reject(__error.toCpp()) })
         return __promise
       }()
-      return bridge.create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec_____(__resultCpp)
+      return bridge.create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_____(__resultCpp)
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()
-      return bridge.create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_HybridStorekitProductSpec_____(__exceptionPtr)
+      return bridge.create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_____(__exceptionPtr)
     }
   }
   
   @inline(__always)
-  public final func buyProduct(sku: std.string, appAccountToken: std.string, quantity: Double) -> bridge.Result_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec____ {
+  public final func buyProduct(sku: std.string, appAccountToken: std.string, quantity: Double) -> bridge.Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____ {
     do {
       let __result = try self.__implementation.buyProduct(sku: String(sku), appAccountToken: String(appAccountToken), quantity: quantity)
-      let __resultCpp = { () -> bridge.std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec___ in
-        let __promise = bridge.create_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec___()
-        let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec___(__promise)
+      let __resultCpp = { () -> bridge.std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___ in
+        let __promise = bridge.create_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___()
+        let __promiseHolder = bridge.wrap_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___(__promise)
         __result
-          .then({ __result in __promiseHolder.resolve({ () -> bridge.std__shared_ptr_HybridStorekitTransactionSpec_ in
+          .then({ __result in __promiseHolder.resolve({ () -> bridge.std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ in
               let __cxxWrapped = __result.getCxxWrapper()
               return __cxxWrapped.getCxxPart()
             }()) })
           .catch({ __error in __promiseHolder.reject(__error.toCpp()) })
         return __promise
       }()
-      return bridge.create_Result_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec____(__resultCpp)
+      return bridge.create_Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____(__resultCpp)
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()
-      return bridge.create_Result_std__shared_ptr_Promise_std__shared_ptr_HybridStorekitTransactionSpec____(__exceptionPtr)
+      return bridge.create_Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____(__exceptionPtr)
     }
   }
   
@@ -260,23 +250,23 @@ open class HybridStorekitSpec_cxx {
   }
   
   @inline(__always)
-  public final func getPendingTransactions() -> bridge.Result_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___ {
+  public final func getPendingTransactions() -> bridge.Result_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___ {
     do {
       let __result = try self.__implementation.getPendingTransactions()
-      let __resultCpp = { () -> bridge.std__vector_std__shared_ptr_HybridStorekitTransactionSpec__ in
-        var __vector = bridge.create_std__vector_std__shared_ptr_HybridStorekitTransactionSpec__(__result.count)
+      let __resultCpp = { () -> bridge.std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__ in
+        var __vector = bridge.create_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__(__result.count)
         for __item in __result {
-          __vector.push_back({ () -> bridge.std__shared_ptr_HybridStorekitTransactionSpec_ in
+          __vector.push_back({ () -> bridge.std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ in
             let __cxxWrapped = __item.getCxxWrapper()
             return __cxxWrapped.getCxxPart()
           }())
         }
         return __vector
       }()
-      return bridge.create_Result_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___(__resultCpp)
+      return bridge.create_Result_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___(__resultCpp)
     } catch (let __error) {
       let __exceptionPtr = __error.toCpp()
-      return bridge.create_Result_std__vector_std__shared_ptr_HybridStorekitTransactionSpec___(__exceptionPtr)
+      return bridge.create_Result_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___(__exceptionPtr)
     }
   }
   

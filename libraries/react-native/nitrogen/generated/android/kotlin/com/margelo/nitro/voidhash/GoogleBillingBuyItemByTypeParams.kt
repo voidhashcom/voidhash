@@ -11,7 +11,6 @@ import androidx.annotation.Keep
 import com.facebook.proguard.annotations.DoNotStrip
 import com.margelo.nitro.core.*
 
-
 /**
  * Represents the JavaScript object/struct "GoogleBillingBuyItemByTypeParams".
  */
@@ -21,29 +20,13 @@ data class GoogleBillingBuyItemByTypeParams
   @DoNotStrip
   @Keep
   constructor(
-    @DoNotStrip
-    @Keep
     val type: GoogleBillingProductType,
-    @DoNotStrip
-    @Keep
     val skuArr: Array<String>,
-    @DoNotStrip
-    @Keep
     val purchaseToken: String?,
-    @DoNotStrip
-    @Keep
     val replacementMode: Double?,
-    @DoNotStrip
-    @Keep
     val obfuscatedAccountId: String?,
-    @DoNotStrip
-    @Keep
     val obfuscatedProfileId: String?,
-    @DoNotStrip
-    @Keep
     val offerTokenArr: Array<String>?,
-    @DoNotStrip
-    @Keep
     val isOfferPersonalized: Boolean?
   ) {
   /* main constructor */

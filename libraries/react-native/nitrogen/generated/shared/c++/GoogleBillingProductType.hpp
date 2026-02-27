@@ -37,22 +37,24 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ GoogleBillingProductType <> JS GoogleBillingProductType (union)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::GoogleBillingProductType> final {
-    static inline margelo::nitro::voidhash::GoogleBillingProductType fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<GoogleBillingProductType> final {
+    static inline GoogleBillingProductType fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       std::string unionValue = JSIConverter<std::string>::fromJSI(runtime, arg);
       switch (hashString(unionValue.c_str(), unionValue.size())) {
-        case hashString("inapp"): return margelo::nitro::voidhash::GoogleBillingProductType::INAPP;
-        case hashString("subs"): return margelo::nitro::voidhash::GoogleBillingProductType::SUBS;
+        case hashString("inapp"): return GoogleBillingProductType::INAPP;
+        case hashString("subs"): return GoogleBillingProductType::SUBS;
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert \"" + unionValue + "\" to enum GoogleBillingProductType - invalid value!");
       }
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, margelo::nitro::voidhash::GoogleBillingProductType arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, GoogleBillingProductType arg) {
       switch (arg) {
-        case margelo::nitro::voidhash::GoogleBillingProductType::INAPP: return JSIConverter<std::string>::toJSI(runtime, "inapp");
-        case margelo::nitro::voidhash::GoogleBillingProductType::SUBS: return JSIConverter<std::string>::toJSI(runtime, "subs");
+        case GoogleBillingProductType::INAPP: return JSIConverter<std::string>::toJSI(runtime, "inapp");
+        case GoogleBillingProductType::SUBS: return JSIConverter<std::string>::toJSI(runtime, "subs");
         default: [[unlikely]]
           throw std::invalid_argument("Cannot convert GoogleBillingProductType to JS - invalid value: "
                                     + std::to_string(static_cast<int>(arg)) + "!");

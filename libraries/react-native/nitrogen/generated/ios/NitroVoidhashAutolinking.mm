@@ -13,6 +13,7 @@
 #include "HybridVoidhashSpecSwift.hpp"
 #include "HybridStorekitSpecSwift.hpp"
 #include "HybridPaywallWebViewSpecSwift.hpp"
+#include "HybridPaywallPresenterSpecSwift.hpp"
 
 @interface NitroVoidhashAutolinking : NSObject
 @end
@@ -26,21 +27,28 @@
   HybridObjectRegistry::registerHybridObjectConstructor(
     "Voidhash",
     []() -> std::shared_ptr<HybridObject> {
-      std::shared_ptr<HybridVoidhashSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createVoidhash();
+      std::shared_ptr<margelo::nitro::voidhash::HybridVoidhashSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createVoidhash();
       return hybridObject;
     }
   );
   HybridObjectRegistry::registerHybridObjectConstructor(
     "Storekit",
     []() -> std::shared_ptr<HybridObject> {
-      std::shared_ptr<HybridStorekitSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createStorekit();
+      std::shared_ptr<margelo::nitro::voidhash::HybridStorekitSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createStorekit();
       return hybridObject;
     }
   );
   HybridObjectRegistry::registerHybridObjectConstructor(
     "PaywallWebView",
     []() -> std::shared_ptr<HybridObject> {
-      std::shared_ptr<HybridPaywallWebViewSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createPaywallWebView();
+      std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createPaywallWebView();
+      return hybridObject;
+    }
+  );
+  HybridObjectRegistry::registerHybridObjectConstructor(
+    "PaywallPresenter",
+    []() -> std::shared_ptr<HybridObject> {
+      std::shared_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec> hybridObject = NitroVoidhash::NitroVoidhashAutolinking::createPaywallPresenter();
       return hybridObject;
     }
   );

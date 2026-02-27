@@ -10,8 +10,8 @@
 #include <fbjni/fbjni.h>
 #include <functional>
 
-#include "PaywallWebViewHttpErrorEvent.hpp"
 #include <functional>
+#include "PaywallWebViewHttpErrorEvent.hpp"
 #include "JPaywallWebViewHttpErrorEvent.hpp"
 #include <string>
 

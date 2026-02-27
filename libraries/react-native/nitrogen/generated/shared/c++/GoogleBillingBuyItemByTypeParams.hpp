@@ -22,8 +22,8 @@
 namespace margelo::nitro::voidhash { enum class GoogleBillingProductType; }
 
 #include "GoogleBillingProductType.hpp"
-#include <string>
 #include <vector>
+#include <string>
 #include <optional>
 
 namespace margelo::nitro::voidhash {
@@ -51,13 +51,15 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ GoogleBillingBuyItemByTypeParams <> JS GoogleBillingBuyItemByTypeParams (object)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::GoogleBillingBuyItemByTypeParams> final {
-    static inline margelo::nitro::voidhash::GoogleBillingBuyItemByTypeParams fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<GoogleBillingBuyItemByTypeParams> final {
+    static inline GoogleBillingBuyItemByTypeParams fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::voidhash::GoogleBillingBuyItemByTypeParams(
-        JSIConverter<margelo::nitro::voidhash::GoogleBillingProductType>::fromJSI(runtime, obj.getProperty(runtime, "type")),
+      return GoogleBillingBuyItemByTypeParams(
+        JSIConverter<GoogleBillingProductType>::fromJSI(runtime, obj.getProperty(runtime, "type")),
         JSIConverter<std::vector<std::string>>::fromJSI(runtime, obj.getProperty(runtime, "skuArr")),
         JSIConverter<std::optional<std::string>>::fromJSI(runtime, obj.getProperty(runtime, "purchaseToken")),
         JSIConverter<std::optional<double>>::fromJSI(runtime, obj.getProperty(runtime, "replacementMode")),
@@ -67,9 +69,9 @@ namespace margelo::nitro {
         JSIConverter<std::optional<bool>>::fromJSI(runtime, obj.getProperty(runtime, "isOfferPersonalized"))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::voidhash::GoogleBillingBuyItemByTypeParams& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const GoogleBillingBuyItemByTypeParams& arg) {
       jsi::Object obj(runtime);
-      obj.setProperty(runtime, "type", JSIConverter<margelo::nitro::voidhash::GoogleBillingProductType>::toJSI(runtime, arg.type));
+      obj.setProperty(runtime, "type", JSIConverter<GoogleBillingProductType>::toJSI(runtime, arg.type));
       obj.setProperty(runtime, "skuArr", JSIConverter<std::vector<std::string>>::toJSI(runtime, arg.skuArr));
       obj.setProperty(runtime, "purchaseToken", JSIConverter<std::optional<std::string>>::toJSI(runtime, arg.purchaseToken));
       obj.setProperty(runtime, "replacementMode", JSIConverter<std::optional<double>>::toJSI(runtime, arg.replacementMode));
@@ -84,7 +86,7 @@ namespace margelo::nitro {
         return false;
       }
       jsi::Object obj = value.getObject(runtime);
-      if (!JSIConverter<margelo::nitro::voidhash::GoogleBillingProductType>::canConvert(runtime, obj.getProperty(runtime, "type"))) return false;
+      if (!JSIConverter<GoogleBillingProductType>::canConvert(runtime, obj.getProperty(runtime, "type"))) return false;
       if (!JSIConverter<std::vector<std::string>>::canConvert(runtime, obj.getProperty(runtime, "skuArr"))) return false;
       if (!JSIConverter<std::optional<std::string>>::canConvert(runtime, obj.getProperty(runtime, "purchaseToken"))) return false;
       if (!JSIConverter<std::optional<double>>::canConvert(runtime, obj.getProperty(runtime, "replacementMode"))) return false;

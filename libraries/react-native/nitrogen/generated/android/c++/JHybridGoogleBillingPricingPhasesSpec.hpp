@@ -29,7 +29,6 @@ namespace margelo::nitro::voidhash {
     // C++ constructor (called from Java via `initHybrid()`)
     explicit JHybridGoogleBillingPricingPhasesSpec(jni::alias_ref<jhybridobject> jThis) :
       HybridObject(HybridGoogleBillingPricingPhasesSpec::TAG),
-      HybridBase(jThis),
       _javaPart(jni::make_global(jThis)) {}
 
   public:
@@ -40,7 +39,6 @@ namespace margelo::nitro::voidhash {
 
   public:
     size_t getExternalMemorySize() noexcept override;
-    void dispose() noexcept override;
 
   public:
     inline const jni::global_ref<JHybridGoogleBillingPricingPhasesSpec::javaobject>& getJavaPart() const noexcept {
@@ -49,7 +47,7 @@ namespace margelo::nitro::voidhash {
 
   public:
     // Properties
-    std::vector<std::shared_ptr<HybridGoogleBillingPricingPhaseSpec>> getPricingPhaseList() override;
+    std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPricingPhaseSpec>> getPricingPhaseList() override;
 
   public:
     // Methods

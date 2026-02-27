@@ -41,17 +41,19 @@ namespace margelo::nitro::voidhash {
 
 namespace margelo::nitro {
 
+  using namespace margelo::nitro::voidhash;
+
   // C++ PaywallWebViewHeader <> JS PaywallWebViewHeader (object)
   template <>
-  struct JSIConverter<margelo::nitro::voidhash::PaywallWebViewHeader> final {
-    static inline margelo::nitro::voidhash::PaywallWebViewHeader fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
+  struct JSIConverter<PaywallWebViewHeader> final {
+    static inline PaywallWebViewHeader fromJSI(jsi::Runtime& runtime, const jsi::Value& arg) {
       jsi::Object obj = arg.asObject(runtime);
-      return margelo::nitro::voidhash::PaywallWebViewHeader(
+      return PaywallWebViewHeader(
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, "name")),
         JSIConverter<std::string>::fromJSI(runtime, obj.getProperty(runtime, "value"))
       );
     }
-    static inline jsi::Value toJSI(jsi::Runtime& runtime, const margelo::nitro::voidhash::PaywallWebViewHeader& arg) {
+    static inline jsi::Value toJSI(jsi::Runtime& runtime, const PaywallWebViewHeader& arg) {
       jsi::Object obj(runtime);
       obj.setProperty(runtime, "name", JSIConverter<std::string>::toJSI(runtime, arg.name));
       obj.setProperty(runtime, "value", JSIConverter<std::string>::toJSI(runtime, arg.value));

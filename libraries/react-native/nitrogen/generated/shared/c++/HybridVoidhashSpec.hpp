@@ -16,9 +16,9 @@
 // Forward declaration of `HybridPurchasedItemSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridPurchasedItemSpec; }
 
+#include <NitroModules/Promise.hpp>
 #include <memory>
 #include "HybridPurchasedItemSpec.hpp"
-#include <NitroModules/Promise.hpp>
 #include <string>
 
 namespace margelo::nitro::voidhash {
@@ -52,7 +52,7 @@ namespace margelo::nitro::voidhash {
 
     public:
       // Methods
-      virtual std::shared_ptr<Promise<std::shared_ptr<HybridPurchasedItemSpec>>> purchase(const std::string& sku) = 0;
+      virtual std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>> purchase(const std::string& sku) = 0;
 
     protected:
       // Hybrid Setup

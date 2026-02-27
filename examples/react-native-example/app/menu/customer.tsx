@@ -1,8 +1,10 @@
 import { Button } from "components/button";
-import { Platform, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { voidhash } from "utils/voidhash/local.client";
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const { client } = voidhash.useVoidhash();
   const {
     data: customer,
@@ -14,28 +16,32 @@ export default function HomeScreen() {
     return null;
   }
 
+  const containerStyle = [
+    styles.container,
+    {
+      paddingBottom: Math.max(16, insets.bottom + 16),
+      paddingTop: Math.max(32, insets.top + 16),
+    },
+  ];
+
   // If no active subscription, show the paywall
   return (
-    <View className="flex-1 justify-between bg-black px-4 pt-32 pt-safe-4 pb-safe-offset-4">
+    <View style={containerStyle}>
       <View>
-        <Text className="font-bold text-2xl text-white">Customer</Text>
-        <Text className="mt-2 text-zinc-400">
-          {JSON.stringify(customer, null, 2)}
-        </Text>
-        <Text className="mt-2 text-zinc-400">
-          {JSON.stringify(customerError, null, 2)}
-        </Text>
+        <Text style={styles.title}>Customer</Text>
+        <Text style={styles.jsonText}>{JSON.stringify(customer, null, 2)}</Text>
+        <Text style={styles.jsonText}>{JSON.stringify(customerError, null, 2)}</Text>
 
         {Platform.OS === "ios" && (
-          <View className="mt-4 gap-4">
+          <View style={styles.actions}>
             <Button
-              className="bg-zinc-800"
               onPress={() => client.iosPresentCodeRedemptionSheet()}
+              style={styles.secondaryButton}
               title="Present code redemption sheet"
             />
             <Button
-              className="bg-zinc-800"
               onPress={() => client.iosShowManageSubscriptions()}
+              style={styles.secondaryButton}
               title="Show manage subscriptions"
             />
           </View>
@@ -44,3 +50,28 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: "#000000",
+    flex: 1,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+  },
+  title: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "700",
+  },
+  jsonText: {
+    color: "#a1a1aa",
+    marginTop: 8,
+  },
+  actions: {
+    gap: 16,
+    marginTop: 16,
+  },
+  secondaryButton: {
+    backgroundColor: "#27272a",
+  },
+});

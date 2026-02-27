@@ -1,5 +1,4 @@
-import { Text, TouchableOpacity } from "react-native";
-import { cn } from "utils/lib";
+import { StyleSheet, Text, TouchableOpacity } from "react-native";
 
 export function MenuItem({
   title,
@@ -14,15 +13,38 @@ export function MenuItem({
 }) {
   return (
     <TouchableOpacity
-      className={cn(
-        "border-zinc-800 bg-zinc-900 p-4",
-        isFirst && "rounded-t-lg",
-        isLast && "rounded-b-lg",
-        !isLast && "border-b"
-      )}
       onPress={onPress}
+      style={[
+        styles.container,
+        isFirst ? styles.firstItem : null,
+        isLast ? styles.lastItem : null,
+        isLast ? null : styles.withBottomBorder,
+      ]}
     >
-      <Text className="text-lg text-white ">{title}</Text>
+      <Text style={styles.title}>{title}</Text>
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: "#18181b",
+    borderColor: "#27272a",
+    padding: 16,
+  },
+  firstItem: {
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  lastItem: {
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  withBottomBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  title: {
+    color: "#FFFFFF",
+    fontSize: 18,
+  },
+});
