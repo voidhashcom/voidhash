@@ -1,95 +1,167 @@
 import { MenuItem } from "components/menu-item";
 import { useRouter } from "expo-router";
-import { ActivityIndicator, Image, Text, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fakeAuthService, useCurrentUser } from "utils/fake-auth-service";
-import { cn } from "utils/lib";
 import { voidhash } from "utils/voidhash/local.client";
 
 import { Logo } from "../components/logo";
 
 export default function HomeScreen() {
-  const router = useRouter();
+	const router = useRouter();
+	const insets = useSafeAreaInsets();
 
-  // Mock authentication
-  const { user, isLoading } = useCurrentUser();
+	// Mock authentication
+	const { user, isLoading } = useCurrentUser();
 
-  // Signs out the user
-  const handleSignOut = async () => {
-    await fakeAuthService.signOut();
-    await voidhash.client.signOut();
-  };
+	// Signs out the user
+	const handleSignOut = async () => {
+		await fakeAuthService.signOut();
+		await voidhash.client.signOut();
+	};
 
-  // Resets the Voidhash cache. This is useful for testing.
-  const handleResetCache = () => {
-    voidhash.client.resetCache();
-  };
+	// Resets the Voidhash cache. This is useful for testing.
+	const handleResetCache = () => {
+		voidhash.client.resetCache();
+	};
 
-  if (isLoading) {
-    return (
-      <View className="h-full w-full items-center justify-center">
-        <ActivityIndicator />
-      </View>
-    );
-  }
+	if (isLoading) {
+		return (
+			<View style={styles.loadingContainer}>
+				<ActivityIndicator />
+			</View>
+		);
+	}
 
-  // If no active subscription, show the paywall
-  return (
-    <View className="flex-1 justify-between bg-black px-4 pt-safe-4 pt-safe-offset-8 pb-safe-offset-4">
-      <View className="flex-row items-end gap-x-3">
-        <Logo className="mt-2" height={20} variant="symbol" />
-        <Text className="mb-px font-bold text-3xl text-white">Playground</Text>
-      </View>
+	const containerStyle = [
+		styles.container,
+		{
+			paddingBottom: Math.max(16, insets.bottom + 16),
+			paddingTop: Math.max(32, insets.top + 32),
+		},
+	];
 
-      <View className="mt-8">
-        {user && (
-          <>
-            <View
-              className={cn(
-                "flex flex-row items-center gap-6 rounded-t-lg border-zinc-800 border-b bg-zinc-900 p-3"
-              )}
-            >
-              <Image
-                className="aspect-square w-20 rounded-md"
-                source={user.avatar}
-              />
-              <View className="flex-1 ">
-                <Text className="font-semibold text-white">{user.name}</Text>
-                <Text className="mt-2 text-zinc-400">{user.email}</Text>
-              </View>
-            </View>
-            <MenuItem onPress={handleSignOut} title="Sign out" />
-          </>
-        )}
+	// If no active subscription, show the paywall
+	return (
+		<View style={containerStyle}>
+			<View style={styles.headerRow}>
+				<Logo height={20} style={styles.logo} variant="symbol" />
+				<Text style={styles.heading}>Playground</Text>
+			</View>
 
-        <MenuItem
-          isFirst={!user}
-          isLast
-          onPress={() => {
-            router.push("/menu/sign-in");
-          }}
-          title={user ? "Switch account" : "Sign in"}
-        />
-      </View>
-      <View className="mt-8 flex-1 justify-start">
-        <MenuItem
-          isFirst
-          onPress={() => router.push("/menu/paywall")}
-          title="Paywall"
-        />
-        <MenuItem
-          isLast
-          onPress={() => router.push("/menu/customer")}
-          title="Customer"
-        />
-        <View className="mt-8">
-          <MenuItem
-            isFirst
-            isLast
-            onPress={handleResetCache}
-            title="Clear cache"
-          />
-        </View>
-      </View>
-    </View>
-  );
+			<View style={styles.section}>
+				{user && (
+					<>
+						<View style={styles.userCard}>
+							<Image source={user.avatar} style={styles.userAvatar} />
+							<View style={styles.userMeta}>
+								<Text style={styles.userName}>{user.name}</Text>
+								<Text style={styles.userEmail}>{user.email}</Text>
+							</View>
+						</View>
+						<MenuItem onPress={handleSignOut} title="Sign out" />
+					</>
+				)}
+
+				<MenuItem
+					isFirst={!user}
+					isLast
+					onPress={() => {
+						router.push("/menu/sign-in");
+					}}
+					title={user ? "Switch account" : "Sign in"}
+				/>
+			</View>
+			<View style={styles.menuSection}>
+				<MenuItem
+					isFirst
+					onPress={() => router.push("/menu/paywall")}
+					title="Paywall"
+				/>
+				<MenuItem
+					onPress={() => router.push("/menu/webview-smoke")}
+					title="WebView smoke"
+				/>
+				<MenuItem
+					isLast
+					onPress={() => router.push("/menu/customer")}
+					title="Customer"
+				/>
+				<View style={styles.subSection}>
+					<MenuItem
+						isFirst
+						isLast
+						onPress={handleResetCache}
+						title="Clear cache"
+					/>
+				</View>
+			</View>
+		</View>
+	);
 }
+
+const styles = StyleSheet.create({
+	container: {
+		backgroundColor: "#000000",
+		flex: 1,
+		justifyContent: "space-between",
+		paddingHorizontal: 16,
+	},
+	loadingContainer: {
+		alignItems: "center",
+		flex: 1,
+		justifyContent: "center",
+	},
+	headerRow: {
+		alignItems: "flex-end",
+		columnGap: 12,
+		flexDirection: "row",
+	},
+	logo: {
+		marginTop: 8,
+	},
+	heading: {
+		color: "#FFFFFF",
+		fontSize: 30,
+		fontWeight: "700",
+		marginBottom: 1,
+	},
+	section: {
+		marginTop: 32,
+	},
+	userCard: {
+		alignItems: "center",
+		backgroundColor: "#18181b",
+		borderBottomColor: "#27272a",
+		borderBottomWidth: StyleSheet.hairlineWidth,
+		borderTopLeftRadius: 8,
+		borderTopRightRadius: 8,
+		columnGap: 24,
+		flexDirection: "row",
+		padding: 12,
+	},
+	userMeta: {
+		flex: 1,
+	},
+	userAvatar: {
+		aspectRatio: 1,
+		borderRadius: 8,
+		width: 80,
+	},
+	userName: {
+		color: "#FFFFFF",
+		fontWeight: "600",
+	},
+	userEmail: {
+		color: "#a1a1aa",
+		marginTop: 8,
+	},
+	menuSection: {
+		flex: 1,
+		justifyContent: "flex-start",
+		marginTop: 32,
+	},
+	subSection: {
+		marginTop: 32,
+	},
+});

@@ -6,6 +6,14 @@ import type { IdentityManager } from "../identity/identity-manager";
 import { PlatformProvider } from "../platform/platform-provider";
 import { SdkConfiguration } from "../sdk-configuration";
 
+const generateFallbackNonce = () =>
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+
+const getNonce = () => {
+  const cryptoObject = globalThis.crypto as { randomUUID?: () => string } | undefined;
+  return cryptoObject?.randomUUID?.() ?? generateFallbackNonce();
+};
+
 export const getCommonSdkHeaders = (): Effect.Effect<
   Omit<typeof SdkHeaders.Type, "x-app-user-id">,
   never,
@@ -31,7 +39,7 @@ export const getCommonSdkHeaders = (): Effect.Effect<
       "x-client-version": appVersion,
       "x-is-backgrounded": "false",
       "x-is-debug-build": platformProvider.isDebugBuild ? "true" : "false",
-      "x-nonce": crypto.randomUUID(),
+      "x-nonce": getNonce(),
       "x-observer-mode": sdkConfig.readOnly ? "true" : "false",
       "x-platform": platformProvider.platform,
       "x-platform-brand": platformProvider.deviceBrand,

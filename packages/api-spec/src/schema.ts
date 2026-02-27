@@ -57,6 +57,7 @@ export class ApiKey extends Schema.Class<ApiKey>("ApiKey")({
   name: Schema.String,
   prefix: Schema.String,
   projectId: Schema.String,
+  rawKey: Schema.optional(Schema.String),
 }) {}
 
 export class ApiKeyWithRawKey extends Schema.Class<ApiKeyWithRawKey>(

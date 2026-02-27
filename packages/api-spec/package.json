@@ -1,11 +1,16 @@
 {
   "name": "@voidhash/api-spec",
   "version": "0.0.1-alpha.1",
-  "private": true,
+  "private": false,
   "repository": {
     "type": "git",
     "url": "https://github.com/voidhashcom/voidhash",
     "directory": "packages/api-spec"
+  },
+  "files": ["src", "LICENSE.md", "README.md", "package.json"],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "type": "module",
   "exports": {

@@ -155,8 +155,18 @@ export default defineConfig({
         yield* fileSystem.writeFileString(filePath, content);
       });
 
-    const generateClientFile = (filePath: string) =>
-      Effect.gen(function* generateClientFile() {});
+    const generateClientFile = (filePath: string, publishableKey: string) =>
+      Effect.gen(function* generateClientFile() {
+        const content = `import { createVoidhashClient } from "@voidhash/react-native";
+import * as schema from "./schema";
+
+export const voidhash = createVoidhashClient(
+  "${publishableKey}",
+  schema
+);
+`;
+        yield* fileSystem.writeFileString(filePath, content);
+      });
 
     const generateSchemaFile = (filePath: string, schema: NormalizedSchema) =>
       Effect.gen(function* generateSchemaFile() {

@@ -1,9 +1,8 @@
 import { createVoidhashClient } from "@voidhash/react-native";
-
-import * as schema from "./_schema";
+import * as schema from "./schema";
 
 export const voidhash = createVoidhashClient(
-	"vh_pk_jlnppipPRGhqHVnEGnBFgknpAEMnPQiF",
+	"vh_pk_PWIsDyqMEOOuHpmAsFQvwaFhGKBVlkHf",
 	schema,
-	{},
+	{}
 );

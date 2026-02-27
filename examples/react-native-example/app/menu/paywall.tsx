@@ -1,79 +1,119 @@
-import type { SubscriptionProduct } from "@voidhash/react-native/build/core/entities/product";
+import type { UsePaywallByLocationOptions } from "@voidhash/react-native";
 import { Button } from "components/button";
-import { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { useMemo, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { voidhash } from "utils/voidhash/local.client";
 
-import { cn } from "../../utils/lib";
+const PAYWALL_LOCATION_SLUG = "example-paywall";
 
-export default function HomeScreen() {
-  const [selectedProduct, setSelectedProduct] =
-    useState<SubscriptionProduct | null>(null);
+export default function PaywallScreen() {
+  const insets = useSafeAreaInsets();
+  const [isOpening, setIsOpening] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const { purchase, isLoading: isPurchasing } = voidhash.usePurchase();
-  const { data: products, isLoading: areProductsLoading } =
-    voidhash.useProducts();
+  const paywallOptions = useMemo<UsePaywallByLocationOptions>(
+    () => ({
+      onError: (error, context) => {
+        setStatusMessage(`Paywall ${context.action} failed: ${error.message}`);
+      },
+      onPurchase: ({ productId }) => {
+        setStatusMessage(`Purchase completed: ${productId}`);
+      },
+      onRestore: () => {
+        setStatusMessage("Restore completed");
+      },
+    }),
+    []
+  );
 
-  if (areProductsLoading) {
-    return null;
-  }
+  const { show } = voidhash.usePaywallByLocation(
+    PAYWALL_LOCATION_SLUG,
+    paywallOptions
+  );
+  const { data: customer, isLoading: isCustomerLoading } =
+    voidhash.useCurrentCustomer();
 
-  const handleProductPress = (product: SubscriptionProduct) => {
-    setSelectedProduct(product);
-  };
-
-  const handlePurchase = () => {
-    if (!selectedProduct) {
-      return;
+  const handleShowPaywall = async () => {
+    setIsOpening(true);
+    try {
+      await show();
+    } finally {
+      setIsOpening(false);
     }
-    purchase(selectedProduct);
   };
 
-  // Select the first product after everything is loaded
-  if (!selectedProduct && products.toList().length > 0) {
-    handleProductPress(products.toList()[0]);
-  }
+  const containerStyle = [
+    styles.container,
+    {
+      paddingBottom: Math.max(16, insets.bottom + 16),
+      paddingTop: Math.max(32, insets.top + 16),
+    },
+  ];
 
-  // If no active subscription, show the paywall
   return (
-    <View className="flex-1 justify-between bg-black px-4 pt-32 pt-safe-4 pb-safe-offset-4">
+    <View style={containerStyle}>
       <View>
-        <Text className="font-bold text-2xl text-white">
-          Unlock Full Access
+        <Text style={styles.title}>Native Paywall</Text>
+        <Text style={styles.subtitle}>
+          Opens a preloaded full-screen paywall rendered by Swift/Kotlin.
         </Text>
-        <Text className="mt-2 text-zinc-400">Choose a plan to continue:</Text>
-        <View className="mt-6 w-full gap-y-4">
-          {products.toList().map((product) => (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              className={cn(
-                "w-full flex-row rounded-lg border border-zinc-900 bg-zinc-950 p-3",
-                selectedProduct?.slug === product.slug && "bg-zinc-900"
-              )}
-              disabled={isPurchasing}
-              key={product.slug}
-              onPress={() => handleProductPress(product)}
-            >
-              <View className="flex-1">
-                <Text className="text-white text-xl">{product.name}</Text>
-                <Text className="mt-1 text-sm text-zinc-400">
-                  {product.name}
-                </Text>
-              </View>
-              <Text className="font-semibold text-white text-xl">
-                {Math.round(product.price * 100) / 100}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <Text style={styles.location}>Location: {PAYWALL_LOCATION_SLUG}</Text>
+        {statusMessage && (
+          <Text style={styles.statusMessage}>{statusMessage}</Text>
+        )}
+        <Text style={styles.customerState}>
+          {isCustomerLoading
+            ? "Loading customer..."
+            : `Customer: ${JSON.stringify(customer)}`}
+        </Text>
 
         <Button
-          className="mt-4"
-          onPress={handlePurchase}
-          // disabled={!selectedProduct || isPurchasing}
-          title={isPurchasing ? "Purchasing..." : "Continue"}
+          disabled={isOpening}
+          onPress={() => {
+            void handleShowPaywall();
+          }}
+          style={styles.actionButton}
+          title={isOpening ? "Opening..." : "Open paywall"}
         />
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: "#000000",
+    flex: 1,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+  },
+  title: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "700",
+  },
+  subtitle: {
+    color: "#a1a1aa",
+    marginTop: 8,
+  },
+  location: {
+    color: "#71717a",
+    marginTop: 8,
+  },
+  statusMessage: {
+    backgroundColor: "#18181b",
+    borderRadius: 6,
+    color: "#e4e4e7",
+    fontSize: 14,
+    marginTop: 16,
+    padding: 12,
+  },
+  customerState: {
+    color: "#a1a1aa",
+    marginTop: 16,
+  },
+  actionButton: {
+    marginTop: 16,
+  },
+});

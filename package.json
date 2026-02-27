@@ -46,7 +46,7 @@
     "bump": "bumpp",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
-    "lines-of-code": "npx cloc . --exclude-dir=.next,node_modules,.vercel,.turbo,.git,meta,.github,.expo,build,.expo-shared,nitrogen --vcs git --not-match-f=bun.lockb,meta.json --exclude-ext=yaml,md"
+    "lines-of-code": "npx cloc . --exclude-dir=.next,node_modules,.vercel,.turbo,.git,meta,.github,.expo,build,.expo-shared,nitrogen --vcs git --not-match-f=pnpm-lock.yaml,meta.json --exclude-ext=yaml,md"
   },
   "dependencies": {
     "@effect/language-service": "catalog:",

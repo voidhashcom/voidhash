@@ -1,23 +1,37 @@
-import { Pressable, Text } from "react-native";
-
-import { cn } from "../utils/lib";
+import type { StyleProp, TextStyle, ViewStyle } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 
 interface ButtonProps {
   title: string;
   disabled?: boolean;
   onPress: () => void;
-  className?: string;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }
 
 export const Button = (props: ButtonProps) => (
   <Pressable
-    className={cn(
-      "w-full rounded-lg bg-[#005EFF] p-3 disabled:opacity-50",
-      props.className
-    )}
     disabled={props.disabled}
     onPress={props.onPress}
+    style={[styles.button, props.disabled ? styles.buttonDisabled : null, props.style]}
   >
-    <Text className="text-center text-lg text-white">{props.title}</Text>
+    <Text style={[styles.text, props.textStyle]}>{props.title}</Text>
   </Pressable>
 );
+
+const styles = StyleSheet.create({
+  button: {
+    backgroundColor: "#005EFF",
+    borderRadius: 8,
+    padding: 12,
+    width: "100%",
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  text: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    textAlign: "center",
+  },
+});

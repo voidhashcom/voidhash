@@ -6,6 +6,7 @@ import { createInitialNormalizedSchema } from "../../domain/schema/normalized-sc
 import { Auth } from "../../domain/services/auth";
 import { Codegen } from "../../domain/services/codegen";
 import { SourceCode } from "../../domain/services/source-code";
+import { ApiClient } from "../../utils/api-client";
 import { userError } from "../../utils/error-formatter";
 import { assertFileCanBeCreated } from "../../utils/fs";
 import { selectOrganization } from "../../utils/organizations/select-organization";
@@ -15,6 +16,7 @@ import { debugOption } from "../shared-options";
 export const initCommand = Command.make("init", { debug: debugOption }, () =>
 	Effect.gen(function* initCommand() {
 		const auth = yield* Auth;
+		const apiClient = yield* ApiClient;
 		const sourceCode = yield* SourceCode;
 		const codegen = yield* Codegen;
 		const path = yield* Path.Path;
@@ -82,6 +84,30 @@ export const initCommand = Command.make("init", { debug: debugOption }, () =>
 			organization.id,
 			session.projects.filter((p) => p.organizationId === organization.id),
 		);
+		const apiKeys = (yield* apiClient.api_keys.listApiKeys()) as readonly {
+			id: string;
+			isPublic: boolean;
+			projectId: string;
+			rawKey?: string;
+		}[];
+		const publishableApiKey = apiKeys.find(
+			(apiKey) => apiKey.isPublic && apiKey.projectId === project.id,
+		);
+		const publishableKey = publishableApiKey?.rawKey;
+		if (!publishableKey) {
+			return yield* Effect.fail(
+				userError(
+					"Could not retrieve raw publishable key from listApiKeys for the selected project.",
+				),
+			);
+		}
+		if (!publishableKey.startsWith("vh_pk_")) {
+			return yield* Effect.fail(
+				userError(
+					"Received an invalid publishable key from listApiKeys for the selected project.",
+				),
+			);
+		}
 
 		// Select folder path
 
@@ -129,14 +155,17 @@ export const initCommand = Command.make("init", { debug: debugOption }, () =>
 		// Generate initial schema file
 		const initialSchema = createInitialNormalizedSchema();
 		yield* codegen.generateSchemaFile(schemaFilePath, initialSchema);
+		yield* codegen.generateClientFile(clientFilePath, publishableKey);
 
 		yield* Console.log("\nVoidhash initialized successfully!");
 		yield* Console.log(`  Config: ${configFilePath}`);
 		yield* Console.log(`  Schema: ${schemaFilePath}`);
+		yield* Console.log(`  Client: ${clientFilePath}`);
 		yield* Console.log(`\nNext steps:`);
 		yield* Console.log(`  1. Add your products and perks to the schema file.`);
+		yield* Console.log(`  2. Use the generated client in your app code.`);
 		yield* Console.log(
-			`  2. Run \`voidhash-cli schema push\` to push your schema to the server.`,
+			`  3. Run \`voidhash-cli schema push\` to push your schema to the server.`,
 		);
 	}),
 ).pipe(Command.withDescription("Initialize a new Voidhash project."));
