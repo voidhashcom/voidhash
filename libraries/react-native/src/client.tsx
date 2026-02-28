@@ -32,6 +32,7 @@ export interface VoidhashClientOptions<TSchema extends VoidhashSchema> {
   readOnly?: boolean;
   schema: TSchema;
   scheme?: string;
+  unstable_swallowErrors?: boolean;
   userId?: string;
 }
 
@@ -91,6 +92,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
   private readOnly: boolean;
   private scheme: string;
   private schema: TSchema;
+  private unstableSwallowErrors: boolean;
   private eventBus: EventBus;
 
   private effectRuntime: ReturnType<typeof CreateEffectRuntime>;
@@ -105,6 +107,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     baseUrl: string,
     publishableKey: string,
     readOnly: boolean,
+    unstableSwallowErrors: boolean,
     eventBus: EventBus,
     platform: Exclude<PlatformInfo["platform"], "unknown">,
     debug = false
@@ -113,6 +116,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     this.readOnly = readOnly;
     this.scheme = scheme;
     this.schema = schema;
+    this.unstableSwallowErrors = unstableSwallowErrors;
     this.eventBus = eventBus;
     this.effectRuntime = CreateEffectRuntime(
       platform,
@@ -124,49 +128,67 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     );
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
   }
+
+  private async runSideEffect(
+    operation: string,
+    effect: () => Promise<void>
+  ) {
+    try {
+      await effect();
+    } catch (error) {
+      if (!this.unstableSwallowErrors) {
+        throw error;
+      }
+
+      // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
+      console.warn(`[voidhash] swallowed error in ${operation}`, error);
+    }
+  }
   /**
    * Initializes the voidhash client.
    * @throws {FailedToInitializeNativeAdapterError} If the payment adapter fails to initialize
    */
   async init() {
-    const initializedClientResult = await this.effectRuntime.runPromiseExit(
-      this.unitializedClient.init<TSchema>({
-        initialAppUserId: this.initialAppUserId ?? undefined,
-        schema: this.schema,
-      })
-    );
-
-    if (Exit.isSuccess(initializedClientResult)) {
-      const initializedClient = initializedClientResult.value;
-      const observerResult = await this.effectRuntime.runPromiseExit(
-        initializedClient.startTransactionObserver((transaction) => {
-          void this.effectRuntime.runPromiseExit(
-            initializedClient.processObservedTransaction(transaction)
-          );
+    await this.runSideEffect("init", async () => {
+      const initializedClientResult = await this.effectRuntime.runPromiseExit(
+        this.unitializedClient.init<TSchema>({
+          initialAppUserId: this.initialAppUserId ?? undefined,
+          schema: this.schema,
         })
       );
 
-      if (!Exit.isSuccess(observerResult)) {
-        throw toErrorWithMessage(
-          "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
-          Cause.squash(observerResult.cause)
+      if (Exit.isSuccess(initializedClientResult)) {
+        const initializedClient = initializedClientResult.value;
+        const observerResult = await this.effectRuntime.runPromiseExit(
+          initializedClient.startTransactionObserver((transaction) => {
+            void this.effectRuntime.runPromiseExit(
+              initializedClient.processObservedTransaction(transaction)
+            );
+          })
         );
+
+        if (!Exit.isSuccess(observerResult)) {
+          throw toErrorWithMessage(
+            "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
+            Cause.squash(observerResult.cause)
+          );
+        }
+
+        void this.effectRuntime.runPromiseExit(
+          initializedClient.reconcileObservedTransactions()
+        );
+
+        this.initializedClient = initializedClient;
+        this._isInitialized = true;
+        return;
       }
 
-      void this.effectRuntime.runPromiseExit(
-        initializedClient.reconcileObservedTransactions()
+      // TODO: Handle different erros that can happen properly
+      throw toErrorWithMessage(
+        "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
+        Cause.squash(initializedClientResult.cause)
       );
-
-      this.initializedClient = initializedClient;
-      this._isInitialized = true;
-      return;
-    }
-
-    // TODO: Handle different erros that can happen properly
-    throw toErrorWithMessage(
-      "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
-      Cause.squash(initializedClientResult.cause)
-    );
+    });
   }
 
   /**
@@ -174,19 +196,21 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    * @throws {FailedToEndNativeAdapterError} If the payment adapter fails to end
    */
   async end() {
-    this.ensureInitialized();
-    const endResult = await this.effectRuntime.runPromiseExit(
-      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
-      this.initializedClient!.end()
-    );
+    await this.runSideEffect("end", async () => {
+      this.ensureInitialized();
+      const endResult = await this.effectRuntime.runPromiseExit(
+        // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+        this.initializedClient!.end()
+      );
 
-    if (Exit.isSuccess(endResult)) {
-      this._isInitialized = false;
-      return;
-    }
+      if (Exit.isSuccess(endResult)) {
+        this._isInitialized = false;
+        return;
+      }
 
-    // TODO: Handle different erros that can happen properly
-    throw new VoidhashError("FAILED_TO_END_VOIDHASH_CLIENT");
+      // TODO: Handle different erros that can happen properly
+      throw new VoidhashError("FAILED_TO_END_VOIDHASH_CLIENT");
+    });
   }
 
   /**
@@ -227,36 +251,40 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
       name?: string;
     }
   ) {
-    this.ensureInitialized();
-    const identifyResult = await this.effectRuntime.runPromiseExit(
-      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
-      this.initializedClient!.identify(appUserId, options)
-    );
+    await this.runSideEffect("identify", async () => {
+      this.ensureInitialized();
+      const identifyResult = await this.effectRuntime.runPromiseExit(
+        // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+        this.initializedClient!.identify(appUserId, options)
+      );
 
-    if (Exit.isSuccess(identifyResult)) {
-      return;
-    }
+      if (Exit.isSuccess(identifyResult)) {
+        return;
+      }
 
-    // TODO: Handle different erros that can happen properly
-    throw new VoidhashError("FAILED_TO_IDENTIFY");
+      // TODO: Handle different erros that can happen properly
+      throw new VoidhashError("FAILED_TO_IDENTIFY");
+    });
   }
 
   /**
    * Signs out the user.
    */
   async signOut() {
-    this.ensureInitialized();
-    const signOutResult = await this.effectRuntime.runPromiseExit(
-      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
-      this.initializedClient!.signOut()
-    );
+    await this.runSideEffect("signOut", async () => {
+      this.ensureInitialized();
+      const signOutResult = await this.effectRuntime.runPromiseExit(
+        // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+        this.initializedClient!.signOut()
+      );
 
-    if (Exit.isSuccess(signOutResult)) {
-      return;
-    }
+      if (Exit.isSuccess(signOutResult)) {
+        return;
+      }
 
-    // TODO: Handle different erros that can happen properly
-    throw new VoidhashError("FAILED_TO_SIGN_OUT");
+      // TODO: Handle different erros that can happen properly
+      throw new VoidhashError("FAILED_TO_SIGN_OUT");
+    });
   }
 
   /**
@@ -356,17 +384,19 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    * Restores purchases by reconciling pending/past store transactions and refreshing customer state.
    */
   async restorePurchases() {
-    this.ensureInitialized();
-    const restoreResult = await this.effectRuntime.runPromiseExit(
-      // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
-      this.initializedClient!.restorePurchases()
-    );
+    await this.runSideEffect("restorePurchases", async () => {
+      this.ensureInitialized();
+      const restoreResult = await this.effectRuntime.runPromiseExit(
+        // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+        this.initializedClient!.restorePurchases()
+      );
 
-    if (Exit.isSuccess(restoreResult)) {
-      return;
-    }
+      if (Exit.isSuccess(restoreResult)) {
+        return;
+      }
 
-    throw new VoidhashError("FAILED_TO_RESTORE_PURCHASES");
+      throw new VoidhashError("FAILED_TO_RESTORE_PURCHASES");
+    });
   }
 
   // ===============================
@@ -379,19 +409,21 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    * @throws {VoidhashError} If the code redemption sheet fails to present
    */
   async iosPresentCodeRedemptionSheet() {
-    this.ensureInitialized();
-    const presentCodeRedemptionSheetResult =
-      await this.effectRuntime.runPromiseExit(
-        // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
-        this.initializedClient!.iosPresentCodeRedemptionSheet()
-      );
+    await this.runSideEffect("iosPresentCodeRedemptionSheet", async () => {
+      this.ensureInitialized();
+      const presentCodeRedemptionSheetResult =
+        await this.effectRuntime.runPromiseExit(
+          // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+          this.initializedClient!.iosPresentCodeRedemptionSheet()
+        );
 
-    if (Exit.isSuccess(presentCodeRedemptionSheetResult)) {
-      return;
-    }
+      if (Exit.isSuccess(presentCodeRedemptionSheetResult)) {
+        return;
+      }
 
-    // TODO: Handle different erros that can happen properly
-    throw new VoidhashError("FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET");
+      // TODO: Handle different erros that can happen properly
+      throw new VoidhashError("FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET");
+    });
   }
 
   /**
@@ -400,19 +432,21 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
    * @throws {VoidhashError} If the manage subscriptions screen fails to show
    */
   async iosShowManageSubscriptions() {
-    this.ensureInitialized();
-    const showManageSubscriptionsResult =
-      await this.effectRuntime.runPromiseExit(
-        // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
-        this.initializedClient!.iosShowManageSubscriptions()
-      );
+    await this.runSideEffect("iosShowManageSubscriptions", async () => {
+      this.ensureInitialized();
+      const showManageSubscriptionsResult =
+        await this.effectRuntime.runPromiseExit(
+          // biome-ignore lint/style/noNonNullAssertion: ensureInitialized ensures that this.initializedClient is not null
+          this.initializedClient!.iosShowManageSubscriptions()
+        );
 
-    if (Exit.isSuccess(showManageSubscriptionsResult)) {
-      return;
-    }
+      if (Exit.isSuccess(showManageSubscriptionsResult)) {
+        return;
+      }
 
-    // TODO: Handle different erros that can happen properly
-    throw new VoidhashError("FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS");
+      // TODO: Handle different erros that can happen properly
+      throw new VoidhashError("FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS");
+    });
   }
 
   // ===============================

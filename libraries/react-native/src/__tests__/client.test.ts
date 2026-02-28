@@ -41,7 +41,7 @@ import {
 } from "../errors";
 import { createTestSchema } from "./helpers/test-schema";
 
-function createClient(readOnly = false) {
+function createClient(readOnly = false, unstableSwallowErrors = false) {
   return new VoidhashClient(
     null,
     "voidhash",
@@ -49,6 +49,7 @@ function createClient(readOnly = false) {
     "https://api.voidhash.test",
     "pk_test",
     readOnly,
+    unstableSwallowErrors,
     new EventBus(),
     "ios"
   );
@@ -146,6 +147,29 @@ describe("VoidhashClient", () => {
       );
     });
 
+    it("swallows identify errors when unstable_swallowErrors is enabled", async () => {
+      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {
+        return;
+      });
+      const client = createClient(false, true);
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        identify: () => "identify-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+      };
+
+      await expect(
+        client.identify("new-user", { email: "new@voidhash.test" })
+      ).resolves.toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[voidhash] swallowed error in identify",
+        expect.any(VoidhashError)
+      );
+      warnSpy.mockRestore();
+    });
+
     it("throws when purchasing in read-only mode", async () => {
       const client = createClient(true);
 
@@ -181,6 +205,126 @@ describe("VoidhashClient", () => {
           message: "FAILED_TO_RESTORE_PURCHASES",
         })
       );
+    });
+
+    it("swallows restorePurchases errors when unstable_swallowErrors is enabled", async () => {
+      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {
+        return;
+      });
+      const client = createClient(false, true);
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        restorePurchases: () => "restore-purchases-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+      };
+
+      await expect(client.restorePurchases()).resolves.toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[voidhash] swallowed error in restorePurchases",
+        expect.any(VoidhashError)
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("swallows init errors and keeps client uninitialized when unstable_swallowErrors is enabled", async () => {
+      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {
+        return;
+      });
+      const client = createClient(false, true);
+
+      (client as unknown as Record<string, unknown>).unitializedClient = {
+        init: () => "init-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+      };
+
+      await expect(client.init()).resolves.toBeUndefined();
+      expect(client.isInitialized).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[voidhash] swallowed error in init",
+        expect.any(VoidhashError)
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("swallows ensureInitialized errors in side-effect methods when unstable_swallowErrors is enabled", async () => {
+      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {
+        return;
+      });
+      const client = createClient(false, true);
+
+      await expect(
+        client.identify("new-user", { email: "new@voidhash.test" })
+      ).resolves.toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[voidhash] swallowed error in identify",
+        expect.any(VoidhashError)
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("keeps getProducts strict even when unstable_swallowErrors is enabled", async () => {
+      const client = createClient(false, true);
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        getProducts: () => "get-products-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+      };
+
+      await expect(client.getProducts()).rejects.toEqual(
+        expect.objectContaining<Partial<VoidhashError>>({
+          message: "FAILED_TO_GET_PRODUCTS",
+        })
+      );
+    });
+
+    it("keeps purchase strict even when unstable_swallowErrors is enabled", async () => {
+      const client = createClient(false, true);
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        purchase: () => "purchase-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+      };
+
+      await expect(
+        client.purchase(
+          {
+            id: "monthly-id",
+          } as never,
+          {}
+        )
+      ).rejects.toEqual(
+        expect.objectContaining<Partial<VoidhashError>>({
+          message: "FAILED_TO_PURCHASE",
+        })
+      );
+    });
+
+    it("keeps read-only purchase rejection strict when unstable_swallowErrors is enabled", async () => {
+      const client = createClient(true, true);
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        purchase: () => "purchase-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: jest.fn().mockResolvedValue(Exit.succeed(undefined)),
+      };
+
+      await expect(
+        client.purchase(
+          {
+            id: "monthly-id",
+          } as never,
+          {}
+        )
+      ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
     });
 
     it("resolves restorePurchases when effect succeeds", async () => {

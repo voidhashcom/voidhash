@@ -25,6 +25,7 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
   const debug = options.debug ?? false;
   const initialAppUserId = options.userId ?? null;
   const readOnly = options.readOnly ?? false;
+  const unstableSwallowErrors = options.unstable_swallowErrors ?? false;
   const scheme =
     options.scheme ??
     (typeof Constants.expoConfig?.scheme === "string"
@@ -45,6 +46,7 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
     baseUrl,
     publishableKey,
     readOnly,
+    unstableSwallowErrors,
     eventBus,
     platform,
     debug

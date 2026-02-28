@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@effect/language-service": "catalog:",
+    "@typescript/native-preview": "7.0.0-dev.20260210.1",
     "@types/node": "^24.10.4",
     "bumpp": "^10.3.2",
     "cross-env": "^7.0.3",

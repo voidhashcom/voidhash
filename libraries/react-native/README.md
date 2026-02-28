@@ -28,6 +28,38 @@ Observer reconciliation:
 - Client-side dedupe key is `platform + transactionId + purchaseDate`.
 - The server endpoint is idempotent by store transaction identity to tolerate retries/duplicates.
 
+## Unstable error swallowing
+
+For early-alpha integrations, you can enable unstable side-effect error swallowing:
+
+```ts
+createVoidhashClient("pk_test", schema, {
+  readOnly: true,
+  scheme: "myapp",
+  unstable_swallowErrors: true,
+});
+```
+
+When `unstable_swallowErrors: true`, the SDK logs warnings and does not reject for:
+
+- `init()`
+- `end()`
+- `identify(...)`
+- `signOut()`
+- `restorePurchases()`
+- `iosPresentCodeRedemptionSheet()`
+- `iosShowManageSubscriptions()`
+
+The following remain strict and still reject on failures:
+
+- `getCurrentCustomer(...)`
+- `getFeatureFlags(...)`
+- `getPaywallForLocation(...)`
+- `getProducts()`
+- `purchase(...)`
+
+This flag is intentionally unstable and best used for background/observer-style alpha integrations. It is not recommended for core purchase flow handling.
+
 ## HTTP debug mode
 
 Enable verbose HTTP logging when debugging request/response flow:
