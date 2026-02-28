@@ -52,6 +52,16 @@ voidhash-cli init
 
 For detailed documentation, visit [voidhash.com](https://voidhash.com/docs)
 
+## 🧰 Tooling
+
+### Local MCP Server
+
+For AI agent-driven paywall building, use the local MCP server in
+[`apps/mcp-server`](apps/mcp-server/README.md).
+
+It provides tools for paywall creation, designer websocket editing, snapshotting,
+release creation/publishing, and read-only paywall location listing.
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.

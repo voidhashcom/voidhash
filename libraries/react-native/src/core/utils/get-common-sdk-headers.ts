@@ -1,5 +1,6 @@
 import type { SdkHeaders } from "@voidhash/api-spec";
-import { Effect } from "effect";
+import { Console,
+Effect } from "effect";
 
 import { SDK_VERSION } from "../constants";
 import type { IdentityManager } from "../identity/identity-manager";
@@ -32,6 +33,27 @@ export const getCommonSdkHeaders = (): Effect.Effect<
         ? locales.map((locale) => locale.languageTag).join(",")
         : undefined;
     const clientLocale = locales[0]?.languageTag ?? undefined;
+
+    yield* Console.log({
+      "x-client-bundle-id": bundleId,
+      "x-client-locale": clientLocale,
+      "x-client-version": appVersion,
+      "x-is-backgrounded": "false",
+      "x-is-debug-build": platformProvider.isDebugBuild ? "true" : "false",
+      "x-nonce": getNonce(),
+      "x-observer-mode": sdkConfig.readOnly ? "true" : "false",
+      "x-platform": platformProvider.platform,
+      "x-platform-brand": platformProvider.deviceBrand,
+      "x-platform-device": platformProvider.deviceName,
+      "x-platform-flavor": "native",
+      "x-platform-flavor-version": appVersion,
+      "x-platform-version": platformProvider.systemVersion,
+      "x-preferred-locales": preferredLocales,
+      "x-publishable-key": sdkConfig.publishableKey,
+      "x-sdk": "react-native",
+      "x-sdk-version": SDK_VERSION,
+      "x-storefront": undefined, // Not supported, default to false
+    })
 
     return {
       "x-client-bundle-id": bundleId,

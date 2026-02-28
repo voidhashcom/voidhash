@@ -144,6 +144,34 @@ export class PaywallLocation extends Schema.Class<PaywallLocation>("PaywallLocat
 }) {}
 
 // ========================================================
+// Paywalls
+// ========================================================
+
+export const PaywallIdParam = HttpApiSchema.param("paywallId", Schema.String);
+
+export class Paywall extends Schema.Class<Paywall>("Paywall")({
+  id: Schema.String,
+  name: Schema.String,
+  projectId: Schema.String,
+  slug: Schema.String,
+}) {}
+
+export class CreatePaywallBody extends Schema.Class<CreatePaywallBody>(
+  "CreatePaywallBody"
+)({
+  name: Schema.String,
+  projectId: Schema.String,
+  slug: Schema.String,
+}) {}
+
+export class PaywallEditToken extends Schema.Class<PaywallEditToken>(
+  "PaywallEditToken"
+)({
+  expiresAt: Schema.Date,
+  token: Schema.String,
+}) {}
+
+// ========================================================
 // Products
 // ========================================================
 
@@ -233,6 +261,8 @@ export class Project extends Schema.Class<Project>("Project")({
   name: Schema.String,
   slug: Schema.String,
 }) {}
+
+export const ProjectIdParam = HttpApiSchema.param("projectId", Schema.String);
 
 export const OrganizationIdParam = HttpApiSchema.param(
   "organizationId",

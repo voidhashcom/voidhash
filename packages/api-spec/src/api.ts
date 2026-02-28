@@ -13,7 +13,10 @@ import {
   OrganizationServiceError,
   PaymentProviderConfigurationServiceError,
   PaymentProviderProductServiceError,
+  PaywallNotFoundError,
   PaywallLocationServiceError,
+  PaywallServiceError,
+  PaywallSlugAlreadyExistsError,
   PerkServiceError,
   ProductPerkServiceError,
   ProductPerkValidationError,
@@ -42,17 +45,22 @@ import {
   CreateWebhookEndpointBody,
   Customer,
   CustomerIdParam,
+  CreatePaywallBody,
   DeployChangesetBody,
   DeployChangesetResponse,
   Organization,
   OrganizationIdParam,
   PaymentProviderConfiguration,
   PaymentProviderProduct,
+  Paywall,
+  PaywallEditToken,
+  PaywallIdParam,
   PaywallLocation,
   Perk,
   Product,
   ProductIdParam,
   ProductPerk,
+  ProjectIdParam,
   Project,
   EvaluateFeatureFlagsBody,
   SdkCustomer,
@@ -188,6 +196,32 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
       )
       .middleware(AuthMiddleware)
       .prefix("/paywall-locations")
+  )
+  .add(
+    HttpApiGroup.make("paywalls")
+      .add(
+        HttpApiEndpoint.get("listPaywallsByProjectId")`/by-project-id/${ProjectIdParam}`
+          .addSuccess(Schema.Array(Paywall))
+          .addError(ActionForbiddenError)
+          .addError(PaywallServiceError)
+      )
+      .add(
+        HttpApiEndpoint.post("createPaywall")`/`
+          .setPayload(CreatePaywallBody)
+          .addSuccess(Schema.Struct({ id: Schema.String }))
+          .addError(ActionForbiddenError)
+          .addError(PaywallServiceError)
+          .addError(PaywallSlugAlreadyExistsError)
+      )
+      .add(
+        HttpApiEndpoint.post("requestPaywallEditToken")`/${PaywallIdParam}/edit-token`
+          .addSuccess(PaywallEditToken)
+          .addError(ActionForbiddenError)
+          .addError(PaywallServiceError)
+          .addError(PaywallNotFoundError)
+      )
+      .middleware(AuthMiddleware)
+      .prefix("/paywalls")
   )
   .add(
     HttpApiGroup.make("projects")
