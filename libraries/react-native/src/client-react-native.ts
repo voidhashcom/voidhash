@@ -23,6 +23,7 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
 ) {
   const baseUrl = options.baseUrl || "https://api.voidhash.com";
   const debug = options.debug ?? false;
+  const ingestUrl = options.ingestUrl;
   const initialAppUserId = options.userId ?? null;
   const readOnly = options.readOnly ?? false;
   const unstableSwallowErrors = options.unstable_swallowErrors ?? false;
@@ -44,6 +45,7 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
     scheme,
     schema,
     baseUrl,
+    ingestUrl,
     publishableKey,
     readOnly,
     unstableSwallowErrors,

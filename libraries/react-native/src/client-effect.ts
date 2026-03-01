@@ -1,5 +1,6 @@
-import { Effect } from "effect";
+import { Effect, Schedule } from "effect";
 
+import { SDK_VERSION } from "./core/constants";
 import { CacheManager } from "./core/caching/cache-manager";
 import type { Product } from "./core/entities/product";
 import type { Transaction } from "./core/entities/transaction";
@@ -9,10 +10,11 @@ import { CustomerInfoManager } from "./core/identity/customer-info-manager";
 import { IdentityManager } from "./core/identity/identity-manager";
 import { ApiClient } from "./core/networking/api-client";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
+import { PlatformProvider } from "./core/platform/platform-provider";
 import type {
-  ExtractSchemaPaywallLocationSlugs,
   ExtractSchemaProductDefinitions,
   ExtractSchemaProductKeys,
+  InferGetPaywallLocationInput,
   InferGetProductResponseFromSchema,
   VoidhashSchema,
 } from "./core/schema";
@@ -21,12 +23,87 @@ import { SdkConfiguration } from "./core/sdk-configuration";
 import { getCommonSdkHeaders } from "./core/utils/get-common-sdk-headers";
 import { UnsupportedPlatformError } from "./errors";
 
-type InferGetPaywallLocationInput<TSchema extends VoidhashSchema> =
-  [ExtractSchemaPaywallLocationSlugs<TSchema>] extends [never]
-    ? string
-    : ExtractSchemaPaywallLocationSlugs<TSchema>;
-
 const PROCESSED_TRANSACTION_TTL_MS = 1000 * 60 * 30;
+const ANALYTICS_RETRY_BASE_MS = 200;
+const ANALYTICS_BATCH_SIZE = 20;
+const ANALYTICS_FLUSH_INTERVAL_MS = 5000;
+
+const generateFallbackNonce = () =>
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+
+const getNonce = () => {
+  const cryptoObject = globalThis.crypto as { randomUUID?: () => string } | undefined;
+  return cryptoObject?.randomUUID?.() ?? generateFallbackNonce();
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+interface QueuedAnalyticsEvent {
+  readonly eventName: string;
+  readonly eventTimestamp: string;
+  readonly id: string;
+  readonly properties: Record<string, unknown>;
+}
+
+interface AppReleaseInfo {
+  readonly appBuild: string | null;
+  readonly appVersion: string | null;
+}
+
+type AppLifecycleState = string;
+
+interface AppLifecycleSubscription {
+  readonly remove: () => void;
+}
+
+interface ReactNativeAppState {
+  readonly currentState?: AppLifecycleState;
+  addEventListener: (
+    eventType: "change",
+    listener: (nextState: AppLifecycleState) => void
+  ) => AppLifecycleSubscription;
+}
+
+const ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY =
+  "voidhash:analytics:last-seen-app-release";
+
+const getReactNativeAppState = (): ReactNativeAppState | null => {
+  try {
+    const reactNative = require("react-native") as {
+      readonly AppState?: ReactNativeAppState;
+    };
+    return reactNative.AppState ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const toNullableString = (value: unknown) =>
+  typeof value === "string" ? value : null;
+
+const toAppReleaseInfo = (value: unknown) => {
+  if (!isRecord(value)) return null;
+  return {
+    appBuild: toNullableString(value.appBuild),
+    appVersion: toNullableString(value.appVersion),
+  };
+};
+
+export interface AnalyticsIngestEvent {
+  /** Shared metadata attached to every event (for example app, device, or SDK context). */
+  readonly context: Record<string, unknown>;
+  /** Unique identifier for this event instance. */
+  readonly event_id: string;
+  /** Canonical event name used for analytics processing. */
+  readonly event_name: string;
+  /** Event timestamp in string form (typically ISO-8601). */
+  readonly event_ts: string;
+  /** Event-specific payload fields for this event name. */
+  readonly properties: Record<string, unknown>;
+  /** Identifier that groups events belonging to the same user session. */
+  readonly session_id: string;
+}
 
 const makeUnitializedClient = () => ({
   init: <TSchema extends VoidhashSchema>(initOptions: {
@@ -71,10 +148,140 @@ const makeUnitializedClient = () => ({
     }),
 });
 
+const getAnalyticsStandardizedProperties = () => {
+  let cached: Record<string, unknown> | null = null;
+
+  const fallbackProperties = {
+    $app_build: null,
+    $app_name: null,
+    $app_version: null,
+    $bundle_id: null,
+    $device_brand: null,
+    $device_name: null,
+    $locale: null,
+    $platform: "unknown",
+    $platform_version: null,
+    $sdk: "react-native",
+    $sdk_version: SDK_VERSION,
+  } satisfies Record<string, unknown>;
+
+  return () =>
+    Effect.gen(function* () {
+      if (cached) return cached;
+
+      const platformProvider = yield* PlatformProvider;
+      const props = {
+        $app_build: platformProvider.appBuild ?? null,
+        $app_name: platformProvider.appName ?? platformProvider.bundleId ?? null,
+        $app_version: platformProvider.appVersion ?? null,
+        $bundle_id: platformProvider.bundleId ?? null,
+        $device_brand: platformProvider.deviceBrand ?? null,
+        $device_name: platformProvider.deviceName ?? null,
+        $locale: platformProvider.locales[0]?.languageTag ?? null,
+        $platform: platformProvider.platform ?? "unknown",
+        $platform_version: platformProvider.systemVersion ?? null,
+        $sdk: "react-native",
+        $sdk_version: SDK_VERSION,
+      } satisfies Record<string, unknown>;
+
+      if (!isRecord(props)) {
+        cached = fallbackProperties;
+        return fallbackProperties;
+      }
+
+      cached = props;
+      return props;
+    }).pipe(
+      Effect.orElseSucceed(() => {
+        cached = fallbackProperties;
+        return fallbackProperties;
+      })
+    );
+};
+
+const mapQueuedAnalyticsEventToIngestEvent = (
+  event: QueuedAnalyticsEvent,
+  standardizedProperties: Record<string, unknown>,
+  sessionId: string
+) => ({
+  context: {},
+  event_id: event.id,
+  event_name: event.eventName,
+  event_ts: event.eventTimestamp,
+  properties: {
+    ...event.properties,
+    ...standardizedProperties,
+  },
+  session_id: sessionId,
+});
+
 const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
   schema: TSchema;
 }) => {
   const inFlightTransactionKeys = new Set<string>();
+
+  // Analytics state
+  const analyticsQueue: QueuedAnalyticsEvent[] = [];
+  const analyticsSessionId = getNonce();
+  let analyticsFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  let triggerFlushCallback: (() => void) | null = null;
+  const getStandardizedProperties = getAnalyticsStandardizedProperties();
+
+  const clearFlushTimer = () => {
+    if (analyticsFlushTimer) {
+      clearTimeout(analyticsFlushTimer);
+      analyticsFlushTimer = null;
+    }
+  };
+
+  const scheduleFlushTimer = () => {
+    if (analyticsFlushTimer || analyticsQueue.length === 0) return;
+    analyticsFlushTimer = setTimeout(() => {
+      analyticsFlushTimer = null;
+      triggerFlushCallback?.();
+    }, ANALYTICS_FLUSH_INTERVAL_MS);
+  };
+
+  const sendAnalyticsEventsImpl = (events: ReadonlyArray<AnalyticsIngestEvent>) =>
+    Effect.gen(function* () {
+      if (events.length === 0) return;
+
+      const identityManager = yield* IdentityManager;
+      const sdkConfiguration = yield* SdkConfiguration;
+      const appUserId = yield* identityManager.getAppUserId();
+      const ingestEventsUrl = resolveIngestEventsUrl({
+        baseUrl: sdkConfiguration.baseUrl,
+        ingestUrl: sdkConfiguration.ingestUrl,
+      });
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(ingestEventsUrl, {
+            body: JSON.stringify({ events }),
+            headers: {
+              "content-type": "application/json",
+              "x-app-user-id": appUserId,
+              "x-publishable-key": sdkConfiguration.publishableKey,
+            },
+            method: "POST",
+          }),
+        catch: (cause) =>
+          cause instanceof Error ? cause : new Error(String(cause)),
+      });
+
+      if (!response.ok) {
+        return yield* Effect.fail(
+          new Error(
+            `Analytics ingest request failed: ${response.status} ${response.statusText}`
+          )
+        );
+      }
+    }).pipe(
+      Effect.retry({
+        schedule: Schedule.exponential(ANALYTICS_RETRY_BASE_MS),
+        times: 3,
+      })
+    );
 
   const processObservedTransaction = (transaction: Transaction) =>
     Effect.gen(function* processObservedTransaction() {
@@ -324,6 +531,160 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
 
     reconcileObservedTransactions: () => reconcileObservedTransactions(),
 
+    getAnalyticsStandardizedProperties: () => getStandardizedProperties(),
+
+    capture: (eventName: string, properties: Record<string, unknown> = {}) =>
+      Effect.sync(() => {
+        const normalized = eventName.trim();
+        if (!normalized) return;
+        analyticsQueue.push({
+          eventName: normalized,
+          eventTimestamp: new Date().toISOString(),
+          id: getNonce(),
+          properties,
+        });
+        if (analyticsQueue.length >= ANALYTICS_BATCH_SIZE) {
+          clearFlushTimer();
+          triggerFlushCallback?.();
+          return;
+        }
+        scheduleFlushTimer();
+      }),
+
+    flush: () =>
+      Effect.gen(function* () {
+        clearFlushTimer();
+        if (analyticsQueue.length === 0) return;
+
+        const standardizedProperties = yield* getStandardizedProperties();
+
+        while (analyticsQueue.length > 0) {
+          const queuedBatch = analyticsQueue.splice(0, ANALYTICS_BATCH_SIZE);
+          const ingestBatch = queuedBatch.map((event) =>
+            mapQueuedAnalyticsEventToIngestEvent(event, standardizedProperties, analyticsSessionId)
+          );
+
+          const sendResult = yield* Effect.either(sendAnalyticsEventsImpl(ingestBatch));
+          if (sendResult._tag === "Left") {
+            analyticsQueue.unshift(...queuedBatch);
+            yield* Effect.fail(sendResult.left);
+          }
+        }
+      }),
+
+    getAnalyticsQueueLength: () => analyticsQueue.length,
+
+    setAnalyticsFlushCallback: (callback: () => void) => {
+      triggerFlushCallback = callback;
+    },
+
+    stopAnalyticsFlushTimer: () =>
+      Effect.sync(() => {
+        clearFlushTimer();
+      }),
+
+    transferAnalyticsEvents: (events: ReadonlyArray<{ eventName: string; properties: Record<string, unknown> }>) =>
+      Effect.sync(() => {
+        for (const event of events) {
+          const normalized = event.eventName.trim();
+          if (!normalized) continue;
+          analyticsQueue.push({
+            eventName: normalized,
+            eventTimestamp: new Date().toISOString(),
+            id: getNonce(),
+            properties: event.properties,
+          });
+        }
+      }),
+
+    captureAutomaticStartupEvents: () =>
+      Effect.gen(function* () {
+        try {
+          const standardizedProps = yield* getStandardizedProperties();
+          const currentAppRelease: AppReleaseInfo = {
+            appBuild: toNullableString(standardizedProps.$app_build),
+            appVersion: toNullableString(standardizedProps.$app_version),
+          };
+
+          const cacheManager = yield* CacheManager;
+          const cachedRelease = yield* cacheManager.get<AppReleaseInfo>(
+            ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY
+          );
+          const previousAppRelease = toAppReleaseInfo(cachedRelease?.value);
+
+          if (!previousAppRelease) {
+            analyticsQueue.push({
+              eventName: "app_installed",
+              eventTimestamp: new Date().toISOString(),
+              id: getNonce(),
+              properties: {},
+            });
+          } else if (
+            previousAppRelease.appBuild !== currentAppRelease.appBuild ||
+            previousAppRelease.appVersion !== currentAppRelease.appVersion
+          ) {
+            analyticsQueue.push({
+              eventName: "app_updated",
+              eventTimestamp: new Date().toISOString(),
+              id: getNonce(),
+              properties: {},
+            });
+          }
+
+          analyticsQueue.push({
+            eventName: "app_opened",
+            eventTimestamp: new Date().toISOString(),
+            id: getNonce(),
+            properties: {},
+          });
+
+          yield* cacheManager.set(
+            ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY,
+            currentAppRelease
+          );
+        } catch {
+          analyticsQueue.push({
+            eventName: "app_opened",
+            eventTimestamp: new Date().toISOString(),
+            id: getNonce(),
+            properties: {},
+          });
+        }
+      }),
+
+    setupAutomaticLifecycleEvents: (captureEvent: (eventName: string) => void) =>
+      Effect.sync(() => {
+        const appState = getReactNativeAppState();
+        if (!appState || typeof appState.addEventListener !== "function") {
+          return null;
+        }
+
+        let lifecycleState: AppLifecycleState | null = appState.currentState ?? null;
+
+        const subscription = appState.addEventListener("change", (nextAppState) => {
+          const previousAppState = lifecycleState;
+          lifecycleState = nextAppState;
+
+          if (nextAppState === "background" && previousAppState !== "background") {
+            captureEvent("app_backgrounded");
+            return;
+          }
+
+          if (
+            nextAppState === "active" &&
+            previousAppState !== null &&
+            previousAppState !== "active"
+          ) {
+            captureEvent("app_became_active");
+          }
+        });
+
+        return subscription;
+      }),
+
+    sendAnalyticsEvents: (events: ReadonlyArray<AnalyticsIngestEvent>) =>
+      sendAnalyticsEventsImpl(events),
+
     signOut: () =>
       Effect.gen(function* signOut() {
         const identityManager = yield* IdentityManager;
@@ -437,6 +798,25 @@ const mapTransactionToSyncPayload = (transaction: Transaction) => {
 const generateCacheKeyFromProductDefinitions = <TSchema extends VoidhashSchema>(
   productDefinitions: ExtractSchemaProductDefinitions<TSchema>
 ) => `native-products:${JSON.stringify(productDefinitions)}`;
+
+const resolveIngestEventsUrl = (options: {
+  baseUrl: string;
+  ingestUrl: string | undefined;
+}) => {
+  const baseUrl = options.ingestUrl
+    ? new URL(options.ingestUrl)
+    : buildDefaultIngestBaseUrl(options.baseUrl);
+  return new URL("/v1/events", baseUrl).toString();
+};
+
+const buildDefaultIngestBaseUrl = (apiBaseUrl: string) => {
+  const parsedApiUrl = new URL(apiBaseUrl);
+  parsedApiUrl.hostname = `i.${parsedApiUrl.hostname}`;
+  parsedApiUrl.hash = "";
+  parsedApiUrl.pathname = "/";
+  parsedApiUrl.search = "";
+  return parsedApiUrl;
+};
 
 export const VoidhashEffectClient = {
   makeInitializedClient,

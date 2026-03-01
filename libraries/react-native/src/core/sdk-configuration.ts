@@ -7,6 +7,7 @@ export class SdkConfiguration extends Context.Tag(
   {
     readonly baseUrl: string;
     readonly debug: boolean;
+    readonly ingestUrl: string | undefined;
     readonly publishableKey: string;
     readonly readOnly: boolean;
   }

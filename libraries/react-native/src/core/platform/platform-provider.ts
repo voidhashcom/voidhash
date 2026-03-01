@@ -1,6 +1,8 @@
 import { Context } from "effect";
 
 export interface PlatformInfo {
+  appBuild: string | undefined;
+  appName: string | undefined;
   bundleId: string | null;
   locales: { languageTag: string }[];
   systemVersion: string;

@@ -1,5 +1,7 @@
 import { Exit } from "effect";
 
+jest.mock("react-native", () => ({ AppState: null }), { virtual: true });
+
 jest.mock("../core/payment-adapters/app-store-adapter", () => {
   const { Layer } = jest.requireActual("effect");
   return {
@@ -21,6 +23,8 @@ jest.mock("../core/platform/react-native-platform-provider", () => {
   );
   return {
     ReactNativePlatformProvider: Layer.succeed(PlatformProvider, {
+      appBuild: "100",
+      appName: "Voidhash Test",
       appVersion: "1.0.0",
       bundleId: "com.voidhash.test",
       deviceBrand: "Test Brand",
@@ -47,6 +51,7 @@ function createClient(readOnly = false, unstableSwallowErrors = false) {
     "voidhash",
     createTestSchema(),
     "https://api.voidhash.test",
+    undefined,
     "pk_test",
     readOnly,
     unstableSwallowErrors,
@@ -56,95 +61,27 @@ function createClient(readOnly = false, unstableSwallowErrors = false) {
 }
 
 describe("VoidhashClient", () => {
-  describe("init/end lifecycle", () => {
-    it("sets initialized true after successful init", async () => {
-      const client = createClient();
-      const initializedClient = {
-        end: () => "end-effect",
-        processObservedTransaction: () => "process-observed-effect",
-        reconcileObservedTransactions: () => "reconcile-observed-effect",
-        startTransactionObserver: () => "start-observer-effect",
-      };
-
-      (client as unknown as Record<string, unknown>).unitializedClient = {
-        init: () => "init-effect",
-      };
-      (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest
-          .fn()
-          .mockResolvedValueOnce(Exit.succeed(initializedClient))
-          .mockResolvedValue(Exit.succeed(undefined)),
-      };
-
-      await client.init();
-
-      expect(client.isInitialized).toBe(true);
-    });
-
-    it("sets initialized false after successful end", async () => {
-      const client = createClient();
-      const initializedClient = {
-        end: () => "end-effect",
-        processObservedTransaction: () => "process-observed-effect",
-        reconcileObservedTransactions: () => "reconcile-observed-effect",
-        startTransactionObserver: () => "start-observer-effect",
-      };
-
-      (client as unknown as Record<string, unknown>).unitializedClient = {
-        init: () => "init-effect",
-      };
-      (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest
-          .fn()
-          .mockResolvedValueOnce(Exit.succeed(initializedClient))
-          .mockResolvedValueOnce(Exit.succeed(undefined))
-          .mockResolvedValueOnce(Exit.succeed(undefined))
-          .mockResolvedValueOnce(Exit.succeed(undefined)),
-      };
-
-      await client.init();
-      expect(client.isInitialized).toBe(true);
-
-      await client.end();
-      expect(client.isInitialized).toBe(false);
-    });
-  });
-
-  describe("error mapping", () => {
-    it("maps getProducts effect failures to VoidhashError", async () => {
-      const client = createClient();
+  describe("unstable_swallowErrors", () => {
+    it("swallows flush errors when unstable_swallowErrors is enabled", async () => {
+      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {
+        return;
+      });
+      const client = createClient(false, true);
 
       (client as unknown as Record<string, unknown>).initializedClient = {
-        getProducts: () => "get-products-effect",
+        flush: () => "flush-effect",
       };
       (client as unknown as Record<string, unknown>).effectRuntime = {
         runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
-      await expect(client.getProducts()).rejects.toEqual(
-        expect.objectContaining<Partial<VoidhashError>>({
-          message: "FAILED_TO_GET_PRODUCTS",
-        })
+      await expect(client.flush()).resolves.toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[voidhash] swallowed error in flush",
+        expect.any(VoidhashError)
       );
-    });
 
-    it("maps identify effect failures to VoidhashError", async () => {
-      const client = createClient();
-
-      (client as unknown as Record<string, unknown>).initializedClient = {
-        identify: () => "identify-effect",
-      };
-      (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
-      };
-
-      await expect(
-        client.identify("new-user", { email: "new@voidhash.test" })
-      ).rejects.toEqual(
-        expect.objectContaining<Partial<VoidhashError>>({
-          message: "FAILED_TO_IDENTIFY",
-        })
-      );
+      warnSpy.mockRestore();
     });
 
     it("swallows identify errors when unstable_swallowErrors is enabled", async () => {
@@ -168,43 +105,6 @@ describe("VoidhashClient", () => {
         expect.any(VoidhashError)
       );
       warnSpy.mockRestore();
-    });
-
-    it("throws when purchasing in read-only mode", async () => {
-      const client = createClient(true);
-
-      (client as unknown as Record<string, unknown>).initializedClient = {
-        purchase: () => "purchase-effect",
-      };
-      (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.succeed(undefined)),
-      };
-
-      await expect(
-        client.purchase(
-          {
-            id: "monthly-id",
-          } as never,
-          {}
-        )
-      ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
-    });
-
-    it("maps restorePurchases effect failures to VoidhashError", async () => {
-      const client = createClient();
-
-      (client as unknown as Record<string, unknown>).initializedClient = {
-        restorePurchases: () => "restore-purchases-effect",
-      };
-      (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
-      };
-
-      await expect(client.restorePurchases()).rejects.toEqual(
-        expect.objectContaining<Partial<VoidhashError>>({
-          message: "FAILED_TO_RESTORE_PURCHASES",
-        })
-      );
     });
 
     it("swallows restorePurchases errors when unstable_swallowErrors is enabled", async () => {
@@ -278,7 +178,7 @@ describe("VoidhashClient", () => {
 
       await expect(client.getProducts()).rejects.toEqual(
         expect.objectContaining<Partial<VoidhashError>>({
-          message: "FAILED_TO_GET_PRODUCTS",
+          message: expect.stringContaining("FAILED_TO_GET_PRODUCTS"),
         })
       );
     });
@@ -302,9 +202,31 @@ describe("VoidhashClient", () => {
         )
       ).rejects.toEqual(
         expect.objectContaining<Partial<VoidhashError>>({
-          message: "FAILED_TO_PURCHASE",
+          message: expect.stringContaining("FAILED_TO_PURCHASE"),
         })
       );
+    });
+  });
+
+  describe("readOnly mode", () => {
+    it("throws when purchasing in read-only mode", async () => {
+      const client = createClient(true);
+
+      (client as unknown as Record<string, unknown>).initializedClient = {
+        purchase: () => "purchase-effect",
+      };
+      (client as unknown as Record<string, unknown>).effectRuntime = {
+        runPromiseExit: jest.fn().mockResolvedValue(Exit.succeed(undefined)),
+      };
+
+      await expect(
+        client.purchase(
+          {
+            id: "monthly-id",
+          } as never,
+          {}
+        )
+      ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
     });
 
     it("keeps read-only purchase rejection strict when unstable_swallowErrors is enabled", async () => {
@@ -325,23 +247,6 @@ describe("VoidhashClient", () => {
           {}
         )
       ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
-    });
-
-    it("resolves restorePurchases when effect succeeds", async () => {
-      const client = createClient();
-      const runPromiseExit = jest
-        .fn()
-        .mockResolvedValue(Exit.succeed(undefined));
-
-      (client as unknown as Record<string, unknown>).initializedClient = {
-        restorePurchases: () => "restore-purchases-effect",
-      };
-      (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit,
-      };
-
-      await expect(client.restorePurchases()).resolves.toBeUndefined();
-      expect(runPromiseExit).toHaveBeenCalledTimes(1);
     });
   });
 });

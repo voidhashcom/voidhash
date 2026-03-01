@@ -44,7 +44,7 @@ export interface ApiClientDoubleOptions {
   syncTransactionShouldFail?: boolean;
 }
 
-export function createSdkCustomer(appUserId: string): SdkCustomer {
+export function createSdkCustomer(appUserId: string) {
   return {
     appUserId,
     customerId: `customer-${appUserId}`,
@@ -210,15 +210,20 @@ export function createInMemoryCacheAdapter() {
 
 export interface EffectTestHarnessOptions {
   apiClient: ApiClient;
+  baseUrl?: string;
   cacheAdapter: ReturnType<typeof createInMemoryCacheAdapter>["adapter"];
   debug?: boolean;
   eventBus?: EventBus;
+  ingestUrl?: string;
   paymentAdapter: PaymentAdapter;
   platform?: Partial<PlatformInfo>;
+  publishableKey?: string;
   readOnly?: boolean;
 }
 
 const defaultPlatformInfo: PlatformInfo = {
+  appBuild: "100",
+  appName: "Voidhash Test",
   appVersion: "1.0.0",
   bundleId: "com.voidhash.test",
   deviceBrand: "Test Brand",
@@ -249,9 +254,10 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
     ),
     Layer.provideMerge(
       Layer.succeed(SdkConfiguration, {
-        baseUrl: "https://api.voidhash.test",
+        baseUrl: options.baseUrl ?? "https://api.voidhash.test",
         debug: options.debug ?? false,
-        publishableKey: "pk_test",
+        ingestUrl: options.ingestUrl,
+        publishableKey: options.publishableKey ?? "pk_test",
         readOnly: options.readOnly ?? false,
       })
     )
