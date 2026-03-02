@@ -1,5 +1,5 @@
-import { FetchHttpClient } from "@effect/platform";
 import { Cause, Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
+import { FetchHttpClient } from "effect/unstable/http";
 
 import { VoidhashEffectClient } from "./client-effect";
 import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";

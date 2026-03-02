@@ -1,8 +1,7 @@
-import { HelpDoc, ValidationError } from "@effect/cli";
-import * as Span from "@effect/cli/HelpDoc/Span";
-import { Cause, Chunk, Console, Effect } from "effect";
+import { CliError } from "effect/unstable/cli";
+import { Cause, Console, Effect } from "effect";
 
-const ValidationErrorTypeId = Symbol.for("@effect/cli/ValidationError");
+const CliErrorTypeId = Symbol.for("~effect/cli/CliError");
 
 /**
  * Check if debug mode is enabled via --debug flag
@@ -11,13 +10,7 @@ export const isDebugMode = (): boolean =>
   process.argv.includes("--debug") || process.argv.includes("-d");
 
 /**
- * Creates a nicely formatted error HelpDoc with red styling.
- */
-export const errorDoc = (message: string): HelpDoc.HelpDoc =>
-  HelpDoc.p(Span.error(message));
-
-/**
- * Creates a ValidationError with a nicely formatted red error message.
+ * Creates a CliError.UserError with a message.
  * Use this in command error handlers to show user-friendly errors.
  *
  * @example
@@ -27,21 +20,21 @@ export const errorDoc = (message: string): HelpDoc.HelpDoc =>
  * )
  * ```
  */
-export const userError = (message: string): ValidationError.ValidationError =>
-  ValidationError.invalidValue(errorDoc(message));
+export const userError = (message: string): CliError.UserError =>
+  new CliError.UserError({ cause: new Error(message) });
 
 /**
- * Check if an error is a ValidationError from @effect/cli
+ * Check if an error is a CliError from @effect/cli
  */
-const isValidationError = (
+const isCliError = (
   error: unknown
-): error is ValidationError.ValidationError =>
-  typeof error === "object" && error !== null && ValidationErrorTypeId in error;
+): error is CliError.CliError =>
+  typeof error === "object" && error !== null && CliErrorTypeId in error;
 
 /**
- * Wraps a CLI effect to properly render ValidationErrors.
+ * Wraps a CLI effect to properly render CliErrors.
  *
- * @effect/cli's Command.run doesn't render ValidationErrors that bubble up
+ * @effect/cli's Command.run doesn't render CliErrors that bubble up
  * from command handlers - it only handles them during parsing.
  * This wrapper catches those errors and prints them nicely, then exits with code 1.
  *
@@ -49,54 +42,56 @@ const isValidationError = (
  */
 export const withValidationErrorHandler = <A, E, R>(
   effect: Effect.Effect<A, E, R>
-): Effect.Effect<A | void, Exclude<E, ValidationError.ValidationError>, R> =>
+): Effect.Effect<A | void, Exclude<E, CliError.CliError>, R> =>
   effect.pipe(
-    Effect.catchAllCause((cause) => {
-      const failures = Cause.failures(cause);
+    Effect.catchCause((cause) => {
+      const failures = cause.reasons
+        .filter((r): r is Extract<typeof r, { _tag: "Fail" }> => r._tag === "Fail")
+        .map((r) => r.error);
 
       for (const failure of failures) {
-        if (isValidationError(failure)) {
+        if (isCliError(failure)) {
           // In debug mode, show the full cause chain
           if (isDebugMode()) {
             return Console.error("\n--- Debug Trace ---").pipe(
               Effect.andThen(
-                Console.error(Cause.pretty(cause, { renderErrorCause: true }))
+                Console.error(Cause.pretty(cause))
               ),
               Effect.andThen(Console.error("--- End Debug Trace ---\n")),
-              Effect.andThen(Console.error(HelpDoc.toAnsiText(failure.error))),
+              Effect.andThen(Console.error(failure.message)),
               Effect.andThen(Effect.sync(() => process.exit(1)))
             );
           }
 
           // Normal mode: just show the user-friendly message
-          return Console.error(HelpDoc.toAnsiText(failure.error)).pipe(
+          return Console.error(failure.message).pipe(
             Effect.andThen(Effect.sync(() => process.exit(1)))
           );
         }
       }
 
-      // For non-ValidationError failures, show full cause in debug mode
-      if (isDebugMode() && !Cause.isEmpty(cause)) {
+      // For non-CliError failures, show full cause in debug mode
+      if (isDebugMode() && cause.reasons.length > 0) {
         return Console.error("\n--- Debug Trace ---").pipe(
           Effect.andThen(
-            Console.error(Cause.pretty(cause, { renderErrorCause: true }))
+            Console.error(Cause.pretty(cause))
           ),
           Effect.andThen(Console.error("--- End Debug Trace ---\n")),
           Effect.andThen(Effect.sync(() => process.exit(1)))
         );
       }
 
-      // Re-fail with non-ValidationError
-      const firstFailure = Chunk.head(failures);
-      if (firstFailure._tag === "Some") {
+      // Re-fail with non-CliError
+      const firstFailure = failures[0];
+      if (firstFailure !== undefined) {
         return Effect.fail(
-          firstFailure.value as Exclude<E, ValidationError.ValidationError>
+          firstFailure as Exclude<E, CliError.CliError>
         );
       }
 
       // Handle defects
       return Effect.failCause(
-        cause as Cause.Cause<Exclude<E, ValidationError.ValidationError>>
+        cause as Cause.Cause<Exclude<E, CliError.CliError>>
       );
     })
   );

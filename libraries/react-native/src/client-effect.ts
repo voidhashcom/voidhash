@@ -365,7 +365,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
 
       for (const transaction of observedTransactionsByKey.values()) {
         yield* processObservedTransaction(transaction).pipe(
-          Effect.catchAll((error) =>
+          Effect.catch((error) =>
             Effect.logWarning("Failed to process observed transaction", {
               error,
               transactionId: transaction.transactionId,
@@ -564,10 +564,10 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
             mapQueuedAnalyticsEventToIngestEvent(event, standardizedProperties, analyticsSessionId)
           );
 
-          const sendResult = yield* Effect.either(sendAnalyticsEventsImpl(ingestBatch));
-          if (sendResult._tag === "Left") {
+          const sendResult = yield* Effect.exit(sendAnalyticsEventsImpl(ingestBatch));
+          if (sendResult._tag === "Failure") {
             analyticsQueue.unshift(...queuedBatch);
-            yield* Effect.fail(sendResult.left);
+            yield* Effect.failCause(sendResult.cause);
           }
         }
       }),

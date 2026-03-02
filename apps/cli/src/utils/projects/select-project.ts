@@ -1,4 +1,4 @@
-import { Prompt } from "@effect/cli";
+import { Prompt } from "effect/unstable/cli";
 import { Effect } from "effect";
 
 import { createProject } from "./create-project";
@@ -29,7 +29,7 @@ export const selectProject = (
 
     const project = projects.find((p) => p.slug === projectSlug);
     if (!project) {
-      return yield* Effect.dieMessage(
+      return yield* Effect.die(
         "Project not found even though it was selected and should exist."
       );
     }

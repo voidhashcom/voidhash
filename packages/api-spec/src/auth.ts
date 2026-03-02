@@ -1,4 +1,4 @@
-import { Context, Schema } from "effect";
+import { Schema, ServiceMap } from "effect";
 
 // ============================================================================
 // Session Sub-Schemas
@@ -74,11 +74,11 @@ export const ApiPublishableKeySessionSchema = Schema.Struct({
 // Combined Auth Session Schema
 // ============================================================================
 
-export const ApiAuthSessionSchema = Schema.Union(
+export const ApiAuthSessionSchema = Schema.Union([
   ApiUserSessionSchema,
   ApiSecretKeySessionSchema,
-  ApiPublishableKeySessionSchema
-);
+  ApiPublishableKeySessionSchema,
+]);
 
 // ============================================================================
 // Type Exports
@@ -96,7 +96,4 @@ export type AnyApiAuthSession =
 // Context Tag
 // ============================================================================
 
-export class ApiAuthSession extends Context.Tag("api-spec/auth/ApiAuthSession")<
-  ApiAuthSession,
-  ApiUserSession | ApiSecretKeySession | ApiPublishableKeySession
->() {}
+export class ApiAuthSession extends ServiceMap.Service<ApiAuthSession, ApiUserSession | ApiSecretKeySession | ApiPublishableKeySession>()("api-spec/auth/ApiAuthSession") {}

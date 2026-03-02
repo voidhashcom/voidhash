@@ -1,38 +1,37 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Generic paywall service error */
-export class PaywallServiceError extends Schema.TaggedError<PaywallServiceError>()(
+export class PaywallServiceError extends Schema.TaggedErrorClass<PaywallServiceError>()(
   "PaywallServiceError",
   {
     cause: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}
 
 /** Paywall not found */
-export class PaywallNotFoundError extends Schema.TaggedError<PaywallNotFoundError>()(
+export class PaywallNotFoundError extends Schema.TaggedErrorClass<PaywallNotFoundError>()(
   "PaywallNotFoundError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 /** Paywall slug already exists */
-export class PaywallSlugAlreadyExistsError extends Schema.TaggedError<PaywallSlugAlreadyExistsError>()(
+export class PaywallSlugAlreadyExistsError extends Schema.TaggedErrorClass<PaywallSlugAlreadyExistsError>()(
   "PaywallSlugAlreadyExistsError",
   {
     slug: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {}
 
 /** Paywall publish error */
-export class PaywallPublishError extends Schema.TaggedError<PaywallPublishError>()(
+export class PaywallPublishError extends Schema.TaggedErrorClass<PaywallPublishError>()(
   "PaywallPublishError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}

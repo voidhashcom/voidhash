@@ -1,4 +1,3 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 import { ChangesetSchema } from "./changeset";
@@ -20,11 +19,11 @@ export const SecretKeyAuthHeaders = Schema.Struct({
 // Auth
 // ========================================================
 
-const SessionAuthMethods = Schema.Union(
+const SessionAuthMethods = Schema.Union([
   Schema.Literal("api-key"),
   Schema.Literal("publishable-key"),
-  Schema.Literal("secret-key")
-);
+  Schema.Literal("secret-key"),
+]);
 
 export const Session = Schema.Struct({
   method: SessionAuthMethods,
@@ -79,7 +78,7 @@ export class CreateSecretKeyBody extends Schema.Class<CreateSecretKeyBody>(
   projectId: Schema.String,
 }) {}
 
-export const ApiKeyIdParam = HttpApiSchema.param("apiKeyId", Schema.String);
+export const ApiKeyIdParam = Schema.String;
 
 // ========================================================
 // Customers
@@ -100,9 +99,9 @@ export class CreateCustomerBody extends Schema.Class<CreateCustomerBody>(
   name: Schema.optional(Schema.String),
 }) {}
 
-export const CustomerIdParam = HttpApiSchema.param("customerId", Schema.String);
+export const CustomerIdParam = Schema.String;
 
-export const AppUserIdParam = HttpApiSchema.param("appUserId", Schema.String);
+export const AppUserIdParam = Schema.String;
 
 // ========================================================
 // Organizations
@@ -147,11 +146,11 @@ export class PaywallLocation extends Schema.Class<PaywallLocation>("PaywallLocat
 // Products
 // ========================================================
 
-export const ProductType = Schema.Literal(
+export const ProductType = Schema.Literals([
   "subscription",
   "one-time",
-  "one-time-consumable"
-);
+  "one-time-consumable",
+]);
 
 export class Product extends Schema.Class<Product>("Product")({
   id: Schema.String,
@@ -165,7 +164,7 @@ export class Product extends Schema.Class<Product>("Product")({
 // Product Perks
 // ========================================================
 
-export const ProductIdParam = HttpApiSchema.param("productId", Schema.String);
+export const ProductIdParam = Schema.String;
 
 export class ProductPerk extends Schema.Class<ProductPerk>("ProductPerk")({
   id: Schema.String,
@@ -194,7 +193,7 @@ export class PaymentProviderConfiguration extends Schema.Class<PaymentProviderCo
 export class PaymentProviderProduct extends Schema.Class<PaymentProviderProduct>(
   "PaymentProviderProduct"
 )({
-  configuration: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  configuration: Schema.Record(Schema.String, Schema.Unknown),
   id: Schema.String,
   paymentProviderConfigurationId: Schema.String,
   productId: Schema.String,
@@ -234,10 +233,7 @@ export class Project extends Schema.Class<Project>("Project")({
   slug: Schema.String,
 }) {}
 
-export const OrganizationIdParam = HttpApiSchema.param(
-  "organizationId",
-  Schema.String
-);
+export const OrganizationIdParam = Schema.String;
 
 // ========================================================
 // SDK
@@ -248,9 +244,9 @@ const CommonSdkHeaders = Schema.Struct({
   "x-client-locale": Schema.optional(Schema.String),
   "x-client-version": Schema.optional(Schema.String),
   "x-is-backgrounded": Schema.Literal("false"),
-  "x-is-debug-build": Schema.Literal("true", "false"),
+  "x-is-debug-build": Schema.Literals(["true", "false"]),
   "x-nonce": Schema.optional(Schema.String),
-  "x-observer-mode": Schema.Literal("true", "false"),
+  "x-observer-mode": Schema.Literals(["true", "false"]),
   "x-platform": Schema.String,
   "x-platform-brand": Schema.optional(Schema.String),
   "x-platform-device": Schema.optional(Schema.String),
@@ -286,7 +282,7 @@ export class SdkSyncCustomerAttributesBody extends Schema.Class<SdkSyncCustomerA
 }) {}
 
 export const SdkSyncTransactionBody = Schema.Struct({
-  platform: Schema.Literal("ios", "android"),
+  platform: Schema.Literals(["ios", "android"]),
   productId: Schema.String,
   purchaseDate: Schema.Number,
   purchaseToken: Schema.optional(Schema.String),
@@ -343,7 +339,7 @@ export class User extends Schema.Class<User>("User")({
 // Webhooks
 // ========================================================
 
-export const WebhookEventType = Schema.Literal(
+export const WebhookEventType = Schema.Literals([
   "customer.created",
   "customer.updated",
   "customer.deleted",
@@ -352,18 +348,18 @@ export const WebhookEventType = Schema.Literal(
   "subscription.cancelled",
   "subscription.expired",
   "purchase.completed",
-  "purchase.refunded"
-);
+  "purchase.refunded",
+]);
 
-export const WebhookEndpointStatus = Schema.Literal("active", "disabled", "failed");
+export const WebhookEndpointStatus = Schema.Literals(["active", "disabled", "failed"]);
 
-export const WebhookDeliveryStatus = Schema.Literal(
+export const WebhookDeliveryStatus = Schema.Literals([
   "pending",
   "in_progress",
   "succeeded",
   "failed",
-  "exhausted"
-);
+  "exhausted",
+]);
 
 export class WebhookEndpoint extends Schema.Class<WebhookEndpoint>(
   "WebhookEndpoint"
@@ -396,14 +392,11 @@ export class UpdateWebhookEndpointBody extends Schema.Class<UpdateWebhookEndpoin
   description: Schema.optional(Schema.NullOr(Schema.String)),
   events: Schema.optional(Schema.Array(Schema.String)),
   name: Schema.optional(Schema.String),
-  status: Schema.optional(Schema.Literal("active", "disabled")),
+  status: Schema.optional(Schema.Literals(["active", "disabled"])),
   url: Schema.optional(Schema.String),
 }) {}
 
-export const WebhookEndpointIdParam = HttpApiSchema.param(
-  "endpointId",
-  Schema.String
-);
+export const WebhookEndpointIdParam = Schema.String;
 
 export class WebhookDelivery extends Schema.Class<WebhookDelivery>(
   "WebhookDelivery"
@@ -453,10 +446,7 @@ export class WebhookDeliveryWithAttempts extends Schema.Class<WebhookDeliveryWit
   webhookEndpointId: Schema.String,
 }) {}
 
-export const WebhookDeliveryIdParam = HttpApiSchema.param(
-  "deliveryId",
-  Schema.String
-);
+export const WebhookDeliveryIdParam = Schema.String;
 
 // ========================================================
 // Feature Flags (SDK)
@@ -493,10 +483,10 @@ export class SdkResolvePaywallBody extends Schema.Class<SdkResolvePaywallBody>(
   locationSlug: Schema.String,
 }) {}
 
-const SdkResolvedPaywallShowingType = Schema.Literal(
+const SdkResolvedPaywallShowingType = Schema.Literals([
   "paywall_release",
-  "feature_flag"
-);
+  "feature_flag",
+]);
 
 const SdkResolvedPaywallShowingPaywall = Schema.Struct({
   id: Schema.String,

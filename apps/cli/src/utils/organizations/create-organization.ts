@@ -1,4 +1,4 @@
-import { Prompt } from "@effect/cli";
+import { Prompt } from "effect/unstable/cli";
 import { Console, Effect } from "effect";
 
 import { NoSignedInUserError } from "../../domain/errors/auth";

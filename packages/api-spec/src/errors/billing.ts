@@ -1,29 +1,28 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Generic billing service error */
-export class BillingServiceError extends Schema.TaggedError<BillingServiceError>()(
+export class BillingServiceError extends Schema.TaggedErrorClass<BillingServiceError>()(
   "BillingServiceError",
   {
     cause: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}
 
 /** Organization billing not found */
-export class OrganizationBillingNotFoundError extends Schema.TaggedError<OrganizationBillingNotFoundError>()(
+export class OrganizationBillingNotFoundError extends Schema.TaggedErrorClass<OrganizationBillingNotFoundError>()(
   "OrganizationBillingNotFoundError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 /** Invalid billing tier error */
-export class InvalidBillingTierError extends Schema.TaggedError<InvalidBillingTierError>()(
+export class InvalidBillingTierError extends Schema.TaggedErrorClass<InvalidBillingTierError>()(
   "InvalidBillingTierError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}

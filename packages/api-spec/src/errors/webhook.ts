@@ -1,38 +1,37 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Generic webhook service error */
-export class WebhookServiceError extends Schema.TaggedError<WebhookServiceError>()(
+export class WebhookServiceError extends Schema.TaggedErrorClass<WebhookServiceError>()(
   "WebhookServiceError",
   {
     cause: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}
 
 /** Webhook endpoint not found */
-export class WebhookEndpointNotFoundError extends Schema.TaggedError<WebhookEndpointNotFoundError>()(
+export class WebhookEndpointNotFoundError extends Schema.TaggedErrorClass<WebhookEndpointNotFoundError>()(
   "WebhookEndpointNotFoundError",
   {
     endpointId: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 /** Webhook delivery not found */
-export class WebhookDeliveryNotFoundError extends Schema.TaggedError<WebhookDeliveryNotFoundError>()(
+export class WebhookDeliveryNotFoundError extends Schema.TaggedErrorClass<WebhookDeliveryNotFoundError>()(
   "WebhookDeliveryNotFoundError",
   {
     deliveryId: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 /** Webhook validation error */
-export class WebhookValidationError extends Schema.TaggedError<WebhookValidationError>()(
+export class WebhookValidationError extends Schema.TaggedErrorClass<WebhookValidationError>()(
   "WebhookValidationError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}

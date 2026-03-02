@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Layer, ServiceMap } from "effect";
 
 import { CacheAdapter } from "./cache-adapter";
 
@@ -15,96 +15,95 @@ type CacheHit<T> = CacheEnvelope<T> & {
   isStale: boolean;
   isExpired: boolean;
 };
-export class CacheManager extends Effect.Service<CacheManager>()(
-  "rn-voidhash/CacheManager",
-  {
-    dependencies: [],
-    effect: Effect.gen(function* effect() {
-      const cache = yield* CacheAdapter;
-      const get = <T>(key: string) =>
-        Effect.gen(function* get() {
-          const cachedValue = yield* cache.get(key);
-          if (cachedValue) {
-            const cacheHit = JSON.parse(cachedValue) as CacheEnvelope<T>;
 
-            const isExpired = cacheHit.expiresAt
-              ? cacheHit.expiresAt < Date.now()
-              : false;
-            const isStale = cacheHit.staleAt
-              ? cacheHit.staleAt < Date.now()
-              : false;
+const make = Effect.gen(function* effect() {
+  const cache = yield* CacheAdapter;
+  const get = <T>(key: string) =>
+    Effect.gen(function* get() {
+      const cachedValue = yield* cache.get(key);
+      if (cachedValue) {
+        const cacheHit = JSON.parse(cachedValue) as CacheEnvelope<T>;
 
-            if (isExpired) {
-              yield* deleteValue(key);
-              return null;
-            }
+        const isExpired = cacheHit.expiresAt
+          ? cacheHit.expiresAt < Date.now()
+          : false;
+        const isStale = cacheHit.staleAt
+          ? cacheHit.staleAt < Date.now()
+          : false;
 
-            return {
-              ...cacheHit,
-              isExpired,
-              isStale,
-            } satisfies CacheHit<T>;
-          }
+        if (isExpired) {
+          yield* deleteValue(key);
           return null;
-        });
+        }
 
-      const setValue = <T>(
-        key: string,
-        value: T,
-        options?: { ttl?: number; staleTime?: number }
-      ) =>
-        Effect.all([
-          cache.set(
-            key,
-            JSON.stringify({
-              createdAt: Date.now(),
-              expiresAt: options?.ttl ? Date.now() + options.ttl : null,
-              staleAt: options?.staleTime
-                ? Date.now() + options.staleTime
-                : null,
-              value,
-            } satisfies CacheEnvelope<T>)
-          ),
-          storeCacheKey(key),
-        ]);
+        return {
+          ...cacheHit,
+          isExpired,
+          isStale,
+        } satisfies CacheHit<T>;
+      }
+      return null;
+    });
 
-      const deleteValue = (key: string) => cache.delete(key);
+  const setValue = <T>(
+    key: string,
+    value: T,
+    options?: { ttl?: number; staleTime?: number }
+  ) =>
+    Effect.all([
+      cache.set(
+        key,
+        JSON.stringify({
+          createdAt: Date.now(),
+          expiresAt: options?.ttl ? Date.now() + options.ttl : null,
+          staleAt: options?.staleTime
+            ? Date.now() + options.staleTime
+            : null,
+          value,
+        } satisfies CacheEnvelope<T>)
+      ),
+      storeCacheKey(key),
+    ]);
 
-      const clear = () =>
-        Effect.gen(function* clear() {
-          const cacheKeys = yield* getCacheKeys();
-          yield* Effect.all(cacheKeys.map((key) => cache.delete(key)));
-          yield* cache.delete(CACHE_KEYS_KEY);
-        });
+  const deleteValue = (key: string) => cache.delete(key);
 
-      const getCacheKeys = () =>
-        Effect.gen(function* getCacheKeys() {
-          const cacheKeys = yield* cache.get(CACHE_KEYS_KEY);
-          if (cacheKeys) {
-            return JSON.parse(cacheKeys) as string[];
-          }
-          return [];
-        });
+  const clear = () =>
+    Effect.gen(function* clear() {
+      const cacheKeys = yield* getCacheKeys();
+      yield* Effect.all(cacheKeys.map((key) => cache.delete(key)));
+      yield* cache.delete(CACHE_KEYS_KEY);
+    });
 
-      const storeCacheKey = (key: string) =>
-        Effect.gen(function* storeCacheKey() {
-          const cacheKeys = yield* cache.get(CACHE_KEYS_KEY);
-          if (cacheKeys) {
-            const cacheKeysArray = JSON.parse(cacheKeys) as string[];
-            cacheKeysArray.push(key);
-            yield* cache.set(CACHE_KEYS_KEY, JSON.stringify(cacheKeysArray));
-          } else {
-            yield* cache.set(CACHE_KEYS_KEY, JSON.stringify([key]));
-          }
-        });
+  const getCacheKeys = () =>
+    Effect.gen(function* getCacheKeys() {
+      const cacheKeys = yield* cache.get(CACHE_KEYS_KEY);
+      if (cacheKeys) {
+        return JSON.parse(cacheKeys) as string[];
+      }
+      return [];
+    });
 
-      return {
-        clear,
-        delete: deleteValue,
-        get,
-        getCacheKeys,
-        set: setValue,
-      } as const;
-    }),
-  }
-) {}
+  const storeCacheKey = (key: string) =>
+    Effect.gen(function* storeCacheKey() {
+      const cacheKeys = yield* cache.get(CACHE_KEYS_KEY);
+      if (cacheKeys) {
+        const cacheKeysArray = JSON.parse(cacheKeys) as string[];
+        cacheKeysArray.push(key);
+        yield* cache.set(CACHE_KEYS_KEY, JSON.stringify(cacheKeysArray));
+      } else {
+        yield* cache.set(CACHE_KEYS_KEY, JSON.stringify([key]));
+      }
+    });
+
+  return {
+    clear,
+    delete: deleteValue,
+    get,
+    getCacheKeys,
+    set: setValue,
+  } as const;
+});
+
+export class CacheManager extends ServiceMap.Service<CacheManager, Effect.Success<typeof make>>()("rn-voidhash/CacheManager") {
+  static Default = Layer.effect(CacheManager, make)
+}

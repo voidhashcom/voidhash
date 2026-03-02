@@ -1,5 +1,5 @@
-import { HttpClient } from "@effect/platform";
 import { Console, Effect } from "effect";
+import { HttpClient } from "effect/unstable/http";
 
 const MAX_BODY_PREVIEW_BYTES = 2_048;
 const MAX_VALUE_PREVIEW_CHARS = 1_024;

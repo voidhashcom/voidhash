@@ -1,30 +1,29 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Action is forbidden due to insufficient permissions */
-export class ActionForbiddenError extends Schema.TaggedError<ActionForbiddenError>()(
+export class ActionForbiddenError extends Schema.TaggedErrorClass<ActionForbiddenError>()(
   "ActionForbiddenError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 403 })
+  { httpApiStatus: 403 }
 ) {}
 
 /** Authentication failed */
-export class AuthenticationError extends Schema.TaggedError<AuthenticationError>()(
+export class AuthenticationError extends Schema.TaggedErrorClass<AuthenticationError>()(
   "AuthenticationError",
   {
     cause: Schema.String,
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}
 
 /** User is not authenticated */
-export class NotAuthenticatedError extends Schema.TaggedError<NotAuthenticatedError>()(
+export class NotAuthenticatedError extends Schema.TaggedErrorClass<NotAuthenticatedError>()(
   "NotAuthenticatedError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 401 })
+  { httpApiStatus: 401 }
 ) {}

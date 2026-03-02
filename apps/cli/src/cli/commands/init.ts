@@ -1,6 +1,5 @@
-import { Command, Prompt } from "@effect/cli";
-import { Path } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { Command, Prompt } from "effect/unstable/cli";
+import { Console, Effect, Path } from "effect";
 
 import { createInitialNormalizedSchema } from "../../domain/schema/normalized-schema";
 import { Auth } from "../../domain/services/auth";

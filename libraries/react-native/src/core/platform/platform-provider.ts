@@ -1,4 +1,4 @@
-import { Context } from "effect";
+import { ServiceMap } from "effect";
 
 export interface PlatformInfo {
   appBuild: string | undefined;
@@ -12,6 +12,4 @@ export interface PlatformInfo {
   isDebugBuild: boolean;
   platform: "ios" | "android" | "unknown";
 }
-export class PlatformProvider extends Context.Tag(
-  "rn-voidhash/PlatformProvider"
-)<PlatformProvider, PlatformInfo>() {}
+export class PlatformProvider extends ServiceMap.Service<PlatformProvider, PlatformInfo>()("rn-voidhash/PlatformProvider") {}

@@ -1,22 +1,21 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Generic project service error */
-export class ProjectServiceError extends Schema.TaggedError<ProjectServiceError>()(
+export class ProjectServiceError extends Schema.TaggedErrorClass<ProjectServiceError>()(
   "ProjectServiceError",
   {
     cause: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}
 
 /** Project not found */
-export class ProjectNotFoundError extends Schema.TaggedError<ProjectNotFoundError>()(
+export class ProjectNotFoundError extends Schema.TaggedErrorClass<ProjectNotFoundError>()(
   "ProjectNotFoundError",
   {
     projectId: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {
   toString(): string {
     return `The following project not found: ${this.projectId}`;

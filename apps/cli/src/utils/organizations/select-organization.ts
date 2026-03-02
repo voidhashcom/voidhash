@@ -1,4 +1,4 @@
-import { Prompt } from "@effect/cli";
+import { Prompt } from "effect/unstable/cli";
 import { Effect } from "effect";
 
 import { createOrganization } from "./create-organization";
@@ -30,7 +30,7 @@ export const selectOrganization = (
     }
     const organization = organizations.find((t) => t.slug === organizationSlug);
     if (!organization) {
-      return yield* Effect.dieMessage(
+      return yield* Effect.die(
         "Organization not found even though it was selected and should exist."
       );
     }
