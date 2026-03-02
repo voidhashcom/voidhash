@@ -1,11 +1,13 @@
-import { Effect } from "effect";
+import { Effect, Layer, ServiceMap } from "effect";
 
-export class RepositoryService extends Effect.Service<RepositoryService>()(
-  "voidhash-cli/services/RepositoryService",
-  {
-    dependencies: [],
-    scoped: Effect.gen(function* scoped() {
-      return {} as const;
-    }),
-  }
-) {}
+const make = Effect.gen(function* scoped() {
+  return {} as const;
+});
+
+type RepositoryServiceShape = Effect.Success<typeof make>;
+
+export class RepositoryService extends ServiceMap.Service<RepositoryService, RepositoryServiceShape>()(
+  "voidhash-cli/services/RepositoryService"
+) {
+  static Default = Layer.effect(RepositoryService, make)
+}

@@ -1,10 +1,17 @@
+import { NodeServices, NodeHttpServer } from "@effect/platform-node";
 import {
-  HttpLayerRouter,
+  Console,
+  Data,
+  Effect,
+  Layer,
+  PubSub,
+  ServiceMap,
+} from "effect";
+import {
+  HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
-} from "@effect/platform";
-import { NodeContext, NodeHttpServer } from "@effect/platform-node";
-import { Console, Data, Effect, Layer, PubSub, Queue } from "effect";
+} from "effect/unstable/http";
 import { customAlphabet } from "nanoid";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
@@ -47,7 +54,7 @@ const runCallbackServer = (callbackEvents: PubSub.PubSub<CallbackEvent>) =>
     // Create the callback route layer
     const CallbackRoute = Layer.effectDiscard(
       Effect.gen(function* CallbackRoute() {
-        const router = yield* HttpLayerRouter.HttpRouter;
+        const router = yield* HttpRouter.HttpRouter;
         yield* router.add(
           "GET",
           "/callback",
@@ -57,8 +64,8 @@ const runCallbackServer = (callbackEvents: PubSub.PubSub<CallbackEvent>) =>
             const { query } = parsedUrl;
 
             if (query.cancelled) {
-              yield* callbackEvents.publish({ type: "cancelled" });
-              return yield* HttpServerResponse.text("Login cancelled").pipe(
+              yield* PubSub.publish(callbackEvents, { type: "cancelled" });
+              return HttpServerResponse.text("Login cancelled").pipe(
                 HttpServerResponse.setHeader(
                   "Access-Control-Allow-Origin",
                   "*"
@@ -70,12 +77,12 @@ const runCallbackServer = (callbackEvents: PubSub.PubSub<CallbackEvent>) =>
               );
             }
 
-            yield* callbackEvents.publish({
+            yield* PubSub.publish(callbackEvents, {
               code: query.code as string,
               key: query.key as string,
               type: "success",
             });
-            return yield* HttpServerResponse.text("Login successful").pipe(
+            return HttpServerResponse.text("Login successful").pipe(
               HttpServerResponse.setHeader("Access-Control-Allow-Origin", "*"),
               HttpServerResponse.setHeader(
                 "Access-Control-Allow-Methods",
@@ -97,173 +104,180 @@ const runCallbackServer = (callbackEvents: PubSub.PubSub<CallbackEvent>) =>
     });
 
     // Launch the server with the callback route
-    return yield* HttpLayerRouter.serve(CallbackRoute).pipe(
-      Layer.provide(Layer.mergeAll(ServerLive, NodeContext.layer)),
+    return yield* HttpRouter.serve(CallbackRoute).pipe(
+      Layer.provide(Layer.mergeAll(ServerLive, NodeServices.layer)),
       Layer.launch
     );
   });
 
-export class Auth extends Effect.Service<Auth>()("voidhash-cli/Auth", {
-  dependencies: [CliConfig.Default],
-  effect: Effect.gen(function* effect() {
-    const client = yield* ApiClient;
-    const cliConfig = yield* CliConfig;
-    /**
-     * Retrieves the currently signed-in user from the local configuration and the BetterAuth service.
-     *
-     * Attempts to read the API key from the user's config file. If no API key is found, or if the session
-     * cannot be retrieved or does not contain a user, a `NoSignedInUserError` is thrown.
-     * If the session retrieval fails for other reasons, a `FailedToGetSessionError` is thrown.
-     *
-     * @returns {Effect.Effect<unknown, NoSignedInUserError | FailedToGetSessionError, { name: string; email: string }>}
-     *   An Effect that yields the signed-in user's information, or fails with an appropriate error.
-     */
-    const getSignedInSession = Effect.gen(function* getSignedInSession() {
-      yield* Effect.logDebug("Reading CLI config for session check");
-      const config = yield* cliConfig
-        .readConfig()
-        .pipe(
-          Effect.catchAll(() => Effect.dieMessage("Failed to read config"))
-        );
+const make = Effect.gen(function* effect() {
+  const client = yield* ApiClient;
+  const cliConfig = yield* CliConfig;
+  /**
+   * Retrieves the currently signed-in user from the local configuration and the BetterAuth service.
+   *
+   * Attempts to read the API key from the user's config file. If no API key is found, or if the session
+   * cannot be retrieved or does not contain a user, a `NoSignedInUserError` is thrown.
+   * If the session retrieval fails for other reasons, a `FailedToGetSessionError` is thrown.
+   *
+   * @returns {Effect.Effect<unknown, NoSignedInUserError | FailedToGetSessionError, { name: string; email: string }>}
+   *   An Effect that yields the signed-in user's information, or fails with an appropriate error.
+   */
+  const getSignedInSession = Effect.gen(function* getSignedInSession() {
+    yield* Effect.logDebug("Reading CLI config for session check");
+    const config = (yield* cliConfig
+      .readConfig()
+      .pipe(
+        Effect.catch(() => Effect.die("Failed to read config"))
+      ))!;
 
-      // If the config file is not found or the api key is not set, we consider the user to be signed out
-      const apiKey = config.api_key;
-      if (!apiKey) {
-        yield* Effect.logDebug("No API key found in config");
-        return yield* Effect.fail(
-          new NoSignedInUserError({ message: "No signed in user" })
-        );
-      }
+    // If the config file is not found or the api key is not set, we consider the user to be signed out
+    const apiKey = config.api_key;
+    if (!apiKey) {
+      yield* Effect.logDebug("No API key found in config");
+      return yield* Effect.fail(
+        new NoSignedInUserError({ message: "No signed in user" })
+      );
+    }
 
-      yield* Effect.logDebug("Fetching session from API");
-      const sessionResponse = yield* client.auth.session().pipe(
-        Effect.tap((session) =>
-          Effect.logDebug(`Session retrieved for user: ${session.name}`)
-        ),
-        Effect.catchTags({
-          NotAuthenticatedError: () =>
-            new NoSignedInUserError({ message: "No signed in user" }),
+    yield* Effect.logDebug("Fetching session from API");
+    const sessionResponse = yield* client.auth.session().pipe(
+      Effect.tap((session) =>
+        Effect.logDebug(`Session retrieved for user: ${session.name}`)
+      ),
+      Effect.catchTags({
+        NotAuthenticatedError: () =>
+          Effect.fail(new NoSignedInUserError({ message: "No signed in user" })),
+      })
+    );
+
+    return sessionResponse;
+  }).pipe(
+    Effect.withSpan("Auth.getSignedInSession"),
+    Effect.catchIf(
+      (e) => e._tag !== "NoSignedInUserError",
+      (e) =>
+        Effect.fail(
+          new FailedToGetSessionError({
+            cause: e,
+            message: "Failed to get session",
+          })
+        )
+    )
+  );
+
+  const login = Effect.scoped(
+    Effect.gen(function* login() {
+      yield* Effect.logDebug("Starting login flow");
+      const callbackEventsPubSub = yield* PubSub.unbounded<CallbackEvent>();
+
+      // Launch the callback server in a separate fiber to avoid blocking
+      yield* Effect.logDebug(
+        `Starting callback server on ${host}:${port}`
+      );
+      yield* Effect.forkChild(
+        Effect.catch(runCallbackServer(callbackEventsPubSub), (error) => {
+          // biome-ignore lint/suspicious/noConsole: Error logging
+          console.log(error);
+          return Effect.die(error);
         })
       );
 
-      return sessionResponse;
-    }).pipe(
-      Effect.withSpan("Auth.getSignedInSession"),
-      Effect.catchIf(
-        (e) => e._tag !== "NoSignedInUserError",
-        (e) =>
-          Effect.fail(
-            new FailedToGetSessionError({
-              cause: e,
-              message: "Failed to get session",
-            })
-          )
-      )
-    );
+      // Set up the application server with routing
+      const redirect = `http://${host}:${port}/callback`;
 
-    const login = Effect.scoped(
-      Effect.gen(function* login() {
-        yield* Effect.logDebug("Starting login flow");
-        const callbackEventsPubSub = yield* PubSub.unbounded<CallbackEvent>();
+      const code = nanoid();
+      const config = (yield* cliConfig
+        .readConfig()
+        .pipe(
+          Effect.catch(() => Effect.die("Failed to read config"))
+        ))!;
+      const confirmationUrl = new URL(`${config.web_url}/auth/devices`);
+      confirmationUrl.searchParams.append("code", code);
+      confirmationUrl.searchParams.append("redirect", redirect);
 
-        // Launch the callback server in a separate fiber to avoid blocking
-        yield* Effect.logDebug(
-          `Starting callback server on ${host}:${port}`
+      yield* Effect.logDebug(
+        `Opening browser for authentication: ${confirmationUrl.toString()}`
+      );
+      yield* Console.log(`Confirmation code: ${code}\n`);
+      yield* Console.log(
+        `If something goes wrong, copy and paste this URL into your browser: ${confirmationUrl.toString()}\n`
+      );
+      spawn("open", [confirmationUrl.toString()]);
+
+      // Wait for the callback event
+      yield* Effect.logDebug("Waiting for callback from browser");
+      const subscription = yield* PubSub.subscribe(callbackEventsPubSub);
+      const callbackEvent = yield* PubSub.take(subscription);
+
+      if (callbackEvent.type === "cancelled") {
+        yield* Effect.logDebug("Login cancelled by user");
+        return yield* Effect.fail(
+          new LoginCancelledError({ message: "Login cancelled" })
         );
-        yield* Effect.fork(
-          Effect.catchAll(runCallbackServer(callbackEventsPubSub), (error) => {
-            // biome-ignore lint/suspicious/noConsole: Error logging
-            console.log(error);
-            return Effect.die(error);
-          })
-        );
-
-        // Set up the application server with routing
-        const redirect = `http://${host}:${port}/callback`;
-
-        const code = nanoid();
-        const config = yield* cliConfig
-          .readConfig()
-          .pipe(
-            Effect.catchAll(() => Effect.dieMessage("Failed to read config"))
-          );
-        const confirmationUrl = new URL(`${config.web_url}/auth/devices`);
-        confirmationUrl.searchParams.append("code", code);
-        confirmationUrl.searchParams.append("redirect", redirect);
-
-        yield* Effect.logDebug(
-          `Opening browser for authentication: ${confirmationUrl.toString()}`
-        );
-        yield* Console.log(`Confirmation code: ${code}\n`);
-        yield* Console.log(
-          `If something goes wrong, copy and paste this URL into your browser: ${confirmationUrl.toString()}\n`
-        );
-        spawn("open", [confirmationUrl.toString()]);
-
-        // Wait for the callback event
-        yield* Effect.logDebug("Waiting for callback from browser");
-        const callbacksQueue = yield* PubSub.subscribe(callbackEventsPubSub);
-        const callbackEvent = yield* Queue.take(callbacksQueue);
-
-        if (callbackEvent.type === "cancelled") {
-          yield* Effect.logDebug("Login cancelled by user");
-          return yield* Effect.fail(
-            new LoginCancelledError({ message: "Login cancelled" })
-          );
-        }
-
-        // Store in config
-        yield* Effect.logDebug("Storing API key in config");
-        yield* cliConfig.writeToConfig({ api_key: callbackEvent.key });
-
-        yield* Console.log(
-          `Authentication successful! Your key has been stored in your config file.  To view it, type 'cat ~/${CONFIG_FILE_NAME}'.\n);`
-        );
-      })
-    ).pipe(
-      Effect.withSpan("Auth.login"),
-      Effect.catchIf(
-        (e) => e._tag !== "LoginCancelledError",
-        (e) =>
-          Effect.fail(
-            new FailedToLoginError({ cause: e, message: "Failed to login" })
-          )
-      )
-    );
-
-    /**
-     * Logs out the current user
-     *
-     * @returns An Effect that logs out the current user, or fails with a FailedToLogoutError if the logout fails.
-     */
-    const logout = Effect.gen(function* logout() {
-      yield* Effect.logDebug("Starting logout");
-      const config = yield* cliConfig.readConfig();
-      if (!config.api_key) {
-        yield* Effect.logDebug("No API key found, user not logged in");
-        yield* Console.log("You are not logged in.");
-        return;
       }
 
-      yield* Effect.logDebug("Clearing API key from config");
-      yield* cliConfig.writeToConfig({ api_key: null });
-      yield* Console.log("You have been logged out.");
-    }).pipe(
-      Effect.withSpan("Auth.logout"),
-      Effect.catchAll((e) =>
-        Effect.fail(
-          new FailedToLogoutError({
-            cause: e,
-            message: "Failed to logout",
-          })
-        )
-      )
-    );
+      // Store in config
+      yield* Effect.logDebug("Storing API key in config");
+      yield* cliConfig.writeToConfig({ api_key: callbackEvent.key });
 
-    return {
-      getSignedInSession,
-      login,
-      logout,
-    } as const;
-  }),
-}) {}
+      yield* Console.log(
+        `Authentication successful! Your key has been stored in your config file.  To view it, type 'cat ~/${CONFIG_FILE_NAME}'.\n);`
+      );
+    })
+  ).pipe(
+    Effect.withSpan("Auth.login"),
+    Effect.catchIf(
+      (e) => e._tag !== "LoginCancelledError",
+      (e) =>
+        Effect.fail(
+          new FailedToLoginError({ cause: e, message: "Failed to login" })
+        )
+    )
+  );
+
+  /**
+   * Logs out the current user
+   *
+   * @returns An Effect that logs out the current user, or fails with a FailedToLogoutError if the logout fails.
+   */
+  const logout = Effect.gen(function* logout() {
+    yield* Effect.logDebug("Starting logout");
+    const config = yield* cliConfig.readConfig();
+    if (!config.api_key) {
+      yield* Effect.logDebug("No API key found, user not logged in");
+      yield* Console.log("You are not logged in.");
+      return;
+    }
+
+    yield* Effect.logDebug("Clearing API key from config");
+    yield* cliConfig.writeToConfig({ api_key: null });
+    yield* Console.log("You have been logged out.");
+  }).pipe(
+    Effect.withSpan("Auth.logout"),
+    Effect.catch((e) =>
+      Effect.fail(
+        new FailedToLogoutError({
+          cause: e,
+          message: "Failed to logout",
+        })
+      )
+    )
+  );
+
+  return {
+    getSignedInSession,
+    login,
+    logout,
+  } as const;
+});
+
+type AuthShape = Effect.Success<typeof make>;
+
+export class Auth extends ServiceMap.Service<Auth, AuthShape>()(
+  "voidhash-cli/Auth"
+) {
+  static Default = Layer.effect(Auth, make).pipe(
+    Layer.provide(CliConfig.Default)
+  )
+}

@@ -84,7 +84,6 @@
 		"ultracite": "5.0.39"
 	},
 	"peerDependencies": {
-		"@effect/platform": "catalog:",
 		"@react-native-async-storage/async-storage": "^1.24.0 || ^2.0.0",
 		"effect": "catalog:",
 		"expo": "*",

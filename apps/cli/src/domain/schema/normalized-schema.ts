@@ -4,7 +4,7 @@ import { Schema } from "effect";
 // Provider IDs
 // ========================================================
 
-export const ProviderId = Schema.Literal("appleAppStore", "googlePlay");
+export const ProviderId = Schema.Literals(["appleAppStore", "googlePlay"]);
 export type ProviderId = typeof ProviderId.Type;
 
 // ========================================================
@@ -22,7 +22,7 @@ export type NormalizedPerk = typeof NormalizedPerkSchema.Type;
 // ========================================================
 
 export const ProductProviderConfigSchema = Schema.Struct({
-  configuration: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  configuration: Schema.Record(Schema.String, Schema.Unknown),
   providerId: ProviderId,
 });
 export type ProductProviderConfig = typeof ProductProviderConfigSchema.Type;

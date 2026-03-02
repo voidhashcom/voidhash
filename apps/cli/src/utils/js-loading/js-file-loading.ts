@@ -57,7 +57,7 @@ export const safeRegister = () =>
           loader: "ts",
         }),
     }).pipe(
-      Effect.orElse(() =>
+      Effect.catch(() =>
         Effect.succeed({
           // biome-ignore lint/suspicious/noEmptyBlockStatements: it is on purpose an empty function. It is here instead of try-catch due to tsx.
           unregister(): void {},

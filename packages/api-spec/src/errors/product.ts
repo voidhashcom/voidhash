@@ -1,31 +1,30 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Generic product service error */
-export class ProductServiceError extends Schema.TaggedError<ProductServiceError>()(
+export class ProductServiceError extends Schema.TaggedErrorClass<ProductServiceError>()(
   "ProductServiceError",
   {
     cause: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}
 
 /** Product not found */
-export class ProductNotFoundError extends Schema.TaggedError<ProductNotFoundError>()(
+export class ProductNotFoundError extends Schema.TaggedErrorClass<ProductNotFoundError>()(
   "ProductNotFoundError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 /** Product slug already exists */
-export class ProductSlugAlreadyExistsError extends Schema.TaggedError<ProductSlugAlreadyExistsError>()(
+export class ProductSlugAlreadyExistsError extends Schema.TaggedErrorClass<ProductSlugAlreadyExistsError>()(
   "ProductSlugAlreadyExistsError",
   {
     slug: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {
   toString(): string {
     return `The following product slug already exists: ${this.slug}`;

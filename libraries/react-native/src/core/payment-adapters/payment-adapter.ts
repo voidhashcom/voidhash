@@ -1,4 +1,4 @@
-import { Context, type Effect } from "effect";
+import { ServiceMap, type Effect } from "effect";
 
 import type { Product, SubscriptionProduct } from "../entities/product";
 import type { Transaction } from "../entities/transaction";
@@ -22,9 +22,7 @@ import type {
   UserCancelledError,
 } from "./errors";
 
-export class PaymentAdapter extends Context.Tag("rn-voidhash/PaymentAdapter")<
-  PaymentAdapter,
-  {
+export class PaymentAdapter extends ServiceMap.Service<PaymentAdapter, {
     initConnection(
       onPurchase?: (transaction: Transaction) => void
     ): Effect.Effect<void, FailedToInitializeNativeAdapterError>;
@@ -82,8 +80,7 @@ export class PaymentAdapter extends Context.Tag("rn-voidhash/PaymentAdapter")<
       FailedToShowManageSubscriptionsError,
       never
     >;
-  }
->() {}
+  }>()("rn-voidhash/PaymentAdapter") {}
 
 // export interface PaymentAdapter {
 //   initConnection(

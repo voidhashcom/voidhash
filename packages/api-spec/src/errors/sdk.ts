@@ -1,31 +1,30 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Generic SDK service error */
-export class SdkServiceError extends Schema.TaggedError<SdkServiceError>()(
+export class SdkServiceError extends Schema.TaggedErrorClass<SdkServiceError>()(
   "SdkServiceError",
   {
     cause: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}
 
 /** SDK customer not found */
-export class SdkCustomerNotFoundError extends Schema.TaggedError<SdkCustomerNotFoundError>()(
+export class SdkCustomerNotFoundError extends Schema.TaggedErrorClass<SdkCustomerNotFoundError>()(
   "SdkCustomerNotFoundError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 /** SDK customer already identified */
-export class SdkCustomerAlreadyIdentifiedError extends Schema.TaggedError<SdkCustomerAlreadyIdentifiedError>()(
+export class SdkCustomerAlreadyIdentifiedError extends Schema.TaggedErrorClass<SdkCustomerAlreadyIdentifiedError>()(
   "SdkCustomerAlreadyIdentifiedError",
   {
     appUserId: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {
   toString(): string {
     return `The following customer was already identified: ${this.appUserId}`;
@@ -33,10 +32,10 @@ export class SdkCustomerAlreadyIdentifiedError extends Schema.TaggedError<SdkCus
 }
 
 /** SDK validation error */
-export class SdkValidationError extends Schema.TaggedError<SdkValidationError>()(
+export class SdkValidationError extends Schema.TaggedErrorClass<SdkValidationError>()(
   "SdkValidationError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 400 })
+  { httpApiStatus: 400 }
 ) {}

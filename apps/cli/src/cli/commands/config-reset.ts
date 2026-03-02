@@ -1,7 +1,8 @@
-import { Command, HelpDoc, ValidationError } from "@effect/cli";
+import { Command } from "effect/unstable/cli";
 import { Console, Effect } from "effect";
 
 import { CliConfig } from "../../domain/services/cli-config";
+import { userError } from "../../utils/error-formatter";
 import { debugOption } from "../shared-options";
 
 export const configResetCommand = Command.make("reset", { debug: debugOption }, () =>
@@ -11,11 +12,9 @@ export const configResetCommand = Command.make("reset", { debug: debugOption }, 
     yield* cliConfig
       .resetConfig()
       .pipe(
-        Effect.catchTag("ParseError", () =>
+        Effect.catchTag("SchemaError", () =>
           Effect.fail(
-            ValidationError.invalidValue(
-              HelpDoc.p("Failed to set configuration")
-            )
+            userError("Failed to set configuration")
           )
         )
       );

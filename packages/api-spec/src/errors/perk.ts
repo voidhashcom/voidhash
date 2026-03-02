@@ -1,31 +1,30 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Generic perk service error */
-export class PerkServiceError extends Schema.TaggedError<PerkServiceError>()(
+export class PerkServiceError extends Schema.TaggedErrorClass<PerkServiceError>()(
   "PerkServiceError",
   {
     cause: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}
 
 /** Perk not found */
-export class PerkNotFoundError extends Schema.TaggedError<PerkNotFoundError>()(
+export class PerkNotFoundError extends Schema.TaggedErrorClass<PerkNotFoundError>()(
   "PerkNotFoundError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}
 
 /** Perk slug already exists */
-export class PerkSlugAlreadyExistsError extends Schema.TaggedError<PerkSlugAlreadyExistsError>()(
+export class PerkSlugAlreadyExistsError extends Schema.TaggedErrorClass<PerkSlugAlreadyExistsError>()(
   "PerkSlugAlreadyExistsError",
   {
     slug: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 409 })
+  { httpApiStatus: 409 }
 ) {
   toString(): string {
     return `The following perk slug already exists: ${this.slug}`;

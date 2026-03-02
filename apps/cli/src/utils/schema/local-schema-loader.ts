@@ -1,6 +1,5 @@
-import { FileSystem, Path } from "@effect/platform";
 import Module from "node:module";
-import { Effect } from "effect";
+import { Effect, FileSystem, Path } from "effect";
 
 import {
   LocalSchemaNotFoundError,

@@ -17,7 +17,7 @@ export const createOrganization = Effect.gen(function* createOrganization() {
     },
     (effect) =>
       effect.pipe(
-        Effect.catchAll((error) => {
+        Effect.catch((error) => {
           if (error._tag === "NotAuthenticatedError") {
             return Effect.fail(
               new OrganizationServiceError({

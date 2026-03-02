@@ -1,4 +1,4 @@
-import { Command, Options, Prompt } from "@effect/cli";
+import { Command, Flag, Prompt } from "effect/unstable/cli";
 import { Console, Effect } from "effect";
 
 import { MissingProviderConfigurationError } from "../../domain/errors/schema";
@@ -12,14 +12,14 @@ export const schemaPushCommand = Command.make(
   "push",
   {
     debug: debugOption,
-    dryRun: Options.boolean("dry-run").pipe(
-      Options.withDescription("Preview changes without applying"),
-      Options.withDefault(false)
+    dryRun: Flag.boolean("dry-run").pipe(
+      Flag.withDescription("Preview changes without applying"),
+      Flag.withDefault(false)
     ),
-    yes: Options.boolean("yes").pipe(
-      Options.withAlias("y"),
-      Options.withDescription("Auto-approve all changes"),
-      Options.withDefault(false)
+    yes: Flag.boolean("yes").pipe(
+      Flag.withAlias("y"),
+      Flag.withDescription("Auto-approve all changes"),
+      Flag.withDefault(false)
     ),
   },
   ({ dryRun, yes }) =>

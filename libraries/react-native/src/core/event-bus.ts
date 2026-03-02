@@ -1,5 +1,5 @@
 import type { SdkCustomer } from "@voidhash/api-spec";
-import { Context } from "effect";
+import { ServiceMap } from "effect";
 
 export interface CustomerFetchedEvent {
   type: "customer-fetched";
@@ -68,6 +68,4 @@ export class EventBus {
   }
 }
 
-export class EventBusProvider extends Context.Tag(
-  "rn-voidhash/EventBusProvider"
-)<EventBusProvider, EventBus>() {}
+export class EventBusProvider extends ServiceMap.Service<EventBusProvider, EventBus>()("rn-voidhash/EventBusProvider") {}

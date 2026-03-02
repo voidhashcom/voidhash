@@ -1,4 +1,4 @@
-import { Prompt } from "@effect/cli";
+import { Prompt } from "effect/unstable/cli";
 import { Console, Effect } from "effect";
 
 import { NoSignedInUserError } from "../../domain/errors/auth";
@@ -22,7 +22,7 @@ export const createProject = (input: { organizationId: string }) =>
 
     const config = yield* cliConfig
       .readConfig()
-      .pipe(Effect.catchAll(() => Effect.dieMessage("Failed to read config")));
+      .pipe(Effect.catch(() => Effect.die("Failed to read config")));
 
     // If the config file is not found or the api key is not set, we consider the user to be signed out
     const apiKey = config.api_key;
