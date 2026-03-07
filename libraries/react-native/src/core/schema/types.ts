@@ -227,3 +227,8 @@ export type ExtractSchemaPaywallLocationSlugs<
     ? TSchema[K]["slug"]
     : never;
 }[ExtractSchemaPaywallLocationKeys<TSchema>];
+
+export type InferGetPaywallLocationInput<TSchema extends VoidhashSchema> =
+  [ExtractSchemaPaywallLocationSlugs<TSchema>] extends [never]
+    ? string
+    : ExtractSchemaPaywallLocationSlugs<TSchema>;

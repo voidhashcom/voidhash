@@ -1,11 +1,12 @@
-import { Args, Command, HelpDoc, ValidationError } from "@effect/cli";
+import { Argument, Command } from "effect/unstable/cli";
 import { Console, Effect } from "effect";
 
 import { CliConfig } from "../../domain/services/cli-config";
+import { userError } from "../../utils/error-formatter";
 import { debugOption } from "../shared-options";
 
-const keyArg = Args.text({ name: "key" });
-const valueArg = Args.text({ name: "value" });
+const keyArg = Argument.string("key");
+const valueArg = Argument.string("value");
 
 export const configSetCommand = Command.make(
   "set",
@@ -20,11 +21,9 @@ export const configSetCommand = Command.make(
           [key]: value,
         })
         .pipe(
-          Effect.catchTag("ParseError", () =>
+          Effect.catchTag("SchemaError", () =>
             Effect.fail(
-              ValidationError.invalidValue(
-                HelpDoc.p("Failed to set configuration")
-              )
+              userError("Failed to set configuration")
             )
           )
         );

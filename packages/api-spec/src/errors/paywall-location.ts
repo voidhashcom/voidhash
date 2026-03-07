@@ -1,11 +1,10 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Generic paywall location service error */
-export class PaywallLocationServiceError extends Schema.TaggedError<PaywallLocationServiceError>()(
+export class PaywallLocationServiceError extends Schema.TaggedErrorClass<PaywallLocationServiceError>()(
   "PaywallLocationServiceError",
   {
     cause: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}

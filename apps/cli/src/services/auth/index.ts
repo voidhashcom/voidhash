@@ -1,11 +1,13 @@
-import { Effect } from "effect";
+import { Effect, Layer, ServiceMap } from "effect";
 
-export class AuthService extends Effect.Service<AuthService>()(
-  "voidhash-cli/services/AuthService",
-  {
-    dependencies: [],
-    scoped: Effect.gen(function* scoped() {
-      return {} as const;
-    }),
-  }
-) {}
+const make = Effect.gen(function* scoped() {
+  return {} as const;
+});
+
+type AuthServiceShape = Effect.Success<typeof make>;
+
+export class AuthService extends ServiceMap.Service<AuthService, AuthServiceShape>()(
+  "voidhash-cli/services/AuthService"
+) {
+  static Default = Layer.effect(AuthService, make)
+}

@@ -1,5 +1,4 @@
-import { FileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, FileSystem, Layer, ServiceMap } from "effect";
 
 import type { Writable } from "../../utils/types";
 import type { NormalizedSchema, ProviderId } from "../schema/normalized-schema";
@@ -133,18 +132,15 @@ function generateSchemaCode(schema: NormalizedSchema): string {
   return lines.join("\n");
 }
 
-export class Codegen extends Effect.Service<Codegen>()("voidhash-cli/Codegen", {
-  dependencies: [],
-  // Define how to create the service
-  effect: Effect.gen(function* effect() {
-    const fileSystem = yield* FileSystem.FileSystem;
+const make = Effect.gen(function* effect() {
+  const fileSystem = yield* FileSystem.FileSystem;
 
-    const generateVoidhashConfigFile = (
-      filePath: string,
-      config: Writable<typeof VoidhashConfigSchema.Type>
-    ) =>
-      Effect.gen(function* generateVoidhashConfigFile() {
-        const content = `import { defineConfig } from 'voidhash-cli';
+  const generateVoidhashConfigFile = (
+    filePath: string,
+    config: Writable<typeof VoidhashConfigSchema.Type>
+  ) =>
+    Effect.gen(function* generateVoidhashConfigFile() {
+      const content = `import { defineConfig } from 'voidhash-cli';
 
 export default defineConfig({
   team: '${config.team}',
@@ -152,12 +148,12 @@ export default defineConfig({
   schema: '${config.schema}'
 });
 `;
-        yield* fileSystem.writeFileString(filePath, content);
-      });
+      yield* fileSystem.writeFileString(filePath, content);
+    });
 
-    const generateClientFile = (filePath: string, publishableKey: string) =>
-      Effect.gen(function* generateClientFile() {
-        const content = `import { createVoidhashClient } from "@voidhash/react-native";
+  const generateClientFile = (filePath: string, publishableKey: string) =>
+    Effect.gen(function* generateClientFile() {
+      const content = `import { createVoidhashClient } from "@voidhash/react-native";
 import * as schema from "./schema";
 
 export const voidhash = createVoidhashClient(
@@ -165,19 +161,26 @@ export const voidhash = createVoidhashClient(
   schema
 );
 `;
-        yield* fileSystem.writeFileString(filePath, content);
-      });
+      yield* fileSystem.writeFileString(filePath, content);
+    });
 
-    const generateSchemaFile = (filePath: string, schema: NormalizedSchema) =>
-      Effect.gen(function* generateSchemaFile() {
-        const content = generateSchemaCode(schema);
-        yield* fileSystem.writeFileString(filePath, content);
-      });
+  const generateSchemaFile = (filePath: string, schema: NormalizedSchema) =>
+    Effect.gen(function* generateSchemaFile() {
+      const content = generateSchemaCode(schema);
+      yield* fileSystem.writeFileString(filePath, content);
+    });
 
-    return {
-      generateClientFile,
-      generateSchemaFile,
-      generateVoidhashConfigFile,
-    } as const;
-  }),
-}) {}
+  return {
+    generateClientFile,
+    generateSchemaFile,
+    generateVoidhashConfigFile,
+  } as const;
+});
+
+type CodegenShape = Effect.Success<typeof make>;
+
+export class Codegen extends ServiceMap.Service<Codegen, CodegenShape>()(
+  "voidhash-cli/Codegen"
+) {
+  static Default = Layer.effect(Codegen, make)
+}

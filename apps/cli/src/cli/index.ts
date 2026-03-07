@@ -1,7 +1,7 @@
-import { Command } from "@effect/cli";
-import { FetchHttpClient } from "@effect/platform";
-import { NodeContext, NodeRuntime } from "@effect/platform-node";
-import { Effect, Layer, Logger, LogLevel } from "effect";
+import { Command } from "effect/unstable/cli";
+import { NodeServices, NodeRuntime } from "@effect/platform-node";
+import { Effect, Layer, References } from "effect";
+import { FetchHttpClient } from "effect/unstable/http";
 
 import { Auth } from "../domain/services/auth";
 import { CliConfig } from "../domain/services/cli-config";
@@ -29,13 +29,12 @@ const command = Command.make("voidhash").pipe(
 );
 
 const cli = Command.run(command, {
-  name: "Voidhash CLI",
   version: "0.0.1-alpha.1",
 });
 
 // Apply debug log level if --debug flag is present
-const cliEffect = Effect.suspend(() => cli(process.argv)).pipe(
-  isDebugMode() ? Logger.withMinimumLogLevel(LogLevel.Debug) : (x) => x
+const cliEffect = cli.pipe(
+  isDebugMode() ? Effect.provideService(References.MinimumLogLevel, "Debug") : (x) => x
 );
 
 const ServicesLayer = Layer.mergeAll(
@@ -45,7 +44,7 @@ const ServicesLayer = Layer.mergeAll(
   SchemaService.Default
 );
 
-const PlatformLayer = Layer.mergeAll(NodeContext.layer, FetchHttpClient.layer);
+const PlatformLayer = Layer.mergeAll(NodeServices.layer, FetchHttpClient.layer);
 
 const MainLayer = ServicesLayer.pipe(
   Layer.provideMerge(ApiClient.Default),

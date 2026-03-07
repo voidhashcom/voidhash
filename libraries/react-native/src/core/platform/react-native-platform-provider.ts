@@ -38,6 +38,24 @@ function getAppVersion(): string | undefined {
   return Constants.expoConfig?.version;
 }
 
+function getAppBuild(): string | undefined {
+  const iosBuild = Constants.expoConfig?.ios?.buildNumber;
+  if (iosBuild) {
+    return iosBuild;
+  }
+
+  const androidBuildNumber = Constants.expoConfig?.android?.versionCode;
+  if (typeof androidBuildNumber === "number") {
+    return String(androidBuildNumber);
+  }
+
+  return undefined;
+}
+
+function getAppName(): string | undefined {
+  return Constants.expoConfig?.name;
+}
+
 function isDebugBuild(): boolean {
   try {
     // biome-ignore lint/correctness/noUndeclaredVariables: __DEV__ is defined by Expo
@@ -60,6 +78,8 @@ function getPlatform(): "ios" | "android" | "unknown" {
 }
 
 export const ReactNativePlatformProvider = Layer.succeed(PlatformProvider, {
+  appBuild: getAppBuild(),
+  appName: getAppName(),
   appVersion: getAppVersion(),
   bundleId: getBundleId(),
   deviceBrand: getDeviceBrand(),

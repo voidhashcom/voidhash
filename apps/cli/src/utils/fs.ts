@@ -1,6 +1,5 @@
-import { Prompt } from "@effect/cli";
-import { FileSystem } from "@effect/platform";
-import { Data, Effect } from "effect";
+import { Prompt } from "effect/unstable/cli";
+import { Data, Effect, FileSystem } from "effect";
 
 export class FileExistsError extends Data.TaggedError("FileExistsError")<{
   readonly message: string;

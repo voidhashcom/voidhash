@@ -1,20 +1,19 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Generic organization service error */
-export class OrganizationServiceError extends Schema.TaggedError<OrganizationServiceError>()(
+export class OrganizationServiceError extends Schema.TaggedErrorClass<OrganizationServiceError>()(
   "OrganizationServiceError",
   {
     cause: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}
 
 /** Organization not found */
-export class OrganizationNotFoundError extends Schema.TaggedError<OrganizationNotFoundError>()(
+export class OrganizationNotFoundError extends Schema.TaggedErrorClass<OrganizationNotFoundError>()(
   "OrganizationNotFoundError",
   {
     message: Schema.String,
   },
-  HttpApiSchema.annotations({ status: 404 })
+  { httpApiStatus: 404 }
 ) {}

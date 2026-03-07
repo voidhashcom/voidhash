@@ -122,7 +122,7 @@ export const PaymentProviderProductCreateChangeSchema = Schema.Struct({
   changeType: Schema.Literal("create-payment-provider-product"),
   key: Schema.String,
   payload: Schema.Struct({
-    configuration: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+    configuration: Schema.Record(Schema.String, Schema.Unknown),
     productSlug: Schema.String,
     providerId: Schema.String,
   }),
@@ -132,7 +132,7 @@ export const PaymentProviderProductUpdateChangeSchema = Schema.Struct({
   changeType: Schema.Literal("update-payment-provider-product"),
   key: Schema.String,
   payload: Schema.Struct({
-    configuration: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+    configuration: Schema.Record(Schema.String, Schema.Unknown),
     productSlug: Schema.String,
     providerId: Schema.String,
   }),
@@ -151,7 +151,7 @@ export const PaymentProviderProductDeleteChangeSchema = Schema.Struct({
 // Combined Schemas
 // ============================================================================
 
-export const ChangeSchema = Schema.Union(
+export const ChangeSchema = Schema.Union([
   PaywallLocationCreateChangeSchema,
   PaywallLocationUpdateChangeSchema,
   PaywallLocationArchiveChangeSchema,
@@ -165,8 +165,8 @@ export const ChangeSchema = Schema.Union(
   ProductPerkDeleteChangeSchema,
   PaymentProviderProductCreateChangeSchema,
   PaymentProviderProductUpdateChangeSchema,
-  PaymentProviderProductDeleteChangeSchema
-);
+  PaymentProviderProductDeleteChangeSchema,
+]);
 
 export const ChangesetSchema = Schema.Struct({
   changes: Schema.Array(ChangeSchema),

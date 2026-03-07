@@ -1,11 +1,10 @@
-import { HttpApiSchema } from "@effect/platform";
 import { Schema } from "effect";
 
 /** Generic changeset deployment service error */
-export class ChangesetDeploymentServiceError extends Schema.TaggedError<ChangesetDeploymentServiceError>()(
+export class ChangesetDeploymentServiceError extends Schema.TaggedErrorClass<ChangesetDeploymentServiceError>()(
   "ChangesetDeploymentServiceError",
   {
     cause: Schema.Unknown,
   },
-  HttpApiSchema.annotations({ status: 500 })
+  { httpApiStatus: 500 }
 ) {}

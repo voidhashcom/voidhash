@@ -28,6 +28,39 @@ Observer reconciliation:
 - Client-side dedupe key is `platform + transactionId + purchaseDate`.
 - The server endpoint is idempotent by store transaction identity to tolerate retries/duplicates.
 
+## Unstable error swallowing
+
+For early-alpha integrations, you can enable unstable side-effect error swallowing:
+
+```ts
+createVoidhashClient("pk_test", schema, {
+  readOnly: true,
+  scheme: "myapp",
+  unstable_swallowErrors: true,
+});
+```
+
+When `unstable_swallowErrors: true`, the SDK logs warnings and does not reject for:
+
+- `init()`
+- `end()`
+- `identify(...)`
+- `signOut()`
+- `restorePurchases()`
+- `flush()`
+- `iosPresentCodeRedemptionSheet()`
+- `iosShowManageSubscriptions()`
+
+The following remain strict and still reject on failures:
+
+- `getCurrentCustomer(...)`
+- `getFeatureFlags(...)`
+- `getPaywallForLocation(...)`
+- `getProducts()`
+- `purchase(...)`
+
+This flag is intentionally unstable and best used for background/observer-style alpha integrations. It is not recommended for core purchase flow handling.
+
 ## HTTP debug mode
 
 Enable verbose HTTP logging when debugging request/response flow:
@@ -44,6 +77,45 @@ When enabled, the SDK logs:
 - Outgoing request method, URL, headers (with sensitive values redacted), and body summary.
 - Incoming response status, headers, and request duration.
 - HTTP/client errors with reason and status when available.
+
+## Product analytics capture
+
+Use `client.capture(...)` to send product analytics events:
+
+```ts
+voidhash.client.capture("cta-button-clicked", {
+  button_name: "Get Started",
+  page: "homepage",
+});
+```
+
+Events are sent in batches with these defaults:
+
+- Batch size: `20`
+- Time limit: `5000ms`
+- Retry: up to `3` retries with exponential backoff
+
+You can force delivery with:
+
+```ts
+await voidhash.client.flush();
+```
+
+`client.end()` also performs a final awaited `flush()` before shutdown.
+
+### Ingest URL configuration
+
+By default, ingest URL is derived from `baseUrl` by prefixing host with `i.` and posting to `/v1/events`.
+
+For local development with ingest on a different host/port, pass `ingestUrl`:
+
+```ts
+createVoidhashClient("pk_test", schema, {
+  baseUrl: "http://localhost:5001",
+  ingestUrl: "http://localhost:8083",
+  scheme: "myapp",
+});
+```
 
 ## Native paywall preloading + presentation
 

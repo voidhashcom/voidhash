@@ -1,20 +1,20 @@
-import { Command, HelpDoc, Options, Prompt, ValidationError } from "@effect/cli";
-import { Path } from "@effect/platform";
-import { Console, Effect } from "effect";
+import { Command, Flag, Prompt } from "effect/unstable/cli";
+import { Console, Effect, Path } from "effect";
 
 import { Auth } from "../../domain/services/auth";
 import { Codegen } from "../../domain/services/codegen";
 import { SchemaService } from "../../domain/services/schema";
 import { SourceCode } from "../../domain/services/source-code";
+import { userError } from "../../utils/error-formatter";
 import { debugOption } from "../shared-options";
 
 export const schemaPullCommand = Command.make(
   "pull",
   {
     debug: debugOption,
-    force: Options.boolean("force").pipe(
-      Options.withDescription("Skip confirmation prompt"),
-      Options.withDefault(false)
+    force: Flag.boolean("force").pipe(
+      Flag.withDescription("Skip confirmation prompt"),
+      Flag.withDefault(false)
     ),
   },
   ({ force }) =>
@@ -29,10 +29,8 @@ export const schemaPullCommand = Command.make(
       yield* auth.getSignedInSession.pipe(
         Effect.catchTag("NoSignedInUserError", () =>
           Effect.fail(
-            ValidationError.invalidValue(
-              HelpDoc.p(
-                "You must be logged in to pull schema. Run 'voidhash auth login' first."
-              )
+            userError(
+              "You must be logged in to pull schema. Run 'voidhash auth login' first."
             )
           )
         )
@@ -42,10 +40,8 @@ export const schemaPullCommand = Command.make(
       const config = yield* sourceCode.loadVoidhashConfig().pipe(
         Effect.catchTag("VoidhashConfigNotFoundError", () =>
           Effect.fail(
-            ValidationError.invalidValue(
-              HelpDoc.p(
-                "voidhash.config.ts not found. Run 'voidhash init' to create one."
-              )
+            userError(
+              "voidhash.config.ts not found. Run 'voidhash init' to create one."
             )
           )
         )
@@ -56,9 +52,7 @@ export const schemaPullCommand = Command.make(
       const remoteSchema = yield* schemaService.fetchRemoteSchema().pipe(
         Effect.catchTag("RemoteSchemaFetchError", (e) =>
           Effect.fail(
-            ValidationError.invalidValue(
-              HelpDoc.p(`Failed to fetch remote schema: ${String(e.cause)}`)
-            )
+            userError(`Failed to fetch remote schema: ${String(e.cause)}`)
           )
         )
       );

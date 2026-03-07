@@ -1,4 +1,4 @@
-import { Context, Schema } from "effect";
+import { Schema, ServiceMap } from "effect";
 
 export const SessionOrganizationSchema = Schema.Struct({
   id: Schema.String,
@@ -62,11 +62,11 @@ export const PublishableKeySessionSchema = Schema.Struct({
   user: Schema.Null,
 });
 
-export const AuthSessionSchema = Schema.Union(
+export const AuthSessionSchema = Schema.Union([
   UserSessionSchema,
   SecretKeySessionSchema,
-  PublishableKeySessionSchema
-);
+  PublishableKeySessionSchema,
+]);
 
 // type User = {
 //   name: string;
@@ -129,7 +129,4 @@ export type AnyAuthSession =
   | SecretKeySession
   | PublishableKeySession;
 
-export class AuthSession extends Context.Tag("shared/auth/AuthSession")<
-  AuthSession,
-  UserSession | SecretKeySession | PublishableKeySession
->() {}
+export class AuthSession extends ServiceMap.Service<AuthSession, UserSession | SecretKeySession | PublishableKeySession>()("shared/auth/AuthSession") {}
