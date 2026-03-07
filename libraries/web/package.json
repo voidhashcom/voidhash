@@ -1,0 +1,68 @@
+{
+  "name": "@voidhash/web",
+  "version": "0.0.1-alpha.1",
+  "description": "Browser-first Voidhash SDK.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "libraries/web"
+  },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./react": {
+      "import": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.mjs"
+      },
+      "require": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "rm -rf ./dist && tsx build.ts",
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run -c vitest.unit.mts",
+    "test:watch": "vitest -c vitest.unit.mts"
+  },
+  "dependencies": {
+    "@effect/platform": "catalog:",
+    "@voidhash/api-spec": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@voidhash/tsconfig": "workspace:*",
+    "jsdom": "^20.0.3",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tsup": "^6.1.3",
+    "tsx": "^4.19.3",
+    "typescript": "5.6.3",
+    "vite-tsconfig-paths": "catalog:",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "react": "*"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

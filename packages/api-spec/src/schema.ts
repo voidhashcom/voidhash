@@ -250,11 +250,11 @@ const CommonSdkHeaders = Schema.Struct({
   "x-platform": Schema.String,
   "x-platform-brand": Schema.optional(Schema.String),
   "x-platform-device": Schema.optional(Schema.String),
-  "x-platform-flavor": Schema.Literal("native"),
+  "x-platform-flavor": Schema.Literals(["native", "browser"]),
   "x-platform-flavor-version": Schema.optional(Schema.String),
   "x-platform-version": Schema.optional(Schema.String),
   "x-preferred-locales": Schema.optional(Schema.String),
-  "x-sdk": Schema.Literal("react-native"),
+  "x-sdk": Schema.Literals(["react-native", "web"]),
   "x-sdk-version": Schema.String,
   "x-storefront": Schema.optional(Schema.String),
 });
@@ -264,6 +264,15 @@ export const SdkHeaders = Schema.Struct({
   ...CommonSdkHeaders.fields,
 });
 
+const SdkTraitValue = Schema.Union([
+  Schema.String,
+  Schema.Number,
+  Schema.Boolean,
+  Schema.Null,
+]);
+
+const SdkTraits = Schema.Record(Schema.String, SdkTraitValue);
+
 // SDK Identify
 export class SdkIdentifyBody extends Schema.Class<SdkIdentifyBody>(
   "SdkIdentifyBody"
@@ -271,6 +280,7 @@ export class SdkIdentifyBody extends Schema.Class<SdkIdentifyBody>(
   appUserId: Schema.String,
   email: Schema.optional(Schema.String),
   name: Schema.optional(Schema.String),
+  traits: Schema.optional(SdkTraits),
 }) {}
 
 // SDK Sync Customer Attributes
@@ -279,6 +289,7 @@ export class SdkSyncCustomerAttributesBody extends Schema.Class<SdkSyncCustomerA
 )({
   email: Schema.optional(Schema.String),
   name: Schema.optional(Schema.String),
+  traits: Schema.optional(SdkTraits),
 }) {}
 
 export const SdkSyncTransactionBody = Schema.Struct({

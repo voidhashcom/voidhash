@@ -1,0 +1,165 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  VoidhashNotInitializedError,
+  createVoidhashClient,
+} from "../src/index";
+import { createJsonResponse, flushMicrotasks, installFetchMock } from "./helpers";
+
+describe("VoidhashWebClient", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects operational methods before initialize", async () => {
+    const client = createVoidhashClient({
+      publishableKey: "vh_pk_test",
+    });
+
+    await expect(client.getFeatureFlags()).rejects.toBeInstanceOf(
+      VoidhashNotInitializedError
+    );
+  });
+
+  it("initializes, fetches flags, derives analytics url, and flushes events", async () => {
+    const { calls } = installFetchMock((call) => {
+      if (call.url.endsWith("/sdk/evaluate-flags")) {
+        return createJsonResponse({
+          flags: [
+            {
+              enabled: true,
+              key: "new-nav",
+              payload: { color: "blue" },
+              variantKey: "on",
+            },
+          ],
+        });
+      }
+
+      if (call.url.endsWith("/v1/events")) {
+        return createJsonResponse(
+          {
+            accepted: 1,
+            rejected: 0,
+            request_id: "req_1",
+          },
+          202
+        );
+      }
+
+      if (call.url.endsWith("/sdk/sync-customer-attributes")) {
+        return createJsonResponse({});
+      }
+
+      return createJsonResponse({});
+    });
+    const client = createVoidhashClient({
+      analytics: {
+        flushIntervalMs: 60_000,
+      },
+      baseUrl: "https://api.voidhash.test",
+      publishableKey: "vh_pk_test",
+    });
+
+    await client.initialize();
+    const appUserId = client.getAppUserId();
+    const flags = await client.getFeatureFlags(["new-nav"]);
+    await client.track("checkout_started", { source: "pricing_page" });
+    const flushResult = await client.flushAnalytics();
+
+    expect(appUserId).toMatch(/^vh:anon:/);
+    expect(flags.flags[0]?.key).toBe("new-nav");
+    expect(client.isFeatureEnabled("new-nav")).toBe(true);
+    expect(flushResult).toEqual({
+      accepted: 1,
+      rejected: 0,
+      requestId: "req_1",
+    });
+
+    const analyticsCall = calls.find((call) => call.url.includes("/v1/events"));
+    expect(analyticsCall?.url).toBe("https://i.voidhash.test/v1/events");
+    expect(analyticsCall?.headers["x-distinct-id"]).toBe(appUserId);
+
+    await client.destroy();
+  });
+
+  it("syncs traits before identify and reset identity", async () => {
+    const { calls } = installFetchMock((call) => {
+      if (call.url.endsWith("/sdk/identify")) {
+        return createJsonResponse({
+          appUserId: "user_123",
+        });
+      }
+
+      return createJsonResponse({});
+    });
+    const client = createVoidhashClient({
+      analytics: {
+        enabled: false,
+      },
+      publishableKey: "vh_pk_test",
+    });
+
+    await client.initialize();
+    const initialAppUserId = client.getAppUserId();
+    await client.identify("user_123", { companyId: "acme", plan: "pro" });
+    await client.resetIdentity();
+
+    const syncCalls = calls.filter((call) =>
+      call.url.endsWith("/sdk/sync-customer-attributes")
+    );
+    const identifyCall = calls.find((call) => call.url.endsWith("/sdk/identify"));
+
+    expect(syncCalls[0]?.headers["x-app-user-id"]).toBe(initialAppUserId);
+    expect(JSON.parse(identifyCall?.body ?? "{}")).toEqual({
+      appUserId: "user_123",
+      traits: {
+        companyId: "acme",
+        plan: "pro",
+      },
+    });
+    expect(syncCalls[1]?.headers["x-app-user-id"]).toBe("user_123");
+    expect(client.getAppUserId()).toMatch(/^vh:anon:/);
+
+    await client.destroy();
+  });
+
+  it("refreshes tracked feature flags when the browser comes back online", async () => {
+    const { calls } = installFetchMock((call) => {
+      if (call.url.endsWith("/sdk/evaluate-flags")) {
+        return createJsonResponse({
+          flags: [
+            {
+              enabled: true,
+              key: "new-nav",
+              payload: null,
+              variantKey: "on",
+            },
+          ],
+        });
+      }
+
+      return createJsonResponse({});
+    });
+    const client = createVoidhashClient({
+      analytics: {
+        enabled: false,
+      },
+      publishableKey: "vh_pk_test",
+    });
+
+    await client.initialize();
+    await client.getFeatureFlags(["new-nav"]);
+    window.dispatchEvent(new Event("online"));
+    await flushMicrotasks();
+
+    const flagCalls = calls.filter((call) => call.url.endsWith("/sdk/evaluate-flags"));
+    expect(flagCalls).toHaveLength(2);
+
+    await client.destroy();
+  });
+});
