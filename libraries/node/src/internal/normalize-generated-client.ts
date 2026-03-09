@@ -12,6 +12,8 @@ type EndpointNormalizers = Partial<
 
 const endpointNormalizers = new Map<string, EndpointNormalizers>();
 
+const endpointKey = (group: string, endpoint: string) => `${group}.${endpoint}`;
+
 const getPayloadSchema = (endpoint: HttpApiEndpoint.AnyWithProps) => {
   const schemas = Array.from(endpoint.payload.values()).flatMap((value) => value.schemas);
 
@@ -44,7 +46,7 @@ HttpApi.reflect(VoidhashV1Api, {
       normalizers.payload = Schema.decodeUnknownEffect(payloadSchema);
     }
 
-    endpointNormalizers.set(`${group.identifier}.${endpoint.name}`, normalizers);
+    endpointNormalizers.set(endpointKey(group.identifier, endpoint.name), normalizers);
   },
 });
 
@@ -95,9 +97,7 @@ export const normalizeGeneratedClient = (
             return [endpointName, endpoint];
           }
 
-          const normalizers = endpointNormalizers.get(
-            `${groupName}.${endpointName}`
-          );
+          const normalizers = endpointNormalizers.get(endpointKey(groupName, endpointName));
 
           if (!normalizers) {
             return [endpointName, endpoint];
