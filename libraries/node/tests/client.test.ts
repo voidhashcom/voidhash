@@ -11,11 +11,13 @@ import {
 
 import {
   VoidhashNodeConfigurationError,
-  createVoidhashNodeClient,
-  createVoidhashNodeEffectClient,
+  createVoidhashSdk,
   type VoidhashNodeClient,
-  type VoidhashNodeEffectClient,
 } from "../src/index";
+import {
+  createVoidhashSdk as createVoidhashEffectSdk,
+  type VoidhashNodeEffectClient,
+} from "../src/effect";
 import { createJsonResponse, installFetchMock } from "./helpers";
 
 const EXPECTED_GROUPS = [
@@ -61,10 +63,10 @@ describe("@voidhash/node", () => {
   });
 
   it("exposes the exact non-sdk namespaces and omits sdk in types", () => {
-    const effectClient = createVoidhashNodeEffectClient({
+    const effectClient = createVoidhashEffectSdk({
       secretKey: "vh_sk_test",
     });
-    const promiseClient = createVoidhashNodeClient({
+    const promiseClient = createVoidhashSdk({
       secretKey: "vh_sk_test",
     });
 
@@ -83,20 +85,20 @@ describe("@voidhash/node", () => {
 
   it("fails immediately for invalid configuration", () => {
     expect(() =>
-      createVoidhashNodeEffectClient({
+      createVoidhashEffectSdk({
         secretKey: "   ",
       })
     ).toThrow(VoidhashNodeConfigurationError);
 
     expect(() =>
-      createVoidhashNodeEffectClient({
+      createVoidhashEffectSdk({
         baseUrl: "not a url",
         secretKey: "vh_sk_test",
       })
     ).toThrow(VoidhashNodeConfigurationError);
 
     expect(() =>
-      createVoidhashNodeEffectClient({
+      createVoidhashEffectSdk({
         headers: {
           "x-secret-key": "attempted_override",
         },
@@ -107,7 +109,7 @@ describe("@voidhash/node", () => {
     vi.stubGlobal("fetch", undefined);
 
     expect(() =>
-      createVoidhashNodeClient({
+      createVoidhashSdk({
         secretKey: "vh_sk_test",
       })
     ).toThrow(VoidhashNodeConfigurationError);
@@ -123,7 +125,7 @@ describe("@voidhash/node", () => {
       })
     );
 
-    const client = createVoidhashNodeEffectClient({
+    const client = createVoidhashEffectSdk({
       headers: {
         "x-trace-id": "trace_123",
       },
@@ -155,7 +157,7 @@ describe("@voidhash/node", () => {
       ])
     );
 
-    const client = createVoidhashNodeClient({
+    const client = createVoidhashSdk({
       baseUrl: "https://api.voidhash.test",
       secretKey: "vh_sk_test",
     });
@@ -183,36 +185,36 @@ describe("@voidhash/node", () => {
   it("supports POST bodies with customers.createCustomer({ payload })", async () => {
     const { calls } = installFetchMock(() =>
       createJsonResponse({
-        appUserId: "user_123",
+        customerId: "customer_123",
+        distinctId: "user_123",
         email: "user@example.com",
-        id: "customer_123",
         name: "Taylor",
       })
     );
 
-    const client = createVoidhashNodeClient({
+    const client = createVoidhashSdk({
       baseUrl: "https://api.voidhash.test",
       secretKey: "vh_sk_test",
     });
 
     const customer = await client.customers.createCustomer({
       payload: {
-        appUserId: "user_123",
+        distinctId: "user_123",
         email: "user@example.com",
         name: "Taylor",
       },
     });
 
     expect(customer).toEqual({
-      appUserId: "user_123",
+      customerId: "customer_123",
+      distinctId: "user_123",
       email: "user@example.com",
-      id: "customer_123",
       name: "Taylor",
     });
     expect(calls[0]?.method).toBe("POST");
     expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/customers");
     expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({
-      appUserId: "user_123",
+      distinctId: "user_123",
       email: "user@example.com",
       name: "Taylor",
     });
@@ -236,7 +238,7 @@ describe("@voidhash/node", () => {
       })
     );
 
-    const client = createVoidhashNodeClient({
+    const client = createVoidhashSdk({
       baseUrl: "https://api.voidhash.test",
       secretKey: "vh_sk_test",
     });
@@ -273,7 +275,7 @@ describe("@voidhash/node", () => {
   it("supports DELETE requests with api_keys.deleteApiKey({ params })", async () => {
     const { calls } = installFetchMock(() => new Response(null, { status: 204 }));
 
-    const client = createVoidhashNodeClient({
+    const client = createVoidhashSdk({
       baseUrl: "https://api.voidhash.test",
       secretKey: "vh_sk_test",
     });
@@ -302,11 +304,11 @@ describe("@voidhash/node", () => {
       })
     );
 
-    const effectClient = createVoidhashNodeEffectClient({
+    const effectClient = createVoidhashEffectSdk({
       baseUrl: "https://api.voidhash.test",
       secretKey: "vh_sk_test",
     });
-    const promiseClient = createVoidhashNodeClient({
+    const promiseClient = createVoidhashSdk({
       baseUrl: "https://api.voidhash.test",
       secretKey: "vh_sk_test",
     });
@@ -327,11 +329,11 @@ describe("@voidhash/node", () => {
       )
     );
 
-    const effectClient = createVoidhashNodeEffectClient({
+    const effectClient = createVoidhashEffectSdk({
       baseUrl: "https://api.voidhash.test",
       secretKey: "vh_sk_test",
     });
-    const promiseClient = createVoidhashNodeClient({
+    const promiseClient = createVoidhashSdk({
       baseUrl: "https://api.voidhash.test",
       secretKey: "vh_sk_test",
     });

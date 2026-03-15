@@ -14,9 +14,9 @@ export interface AnalyticsBatchRequest {
 }
 
 export interface QueuedAnalyticsEvent {
-  readonly appUserId: string;
   readonly attempts: number;
   readonly availableAt: number;
+  readonly distinctId: string;
   readonly id: string;
   readonly payload: AnalyticsRequestEvent;
 }

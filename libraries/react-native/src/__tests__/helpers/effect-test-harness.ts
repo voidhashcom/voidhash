@@ -44,10 +44,10 @@ export interface ApiClientDoubleOptions {
   syncTransactionShouldFail?: boolean;
 }
 
-export function createSdkCustomer(appUserId: string) {
+export function createSdkCustomer(distinctId: string) {
   return {
-    appUserId,
-    customerId: `customer-${appUserId}`,
+    distinctId,
+    customerId: `customer-${distinctId}`,
     email: null,
     name: null,
   } as SdkCustomer;
@@ -81,16 +81,16 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
       },
       getCustomer: (request: ApiSdkCall) => {
         state.getCustomerCalls.push(request);
-        const appUserId = String(request.headers["x-app-user-id"]);
+        const distinctId = String(request.headers["x-distinct-id"]);
         return Effect.succeed(
-          options.getCustomerResult ?? createSdkCustomer(appUserId)
+          options.getCustomerResult ?? createSdkCustomer(distinctId)
         );
       },
       identify: (request: ApiSdkCall) => {
         state.identifyCalls.push(request);
-        const appUserId = String(request.payload?.appUserId ?? "identified-user");
+        const distinctId = String(request.payload?.distinctId ?? "identified-user");
         return Effect.succeed(
-          options.identifyResult ?? createSdkCustomer(appUserId)
+          options.identifyResult ?? createSdkCustomer(distinctId)
         );
       },
       syncCustomerAttributes: (request: ApiSdkCall) => {

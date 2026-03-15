@@ -139,8 +139,8 @@ export const VoidhashV1Api = HttpApi.make("VoidhashV1Api")
         })
       )
       .add(
-        HttpApiEndpoint.get("byAppUserId", "/by-app-user-id/:appUserId", {
-          params: { appUserId: Schema.String },
+        HttpApiEndpoint.get("byDistinctId", "/by-distinct-id/:distinctId", {
+          params: { distinctId: Schema.String },
           success: Customer,
           error: [ActionForbiddenError, CustomerNotFoundError, CustomerServiceError],
         })

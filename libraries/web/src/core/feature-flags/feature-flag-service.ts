@@ -15,7 +15,7 @@ export class FeatureFlagService {
     private readonly sdkApi: SdkApiClient,
     private readonly eventBus: EventBus,
     private readonly ttlMs: number,
-    private readonly getAppUserId: () => Promise<string | null>
+    private readonly getDistinctId: () => Promise<string | null>
   ) {}
 
   async clearCachedFlags() {
@@ -57,20 +57,20 @@ export class FeatureFlagService {
     return this.getOrRefreshFeatureFlags(keys, true);
   }
 
-  private cacheKey(appUserId: string, keys?: ReadonlyArray<string>) {
-    return `feature-flags:${appUserId}:${serializeKeys(keys)}`;
+  private cacheKey(distinctId: string, keys?: ReadonlyArray<string>) {
+    return `feature-flags:${distinctId}:${serializeKeys(keys)}`;
   }
 
   private async getOrRefreshFeatureFlags(
     keys: ReadonlyArray<string> | undefined,
     forceRefresh: boolean
   ): Promise<FeatureFlagsResult> {
-    const appUserId = await this.getAppUserId();
-    if (!appUserId) {
+    const distinctId = await this.getDistinctId();
+    if (!distinctId) {
       return { flags: [] };
     }
 
-    const cacheKey = this.cacheKey(appUserId, keys);
+    const cacheKey = this.cacheKey(distinctId, keys);
     const serializedKeys = serializeKeys(keys);
     this.trackedKeySets.add(serializedKeys);
 
@@ -82,7 +82,7 @@ export class FeatureFlagService {
       }
     }
 
-    const result = await this.sdkApi.evaluateFeatureFlags(appUserId, keys);
+    const result = await this.sdkApi.evaluateFeatureFlags(distinctId, keys);
     this.rememberFlags(result.flags);
     await this.cache.set(cacheKey, result, { ttl: this.ttlMs });
     this.eventBus.emit("feature-flags-updated", {

@@ -33,8 +33,8 @@ export interface VoidhashAnalyticsOptions {
 export interface VoidhashClientOptions {
   readonly analytics?: VoidhashAnalyticsOptions;
   readonly baseUrl?: string;
+  readonly distinctId?: string;
   readonly featureFlags?: VoidhashFeatureFlagsOptions;
-  readonly initialAppUserId?: string;
   readonly observerMode?: boolean;
   readonly publishableKey: string;
 }
@@ -52,12 +52,12 @@ export interface AnalyticsFlushResult {
 }
 
 export interface InitializedEvent {
-  readonly appUserId: string;
+  readonly distinctId: string;
 }
 
 export interface IdentityChangedEvent {
-  readonly appUserId: string;
-  readonly previousAppUserId: string | null;
+  readonly distinctId: string;
+  readonly previousDistinctId: string | null;
 }
 
 export interface FeatureFlagsUpdatedEvent {
@@ -108,7 +108,7 @@ export interface ResolvedVoidhashConfig {
     readonly refreshOnVisibility: boolean;
     readonly ttlMs: number;
   };
-  readonly initialAppUserId?: string;
+  readonly distinctId?: string;
   readonly observerMode: boolean;
   readonly publishableKey: string;
 }

@@ -3,7 +3,7 @@ import { Schema } from "effect";
 import { ChangesetSchema } from "./changeset";
 
 export const PublishableKeyAuthHeaders = Schema.Struct({
-  "x-app-user-id": Schema.String,
+  "x-distinct-id": Schema.String,
   "x-publishable-key": Schema.String,
 });
 
@@ -85,23 +85,23 @@ export const ApiKeyIdParam = Schema.String;
 // ========================================================
 
 export class Customer extends Schema.Class<Customer>("Customer")({
-  appUserId: Schema.String,
+  customerId: Schema.String,
+  distinctId: Schema.String,
   email: Schema.NullOr(Schema.String),
-  id: Schema.String,
   name: Schema.NullOr(Schema.String),
 }) {}
 
 export class CreateCustomerBody extends Schema.Class<CreateCustomerBody>(
   "CreateCustomerBody"
 )({
-  appUserId: Schema.String,
+  distinctId: Schema.String,
   email: Schema.optional(Schema.String),
   name: Schema.optional(Schema.String),
 }) {}
 
 export const CustomerIdParam = Schema.String;
 
-export const AppUserIdParam = Schema.String;
+export const DistinctIdParam = Schema.String;
 
 // ========================================================
 // Organizations
@@ -277,7 +277,7 @@ const SdkTraits = Schema.Record(Schema.String, SdkTraitValue);
 export class SdkIdentifyBody extends Schema.Class<SdkIdentifyBody>(
   "SdkIdentifyBody"
 )({
-  appUserId: Schema.String,
+  distinctId: Schema.String,
   email: Schema.optional(Schema.String),
   name: Schema.optional(Schema.String),
   traits: Schema.optional(SdkTraits),
@@ -309,8 +309,8 @@ export class SdkSyncTransactionResponse extends Schema.Class<SdkSyncTransactionR
 }) {}
 
 export class SdkCustomer extends Schema.Class<SdkCustomer>("SdkCustomer")({
-  appUserId: Schema.String,
   customerId: Schema.String,
+  distinctId: Schema.String,
   email: Schema.NullOr(Schema.String),
   name: Schema.NullOr(Schema.String),
 }) {}

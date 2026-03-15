@@ -13,37 +13,37 @@ const make = Effect.gen(function* effect() {
   const cacheManager = yield* CacheManager;
   const apiClient = yield* ApiClient;
 
-  const getCustomerAttributes = (appUserId: string) =>
+  const getCustomerAttributes = (distinctId: string) =>
     cacheManager
       .get<CustomerAttributes>(
-        generateCustomerAttributesCacheKey(appUserId)
+        generateCustomerAttributesCacheKey(distinctId)
       )
       .pipe(Effect.map((attributes) => attributes?.value ?? null));
 
   const setCustomerAttributes = (
-    appUserId: string,
+    distinctId: string,
     attributes: CustomerAttributes
   ) =>
     cacheManager.set(
-      generateCustomerAttributesCacheKey(appUserId),
+      generateCustomerAttributesCacheKey(distinctId),
       attributes
     );
 
-  const syncCustomerAttributes = (appUserId: string) =>
+  const syncCustomerAttributes = (distinctId: string) =>
     Effect.gen(function* syncCustomerAttributes() {
-      let attributes = yield* getCustomerAttributes(appUserId);
+      let attributes = yield* getCustomerAttributes(distinctId);
       if (!attributes) {
         attributes = {
           email: undefined,
           name: undefined,
         };
-        yield* setCustomerAttributes(appUserId, attributes);
+        yield* setCustomerAttributes(distinctId, attributes);
       }
       const commonHeaders = yield* getCommonSdkHeaders();
       yield* apiClient.sdk.syncCustomerAttributes({
         headers: {
           ...commonHeaders,
-          "x-app-user-id": appUserId,
+          "x-distinct-id": distinctId,
         },
         payload: {
           email: attributes.email,
@@ -52,8 +52,8 @@ const make = Effect.gen(function* effect() {
       });
     });
 
-  const generateCustomerAttributesCacheKey = (appUserId: string) =>
-    `customer-attributes:${appUserId}`;
+  const generateCustomerAttributesCacheKey = (distinctId: string) =>
+    `customer-attributes:${distinctId}`;
 
   return {
     getCustomerAttributes,

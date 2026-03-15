@@ -21,6 +21,16 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
+    },
+    "./effect": {
+      "import": {
+        "types": "./dist/effect.d.ts",
+        "default": "./dist/effect.mjs"
+      },
+      "require": {
+        "types": "./dist/effect.d.ts",
+        "default": "./dist/effect.js"
+      }
     }
   },
   "scripts": {

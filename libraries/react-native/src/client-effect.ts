@@ -107,7 +107,7 @@ export interface AnalyticsIngestEvent {
 
 const makeUnitializedClient = () => ({
   init: <TSchema extends VoidhashSchema>(initOptions: {
-    initialAppUserId?: string;
+    distinctId?: string;
     schema: TSchema;
   }) =>
     Effect.gen(function* init() {
@@ -115,30 +115,30 @@ const makeUnitializedClient = () => ({
       const customerAttributeManager = yield* CustomerAttributeManager;
       const customerInfoManager = yield* CustomerInfoManager;
 
-      if (initOptions.initialAppUserId) {
-        // Identify as the user which ID was passed during SDK initialization
-        yield* Effect.logDebug("Initializing with initial user id", {
-          appUserId: initOptions.initialAppUserId,
+      if (initOptions.distinctId) {
+        // Identify as the distinct id provided during SDK initialization.
+        yield* Effect.logDebug("Initializing with provided distinct id", {
+          distinctId: initOptions.distinctId,
         });
 
         // Sync customer attributes before identify to not lose historical customer data
-        const appUserId = yield* identityManager.getAppUserIdFromCache();
-        if (appUserId) {
-          yield* customerAttributeManager.syncCustomerAttributes(appUserId);
+        const distinctId = yield* identityManager.getDistinctIdFromCache();
+        if (distinctId) {
+          yield* customerAttributeManager.syncCustomerAttributes(distinctId);
         }
 
-        yield* identityManager.identify(initOptions.initialAppUserId, {});
+        yield* identityManager.identify(initOptions.distinctId, {});
       } else {
-        // If no user ID was passed during SDK initialization, fetch the last identified customer from the server
-        const appUserId = yield* identityManager.getAppUserId();
-        yield* Effect.logDebug("Initializing without initial user id", {
-          appUserId,
+        // If no distinct id was passed during SDK initialization, fetch the current customer in the background.
+        const distinctId = yield* identityManager.getDistinctId();
+        yield* Effect.logDebug("Initializing without provided distinct id", {
+          distinctId,
         });
 
-        yield* customerAttributeManager.syncCustomerAttributes(appUserId);
+        yield* customerAttributeManager.syncCustomerAttributes(distinctId);
 
         // We don't need the result immediately. We do this to pre-fetch fresh customer data in the background.
-        yield* customerInfoManager.getCustomer(appUserId, "fetch");
+        yield* customerInfoManager.getCustomer(distinctId, "fetch");
       }
 
       // Return the initialized client
@@ -248,7 +248,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
 
       const identityManager = yield* IdentityManager;
       const sdkConfiguration = yield* SdkConfiguration;
-      const appUserId = yield* identityManager.getAppUserId();
+      const distinctId = yield* identityManager.getDistinctId();
       const ingestEventsUrl = resolveIngestEventsUrl({
         baseUrl: sdkConfiguration.baseUrl,
         ingestUrl: sdkConfiguration.ingestUrl,
@@ -260,7 +260,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
             body: JSON.stringify({ events }),
             headers: {
               "content-type": "application/json",
-              "x-app-user-id": appUserId,
+              "x-distinct-id": distinctId,
               "x-publishable-key": sdkConfiguration.publishableKey,
             },
             method: "POST",
@@ -313,7 +313,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         const sdkConfiguration = yield* SdkConfiguration;
 
         const commonHeaders = yield* getCommonSdkHeaders();
-        const appUserId = yield* identityManager.getAppUserId();
+        const distinctId = yield* identityManager.getDistinctId();
         if (transaction.platform === "android" && !transaction.purchaseToken) {
           yield* Effect.logWarning(
             "Skipping observed Android transaction without purchase token",
@@ -327,7 +327,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         yield* apiClient.sdk.syncTransaction({
           headers: {
             ...commonHeaders,
-            "x-app-user-id": appUserId,
+            "x-distinct-id": distinctId,
           },
           payload: mapTransactionToSyncPayload(transaction),
         });
@@ -404,11 +404,11 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         }
 
         const commonHeaders = yield* getCommonSdkHeaders();
-        const appUserId = yield* identityManager.getAppUserId();
+        const distinctId = yield* identityManager.getDistinctId();
         const result = yield* apiClient.sdk.evaluateFeatureFlags({
           headers: {
             ...commonHeaders,
-            "x-app-user-id": appUserId,
+            "x-distinct-id": distinctId,
           },
           payload: { flagKeys },
         });
@@ -430,12 +430,12 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         const identityManager = yield* IdentityManager;
 
         const commonHeaders = yield* getCommonSdkHeaders();
-        const appUserId = yield* identityManager.getAppUserId();
+        const distinctId = yield* identityManager.getDistinctId();
 
         return yield* apiClient.sdk.resolvePaywall({
           headers: {
             ...commonHeaders,
-            "x-app-user-id": appUserId,
+            "x-distinct-id": distinctId,
           },
           payload: { locationSlug },
         });
@@ -446,13 +446,19 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         const identityManager = yield* IdentityManager;
         const customerInfoManager = yield* CustomerInfoManager;
 
-        const appUserId = yield* identityManager.getAppUserId();
+        const distinctId = yield* identityManager.getDistinctId();
         const customer = yield* customerInfoManager.getCustomer(
-          appUserId,
+          distinctId,
           forceFetch ? "fetch" : "fetch-while-stale"
         );
 
         return customer;
+      }),
+
+    getDistinctId: () =>
+      Effect.gen(function* getDistinctId() {
+        const identityManager = yield* IdentityManager;
+        return yield* identityManager.getDistinctId();
       }),
 
     getProducts: () =>
@@ -463,7 +469,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
       }),
 
     identify: (
-      appUserId: string,
+      distinctId: string,
       options: {
         email?: string;
         name?: string;
@@ -471,7 +477,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
     ) =>
       Effect.gen(function* identify() {
         const identityManager = yield* IdentityManager;
-        return yield* identityManager.identify(appUserId, options);
+        return yield* identityManager.identify(distinctId, options);
       }),
 
     iosPresentCodeRedemptionSheet: () =>
@@ -525,8 +531,8 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
 
         yield* reconcileObservedTransactions();
 
-        const appUserId = yield* identityManager.getAppUserId();
-        yield* customerInfoManager.getCustomer(appUserId, "fetch");
+        const distinctId = yield* identityManager.getDistinctId();
+        yield* customerInfoManager.getCustomer(distinctId, "fetch");
       }),
 
     reconcileObservedTransactions: () => reconcileObservedTransactions(),
@@ -685,10 +691,16 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
     sendAnalyticsEvents: (events: ReadonlyArray<AnalyticsIngestEvent>) =>
       sendAnalyticsEventsImpl(events),
 
+    reset: () =>
+      Effect.gen(function* reset() {
+        const identityManager = yield* IdentityManager;
+        return yield* identityManager.reset();
+      }),
+
     signOut: () =>
       Effect.gen(function* signOut() {
         const identityManager = yield* IdentityManager;
-        return yield* identityManager.signOut();
+        return yield* identityManager.reset();
       }),
 
     startTransactionObserver: (

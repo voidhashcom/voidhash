@@ -7,7 +7,7 @@ const serializeKeys = (keys?: ReadonlyArray<string>) =>
   keys && keys.length > 0 ? [...keys].sort().join(",") : "all";
 
 export const useFeatureFlags = (keys?: string[]) => {
-  const { appUserId, client, isInitialized } = useVoidhash();
+  const { client, distinctId, isInitialized } = useVoidhash();
   const [data, setData] = React.useState<FeatureFlagsResult>({ flags: [] });
   const [error, setError] = React.useState<Error | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -72,7 +72,7 @@ export const useFeatureFlags = (keys?: string[]) => {
     return () => {
       isMounted = false;
     };
-  }, [appUserId, client, isInitialized, resolvedKeys, updateData]);
+  }, [client, distinctId, isInitialized, resolvedKeys, updateData]);
 
   React.useEffect(() => {
     return client.on("feature-flags-updated", (event) => {

@@ -66,12 +66,12 @@ describe("VoidhashWebClient", () => {
     });
 
     await client.initialize();
-    const appUserId = client.getAppUserId();
+    const distinctId = client.getDistinctId();
     const flags = await client.getFeatureFlags(["new-nav"]);
     await client.track("checkout_started", { source: "pricing_page" });
     const flushResult = await client.flushAnalytics();
 
-    expect(appUserId).toMatch(/^vh:anon:/);
+    expect(distinctId).toMatch(/^vh:anon:/);
     expect(flags.flags[0]?.key).toBe("new-nav");
     expect(client.isFeatureEnabled("new-nav")).toBe(true);
     expect(flushResult).toEqual({
@@ -82,7 +82,7 @@ describe("VoidhashWebClient", () => {
 
     const analyticsCall = calls.find((call) => call.url.includes("/v1/events"));
     expect(analyticsCall?.url).toBe("https://i.voidhash.test/v1/events");
-    expect(analyticsCall?.headers["x-distinct-id"]).toBe(appUserId);
+    expect(analyticsCall?.headers["x-distinct-id"]).toBe(distinctId);
 
     await client.destroy();
   });
@@ -91,7 +91,8 @@ describe("VoidhashWebClient", () => {
     const { calls } = installFetchMock((call) => {
       if (call.url.endsWith("/sdk/identify")) {
         return createJsonResponse({
-          appUserId: "user_123",
+          customerId: "customer_123",
+          distinctId: "user_123",
         });
       }
 
@@ -105,25 +106,25 @@ describe("VoidhashWebClient", () => {
     });
 
     await client.initialize();
-    const initialAppUserId = client.getAppUserId();
+    const initialDistinctId = client.getDistinctId();
     await client.identify("user_123", { companyId: "acme", plan: "pro" });
-    await client.resetIdentity();
+    await client.reset();
 
     const syncCalls = calls.filter((call) =>
       call.url.endsWith("/sdk/sync-customer-attributes")
     );
     const identifyCall = calls.find((call) => call.url.endsWith("/sdk/identify"));
 
-    expect(syncCalls[0]?.headers["x-app-user-id"]).toBe(initialAppUserId);
+    expect(syncCalls[0]?.headers["x-distinct-id"]).toBe(initialDistinctId);
     expect(JSON.parse(identifyCall?.body ?? "{}")).toEqual({
-      appUserId: "user_123",
+      distinctId: "user_123",
       traits: {
         companyId: "acme",
         plan: "pro",
       },
     });
-    expect(syncCalls[1]?.headers["x-app-user-id"]).toBe("user_123");
-    expect(client.getAppUserId()).toMatch(/^vh:anon:/);
+    expect(syncCalls[1]?.headers["x-distinct-id"]).toBe("user_123");
+    expect(client.getDistinctId()).toMatch(/^vh:anon:/);
 
     await client.destroy();
   });

@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import {
-  createVoidhashNodeEffectClient,
+  createVoidhashSdk as createVoidhashEffectSdk,
   type VoidhashNodeEffectClient,
 } from "./effect-client";
 import type { PublicVoidhashNodeClient } from "./internal/client-types";
@@ -48,11 +48,11 @@ const promisifyClient = <TClient extends object>(
 
 export type VoidhashNodeClient = FilterSdkGroup<PublicVoidhashNodeClient>;
 
-export const createVoidhashNodeClient = (
+export const createVoidhashSdk = (
   options: VoidhashNodeClientOptions
 ): VoidhashNodeClient =>
   promisifyClient(
-    createVoidhashNodeEffectClient(options)
+    createVoidhashEffectSdk(options)
   ) as unknown as VoidhashNodeClient;
 
 export type { VoidhashNodeEffectClient };

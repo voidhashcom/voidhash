@@ -81,7 +81,7 @@ export const resolveVoidhashConfig = (
       refreshOnVisibility: options.featureFlags?.refreshOnVisibility ?? true,
       ttlMs,
     },
-    initialAppUserId: options.initialAppUserId,
+    distinctId: options.distinctId,
     observerMode: options.observerMode ?? false,
     publishableKey: options.publishableKey,
   };
@@ -128,7 +128,7 @@ export class VoidhashClientEffect {
       this.sdkApiClient,
       this.eventBus,
       this.config.featureFlags.ttlMs,
-      async () => this.identityManager.getAppUserId()
+      async () => this.identityManager.getDistinctId()
     );
     this.analyticsQueue = new AnalyticsQueue(
       this.cache,
@@ -156,8 +156,8 @@ export class VoidhashClientEffect {
     return flushResult;
   }
 
-  getAppUserId() {
-    return this.identityManager.getAppUserId();
+  getDistinctId() {
+    return this.identityManager.getDistinctId();
   }
 
   getEventBus() {
@@ -184,15 +184,15 @@ export class VoidhashClientEffect {
     return this.featureFlags.getFeatureFlags(keys);
   }
 
-  async identify(appUserId: string, traits?: VoidhashTraits) {
-    await this.identityManager.identify(appUserId, traits);
+  async identify(externalUserId: string, traits?: VoidhashTraits) {
+    await this.identityManager.identify(externalUserId, traits);
     await this.featureFlags.clearCachedFlags();
     await this.featureFlags.refreshTrackedKeySets();
   }
 
   async initialize() {
-    const appUserId = await this.identityManager.initialize(
-      this.config.initialAppUserId
+    const distinctId = await this.identityManager.initialize(
+      this.config.distinctId
     );
 
     if (this.config.analytics.enabled) {
@@ -205,7 +205,7 @@ export class VoidhashClientEffect {
       await this.featureFlags.getFeatureFlags();
     }
 
-    this.eventBus.emit("initialized", { appUserId });
+    this.eventBus.emit("initialized", { distinctId });
   }
 
   async page(
@@ -227,8 +227,8 @@ export class VoidhashClientEffect {
     return this.featureFlags.refreshFeatureFlags(keys);
   }
 
-  async resetIdentity() {
-    await this.identityManager.resetIdentity();
+  async reset() {
+    await this.identityManager.reset();
     await this.featureFlags.clearCachedFlags();
     await this.featureFlags.refreshTrackedKeySets();
   }
@@ -242,8 +242,8 @@ export class VoidhashClientEffect {
       return;
     }
 
-    const appUserId = await this.identityManager.getAppUserId();
-    if (!appUserId) {
+    const distinctId = await this.identityManager.getDistinctId();
+    if (!distinctId) {
       return;
     }
 
@@ -254,7 +254,7 @@ export class VoidhashClientEffect {
       options
     );
     const droppedCount = await this.analyticsQueue.enqueue({
-      appUserId,
+      distinctId,
       id: event.event_id,
       payload: event,
     });

@@ -4,7 +4,7 @@ import {
   type AnalyticsIngestEvent,
   VoidhashEffectClient,
 } from "../../client-effect";
-import { ANONYMOUS_USER_ID_PREFIX } from "../../constants";
+import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../constants";
 import { CacheManager } from "../../core/caching/cache-manager";
 import { Product, SubscriptionProduct } from "../../core/entities/product";
 import { Transaction } from "../../core/entities/transaction";
@@ -18,7 +18,7 @@ import {
 import { createTestSchema } from "../helpers/test-schema";
 
 describe("VoidhashEffectClient", () => {
-  it("init with initial user id identifies user and syncs previous attributes", async () => {
+  it("init with a provided distinct id identifies the user and syncs previous attributes", async () => {
     const apiDouble = createApiClientDouble();
     const paymentDouble = createPaymentAdapterDouble();
     const cache = createInMemoryCacheAdapter();
@@ -31,7 +31,7 @@ describe("VoidhashEffectClient", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.set("appUserId", "cached-before-init"))
+        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "cached-before-init"))
       );
       await harness.runtime.runPromise(
         Effect.flatMap(CustomerAttributeManager, (manager) =>
@@ -44,29 +44,29 @@ describe("VoidhashEffectClient", () => {
 
       const initializedClient = await harness.runtime.runPromise(
         VoidhashEffectClient.makeUnitializedClient().init({
-          initialAppUserId: "user-after-init",
+          distinctId: "user-after-init",
           schema,
         })
       );
 
       expect(initializedClient).toHaveProperty("getProducts");
       expect(apiDouble.state.syncCustomerAttributesCalls).toHaveLength(2);
-      expect(apiDouble.state.syncCustomerAttributesCalls[0]?.headers["x-app-user-id"]).toBe(
+      expect(apiDouble.state.syncCustomerAttributesCalls[0]?.headers["x-distinct-id"]).toBe(
         "cached-before-init"
       );
       expect(apiDouble.state.identifyCalls).toHaveLength(1);
-      expect(apiDouble.state.identifyCalls[0]?.headers["x-app-user-id"]).toBe(
+      expect(apiDouble.state.identifyCalls[0]?.headers["x-distinct-id"]).toBe(
         "cached-before-init"
       );
       expect(apiDouble.state.identifyCalls[0]?.payload).toMatchObject({
-        appUserId: "user-after-init",
+        distinctId: "user-after-init",
       });
     } finally {
       await harness.runtime.dispose();
     }
   });
 
-  it("init without initial user id prefetches customer", async () => {
+  it("init without a provided distinct id prefetches customer", async () => {
     const apiDouble = createApiClientDouble();
     const paymentDouble = createPaymentAdapterDouble();
     const cache = createInMemoryCacheAdapter();
@@ -87,10 +87,10 @@ describe("VoidhashEffectClient", () => {
       expect(apiDouble.state.identifyCalls).toHaveLength(0);
       expect(apiDouble.state.syncCustomerAttributesCalls).toHaveLength(1);
       expect(apiDouble.state.getCustomerCalls).toHaveLength(1);
-      const appUserId = String(
-        apiDouble.state.getCustomerCalls[0]?.headers["x-app-user-id"]
+      const distinctId = String(
+        apiDouble.state.getCustomerCalls[0]?.headers["x-distinct-id"]
       );
-      expect(appUserId.startsWith(ANONYMOUS_USER_ID_PREFIX)).toBe(true);
+      expect(distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)).toBe(true);
     } finally {
       await harness.runtime.dispose();
     }
@@ -164,7 +164,7 @@ describe("VoidhashEffectClient", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.set("appUserId", "feature-user"))
+        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "feature-user"))
       );
 
       const first = await harness.runtime.runPromise(
@@ -455,7 +455,7 @@ describe("VoidhashEffectClient", () => {
       try {
         await harness.runtime.runPromise(
           Effect.flatMap(CacheManager, (manager) =>
-            manager.set("appUserId", "analytics-user")
+            manager.set("distinctId", "analytics-user")
           )
         );
         await harness.runtime.runPromise(
@@ -471,7 +471,7 @@ describe("VoidhashEffectClient", () => {
         expect(request?.method).toBe("POST");
         expect(request?.headers).toEqual({
           "content-type": "application/json",
-          "x-app-user-id": "analytics-user",
+          "x-distinct-id": "analytics-user",
           "x-publishable-key": "pk_analytics",
         });
       } finally {

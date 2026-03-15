@@ -23,8 +23,8 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
 ) {
   const baseUrl = options.baseUrl || "https://api.voidhash.com";
   const debug = options.debug ?? false;
+  const distinctId = options.distinctId ?? null;
   const ingestUrl = options.ingestUrl;
-  const initialAppUserId = options.userId ?? null;
   const readOnly = options.readOnly ?? false;
   const unstableSwallowErrors = options.unstable_swallowErrors ?? false;
   const scheme =
@@ -41,7 +41,7 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
   const platform = RNPlatform.OS === "ios" ? "ios" : "android";
 
   const client = new VoidhashClient<TSchema>(
-    initialAppUserId,
+    distinctId,
     scheme,
     schema,
     baseUrl,

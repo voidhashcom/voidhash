@@ -34,12 +34,12 @@ export class VoidhashWebClient {
     this.state = "destroyed";
   }
 
-  getAppUserId() {
+  getDistinctId() {
     if (this.state !== "ready") {
       return null;
     }
 
-    return this.effect.getAppUserId();
+    return this.effect.getDistinctId();
   }
 
   async getFeatureFlags(keys?: string[]) {
@@ -52,9 +52,9 @@ export class VoidhashWebClient {
     return this.effect.getFeatureVariant(key);
   }
 
-  async identify(appUserId: string, traits?: VoidhashTraits) {
+  async identify(externalUserId: string, traits?: VoidhashTraits) {
     this.ensureReady();
-    await this.effect.identify(appUserId, traits);
+    await this.effect.identify(externalUserId, traits);
   }
 
   async initialize() {
@@ -116,9 +116,9 @@ export class VoidhashWebClient {
     return this.effect.refreshFeatureFlags(keys);
   }
 
-  async resetIdentity() {
+  async reset() {
     this.ensureReady();
-    await this.effect.resetIdentity();
+    await this.effect.reset();
   }
 
   async track(

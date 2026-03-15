@@ -1,6 +1,6 @@
 export { VoidhashNodeConfigurationError } from "./errors";
 export {
   createVoidhashSdk,
-  type VoidhashNodeClient,
-} from "./promise-client";
+  type VoidhashNodeEffectClient,
+} from "./effect-client";
 export type { VoidhashNodeClientOptions } from "./types";

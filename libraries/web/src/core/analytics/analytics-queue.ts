@@ -52,12 +52,12 @@ export class AnalyticsQueue {
       return [];
     }
 
-    const firstAppUserId = dueEvents[0]?.appUserId;
+    const firstDistinctId = dueEvents[0]?.distinctId;
     const selected: QueuedAnalyticsEvent[] = [];
     let totalBytes = 0;
 
     for (const event of dueEvents) {
-      if (event.appUserId !== firstAppUserId) {
+      if (event.distinctId !== firstDistinctId) {
         break;
       }
 

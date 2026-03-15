@@ -23,12 +23,12 @@ export class SdkApiClient {
   async destroy() {}
 
   async evaluateFeatureFlags(
-    appUserId: string,
+    distinctId: string,
     flagKeys?: ReadonlyArray<string>
   ): Promise<FeatureFlagsResult> {
     try {
       return await this.request<FeatureFlagsResult>("/sdk/evaluate-flags", {
-          headers: this.buildHeaders(appUserId),
+          headers: this.buildHeaders(distinctId),
           payload: trimUndefined({
             flagKeys,
           }),
@@ -41,29 +41,29 @@ export class SdkApiClient {
   }
 
   async identify(
-    currentAppUserId: string,
-    appUserId: string,
+    currentDistinctId: string,
+    distinctId: string,
     traits?: VoidhashTraits
   ) {
     try {
       await this.request("/sdk/identify", {
-          headers: this.buildHeaders(currentAppUserId),
+          headers: this.buildHeaders(currentDistinctId),
           payload: trimUndefined({
-            appUserId,
+            distinctId,
             traits: this.normalizeTraits(traits),
           }),
         });
     } catch (error) {
-      throw new VoidhashIdentityError("Failed to identify app user.", {
+      throw new VoidhashIdentityError("Failed to identify distinct id.", {
         cause: error,
       });
     }
   }
 
-  async syncTraits(appUserId: string, traits?: VoidhashTraits) {
+  async syncTraits(distinctId: string, traits?: VoidhashTraits) {
     try {
       await this.request("/sdk/sync-customer-attributes", {
-          headers: this.buildHeaders(appUserId),
+          headers: this.buildHeaders(distinctId),
           payload: trimUndefined({
             traits: this.normalizeTraits(traits),
           }),
@@ -75,13 +75,13 @@ export class SdkApiClient {
     }
   }
 
-  private buildHeaders(appUserId: string) {
+  private buildHeaders(distinctId: string) {
     return {
       ...this.platform.getSdkHeaders({
         observerMode: this.observerMode,
         publishableKey: this.publishableKey,
       }),
-      "x-app-user-id": appUserId,
+      "x-distinct-id": distinctId,
     };
   }
 

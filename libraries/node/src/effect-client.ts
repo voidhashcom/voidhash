@@ -12,7 +12,7 @@ import { normalizeGeneratedClient } from "./internal/normalize-generated-client"
 export type VoidhashNodeEffectClient =
   FilterSdkGroup<PublicVoidhashNodeEffectClient>;
 
-export const createVoidhashNodeEffectClient = (
+export const createVoidhashSdk = (
   options: VoidhashNodeClientOptions
 ): VoidhashNodeEffectClient =>
   filterSdkGroup(

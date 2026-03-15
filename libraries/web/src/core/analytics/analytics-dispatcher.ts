@@ -89,7 +89,7 @@ export class AnalyticsDispatcher {
       return null;
     }
 
-    const distinctId = batch[0]?.appUserId;
+    const distinctId = batch[0]?.distinctId;
     if (!distinctId) {
       return null;
     }

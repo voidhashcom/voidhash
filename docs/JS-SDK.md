@@ -158,8 +158,8 @@ const enabled = voidhash.isFeatureEnabled("new-checkout");
 ### Core Client Methods
 
 - `initialize()`
-- `identify(appUserId, attributes?)`
-- `resetIdentity()`
+- `identify(externalUserId, attributes?)`
+- `reset()`
 - `getFeatureFlags(keys?)`
 - `refreshFeatureFlags(keys?)`
 - `isFeatureEnabled(key)`
@@ -194,7 +194,7 @@ Initialization should follow the same disciplined flow as the React Native SDK:
 1. Validate configuration.
 2. Create the browser platform provider.
 3. Resolve cache adapters.
-4. Resolve or create an anonymous `appUserId`.
+4. Resolve or create an anonymous `distinctId`.
 5. Build common headers and auth headers.
 6. Create the internal runtime services.
 7. Mark the client as initialized.
@@ -211,18 +211,18 @@ Important constraints:
 
 The web SDK should preserve the same identity concepts as React Native:
 
-- anonymous users get an SDK-managed generated `appUserId`
+- anonymous users get an SDK-managed generated `distinctId`
 - identified users can replace the anonymous user via `identify`
 - user attributes should be synchronized in a predictable order
 - resetting identity should rotate back to a new anonymous user
 
 ### Identity Requirements
 
-- Persist the current `appUserId` in browser storage.
+- Persist the current `distinctId` in browser storage.
 - Keep an in-memory copy for fast request construction.
 - Treat identity changes as cache boundaries.
 - Clear or segregate user-scoped caches when the identity changes.
-- Re-fetch feature flags after `identify` and `resetIdentity`.
+- Re-fetch feature flags after `identify` and `reset`.
 - Emit an identity-changed event so React hooks and host apps can respond.
 
 ## Feature Flags Plan
@@ -308,7 +308,7 @@ type AnalyticsEvent = {
   event: string;
   properties?: Record<string, unknown>;
   timestamp: string;
-  appUserId: string;
+  distinctId: string;
   anonymousId?: string;
   context: {
     url?: string;
@@ -389,7 +389,7 @@ Use a layered cache model:
 ### Cache Rules
 
 - Keep the 5-minute feature flag TTL from React Native by default.
-- Namespace cache keys by environment and `appUserId`.
+- Namespace cache keys by environment and `distinctId`.
 - Keep cache clearing explicit and testable.
 - Bound the analytics queue so storage growth is controlled.
 
