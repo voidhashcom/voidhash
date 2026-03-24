@@ -26,7 +26,7 @@ export class SdkCustomerAlreadyIdentifiedError extends Schema.TaggedErrorClass<S
   },
   { httpApiStatus: 409 }
 ) {
-  toString(): string {
+  override toString(): string {
     return `The following customer was already identified: ${this.distinctId}`;
   }
 }

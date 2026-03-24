@@ -40,12 +40,11 @@ describe("VoidhashWebClient", () => {
         });
       }
 
-      if (call.url.endsWith("/v1/events")) {
+      if (call.url.endsWith("/batch")) {
         return createJsonResponse(
           {
             accepted: 1,
             rejected: 0,
-            request_id: "req_1",
           },
           202
         );
@@ -77,12 +76,26 @@ describe("VoidhashWebClient", () => {
     expect(flushResult).toEqual({
       accepted: 1,
       rejected: 0,
-      requestId: "req_1",
     });
 
-    const analyticsCall = calls.find((call) => call.url.includes("/v1/events"));
-    expect(analyticsCall?.url).toBe("https://i.voidhash.test/v1/events");
-    expect(analyticsCall?.headers["x-distinct-id"]).toBe(distinctId);
+    const analyticsCall = calls.find((call) => call.url.includes("/batch"));
+    expect(analyticsCall?.url).toBe("https://i.voidhash.test/batch");
+    expect(analyticsCall?.headers).toMatchObject({
+      "content-type": "application/json",
+    });
+    expect(JSON.parse(analyticsCall?.body ?? "{}")).toMatchObject({
+      events: [
+        {
+          distinct_id: distinctId,
+          event: "checkout_started",
+          properties: {
+            source: "pricing_page",
+          },
+          uuid: expect.stringMatching(/^evt_/),
+        },
+      ],
+      token: "vh_pk_test",
+    });
 
     await client.destroy();
   });
@@ -93,6 +106,17 @@ describe("VoidhashWebClient", () => {
         return createJsonResponse({
           customerId: "customer_123",
           distinctId: "user_123",
+          email: null,
+          name: null,
+        });
+      }
+
+      if (call.url.endsWith("/sdk/sync-customer-attributes")) {
+        return createJsonResponse({
+          customerId: "customer_sync",
+          distinctId: "synced",
+          email: null,
+          name: null,
         });
       }
 

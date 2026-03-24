@@ -26,7 +26,7 @@ export class PerkSlugAlreadyExistsError extends Schema.TaggedErrorClass<PerkSlug
   },
   { httpApiStatus: 409 }
 ) {
-  toString(): string {
+  override toString(): string {
     return `The following perk slug already exists: ${this.slug}`;
   }
 }

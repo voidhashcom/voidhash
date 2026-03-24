@@ -81,6 +81,7 @@ export interface VoidhashErrorEvent {
 }
 
 export interface VoidhashEventMap {
+  readonly "analytics-flush-needed": undefined;
   readonly "analytics-flushed": AnalyticsFlushedEvent;
   readonly "analytics-partial-rejection": AnalyticsPartialRejectionEvent;
   readonly error: VoidhashErrorEvent;

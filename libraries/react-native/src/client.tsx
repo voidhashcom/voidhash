@@ -20,6 +20,7 @@ import type {
 } from "./core/schema";
 import { SdkConfiguration } from "./core/sdk-configuration";
 import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "./errors";
+import { AnalyticsService } from "./core/analytics/service";
 
 export interface VoidhashClientOptions<TSchema extends VoidhashSchema> {
   baseUrl?: string;
@@ -44,6 +45,7 @@ const CreateEffectRuntime = (
   ManagedRuntime.make(
     pipe(
       CustomerAttributeManager.Default,
+      Layer.provideMerge(AnalyticsService.layer),
       Layer.provideMerge(CustomerInfoManager.Default),
       Layer.provideMerge(IdentityManager.Default),
       Layer.provideMerge(CacheManager.Default),

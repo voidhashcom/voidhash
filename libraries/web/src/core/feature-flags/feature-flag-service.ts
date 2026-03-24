@@ -1,100 +1,134 @@
-import type { FeatureFlagEntry, FeatureFlagsResult } from "../../types";
-import type { CacheManager } from "../caching/cache-manager";
-import type { EventBus } from "../event-bus";
-import { SdkApiClient } from "../http/sdk-api-client";
+import { Effect, Layer, ServiceMap } from "effect";
+
+import type {
+  FeatureFlagEntry,
+  FeatureFlagsResult,
+} from "../../types";
+import { CacheManager } from "../caching/cache-manager";
+import { EventBusProvider } from "../event-bus";
+import { IdentityManager } from "../identity/identity-manager";
+import { ApiClient } from "../networking/api-client";
+import { PlatformProvider } from "../platform/platform-provider";
+import { SdkConfiguration } from "../sdk-configuration";
 
 const serializeKeys = (keys?: ReadonlyArray<string>) =>
   keys && keys.length > 0 ? [...keys].sort().join(",") : "all";
 
-export class FeatureFlagService {
-  private latestFlags = new Map<string, FeatureFlagEntry>();
-  private trackedKeySets = new Set<string>();
+const make = Effect.gen(function* effect() {
+  const cacheManager = yield* CacheManager;
+  const apiClient = yield* ApiClient;
+  const eventBus = yield* EventBusProvider;
+  const identityManager = yield* IdentityManager;
+  const platform = yield* PlatformProvider;
+  const config = yield* SdkConfiguration;
 
-  constructor(
-    private readonly cache: CacheManager,
-    private readonly sdkApi: SdkApiClient,
-    private readonly eventBus: EventBus,
-    private readonly ttlMs: number,
-    private readonly getDistinctId: () => Promise<string | null>
-  ) {}
+  const latestFlags = new Map<string, FeatureFlagEntry>();
+  const trackedKeySets = new Set<string>();
 
-  async clearCachedFlags() {
-    this.latestFlags.clear();
-    await this.cache.clearPrefix("feature-flags:");
-  }
+  // biome-ignore lint/suspicious/noExplicitAny: SDK headers match the schema shape at runtime
+  const buildHeaders = (distinctId: string) =>
+    ({
+      ...platform.getSdkHeaders({
+        observerMode: config.observerMode,
+        publishableKey: config.publishableKey,
+      }),
+      "x-distinct-id": distinctId,
+    }) as any;
 
-  getTrackedKeys() {
-    return [...this.trackedKeySets];
-  }
+  const buildCacheKey = (distinctId: string, keys?: ReadonlyArray<string>) =>
+    `feature-flags:${distinctId}:${serializeKeys(keys)}`;
 
-  getVariant(key: string) {
-    return this.latestFlags.get(key) ?? null;
-  }
-
-  isEnabled(key: string) {
-    return this.latestFlags.get(key)?.enabled ?? false;
-  }
-
-  async refreshTrackedKeySets() {
-    if (this.trackedKeySets.size === 0) {
-      return;
+  const rememberFlags = (flags: ReadonlyArray<FeatureFlagEntry>) => {
+    for (const flag of flags) {
+      latestFlags.set(flag.key, flag);
     }
+  };
 
-    await Promise.all(
-      [...this.trackedKeySets].map((serializedKeys) =>
-        this.refreshFeatureFlags(
-          serializedKeys === "all" ? undefined : serializedKeys.split(",")
-        )
-      )
-    );
-  }
+  // Sync accessors (plain functions, not Effects)
+  const isEnabled = (key: string) =>
+    latestFlags.get(key)?.enabled ?? false;
 
-  async getFeatureFlags(keys?: ReadonlyArray<string>) {
-    return this.getOrRefreshFeatureFlags(keys, false);
-  }
+  const getVariant = (key: string) =>
+    latestFlags.get(key) ?? null;
 
-  async refreshFeatureFlags(keys?: ReadonlyArray<string>) {
-    return this.getOrRefreshFeatureFlags(keys, true);
-  }
-
-  private cacheKey(distinctId: string, keys?: ReadonlyArray<string>) {
-    return `feature-flags:${distinctId}:${serializeKeys(keys)}`;
-  }
-
-  private async getOrRefreshFeatureFlags(
+  const getOrRefreshFeatureFlags = (
     keys: ReadonlyArray<string> | undefined,
     forceRefresh: boolean
-  ): Promise<FeatureFlagsResult> {
-    const distinctId = await this.getDistinctId();
-    if (!distinctId) {
-      return { flags: [] };
-    }
-
-    const cacheKey = this.cacheKey(distinctId, keys);
-    const serializedKeys = serializeKeys(keys);
-    this.trackedKeySets.add(serializedKeys);
-
-    if (!forceRefresh) {
-      const cached = await this.cache.get<FeatureFlagsResult>(cacheKey);
-      if (cached && !cached.isExpired && !cached.isStale) {
-        this.rememberFlags(cached.value.flags);
-        return cached.value;
+  ) =>
+    Effect.gen(function* getOrRefreshFeatureFlags() {
+      const distinctId = identityManager.getDistinctId();
+      if (!distinctId) {
+        return { flags: [] } as FeatureFlagsResult;
       }
-    }
 
-    const result = await this.sdkApi.evaluateFeatureFlags(distinctId, keys);
-    this.rememberFlags(result.flags);
-    await this.cache.set(cacheKey, result, { ttl: this.ttlMs });
-    this.eventBus.emit("feature-flags-updated", {
-      keys,
-      result,
+      const cacheKey = buildCacheKey(distinctId, keys);
+      const serializedKeys = serializeKeys(keys);
+      trackedKeySets.add(serializedKeys);
+
+      if (!forceRefresh) {
+        const cached =
+          yield* cacheManager.get<FeatureFlagsResult>(cacheKey);
+        if (cached && !cached.isExpired && !cached.isStale) {
+          rememberFlags(cached.value.flags);
+          return cached.value;
+        }
+      }
+
+      const payload = keys
+        ? { flagKeys: [...keys] as string[] }
+        : {};
+      const result = yield* apiClient.sdk.evaluateFeatureFlags({
+        headers: buildHeaders(distinctId),
+        payload,
+      });
+
+      rememberFlags(result.flags);
+      yield* cacheManager.set(cacheKey, result, {
+        ttl: config.featureFlags.ttlMs,
+      });
+      eventBus.emit("feature-flags-updated", { keys, result });
+      return result;
     });
-    return result;
-  }
 
-  private rememberFlags(flags: ReadonlyArray<FeatureFlagEntry>) {
-    for (const flag of flags) {
-      this.latestFlags.set(flag.key, flag);
-    }
-  }
+  const getFeatureFlags = (keys?: ReadonlyArray<string>) =>
+    getOrRefreshFeatureFlags(keys, false);
+
+  const refreshFeatureFlags = (keys?: ReadonlyArray<string>) =>
+    getOrRefreshFeatureFlags(keys, true);
+
+  const refreshTrackedKeySets = () =>
+    Effect.gen(function* refreshTrackedKeySets() {
+      if (trackedKeySets.size === 0) return;
+
+      yield* Effect.all(
+        [...trackedKeySets].map((serializedKeys) =>
+          refreshFeatureFlags(
+            serializedKeys === "all" ? undefined : serializedKeys.split(",")
+          )
+        ),
+        { concurrency: "unbounded" }
+      );
+    });
+
+  const clearCachedFlags = () =>
+    Effect.gen(function* clearCachedFlags() {
+      latestFlags.clear();
+      yield* cacheManager.clearPrefix("feature-flags:");
+    });
+
+  return {
+    clearCachedFlags,
+    getFeatureFlags,
+    getVariant,
+    isEnabled,
+    refreshFeatureFlags,
+    refreshTrackedKeySets,
+  } as const;
+});
+
+export class FeatureFlagService extends ServiceMap.Service<
+  FeatureFlagService,
+  Effect.Success<typeof make>
+>()("web-voidhash/FeatureFlagService") {
+  static Default = Layer.effect(FeatureFlagService, make);
 }

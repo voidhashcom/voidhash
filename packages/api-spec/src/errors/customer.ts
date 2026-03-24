@@ -17,7 +17,7 @@ export class CustomerNotFoundError extends Schema.TaggedErrorClass<CustomerNotFo
   },
   { httpApiStatus: 404 }
 ) {
-  toString(): string {
+  override toString(): string {
     return `The following customer not found: ${this.id}`;
   }
 }
@@ -30,7 +30,7 @@ export class CustomerInvalidAnonymousIdError extends Schema.TaggedErrorClass<Cus
   },
   { httpApiStatus: 400 }
 ) {
-  toString(): string {
+  override toString(): string {
     return `The following anonymous ID is invalid: ${this.id}`;
   }
 }

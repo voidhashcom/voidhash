@@ -17,7 +17,7 @@ export class ProjectNotFoundError extends Schema.TaggedErrorClass<ProjectNotFoun
   },
   { httpApiStatus: 404 }
 ) {
-  toString(): string {
+  override toString(): string {
     return `The following project not found: ${this.projectId}`;
   }
 }

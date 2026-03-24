@@ -26,7 +26,7 @@ export class ProductSlugAlreadyExistsError extends Schema.TaggedErrorClass<Produ
   },
   { httpApiStatus: 409 }
 ) {
-  toString(): string {
+  override toString(): string {
     return `The following product slug already exists: ${this.slug}`;
   }
 }
