@@ -1,20 +1,26 @@
 {
 	"name": "@voidhash/react-native",
-	"version": "0.0.1",
-	"description": "React Native SDK for in-app purchases.",
+	"version": "0.0.1-alpha.1",
+	"private": false,
+	"description": "Voidhash React Native SDK for in-app purchases.",
 	"keywords": [
+		"voidhash",
+		"sdk",
 		"nitro",
-		"react-native"
+		"react-native",
+		"expo",
+		"payments"
 	],
 	"homepage": "https://voidhash.com/docs",
 	"bugs": {
-		"url": "https://github.com/mrousavy/nitro/issues"
+		"url": "https://github.com/voidhashcom/voidhash/issues"
 	},
 	"license": "MIT",
-	"author": "Marc Rousavy <me@mrousavy.com> (https://github.com/mrousavy)",
+	"author": "Voidhash (https://voidhash.com)",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/mrousavy/nitro.git"
+		"url": "https://github.com/voidhashcom/voidhash",
+		"directory": "libraries/react-native"
 	},
 	"source": "src/index",
 	"files": [
@@ -40,6 +46,7 @@
 	"types": "build/index.d.ts",
 	"react-native": "src/index",
 	"publishConfig": {
+		"access": "public",
 		"registry": "https://registry.npmjs.org/"
 	},
 	"exports": {
@@ -61,13 +68,12 @@
 		"specs": "pnpm run typescript && nitro-codegen --logLevel=\"debug\""
 	},
 	"dependencies": {
-		"neverthrow": "^8.2.0"
+		"@voidhash/api-spec": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/jest": "^29.5.14",
 		"@types/react": "~19.1.10",
 		"@vitejs/plugin-react": "^4.6.0",
-		"@voidhash/api-spec": "workspace:*",
 		"@voidhash/shared": "workspace:*",
 		"expo": "54.0.33",
 		"expo-constants": "~18.0.13",
