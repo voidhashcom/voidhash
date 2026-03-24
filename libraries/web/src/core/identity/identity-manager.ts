@@ -1,85 +1,142 @@
-import { VoidhashIdentityError } from "../../errors";
-import type { EventBus } from "../event-bus";
-import { SdkApiClient } from "../http/sdk-api-client";
-import { BrowserPlatformProvider } from "../platform/browser-platform-provider";
-import type { CacheManager } from "../caching/cache-manager";
+import { Effect, Layer, ServiceMap } from "effect";
+
 import type { VoidhashTraits } from "../../types";
+import { CacheManager } from "../caching/cache-manager";
+import { EventBusProvider } from "../event-bus";
+import { ApiClient } from "../networking/api-client";
+import { PlatformProvider } from "../platform/platform-provider";
+import { SdkConfiguration } from "../sdk-configuration";
 
-const APP_USER_ID_KEY = "identity:app-user-id";
-const ANONYMOUS_USER_ID_PREFIX = "vh:anon:";
+const DISTINCT_ID_KEY = "identity:distinct-id";
+const ANONYMOUS_DISTINCT_ID_PREFIX = "vh:anon:";
 
-const buildTraitsKey = (appUserId: string) => `identity:traits:${appUserId}`;
+const buildTraitsKey = (distinctId: string) => `identity:traits:${distinctId}`;
 
-export class IdentityManager {
-  private currentAppUserId: string | null = null;
-
-  constructor(
-    private readonly cache: CacheManager,
-    private readonly sdkApi: SdkApiClient,
-    private readonly eventBus: EventBus,
-    private readonly platform = new BrowserPlatformProvider()
-  ) {}
-
-  getAppUserId() {
-    return this.currentAppUserId;
+const normalizeTraits = (traits?: VoidhashTraits) => {
+  if (!traits || Object.keys(traits).length === 0) {
+    return undefined;
   }
+  return traits;
+};
 
-  async identify(appUserId: string, traits?: VoidhashTraits) {
-    const currentAppUserId = await this.requireAppUserId();
-    await this.syncTraits(currentAppUserId);
-    await this.sdkApi.identify(currentAppUserId, appUserId, traits);
-    await this.cache.set(APP_USER_ID_KEY, appUserId);
-    await this.cache.set(buildTraitsKey(appUserId), traits ?? {});
-    this.currentAppUserId = appUserId;
-    this.eventBus.emit("identity-changed", {
-      appUserId,
-      previousAppUserId: currentAppUserId,
+const make = Effect.gen(function* effect() {
+  const cacheManager = yield* CacheManager;
+  const apiClient = yield* ApiClient;
+  const eventBus = yield* EventBusProvider;
+  const platform = yield* PlatformProvider;
+  const config = yield* SdkConfiguration;
+
+  let currentDistinctId: string | null = null;
+
+  const getDistinctId = () => currentDistinctId;
+
+  const getSdkHeaders = () =>
+    platform.getSdkHeaders({
+      observerMode: config.observerMode,
+      publishableKey: config.publishableKey,
     });
-  }
 
-  async initialize(initialAppUserId?: string) {
-    const cachedAppUserId = await this.cache.get<string>(APP_USER_ID_KEY);
-    this.currentAppUserId =
-      initialAppUserId ??
-      cachedAppUserId?.value ??
-      `${ANONYMOUS_USER_ID_PREFIX}${this.platform.randomId()}`;
+  // biome-ignore lint/suspicious/noExplicitAny: SDK headers match the schema shape at runtime
+  const buildHeaders = (distinctId: string) =>
+    ({
+      ...getSdkHeaders(),
+      "x-distinct-id": distinctId,
+    }) as any;
 
-    await this.cache.set(APP_USER_ID_KEY, this.currentAppUserId);
+  const syncTraits = (distinctId?: string) =>
+    Effect.gen(function* syncTraits() {
+      const resolvedDistinctId = distinctId ?? currentDistinctId;
+      if (!resolvedDistinctId) return;
 
-    if (initialAppUserId && cachedAppUserId?.value && cachedAppUserId.value !== initialAppUserId) {
-      await this.identify(initialAppUserId);
-      return this.currentAppUserId;
-    }
+      const cached = yield* cacheManager.get<VoidhashTraits>(
+        buildTraitsKey(resolvedDistinctId)
+      );
 
-    return this.currentAppUserId;
-  }
-
-  async resetIdentity() {
-    const currentAppUserId = await this.requireAppUserId();
-    await this.syncTraits(currentAppUserId);
-    const nextAnonymousId = `${ANONYMOUS_USER_ID_PREFIX}${this.platform.randomId()}`;
-    await this.cache.set(APP_USER_ID_KEY, nextAnonymousId);
-    await this.cache.set(buildTraitsKey(nextAnonymousId), {});
-    this.currentAppUserId = nextAnonymousId;
-    this.eventBus.emit("identity-changed", {
-      appUserId: nextAnonymousId,
-      previousAppUserId: currentAppUserId,
+      const traits = normalizeTraits(cached?.value);
+      yield* apiClient.sdk.syncCustomerAttributes({
+        headers: buildHeaders(resolvedDistinctId),
+        payload: traits ? { traits } : {},
+      });
     });
-  }
 
-  async syncTraits(appUserId?: string) {
-    const resolvedAppUserId = appUserId ?? (await this.requireAppUserId());
-    const cachedTraits = await this.cache.get<VoidhashTraits>(
-      buildTraitsKey(resolvedAppUserId)
-    );
-    await this.sdkApi.syncTraits(resolvedAppUserId, cachedTraits?.value);
-  }
+  const initialize = (initialDistinctId?: string) =>
+    Effect.gen(function* initialize() {
+      const cached = yield* cacheManager.get<string>(DISTINCT_ID_KEY);
+      currentDistinctId =
+        initialDistinctId ??
+        cached?.value ??
+        `${ANONYMOUS_DISTINCT_ID_PREFIX}${platform.randomId()}`;
 
-  private async requireAppUserId() {
-    if (!this.currentAppUserId) {
-      throw new VoidhashIdentityError("App user id has not been initialized.");
-    }
+      yield* cacheManager.set(DISTINCT_ID_KEY, currentDistinctId);
 
-    return this.currentAppUserId;
-  }
+      if (
+        initialDistinctId &&
+        cached?.value &&
+        cached.value !== initialDistinctId
+      ) {
+        yield* identify(initialDistinctId);
+        return currentDistinctId;
+      }
+
+      return currentDistinctId;
+    });
+
+  const identify = (distinctId: string, traits?: VoidhashTraits) =>
+    Effect.gen(function* identify() {
+      if (!currentDistinctId) {
+        throw new Error("Distinct id has not been initialized.");
+      }
+
+      const previousDistinctId = currentDistinctId;
+      yield* syncTraits(previousDistinctId);
+
+      const normalizedTraits = normalizeTraits(traits);
+      yield* apiClient.sdk.identify({
+        headers: buildHeaders(previousDistinctId),
+        payload: normalizedTraits
+          ? { distinctId, traits: normalizedTraits }
+          : { distinctId },
+      });
+
+      yield* cacheManager.set(DISTINCT_ID_KEY, distinctId);
+      yield* cacheManager.set(buildTraitsKey(distinctId), traits ?? {});
+      currentDistinctId = distinctId;
+      eventBus.emit("identity-changed", {
+        distinctId,
+        previousDistinctId,
+      });
+    });
+
+  const reset = () =>
+    Effect.gen(function* reset() {
+      if (!currentDistinctId) {
+        throw new Error("Distinct id has not been initialized.");
+      }
+
+      const previousDistinctId = currentDistinctId;
+      yield* syncTraits(previousDistinctId);
+      const nextAnonymousId = `${ANONYMOUS_DISTINCT_ID_PREFIX}${platform.randomId()}`;
+      yield* cacheManager.set(DISTINCT_ID_KEY, nextAnonymousId);
+      yield* cacheManager.set(buildTraitsKey(nextAnonymousId), {});
+      currentDistinctId = nextAnonymousId;
+      eventBus.emit("identity-changed", {
+        distinctId: nextAnonymousId,
+        previousDistinctId,
+      });
+    });
+
+  return {
+    getDistinctId,
+    identify,
+    initialize,
+    reset,
+    syncTraits,
+  } as const;
+});
+
+export class IdentityManager extends ServiceMap.Service<
+  IdentityManager,
+  Effect.Success<typeof make>
+>()("web-voidhash/IdentityManager") {
+  static Default = Layer.effect(IdentityManager, make);
 }

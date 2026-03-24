@@ -45,7 +45,7 @@ When `unstable_swallowErrors: true`, the SDK logs warnings and does not reject f
 - `init()`
 - `end()`
 - `identify(...)`
-- `signOut()`
+- `reset()`
 - `restorePurchases()`
 - `flush()`
 - `iosPresentCodeRedemptionSheet()`

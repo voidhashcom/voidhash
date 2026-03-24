@@ -14,10 +14,10 @@ export default function HomeScreen() {
 	// Mock authentication
 	const { user, isLoading } = useCurrentUser();
 
-	// Signs out the user
+	// Resets the current identity and signs the example user out.
 	const handleSignOut = async () => {
 		await fakeAuthService.signOut();
-		await voidhash.client.signOut();
+		await voidhash.client.reset();
 	};
 
 	// Resets the Voidhash cache. This is useful for testing.

@@ -1,4 +1,4 @@
-const SDK_VERSION = "0.0.1-alpha.1";
+import { SDK_VERSION } from "../constants";
 
 const trimUndefined = (entries: Record<string, unknown>) =>
   Object.fromEntries(

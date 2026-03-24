@@ -23,7 +23,7 @@ const ApiSessionOrganizationsSchema = Schema.Array(ApiSessionOrganizationSchema)
 const ApiSessionProjectsSchema = Schema.Array(ApiSessionProjectSchema);
 
 export const ApiSessionCustomerSchema = Schema.Struct({
-  appUserId: Schema.String,
+  distinctId: Schema.String,
 });
 
 export const ApiSessionUserSchema = Schema.Struct({

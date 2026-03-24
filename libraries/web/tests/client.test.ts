@@ -40,12 +40,11 @@ describe("VoidhashWebClient", () => {
         });
       }
 
-      if (call.url.endsWith("/v1/events")) {
+      if (call.url.endsWith("/batch")) {
         return createJsonResponse(
           {
             accepted: 1,
             rejected: 0,
-            request_id: "req_1",
           },
           202
         );
@@ -66,23 +65,37 @@ describe("VoidhashWebClient", () => {
     });
 
     await client.initialize();
-    const appUserId = client.getAppUserId();
+    const distinctId = client.getDistinctId();
     const flags = await client.getFeatureFlags(["new-nav"]);
     await client.track("checkout_started", { source: "pricing_page" });
     const flushResult = await client.flushAnalytics();
 
-    expect(appUserId).toMatch(/^vh:anon:/);
+    expect(distinctId).toMatch(/^vh:anon:/);
     expect(flags.flags[0]?.key).toBe("new-nav");
     expect(client.isFeatureEnabled("new-nav")).toBe(true);
     expect(flushResult).toEqual({
       accepted: 1,
       rejected: 0,
-      requestId: "req_1",
     });
 
-    const analyticsCall = calls.find((call) => call.url.includes("/v1/events"));
-    expect(analyticsCall?.url).toBe("https://i.voidhash.test/v1/events");
-    expect(analyticsCall?.headers["x-distinct-id"]).toBe(appUserId);
+    const analyticsCall = calls.find((call) => call.url.includes("/batch"));
+    expect(analyticsCall?.url).toBe("https://i.voidhash.test/batch");
+    expect(analyticsCall?.headers).toMatchObject({
+      "content-type": "application/json",
+    });
+    expect(JSON.parse(analyticsCall?.body ?? "{}")).toMatchObject({
+      events: [
+        {
+          distinct_id: distinctId,
+          event: "checkout_started",
+          properties: {
+            source: "pricing_page",
+          },
+          uuid: expect.stringMatching(/^evt_/),
+        },
+      ],
+      token: "vh_pk_test",
+    });
 
     await client.destroy();
   });
@@ -91,7 +104,19 @@ describe("VoidhashWebClient", () => {
     const { calls } = installFetchMock((call) => {
       if (call.url.endsWith("/sdk/identify")) {
         return createJsonResponse({
-          appUserId: "user_123",
+          customerId: "customer_123",
+          distinctId: "user_123",
+          email: null,
+          name: null,
+        });
+      }
+
+      if (call.url.endsWith("/sdk/sync-customer-attributes")) {
+        return createJsonResponse({
+          customerId: "customer_sync",
+          distinctId: "synced",
+          email: null,
+          name: null,
         });
       }
 
@@ -105,25 +130,25 @@ describe("VoidhashWebClient", () => {
     });
 
     await client.initialize();
-    const initialAppUserId = client.getAppUserId();
+    const initialDistinctId = client.getDistinctId();
     await client.identify("user_123", { companyId: "acme", plan: "pro" });
-    await client.resetIdentity();
+    await client.reset();
 
     const syncCalls = calls.filter((call) =>
       call.url.endsWith("/sdk/sync-customer-attributes")
     );
     const identifyCall = calls.find((call) => call.url.endsWith("/sdk/identify"));
 
-    expect(syncCalls[0]?.headers["x-app-user-id"]).toBe(initialAppUserId);
+    expect(syncCalls[0]?.headers["x-distinct-id"]).toBe(initialDistinctId);
     expect(JSON.parse(identifyCall?.body ?? "{}")).toEqual({
-      appUserId: "user_123",
+      distinctId: "user_123",
       traits: {
         companyId: "acme",
         plan: "pro",
       },
     });
-    expect(syncCalls[1]?.headers["x-app-user-id"]).toBe("user_123");
-    expect(client.getAppUserId()).toMatch(/^vh:anon:/);
+    expect(syncCalls[1]?.headers["x-distinct-id"]).toBe("user_123");
+    expect(client.getDistinctId()).toMatch(/^vh:anon:/);
 
     await client.destroy();
   });

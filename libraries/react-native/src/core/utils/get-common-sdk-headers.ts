@@ -15,7 +15,7 @@ const getNonce = () => {
 };
 
 export const getCommonSdkHeaders = (): Effect.Effect<
-  Omit<typeof SdkHeaders.Type, "x-app-user-id">,
+  Omit<typeof SdkHeaders.Type, "x-distinct-id">,
   never,
   PlatformProvider | SdkConfiguration | IdentityManager
 > =>

@@ -11,51 +11,51 @@ const make = Effect.gen(function* effect() {
   const apiClient = yield* ApiClient;
   const eventBus = yield* EventBusProvider;
 
-  const generateCustomerCacheKey = (appUserId: string) =>
-    `customer:${appUserId}`;
+  const generateCustomerCacheKey = (distinctId: string) =>
+    `customer:${distinctId}`;
 
-  const getCustomerFromCache = (appUserId: string) =>
-    cacheManager.get<SdkCustomer>(generateCustomerCacheKey(appUserId));
+  const getCustomerFromCache = (distinctId: string) =>
+    cacheManager.get<SdkCustomer>(generateCustomerCacheKey(distinctId));
 
-  const cache = (appUserId: string, customer: SdkCustomer) =>
-    cacheManager.set(generateCustomerCacheKey(appUserId), customer, {
+  const cache = (distinctId: string, customer: SdkCustomer) =>
+    cacheManager.set(generateCustomerCacheKey(distinctId), customer, {
       ttl: 1000 * 60 * 60 * 24 * 2, // 2 days
       staleTime: 1000 * 60 * 5, // 5 minutes
     });
 
-  const resetCache = (appUserId: string) =>
-    cacheManager.delete(generateCustomerCacheKey(appUserId));
+  const resetCache = (distinctId: string) =>
+    cacheManager.delete(generateCustomerCacheKey(distinctId));
 
-  const getCustomerFromServerAndCache = (appUserId: string) =>
+  const getCustomerFromServerAndCache = (distinctId: string) =>
     Effect.gen(function* getCustomerFromServerAndCache() {
       const commonHeaders = yield* getCommonSdkHeaders();
       const result = yield* apiClient.sdk.getCustomer({
         headers: {
           ...commonHeaders,
-          "x-app-user-id": appUserId,
+          "x-distinct-id": distinctId,
         },
       });
       eventBus.emit("customer-fetched", result);
-      yield* cache(appUserId, result);
+      yield* cache(distinctId, result);
       return result;
     });
 
   const getCustomer = (
-    appUserId: string,
+    distinctId: string,
     cachePolicy: "cache" | "fetch" | "fetch-while-stale"
   ) =>
     Effect.gen(function* getCustomer() {
       if (cachePolicy === "cache") {
-        const customerFromCache = yield* getCustomerFromCache(appUserId);
+        const customerFromCache = yield* getCustomerFromCache(distinctId);
         return customerFromCache?.value ?? null;
       }
 
       if (cachePolicy === "fetch") {
-        return yield* getCustomerFromServerAndCache(appUserId);
+        return yield* getCustomerFromServerAndCache(distinctId);
       }
 
       // fetch-while-stale policy
-      const customerFromCache = yield* getCustomerFromCache(appUserId);
+      const customerFromCache = yield* getCustomerFromCache(distinctId);
       if (
         customerFromCache &&
         !customerFromCache.isStale &&
@@ -65,7 +65,7 @@ const make = Effect.gen(function* effect() {
         return customerFromCache.value;
       }
 
-      return yield* getCustomerFromServerAndCache(appUserId);
+      return yield* getCustomerFromServerAndCache(distinctId);
     });
 
   return {

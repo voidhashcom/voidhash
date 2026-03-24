@@ -5,6 +5,7 @@ const main = async () => {
     dts: true,
     entryPoints: {
       index: "./src/index.ts",
+      effect: "./src/effect.ts",
     },
     format: ["cjs", "esm"],
     outDir: "./dist",

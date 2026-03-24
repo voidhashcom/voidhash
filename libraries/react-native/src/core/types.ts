@@ -61,7 +61,7 @@ export interface CustomerResponse {
   customerId: string;
   name: null;
   email: null;
-  appUserId: null;
+  distinctId: null;
 }
 
 export interface PaywallProduct {

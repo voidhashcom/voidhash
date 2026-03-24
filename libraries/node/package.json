@@ -1,7 +1,21 @@
 {
   "name": "@voidhash/node",
   "version": "0.0.1-alpha.1",
+  "private": false,
   "description": "Fetch-compatible Voidhash Node SDK.",
+  "keywords": [
+    "voidhash",
+    "sdk",
+    "node",
+    "server",
+    "payments"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "MIT",
+  "author": "Voidhash (https://voidhash.com)",
   "repository": {
     "type": "git",
     "url": "https://github.com/voidhashcom/voidhash",
@@ -11,6 +25,14 @@
   "files": [
     "dist"
   ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "exports": {
     ".": {
       "import": {
@@ -20,6 +42,16 @@
       "require": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      }
+    },
+    "./effect": {
+      "import": {
+        "types": "./dist/effect.d.ts",
+        "default": "./dist/effect.mjs"
+      },
+      "require": {
+        "types": "./dist/effect.d.ts",
+        "default": "./dist/effect.js"
       }
     }
   },

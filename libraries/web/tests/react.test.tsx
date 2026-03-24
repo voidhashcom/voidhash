@@ -49,13 +49,13 @@ describe("react integration", () => {
     const root = createRoot(container);
 
     function TestComponent() {
-      const { appUserId, isInitialized } = useVoidhash();
+      const { distinctId, isInitialized } = useVoidhash();
       const flags = useFeatureFlags(["new-nav"]);
 
       return (
         <div>
           <span data-testid="ready">{String(isInitialized)}</span>
-          <span data-testid="app-user-id">{appUserId ?? ""}</span>
+          <span data-testid="distinct-id">{distinctId ?? ""}</span>
           <span data-testid="flag">{String(flags.isEnabled("new-nav"))}</span>
         </div>
       );
@@ -85,7 +85,7 @@ describe("react integration", () => {
       "true"
     );
     expect(
-      container.querySelector('[data-testid="app-user-id"]')?.textContent
+      container.querySelector('[data-testid="distinct-id"]')?.textContent
     ).toMatch(/^vh:anon:/);
     expect(container.querySelector('[data-testid="flag"]')?.textContent).toBe(
       "true"

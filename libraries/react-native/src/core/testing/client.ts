@@ -16,7 +16,7 @@
 // import { TestPlatformProvider } from './platform-provider';
 
 // type CreateVoidhashTestClientOptions = {
-//   initialAppUserId?: string;
+//   initialDistinctId?: string;
 //   schema: VoidhashSchema;
 //   platformInfo?: Partial<PlatformInfo>;
 //   eventBus?: EventBus;
@@ -29,7 +29,7 @@
 // };
 
 // export function createVoidhashTestClient({
-//   initialAppUserId,
+//   initialDistinctId,
 //   schema,
 //   platformInfo,
 //   cacheManager: cacheManagerOverride,
@@ -72,7 +72,7 @@
 //     );
 //   const paymentAdapter = paymentAdapterOverride ?? new TestPaymentAdapter();
 //   const voidhashClient = new VoidhashClient(
-//     initialAppUserId ?? null,
+//     initialDistinctId ?? null,
 //     scheme,
 //     logger,
 //     cacheManager,

@@ -1,6 +1,6 @@
 import { Effect, Layer, ServiceMap } from "effect";
 
-import { ANONYMOUS_USER_ID_PREFIX } from "../../constants";
+import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../constants";
 import { CacheManager } from "../caching/cache-manager";
 import { EventBusProvider } from "../event-bus";
 import { ApiClient } from "../networking/api-client";
@@ -8,7 +8,7 @@ import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 import { CustomerAttributeManager } from "./customer-attribute-manager";
 import { CustomerInfoManager } from "./customer-info-manager";
 
-const CACHE_KEY = "appUserId";
+const CACHE_KEY = "distinctId";
 
 const make = Effect.gen(function* effect() {
   const cacheManager = yield* CacheManager;
@@ -18,89 +18,88 @@ const make = Effect.gen(function* effect() {
   const apiClient = yield* ApiClient;
 
   /**
-   * Returns the app user id. If no app user id is cached, a new anonymous user id is generated and cached.
-   * @returns The app user id.
+   * Returns the current distinct id. If none is cached, a new anonymous distinct id is generated and cached.
    */
-  const getAppUserId = () =>
-    Effect.gen(function* getAppUserId() {
-      const appUserId = yield* getAppUserIdFromCache();
-      if (appUserId) {
-        yield* Effect.logDebug(`Using cached app user id: ${appUserId}`);
-        return appUserId;
+  const getDistinctId = () =>
+    Effect.gen(function* getDistinctId() {
+      const distinctId = yield* getDistinctIdFromCache();
+      if (distinctId) {
+        yield* Effect.logDebug(`Using cached distinct id: ${distinctId}`);
+        return distinctId;
       }
 
-      const anonymousUserId = generateAnonymousUserId();
-      yield* setAppUserIdInCache(anonymousUserId);
-      return anonymousUserId;
+      const anonymousDistinctId = generateAnonymousDistinctId();
+      yield* setDistinctIdInCache(anonymousDistinctId);
+      return anonymousDistinctId;
     });
 
   /**
-   * Identifies the customer. It makes a request to the server to identify the customer and caches the app user id.
-   * @param appUserId - The app user id.
+   * Identifies the customer by switching the current distinct id.
    * @param options - The options.
    */
   const identify = (
-    appUserId: string,
+    distinctId: string,
     options: {
       email?: string;
       name?: string;
     }
   ) =>
     Effect.gen(function* identify() {
-      const currentAppUserId = yield* getAppUserId();
+      const currentDistinctId = yield* getDistinctId();
       yield* customerAttributeManager.syncCustomerAttributes(
-        currentAppUserId
+        currentDistinctId
       );
       const commonHeaders = yield* getCommonSdkHeaders();
       const identifyRequest = yield* apiClient.sdk.identify({
         headers: {
           ...commonHeaders,
-          "x-app-user-id": currentAppUserId,
+          "x-distinct-id": currentDistinctId,
         },
         payload: {
-          appUserId,
+          distinctId,
           email: options.email,
           name: options.name,
         },
       });
 
       yield* Effect.all([
-        setAppUserIdInCache(appUserId),
-        customerInfoManager.cache(appUserId, identifyRequest),
+        setDistinctIdInCache(distinctId),
+        customerInfoManager.cache(distinctId, identifyRequest),
       ]);
 
       eventBus.emit("customer-identified");
       eventBus.emit("customer-fetched", {
         ...identifyRequest,
-        appUserId,
+        distinctId,
       });
     });
 
-  const signOut = () =>
-    Effect.gen(function* signOut() {
-      const currentAppUserId = yield* getAppUserId();
+  const reset = () =>
+    Effect.gen(function* reset() {
+      const currentDistinctId = yield* getDistinctId();
       yield* customerAttributeManager.syncCustomerAttributes(
-        currentAppUserId
+        currentDistinctId
       );
       yield* cacheManager.clear();
       eventBus.emit("customer-signed-out");
     });
 
   // Helpers
-  const generateAnonymousUserId = () =>
-    `${ANONYMOUS_USER_ID_PREFIX}${Math.random().toString(36).slice(2, 15)}`;
-  const getAppUserIdFromCache = () =>
+  const generateAnonymousDistinctId = () =>
+    `${ANONYMOUS_DISTINCT_ID_PREFIX}${Math.random().toString(36).slice(2, 15)}`;
+  const getDistinctIdFromCache = () =>
     cacheManager
       .get<string>(CACHE_KEY)
-      .pipe(Effect.map((appUserId) => appUserId?.value ?? null));
-  const setAppUserIdInCache = (appUserId: string) =>
-    cacheManager.set(CACHE_KEY, appUserId);
+      .pipe(Effect.map((distinctId) => distinctId?.value ?? null));
+  const setDistinctIdInCache = (distinctId: string) =>
+    cacheManager.set(CACHE_KEY, distinctId);
 
   return {
-    getAppUserId,
-    getAppUserIdFromCache,
+    getDistinctId,
+    getDistinctIdFromCache,
     identify,
-    signOut,
+    reset,
+    signOut: reset,
   } as const;
 });
 

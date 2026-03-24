@@ -1,9 +1,7 @@
-export interface CacheAdapter {
-  delete(key: string): Promise<void>;
-  get(key: string): Promise<string | null>;
-  keys(): Promise<ReadonlyArray<string>>;
-  set(key: string, value: string): Promise<void>;
-}
+import { Effect, Layer, ServiceMap } from "effect";
+
+import { SdkConfiguration } from "../sdk-configuration";
+import { CacheAdapter } from "./cache-adapter";
 
 interface CacheEnvelope<T> {
   readonly createdAt: number;
@@ -19,147 +17,139 @@ export interface CacheHit<T> extends CacheEnvelope<T> {
 
 const CACHE_INDEX_SUFFIX = "__keys__";
 
-export class CacheManager {
-  private memoryIndex = new Set<string>();
-  private readonly persistentIndexKey: string;
+const make = Effect.gen(function* effect() {
+  const cache = yield* CacheAdapter;
+  const config = yield* SdkConfiguration;
 
-  constructor(
-    private readonly namespace: string,
-    private readonly memory: CacheAdapter,
-    private readonly persistent: CacheAdapter | null
-  ) {
-    this.persistentIndexKey = this.buildStorageKey(CACHE_INDEX_SUFFIX);
-  }
+  const namespace = `@voidhash/web:${config.publishableKey}:${config.baseUrl}`;
+  const persistentIndexKey = `${namespace}:${CACHE_INDEX_SUFFIX}`;
+  const memoryIndex = new Set<string>();
 
-  async clearAll() {
-    const keys = await this.getCacheKeys();
-    await Promise.all(keys.map((key) => this.delete(key)));
-  }
+  const buildStorageKey = (key: string) => `${namespace}:${key}`;
 
-  async clearPrefix(prefix: string) {
-    const keys = await this.getCacheKeys();
-    const matchedKeys = keys.filter((key) => key.startsWith(prefix));
-    await Promise.all(matchedKeys.map((key) => this.delete(key)));
-  }
+  const loadIndexedStorageKeys = () =>
+    Effect.gen(function* loadIndexedStorageKeys() {
+      const rawIndex = yield* cache.get(persistentIndexKey);
+      if (!rawIndex) {
+        return [] as string[];
+      }
+      try {
+        return JSON.parse(rawIndex) as string[];
+      } catch {
+        return [] as string[];
+      }
+    });
 
-  async delete(key: string) {
-    const storageKey = this.buildStorageKey(key);
-    await this.memory.delete(storageKey);
-    if (this.persistent) {
-      await this.persistent.delete(storageKey);
-    }
-    this.memoryIndex.delete(storageKey);
-    await this.persistIndex();
-  }
+  const persistIndex = () =>
+    Effect.gen(function* persistIndex() {
+      const serialized = JSON.stringify([...memoryIndex]);
+      yield* cache.set(persistentIndexKey, serialized);
+    });
 
-  async get<T>(key: string): Promise<CacheHit<T> | null> {
-    const storageKey = this.buildStorageKey(key);
-    const rawValue =
-      (await this.memory.get(storageKey)) ??
-      (this.persistent ? await this.persistent.get(storageKey) : null);
+  const rememberKey = (storageKey: string) =>
+    Effect.gen(function* rememberKey() {
+      if (storageKey === persistentIndexKey) {
+        return;
+      }
+      memoryIndex.add(storageKey);
+      yield* persistIndex();
+    });
 
-    if (!rawValue) {
-      return null;
-    }
+  const get = <T>(key: string) =>
+    Effect.gen(function* get() {
+      const storageKey = buildStorageKey(key);
+      const rawValue = yield* cache.get(storageKey);
 
-    const cachedValue = JSON.parse(rawValue) as CacheEnvelope<T>;
-    const isExpired =
-      typeof cachedValue.expiresAt === "number"
-        ? cachedValue.expiresAt < Date.now()
-        : false;
-    const isStale =
-      typeof cachedValue.staleAt === "number"
-        ? cachedValue.staleAt < Date.now()
-        : false;
+      if (!rawValue) {
+        return null as CacheHit<T> | null;
+      }
 
-    if (isExpired) {
-      await this.delete(key);
-      return null;
-    }
+      const cachedValue = JSON.parse(rawValue) as CacheEnvelope<T>;
+      const isExpired =
+        typeof cachedValue.expiresAt === "number"
+          ? cachedValue.expiresAt < Date.now()
+          : false;
+      const isStale =
+        typeof cachedValue.staleAt === "number"
+          ? cachedValue.staleAt < Date.now()
+          : false;
 
-    if (!(await this.memory.get(storageKey))) {
-      await this.memory.set(storageKey, rawValue);
-    }
+      if (isExpired) {
+        yield* deleteValue(key);
+        return null as CacheHit<T> | null;
+      }
 
-    await this.rememberKey(storageKey);
+      yield* rememberKey(storageKey);
 
-    return {
-      ...cachedValue,
-      isExpired,
-      isStale,
-    };
-  }
+      return {
+        ...cachedValue,
+        isExpired,
+        isStale,
+      } as CacheHit<T>;
+    });
 
-  async getCacheKeys() {
-    const storageKeys = await this.loadIndexedStorageKeys();
-    const keys = new Set<string>([
-      ...this.memoryIndex,
-      ...storageKeys,
-    ]);
-
-    return [...keys]
-      .filter((key) => key.startsWith(`${this.namespace}:`))
-      .filter((key) => key !== this.persistentIndexKey)
-      .map((key) => key.slice(this.namespace.length + 1));
-  }
-
-  async set<T>(
+  const setValue = <T>(
     key: string,
     value: T,
     options?: { staleTime?: number; ttl?: number }
-  ) {
-    const storageKey = this.buildStorageKey(key);
-    const envelope: CacheEnvelope<T> = {
-      createdAt: Date.now(),
-      expiresAt: options?.ttl ? Date.now() + options.ttl : null,
-      staleAt: options?.staleTime ? Date.now() + options.staleTime : null,
-      value,
-    };
-    const serialized = JSON.stringify(envelope);
+  ) =>
+    Effect.gen(function* setValue() {
+      const storageKey = buildStorageKey(key);
+      const envelope: CacheEnvelope<T> = {
+        createdAt: Date.now(),
+        expiresAt: options?.ttl ? Date.now() + options.ttl : null,
+        staleAt: options?.staleTime ? Date.now() + options.staleTime : null,
+        value,
+      };
+      const serialized = JSON.stringify(envelope);
+      yield* cache.set(storageKey, serialized);
+      yield* rememberKey(storageKey);
+    });
 
-    await this.memory.set(storageKey, serialized);
-    if (this.persistent) {
-      await this.persistent.set(storageKey, serialized);
-    }
+  const deleteValue = (key: string) =>
+    Effect.gen(function* deleteValue() {
+      const storageKey = buildStorageKey(key);
+      yield* cache.delete(storageKey);
+      memoryIndex.delete(storageKey);
+      yield* persistIndex();
+    });
 
-    await this.rememberKey(storageKey);
-  }
+  const clearAll = () =>
+    Effect.gen(function* clearAll() {
+      const keys = yield* getCacheKeys();
+      yield* Effect.all(keys.map((key) => deleteValue(key)));
+    });
 
-  private buildStorageKey(key: string) {
-    return `${this.namespace}:${key}`;
-  }
+  const clearPrefix = (prefix: string) =>
+    Effect.gen(function* clearPrefix() {
+      const keys = yield* getCacheKeys();
+      const matched = keys.filter((key) => key.startsWith(prefix));
+      yield* Effect.all(matched.map((key) => deleteValue(key)));
+    });
 
-  private async loadIndexedStorageKeys() {
-    if (!this.persistent) {
-      return [];
-    }
+  const getCacheKeys = () =>
+    Effect.gen(function* getCacheKeys() {
+      const storageKeys = yield* loadIndexedStorageKeys();
+      const keys = new Set<string>([...memoryIndex, ...storageKeys]);
+      return [...keys]
+        .filter((key) => key.startsWith(`${namespace}:`))
+        .filter((key) => key !== persistentIndexKey)
+        .map((key) => key.slice(namespace.length + 1));
+    });
 
-    const rawIndex = await this.persistent.get(this.persistentIndexKey);
-    if (!rawIndex) {
-      return [];
-    }
+  return {
+    clearAll,
+    clearPrefix,
+    delete: deleteValue,
+    get,
+    getCacheKeys,
+    set: setValue,
+  } as const;
+});
 
-    try {
-      return JSON.parse(rawIndex) as string[];
-    } catch {
-      return [];
-    }
-  }
-
-  private async persistIndex() {
-    const serialized = JSON.stringify([...this.memoryIndex]);
-    await this.memory.set(this.persistentIndexKey, serialized);
-    if (this.persistent) {
-      await this.persistent.set(this.persistentIndexKey, serialized);
-    }
-  }
-
-  private async rememberKey(storageKey: string) {
-    if (storageKey === this.persistentIndexKey) {
-      return;
-    }
-
-    this.memoryIndex.add(storageKey);
-    await this.persistIndex();
-  }
+export class CacheManager extends ServiceMap.Service<
+  CacheManager,
+  Effect.Success<typeof make>
+>()("web-voidhash/CacheManager") {
+  static Default = Layer.effect(CacheManager, make);
 }

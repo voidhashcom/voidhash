@@ -20,16 +20,17 @@ import type {
 } from "./core/schema";
 import { SdkConfiguration } from "./core/sdk-configuration";
 import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "./errors";
+import { AnalyticsService } from "./core/analytics/service";
 
 export interface VoidhashClientOptions<TSchema extends VoidhashSchema> {
   baseUrl?: string;
   debug?: boolean;
+  distinctId?: string;
   ingestUrl?: string;
   readOnly?: boolean;
   schema: TSchema;
   scheme?: string;
   unstable_swallowErrors?: boolean;
-  userId?: string;
 }
 
 const CreateEffectRuntime = (
@@ -44,6 +45,7 @@ const CreateEffectRuntime = (
   ManagedRuntime.make(
     pipe(
       CustomerAttributeManager.Default,
+      Layer.provideMerge(AnalyticsService.layer),
       Layer.provideMerge(CustomerInfoManager.Default),
       Layer.provideMerge(IdentityManager.Default),
       Layer.provideMerge(CacheManager.Default),
@@ -89,7 +91,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
   private analyticsFlushInFlight: Promise<void> | null = null;
   private appLifecycleSubscription: { remove: () => void } | null = null;
   private preInitAnalyticsBuffer: Array<{ eventName: string; properties: Record<string, unknown> }> = [];
-  private initialAppUserId: string | null;
+  private initialDistinctId: string | null;
   private readOnly: boolean;
   private scheme: string;
   private schema: TSchema;
@@ -102,7 +104,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
   private initializedClient?: InitializedEffectClient<TSchema>;
 
   constructor(
-    initialAppUserId: string | null,
+    initialDistinctId: string | null,
     scheme: string,
     schema: TSchema,
     baseUrl: string,
@@ -114,7 +116,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     platform: Exclude<PlatformInfo["platform"], "unknown">,
     debug = false
   ) {
-    this.initialAppUserId = initialAppUserId;
+    this.initialDistinctId = initialDistinctId;
     this.readOnly = readOnly;
     this.scheme = scheme;
     this.schema = schema;
@@ -155,7 +157,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     await this.runSideEffect("init", async () => {
       const initializedClient = await this.runEffect(
         this.unitializedClient.init<TSchema>({
-          initialAppUserId: this.initialAppUserId ?? undefined,
+          distinctId: this.initialDistinctId ?? undefined,
           schema: this.schema,
         }),
         "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT"
@@ -238,12 +240,16 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     return this.runEffect(this.initializedClient!.getCurrentCustomer(forceFetch), "FAILED_TO_GET_CURRENT_CUSTOMER");
   }
 
+  async getDistinctId() {
+    this.ensureInitialized();
+    return this.runEffect(this.initializedClient!.getDistinctId(), "FAILED_TO_GET_DISTINCT_ID");
+  }
+
   /**
-   * Identifies the user.
-   * @param appUserId - Id used to identify the user. Make sure it is unique and hard to guess.
+   * Identifies the user by switching the current distinct id.
    */
   async identify(
-    appUserId: string,
+    externalUserId: string,
     options: {
       email?: string;
       name?: string;
@@ -251,18 +257,25 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
   ) {
     await this.runSideEffect("identify", async () => {
       this.ensureInitialized();
-      await this.runEffect(this.initializedClient!.identify(appUserId, options), "FAILED_TO_IDENTIFY");
+      await this.runEffect(
+        this.initializedClient!.identify(externalUserId, options),
+        "FAILED_TO_IDENTIFY"
+      );
     });
   }
 
   /**
-   * Signs out the user.
+   * Resets the current identity to a fresh anonymous distinct id.
    */
-  async signOut() {
-    await this.runSideEffect("signOut", async () => {
+  async reset() {
+    await this.runSideEffect("reset", async () => {
       this.ensureInitialized();
-      await this.runEffect(this.initializedClient!.signOut(), "FAILED_TO_SIGN_OUT");
+      await this.runEffect(this.initializedClient!.reset(), "FAILED_TO_RESET");
     });
+  }
+
+  async signOut() {
+    return this.reset();
   }
 
   /**

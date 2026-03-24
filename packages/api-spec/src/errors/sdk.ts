@@ -22,12 +22,12 @@ export class SdkCustomerNotFoundError extends Schema.TaggedErrorClass<SdkCustome
 export class SdkCustomerAlreadyIdentifiedError extends Schema.TaggedErrorClass<SdkCustomerAlreadyIdentifiedError>()(
   "SdkCustomerAlreadyIdentifiedError",
   {
-    appUserId: Schema.String,
+    distinctId: Schema.String,
   },
   { httpApiStatus: 409 }
 ) {
-  toString(): string {
-    return `The following customer was already identified: ${this.appUserId}`;
+  override toString(): string {
+    return `The following customer was already identified: ${this.distinctId}`;
   }
 }
 

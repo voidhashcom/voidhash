@@ -61,7 +61,7 @@ describe("CustomerInfoManager", () => {
 
     const fetchedEvents: string[] = [];
     const remove = harness.eventBus.on("customer-fetched", (customer) => {
-      fetchedEvents.push(customer.appUserId);
+      fetchedEvents.push(customer.distinctId);
     });
 
     try {
@@ -76,9 +76,9 @@ describe("CustomerInfoManager", () => {
         )
       );
 
-      expect(result.appUserId).toBe("fetched-user");
+      expect(result.distinctId).toBe("fetched-user");
       expect(apiDouble.state.getCustomerCalls).toHaveLength(1);
-      expect(cached?.value.appUserId).toBe("fetched-user");
+      expect(cached?.value.distinctId).toBe("fetched-user");
       expect(fetchedEvents).toEqual(["fetched-user"]);
     } finally {
       remove();

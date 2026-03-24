@@ -19,7 +19,7 @@ const SessionOrganizationsSchema = Schema.Array(SessionOrganizationSchema);
 const SessionProjectsSchema = Schema.Array(SessionProjectSchema);
 
 export const SessionCustomerSchema = Schema.Struct({
-  appUserId: Schema.String,
+  distinctId: Schema.String,
 });
 
 export const SessionUserSchema = Schema.Struct({
@@ -118,7 +118,7 @@ export type PublishableKeySession = typeof PublishableKeySessionSchema.Type;
 //   readonly method: 'publishable-key';
 //   readonly name: string;
 //   readonly customer: {
-//     readonly appUserId: string;
+//     readonly distinctId: string;
 //   };
 //   readonly user: null;
 //   readonly cookie: null;
