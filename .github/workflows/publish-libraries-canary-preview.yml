@@ -99,21 +99,25 @@ jobs:
         run: pnpm --filter @voidhash/react-native build
 
       - name: Publish api-spec canary
+        working-directory: packages/api-spec
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm --filter @voidhash/api-spec publish --tag canary --access public --no-git-checks
+        run: npm publish --tag canary --access public
 
       - name: Publish node canary
+        working-directory: libraries/node
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm --filter @voidhash/node publish --tag canary --access public --no-git-checks
+        run: npm publish --tag canary --access public
 
       - name: Publish web canary
+        working-directory: libraries/web
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm --filter @voidhash/web publish --tag canary --access public --no-git-checks
+        run: npm publish --tag canary --access public
 
       - name: Publish react-native canary
+        working-directory: libraries/react-native
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm --filter @voidhash/react-native publish --tag canary --access public --no-git-checks
+        run: npm publish --tag canary --access public
