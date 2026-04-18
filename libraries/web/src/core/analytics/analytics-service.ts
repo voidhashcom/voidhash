@@ -1,5 +1,5 @@
-import { Effect, Layer, Schema, ServiceMap } from "effect";
-import { CaptureAcceptedResponse } from "@voidhash/api-spec/event-capture";
+import { Effect, Layer, ServiceMap } from "effect";
+import type { CaptureAcceptedResponse } from "@voidhash/generated-clients/event-capture";
 
 import type { AnalyticsFlushResult } from "../../types";
 import { CacheManager } from "../caching/cache-manager";
@@ -207,10 +207,12 @@ const make = Effect.gen(function* effect() {
 
       if (result._tag === "Success") {
         if (result.value.status === 202) {
-          const decodedResponse = yield* Effect.exit(
-            Schema.decodeUnknownEffect(CaptureAcceptedResponse)(result.value.data)
-          );
-          if (decodedResponse._tag !== "Success") {
+          if (
+            !result.value.data ||
+            typeof result.value.data !== "object" ||
+            typeof (result.value.data as CaptureAcceptedResponse).accepted !== "number" ||
+            typeof (result.value.data as CaptureAcceptedResponse).rejected !== "number"
+          ) {
             postponeEvents(
               ids,
               Date.now() + getBackoffMs((batch[0]?.attempts ?? 0) + 1)
@@ -221,7 +223,7 @@ const make = Effect.gen(function* effect() {
 
           dropEvents(ids);
           yield* persistQueue();
-          const response = decodedResponse.value;
+          const response = result.value.data as CaptureAcceptedResponse;
           const flushResult: AnalyticsFlushResult = {
             accepted: response.accepted,
             rejected: response.rejected,

@@ -63,7 +63,7 @@
     "test:watch": "vitest -c vitest.unit.mts"
   },
   "dependencies": {
-    "@voidhash/api-spec": "workspace:*"
+    "@voidhash/generated-clients": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "catalog:",

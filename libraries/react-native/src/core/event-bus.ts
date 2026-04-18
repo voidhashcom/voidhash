@@ -1,4 +1,4 @@
-import type { SdkCustomer } from "@voidhash/api-spec";
+import type { SdkCustomer } from "@voidhash/generated-clients";
 import { ServiceMap } from "effect";
 
 export interface CustomerFetchedEvent {
@@ -18,7 +18,7 @@ export interface FeatureFlagsFetchedEvent {
   readonly flags: ReadonlyArray<{
     readonly enabled: boolean;
     readonly key: string;
-    readonly payload: unknown | null;
+    readonly payload?: unknown | null;
     readonly variantKey: string | null;
   }>;
 }

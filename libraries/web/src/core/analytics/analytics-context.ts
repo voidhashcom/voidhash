@@ -1,7 +1,7 @@
 import type {
   EventContextField,
   EventPropertiesField,
-} from "@voidhash/api-spec/event-capture";
+} from "@voidhash/generated-clients/event-capture";
 
 import type { VoidhashTrackOptions } from "../../types";
 import { BrowserPlatformProvider } from "../platform/browser-platform-provider";
@@ -65,7 +65,7 @@ export const createAnalyticsEvent = (
   distinct_id: distinctId,
   event: eventName,
   properties: normalizeAnalyticsRecord(properties ?? {}),
-  timestamp: options?.timestamp ? new Date(options.timestamp) : new Date(),
+  timestamp: options?.timestamp ?? new Date().toISOString(),
   session_id: options?.sessionId,
   uuid: options?.eventId ?? createEventId(platform),
 });

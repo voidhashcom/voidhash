@@ -43,7 +43,7 @@ The web package should expose:
 ## Goals
 
 - Ship a browser SDK that feels structurally similar to the React Native SDK.
-- Reuse existing shared packages where possible, especially `@voidhash/api-spec` and `@voidhash/shared`.
+- Reuse existing shared packages where possible, especially `@voidhash/generated-clients` and `@voidhash/shared`.
 - Make feature flags production-ready first, because the backend contract already exists.
 - Design analytics as a first-class SDK capability for web, even though the current React Native SDK does not yet implement an analytics transport.
 - Support anonymous and identified users.
@@ -277,7 +277,7 @@ Analytics is a first-class goal of the web SDK, but it needs a clearer contract 
 
 ### Prerequisite: API Contract Alignment
 
-Before analytics implementation begins, the repo should define or confirm the following in `@voidhash/api-spec`:
+Before analytics implementation begins, the repo should define or confirm the following in `@voidhash/generated-clients`:
 
 - the analytics ingestion endpoint path
 - the request payload shape
@@ -301,7 +301,7 @@ This should be treated as a required upstream step. The web SDK should not inven
 
 ### Recommended Event Payload Shape
 
-The final schema should come from `@voidhash/api-spec`, but the SDK should plan around this structure:
+The final schema should come from `@voidhash/generated-clients`, but the SDK should plan around this structure:
 
 ```ts
 type AnalyticsEvent = {
@@ -471,7 +471,7 @@ An analytics hook can stay simple in V1:
 
 ### Contract Tests
 
-- feature flag request/response compatibility with `@voidhash/api-spec`
+- feature flag request/response compatibility with `@voidhash/generated-clients`
 - analytics contract compatibility once defined upstream
 
 ## Example Apps and Documentation
@@ -496,7 +496,7 @@ Documentation should cover:
 
 | Phase | Scope | Output |
 | --- | --- | --- |
-| 0 | API and package alignment | Confirm `libraries/web`, confirm `@voidhash/web`, finalize analytics API contract in `@voidhash/api-spec`. |
+| 0 | API and package alignment | Confirm `libraries/web`, confirm `@voidhash/web`, finalize analytics API contract in `@voidhash/generated-clients`. |
 | 1 | Core runtime | Create client factory, runtime layer, event bus, identity manager, cache manager, browser platform provider, fetch transport. |
 | 2 | Feature flags | Implement `getFeatureFlags`, caching, refetch behavior, React hook parity, tests. |
 | 3 | Analytics | Implement `track`, `page`, queueing, batching, retrying, page-exit flush, tests. |
@@ -510,7 +510,7 @@ Documentation should cover:
 - Keep feature flags server-evaluated in V1.
 - Keep analytics manual-first in V1.
 - Exclude paywalls and payments completely from the initial implementation.
-- Upstream any shared contract changes into `@voidhash/api-spec` before depending on them in the SDK.
+- Upstream any shared contract changes into `@voidhash/generated-clients` before depending on them in the SDK.
 
 ## Open Questions
 
@@ -527,7 +527,7 @@ Documentation should cover:
 2. Port the React Native identity, cache, and event bus concepts into browser-safe modules.
 3. Implement feature flags first using the existing API contract and 5-minute TTL parity.
 4. Add the React provider and `useFeatureFlags` hook.
-5. Finalize the analytics API contract in `@voidhash/api-spec`.
+5. Finalize the analytics API contract in `@voidhash/generated-clients`.
 6. Implement analytics queueing, batching, and flush behavior.
 7. Add examples, tests, and publishable package metadata.
 

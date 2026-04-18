@@ -1,16 +1,21 @@
-import { VoidhashV1Api } from "@voidhash/api-spec";
+import {
+  make as makeCoreClient,
+  type VoidhashCoreClient,
+} from "@voidhash/generated-clients";
 import { Effect } from "effect";
 import {
   FetchHttpClient,
   HttpClient,
   HttpClientRequest,
 } from "effect/unstable/http";
-import { HttpApiClient } from "effect/unstable/httpapi";
 
 import { VoidhashNodeConfigurationError } from "../errors";
+import {
+  groupCoreClient,
+  type GroupedVoidhashNodeEffectClient,
+} from "../generated/grouped-client";
 import type { VoidhashNodeClientOptions } from "../types";
-import type { GeneratedVoidhashNodeEffectClient } from "./client-types";
-import { toJsonCompatibleApi } from "./json-compatible-api";
+export type GeneratedVoidhashNodeEffectClient = GroupedVoidhashNodeEffectClient;
 
 export const DEFAULT_BASE_URL = "https://api.voidhash.com";
 
@@ -78,24 +83,31 @@ const resolveOptions = (options: VoidhashNodeClientOptions) => {
   };
 };
 
-const JsonVoidhashV1Api = toJsonCompatibleApi(VoidhashV1Api);
-
 export const makeGeneratedClient = (
   options: VoidhashNodeClientOptions
 ): Effect.Effect<GeneratedVoidhashNodeEffectClient> => {
   const resolvedOptions = resolveOptions(options);
 
-  return HttpApiClient.make(JsonVoidhashV1Api, {
-    baseUrl: resolvedOptions.baseUrl,
-    transformClient: (client) =>
-      client.pipe(
-        HttpClient.mapRequest((request) =>
-          HttpClientRequest.setHeader(
-            HttpClientRequest.setHeaders(request, resolvedOptions.headers),
-            SECRET_KEY_HEADER,
-            resolvedOptions.secretKey
+  return Effect.gen(function* () {
+    const httpClient = yield* HttpClient.HttpClient;
+    const client = makeCoreClient(httpClient as VoidhashCoreClient["httpClient"], {
+      transformClient: (httpClient) =>
+        Effect.succeed(
+          httpClient.pipe(
+            HttpClient.mapRequest((request) =>
+              HttpClientRequest.setHeader(
+                HttpClientRequest.setHeaders(
+                  HttpClientRequest.prependUrl(request, resolvedOptions.baseUrl),
+                  resolvedOptions.headers
+                ),
+                SECRET_KEY_HEADER,
+                resolvedOptions.secretKey
+              )
+            )
           )
-        )
-      ),
+        ),
+    });
+
+    return groupCoreClient(client);
   }).pipe(Effect.provide(FetchHttpClient.layer));
 };

@@ -83,7 +83,7 @@ export const initCommand = Command.make("init", { debug: debugOption }, () =>
 			organization.id,
 			session.projects.filter((p) => p.organizationId === organization.id),
 		);
-		const apiKeys = (yield* apiClient.api_keys.listApiKeys()) as readonly {
+		const apiKeys = (yield* apiClient.apiKeysListApiKeys()) as readonly {
 			id: string;
 			isPublic: boolean;
 			projectId: string;

@@ -1,7 +1,7 @@
 import type {
   CaptureAcceptedResponse,
   CaptureErrorResponse,
-} from "@voidhash/api-spec/event-capture";
+} from "@voidhash/generated-clients/event-capture";
 import { Cause, Effect } from "effect";
 
 import { SDK_VERSION } from "./core/constants";

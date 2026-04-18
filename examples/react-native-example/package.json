@@ -5,7 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "run:android": "expo run:android",
-    "run:ios": "expo run:ios",
+    "run:ios": "expo run:ios --device",
     "eas:build-dev:local": "eas build --local -e development",
     "start": "expo start --dev-client",
     "prebuild": "expo prebuild",

@@ -1,17 +1,25 @@
-import { EventCaptureApi } from "@voidhash/api-spec/event-capture";
+import {
+  make as makeEventCaptureClient,
+  type VoidhashEventCaptureClient,
+} from "@voidhash/generated-clients/event-capture";
 import { Effect, Layer, ServiceMap } from "effect";
-import { HttpApiClient } from "effect/unstable/httpapi";
+import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { SdkConfiguration } from "../sdk-configuration";
-import { normalizeGeneratedClient } from "./normalize-generated-client";
-import { toJsonCompatibleApi } from "./json-compatible-api";
 
 const make = Effect.gen(function* effect() {
   const config = yield* SdkConfiguration;
-  const rawClient = yield* HttpApiClient.make(toJsonCompatibleApi(EventCaptureApi), {
-    baseUrl: config.analytics.baseUrl,
+  const httpClient = yield* HttpClient.HttpClient;
+  return makeEventCaptureClient(httpClient as VoidhashEventCaptureClient["httpClient"], {
+    transformClient: (client) =>
+      Effect.succeed(
+        client.pipe(
+          HttpClient.mapRequest((request) =>
+            HttpClientRequest.prependUrl(request, config.analytics.baseUrl)
+          )
+        )
+      ),
   });
-  return normalizeGeneratedClient(rawClient);
 });
 
 export class EventCaptureApiClient extends ServiceMap.Service<

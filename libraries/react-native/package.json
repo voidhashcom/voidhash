@@ -68,7 +68,7 @@
 		"specs": "pnpm run typescript && nitro-codegen --logLevel=\"debug\""
 	},
 	"dependencies": {
-		"@voidhash/api-spec": "workspace:*"
+		"@voidhash/generated-clients": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/jest": "^29.5.14",

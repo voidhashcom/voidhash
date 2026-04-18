@@ -40,6 +40,8 @@
     "lint": "biome check .",
     "lint:fix": "biome check . --apply",
     "bump": "bumpp",
+    "openapi:generate:preview": "node ./scripts/generate-openapi-clients.mjs preview",
+    "openapi:generate:production": "node ./scripts/generate-openapi-clients.mjs production",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "lines-of-code": "npx cloc . --exclude-dir=.next,node_modules,.vercel,.turbo,.git,meta,.github,.expo,build,.expo-shared,nitrogen --vcs git --not-match-f=pnpm-lock.yaml,meta.json --exclude-ext=yaml,md"

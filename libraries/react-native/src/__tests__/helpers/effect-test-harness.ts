@@ -1,4 +1,4 @@
-import type { SdkCustomer } from "@voidhash/api-spec";
+import type { SdkCustomer } from "@voidhash/generated-clients";
 import { Effect, Layer, ManagedRuntime, pipe } from "effect";
 
 import { CacheAdapter } from "../../core/caching/cache-adapter";

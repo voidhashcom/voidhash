@@ -35,7 +35,7 @@ const make = Effect.gen(function* effect() {
 			const schema = createEmptyNormalizedSchema();
 
 			// 1. Fetch all perks
-			const remotePerks = yield* apiClient.perks.listPerks();
+			const remotePerks = yield* apiClient.perksListPerks();
 			for (const perk of remotePerks) {
 				schema.perks.set(perk.slug, {
 					name: perk.name,
@@ -45,7 +45,7 @@ const make = Effect.gen(function* effect() {
 
 			// 1b. Fetch all active paywall locations
 			const remoteLocations =
-				yield* apiClient.paywall_locations.listPaywallLocations();
+				yield* apiClient.paywallLocationsListPaywallLocations();
 			for (const location of remoteLocations) {
 				schema.locations.set(location.slug, {
 					description: location.description,
@@ -55,11 +55,11 @@ const make = Effect.gen(function* effect() {
 			}
 
 			// 2. Fetch all products
-			const remoteProducts = yield* apiClient.products.listProducts();
+			const remoteProducts = yield* apiClient.productsListProducts();
 
 			// 3. Fetch payment provider configurations
 			const providerConfigs =
-				yield* apiClient.payment_provider_configurations.listPaymentProviderConfigurations();
+				yield* apiClient.paymentProviderConfigurationsListPaymentProviderConfigurations();
 			for (const config of providerConfigs) {
 				if (
 					config.providerId === "appleAppStore" ||
@@ -71,7 +71,7 @@ const make = Effect.gen(function* effect() {
 
 			// 4. Fetch all payment provider products
 			const providerProducts =
-				yield* apiClient.payment_provider_products.listPaymentProviderProducts();
+				yield* apiClient.paymentProviderProductsListPaymentProviderProducts();
 
 			// Build a map of productId -> provider products
 			const productProviderMap = new Map<
@@ -98,10 +98,8 @@ const make = Effect.gen(function* effect() {
 			yield* Effect.all(
 				remoteProducts.map((product) =>
 					Effect.gen(function* () {
-						const productPerks = yield* apiClient.product_perks
-							.listProductPerksByProductId({
-								params: { productId: product.id },
-							})
+						const productPerks = yield* apiClient
+							.productPerksListProductPerksByProductId(product.id)
 							.pipe(
 								Effect.retry({
 									schedule: Schedule.exponential(1000),
@@ -150,8 +148,7 @@ const make = Effect.gen(function* effect() {
 	 * Fetch payment provider configurations
 	 */
 	const fetchProviderConfigurations = () =>
-		apiClient.payment_provider_configurations
-			.listPaymentProviderConfigurations()
+		apiClient.paymentProviderConfigurationsListPaymentProviderConfigurations()
 			.pipe(
 				Effect.tap((configs) =>
 					Effect.logDebug(
@@ -187,8 +184,8 @@ const make = Effect.gen(function* effect() {
 	const deployChange = (change: Change) =>
 		Effect.logDebug(`Deploying change: ${formatChange(change)}`).pipe(
 			Effect.andThen(
-				apiClient.changesets.deployChangeset({
-					payload: { changeset: { changes: [change] } },
+				apiClient.changesetsDeployChangeset({
+					changeset: { changes: [change] },
 				})
 			),
 			Effect.withSpan("SchemaService.deployChange"),
@@ -209,8 +206,8 @@ const make = Effect.gen(function* effect() {
 			`Deploying changeset with ${changeset.changes.length} changes`
 		).pipe(
 			Effect.andThen(
-				apiClient.changesets.deployChangeset({
-					payload: { changeset },
+				apiClient.changesetsDeployChangeset({
+					changeset,
 				})
 			),
 			Effect.withSpan("SchemaService.deployChangeset"),

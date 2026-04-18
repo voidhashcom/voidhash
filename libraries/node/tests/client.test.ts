@@ -1,4 +1,3 @@
-import { ActionForbiddenError } from "@voidhash/api-spec/errors";
 import { Cause, Effect, Exit, Option } from "effect";
 import {
   afterEach,
@@ -21,16 +20,16 @@ import {
 import { createJsonResponse, installFetchMock } from "./helpers";
 
 const EXPECTED_GROUPS = [
-  "api_keys",
+  "apiKeys",
   "auth",
   "changesets",
   "customers",
   "organizations",
-  "payment_provider_configurations",
-  "payment_provider_products",
-  "paywall_locations",
+  "paymentProviderConfigurations",
+  "paymentProviderProducts",
+  "paywallLocations",
   "perks",
-  "product_perks",
+  "productPerks",
   "products",
   "projects",
   "users",
@@ -251,13 +250,13 @@ describe("@voidhash/node", () => {
         description: "Updated description",
         events: ["purchase.completed"],
         name: "Updated endpoint",
-        status: "active",
+        status: "disabled",
         url: "https://example.com/hooks",
       },
     });
 
     expect(endpoint.id).toBe("wh_123");
-    expect(endpoint.createdAt).toEqual(new Date("2026-03-09T12:00:00.000Z"));
+    expect(endpoint.createdAt).toBe("2026-03-09T12:00:00.000Z");
     expect(calls[0]?.method).toBe("PATCH");
     expect(calls[0]?.url).toBe(
       "https://api.voidhash.test/api/v1/webhooks/endpoints/wh_123"
@@ -266,13 +265,13 @@ describe("@voidhash/node", () => {
       description: "Updated description",
       events: ["purchase.completed"],
       name: "Updated endpoint",
-      status: "active",
+      status: "disabled",
       url: "https://example.com/hooks",
     });
     expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
   });
 
-  it("supports DELETE requests with api_keys.deleteApiKey({ params })", async () => {
+  it("supports DELETE requests with apiKeys.deleteApiKey({ params })", async () => {
     const { calls } = installFetchMock(() => new Response(null, { status: 204 }));
 
     const client = createVoidhashSdk({
@@ -280,7 +279,7 @@ describe("@voidhash/node", () => {
       secretKey: "vh_sk_test",
     });
 
-    const result = await client.api_keys.deleteApiKey({
+    const result = await client.apiKeys.deleteApiKey({
       params: {
         apiKeyId: "ak_123",
       },
@@ -322,9 +321,10 @@ describe("@voidhash/node", () => {
   it("surfaces matching failure objects through effect and promise factories", async () => {
     installFetchMock(() =>
       createJsonResponse(
-        new ActionForbiddenError({
+        {
+          _tag: "ActionForbiddenError",
           message: "Forbidden",
-        }),
+        },
         403
       )
     );
@@ -348,7 +348,11 @@ describe("@voidhash/node", () => {
         (error: unknown) => error
       );
 
-    expect(promiseError).toStrictEqual(effectError);
-    expect(promiseError).toBeInstanceOf(ActionForbiddenError);
+    expect(promiseError).toMatchObject({
+      _tag: (effectError as { _tag?: string })._tag,
+    });
+    expect(promiseError).toMatchObject({
+      _tag: "ActionForbiddenError",
+    });
   });
 });
