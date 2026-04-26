@@ -14,12 +14,6 @@ export const groupCoreClient = (client: VoidhashCoreClient) => ({
   changesets: {
     deployChangeset: (request: { payload: Parameters<VoidhashCoreClient["changesetsDeployChangeset"]>[0] }) => client.changesetsDeployChangeset(request.payload),
   },
-  customers: {
-    byDistinctId: (request: { params: { readonly "distinctId": string } }) => client.customersByDistinctId(request.params["distinctId"]),
-    createCustomer: (request: { payload: Parameters<VoidhashCoreClient["customersCreateCustomer"]>[0] }) => client.customersCreateCustomer(request.payload),
-    getCustomerById: (request: { params: { readonly "customerId": string } }) => client.customersGetCustomerById(request.params["customerId"]),
-    listCustomers: () => client.customersListCustomers(),
-  },
   organizations: {
     createOrganization: (request: { payload: Parameters<VoidhashCoreClient["organizationsCreateOrganization"]>[0] }) => client.organizationsCreateOrganization(request.payload),
   },
@@ -34,6 +28,12 @@ export const groupCoreClient = (client: VoidhashCoreClient) => ({
   },
   perks: {
     listPerks: () => client.perksListPerks(),
+  },
+  persons: {
+    createPerson: (request: { payload: Parameters<VoidhashCoreClient["personsCreatePerson"]>[0] }) => client.personsCreatePerson(request.payload),
+    getPersonByDistinctId: (request: { params: { readonly "distinctId": string } }) => client.personsGetPersonByDistinctId(request.params["distinctId"]),
+    getPersonById: (request: { params: { readonly "personId": string } }) => client.personsGetPersonById(request.params["personId"]),
+    listPersons: () => client.personsListPersons(),
   },
   productPerks: {
     listProductPerksByProductId: (request: { params: { readonly "productId": string } }) => client.productPerksListProductPerksByProductId(request.params["productId"]),

@@ -4,6 +4,7 @@
   "compilerOptions": {
     "strict": true,
     "jsx": "react-jsx",
+    "types": ["node"],
     "paths": {
       "*": ["./*"]
     }

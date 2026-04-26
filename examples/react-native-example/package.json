@@ -10,6 +10,7 @@
     "start": "expo start --dev-client",
     "prebuild": "expo prebuild",
     "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
     "format": "biome format .",
     "web": "expo start --web",
     "xcode": "xed ios",

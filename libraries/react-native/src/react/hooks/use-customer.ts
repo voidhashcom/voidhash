@@ -1,4 +1,4 @@
-import type { SdkCustomer } from "@voidhash/generated-clients";
+import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { VoidhashClient } from "../../client";

@@ -23,12 +23,12 @@ const EXPECTED_GROUPS = [
   "apiKeys",
   "auth",
   "changesets",
-  "customers",
   "organizations",
   "paymentProviderConfigurations",
   "paymentProviderProducts",
   "paywallLocations",
   "perks",
+  "persons",
   "productPerks",
   "products",
   "projects",
@@ -181,10 +181,10 @@ describe("@voidhash/node", () => {
     expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
   });
 
-  it("supports POST bodies with customers.createCustomer({ payload })", async () => {
+  it("supports POST bodies with persons.createPerson({ payload })", async () => {
     const { calls } = installFetchMock(() =>
       createJsonResponse({
-        customerId: "customer_123",
+        personId: "person_123",
         distinctId: "user_123",
         email: "user@example.com",
         name: "Taylor",
@@ -196,7 +196,7 @@ describe("@voidhash/node", () => {
       secretKey: "vh_sk_test",
     });
 
-    const customer = await client.customers.createCustomer({
+    const person = await client.persons.createPerson({
       payload: {
         distinctId: "user_123",
         email: "user@example.com",
@@ -204,14 +204,14 @@ describe("@voidhash/node", () => {
       },
     });
 
-    expect(customer).toEqual({
-      customerId: "customer_123",
+    expect(person).toEqual({
+      personId: "person_123",
       distinctId: "user_123",
       email: "user@example.com",
       name: "Taylor",
     });
     expect(calls[0]?.method).toBe("POST");
-    expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/customers");
+    expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/persons");
     expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({
       distinctId: "user_123",
       email: "user@example.com",

@@ -40,8 +40,9 @@
     "lint": "biome check .",
     "lint:fix": "biome check . --apply",
     "bump": "bumpp",
-    "openapi:generate:preview": "node ./scripts/generate-openapi-clients.mjs preview",
-    "openapi:generate:production": "node ./scripts/generate-openapi-clients.mjs production",
+    "openapi:generate": "node ./scripts/generate-openapi-clients.mjs",
+    "openapi:generate:dev": "pnpm openapi:generate -- localhost:8787",
+    "openapi:generate:prod": "pnpm openapi:generate -- api.voidhash.com",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "lines-of-code": "npx cloc . --exclude-dir=.next,node_modules,.vercel,.turbo,.git,meta,.github,.expo,build,.expo-shared,nitrogen --vcs git --not-match-f=pnpm-lock.yaml,meta.json --exclude-ext=yaml,md"

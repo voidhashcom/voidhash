@@ -180,11 +180,11 @@ export const make = (
   }
   return {
     httpClient,
-    "eventCaptureCapture": (options) => HttpClientRequest.post(`/capture`).pipe(
+    "eventCaptureCapture": (options) => HttpClientRequest.post(`/i/v1/capture`).pipe(
     HttpClientRequest.bodyJsonUnsafe(options),
     onRequest(["2xx"], {"400":"EventCaptureCapture400","401":"CaptureUnauthorizedError","413":"CapturePayloadTooLargeError","429":"CaptureRateLimitedError","500":"CaptureInternalServerError","503":"CaptureDependencyUnavailableError"})
   ),
-  "eventCaptureBatch": (options) => HttpClientRequest.post(`/batch`).pipe(
+  "eventCaptureBatch": (options) => HttpClientRequest.post(`/i/v1/batch`).pipe(
     HttpClientRequest.bodyJsonUnsafe(options),
     onRequest(["2xx"], {"400":"EventCaptureBatch400","401":"CaptureUnauthorizedError","413":"CapturePayloadTooLargeError","429":"CaptureRateLimitedError","500":"CaptureInternalServerError","503":"CaptureDependencyUnavailableError"})
   )

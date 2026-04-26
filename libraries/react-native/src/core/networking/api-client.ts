@@ -4,10 +4,12 @@ import {
   type EvaluateFeatureFlagsBody,
   type SdkEvaluateFeatureFlagsParams,
   type SdkFeatureFlagsResponse,
-  type SdkGetCustomerParams,
+  type SdkGetPersonParams,
+  type SdkIdentifyPersonParams,
   type SdkIdentifyBody,
   type SdkResolvePaywallBody,
-  type SdkSyncCustomerAttributesBody,
+  type SdkSyncPersonAttributesBody,
+  type SdkSyncPersonAttributesParams,
   type SdkSyncTransactionRequest,
 } from "@voidhash/generated-clients";
 import { Effect, Layer, ServiceMap } from "effect";
@@ -82,13 +84,13 @@ const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
         normalizeFeatureFlagsResponse
       ),
     getCustomer: (request: { headers: ReactNativeSdkHeaders }) =>
-      client.sdkGetCustomer(request.headers as SdkGetCustomerParams),
+      client.sdkGetPerson(request.headers as SdkGetPersonParams),
     identify: (request: {
       headers: ReactNativeSdkHeaders;
       payload: SdkIdentifyBody;
     }) =>
-      client.sdkIdentify({
-        params: request.headers as Parameters<typeof client.sdkIdentify>[0]["params"],
+      client.sdkIdentifyPerson({
+        params: request.headers as SdkIdentifyPersonParams,
         payload: request.payload,
       }),
     resolvePaywall: (request: {
@@ -101,10 +103,10 @@ const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
       }),
     syncCustomerAttributes: (request: {
       headers: ReactNativeSdkHeaders;
-      payload: SdkSyncCustomerAttributesBody;
+      payload: SdkSyncPersonAttributesBody;
     }) =>
-      client.sdkSyncCustomerAttributes({
-        params: request.headers as Parameters<typeof client.sdkSyncCustomerAttributes>[0]["params"],
+      client.sdkSyncPersonAttributes({
+        params: request.headers as SdkSyncPersonAttributesParams,
         payload: request.payload,
       }),
     syncTransaction: (request: {

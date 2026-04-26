@@ -105,51 +105,51 @@ export type ApiKeysDeleteApiKey500 = ApiKeyServiceError | AuthenticationError | 
 
 export type ApiKeysRotateSecretKey500 = ApiKeyServiceError | AuthenticationError | NotAuthenticatedError
 
-export interface Customer {
-  readonly "customerId": string;
+export interface Person {
+  readonly "personId": string;
   readonly "distinctId": string;
   readonly "email": string | null;
   readonly "name": string | null
 }
 
-export type CustomersListCustomers200 = ReadonlyArray<Customer>
+export type PersonsListPersons200 = ReadonlyArray<Person>
 
-export type CustomerServiceErrorTag = "CustomerServiceError"
+export type PersonServiceErrorTag = "PersonServiceError"
 
-export interface CustomerServiceError {
-  readonly "_tag": CustomerServiceErrorTag;
+export interface PersonServiceError {
+  readonly "_tag": PersonServiceErrorTag;
   readonly "cause": string
 }
 
-export type CustomersListCustomers500 = CustomerServiceError | AuthenticationError | NotAuthenticatedError
+export type PersonsListPersons500 = PersonServiceError | AuthenticationError | NotAuthenticatedError
 
-export interface CreateCustomerBody {
+export interface CreatePersonBody {
   readonly "distinctId": string;
   readonly "email"?: string | null | undefined;
   readonly "name"?: string | null | undefined
 }
 
-export type CustomerInvalidAnonymousIdErrorTag = "CustomerInvalidAnonymousIdError"
+export type PersonInvalidAnonymousIdErrorTag = "PersonInvalidAnonymousIdError"
 
-export interface CustomerInvalidAnonymousIdError {
-  readonly "_tag": CustomerInvalidAnonymousIdErrorTag;
+export interface PersonInvalidAnonymousIdError {
+  readonly "_tag": PersonInvalidAnonymousIdErrorTag;
   readonly "id": string
 }
 
-export type CustomersCreateCustomer400 = CustomerInvalidAnonymousIdError | EffectHttpApiSchemaError
+export type PersonsCreatePerson400 = PersonInvalidAnonymousIdError | EffectHttpApiSchemaError
 
-export type CustomersCreateCustomer500 = CustomerServiceError | AuthenticationError | NotAuthenticatedError
+export type PersonsCreatePerson500 = PersonServiceError | AuthenticationError | NotAuthenticatedError
 
-export type CustomerNotFoundErrorTag = "CustomerNotFoundError"
+export type PersonNotFoundErrorTag = "PersonNotFoundError"
 
-export interface CustomerNotFoundError {
-  readonly "_tag": CustomerNotFoundErrorTag;
+export interface PersonNotFoundError {
+  readonly "_tag": PersonNotFoundErrorTag;
   readonly "id": string
 }
 
-export type CustomersGetCustomerById500 = CustomerServiceError | AuthenticationError | NotAuthenticatedError
+export type PersonsGetPersonById500 = PersonServiceError | AuthenticationError | NotAuthenticatedError
 
-export type CustomersByDistinctId500 = CustomerServiceError | AuthenticationError | NotAuthenticatedError
+export type PersonsGetPersonByDistinctId500 = PersonServiceError | AuthenticationError | NotAuthenticatedError
 
 export interface CreateOrganizationBody {
   readonly "name": string
@@ -278,40 +278,40 @@ export interface ProductPerkServiceError {
 
 export type ProductPerksListProductPerksByProductId500 = ProductPerkServiceError | AuthenticationError | NotAuthenticatedError
 
-export type SdkGetCustomerParamsXIsBackgrounded = "false"
+export type SdkGetPersonParamsXIsBackgrounded = "false"
 
-export type SdkGetCustomerParamsXIsDebugBuildEnum = "false"
+export type SdkGetPersonParamsXIsDebugBuildEnum = "false"
 
-export type SdkGetCustomerParamsXObserverModeEnum = "false"
+export type SdkGetPersonParamsXObserverModeEnum = "false"
 
-export type SdkGetCustomerParamsXPlatformFlavorEnum = "browser"
+export type SdkGetPersonParamsXPlatformFlavorEnum = "browser"
 
-export type SdkGetCustomerParamsXSdkEnum = "web"
+export type SdkGetPersonParamsXSdkEnum = "web"
 
-export interface SdkGetCustomerParams {
+export interface SdkGetPersonParams {
   readonly "x-distinct-id": string;
   readonly "x-publishable-key": string;
   readonly "x-client-bundle-id": string;
   readonly "x-client-locale"?: string | null | undefined;
   readonly "x-client-version"?: string | null | undefined;
-  readonly "x-is-backgrounded": SdkGetCustomerParamsXIsBackgrounded;
-  readonly "x-is-debug-build": SdkGetCustomerParamsXIsDebugBuildEnum | SdkGetCustomerParamsXIsDebugBuildEnum;
+  readonly "x-is-backgrounded": SdkGetPersonParamsXIsBackgrounded;
+  readonly "x-is-debug-build": SdkGetPersonParamsXIsDebugBuildEnum | SdkGetPersonParamsXIsDebugBuildEnum;
   readonly "x-nonce"?: string | null | undefined;
-  readonly "x-observer-mode": SdkGetCustomerParamsXObserverModeEnum | SdkGetCustomerParamsXObserverModeEnum;
+  readonly "x-observer-mode": SdkGetPersonParamsXObserverModeEnum | SdkGetPersonParamsXObserverModeEnum;
   readonly "x-platform": string;
   readonly "x-platform-brand"?: string | null | undefined;
   readonly "x-platform-device"?: string | null | undefined;
-  readonly "x-platform-flavor": SdkGetCustomerParamsXPlatformFlavorEnum | SdkGetCustomerParamsXPlatformFlavorEnum;
+  readonly "x-platform-flavor": SdkGetPersonParamsXPlatformFlavorEnum | SdkGetPersonParamsXPlatformFlavorEnum;
   readonly "x-platform-flavor-version"?: string | null | undefined;
   readonly "x-platform-version"?: string | null | undefined;
   readonly "x-preferred-locales"?: string | null | undefined;
-  readonly "x-sdk": SdkGetCustomerParamsXSdkEnum | SdkGetCustomerParamsXSdkEnum;
+  readonly "x-sdk": SdkGetPersonParamsXSdkEnum | SdkGetPersonParamsXSdkEnum;
   readonly "x-sdk-version": string;
   readonly "x-storefront"?: string | null | undefined
 }
 
-export interface SdkCustomer {
-  readonly "customerId": string;
+export interface SdkPerson {
+  readonly "personId": string;
   readonly "distinctId": string;
   readonly "email": string | null;
   readonly "name": string | null
@@ -324,12 +324,12 @@ export interface SdkValidationError {
   readonly "message": string
 }
 
-export type SdkGetCustomer400 = SdkValidationError | EffectHttpApiSchemaError
+export type SdkGetPerson400 = SdkValidationError | EffectHttpApiSchemaError
 
-export type SdkCustomerNotFoundErrorTag = "SdkCustomerNotFoundError"
+export type SdkPersonNotFoundErrorTag = "SdkPersonNotFoundError"
 
-export interface SdkCustomerNotFoundError {
-  readonly "_tag": SdkCustomerNotFoundErrorTag;
+export interface SdkPersonNotFoundError {
+  readonly "_tag": SdkPersonNotFoundErrorTag;
   readonly "message": string
 }
 
@@ -340,36 +340,36 @@ export interface SdkServiceError {
   readonly "cause": string
 }
 
-export type SdkGetCustomer500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
+export type SdkGetPerson500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
 
-export type SdkIdentifyParamsXIsBackgrounded = "false"
+export type SdkIdentifyPersonParamsXIsBackgrounded = "false"
 
-export type SdkIdentifyParamsXIsDebugBuildEnum = "false"
+export type SdkIdentifyPersonParamsXIsDebugBuildEnum = "false"
 
-export type SdkIdentifyParamsXObserverModeEnum = "false"
+export type SdkIdentifyPersonParamsXObserverModeEnum = "false"
 
-export type SdkIdentifyParamsXPlatformFlavorEnum = "browser"
+export type SdkIdentifyPersonParamsXPlatformFlavorEnum = "browser"
 
-export type SdkIdentifyParamsXSdkEnum = "web"
+export type SdkIdentifyPersonParamsXSdkEnum = "web"
 
-export interface SdkIdentifyParams {
+export interface SdkIdentifyPersonParams {
   readonly "x-distinct-id": string;
   readonly "x-publishable-key": string;
   readonly "x-client-bundle-id": string;
   readonly "x-client-locale"?: string | null | undefined;
   readonly "x-client-version"?: string | null | undefined;
-  readonly "x-is-backgrounded": SdkIdentifyParamsXIsBackgrounded;
-  readonly "x-is-debug-build": SdkIdentifyParamsXIsDebugBuildEnum | SdkIdentifyParamsXIsDebugBuildEnum;
+  readonly "x-is-backgrounded": SdkIdentifyPersonParamsXIsBackgrounded;
+  readonly "x-is-debug-build": SdkIdentifyPersonParamsXIsDebugBuildEnum | SdkIdentifyPersonParamsXIsDebugBuildEnum;
   readonly "x-nonce"?: string | null | undefined;
-  readonly "x-observer-mode": SdkIdentifyParamsXObserverModeEnum | SdkIdentifyParamsXObserverModeEnum;
+  readonly "x-observer-mode": SdkIdentifyPersonParamsXObserverModeEnum | SdkIdentifyPersonParamsXObserverModeEnum;
   readonly "x-platform": string;
   readonly "x-platform-brand"?: string | null | undefined;
   readonly "x-platform-device"?: string | null | undefined;
-  readonly "x-platform-flavor": SdkIdentifyParamsXPlatformFlavorEnum | SdkIdentifyParamsXPlatformFlavorEnum;
+  readonly "x-platform-flavor": SdkIdentifyPersonParamsXPlatformFlavorEnum | SdkIdentifyPersonParamsXPlatformFlavorEnum;
   readonly "x-platform-flavor-version"?: string | null | undefined;
   readonly "x-platform-version"?: string | null | undefined;
   readonly "x-preferred-locales"?: string | null | undefined;
-  readonly "x-sdk": SdkIdentifyParamsXSdkEnum | SdkIdentifyParamsXSdkEnum;
+  readonly "x-sdk": SdkIdentifyPersonParamsXSdkEnum | SdkIdentifyPersonParamsXSdkEnum;
   readonly "x-sdk-version": string;
   readonly "x-storefront"?: string | null | undefined
 }
@@ -381,58 +381,58 @@ export interface SdkIdentifyBody {
   readonly "traits"?: Record<string, unknown> | null | undefined
 }
 
-export type SdkIdentify400 = SdkValidationError | EffectHttpApiSchemaError
+export type SdkIdentifyPerson400 = SdkValidationError | EffectHttpApiSchemaError
 
-export type SdkCustomerAlreadyIdentifiedErrorTag = "SdkCustomerAlreadyIdentifiedError"
+export type SdkPersonAlreadyIdentifiedErrorTag = "SdkPersonAlreadyIdentifiedError"
 
-export interface SdkCustomerAlreadyIdentifiedError {
-  readonly "_tag": SdkCustomerAlreadyIdentifiedErrorTag;
+export interface SdkPersonAlreadyIdentifiedError {
+  readonly "_tag": SdkPersonAlreadyIdentifiedErrorTag;
   readonly "distinctId": string
 }
 
-export type SdkIdentify500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
+export type SdkIdentifyPerson500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
 
-export type SdkSyncCustomerAttributesParamsXIsBackgrounded = "false"
+export type SdkSyncPersonAttributesParamsXIsBackgrounded = "false"
 
-export type SdkSyncCustomerAttributesParamsXIsDebugBuildEnum = "false"
+export type SdkSyncPersonAttributesParamsXIsDebugBuildEnum = "false"
 
-export type SdkSyncCustomerAttributesParamsXObserverModeEnum = "false"
+export type SdkSyncPersonAttributesParamsXObserverModeEnum = "false"
 
-export type SdkSyncCustomerAttributesParamsXPlatformFlavorEnum = "browser"
+export type SdkSyncPersonAttributesParamsXPlatformFlavorEnum = "browser"
 
-export type SdkSyncCustomerAttributesParamsXSdkEnum = "web"
+export type SdkSyncPersonAttributesParamsXSdkEnum = "web"
 
-export interface SdkSyncCustomerAttributesParams {
+export interface SdkSyncPersonAttributesParams {
   readonly "x-distinct-id": string;
   readonly "x-publishable-key": string;
   readonly "x-client-bundle-id": string;
   readonly "x-client-locale"?: string | null | undefined;
   readonly "x-client-version"?: string | null | undefined;
-  readonly "x-is-backgrounded": SdkSyncCustomerAttributesParamsXIsBackgrounded;
-  readonly "x-is-debug-build": SdkSyncCustomerAttributesParamsXIsDebugBuildEnum | SdkSyncCustomerAttributesParamsXIsDebugBuildEnum;
+  readonly "x-is-backgrounded": SdkSyncPersonAttributesParamsXIsBackgrounded;
+  readonly "x-is-debug-build": SdkSyncPersonAttributesParamsXIsDebugBuildEnum | SdkSyncPersonAttributesParamsXIsDebugBuildEnum;
   readonly "x-nonce"?: string | null | undefined;
-  readonly "x-observer-mode": SdkSyncCustomerAttributesParamsXObserverModeEnum | SdkSyncCustomerAttributesParamsXObserverModeEnum;
+  readonly "x-observer-mode": SdkSyncPersonAttributesParamsXObserverModeEnum | SdkSyncPersonAttributesParamsXObserverModeEnum;
   readonly "x-platform": string;
   readonly "x-platform-brand"?: string | null | undefined;
   readonly "x-platform-device"?: string | null | undefined;
-  readonly "x-platform-flavor": SdkSyncCustomerAttributesParamsXPlatformFlavorEnum | SdkSyncCustomerAttributesParamsXPlatformFlavorEnum;
+  readonly "x-platform-flavor": SdkSyncPersonAttributesParamsXPlatformFlavorEnum | SdkSyncPersonAttributesParamsXPlatformFlavorEnum;
   readonly "x-platform-flavor-version"?: string | null | undefined;
   readonly "x-platform-version"?: string | null | undefined;
   readonly "x-preferred-locales"?: string | null | undefined;
-  readonly "x-sdk": SdkSyncCustomerAttributesParamsXSdkEnum | SdkSyncCustomerAttributesParamsXSdkEnum;
+  readonly "x-sdk": SdkSyncPersonAttributesParamsXSdkEnum | SdkSyncPersonAttributesParamsXSdkEnum;
   readonly "x-sdk-version": string;
   readonly "x-storefront"?: string | null | undefined
 }
 
-export interface SdkSyncCustomerAttributesBody {
+export interface SdkSyncPersonAttributesBody {
   readonly "email"?: string | null | undefined;
   readonly "name"?: string | null | undefined;
   readonly "traits"?: Record<string, unknown> | null | undefined
 }
 
-export type SdkSyncCustomerAttributes400 = SdkValidationError | EffectHttpApiSchemaError
+export type SdkSyncPersonAttributes400 = SdkValidationError | EffectHttpApiSchemaError
 
-export type SdkSyncCustomerAttributes500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
+export type SdkSyncPersonAttributes500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
 
 export type SdkSyncTransactionParamsXIsBackgrounded = "false"
 
@@ -808,7 +808,7 @@ export interface WebhookEndpoint {
   readonly "consecutiveFailures": number | WebhookEndpointConsecutiveFailuresEnum | WebhookEndpointConsecutiveFailuresEnum | WebhookEndpointConsecutiveFailuresEnum;
   readonly "createdAt": string | null;
   readonly "description": string | null;
-  readonly "events": ReadonlyArray<"customer.created" | "customer.updated" | "customer.deleted" | "subscription.created" | "subscription.renewed" | "subscription.cancelled" | "subscription.expired" | "purchase.completed" | "purchase.refunded">;
+  readonly "events": ReadonlyArray<"person.created" | "person.updated" | "person.deleted" | "subscription.created" | "subscription.renewed" | "subscription.cancelled" | "subscription.expired" | "purchase.completed" | "purchase.refunded">;
   readonly "id": string;
   readonly "lastSuccessAt": string | null;
   readonly "name": string;
@@ -1044,18 +1044,18 @@ export const make = (
   "apiKeysRotateSecretKey": (apiKeyId) => HttpClientRequest.post(`/api/v1/api-keys/${apiKeyId}/rotate`).pipe(
     onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"ApiKeyNotFoundError","500":"ApiKeysRotateSecretKey500"})
   ),
-  "customersListCustomers": () => HttpClientRequest.get(`/api/v1/customers`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"CustomersListCustomers500"})
+  "personsListPersons": () => HttpClientRequest.get(`/api/v1/persons`).pipe(
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"PersonsListPersons500"})
   ),
-  "customersCreateCustomer": (options) => HttpClientRequest.post(`/api/v1/customers`).pipe(
+  "personsCreatePerson": (options) => HttpClientRequest.post(`/api/v1/persons`).pipe(
     HttpClientRequest.bodyJsonUnsafe(options),
-    onRequest(["2xx"], {"400":"CustomersCreateCustomer400","403":"ActionForbiddenError","500":"CustomersCreateCustomer500"})
+    onRequest(["2xx"], {"400":"PersonsCreatePerson400","403":"ActionForbiddenError","500":"PersonsCreatePerson500"})
   ),
-  "customersGetCustomerById": (customerId) => HttpClientRequest.get(`/api/v1/customers/${customerId}`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"CustomerNotFoundError","500":"CustomersGetCustomerById500"})
+  "personsGetPersonById": (personId) => HttpClientRequest.get(`/api/v1/persons/${personId}`).pipe(
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"PersonNotFoundError","500":"PersonsGetPersonById500"})
   ),
-  "customersByDistinctId": (distinctId) => HttpClientRequest.get(`/api/v1/customers/by-distinct-id/${distinctId}`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"CustomerNotFoundError","500":"CustomersByDistinctId500"})
+  "personsGetPersonByDistinctId": (distinctId) => HttpClientRequest.get(`/api/v1/persons/by-distinct-id/${distinctId}`).pipe(
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"PersonNotFoundError","500":"PersonsGetPersonByDistinctId500"})
   ),
   "organizationsCreateOrganization": (options) => HttpClientRequest.post(`/api/v1/organizations`).pipe(
     HttpClientRequest.bodyJsonUnsafe(options),
@@ -1080,19 +1080,19 @@ export const make = (
   "productPerksListProductPerksByProductId": (productId) => HttpClientRequest.get(`/api/v1/product-perks/by-product-id/${productId}`).pipe(
     onRequest(["2xx"], {"400":"ProductPerksListProductPerksByProductId400","403":"ActionForbiddenError","500":"ProductPerksListProductPerksByProductId500"})
   ),
-  "sdkGetCustomer": (options) => HttpClientRequest.get(`/api/v1/sdk/get-customer`).pipe(
+  "sdkGetPerson": (options) => HttpClientRequest.get(`/api/v1/sdk/person`).pipe(
     HttpClientRequest.setHeaders({ "x-distinct-id": options?.["x-distinct-id"] ?? undefined, "x-publishable-key": options?.["x-publishable-key"] ?? undefined, "x-client-bundle-id": options?.["x-client-bundle-id"] ?? undefined, "x-client-locale": options?.["x-client-locale"] ?? undefined, "x-client-version": options?.["x-client-version"] ?? undefined, "x-is-backgrounded": options?.["x-is-backgrounded"] ?? undefined, "x-is-debug-build": options?.["x-is-debug-build"] ?? undefined, "x-nonce": options?.["x-nonce"] ?? undefined, "x-observer-mode": options?.["x-observer-mode"] ?? undefined, "x-platform": options?.["x-platform"] ?? undefined, "x-platform-brand": options?.["x-platform-brand"] ?? undefined, "x-platform-device": options?.["x-platform-device"] ?? undefined, "x-platform-flavor": options?.["x-platform-flavor"] ?? undefined, "x-platform-flavor-version": options?.["x-platform-flavor-version"] ?? undefined, "x-platform-version": options?.["x-platform-version"] ?? undefined, "x-preferred-locales": options?.["x-preferred-locales"] ?? undefined, "x-sdk": options?.["x-sdk"] ?? undefined, "x-sdk-version": options?.["x-sdk-version"] ?? undefined, "x-storefront": options?.["x-storefront"] ?? undefined }),
-    onRequest(["2xx"], {"400":"SdkGetCustomer400","404":"SdkCustomerNotFoundError","500":"SdkGetCustomer500"})
+    onRequest(["2xx"], {"400":"SdkGetPerson400","404":"SdkPersonNotFoundError","500":"SdkGetPerson500"})
   ),
-  "sdkIdentify": (options) => HttpClientRequest.post(`/api/v1/sdk/identify`).pipe(
+  "sdkIdentifyPerson": (options) => HttpClientRequest.post(`/api/v1/sdk/identify`).pipe(
     HttpClientRequest.setHeaders({ "x-distinct-id": options.params?.["x-distinct-id"] ?? undefined, "x-publishable-key": options.params?.["x-publishable-key"] ?? undefined, "x-client-bundle-id": options.params?.["x-client-bundle-id"] ?? undefined, "x-client-locale": options.params?.["x-client-locale"] ?? undefined, "x-client-version": options.params?.["x-client-version"] ?? undefined, "x-is-backgrounded": options.params?.["x-is-backgrounded"] ?? undefined, "x-is-debug-build": options.params?.["x-is-debug-build"] ?? undefined, "x-nonce": options.params?.["x-nonce"] ?? undefined, "x-observer-mode": options.params?.["x-observer-mode"] ?? undefined, "x-platform": options.params?.["x-platform"] ?? undefined, "x-platform-brand": options.params?.["x-platform-brand"] ?? undefined, "x-platform-device": options.params?.["x-platform-device"] ?? undefined, "x-platform-flavor": options.params?.["x-platform-flavor"] ?? undefined, "x-platform-flavor-version": options.params?.["x-platform-flavor-version"] ?? undefined, "x-platform-version": options.params?.["x-platform-version"] ?? undefined, "x-preferred-locales": options.params?.["x-preferred-locales"] ?? undefined, "x-sdk": options.params?.["x-sdk"] ?? undefined, "x-sdk-version": options.params?.["x-sdk-version"] ?? undefined, "x-storefront": options.params?.["x-storefront"] ?? undefined }),
     HttpClientRequest.bodyJsonUnsafe(options.payload),
-    onRequest(["2xx"], {"400":"SdkIdentify400","409":"SdkCustomerAlreadyIdentifiedError","500":"SdkIdentify500"})
+    onRequest(["2xx"], {"400":"SdkIdentifyPerson400","409":"SdkPersonAlreadyIdentifiedError","500":"SdkIdentifyPerson500"})
   ),
-  "sdkSyncCustomerAttributes": (options) => HttpClientRequest.post(`/api/v1/sdk/sync-customer-attributes`).pipe(
+  "sdkSyncPersonAttributes": (options) => HttpClientRequest.post(`/api/v1/sdk/person/traits`).pipe(
     HttpClientRequest.setHeaders({ "x-distinct-id": options.params?.["x-distinct-id"] ?? undefined, "x-publishable-key": options.params?.["x-publishable-key"] ?? undefined, "x-client-bundle-id": options.params?.["x-client-bundle-id"] ?? undefined, "x-client-locale": options.params?.["x-client-locale"] ?? undefined, "x-client-version": options.params?.["x-client-version"] ?? undefined, "x-is-backgrounded": options.params?.["x-is-backgrounded"] ?? undefined, "x-is-debug-build": options.params?.["x-is-debug-build"] ?? undefined, "x-nonce": options.params?.["x-nonce"] ?? undefined, "x-observer-mode": options.params?.["x-observer-mode"] ?? undefined, "x-platform": options.params?.["x-platform"] ?? undefined, "x-platform-brand": options.params?.["x-platform-brand"] ?? undefined, "x-platform-device": options.params?.["x-platform-device"] ?? undefined, "x-platform-flavor": options.params?.["x-platform-flavor"] ?? undefined, "x-platform-flavor-version": options.params?.["x-platform-flavor-version"] ?? undefined, "x-platform-version": options.params?.["x-platform-version"] ?? undefined, "x-preferred-locales": options.params?.["x-preferred-locales"] ?? undefined, "x-sdk": options.params?.["x-sdk"] ?? undefined, "x-sdk-version": options.params?.["x-sdk-version"] ?? undefined, "x-storefront": options.params?.["x-storefront"] ?? undefined }),
     HttpClientRequest.bodyJsonUnsafe(options.payload),
-    onRequest(["2xx"], {"400":"SdkSyncCustomerAttributes400","500":"SdkSyncCustomerAttributes500"})
+    onRequest(["2xx"], {"400":"SdkSyncPersonAttributes400","500":"SdkSyncPersonAttributes500"})
   ),
   "sdkSyncTransaction": (options) => HttpClientRequest.post(`/api/v1/sdk/sync-transaction`).pipe(
     HttpClientRequest.setHeaders({ "x-distinct-id": options.params?.["x-distinct-id"] ?? undefined, "x-publishable-key": options.params?.["x-publishable-key"] ?? undefined, "x-client-bundle-id": options.params?.["x-client-bundle-id"] ?? undefined, "x-client-locale": options.params?.["x-client-locale"] ?? undefined, "x-client-version": options.params?.["x-client-version"] ?? undefined, "x-is-backgrounded": options.params?.["x-is-backgrounded"] ?? undefined, "x-is-debug-build": options.params?.["x-is-debug-build"] ?? undefined, "x-nonce": options.params?.["x-nonce"] ?? undefined, "x-observer-mode": options.params?.["x-observer-mode"] ?? undefined, "x-platform": options.params?.["x-platform"] ?? undefined, "x-platform-brand": options.params?.["x-platform-brand"] ?? undefined, "x-platform-device": options.params?.["x-platform-device"] ?? undefined, "x-platform-flavor": options.params?.["x-platform-flavor"] ?? undefined, "x-platform-flavor-version": options.params?.["x-platform-flavor-version"] ?? undefined, "x-platform-version": options.params?.["x-platform-version"] ?? undefined, "x-preferred-locales": options.params?.["x-preferred-locales"] ?? undefined, "x-sdk": options.params?.["x-sdk"] ?? undefined, "x-sdk-version": options.params?.["x-sdk-version"] ?? undefined, "x-storefront": options.params?.["x-storefront"] ?? undefined }),
@@ -1165,10 +1165,10 @@ export interface VoidhashCoreClient {
   readonly "apiKeysGetApiKeyById": (apiKeyId: string) => Effect.Effect<ApiKey, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ApiKeyNotFoundError", ApiKeyNotFoundError> | VoidhashCoreClientError<"ApiKeysGetApiKeyById500", ApiKeysGetApiKeyById500>>
   readonly "apiKeysDeleteApiKey": (apiKeyId: string) => Effect.Effect<void, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ApiKeyNotFoundError", ApiKeyNotFoundError> | VoidhashCoreClientError<"ApiKeysDeleteApiKey500", ApiKeysDeleteApiKey500>>
   readonly "apiKeysRotateSecretKey": (apiKeyId: string) => Effect.Effect<ApiKeyWithRawKey, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ApiKeyNotFoundError", ApiKeyNotFoundError> | VoidhashCoreClientError<"ApiKeysRotateSecretKey500", ApiKeysRotateSecretKey500>>
-  readonly "customersListCustomers": () => Effect.Effect<CustomersListCustomers200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"CustomersListCustomers500", CustomersListCustomers500>>
-  readonly "customersCreateCustomer": (options: CreateCustomerBody) => Effect.Effect<Customer, HttpClientError.HttpClientError | VoidhashCoreClientError<"CustomersCreateCustomer400", CustomersCreateCustomer400> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"CustomersCreateCustomer500", CustomersCreateCustomer500>>
-  readonly "customersGetCustomerById": (customerId: string) => Effect.Effect<Customer, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"CustomerNotFoundError", CustomerNotFoundError> | VoidhashCoreClientError<"CustomersGetCustomerById500", CustomersGetCustomerById500>>
-  readonly "customersByDistinctId": (distinctId: string) => Effect.Effect<Customer, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"CustomerNotFoundError", CustomerNotFoundError> | VoidhashCoreClientError<"CustomersByDistinctId500", CustomersByDistinctId500>>
+  readonly "personsListPersons": () => Effect.Effect<PersonsListPersons200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PersonsListPersons500", PersonsListPersons500>>
+  readonly "personsCreatePerson": (options: CreatePersonBody) => Effect.Effect<Person, HttpClientError.HttpClientError | VoidhashCoreClientError<"PersonsCreatePerson400", PersonsCreatePerson400> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PersonsCreatePerson500", PersonsCreatePerson500>>
+  readonly "personsGetPersonById": (personId: string) => Effect.Effect<Person, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PersonNotFoundError", PersonNotFoundError> | VoidhashCoreClientError<"PersonsGetPersonById500", PersonsGetPersonById500>>
+  readonly "personsGetPersonByDistinctId": (distinctId: string) => Effect.Effect<Person, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PersonNotFoundError", PersonNotFoundError> | VoidhashCoreClientError<"PersonsGetPersonByDistinctId500", PersonsGetPersonByDistinctId500>>
   readonly "organizationsCreateOrganization": (options: CreateOrganizationBody) => Effect.Effect<Organization, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"OrganizationsCreateOrganization500", OrganizationsCreateOrganization500>>
   readonly "perksListPerks": () => Effect.Effect<PerksListPerks200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PerksListPerks500", PerksListPerks500>>
   readonly "paywallLocationsListPaywallLocations": () => Effect.Effect<PaywallLocationsListPaywallLocations200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PaywallLocationsListPaywallLocations500", PaywallLocationsListPaywallLocations500>>
@@ -1176,9 +1176,9 @@ export interface VoidhashCoreClient {
   readonly "projectsListProjects": (organizationId: string) => Effect.Effect<ProjectsListProjects200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ProjectsListProjects500", ProjectsListProjects500>>
   readonly "productsListProducts": () => Effect.Effect<ProductsListProducts200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ProductsListProducts500", ProductsListProducts500>>
   readonly "productPerksListProductPerksByProductId": (productId: string) => Effect.Effect<ProductPerksListProductPerksByProductId200, HttpClientError.HttpClientError | VoidhashCoreClientError<"ProductPerksListProductPerksByProductId400", ProductPerksListProductPerksByProductId400> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ProductPerksListProductPerksByProductId500", ProductPerksListProductPerksByProductId500>>
-  readonly "sdkGetCustomer": (options: SdkGetCustomerParams) => Effect.Effect<SdkCustomer, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkGetCustomer400", SdkGetCustomer400> | VoidhashCoreClientError<"SdkCustomerNotFoundError", SdkCustomerNotFoundError> | VoidhashCoreClientError<"SdkGetCustomer500", SdkGetCustomer500>>
-  readonly "sdkIdentify": (options: { readonly params: SdkIdentifyParams; readonly payload: SdkIdentifyBody }) => Effect.Effect<SdkCustomer, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkIdentify400", SdkIdentify400> | VoidhashCoreClientError<"SdkCustomerAlreadyIdentifiedError", SdkCustomerAlreadyIdentifiedError> | VoidhashCoreClientError<"SdkIdentify500", SdkIdentify500>>
-  readonly "sdkSyncCustomerAttributes": (options: { readonly params: SdkSyncCustomerAttributesParams; readonly payload: SdkSyncCustomerAttributesBody }) => Effect.Effect<SdkCustomer, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkSyncCustomerAttributes400", SdkSyncCustomerAttributes400> | VoidhashCoreClientError<"SdkSyncCustomerAttributes500", SdkSyncCustomerAttributes500>>
+  readonly "sdkGetPerson": (options: SdkGetPersonParams) => Effect.Effect<SdkPerson, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkGetPerson400", SdkGetPerson400> | VoidhashCoreClientError<"SdkPersonNotFoundError", SdkPersonNotFoundError> | VoidhashCoreClientError<"SdkGetPerson500", SdkGetPerson500>>
+  readonly "sdkIdentifyPerson": (options: { readonly params: SdkIdentifyPersonParams; readonly payload: SdkIdentifyBody }) => Effect.Effect<SdkPerson, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkIdentifyPerson400", SdkIdentifyPerson400> | VoidhashCoreClientError<"SdkPersonAlreadyIdentifiedError", SdkPersonAlreadyIdentifiedError> | VoidhashCoreClientError<"SdkIdentifyPerson500", SdkIdentifyPerson500>>
+  readonly "sdkSyncPersonAttributes": (options: { readonly params: SdkSyncPersonAttributesParams; readonly payload: SdkSyncPersonAttributesBody }) => Effect.Effect<SdkPerson, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkSyncPersonAttributes400", SdkSyncPersonAttributes400> | VoidhashCoreClientError<"SdkSyncPersonAttributes500", SdkSyncPersonAttributes500>>
   readonly "sdkSyncTransaction": (options: { readonly params: SdkSyncTransactionParams; readonly payload: SdkSyncTransactionRequest }) => Effect.Effect<SdkSyncTransactionResponse, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkSyncTransaction400", SdkSyncTransaction400> | VoidhashCoreClientError<"SdkSyncTransaction500", SdkSyncTransaction500>>
   readonly "sdkEvaluateFeatureFlags": (options: { readonly params: SdkEvaluateFeatureFlagsParams; readonly payload: EvaluateFeatureFlagsBody }) => Effect.Effect<SdkFeatureFlagsResponse, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"SdkEvaluateFeatureFlags500", SdkEvaluateFeatureFlags500>>
   readonly "sdkResolvePaywall": (options: { readonly params: SdkResolvePaywallParams; readonly payload: SdkResolvePaywallBody }) => Effect.Effect<SdkResolvePaywall200, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkResolvePaywall400", SdkResolvePaywall400> | VoidhashCoreClientError<"SdkResolvePaywall500", SdkResolvePaywall500>>

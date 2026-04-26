@@ -9,6 +9,7 @@
     "./event-capture": "./src/event-capture/index.ts"
   },
   "scripts": {
+    "openapi:generate": "node ../../scripts/generate-openapi-clients.mjs",
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {},

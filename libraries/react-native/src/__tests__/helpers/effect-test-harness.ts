@@ -1,4 +1,4 @@
-import type { SdkCustomer } from "@voidhash/generated-clients";
+import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
 import { Effect, Layer, ManagedRuntime, pipe } from "effect";
 
 import { CacheAdapter } from "../../core/caching/cache-adapter";
@@ -47,7 +47,7 @@ export interface ApiClientDoubleOptions {
 export function createSdkCustomer(distinctId: string) {
   return {
     distinctId,
-    customerId: `customer-${distinctId}`,
+    personId: `person-${distinctId}`,
     email: null,
     name: null,
   } as SdkCustomer;

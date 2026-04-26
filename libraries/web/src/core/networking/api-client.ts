@@ -4,10 +4,12 @@ import {
   type EvaluateFeatureFlagsBody,
   type SdkEvaluateFeatureFlagsParams,
   type SdkFeatureFlagsResponse,
-  type SdkGetCustomerParams,
+  type SdkGetPersonParams,
+  type SdkIdentifyPersonParams,
   type SdkIdentifyBody,
   type SdkResolvePaywallBody,
-  type SdkSyncCustomerAttributesBody,
+  type SdkSyncPersonAttributesBody,
+  type SdkSyncPersonAttributesParams,
 } from "@voidhash/generated-clients";
 import { Effect, Layer, ServiceMap } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
@@ -70,13 +72,13 @@ const bindWebSdkClient = (client: VoidhashCoreClient) => ({
         normalizeFeatureFlagsResponse
       ),
     getCustomer: (request: { headers: WebSdkHeaders }) =>
-      client.sdkGetCustomer(request.headers as SdkGetCustomerParams),
+      client.sdkGetPerson(request.headers as SdkGetPersonParams),
     identify: (request: {
       headers: WebSdkHeaders;
       payload: SdkIdentifyBody;
     }) =>
-      client.sdkIdentify({
-        params: request.headers as Parameters<typeof client.sdkIdentify>[0]["params"],
+      client.sdkIdentifyPerson({
+        params: request.headers as SdkIdentifyPersonParams,
         payload: request.payload,
       }),
     resolvePaywall: (request: {
@@ -89,10 +91,10 @@ const bindWebSdkClient = (client: VoidhashCoreClient) => ({
       }),
     syncCustomerAttributes: (request: {
       headers: WebSdkHeaders;
-      payload: SdkSyncCustomerAttributesBody;
+      payload: SdkSyncPersonAttributesBody;
     }) =>
-      client.sdkSyncCustomerAttributes({
-        params: request.headers as Parameters<typeof client.sdkSyncCustomerAttributes>[0]["params"],
+      client.sdkSyncPersonAttributes({
+        params: request.headers as SdkSyncPersonAttributesParams,
         payload: request.payload,
       }),
   },

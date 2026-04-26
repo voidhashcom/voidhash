@@ -1,4 +1,4 @@
-import type { SdkCustomer } from "@voidhash/generated-clients";
+import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
 import { ServiceMap } from "effect";
 
 export interface CustomerFetchedEvent {
