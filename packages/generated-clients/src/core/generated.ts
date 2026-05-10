@@ -310,11 +310,74 @@ export interface SdkGetPersonParams {
   readonly "x-storefront"?: string | null | undefined
 }
 
+export type SdkEntitlementGrantSourceEnum = "manual"
+
+export type SdkEntitlementGrantStatusEnum = "expired"
+
+export interface SdkEntitlementGrant {
+  readonly "expiresAt": string | null;
+  readonly "perkId": string;
+  readonly "source": SdkEntitlementGrantSourceEnum | SdkEntitlementGrantSourceEnum | SdkEntitlementGrantSourceEnum;
+  readonly "sourceId": string | null;
+  readonly "sourcePersonId": string;
+  readonly "status": SdkEntitlementGrantStatusEnum | SdkEntitlementGrantStatusEnum
+}
+
+export type SdkPurchaseHistoryEntryTypeEnum = "subscription"
+
+export interface SdkPurchaseHistoryEntry {
+  readonly "createdAt": string;
+  readonly "productId": string | null;
+  readonly "providerKey": string;
+  readonly "purchaseId": string;
+  readonly "sourcePersonId": string;
+  readonly "type": SdkPurchaseHistoryEntryTypeEnum | SdkPurchaseHistoryEntryTypeEnum
+}
+
+export type SdkPersonSnapshotContextModeEnum = "temporary_pending_transfer"
+
+export type SdkCurrentSubscriptionStatusEnum = "trialing"
+
+export interface SdkCurrentSubscription {
+  readonly "expiresAt": string | null;
+  readonly "productId": string | null;
+  readonly "status": SdkCurrentSubscriptionStatusEnum | SdkCurrentSubscriptionStatusEnum | SdkCurrentSubscriptionStatusEnum | SdkCurrentSubscriptionStatusEnum | SdkCurrentSubscriptionStatusEnum;
+  readonly "subscriptionId": string | null
+}
+
+export type SdkSubscriptionHistoryEntryStatusEnum = "past_due"
+
+export interface SdkSubscriptionHistoryEntry {
+  readonly "canceledAt": string | null;
+  readonly "expiresAt": string | null;
+  readonly "isTrial": boolean;
+  readonly "productId": string | null;
+  readonly "sourcePersonId": string;
+  readonly "startsAt": string;
+  readonly "status": SdkSubscriptionHistoryEntryStatusEnum | SdkSubscriptionHistoryEntryStatusEnum | SdkSubscriptionHistoryEntryStatusEnum | SdkSubscriptionHistoryEntryStatusEnum | SdkSubscriptionHistoryEntryStatusEnum;
+  readonly "subscriptionId": string
+}
+
 export interface SdkPerson {
-  readonly "personId": string;
   readonly "distinctId": string;
   readonly "email": string | null;
-  readonly "name": string | null
+  readonly "entitlements": {
+  readonly "grants": ReadonlyArray<SdkEntitlementGrant>
+};
+  readonly "name": string | null;
+  readonly "personId": string;
+  readonly "purchases": {
+  readonly "history": ReadonlyArray<SdkPurchaseHistoryEntry>
+};
+  readonly "snapshotContext": {
+  readonly "includedPersonIds": ReadonlyArray<string>;
+  readonly "migrationJobId": string | null;
+  readonly "mode": SdkPersonSnapshotContextModeEnum | SdkPersonSnapshotContextModeEnum
+};
+  readonly "subscriptions": {
+  readonly "current": SdkCurrentSubscription | null;
+  readonly "history": ReadonlyArray<SdkSubscriptionHistoryEntry>
+}
 }
 
 export type SdkValidationErrorTag = "SdkValidationError"
