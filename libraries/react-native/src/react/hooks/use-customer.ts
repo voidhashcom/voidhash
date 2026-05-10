@@ -2,13 +2,12 @@ import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { VoidhashClient } from "../../client";
-import type { VoidhashSchema } from "../../core/schema";
 import type { VoidhashContext } from "../components/provider";
 import useAsyncFunction from "./use-async-function";
 
-export function currentCustomerHookFactory<TSchema extends VoidhashSchema>(
-  client: VoidhashClient<TSchema>,
-  vhContext: React.Context<VoidhashContext<TSchema> | null>
+export function currentCustomerHookFactory(
+  client: VoidhashClient,
+  vhContext: React.Context<VoidhashContext | null>
 ) {
   function useCurrentCustomer() {
     const voidhashContext = React.useContext(vhContext);

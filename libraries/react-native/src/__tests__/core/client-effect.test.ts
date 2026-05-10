@@ -46,7 +46,7 @@ describe("VoidhashEffectClient", () => {
       const initializedClient = await harness.runtime.runPromise(
         VoidhashEffectClient.makeUnitializedClient().init({
           distinctId: "user-after-init",
-          schema,
+          internalSchema: schema,
         })
       );
 
@@ -81,7 +81,7 @@ describe("VoidhashEffectClient", () => {
     try {
       await harness.runtime.runPromise(
         VoidhashEffectClient.makeUnitializedClient().init({
-          schema,
+          internalSchema: schema,
         })
       );
 
@@ -128,8 +128,8 @@ describe("VoidhashEffectClient", () => {
       const second = await harness.runtime.runPromise(initializedClient.getProducts());
 
       expect(paymentDouble.state.getProductsCalls).toBe(1);
-      expect(first.monthlySub?.slug).toBe("monthly_sub");
-      expect(first.yearlySub).toBeNull();
+      expect(first.monthly_sub?.slug).toBe("monthly_sub");
+      expect(first.yearly_sub).toBeNull();
       expect(second).toEqual(first);
     } finally {
       await harness.runtime.dispose();
@@ -237,7 +237,7 @@ describe("VoidhashEffectClient", () => {
 
     try {
       await harness.runtime.runPromise(
-        initializedClient.purchase<typeof schema>(monthlyProduct, {
+        initializedClient.purchase(monthlyProduct, {
           method: "native",
         })
       );

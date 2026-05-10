@@ -1,49 +1,45 @@
-import { schemaConfiguration, unlockablePerk } from "../../core/schema";
-import type { VoidhashSchema } from "../../core/schema/types";
+import type { RuntimeSchema } from "../../core/schema/runtime";
 
-export function createTestSchema() {
-  const schemaConfig = schemaConfiguration({
+/**
+ * Build a deterministic in-memory schema for tests. Mirrors the shape the
+ * SDK fetches from the server at init time so tests don't need a live
+ * backend to exercise product / purchase flows.
+ */
+export function createTestSchema(): RuntimeSchema {
+  return {
+    version: "sha256:test",
     perks: {
-      allAccess: unlockablePerk("all-access", { name: "All Access" }),
+      "all-access": { slug: "all-access", name: "All Access" },
     },
-    providers: {
-      appleAppStore: true,
-      googlePlay: true,
+    locations: {},
+    products: {
+      monthly_sub: {
+        slug: "monthly_sub",
+        type: "subscription",
+        properties: { name: "Monthly" },
+        configuration: {
+          perks: { "all-access": true },
+          providers: {
+            appleAppStore: { productId: "com.voidhash.monthly.ios" },
+            googlePlay: { productId: "com.voidhash.monthly.android" },
+          },
+        },
+      },
+      yearly_sub: {
+        slug: "yearly_sub",
+        type: "subscription",
+        properties: { name: "Yearly" },
+        configuration: {
+          perks: { "all-access": true },
+          providers: {
+            appleAppStore: { productId: "com.voidhash.yearly.ios" },
+            googlePlay: {
+              productId: "com.voidhash.yearly.android",
+              basePlanId: "yearly-base",
+            },
+          },
+        },
+      },
     },
-  });
-
-  const schema = {
-    monthlySub: schemaConfig.subscription("monthly_sub", {
-      name: "Monthly",
-      perks: {
-        allAccess: true,
-      },
-      providers: {
-        appleAppStore: {
-          productId: "com.voidhash.monthly.ios",
-        },
-        googlePlay: {
-          productId: "com.voidhash.monthly.android",
-        },
-      },
-    }),
-    schemaConfig,
-    yearlySub: schemaConfig.subscription("yearly_sub", {
-      name: "Yearly",
-      perks: {
-        allAccess: true,
-      },
-      providers: {
-        appleAppStore: {
-          productId: "com.voidhash.yearly.ios",
-        },
-        googlePlay: {
-          basePlanId: "yearly-base",
-          productId: "com.voidhash.yearly.android",
-        },
-      },
-    }),
-  } satisfies VoidhashSchema;
-
-  return schema;
+  };
 }

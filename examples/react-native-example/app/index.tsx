@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fakeAuthService, useCurrentUser } from "utils/fake-auth-service";
-import { voidhash } from "utils/voidhash/local.client";
+import { voidhash } from "utils/voidhash/client";
 
 import { Logo } from "../components/logo";
 

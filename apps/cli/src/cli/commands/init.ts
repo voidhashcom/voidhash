@@ -1,9 +1,10 @@
 import { Command, Prompt } from "effect/unstable/cli";
 import { Console, Effect, Path } from "effect";
 
-import { createInitialNormalizedSchema } from "../../domain/schema/normalized-schema";
+import { DEFAULT_TYPES_OUTPUT } from "../../domain/schema/voidhash-config";
 import { Auth } from "../../domain/services/auth";
 import { Codegen } from "../../domain/services/codegen";
+import { SchemaService } from "../../domain/services/schema";
 import { SourceCode } from "../../domain/services/source-code";
 import { ApiClient } from "../../utils/api-client";
 import { userError } from "../../utils/error-formatter";
@@ -12,159 +13,157 @@ import { selectOrganization } from "../../utils/organizations/select-organizatio
 import { selectProject } from "../../utils/projects/select-project";
 import { debugOption } from "../shared-options";
 
+/**
+ * `voidhash init`
+ *
+ * One-time setup: authenticate, select team/project, write `voidhash.config.ts`
+ * at the project root, and produce the initial `voidhash.gen.d.ts` so type
+ * autocomplete works immediately.
+ *
+ * Schema files are no longer generated — the dashboard is the source of truth
+ * after the server-first redesign. Likewise the client file is the user's to
+ * write (it's two lines now: import + `createVoidhashClient`).
+ */
 export const initCommand = Command.make("init", { debug: debugOption }, () =>
-	Effect.gen(function* initCommand() {
-		const auth = yield* Auth;
-		const apiClient = yield* ApiClient;
-		const sourceCode = yield* SourceCode;
-		const codegen = yield* Codegen;
-		const path = yield* Path.Path;
+  Effect.gen(function* initCommand() {
+    const auth = yield* Auth;
+    const apiClient = yield* ApiClient;
+    const sourceCode = yield* SourceCode;
+    const codegen = yield* Codegen;
+    const schemaService = yield* SchemaService;
+    const path = yield* Path.Path;
 
-		const voidhashConfig = yield* sourceCode
-			.loadVoidhashConfig()
-			.pipe(
-				Effect.catchTag("VoidhashConfigNotFoundError", () =>
-					Effect.succeed(null),
-				),
-			);
+    const voidhashConfig = yield* sourceCode.loadVoidhashConfig().pipe(
+      Effect.catchTag("VoidhashConfigNotFoundError", () =>
+        Effect.succeed(null)
+      )
+    );
 
-		if (voidhashConfig) {
-			const shouldContinue = yield* Prompt.run(
-				Prompt.confirm({
-					message:
-						"Voidhash was already initialized in this project. This will overwrite the existing configuration. Do you want to continue?",
-				}),
-			);
-			if (!shouldContinue) {
-				return yield* Console.log("Initialization cancelled.");
-			}
-			yield* sourceCode.deleteVoidhashConfig();
-		}
+    if (voidhashConfig) {
+      const shouldContinue = yield* Prompt.run(
+        Prompt.confirm({
+          message:
+            "Voidhash was already initialized in this project. This will overwrite the existing configuration. Do you want to continue?",
+        })
+      );
+      if (!shouldContinue) {
+        return yield* Console.log("Initialization cancelled.");
+      }
+      yield* sourceCode.deleteVoidhashConfig();
+    }
 
-		// Sign in
-		const session = yield* auth.getSignedInSession
-			.pipe(
-				Effect.catchTag("NoSignedInUserError", () =>
-					Effect.gen(function* session() {
-						const shouldContinue = yield* Prompt.run(
-							Prompt.confirm({
-								message:
-									"You are not logged in. In the next step, we will open a browser window to sign you in. Do you want to continue?",
-							}),
-						);
-						if (!shouldContinue) {
-							return yield* Effect.fail(userError("Login cancelled."));
-						}
-						return yield* auth.login.pipe(
-							Effect.andThen(auth.getSignedInSession),
-						);
-					}),
-				),
-			)
-			.pipe(
-				Effect.catchTags({
-					FailedToGetSessionError: (e) =>
-						Effect.fail(
-							userError("Failed to get user session. Please try again."),
-						).pipe(Effect.tapError(() => Effect.logDebug(e))),
-					NoSignedInUserError: () =>
-						Effect.fail(
-							userError("We were unable to sign you in. Please try it again."),
-						),
-					// TODO: handle other errors
-				}),
-			);
+    // Sign in
+    const session = yield* auth.getSignedInSession
+      .pipe(
+        Effect.catchTag("NoSignedInUserError", () =>
+          Effect.gen(function* session() {
+            const shouldContinue = yield* Prompt.run(
+              Prompt.confirm({
+                message:
+                  "You are not logged in. In the next step, we will open a browser window to sign you in. Do you want to continue?",
+              })
+            );
+            if (!shouldContinue) {
+              return yield* Effect.fail(userError("Login cancelled."));
+            }
+            return yield* auth.login.pipe(
+              Effect.andThen(auth.getSignedInSession)
+            );
+          })
+        )
+      )
+      .pipe(
+        Effect.catchTags({
+          FailedToGetSessionError: (e) =>
+            Effect.fail(
+              userError("Failed to get user session. Please try again.")
+            ).pipe(Effect.tapError(() => Effect.logDebug(e))),
+          NoSignedInUserError: () =>
+            Effect.fail(
+              userError("We were unable to sign you in. Please try it again.")
+            ),
+        })
+      );
 
-		// Select team
-		const organization = yield* selectOrganization(session.organizations);
+    // Select team
+    const organization = yield* selectOrganization(session.organizations);
 
-		// Select project
-		const project = yield* selectProject(
-			organization.id,
-			session.projects.filter((p) => p.organizationId === organization.id),
-		);
-		const apiKeys = (yield* apiClient.apiKeysListApiKeys()) as readonly {
-			id: string;
-			isPublic: boolean;
-			projectId: string;
-			rawKey?: string;
-		}[];
-		const publishableApiKey = apiKeys.find(
-			(apiKey) => apiKey.isPublic && apiKey.projectId === project.id,
-		);
-		const publishableKey = publishableApiKey?.rawKey;
-		if (!publishableKey) {
-			return yield* Effect.fail(
-				userError(
-					"Could not retrieve raw publishable key from listApiKeys for the selected project.",
-				),
-			);
-		}
-		if (!publishableKey.startsWith("vh_pk_")) {
-			return yield* Effect.fail(
-				userError(
-					"Received an invalid publishable key from listApiKeys for the selected project.",
-				),
-			);
-		}
+    // Select project
+    const project = yield* selectProject(
+      organization.id,
+      session.projects.filter((p) => p.organizationId === organization.id)
+    );
 
-		// Select folder path
+    // Sanity-check that a publishable key exists for this project; we don't
+    // need to write it anywhere (the user puts it in their app code), but a
+    // missing key is a configuration problem we should surface now.
+    const apiKeys = (yield* apiClient.apiKeysListApiKeys()) as readonly {
+      id: string;
+      isPublic: boolean;
+      projectId: string;
+      rawKey?: string;
+    }[];
+    const publishableApiKey = apiKeys.find(
+      (apiKey) => apiKey.isPublic && apiKey.projectId === project.id
+    );
+    if (!publishableApiKey?.rawKey?.startsWith("vh_pk_")) {
+      return yield* Effect.fail(
+        userError(
+          "Could not retrieve a valid publishable key for the selected project."
+        )
+      );
+    }
+    const publishableKey = publishableApiKey.rawKey;
 
-		const srcFolderPath = yield* sourceCode.retrieveSrcDir();
-		const hasSrcDir = srcFolderPath.endsWith("src");
+    // Decide where the generated `.d.ts` lives. We default to the project
+    // root since module augmentation works from anywhere in `tsconfig.include`.
+    const language = yield* sourceCode.detectSrcLanguage();
+    const configFileName =
+      language === "ts" ? "voidhash.config.ts" : "voidhash.config.js";
 
-		const voidhashFilesFolderPath = yield* Prompt.run(
-			Prompt.text({
-				default: hasSrcDir ? "./src/utils/voidhash" : "./utils/voidhash",
-				message:
-					"Select the folder where you want to create the Voidhash schema and client",
-			}),
-		);
+    const configFilePath = path.resolve(configFileName);
+    const typesOutputPath = path.resolve(DEFAULT_TYPES_OUTPUT);
 
-		// File names
-		const language = yield* sourceCode.detectSrcLanguage();
-		const schemaFileName = language === "ts" ? "schema.ts" : "schema.js";
-		const clientFileName = language === "ts" ? "client.ts" : "client.js";
-		const configFileName =
-			language === "ts" ? "voidhash.config.ts" : "voidhash.config.js";
+    yield* assertFileCanBeCreated(configFileName, configFilePath);
+    yield* assertFileCanBeCreated(DEFAULT_TYPES_OUTPUT, typesOutputPath);
 
-		// File paths
-		const schemaFilePath = path.resolve(
-			voidhashFilesFolderPath,
-			schemaFileName,
-		);
-		const clientFilePath = path.resolve(
-			voidhashFilesFolderPath,
-			clientFileName,
-		);
-		const configFilePath = path.resolve(configFileName);
+    // Write the config. `typesOutput` is omitted from the generated file so
+    // it picks up the default (`voidhash.gen.d.ts`) — keeps the config terse.
+    yield* codegen.generateVoidhashConfigFile(configFilePath, {
+      project: project.slug,
+      team: organization.slug,
+    });
 
-		// Assert files can be created
-		yield* assertFileCanBeCreated(schemaFileName, schemaFilePath);
-		yield* assertFileCanBeCreated(clientFileName, clientFilePath);
-		yield* assertFileCanBeCreated(configFileName, configFilePath);
+    // Produce the initial declaration file so the user has working
+    // autocomplete on the first run. Failures here are non-fatal — the user
+    // can re-run `voidhash types generate` later.
+    const generatedVersion = yield* schemaService
+      .fetchRemoteSchema()
+      .pipe(
+        Effect.flatMap((schema) =>
+          codegen.generateTypesDeclarationFile(typesOutputPath, schema)
+        ),
+        Effect.catch((e) =>
+          Effect.logWarning(
+            `Failed to generate initial types: ${String(e)}. You can run 'voidhash types generate' later.`
+          ).pipe(Effect.as(null))
+        )
+      );
 
-		// Generate files
-		yield* codegen.generateVoidhashConfigFile(configFilePath, {
-			project: project.slug,
-			schema: path.relative(path.resolve(), schemaFilePath),
-			team: organization.slug,
-		});
-
-		// Generate initial schema file
-		const initialSchema = createInitialNormalizedSchema();
-		yield* codegen.generateSchemaFile(schemaFilePath, initialSchema);
-		yield* codegen.generateClientFile(clientFilePath, publishableKey);
-
-		yield* Console.log("\nVoidhash initialized successfully!");
-		yield* Console.log(`  Config: ${configFilePath}`);
-		yield* Console.log(`  Schema: ${schemaFilePath}`);
-		yield* Console.log(`  Client: ${clientFilePath}`);
-		yield* Console.log(`\nNext steps:`);
-		yield* Console.log(`  1. Add your products and perks to the schema file.`);
-		yield* Console.log(`  2. Use the generated client in your app code.`);
-		yield* Console.log(
-			`  3. Run \`voidhash-cli schema push\` to push your schema to the server.`,
-		);
-	}),
+    yield* Console.log("\nVoidhash initialized successfully!");
+    yield* Console.log(`  Config:  ${configFilePath}`);
+    if (generatedVersion !== null) {
+      yield* Console.log(`  Types:   ${typesOutputPath}`);
+    }
+    yield* Console.log(`\nNext steps:`);
+    yield* Console.log(
+      `  1. Add the publishable key (${publishableKey}) to your client code.`
+    );
+    yield* Console.log(
+      `  2. Create your products and paywall locations in the Voidhash dashboard.`
+    );
+    yield* Console.log(
+      `  3. Re-run 'voidhash types generate' whenever the dashboard schema changes.`
+    );
+  })
 ).pipe(Command.withDescription("Initialize a new Voidhash project."));

@@ -3,7 +3,7 @@ import { Button } from "components/button";
 import { useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { voidhash } from "utils/voidhash/local.client";
+import { voidhash } from "utils/voidhash/client";
 
 const PAYWALL_LOCATION_SLUG = "example-paywall";
 

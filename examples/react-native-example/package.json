@@ -9,6 +9,8 @@
     "eas:build-dev:local": "eas build --local -e development",
     "start": "expo start --dev-client",
     "prebuild": "expo prebuild",
+    "voidhash:types": "voidhash types generate",
+    "voidhash:types-check": "voidhash types check",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "format": "biome format .",

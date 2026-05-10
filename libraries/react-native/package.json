@@ -52,7 +52,9 @@
 	"exports": {
 		"./app.plugin.js": "./app.plugin.js",
 		"./package.json": "./package.json",
-		"./schema": "./src/core/schema/index.ts",
+		"./metro": {
+			"node": "./src/metro/index.ts"
+		},
 		".": "./src/index.ts"
 	},
 	"scripts": {
@@ -97,7 +99,13 @@
 		"expo-linking": "*",
 		"react": "*",
 		"react-native": "*",
-		"react-native-nitro-modules": "0.26.4"
+		"react-native-nitro-modules": "0.26.4",
+		"voidhash-cli": "workspace:*"
+	},
+	"peerDependenciesMeta": {
+		"voidhash-cli": {
+			"optional": true
+		}
 	},
 	"jest": {
 		"moduleNameMapper": {

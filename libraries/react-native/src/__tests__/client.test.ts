@@ -49,14 +49,15 @@ function createClient(readOnly = false, unstableSwallowErrors = false) {
   return new VoidhashClient(
     null,
     "voidhash",
-    createTestSchema(),
     "https://api.voidhash.test",
     undefined,
     "pk_test",
     readOnly,
     unstableSwallowErrors,
     new EventBus(),
-    "ios"
+    "ios",
+    false,
+    createTestSchema()
   );
 }
 

@@ -6,7 +6,7 @@ import { Cause, Effect } from "effect";
 
 import { SDK_VERSION } from "./core/constants";
 import { CacheManager } from "./core/caching/cache-manager";
-import type { Product } from "./core/entities/product";
+import type { Product, SubscriptionProduct } from "./core/entities/product";
 import type { Transaction } from "./core/entities/transaction";
 import { EventBusProvider } from "./core/event-bus";
 import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
@@ -14,19 +14,25 @@ import { CustomerInfoManager } from "./core/identity/customer-info-manager";
 import { IdentityManager } from "./core/identity/identity-manager";
 import { ApiClient } from "./core/networking/api-client";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
-import type {
-  ExtractSchemaProductDefinitions,
-  ExtractSchemaProductKeys,
-  InferGetPaywallLocationInput,
-  InferGetProductResponseFromSchema,
-  VoidhashSchema,
-} from "./core/schema";
-import { extractProductDefinitions } from "./core/schema/utils";
+import type { LocationSlug, ProductSlug } from "./core/schema/registry";
+import {
+  type RuntimeProductDefinition,
+  type RuntimeSchema,
+  createEmptyRuntimeSchema,
+} from "./core/schema/runtime";
 import { SdkConfiguration } from "./core/sdk-configuration";
 import { getCommonSdkHeaders } from "./core/utils/get-common-sdk-headers";
 import { UnsupportedPlatformError } from "./errors";
-import { AnalyticsIngestEvent, AnalyticsSendFailure, QueuedAnalyticsEvent } from "./core/analytics/types";
-import { createQueuedAnalyticsEvent, getAnalyticsStandardizedProperties, mapQueuedAnalyticsEventToIngestEvent } from "./core/analytics/utils";
+import {
+  AnalyticsIngestEvent,
+  AnalyticsSendFailure,
+  QueuedAnalyticsEvent,
+} from "./core/analytics/types";
+import {
+  createQueuedAnalyticsEvent,
+  getAnalyticsStandardizedProperties,
+  mapQueuedAnalyticsEventToIngestEvent,
+} from "./core/analytics/utils";
 import { getNonce } from "./core/utils/crypto";
 
 const PROCESSED_TRANSACTION_TTL_MS = 1000 * 60 * 30;
@@ -35,8 +41,12 @@ const ANALYTICS_FLUSH_INTERVAL_MS = 5000;
 const MAX_ANALYTICS_RETRY_DELAY_MS = 30_000;
 const RETRYABLE_ANALYTICS_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
-
-
+/**
+ * The shape of `useProducts()` etc. — keyed by the registered product slugs.
+ * Values are `null` when the underlying store SDK doesn't know about that
+ * product (e.g. the product isn't configured on this platform).
+ */
+export type ProductsBySlug = Record<ProductSlug, SubscriptionProduct | null>;
 
 interface AppReleaseInfo {
   readonly appBuild: string | null;
@@ -74,15 +84,15 @@ const getReactNativeAppState = (): ReactNativeAppState | null => {
 const toNullableString = (value: unknown): string | null =>
   value !== null && value !== undefined ? String(value) : null;
 
-const toAppReleaseInfo = (value: AppReleaseInfo | undefined | null): AppReleaseInfo | null => {
+const toAppReleaseInfo = (
+  value: AppReleaseInfo | undefined | null
+): AppReleaseInfo | null => {
   if (!value) return null;
   return {
     appBuild: value.appBuild,
     appVersion: value.appVersion,
   };
 };
-
-
 
 const getAnalyticsRetryDelayMs = (attempts: number) =>
   Math.min(1000 * 2 ** Math.max(attempts - 1, 0), MAX_ANALYTICS_RETRY_DELAY_MS);
@@ -106,29 +116,36 @@ const parseRetryAfterMs = (value: string | null): number | undefined => {
 };
 
 const getRetryAfterMsFromResponseBody = (
-  data: CaptureAcceptedResponse | CaptureErrorResponse | undefined,
+  data: CaptureAcceptedResponse | CaptureErrorResponse | undefined
 ): number | undefined =>
   data && "retry_after_ms" in data && typeof data.retry_after_ms === "number"
     ? data.retry_after_ms
     : undefined;
 
+interface InitOptions {
+  readonly distinctId?: string;
+  /**
+   * Test/internal escape hatch — inject a known runtime schema instead of
+   * fetching from the server. Not part of the public API. Lets the test
+   * suite drive product fetching deterministically while the server-side
+   * schema endpoint is still being built out.
+   */
+  readonly internalSchema?: RuntimeSchema;
+}
+
 const makeUnitializedClient = () => ({
-  init: <TSchema extends VoidhashSchema>(initOptions: {
-    distinctId?: string;
-    schema: TSchema;
-  }) =>
+  init: (initOptions: InitOptions = {}) =>
     Effect.gen(function* init() {
       const identityManager = yield* IdentityManager;
       const customerAttributeManager = yield* CustomerAttributeManager;
       const customerInfoManager = yield* CustomerInfoManager;
+      const apiClient = yield* ApiClient;
 
       if (initOptions.distinctId) {
-        // Identify as the distinct id provided during SDK initialization.
         yield* Effect.logDebug("Initializing with provided distinct id", {
           distinctId: initOptions.distinctId,
         });
 
-        // Sync customer attributes before identify to not lose historical customer data
         const distinctId = yield* identityManager.getDistinctIdFromCache();
         if (distinctId) {
           yield* customerAttributeManager.syncCustomerAttributes(distinctId);
@@ -136,29 +153,44 @@ const makeUnitializedClient = () => ({
 
         yield* identityManager.identify(initOptions.distinctId, {});
       } else {
-        // If no distinct id was passed during SDK initialization, fetch the current customer in the background.
         const distinctId = yield* identityManager.getDistinctId();
         yield* Effect.logDebug("Initializing without provided distinct id", {
           distinctId,
         });
 
         yield* customerAttributeManager.syncCustomerAttributes(distinctId);
-
-        // We don't need the result immediately. We do this to pre-fetch fresh customer data in the background.
         yield* customerInfoManager.getCustomer(distinctId, "fetch");
       }
 
-      // Return the initialized client
-      return makeInitializedClient<TSchema>({
-        schema: initOptions.schema,
-      });
+      // Fetch the runtime schema. The server endpoint is still being built;
+      // until it ships the API client returns an empty schema with a warning,
+      // and product-related calls return empty data.
+      let runtimeSchema = initOptions.internalSchema ?? createEmptyRuntimeSchema();
+      if (!initOptions.internalSchema) {
+        const commonHeaders = yield* getCommonSdkHeaders();
+        const distinctId = yield* identityManager.getDistinctId();
+        const fetched = yield* Effect.exit(
+          apiClient.sdk.getSchema({
+            headers: {
+              ...commonHeaders,
+              "x-distinct-id": distinctId,
+            },
+          })
+        );
+        if (fetched._tag === "Success") {
+          runtimeSchema = fetched.value as RuntimeSchema;
+        } else {
+          yield* Effect.logWarning(
+            "[voidhash] Failed to fetch schema at init — product-related hooks will return empty data."
+          );
+        }
+      }
+
+      return makeInitializedClient({ schema: runtimeSchema });
     }),
 });
 
-
-const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
-  schema: TSchema;
-}) => {
+const makeInitializedClient = (options: { schema: RuntimeSchema }) => {
   const inFlightTransactionKeys = new Set<string>();
 
   // Analytics state
@@ -181,12 +213,16 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
     }
 
     const now = Date.now();
-    const hasDueEvents = analyticsQueue.some((event) => event.availableAt <= now);
+    const hasDueEvents = analyticsQueue.some(
+      (event) => event.availableAt <= now
+    );
     if (hasDueEvents) {
       return ANALYTICS_FLUSH_INTERVAL_MS;
     }
 
-    const nextAvailableAt = Math.min(...analyticsQueue.map((event) => event.availableAt));
+    const nextAvailableAt = Math.min(
+      ...analyticsQueue.map((event) => event.availableAt)
+    );
     return Math.max(nextAvailableAt - now, 0);
   };
 
@@ -203,7 +239,9 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
     }, delayMs);
   };
 
-  const sendAnalyticsEventsImpl = (events: ReadonlyArray<AnalyticsIngestEvent>) =>
+  const sendAnalyticsEventsImpl = (
+    events: ReadonlyArray<AnalyticsIngestEvent>
+  ) =>
     Effect.gen(function* () {
       if (events.length === 0) return;
 
@@ -249,11 +287,15 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
       });
 
       const data = (yield* Effect.tryPromise({
-        try: () => response.json() as Promise<CaptureAcceptedResponse | CaptureErrorResponse>,
+        try: () =>
+          response.json() as Promise<
+            CaptureAcceptedResponse | CaptureErrorResponse
+          >,
         catch: (cause) => cause,
-      }).pipe(
-        Effect.orElseSucceed(() => undefined),
-      )) as CaptureAcceptedResponse | CaptureErrorResponse | undefined;
+      }).pipe(Effect.orElseSucceed(() => undefined))) as
+        | CaptureAcceptedResponse
+        | CaptureErrorResponse
+        | undefined;
 
       if (response.status === 202) {
         return;
@@ -293,10 +335,13 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
       }
     });
 
-  const buildQueuedAnalyticsBatchIds = (events: ReadonlyArray<QueuedAnalyticsEvent>) =>
-    new Set(events.map((event) => event.id));
+  const buildQueuedAnalyticsBatchIds = (
+    events: ReadonlyArray<QueuedAnalyticsEvent>
+  ) => new Set(events.map((event) => event.id));
 
-  const dropQueuedAnalyticsBatch = (events: ReadonlyArray<QueuedAnalyticsEvent>) => {
+  const dropQueuedAnalyticsBatch = (
+    events: ReadonlyArray<QueuedAnalyticsEvent>
+  ) => {
     const ids = buildQueuedAnalyticsBatchIds(events);
     for (let index = analyticsQueue.length - 1; index >= 0; index -= 1) {
       if (ids.has(analyticsQueue[index]!.id)) {
@@ -307,7 +352,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
 
   const postponeQueuedAnalyticsBatch = (
     events: ReadonlyArray<QueuedAnalyticsEvent>,
-    nextAvailableAt: number,
+    nextAvailableAt: number
   ) => {
     const ids = buildQueuedAnalyticsBatchIds(events);
     for (let index = 0; index < analyticsQueue.length; index += 1) {
@@ -344,11 +389,19 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
 
   const processQueuedAnalyticsBatch = (
     queuedBatch: ReadonlyArray<QueuedAnalyticsEvent>,
-    standardizedProperties: Record<string, unknown>,
-  ): Effect.Effect<void, AnalyticsSendFailure, IdentityManager | SdkConfiguration> =>
+    standardizedProperties: Record<string, unknown>
+  ): Effect.Effect<
+    void,
+    AnalyticsSendFailure,
+    IdentityManager | SdkConfiguration
+  > =>
     Effect.gen(function* () {
       const ingestBatch = queuedBatch.map((event) =>
-        mapQueuedAnalyticsEventToIngestEvent(event, standardizedProperties, analyticsSessionId),
+        mapQueuedAnalyticsEventToIngestEvent(
+          event,
+          standardizedProperties,
+          analyticsSessionId
+        )
       );
 
       const sendResult = yield* Effect.exit(sendAnalyticsEventsImpl(ingestBatch));
@@ -364,14 +417,20 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
             cause: failure,
             message: failure instanceof Error ? failure.message : String(failure),
             retryable: false,
-          }),
+          })
         );
       }
 
       if (failure.status === 413 && queuedBatch.length > 1) {
         const midpoint = Math.ceil(queuedBatch.length / 2);
-        yield* processQueuedAnalyticsBatch(queuedBatch.slice(0, midpoint), standardizedProperties);
-        yield* processQueuedAnalyticsBatch(queuedBatch.slice(midpoint), standardizedProperties);
+        yield* processQueuedAnalyticsBatch(
+          queuedBatch.slice(0, midpoint),
+          standardizedProperties
+        );
+        yield* processQueuedAnalyticsBatch(
+          queuedBatch.slice(midpoint),
+          standardizedProperties
+        );
         return;
       }
 
@@ -385,10 +444,13 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
 
       if (!failure.retryable) {
         dropQueuedAnalyticsBatch(queuedBatch);
-        yield* Effect.logWarning("Dropping analytics batch after non-retryable response", {
-          eventIds: queuedBatch.map((event) => event.id),
-          status: failure.status,
-        });
+        yield* Effect.logWarning(
+          "Dropping analytics batch after non-retryable response",
+          {
+            eventIds: queuedBatch.map((event) => event.id),
+            status: failure.status,
+          }
+        );
         return;
       }
 
@@ -397,8 +459,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
 
   const processObservedTransaction = (transaction: Transaction) =>
     Effect.gen(function* processObservedTransaction() {
-      const transactionProcessingKey =
-        buildTransactionProcessingKey(transaction);
+      const transactionProcessingKey = buildTransactionProcessingKey(transaction);
       if (inFlightTransactionKeys.has(transactionProcessingKey)) {
         return;
       }
@@ -534,9 +595,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         return result;
       }),
 
-    getPaywallForLocation: (
-      locationSlug: InferGetPaywallLocationInput<TSchema>
-    ) =>
+    getPaywallForLocation: (locationSlug: LocationSlug) =>
       Effect.gen(function* getPaywallForLocation() {
         const apiClient = yield* ApiClient;
         const identityManager = yield* IdentityManager;
@@ -549,7 +608,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
             ...commonHeaders,
             "x-distinct-id": distinctId,
           },
-          payload: { locationSlug },
+          payload: { locationSlug: String(locationSlug) },
         });
       }),
 
@@ -575,10 +634,13 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
 
     getProducts: () =>
       Effect.gen(function* getProducts() {
-        const productDefinitions = extractProductDefinitions(options.schema);
+        const productDefinitions = options.schema.products;
         const nativeProducts = yield* loadProductsCached(productDefinitions);
         return mapNativeProductsToProductMap(productDefinitions, nativeProducts);
       }),
+
+    /** Read access to the schema fetched at init time. */
+    getSchema: () => options.schema,
 
     identify: (
       distinctId: string,
@@ -622,10 +684,8 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
 
     processObservedTransaction,
 
-    purchase: <TSchemaOverload extends VoidhashSchema>(
-      product: NonNullable<
-        InferGetProductResponseFromSchema<TSchemaOverload>[keyof InferGetProductResponseFromSchema<TSchemaOverload>]
-      >,
+    purchase: (
+      product: SubscriptionProduct,
       _options: {
         method?: "native";
       }
@@ -679,7 +739,7 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
           }
 
           const sendResult = yield* Effect.exit(
-            processQueuedAnalyticsBatch(queuedBatch, standardizedProperties),
+            processQueuedAnalyticsBatch(queuedBatch, standardizedProperties)
           );
           if (sendResult._tag === "Failure") {
             const failure = Cause.squash(sendResult.cause);
@@ -688,7 +748,9 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
                 queuedBatch,
                 Date.now() +
                   (failure.retryAfterMs ??
-                    getAnalyticsRetryDelayMs((queuedBatch[0]?.attempts ?? 0) + 1)),
+                    getAnalyticsRetryDelayMs(
+                      (queuedBatch[0]?.attempts ?? 0) + 1
+                    ))
               );
               scheduleFlushTimer();
               return;
@@ -710,12 +772,19 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
         clearFlushTimer();
       }),
 
-    transferAnalyticsEvents: (events: ReadonlyArray<{ eventName: string; properties: Record<string, unknown> }>) =>
+    transferAnalyticsEvents: (
+      events: ReadonlyArray<{
+        eventName: string;
+        properties: Record<string, unknown>;
+      }>
+    ) =>
       Effect.sync(() => {
         for (const event of events) {
           const normalized = event.eventName.trim();
           if (!normalized) continue;
-          analyticsQueue.push(createQueuedAnalyticsEvent(normalized, event.properties));
+          analyticsQueue.push(
+            createQueuedAnalyticsEvent(normalized, event.properties)
+          );
         }
       }),
 
@@ -761,7 +830,8 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
           return null;
         }
 
-        let lifecycleState: AppLifecycleState | null = appState.currentState ?? null;
+        let lifecycleState: AppLifecycleState | null =
+          appState.currentState ?? null;
 
         const subscription = appState.addEventListener("change", (nextAppState) => {
           const previousAppState = lifecycleState;
@@ -809,8 +879,8 @@ const makeInitializedClient = <TSchema extends VoidhashSchema>(options: {
   };
 };
 
-const loadProductsCached = <TSchema extends VoidhashSchema>(
-  productDefinitions: ExtractSchemaProductDefinitions<TSchema>
+const loadProductsCached = (
+  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
 ) =>
   Effect.gen(function* loadProductsCached() {
     const cacheManager = yield* CacheManager;
@@ -830,8 +900,7 @@ const loadProductsCached = <TSchema extends VoidhashSchema>(
       return cachedProducts.value;
     }
 
-    const nativeProducts =
-      yield* paymentAdapter.getProducts(productDefinitions);
+    const nativeProducts = yield* paymentAdapter.getProducts(productDefinitions);
 
     yield* Effect.logDebug("Products fetched from native adapter", {
       products: nativeProducts,
@@ -845,33 +914,26 @@ const loadProductsCached = <TSchema extends VoidhashSchema>(
     return nativeProducts;
   });
 
-const mapNativeProductsToProductMap = <TSchema extends VoidhashSchema>(
-  productDefinitions: ExtractSchemaProductDefinitions<TSchema>,
+const mapNativeProductsToProductMap = (
+  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
   nativeProducts: Product[]
-) => {
-  const productMap: InferGetProductResponseFromSchema<TSchema> =
-    {} as InferGetProductResponseFromSchema<TSchema>;
+): ProductsBySlug => {
+  const productMap = {} as Record<string, SubscriptionProduct | null>;
 
-  for (const productDefinitionKey of Object.keys(productDefinitions)) {
-    const productDefinition =
-      productDefinitions[
-        productDefinitionKey as ExtractSchemaProductKeys<TSchema>
-      ];
+  for (const slug of Object.keys(productDefinitions)) {
     const nativeProduct = nativeProducts.find(
-      (nativeProduct) => nativeProduct.slug === productDefinition.slug
+      (nativeProduct) => nativeProduct.slug === slug
     );
 
     if (nativeProduct) {
-      productMap[productDefinitionKey as ExtractSchemaProductKeys<TSchema>] =
-        nativeProduct as InferGetProductResponseFromSchema<TSchema>[ExtractSchemaProductKeys<TSchema>];
+      productMap[slug] = nativeProduct as SubscriptionProduct;
       continue;
     }
 
-    productMap[productDefinitionKey as ExtractSchemaProductKeys<TSchema>] =
-      null as InferGetProductResponseFromSchema<TSchema>[ExtractSchemaProductKeys<TSchema>];
+    productMap[slug] = null;
   }
 
-  return productMap;
+  return productMap as ProductsBySlug;
 };
 
 const buildTransactionProcessingKey = (transaction: Transaction) =>
@@ -903,8 +965,8 @@ const mapTransactionToSyncPayload = (transaction: Transaction) => {
   };
 };
 
-const generateCacheKeyFromProductDefinitions = <TSchema extends VoidhashSchema>(
-  productDefinitions: ExtractSchemaProductDefinitions<TSchema>
+const generateCacheKeyFromProductDefinitions = (
+  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
 ) => `native-products:${JSON.stringify(productDefinitions)}`;
 
 const resolveIngestEventsUrl = (options: {

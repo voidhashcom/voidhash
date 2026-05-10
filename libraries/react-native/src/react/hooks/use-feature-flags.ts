@@ -2,15 +2,14 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { VoidhashClient } from "../../client";
 import type { FeatureFlagsFetchedEvent } from "../../core/event-bus";
-import type { VoidhashSchema } from "../../core/schema";
 import type { VoidhashContext } from "../components/provider";
 import useAsyncFunction from "./use-async-function";
 
 type FeatureFlagsResult = FeatureFlagsFetchedEvent;
 
-export function featureFlagsHookFactory<TSchema extends VoidhashSchema>(
-  client: VoidhashClient<TSchema>,
-  vhContext: React.Context<VoidhashContext<TSchema> | null>
+export function featureFlagsHookFactory(
+  client: VoidhashClient,
+  vhContext: React.Context<VoidhashContext | null>
 ) {
   function useFeatureFlags(flagKeys?: string[]) {
     const voidhashContext = React.useContext(vhContext);

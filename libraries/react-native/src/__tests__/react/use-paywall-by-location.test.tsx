@@ -1,5 +1,4 @@
 import type { VoidhashClient } from "../../client";
-import type { VoidhashSchema } from "../../core/schema";
 import {
   __internal_handlePaywallBridgeEventForTests,
   __internal_resetPaywallByLocationCachesForTests,
@@ -23,7 +22,7 @@ function createClientMock() {
     getProducts: jest.fn(),
     purchase: jest.fn(),
     restorePurchases: jest.fn(),
-  } as unknown as jest.Mocked<VoidhashClient<VoidhashSchema>>;
+  } as unknown as jest.Mocked<VoidhashClient>;
 }
 
 function createPresenterMock() {

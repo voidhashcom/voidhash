@@ -13,24 +13,27 @@ import { AppStoreAdapter } from "./core/payment-adapters/app-store-adapter";
 import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
 import { type PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
-import type {
-  InferGetPaywallLocationInput,
-  InferGetProductResponseFromSchema,
-  VoidhashSchema,
-} from "./core/schema";
+import type { LocationSlug, ProductSlug } from "./core/schema/registry";
+import type { RuntimeSchema } from "./core/schema/runtime";
 import { SdkConfiguration } from "./core/sdk-configuration";
 import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "./errors";
 import { AnalyticsService } from "./core/analytics/service";
+import type { SubscriptionProduct } from "./core/entities/product";
 
-export interface VoidhashClientOptions<TSchema extends VoidhashSchema> {
+export interface VoidhashClientOptions {
   baseUrl?: string;
   debug?: boolean;
   distinctId?: string;
   ingestUrl?: string;
   readOnly?: boolean;
-  schema: TSchema;
   scheme?: string;
   unstable_swallowErrors?: boolean;
+  /**
+   * Test/internal escape hatch — inject a known runtime schema instead of
+   * letting the SDK fetch from the server on init. Not part of the public
+   * API; production code should rely on the server-side schema endpoint.
+   */
+  unstable_internalSchema?: RuntimeSchema;
 }
 
 const CreateEffectRuntime = (
@@ -82,31 +85,33 @@ type UninitializedEffectClient = ReturnType<
   typeof VoidhashEffectClient.makeUnitializedClient
 >;
 
-type InitializedEffectClient<TSchema extends VoidhashSchema> = ReturnType<
-  typeof VoidhashEffectClient.makeInitializedClient<TSchema>
+type InitializedEffectClient = ReturnType<
+  typeof VoidhashEffectClient.makeInitializedClient
 >;
 
-export class VoidhashClient<TSchema extends VoidhashSchema> {
+export class VoidhashClient {
   private _isInitialized = false;
   private analyticsFlushInFlight: Promise<void> | null = null;
   private appLifecycleSubscription: { remove: () => void } | null = null;
-  private preInitAnalyticsBuffer: Array<{ eventName: string; properties: Record<string, unknown> }> = [];
+  private preInitAnalyticsBuffer: Array<{
+    eventName: string;
+    properties: Record<string, unknown>;
+  }> = [];
   private initialDistinctId: string | null;
   private readOnly: boolean;
   private scheme: string;
-  private schema: TSchema;
+  private internalSchema: RuntimeSchema | undefined;
   private unstableSwallowErrors: boolean;
   private eventBus: EventBus;
 
   private effectRuntime: ReturnType<typeof CreateEffectRuntime>;
 
   private unitializedClient: UninitializedEffectClient;
-  private initializedClient?: InitializedEffectClient<TSchema>;
+  private initializedClient?: InitializedEffectClient;
 
   constructor(
     initialDistinctId: string | null,
     scheme: string,
-    schema: TSchema,
     baseUrl: string,
     ingestUrl: string | undefined,
     publishableKey: string,
@@ -114,12 +119,13 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     unstableSwallowErrors: boolean,
     eventBus: EventBus,
     platform: Exclude<PlatformInfo["platform"], "unknown">,
-    debug = false
+    debug = false,
+    internalSchema?: RuntimeSchema
   ) {
     this.initialDistinctId = initialDistinctId;
     this.readOnly = readOnly;
     this.scheme = scheme;
-    this.schema = schema;
+    this.internalSchema = internalSchema;
     this.unstableSwallowErrors = unstableSwallowErrors;
     this.eventBus = eventBus;
     this.effectRuntime = CreateEffectRuntime(
@@ -134,10 +140,7 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
   }
 
-  private async runSideEffect(
-    operation: string,
-    effect: () => Promise<void>
-  ) {
+  private async runSideEffect(operation: string, effect: () => Promise<void>) {
     try {
       await effect();
     } catch (error) {
@@ -149,16 +152,18 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
       console.warn(`[voidhash] swallowed error in ${operation}`, error);
     }
   }
+
   /**
-   * Initializes the voidhash client.
+   * Initializes the voidhash client. Fetches the runtime schema from the
+   * server (or uses the injected internal schema if one was provided for tests).
    * @throws {FailedToInitializeNativeAdapterError} If the payment adapter fails to initialize
    */
   async init() {
     await this.runSideEffect("init", async () => {
       const initializedClient = await this.runEffect(
-        this.unitializedClient.init<TSchema>({
+        this.unitializedClient.init({
           distinctId: this.initialDistinctId ?? undefined,
-          schema: this.schema,
+          internalSchema: this.internalSchema,
         }),
         "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT"
       );
@@ -196,7 +201,10 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
         "FAILED_TO_CAPTURE_STARTUP_EVENTS"
       ).catch((error) => {
         // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
-        console.warn("[voidhash] failed to capture automatic startup analytics", error);
+        console.warn(
+          "[voidhash] failed to capture automatic startup analytics",
+          error
+        );
       });
 
       this.appLifecycleSubscription = this.effectRuntime.runSync(
@@ -217,7 +225,10 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     await this.runSideEffect("end", async () => {
       this.ensureInitialized();
       await this.flush();
-      await this.runEffect(this.initializedClient!.end(), "FAILED_TO_END_VOIDHASH_CLIENT");
+      await this.runEffect(
+        this.initializedClient!.end(),
+        "FAILED_TO_END_VOIDHASH_CLIENT"
+      );
       this.appLifecycleSubscription?.remove();
       this.appLifecycleSubscription = null;
       this._isInitialized = false;
@@ -233,16 +244,21 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
 
   /**
    * Returns currently identified customer.
-   * @returns Customer object.
    */
   async getCurrentCustomer(forceFetch = false) {
     this.ensureInitialized();
-    return this.runEffect(this.initializedClient!.getCurrentCustomer(forceFetch), "FAILED_TO_GET_CURRENT_CUSTOMER");
+    return this.runEffect(
+      this.initializedClient!.getCurrentCustomer(forceFetch),
+      "FAILED_TO_GET_CURRENT_CUSTOMER"
+    );
   }
 
   async getDistinctId() {
     this.ensureInitialized();
-    return this.runEffect(this.initializedClient!.getDistinctId(), "FAILED_TO_GET_DISTINCT_ID");
+    return this.runEffect(
+      this.initializedClient!.getDistinctId(),
+      "FAILED_TO_GET_DISTINCT_ID"
+    );
   }
 
   /**
@@ -280,47 +296,45 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
 
   /**
    * Returns feature flag evaluation results.
-   * @param flagKeys - Optional array of specific flag keys to evaluate. If omitted, evaluates all flags.
-   * @returns Feature flags evaluation result with enabled status, variant keys, and payloads.
    */
   async getFeatureFlags(flagKeys?: string[]) {
     this.ensureInitialized();
-    return this.runEffect(this.initializedClient!.getFeatureFlags(flagKeys), "FAILED_TO_GET_FEATURE_FLAGS");
+    return this.runEffect(
+      this.initializedClient!.getFeatureFlags(flagKeys),
+      "FAILED_TO_GET_FEATURE_FLAGS"
+    );
   }
 
   /**
    * Resolves the currently assigned paywall showing for a location slug.
    */
-  async getPaywallForLocation(
-    locationSlug: InferGetPaywallLocationInput<TSchema>
-  ) {
+  async getPaywallForLocation(locationSlug: LocationSlug) {
     this.ensureInitialized();
-    return this.runEffect(this.initializedClient!.getPaywallForLocation(locationSlug), "FAILED_TO_GET_PAYWALL_FOR_LOCATION");
+    return this.runEffect(
+      this.initializedClient!.getPaywallForLocation(locationSlug),
+      "FAILED_TO_GET_PAYWALL_FOR_LOCATION"
+    );
   }
 
   /**
    * Returns products available on the current platform.
-   * @throws {NotInitializedError} If the voidhash client is not initialized
-   * @throws {FailedToGetProductsError} If the payment adapter fails to get products
-   * @returns A map of product definitions to products. Each value can be null if the product is not available on the current platform.
+   * Keys are the project's product slugs (resolved via the generated
+   * `voidhash.gen.d.ts`). Values are `null` when the underlying store SDK
+   * doesn't know about that product.
    */
   async getProducts() {
     this.ensureInitialized();
-    return this.runEffect(this.initializedClient!.getProducts(), "FAILED_TO_GET_PRODUCTS");
+    return this.runEffect(
+      this.initializedClient!.getProducts(),
+      "FAILED_TO_GET_PRODUCTS"
+    );
   }
 
   /**
    * Purchases a product.
-   * @throws {NotInitializedError} Voidhash client is not initialized. Call init() before calling this method.
-   * @throws {FailedToBuyProductError} Failed to buy the product.
-   * @throws {ProductNotFoundError} Product not found on the current platform.
-   * @throws {PurchasePendingError} The purchase is pending. The purchase will be completed in the background.
-   * @throws {PurchaseCancelledError} The customer has cancelled the purchase
    */
   async purchase(
-    product: NonNullable<
-      InferGetProductResponseFromSchema<TSchema>[keyof InferGetProductResponseFromSchema<TSchema>]
-    >,
+    product: SubscriptionProduct,
     _options: {
       method?: "native";
     }
@@ -330,16 +344,23 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
       throw new ReadOnlyModePurchaseNotAllowedError();
     }
 
-    await this.runEffect(this.initializedClient!.purchase<TSchema>(product, _options), "FAILED_TO_PURCHASE");
+    await this.runEffect(
+      this.initializedClient!.purchase(product, _options),
+      "FAILED_TO_PURCHASE"
+    );
   }
 
   /**
-   * Restores purchases by reconciling pending/past store transactions and refreshing customer state.
+   * Restores purchases by reconciling pending/past store transactions and
+   * refreshing customer state.
    */
   async restorePurchases() {
     await this.runSideEffect("restorePurchases", async () => {
       this.ensureInitialized();
-      await this.runEffect(this.initializedClient!.restorePurchases(), "FAILED_TO_RESTORE_PURCHASES");
+      await this.runEffect(
+        this.initializedClient!.restorePurchases(),
+        "FAILED_TO_RESTORE_PURCHASES"
+      );
     });
   }
 
@@ -388,27 +409,23 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
   // IOS only methods
   // ===============================
 
-  /**
-   * Presents the code redemption sheet.
-   * @throws {UnsupportedPlatformError} If the platform does not support the code redemption sheet
-   * @throws {VoidhashError} If the code redemption sheet fails to present
-   */
   async iosPresentCodeRedemptionSheet() {
     await this.runSideEffect("iosPresentCodeRedemptionSheet", async () => {
       this.ensureInitialized();
-      await this.runEffect(this.initializedClient!.iosPresentCodeRedemptionSheet(), "FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET");
+      await this.runEffect(
+        this.initializedClient!.iosPresentCodeRedemptionSheet(),
+        "FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET"
+      );
     });
   }
 
-  /**
-   * Shows the manage subscriptions screen.
-   * @throws {UnsupportedPlatformError} If the platform does not support the manage subscriptions screen
-   * @throws {VoidhashError} If the manage subscriptions screen fails to show
-   */
   async iosShowManageSubscriptions() {
     await this.runSideEffect("iosShowManageSubscriptions", async () => {
       this.ensureInitialized();
-      await this.runEffect(this.initializedClient!.iosShowManageSubscriptions(), "FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS");
+      await this.runEffect(
+        this.initializedClient!.iosShowManageSubscriptions(),
+        "FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS"
+      );
     });
   }
 
@@ -420,8 +437,13 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     return this.eventBus;
   }
 
-  internal_getSchema() {
-    return this.schema;
+  /**
+   * Returns the runtime schema fetched at init time. Returns `null` when the
+   * client hasn't been initialized yet. Used by hooks that need to resolve
+   * slugs to product metadata.
+   */
+  internal_getSchema(): RuntimeSchema | null {
+    return this.initializedClient?.getSchema() ?? null;
   }
 
   internal_getSuccessCallbackBaseUrl() {
@@ -440,7 +462,10 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
   }
 
   // biome-ignore lint/suspicious/noExplicitAny: Effect requires service type parameter
-  private async runEffect<T>(effect: Effect.Effect<T, unknown, any>, errorCode: string): Promise<T> {
+  private async runEffect<T>(
+    effect: Effect.Effect<T, unknown, any>,
+    errorCode: string
+  ): Promise<T> {
     const result = await this.effectRuntime.runPromiseExit(effect);
     if (Exit.isSuccess(result)) return result.value;
     throw toErrorWithMessage(errorCode, Cause.squash(result.cause));
@@ -466,3 +491,6 @@ export class VoidhashClient<TSchema extends VoidhashSchema> {
     // TODO: Implement
   }
 }
+
+/** Convenience re-export to keep `ProductSlug` reachable from this module. */
+export type { ProductSlug };

@@ -7,8 +7,7 @@ import type { StorekitProduct } from "../../specs/ios/StorekitProduct.nitro";
 import type { StorekitTransaction } from "../../specs/ios/StorekitTransaction.nitro";
 import { Product, type SubscriptionProduct } from "../entities/product";
 import { Transaction } from "../entities/transaction";
-import type { ExtractSchemaProductDefinitions, VoidhashSchema } from "../schema";
-import { ProductDefinition } from "../schema/products/base";
+import type { RuntimeProductDefinition } from "../schema/runtime";
 import {
   FailedToAcknowledgePurchaseError,
   FailedToBuyProductError,
@@ -187,11 +186,8 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
     });
   },
 
-  getProducts<
-    TSchema extends VoidhashSchema,
-    TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>,
-  >(
-    productDefinitions: TDefinedProducts
+  getProducts(
+    productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
   ): Effect.Effect<
     Product[],
     NativeAdapterNotInitializedError | FailedToGetProductsError,
@@ -206,23 +202,21 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
         );
       }
 
-      const productDefinitionsArray = Object.values(
-        productDefinitions
-      ) as TDefinedProducts[keyof TDefinedProducts][];
+      const productDefinitionsArray = Object.values(productDefinitions);
 
-      const getProductId = (
-        productDefinition: TDefinedProducts[keyof TDefinedProducts]
-      ) => productDefinition.configuration.providers.appleAppStore?.productId;
+      const getProductId = (productDefinition: RuntimeProductDefinition) =>
+        productDefinition.configuration.providers.appleAppStore?.productId;
 
       const productIds = productDefinitionsArray
         .map((productDefinition) => {
-          if (productDefinition instanceof ProductDefinition) {
-            return {
-              id: getProductId(productDefinition),
-              slug: productDefinition.slug,
-            };
+          const id = getProductId(productDefinition);
+          if (!id) {
+            return null;
           }
-          return null;
+          return {
+            id,
+            slug: productDefinition.slug,
+          };
         })
         .filter(
           (slugIdPair): slugIdPair is { slug: string; id: string } =>
@@ -264,15 +258,18 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
       });
 
       return yield* Effect.succeed(
-        nativeProducts.map((nativeProduct) =>
-          mapStorekitProductToProduct(
-            productDefinitionsArray.find(
+        nativeProducts
+          .map((nativeProduct) => {
+            const matched = productDefinitionsArray.find(
               (productDefinition) =>
                 getProductId(productDefinition) === nativeProduct.id
-            ) as TDefinedProducts[keyof TDefinedProducts],
-            nativeProduct
-          )
-        )
+            );
+            if (!matched) {
+              return null;
+            }
+            return mapStorekitProductToProduct(matched, nativeProduct);
+          })
+          .filter((p): p is Product => p !== null)
       );
     });
   },
@@ -403,11 +400,8 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
 });
 
 // Helper functions for mapping StoreKit objects to our domain objects
-function mapStorekitProductToProduct<
-  TSchema extends VoidhashSchema,
-  TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>,
->(
-  productDefinition: TDefinedProducts[keyof TDefinedProducts],
+function mapStorekitProductToProduct(
+  productDefinition: RuntimeProductDefinition,
   nativeProduct: StorekitProduct
 ): Product {
   return new Product(
