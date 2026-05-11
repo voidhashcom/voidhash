@@ -11,7 +11,7 @@ The CLI and React Native SDK no longer treat the user's code as the source of
 truth for the schema (perks, products, paywall locations, payment provider
 mappings). The dashboard is. After the client-side refactor:
 
-- `voidhash schema push / pull / check` are gone.
+- `voidhash-cli schema push / pull / check` are gone.
 - The CLI's only job vs the schema is to generate a `.d.ts` declaration file
   (`voidhash.gen.d.ts`) consumed by the SDK via module augmentation.
 - The SDK fetches the runtime schema on `Provider` mount instead of receiving
@@ -47,8 +47,8 @@ Replaces the five round-trips the CLI currently makes to assemble a
 `NormalizedSchema`. Returns everything in one response.
 
 **Authentication:** Bearer token (session). Same auth as today's per-entity
-admin endpoints. The CLI calls this from `voidhash types generate` (and
-indirectly from `voidhash init`).
+admin endpoints. The CLI calls this from `voidhash-cli types generate` (and
+indirectly from `voidhash-cli init`).
 
 **Response (200):**
 
@@ -109,8 +109,8 @@ version hash (see below).
 
 Returns just the version hash. Used by:
 
-- `voidhash types generate --watch` (polls every 5s by default).
-- `voidhash types check` (CI gate — compares against the `@voidhash:version`
+- `voidhash-cli types generate --watch` (polls every 5s by default).
+- `voidhash-cli types check` (CI gate — compares against the `@voidhash:version`
   header in the local `.d.ts`).
 - The SDK's dev-mode drift warning.
 
@@ -344,7 +344,7 @@ to `string` so user code still compiles.
    `If-None-Match: <old-version>` returns 304 before the mutation and 200
    after.
 3. From a fresh CLI clone with a generated `voidhash.gen.d.ts` for the
-   pre-mutation schema, run `voidhash types check` — assert non-zero
+   pre-mutation schema, run `voidhash-cli types check` — assert non-zero
    exit + the printed diff cites the new version.
 4. From the SDK example app, mount `Provider`, assert `useProducts()`
    returns the slugs/configurations now living on the server.

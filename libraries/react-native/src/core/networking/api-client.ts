@@ -5,6 +5,7 @@ import {
   type SdkEvaluateFeatureFlagsParams,
   type SdkFeatureFlagsResponse,
   type SdkGetPersonParams,
+  type SdkGetSchemaParams,
   type SdkIdentifyPersonParams,
   type SdkIdentifyBody,
   type SdkResolvePaywallBody,
@@ -15,6 +16,7 @@ import {
 import { Effect, Layer, ServiceMap } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
+import type { RuntimeSchema } from "../schema/runtime";
 import { SdkConfiguration } from "../sdk-configuration";
 import { withHttpDebugLogging } from "./http-debug-client";
 
@@ -29,7 +31,7 @@ export interface ReactNativeFeatureFlagsResponse {
 
 export interface ReactNativeSyncTransactionRequest {
   readonly platform: "android" | "ios";
-  readonly productId: string;
+  readonly productSlug: string;
   readonly purchaseDate: number;
   readonly quantity: number;
   readonly receipt?: string | undefined;
@@ -70,17 +72,6 @@ const normalizeFeatureFlagsResponse = (
   })),
 });
 
-/**
- * Stub error surfaced when the server-side `GET /sdk/schema` endpoint is not
- * yet deployed (the server-side work is tracked separately per the
- * server-first redesign plan). When the endpoint ships, this stub is replaced
- * by a call into the generated client.
- */
-const SCHEMA_ENDPOINT_NOT_IMPLEMENTED_MESSAGE =
-  "[voidhash] The GET /sdk/schema endpoint is not yet available on the server. " +
-  "Schema-dependent hooks (useProducts, usePurchase) will return empty data until it ships. " +
-  "See the server-first redesign plan for tracking.";
-
 const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
   sdk: {
     /**
@@ -88,20 +79,17 @@ const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
      * mount and cached for the session. Authenticates via the publishable key
      * (same credential the SDK uses for paywall resolution, etc.).
      *
-     * TODO(server): wire up `client.sdkGetSchema(...)` once the server endpoint
-     * is implemented. For now this returns an empty schema and logs once so
-     * the SDK remains usable while the backend work is in flight.
+     * The server's `SdkSchema` response is structurally identical to
+     * `RuntimeSchema` (slug-keyed records). The generated client types the
+     * nested fields loosely as `Record<string, unknown>`; we tighten the
+     * boundary with a cast here so the rest of the SDK can treat it as a
+     * `RuntimeSchema`.
      */
-    getSchema: (_request: { headers: ReactNativeSdkHeaders }) =>
-      Effect.gen(function* getSchema() {
-        yield* Effect.logWarning(SCHEMA_ENDPOINT_NOT_IMPLEMENTED_MESSAGE);
-        return {
-          version: "",
-          products: {} as Readonly<Record<string, never>>,
-          locations: {} as Readonly<Record<string, never>>,
-          perks: {} as Readonly<Record<string, never>>,
-        };
-      }),
+    getSchema: (request: { headers: ReactNativeSdkHeaders }) =>
+      Effect.map(
+        client.sdkGetSchema(request.headers as SdkGetSchemaParams),
+        (response): RuntimeSchema => response as unknown as RuntimeSchema
+      ),
     evaluateFeatureFlags: (request: {
       headers: ReactNativeSdkHeaders;
       payload: EvaluateFeatureFlagsBody;

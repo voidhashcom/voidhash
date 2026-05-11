@@ -3,7 +3,7 @@
  * teaches the SDK about the project-specific schema (product slugs, paywall
  * location slugs, perk slugs) defined on the server.
  *
- * Usage in user code: the user runs `voidhash types generate`, which writes a
+ * Usage in user code: the user runs `voidhash-cli types generate`, which writes a
  * declaration file augmenting this interface. Once that file is part of the
  * project's TypeScript compilation, hooks like `usePaywallByLocation(slug)`
  * autocomplete the literal union of valid slugs.

@@ -47,7 +47,7 @@ export interface RuntimePerkDefinition {
  * The full schema as fetched from the server. Keyed by slug.
  *
  * The `version` is a sha256 hash of the schema state on the server and is
- * what `voidhash types check` and the dev-mode runtime warning compare
+ * what `voidhash-cli types check` and the dev-mode runtime warning compare
  * against the generated `.d.ts` header.
  */
 export interface RuntimeSchema {

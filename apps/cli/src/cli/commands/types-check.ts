@@ -10,7 +10,7 @@ import { SourceCode } from "../../domain/services/source-code";
 import { userError } from "../../utils/error-formatter";
 
 /**
- * `voidhash types check`
+ * `voidhash-cli types check`
  *
  * CI gate. Compares the `@voidhash:version` header inside the local
  * `voidhash.gen.d.ts` against the server's current schema version. Exits
@@ -32,7 +32,7 @@ export const typesCheckCommand = Command.make(
         Effect.catchTag("NoSignedInUserError", () =>
           Effect.fail(
             userError(
-              "You must be logged in to check types. Run 'voidhash auth login' first."
+              "You must be logged in to check types. Run 'voidhash-cli auth login' first."
             )
           )
         )
@@ -42,7 +42,7 @@ export const typesCheckCommand = Command.make(
         Effect.catchTag("VoidhashConfigNotFoundError", () =>
           Effect.fail(
             userError(
-              "voidhash.config.ts not found. Run 'voidhash init' to create one."
+              "voidhash.config.ts not found. Run 'voidhash-cli init' to create one."
             )
           )
         )
@@ -55,7 +55,7 @@ export const typesCheckCommand = Command.make(
         Effect.catch(() =>
           Effect.fail(
             userError(
-              `Could not read generated types at ${typesOutput}. Run 'voidhash types generate' first.`
+              `Could not read generated types at ${typesOutput}. Run 'voidhash-cli types generate' first.`
             )
           )
         )
@@ -64,7 +64,7 @@ export const typesCheckCommand = Command.make(
       if (localVersion === null) {
         return yield* Effect.fail(
           userError(
-            `${typesOutput} is missing the @voidhash:version header. Re-run 'voidhash types generate' to regenerate.`
+            `${typesOutput} is missing the @voidhash:version header. Re-run 'voidhash-cli types generate' to regenerate.`
           )
         );
       }
@@ -90,7 +90,7 @@ export const typesCheckCommand = Command.make(
       yield* Console.log(`  Local:  ${localVersion}`);
       yield* Console.log(`  Server: ${remoteVersion}`);
       yield* Console.log(
-        "\nRun 'voidhash types generate' to refresh, then commit the updated declaration file."
+        "\nRun 'voidhash-cli types generate' to refresh, then commit the updated declaration file."
       );
 
       return yield* Effect.fail(

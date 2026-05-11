@@ -22,7 +22,6 @@ import { createJsonResponse, installFetchMock } from "./helpers";
 const EXPECTED_GROUPS = [
   "apiKeys",
   "auth",
-  "changesets",
   "organizations",
   "paymentProviderConfigurations",
   "paymentProviderProducts",
@@ -32,6 +31,7 @@ const EXPECTED_GROUPS = [
   "productPerks",
   "products",
   "projects",
+  "schema",
   "users",
   "webhooks",
 ] as const;
@@ -76,9 +76,12 @@ describe("@voidhash/node", () => {
 
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "sdk">>().toEqualTypeOf<false>();
     expectTypeOf<HasKey<VoidhashNodeClient, "sdk">>().toEqualTypeOf<false>();
+    expectTypeOf<HasKey<VoidhashNodeEffectClient, "changesets">>().toEqualTypeOf<false>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "auth">>().toEqualTypeOf<true>();
+    expectTypeOf<HasKey<VoidhashNodeEffectClient, "schema">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeEffectClient, "webhooks">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeClient, "auth">>().toEqualTypeOf<true>();
+    expectTypeOf<HasKey<VoidhashNodeClient, "schema">>().toEqualTypeOf<true>();
     expectTypeOf<HasKey<VoidhashNodeClient, "webhooks">>().toEqualTypeOf<true>();
   });
 
@@ -352,7 +355,7 @@ describe("@voidhash/node", () => {
       _tag: (effectError as { _tag?: string })._tag,
     });
     expect(promiseError).toMatchObject({
-      _tag: "ActionForbiddenError",
+      _tag: "ApiActionForbiddenError",
     });
   });
 });

@@ -11,9 +11,6 @@ export const groupCoreClient = (client: VoidhashCoreClient) => ({
   auth: {
     session: () => client.authSession(),
   },
-  changesets: {
-    deployChangeset: (request: { payload: Parameters<VoidhashCoreClient["changesetsDeployChangeset"]>[0] }) => client.changesetsDeployChangeset(request.payload),
-  },
   organizations: {
     createOrganization: (request: { payload: Parameters<VoidhashCoreClient["organizationsCreateOrganization"]>[0] }) => client.organizationsCreateOrganization(request.payload),
   },
@@ -44,6 +41,10 @@ export const groupCoreClient = (client: VoidhashCoreClient) => ({
   projects: {
     createProject: (request: { payload: Parameters<VoidhashCoreClient["projectsCreateProject"]>[0] }) => client.projectsCreateProject(request.payload),
     listProjects: (request: { params: { readonly "organizationId": string } }) => client.projectsListProjects(request.params["organizationId"]),
+  },
+  schema: {
+    getSchema: () => client.schemaGetSchema(),
+    getSchemaVersion: () => client.schemaGetSchemaVersion(),
   },
   users: {
     getUser: () => client.usersGetUser(),

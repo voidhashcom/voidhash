@@ -16,7 +16,7 @@ export const isDebugMode = (): boolean =>
  * @example
  * ```ts
  * Effect.catchTag("NoSignedInUserError", () =>
- *   Effect.fail(userError("You must be logged in. Run 'voidhash auth login' first."))
+ *   Effect.fail(userError("You must be logged in. Run 'voidhash-cli auth login' first."))
  * )
  * ```
  */

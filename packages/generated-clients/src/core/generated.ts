@@ -30,29 +30,29 @@ export interface EffectHttpApiSchemaError {
   readonly "message": string
 }
 
-export type ActionForbiddenErrorTag = "ActionForbiddenError"
+export type ApiActionForbiddenErrorTag = "Api/ActionForbiddenError"
 
-export interface ActionForbiddenError {
-  readonly "_tag": ActionForbiddenErrorTag;
+export interface ApiActionForbiddenError {
+  readonly "_tag": ApiActionForbiddenErrorTag;
   readonly "message": string
 }
 
-export type AuthenticationErrorTag = "AuthenticationError"
+export type ApiAuthenticationErrorTag = "Api/AuthenticationError"
 
-export interface AuthenticationError {
-  readonly "_tag": AuthenticationErrorTag;
+export interface ApiAuthenticationError {
+  readonly "_tag": ApiAuthenticationErrorTag;
   readonly "cause": string;
   readonly "message": string
 }
 
-export type NotAuthenticatedErrorTag = "NotAuthenticatedError"
+export type ApiNotAuthenticatedErrorTag = "Api/NotAuthenticatedError"
 
-export interface NotAuthenticatedError {
-  readonly "_tag": NotAuthenticatedErrorTag;
+export interface ApiNotAuthenticatedError {
+  readonly "_tag": ApiNotAuthenticatedErrorTag;
   readonly "message": string
 }
 
-export type AuthSession500 = AuthenticationError | NotAuthenticatedError
+export type AuthSession500 = ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface ApiKey {
   readonly "end": string;
@@ -66,14 +66,14 @@ export interface ApiKey {
 
 export type ApiKeysListApiKeys200 = ReadonlyArray<ApiKey>
 
-export type ApiKeyServiceErrorTag = "ApiKeyServiceError"
+export type ApiApiKeyServiceErrorTag = "Api/ApiKeyServiceError"
 
-export interface ApiKeyServiceError {
-  readonly "_tag": ApiKeyServiceErrorTag;
+export interface ApiApiKeyServiceError {
+  readonly "_tag": ApiApiKeyServiceErrorTag;
   readonly "cause": string
 }
 
-export type ApiKeysListApiKeys500 = ApiKeyServiceError | AuthenticationError | NotAuthenticatedError
+export type ApiKeysListApiKeys500 = ApiApiKeyServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface CreateSecretKeyBody {
   readonly "name": string;
@@ -90,20 +90,20 @@ export interface ApiKeyWithRawKey {
   readonly "rawKey": string
 }
 
-export type ApiKeysCreateSecretKey500 = ApiKeyServiceError | AuthenticationError | NotAuthenticatedError
+export type ApiKeysCreateSecretKey500 = ApiApiKeyServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
-export type ApiKeyNotFoundErrorTag = "ApiKeyNotFoundError"
+export type ApiApiKeyNotFoundErrorTag = "Api/ApiKeyNotFoundError"
 
-export interface ApiKeyNotFoundError {
-  readonly "_tag": ApiKeyNotFoundErrorTag;
+export interface ApiApiKeyNotFoundError {
+  readonly "_tag": ApiApiKeyNotFoundErrorTag;
   readonly "message": string
 }
 
-export type ApiKeysGetApiKeyById500 = ApiKeyServiceError | AuthenticationError | NotAuthenticatedError
+export type ApiKeysGetApiKeyById500 = ApiApiKeyServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
-export type ApiKeysDeleteApiKey500 = ApiKeyServiceError | AuthenticationError | NotAuthenticatedError
+export type ApiKeysDeleteApiKey500 = ApiApiKeyServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
-export type ApiKeysRotateSecretKey500 = ApiKeyServiceError | AuthenticationError | NotAuthenticatedError
+export type ApiKeysRotateSecretKey500 = ApiApiKeyServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface Person {
   readonly "personId": string;
@@ -114,14 +114,14 @@ export interface Person {
 
 export type PersonsListPersons200 = ReadonlyArray<Person>
 
-export type PersonServiceErrorTag = "PersonServiceError"
+export type ApiPersonServiceErrorTag = "Api/PersonServiceError"
 
-export interface PersonServiceError {
-  readonly "_tag": PersonServiceErrorTag;
+export interface ApiPersonServiceError {
+  readonly "_tag": ApiPersonServiceErrorTag;
   readonly "cause": string
 }
 
-export type PersonsListPersons500 = PersonServiceError | AuthenticationError | NotAuthenticatedError
+export type PersonsListPersons500 = ApiPersonServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface CreatePersonBody {
   readonly "distinctId": string;
@@ -129,27 +129,27 @@ export interface CreatePersonBody {
   readonly "name"?: string | null | undefined
 }
 
-export type PersonInvalidAnonymousIdErrorTag = "PersonInvalidAnonymousIdError"
+export type ApiPersonInvalidAnonymousIdErrorTag = "Api/PersonInvalidAnonymousIdError"
 
-export interface PersonInvalidAnonymousIdError {
-  readonly "_tag": PersonInvalidAnonymousIdErrorTag;
+export interface ApiPersonInvalidAnonymousIdError {
+  readonly "_tag": ApiPersonInvalidAnonymousIdErrorTag;
   readonly "id": string
 }
 
-export type PersonsCreatePerson400 = PersonInvalidAnonymousIdError | EffectHttpApiSchemaError
+export type PersonsCreatePerson400 = ApiPersonInvalidAnonymousIdError | EffectHttpApiSchemaError
 
-export type PersonsCreatePerson500 = PersonServiceError | AuthenticationError | NotAuthenticatedError
+export type PersonsCreatePerson500 = ApiPersonServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
-export type PersonNotFoundErrorTag = "PersonNotFoundError"
+export type ApiPersonNotFoundErrorTag = "Api/PersonNotFoundError"
 
-export interface PersonNotFoundError {
-  readonly "_tag": PersonNotFoundErrorTag;
+export interface ApiPersonNotFoundError {
+  readonly "_tag": ApiPersonNotFoundErrorTag;
   readonly "id": string
 }
 
-export type PersonsGetPersonById500 = PersonServiceError | AuthenticationError | NotAuthenticatedError
+export type PersonsGetPersonById500 = ApiPersonServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
-export type PersonsGetPersonByDistinctId500 = PersonServiceError | AuthenticationError | NotAuthenticatedError
+export type PersonsGetPersonByDistinctId500 = ApiPersonServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface CreateOrganizationBody {
   readonly "name": string
@@ -161,14 +161,14 @@ export interface Organization {
   readonly "slug": string
 }
 
-export type OrganizationServiceErrorTag = "OrganizationServiceError"
+export type ApiOrganizationServiceErrorTag = "Api/OrganizationServiceError"
 
-export interface OrganizationServiceError {
-  readonly "_tag": OrganizationServiceErrorTag;
+export interface ApiOrganizationServiceError {
+  readonly "_tag": ApiOrganizationServiceErrorTag;
   readonly "cause": string
 }
 
-export type OrganizationsCreateOrganization500 = OrganizationServiceError | AuthenticationError | NotAuthenticatedError
+export type OrganizationsCreateOrganization500 = ApiOrganizationServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface Perk {
   readonly "id": string;
@@ -179,14 +179,14 @@ export interface Perk {
 
 export type PerksListPerks200 = ReadonlyArray<Perk>
 
-export type PerkServiceErrorTag = "PerkServiceError"
+export type ApiPerkServiceErrorTag = "Api/PerkServiceError"
 
-export interface PerkServiceError {
-  readonly "_tag": PerkServiceErrorTag;
+export interface ApiPerkServiceError {
+  readonly "_tag": ApiPerkServiceErrorTag;
   readonly "cause": string
 }
 
-export type PerksListPerks500 = PerkServiceError | AuthenticationError | NotAuthenticatedError
+export type PerksListPerks500 = ApiPerkServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface PaywallLocation {
   readonly "description": string | null;
@@ -198,14 +198,65 @@ export interface PaywallLocation {
 
 export type PaywallLocationsListPaywallLocations200 = ReadonlyArray<PaywallLocation>
 
-export type PaywallLocationServiceErrorTag = "PaywallLocationServiceError"
+export type ApiPaywallLocationServiceErrorTag = "Api/PaywallLocationServiceError"
 
-export interface PaywallLocationServiceError {
-  readonly "_tag": PaywallLocationServiceErrorTag;
+export interface ApiPaywallLocationServiceError {
+  readonly "_tag": ApiPaywallLocationServiceErrorTag;
   readonly "cause": string
 }
 
-export type PaywallLocationsListPaywallLocations500 = PaywallLocationServiceError | AuthenticationError | NotAuthenticatedError
+export type PaywallLocationsListPaywallLocations500 = ApiPaywallLocationServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
+
+export interface SchemaLocation {
+  readonly "description": string | null;
+  readonly "name": string;
+  readonly "slug": string
+}
+
+export interface SchemaPerk {
+  readonly "name": string;
+  readonly "slug": string
+}
+
+export type SchemaProductProviderProviderIdEnum = "googlePlay"
+
+export interface SchemaProductProvider {
+  readonly "configuration": Record<string, unknown>;
+  readonly "providerId": SchemaProductProviderProviderIdEnum | SchemaProductProviderProviderIdEnum
+}
+
+export type SchemaProductType = "subscription"
+
+export interface SchemaProduct {
+  readonly "name": string;
+  readonly "perks": ReadonlyArray<string>;
+  readonly "providers": ReadonlyArray<SchemaProductProvider>;
+  readonly "slug": string;
+  readonly "type": SchemaProductType
+}
+
+export interface ProjectSchemaResponse {
+  readonly "enabledProviders": ReadonlyArray<"appleAppStore" | "googlePlay">;
+  readonly "locations": ReadonlyArray<SchemaLocation>;
+  readonly "perks": ReadonlyArray<SchemaPerk>;
+  readonly "products": ReadonlyArray<SchemaProduct>;
+  readonly "version": string
+}
+
+export type ApiSchemaServiceErrorTag = "Api/SchemaServiceError"
+
+export interface ApiSchemaServiceError {
+  readonly "_tag": ApiSchemaServiceErrorTag;
+  readonly "cause": string
+}
+
+export type SchemaGetSchema500 = ApiSchemaServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
+
+export interface SchemaVersion {
+  readonly "version": string
+}
+
+export type SchemaGetSchemaVersion500 = ApiSchemaServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface CreateProjectBody {
   readonly "name": string;
@@ -218,18 +269,18 @@ export interface Project {
   readonly "slug": string
 }
 
-export type ProjectServiceErrorTag = "ProjectServiceError"
+export type ApiProjectServiceErrorTag = "Api/ProjectServiceError"
 
-export interface ProjectServiceError {
-  readonly "_tag": ProjectServiceErrorTag;
+export interface ApiProjectServiceError {
+  readonly "_tag": ApiProjectServiceErrorTag;
   readonly "cause": string
 }
 
-export type ProjectsCreateProject500 = AuthenticationError | ProjectServiceError | AuthenticationError | NotAuthenticatedError
+export type ProjectsCreateProject500 = ApiAuthenticationError | ApiProjectServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type ProjectsListProjects200 = ReadonlyArray<Project>
 
-export type ProjectsListProjects500 = ProjectServiceError | AuthenticationError | NotAuthenticatedError
+export type ProjectsListProjects500 = ApiProjectServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type ProductTypeEnum = "one-time-consumable"
 
@@ -243,14 +294,14 @@ export interface Product {
 
 export type ProductsListProducts200 = ReadonlyArray<Product>
 
-export type ProductServiceErrorTag = "ProductServiceError"
+export type ApiProductServiceErrorTag = "Api/ProductServiceError"
 
-export interface ProductServiceError {
-  readonly "_tag": ProductServiceErrorTag;
+export interface ApiProductServiceError {
+  readonly "_tag": ApiProductServiceErrorTag;
   readonly "cause": string
 }
 
-export type ProductsListProducts500 = ProductServiceError | AuthenticationError | NotAuthenticatedError
+export type ProductsListProducts500 = ApiProductServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface ProductPerk {
   readonly "id": string;
@@ -260,23 +311,23 @@ export interface ProductPerk {
 
 export type ProductPerksListProductPerksByProductId200 = ReadonlyArray<ProductPerk>
 
-export type ProductPerkValidationErrorTag = "ProductPerkValidationError"
+export type ApiProductPerkValidationErrorTag = "Api/ProductPerkValidationError"
 
-export interface ProductPerkValidationError {
-  readonly "_tag": ProductPerkValidationErrorTag;
+export interface ApiProductPerkValidationError {
+  readonly "_tag": ApiProductPerkValidationErrorTag;
   readonly "message": string
 }
 
-export type ProductPerksListProductPerksByProductId400 = ProductPerkValidationError | EffectHttpApiSchemaError
+export type ProductPerksListProductPerksByProductId400 = ApiProductPerkValidationError | EffectHttpApiSchemaError
 
-export type ProductPerkServiceErrorTag = "ProductPerkServiceError"
+export type ApiProductPerkServiceErrorTag = "Api/ProductPerkServiceError"
 
-export interface ProductPerkServiceError {
-  readonly "_tag": ProductPerkServiceErrorTag;
+export interface ApiProductPerkServiceError {
+  readonly "_tag": ApiProductPerkServiceErrorTag;
   readonly "cause": string
 }
 
-export type ProductPerksListProductPerksByProductId500 = ProductPerkServiceError | AuthenticationError | NotAuthenticatedError
+export type ProductPerksListProductPerksByProductId500 = ApiProductPerkServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type SdkGetPersonParamsXIsBackgrounded = "false"
 
@@ -380,30 +431,30 @@ export interface SdkPerson {
 }
 }
 
-export type SdkValidationErrorTag = "SdkValidationError"
+export type ApiSdkValidationErrorTag = "Api/SdkValidationError"
 
-export interface SdkValidationError {
-  readonly "_tag": SdkValidationErrorTag;
+export interface ApiSdkValidationError {
+  readonly "_tag": ApiSdkValidationErrorTag;
   readonly "message": string
 }
 
-export type SdkGetPerson400 = SdkValidationError | EffectHttpApiSchemaError
+export type SdkGetPerson400 = ApiSdkValidationError | EffectHttpApiSchemaError
 
-export type SdkPersonNotFoundErrorTag = "SdkPersonNotFoundError"
+export type ApiSdkPersonNotFoundErrorTag = "Api/SdkPersonNotFoundError"
 
-export interface SdkPersonNotFoundError {
-  readonly "_tag": SdkPersonNotFoundErrorTag;
+export interface ApiSdkPersonNotFoundError {
+  readonly "_tag": ApiSdkPersonNotFoundErrorTag;
   readonly "message": string
 }
 
-export type SdkServiceErrorTag = "SdkServiceError"
+export type ApiSdkServiceErrorTag = "Api/SdkServiceError"
 
-export interface SdkServiceError {
-  readonly "_tag": SdkServiceErrorTag;
+export interface ApiSdkServiceError {
+  readonly "_tag": ApiSdkServiceErrorTag;
   readonly "cause": string
 }
 
-export type SdkGetPerson500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
+export type SdkGetPerson500 = ApiAuthenticationError | ApiSdkServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type SdkIdentifyPersonParamsXIsBackgrounded = "false"
 
@@ -444,16 +495,16 @@ export interface SdkIdentifyBody {
   readonly "traits"?: Record<string, unknown> | null | undefined
 }
 
-export type SdkIdentifyPerson400 = SdkValidationError | EffectHttpApiSchemaError
+export type SdkIdentifyPerson400 = ApiSdkValidationError | EffectHttpApiSchemaError
 
-export type SdkPersonAlreadyIdentifiedErrorTag = "SdkPersonAlreadyIdentifiedError"
+export type ApiSdkPersonAlreadyIdentifiedErrorTag = "Api/SdkPersonAlreadyIdentifiedError"
 
-export interface SdkPersonAlreadyIdentifiedError {
-  readonly "_tag": SdkPersonAlreadyIdentifiedErrorTag;
+export interface ApiSdkPersonAlreadyIdentifiedError {
+  readonly "_tag": ApiSdkPersonAlreadyIdentifiedErrorTag;
   readonly "distinctId": string
 }
 
-export type SdkIdentifyPerson500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
+export type SdkIdentifyPerson500 = ApiAuthenticationError | ApiSdkServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type SdkSyncPersonAttributesParamsXIsBackgrounded = "false"
 
@@ -493,9 +544,9 @@ export interface SdkSyncPersonAttributesBody {
   readonly "traits"?: Record<string, unknown> | null | undefined
 }
 
-export type SdkSyncPersonAttributes400 = SdkValidationError | EffectHttpApiSchemaError
+export type SdkSyncPersonAttributes400 = ApiSdkValidationError | EffectHttpApiSchemaError
 
-export type SdkSyncPersonAttributes500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
+export type SdkSyncPersonAttributes500 = ApiAuthenticationError | ApiSdkServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type SdkSyncTransactionParamsXIsBackgrounded = "false"
 
@@ -537,7 +588,7 @@ export type SdkSyncTransactionRequestQuantityEnum = "-Infinity"
 
 export interface SdkSyncTransactionRequest {
   readonly "platform": SdkSyncTransactionRequestPlatformEnum | SdkSyncTransactionRequestPlatformEnum;
-  readonly "productId": string;
+  readonly "productSlug": string;
   readonly "purchaseDate": number | SdkSyncTransactionRequestPurchaseDateEnum | SdkSyncTransactionRequestPurchaseDateEnum | SdkSyncTransactionRequestPurchaseDateEnum;
   readonly "purchaseToken"?: string | null | undefined;
   readonly "quantity": number | SdkSyncTransactionRequestQuantityEnum | SdkSyncTransactionRequestQuantityEnum | SdkSyncTransactionRequestQuantityEnum;
@@ -549,9 +600,9 @@ export interface SdkSyncTransactionResponse {
   readonly "accepted": boolean
 }
 
-export type SdkSyncTransaction400 = SdkValidationError | EffectHttpApiSchemaError
+export type SdkSyncTransaction400 = ApiSdkValidationError | EffectHttpApiSchemaError
 
-export type SdkSyncTransaction500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
+export type SdkSyncTransaction500 = ApiAuthenticationError | ApiSdkServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type SdkEvaluateFeatureFlagsParamsXIsBackgrounded = "false"
 
@@ -599,7 +650,7 @@ export interface SdkFeatureFlagsResponse {
   readonly "flags": ReadonlyArray<SdkFeatureFlagResult>
 }
 
-export type SdkEvaluateFeatureFlags500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
+export type SdkEvaluateFeatureFlags500 = ApiAuthenticationError | ApiSdkServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type SdkResolvePaywallParamsXIsBackgrounded = "false"
 
@@ -671,9 +722,50 @@ export interface SdkResolvedPaywall {
 
 export type SdkResolvePaywall200 = SdkResolvedPaywall | null
 
-export type SdkResolvePaywall400 = SdkValidationError | EffectHttpApiSchemaError
+export type SdkResolvePaywall400 = ApiSdkValidationError | EffectHttpApiSchemaError
 
-export type SdkResolvePaywall500 = AuthenticationError | SdkServiceError | AuthenticationError | NotAuthenticatedError
+export type SdkResolvePaywall500 = ApiAuthenticationError | ApiSdkServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
+
+export type SdkGetSchemaParamsXIsBackgrounded = "false"
+
+export type SdkGetSchemaParamsXIsDebugBuildEnum = "false"
+
+export type SdkGetSchemaParamsXObserverModeEnum = "false"
+
+export type SdkGetSchemaParamsXPlatformFlavorEnum = "browser"
+
+export type SdkGetSchemaParamsXSdkEnum = "web"
+
+export interface SdkGetSchemaParams {
+  readonly "x-distinct-id": string;
+  readonly "x-publishable-key": string;
+  readonly "x-client-bundle-id": string;
+  readonly "x-client-locale"?: string | null | undefined;
+  readonly "x-client-version"?: string | null | undefined;
+  readonly "x-is-backgrounded": SdkGetSchemaParamsXIsBackgrounded;
+  readonly "x-is-debug-build": SdkGetSchemaParamsXIsDebugBuildEnum | SdkGetSchemaParamsXIsDebugBuildEnum;
+  readonly "x-nonce"?: string | null | undefined;
+  readonly "x-observer-mode": SdkGetSchemaParamsXObserverModeEnum | SdkGetSchemaParamsXObserverModeEnum;
+  readonly "x-platform": string;
+  readonly "x-platform-brand"?: string | null | undefined;
+  readonly "x-platform-device"?: string | null | undefined;
+  readonly "x-platform-flavor": SdkGetSchemaParamsXPlatformFlavorEnum | SdkGetSchemaParamsXPlatformFlavorEnum;
+  readonly "x-platform-flavor-version"?: string | null | undefined;
+  readonly "x-platform-version"?: string | null | undefined;
+  readonly "x-preferred-locales"?: string | null | undefined;
+  readonly "x-sdk": SdkGetSchemaParamsXSdkEnum | SdkGetSchemaParamsXSdkEnum;
+  readonly "x-sdk-version": string;
+  readonly "x-storefront"?: string | null | undefined
+}
+
+export interface SdkSchema {
+  readonly "locations": Record<string, unknown>;
+  readonly "perks": Record<string, unknown>;
+  readonly "products": Record<string, unknown>;
+  readonly "version": string
+}
+
+export type SdkGetSchema500 = ApiAuthenticationError | ApiSchemaServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface User {
   readonly "createdAt": string;
@@ -698,14 +790,14 @@ export interface User {
   readonly "updatedAt": string
 }
 
-export type UserServiceErrorTag = "UserServiceError"
+export type ApiUserServiceErrorTag = "Api/UserServiceError"
 
-export interface UserServiceError {
-  readonly "_tag": UserServiceErrorTag;
+export interface ApiUserServiceError {
+  readonly "_tag": ApiUserServiceErrorTag;
   readonly "cause": string
 }
 
-export type UsersGetUser500 = AuthenticationError | UserServiceError | AuthenticationError | NotAuthenticatedError
+export type UsersGetUser500 = ApiAuthenticationError | ApiUserServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface PaymentProviderConfiguration {
   readonly "enabled": boolean;
@@ -717,14 +809,14 @@ export interface PaymentProviderConfiguration {
 
 export type PaymentProviderConfigurationsListPaymentProviderConfigurations200 = ReadonlyArray<PaymentProviderConfiguration>
 
-export type PaymentProviderConfigurationServiceErrorTag = "PaymentProviderConfigurationServiceError"
+export type ApiPaymentProviderConfigurationServiceErrorTag = "Api/PaymentProviderConfigurationServiceError"
 
-export interface PaymentProviderConfigurationServiceError {
-  readonly "_tag": PaymentProviderConfigurationServiceErrorTag;
+export interface ApiPaymentProviderConfigurationServiceError {
+  readonly "_tag": ApiPaymentProviderConfigurationServiceErrorTag;
   readonly "cause": string
 }
 
-export type PaymentProviderConfigurationsListPaymentProviderConfigurations500 = PaymentProviderConfigurationServiceError | AuthenticationError | NotAuthenticatedError
+export type PaymentProviderConfigurationsListPaymentProviderConfigurations500 = ApiPaymentProviderConfigurationServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface PaymentProviderProduct {
   readonly "configuration": Record<string, unknown>;
@@ -736,132 +828,14 @@ export interface PaymentProviderProduct {
 
 export type PaymentProviderProductsListPaymentProviderProducts200 = ReadonlyArray<PaymentProviderProduct>
 
-export type PaymentProviderProductServiceErrorTag = "PaymentProviderProductServiceError"
+export type ApiPaymentProviderProductServiceErrorTag = "Api/PaymentProviderProductServiceError"
 
-export interface PaymentProviderProductServiceError {
-  readonly "_tag": PaymentProviderProductServiceErrorTag;
+export interface ApiPaymentProviderProductServiceError {
+  readonly "_tag": ApiPaymentProviderProductServiceErrorTag;
   readonly "cause": string
 }
 
-export type PaymentProviderProductsListPaymentProviderProducts500 = PaymentProviderProductServiceError | AuthenticationError | NotAuthenticatedError
-
-export interface DeployChangesetBody {
-  readonly "changeset": {
-  readonly "changes": ReadonlyArray<{
-  readonly "changeType": "create-paywall-location";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "description"?: string | null | null | undefined;
-  readonly "name": string;
-  readonly "slug": string
-}
-} | {
-  readonly "changeType": "update-paywall-location";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "description"?: string | null | null | undefined;
-  readonly "name": string;
-  readonly "slug": string
-}
-} | {
-  readonly "changeType": "archive-paywall-location";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "slug": string
-}
-} | {
-  readonly "changeType": "create-perk";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "name": string;
-  readonly "slug": string
-}
-} | {
-  readonly "changeType": "update-perk";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "name": string;
-  readonly "slug": string
-}
-} | {
-  readonly "changeType": "delete-perk";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "slug": string
-}
-} | {
-  readonly "changeType": "create-product";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "name": string;
-  readonly "slug": string
-}
-} | {
-  readonly "changeType": "update-product";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "name": string;
-  readonly "slug": string
-}
-} | {
-  readonly "changeType": "delete-product";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "slug": string
-}
-} | {
-  readonly "changeType": "create-product-perk";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "perkSlug": string;
-  readonly "productSlug": string
-}
-} | {
-  readonly "changeType": "delete-product-perk";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "perkSlug": string;
-  readonly "productSlug": string
-}
-} | {
-  readonly "changeType": "create-payment-provider-product";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "configuration": Record<string, unknown>;
-  readonly "productSlug": string;
-  readonly "providerId": string
-}
-} | {
-  readonly "changeType": "update-payment-provider-product";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "configuration": Record<string, unknown>;
-  readonly "productSlug": string;
-  readonly "providerId": string
-}
-} | {
-  readonly "changeType": "delete-payment-provider-product";
-  readonly "key": string;
-  readonly "payload": {
-  readonly "productSlug": string;
-  readonly "providerId": string
-}
-}>
-}
-}
-
-export interface DeployChangesetResponse {
-  readonly "deploymentId": string
-}
-
-export type ChangesetDeploymentServiceErrorTag = "ChangesetDeploymentServiceError"
-
-export interface ChangesetDeploymentServiceError {
-  readonly "_tag": ChangesetDeploymentServiceErrorTag;
-  readonly "cause": null
-}
-
-export type ChangesetsDeployChangeset500 = AuthenticationError | ChangesetDeploymentServiceError | AuthenticationError | NotAuthenticatedError
+export type PaymentProviderProductsListPaymentProviderProducts500 = ApiPaymentProviderProductServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type WebhookEndpointConsecutiveFailuresEnum = "-Infinity"
 
@@ -883,14 +857,14 @@ export interface WebhookEndpoint {
 
 export type WebhooksListWebhookEndpoints200 = ReadonlyArray<WebhookEndpoint>
 
-export type WebhookServiceErrorTag = "WebhookServiceError"
+export type ApiWebhookServiceErrorTag = "Api/WebhookServiceError"
 
-export interface WebhookServiceError {
-  readonly "_tag": WebhookServiceErrorTag;
+export interface ApiWebhookServiceError {
+  readonly "_tag": ApiWebhookServiceErrorTag;
   readonly "cause": string
 }
 
-export type WebhooksListWebhookEndpoints500 = WebhookServiceError | AuthenticationError | NotAuthenticatedError
+export type WebhooksListWebhookEndpoints500 = ApiWebhookServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export interface CreateWebhookEndpointBody {
   readonly "description"?: string | null | undefined;
@@ -899,27 +873,27 @@ export interface CreateWebhookEndpointBody {
   readonly "url": string
 }
 
-export type WebhookValidationErrorTag = "WebhookValidationError"
+export type ApiWebhookValidationErrorTag = "Api/WebhookValidationError"
 
-export interface WebhookValidationError {
-  readonly "_tag": WebhookValidationErrorTag;
+export interface ApiWebhookValidationError {
+  readonly "_tag": ApiWebhookValidationErrorTag;
   readonly "message": string
 }
 
-export type WebhooksCreateWebhookEndpoint400 = WebhookValidationError | EffectHttpApiSchemaError
+export type WebhooksCreateWebhookEndpoint400 = ApiWebhookValidationError | EffectHttpApiSchemaError
 
-export type WebhooksCreateWebhookEndpoint500 = WebhookServiceError | AuthenticationError | NotAuthenticatedError
+export type WebhooksCreateWebhookEndpoint500 = ApiWebhookServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
-export type WebhookEndpointNotFoundErrorTag = "WebhookEndpointNotFoundError"
+export type ApiWebhookEndpointNotFoundErrorTag = "Api/WebhookEndpointNotFoundError"
 
-export interface WebhookEndpointNotFoundError {
-  readonly "_tag": WebhookEndpointNotFoundErrorTag;
+export interface ApiWebhookEndpointNotFoundError {
+  readonly "_tag": ApiWebhookEndpointNotFoundErrorTag;
   readonly "endpointId": string
 }
 
-export type WebhooksGetWebhookEndpoint500 = WebhookServiceError | AuthenticationError | NotAuthenticatedError
+export type WebhooksGetWebhookEndpoint500 = ApiWebhookServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
-export type WebhooksDeleteWebhookEndpoint500 = WebhookServiceError | AuthenticationError | NotAuthenticatedError
+export type WebhooksDeleteWebhookEndpoint500 = ApiWebhookServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type UpdateWebhookEndpointBodyStatusEnum = "disabled"
 
@@ -931,11 +905,11 @@ export interface UpdateWebhookEndpointBody {
   readonly "url"?: string | null | undefined
 }
 
-export type WebhooksUpdateWebhookEndpoint400 = WebhookValidationError | EffectHttpApiSchemaError
+export type WebhooksUpdateWebhookEndpoint400 = ApiWebhookValidationError | EffectHttpApiSchemaError
 
-export type WebhooksUpdateWebhookEndpoint500 = WebhookServiceError | AuthenticationError | NotAuthenticatedError
+export type WebhooksUpdateWebhookEndpoint500 = ApiWebhookServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
-export type WebhooksRotateWebhookSecret500 = WebhookServiceError | AuthenticationError | NotAuthenticatedError
+export type WebhooksRotateWebhookSecret500 = ApiWebhookServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type WebhookDeliveryAttemptCountEnum = "-Infinity"
 
@@ -958,11 +932,11 @@ export interface WebhookDelivery {
   readonly "webhookEndpointId": string
 }
 
-export type WebhooksTestWebhookEndpoint500 = WebhookServiceError | AuthenticationError | NotAuthenticatedError
+export type WebhooksTestWebhookEndpoint500 = ApiWebhookServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type WebhooksListWebhookDeliveries200 = ReadonlyArray<WebhookDelivery>
 
-export type WebhooksListWebhookDeliveries500 = WebhookServiceError | AuthenticationError | NotAuthenticatedError
+export type WebhooksListWebhookDeliveries500 = ApiWebhookServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export type WebhookDeliveryWithAttemptsAttemptCountEnum = "-Infinity"
 
@@ -1003,18 +977,18 @@ export interface WebhookDeliveryWithAttempts {
   readonly "webhookEndpointId": string
 }
 
-export type WebhookDeliveryNotFoundErrorTag = "WebhookDeliveryNotFoundError"
+export type ApiWebhookDeliveryNotFoundErrorTag = "Api/WebhookDeliveryNotFoundError"
 
-export interface WebhookDeliveryNotFoundError {
-  readonly "_tag": WebhookDeliveryNotFoundErrorTag;
+export interface ApiWebhookDeliveryNotFoundError {
+  readonly "_tag": ApiWebhookDeliveryNotFoundErrorTag;
   readonly "deliveryId": string
 }
 
-export type WebhooksGetWebhookDelivery500 = WebhookServiceError | AuthenticationError | NotAuthenticatedError
+export type WebhooksGetWebhookDelivery500 = ApiWebhookServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
-export type WebhooksRetryWebhookDelivery400 = WebhookValidationError | EffectHttpApiSchemaError
+export type WebhooksRetryWebhookDelivery400 = ApiWebhookValidationError | EffectHttpApiSchemaError
 
-export type WebhooksRetryWebhookDelivery500 = WebhookServiceError | AuthenticationError | NotAuthenticatedError
+export type WebhooksRetryWebhookDelivery500 = ApiWebhookServiceError | ApiAuthenticationError | ApiNotAuthenticatedError
 
 export const make = (
   httpClient: HttpClient.HttpClient, 
@@ -1089,73 +1063,79 @@ export const make = (
   return {
     httpClient,
     "authSession": () => HttpClientRequest.get(`/api/v1/auth/session`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"AuthSession500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"AuthSession500"})
   ),
   "apiKeysListApiKeys": () => HttpClientRequest.get(`/api/v1/api-keys`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"ApiKeysListApiKeys500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"ApiKeysListApiKeys500"})
   ),
   "apiKeysCreateSecretKey": (options) => HttpClientRequest.post(`/api/v1/api-keys`).pipe(
     HttpClientRequest.bodyJsonUnsafe(options),
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"ApiKeysCreateSecretKey500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"ApiKeysCreateSecretKey500"})
   ),
   "apiKeysGetApiKeyById": (apiKeyId) => HttpClientRequest.get(`/api/v1/api-keys/${apiKeyId}`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"ApiKeyNotFoundError","500":"ApiKeysGetApiKeyById500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","404":"ApiApiKeyNotFoundError","500":"ApiKeysGetApiKeyById500"})
   ),
   "apiKeysDeleteApiKey": (apiKeyId) => HttpClientRequest.delete(`/api/v1/api-keys/${apiKeyId}`).pipe(
-    onRequest([], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"ApiKeyNotFoundError","500":"ApiKeysDeleteApiKey500"})
+    onRequest([], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","404":"ApiApiKeyNotFoundError","500":"ApiKeysDeleteApiKey500"})
   ),
   "apiKeysRotateSecretKey": (apiKeyId) => HttpClientRequest.post(`/api/v1/api-keys/${apiKeyId}/rotate`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"ApiKeyNotFoundError","500":"ApiKeysRotateSecretKey500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","404":"ApiApiKeyNotFoundError","500":"ApiKeysRotateSecretKey500"})
   ),
   "personsListPersons": () => HttpClientRequest.get(`/api/v1/persons`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"PersonsListPersons500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"PersonsListPersons500"})
   ),
   "personsCreatePerson": (options) => HttpClientRequest.post(`/api/v1/persons`).pipe(
     HttpClientRequest.bodyJsonUnsafe(options),
-    onRequest(["2xx"], {"400":"PersonsCreatePerson400","403":"ActionForbiddenError","500":"PersonsCreatePerson500"})
+    onRequest(["2xx"], {"400":"PersonsCreatePerson400","403":"ApiActionForbiddenError","500":"PersonsCreatePerson500"})
   ),
   "personsGetPersonById": (personId) => HttpClientRequest.get(`/api/v1/persons/${personId}`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"PersonNotFoundError","500":"PersonsGetPersonById500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","404":"ApiPersonNotFoundError","500":"PersonsGetPersonById500"})
   ),
   "personsGetPersonByDistinctId": (distinctId) => HttpClientRequest.get(`/api/v1/persons/by-distinct-id/${distinctId}`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"PersonNotFoundError","500":"PersonsGetPersonByDistinctId500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","404":"ApiPersonNotFoundError","500":"PersonsGetPersonByDistinctId500"})
   ),
   "organizationsCreateOrganization": (options) => HttpClientRequest.post(`/api/v1/organizations`).pipe(
     HttpClientRequest.bodyJsonUnsafe(options),
     onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","500":"OrganizationsCreateOrganization500"})
   ),
   "perksListPerks": () => HttpClientRequest.get(`/api/v1/perks`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"PerksListPerks500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"PerksListPerks500"})
   ),
   "paywallLocationsListPaywallLocations": () => HttpClientRequest.get(`/api/v1/paywall-locations`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"PaywallLocationsListPaywallLocations500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"PaywallLocationsListPaywallLocations500"})
+  ),
+  "schemaGetSchema": () => HttpClientRequest.get(`/api/v1/schema`).pipe(
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"SchemaGetSchema500"})
+  ),
+  "schemaGetSchemaVersion": () => HttpClientRequest.get(`/api/v1/schema/version`).pipe(
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"SchemaGetSchemaVersion500"})
   ),
   "projectsCreateProject": (options) => HttpClientRequest.post(`/api/v1/projects`).pipe(
     HttpClientRequest.bodyJsonUnsafe(options),
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"ProjectsCreateProject500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"ProjectsCreateProject500"})
   ),
   "projectsListProjects": (organizationId) => HttpClientRequest.get(`/api/v1/projects/${organizationId}`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"ProjectsListProjects500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"ProjectsListProjects500"})
   ),
   "productsListProducts": () => HttpClientRequest.get(`/api/v1/products`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"ProductsListProducts500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"ProductsListProducts500"})
   ),
   "productPerksListProductPerksByProductId": (productId) => HttpClientRequest.get(`/api/v1/product-perks/by-product-id/${productId}`).pipe(
-    onRequest(["2xx"], {"400":"ProductPerksListProductPerksByProductId400","403":"ActionForbiddenError","500":"ProductPerksListProductPerksByProductId500"})
+    onRequest(["2xx"], {"400":"ProductPerksListProductPerksByProductId400","403":"ApiActionForbiddenError","500":"ProductPerksListProductPerksByProductId500"})
   ),
   "sdkGetPerson": (options) => HttpClientRequest.get(`/api/v1/sdk/person`).pipe(
     HttpClientRequest.setHeaders({ "x-distinct-id": options?.["x-distinct-id"] ?? undefined, "x-publishable-key": options?.["x-publishable-key"] ?? undefined, "x-client-bundle-id": options?.["x-client-bundle-id"] ?? undefined, "x-client-locale": options?.["x-client-locale"] ?? undefined, "x-client-version": options?.["x-client-version"] ?? undefined, "x-is-backgrounded": options?.["x-is-backgrounded"] ?? undefined, "x-is-debug-build": options?.["x-is-debug-build"] ?? undefined, "x-nonce": options?.["x-nonce"] ?? undefined, "x-observer-mode": options?.["x-observer-mode"] ?? undefined, "x-platform": options?.["x-platform"] ?? undefined, "x-platform-brand": options?.["x-platform-brand"] ?? undefined, "x-platform-device": options?.["x-platform-device"] ?? undefined, "x-platform-flavor": options?.["x-platform-flavor"] ?? undefined, "x-platform-flavor-version": options?.["x-platform-flavor-version"] ?? undefined, "x-platform-version": options?.["x-platform-version"] ?? undefined, "x-preferred-locales": options?.["x-preferred-locales"] ?? undefined, "x-sdk": options?.["x-sdk"] ?? undefined, "x-sdk-version": options?.["x-sdk-version"] ?? undefined, "x-storefront": options?.["x-storefront"] ?? undefined }),
-    onRequest(["2xx"], {"400":"SdkGetPerson400","404":"SdkPersonNotFoundError","500":"SdkGetPerson500"})
+    onRequest(["2xx"], {"400":"SdkGetPerson400","404":"ApiSdkPersonNotFoundError","500":"SdkGetPerson500"})
   ),
   "sdkIdentifyPerson": (options) => HttpClientRequest.post(`/api/v1/sdk/identify`).pipe(
     HttpClientRequest.setHeaders({ "x-distinct-id": options.params?.["x-distinct-id"] ?? undefined, "x-publishable-key": options.params?.["x-publishable-key"] ?? undefined, "x-client-bundle-id": options.params?.["x-client-bundle-id"] ?? undefined, "x-client-locale": options.params?.["x-client-locale"] ?? undefined, "x-client-version": options.params?.["x-client-version"] ?? undefined, "x-is-backgrounded": options.params?.["x-is-backgrounded"] ?? undefined, "x-is-debug-build": options.params?.["x-is-debug-build"] ?? undefined, "x-nonce": options.params?.["x-nonce"] ?? undefined, "x-observer-mode": options.params?.["x-observer-mode"] ?? undefined, "x-platform": options.params?.["x-platform"] ?? undefined, "x-platform-brand": options.params?.["x-platform-brand"] ?? undefined, "x-platform-device": options.params?.["x-platform-device"] ?? undefined, "x-platform-flavor": options.params?.["x-platform-flavor"] ?? undefined, "x-platform-flavor-version": options.params?.["x-platform-flavor-version"] ?? undefined, "x-platform-version": options.params?.["x-platform-version"] ?? undefined, "x-preferred-locales": options.params?.["x-preferred-locales"] ?? undefined, "x-sdk": options.params?.["x-sdk"] ?? undefined, "x-sdk-version": options.params?.["x-sdk-version"] ?? undefined, "x-storefront": options.params?.["x-storefront"] ?? undefined }),
     HttpClientRequest.bodyJsonUnsafe(options.payload),
-    onRequest(["2xx"], {"400":"SdkIdentifyPerson400","409":"SdkPersonAlreadyIdentifiedError","500":"SdkIdentifyPerson500"})
+    onRequest(["2xx"], {"400":"SdkIdentifyPerson400","404":"ApiSdkPersonNotFoundError","409":"ApiSdkPersonAlreadyIdentifiedError","500":"SdkIdentifyPerson500"})
   ),
   "sdkSyncPersonAttributes": (options) => HttpClientRequest.post(`/api/v1/sdk/person/traits`).pipe(
     HttpClientRequest.setHeaders({ "x-distinct-id": options.params?.["x-distinct-id"] ?? undefined, "x-publishable-key": options.params?.["x-publishable-key"] ?? undefined, "x-client-bundle-id": options.params?.["x-client-bundle-id"] ?? undefined, "x-client-locale": options.params?.["x-client-locale"] ?? undefined, "x-client-version": options.params?.["x-client-version"] ?? undefined, "x-is-backgrounded": options.params?.["x-is-backgrounded"] ?? undefined, "x-is-debug-build": options.params?.["x-is-debug-build"] ?? undefined, "x-nonce": options.params?.["x-nonce"] ?? undefined, "x-observer-mode": options.params?.["x-observer-mode"] ?? undefined, "x-platform": options.params?.["x-platform"] ?? undefined, "x-platform-brand": options.params?.["x-platform-brand"] ?? undefined, "x-platform-device": options.params?.["x-platform-device"] ?? undefined, "x-platform-flavor": options.params?.["x-platform-flavor"] ?? undefined, "x-platform-flavor-version": options.params?.["x-platform-flavor-version"] ?? undefined, "x-platform-version": options.params?.["x-platform-version"] ?? undefined, "x-preferred-locales": options.params?.["x-preferred-locales"] ?? undefined, "x-sdk": options.params?.["x-sdk"] ?? undefined, "x-sdk-version": options.params?.["x-sdk-version"] ?? undefined, "x-storefront": options.params?.["x-storefront"] ?? undefined }),
     HttpClientRequest.bodyJsonUnsafe(options.payload),
-    onRequest(["2xx"], {"400":"SdkSyncPersonAttributes400","500":"SdkSyncPersonAttributes500"})
+    onRequest(["2xx"], {"400":"SdkSyncPersonAttributes400","404":"ApiSdkPersonNotFoundError","500":"SdkSyncPersonAttributes500"})
   ),
   "sdkSyncTransaction": (options) => HttpClientRequest.post(`/api/v1/sdk/sync-transaction`).pipe(
     HttpClientRequest.setHeaders({ "x-distinct-id": options.params?.["x-distinct-id"] ?? undefined, "x-publishable-key": options.params?.["x-publishable-key"] ?? undefined, "x-client-bundle-id": options.params?.["x-client-bundle-id"] ?? undefined, "x-client-locale": options.params?.["x-client-locale"] ?? undefined, "x-client-version": options.params?.["x-client-version"] ?? undefined, "x-is-backgrounded": options.params?.["x-is-backgrounded"] ?? undefined, "x-is-debug-build": options.params?.["x-is-debug-build"] ?? undefined, "x-nonce": options.params?.["x-nonce"] ?? undefined, "x-observer-mode": options.params?.["x-observer-mode"] ?? undefined, "x-platform": options.params?.["x-platform"] ?? undefined, "x-platform-brand": options.params?.["x-platform-brand"] ?? undefined, "x-platform-device": options.params?.["x-platform-device"] ?? undefined, "x-platform-flavor": options.params?.["x-platform-flavor"] ?? undefined, "x-platform-flavor-version": options.params?.["x-platform-flavor-version"] ?? undefined, "x-platform-version": options.params?.["x-platform-version"] ?? undefined, "x-preferred-locales": options.params?.["x-preferred-locales"] ?? undefined, "x-sdk": options.params?.["x-sdk"] ?? undefined, "x-sdk-version": options.params?.["x-sdk-version"] ?? undefined, "x-storefront": options.params?.["x-storefront"] ?? undefined }),
@@ -1172,93 +1152,95 @@ export const make = (
     HttpClientRequest.bodyJsonUnsafe(options.payload),
     onRequest(["2xx"], {"400":"SdkResolvePaywall400","500":"SdkResolvePaywall500"})
   ),
+  "sdkGetSchema": (options) => HttpClientRequest.get(`/api/v1/sdk/schema`).pipe(
+    HttpClientRequest.setHeaders({ "x-distinct-id": options?.["x-distinct-id"] ?? undefined, "x-publishable-key": options?.["x-publishable-key"] ?? undefined, "x-client-bundle-id": options?.["x-client-bundle-id"] ?? undefined, "x-client-locale": options?.["x-client-locale"] ?? undefined, "x-client-version": options?.["x-client-version"] ?? undefined, "x-is-backgrounded": options?.["x-is-backgrounded"] ?? undefined, "x-is-debug-build": options?.["x-is-debug-build"] ?? undefined, "x-nonce": options?.["x-nonce"] ?? undefined, "x-observer-mode": options?.["x-observer-mode"] ?? undefined, "x-platform": options?.["x-platform"] ?? undefined, "x-platform-brand": options?.["x-platform-brand"] ?? undefined, "x-platform-device": options?.["x-platform-device"] ?? undefined, "x-platform-flavor": options?.["x-platform-flavor"] ?? undefined, "x-platform-flavor-version": options?.["x-platform-flavor-version"] ?? undefined, "x-platform-version": options?.["x-platform-version"] ?? undefined, "x-preferred-locales": options?.["x-preferred-locales"] ?? undefined, "x-sdk": options?.["x-sdk"] ?? undefined, "x-sdk-version": options?.["x-sdk-version"] ?? undefined, "x-storefront": options?.["x-storefront"] ?? undefined }),
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","500":"SdkGetSchema500"})
+  ),
   "usersGetUser": () => HttpClientRequest.get(`/api/v1/users/current`).pipe(
     onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","500":"UsersGetUser500"})
   ),
   "paymentProviderConfigurationsListPaymentProviderConfigurations": () => HttpClientRequest.get(`/api/v1/payment-provider-configurations`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"PaymentProviderConfigurationsListPaymentProviderConfigurations500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"PaymentProviderConfigurationsListPaymentProviderConfigurations500"})
   ),
   "paymentProviderProductsListPaymentProviderProducts": () => HttpClientRequest.get(`/api/v1/payment-provider-products`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"PaymentProviderProductsListPaymentProviderProducts500"})
-  ),
-  "changesetsDeployChangeset": (options) => HttpClientRequest.post(`/api/v1/changesets/deploy`).pipe(
-    HttpClientRequest.bodyJsonUnsafe(options),
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"ChangesetsDeployChangeset500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"PaymentProviderProductsListPaymentProviderProducts500"})
   ),
   "webhooksListWebhookEndpoints": () => HttpClientRequest.get(`/api/v1/webhooks/endpoints`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"WebhooksListWebhookEndpoints500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"WebhooksListWebhookEndpoints500"})
   ),
   "webhooksCreateWebhookEndpoint": (options) => HttpClientRequest.post(`/api/v1/webhooks/endpoints`).pipe(
     HttpClientRequest.bodyJsonUnsafe(options),
-    onRequest(["2xx"], {"400":"WebhooksCreateWebhookEndpoint400","403":"ActionForbiddenError","500":"WebhooksCreateWebhookEndpoint500"})
+    onRequest(["2xx"], {"400":"WebhooksCreateWebhookEndpoint400","403":"ApiActionForbiddenError","500":"WebhooksCreateWebhookEndpoint500"})
   ),
   "webhooksGetWebhookEndpoint": (endpointId) => HttpClientRequest.get(`/api/v1/webhooks/endpoints/${endpointId}`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"WebhookEndpointNotFoundError","500":"WebhooksGetWebhookEndpoint500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","404":"ApiWebhookEndpointNotFoundError","500":"WebhooksGetWebhookEndpoint500"})
   ),
   "webhooksDeleteWebhookEndpoint": (endpointId) => HttpClientRequest.delete(`/api/v1/webhooks/endpoints/${endpointId}`).pipe(
-    onRequest([], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"WebhookEndpointNotFoundError","500":"WebhooksDeleteWebhookEndpoint500"})
+    onRequest([], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","404":"ApiWebhookEndpointNotFoundError","500":"WebhooksDeleteWebhookEndpoint500"})
   ),
   "webhooksUpdateWebhookEndpoint": (endpointId, options) => HttpClientRequest.patch(`/api/v1/webhooks/endpoints/${endpointId}`).pipe(
     HttpClientRequest.bodyJsonUnsafe(options),
-    onRequest(["2xx"], {"400":"WebhooksUpdateWebhookEndpoint400","403":"ActionForbiddenError","404":"WebhookEndpointNotFoundError","500":"WebhooksUpdateWebhookEndpoint500"})
+    onRequest(["2xx"], {"400":"WebhooksUpdateWebhookEndpoint400","403":"ApiActionForbiddenError","404":"ApiWebhookEndpointNotFoundError","500":"WebhooksUpdateWebhookEndpoint500"})
   ),
   "webhooksRotateWebhookSecret": (endpointId) => HttpClientRequest.post(`/api/v1/webhooks/endpoints/${endpointId}/rotate-secret`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"WebhookEndpointNotFoundError","500":"WebhooksRotateWebhookSecret500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","404":"ApiWebhookEndpointNotFoundError","500":"WebhooksRotateWebhookSecret500"})
   ),
   "webhooksTestWebhookEndpoint": (endpointId) => HttpClientRequest.post(`/api/v1/webhooks/endpoints/${endpointId}/test`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"WebhookEndpointNotFoundError","500":"WebhooksTestWebhookEndpoint500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","404":"ApiWebhookEndpointNotFoundError","500":"WebhooksTestWebhookEndpoint500"})
   ),
   "webhooksListWebhookDeliveries": () => HttpClientRequest.get(`/api/v1/webhooks/deliveries`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","500":"WebhooksListWebhookDeliveries500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","500":"WebhooksListWebhookDeliveries500"})
   ),
   "webhooksGetWebhookDelivery": (deliveryId) => HttpClientRequest.get(`/api/v1/webhooks/deliveries/${deliveryId}`).pipe(
-    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ActionForbiddenError","404":"WebhookDeliveryNotFoundError","500":"WebhooksGetWebhookDelivery500"})
+    onRequest(["2xx"], {"400":"EffectHttpApiSchemaError","403":"ApiActionForbiddenError","404":"ApiWebhookDeliveryNotFoundError","500":"WebhooksGetWebhookDelivery500"})
   ),
   "webhooksRetryWebhookDelivery": (deliveryId) => HttpClientRequest.post(`/api/v1/webhooks/deliveries/${deliveryId}/retry`).pipe(
-    onRequest(["2xx"], {"400":"WebhooksRetryWebhookDelivery400","403":"ActionForbiddenError","404":"WebhookDeliveryNotFoundError","500":"WebhooksRetryWebhookDelivery500"})
+    onRequest(["2xx"], {"400":"WebhooksRetryWebhookDelivery400","403":"ApiActionForbiddenError","404":"ApiWebhookDeliveryNotFoundError","500":"WebhooksRetryWebhookDelivery500"})
   )
   }
 }
 
 export interface VoidhashCoreClient {
   readonly httpClient: HttpClient.HttpClient
-  readonly "authSession": () => Effect.Effect<AuthSession200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"AuthSession500", AuthSession500>>
-  readonly "apiKeysListApiKeys": () => Effect.Effect<ApiKeysListApiKeys200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ApiKeysListApiKeys500", ApiKeysListApiKeys500>>
-  readonly "apiKeysCreateSecretKey": (options: CreateSecretKeyBody) => Effect.Effect<ApiKeyWithRawKey, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ApiKeysCreateSecretKey500", ApiKeysCreateSecretKey500>>
-  readonly "apiKeysGetApiKeyById": (apiKeyId: string) => Effect.Effect<ApiKey, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ApiKeyNotFoundError", ApiKeyNotFoundError> | VoidhashCoreClientError<"ApiKeysGetApiKeyById500", ApiKeysGetApiKeyById500>>
-  readonly "apiKeysDeleteApiKey": (apiKeyId: string) => Effect.Effect<void, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ApiKeyNotFoundError", ApiKeyNotFoundError> | VoidhashCoreClientError<"ApiKeysDeleteApiKey500", ApiKeysDeleteApiKey500>>
-  readonly "apiKeysRotateSecretKey": (apiKeyId: string) => Effect.Effect<ApiKeyWithRawKey, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ApiKeyNotFoundError", ApiKeyNotFoundError> | VoidhashCoreClientError<"ApiKeysRotateSecretKey500", ApiKeysRotateSecretKey500>>
-  readonly "personsListPersons": () => Effect.Effect<PersonsListPersons200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PersonsListPersons500", PersonsListPersons500>>
-  readonly "personsCreatePerson": (options: CreatePersonBody) => Effect.Effect<Person, HttpClientError.HttpClientError | VoidhashCoreClientError<"PersonsCreatePerson400", PersonsCreatePerson400> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PersonsCreatePerson500", PersonsCreatePerson500>>
-  readonly "personsGetPersonById": (personId: string) => Effect.Effect<Person, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PersonNotFoundError", PersonNotFoundError> | VoidhashCoreClientError<"PersonsGetPersonById500", PersonsGetPersonById500>>
-  readonly "personsGetPersonByDistinctId": (distinctId: string) => Effect.Effect<Person, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PersonNotFoundError", PersonNotFoundError> | VoidhashCoreClientError<"PersonsGetPersonByDistinctId500", PersonsGetPersonByDistinctId500>>
+  readonly "authSession": () => Effect.Effect<AuthSession200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"AuthSession500", AuthSession500>>
+  readonly "apiKeysListApiKeys": () => Effect.Effect<ApiKeysListApiKeys200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiKeysListApiKeys500", ApiKeysListApiKeys500>>
+  readonly "apiKeysCreateSecretKey": (options: CreateSecretKeyBody) => Effect.Effect<ApiKeyWithRawKey, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiKeysCreateSecretKey500", ApiKeysCreateSecretKey500>>
+  readonly "apiKeysGetApiKeyById": (apiKeyId: string) => Effect.Effect<ApiKey, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiApiKeyNotFoundError", ApiApiKeyNotFoundError> | VoidhashCoreClientError<"ApiKeysGetApiKeyById500", ApiKeysGetApiKeyById500>>
+  readonly "apiKeysDeleteApiKey": (apiKeyId: string) => Effect.Effect<void, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiApiKeyNotFoundError", ApiApiKeyNotFoundError> | VoidhashCoreClientError<"ApiKeysDeleteApiKey500", ApiKeysDeleteApiKey500>>
+  readonly "apiKeysRotateSecretKey": (apiKeyId: string) => Effect.Effect<ApiKeyWithRawKey, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiApiKeyNotFoundError", ApiApiKeyNotFoundError> | VoidhashCoreClientError<"ApiKeysRotateSecretKey500", ApiKeysRotateSecretKey500>>
+  readonly "personsListPersons": () => Effect.Effect<PersonsListPersons200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"PersonsListPersons500", PersonsListPersons500>>
+  readonly "personsCreatePerson": (options: CreatePersonBody) => Effect.Effect<Person, HttpClientError.HttpClientError | VoidhashCoreClientError<"PersonsCreatePerson400", PersonsCreatePerson400> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"PersonsCreatePerson500", PersonsCreatePerson500>>
+  readonly "personsGetPersonById": (personId: string) => Effect.Effect<Person, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiPersonNotFoundError", ApiPersonNotFoundError> | VoidhashCoreClientError<"PersonsGetPersonById500", PersonsGetPersonById500>>
+  readonly "personsGetPersonByDistinctId": (distinctId: string) => Effect.Effect<Person, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiPersonNotFoundError", ApiPersonNotFoundError> | VoidhashCoreClientError<"PersonsGetPersonByDistinctId500", PersonsGetPersonByDistinctId500>>
   readonly "organizationsCreateOrganization": (options: CreateOrganizationBody) => Effect.Effect<Organization, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"OrganizationsCreateOrganization500", OrganizationsCreateOrganization500>>
-  readonly "perksListPerks": () => Effect.Effect<PerksListPerks200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PerksListPerks500", PerksListPerks500>>
-  readonly "paywallLocationsListPaywallLocations": () => Effect.Effect<PaywallLocationsListPaywallLocations200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PaywallLocationsListPaywallLocations500", PaywallLocationsListPaywallLocations500>>
-  readonly "projectsCreateProject": (options: CreateProjectBody) => Effect.Effect<Project, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ProjectsCreateProject500", ProjectsCreateProject500>>
-  readonly "projectsListProjects": (organizationId: string) => Effect.Effect<ProjectsListProjects200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ProjectsListProjects500", ProjectsListProjects500>>
-  readonly "productsListProducts": () => Effect.Effect<ProductsListProducts200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ProductsListProducts500", ProductsListProducts500>>
-  readonly "productPerksListProductPerksByProductId": (productId: string) => Effect.Effect<ProductPerksListProductPerksByProductId200, HttpClientError.HttpClientError | VoidhashCoreClientError<"ProductPerksListProductPerksByProductId400", ProductPerksListProductPerksByProductId400> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ProductPerksListProductPerksByProductId500", ProductPerksListProductPerksByProductId500>>
-  readonly "sdkGetPerson": (options: SdkGetPersonParams) => Effect.Effect<SdkPerson, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkGetPerson400", SdkGetPerson400> | VoidhashCoreClientError<"SdkPersonNotFoundError", SdkPersonNotFoundError> | VoidhashCoreClientError<"SdkGetPerson500", SdkGetPerson500>>
-  readonly "sdkIdentifyPerson": (options: { readonly params: SdkIdentifyPersonParams; readonly payload: SdkIdentifyBody }) => Effect.Effect<SdkPerson, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkIdentifyPerson400", SdkIdentifyPerson400> | VoidhashCoreClientError<"SdkPersonAlreadyIdentifiedError", SdkPersonAlreadyIdentifiedError> | VoidhashCoreClientError<"SdkIdentifyPerson500", SdkIdentifyPerson500>>
-  readonly "sdkSyncPersonAttributes": (options: { readonly params: SdkSyncPersonAttributesParams; readonly payload: SdkSyncPersonAttributesBody }) => Effect.Effect<SdkPerson, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkSyncPersonAttributes400", SdkSyncPersonAttributes400> | VoidhashCoreClientError<"SdkSyncPersonAttributes500", SdkSyncPersonAttributes500>>
+  readonly "perksListPerks": () => Effect.Effect<PerksListPerks200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"PerksListPerks500", PerksListPerks500>>
+  readonly "paywallLocationsListPaywallLocations": () => Effect.Effect<PaywallLocationsListPaywallLocations200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"PaywallLocationsListPaywallLocations500", PaywallLocationsListPaywallLocations500>>
+  readonly "schemaGetSchema": () => Effect.Effect<ProjectSchemaResponse, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"SchemaGetSchema500", SchemaGetSchema500>>
+  readonly "schemaGetSchemaVersion": () => Effect.Effect<SchemaVersion, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"SchemaGetSchemaVersion500", SchemaGetSchemaVersion500>>
+  readonly "projectsCreateProject": (options: CreateProjectBody) => Effect.Effect<Project, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ProjectsCreateProject500", ProjectsCreateProject500>>
+  readonly "projectsListProjects": (organizationId: string) => Effect.Effect<ProjectsListProjects200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ProjectsListProjects500", ProjectsListProjects500>>
+  readonly "productsListProducts": () => Effect.Effect<ProductsListProducts200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ProductsListProducts500", ProductsListProducts500>>
+  readonly "productPerksListProductPerksByProductId": (productId: string) => Effect.Effect<ProductPerksListProductPerksByProductId200, HttpClientError.HttpClientError | VoidhashCoreClientError<"ProductPerksListProductPerksByProductId400", ProductPerksListProductPerksByProductId400> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ProductPerksListProductPerksByProductId500", ProductPerksListProductPerksByProductId500>>
+  readonly "sdkGetPerson": (options: SdkGetPersonParams) => Effect.Effect<SdkPerson, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkGetPerson400", SdkGetPerson400> | VoidhashCoreClientError<"ApiSdkPersonNotFoundError", ApiSdkPersonNotFoundError> | VoidhashCoreClientError<"SdkGetPerson500", SdkGetPerson500>>
+  readonly "sdkIdentifyPerson": (options: { readonly params: SdkIdentifyPersonParams; readonly payload: SdkIdentifyBody }) => Effect.Effect<SdkPerson, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkIdentifyPerson400", SdkIdentifyPerson400> | VoidhashCoreClientError<"ApiSdkPersonNotFoundError", ApiSdkPersonNotFoundError> | VoidhashCoreClientError<"ApiSdkPersonAlreadyIdentifiedError", ApiSdkPersonAlreadyIdentifiedError> | VoidhashCoreClientError<"SdkIdentifyPerson500", SdkIdentifyPerson500>>
+  readonly "sdkSyncPersonAttributes": (options: { readonly params: SdkSyncPersonAttributesParams; readonly payload: SdkSyncPersonAttributesBody }) => Effect.Effect<SdkPerson, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkSyncPersonAttributes400", SdkSyncPersonAttributes400> | VoidhashCoreClientError<"ApiSdkPersonNotFoundError", ApiSdkPersonNotFoundError> | VoidhashCoreClientError<"SdkSyncPersonAttributes500", SdkSyncPersonAttributes500>>
   readonly "sdkSyncTransaction": (options: { readonly params: SdkSyncTransactionParams; readonly payload: SdkSyncTransactionRequest }) => Effect.Effect<SdkSyncTransactionResponse, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkSyncTransaction400", SdkSyncTransaction400> | VoidhashCoreClientError<"SdkSyncTransaction500", SdkSyncTransaction500>>
   readonly "sdkEvaluateFeatureFlags": (options: { readonly params: SdkEvaluateFeatureFlagsParams; readonly payload: EvaluateFeatureFlagsBody }) => Effect.Effect<SdkFeatureFlagsResponse, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"SdkEvaluateFeatureFlags500", SdkEvaluateFeatureFlags500>>
   readonly "sdkResolvePaywall": (options: { readonly params: SdkResolvePaywallParams; readonly payload: SdkResolvePaywallBody }) => Effect.Effect<SdkResolvePaywall200, HttpClientError.HttpClientError | VoidhashCoreClientError<"SdkResolvePaywall400", SdkResolvePaywall400> | VoidhashCoreClientError<"SdkResolvePaywall500", SdkResolvePaywall500>>
+  readonly "sdkGetSchema": (options: SdkGetSchemaParams) => Effect.Effect<SdkSchema, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"SdkGetSchema500", SdkGetSchema500>>
   readonly "usersGetUser": () => Effect.Effect<User, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"UsersGetUser500", UsersGetUser500>>
-  readonly "paymentProviderConfigurationsListPaymentProviderConfigurations": () => Effect.Effect<PaymentProviderConfigurationsListPaymentProviderConfigurations200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PaymentProviderConfigurationsListPaymentProviderConfigurations500", PaymentProviderConfigurationsListPaymentProviderConfigurations500>>
-  readonly "paymentProviderProductsListPaymentProviderProducts": () => Effect.Effect<PaymentProviderProductsListPaymentProviderProducts200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"PaymentProviderProductsListPaymentProviderProducts500", PaymentProviderProductsListPaymentProviderProducts500>>
-  readonly "changesetsDeployChangeset": (options: DeployChangesetBody) => Effect.Effect<DeployChangesetResponse, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"ChangesetsDeployChangeset500", ChangesetsDeployChangeset500>>
-  readonly "webhooksListWebhookEndpoints": () => Effect.Effect<WebhooksListWebhookEndpoints200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"WebhooksListWebhookEndpoints500", WebhooksListWebhookEndpoints500>>
-  readonly "webhooksCreateWebhookEndpoint": (options: CreateWebhookEndpointBody) => Effect.Effect<WebhookEndpoint, HttpClientError.HttpClientError | VoidhashCoreClientError<"WebhooksCreateWebhookEndpoint400", WebhooksCreateWebhookEndpoint400> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"WebhooksCreateWebhookEndpoint500", WebhooksCreateWebhookEndpoint500>>
-  readonly "webhooksGetWebhookEndpoint": (endpointId: string) => Effect.Effect<WebhookEndpoint, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"WebhookEndpointNotFoundError", WebhookEndpointNotFoundError> | VoidhashCoreClientError<"WebhooksGetWebhookEndpoint500", WebhooksGetWebhookEndpoint500>>
-  readonly "webhooksDeleteWebhookEndpoint": (endpointId: string) => Effect.Effect<void, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"WebhookEndpointNotFoundError", WebhookEndpointNotFoundError> | VoidhashCoreClientError<"WebhooksDeleteWebhookEndpoint500", WebhooksDeleteWebhookEndpoint500>>
-  readonly "webhooksUpdateWebhookEndpoint": (endpointId: string, options: UpdateWebhookEndpointBody) => Effect.Effect<WebhookEndpoint, HttpClientError.HttpClientError | VoidhashCoreClientError<"WebhooksUpdateWebhookEndpoint400", WebhooksUpdateWebhookEndpoint400> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"WebhookEndpointNotFoundError", WebhookEndpointNotFoundError> | VoidhashCoreClientError<"WebhooksUpdateWebhookEndpoint500", WebhooksUpdateWebhookEndpoint500>>
-  readonly "webhooksRotateWebhookSecret": (endpointId: string) => Effect.Effect<WebhookEndpoint, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"WebhookEndpointNotFoundError", WebhookEndpointNotFoundError> | VoidhashCoreClientError<"WebhooksRotateWebhookSecret500", WebhooksRotateWebhookSecret500>>
-  readonly "webhooksTestWebhookEndpoint": (endpointId: string) => Effect.Effect<WebhookDelivery, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"WebhookEndpointNotFoundError", WebhookEndpointNotFoundError> | VoidhashCoreClientError<"WebhooksTestWebhookEndpoint500", WebhooksTestWebhookEndpoint500>>
-  readonly "webhooksListWebhookDeliveries": () => Effect.Effect<WebhooksListWebhookDeliveries200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"WebhooksListWebhookDeliveries500", WebhooksListWebhookDeliveries500>>
-  readonly "webhooksGetWebhookDelivery": (deliveryId: string) => Effect.Effect<WebhookDeliveryWithAttempts, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"WebhookDeliveryNotFoundError", WebhookDeliveryNotFoundError> | VoidhashCoreClientError<"WebhooksGetWebhookDelivery500", WebhooksGetWebhookDelivery500>>
-  readonly "webhooksRetryWebhookDelivery": (deliveryId: string) => Effect.Effect<WebhookDelivery, HttpClientError.HttpClientError | VoidhashCoreClientError<"WebhooksRetryWebhookDelivery400", WebhooksRetryWebhookDelivery400> | VoidhashCoreClientError<"ActionForbiddenError", ActionForbiddenError> | VoidhashCoreClientError<"WebhookDeliveryNotFoundError", WebhookDeliveryNotFoundError> | VoidhashCoreClientError<"WebhooksRetryWebhookDelivery500", WebhooksRetryWebhookDelivery500>>
+  readonly "paymentProviderConfigurationsListPaymentProviderConfigurations": () => Effect.Effect<PaymentProviderConfigurationsListPaymentProviderConfigurations200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"PaymentProviderConfigurationsListPaymentProviderConfigurations500", PaymentProviderConfigurationsListPaymentProviderConfigurations500>>
+  readonly "paymentProviderProductsListPaymentProviderProducts": () => Effect.Effect<PaymentProviderProductsListPaymentProviderProducts200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"PaymentProviderProductsListPaymentProviderProducts500", PaymentProviderProductsListPaymentProviderProducts500>>
+  readonly "webhooksListWebhookEndpoints": () => Effect.Effect<WebhooksListWebhookEndpoints200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"WebhooksListWebhookEndpoints500", WebhooksListWebhookEndpoints500>>
+  readonly "webhooksCreateWebhookEndpoint": (options: CreateWebhookEndpointBody) => Effect.Effect<WebhookEndpoint, HttpClientError.HttpClientError | VoidhashCoreClientError<"WebhooksCreateWebhookEndpoint400", WebhooksCreateWebhookEndpoint400> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"WebhooksCreateWebhookEndpoint500", WebhooksCreateWebhookEndpoint500>>
+  readonly "webhooksGetWebhookEndpoint": (endpointId: string) => Effect.Effect<WebhookEndpoint, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiWebhookEndpointNotFoundError", ApiWebhookEndpointNotFoundError> | VoidhashCoreClientError<"WebhooksGetWebhookEndpoint500", WebhooksGetWebhookEndpoint500>>
+  readonly "webhooksDeleteWebhookEndpoint": (endpointId: string) => Effect.Effect<void, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiWebhookEndpointNotFoundError", ApiWebhookEndpointNotFoundError> | VoidhashCoreClientError<"WebhooksDeleteWebhookEndpoint500", WebhooksDeleteWebhookEndpoint500>>
+  readonly "webhooksUpdateWebhookEndpoint": (endpointId: string, options: UpdateWebhookEndpointBody) => Effect.Effect<WebhookEndpoint, HttpClientError.HttpClientError | VoidhashCoreClientError<"WebhooksUpdateWebhookEndpoint400", WebhooksUpdateWebhookEndpoint400> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiWebhookEndpointNotFoundError", ApiWebhookEndpointNotFoundError> | VoidhashCoreClientError<"WebhooksUpdateWebhookEndpoint500", WebhooksUpdateWebhookEndpoint500>>
+  readonly "webhooksRotateWebhookSecret": (endpointId: string) => Effect.Effect<WebhookEndpoint, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiWebhookEndpointNotFoundError", ApiWebhookEndpointNotFoundError> | VoidhashCoreClientError<"WebhooksRotateWebhookSecret500", WebhooksRotateWebhookSecret500>>
+  readonly "webhooksTestWebhookEndpoint": (endpointId: string) => Effect.Effect<WebhookDelivery, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiWebhookEndpointNotFoundError", ApiWebhookEndpointNotFoundError> | VoidhashCoreClientError<"WebhooksTestWebhookEndpoint500", WebhooksTestWebhookEndpoint500>>
+  readonly "webhooksListWebhookDeliveries": () => Effect.Effect<WebhooksListWebhookDeliveries200, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"WebhooksListWebhookDeliveries500", WebhooksListWebhookDeliveries500>>
+  readonly "webhooksGetWebhookDelivery": (deliveryId: string) => Effect.Effect<WebhookDeliveryWithAttempts, HttpClientError.HttpClientError | VoidhashCoreClientError<"EffectHttpApiSchemaError", EffectHttpApiSchemaError> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiWebhookDeliveryNotFoundError", ApiWebhookDeliveryNotFoundError> | VoidhashCoreClientError<"WebhooksGetWebhookDelivery500", WebhooksGetWebhookDelivery500>>
+  readonly "webhooksRetryWebhookDelivery": (deliveryId: string) => Effect.Effect<WebhookDelivery, HttpClientError.HttpClientError | VoidhashCoreClientError<"WebhooksRetryWebhookDelivery400", WebhooksRetryWebhookDelivery400> | VoidhashCoreClientError<"ApiActionForbiddenError", ApiActionForbiddenError> | VoidhashCoreClientError<"ApiWebhookDeliveryNotFoundError", ApiWebhookDeliveryNotFoundError> | VoidhashCoreClientError<"WebhooksRetryWebhookDelivery500", WebhooksRetryWebhookDelivery500>>
 }
 
 export interface VoidhashCoreClientError<Tag extends string, E> extends Error {

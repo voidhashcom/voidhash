@@ -12,7 +12,7 @@ export const authStatusCommand = Command.make("status", {}, () =>
         FailedToGetSessionError: () =>
           Effect.fail(
             userError(
-              "Failed to get user session. Please try again or run 'voidhash auth login'."
+              "Failed to get user session. Please try again or run 'voidhash-cli auth login'."
             )
           ),
         NoSignedInUserError: () => Effect.succeed(null),

@@ -13,7 +13,7 @@ import { selectOrganization } from "../../utils/organizations/select-organizatio
 import { selectProject } from "../../utils/projects/select-project";
 
 /**
- * `voidhash init`
+ * `voidhash-cli init`
  *
  * One-time setup: authenticate, select team/project, write `voidhash.config.ts`
  * at the project root, and produce the initial `voidhash.gen.d.ts` so type
@@ -135,16 +135,20 @@ export const initCommand = Command.make("init", {}, () =>
 
     // Produce the initial declaration file so the user has working
     // autocomplete on the first run. Failures here are non-fatal — the user
-    // can re-run `voidhash types generate` later.
+    // can re-run `voidhash-cli types generate` later.
     const generatedVersion = yield* schemaService
       .fetchRemoteSchema()
       .pipe(
-        Effect.flatMap((schema) =>
-          codegen.generateTypesDeclarationFile(typesOutputPath, schema)
+        Effect.flatMap(({ schema, version }) =>
+          codegen.generateTypesDeclarationFile(
+            typesOutputPath,
+            schema,
+            version
+          )
         ),
         Effect.catch((e) =>
           Effect.logWarning(
-            `Failed to generate initial types: ${String(e)}. You can run 'voidhash types generate' later.`
+            `Failed to generate initial types: ${String(e)}. You can run 'voidhash-cli types generate' later.`
           ).pipe(Effect.as(null))
         )
       );
@@ -162,7 +166,7 @@ export const initCommand = Command.make("init", {}, () =>
       `  2. Create your products and paywall locations in the Voidhash dashboard.`
     );
     yield* Console.log(
-      `  3. Re-run 'voidhash types generate' whenever the dashboard schema changes.`
+      `  3. Re-run 'voidhash-cli types generate' whenever the dashboard schema changes.`
     );
   })
 ).pipe(Command.withDescription("Initialize a new Voidhash project."));

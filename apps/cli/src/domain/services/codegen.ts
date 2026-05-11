@@ -3,7 +3,6 @@ import { Effect, FileSystem, Layer, ServiceMap } from "effect";
 import {
   VOIDHASH_FETCHED_AT_COMMENT_PREFIX,
   VOIDHASH_VERSION_COMMENT_PREFIX,
-  computeSchemaVersionFromNormalized,
   parseVersionFromDeclaration,
 } from "../../utils/schema/version";
 import type { Writable } from "../../utils/types";
@@ -20,8 +19,12 @@ function toUnionType(slugs: string[]): string {
 /**
  * Generate the contents of the `voidhash.gen.d.ts` declaration file.
  *
+ * The version baked into the header is supplied by the caller (and ultimately
+ * by the server's `GET /api/v1/schema` / `GET /api/v1/schema/version`
+ * endpoints) so client and server can never disagree on the hash.
+ *
  * The file:
- * - Starts with a `@voidhash:version` header so `voidhash types check` and the
+ * - Starts with a `@voidhash:version` header so `voidhash-cli types check` and the
  *   dev-mode runtime warning can detect staleness without re-downloading the
  *   full schema.
  * - Augments `@voidhash/react-native`'s `VoidhashRegister` interface so all
@@ -29,9 +32,9 @@ function toUnionType(slugs: string[]): string {
  */
 export function generateTypesDeclaration(
   schema: NormalizedSchema,
+  version: string,
   options: { fetchedAt?: Date } = {}
-): { content: string; version: string } {
-  const version = computeSchemaVersionFromNormalized(schema);
+): string {
   const fetchedAt = (options.fetchedAt ?? new Date()).toISOString();
 
   const productSlugs = [...schema.products.keys()].sort();
@@ -56,7 +59,7 @@ export function generateTypesDeclaration(
   lines.push("export {};");
   lines.push("");
 
-  return { content: lines.join("\n"), version };
+  return lines.join("\n");
 }
 
 const make = Effect.gen(function* effect() {
@@ -83,14 +86,16 @@ const make = Effect.gen(function* effect() {
 
   /**
    * Generate the `.d.ts` declaration file from the remote schema and write it
-   * to disk. Returns the version hash that was baked into the header.
+   * to disk. `version` is the server-provided hash that gets baked into the
+   * header so the CI gate / dev-mode warning can detect drift.
    */
   const generateTypesDeclarationFile = (
     filePath: string,
-    schema: NormalizedSchema
+    schema: NormalizedSchema,
+    version: string
   ) =>
     Effect.gen(function* generateTypesDeclarationFile() {
-      const { content, version } = generateTypesDeclaration(schema);
+      const content = generateTypesDeclaration(schema, version);
       yield* fileSystem.writeFileString(filePath, content);
       return version;
     });

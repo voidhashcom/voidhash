@@ -162,10 +162,13 @@ const makeUnitializedClient = () => ({
         yield* customerInfoManager.getCustomer(distinctId, "fetch");
       }
 
-      // Fetch the runtime schema. The server endpoint is still being built;
-      // until it ships the API client returns an empty schema with a warning,
-      // and product-related calls return empty data.
-      let runtimeSchema = initOptions.internalSchema ?? createEmptyRuntimeSchema();
+      // Fetch the runtime schema from the server's `GET /sdk/schema`
+      // endpoint and cache it on the initialized client. A failure here is
+      // non-fatal — non-schema hooks (paywall resolution, feature flags,
+      // identify) still work — but product-related hooks will return empty
+      // data until the next successful init.
+      let runtimeSchema =
+        initOptions.internalSchema ?? createEmptyRuntimeSchema();
       if (!initOptions.internalSchema) {
         const commonHeaders = yield* getCommonSdkHeaders();
         const distinctId = yield* identityManager.getDistinctId();
@@ -178,7 +181,7 @@ const makeUnitializedClient = () => ({
           })
         );
         if (fetched._tag === "Success") {
-          runtimeSchema = fetched.value as RuntimeSchema;
+          runtimeSchema = fetched.value;
         } else {
           yield* Effect.logWarning(
             "[voidhash] Failed to fetch schema at init — product-related hooks will return empty data."
@@ -502,7 +505,10 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) => {
             ...commonHeaders,
             "x-distinct-id": distinctId,
           },
-          payload: mapTransactionToSyncPayload(transaction),
+          payload: mapTransactionToSyncPayload(
+            transaction,
+            options.schema.products
+          ),
         });
 
         yield* cacheManager.set(processedTransactionCacheKey, true, {
@@ -942,11 +948,41 @@ const buildTransactionProcessingKey = (transaction: Transaction) =>
 const getProcessedTransactionCacheKey = (transactionProcessingKey: string) =>
   `processed-transaction:${transactionProcessingKey}`;
 
-const mapTransactionToSyncPayload = (transaction: Transaction) => {
+const resolveTransactionProductSlug = (
+  transaction: Transaction,
+  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
+) => {
+  const matchedProduct = Object.values(productDefinitions).find(
+    (productDefinition) => {
+      if (productDefinition.slug === transaction.productId) {
+        return true;
+      }
+
+      const provider =
+        transaction.platform === "ios"
+          ? productDefinition.configuration.providers.appleAppStore
+          : productDefinition.configuration.providers.googlePlay;
+
+      return provider?.productId === transaction.productId;
+    }
+  );
+
+  return matchedProduct?.slug ?? transaction.productId;
+};
+
+const mapTransactionToSyncPayload = (
+  transaction: Transaction,
+  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
+) => {
+  const productSlug = resolveTransactionProductSlug(
+    transaction,
+    productDefinitions
+  );
+
   if (transaction.platform === "ios") {
     return {
       platform: "ios" as const,
-      productId: transaction.productId,
+      productSlug,
       purchaseDate: transaction.purchaseDate,
       quantity: transaction.quantity,
       receipt: transaction.receipt,
@@ -956,7 +992,7 @@ const mapTransactionToSyncPayload = (transaction: Transaction) => {
 
   return {
     platform: "android" as const,
-    productId: transaction.productId,
+    productSlug,
     purchaseDate: transaction.purchaseDate,
     purchaseToken: transaction.purchaseToken ?? "",
     quantity: transaction.quantity,

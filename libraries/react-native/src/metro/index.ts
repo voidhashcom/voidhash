@@ -13,7 +13,7 @@
  * });
  * ```
  *
- * Spawns `voidhash types generate --watch` as a child process on Metro server
+ * Spawns `voidhash-cli types generate --watch` as a child process on Metro server
  * start and tears it down on shutdown. Errors from the spawned CLI are logged
  * but do not crash Metro — the user can keep developing against the
  * last-known-good `.d.ts`.
@@ -58,7 +58,7 @@ type MetroConfig = unknown;
 export interface WithVoidhashOptions {
   /** How often to poll the server for schema changes (ms). Default 5000. */
   pollIntervalMs?: number;
-  /** Path to the `voidhash` CLI binary. Defaults to picking it up via $PATH. */
+  /** Path to the `voidhash-cli` binary. Defaults to picking it up via $PATH. */
   cliBinary?: string;
   /** Additional CLI arguments forwarded after `types generate --watch`. */
   extraArgs?: ReadonlyArray<string>;
@@ -88,7 +88,7 @@ function startWatcher(options: WithVoidhashOptions) {
     return;
   }
 
-  const binary = options.cliBinary ?? "voidhash";
+  const binary = options.cliBinary ?? "voidhash-cli";
   const args = [
     "types",
     "generate",
@@ -131,7 +131,7 @@ function startWatcher(options: WithVoidhashOptions) {
 }
 
 /**
- * Wrap a Metro config so that `voidhash types generate --watch` runs alongside
+ * Wrap a Metro config so that `voidhash-cli types generate --watch` runs alongside
  * the Metro dev server. Returns the original config unchanged — the watcher
  * runs as a sibling process, not via Metro's transformer/resolver pipeline.
  */

@@ -3,7 +3,7 @@ import { createVoidhashClient } from "@voidhash/react-native";
 /**
  * Voidhash client for the example app.
  *
- * Schema lives on the server now — run `voidhash types generate` to refresh
+ * Schema lives on the server now — run `voidhash-cli types generate` to refresh
  * the local `voidhash.gen.d.ts` whenever the dashboard schema changes.
  */
 export const voidhash = createVoidhashClient(

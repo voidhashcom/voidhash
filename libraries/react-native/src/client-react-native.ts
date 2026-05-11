@@ -22,7 +22,7 @@ import { purchaseHookFactory } from "./react/hooks/use-purchase";
  * - There is no schema argument. The schema lives on the server and is
  *   fetched on `Provider` mount.
  * - Type safety for product / location / perk slugs comes from the generated
- *   `voidhash.gen.d.ts` (run `voidhash types generate`).
+ *   `voidhash.gen.d.ts` (run `voidhash-cli types generate`).
  */
 export function createVoidhashClient(
   publishableKey: string,

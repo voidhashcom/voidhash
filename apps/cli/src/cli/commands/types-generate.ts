@@ -9,7 +9,7 @@ import { SourceCode } from "../../domain/services/source-code";
 import { userError } from "../../utils/error-formatter";
 
 /**
- * `voidhash types generate [--watch]`
+ * `voidhash-cli types generate [--watch]`
  *
  * Fetches the schema from the server and emits `voidhash.gen.d.ts` (path
  * configurable via `voidhash.config.ts#typesOutput`). With `--watch`, polls
@@ -44,7 +44,7 @@ export const typesGenerateCommand = Command.make(
         Effect.catchTag("NoSignedInUserError", () =>
           Effect.fail(
             userError(
-              "You must be logged in to generate types. Run 'voidhash auth login' first."
+              "You must be logged in to generate types. Run 'voidhash-cli auth login' first."
             )
           )
         )
@@ -54,7 +54,7 @@ export const typesGenerateCommand = Command.make(
         Effect.catchTag("VoidhashConfigNotFoundError", () =>
           Effect.fail(
             userError(
-              "voidhash.config.ts not found. Run 'voidhash init' to create one."
+              "voidhash.config.ts not found. Run 'voidhash-cli init' to create one."
             )
           )
         )
@@ -65,18 +65,17 @@ export const typesGenerateCommand = Command.make(
 
       const regenerate = Effect.gen(function* regenerate() {
         yield* Console.log("Fetching remote schema...");
-        const remoteSchema = yield* schemaService.fetchRemoteSchema().pipe(
-          Effect.catchTag("RemoteSchemaFetchError", (e) =>
-            Effect.fail(
-              userError(`Failed to fetch remote schema: ${String(e.cause)}`)
+        const { schema, version } = yield* schemaService
+          .fetchRemoteSchema()
+          .pipe(
+            Effect.catchTag("RemoteSchemaFetchError", (e) =>
+              Effect.fail(
+                userError(`Failed to fetch remote schema: ${String(e.cause)}`)
+              )
             )
-          )
-        );
+          );
 
-        const version = yield* codegen.generateTypesDeclarationFile(
-          outPath,
-          remoteSchema
-        );
+        yield* codegen.generateTypesDeclarationFile(outPath, schema, version);
 
         yield* Console.log(
           `✓ Types written to ${typesOutput} (version ${version.slice(
@@ -105,7 +104,7 @@ export const typesGenerateCommand = Command.make(
         const latest = yield* schemaService.fetchSchemaVersion().pipe(
           Effect.catch((e) =>
             Effect.logWarning(
-              `[voidhash types --watch] Skipping poll due to error: ${String(e)}`
+              `[voidhash-cli types --watch] Skipping poll due to error: ${String(e)}`
             ).pipe(Effect.as(null))
           )
         );
@@ -118,7 +117,7 @@ export const typesGenerateCommand = Command.make(
         const next = yield* regenerate.pipe(
           Effect.catch((e) =>
             Effect.logWarning(
-              `[voidhash types --watch] Regeneration failed: ${String(e)}`
+              `[voidhash-cli types --watch] Regeneration failed: ${String(e)}`
             ).pipe(Effect.as(null))
           )
         );
