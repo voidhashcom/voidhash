@@ -10,7 +10,6 @@ import { CacheManager } from "../../src/core/caching/cache-manager";
 import { Product, SubscriptionProduct } from "../../src/core/entities/product";
 import { Transaction } from "../../src/core/entities/transaction";
 import { CustomerAttributeManager } from "../../src/core/identity/customer-attribute-manager";
-import { SDK_VERSION } from "../../src/core/constants";
 import {
   currentCustomerAtom,
   featureFlagsForKeysAtom,
@@ -648,7 +647,7 @@ describe("VoidhashEffectClient", () => {
   };
 
   describe("sendAnalyticsEvents", () => {
-    it("sends analytics to derived i. subdomain by default", async () => {
+    it("sends analytics to the /i/v1/batch path on the API host by default", async () => {
       const originalFetch = global.fetch;
       const fetchMock = vi.fn().mockResolvedValue(acceptedAnalyticsResponse());
       global.fetch = fetchMock as unknown as typeof global.fetch;
@@ -681,7 +680,7 @@ describe("VoidhashEffectClient", () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-          "https://i.api.voidhash.test/batch"
+          "https://api.voidhash.test/i/v1/batch"
         );
 
         const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
@@ -696,10 +695,6 @@ describe("VoidhashEffectClient", () => {
               event: "cta-button-clicked",
               properties: {
                 button_name: "Get Started",
-              },
-              request: {
-                sdk_name: "react-native",
-                sdk_version: SDK_VERSION,
               },
               session_id: "sess_1",
               timestamp: "2026-01-01T00:00:00.000Z",
@@ -741,7 +736,7 @@ describe("VoidhashEffectClient", () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-          "http://localhost:8083/batch"
+          "http://localhost:8083/i/v1/batch"
         );
       } finally {
         global.fetch = originalFetch;

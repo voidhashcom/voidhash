@@ -1,4 +1,8 @@
 import {
+  make as makeEventCaptureClient,
+  type VoidhashEventCaptureClient,
+} from "@voidhash/generated-clients/event-capture";
+import {
   Duration,
   Effect,
   Latch,
@@ -7,14 +11,9 @@ import {
   Schedule,
   ServiceMap,
 } from "effect";
-import {
-  HttpClient,
-  HttpClientRequest,
-  HttpClientResponse,
-} from "effect/unstable/http";
+import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { CacheManager } from "../caching/cache-manager";
-import { SDK_VERSION } from "../constants";
 import { IdentityManager } from "../identity/identity-manager";
 import { SdkConfiguration } from "../sdk-configuration";
 import { getNonce } from "../utils/crypto";
@@ -32,7 +31,13 @@ import {
 const ANALYTICS_BATCH_SIZE = 20;
 const ANALYTICS_FLUSH_INTERVAL_MS = 5000;
 const MAX_ANALYTICS_RETRY_DELAY_MS = 30_000;
-const RETRYABLE_ANALYTICS_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+/**
+ * Status codes treated as retryable for raw HTTP failures that don't surface a
+ * typed error from the generated event-capture client (e.g. 408, 502, 504).
+ * 429/500/503 are also retryable but reach the catch handlers as their typed
+ * counterparts and so don't go through the status-set fallback.
+ */
+const RETRYABLE_HTTP_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY =
   "voidhash:analytics:last-seen-app-release";
 
@@ -77,39 +82,6 @@ const parseRetryAfterMs = (
   return Math.max(retryAt - Date.now(), 0);
 };
 
-const getRetryAfterMsFromResponseBody = (
-  data: unknown
-): number | undefined => {
-  if (
-    data !== null &&
-    typeof data === "object" &&
-    "retry_after_ms" in data &&
-    typeof (data as { retry_after_ms?: unknown }).retry_after_ms === "number"
-  ) {
-    return (data as { retry_after_ms: number }).retry_after_ms;
-  }
-  return undefined;
-};
-
-const resolveIngestEventsUrl = (options: {
-  baseUrl: string;
-  ingestUrl: string | undefined;
-}) => {
-  const baseUrl = options.ingestUrl
-    ? new URL(options.ingestUrl)
-    : buildDefaultIngestBaseUrl(options.baseUrl);
-  return new URL("/batch", baseUrl).toString();
-};
-
-const buildDefaultIngestBaseUrl = (apiBaseUrl: string) => {
-  const parsedApiUrl = new URL(apiBaseUrl);
-  parsedApiUrl.hostname = `i.${parsedApiUrl.hostname}`;
-  parsedApiUrl.hash = "";
-  parsedApiUrl.pathname = "/";
-  parsedApiUrl.search = "";
-  return parsedApiUrl;
-};
-
 /**
  * Inline retry schedule used inside `flush()`: exponential backoff capped at 3
  * total attempts. Retry-After-bearing failures are excluded via the `while`
@@ -149,27 +121,43 @@ export class AnalyticsService extends ServiceMap.Service<AnalyticsService>()(
       const getStandardizedProperties = getAnalyticsStandardizedProperties();
       let flushCallback: (() => void) | null = null;
 
-      const ingestEventsUrl = resolveIngestEventsUrl({
-        baseUrl: sdkConfiguration.baseUrl,
-        ingestUrl: sdkConfiguration.ingestUrl,
-      });
+      // The ingest endpoint lives on the same host as the API but under the
+      // `/i/v1/...` path prefix. The generated client owns the path, so we
+      // only need to inject the base origin via `prependUrl`. `ingestUrl`
+      // remains as an override for local/test ingest servers.
+      const ingestBaseUrl = sdkConfiguration.ingestUrl ?? sdkConfiguration.baseUrl;
+      const eventCaptureClient = makeEventCaptureClient(
+        httpClient as VoidhashEventCaptureClient["httpClient"],
+        {
+          transformClient: (client) =>
+            Effect.succeed(
+              client.pipe(
+                HttpClient.mapRequest((request) =>
+                  HttpClientRequest.prependUrl(request, ingestBaseUrl)
+                )
+              )
+            ),
+        }
+      );
 
-      const buildRetryableFailure = (response: HttpClientResponse.HttpClientResponse) =>
-        Effect.gen(function* () {
-          const body = yield* response.json.pipe(
-            Effect.orElseSucceed(() => undefined as unknown)
-          );
-          return yield* Effect.fail(
-            new AnalyticsSendFailure({
-              message: `Analytics ingest request failed: ${response.status}`,
-              retryAfterMs:
-                parseRetryAfterMs(response.headers["retry-after"]) ??
-                getRetryAfterMsFromResponseBody(body),
-              retryable: true,
-              status: response.status,
-            })
-          );
-        });
+      const failNonRetryable = (status: number) =>
+        Effect.fail(
+          new AnalyticsSendFailure({
+            message: `Analytics ingest request failed: ${status}`,
+            retryable: false,
+            status,
+          })
+        );
+
+      const failRetryable = (status: number, retryAfterMs?: number) =>
+        Effect.fail(
+          new AnalyticsSendFailure({
+            message: `Analytics ingest request failed: ${status}`,
+            retryAfterMs,
+            retryable: true,
+            status,
+          })
+        );
 
       const sendAnalyticsEvents = (
         events: ReadonlyArray<AnalyticsIngestEvent>
@@ -178,60 +166,58 @@ export class AnalyticsService extends ServiceMap.Service<AnalyticsService>()(
           if (events.length === 0) return;
 
           const distinctId = yield* identityManager.getDistinctId();
-          const request = HttpClientRequest.post(ingestEventsUrl).pipe(
-            HttpClientRequest.bodyJsonUnsafe({
-              events: events.map((event) => ({
-                context: event.context,
-                distinct_id: distinctId,
-                event: event.event_name,
-                properties: event.properties,
-                request: {
-                  sdk_name: "react-native",
-                  sdk_version: SDK_VERSION,
-                },
-                session_id: event.session_id,
-                timestamp: event.event_ts,
-                uuid: event.event_id,
-              })),
-              sent_at: new Date().toISOString(),
-              token: sdkConfiguration.publishableKey,
-            })
-          );
-
-          const response = yield* httpClient.execute(request).pipe(
-            Effect.catchTag("HttpClientError", (cause) =>
-              Effect.fail(
+          yield* eventCaptureClient.eventCaptureBatch({
+            events: events.map((event) => ({
+              context: event.context,
+              distinct_id: distinctId,
+              event: event.event_name,
+              properties: event.properties,
+              session_id: event.session_id,
+              timestamp: event.event_ts,
+              uuid: event.event_id,
+            })),
+            sent_at: new Date().toISOString(),
+            token: sdkConfiguration.publishableKey,
+          });
+        }).pipe(
+          Effect.catchTags({
+            CaptureDependencyUnavailableError: (err) =>
+              failRetryable(err.response.status),
+            CaptureInternalServerError: (err) =>
+              failRetryable(err.response.status),
+            CapturePayloadTooLargeError: (err) =>
+              failNonRetryable(err.response.status),
+            CaptureRateLimitedError: (err) =>
+              failRetryable(
+                err.response.status,
+                parseRetryAfterMs(err.response.headers["retry-after"]) ??
+                  err.data.retry_after_ms ??
+                  undefined
+              ),
+            CaptureUnauthorizedError: (err) =>
+              failNonRetryable(err.response.status),
+            EventCaptureBatch400: (err) =>
+              failNonRetryable(err.response.status),
+          }),
+          // Unmapped status codes (e.g. 408/502/504) surface as
+          // `HttpClientError`; treat network errors and the retryable subset
+          // as retryable, everything else as non-retryable.
+          Effect.catchTag("HttpClientError", (cause) => {
+            const status = cause.response?.status;
+            if (status === undefined) {
+              return Effect.fail(
                 new AnalyticsSendFailure({
                   cause,
                   message: "Analytics request failed",
                   retryable: true,
                 })
-              )
-            )
-          );
-
-          return yield* HttpClientResponse.matchStatus(response, {
-            "2xx": () => Effect.void,
-            413: () =>
-              Effect.fail(
-                new AnalyticsSendFailure({
-                  message: `Analytics ingest request failed: ${response.status}`,
-                  retryable: false,
-                  status: response.status,
-                })
-              ),
-            orElse: (res) =>
-              RETRYABLE_ANALYTICS_STATUS_CODES.has(res.status)
-                ? buildRetryableFailure(res)
-                : Effect.fail(
-                    new AnalyticsSendFailure({
-                      message: `Analytics ingest request failed: ${res.status}`,
-                      retryable: false,
-                      status: res.status,
-                    })
-                  ),
-          });
-        });
+              );
+            }
+            return RETRYABLE_HTTP_STATUS_CODES.has(status)
+              ? failRetryable(status)
+              : failNonRetryable(status);
+          })
+        );
 
       // Inline retry wrapper used by the queue-draining `flush()` path. Public
       // `sendAnalyticsEvents` stays single-shot so callers can implement their
