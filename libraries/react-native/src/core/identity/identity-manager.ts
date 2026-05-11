@@ -1,9 +1,13 @@
 import { Effect, Layer, ServiceMap } from "effect";
+import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../constants";
 import { CacheManager } from "../caching/cache-manager";
-import { EventBusProvider } from "../event-bus";
 import { ApiClient } from "../networking/api-client";
+import {
+  currentCustomerAtom,
+  featureFlagsByKeyAtom,
+} from "../reactivity/client-state";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 import { CustomerAttributeManager } from "./customer-attribute-manager";
 import { CustomerInfoManager } from "./customer-info-manager";
@@ -14,7 +18,7 @@ const make = Effect.gen(function* effect() {
   const cacheManager = yield* CacheManager;
   const customerAttributeManager = yield* CustomerAttributeManager;
   const customerInfoManager = yield* CustomerInfoManager;
-  const eventBus = yield* EventBusProvider;
+  const atomRegistry = yield* AtomRegistry.AtomRegistry;
   const apiClient = yield* ApiClient;
 
   /**
@@ -67,11 +71,13 @@ const make = Effect.gen(function* effect() {
         customerInfoManager.cache(distinctId, identifyRequest),
       ]);
 
-      eventBus.emit("customer-identified");
-      eventBus.emit("customer-fetched", {
+      // Identity has changed: surface the new customer and clear stale
+      // feature flag state, since flag evaluations are identity-scoped.
+      atomRegistry.set(currentCustomerAtom, {
         ...identifyRequest,
         distinctId,
       });
+      atomRegistry.set(featureFlagsByKeyAtom, {});
     });
 
   const reset = () =>
@@ -81,7 +87,8 @@ const make = Effect.gen(function* effect() {
         currentDistinctId
       );
       yield* cacheManager.clear();
-      eventBus.emit("customer-signed-out");
+      atomRegistry.set(currentCustomerAtom, null);
+      atomRegistry.set(featureFlagsByKeyAtom, {});
     });
 
   // Helpers

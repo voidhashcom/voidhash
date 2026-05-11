@@ -28,10 +28,8 @@ export const createOrganization = () =>
           })
         );
 
-        const organization = yield* client.organizations.createOrganization({
-          payload: {
-            name,
-          },
+        const organization = yield* client.organizationsCreateOrganization({
+          name,
         });
 
         yield* Console.log(

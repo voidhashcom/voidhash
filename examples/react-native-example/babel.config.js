@@ -3,6 +3,15 @@ module.exports = (api) => {
 	const plugins = [];
 	return {
 		plugins,
-		presets: ["babel-preset-expo"],
+		presets: [
+			[
+				"babel-preset-expo",
+				{
+					native: {
+						unstable_transformImportMeta: true,
+					},
+				},
+			],
+		],
 	};
 };

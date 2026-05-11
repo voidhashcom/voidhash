@@ -1,4 +1,5 @@
 import { NodeServices, NodeHttpServer } from "@effect/platform-node";
+import type { AuthSession200 } from "@voidhash/generated-clients";
 import {
   Console,
   Data,
@@ -48,6 +49,43 @@ interface KeyCallbackEvent {
 }
 
 type CallbackEvent = CancelledCallbackEvent | KeyCallbackEvent;
+
+interface AuthShape {
+  readonly getSignedInSession: Effect.Effect<
+    AuthSession200,
+    FailedToGetSessionError | NoSignedInUserError
+  >;
+  readonly login: Effect.Effect<void, FailedToLoginError | LoginCancelledError>;
+  readonly logout: Effect.Effect<void, FailedToLogoutError>;
+}
+
+const hasTag = (
+  error: unknown,
+  tag: string
+): error is { readonly _tag: string } =>
+  typeof error === "object" &&
+  error !== null &&
+  "_tag" in error &&
+  typeof error._tag === "string" &&
+  error._tag === tag;
+
+const hasNestedTag = (
+  error: unknown,
+  outerTag: string,
+  innerTag: string
+): error is { readonly _tag: string; readonly data: { readonly _tag: string } } =>
+  hasTag(error, outerTag) &&
+  "data" in error &&
+  typeof error.data === "object" &&
+  error.data !== null &&
+  "_tag" in error.data &&
+  typeof error.data._tag === "string" &&
+  error.data._tag === innerTag;
+
+const isNoSignedInUserError = (
+  error: unknown
+): error is NoSignedInUserError =>
+  error instanceof NoSignedInUserError || hasTag(error, "NoSignedInUserError");
 
 const runCallbackServer = (callbackEvents: PubSub.PubSub<CallbackEvent>) =>
   Effect.gen(function* runCallbackServer() {
@@ -123,7 +161,7 @@ const make = Effect.gen(function* effect() {
    * @returns {Effect.Effect<unknown, NoSignedInUserError | FailedToGetSessionError, { name: string; email: string }>}
    *   An Effect that yields the signed-in user's information, or fails with an appropriate error.
    */
-  const getSignedInSession = Effect.gen(function* getSignedInSession() {
+  const getSignedInSession: AuthShape["getSignedInSession"] = Effect.gen(function* getSignedInSession() {
     yield* Effect.logDebug("Reading CLI config for session check");
     const config = (yield* cliConfig
       .readConfig()
@@ -141,32 +179,34 @@ const make = Effect.gen(function* effect() {
     }
 
     yield* Effect.logDebug("Fetching session from API");
-    const sessionResponse = yield* client.auth.session().pipe(
+    const sessionResponse = yield* client.authSession().pipe(
       Effect.tap((session) =>
         Effect.logDebug(`Session retrieved for user: ${session.name}`)
       ),
-      Effect.catchTags({
-        NotAuthenticatedError: () =>
+      Effect.catchIf(
+        (error) => hasNestedTag(error, "AuthSession500", "NotAuthenticatedError"),
+        () =>
           Effect.fail(new NoSignedInUserError({ message: "No signed in user" })),
-      })
+      )
     );
 
     return sessionResponse;
   }).pipe(
     Effect.withSpan("Auth.getSignedInSession"),
     Effect.catchIf(
-      (e) => e._tag !== "NoSignedInUserError",
-      (e) =>
+      isNoSignedInUserError,
+      (error) => Effect.fail(error),
+      (error) =>
         Effect.fail(
           new FailedToGetSessionError({
-            cause: e,
+            cause: error,
             message: "Failed to get session",
           })
         )
     )
   );
 
-  const login = Effect.scoped(
+  const login: AuthShape["login"] = Effect.scoped(
     Effect.gen(function* login() {
       yield* Effect.logDebug("Starting login flow");
       const callbackEventsPubSub = yield* PubSub.unbounded<CallbackEvent>();
@@ -241,7 +281,7 @@ const make = Effect.gen(function* effect() {
    *
    * @returns An Effect that logs out the current user, or fails with a FailedToLogoutError if the logout fails.
    */
-  const logout = Effect.gen(function* logout() {
+  const logout: AuthShape["logout"] = Effect.gen(function* logout() {
     yield* Effect.logDebug("Starting logout");
     const config = yield* cliConfig.readConfig();
     if (!config.api_key) {
@@ -269,10 +309,8 @@ const make = Effect.gen(function* effect() {
     getSignedInSession,
     login,
     logout,
-  } as const;
+  } satisfies AuthShape;
 });
-
-type AuthShape = Effect.Success<typeof make>;
 
 export class Auth extends ServiceMap.Service<Auth, AuthShape>()(
   "voidhash-cli/Auth"

@@ -2,9 +2,8 @@ import { Command, Prompt } from "effect/unstable/cli";
 import { Console, Effect } from "effect";
 
 import { Auth } from "../../domain/services/auth";
-import { debugOption } from "../shared-options";
 
-export const loginCommand = Command.make("login", { debug: debugOption }, () =>
+export const loginCommand = Command.make("login", {}, () =>
   Effect.gen(function* loginCommand() {
     const auth = yield* Auth;
     const user = yield* auth.getSignedInSession.pipe(

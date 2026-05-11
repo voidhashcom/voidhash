@@ -2,11 +2,8 @@ import React, { useCallback, useEffect } from "react";
 import { AppState, Linking } from "react-native";
 
 import type { VoidhashClient } from "../../client";
-import type {
-  ExtractSchemaPaywallLocationSlugs,
-  InferGetProductResponseFromSchema,
-  VoidhashSchema,
-} from "../../core/schema";
+import type { SubscriptionProduct } from "../../core/entities/product";
+import type { LocationSlug } from "../../core/schema/registry";
 import { PaywallPresenter } from "../../nitro";
 import {
   createPaywallBridgeErrorResponse,
@@ -31,16 +28,6 @@ export interface UsePaywallByLocationOptions {
   onRestore?: (context: { requestId?: string }) => void;
 }
 
-type InferGetPaywallLocationInput<TSchema extends VoidhashSchema> =
-  [ExtractSchemaPaywallLocationSlugs<TSchema>] extends [never]
-    ? string
-    : ExtractSchemaPaywallLocationSlugs<TSchema>;
-
-type ResolvedProduct<TSchema extends VoidhashSchema> = Exclude<
-  InferGetProductResponseFromSchema<TSchema>[keyof InferGetProductResponseFromSchema<TSchema>],
-  null
->;
-
 const resolvedPaywallHtmlByLocation = new Map<string, string>();
 const activeHookCountByLocation = new Map<string, number>();
 const inFlightActionByLocation = new Set<string>();
@@ -57,7 +44,7 @@ function normalizeLocation(locationSlug: string): string {
 
 function getResolvedHtmlUrl(
   resolvedPaywall:
-    | Awaited<ReturnType<VoidhashClient<VoidhashSchema>["getPaywallForLocation"]>>
+    | Awaited<ReturnType<VoidhashClient["getPaywallForLocation"]>>
     | null
     | undefined
 ): string | null {
@@ -87,12 +74,12 @@ function getErrorPayload(error: unknown): { code: string; message: string } {
   };
 }
 
-function findProductByBridgeProductId<TSchema extends VoidhashSchema>(
-  products: InferGetProductResponseFromSchema<TSchema>,
+function findProductByBridgeProductId(
+  products: Record<string, SubscriptionProduct | null>,
   productId: string
-): ResolvedProduct<TSchema> | null {
+): SubscriptionProduct | null {
   const productList = Object.values(products).filter(
-    (product): product is ResolvedProduct<TSchema> => product !== null
+    (product): product is SubscriptionProduct => product !== null
   );
 
   const byId = productList.find((product) => product.id === productId);
@@ -109,8 +96,8 @@ interface PaywallPresenterBridgeAdapter {
   postMessage: (locationSlug: string, data: string) => void;
 }
 
-async function handlePaywallBridgeEvent<TSchema extends VoidhashSchema>(options: {
-  client: VoidhashClient<TSchema>;
+async function handlePaywallBridgeEvent(options: {
+  client: VoidhashClient;
   locationKey: string;
   paywallOptions?: UsePaywallByLocationOptions;
   openExternalUrl: (url: string) => Promise<void>;
@@ -239,10 +226,8 @@ async function handlePaywallBridgeEvent<TSchema extends VoidhashSchema>(options:
   }
 }
 
-export async function __internal_handlePaywallBridgeEventForTests<
-  TSchema extends VoidhashSchema,
->(options: {
-  client: VoidhashClient<TSchema>;
+export async function __internal_handlePaywallBridgeEventForTests(options: {
+  client: VoidhashClient;
   locationKey: string;
   paywallOptions?: UsePaywallByLocationOptions;
   openExternalUrl: (url: string) => Promise<void>;
@@ -269,12 +254,12 @@ function decrementActiveHookCount(locationSlug: string) {
   return nextCount;
 }
 
-export function paywallByLocationHookFactory<TSchema extends VoidhashSchema>(
-  client: VoidhashClient<TSchema>,
-  vhContext: React.Context<VoidhashContext<TSchema> | null>
+export function paywallByLocationHookFactory(
+  client: VoidhashClient,
+  vhContext: React.Context<VoidhashContext | null>
 ) {
   function usePaywallByLocation(
-    locationSlug: InferGetPaywallLocationInput<TSchema>,
+    locationSlug: LocationSlug,
     paywallOptions?: UsePaywallByLocationOptions
   ): UsePaywallByLocationResult {
     const voidhashContext = React.useContext(vhContext);

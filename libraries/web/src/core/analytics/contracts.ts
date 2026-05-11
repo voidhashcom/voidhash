@@ -1,12 +1,12 @@
-import {
+import type {
   CaptureBatchRequest,
   CaptureEvent,
-} from "@voidhash/api-spec/event-capture";
+} from "@voidhash/generated-clients/event-capture";
 
 import type { AnalyticsFlushResult } from "../../types";
 
-export type AnalyticsRequestEvent = typeof CaptureEvent.Type;
-export type AnalyticsBatchRequest = typeof CaptureBatchRequest.Type;
+export type AnalyticsRequestEvent = CaptureEvent;
+export type AnalyticsBatchRequest = CaptureBatchRequest;
 
 export interface QueuedAnalyticsEvent {
   readonly attempts: number;

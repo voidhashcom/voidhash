@@ -2,7 +2,7 @@ import { Stack } from "expo-router";
 import "react-native-reanimated";
 import "fast-text-encoding";
 import { StatusBar } from "expo-status-bar";
-import { voidhash } from "utils/voidhash/local.client";
+import { voidhash } from "utils/voidhash/client";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 // SplashScreen.preventAutoHideAsync();

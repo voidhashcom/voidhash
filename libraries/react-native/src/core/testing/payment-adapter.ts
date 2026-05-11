@@ -18,10 +18,7 @@ import type {
   UserCancelledError,
 } from "../payment-adapters/errors";
 import { PaymentAdapter } from "../payment-adapters/payment-adapter";
-import type {
-  ExtractSchemaProductDefinitions,
-  VoidhashSchema,
-} from "../schema";
+import type { RuntimeProductDefinition } from "../schema/runtime";
 
 export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
   acknowledgePurchase(
@@ -79,19 +76,14 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
     return Effect.succeed([]);
   },
 
-  getProducts<
-    TSchema extends VoidhashSchema,
-    TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>,
-  >(
-    productDefinitions: TDefinedProducts
+  getProducts(
+    productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
   ): Effect.Effect<
     Product[],
     NativeAdapterNotInitializedError | FailedToGetProductsError,
     never
   > {
-    const productDefinitionsArray = Object.values(
-      productDefinitions
-    ) as TDefinedProducts[keyof TDefinedProducts][];
+    const productDefinitionsArray = Object.values(productDefinitions);
 
     Effect.logDebug("TestPaymentAdapter: Getting products", {
       count: productDefinitionsArray.length,

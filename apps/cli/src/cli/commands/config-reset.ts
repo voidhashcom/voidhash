@@ -3,9 +3,8 @@ import { Console, Effect } from "effect";
 
 import { CliConfig } from "../../domain/services/cli-config";
 import { userError } from "../../utils/error-formatter";
-import { debugOption } from "../shared-options";
 
-export const configResetCommand = Command.make("reset", { debug: debugOption }, () =>
+export const configResetCommand = Command.make("reset", {}, () =>
   Effect.gen(function* configResetCommand() {
     const cliConfig = yield* CliConfig;
 

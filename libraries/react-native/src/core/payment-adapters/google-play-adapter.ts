@@ -7,11 +7,7 @@ import type { GoogleBillingProductDetail } from "../../specs/android/GoogleBilli
 import type { GoogleBillingPurchase } from "../../specs/android/GoogleBillingPurchase.nitro";
 import { Product, type SubscriptionProduct } from "../entities/product";
 import { Transaction } from "../entities/transaction";
-import {
-  type ExtractSchemaProductDefinitions,
-  ProductDefinition,
-  type VoidhashSchema,
-} from "../schema";
+import type { RuntimeProductDefinition } from "../schema/runtime";
 import {
   FailedToAcknowledgePurchaseError,
   FailedToBuyProductError,
@@ -195,11 +191,8 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
     return Effect.succeed([]);
   },
 
-  getProducts<
-    TSchema extends VoidhashSchema,
-    TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>,
-  >(
-    productDefinitions: TDefinedProducts
+  getProducts(
+    productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
   ): Effect.Effect<
     Product[],
     NativeAdapterNotInitializedError | FailedToGetProductsError,
@@ -214,15 +207,13 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
         );
       }
 
-      const productIds = Object.values(productDefinitions).map((product) => {
-        if (product instanceof ProductDefinition) {
-          return {
-            id: product.configuration.providers.googlePlay?.productId,
-            slug: product.slug,
-          };
-        }
-        return null;
-      });
+      const productIds = Object.values(productDefinitions)
+        .map((product) => {
+          const id = product.configuration.providers.googlePlay?.productId;
+          if (!id) return null;
+          return { id, slug: product.slug };
+        })
+        .filter((p): p is { id: string; slug: string } => p !== null);
 
       const inappProducts = yield* Effect.tryPromise({
         catch: (error) =>
@@ -233,9 +224,7 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
         try: () =>
           GoogleBilling!.getItemsByType(
             "inapp",
-            productIds
-              .map((pair) => pair?.id)
-              .filter((id): id is string => id !== null)
+            productIds.map((pair) => pair.id)
           ),
       });
 
@@ -248,9 +237,7 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
         try: () =>
           GoogleBilling!.getItemsByType(
             "subs",
-            productIds
-              .map((pair) => pair?.id)
-              .filter((id): id is string => id !== null)
+            productIds.map((pair) => pair.id)
           ),
       });
 
@@ -258,8 +245,7 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
       return yield* Effect.succeed(
         allProducts.map((nativeProduct) =>
           mapGoogleBillingProductToProduct(
-            productIds.find((pair) => pair?.id === nativeProduct.id)?.slug ??
-              "",
+            productIds.find((pair) => pair.id === nativeProduct.id)?.slug ?? "",
             nativeProduct
           )
         )

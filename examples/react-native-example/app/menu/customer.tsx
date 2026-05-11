@@ -1,7 +1,7 @@
 import { Button } from "components/button";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { voidhash } from "utils/voidhash/local.client";
+import { voidhash } from "utils/voidhash/client";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();

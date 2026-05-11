@@ -16,14 +16,17 @@ import {
 import { authCommand } from "./commands/auth";
 import { configCommand } from "./commands/config";
 import { initCommand } from "./commands/init";
-import { schemaCommand } from "./commands/schema";
+import { typesCommand } from "./commands/types";
+import { debugOption } from "./shared-options";
 
-const command = Command.make("voidhash").pipe(
+const command = Command.make("voidhash", { debug: debugOption }, () =>
+  Effect.void
+).pipe(
   Command.withDescription("Voidhash CLI application."),
   Command.withSubcommands([
     initCommand,
     authCommand,
-    schemaCommand,
+    typesCommand,
     configCommand,
   ])
 );

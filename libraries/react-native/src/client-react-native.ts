@@ -1,9 +1,8 @@
 import Constants from "expo-constants";
+import { AtomRegistry } from "effect/unstable/reactivity";
 import { Platform as RNPlatform } from "react-native";
 
 import { VoidhashClient, type VoidhashClientOptions } from "./client";
-import { EventBus } from "./core/event-bus";
-import type { VoidhashSchema } from "./core/schema";
 import { SchemeNotSetError } from "./errors";
 import { voidhashProviderFactory } from "./react/components/provider";
 import { useRetrieveAppStoreProduct } from "./react/hooks/app-store/use-retrieve-app-store-product";
@@ -16,10 +15,18 @@ import { paywallByLocationHookFactory } from "./react/hooks/use-paywall-by-locat
 import { productsHookFactory } from "./react/hooks/use-products";
 import { purchaseHookFactory } from "./react/hooks/use-purchase";
 
-export function createVoidhashClient<TSchema extends VoidhashSchema>(
+/**
+ * Bootstrap the Voidhash React Native SDK for a project.
+ *
+ * After the server-first redesign:
+ * - There is no schema argument. The schema lives on the server and is
+ *   fetched on `Provider` mount.
+ * - Type safety for product / location / perk slugs comes from the generated
+ *   `voidhash.gen.d.ts` (run `voidhash-cli types generate`).
+ */
+export function createVoidhashClient(
   publishableKey: string,
-  schema: VoidhashClientOptions<TSchema>["schema"],
-  options: Omit<VoidhashClientOptions<TSchema>, "schema">
+  options: VoidhashClientOptions = {}
 ) {
   const baseUrl = options.baseUrl || "https://api.voidhash.com";
   const debug = options.debug ?? false;
@@ -37,21 +44,21 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
     throw new SchemeNotSetError();
   }
 
-  const eventBus = new EventBus();
+  const atomRegistry = AtomRegistry.make();
   const platform = RNPlatform.OS === "ios" ? "ios" : "android";
 
-  const client = new VoidhashClient<TSchema>(
+  const client = new VoidhashClient(
     distinctId,
     scheme,
-    schema,
     baseUrl,
     ingestUrl,
     publishableKey,
     readOnly,
     unstableSwallowErrors,
-    eventBus,
+    atomRegistry,
     platform,
-    debug
+    debug,
+    options.unstable_internalSchema
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);
