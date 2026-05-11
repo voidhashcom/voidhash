@@ -2,11 +2,10 @@ import { Command, Prompt } from "effect/unstable/cli";
 import { Console, Effect } from "effect";
 
 import { Auth } from "../../domain/services/auth";
-import { debugOption } from "../shared-options";
 
 export const logoutCommand = Command.make(
 	"logout",
-	{ debug: debugOption },
+	{},
 	() =>
 		Effect.gen(function* logoutCommand() {
 			const auth = yield* Auth;

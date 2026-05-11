@@ -8,7 +8,6 @@ import { Codegen } from "../../domain/services/codegen";
 import { SchemaService } from "../../domain/services/schema";
 import { SourceCode } from "../../domain/services/source-code";
 import { userError } from "../../utils/error-formatter";
-import { debugOption } from "../shared-options";
 
 /**
  * `voidhash types check`
@@ -20,7 +19,7 @@ import { debugOption } from "../shared-options";
  */
 export const typesCheckCommand = Command.make(
   "check",
-  { debug: debugOption },
+  {},
   () =>
     Effect.gen(function* typesCheckCommand() {
       const auth = yield* Auth;

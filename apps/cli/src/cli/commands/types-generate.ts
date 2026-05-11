@@ -7,7 +7,6 @@ import { Codegen } from "../../domain/services/codegen";
 import { SchemaService } from "../../domain/services/schema";
 import { SourceCode } from "../../domain/services/source-code";
 import { userError } from "../../utils/error-formatter";
-import { debugOption } from "../shared-options";
 
 /**
  * `voidhash types generate [--watch]`
@@ -20,7 +19,6 @@ import { debugOption } from "../shared-options";
 export const typesGenerateCommand = Command.make(
   "generate",
   {
-    debug: debugOption,
     pollIntervalMs: Flag.integer("poll-interval-ms").pipe(
       Flag.withDescription(
         "Polling interval for --watch mode, in milliseconds"

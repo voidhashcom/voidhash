@@ -11,7 +11,6 @@ import { userError } from "../../utils/error-formatter";
 import { assertFileCanBeCreated } from "../../utils/fs";
 import { selectOrganization } from "../../utils/organizations/select-organization";
 import { selectProject } from "../../utils/projects/select-project";
-import { debugOption } from "../shared-options";
 
 /**
  * `voidhash init`
@@ -24,7 +23,7 @@ import { debugOption } from "../shared-options";
  * after the server-first redesign. Likewise the client file is the user's to
  * write (it's two lines now: import + `createVoidhashClient`).
  */
-export const initCommand = Command.make("init", { debug: debugOption }, () =>
+export const initCommand = Command.make("init", {}, () =>
   Effect.gen(function* initCommand() {
     const auth = yield* Auth;
     const apiClient = yield* ApiClient;
