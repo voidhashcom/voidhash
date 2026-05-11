@@ -9,6 +9,8 @@ export class FailedToInitializeNativeAdapterError extends VoidhashError {}
 
 export class FailedToEndNativeAdapterError extends VoidhashError {}
 
+export class FailedToFetchSchemaError extends VoidhashError {}
+
 export class NotInitializedError extends VoidhashError {
   constructor() {
     super(

@@ -21,6 +21,7 @@ import { ProductService } from "./core/products/product-service";
 import { TransactionService } from "./core/transactions/transaction-service";
 import type { LocationSlug, ProductSlug } from "./core/schema/registry";
 import type { RuntimeSchema } from "./core/schema/runtime";
+import { SchemaManager } from "./core/schema/schema-manager";
 import { SdkConfiguration } from "./core/sdk-configuration";
 import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "./errors";
 import { AnalyticsService } from "./core/analytics/service";
@@ -62,6 +63,7 @@ const CreateEffectRuntime = (
       Layer.provideMerge(LifecycleService.layer),
       Layer.provideMerge(ReactNativeLifecycleAdapter),
       Layer.provideMerge(CustomerInfoManager.Default),
+      Layer.provideMerge(SchemaManager.layer),
       Layer.provideMerge(IdentityManager.Default),
       Layer.provideMerge(CacheManager.Default),
       Layer.provideMerge(AsyncStorageCacheAdapter),

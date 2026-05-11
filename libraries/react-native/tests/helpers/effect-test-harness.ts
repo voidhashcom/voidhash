@@ -20,6 +20,7 @@ import { PaymentAdapter } from "../../src/core/payment-adapters/payment-adapter"
 import type { PlatformInfo } from "../../src/core/platform/platform-provider";
 import { PlatformProvider } from "../../src/core/platform/platform-provider";
 import { ProductService } from "../../src/core/products/product-service";
+import { SchemaManager } from "../../src/core/schema/schema-manager";
 import { SdkConfiguration } from "../../src/core/sdk-configuration";
 import { TransactionService } from "../../src/core/transactions/transaction-service";
 import { createTestSchema } from "./test-schema";
@@ -41,6 +42,7 @@ export type ApiSdkCall = {
 export interface ApiClientDoubleState {
   readonly evaluateFeatureFlagsCalls: ApiSdkCall[];
   readonly getCustomerCalls: ApiSdkCall[];
+  readonly getSchemaCalls: ApiSdkCall[];
   readonly identifyCalls: ApiSdkCall[];
   readonly syncCustomerAttributesCalls: ApiSdkCall[];
   readonly syncTransactionCalls: ApiSdkCall[];
@@ -49,6 +51,8 @@ export interface ApiClientDoubleState {
 export interface ApiClientDoubleOptions {
   evaluateFeatureFlagsResult?: FeatureFlagsResult;
   getCustomerResult?: SdkCustomer;
+  getSchemaResult?: ReturnType<typeof createTestSchema>;
+  getSchemaShouldFail?: boolean;
   identifyResult?: SdkCustomer;
   syncTransactionShouldFail?: boolean;
 }
@@ -66,6 +70,7 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
   const state: ApiClientDoubleState = {
     evaluateFeatureFlagsCalls: [],
     getCustomerCalls: [],
+    getSchemaCalls: [],
     identifyCalls: [],
     syncCustomerAttributesCalls: [],
     syncTransactionCalls: [],
@@ -73,7 +78,13 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
 
   const apiClient = {
     sdk: {
-      getSchema: () => Effect.succeed(createTestSchema()),
+      getSchema: (request: ApiSdkCall) => {
+        state.getSchemaCalls.push(request);
+        if (options.getSchemaShouldFail) {
+          return Effect.fail(new Error("getSchema failed"));
+        }
+        return Effect.succeed(options.getSchemaResult ?? createTestSchema());
+      },
       evaluateFeatureFlags: (request: ApiSdkCall) => {
         state.evaluateFeatureFlagsCalls.push(request);
         return Effect.succeed(
@@ -275,6 +286,7 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
     Layer.provideMerge(LifecycleService.layer),
     Layer.provideMerge(Layer.succeed(LifecycleAdapter, lifecycle.adapter)),
     Layer.provideMerge(CustomerInfoManager.Default),
+    Layer.provideMerge(SchemaManager.layer),
     Layer.provideMerge(IdentityManager.Default),
     Layer.provideMerge(CacheManager.Default),
     Layer.provideMerge(Layer.succeed(CacheAdapter, options.cacheAdapter)),

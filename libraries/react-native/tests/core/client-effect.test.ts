@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Cause, Effect, Exit } from "effect";
 import { vi } from "vitest";
 
 import {
@@ -14,7 +14,9 @@ import { SDK_VERSION } from "../../src/core/constants";
 import {
   currentCustomerAtom,
   featureFlagsForKeysAtom,
+  schemaAtom,
 } from "../../src/core/reactivity/client-state";
+import { FailedToFetchSchemaError } from "../../src/errors";
 import {
   createApiClientDouble,
   createEffectTestHarness,
@@ -58,7 +60,10 @@ describe("VoidhashEffectClient", () => {
       );
 
       expect(initializedClient).toHaveProperty("getProducts");
-      expect(apiDouble.state.syncCustomerAttributesCalls).toHaveLength(2);
+      // `identify()` syncs attributes for the current cached distinctId
+      // internally, so init no longer makes a second explicit sync call
+      // before identify — one POST suffices.
+      expect(apiDouble.state.syncCustomerAttributesCalls).toHaveLength(1);
       expect(apiDouble.state.syncCustomerAttributesCalls[0]?.headers["x-distinct-id"]).toBe(
         "cached-before-init"
       );
@@ -99,6 +104,59 @@ describe("VoidhashEffectClient", () => {
         apiDouble.state.getCustomerCalls[0]?.headers["x-distinct-id"]
       );
       expect(distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)).toBe(true);
+    } finally {
+      await harness.runtime.dispose();
+    }
+  });
+
+  it("init without internalSchema fetches the schema once and publishes it to schemaAtom", async () => {
+    const remoteSchema = createTestSchema();
+    const apiDouble = createApiClientDouble({ getSchemaResult: remoteSchema });
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    // Module-level singleton: reset before asserting on it.
+    harness.atomRegistry.set(schemaAtom, null);
+
+    try {
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeUnitializedClient().init({})
+      );
+
+      expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
+      expect(initializedClient.getSchema()).toEqual(remoteSchema);
+      expect(harness.atomRegistry.get(schemaAtom)).toEqual(remoteSchema);
+    } finally {
+      await harness.runtime.dispose();
+    }
+  });
+
+  it("init fails fatally with FailedToFetchSchemaError when schema fetch fails and no cache exists", async () => {
+    const apiDouble = createApiClientDouble({ getSchemaShouldFail: true });
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    harness.atomRegistry.set(schemaAtom, null);
+
+    try {
+      const exit = await harness.runtime.runPromiseExit(
+        VoidhashEffectClient.makeUnitializedClient().init({})
+      );
+
+      expect(Exit.isFailure(exit)).toBe(true);
+      if (Exit.isFailure(exit)) {
+        const error = Cause.squash(exit.cause);
+        expect(error).toBeInstanceOf(FailedToFetchSchemaError);
+      }
+      expect(harness.atomRegistry.get(schemaAtom)).toBeNull();
     } finally {
       await harness.runtime.dispose();
     }

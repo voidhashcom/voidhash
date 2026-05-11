@@ -2,6 +2,7 @@ import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
 import { Atom } from "effect/unstable/reactivity";
 
 import type { FeatureFlagsResult } from "../feature-flags/feature-flag-service";
+import type { RuntimeSchema } from "../schema/runtime";
 
 export type { FeatureFlagsResult };
 
@@ -11,6 +12,18 @@ export type { FeatureFlagsResult };
  */
 export const currentCustomerAtom: Atom.Writable<SdkCustomer | null> =
   Atom.make<SdkCustomer | null>(null);
+
+/**
+ * Reactive store of the runtime schema fetched at init time and refreshed
+ * in the background by `SchemaManager`. `null` until init has resolved a
+ * schema. Read by React hooks that need to react to in-session refreshes
+ * (e.g. when the SWR background fetch lands a newer schema than the one
+ * served at init). Note: on a cache-hit init, subscribers may observe two
+ * publishes — the cached value first, then the freshly refreshed value
+ * when the background fetch lands. The two values are usually identical.
+ */
+export const schemaAtom: Atom.Writable<RuntimeSchema | null> =
+  Atom.make<RuntimeSchema | null>(null);
 
 /**
  * Reactive store of feature flag results, keyed by their normalized flag-key

@@ -11,17 +11,13 @@ import type { SubscriptionProduct } from "./core/entities/product";
 import type { Transaction } from "./core/entities/transaction";
 import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
 import { LifecycleService } from "./core/lifecycle/lifecycle-service";
-import { ApiClient } from "./core/networking/api-client";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import { PaywallService } from "./core/paywalls/paywall-service";
 import { ProductService, type ProductsBySlug } from "./core/products/product-service";
 import type { LocationSlug } from "./core/schema/registry";
-import {
-  type RuntimeSchema,
-  createEmptyRuntimeSchema,
-} from "./core/schema/runtime";
+import type { RuntimeSchema } from "./core/schema/runtime";
+import { SchemaManager } from "./core/schema/schema-manager";
 import { TransactionService } from "./core/transactions/transaction-service";
-import { getCommonSdkHeaders } from "./core/utils/get-common-sdk-headers";
 import { UnsupportedPlatformError } from "./errors";
 
 export type { ProductsBySlug };
@@ -40,8 +36,15 @@ interface InitOptions {
 
 /**
  * Build the initial state of the SDK before `init()` has run. Returns an
- * object whose `init` method performs identity establishment, schema fetching,
- * and then yields the fully-initialized client facade.
+ * object whose `init` method establishes identity, resolves the runtime
+ * schema (via `SchemaManager`'s stale-while-revalidate cache), and yields
+ * the fully-initialized client facade. The independent network calls are
+ * run concurrently via `Effect.all({ concurrency: "unbounded" })`.
+ *
+ * A missing/failed schema fetch is fatal — when the cache is cold and the
+ * server is unreachable, `init` rejects with `FailedToFetchSchemaError`.
+ * This trades silent degradation for a loud failure that surfaces through
+ * `client.tsx`'s `runEffect` wrapping.
  */
 const makeUnitializedClient = () => ({
   init: (initOptions: InitOptions = {}) =>
@@ -49,63 +52,51 @@ const makeUnitializedClient = () => ({
       const identityManager = yield* IdentityManager;
       const customerAttributeManager = yield* CustomerAttributeManager;
       const customerInfoManager = yield* CustomerInfoManager;
-      const apiClient = yield* ApiClient;
+      const schemaManager = yield* SchemaManager;
+      const atomRegistry = yield* AtomRegistry.AtomRegistry;
 
       if (initOptions.distinctId) {
         yield* Effect.logDebug("Initializing with provided distinct id", {
           distinctId: initOptions.distinctId,
         });
 
-        const distinctId = yield* identityManager.getDistinctIdFromCache();
-        if (distinctId) {
-          yield* customerAttributeManager.syncCustomerAttributes(distinctId);
-        }
-
-        yield* identityManager.identify(initOptions.distinctId, {});
-      } else {
-        const distinctId = yield* identityManager.getDistinctId();
-        yield* Effect.logDebug("Initializing without provided distinct id", {
-          distinctId,
-        });
-
-        yield* customerAttributeManager.syncCustomerAttributes(distinctId);
-        const prefetched = yield* customerInfoManager.getCustomer(
-          distinctId,
-          "fetch"
+        // `identityManager.identify()` internally syncs attributes for the
+        // current cached distinctId AND publishes the new customer to
+        // `currentCustomerAtom`, so we don't duplicate either here.
+        const [, runtimeSchema] = yield* Effect.all(
+          [
+            identityManager.identify(initOptions.distinctId, {}),
+            schemaManager.resolveSchema({
+              distinctId: initOptions.distinctId,
+              internalSchema: initOptions.internalSchema,
+            }),
+          ],
+          { concurrency: "unbounded" }
         );
-
-        // Publish the prefetched customer so React subscribers see initial
-        // state without having to wait for a hook-driven refetch.
-        const atomRegistry = yield* AtomRegistry.AtomRegistry;
-        atomRegistry.set(currentCustomerAtom, prefetched);
+        return yield* makeInitializedClient({ schema: runtimeSchema });
       }
 
-      // Fetch the runtime schema from the server's `GET /sdk/schema`
-      // endpoint and cache it on the initialized client. A failure here is
-      // non-fatal — non-schema hooks (paywall resolution, feature flags,
-      // identify) still work — but product-related hooks will return empty
-      // data until the next successful init.
-      let runtimeSchema =
-        initOptions.internalSchema ?? createEmptyRuntimeSchema();
-      if (!initOptions.internalSchema) {
-        const commonHeaders = yield* getCommonSdkHeaders();
-        const distinctId = yield* identityManager.getDistinctId();
-        const fetched = yield* Effect.exit(
-          apiClient.sdk.getSchema({
-            headers: {
-              ...commonHeaders,
-              "x-distinct-id": distinctId,
-            },
-          })
-        );
-        if (fetched._tag === "Success") {
-          runtimeSchema = fetched.value;
-        } else {
-          yield* Effect.logWarning(
-            "[voidhash] Failed to fetch schema at init — product-related hooks will return empty data."
-          );
-        }
-      }
+      const distinctId = yield* identityManager.getDistinctId();
+      yield* Effect.logDebug("Initializing without provided distinct id", {
+        distinctId,
+      });
+
+      const [, prefetchedCustomer, runtimeSchema] = yield* Effect.all(
+        [
+          customerAttributeManager.syncCustomerAttributes(distinctId),
+          customerInfoManager.getCustomer(distinctId, "fetch"),
+          schemaManager.resolveSchema({
+            distinctId,
+            internalSchema: initOptions.internalSchema,
+          }),
+        ],
+        { concurrency: "unbounded" }
+      );
+
+      // Publish the prefetched customer so React subscribers see initial
+      // state without having to wait for a hook-driven refetch.
+      // `SchemaManager` publishes `schemaAtom` itself.
+      atomRegistry.set(currentCustomerAtom, prefetchedCustomer);
 
       return yield* makeInitializedClient({ schema: runtimeSchema });
     }),
