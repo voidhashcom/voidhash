@@ -1,7 +1,9 @@
 import { Effect } from "effect";
+import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { AnalyticsService } from "./core/analytics/service";
 import type { AnalyticsIngestEvent } from "./core/analytics/types";
+import { currentCustomerAtom } from "./core/reactivity/client-state";
 import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
 import { CustomerInfoManager } from "./core/identity/customer-info-manager";
 import { IdentityManager } from "./core/identity/identity-manager";
@@ -67,7 +69,15 @@ const makeUnitializedClient = () => ({
         });
 
         yield* customerAttributeManager.syncCustomerAttributes(distinctId);
-        yield* customerInfoManager.getCustomer(distinctId, "fetch");
+        const prefetched = yield* customerInfoManager.getCustomer(
+          distinctId,
+          "fetch"
+        );
+
+        // Publish the prefetched customer so React subscribers see initial
+        // state without having to wait for a hook-driven refetch.
+        const atomRegistry = yield* AtomRegistry.AtomRegistry;
+        atomRegistry.set(currentCustomerAtom, prefetched);
       }
 
       // Fetch the runtime schema from the server's `GET /sdk/schema`
@@ -134,11 +144,17 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         Effect.gen(function* getCurrentCustomer() {
           const identityManager = yield* IdentityManager;
           const customerInfoManager = yield* CustomerInfoManager;
+          const atomRegistry = yield* AtomRegistry.AtomRegistry;
           const distinctId = yield* identityManager.getDistinctId();
-          return yield* customerInfoManager.getCustomer(
+          const customer = yield* customerInfoManager.getCustomer(
             distinctId,
             forceFetch ? "fetch" : "fetch-while-stale"
           );
+          // Publish to the reactive store so any subscribed React hook
+          // re-renders with the latest result (whether cached or freshly
+          // fetched).
+          atomRegistry.set(currentCustomerAtom, customer);
+          return customer;
         }),
 
       getDistinctId: () =>

@@ -1,10 +1,10 @@
 import { Cause, Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
+import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { VoidhashEffectClient } from "./client-effect";
 import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";
 import { CacheManager } from "./core/caching/cache-manager";
-import { type EventBus, EventBusProvider } from "./core/event-bus";
 import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
 import { CustomerInfoManager } from "./core/identity/customer-info-manager";
 import { IdentityManager } from "./core/identity/identity-manager";
@@ -49,7 +49,7 @@ const CreateEffectRuntime = (
   ingestUrl: string | undefined,
   publishableKey: string,
   readOnly: boolean,
-  eventBus: EventBus
+  atomRegistry: AtomRegistry.AtomRegistry
 ) =>
   ManagedRuntime.make(
     pipe(
@@ -70,7 +70,7 @@ const CreateEffectRuntime = (
       Layer.provideMerge(
         platform === "ios" ? AppStoreAdapter : GooglePlayAdapter
       ),
-      Layer.provideMerge(Layer.succeed(EventBusProvider, eventBus)),
+      Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
       Layer.provideMerge(ReactNativePlatformProvider),
       Layer.provideMerge(
         Layer.succeed(SdkConfiguration, {
@@ -116,7 +116,7 @@ export class VoidhashClient {
   private scheme: string;
   private internalSchema: RuntimeSchema | undefined;
   private unstableSwallowErrors: boolean;
-  private eventBus: EventBus;
+  private atomRegistry: AtomRegistry.AtomRegistry;
 
   private effectRuntime: ReturnType<typeof CreateEffectRuntime>;
 
@@ -131,7 +131,7 @@ export class VoidhashClient {
     publishableKey: string,
     readOnly: boolean,
     unstableSwallowErrors: boolean,
-    eventBus: EventBus,
+    atomRegistry: AtomRegistry.AtomRegistry,
     platform: Exclude<PlatformInfo["platform"], "unknown">,
     debug = false,
     internalSchema?: RuntimeSchema
@@ -141,7 +141,7 @@ export class VoidhashClient {
     this.scheme = scheme;
     this.internalSchema = internalSchema;
     this.unstableSwallowErrors = unstableSwallowErrors;
-    this.eventBus = eventBus;
+    this.atomRegistry = atomRegistry;
     this.effectRuntime = CreateEffectRuntime(
       platform,
       baseUrl,
@@ -149,7 +149,7 @@ export class VoidhashClient {
       ingestUrl,
       publishableKey,
       readOnly,
-      eventBus
+      atomRegistry
     );
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
   }
@@ -447,8 +447,8 @@ export class VoidhashClient {
   // Internal helpers
   // ===============================
 
-  internal_getEventBus() {
-    return this.eventBus;
+  internal_getAtomRegistry() {
+    return this.atomRegistry;
   }
 
   /**

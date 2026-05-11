@@ -12,10 +12,15 @@ import { Transaction } from "../../src/core/entities/transaction";
 import { CustomerAttributeManager } from "../../src/core/identity/customer-attribute-manager";
 import { SDK_VERSION } from "../../src/core/constants";
 import {
+  currentCustomerAtom,
+  featureFlagsForKeysAtom,
+} from "../../src/core/reactivity/client-state";
+import {
   createApiClientDouble,
   createEffectTestHarness,
   createInMemoryCacheAdapter,
   createPaymentAdapterDouble,
+  createSdkCustomer,
 } from "../helpers/effect-test-harness";
 import { describe, expect, it } from "../helpers/effect-vitest";
 import { createTestSchema } from "../helpers/test-schema";
@@ -140,7 +145,7 @@ describe("VoidhashEffectClient", () => {
     }
   });
 
-  it("getFeatureFlags caches by sorted keys and emits event only for fetch", async () => {
+  it("getFeatureFlags caches by sorted keys and publishes to the reactive atom", async () => {
     const schema = createTestSchema();
     const apiDouble = createApiClientDouble({
       evaluateFeatureFlagsResult: {
@@ -164,18 +169,17 @@ describe("VoidhashEffectClient", () => {
     const initializedClient = await harness.runtime.runPromise(
       VoidhashEffectClient.makeInitializedClient({ schema })
     );
-    const events: string[] = [];
-    const remove = harness.eventBus.on("feature-flags-fetched", () => {
-      events.push("feature-flags-fetched");
-    });
 
     try {
       await harness.runtime.runPromise(
         Effect.flatMap(CacheManager.asEffect(), (manager) => manager.set("distinctId", "feature-user"))
       );
 
+      const inputKeys = ["b", "a"];
+      const inputSnapshot = [...inputKeys];
+
       const first = await harness.runtime.runPromise(
-        initializedClient.getFeatureFlags(["b", "a"])
+        initializedClient.getFeatureFlags(inputKeys)
       );
       const second = await harness.runtime.runPromise(
         initializedClient.getFeatureFlags(["a", "b"])
@@ -184,9 +188,132 @@ describe("VoidhashEffectClient", () => {
       expect(first.flags).toHaveLength(1);
       expect(second).toEqual(first);
       expect(apiDouble.state.evaluateFeatureFlagsCalls).toHaveLength(1);
-      expect(events).toEqual(["feature-flags-fetched"]);
+
+      // The caller's input array must remain in its original order — the
+      // service must sort a copy, not mutate the input.
+      expect(inputKeys).toEqual(inputSnapshot);
+
+      // Both reversed and original orders observe the same atom slot.
+      const publishedForBA = harness.atomRegistry.get(
+        featureFlagsForKeysAtom(["b", "a"])
+      );
+      const publishedForAB = harness.atomRegistry.get(
+        featureFlagsForKeysAtom(["a", "b"])
+      );
+      expect(publishedForBA).toEqual(first);
+      expect(publishedForAB).toEqual(first);
     } finally {
-      remove();
+      await harness.runtime.dispose();
+    }
+  });
+
+  it("maintains separate atom entries for distinct flag-key requests", async () => {
+    const schema = createTestSchema();
+    const responses: Record<string, { flags: Array<{ enabled: boolean; key: string; payload: unknown; variantKey: string | null }> }> = {
+      a: { flags: [{ enabled: true, key: "a", payload: null, variantKey: null }] },
+      b: { flags: [{ enabled: false, key: "b", payload: null, variantKey: null }] },
+    };
+    const apiDouble = createApiClientDouble();
+    (apiDouble.apiClient as {
+      sdk: {
+        evaluateFeatureFlags: (request: {
+          headers: Record<string, unknown>;
+          payload?: { flagKeys?: string[] };
+        }) => unknown;
+      };
+    }).sdk.evaluateFeatureFlags = (request) => {
+      apiDouble.state.evaluateFeatureFlagsCalls.push(request);
+      const key = request.payload?.flagKeys?.[0] ?? "all";
+      return Effect.succeed(responses[key] ?? { flags: [] });
+    };
+
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
+
+    try {
+      await harness.runtime.runPromise(initializedClient.getFeatureFlags(["a"]));
+      await harness.runtime.runPromise(initializedClient.getFeatureFlags(["b"]));
+
+      const forA = harness.atomRegistry.get(featureFlagsForKeysAtom(["a"]));
+      const forB = harness.atomRegistry.get(featureFlagsForKeysAtom(["b"]));
+      expect(forA?.flags[0]?.key).toBe("a");
+      expect(forB?.flags[0]?.key).toBe("b");
+    } finally {
+      await harness.runtime.dispose();
+    }
+  });
+
+  it("getCurrentCustomer publishes both cached and freshly fetched results to the reactive atom", async () => {
+    const schema = createTestSchema();
+    const fetched = createSdkCustomer("fetched-customer");
+    const apiDouble = createApiClientDouble({ getCustomerResult: fetched });
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
+
+    try {
+      await harness.runtime.runPromise(
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+          manager.set("distinctId", "fetched-customer")
+        )
+      );
+
+      // First call fetches and publishes the network result.
+      await harness.runtime.runPromise(
+        initializedClient.getCurrentCustomer(true)
+      );
+      expect(harness.atomRegistry.get(currentCustomerAtom)).toEqual(fetched);
+
+      // Reset atom then verify a cached read still publishes back.
+      harness.atomRegistry.set(currentCustomerAtom, null);
+      await harness.runtime.runPromise(
+        initializedClient.getCurrentCustomer()
+      );
+      expect(harness.atomRegistry.get(currentCustomerAtom)).toEqual(fetched);
+    } finally {
+      await harness.runtime.dispose();
+    }
+  });
+
+  it("init without distinct id publishes the prefetched customer to the reactive atom", async () => {
+    const schema = createTestSchema();
+    const apiDouble = createApiClientDouble();
+    const paymentDouble = createPaymentAdapterDouble();
+    const cache = createInMemoryCacheAdapter();
+    const harness = createEffectTestHarness({
+      apiClient: apiDouble.apiClient,
+      cacheAdapter: cache.adapter,
+      paymentAdapter: paymentDouble.paymentAdapter,
+    });
+
+    try {
+      await harness.runtime.runPromise(
+        VoidhashEffectClient.makeUnitializedClient().init({
+          internalSchema: schema,
+        })
+      );
+
+      const published = harness.atomRegistry.get(currentCustomerAtom);
+      expect(published).not.toBeNull();
+      expect(
+        published?.distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)
+      ).toBe(true);
+    } finally {
       await harness.runtime.dispose();
     }
   });

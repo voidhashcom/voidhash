@@ -1,9 +1,13 @@
 import { Effect, Layer, ServiceMap } from "effect";
+import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { CacheManager } from "../caching/cache-manager";
-import { EventBusProvider } from "../event-bus";
 import { IdentityManager } from "../identity/identity-manager";
 import { ApiClient } from "../networking/api-client";
+import {
+  featureFlagsByKeyAtom,
+  normalizeFeatureFlagKeys,
+} from "../reactivity/client-state";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 
 export interface FeatureFlagsResult {
@@ -17,13 +21,16 @@ export interface FeatureFlagsResult {
 
 const FEATURE_FLAGS_CACHE_TTL_MS = 1000 * 60 * 5;
 
+// Sort a *copy* of the caller's array — the input is part of their data and
+// must not be mutated, which the previous in-place `.sort()` was doing.
 const generateCacheKey = (flagKeys: string[] | undefined) =>
-  `feature-flags:${flagKeys?.sort().join(",") ?? "all"}`;
+  `feature-flags:${flagKeys && flagKeys.length > 0 ? [...flagKeys].sort().join(",") : "all"}`;
 
 /**
- * Evaluates feature flags via the SDK API with a 5-minute cache. Emits a
- * `feature-flags-fetched` event on the event bus whenever a fresh result is
- * received from the server (cache hits don't re-emit).
+ * Evaluates feature flags via the SDK API with a 5-minute cache. Publishes
+ * each result (cached or fresh) into the reactive `featureFlagsByKeyAtom`
+ * keyed by the normalized request signature, so React hooks can subscribe to
+ * exactly the slice of state they asked for.
  */
 export class FeatureFlagService extends ServiceMap.Service<FeatureFlagService>()(
   "rn-voidhash/FeatureFlagService",
@@ -31,14 +38,27 @@ export class FeatureFlagService extends ServiceMap.Service<FeatureFlagService>()
     make: Effect.gen(function* () {
       const cacheManager = yield* CacheManager;
       const apiClient = yield* ApiClient;
-      const eventBus = yield* EventBusProvider;
+      const atomRegistry = yield* AtomRegistry.AtomRegistry;
       const identityManager = yield* IdentityManager;
+
+      const publishResult = (
+        flagKeys: string[] | undefined,
+        result: FeatureFlagsResult
+      ) => {
+        const normalizedKey = normalizeFeatureFlagKeys(flagKeys);
+        const current = atomRegistry.get(featureFlagsByKeyAtom);
+        atomRegistry.set(featureFlagsByKeyAtom, {
+          ...current,
+          [normalizedKey]: result,
+        });
+      };
 
       const getFeatureFlags = (flagKeys?: string[]) =>
         Effect.gen(function* () {
           const cacheKey = generateCacheKey(flagKeys);
           const cached = yield* cacheManager.get<FeatureFlagsResult>(cacheKey);
           if (cached && !cached.isExpired && !cached.isStale) {
+            publishResult(flagKeys, cached.value);
             return cached.value;
           }
 
@@ -56,7 +76,7 @@ export class FeatureFlagService extends ServiceMap.Service<FeatureFlagService>()
             ttl: FEATURE_FLAGS_CACHE_TTL_MS,
           });
 
-          eventBus.emit("feature-flags-fetched", result);
+          publishResult(flagKeys, result);
           return result;
         });
 

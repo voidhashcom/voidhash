@@ -2,14 +2,12 @@ import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
 import { Effect, Layer, ServiceMap } from "effect";
 
 import { CacheManager } from "../caching/cache-manager";
-import { EventBusProvider } from "../event-bus";
 import { ApiClient } from "../networking/api-client";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 
 const make = Effect.gen(function* effect() {
   const cacheManager = yield* CacheManager;
   const apiClient = yield* ApiClient;
-  const eventBus = yield* EventBusProvider;
 
   const generateCustomerCacheKey = (distinctId: string) =>
     `customer:${distinctId}`;
@@ -35,7 +33,6 @@ const make = Effect.gen(function* effect() {
           "x-distinct-id": distinctId,
         },
       });
-      eventBus.emit("customer-fetched", result);
       yield* cache(distinctId, result);
       return result;
     });

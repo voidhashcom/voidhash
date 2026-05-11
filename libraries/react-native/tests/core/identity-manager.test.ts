@@ -6,10 +6,15 @@ import { CustomerAttributeManager } from "../../src/core/identity/customer-attri
 import { CustomerInfoManager } from "../../src/core/identity/customer-info-manager";
 import { IdentityManager } from "../../src/core/identity/identity-manager";
 import {
+  currentCustomerAtom,
+  featureFlagsByKeyAtom,
+} from "../../src/core/reactivity/client-state";
+import {
   createApiClientDouble,
   createEffectTestHarness,
   createInMemoryCacheAdapter,
   createPaymentAdapterDouble,
+  createSdkCustomer,
 } from "../helpers/effect-test-harness";
 import { describe, expect, it } from "../helpers/effect-vitest";
 
@@ -64,7 +69,7 @@ describe("IdentityManager", () => {
     }
   });
 
-  it("identify syncs previous traits, updates cache and emits events", async () => {
+  it("identify syncs previous traits, updates cache and publishes new customer", async () => {
     const apiDouble = createApiClientDouble();
     const paymentDouble = createPaymentAdapterDouble();
     const cache = createInMemoryCacheAdapter();
@@ -74,17 +79,12 @@ describe("IdentityManager", () => {
       paymentAdapter: paymentDouble.paymentAdapter,
     });
 
-    const identifiedEvents: string[] = [];
-    const fetchedEvents: string[] = [];
-
-    const removeIdentified = harness.eventBus.on("customer-identified", () => {
-      identifiedEvents.push("customer-identified");
-    });
-    const removeFetched = harness.eventBus.on("customer-fetched", (customer) => {
-      fetchedEvents.push(customer.distinctId);
-    });
-
     try {
+      // Seed feature flag state to verify identity changes clear it.
+      harness.atomRegistry.set(featureFlagsByKeyAtom, {
+        all: { flags: [{ enabled: true, key: "k", payload: null, variantKey: null }] },
+      });
+
       await harness.runtime.runPromise(
         Effect.flatMap(CacheManager.asEffect(), (manager) =>
           Effect.all([
@@ -130,16 +130,16 @@ describe("IdentityManager", () => {
 
       expect(cachedDistinctId).toBe("new-user");
       expect(cachedCustomer?.value.distinctId).toBe("new-user");
-      expect(identifiedEvents).toEqual(["customer-identified"]);
-      expect(fetchedEvents).toEqual(["new-user"]);
+
+      const publishedCustomer = harness.atomRegistry.get(currentCustomerAtom);
+      expect(publishedCustomer?.distinctId).toBe("new-user");
+      expect(harness.atomRegistry.get(featureFlagsByKeyAtom)).toEqual({});
     } finally {
-      removeIdentified();
-      removeFetched();
       await harness.runtime.dispose();
     }
   });
 
-  it("reset syncs attributes, clears cache and emits signed out event", async () => {
+  it("reset syncs attributes, clears cache and resets reactive state", async () => {
     const apiDouble = createApiClientDouble();
     const paymentDouble = createPaymentAdapterDouble();
     const cache = createInMemoryCacheAdapter();
@@ -149,12 +149,16 @@ describe("IdentityManager", () => {
       paymentAdapter: paymentDouble.paymentAdapter,
     });
 
-    const signOutEvents: string[] = [];
-    const remove = harness.eventBus.on("customer-signed-out", () => {
-      signOutEvents.push("customer-signed-out");
-    });
-
     try {
+      // Seed reactive state so we can assert reset clears it.
+      harness.atomRegistry.set(
+        currentCustomerAtom,
+        createSdkCustomer("signed-in-user")
+      );
+      harness.atomRegistry.set(featureFlagsByKeyAtom, {
+        all: { flags: [] },
+      });
+
       await harness.runtime.runPromise(
         Effect.flatMap(CacheManager.asEffect(), (manager) =>
           Effect.all([
@@ -189,9 +193,9 @@ describe("IdentityManager", () => {
       );
       expect(distinctIdFromCache).toBeNull();
       expect(cacheKeys).toEqual([]);
-      expect(signOutEvents).toEqual(["customer-signed-out"]);
+      expect(harness.atomRegistry.get(currentCustomerAtom)).toBeNull();
+      expect(harness.atomRegistry.get(featureFlagsByKeyAtom)).toEqual({});
     } finally {
-      remove();
       await harness.runtime.dispose();
     }
   });

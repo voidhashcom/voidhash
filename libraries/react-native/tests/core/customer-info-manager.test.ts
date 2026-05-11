@@ -48,7 +48,7 @@ describe("CustomerInfoManager", () => {
     }
   });
 
-  it("fetch policy always requests API, updates cache and emits event", async () => {
+  it("fetch policy always requests API and updates cache", async () => {
     const apiDouble = createApiClientDouble({
       getCustomerResult: createSdkCustomer("fetched-user"),
     });
@@ -58,11 +58,6 @@ describe("CustomerInfoManager", () => {
       apiClient: apiDouble.apiClient,
       cacheAdapter: cache.adapter,
       paymentAdapter: paymentDouble.paymentAdapter,
-    });
-
-    const fetchedEvents: string[] = [];
-    const remove = harness.eventBus.on("customer-fetched", (customer) => {
-      fetchedEvents.push(customer.distinctId);
     });
 
     try {
@@ -84,9 +79,7 @@ describe("CustomerInfoManager", () => {
       expect(result.distinctId).toBe("fetched-user");
       expect(apiDouble.state.getCustomerCalls).toHaveLength(1);
       expect(cached?.value.distinctId).toBe("fetched-user");
-      expect(fetchedEvents).toEqual(["fetched-user"]);
     } finally {
-      remove();
       await harness.runtime.dispose();
     }
   });

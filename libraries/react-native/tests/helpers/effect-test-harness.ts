@@ -1,12 +1,12 @@
 import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
 import { Effect, Layer, ManagedRuntime, pipe } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
+import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { CacheAdapter } from "../../src/core/caching/cache-adapter";
 import { CacheManager } from "../../src/core/caching/cache-manager";
 import { Product, type SubscriptionProduct } from "../../src/core/entities/product";
 import { Transaction } from "../../src/core/entities/transaction";
-import { EventBus, EventBusProvider } from "../../src/core/event-bus";
 import { CustomerAttributeManager } from "../../src/core/identity/customer-attribute-manager";
 import { CustomerInfoManager } from "../../src/core/identity/customer-info-manager";
 import { IdentityManager } from "../../src/core/identity/identity-manager";
@@ -234,10 +234,10 @@ export function createLifecycleAdapterDouble() {
 
 export interface EffectTestHarnessOptions {
   apiClient: unknown;
+  atomRegistry?: AtomRegistry.AtomRegistry;
   baseUrl?: string;
   cacheAdapter: ReturnType<typeof createInMemoryCacheAdapter>["adapter"];
   debug?: boolean;
-  eventBus?: EventBus;
   fetch?: typeof globalThis.fetch;
   ingestUrl?: string;
   lifecycleAdapter?: ReturnType<typeof createLifecycleAdapterDouble>;
@@ -261,7 +261,7 @@ const defaultPlatformInfo: PlatformInfo = {
 };
 
 export function createEffectTestHarness(options: EffectTestHarnessOptions) {
-  const eventBus = options.eventBus ?? new EventBus();
+  const atomRegistry = options.atomRegistry ?? AtomRegistry.make();
 
   const lifecycle = options.lifecycleAdapter ?? createLifecycleAdapterDouble();
 
@@ -288,7 +288,7 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
         options.paymentAdapter as typeof PaymentAdapter.Service
       )
     ),
-    Layer.provideMerge(Layer.succeed(EventBusProvider, eventBus)),
+    Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
     Layer.provideMerge(
       Layer.succeed(PlatformProvider, {
         ...defaultPlatformInfo,
@@ -313,7 +313,7 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
     : baseLayer;
 
   return {
-    eventBus,
+    atomRegistry,
     runtime: ManagedRuntime.make(layer),
   };
 }

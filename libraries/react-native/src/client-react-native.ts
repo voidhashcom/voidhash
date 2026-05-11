@@ -1,8 +1,8 @@
 import Constants from "expo-constants";
+import { AtomRegistry } from "effect/unstable/reactivity";
 import { Platform as RNPlatform } from "react-native";
 
 import { VoidhashClient, type VoidhashClientOptions } from "./client";
-import { EventBus } from "./core/event-bus";
 import { SchemeNotSetError } from "./errors";
 import { voidhashProviderFactory } from "./react/components/provider";
 import { useRetrieveAppStoreProduct } from "./react/hooks/app-store/use-retrieve-app-store-product";
@@ -44,7 +44,7 @@ export function createVoidhashClient(
     throw new SchemeNotSetError();
   }
 
-  const eventBus = new EventBus();
+  const atomRegistry = AtomRegistry.make();
   const platform = RNPlatform.OS === "ios" ? "ios" : "android";
 
   const client = new VoidhashClient(
@@ -55,7 +55,7 @@ export function createVoidhashClient(
     publishableKey,
     readOnly,
     unstableSwallowErrors,
-    eventBus,
+    atomRegistry,
     platform,
     debug,
     options.unstable_internalSchema

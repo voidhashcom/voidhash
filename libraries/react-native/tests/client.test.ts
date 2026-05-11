@@ -1,4 +1,5 @@
 import { Exit } from "effect";
+import { AtomRegistry } from "effect/unstable/reactivity";
 import { vi } from "vitest";
 import { describe, expect, it } from "./helpers/effect-vitest";
 
@@ -42,7 +43,6 @@ vi.mock("../src/core/platform/react-native-platform-provider", async () => {
 });
 
 import { VoidhashClient } from "../src/client";
-import { EventBus } from "../src/core/event-bus";
 import {
   ReadOnlyModePurchaseNotAllowedError,
   VoidhashError,
@@ -58,7 +58,7 @@ function createClient(readOnly = false, unstableSwallowErrors = false) {
     "pk_test",
     readOnly,
     unstableSwallowErrors,
-    new EventBus(),
+    AtomRegistry.make(),
     "ios",
     false,
     createTestSchema()

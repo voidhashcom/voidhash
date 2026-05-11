@@ -1,9 +1,10 @@
-import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 
 import type { VoidhashClient } from "../../client";
+import { currentCustomerAtom } from "../../core/reactivity/client-state";
 import type { VoidhashContext } from "../components/provider";
 import useAsyncFunction from "./use-async-function";
+import { useAtomValue } from "./use-atom-value";
 
 export function currentCustomerHookFactory(
   client: VoidhashClient,
@@ -11,54 +12,25 @@ export function currentCustomerHookFactory(
 ) {
   function useCurrentCustomer() {
     const voidhashContext = React.useContext(vhContext);
-    const [customer, setCustomer] = useState<SdkCustomer | null>(null);
 
-    const setCustomerIfDifferent = useCallback(
-      (newCustomer: SdkCustomer | null) => {
-        if (JSON.stringify(customer) === JSON.stringify(newCustomer)) {
-          return;
-        }
-        setCustomer(newCustomer);
-      },
-      [customer]
-    );
-
-    // Loading customer
     const getCustomerCallback = useCallback(
       () => client.getCurrentCustomer(),
       []
     );
 
-    const {
-      data: loadedCustomer,
-      isLoading,
-      error,
-      refetch,
-    } = useAsyncFunction(getCustomerCallback, {
+    const { isLoading, error, refetch } = useAsyncFunction(getCustomerCallback, {
       enabled: voidhashContext?.isInitialized,
     });
 
-    // Listen for customer updates. Update state if there was a change. This is used to sync state between uses of this hook and for background updates.
-    useEffect(() => {
-      const eventBus = client.internal_getEventBus();
-      const removeListener = eventBus.on("customer-fetched", (newCustomer) => {
-        setCustomerIfDifferent(newCustomer);
-      });
-
-      return () => {
-        removeListener();
-      };
-    }, [setCustomerIfDifferent]);
-
-    // Processing
-    const data = useMemo(
-      () => ({
-        ...customer,
-      }),
-      [customer]
+    const customer = useAtomValue(
+      client.internal_getAtomRegistry(),
+      currentCustomerAtom
     );
 
-    setCustomerIfDifferent(loadedCustomer ?? null);
+    // Preserve the previous return shape: `data` spreads the customer fields,
+    // so callers reading e.g. `data.email` keep working and `null` becomes
+    // `{}` rather than `null`.
+    const data = useMemo(() => ({ ...customer }), [customer]);
 
     return {
       data,
