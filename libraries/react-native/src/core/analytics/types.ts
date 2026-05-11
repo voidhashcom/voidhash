@@ -1,3 +1,5 @@
+import { Data } from "effect";
+
 export interface QueuedAnalyticsEvent {
   readonly attempts: number;
   readonly availableAt: number;
@@ -22,22 +24,18 @@ export interface AnalyticsIngestEvent {
   readonly session_id: string;
 }
 
-export class AnalyticsSendFailure extends Error {
-  readonly retryAfterMs?: number;
+/**
+ * Tagged error raised when the analytics ingest endpoint rejects a batch.
+ * Tagged so callers can use `Effect.catchTag("AnalyticsSendFailure", ...)`.
+ * `retryable` indicates whether the failure is worth re-attempting; `retryAfterMs`
+ * communicates a server-suggested backoff (from `Retry-After` header or body).
+ */
+export class AnalyticsSendFailure extends Data.TaggedError(
+  "AnalyticsSendFailure"
+)<{
+  readonly message: string;
   readonly retryable: boolean;
-  readonly status?: number;
-
-  constructor(input: {
-    readonly message: string;
-    readonly retryable: boolean;
-    readonly retryAfterMs?: number;
-    readonly status?: number;
-    readonly cause?: unknown;
-  }) {
-    super(input.message, input.cause ? { cause: input.cause } : undefined);
-    this.name = "AnalyticsSendFailure";
-    this.retryAfterMs = input.retryAfterMs;
-    this.retryable = input.retryable;
-    this.status = input.status;
-  }
-}
+  readonly retryAfterMs?: number | undefined;
+  readonly status?: number | undefined;
+  readonly cause?: unknown;
+}> {}

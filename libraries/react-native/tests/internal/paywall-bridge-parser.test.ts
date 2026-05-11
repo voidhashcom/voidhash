@@ -1,7 +1,8 @@
+import { describe, expect, it } from "../helpers/effect-vitest";
 import {
   PaywallBridgeParseError,
   parsePaywallBridgeEnvelope,
-} from "../../internal/paywall-bridge/parser";
+} from "../../src/internal/paywall-bridge/parser";
 
 describe("parsePaywallBridgeEnvelope", () => {
   it("parses a valid purchase payload", () => {

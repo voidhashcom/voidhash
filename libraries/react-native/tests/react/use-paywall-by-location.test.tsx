@@ -1,47 +1,49 @@
-import type { VoidhashClient } from "../../client";
+import { type Mocked, vi } from "vitest";
+import type { VoidhashClient } from "../../src/client";
 import {
   __internal_handlePaywallBridgeEventForTests,
   __internal_resetPaywallByLocationCachesForTests,
-} from "../../react/hooks/use-paywall-by-location";
+} from "../../src/react/hooks/use-paywall-by-location";
+import { beforeEach, describe, expect, it } from "../helpers/effect-vitest";
 
-jest.mock("react-native", () => ({
+vi.mock("react-native", () => ({
   AppState: {
-    addEventListener: jest.fn(),
+    addEventListener: vi.fn(),
   },
   Linking: {
-    openURL: jest.fn().mockResolvedValue(undefined),
+    openURL: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
-jest.mock("../../nitro", () => ({
+vi.mock("../../src/nitro", () => ({
   PaywallPresenter: undefined,
 }));
 
 function createClientMock() {
   return {
-    getProducts: jest.fn(),
-    purchase: jest.fn(),
-    restorePurchases: jest.fn(),
-  } as unknown as jest.Mocked<VoidhashClient>;
+    getProducts: vi.fn(),
+    purchase: vi.fn(),
+    restorePurchases: vi.fn(),
+  } as unknown as Mocked<VoidhashClient>;
 }
 
 function createPresenterMock() {
   return {
-    dismiss: jest.fn().mockResolvedValue(undefined),
-    postMessage: jest.fn(),
+    dismiss: vi.fn().mockResolvedValue(undefined),
+    postMessage: vi.fn(),
   };
 }
 
 describe("usePaywallByLocation bridge coordinator", () => {
   beforeEach(() => {
     __internal_resetPaywallByLocationCachesForTests();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("handles purchase bridge action and dismisses on success", async () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
-    const openExternalUrl = jest.fn().mockResolvedValue(undefined);
+    const openExternalUrl = vi.fn().mockResolvedValue(undefined);
 
     client.getProducts.mockResolvedValue({
       monthly: {
@@ -78,8 +80,8 @@ describe("usePaywallByLocation bridge coordinator", () => {
   it("invokes onPurchase callback on purchase success", async () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
-    const onPurchase = jest.fn();
-    const onError = jest.fn();
+    const onPurchase = vi.fn();
+    const onError = vi.fn();
 
     client.getProducts.mockResolvedValue({
       monthly: {
@@ -92,7 +94,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
     await __internal_handlePaywallBridgeEventForTests({
       client,
       locationKey: "home",
-      openExternalUrl: jest.fn().mockResolvedValue(undefined),
+      openExternalUrl: vi.fn().mockResolvedValue(undefined),
       paywallOptions: {
         onError,
         onPurchase,
@@ -130,7 +132,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
     await __internal_handlePaywallBridgeEventForTests({
       client,
       locationKey: "home",
-      openExternalUrl: jest.fn().mockResolvedValue(undefined),
+      openExternalUrl: vi.fn().mockResolvedValue(undefined),
       presenter,
       rawBridgeEvent: JSON.stringify({
         payload: {
@@ -150,7 +152,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
   it("invokes onError callback when purchase product cannot be resolved", async () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
-    const onError = jest.fn();
+    const onError = vi.fn();
 
     client.getProducts.mockResolvedValue({
       monthly: {
@@ -162,7 +164,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
     await __internal_handlePaywallBridgeEventForTests({
       client,
       locationKey: "home",
-      openExternalUrl: jest.fn().mockResolvedValue(undefined),
+      openExternalUrl: vi.fn().mockResolvedValue(undefined),
       paywallOptions: {
         onError,
       },
@@ -195,7 +197,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
     await __internal_handlePaywallBridgeEventForTests({
       client,
       locationKey: "home",
-      openExternalUrl: jest.fn().mockResolvedValue(undefined),
+      openExternalUrl: vi.fn().mockResolvedValue(undefined),
       presenter,
       rawBridgeEvent: JSON.stringify({
         requestId: "req_restore",
@@ -212,15 +214,15 @@ describe("usePaywallByLocation bridge coordinator", () => {
   it("invokes onRestore callback on restore success", async () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
-    const onRestore = jest.fn();
-    const onError = jest.fn();
+    const onRestore = vi.fn();
+    const onError = vi.fn();
 
     client.restorePurchases.mockResolvedValue(undefined as never);
 
     await __internal_handlePaywallBridgeEventForTests({
       client,
       locationKey: "home",
-      openExternalUrl: jest.fn().mockResolvedValue(undefined),
+      openExternalUrl: vi.fn().mockResolvedValue(undefined),
       paywallOptions: {
         onError,
         onRestore,
@@ -242,7 +244,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
   it("invokes onError callback when purchase fails", async () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
-    const onError = jest.fn();
+    const onError = vi.fn();
 
     client.getProducts.mockResolvedValue({
       monthly: {
@@ -255,7 +257,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
     await __internal_handlePaywallBridgeEventForTests({
       client,
       locationKey: "home",
-      openExternalUrl: jest.fn().mockResolvedValue(undefined),
+      openExternalUrl: vi.fn().mockResolvedValue(undefined),
       paywallOptions: {
         onError,
       },
@@ -280,14 +282,14 @@ describe("usePaywallByLocation bridge coordinator", () => {
   it("invokes onError callback when restore fails", async () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
-    const onError = jest.fn();
+    const onError = vi.fn();
 
     client.restorePurchases.mockRejectedValue(new Error("restore failed") as never);
 
     await __internal_handlePaywallBridgeEventForTests({
       client,
       locationKey: "home",
-      openExternalUrl: jest.fn().mockResolvedValue(undefined),
+      openExternalUrl: vi.fn().mockResolvedValue(undefined),
       paywallOptions: {
         onError,
       },
@@ -309,7 +311,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
   it("handles openExternal and close actions", async () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
-    const openExternalUrl = jest.fn().mockResolvedValue(undefined);
+    const openExternalUrl = vi.fn().mockResolvedValue(undefined);
 
     await __internal_handlePaywallBridgeEventForTests({
       client,
@@ -343,7 +345,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
   it("returns deterministic busy error while another action is in-flight", async () => {
     const client = createClientMock();
     const presenter = createPresenterMock();
-    const onError = jest.fn();
+    const onError = vi.fn();
 
     client.getProducts.mockResolvedValue({
       monthly: {
@@ -363,7 +365,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const firstRequest = __internal_handlePaywallBridgeEventForTests({
       client,
       locationKey: "home",
-      openExternalUrl: jest.fn().mockResolvedValue(undefined),
+      openExternalUrl: vi.fn().mockResolvedValue(undefined),
       presenter,
       rawBridgeEvent: JSON.stringify({
         payload: {
@@ -378,7 +380,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
     await __internal_handlePaywallBridgeEventForTests({
       client,
       locationKey: "home",
-      openExternalUrl: jest.fn().mockResolvedValue(undefined),
+      openExternalUrl: vi.fn().mockResolvedValue(undefined),
       paywallOptions: {
         onError,
       },

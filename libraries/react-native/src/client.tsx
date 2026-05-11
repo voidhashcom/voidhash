@@ -11,8 +11,14 @@ import { IdentityManager } from "./core/identity/identity-manager";
 import { ApiClient } from "./core/networking/api-client";
 import { AppStoreAdapter } from "./core/payment-adapters/app-store-adapter";
 import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
+import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
+import { LifecycleService } from "./core/lifecycle/lifecycle-service";
+import { ReactNativeLifecycleAdapter } from "./core/lifecycle/react-native-lifecycle-adapter";
+import { PaywallService } from "./core/paywalls/paywall-service";
 import { type PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
+import { ProductService } from "./core/products/product-service";
+import { TransactionService } from "./core/transactions/transaction-service";
 import type { LocationSlug, ProductSlug } from "./core/schema/registry";
 import type { RuntimeSchema } from "./core/schema/runtime";
 import { SdkConfiguration } from "./core/sdk-configuration";
@@ -48,7 +54,13 @@ const CreateEffectRuntime = (
   ManagedRuntime.make(
     pipe(
       CustomerAttributeManager.Default,
+      Layer.provideMerge(ProductService.layer),
+      Layer.provideMerge(FeatureFlagService.layer),
+      Layer.provideMerge(PaywallService.layer),
+      Layer.provideMerge(TransactionService.layer),
       Layer.provideMerge(AnalyticsService.layer),
+      Layer.provideMerge(LifecycleService.layer),
+      Layer.provideMerge(ReactNativeLifecycleAdapter),
       Layer.provideMerge(CustomerInfoManager.Default),
       Layer.provideMerge(IdentityManager.Default),
       Layer.provideMerge(CacheManager.Default),
@@ -85,8 +97,10 @@ type UninitializedEffectClient = ReturnType<
   typeof VoidhashEffectClient.makeUnitializedClient
 >;
 
-type InitializedEffectClient = ReturnType<
-  typeof VoidhashEffectClient.makeInitializedClient
+// `makeInitializedClient` now returns `Effect<Facade, ...>` — unwrap to the
+// facade type by extracting the Effect's Success channel.
+type InitializedEffectClient = Effect.Success<
+  ReturnType<typeof VoidhashEffectClient.makeInitializedClient>
 >;
 
 export class VoidhashClient {

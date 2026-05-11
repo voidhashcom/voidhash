@@ -1,4 +1,4 @@
-import type { RuntimeSchema } from "../../core/schema/runtime";
+import type { RuntimeSchema } from "../../src/core/schema/runtime";
 
 /**
  * Build a deterministic in-memory schema for tests. Mirrors the shape the

@@ -1,21 +1,23 @@
 import { Effect } from "effect";
+import { vi } from "vitest";
 
 import {
   type AnalyticsIngestEvent,
   VoidhashEffectClient,
-} from "../../client-effect";
-import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../constants";
-import { CacheManager } from "../../core/caching/cache-manager";
-import { Product, SubscriptionProduct } from "../../core/entities/product";
-import { Transaction } from "../../core/entities/transaction";
-import { CustomerAttributeManager } from "../../core/identity/customer-attribute-manager";
-import { SDK_VERSION } from "../../core/constants";
+} from "../../src/client-effect";
+import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../src/constants";
+import { CacheManager } from "../../src/core/caching/cache-manager";
+import { Product, SubscriptionProduct } from "../../src/core/entities/product";
+import { Transaction } from "../../src/core/entities/transaction";
+import { CustomerAttributeManager } from "../../src/core/identity/customer-attribute-manager";
+import { SDK_VERSION } from "../../src/core/constants";
 import {
   createApiClientDouble,
   createEffectTestHarness,
   createInMemoryCacheAdapter,
   createPaymentAdapterDouble,
 } from "../helpers/effect-test-harness";
+import { describe, expect, it } from "../helpers/effect-vitest";
 import { createTestSchema } from "../helpers/test-schema";
 
 describe("VoidhashEffectClient", () => {
@@ -32,10 +34,10 @@ describe("VoidhashEffectClient", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "cached-before-init"))
+        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.set("distinctId", "cached-before-init"))
       );
       await harness.runtime.runPromise(
-        Effect.flatMap(CustomerAttributeManager, (manager) =>
+        Effect.flatMap(CustomerAttributeManager.asEffect(), (manager) =>
           manager.setCustomerAttributes("cached-before-init", {
             email: "before@voidhash.test",
             name: "Before",
@@ -121,7 +123,9 @@ describe("VoidhashEffectClient", () => {
       cacheAdapter: cache.adapter,
       paymentAdapter: paymentDouble.paymentAdapter,
     });
-    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
 
     try {
       const first = await harness.runtime.runPromise(initializedClient.getProducts());
@@ -157,7 +161,9 @@ describe("VoidhashEffectClient", () => {
       cacheAdapter: cache.adapter,
       paymentAdapter: paymentDouble.paymentAdapter,
     });
-    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
     const events: string[] = [];
     const remove = harness.eventBus.on("feature-flags-fetched", () => {
       events.push("feature-flags-fetched");
@@ -165,7 +171,7 @@ describe("VoidhashEffectClient", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "feature-user"))
+        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.set("distinctId", "feature-user"))
       );
 
       const first = await harness.runtime.runPromise(
@@ -195,7 +201,9 @@ describe("VoidhashEffectClient", () => {
       cacheAdapter: cache.adapter,
       paymentAdapter: paymentDouble.paymentAdapter,
     });
-    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
 
     try {
       await expect(
@@ -220,7 +228,9 @@ describe("VoidhashEffectClient", () => {
       cacheAdapter: cache.adapter,
       paymentAdapter: paymentDouble.paymentAdapter,
     });
-    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
     const monthlyProduct = new SubscriptionProduct(
       "monthly-id",
       "monthly_sub",
@@ -261,7 +271,9 @@ describe("VoidhashEffectClient", () => {
       cacheAdapter: cache.adapter,
       paymentAdapter: paymentDouble.paymentAdapter,
     });
-    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
 
     try {
       await harness.runtime.runPromise(
@@ -285,7 +297,9 @@ describe("VoidhashEffectClient", () => {
       paymentAdapter: paymentDouble.paymentAdapter,
       readOnly: true,
     });
-    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
     const transaction = new Transaction(
       "tx-id",
       "tx-id",
@@ -321,7 +335,9 @@ describe("VoidhashEffectClient", () => {
       cacheAdapter: cache.adapter,
       paymentAdapter: paymentDouble.paymentAdapter,
     });
-    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
     const transaction = new Transaction(
       "tx-id",
       "tx-id",
@@ -368,7 +384,9 @@ describe("VoidhashEffectClient", () => {
       cacheAdapter: cache.adapter,
       paymentAdapter: paymentDouble.paymentAdapter,
     });
-    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
 
     try {
       await harness.runtime.runPromise(
@@ -393,7 +411,9 @@ describe("VoidhashEffectClient", () => {
       cacheAdapter: cache.adapter,
       paymentAdapter: paymentDouble.paymentAdapter,
     });
-    const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+    const initializedClient = await harness.runtime.runPromise(
+      VoidhashEffectClient.makeInitializedClient({ schema })
+    );
     const transaction = new Transaction(
       "tx-id",
       "tx-id",
@@ -417,27 +437,35 @@ describe("VoidhashEffectClient", () => {
     }
   });
 
-  describe("sendAnalyticsEvents", () => {
-    const analyticsEvents: ReadonlyArray<AnalyticsIngestEvent> = [
-      {
-        context: {},
-        event_id: "evt_1",
-        event_name: "cta-button-clicked",
-        event_ts: "2026-01-01T00:00:00.000Z",
-        properties: {
-          button_name: "Get Started",
-        },
-        session_id: "sess_1",
+  const analyticsEvents: ReadonlyArray<AnalyticsIngestEvent> = [
+    {
+      context: {},
+      event_id: "evt_1",
+      event_name: "cta-button-clicked",
+      event_ts: "2026-01-01T00:00:00.000Z",
+      properties: {
+        button_name: "Get Started",
       },
-    ];
+      session_id: "sess_1",
+    },
+  ];
 
+  const acceptedAnalyticsResponse = () =>
+    new Response(null, {
+      status: 202,
+      statusText: "Accepted",
+    });
+
+  const decodeRequestBody = (body: RequestInit["body"]) => {
+    if (typeof body === "string") return body;
+    if (body instanceof Uint8Array) return new TextDecoder().decode(body);
+    return String(body);
+  };
+
+  describe("sendAnalyticsEvents", () => {
     it("sends analytics to derived i. subdomain by default", async () => {
       const originalFetch = global.fetch;
-      const fetchMock = jest.fn().mockResolvedValue({
-        ok: true,
-        status: 202,
-        statusText: "Accepted",
-      });
+      const fetchMock = vi.fn().mockResolvedValue(acceptedAnalyticsResponse());
       global.fetch = fetchMock as unknown as typeof global.fetch;
 
       const schema = createTestSchema();
@@ -448,14 +476,17 @@ describe("VoidhashEffectClient", () => {
         apiClient: apiDouble.apiClient,
         baseUrl: "https://api.voidhash.test",
         cacheAdapter: cache.adapter,
+        fetch: fetchMock as unknown as typeof globalThis.fetch,
         paymentAdapter: paymentDouble.paymentAdapter,
         publishableKey: "pk_analytics",
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
 
       try {
         await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager, (manager) =>
+          Effect.flatMap(CacheManager.asEffect(), (manager) =>
             manager.set("distinctId", "analytics-user")
           )
         );
@@ -464,16 +495,16 @@ describe("VoidhashEffectClient", () => {
         );
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(fetchMock.mock.calls[0]?.[0]).toBe(
+        expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
           "https://i.api.voidhash.test/batch"
         );
 
         const request = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
         expect(request?.method).toBe("POST");
-        expect(request?.headers).toEqual({
+        expect(request?.headers).toEqual(expect.objectContaining({
           "content-type": "application/json",
-        });
-        expect(JSON.parse(String(request?.body))).toMatchObject({
+        }));
+        expect(JSON.parse(decodeRequestBody(request?.body))).toMatchObject({
           events: [
             {
               distinct_id: "analytics-user",
@@ -500,11 +531,7 @@ describe("VoidhashEffectClient", () => {
 
     it("uses ingestUrl override when provided", async () => {
       const originalFetch = global.fetch;
-      const fetchMock = jest.fn().mockResolvedValue({
-        ok: true,
-        status: 202,
-        statusText: "Accepted",
-      });
+      const fetchMock = vi.fn().mockResolvedValue(acceptedAnalyticsResponse());
       global.fetch = fetchMock as unknown as typeof global.fetch;
 
       const schema = createTestSchema();
@@ -514,10 +541,13 @@ describe("VoidhashEffectClient", () => {
       const harness = createEffectTestHarness({
         apiClient: apiDouble.apiClient,
         cacheAdapter: cache.adapter,
+        fetch: fetchMock as unknown as typeof globalThis.fetch,
         ingestUrl: "http://localhost:8083",
         paymentAdapter: paymentDouble.paymentAdapter,
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
 
       try {
         await harness.runtime.runPromise(
@@ -525,7 +555,9 @@ describe("VoidhashEffectClient", () => {
         );
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(fetchMock.mock.calls[0]?.[0]).toBe("http://localhost:8083/batch");
+        expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+          "http://localhost:8083/batch"
+        );
       } finally {
         global.fetch = originalFetch;
         await harness.runtime.dispose();
@@ -534,15 +566,12 @@ describe("VoidhashEffectClient", () => {
 
     it("does not inline retry failed analytics delivery", async () => {
       const originalFetch = global.fetch;
-      const fetchMock = jest
-        .fn()
-        .mockResolvedValueOnce({
-          headers: new Headers(),
-          json: async () => ({ error: "try again" }),
-          ok: false,
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({ error: "try again" }), {
+          headers: { "content-type": "application/json" },
           status: 503,
           statusText: "Service Unavailable",
-        });
+        }));
       global.fetch = fetchMock as unknown as typeof global.fetch;
 
       const schema = createTestSchema();
@@ -552,15 +581,18 @@ describe("VoidhashEffectClient", () => {
       const harness = createEffectTestHarness({
         apiClient: apiDouble.apiClient,
         cacheAdapter: cache.adapter,
+        fetch: fetchMock as unknown as typeof globalThis.fetch,
         ingestUrl: "http://localhost:8083",
         paymentAdapter: paymentDouble.paymentAdapter,
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
 
       try {
         await expect(harness.runtime.runPromise(
           initializedClient.sendAnalyticsEvents(analyticsEvents)
-        )).rejects.toThrow("Analytics ingest request failed: 503 Service Unavailable");
+        )).rejects.toThrow("Analytics ingest request failed: 503");
         expect(fetchMock).toHaveBeenCalledTimes(1);
       } finally {
         global.fetch = originalFetch;
@@ -580,7 +612,9 @@ describe("VoidhashEffectClient", () => {
         cacheAdapter: cache.adapter,
         paymentAdapter: paymentDouble.paymentAdapter,
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
 
       try {
         harness.runtime.runSync(
@@ -595,11 +629,7 @@ describe("VoidhashEffectClient", () => {
 
     it("flushes immediately when queue reaches 20 events", async () => {
       const originalFetch = global.fetch;
-      const fetchMock = jest.fn().mockResolvedValue({
-        ok: true,
-        status: 202,
-        statusText: "Accepted",
-      });
+      const fetchMock = vi.fn().mockResolvedValue(acceptedAnalyticsResponse());
       global.fetch = fetchMock as unknown as typeof global.fetch;
 
       const schema = createTestSchema();
@@ -609,10 +639,13 @@ describe("VoidhashEffectClient", () => {
       const harness = createEffectTestHarness({
         apiClient: apiDouble.apiClient,
         cacheAdapter: cache.adapter,
+        fetch: fetchMock as unknown as typeof globalThis.fetch,
         ingestUrl: "http://localhost:8083",
         paymentAdapter: paymentDouble.paymentAdapter,
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
       let flushTriggered = false;
       initializedClient.setAnalyticsFlushCallback(() => {
         flushTriggered = true;
@@ -636,14 +669,10 @@ describe("VoidhashEffectClient", () => {
     });
 
     it("flushes queued events when timer fires after 5 seconds", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const originalFetch = global.fetch;
-      const fetchMock = jest.fn().mockResolvedValue({
-        ok: true,
-        status: 202,
-        statusText: "Accepted",
-      });
+      const fetchMock = vi.fn().mockResolvedValue(acceptedAnalyticsResponse());
       global.fetch = fetchMock as unknown as typeof global.fetch;
 
       const schema = createTestSchema();
@@ -653,10 +682,13 @@ describe("VoidhashEffectClient", () => {
       const harness = createEffectTestHarness({
         apiClient: apiDouble.apiClient,
         cacheAdapter: cache.adapter,
+        fetch: fetchMock as unknown as typeof globalThis.fetch,
         ingestUrl: "http://localhost:8083",
         paymentAdapter: paymentDouble.paymentAdapter,
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
       let flushTriggered = false;
       initializedClient.setAnalyticsFlushCallback(() => {
         flushTriggered = true;
@@ -666,10 +698,10 @@ describe("VoidhashEffectClient", () => {
         harness.runtime.runSync(initializedClient.capture("screen-view"));
         expect(flushTriggered).toBe(false);
 
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         expect(flushTriggered).toBe(true);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
         global.fetch = originalFetch;
         await harness.runtime.dispose();
       }
@@ -677,19 +709,21 @@ describe("VoidhashEffectClient", () => {
 
     it("keeps batch in queue when flush is retryably rate limited", async () => {
       const originalFetch = global.fetch;
-      const fetchMock = jest.fn().mockResolvedValueOnce({
-        headers: new Headers({
-          "retry-after": "2",
-        }),
-        json: async () => ({
+      const fetchMock = vi.fn().mockResolvedValueOnce(new Response(
+        JSON.stringify({
           code: "rate_limited",
           error: "request rate limit exceeded",
           retry_after_ms: 2000,
         }),
-        ok: false,
-        status: 429,
-        statusText: "Too Many Requests",
-      });
+        {
+          headers: {
+            "content-type": "application/json",
+            "retry-after": "2",
+          },
+          status: 429,
+          statusText: "Too Many Requests",
+        }
+      ));
       global.fetch = fetchMock as unknown as typeof global.fetch;
 
       const schema = createTestSchema();
@@ -699,10 +733,13 @@ describe("VoidhashEffectClient", () => {
       const harness = createEffectTestHarness({
         apiClient: apiDouble.apiClient,
         cacheAdapter: cache.adapter,
+        fetch: fetchMock as unknown as typeof globalThis.fetch,
         ingestUrl: "http://localhost:8083",
         paymentAdapter: paymentDouble.paymentAdapter,
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
 
       try {
         harness.runtime.runSync(initializedClient.capture("event-1"));
@@ -718,35 +755,37 @@ describe("VoidhashEffectClient", () => {
     });
 
     it("retries a rate-limited batch after Retry-After elapses", async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const originalFetch = global.fetch;
-      const fetchMock = jest
-        .fn()
-        .mockResolvedValueOnce({
-          headers: new Headers({
-            "retry-after": "2",
-          }),
-          json: async () => ({
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(new Response(
+          JSON.stringify({
             code: "rate_limited",
             error: "request rate limit exceeded",
             retry_after_ms: 2000,
           }),
-          ok: false,
-          status: 429,
-          statusText: "Too Many Requests",
-        })
-        .mockResolvedValueOnce({
-          headers: new Headers(),
-          json: async () => ({
+          {
+            headers: {
+              "content-type": "application/json",
+              "retry-after": "2",
+            },
+            status: 429,
+            statusText: "Too Many Requests",
+          }
+        ))
+        .mockResolvedValueOnce(new Response(
+          JSON.stringify({
             accepted: 1,
             rejected: 0,
             request_id: "req_after_backoff",
           }),
-          ok: true,
-          status: 202,
-          statusText: "Accepted",
-        });
+          {
+            headers: { "content-type": "application/json" },
+            status: 202,
+            statusText: "Accepted",
+          }
+        ));
       global.fetch = fetchMock as unknown as typeof global.fetch;
 
       const schema = createTestSchema();
@@ -756,10 +795,13 @@ describe("VoidhashEffectClient", () => {
       const harness = createEffectTestHarness({
         apiClient: apiDouble.apiClient,
         cacheAdapter: cache.adapter,
+        fetch: fetchMock as unknown as typeof globalThis.fetch,
         ingestUrl: "http://localhost:8083",
         paymentAdapter: paymentDouble.paymentAdapter,
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
 
       try {
         harness.runtime.runSync(initializedClient.capture("event-1"));
@@ -770,13 +812,13 @@ describe("VoidhashEffectClient", () => {
         await harness.runtime.runPromise(initializedClient.flush());
         expect(fetchMock).toHaveBeenCalledTimes(1);
 
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await harness.runtime.runPromise(initializedClient.flush());
 
         expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(initializedClient.getAnalyticsQueueLength()).toBe(0);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
         global.fetch = originalFetch;
         await harness.runtime.dispose();
       }
@@ -794,7 +836,9 @@ describe("VoidhashEffectClient", () => {
         cacheAdapter: cache.adapter,
         paymentAdapter: paymentDouble.paymentAdapter,
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
 
       try {
         await harness.runtime.runPromise(
@@ -818,12 +862,14 @@ describe("VoidhashEffectClient", () => {
         cacheAdapter: cache.adapter,
         paymentAdapter: paymentDouble.paymentAdapter,
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
 
       try {
         // Store a different app release in cache
         await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager, (manager) =>
+          Effect.flatMap(CacheManager.asEffect(), (manager) =>
             manager.set("voidhash:analytics:last-seen-app-release", {
               appBuild: "0",
               appVersion: "0.0.1",
@@ -854,7 +900,9 @@ describe("VoidhashEffectClient", () => {
         cacheAdapter: cache.adapter,
         paymentAdapter: paymentDouble.paymentAdapter,
       });
-      const initializedClient = VoidhashEffectClient.makeInitializedClient({ schema });
+      const initializedClient = await harness.runtime.runPromise(
+        VoidhashEffectClient.makeInitializedClient({ schema })
+      );
       const capturedEvents: string[] = [];
 
       try {

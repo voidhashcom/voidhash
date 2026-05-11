@@ -1,16 +1,17 @@
 import { Effect } from "effect";
 
-import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../constants";
-import { CacheManager } from "../../core/caching/cache-manager";
-import { CustomerAttributeManager } from "../../core/identity/customer-attribute-manager";
-import { CustomerInfoManager } from "../../core/identity/customer-info-manager";
-import { IdentityManager } from "../../core/identity/identity-manager";
+import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../src/constants";
+import { CacheManager } from "../../src/core/caching/cache-manager";
+import { CustomerAttributeManager } from "../../src/core/identity/customer-attribute-manager";
+import { CustomerInfoManager } from "../../src/core/identity/customer-info-manager";
+import { IdentityManager } from "../../src/core/identity/identity-manager";
 import {
   createApiClientDouble,
   createEffectTestHarness,
   createInMemoryCacheAdapter,
   createPaymentAdapterDouble,
 } from "../helpers/effect-test-harness";
+import { describe, expect, it } from "../helpers/effect-vitest";
 
 describe("IdentityManager", () => {
   it("uses the cached distinct id when present", async () => {
@@ -25,11 +26,11 @@ describe("IdentityManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "cached-user"))
+        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.set("distinctId", "cached-user"))
       );
 
       const distinctId = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctId())
+        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.getDistinctId())
       );
 
       expect(distinctId).toBe("cached-user");
@@ -50,10 +51,10 @@ describe("IdentityManager", () => {
 
     try {
       const distinctId = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctId())
+        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.getDistinctId())
       );
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache())
+        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.getDistinctIdFromCache())
       );
 
       expect(distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)).toBe(true);
@@ -85,7 +86,7 @@ describe("IdentityManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
           Effect.all([
             manager.set("distinctId", "old-user"),
             manager.set("customer-attributes:old-user", {
@@ -97,7 +98,7 @@ describe("IdentityManager", () => {
       );
 
       await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) =>
+        Effect.flatMap(IdentityManager.asEffect(), (manager) =>
           manager.identify("new-user", {
             email: "new@voidhash.test",
             name: "New User",
@@ -106,10 +107,10 @@ describe("IdentityManager", () => {
       );
 
       const cachedDistinctId = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache())
+        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.getDistinctIdFromCache())
       );
       const cachedCustomer = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager, (manager) =>
+        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
           manager.getCustomerFromCache("new-user")
         )
       );
@@ -155,7 +156,7 @@ describe("IdentityManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
           Effect.all([
             manager.set("distinctId", "signed-in-user"),
             manager.set("customer:some-user", { id: "some-user" }),
@@ -163,7 +164,7 @@ describe("IdentityManager", () => {
         )
       );
       await harness.runtime.runPromise(
-        Effect.flatMap(CustomerAttributeManager, (manager) =>
+        Effect.flatMap(CustomerAttributeManager.asEffect(), (manager) =>
           manager.setCustomerAttributes("signed-in-user", {
             email: "signed@voidhash.test",
             name: "Signed User",
@@ -172,14 +173,14 @@ describe("IdentityManager", () => {
       );
 
       await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.reset())
+        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.reset())
       );
 
       const distinctIdFromCache = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache())
+        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.getDistinctIdFromCache())
       );
       const cacheKeys = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.getCacheKeys())
+        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.getCacheKeys())
       );
 
       expect(apiDouble.state.syncCustomerAttributesCalls).toHaveLength(1);

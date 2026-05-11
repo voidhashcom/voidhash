@@ -1,0 +1,24 @@
+import { type Effect, ServiceMap } from "effect";
+
+export interface LifecycleSubscription {
+  readonly remove: () => void;
+}
+
+/**
+ * Bridge to the host platform's app-lifecycle events. Implementations subscribe
+ * to native state-change events (foreground/background/inactive) and forward
+ * the raw transitions to the listener. The listener receives both the next
+ * state and the previously observed state so it can compute meaningful
+ * transitions (e.g. "became active" only fires when coming from non-active).
+ *
+ * Implementations return `null` when the platform doesn't expose lifecycle
+ * events (e.g. unit-test environments without React Native installed).
+ */
+export class LifecycleAdapter extends ServiceMap.Service<
+  LifecycleAdapter,
+  {
+    readonly subscribe: (
+      listener: (nextState: string, previousState: string | null) => void
+    ) => Effect.Effect<LifecycleSubscription | null>;
+  }
+>()("rn-voidhash/LifecycleAdapter") {}

@@ -1,25 +1,29 @@
 import { Exit } from "effect";
+import { vi } from "vitest";
+import { describe, expect, it } from "./helpers/effect-vitest";
 
-jest.mock("react-native", () => ({ AppState: null }), { virtual: true });
+vi.mock("react-native", () => ({ AppState: null }));
 
-jest.mock("../core/payment-adapters/app-store-adapter", () => {
-  const { Layer } = jest.requireActual("effect");
+vi.mock("../src/core/payment-adapters/app-store-adapter", async () => {
+  const { Layer } = await vi.importActual<typeof import("effect")>("effect");
   return {
     AppStoreAdapter: Layer.empty,
   };
 });
 
-jest.mock("../core/payment-adapters/google-play-adapter", () => {
-  const { Layer } = jest.requireActual("effect");
+vi.mock("../src/core/payment-adapters/google-play-adapter", async () => {
+  const { Layer } = await vi.importActual<typeof import("effect")>("effect");
   return {
     GooglePlayAdapter: Layer.empty,
   };
 });
 
-jest.mock("../core/platform/react-native-platform-provider", () => {
-  const { Layer } = jest.requireActual("effect");
-  const { PlatformProvider } = jest.requireActual(
-    "../core/platform/platform-provider"
+vi.mock("../src/core/platform/react-native-platform-provider", async () => {
+  const { Layer } = await vi.importActual<typeof import("effect")>("effect");
+  const { PlatformProvider } = await vi.importActual<
+    typeof import("../src/core/platform/platform-provider")
+  >(
+    "../src/core/platform/platform-provider"
   );
   return {
     ReactNativePlatformProvider: Layer.succeed(PlatformProvider, {
@@ -37,12 +41,12 @@ jest.mock("../core/platform/react-native-platform-provider", () => {
   };
 });
 
-import { VoidhashClient } from "../client";
-import { EventBus } from "../core/event-bus";
+import { VoidhashClient } from "../src/client";
+import { EventBus } from "../src/core/event-bus";
 import {
   ReadOnlyModePurchaseNotAllowedError,
   VoidhashError,
-} from "../errors";
+} from "../src/errors";
 import { createTestSchema } from "./helpers/test-schema";
 
 function createClient(readOnly = false, unstableSwallowErrors = false) {
@@ -64,7 +68,7 @@ function createClient(readOnly = false, unstableSwallowErrors = false) {
 describe("VoidhashClient", () => {
   describe("unstable_swallowErrors", () => {
     it("swallows flush errors when unstable_swallowErrors is enabled", async () => {
-      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
         return;
       });
       const client = createClient(false, true);
@@ -73,7 +77,7 @@ describe("VoidhashClient", () => {
         flush: () => "flush-effect",
       };
       (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+        runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
       await expect(client.flush()).resolves.toBeUndefined();
@@ -86,7 +90,7 @@ describe("VoidhashClient", () => {
     });
 
     it("swallows identify errors when unstable_swallowErrors is enabled", async () => {
-      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
         return;
       });
       const client = createClient(false, true);
@@ -95,7 +99,7 @@ describe("VoidhashClient", () => {
         identify: () => "identify-effect",
       };
       (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+        runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
       await expect(
@@ -109,7 +113,7 @@ describe("VoidhashClient", () => {
     });
 
     it("swallows restorePurchases errors when unstable_swallowErrors is enabled", async () => {
-      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
         return;
       });
       const client = createClient(false, true);
@@ -118,7 +122,7 @@ describe("VoidhashClient", () => {
         restorePurchases: () => "restore-purchases-effect",
       };
       (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+        runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
       await expect(client.restorePurchases()).resolves.toBeUndefined();
@@ -130,7 +134,7 @@ describe("VoidhashClient", () => {
     });
 
     it("swallows init errors and keeps client uninitialized when unstable_swallowErrors is enabled", async () => {
-      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
         return;
       });
       const client = createClient(false, true);
@@ -139,7 +143,7 @@ describe("VoidhashClient", () => {
         init: () => "init-effect",
       };
       (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+        runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
       await expect(client.init()).resolves.toBeUndefined();
@@ -152,7 +156,7 @@ describe("VoidhashClient", () => {
     });
 
     it("swallows ensureInitialized errors in side-effect methods when unstable_swallowErrors is enabled", async () => {
-      const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
         return;
       });
       const client = createClient(false, true);
@@ -174,7 +178,7 @@ describe("VoidhashClient", () => {
         getProducts: () => "get-products-effect",
       };
       (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+        runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
       await expect(client.getProducts()).rejects.toEqual(
@@ -191,7 +195,7 @@ describe("VoidhashClient", () => {
         purchase: () => "purchase-effect",
       };
       (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.fail("boom")),
+        runPromiseExit: vi.fn().mockResolvedValue(Exit.fail("boom")),
       };
 
       await expect(
@@ -217,7 +221,7 @@ describe("VoidhashClient", () => {
         purchase: () => "purchase-effect",
       };
       (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.succeed(undefined)),
+        runPromiseExit: vi.fn().mockResolvedValue(Exit.succeed(undefined)),
       };
 
       await expect(
@@ -237,7 +241,7 @@ describe("VoidhashClient", () => {
         purchase: () => "purchase-effect",
       };
       (client as unknown as Record<string, unknown>).effectRuntime = {
-        runPromiseExit: jest.fn().mockResolvedValue(Exit.succeed(undefined)),
+        runPromiseExit: vi.fn().mockResolvedValue(Exit.succeed(undefined)),
       };
 
       await expect(

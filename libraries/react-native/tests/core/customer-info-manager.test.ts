@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
-import { CacheManager } from "../../core/caching/cache-manager";
-import { CustomerInfoManager } from "../../core/identity/customer-info-manager";
+import { CacheManager } from "../../src/core/caching/cache-manager";
+import { CustomerInfoManager } from "../../src/core/identity/customer-info-manager";
 import {
   createApiClientDouble,
   createEffectTestHarness,
@@ -9,6 +9,7 @@ import {
   createPaymentAdapterDouble,
   createSdkCustomer,
 } from "../helpers/effect-test-harness";
+import { describe, expect, it } from "../helpers/effect-vitest";
 
 const wait = (ms: number) =>
   new Promise<void>((resolve) => {
@@ -29,13 +30,13 @@ describe("CustomerInfoManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager, (manager) =>
+        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
           manager.cache("cached-user", customer)
         )
       );
 
       const result = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager, (manager) =>
+        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
           manager.getCustomer("cached-user", "cache")
         )
       );
@@ -66,15 +67,19 @@ describe("CustomerInfoManager", () => {
 
     try {
       const result = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager, (manager) =>
+        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
           manager.getCustomer("fetched-user", "fetch")
         )
       );
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager, (manager) =>
+        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
           manager.getCustomerFromCache("fetched-user")
         )
       );
+
+      if (result === null) {
+        throw new Error("Expected fetched customer");
+      }
 
       expect(result.distinctId).toBe("fetched-user");
       expect(apiDouble.state.getCustomerCalls).toHaveLength(1);
@@ -99,11 +104,11 @@ describe("CustomerInfoManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager, (manager) => manager.cache("fresh-user", customer))
+        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) => manager.cache("fresh-user", customer))
       );
 
       const result = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager, (manager) =>
+        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
           manager.getCustomer("fresh-user", "fetch-while-stale")
         )
       );
@@ -131,7 +136,7 @@ describe("CustomerInfoManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
           manager.set("customer:stale-user", staleCustomer, {
             staleTime: 1,
             ttl: 1000,
@@ -141,7 +146,7 @@ describe("CustomerInfoManager", () => {
       await wait(5);
 
       const result = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager, (manager) =>
+        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
           manager.getCustomer("stale-user", "fetch-while-stale")
         )
       );

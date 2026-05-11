@@ -1,19 +1,28 @@
 import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
 import { Effect, Layer, ManagedRuntime, pipe } from "effect";
+import { FetchHttpClient } from "effect/unstable/http";
 
-import { CacheAdapter } from "../../core/caching/cache-adapter";
-import { CacheManager } from "../../core/caching/cache-manager";
-import { Product, type SubscriptionProduct } from "../../core/entities/product";
-import { Transaction } from "../../core/entities/transaction";
-import { EventBus, EventBusProvider } from "../../core/event-bus";
-import { CustomerAttributeManager } from "../../core/identity/customer-attribute-manager";
-import { CustomerInfoManager } from "../../core/identity/customer-info-manager";
-import { IdentityManager } from "../../core/identity/identity-manager";
-import { ApiClient } from "../../core/networking/api-client";
-import { PaymentAdapter } from "../../core/payment-adapters/payment-adapter";
-import type { PlatformInfo } from "../../core/platform/platform-provider";
-import { PlatformProvider } from "../../core/platform/platform-provider";
-import { SdkConfiguration } from "../../core/sdk-configuration";
+import { CacheAdapter } from "../../src/core/caching/cache-adapter";
+import { CacheManager } from "../../src/core/caching/cache-manager";
+import { Product, type SubscriptionProduct } from "../../src/core/entities/product";
+import { Transaction } from "../../src/core/entities/transaction";
+import { EventBus, EventBusProvider } from "../../src/core/event-bus";
+import { CustomerAttributeManager } from "../../src/core/identity/customer-attribute-manager";
+import { CustomerInfoManager } from "../../src/core/identity/customer-info-manager";
+import { IdentityManager } from "../../src/core/identity/identity-manager";
+import { AnalyticsService } from "../../src/core/analytics/service";
+import { FeatureFlagService } from "../../src/core/feature-flags/feature-flag-service";
+import { LifecycleAdapter } from "../../src/core/lifecycle/lifecycle-adapter";
+import { LifecycleService } from "../../src/core/lifecycle/lifecycle-service";
+import { ApiClient } from "../../src/core/networking/api-client";
+import { PaywallService } from "../../src/core/paywalls/paywall-service";
+import { PaymentAdapter } from "../../src/core/payment-adapters/payment-adapter";
+import type { PlatformInfo } from "../../src/core/platform/platform-provider";
+import { PlatformProvider } from "../../src/core/platform/platform-provider";
+import { ProductService } from "../../src/core/products/product-service";
+import { SdkConfiguration } from "../../src/core/sdk-configuration";
+import { TransactionService } from "../../src/core/transactions/transaction-service";
+import { createTestSchema } from "./test-schema";
 
 type FeatureFlagsResult = {
   readonly flags: ReadonlyArray<{
@@ -64,6 +73,7 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
 
   const apiClient = {
     sdk: {
+      getSchema: () => Effect.succeed(createTestSchema()),
       evaluateFeatureFlags: (request: ApiSdkCall) => {
         state.evaluateFeatureFlagsCalls.push(request);
         return Effect.succeed(
@@ -93,6 +103,7 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
           options.identifyResult ?? createSdkCustomer(distinctId)
         );
       },
+      resolvePaywall: () => Effect.succeed(null),
       syncCustomerAttributes: (request: ApiSdkCall) => {
         state.syncCustomerAttributesCalls.push(request);
         return Effect.void;
@@ -108,7 +119,7 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
   };
 
   return {
-    apiClient: apiClient as unknown as ApiClient,
+    apiClient: apiClient as unknown,
     state,
   };
 }
@@ -184,7 +195,7 @@ export function createPaymentAdapterDouble(
   };
 
   return {
-    paymentAdapter: paymentAdapter as unknown as PaymentAdapter,
+    paymentAdapter: paymentAdapter as unknown,
     state,
   };
 }
@@ -208,14 +219,29 @@ export function createInMemoryCacheAdapter() {
   };
 }
 
+/**
+ * No-op `LifecycleAdapter` double for tests. Returns `null` so callers know
+ * lifecycle wiring is unavailable, mirroring the production fallback when
+ * `react-native` isn't installed.
+ */
+export function createLifecycleAdapterDouble() {
+  return {
+    adapter: {
+      subscribe: () => Effect.succeed(null),
+    },
+  };
+}
+
 export interface EffectTestHarnessOptions {
-  apiClient: ApiClient;
+  apiClient: unknown;
   baseUrl?: string;
   cacheAdapter: ReturnType<typeof createInMemoryCacheAdapter>["adapter"];
   debug?: boolean;
   eventBus?: EventBus;
+  fetch?: typeof globalThis.fetch;
   ingestUrl?: string;
-  paymentAdapter: PaymentAdapter;
+  lifecycleAdapter?: ReturnType<typeof createLifecycleAdapterDouble>;
+  paymentAdapter: unknown;
   platform?: Partial<PlatformInfo>;
   publishableKey?: string;
   readOnly?: boolean;
@@ -237,14 +263,31 @@ const defaultPlatformInfo: PlatformInfo = {
 export function createEffectTestHarness(options: EffectTestHarnessOptions) {
   const eventBus = options.eventBus ?? new EventBus();
 
-  const layer = pipe(
+  const lifecycle = options.lifecycleAdapter ?? createLifecycleAdapterDouble();
+
+  const baseLayer = pipe(
     CustomerAttributeManager.Default,
+    Layer.provideMerge(ProductService.layer),
+    Layer.provideMerge(FeatureFlagService.layer),
+    Layer.provideMerge(PaywallService.layer),
+    Layer.provideMerge(TransactionService.layer),
+    Layer.provideMerge(AnalyticsService.layer),
+    Layer.provideMerge(LifecycleService.layer),
+    Layer.provideMerge(Layer.succeed(LifecycleAdapter, lifecycle.adapter)),
     Layer.provideMerge(CustomerInfoManager.Default),
     Layer.provideMerge(IdentityManager.Default),
     Layer.provideMerge(CacheManager.Default),
     Layer.provideMerge(Layer.succeed(CacheAdapter, options.cacheAdapter)),
-    Layer.provideMerge(Layer.succeed(ApiClient, options.apiClient)),
-    Layer.provideMerge(Layer.succeed(PaymentAdapter, options.paymentAdapter)),
+    Layer.provideMerge(
+      Layer.succeed(ApiClient, options.apiClient as typeof ApiClient.Service)
+    ),
+    Layer.provideMerge(FetchHttpClient.layer),
+    Layer.provideMerge(
+      Layer.succeed(
+        PaymentAdapter,
+        options.paymentAdapter as typeof PaymentAdapter.Service
+      )
+    ),
     Layer.provideMerge(Layer.succeed(EventBusProvider, eventBus)),
     Layer.provideMerge(
       Layer.succeed(PlatformProvider, {
@@ -262,6 +305,12 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
       })
     )
   );
+  const layer = options.fetch
+    ? pipe(
+        baseLayer,
+        Layer.provideMerge(Layer.succeed(FetchHttpClient.Fetch, options.fetch))
+      )
+    : baseLayer;
 
   return {
     eventBus,

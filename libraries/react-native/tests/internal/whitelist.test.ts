@@ -1,4 +1,5 @@
-import { compileWhitelist, passesWhitelist } from "../../internal/webview/whitelist";
+import { compileWhitelist, passesWhitelist } from "../../src/internal/webview/whitelist";
+import { describe, expect, it } from "../helpers/effect-vitest";
 
 describe("webview whitelist", () => {
   it("allows whitelisted https origin", () => {

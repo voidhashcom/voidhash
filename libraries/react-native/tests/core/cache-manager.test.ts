@@ -1,8 +1,9 @@
 import { Effect, Layer, ManagedRuntime, pipe } from "effect";
 
-import { CacheAdapter } from "../../core/caching/cache-adapter";
-import { CacheManager } from "../../core/caching/cache-manager";
+import { CacheAdapter } from "../../src/core/caching/cache-adapter";
+import { CacheManager } from "../../src/core/caching/cache-manager";
 import { createInMemoryCacheAdapter } from "../helpers/effect-test-harness";
+import { describe, expect, it } from "../helpers/effect-vitest";
 
 const wait = (ms: number) =>
   new Promise<void>((resolve) => {
@@ -21,13 +22,13 @@ describe("CacheManager", () => {
 
     try {
       await runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
           manager.set("customer:1", { id: "1" }, { staleTime: 1000, ttl: 1000 })
         )
       );
 
       const result = await runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
           manager.get<{ id: string }>("customer:1")
         )
       );
@@ -53,14 +54,14 @@ describe("CacheManager", () => {
 
     try {
       await runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
           manager.set("customer:expired", { id: "expired" }, { ttl: 1 })
         )
       );
       await wait(5);
 
       const result = await runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
           manager.get<{ id: string }>("customer:expired")
         )
       );
@@ -83,14 +84,14 @@ describe("CacheManager", () => {
 
     try {
       await runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
           manager.set("customer:stale", { id: "stale" }, { staleTime: 1, ttl: 1000 })
         )
       );
       await wait(5);
 
       const result = await runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
           manager.get<{ id: string }>("customer:stale")
         )
       );
@@ -115,7 +116,7 @@ describe("CacheManager", () => {
 
     try {
       await runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
+        Effect.flatMap(CacheManager.asEffect(), (manager) =>
           Effect.all([
             manager.set("k1", "v1"),
             manager.set("k2", "v2"),
@@ -125,13 +126,13 @@ describe("CacheManager", () => {
       );
 
       const keys = await runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.getCacheKeys())
+        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.getCacheKeys())
       );
       const k1 = await runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.get<string>("k1"))
+        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.get<string>("k1"))
       );
       const k2 = await runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.get<string>("k2"))
+        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.get<string>("k2"))
       );
 
       expect(keys).toEqual([]);

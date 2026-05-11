@@ -1,7 +1,8 @@
+import { describe, expect, it } from "../helpers/effect-vitest";
 import {
   normalizeSource,
   wrapNitroCallback,
-} from "../../internal/webview/utils";
+} from "../../src/internal/webview/utils";
 
 describe("webview utils", () => {
   it("wraps callbacks in Nitro callback object", () => {

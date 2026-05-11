@@ -3,6 +3,6 @@
   "compilerOptions": {
     "outDir": "./build"
   },
-  "include": ["./src"],
+  "include": ["./src", "./tests", "./vitest.setup.ts", "./vitest.unit.mts"],
   "exclude": ["**/__tests__/*", "**/__rsc_tests__/*", "**/node_modules/**"]
 }
