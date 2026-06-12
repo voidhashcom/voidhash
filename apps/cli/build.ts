@@ -12,7 +12,15 @@ esbuild.buildSync({
     "process.env.VOIDHASH_CLI_VERSION": `"${pkg.version}"`,
   },
   entryPoints: ["./src/cli/index.ts"],
-  external: ["esbuild"],
+  // These are resolved/launched at runtime (Studio's Vite app, the paywalls
+  // runtime, Vite itself) — keep them out of the bundle.
+  external: [
+    "esbuild",
+    "@voidhash/studio",
+    "@voidhash/paywalls",
+    "vite",
+    "typescript",
+  ],
   format: "cjs",
   outfile: "dist/bin.cjs",
   platform: "node",

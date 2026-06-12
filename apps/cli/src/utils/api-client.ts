@@ -28,7 +28,7 @@ const make = Effect.gen(function* effect() {
               );
 
               return HttpClientRequest.setHeaders(
-                HttpClientRequest.prependUrl(request, "http://localhost:8787"),
+                HttpClientRequest.prependUrl(request, config.api_url),
                 config.api_key ? { "x-api-key": config.api_key } : {}
               );
             }).pipe(Effect.withSpan("ApiClient.transformRequest"))

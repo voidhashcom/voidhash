@@ -28,6 +28,7 @@ const ACTION_TYPES: PaywallBridgeActionType[] = [
   "purchase",
   "restore",
   "openExternal",
+  "event",
   "log",
 ];
 
@@ -55,7 +56,12 @@ function validatePayload(
   payload: unknown
 ): void {
   if (payload === undefined || payload === null) {
-    if (type === "purchase" || type === "openExternal" || type === "log") {
+    if (
+      type === "purchase" ||
+      type === "openExternal" ||
+      type === "event" ||
+      type === "log"
+    ) {
       throw new PaywallBridgeParseError(
         "INVALID_PAYLOAD",
         `Invalid paywall bridge payload for '${type}': payload is required`
@@ -79,6 +85,19 @@ function validatePayload(
 
   if (type === "openExternal") {
     getRequiredString(payload.url, "url", type);
+    return;
+  }
+
+  if (type === "event") {
+    getRequiredString(payload.name, "name", type);
+
+    if (payload.properties !== undefined && !isRecord(payload.properties)) {
+      throw new PaywallBridgeParseError(
+        "INVALID_PAYLOAD",
+        "Invalid paywall bridge payload for 'event': 'properties' must be an object when present",
+        payload.properties
+      );
+    }
     return;
   }
 

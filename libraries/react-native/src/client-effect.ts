@@ -3,17 +3,25 @@ import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { AnalyticsService } from "./core/analytics/service";
 import type { AnalyticsIngestEvent } from "./core/analytics/types";
-import { currentCustomerAtom } from "./core/reactivity/client-state";
-import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
-import { CustomerInfoManager } from "./core/identity/customer-info-manager";
-import { IdentityManager } from "./core/identity/identity-manager";
 import type { SubscriptionProduct } from "./core/entities/product";
 import type { Transaction } from "./core/entities/transaction";
 import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
+import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
+import { CustomerInfoManager } from "./core/identity/customer-info-manager";
+import { IdentityManager } from "./core/identity/identity-manager";
 import { LifecycleService } from "./core/lifecycle/lifecycle-service";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
-import { PaywallService } from "./core/paywalls/paywall-service";
-import { ProductService, type ProductsBySlug } from "./core/products/product-service";
+import { buildPaywallRuntimeConfig } from "./core/paywalls/paywall-runtime-config";
+import {
+  type PaywallReleaseRuntime,
+  PaywallService,
+} from "./core/paywalls/paywall-service";
+import { PlatformProvider } from "./core/platform/platform-provider";
+import {
+  ProductService,
+  type ProductsBySlug,
+} from "./core/products/product-service";
+import { currentCustomerAtom } from "./core/reactivity/client-state";
 import type { LocationSlug } from "./core/schema/registry";
 import type { RuntimeSchema } from "./core/schema/runtime";
 import { SchemaManager } from "./core/schema/schema-manager";
@@ -71,7 +79,7 @@ const makeUnitializedClient = () => ({
               internalSchema: initOptions.internalSchema,
             }),
           ],
-          { concurrency: "unbounded" }
+          { concurrency: "unbounded" },
         );
         return yield* makeInitializedClient({ schema: runtimeSchema });
       }
@@ -90,7 +98,7 @@ const makeUnitializedClient = () => ({
             internalSchema: initOptions.internalSchema,
           }),
         ],
-        { concurrency: "unbounded" }
+        { concurrency: "unbounded" },
       );
 
       // Publish the prefetched customer so React subscribers see initial
@@ -131,6 +139,41 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           return yield* paywallService.getPaywallForLocation(locationSlug);
         }),
 
+      /**
+       * Builds the deploy-contract §7.1 runtime config for a code-release
+       * paywall: maps the release's product slugs through the native store
+       * metadata, passes variables through unchanged and stamps the current
+       * platform + locale. Slugs the store can't resolve are skipped (debug
+       * log) — an empty products list is still a valid config.
+       */
+      buildPaywallRuntimeConfig: (runtime: PaywallReleaseRuntime) =>
+        Effect.gen(function* buildRuntimeConfig() {
+          const productService = yield* ProductService;
+          const platformProvider = yield* PlatformProvider;
+
+          const productsBySlug = yield* productService.getProducts(
+            options.schema,
+          );
+
+          const skippedSlugs: string[] = [];
+          const runtimeConfig = buildPaywallRuntimeConfig({
+            runtime,
+            productsBySlug,
+            platform: platformProvider.platform,
+            locale: platformProvider.locales[0]?.languageTag,
+            onSkippedProductSlug: (slug) => skippedSlugs.push(slug),
+          });
+
+          if (skippedSlugs.length > 0) {
+            yield* Effect.logDebug(
+              "Skipping paywall products unresolved in the native store",
+              { slugs: skippedSlugs },
+            );
+          }
+
+          return runtimeConfig;
+        }),
+
       getCurrentCustomer: (forceFetch = false) =>
         Effect.gen(function* getCurrentCustomer() {
           const identityManager = yield* IdentityManager;
@@ -139,7 +182,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           const distinctId = yield* identityManager.getDistinctId();
           const customer = yield* customerInfoManager.getCustomer(
             distinctId,
-            forceFetch ? "fetch" : "fetch-while-stale"
+            forceFetch ? "fetch" : "fetch-while-stale",
           );
           // Publish to the reactive store so any subscribed React hook
           // re-renders with the latest result (whether cached or freshly
@@ -168,7 +211,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         identifyOptions: {
           email?: string;
           name?: string;
-        }
+        },
       ) =>
         Effect.gen(function* identify() {
           const identityManager = yield* IdentityManager;
@@ -182,8 +225,8 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           if (!presentCodeRedemptionSheet) {
             return yield* Effect.fail(
               new UnsupportedPlatformError(
-                "Present code redemption sheet is not supported on this platform"
-              )
+                "Present code redemption sheet is not supported on this platform",
+              ),
             );
           }
           return yield* presentCodeRedemptionSheet();
@@ -196,8 +239,8 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           if (!showManageSubscriptions) {
             return yield* Effect.fail(
               new UnsupportedPlatformError(
-                "Show manage subscriptions is not supported on this platform"
-              )
+                "Show manage subscriptions is not supported on this platform",
+              ),
             );
           }
           return yield* showManageSubscriptions();
@@ -208,7 +251,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           const transactionService = yield* TransactionService;
           return yield* transactionService.processObservedTransaction(
             transaction,
-            options.schema
+            options.schema,
           );
         }),
 
@@ -216,7 +259,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         product: SubscriptionProduct,
         _options: {
           method?: "native";
-        }
+        },
       ) =>
         Effect.gen(function* purchase() {
           const transactionService = yield* TransactionService;
@@ -233,7 +276,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         Effect.gen(function* reconcileObservedTransactions() {
           const transactionService = yield* TransactionService;
           return yield* transactionService.reconcileObservedTransactions(
-            options.schema
+            options.schema,
           );
         }),
 
@@ -251,7 +294,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         events: ReadonlyArray<{
           eventName: string;
           properties: Record<string, unknown>;
-        }>
+        }>,
       ) => analyticsService.transferEvents(events),
 
       captureAutomaticStartupEvents: () =>
@@ -261,12 +304,12 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         analyticsService.sendAnalyticsEvents(events),
 
       setupAutomaticLifecycleEvents: (
-        captureEvent: (eventName: string) => void
+        captureEvent: (eventName: string) => void,
       ) =>
         Effect.gen(function* setupAutomaticLifecycleEvents() {
           const lifecycleService = yield* LifecycleService;
           return yield* lifecycleService.setupAutomaticLifecycleEvents(
-            captureEvent
+            captureEvent,
           );
         }),
 
@@ -293,7 +336,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         }),
 
       startTransactionObserver: (
-        onPurchase?: (transaction: Transaction) => void
+        onPurchase?: (transaction: Transaction) => void,
       ) =>
         Effect.gen(function* startTransactionObserver() {
           const transactionService = yield* TransactionService;

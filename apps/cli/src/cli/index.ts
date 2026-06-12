@@ -1,6 +1,6 @@
-import { Command } from "effect/unstable/cli";
-import { NodeServices, NodeRuntime } from "@effect/platform-node";
+import { NodeRuntime, NodeServices } from "@effect/platform-node";
 import { Effect, Layer, References } from "effect";
+import { Command } from "effect/unstable/cli";
 import { FetchHttpClient } from "effect/unstable/http";
 
 import { Auth } from "../domain/services/auth";
@@ -15,12 +15,16 @@ import {
 } from "../utils/error-formatter";
 import { authCommand } from "./commands/auth";
 import { configCommand } from "./commands/config";
+import { deployCommand } from "./commands/deploy";
 import { initCommand } from "./commands/init";
+import { studioCommand } from "./commands/studio";
 import { typesCommand } from "./commands/types";
 import { debugOption } from "./shared-options";
 
-const command = Command.make("voidhash", { debug: debugOption }, () =>
-  Effect.void
+const command = Command.make(
+  "voidhash",
+  { debug: debugOption },
+  () => Effect.void,
 ).pipe(
   Command.withDescription("Voidhash CLI application."),
   Command.withSubcommands([
@@ -28,7 +32,9 @@ const command = Command.make("voidhash", { debug: debugOption }, () =>
     authCommand,
     typesCommand,
     configCommand,
-  ])
+    studioCommand,
+    deployCommand,
+  ]),
 );
 
 const cli = Command.run(command, {
@@ -37,14 +43,16 @@ const cli = Command.run(command, {
 
 // Apply debug log level if --debug flag is present
 const cliEffect = cli.pipe(
-  isDebugMode() ? Effect.provideService(References.MinimumLogLevel, "Debug") : (x) => x
+  isDebugMode()
+    ? Effect.provideService(References.MinimumLogLevel, "Debug")
+    : (x) => x,
 );
 
 const ServicesLayer = Layer.mergeAll(
   SourceCode.Default,
   Auth.Default,
   Codegen.Default,
-  SchemaService.Default
+  SchemaService.Default,
 );
 
 const PlatformLayer = Layer.mergeAll(NodeServices.layer, FetchHttpClient.layer);
@@ -52,9 +60,9 @@ const PlatformLayer = Layer.mergeAll(NodeServices.layer, FetchHttpClient.layer);
 const MainLayer = ServicesLayer.pipe(
   Layer.provideMerge(ApiClient.Default),
   Layer.provideMerge(CliConfig.Default),
-  Layer.provideMerge(PlatformLayer)
+  Layer.provideMerge(PlatformLayer),
 );
 
 NodeRuntime.runMain(
-  cliEffect.pipe(Effect.provide(MainLayer), withValidationErrorHandler)
+  cliEffect.pipe(Effect.provide(MainLayer), withValidationErrorHandler),
 );
