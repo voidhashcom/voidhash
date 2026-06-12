@@ -22,6 +22,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@react-native-async-storage/async-storage": "^2.1.2",
+    "@voidhash/paywalls": "workspace:*",
     "@voidhash/react-native": "workspace:*",
     "expo": "^54.0.33",
     "expo-constants": "~18.0.13",

@@ -704,7 +704,15 @@ export interface SdkResolvedPaywallShowing {
   readonly "htmlUrl": string;
   readonly "publishedAt": string | null;
   readonly "releaseId": string;
-  readonly "version": number | "NaN" | "Infinity" | "-Infinity"
+  readonly "version": number | "NaN" | "Infinity" | "-Infinity";
+  // extended by hand for paywall-deploy contract §6 (code-release runtime block); keep when regenerating.
+  // Optional/nullable on purpose: old servers omit it (visual-editor releases send null) and the
+  // client decodes responses with a plain JSON cast, so absence must remain valid.
+  readonly "runtime"?: {
+  readonly "contentHash": string;
+  readonly "productSlugs": ReadonlyArray<string>;
+  readonly "variables": Readonly<Record<string, string | number | boolean>>
+} | null | undefined
 } | null;
   readonly "paywallReleaseId": string | null;
   readonly "startedAt": string;

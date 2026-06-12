@@ -1,31 +1,34 @@
-import { Cause, Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
+import { Cause, type Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { VoidhashEffectClient } from "./client-effect";
+import { AnalyticsService } from "./core/analytics/service";
 import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";
 import { CacheManager } from "./core/caching/cache-manager";
+import type { SubscriptionProduct } from "./core/entities/product";
+import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
 import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
 import { CustomerInfoManager } from "./core/identity/customer-info-manager";
 import { IdentityManager } from "./core/identity/identity-manager";
+import { LifecycleService } from "./core/lifecycle/lifecycle-service";
+import { ReactNativeLifecycleAdapter } from "./core/lifecycle/react-native-lifecycle-adapter";
 import { ApiClient } from "./core/networking/api-client";
 import { AppStoreAdapter } from "./core/payment-adapters/app-store-adapter";
 import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
-import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
-import { LifecycleService } from "./core/lifecycle/lifecycle-service";
-import { ReactNativeLifecycleAdapter } from "./core/lifecycle/react-native-lifecycle-adapter";
-import { PaywallService } from "./core/paywalls/paywall-service";
-import { type PlatformInfo } from "./core/platform/platform-provider";
+import {
+  type PaywallReleaseRuntime,
+  PaywallService,
+} from "./core/paywalls/paywall-service";
+import type { PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
 import { ProductService } from "./core/products/product-service";
-import { TransactionService } from "./core/transactions/transaction-service";
 import type { LocationSlug, ProductSlug } from "./core/schema/registry";
 import type { RuntimeSchema } from "./core/schema/runtime";
 import { SchemaManager } from "./core/schema/schema-manager";
 import { SdkConfiguration } from "./core/sdk-configuration";
+import { TransactionService } from "./core/transactions/transaction-service";
 import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "./errors";
-import { AnalyticsService } from "./core/analytics/service";
-import type { SubscriptionProduct } from "./core/entities/product";
 
 export interface VoidhashClientOptions {
   baseUrl?: string;
@@ -50,7 +53,7 @@ const CreateEffectRuntime = (
   ingestUrl: string | undefined,
   publishableKey: string,
   readOnly: boolean,
-  atomRegistry: AtomRegistry.AtomRegistry
+  atomRegistry: AtomRegistry.AtomRegistry,
 ) =>
   ManagedRuntime.make(
     pipe(
@@ -70,9 +73,11 @@ const CreateEffectRuntime = (
       Layer.provideMerge(ApiClient.Default),
       Layer.provideMerge(FetchHttpClient.layer),
       Layer.provideMerge(
-        platform === "ios" ? AppStoreAdapter : GooglePlayAdapter
+        platform === "ios" ? AppStoreAdapter : GooglePlayAdapter,
       ),
-      Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
+      Layer.provideMerge(
+        Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry),
+      ),
       Layer.provideMerge(ReactNativePlatformProvider),
       Layer.provideMerge(
         Layer.succeed(SdkConfiguration, {
@@ -81,9 +86,9 @@ const CreateEffectRuntime = (
           ingestUrl,
           publishableKey,
           readOnly,
-        })
-      )
-    )
+        }),
+      ),
+    ),
   );
 
 const toErrorWithMessage = (code: string, unknownCause: unknown) => {
@@ -136,7 +141,7 @@ export class VoidhashClient {
     atomRegistry: AtomRegistry.AtomRegistry,
     platform: Exclude<PlatformInfo["platform"], "unknown">,
     debug = false,
-    internalSchema?: RuntimeSchema
+    internalSchema?: RuntimeSchema,
   ) {
     this.initialDistinctId = initialDistinctId;
     this.readOnly = readOnly;
@@ -151,7 +156,7 @@ export class VoidhashClient {
       ingestUrl,
       publishableKey,
       readOnly,
-      atomRegistry
+      atomRegistry,
     );
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
   }
@@ -181,20 +186,20 @@ export class VoidhashClient {
           distinctId: this.initialDistinctId ?? undefined,
           internalSchema: this.internalSchema,
         }),
-        "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT"
+        "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
       );
 
       await this.runEffect(
         initializedClient.startTransactionObserver((transaction) => {
           void this.effectRuntime.runPromiseExit(
-            initializedClient.processObservedTransaction(transaction)
+            initializedClient.processObservedTransaction(transaction),
           );
         }),
-        "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT"
+        "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
       );
 
       void this.effectRuntime.runPromiseExit(
-        initializedClient.reconcileObservedTransactions()
+        initializedClient.reconcileObservedTransactions(),
       );
 
       this.initializedClient = initializedClient;
@@ -207,26 +212,28 @@ export class VoidhashClient {
 
       if (this.preInitAnalyticsBuffer.length > 0) {
         this.effectRuntime.runSync(
-          initializedClient.transferAnalyticsEvents(this.preInitAnalyticsBuffer)
+          initializedClient.transferAnalyticsEvents(
+            this.preInitAnalyticsBuffer,
+          ),
         );
         this.preInitAnalyticsBuffer = [];
       }
 
       await this.runEffect(
         initializedClient.captureAutomaticStartupEvents(),
-        "FAILED_TO_CAPTURE_STARTUP_EVENTS"
+        "FAILED_TO_CAPTURE_STARTUP_EVENTS",
       ).catch((error) => {
         // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
         console.warn(
           "[voidhash] failed to capture automatic startup analytics",
-          error
+          error,
         );
       });
 
       this.appLifecycleSubscription = this.effectRuntime.runSync(
         initializedClient.setupAutomaticLifecycleEvents((eventName) => {
           this.capture(eventName);
-        })
+        }),
       );
 
       this.triggerBackgroundFlush("flush analytics after init");
@@ -243,7 +250,7 @@ export class VoidhashClient {
       await this.flush();
       await this.runEffect(
         this.initializedClient!.end(),
-        "FAILED_TO_END_VOIDHASH_CLIENT"
+        "FAILED_TO_END_VOIDHASH_CLIENT",
       );
       this.appLifecycleSubscription?.remove();
       this.appLifecycleSubscription = null;
@@ -265,7 +272,7 @@ export class VoidhashClient {
     this.ensureInitialized();
     return this.runEffect(
       this.initializedClient!.getCurrentCustomer(forceFetch),
-      "FAILED_TO_GET_CURRENT_CUSTOMER"
+      "FAILED_TO_GET_CURRENT_CUSTOMER",
     );
   }
 
@@ -273,7 +280,7 @@ export class VoidhashClient {
     this.ensureInitialized();
     return this.runEffect(
       this.initializedClient!.getDistinctId(),
-      "FAILED_TO_GET_DISTINCT_ID"
+      "FAILED_TO_GET_DISTINCT_ID",
     );
   }
 
@@ -285,13 +292,13 @@ export class VoidhashClient {
     options: {
       email?: string;
       name?: string;
-    }
+    },
   ) {
     await this.runSideEffect("identify", async () => {
       this.ensureInitialized();
       await this.runEffect(
         this.initializedClient!.identify(externalUserId, options),
-        "FAILED_TO_IDENTIFY"
+        "FAILED_TO_IDENTIFY",
       );
     });
   }
@@ -317,7 +324,7 @@ export class VoidhashClient {
     this.ensureInitialized();
     return this.runEffect(
       this.initializedClient!.getFeatureFlags(flagKeys),
-      "FAILED_TO_GET_FEATURE_FLAGS"
+      "FAILED_TO_GET_FEATURE_FLAGS",
     );
   }
 
@@ -328,7 +335,21 @@ export class VoidhashClient {
     this.ensureInitialized();
     return this.runEffect(
       this.initializedClient!.getPaywallForLocation(locationSlug),
-      "FAILED_TO_GET_PAYWALL_FOR_LOCATION"
+      "FAILED_TO_GET_PAYWALL_FOR_LOCATION",
+    );
+  }
+
+  /**
+   * Builds the paywall-deploy contract §7.1 runtime config for a code-release
+   * paywall (native store product metadata, variables passthrough, platform +
+   * locale). Used by `usePaywallByLocation` to answer the bundle's `ready`
+   * event with a `configure` envelope.
+   */
+  async internal_buildPaywallRuntimeConfig(runtime: PaywallReleaseRuntime) {
+    this.ensureInitialized();
+    return this.runEffect(
+      this.initializedClient!.buildPaywallRuntimeConfig(runtime),
+      "FAILED_TO_BUILD_PAYWALL_RUNTIME_CONFIG",
     );
   }
 
@@ -342,7 +363,7 @@ export class VoidhashClient {
     this.ensureInitialized();
     return this.runEffect(
       this.initializedClient!.getProducts(),
-      "FAILED_TO_GET_PRODUCTS"
+      "FAILED_TO_GET_PRODUCTS",
     );
   }
 
@@ -353,7 +374,7 @@ export class VoidhashClient {
     product: SubscriptionProduct,
     _options: {
       method?: "native";
-    }
+    },
   ) {
     this.ensureInitialized();
     if (this.readOnly) {
@@ -362,7 +383,7 @@ export class VoidhashClient {
 
     await this.runEffect(
       this.initializedClient!.purchase(product, _options),
-      "FAILED_TO_PURCHASE"
+      "FAILED_TO_PURCHASE",
     );
   }
 
@@ -375,7 +396,7 @@ export class VoidhashClient {
       this.ensureInitialized();
       await this.runEffect(
         this.initializedClient!.restorePurchases(),
-        "FAILED_TO_RESTORE_PURCHASES"
+        "FAILED_TO_RESTORE_PURCHASES",
       );
     });
   }
@@ -394,7 +415,7 @@ export class VoidhashClient {
     }
 
     this.effectRuntime.runSync(
-      this.initializedClient.capture(eventName, properties)
+      this.initializedClient.capture(eventName, properties),
     );
   }
 
@@ -412,7 +433,7 @@ export class VoidhashClient {
 
       this.analyticsFlushInFlight = this.runEffect(
         this.initializedClient.flush(),
-        "FAILED_TO_FLUSH_ANALYTICS"
+        "FAILED_TO_FLUSH_ANALYTICS",
       ).finally(() => {
         this.analyticsFlushInFlight = null;
       });
@@ -430,7 +451,7 @@ export class VoidhashClient {
       this.ensureInitialized();
       await this.runEffect(
         this.initializedClient!.iosPresentCodeRedemptionSheet(),
-        "FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET"
+        "FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET",
       );
     });
   }
@@ -440,7 +461,7 @@ export class VoidhashClient {
       this.ensureInitialized();
       await this.runEffect(
         this.initializedClient!.iosShowManageSubscriptions(),
-        "FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS"
+        "FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS",
       );
     });
   }
@@ -480,7 +501,7 @@ export class VoidhashClient {
   // biome-ignore lint/suspicious/noExplicitAny: Effect requires service type parameter
   private async runEffect<T>(
     effect: Effect.Effect<T, unknown, any>,
-    errorCode: string
+    errorCode: string,
   ): Promise<T> {
     const result = await this.effectRuntime.runPromiseExit(effect);
     if (Exit.isSuccess(result)) return result.value;
@@ -491,7 +512,7 @@ export class VoidhashClient {
     if (!this.initializedClient) {
       throw new VoidhashError(
         "VOIDHASH_CLIENT_NOT_INITIALIZED",
-        new Error("ProductManager is not initialized")
+        new Error("ProductManager is not initialized"),
       );
     }
   }
