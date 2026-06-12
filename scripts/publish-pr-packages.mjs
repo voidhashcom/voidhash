@@ -118,9 +118,12 @@ const requireEnv = (key) => {
 const dryRun = process.env.PR_PACKAGES_DRY_RUN === "1";
 const sha = requireEnv("SHA");
 const branch = requireEnv("BRANCH");
-const token = dryRun
-  ? process.env.PR_PACKAGE_TOKEN
-  : requireEnv("PR_PACKAGE_TOKEN");
+// Trim: the server does a strict `Bearer ${token}` string compare, so a
+// trailing newline in the GitHub secret (common when a token is piped in from
+// a file) would otherwise 401 every upload.
+const token = (
+  dryRun ? process.env.PR_PACKAGE_TOKEN : requireEnv("PR_PACKAGE_TOKEN")
+)?.trim();
 const host = process.env.PR_PACKAGE_HOST || "pkg.voidha.sh";
 const ttl = process.env.PR_PACKAGE_TTL || "";
 const prNumber = process.env.PR_NUMBER || "";
