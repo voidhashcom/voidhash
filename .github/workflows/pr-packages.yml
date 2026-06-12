@@ -1,0 +1,114 @@
+# Publishes per-commit tarballs of all publishable packages to the pr-package
+# service at pkg.voidha.sh so any commit can be tried out without an npm
+# release:
+#
+#   pnpm add @voidhash/node@https://pkg.voidha.sh/node/<short-sha>
+#
+# - push to main/preview → tarballs tagged with sha + branch name
+# - pull_request         → tarballs tagged with sha + branch + `pr-<n>` (1 week
+#                          TTL), plus a sticky install-instructions comment on
+#                          the PR
+#
+# Tags persist past PR close so install URLs keep resolving; the bucket's TTL
+# handles cleanup. All packages publish on every run — with this few packages
+# that is cheaper than maintaining diff-driven change detection, and it
+# guarantees the workspace-dep URL rewriting always has a same-sha tarball to
+# point at. The package list lives in scripts/publish-pr-packages.mjs.
+
+name: PR Packages
+
+on:
+  push:
+    branches: [main, preview]
+    paths:
+      - packages/generated-clients/**
+      - packages/shared/**
+      - apps/cli/**
+      - apps/studio/**
+      - libraries/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/workflows/pr-packages.yml
+      - scripts/publish-pr-packages.mjs
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - packages/generated-clients/**
+      - packages/shared/**
+      - apps/cli/**
+      - apps/studio/**
+      - libraries/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/workflows/pr-packages.yml
+      - scripts/publish-pr-packages.mjs
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# Cancel superseded PR runs; let branch-push runs finish so a published sha is
+# never left half-uploaded.
+concurrency:
+  group: pr-packages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  publish:
+    # Fork PRs can't access PR_PACKAGE_TOKEN — skip them entirely.
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and publish pr-packages
+        env:
+          PR_PACKAGE_TOKEN: ${{ secrets.PR_PACKAGE_TOKEN }}
+          SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_PACKAGE_TTL: ${{ github.event_name == 'pull_request' && '1 week' || '' }}
+          COMMENT_FILE: ${{ runner.temp }}/pr-packages-comment.md
+        run: node scripts/publish-pr-packages.mjs
+
+      - name: Comment install instructions on PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMENT_FILE: ${{ runner.temp }}/pr-packages-comment.md
+        run: |
+          set -euo pipefail
+          MARKER="<!-- pr-packages -->"
+          BODY=$(cat "$COMMENT_FILE")
+
+          existing=$(gh api --paginate \
+            "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | startswith(\"${MARKER}\")) | .id" \
+            | head -1)
+
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${REPO}/issues/comments/${existing}" -f body="$BODY"
+          else
+            gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="$BODY"
+          fi
