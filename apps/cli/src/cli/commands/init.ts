@@ -123,8 +123,15 @@ export const initCommand = Command.make("init", {}, () =>
     const configFilePath = path.resolve(configFileName);
     const typesOutputPath = path.resolve(DEFAULT_TYPES_OUTPUT);
 
+    // Scaffold the SDK client into `src/lib` (or `lib` when there's no `src`),
+    // matching the project's `src` layout and language.
+    const srcDir = yield* sourceCode.retrieveSrcDir();
+    const clientFileName = language === "ts" ? "voidhash.ts" : "voidhash.js";
+    const clientFilePath = path.join(srcDir, "lib", clientFileName);
+
     yield* assertFileCanBeCreated(configFileName, configFilePath);
     yield* assertFileCanBeCreated(DEFAULT_TYPES_OUTPUT, typesOutputPath);
+    yield* assertFileCanBeCreated(clientFileName, clientFilePath);
 
     // Write the config. `typesOutput` is omitted from the generated file so
     // it picks up the default (`voidhash.gen.d.ts`) — keeps the config terse.
@@ -132,6 +139,10 @@ export const initCommand = Command.make("init", {}, () =>
       project: project.slug,
       team: organization.slug,
     });
+
+    // Scaffold the SDK client with the publishable key pre-filled so the user
+    // has a working import target on the first run.
+    yield* codegen.generateClientFile(clientFilePath, { publishableKey });
 
     // Produce the initial declaration file so the user has working
     // autocomplete on the first run. Failures here are non-fatal — the user
@@ -155,12 +166,13 @@ export const initCommand = Command.make("init", {}, () =>
 
     yield* Console.log("\nVoidhash initialized successfully!");
     yield* Console.log(`  Config:  ${configFilePath}`);
+    yield* Console.log(`  Client:  ${clientFilePath}`);
     if (generatedVersion !== null) {
       yield* Console.log(`  Types:   ${typesOutputPath}`);
     }
     yield* Console.log(`\nNext steps:`);
     yield* Console.log(
-      `  1. Add the publishable key (${publishableKey}) to your client code.`
+      `  1. Wrap your app with <voidhash.Provider> from ${path.relative(".", clientFilePath)}.`
     );
     yield* Console.log(
       `  2. Create your products and paywall locations in the Voidhash dashboard.`
