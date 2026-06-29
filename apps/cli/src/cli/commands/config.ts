@@ -2,12 +2,18 @@ import { Command } from "effect/unstable/cli";
 import { Console, Effect } from "effect";
 
 import { CliConfig } from "../../domain/services/cli-config";
+import { getActiveProfile } from "../../utils/error-formatter";
 import { configResetCommand } from "./config-reset";
 import { configSetCommand } from "./config-set";
 
 export const configCommand = Command.make("config", {}, () =>
   Effect.gen(function* configCommand() {
     const cliConfig = yield* CliConfig;
+    const activeProfile = getActiveProfile();
+
+    if (activeProfile) {
+      yield* Console.log(`Active profile: ${activeProfile}`);
+    }
     yield* Console.log("Current configuration:");
     const config = yield* cliConfig.readConfig();
 
@@ -18,6 +24,12 @@ export const configCommand = Command.make("config", {}, () =>
       } else {
         yield* Console.log(`${key}: ${value}`);
       }
+    }
+
+    const raw = yield* cliConfig.readRawConfig();
+    const profileNames = Object.keys(raw.profiles ?? {});
+    if (profileNames.length > 0) {
+      yield* Console.log(`\nProfiles: ${profileNames.join(", ")}`);
     }
   })
 ).pipe(

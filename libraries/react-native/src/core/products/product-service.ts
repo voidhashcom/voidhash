@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import { CacheManager } from "../caching/cache-manager";
 import type { Product, SubscriptionProduct } from "../entities/product";
@@ -43,7 +43,7 @@ const mapNativeProductsToProductMap = (
  * (with a 24h cache) and maps them back to the schema slugs. Missing products
  * (not configured for the current platform) are returned as `null`.
  */
-export class ProductService extends ServiceMap.Service<ProductService>()(
+export class ProductService extends Context.Service<ProductService>()(
   "rn-voidhash/ProductService",
   {
     make: Effect.gen(function* () {

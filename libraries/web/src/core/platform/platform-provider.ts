@@ -1,8 +1,8 @@
-import { Layer, ServiceMap } from "effect";
+import { Layer, Context } from "effect";
 
 import { BrowserPlatformProvider } from "./browser-platform-provider";
 
-export class PlatformProvider extends ServiceMap.Service<
+export class PlatformProvider extends Context.Service<
   PlatformProvider,
   BrowserPlatformProvider
 >()("web-voidhash/PlatformProvider") {}

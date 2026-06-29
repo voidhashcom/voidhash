@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import type { VoidhashTraits } from "../../types";
 import { CacheManager } from "../caching/cache-manager";
@@ -134,7 +134,7 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class IdentityManager extends ServiceMap.Service<
+export class IdentityManager extends Context.Service<
   IdentityManager,
   Effect.Success<typeof make>
 >()("web-voidhash/IdentityManager") {

@@ -1,4 +1,4 @@
-import { type Effect, ServiceMap } from "effect";
+import { type Effect, Context } from "effect";
 
 export interface LifecycleSubscription {
   readonly remove: () => void;
@@ -14,7 +14,7 @@ export interface LifecycleSubscription {
  * Implementations return `null` when the platform doesn't expose lifecycle
  * events (e.g. unit-test environments without React Native installed).
  */
-export class LifecycleAdapter extends ServiceMap.Service<
+export class LifecycleAdapter extends Context.Service<
   LifecycleAdapter,
   {
     readonly subscribe: (

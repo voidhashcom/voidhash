@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import { CacheManager } from "../caching/cache-manager";
 import { ApiClient } from "../networking/api-client";
@@ -62,7 +62,7 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class CustomerAttributeManager extends ServiceMap.Service<CustomerAttributeManager, Effect.Success<typeof make>>()("rn-voidhash/CustomerAttributeManager") {
+export class CustomerAttributeManager extends Context.Service<CustomerAttributeManager, Effect.Success<typeof make>>()("rn-voidhash/CustomerAttributeManager") {
   static Default = Layer.effect(CustomerAttributeManager, make).pipe(
     Layer.provide(CacheManager.Default)
   )

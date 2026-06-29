@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Layer, Path, Schema, ServiceMap } from "effect";
+import { Effect, FileSystem, Layer, Path, Schema, Context } from "effect";
 
 import { safeRegister } from "../../utils/js-loading/js-file-loading";
 import { relativePathPrefixFromDepth } from "../../utils/source-code";
@@ -307,7 +307,7 @@ const make = Effect.gen(function* effect() {
 
 type SourceCodeShape = Effect.Success<typeof make>;
 
-export class SourceCode extends ServiceMap.Service<SourceCode, SourceCodeShape>()(
+export class SourceCode extends Context.Service<SourceCode, SourceCodeShape>()(
   "voidhash-cli/SourceCode"
 ) {
   static Default = Layer.effect(SourceCode, make)

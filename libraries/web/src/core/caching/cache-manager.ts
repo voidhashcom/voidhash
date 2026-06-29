@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import { SdkConfiguration } from "../sdk-configuration";
 import { CacheAdapter } from "./cache-adapter";
@@ -147,7 +147,7 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class CacheManager extends ServiceMap.Service<
+export class CacheManager extends Context.Service<
   CacheManager,
   Effect.Success<typeof make>
 >()("web-voidhash/CacheManager") {

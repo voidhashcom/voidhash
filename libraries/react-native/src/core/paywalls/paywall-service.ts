@@ -1,5 +1,5 @@
 import type { SdkResolvedPaywall } from "@voidhash/generated-clients";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import { IdentityManager } from "../identity/identity-manager";
 import { ApiClient } from "../networking/api-client";
@@ -29,7 +29,7 @@ export type PaywallReleaseRuntime = NonNullable<
  * returned as-is — including `showing.paywallRelease.runtime` when the active
  * release is a code release.
  */
-export class PaywallService extends ServiceMap.Service<PaywallService>()(
+export class PaywallService extends Context.Service<PaywallService>()(
   "rn-voidhash/PaywallService",
   {
     make: Effect.gen(function* () {

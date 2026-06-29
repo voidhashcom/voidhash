@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { FailedToFetchSchemaError } from "../../errors";
@@ -45,7 +45,7 @@ interface ResolveSchemaArgs {
  * cached schema — using a separate cache key per version makes upgrades
  * safe by forcing a fresh fetch on the first launch of a new build.
  */
-export class SchemaManager extends ServiceMap.Service<SchemaManager>()(
+export class SchemaManager extends Context.Service<SchemaManager>()(
   "rn-voidhash/SchemaManager",
   {
     make: Effect.gen(function* () {

@@ -11,7 +11,7 @@ import {
   type SdkSyncPersonAttributesBody,
   type SdkSyncPersonAttributesParams,
 } from "@voidhash/generated-clients";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { SdkConfiguration } from "../sdk-configuration";
@@ -117,7 +117,7 @@ const make = Effect.gen(function* effect() {
   );
 });
 
-export class ApiClient extends ServiceMap.Service<
+export class ApiClient extends Context.Service<
   ApiClient,
   Effect.Success<typeof make>
 >()("web-voidhash/ApiClient") {

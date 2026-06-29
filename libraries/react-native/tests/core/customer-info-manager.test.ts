@@ -30,13 +30,13 @@ describe("CustomerInfoManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
+        Effect.flatMap(CustomerInfoManager, (manager) =>
           manager.cache("cached-user", customer)
         )
       );
 
       const result = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
+        Effect.flatMap(CustomerInfoManager, (manager) =>
           manager.getCustomer("cached-user", "cache")
         )
       );
@@ -62,12 +62,12 @@ describe("CustomerInfoManager", () => {
 
     try {
       const result = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
+        Effect.flatMap(CustomerInfoManager, (manager) =>
           manager.getCustomer("fetched-user", "fetch")
         )
       );
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
+        Effect.flatMap(CustomerInfoManager, (manager) =>
           manager.getCustomerFromCache("fetched-user")
         )
       );
@@ -97,11 +97,11 @@ describe("CustomerInfoManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) => manager.cache("fresh-user", customer))
+        Effect.flatMap(CustomerInfoManager, (manager) => manager.cache("fresh-user", customer))
       );
 
       const result = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
+        Effect.flatMap(CustomerInfoManager, (manager) =>
           manager.getCustomer("fresh-user", "fetch-while-stale")
         )
       );
@@ -129,7 +129,7 @@ describe("CustomerInfoManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           manager.set("customer:stale-user", staleCustomer, {
             staleTime: 1,
             ttl: 1000,
@@ -139,7 +139,7 @@ describe("CustomerInfoManager", () => {
       await wait(5);
 
       const result = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
+        Effect.flatMap(CustomerInfoManager, (manager) =>
           manager.getCustomer("stale-user", "fetch-while-stale")
         )
       );

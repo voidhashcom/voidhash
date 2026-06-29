@@ -19,7 +19,7 @@ import { deployCommand } from "./commands/deploy";
 import { initCommand } from "./commands/init";
 import { studioCommand } from "./commands/studio";
 import { typesCommand } from "./commands/types";
-import { debugOption } from "./shared-options";
+import { debugOption, profileOption } from "./shared-options";
 
 const command = Command.make(
   "voidhash",
@@ -27,6 +27,10 @@ const command = Command.make(
   () => Effect.void,
 ).pipe(
   Command.withDescription("Voidhash CLI application."),
+  // Shared flags are accepted before and after the subcommand name (npm-style),
+  // so `voidhash deploy --profile dev` and `voidhash --profile dev deploy` both
+  // parse. Must be applied before withSubcommands.
+  Command.withSharedFlags({ profile: profileOption }),
   Command.withSubcommands([
     initCommand,
     authCommand,

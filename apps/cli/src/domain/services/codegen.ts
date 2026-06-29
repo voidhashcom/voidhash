@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Layer, ServiceMap } from "effect";
+import { Effect, FileSystem, Layer, Context } from "effect";
 
 import {
   VOIDHASH_FETCHED_AT_COMMENT_PREFIX,
@@ -115,7 +115,7 @@ const make = Effect.gen(function* effect() {
 
 type CodegenShape = Effect.Success<typeof make>;
 
-export class Codegen extends ServiceMap.Service<Codegen, CodegenShape>()(
+export class Codegen extends Context.Service<Codegen, CodegenShape>()(
   "voidhash-cli/Codegen"
 ) {
   static Default = Layer.effect(Codegen, make);

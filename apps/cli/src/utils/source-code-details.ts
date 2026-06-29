@@ -1,4 +1,4 @@
-import { Effect, ServiceMap } from "effect";
+import { Effect, Context } from "effect";
 
 import type { PackageJsonSchema } from "../domain/schema/package-json";
 import { SourceCode } from "../domain/services/source-code";
@@ -14,7 +14,7 @@ export interface SourceCodeDetailsType {
   packageJson: typeof PackageJsonSchema.Type;
 }
 
-export class SourceCodeDetails extends ServiceMap.Service<SourceCodeDetails, SourceCodeDetailsType>()("app/SourceCodeDetails") {
+export class SourceCodeDetails extends Context.Service<SourceCodeDetails, SourceCodeDetailsType>()("app/SourceCodeDetails") {
   static readonly provide =
     (details: SourceCodeDetailsType) =>
     <A, E, R>(effect: Effect.Effect<A, E, R>) =>

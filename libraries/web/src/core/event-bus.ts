@@ -1,4 +1,4 @@
-import { ServiceMap } from "effect";
+import { Context } from "effect";
 
 import type { VoidhashEventMap, VoidhashEventName } from "../types";
 
@@ -45,7 +45,7 @@ export class EventBus {
   }
 }
 
-export class EventBusProvider extends ServiceMap.Service<
+export class EventBusProvider extends Context.Service<
   EventBusProvider,
   EventBus
 >()("web-voidhash/EventBusProvider") {}

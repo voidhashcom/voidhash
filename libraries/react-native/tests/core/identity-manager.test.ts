@@ -31,11 +31,11 @@ describe("IdentityManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.set("distinctId", "cached-user"))
+        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "cached-user"))
       );
 
       const distinctId = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.getDistinctId())
+        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctId())
       );
 
       expect(distinctId).toBe("cached-user");
@@ -56,10 +56,10 @@ describe("IdentityManager", () => {
 
     try {
       const distinctId = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.getDistinctId())
+        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctId())
       );
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.getDistinctIdFromCache())
+        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache())
       );
 
       expect(distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)).toBe(true);
@@ -86,7 +86,7 @@ describe("IdentityManager", () => {
       });
 
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           Effect.all([
             manager.set("distinctId", "old-user"),
             manager.set("customer-attributes:old-user", {
@@ -98,7 +98,7 @@ describe("IdentityManager", () => {
       );
 
       await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager.asEffect(), (manager) =>
+        Effect.flatMap(IdentityManager, (manager) =>
           manager.identify("new-user", {
             email: "new@voidhash.test",
             name: "New User",
@@ -107,10 +107,10 @@ describe("IdentityManager", () => {
       );
 
       const cachedDistinctId = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.getDistinctIdFromCache())
+        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache())
       );
       const cachedCustomer = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager.asEffect(), (manager) =>
+        Effect.flatMap(CustomerInfoManager, (manager) =>
           manager.getCustomerFromCache("new-user")
         )
       );
@@ -160,7 +160,7 @@ describe("IdentityManager", () => {
       });
 
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           Effect.all([
             manager.set("distinctId", "signed-in-user"),
             manager.set("customer:some-user", { id: "some-user" }),
@@ -168,7 +168,7 @@ describe("IdentityManager", () => {
         )
       );
       await harness.runtime.runPromise(
-        Effect.flatMap(CustomerAttributeManager.asEffect(), (manager) =>
+        Effect.flatMap(CustomerAttributeManager, (manager) =>
           manager.setCustomerAttributes("signed-in-user", {
             email: "signed@voidhash.test",
             name: "Signed User",
@@ -177,14 +177,14 @@ describe("IdentityManager", () => {
       );
 
       await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.reset())
+        Effect.flatMap(IdentityManager, (manager) => manager.reset())
       );
 
       const distinctIdFromCache = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager.asEffect(), (manager) => manager.getDistinctIdFromCache())
+        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache())
       );
       const cacheKeys = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.getCacheKeys())
+        Effect.flatMap(CacheManager, (manager) => manager.getCacheKeys())
       );
 
       expect(apiDouble.state.syncCustomerAttributesCalls).toHaveLength(1);

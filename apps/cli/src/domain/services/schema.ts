@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import { ApiClient } from "../../utils/api-client";
 import { RemoteSchemaFetchError } from "../errors/schema";
@@ -116,7 +116,7 @@ const make = Effect.gen(function* effect() {
 
 type SchemaServiceShape = Effect.Success<typeof make>;
 
-export class SchemaService extends ServiceMap.Service<
+export class SchemaService extends Context.Service<
   SchemaService,
   SchemaServiceShape
 >()("voidhash-cli/Schema") {

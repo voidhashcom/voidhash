@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../constants";
@@ -110,7 +110,7 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class IdentityManager extends ServiceMap.Service<IdentityManager, Effect.Success<typeof make>>()("rn-voidhash/IdentityManager") {
+export class IdentityManager extends Context.Service<IdentityManager, Effect.Success<typeof make>>()("rn-voidhash/IdentityManager") {
   static Default = Layer.effect(IdentityManager, make).pipe(
     Layer.provide(Layer.mergeAll(
       CacheManager.Default,

@@ -6,7 +6,7 @@ import {
   Effect,
   Layer,
   PubSub,
-  ServiceMap,
+  Context,
 } from "effect";
 import {
   HttpRouter,
@@ -312,7 +312,7 @@ const make = Effect.gen(function* effect() {
   } satisfies AuthShape;
 });
 
-export class Auth extends ServiceMap.Service<Auth, AuthShape>()(
+export class Auth extends Context.Service<Auth, AuthShape>()(
   "voidhash-cli/Auth"
 ) {
   static Default = Layer.effect(Auth, make).pipe(

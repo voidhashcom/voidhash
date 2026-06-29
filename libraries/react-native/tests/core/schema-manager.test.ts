@@ -37,7 +37,7 @@ const resolveSchemaEffect = (args: {
   distinctId: string;
   internalSchema?: RuntimeSchema;
 }) =>
-  Effect.flatMap(SchemaManager.asEffect(), (manager) =>
+  Effect.flatMap(SchemaManager, (manager) =>
     manager.resolveSchema(args)
   );
 
@@ -73,7 +73,7 @@ describe("SchemaManager", () => {
       expect(harness.atomRegistry.get(schemaAtom)).toEqual(internalSchema);
       // Cache should still be empty because we bypassed it entirely.
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           manager.get<RuntimeSchema>("schema:1.0.0")
         )
       );
@@ -104,7 +104,7 @@ describe("SchemaManager", () => {
       expect(harness.atomRegistry.get(schemaAtom)).toEqual(remoteSchema);
 
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           manager.get<RuntimeSchema>("schema:1.0.0")
         )
       );
@@ -132,7 +132,7 @@ describe("SchemaManager", () => {
       // Prime the cache with a different schema so we can tell which one
       // is being returned.
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           manager.set("schema:1.0.0", cachedSchema, {
             ttl: 1000 * 60 * 60 * 24 * 30,
           })
@@ -160,7 +160,7 @@ describe("SchemaManager", () => {
       expect(harness.atomRegistry.get(schemaAtom)).toEqual(refreshedSchema);
 
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           manager.get<RuntimeSchema>("schema:1.0.0")
         )
       );
@@ -216,7 +216,7 @@ describe("SchemaManager", () => {
       // Cache a schema under the OLD app version key — should not be used
       // when the harness is configured for "2.0.0".
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           manager.set("schema:1.0.0", previousVersionSchema, {
             ttl: 1000 * 60 * 60 * 24 * 30,
           })
@@ -231,7 +231,7 @@ describe("SchemaManager", () => {
       expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
 
       const cachedForNewVersion = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           manager.get<RuntimeSchema>("schema:2.0.0")
         )
       );
@@ -264,7 +264,7 @@ describe("SchemaManager", () => {
 
       // No cache key should have been written.
       const cacheKeys = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           manager.getCacheKeys()
         )
       );

@@ -13,10 +13,8 @@ export const configSetCommand = Command.make(
   ({ key, value }) =>
     Effect.gen(function* configSetCommand() {
       const cliConfig = yield* CliConfig;
-      const config = yield* cliConfig.readConfig();
       yield* cliConfig
         .writeToConfig({
-          ...config,
           [key]: value,
         })
         .pipe(

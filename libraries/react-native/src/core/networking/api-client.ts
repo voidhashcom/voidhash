@@ -13,7 +13,7 @@ import {
   type SdkSyncPersonAttributesParams,
   type SdkSyncTransactionRequest,
 } from "@voidhash/generated-clients";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import type { RuntimeSchema } from "../schema/runtime";
@@ -164,6 +164,6 @@ const make = Effect.gen(function* effect() {
   );
 });
 
-export class ApiClient extends ServiceMap.Service<ApiClient, Effect.Success<typeof make>>()("rn-voidhash/ApiClient") {
+export class ApiClient extends Context.Service<ApiClient, Effect.Success<typeof make>>()("rn-voidhash/ApiClient") {
   static Default = Layer.effect(ApiClient, make)
 }

@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import { CacheManager } from "../caching/cache-manager";
 import type { SubscriptionProduct } from "../entities/product";
@@ -82,7 +82,7 @@ const mapTransactionToSyncPayload = (
  * coalesce concurrent sync attempts for the same transaction (the cache TTL
  * catches duplicate attempts across runtime restarts).
  */
-export class TransactionService extends ServiceMap.Service<TransactionService>()(
+export class TransactionService extends Context.Service<TransactionService>()(
   "rn-voidhash/TransactionService",
   {
     make: Effect.gen(function* () {

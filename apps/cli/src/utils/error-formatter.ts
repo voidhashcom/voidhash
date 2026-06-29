@@ -10,6 +10,28 @@ export const isDebugMode = (): boolean =>
   process.argv.includes("--debug") || process.argv.includes("-d");
 
 /**
+ * Resolve the active config profile from the `--profile <name>` / `--profile=<name>`
+ * flag, or `null` when no profile is requested.
+ *
+ * Like {@link isDebugMode}, this reads `process.argv` directly because the parsed
+ * flag value isn't available where the CliConfig layer is built. The flag itself
+ * is registered as a shared flag on the root command so the parser accepts it on
+ * every command.
+ */
+export const getActiveProfile = (): string | null => {
+  const argv = process.argv;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === undefined) continue;
+    if (arg === "--profile") return argv[i + 1] ?? null;
+    if (arg.startsWith("--profile=")) {
+      return arg.slice("--profile=".length) || null;
+    }
+  }
+  return null;
+};
+
+/**
  * Creates a CliError.UserError with a message.
  * Use this in command error handlers to show user-friendly errors.
  *

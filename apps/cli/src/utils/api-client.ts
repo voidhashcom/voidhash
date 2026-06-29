@@ -2,7 +2,7 @@ import {
   make as makeCoreClient,
   type VoidhashCoreClient,
 } from "@voidhash/generated-clients";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { CliConfig } from "../domain/services/cli-config";
@@ -40,7 +40,7 @@ const make = Effect.gen(function* effect() {
 
 type ApiClientShape = Effect.Success<typeof make>;
 
-export class ApiClient extends ServiceMap.Service<ApiClient, ApiClientShape>()(
+export class ApiClient extends Context.Service<ApiClient, ApiClientShape>()(
   "voidhash-cli/ApiClient"
 ) {
   static Default = Layer.effect(ApiClient, make).pipe(

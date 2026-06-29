@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import { LifecycleAdapter, type LifecycleSubscription } from "./lifecycle-adapter";
 
@@ -8,7 +8,7 @@ import { LifecycleAdapter, type LifecycleSubscription } from "./lifecycle-adapte
  * `LifecycleAdapter` into `app_backgrounded` and `app_became_active` callbacks
  * which the caller is expected to forward to the analytics pipeline.
  */
-export class LifecycleService extends ServiceMap.Service<LifecycleService>()(
+export class LifecycleService extends Context.Service<LifecycleService>()(
   "rn-voidhash/LifecycleService",
   {
     make: Effect.gen(function* () {

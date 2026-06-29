@@ -1,4 +1,4 @@
-import { ServiceMap, type Effect } from "effect";
+import { Context, type Effect } from "effect";
 
 import type { Product, SubscriptionProduct } from "../entities/product";
 import type { Transaction } from "../entities/transaction";
@@ -19,7 +19,7 @@ import type {
   UserCancelledError,
 } from "./errors";
 
-export class PaymentAdapter extends ServiceMap.Service<
+export class PaymentAdapter extends Context.Service<
   PaymentAdapter,
   {
     initConnection(

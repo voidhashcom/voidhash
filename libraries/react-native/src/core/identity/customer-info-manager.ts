@@ -1,5 +1,5 @@
 import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import { CacheManager } from "../caching/cache-manager";
 import { ApiClient } from "../networking/api-client";
@@ -73,7 +73,7 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class CustomerInfoManager extends ServiceMap.Service<CustomerInfoManager, Effect.Success<typeof make>>()("rn-voidhash/CustomerInfoManager") {
+export class CustomerInfoManager extends Context.Service<CustomerInfoManager, Effect.Success<typeof make>>()("rn-voidhash/CustomerInfoManager") {
   static Default = Layer.effect(CustomerInfoManager, make).pipe(
     Layer.provide(CacheManager.Default)
   )

@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { CacheManager } from "../caching/cache-manager";
@@ -32,7 +32,7 @@ const generateCacheKey = (flagKeys: string[] | undefined) =>
  * keyed by the normalized request signature, so React hooks can subscribe to
  * exactly the slice of state they asked for.
  */
-export class FeatureFlagService extends ServiceMap.Service<FeatureFlagService>()(
+export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
   "rn-voidhash/FeatureFlagService",
   {
     make: Effect.gen(function* () {

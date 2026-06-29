@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import type {
   FeatureFlagEntry,
@@ -126,7 +126,7 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class FeatureFlagService extends ServiceMap.Service<
+export class FeatureFlagService extends Context.Service<
   FeatureFlagService,
   Effect.Success<typeof make>
 >()("web-voidhash/FeatureFlagService") {

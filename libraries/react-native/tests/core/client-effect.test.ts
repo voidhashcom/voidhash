@@ -40,10 +40,10 @@ describe("VoidhashEffectClient", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.set("distinctId", "cached-before-init"))
+        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "cached-before-init"))
       );
       await harness.runtime.runPromise(
-        Effect.flatMap(CustomerAttributeManager.asEffect(), (manager) =>
+        Effect.flatMap(CustomerAttributeManager, (manager) =>
           manager.setCustomerAttributes("cached-before-init", {
             email: "before@voidhash.test",
             name: "Before",
@@ -229,7 +229,7 @@ describe("VoidhashEffectClient", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.set("distinctId", "feature-user"))
+        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "feature-user"))
       );
 
       const inputKeys = ["b", "a"];
@@ -325,7 +325,7 @@ describe("VoidhashEffectClient", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
+        Effect.flatMap(CacheManager, (manager) =>
           manager.set("distinctId", "fetched-customer")
         )
       );
@@ -670,7 +670,7 @@ describe("VoidhashEffectClient", () => {
 
       try {
         await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager.asEffect(), (manager) =>
+          Effect.flatMap(CacheManager, (manager) =>
             manager.set("distinctId", "analytics-user")
           )
         );
@@ -1049,7 +1049,7 @@ describe("VoidhashEffectClient", () => {
       try {
         // Store a different app release in cache
         await harness.runtime.runPromise(
-          Effect.flatMap(CacheManager.asEffect(), (manager) =>
+          Effect.flatMap(CacheManager, (manager) =>
             manager.set("voidhash:analytics:last-seen-app-release", {
               appBuild: "0",
               appVersion: "0.0.1",

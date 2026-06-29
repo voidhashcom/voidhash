@@ -135,7 +135,7 @@ describe("VoidhashWebClient", () => {
     await client.reset();
 
     const syncCalls = calls.filter((call) =>
-      call.url.endsWith("/sdk/sync-customer-attributes")
+      call.url.endsWith("/sdk/person/traits")
     );
     const identifyCall = calls.find((call) => call.url.endsWith("/sdk/identify"));
 

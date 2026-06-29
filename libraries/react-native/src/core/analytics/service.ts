@@ -9,7 +9,7 @@ import {
   Layer,
   Ref,
   Schedule,
-  ServiceMap,
+  Context,
 } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
@@ -106,7 +106,7 @@ const inlineRetrySchedule = Schedule.exponential(
  * `analyticsFlushInFlight` Promise guard) and tests can assert on queue length
  * without driving an Effect.
  */
-export class AnalyticsService extends ServiceMap.Service<AnalyticsService>()(
+export class AnalyticsService extends Context.Service<AnalyticsService>()(
   "rn-voidhash/AnalyticsService",
   {
     make: Effect.gen(function* () {

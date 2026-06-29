@@ -1,6 +1,6 @@
-import { ServiceMap } from "effect";
+import { Context } from "effect";
 
-export class SdkConfiguration extends ServiceMap.Service<SdkConfiguration, {
+export class SdkConfiguration extends Context.Service<SdkConfiguration, {
     readonly baseUrl: string;
     readonly debug: boolean;
     readonly ingestUrl: string | undefined;

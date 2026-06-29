@@ -1,6 +1,6 @@
 import { createAuthClient } from "better-auth/client";
 import { apiKeyClient } from "better-auth/client/plugins";
-import { Data, Effect, Layer, ServiceMap } from "effect";
+import { Data, Effect, Layer, Context } from "effect";
 
 import { CliConfig } from "../../../domain/services/cli-config";
 
@@ -45,7 +45,7 @@ const make = Effect.gen(function* effect() {
 
 type BetterAuthClientShape = Effect.Success<typeof make>;
 
-export class BetterAuthClient extends ServiceMap.Service<BetterAuthClient, BetterAuthClientShape>()(
+export class BetterAuthClient extends Context.Service<BetterAuthClient, BetterAuthClientShape>()(
   "app/BetterAuthClient"
 ) {
   static Default = Layer.effect(BetterAuthClient, make)

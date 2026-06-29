@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import type { CaptureAcceptedResponse } from "@voidhash/generated-clients/event-capture";
 
 import type { AnalyticsFlushResult } from "../../types";
@@ -392,7 +392,7 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class AnalyticsService extends ServiceMap.Service<
+export class AnalyticsService extends Context.Service<
   AnalyticsService,
   Effect.Success<typeof make>
 >()("web-voidhash/AnalyticsService") {
