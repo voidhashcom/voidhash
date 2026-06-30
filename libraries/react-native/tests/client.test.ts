@@ -23,9 +23,7 @@ vi.mock("../src/core/platform/react-native-platform-provider", async () => {
   const { Layer } = await vi.importActual<typeof import("effect")>("effect");
   const { PlatformProvider } = await vi.importActual<
     typeof import("../src/core/platform/platform-provider")
-  >(
-    "../src/core/platform/platform-provider"
-  );
+  >("../src/core/platform/platform-provider");
   return {
     ReactNativePlatformProvider: Layer.succeed(PlatformProvider, {
       appBuild: "100",
@@ -43,10 +41,7 @@ vi.mock("../src/core/platform/react-native-platform-provider", async () => {
 });
 
 import { VoidhashClient } from "../src/client";
-import {
-  ReadOnlyModePurchaseNotAllowedError,
-  VoidhashError,
-} from "../src/errors";
+import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "../src/errors";
 import { createTestSchema } from "./helpers/test-schema";
 
 function createClient(readOnly = false, unstableSwallowErrors = false) {
@@ -61,7 +56,7 @@ function createClient(readOnly = false, unstableSwallowErrors = false) {
     AtomRegistry.make(),
     "ios",
     false,
-    createTestSchema()
+    createTestSchema(),
   );
 }
 
@@ -83,7 +78,7 @@ describe("VoidhashClient", () => {
       await expect(client.flush()).resolves.toBeUndefined();
       expect(warnSpy).toHaveBeenCalledWith(
         "[voidhash] swallowed error in flush",
-        expect.any(VoidhashError)
+        expect.any(VoidhashError),
       );
 
       warnSpy.mockRestore();
@@ -103,11 +98,11 @@ describe("VoidhashClient", () => {
       };
 
       await expect(
-        client.identify("new-user", { email: "new@voidhash.test" })
+        client.identify("new-user", { email: "new@voidhash.test" }),
       ).resolves.toBeUndefined();
       expect(warnSpy).toHaveBeenCalledWith(
         "[voidhash] swallowed error in identify",
-        expect.any(VoidhashError)
+        expect.any(VoidhashError),
       );
       warnSpy.mockRestore();
     });
@@ -128,7 +123,7 @@ describe("VoidhashClient", () => {
       await expect(client.restorePurchases()).resolves.toBeUndefined();
       expect(warnSpy).toHaveBeenCalledWith(
         "[voidhash] swallowed error in restorePurchases",
-        expect.any(VoidhashError)
+        expect.any(VoidhashError),
       );
       warnSpy.mockRestore();
     });
@@ -150,7 +145,7 @@ describe("VoidhashClient", () => {
       expect(client.isInitialized).toBe(false);
       expect(warnSpy).toHaveBeenCalledWith(
         "[voidhash] swallowed error in init",
-        expect.any(VoidhashError)
+        expect.any(VoidhashError),
       );
       warnSpy.mockRestore();
     });
@@ -162,11 +157,11 @@ describe("VoidhashClient", () => {
       const client = createClient(false, true);
 
       await expect(
-        client.identify("new-user", { email: "new@voidhash.test" })
+        client.identify("new-user", { email: "new@voidhash.test" }),
       ).resolves.toBeUndefined();
       expect(warnSpy).toHaveBeenCalledWith(
         "[voidhash] swallowed error in identify",
-        expect.any(VoidhashError)
+        expect.any(VoidhashError),
       );
       warnSpy.mockRestore();
     });
@@ -184,7 +179,7 @@ describe("VoidhashClient", () => {
       await expect(client.getProducts()).rejects.toEqual(
         expect.objectContaining<Partial<VoidhashError>>({
           message: expect.stringContaining("FAILED_TO_GET_PRODUCTS"),
-        })
+        }),
       );
     });
 
@@ -203,12 +198,12 @@ describe("VoidhashClient", () => {
           {
             id: "monthly-id",
           } as never,
-          {}
-        )
+          {},
+        ),
       ).rejects.toEqual(
         expect.objectContaining<Partial<VoidhashError>>({
           message: expect.stringContaining("FAILED_TO_PURCHASE"),
-        })
+        }),
       );
     });
   });
@@ -229,8 +224,8 @@ describe("VoidhashClient", () => {
           {
             id: "monthly-id",
           } as never,
-          {}
-        )
+          {},
+        ),
       ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
     });
 
@@ -249,8 +244,8 @@ describe("VoidhashClient", () => {
           {
             id: "monthly-id",
           } as never,
-          {}
-        )
+          {},
+        ),
       ).rejects.toBeInstanceOf(ReadOnlyModePurchaseNotAllowedError);
     });
   });

@@ -54,48 +54,44 @@ indirectly from `voidhash-cli init`).
 
 ```jsonc
 {
-  "version": "sha256:<hex>",      // identical to GET /schema/version below
-  "perks": [
-    { "slug": "all-access", "name": "All Access" }
-  ],
-  "locations": [
-    { "slug": "home", "name": "Home", "description": null }
-  ],
+  "version": "sha256:<hex>", // identical to GET /schema/version below
+  "perks": [{ "slug": "all-access", "name": "All Access" }],
+  "locations": [{ "slug": "home", "name": "Home", "description": null }],
   "products": [
     {
       "slug": "monthly_sub",
       "name": "Monthly",
       "type": "subscription",
-      "perks": ["all-access"],           // perk slugs, not IDs
+      "perks": ["all-access"], // perk slugs, not IDs
       "providers": [
         {
           "providerId": "appleAppStore",
-          "configuration": { "productId": "com.app.monthly" }
+          "configuration": { "productId": "com.app.monthly" },
         },
         {
           "providerId": "googlePlay",
           "configuration": {
             "productId": "com.app.monthly",
-            "basePlanId": "monthly-base"
-          }
-        }
-      ]
-    }
+            "basePlanId": "monthly-base",
+          },
+        },
+      ],
+    },
   ],
-  "enabledProviders": ["appleAppStore", "googlePlay"]
+  "enabledProviders": ["appleAppStore", "googlePlay"],
 }
 ```
 
 **Field-by-field mapping** to the CLI's `NormalizedSchema` (which is the
 intermediate the codegen runs over):
 
-| Server field           | CLI shape (`NormalizedSchema`)        | Notes |
-|------------------------|---------------------------------------|-------|
-| `perks[]`              | `Map<slug, { slug, name }>`           |       |
-| `locations[]`          | `Map<slug, { slug, name, description }>` | `description` is `null` when unset. |
-| `products[]`           | `Map<slug, { slug, name, type, perks[], providers[] }>` | `perks` is an array of perk **slugs**. `providers[].configuration` is provider-shaped. `type` is currently always `"subscription"` (extensible later). |
-| `enabledProviders[]`   | `Set<ProviderId>`                     | `"appleAppStore"` / `"googlePlay"`. Other provider IDs are filtered out client-side; sending them is harmless. |
-| `version`              | derived (see hash spec below)         | Must equal `GET /schema/version`. |
+| Server field         | CLI shape (`NormalizedSchema`)                          | Notes                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `perks[]`            | `Map<slug, { slug, name }>`                             |                                                                                                                                                        |
+| `locations[]`        | `Map<slug, { slug, name, description }>`                | `description` is `null` when unset.                                                                                                                    |
+| `products[]`         | `Map<slug, { slug, name, type, perks[], providers[] }>` | `perks` is an array of perk **slugs**. `providers[].configuration` is provider-shaped. `type` is currently always `"subscription"` (extensible later). |
+| `enabledProviders[]` | `Set<ProviderId>`                                       | `"appleAppStore"` / `"googlePlay"`. Other provider IDs are filtered out client-side; sending them is harmless.                                         |
+| `version`            | derived (see hash spec below)                           | Must equal `GET /schema/version`.                                                                                                                      |
 
 **Caching:** Should set `ETag: "<version>"` and respect
 `If-None-Match` → return 304 when the client's known version matches.
@@ -145,10 +141,10 @@ uses `GET /api/v1/schema`.
 {
   "version": "sha256:<hex>",
   "perks": {
-    "all-access": { "slug": "all-access", "name": "All Access" }
+    "all-access": { "slug": "all-access", "name": "All Access" },
   },
   "locations": {
-    "home": { "slug": "home", "name": "Home", "description": null }
+    "home": { "slug": "home", "name": "Home", "description": null },
   },
   "products": {
     "monthly_sub": {
@@ -161,12 +157,12 @@ uses `GET /api/v1/schema`.
           "appleAppStore": { "productId": "com.app.monthly" },
           "googlePlay": {
             "productId": "com.app.monthly",
-            "basePlanId": "monthly-base"
-          }
-        }
-      }
-    }
-  }
+            "basePlanId": "monthly-base",
+          },
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -271,12 +267,12 @@ sha256:<sha256({"locations":[],"perks":[],"products":[]})>
 
 ## Authentication summary
 
-| Endpoint                       | Session bearer | Publishable key |
-|--------------------------------|:--------------:|:---------------:|
-| `GET /api/v1/schema`           | ✅             | ❌              |
-| `GET /api/v1/schema/version`   | ✅             | ✅              |
-| `GET /sdk/schema`              | ❌             | ✅              |
-| Slug-accepting `/sdk/*`        | ❌             | ✅              |
+| Endpoint                     | Session bearer | Publishable key |
+| ---------------------------- | :------------: | :-------------: |
+| `GET /api/v1/schema`         |       ✅       |       ❌        |
+| `GET /api/v1/schema/version` |       ✅       |       ✅        |
+| `GET /sdk/schema`            |       ❌       |       ✅        |
+| Slug-accepting `/sdk/*`      |       ❌       |       ✅        |
 
 `GET /api/v1/schema/version` accepts both because the CLI uses it during
 `types generate --watch` and the SDK uses it for the dev-mode drift

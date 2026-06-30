@@ -30,8 +30,7 @@ export const TREE_ELEMENT_TYPES = {
   view: "vh-view",
 } as const;
 
-const hasStyleKeys = (style: StyleProp): boolean =>
-  Object.keys(flattenStyle(style)).length > 0;
+const hasStyleKeys = (style: StyleProp): boolean => Object.keys(flattenStyle(style)).length > 0;
 
 const TreeView = ({ style, children }: ViewProps): ReactNode =>
   createElement(TREE_ELEMENT_TYPES.view, { style }, children);
@@ -39,11 +38,7 @@ const TreeView = ({ style, children }: ViewProps): ReactNode =>
 const TreeText = ({ style, children }: TextProps): ReactNode =>
   createElement(TREE_ELEMENT_TYPES.text, { style }, children);
 
-const TreePressable = ({
-  style,
-  children,
-  actionName,
-}: PressableHostProps): ReactNode =>
+const TreePressable = ({ style, children, actionName }: PressableHostProps): ReactNode =>
   createElement(
     TREE_ELEMENT_TYPES.pressable,
     { action: actionName, style },
@@ -64,11 +59,7 @@ const TreeScrollView = ({
     // RN's contentContainerStyle has no §3 equivalent — preserve it as an
     // inner view when it actually styles something.
     hasStyleKeys(contentContainerStyle)
-      ? createElement(
-          TREE_ELEMENT_TYPES.view,
-          { style: contentContainerStyle },
-          children,
-        )
+      ? createElement(TREE_ELEMENT_TYPES.view, { style: contentContainerStyle }, children)
       : children,
   );
 

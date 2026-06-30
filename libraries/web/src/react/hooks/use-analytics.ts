@@ -12,14 +12,14 @@ export const useAnalytics = () => {
       page: (
         pageName?: string,
         properties?: Record<string, unknown>,
-        options?: { eventId?: string; sessionId?: string; timestamp?: string }
+        options?: { eventId?: string; sessionId?: string; timestamp?: string },
       ) => client.page(pageName, properties, options),
       track: (
         eventName: string,
         properties?: Record<string, unknown>,
-        options?: { eventId?: string; sessionId?: string; timestamp?: string }
+        options?: { eventId?: string; sessionId?: string; timestamp?: string },
       ) => client.track(eventName, properties, options),
     }),
-    [client]
+    [client],
   );
 };

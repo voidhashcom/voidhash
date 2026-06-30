@@ -16,15 +16,9 @@ import { IdentityManager } from "./core/identity/identity-manager";
 import { LifecycleService } from "./core/lifecycle/lifecycle-service";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import { buildPaywallRuntimeConfig } from "./core/paywalls/paywall-runtime-config";
-import {
-  type PaywallReleaseRuntime,
-  PaywallService,
-} from "./core/paywalls/paywall-service";
+import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
 import { PlatformProvider } from "./core/platform/platform-provider";
-import {
-  ProductService,
-  type ProductsBySlug,
-} from "./core/products/product-service";
+import { ProductService, type ProductsBySlug } from "./core/products/product-service";
 import { currentPersonAtom } from "./core/reactivity/client-state";
 import type { LocationSlug } from "./core/schema/registry";
 import type { RuntimeSchema } from "./core/schema/runtime";
@@ -153,9 +147,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           const productService = yield* ProductService;
           const platformProvider = yield* PlatformProvider;
 
-          const productsBySlug = yield* productService.getProducts(
-            options.schema,
-          );
+          const productsBySlug = yield* productService.getProducts(options.schema);
 
           const skippedSlugs: string[] = [];
           const runtimeConfig = buildPaywallRuntimeConfig({
@@ -167,10 +159,9 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           });
 
           if (skippedSlugs.length > 0) {
-            yield* Effect.logDebug(
-              "Skipping paywall products unresolved in the native store",
-              { slugs: skippedSlugs },
-            );
+            yield* Effect.logDebug("Skipping paywall products unresolved in the native store", {
+              slugs: skippedSlugs,
+            });
           }
 
           return runtimeConfig;
@@ -228,10 +219,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           const personInfoManager = yield* PersonInfoManager;
           const atomRegistry = yield* AtomRegistry.AtomRegistry;
           const distinctId = yield* identityManager.getDistinctId();
-          const person = yield* personAttributeManager.syncPersonAttributes(
-            distinctId,
-            attributes,
-          );
+          const person = yield* personAttributeManager.syncPersonAttributes(distinctId, attributes);
           yield* personInfoManager.cache(distinctId, person);
           atomRegistry.set(currentPersonAtom, person);
           return person;
@@ -300,10 +288,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
       processObservedTransaction: (transaction: Transaction) =>
         Effect.gen(function* processObservedTransaction() {
           const transactionService = yield* TransactionService;
-          return yield* transactionService.processObservedTransaction(
-            transaction,
-            options.schema,
-          );
+          return yield* transactionService.processObservedTransaction(transaction, options.schema);
         }),
 
       purchase: (
@@ -326,15 +311,12 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
       reconcileObservedTransactions: () =>
         Effect.gen(function* reconcileObservedTransactions() {
           const transactionService = yield* TransactionService;
-          return yield* transactionService.reconcileObservedTransactions(
-            options.schema,
-          );
+          return yield* transactionService.reconcileObservedTransactions(options.schema);
         }),
 
       // --- Analytics: Effect methods delegate to AnalyticsService ---
 
-      getAnalyticsStandardizedProperties: () =>
-        analyticsService.getStandardizedProperties(),
+      getAnalyticsStandardizedProperties: () => analyticsService.getStandardizedProperties(),
 
       capture: (eventName: string, properties: Record<string, unknown> = {}) =>
         analyticsService.capture(eventName, properties),
@@ -348,20 +330,15 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         }>,
       ) => analyticsService.transferEvents(events),
 
-      captureAutomaticStartupEvents: () =>
-        analyticsService.captureAutomaticStartupEvents(),
+      captureAutomaticStartupEvents: () => analyticsService.captureAutomaticStartupEvents(),
 
       sendAnalyticsEvents: (events: ReadonlyArray<AnalyticsIngestEvent>) =>
         analyticsService.sendAnalyticsEvents(events),
 
-      setupAutomaticLifecycleEvents: (
-        captureEvent: (eventName: string) => void,
-      ) =>
+      setupAutomaticLifecycleEvents: (captureEvent: (eventName: string) => void) =>
         Effect.gen(function* setupAutomaticLifecycleEvents() {
           const lifecycleService = yield* LifecycleService;
-          return yield* lifecycleService.setupAutomaticLifecycleEvents(
-            captureEvent,
-          );
+          return yield* lifecycleService.setupAutomaticLifecycleEvents(captureEvent);
         }),
 
       // --- Analytics: sync accessors read directly from the service ---
@@ -398,9 +375,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           return yield* identityManager.reset();
         }),
 
-      startTransactionObserver: (
-        onPurchase?: (transaction: Transaction) => void,
-      ) =>
+      startTransactionObserver: (onPurchase?: (transaction: Transaction) => void) =>
         Effect.gen(function* startTransactionObserver() {
           const transactionService = yield* TransactionService;
           return yield* transactionService.startTransactionObserver(onPurchase);

@@ -17,9 +17,7 @@ import {
 
 describe("outbound envelopes (protocol.ts round-trip)", () => {
   it("ready parses with the native SDK validator", () => {
-    const parsed = parsePaywallBridgeEnvelope(
-      serializeEnvelope(createReadyEnvelope()),
-    );
+    const parsed = parsePaywallBridgeEnvelope(serializeEnvelope(createReadyEnvelope()));
     expect(parsed).toMatchObject({ version: 1, type: "ready" });
   });
 
@@ -36,9 +34,7 @@ describe("outbound envelopes (protocol.ts round-trip)", () => {
   });
 
   it("restore parses with an optional requestId", () => {
-    const parsed = parsePaywallBridgeEnvelope(
-      serializeEnvelope(createRestoreEnvelope("req-2")),
-    );
+    const parsed = parsePaywallBridgeEnvelope(serializeEnvelope(createRestoreEnvelope("req-2")));
     expect(parsed).toMatchObject({
       version: 1,
       type: "restore",
@@ -47,13 +43,12 @@ describe("outbound envelopes (protocol.ts round-trip)", () => {
   });
 
   it("close parses with and without a reason", () => {
+    expect(parsePaywallBridgeEnvelope(serializeEnvelope(createCloseEnvelope()))).toMatchObject({
+      version: 1,
+      type: "close",
+    });
     expect(
-      parsePaywallBridgeEnvelope(serializeEnvelope(createCloseEnvelope())),
-    ).toMatchObject({ version: 1, type: "close" });
-    expect(
-      parsePaywallBridgeEnvelope(
-        serializeEnvelope(createCloseEnvelope("user-dismissed")),
-      ),
+      parsePaywallBridgeEnvelope(serializeEnvelope(createCloseEnvelope("user-dismissed"))),
     ).toMatchObject({
       version: 1,
       type: "close",
@@ -63,9 +58,7 @@ describe("outbound envelopes (protocol.ts round-trip)", () => {
 
   it("openExternal carries the url", () => {
     const parsed = parsePaywallBridgeEnvelope(
-      serializeEnvelope(
-        createOpenExternalEnvelope("https://voidhash.com/terms"),
-      ),
+      serializeEnvelope(createOpenExternalEnvelope("https://voidhash.com/terms")),
     );
     expect(parsed).toMatchObject({
       version: 1,
@@ -76,9 +69,7 @@ describe("outbound envelopes (protocol.ts round-trip)", () => {
 
   it("event matches the contract §7.2 shape and parses with the native SDK validator", () => {
     expect(
-      JSON.parse(
-        serializeEnvelope(createEventEnvelope("cta_seen", { screen: "home" })),
-      ),
+      JSON.parse(serializeEnvelope(createEventEnvelope("cta_seen", { screen: "home" }))),
     ).toEqual({
       version: 1,
       type: "event",
@@ -100,9 +91,7 @@ describe("outbound envelopes (protocol.ts round-trip)", () => {
       payload: { name: "cta_seen", properties: { screen: "home" } },
     });
     expect(
-      parsePaywallBridgeEnvelope(
-        serializeEnvelope(createEventEnvelope("bare")),
-      ),
+      parsePaywallBridgeEnvelope(serializeEnvelope(createEventEnvelope("bare"))),
     ).toMatchObject({ version: 1, type: "event", payload: { name: "bare" } });
   });
 });
@@ -223,12 +212,8 @@ describe("parseInboundEnvelope", () => {
 
   it("ignores malformed input, unknown versions and unknown actions", () => {
     expect(parseInboundEnvelope("not json")).toBeNull();
-    expect(
-      parseInboundEnvelope(JSON.stringify({ version: 2, type: "status" })),
-    ).toBeNull();
-    expect(
-      parseInboundEnvelope(JSON.stringify({ version: 1, type: "mystery" })),
-    ).toBeNull();
+    expect(parseInboundEnvelope(JSON.stringify({ version: 2, type: "status" }))).toBeNull();
+    expect(parseInboundEnvelope(JSON.stringify({ version: 1, type: "mystery" }))).toBeNull();
     expect(
       parseInboundEnvelope(
         JSON.stringify({

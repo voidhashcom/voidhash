@@ -6,9 +6,7 @@ import type {
 import type { SubscriptionProduct } from "../entities/product";
 import type { PaywallReleaseRuntime } from "./paywall-service";
 
-const PERIOD_BY_NORMALIZED_INTERVAL: Readonly<
-  Record<string, PaywallRuntimeConfigProductPeriod>
-> = {
+const PERIOD_BY_NORMALIZED_INTERVAL: Readonly<Record<string, PaywallRuntimeConfigProductPeriod>> = {
   // ISO-8601 billing periods (Play Billing `billingPeriod`).
   p1m: "month",
   p1y: "year",
@@ -47,16 +45,13 @@ function mapProductToRuntimeConfigProduct(
     id: product.id,
     slug: product.slug,
     displayName: product.displayName,
-    description:
-      product.description.length > 0 ? product.description : undefined,
+    description: product.description.length > 0 ? product.description : undefined,
     price: Number.isFinite(product.price) ? product.price : undefined,
     priceString: product.displayPrice,
     currencyCode: product.currency.length > 0 ? product.currency : undefined,
     // `interval` is only present when the adapter produced a full
     // SubscriptionProduct; plain Product instances leave it undefined.
-    period: mapStoreIntervalToPeriod(
-      (product as Partial<SubscriptionProduct>).interval,
-    ),
+    period: mapStoreIntervalToPeriod((product as Partial<SubscriptionProduct>).interval),
     // Trial metadata isn't surfaced by the current native adapters yet.
     trialPeriod: undefined,
   };

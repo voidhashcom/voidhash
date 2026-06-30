@@ -52,9 +52,7 @@ export interface PaywallDefinition extends CreatePaywallInput {
  * });
  * ```
  */
-export const createPaywall = (
-  input: CreatePaywallInput,
-): PaywallDefinition => ({
+export const createPaywall = (input: CreatePaywallInput): PaywallDefinition => ({
   ...input,
   __voidhash: {
     kind: "paywall",
@@ -66,9 +64,7 @@ export const createPaywall = (
 });
 
 /** Type guard for a {@link PaywallDefinition}. */
-export const isPaywallDefinition = (
-  value: unknown,
-): value is PaywallDefinition =>
+export const isPaywallDefinition = (value: unknown): value is PaywallDefinition =>
   typeof value === "object" &&
   value !== null &&
   (value as { __voidhash?: PaywallMeta }).__voidhash?.kind === "paywall";

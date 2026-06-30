@@ -27,17 +27,16 @@ export interface VoidhashRegisterShape {
   };
 }
 
-type Resolve<K extends keyof VoidhashRegisterShape["schema"]> =
-  VoidhashRegister extends {
-    schema: { [P in K]: infer V extends string };
-  }
-    ? // When the augmentation declares an empty union (`never`) — e.g. the
-      // placeholder `voidhash.gen.d.ts` written before the first real
-      // generation — fall back to `string` so user code still compiles.
-      [V] extends [never]
-      ? string
-      : V
-    : string;
+type Resolve<K extends keyof VoidhashRegisterShape["schema"]> = VoidhashRegister extends {
+  schema: { [P in K]: infer V extends string };
+}
+  ? // When the augmentation declares an empty union (`never`) — e.g. the
+    // placeholder `voidhash.gen.d.ts` written before the first real
+    // generation — fall back to `string` so user code still compiles.
+    [V] extends [never]
+    ? string
+    : V
+  : string;
 
 /** Resolves to the literal union of product slugs declared on the server, or `string` when the .d.ts isn't loaded. */
 export type ProductSlug = Resolve<"products">;

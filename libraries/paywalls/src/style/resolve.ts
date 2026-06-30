@@ -103,8 +103,7 @@ export const resolveStyle = (style: StyleProp): CSSProperties => {
   }
 
   if (lineHeight !== undefined) {
-    out.lineHeight =
-      typeof lineHeight === "number" ? `${lineHeight}px` : lineHeight;
+    out.lineHeight = typeof lineHeight === "number" ? `${lineHeight}px` : lineHeight;
   }
   if (
     (flat.borderWidth !== undefined || flat.borderColor !== undefined) &&

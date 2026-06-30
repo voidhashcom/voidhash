@@ -24,7 +24,10 @@ function Body() {
   return (
     <View style={{ flex: 1, padding: 24, justifyContent: "flex-end" }}>
       <Text style={{ fontSize: 28, fontWeight: "700" }}>Go Pro</Text>
-      <Pressable onPress={() => purchase()} style={{ backgroundColor: "#16a34a", padding: 16, borderRadius: 12 }}>
+      <Pressable
+        onPress={() => purchase()}
+        style={{ backgroundColor: "#16a34a", padding: 16, borderRadius: 12 }}
+      >
         <Text style={{ color: "white", textAlign: "center" }}>Subscribe</Text>
       </Pressable>
     </View>
@@ -57,7 +60,13 @@ export const definition = defineComponent({
     onSelect: a.action({ productId: a.string() }),
   }),
   previews: {
-    default: { data: { products: [/* fixture products */] } },
+    default: {
+      data: {
+        products: [
+          /* fixture products */
+        ],
+      },
+    },
   },
   render: ({ props, actions }) => (
     <Pressable onPress={actions.onSelect} style={{ borderColor: props.accentColor }}>

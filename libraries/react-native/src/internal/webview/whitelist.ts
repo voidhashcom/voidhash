@@ -15,10 +15,7 @@ export function compileWhitelist(originWhitelist: readonly string[]): string[] {
   return ["about:blank", ...originWhitelist].map(originWhitelistToRegex);
 }
 
-export function passesWhitelist(
-  compiledWhitelist: readonly string[],
-  url: string
-): boolean {
+export function passesWhitelist(compiledWhitelist: readonly string[], url: string): boolean {
   const origin = extractOrigin(url);
   return compiledWhitelist.some((pattern) => new RegExp(pattern).test(origin));
 }

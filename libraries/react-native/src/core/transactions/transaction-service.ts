@@ -7,10 +7,7 @@ import { PersonInfoManager } from "../identity/person-info-manager";
 import { IdentityManager } from "../identity/identity-manager";
 import { ApiClient } from "../networking/api-client";
 import { PaymentAdapter } from "../payment-adapters/payment-adapter";
-import type {
-  RuntimeProductDefinition,
-  RuntimeSchema,
-} from "../schema/runtime";
+import type { RuntimeProductDefinition, RuntimeSchema } from "../schema/runtime";
 import { SdkConfiguration } from "../sdk-configuration";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 
@@ -24,34 +21,29 @@ const getProcessedTransactionCacheKey = (transactionProcessingKey: string) =>
 
 const resolveTransactionProductSlug = (
   transaction: Transaction,
-  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
+  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
 ) => {
-  const matchedProduct = Object.values(productDefinitions).find(
-    (productDefinition) => {
-      if (productDefinition.slug === transaction.productId) {
-        return true;
-      }
-
-      const provider =
-        transaction.platform === "ios"
-          ? productDefinition.configuration.providers.appleAppStore
-          : productDefinition.configuration.providers.googlePlay;
-
-      return provider?.productId === transaction.productId;
+  const matchedProduct = Object.values(productDefinitions).find((productDefinition) => {
+    if (productDefinition.slug === transaction.productId) {
+      return true;
     }
-  );
+
+    const provider =
+      transaction.platform === "ios"
+        ? productDefinition.configuration.providers.appleAppStore
+        : productDefinition.configuration.providers.googlePlay;
+
+    return provider?.productId === transaction.productId;
+  });
 
   return matchedProduct?.slug ?? transaction.productId;
 };
 
 const mapTransactionToSyncPayload = (
   transaction: Transaction,
-  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
+  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
 ) => {
-  const productSlug = resolveTransactionProductSlug(
-    transaction,
-    productDefinitions
-  );
+  const productSlug = resolveTransactionProductSlug(transaction, productDefinitions);
 
   if (transaction.platform === "ios") {
     return {
@@ -95,27 +87,16 @@ export class TransactionService extends Context.Service<TransactionService>()(
 
       const inFlightKeys = new Set<string>();
 
-      const processObservedTransaction = (
-        transaction: Transaction,
-        schema: RuntimeSchema
-      ) =>
+      const processObservedTransaction = (transaction: Transaction, schema: RuntimeSchema) =>
         Effect.gen(function* () {
-          const transactionProcessingKey =
-            buildTransactionProcessingKey(transaction);
+          const transactionProcessingKey = buildTransactionProcessingKey(transaction);
           if (inFlightKeys.has(transactionProcessingKey)) {
             return;
           }
 
-          const processedCacheKey = getProcessedTransactionCacheKey(
-            transactionProcessingKey
-          );
-          const cachedTransaction =
-            yield* cacheManager.get<boolean>(processedCacheKey);
-          if (
-            cachedTransaction &&
-            !cachedTransaction.isExpired &&
-            cachedTransaction.value
-          ) {
+          const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
+          const cachedTransaction = yield* cacheManager.get<boolean>(processedCacheKey);
+          if (cachedTransaction && !cachedTransaction.isExpired && cachedTransaction.value) {
             return;
           }
 
@@ -124,7 +105,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
               "Skipping observed Android transaction without purchase token",
               {
                 transactionId: transaction.transactionId,
-              }
+              },
             );
             return;
           }
@@ -139,10 +120,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
                 ...commonHeaders,
                 "x-distinct-id": distinctId,
               },
-              payload: mapTransactionToSyncPayload(
-                transaction,
-                schema.products
-              ),
+              payload: mapTransactionToSyncPayload(transaction, schema.products),
             });
 
             yield* cacheManager.set(processedCacheKey, true, {
@@ -159,22 +137,14 @@ export class TransactionService extends Context.Service<TransactionService>()(
 
       const reconcileObservedTransactions = (schema: RuntimeSchema) =>
         Effect.gen(function* () {
-          const [pendingTransactions, purchasedTransactions] = yield* Effect.all(
-            [
-              paymentAdapter.getPendingTransactions(),
-              paymentAdapter.getPurchaseHistory(true),
-            ]
-          );
+          const [pendingTransactions, purchasedTransactions] = yield* Effect.all([
+            paymentAdapter.getPendingTransactions(),
+            paymentAdapter.getPurchaseHistory(true),
+          ]);
 
           const observedTransactionsByKey = new Map<string, Transaction>();
-          for (const transaction of [
-            ...pendingTransactions,
-            ...purchasedTransactions,
-          ]) {
-            observedTransactionsByKey.set(
-              buildTransactionProcessingKey(transaction),
-              transaction
-            );
+          for (const transaction of [...pendingTransactions, ...purchasedTransactions]) {
+            observedTransactionsByKey.set(buildTransactionProcessingKey(transaction), transaction);
           }
 
           for (const transaction of observedTransactionsByKey.values()) {
@@ -183,8 +153,8 @@ export class TransactionService extends Context.Service<TransactionService>()(
                 Effect.logWarning("Failed to process observed transaction", {
                   error,
                   transactionId: transaction.transactionId,
-                })
-              )
+                }),
+              ),
             );
           }
         });
@@ -202,9 +172,8 @@ export class TransactionService extends Context.Service<TransactionService>()(
           yield* personInfoManager.getPerson(distinctId, "fetch");
         });
 
-      const startTransactionObserver = (
-        onPurchase?: (transaction: Transaction) => void
-      ) => paymentAdapter.initConnection(onPurchase);
+      const startTransactionObserver = (onPurchase?: (transaction: Transaction) => void) =>
+        paymentAdapter.initConnection(onPurchase);
 
       const endConnection = () => paymentAdapter.endConnection();
 
@@ -217,7 +186,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
         startTransactionObserver,
       } as const;
     }),
-  }
+  },
 ) {
   static readonly layer = Layer.effect(this, this.make);
 }

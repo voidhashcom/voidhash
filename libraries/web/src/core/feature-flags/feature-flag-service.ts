@@ -1,9 +1,6 @@
 import { Effect, Layer, Context } from "effect";
 
-import type {
-  FeatureFlagEntry,
-  FeatureFlagsResult,
-} from "../../types";
+import type { FeatureFlagEntry, FeatureFlagsResult } from "../../types";
 import { CacheManager } from "../caching/cache-manager";
 import { EventBusProvider } from "../event-bus";
 import { IdentityManager } from "../identity/identity-manager";
@@ -45,15 +42,13 @@ const make = Effect.gen(function* effect() {
   };
 
   // Sync accessors (plain functions, not Effects)
-  const isEnabled = (key: string) =>
-    latestFlags.get(key)?.enabled ?? false;
+  const isEnabled = (key: string) => latestFlags.get(key)?.enabled ?? false;
 
-  const getVariant = (key: string) =>
-    latestFlags.get(key) ?? null;
+  const getVariant = (key: string) => latestFlags.get(key) ?? null;
 
   const getOrRefreshFeatureFlags = (
     keys: ReadonlyArray<string> | undefined,
-    forceRefresh: boolean
+    forceRefresh: boolean,
   ) =>
     Effect.gen(function* getOrRefreshFeatureFlags() {
       const distinctId = identityManager.getDistinctId();
@@ -66,17 +61,14 @@ const make = Effect.gen(function* effect() {
       trackedKeySets.add(serializedKeys);
 
       if (!forceRefresh) {
-        const cached =
-          yield* cacheManager.get<FeatureFlagsResult>(cacheKey);
+        const cached = yield* cacheManager.get<FeatureFlagsResult>(cacheKey);
         if (cached && !cached.isExpired && !cached.isStale) {
           rememberFlags(cached.value.flags);
           return cached.value;
         }
       }
 
-      const payload = keys
-        ? { flagKeys: [...keys] as string[] }
-        : {};
+      const payload = keys ? { flagKeys: [...keys] as string[] } : {};
       const result = yield* apiClient.sdk.evaluateFeatureFlags({
         headers: buildHeaders(distinctId),
         payload,
@@ -90,8 +82,7 @@ const make = Effect.gen(function* effect() {
       return result;
     });
 
-  const getFeatureFlags = (keys?: ReadonlyArray<string>) =>
-    getOrRefreshFeatureFlags(keys, false);
+  const getFeatureFlags = (keys?: ReadonlyArray<string>) => getOrRefreshFeatureFlags(keys, false);
 
   const refreshFeatureFlags = (keys?: ReadonlyArray<string>) =>
     getOrRefreshFeatureFlags(keys, true);
@@ -102,11 +93,9 @@ const make = Effect.gen(function* effect() {
 
       yield* Effect.all(
         [...trackedKeySets].map((serializedKeys) =>
-          refreshFeatureFlags(
-            serializedKeys === "all" ? undefined : serializedKeys.split(",")
-          )
+          refreshFeatureFlags(serializedKeys === "all" ? undefined : serializedKeys.split(",")),
         ),
-        { concurrency: "unbounded" }
+        { concurrency: "unbounded" },
       );
     });
 

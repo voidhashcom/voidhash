@@ -9,17 +9,11 @@ import { Component, createElement, type ReactNode } from "react";
 import createReconciler from "react-reconciler";
 // The explicit ".js" matters: react-reconciler has no `exports` map, so Node
 // ESM resolution of the bare "react-reconciler/constants" specifier fails.
-import {
-  ConcurrentRoot,
-  DefaultEventPriority,
-} from "react-reconciler/constants.js";
+import { ConcurrentRoot, DefaultEventPriority } from "react-reconciler/constants.js";
 
 import { RendererProvider } from "../primitives/host-context";
 import type { PaywallBridge } from "../runtime/bridge";
-import {
-  normalizeRuntimeConfig,
-  type PaywallRuntimeConfig,
-} from "../runtime/config";
+import { normalizeRuntimeConfig, type PaywallRuntimeConfig } from "../runtime/config";
 import { PaywallRuntimeProvider } from "../runtime/runtime";
 import {
   PAYWALL_TREE_VERSION,
@@ -27,11 +21,7 @@ import {
   type PaywallNodeResizeMode,
   type PaywallNodeTree,
 } from "../schema/node-tree";
-import {
-  PAYWALL_STYLE_KEYS,
-  type PaywallStyle,
-  type StyleProp,
-} from "../schema/style";
+import { PAYWALL_STYLE_KEYS, type PaywallStyle, type StyleProp } from "../schema/style";
 import { flattenStyle } from "../style/resolve";
 import { TREE_ELEMENT_TYPES, treeHostComponents } from "./tree-host";
 
@@ -64,11 +54,7 @@ const removeFrom = (list: TreeChild[], child: TreeChild): void => {
   }
 };
 
-const insertInto = (
-  list: TreeChild[],
-  child: TreeChild,
-  before: TreeChild,
-): void => {
+const insertInto = (list: TreeChild[], child: TreeChild, before: TreeChild): void => {
   removeFrom(list, child);
   const index = list.indexOf(before);
   list.splice(index < 0 ? list.length : index, 0, child);
@@ -96,10 +82,7 @@ const reconciler = createReconciler<TreeContainer>({
   supportsMicrotasks: true,
   scheduleMicrotask: queueMicrotask,
 
-  createInstance: (
-    type: string,
-    props: Record<string, unknown>,
-  ): TreeElementInstance => ({
+  createInstance: (type: string, props: Record<string, unknown>): TreeElementInstance => ({
     tag: "element",
     type,
     props,
@@ -124,18 +107,10 @@ const reconciler = createReconciler<TreeContainer>({
   appendChildToContainer: (container: TreeContainer, child: TreeChild) => {
     container.children.push(child);
   },
-  insertBefore: (
-    parent: TreeElementInstance,
-    child: TreeChild,
-    before: TreeChild,
-  ) => {
+  insertBefore: (parent: TreeElementInstance, child: TreeChild, before: TreeChild) => {
     insertInto(parent.children, child, before);
   },
-  insertInContainerBefore: (
-    container: TreeContainer,
-    child: TreeChild,
-    before: TreeChild,
-  ) => {
+  insertInContainerBefore: (container: TreeContainer, child: TreeChild, before: TreeChild) => {
     insertInto(container.children, child, before);
   },
   removeChild: (parent: TreeElementInstance, child: TreeChild) => {
@@ -155,11 +130,7 @@ const reconciler = createReconciler<TreeContainer>({
   ) => {
     instance.props = nextProps;
   },
-  commitTextUpdate: (
-    instance: TreeTextInstance,
-    _oldText: string,
-    newText: string,
-  ) => {
+  commitTextUpdate: (instance: TreeTextInstance, _oldText: string, newText: string) => {
     instance.text = newText;
   },
   resetTextContent: noop,
@@ -271,16 +242,12 @@ const serializeChild = (child: TreeChild): PaywallNode => {
     case TREE_ELEMENT_TYPES.text:
       return { type: "text", style, text: collectText(child.children) };
     case TREE_ELEMENT_TYPES.image: {
-      const resizeMode = child.props.resizeMode as
-        | PaywallNodeResizeMode
-        | undefined;
+      const resizeMode = child.props.resizeMode as PaywallNodeResizeMode | undefined;
       return {
         type: "image",
         style,
         src: typeof child.props.src === "string" ? child.props.src : "",
-        ...(resizeMode && RESIZE_MODES.includes(resizeMode)
-          ? { resizeMode }
-          : {}),
+        ...(resizeMode && RESIZE_MODES.includes(resizeMode) ? { resizeMode } : {}),
       };
     }
     case TREE_ELEMENT_TYPES.slot:
@@ -327,10 +294,7 @@ interface TreeErrorBoundaryState {
 }
 
 /** Converts a throwing render into a §3 placeholder node. */
-class TreeErrorBoundary extends Component<
-  TreeErrorBoundaryProps,
-  TreeErrorBoundaryState
-> {
+class TreeErrorBoundary extends Component<TreeErrorBoundaryProps, TreeErrorBoundaryState> {
   state: TreeErrorBoundaryState = { error: null, failed: false };
 
   static getDerivedStateFromError(error: unknown): TreeErrorBoundaryState {
@@ -396,10 +360,7 @@ export const renderToNodeTree = async (
 
   const wrapped = (
     <RendererProvider host={treeHostComponents}>
-      <PaywallRuntimeProvider
-        bridge={silentBridge}
-        config={normalizeRuntimeConfig(options.config)}
-      >
+      <PaywallRuntimeProvider bridge={silentBridge} config={normalizeRuntimeConfig(options.config)}>
         <TreeErrorBoundary>{element}</TreeErrorBoundary>
       </PaywallRuntimeProvider>
     </RendererProvider>

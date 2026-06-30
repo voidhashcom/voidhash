@@ -32,9 +32,7 @@ export const startStudio = async ({
   projectRoot,
   port = DEFAULT_PORT,
 }: StartStudioOptions): Promise<StudioHandle> => {
-  const server = await createServer(
-    createStudioViteConfig({ projectRoot, port }),
-  );
+  const server = await createServer(createStudioViteConfig({ projectRoot, port }));
 
   await server.listen();
 

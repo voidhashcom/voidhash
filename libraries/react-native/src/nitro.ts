@@ -11,15 +11,11 @@ export const Storekit: StorekitSpec | undefined = Platform.select({
 })?.();
 
 export const GoogleBilling: GoogleBillingSpec | undefined = Platform.select({
-  android: () =>
-    NitroModules.createHybridObject<GoogleBillingSpec>("GoogleBilling"),
+  android: () => NitroModules.createHybridObject<GoogleBillingSpec>("GoogleBilling"),
   ios: undefined,
 })?.();
 
-export const PaywallPresenter: PaywallPresenterSpec | undefined =
-  Platform.select({
-    android: () =>
-      NitroModules.createHybridObject<PaywallPresenterSpec>("PaywallPresenter"),
-    ios: () =>
-      NitroModules.createHybridObject<PaywallPresenterSpec>("PaywallPresenter"),
-  })?.();
+export const PaywallPresenter: PaywallPresenterSpec | undefined = Platform.select({
+  android: () => NitroModules.createHybridObject<PaywallPresenterSpec>("PaywallPresenter"),
+  ios: () => NitroModules.createHybridObject<PaywallPresenterSpec>("PaywallPresenter"),
+})?.();

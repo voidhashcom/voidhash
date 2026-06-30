@@ -21,9 +21,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isSensitiveHeader = (name: string) =>
   SENSITIVE_HEADER_PATTERNS.some((pattern) => pattern.test(name));
 
-const sanitizeHeaders = (
-  headers: Record<string, string>
-): Record<string, string> => {
+const sanitizeHeaders = (headers: Record<string, string>): Record<string, string> => {
   const sanitized: Record<string, string> = {};
 
   for (const [name, value] of Object.entries(headers)) {
@@ -98,8 +96,7 @@ const summarizeBody = (body: unknown) => {
   }
 
   if (body._tag === "Uint8Array") {
-    const contentType =
-      typeof body.contentType === "string" ? body.contentType : undefined;
+    const contentType = typeof body.contentType === "string" ? body.contentType : undefined;
     const bytes = body.body;
 
     if (!(bytes instanceof Uint8Array)) {
@@ -113,9 +110,7 @@ const summarizeBody = (body: unknown) => {
     return {
       contentLength: bytes.byteLength,
       contentType: contentType ?? null,
-      preview: isTextLikeContentType(contentType)
-        ? decodeUtf8Preview(bytes)
-        : "<binary payload>",
+      preview: isTextLikeContentType(contentType) ? decodeUtf8Preview(bytes) : "<binary payload>",
       type: "Uint8Array",
     };
   }
@@ -170,7 +165,7 @@ export const withHttpDebugLogging = (client: HttpClient.HttpClient) =>
               method: request.method,
               status: response.status,
               url: request.url,
-            })
+            }),
           ),
           Effect.tapError((error) =>
             Console.error("[voidhash:http] error", {
@@ -178,9 +173,9 @@ export const withHttpDebugLogging = (client: HttpClient.HttpClient) =>
               error: summarizeError(error),
               method: request.method,
               url: request.url,
-            })
-          )
+            }),
+          ),
         );
       });
-    })
+    }),
   );

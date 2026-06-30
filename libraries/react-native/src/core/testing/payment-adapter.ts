@@ -22,7 +22,7 @@ import type { RuntimeProductDefinition } from "../schema/runtime";
 
 export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
   acknowledgePurchase(
-    transaction: Transaction
+    transaction: Transaction,
   ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never> {
     Effect.logDebug("TestPaymentAdapter: Acknowledging purchase", {
       transactionId: transaction.id,
@@ -33,7 +33,7 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
   buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
     product: TSubscriptionProduct,
     quantity = 1,
-    _appAccountToken?: string
+    _appAccountToken?: string,
   ): Effect.Effect<
     Transaction,
     | UserCancelledError
@@ -57,8 +57,8 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
         quantity,
         false,
         "ios",
-        {}
-      )
+        {},
+      ),
     );
   },
 
@@ -67,22 +67,14 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
     return Effect.void;
   },
 
-  getPendingTransactions(): Effect.Effect<
-    Transaction[],
-    GetPendingTransactionsError,
-    never
-  > {
+  getPendingTransactions(): Effect.Effect<Transaction[], GetPendingTransactionsError, never> {
     Effect.logDebug("TestPaymentAdapter: Getting pending transactions");
     return Effect.succeed([]);
   },
 
   getProducts(
-    productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
-  ): Effect.Effect<
-    Product[],
-    NativeAdapterNotInitializedError | FailedToGetProductsError,
-    never
-  > {
+    productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
+  ): Effect.Effect<Product[], NativeAdapterNotInitializedError | FailedToGetProductsError, never> {
     const productDefinitionsArray = Object.values(productDefinitions);
 
     Effect.logDebug("TestPaymentAdapter: Getting products", {
@@ -102,21 +94,21 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
             100,
             "USD",
             "subscription",
-            "ios"
-          )
-      )
+            "ios",
+          ),
+      ),
     );
   },
 
   getPurchaseHistory(
-    _onlyIncludeActiveItems = false
+    _onlyIncludeActiveItems = false,
   ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never> {
     Effect.logDebug("TestPaymentAdapter: Getting purchase history");
     return Effect.succeed([]);
   },
 
   initConnection(
-    _onPurchase?: (transaction: Transaction) => void
+    _onPurchase?: (transaction: Transaction) => void,
   ): Effect.Effect<void, FailedToInitializeNativeAdapterError, never> {
     Effect.logDebug("TestPaymentAdapter: Initializing connection");
     return Effect.void;
@@ -131,11 +123,7 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
     return Effect.void;
   },
 
-  showManageSubscriptions(): Effect.Effect<
-    void,
-    FailedToShowManageSubscriptionsError,
-    never
-  > {
+  showManageSubscriptions(): Effect.Effect<void, FailedToShowManageSubscriptionsError, never> {
     Effect.logDebug("TestPaymentAdapter: Showing manage subscriptions");
     return Effect.void;
   },

@@ -15,7 +15,7 @@ export class PaywallBridgeParseError extends Error {
   constructor(
     readonly code: PaywallBridgeParseErrorCode,
     message: string,
-    readonly causeValue?: unknown
+    readonly causeValue?: unknown,
   ) {
     super(message);
     this.name = "PaywallBridgeParseError";
@@ -39,7 +39,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function getRequiredString(
   value: unknown,
   fieldName: string,
-  type: PaywallBridgeActionType
+  type: PaywallBridgeActionType,
 ): string {
   if (typeof value === "string" && value.length > 0) {
     return value;
@@ -47,24 +47,16 @@ function getRequiredString(
   throw new PaywallBridgeParseError(
     "INVALID_PAYLOAD",
     `Invalid paywall bridge payload for '${type}': '${fieldName}' must be a non-empty string`,
-    value
+    value,
   );
 }
 
-function validatePayload(
-  type: PaywallBridgeActionType,
-  payload: unknown
-): void {
+function validatePayload(type: PaywallBridgeActionType, payload: unknown): void {
   if (payload === undefined || payload === null) {
-    if (
-      type === "purchase" ||
-      type === "openExternal" ||
-      type === "event" ||
-      type === "log"
-    ) {
+    if (type === "purchase" || type === "openExternal" || type === "event" || type === "log") {
       throw new PaywallBridgeParseError(
         "INVALID_PAYLOAD",
-        `Invalid paywall bridge payload for '${type}': payload is required`
+        `Invalid paywall bridge payload for '${type}': payload is required`,
       );
     }
     return;
@@ -74,7 +66,7 @@ function validatePayload(
     throw new PaywallBridgeParseError(
       "INVALID_PAYLOAD",
       `Invalid paywall bridge payload for '${type}': payload must be an object`,
-      payload
+      payload,
     );
   }
 
@@ -95,7 +87,7 @@ function validatePayload(
       throw new PaywallBridgeParseError(
         "INVALID_PAYLOAD",
         "Invalid paywall bridge payload for 'event': 'properties' must be an object when present",
-        payload.properties
+        payload.properties,
       );
     }
     return;
@@ -105,16 +97,11 @@ function validatePayload(
     const level = payload.level;
     const message = payload.message;
 
-    if (
-      level !== "debug" &&
-      level !== "info" &&
-      level !== "warn" &&
-      level !== "error"
-    ) {
+    if (level !== "debug" && level !== "info" && level !== "warn" && level !== "error") {
       throw new PaywallBridgeParseError(
         "INVALID_PAYLOAD",
         "Invalid paywall bridge payload for 'log': 'level' must be debug|info|warn|error",
-        level
+        level,
       );
     }
 
@@ -130,7 +117,7 @@ export function parsePaywallBridgeEnvelope(raw: string): PaywallBridgeEnvelope {
     throw new PaywallBridgeParseError(
       "INVALID_JSON",
       "Invalid paywall bridge payload: failed to parse JSON",
-      error
+      error,
     );
   }
 
@@ -138,7 +125,7 @@ export function parsePaywallBridgeEnvelope(raw: string): PaywallBridgeEnvelope {
     throw new PaywallBridgeParseError(
       "INVALID_ENVELOPE",
       "Invalid paywall bridge payload: expected object envelope",
-      parsed
+      parsed,
     );
   }
 
@@ -146,7 +133,7 @@ export function parsePaywallBridgeEnvelope(raw: string): PaywallBridgeEnvelope {
     throw new PaywallBridgeParseError(
       "UNSUPPORTED_VERSION",
       `Unsupported paywall bridge version: ${String(parsed.version)}`,
-      parsed.version
+      parsed.version,
     );
   }
 
@@ -154,7 +141,7 @@ export function parsePaywallBridgeEnvelope(raw: string): PaywallBridgeEnvelope {
     throw new PaywallBridgeParseError(
       "UNSUPPORTED_TYPE",
       `Unsupported paywall bridge message type: ${String(parsed.type)}`,
-      parsed.type
+      parsed.type,
     );
   }
 
@@ -165,7 +152,7 @@ export function parsePaywallBridgeEnvelope(raw: string): PaywallBridgeEnvelope {
     throw new PaywallBridgeParseError(
       "INVALID_ENVELOPE",
       "Invalid paywall bridge payload: 'requestId' must be a non-empty string when present",
-      parsed.requestId
+      parsed.requestId,
     );
   }
 

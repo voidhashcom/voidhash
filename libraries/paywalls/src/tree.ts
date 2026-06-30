@@ -24,7 +24,4 @@ export {
   type RenderToNodeTreeOptions,
   renderToNodeTree,
 } from "./tree-renderer/render-to-node-tree";
-export {
-  TREE_ELEMENT_TYPES,
-  treeHostComponents,
-} from "./tree-renderer/tree-host";
+export { TREE_ELEMENT_TYPES, treeHostComponents } from "./tree-renderer/tree-host";

@@ -66,13 +66,9 @@ const make = Effect.gen(function* effect() {
 
       const cachedValue = JSON.parse(rawValue) as CacheEnvelope<T>;
       const isExpired =
-        typeof cachedValue.expiresAt === "number"
-          ? cachedValue.expiresAt < Date.now()
-          : false;
+        typeof cachedValue.expiresAt === "number" ? cachedValue.expiresAt < Date.now() : false;
       const isStale =
-        typeof cachedValue.staleAt === "number"
-          ? cachedValue.staleAt < Date.now()
-          : false;
+        typeof cachedValue.staleAt === "number" ? cachedValue.staleAt < Date.now() : false;
 
       if (isExpired) {
         yield* deleteValue(key);
@@ -88,11 +84,7 @@ const make = Effect.gen(function* effect() {
       } as CacheHit<T>;
     });
 
-  const setValue = <T>(
-    key: string,
-    value: T,
-    options?: { staleTime?: number; ttl?: number }
-  ) =>
+  const setValue = <T>(key: string, value: T, options?: { staleTime?: number; ttl?: number }) =>
     Effect.gen(function* setValue() {
       const storageKey = buildStorageKey(key);
       const envelope: CacheEnvelope<T> = {
@@ -147,9 +139,8 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class CacheManager extends Context.Service<
-  CacheManager,
-  Effect.Success<typeof make>
->()("web-voidhash/CacheManager") {
+export class CacheManager extends Context.Service<CacheManager, Effect.Success<typeof make>>()(
+  "web-voidhash/CacheManager",
+) {
   static Default = Layer.effect(CacheManager, make);
 }

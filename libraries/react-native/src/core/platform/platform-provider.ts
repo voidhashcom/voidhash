@@ -12,4 +12,6 @@ export interface PlatformInfo {
   isDebugBuild: boolean;
   platform: "ios" | "android" | "unknown";
 }
-export class PlatformProvider extends Context.Service<PlatformProvider, PlatformInfo>()("rn-voidhash/PlatformProvider") {}
+export class PlatformProvider extends Context.Service<PlatformProvider, PlatformInfo>()(
+  "rn-voidhash/PlatformProvider",
+) {}

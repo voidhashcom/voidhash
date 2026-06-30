@@ -53,11 +53,7 @@ const make = Effect.gen(function* effect() {
 
       yield* cacheManager.set(DISTINCT_ID_KEY, currentDistinctId);
 
-      if (
-        initialDistinctId &&
-        cached?.value &&
-        cached.value !== initialDistinctId
-      ) {
+      if (initialDistinctId && cached?.value && cached.value !== initialDistinctId) {
         yield* identify(initialDistinctId);
         return currentDistinctId;
       }
@@ -76,9 +72,7 @@ const make = Effect.gen(function* effect() {
       const normalizedTraits = normalizeTraits(traits);
       yield* apiClient.sdk.identify({
         headers: buildHeaders(previousDistinctId),
-        payload: normalizedTraits
-          ? { distinctId, traits: normalizedTraits }
-          : { distinctId },
+        payload: normalizedTraits ? { distinctId, traits: normalizedTraits } : { distinctId },
       });
 
       yield* cacheManager.set(DISTINCT_ID_KEY, distinctId);

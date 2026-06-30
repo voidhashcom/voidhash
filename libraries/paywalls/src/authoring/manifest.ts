@@ -11,9 +11,7 @@ import type { ComponentDefinition } from "./define-component";
 import type { PropMap, PropSchema } from "./props";
 
 const isJsonScalar = (value: unknown): value is string | number | boolean =>
-  typeof value === "string" ||
-  typeof value === "number" ||
-  typeof value === "boolean";
+  typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 
 /** Defaults are emitted only when they survive JSON serialization losslessly. */
 const serializableDefault = (value: unknown): unknown => {
@@ -27,8 +25,7 @@ const serializableDefault = (value: unknown): unknown => {
 };
 
 const isEmptySelect = (schema: PropSchema | undefined): boolean =>
-  schema?.kind === "select" &&
-  (schema.options === undefined || schema.options.length === 0);
+  schema?.kind === "select" && (schema.options === undefined || schema.options.length === 0);
 
 /**
  * Rejects `p.select([])` (contract §2: select options must be non-empty) with
@@ -56,20 +53,12 @@ const toManifestItem = (item: PropSchema): ManifestArrayItem => ({
 });
 
 const toManifestProp = (schema: PropSchema): ManifestProp => {
-  const defaultValue = schema.hasDefault
-    ? serializableDefault(schema.defaultValue)
-    : undefined;
+  const defaultValue = schema.hasDefault ? serializableDefault(schema.defaultValue) : undefined;
   const entry = {
     kind: schema.kind,
-    ...(schema.kind === "select" && schema.options
-      ? { options: schema.options }
-      : {}),
-    ...(schema.kind === "ref" && schema.refType
-      ? { refType: schema.refType }
-      : {}),
-    ...(schema.kind === "array" && schema.item
-      ? { item: toManifestItem(schema.item) }
-      : {}),
+    ...(schema.kind === "select" && schema.options ? { options: schema.options } : {}),
+    ...(schema.kind === "ref" && schema.refType ? { refType: schema.refType } : {}),
+    ...(schema.kind === "array" && schema.item ? { item: toManifestItem(schema.item) } : {}),
     ...(schema.label !== undefined ? { label: schema.label } : {}),
     ...(defaultValue !== undefined ? { default: defaultValue } : {}),
     ...(schema.editor !== undefined ? { editor: schema.editor } : {}),
@@ -102,9 +91,7 @@ const detectSlotUsage = (render: (ctx: never) => unknown): boolean =>
  * detected.
  */
 const detectProductHookUsage = (render: (ctx: never) => unknown): boolean =>
-  /\b(usePaywallProducts|useSelectedProduct|usePaywallConfig)\b/.test(
-    String(render),
-  );
+  /\b(usePaywallProducts|useSelectedProduct|usePaywallConfig)\b/.test(String(render));
 
 /**
  * Extracts the §2 component manifest from a {@link ComponentDefinition}. Runs
@@ -121,10 +108,7 @@ const detectProductHookUsage = (render: (ctx: never) => unknown): boolean =>
  * - `previewStates` — the declared preview names, or `["default"]` when the
  *   definition declares none (the CLI renders an implicit fixture-less state).
  */
-export const extractComponentManifest = <
-  M extends PropMap,
-  A extends ActionMap,
->(
+export const extractComponentManifest = <M extends PropMap, A extends ActionMap>(
   definition: ComponentDefinition<M, A>,
 ): ComponentManifest => {
   const props: Record<string, ManifestProp> = {};
@@ -135,11 +119,8 @@ export const extractComponentManifest = <
 
   const actions: Record<string, ManifestAction> = {};
   for (const [name, builder] of Object.entries(definition.actions)) {
-    const payload: Record<string, { kind: "string" | "number" | "boolean" }> =
-      {};
-    for (const [field, fieldBuilder] of Object.entries(
-      builder.payloadShape ?? {},
-    )) {
+    const payload: Record<string, { kind: "string" | "number" | "boolean" }> = {};
+    for (const [field, fieldBuilder] of Object.entries(builder.payloadShape ?? {})) {
       payload[field] = { kind: fieldBuilder.kind };
     }
     actions[name] = { payload };
@@ -148,21 +129,16 @@ export const extractComponentManifest = <
   const previewNames = Object.keys(definition.previews);
   const usesProducts =
     Object.values(definition.props).some(
-      (builder) =>
-        builder.schema.kind === "ref" && builder.schema.refType === "product",
+      (builder) => builder.schema.kind === "ref" && builder.schema.refType === "product",
     ) ||
-    Object.values(definition.previews).some(
-      (preview) => preview.data?.products !== undefined,
-    ) ||
+    Object.values(definition.previews).some((preview) => preview.data?.products !== undefined) ||
     detectProductHookUsage(definition.render);
 
   return {
     manifestVersion: COMPONENT_MANIFEST_VERSION,
     id: definition.id,
     ...(definition.title !== undefined ? { title: definition.title } : {}),
-    ...(definition.description !== undefined
-      ? { description: definition.description }
-      : {}),
+    ...(definition.description !== undefined ? { description: definition.description } : {}),
     props,
     actions,
     slot: detectSlotUsage(definition.render),

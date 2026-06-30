@@ -1,12 +1,5 @@
 import { Cause, Effect, Exit, Option } from "effect";
-import {
-  afterEach,
-  describe,
-  expect,
-  expectTypeOf,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import {
   VoidhashNodeConfigurationError,
@@ -36,13 +29,9 @@ const EXPECTED_GROUPS = [
   "webhooks",
 ] as const;
 
-type HasKey<TValue, TKey extends PropertyKey> = TKey extends keyof TValue
-  ? true
-  : false;
+type HasKey<TValue, TKey extends PropertyKey> = TKey extends keyof TValue ? true : false;
 
-const extractEffectFailure = async <Result, Error>(
-  effect: Effect.Effect<Result, Error>
-) => {
+const extractEffectFailure = async <Result, Error>(effect: Effect.Effect<Result, Error>) => {
   const exit = await Effect.runPromiseExit(effect);
 
   if (Exit.isSuccess(exit)) {
@@ -51,9 +40,7 @@ const extractEffectFailure = async <Result, Error>(
 
   const typedError = Cause.findErrorOption(exit.cause);
 
-  return Option.isSome(typedError)
-    ? typedError.value
-    : Cause.squash(exit.cause);
+  return Option.isSome(typedError) ? typedError.value : Cause.squash(exit.cause);
 };
 
 describe("@voidhash/node", () => {
@@ -89,14 +76,14 @@ describe("@voidhash/node", () => {
     expect(() =>
       createVoidhashEffectSdk({
         secretKey: "   ",
-      })
+      }),
     ).toThrow(VoidhashNodeConfigurationError);
 
     expect(() =>
       createVoidhashEffectSdk({
         baseUrl: "not a url",
         secretKey: "vh_sk_test",
-      })
+      }),
     ).toThrow(VoidhashNodeConfigurationError);
 
     expect(() =>
@@ -105,7 +92,7 @@ describe("@voidhash/node", () => {
           "x-secret-key": "attempted_override",
         },
         secretKey: "vh_sk_test",
-      })
+      }),
     ).toThrow(VoidhashNodeConfigurationError);
 
     vi.stubGlobal("fetch", undefined);
@@ -113,7 +100,7 @@ describe("@voidhash/node", () => {
     expect(() =>
       createVoidhashSdk({
         secretKey: "vh_sk_test",
-      })
+      }),
     ).toThrow(VoidhashNodeConfigurationError);
   });
 
@@ -124,7 +111,7 @@ describe("@voidhash/node", () => {
         name: "voidhash",
         organizations: [],
         projects: [],
-      })
+      }),
     );
 
     const client = createVoidhashEffectSdk({
@@ -156,7 +143,7 @@ describe("@voidhash/node", () => {
           name: "Alpha",
           slug: "alpha",
         },
-      ])
+      ]),
     );
 
     const client = createVoidhashSdk({
@@ -178,9 +165,7 @@ describe("@voidhash/node", () => {
       },
     ]);
     expect(calls[0]?.method).toBe("GET");
-    expect(calls[0]?.url).toBe(
-      "https://api.voidhash.test/api/v1/projects/org_123"
-    );
+    expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/projects/org_123");
     expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
   });
 
@@ -191,7 +176,7 @@ describe("@voidhash/node", () => {
         distinctId: "user_123",
         email: "user@example.com",
         name: "Taylor",
-      })
+      }),
     );
 
     const client = createVoidhashSdk({
@@ -237,7 +222,7 @@ describe("@voidhash/node", () => {
         secret: "secret_123",
         status: "active",
         url: "https://example.com/hooks",
-      })
+      }),
     );
 
     const client = createVoidhashSdk({
@@ -261,9 +246,7 @@ describe("@voidhash/node", () => {
     expect(endpoint.id).toBe("wh_123");
     expect(endpoint.createdAt).toBe("2026-03-09T12:00:00.000Z");
     expect(calls[0]?.method).toBe("PATCH");
-    expect(calls[0]?.url).toBe(
-      "https://api.voidhash.test/api/v1/webhooks/endpoints/wh_123"
-    );
+    expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/webhooks/endpoints/wh_123");
     expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({
       description: "Updated description",
       events: ["purchase.completed"],
@@ -290,9 +273,7 @@ describe("@voidhash/node", () => {
 
     expect(result).toBeUndefined();
     expect(calls[0]?.method).toBe("DELETE");
-    expect(calls[0]?.url).toBe(
-      "https://api.voidhash.test/api/v1/api-keys/ak_123"
-    );
+    expect(calls[0]?.url).toBe("https://api.voidhash.test/api/v1/api-keys/ak_123");
     expect(calls[0]?.headers["x-secret-key"]).toBe("vh_sk_test");
   });
 
@@ -303,7 +284,7 @@ describe("@voidhash/node", () => {
         name: "voidhash",
         organizations: [],
         projects: [],
-      })
+      }),
     );
 
     const effectClient = createVoidhashEffectSdk({
@@ -328,8 +309,8 @@ describe("@voidhash/node", () => {
           _tag: "ActionForbiddenError",
           message: "Forbidden",
         },
-        403
-      )
+        403,
+      ),
     );
 
     const effectClient = createVoidhashEffectSdk({
@@ -342,14 +323,12 @@ describe("@voidhash/node", () => {
     });
 
     const effectError = await extractEffectFailure(effectClient.auth.session());
-    const promiseError = await promiseClient.auth
-      .session()
-      .then(
-        () => {
-          throw new Error("Expected promise client failure.");
-        },
-        (error: unknown) => error
-      );
+    const promiseError = await promiseClient.auth.session().then(
+      () => {
+        throw new Error("Expected promise client failure.");
+      },
+      (error: unknown) => error,
+    );
 
     expect(promiseError).toMatchObject({
       _tag: (effectError as { _tag?: string })._tag,

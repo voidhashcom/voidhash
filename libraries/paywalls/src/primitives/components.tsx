@@ -2,13 +2,7 @@ import type { ReactNode } from "react";
 
 import { getActionName } from "../internal/action-brand";
 import { useHost } from "./host-context";
-import type {
-  ImageProps,
-  PressableProps,
-  ScrollViewProps,
-  TextProps,
-  ViewProps,
-} from "./types";
+import type { ImageProps, PressableProps, ScrollViewProps, TextProps, ViewProps } from "./types";
 
 /**
  * The abstract paywall primitives. Each one resolves the active renderer and

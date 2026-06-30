@@ -15,10 +15,10 @@ createVoidhashClient("pk_test", schema, {
 
 Behavior summary:
 
-| Mode | Starts purchases | Syncs transactions to Voidhash | Confirms/acknowledges store transactions |
-|---|---|---|---|
-| `readOnly: true` | No | Yes | No |
-| `readOnly: false` (default) | Yes | Yes | Yes (after successful server sync) |
+| Mode                        | Starts purchases | Syncs transactions to Voidhash | Confirms/acknowledges store transactions |
+| --------------------------- | ---------------- | ------------------------------ | ---------------------------------------- |
+| `readOnly: true`            | No               | Yes                            | No                                       |
+| `readOnly: false` (default) | Yes              | Yes                            | Yes (after successful server sync)       |
 
 Observer reconciliation:
 

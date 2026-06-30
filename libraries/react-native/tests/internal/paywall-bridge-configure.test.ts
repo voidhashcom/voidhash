@@ -32,9 +32,7 @@ describe("paywall bridge configure interop", () => {
       defaultSelectedProductId: "store_yearly",
     };
 
-    const parsed = parseInboundEnvelope(
-      createPaywallBridgeConfigureMessage(config, "req_ready"),
-    );
+    const parsed = parseInboundEnvelope(createPaywallBridgeConfigureMessage(config, "req_ready"));
 
     expect(parsed).not.toBeNull();
     expect(parsed?.type).toBe("configure");
@@ -55,9 +53,7 @@ describe("paywall bridge configure interop", () => {
       variables: {},
     };
 
-    const parsed = parseInboundEnvelope(
-      createPaywallBridgeConfigureMessage(config),
-    );
+    const parsed = parseInboundEnvelope(createPaywallBridgeConfigureMessage(config));
 
     expect(parsed?.type).toBe("configure");
     if (parsed?.type !== "configure") {
@@ -73,10 +69,7 @@ describe("paywall bridge configure interop", () => {
     // and the page decodes with `atob`, which yields one LATIN-1 character per
     // byte. Simulate that lossy leg: utf8 → base64 → latin1.
     const throughNativeDelivery = (message: string): string =>
-      Buffer.from(
-        Buffer.from(message, "utf8").toString("base64"),
-        "base64",
-      ).toString("latin1");
+      Buffer.from(Buffer.from(message, "utf8").toString("base64"), "base64").toString("latin1");
 
     const config: PaywallRuntimeConfig = {
       products: [
@@ -105,9 +98,7 @@ describe("paywall bridge configure interop", () => {
     }
     expect(parsed.payload.products[0]?.priceString).toBe("59,99 €");
     expect(parsed.payload.products[0]?.displayName).toBe("Année Pro");
-    expect(parsed.payload.products[0]?.description).toBe(
-      "Meilleure offre — 7 jours d'essai",
-    );
+    expect(parsed.payload.products[0]?.description).toBe("Meilleure offre — 7 jours d'essai");
     expect(parsed.payload.variables.headline).toBe("Débloquez tout 😀");
   });
 });

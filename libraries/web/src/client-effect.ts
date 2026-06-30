@@ -20,18 +20,14 @@ import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
 import { IdentityManager } from "./core/identity/identity-manager";
 import { ApiClient } from "./core/networking/api-client";
 import { EventCaptureApiClient } from "./core/networking/event-capture-api-client";
-import {
-  BrowserPlatformProviderLayer,
-} from "./core/platform/platform-provider";
+import { BrowserPlatformProviderLayer } from "./core/platform/platform-provider";
 import { SdkConfiguration } from "./core/sdk-configuration";
 
 const DEFAULT_BASE_URL = "https://api.voidhash.com";
 
 const assertPositiveInteger = (name: string, value: number) => {
   if (!Number.isInteger(value) || value < 1) {
-    throw new VoidhashConfigurationError(
-      `${name} must be a positive integer.`
-    );
+    throw new VoidhashConfigurationError(`${name} must be a positive integer.`);
   }
 };
 
@@ -48,14 +44,9 @@ const deriveAnalyticsBaseUrl = (baseUrl: string, override?: string) => {
   return url.toString();
 };
 
-export const resolveVoidhashConfig = (
-  options: VoidhashClientOptions
-): ResolvedVoidhashConfig => {
+export const resolveVoidhashConfig = (options: VoidhashClientOptions): ResolvedVoidhashConfig => {
   const baseUrl = new URL(options.baseUrl ?? DEFAULT_BASE_URL).toString();
-  const analyticsBaseUrl = deriveAnalyticsBaseUrl(
-    baseUrl,
-    options.analytics?.baseUrl
-  );
+  const analyticsBaseUrl = deriveAnalyticsBaseUrl(baseUrl, options.analytics?.baseUrl);
   const maxBatchSize = options.analytics?.maxBatchSize ?? 20;
   const maxBatchBytes = options.analytics?.maxBatchBytes ?? 262_144;
   const maxQueueSize = options.analytics?.maxQueueSize ?? 1_000;
@@ -95,10 +86,7 @@ export const resolveVoidhashConfig = (
   };
 };
 
-export const CreateEffectRuntime = (
-  config: ResolvedVoidhashConfig,
-  eventBus: EventBus
-) =>
+export const CreateEffectRuntime = (config: ResolvedVoidhashConfig, eventBus: EventBus) =>
   ManagedRuntime.make(
     Layer.fresh(
       pipe(
@@ -111,15 +99,15 @@ export const CreateEffectRuntime = (
         Layer.provideMerge(
           Layer.effect(
             FetchHttpClient.Fetch,
-            Effect.sync(() => globalThis.fetch)
-          ).pipe(Layer.provideMerge(FetchHttpClient.layer))
+            Effect.sync(() => globalThis.fetch),
+          ).pipe(Layer.provideMerge(FetchHttpClient.layer)),
         ),
         Layer.provideMerge(createBrowserCacheAdapterLayer()),
         Layer.provideMerge(BrowserPlatformProviderLayer),
         Layer.provideMerge(Layer.succeed(EventBusProvider, eventBus)),
-        Layer.provideMerge(Layer.succeed(SdkConfiguration, config))
-      )
-    )
+        Layer.provideMerge(Layer.succeed(SdkConfiguration, config)),
+      ),
+    ),
   );
 
 // Effects that run against the runtime
@@ -131,17 +119,12 @@ export const initializeEffect = (initialDistinctId?: string) =>
 
 // Drain the analytics queue so any pending events are attributed to the
 // current distinct id before it is switched out by identify/reset.
-const flushAnalyticsForIdentitySwitch = Effect.gen(
-  function* flushForIdentitySwitch() {
-    const analyticsService = yield* AnalyticsService;
-    yield* analyticsService.flush();
-  }
-);
+const flushAnalyticsForIdentitySwitch = Effect.gen(function* flushForIdentitySwitch() {
+  const analyticsService = yield* AnalyticsService;
+  yield* analyticsService.flush();
+});
 
-export const identifyEffect = (
-  distinctId: string,
-  traits?: VoidhashTraits
-) =>
+export const identifyEffect = (distinctId: string, traits?: VoidhashTraits) =>
   Effect.gen(function* identify() {
     const identityManager = yield* IdentityManager;
     const featureFlags = yield* FeatureFlagService;
@@ -180,9 +163,7 @@ const splitPersonAttributes = (attributes: VoidhashPersonAttributes) => {
  * Enqueues a `$set` analytics event that updates the current person profile.
  * Fire-and-forget: the event is queued and flushed by the normal pipeline.
  */
-export const setPersonAttributesEffect = (
-  attributes: VoidhashPersonAttributes
-) =>
+export const setPersonAttributesEffect = (attributes: VoidhashPersonAttributes) =>
   Effect.gen(function* setPersonAttributes() {
     const analyticsService = yield* AnalyticsService;
     const { email, name, traits } = splitPersonAttributes(attributes);
@@ -202,7 +183,7 @@ export const setPersonAttributesEffect = (
  * resulting person snapshot.
  */
 export const setPersonAttributesSyncEffect = (
-  attributes: VoidhashPersonAttributes
+  attributes: VoidhashPersonAttributes,
 ): Effect.Effect<SdkPerson, unknown, IdentityManager> =>
   Effect.gen(function* setPersonAttributesSync() {
     const identityManager = yield* IdentityManager;
@@ -217,15 +198,11 @@ export const setPersonAttributesSyncEffect = (
 export const trackEffect = (
   eventName: string,
   properties?: Record<string, unknown>,
-  options?: VoidhashTrackOptions
+  options?: VoidhashTrackOptions,
 ) =>
   Effect.gen(function* track() {
     const analyticsService = yield* AnalyticsService;
-    const queueLength = yield* analyticsService.enqueue(
-      eventName,
-      properties,
-      options
-    );
+    const queueLength = yield* analyticsService.enqueue(eventName, properties, options);
     if (queueLength !== undefined && queueLength >= 20) {
       yield* analyticsService.flush();
     }

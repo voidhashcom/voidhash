@@ -8,10 +8,7 @@ import type { InlineConfig } from "vite";
 import { voidhashPaywallsPlugin } from "./virtual-paywalls-plugin";
 
 /** Absolute path to the Studio app root (the folder containing `index.html`). */
-export const STUDIO_ROOT = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../..",
-);
+export const STUDIO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 export interface StudioViteConfigOptions {
   /** The user's project root (folder containing `.voidhash`). */

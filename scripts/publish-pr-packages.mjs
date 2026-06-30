@@ -121,9 +121,7 @@ const branch = requireEnv("BRANCH");
 // Trim: the server does a strict `Bearer ${token}` string compare, so a
 // trailing newline in the GitHub secret (common when a token is piped in from
 // a file) would otherwise 401 every upload.
-const token = (
-  dryRun ? process.env.PR_PACKAGE_TOKEN : requireEnv("PR_PACKAGE_TOKEN")
-)?.trim();
+const token = (dryRun ? process.env.PR_PACKAGE_TOKEN : requireEnv("PR_PACKAGE_TOKEN"))?.trim();
 const host = process.env.PR_PACKAGE_HOST || "pkg.voidha.sh";
 const ttl = process.env.PR_PACKAGE_TTL || "";
 const prNumber = process.env.PR_NUMBER || "";
@@ -153,11 +151,7 @@ group(`Rewrite manifests (version + workspace deps @ ${shortSha})`, () => {
 
     // devDependencies are skipped: consumers never install them, and
     // `pnpm pack` substitutes their workspace ranges with local versions.
-    for (const field of [
-      "dependencies",
-      "optionalDependencies",
-      "peerDependencies",
-    ]) {
+    for (const field of ["dependencies", "optionalDependencies", "peerDependencies"]) {
       for (const [depName, range] of Object.entries(manifest[field] ?? {})) {
         if (!range.startsWith("workspace:")) {
           continue;
@@ -210,19 +204,16 @@ for (const pkg of PACKAGES) {
       return;
     }
 
-    const response = await fetch(
-      `https://${host}/projects/${pkg.project}/packages`,
-      {
-        method: "PUT",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "x-tags": JSON.stringify(tags),
-          ...(ttl ? { "x-ttl": ttl } : {}),
-          "content-type": "application/gzip",
-        },
-        body: fs.readFileSync(path.join(destination, tarball)),
+    const response = await fetch(`https://${host}/projects/${pkg.project}/packages`, {
+      method: "PUT",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "x-tags": JSON.stringify(tags),
+        ...(ttl ? { "x-ttl": ttl } : {}),
+        "content-type": "application/gzip",
       },
-    );
+      body: fs.readFileSync(path.join(destination, tarball)),
+    });
     if (!response.ok) {
       throw new Error(
         `Upload of ${pkg.name} failed: ${response.status} ${response.statusText}\n${await response.text()}`,
@@ -235,23 +226,12 @@ for (const pkg of PACKAGES) {
 }
 
 // ── 4. Install instructions (PR comment / step summary) ──────────────
-const lines = [
-  "<!-- pr-packages -->",
-  "",
-  `Install the packages built from ${shortSha}:`,
-  "",
-];
+const lines = ["<!-- pr-packages -->", "", `Install the packages built from ${shortSha}:`, ""];
 for (const pkg of PACKAGES) {
   if (pkg.internal) {
     continue;
   }
-  lines.push(
-    `**${pkg.name}**`,
-    "```sh",
-    `pnpm add ${pkg.name}@${installUrl(pkg)}`,
-    "```",
-    "",
-  );
+  lines.push(`**${pkg.name}**`, "```sh", `pnpm add ${pkg.name}@${installUrl(pkg)}`, "```", "");
 }
 lines.push(
   "Internal workspace deps (generated-clients, shared, studio) are published at the same sha and resolved automatically.",

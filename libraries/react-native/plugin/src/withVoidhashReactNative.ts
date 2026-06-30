@@ -6,8 +6,4 @@ import pkg from "../../package.json";
 
 const withVoidhashReactNative: ConfigPlugin<void> = (config) => config;
 
-export default createRunOncePlugin(
-  withVoidhashReactNative,
-  pkg.name,
-  pkg.version
-);
+export default createRunOncePlugin(withVoidhashReactNative, pkg.name, pkg.version);

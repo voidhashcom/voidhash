@@ -11,5 +11,5 @@ const withVoidhashReactNative = (config) => config;
 exports.default = (0, config_plugins_1.createRunOncePlugin)(
   withVoidhashReactNative,
   package_json_1.default.name,
-  package_json_1.default.version
+  package_json_1.default.version,
 );

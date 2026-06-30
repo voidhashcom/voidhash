@@ -8,24 +8,18 @@ import { useAtomValue } from "./use-atom-value";
 
 export function currentPersonHookFactory(
   client: VoidhashClient,
-  vhContext: React.Context<VoidhashContext | null>
+  vhContext: React.Context<VoidhashContext | null>,
 ) {
   function useCurrentPerson() {
     const voidhashContext = React.useContext(vhContext);
 
-    const getPersonCallback = useCallback(
-      () => client.getCurrentPerson(),
-      []
-    );
+    const getPersonCallback = useCallback(() => client.getCurrentPerson(), []);
 
     const { isLoading, error, refetch } = useAsyncFunction(getPersonCallback, {
       enabled: voidhashContext?.isInitialized,
     });
 
-    const person = useAtomValue(
-      client.internal_getAtomRegistry(),
-      currentPersonAtom
-    );
+    const person = useAtomValue(client.internal_getAtomRegistry(), currentPersonAtom);
 
     // Preserve the previous return shape: `data` spreads the person fields,
     // so callers reading e.g. `data.email` keep working and `null` becomes

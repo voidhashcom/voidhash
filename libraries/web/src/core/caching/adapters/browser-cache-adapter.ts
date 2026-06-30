@@ -100,5 +100,5 @@ const detectLocalStorage = (): Storage | null => {
 export const createBrowserCacheAdapterLayer = () =>
   Layer.effect(
     CacheAdapter,
-    Effect.sync(() => makeBrowserCacheAdapter())
+    Effect.sync(() => makeBrowserCacheAdapter()),
   );

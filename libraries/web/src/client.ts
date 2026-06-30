@@ -35,8 +35,7 @@ import type {
 type ClientState = "destroyed" | "idle" | "initializing" | "ready";
 
 const toError = (errorCode: string, cause: unknown) => {
-  const error =
-    cause instanceof Error ? cause : new Error(String(cause));
+  const error = cause instanceof Error ? cause : new Error(String(cause));
   return new VoidhashError(`${errorCode}: ${error.message}`, {
     cause: error,
   });
@@ -61,7 +60,10 @@ export class VoidhashWebClient {
   }
 
   // biome-ignore lint/suspicious/noExplicitAny: Effect requires service type parameter
-  private async runEffect<T>(effect: Effect.Effect<T, unknown, any>, errorCode: string): Promise<T> {
+  private async runEffect<T>(
+    effect: Effect.Effect<T, unknown, any>,
+    errorCode: string,
+  ): Promise<T> {
     const result = await this.runtime.runPromiseExit(effect);
     if (Exit.isSuccess(result)) return result.value;
     throw toError(errorCode, Cause.squash(result.cause));
@@ -86,17 +88,21 @@ export class VoidhashWebClient {
     this.initializePromise = (async () => {
       const distinctId = await this.runEffect(
         initializeEffect(config.distinctId),
-        "FAILED_TO_INITIALIZE"
+        "FAILED_TO_INITIALIZE",
       );
 
       // Grab service references for sync access
       this.featureFlagService = await this.runEffect(
-        Effect.gen(function* () { return yield* FeatureFlagService; }),
-        "FAILED_TO_INITIALIZE"
+        Effect.gen(function* () {
+          return yield* FeatureFlagService;
+        }),
+        "FAILED_TO_INITIALIZE",
       );
       this.identityManagerService = await this.runEffect(
-        Effect.gen(function* () { return yield* IdentityManager; }),
-        "FAILED_TO_INITIALIZE"
+        Effect.gen(function* () {
+          return yield* IdentityManager;
+        }),
+        "FAILED_TO_INITIALIZE",
       );
 
       if (config.analytics.enabled) {
@@ -117,10 +123,7 @@ export class VoidhashWebClient {
       this.attachBrowserListeners(config);
 
       if (config.featureFlags.prefetchOnInit) {
-        await this.runEffect(
-          getFeatureFlagsEffect(),
-          "FAILED_TO_PREFETCH_FLAGS"
-        );
+        await this.runEffect(getFeatureFlagsEffect(), "FAILED_TO_PREFETCH_FLAGS");
       }
 
       this.eventBus.emit("initialized", { distinctId });
@@ -178,26 +181,17 @@ export class VoidhashWebClient {
 
   async getFeatureFlags(keys?: string[]) {
     this.ensureReady();
-    return this.runEffect(
-      getFeatureFlagsEffect(keys),
-      "FAILED_TO_GET_FEATURE_FLAGS"
-    );
+    return this.runEffect(getFeatureFlagsEffect(keys), "FAILED_TO_GET_FEATURE_FLAGS");
   }
 
   async refreshFeatureFlags(keys?: string[]) {
     this.ensureReady();
-    return this.runEffect(
-      refreshFeatureFlagsEffect(keys),
-      "FAILED_TO_REFRESH_FEATURE_FLAGS"
-    );
+    return this.runEffect(refreshFeatureFlagsEffect(keys), "FAILED_TO_REFRESH_FEATURE_FLAGS");
   }
 
   async identify(externalUserId: string, traits?: VoidhashTraits) {
     this.ensureReady();
-    await this.runEffect(
-      identifyEffect(externalUserId, traits),
-      "FAILED_TO_IDENTIFY"
-    );
+    await this.runEffect(identifyEffect(externalUserId, traits), "FAILED_TO_IDENTIFY");
   }
 
   async reset() {
@@ -213,10 +207,7 @@ export class VoidhashWebClient {
    */
   async setPersonAttributes(attributes: VoidhashPersonAttributes) {
     this.ensureReady();
-    await this.runEffect(
-      setPersonAttributesEffect(attributes),
-      "FAILED_TO_SET_PERSON_ATTRIBUTES"
-    );
+    await this.runEffect(setPersonAttributesEffect(attributes), "FAILED_TO_SET_PERSON_ATTRIBUTES");
   }
 
   /**
@@ -227,31 +218,26 @@ export class VoidhashWebClient {
     this.ensureReady();
     return this.runEffect(
       setPersonAttributesSyncEffect(attributes),
-      "FAILED_TO_SET_PERSON_ATTRIBUTES_SYNC"
+      "FAILED_TO_SET_PERSON_ATTRIBUTES_SYNC",
     );
   }
 
   async track(
     eventName: string,
     properties?: Record<string, unknown>,
-    options?: VoidhashTrackOptions
+    options?: VoidhashTrackOptions,
   ) {
     this.ensureReady();
-    await this.runEffect(
-      trackEffect(eventName, properties, options),
-      "FAILED_TO_TRACK"
-    );
+    await this.runEffect(trackEffect(eventName, properties, options), "FAILED_TO_TRACK");
   }
 
   async page(
     pageName?: string,
     properties?: Record<string, unknown>,
-    options?: VoidhashTrackOptions
+    options?: VoidhashTrackOptions,
   ) {
     this.ensureReady();
-    const pageProperties = pageName
-      ? { ...properties, page_name: pageName }
-      : properties;
+    const pageProperties = pageName ? { ...properties, page_name: pageName } : properties;
     await this.track("page", pageProperties, options);
   }
 
@@ -262,14 +248,14 @@ export class VoidhashWebClient {
 
   on<TEvent extends VoidhashEventName>(
     eventName: TEvent,
-    handler: (payload: VoidhashEventMap[TEvent]) => void
+    handler: (payload: VoidhashEventMap[TEvent]) => void,
   ) {
     return this.eventBus.on(eventName, handler);
   }
 
   off<TEvent extends VoidhashEventName>(
     eventName: TEvent,
-    handler: (payload: VoidhashEventMap[TEvent]) => void
+    handler: (payload: VoidhashEventMap[TEvent]) => void,
   ) {
     this.eventBus.off(eventName, handler);
   }
@@ -279,7 +265,7 @@ export class VoidhashWebClient {
 
     this.inFlightFlush = this.runEffect(
       flushAnalyticsEffect(),
-      "FAILED_TO_FLUSH_ANALYTICS"
+      "FAILED_TO_FLUSH_ANALYTICS",
     ).finally(() => {
       this.inFlightFlush = null;
     });
@@ -304,19 +290,15 @@ export class VoidhashWebClient {
 
     const onlineHandler = () => {
       if (config.featureFlags.refreshOnOnline) {
-        void this.runEffect(
-          refreshTrackedKeySetsEffect(),
-          "FAILED_TO_REFRESH_FLAGS"
-        ).catch(() => {});
+        void this.runEffect(refreshTrackedKeySetsEffect(), "FAILED_TO_REFRESH_FLAGS").catch(
+          () => {},
+        );
       }
     };
 
     const pageHideHandler = () => {
       if (config.analytics.enabled) {
-        void this.runEffect(
-          flushAnalyticsKeepaliveEffect(),
-          "FAILED_TO_FLUSH"
-        ).catch(() => {});
+        void this.runEffect(flushAnalyticsKeepaliveEffect(), "FAILED_TO_FLUSH").catch(() => {});
       }
     };
 
@@ -326,26 +308,21 @@ export class VoidhashWebClient {
         typeof document !== "undefined" &&
         document.visibilityState === "visible"
       ) {
-        void this.runEffect(
-          refreshTrackedKeySetsEffect(),
-          "FAILED_TO_REFRESH_FLAGS"
-        ).catch(() => {});
+        void this.runEffect(refreshTrackedKeySetsEffect(), "FAILED_TO_REFRESH_FLAGS").catch(
+          () => {},
+        );
       }
     };
 
     window.addEventListener("online", onlineHandler);
     window.addEventListener("pagehide", pageHideHandler);
-    this.listeners.push(() =>
-      window.removeEventListener("online", onlineHandler)
-    );
-    this.listeners.push(() =>
-      window.removeEventListener("pagehide", pageHideHandler)
-    );
+    this.listeners.push(() => window.removeEventListener("online", onlineHandler));
+    this.listeners.push(() => window.removeEventListener("pagehide", pageHideHandler));
 
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", visibilityHandler);
       this.listeners.push(() =>
-        document.removeEventListener("visibilitychange", visibilityHandler)
+        document.removeEventListener("visibilitychange", visibilityHandler),
       );
     }
   }

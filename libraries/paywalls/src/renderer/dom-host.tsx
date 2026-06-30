@@ -1,9 +1,4 @@
-import {
-  type CSSProperties,
-  type KeyboardEvent,
-  type ReactNode,
-  useState,
-} from "react";
+import { type CSSProperties, type KeyboardEvent, type ReactNode, useState } from "react";
 
 import type {
   HostComponents,
@@ -47,10 +42,7 @@ const TEXT_BASE: CSSProperties = {
   wordWrap: "break-word",
 };
 
-const RESIZE_MODE_TO_OBJECT_FIT: Record<
-  ResizeMode,
-  CSSProperties["objectFit"]
-> = {
+const RESIZE_MODE_TO_OBJECT_FIT: Record<ResizeMode, CSSProperties["objectFit"]> = {
   center: "none",
   contain: "contain",
   cover: "cover",
@@ -71,12 +63,7 @@ const lineClampStyle = (numberOfLines?: number): CSSProperties =>
       }
     : {};
 
-const DomView = ({
-  style,
-  children,
-  testID,
-  accessibilityLabel,
-}: ViewProps): ReactNode => (
+const DomView = ({ style, children, testID, accessibilityLabel }: ViewProps): ReactNode => (
   <div
     aria-label={accessibilityLabel}
     data-testid={testID}
@@ -213,8 +200,7 @@ const DomImage = ({
   />
 );
 
-const DomSlot = ({ children, fallback }: SlotHostProps): ReactNode =>
-  children ?? fallback ?? null;
+const DomSlot = ({ children, fallback }: SlotHostProps): ReactNode => children ?? fallback ?? null;
 
 /** The DOM implementation of the {@link HostComponents} contract. */
 export const domHostComponents: HostComponents = {

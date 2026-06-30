@@ -109,12 +109,8 @@ describe("InferActions", () => {
     expectTypeOf<ComponentProps["onSelect"]>().toEqualTypeOf<
       ((payload: { productId: string; index: number }) => void) | undefined
     >();
-    expectTypeOf<ComponentProps["onDismiss"]>().toEqualTypeOf<
-      (() => void) | undefined
-    >();
-    expectTypeOf<ComponentProps["children"]>().toEqualTypeOf<
-      ReactNode | undefined
-    >();
+    expectTypeOf<ComponentProps["onDismiss"]>().toEqualTypeOf<(() => void) | undefined>();
+    expectTypeOf<ComponentProps["children"]>().toEqualTypeOf<ReactNode | undefined>();
   });
 });
 
@@ -135,9 +131,7 @@ describe("defineComponent end-to-end typing", () => {
       },
     });
 
-    expectTypeOf(definition.component)
-      .parameter(0)
-      .toEqualTypeOf<ComponentProps>();
+    expectTypeOf(definition.component).parameter(0).toEqualTypeOf<ComponentProps>();
   });
 });
 

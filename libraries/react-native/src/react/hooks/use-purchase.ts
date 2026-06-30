@@ -23,7 +23,7 @@ export function purchaseHookFactory(client: VoidhashClient) {
           onSuccess?: () => void;
           onError?: (error: Error) => void;
           onSettled?: () => void;
-        }
+        },
       ) => {
         setIsLoading(true);
         setError(null);
@@ -49,7 +49,7 @@ export function purchaseHookFactory(client: VoidhashClient) {
             hookOptions?.onSettled?.();
           });
       },
-      [hookOptions]
+      [hookOptions],
     );
 
     return {

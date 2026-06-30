@@ -25,7 +25,7 @@ describe("analytics delivery", () => {
               code: "dependency_unavailable",
               error: "try again",
             },
-            503
+            503,
           );
         }
 
@@ -34,7 +34,7 @@ describe("analytics delivery", () => {
             accepted: 1,
             rejected: 0,
           },
-          202
+          202,
         );
       }
 
@@ -76,7 +76,7 @@ describe("analytics delivery", () => {
               code: "payload_too_large",
               error: "payload too large",
             },
-            413
+            413,
           );
         }
 
@@ -85,7 +85,7 @@ describe("analytics delivery", () => {
             accepted: 1,
             rejected: 0,
           },
-          202
+          202,
         );
       }
 
@@ -130,7 +130,7 @@ describe("analytics delivery", () => {
             429,
             {
               "retry-after": "2",
-            }
+            },
           );
         }
 
@@ -139,7 +139,7 @@ describe("analytics delivery", () => {
             accepted: 1,
             rejected: 0,
           },
-          202
+          202,
         );
       }
 

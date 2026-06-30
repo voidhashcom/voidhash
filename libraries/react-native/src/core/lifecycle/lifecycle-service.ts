@@ -16,7 +16,7 @@ export class LifecycleService extends Context.Service<LifecycleService>()(
       const adapter = yield* LifecycleAdapter;
 
       const setupAutomaticLifecycleEvents = (
-        captureEvent: (eventName: string) => void
+        captureEvent: (eventName: string) => void,
       ): Effect.Effect<LifecycleSubscription | null> =>
         adapter.subscribe((nextState, previousState) => {
           if (nextState === "background" && previousState !== "background") {
@@ -24,18 +24,14 @@ export class LifecycleService extends Context.Service<LifecycleService>()(
             return;
           }
 
-          if (
-            nextState === "active" &&
-            previousState !== null &&
-            previousState !== "active"
-          ) {
+          if (nextState === "active" && previousState !== null && previousState !== "active") {
             captureEvent(AUTOMATIC_EVENTS.APP_BECAME_ACTIVE);
           }
         });
 
       return { setupAutomaticLifecycleEvents } as const;
     }),
-  }
+  },
 ) {
   static readonly layer = Layer.effect(this, this.make);
 }

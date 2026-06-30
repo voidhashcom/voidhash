@@ -2,9 +2,7 @@
 
 import type { ResponseEsque } from "./types";
 
-export async function safeParseJSON<T>(
-  input: ResponseEsque
-): Promise<T | Error> {
+export async function safeParseJSON<T>(input: ResponseEsque): Promise<T | Error> {
   const text = await input.text();
   try {
     return JSON.parse(text) as T;
@@ -13,10 +11,7 @@ export async function safeParseJSON<T>(
   }
 }
 
-export function expoRouterWithVoidhashCallback(options: {
-  path: string;
-  initial: boolean;
-}) {
+export function expoRouterWithVoidhashCallback(options: { path: string; initial: boolean }) {
   if (options.path.includes("voidhash/callback")) {
     return null;
   }

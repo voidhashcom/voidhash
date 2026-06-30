@@ -31,10 +31,7 @@ export interface ComponentPreviewState<M extends PropMap> {
 }
 
 /** The context object a component template receives. */
-export interface ComponentRenderContext<
-  M extends PropMap,
-  A extends ActionMap,
-> {
+export interface ComponentRenderContext<M extends PropMap, A extends ActionMap> {
   readonly props: InferProps<M>;
   readonly actions: InferActions<A>;
 }
@@ -44,10 +41,8 @@ export interface ComponentRenderContext<
  * `.optional()`/`.default()`), one optional handler per declared action, and
  * children (surfaced at the template's `<Slot />`).
  */
-export type InferComponentProps<
-  M extends PropMap,
-  A extends ActionMap,
-> = InferExternalProps<M> & ActionHandlerProps<A> & { children?: ReactNode };
+export type InferComponentProps<M extends PropMap, A extends ActionMap> = InferExternalProps<M> &
+  ActionHandlerProps<A> & { children?: ReactNode };
 
 /** The renderable React component produced by {@link defineComponent}. */
 export type PaywallComponent<M extends PropMap, A extends ActionMap> = (
@@ -142,16 +137,9 @@ export const defineComponent = <
     const handlersRef = useRef<Record<string, unknown>>(rest);
     // Keep the latest handlers readable from the stable action callbacks.
     handlersRef.current = rest;
-    const actions = useMemo(
-      () => buildActionCallbacks(actionMap, () => handlersRef.current),
-      [],
-    );
+    const actions = useMemo(() => buildActionCallbacks(actionMap, () => handlersRef.current), []);
     const props = applyPropDefaults(propMap, rest);
-    return (
-      <SlotProvider value={children ?? null}>
-        {render({ actions, props })}
-      </SlotProvider>
-    );
+    return <SlotProvider value={children ?? null}>{render({ actions, props })}</SlotProvider>;
   };
   Component.displayName = input.title ?? input.id;
 
@@ -180,7 +168,6 @@ export const isComponentDefinition = (
 ): value is ComponentDefinition<PropMap, ActionMap> =>
   typeof value === "object" &&
   value !== null &&
-  (value as { __voidhash?: PaywallComponentMeta }).__voidhash?.kind ===
-    "component" &&
+  (value as { __voidhash?: PaywallComponentMeta }).__voidhash?.kind === "component" &&
   typeof (value as { render?: unknown }).render === "function" &&
   typeof (value as { component?: unknown }).component === "function";

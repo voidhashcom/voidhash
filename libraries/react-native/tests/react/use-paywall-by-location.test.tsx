@@ -1,10 +1,7 @@
 import { type Mocked, vi } from "vitest";
 // The real `@voidhash/paywalls` runtime encoder, used to prove the SDK handles
 // the exact wire bytes a deployed bundle emits.
-import {
-  createEventEnvelope,
-  serializeEnvelope,
-} from "../../../paywalls/src/runtime/envelope";
+import { createEventEnvelope, serializeEnvelope } from "../../../paywalls/src/runtime/envelope";
 import type { VoidhashClient } from "../../src/client";
 import {
   __internal_handlePaywallBridgeEventForTests,
@@ -81,10 +78,9 @@ describe("usePaywallByLocation bridge coordinator", () => {
       }),
     });
 
-    expect(client.purchase).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "prod_monthly" }),
-      { method: "native" },
-    );
+    expect(client.purchase).toHaveBeenCalledWith(expect.objectContaining({ id: "prod_monthly" }), {
+      method: "native",
+    });
     expect(presenter.postMessage).toHaveBeenCalled();
     expect(presenter.dismiss).toHaveBeenCalled();
     expect(openExternalUrl).not.toHaveBeenCalled();
@@ -157,9 +153,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
       }),
     });
 
-    const response = JSON.parse(
-      presenter.postMessage.mock.calls[0][1] as string,
-    );
+    const response = JSON.parse(presenter.postMessage.mock.calls[0][1] as string);
     expect(response.payload.status).toBe("error");
     expect(presenter.dismiss).not.toHaveBeenCalled();
   });
@@ -299,9 +293,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
     const presenter = createPresenterMock();
     const onError = vi.fn();
 
-    client.restorePurchases.mockRejectedValue(
-      new Error("restore failed") as never,
-    );
+    client.restorePurchases.mockRejectedValue(new Error("restore failed") as never);
 
     await __internal_handlePaywallBridgeEventForTests({
       client,
@@ -386,9 +378,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
       htmlUrl: "https://cdn.example/p/5b00934c/index.html",
       runtime,
     });
-    client.internal_buildPaywallRuntimeConfig.mockResolvedValue(
-      runtimeConfig as never,
-    );
+    client.internal_buildPaywallRuntimeConfig.mockResolvedValue(runtimeConfig as never);
 
     await __internal_handlePaywallBridgeEventForTests({
       client,
@@ -402,13 +392,9 @@ describe("usePaywallByLocation bridge coordinator", () => {
       }),
     });
 
-    expect(client.internal_buildPaywallRuntimeConfig).toHaveBeenCalledWith(
-      runtime,
-    );
+    expect(client.internal_buildPaywallRuntimeConfig).toHaveBeenCalledWith(runtime);
     expect(presenter.postMessage).toHaveBeenCalledTimes(1);
-    const envelope = JSON.parse(
-      presenter.postMessage.mock.calls[0][1] as string,
-    );
+    const envelope = JSON.parse(presenter.postMessage.mock.calls[0][1] as string);
     expect(envelope).toEqual({
       version: 1,
       type: "configure",
@@ -440,9 +426,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
         variables: { accentColor: "#16a34a" },
       },
     });
-    client.internal_buildPaywallRuntimeConfig.mockResolvedValue(
-      runtimeConfig as never,
-    );
+    client.internal_buildPaywallRuntimeConfig.mockResolvedValue(runtimeConfig as never);
 
     // Simulates the native presenters in the preload-then-show flow: the
     // bundle's one-shot `ready` fired during preload, before show() attached
@@ -464,12 +448,8 @@ describe("usePaywallByLocation bridge coordinator", () => {
     expect(shown).toBe(true);
     expect(onBridgeEvent).not.toHaveBeenCalled();
     // The post-show configure is fire-and-forget; wait for it to land.
-    await vi.waitFor(() =>
-      expect(presenter.postMessage).toHaveBeenCalledTimes(1),
-    );
-    const envelope = JSON.parse(
-      presenter.postMessage.mock.calls[0][1] as string,
-    );
+    await vi.waitFor(() => expect(presenter.postMessage).toHaveBeenCalledTimes(1));
+    const envelope = JSON.parse(presenter.postMessage.mock.calls[0][1] as string);
     expect(envelope.type).toBe("configure");
     expect(envelope.payload).toEqual(runtimeConfig);
   });
@@ -579,9 +559,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
 
     expect(warnSpy).toHaveBeenCalled();
     expect(presenter.postMessage).toHaveBeenCalledTimes(1);
-    const envelope = JSON.parse(
-      presenter.postMessage.mock.calls[0][1] as string,
-    );
+    const envelope = JSON.parse(presenter.postMessage.mock.calls[0][1] as string);
     expect(envelope).toEqual({
       version: 1,
       type: "configure",
@@ -694,9 +672,7 @@ describe("usePaywallByLocation bridge coordinator", () => {
       }),
     });
 
-    const busyResponse = JSON.parse(
-      presenter.postMessage.mock.calls[0][1] as string,
-    );
+    const busyResponse = JSON.parse(presenter.postMessage.mock.calls[0][1] as string);
     expect(busyResponse.payload.error.code).toBe("ACTION_BUSY");
     expect(onError).toHaveBeenCalledWith(expect.any(Error), {
       action: "purchase",

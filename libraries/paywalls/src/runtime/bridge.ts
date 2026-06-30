@@ -48,9 +48,7 @@ export interface PaywallBridge {
   /** Sends an outbound envelope to the host. */
   post: (envelope: PaywallOutboundEnvelope) => void;
   /** Subscribes to inbound envelopes. Returns an unsubscribe function. */
-  subscribe: (
-    listener: (envelope: PaywallInboundEnvelope) => void,
-  ) => () => void;
+  subscribe: (listener: (envelope: PaywallInboundEnvelope) => void) => () => void;
 }
 
 // ── Inbound dispatch (module-level singleton) ───────────────────────────────
@@ -62,10 +60,7 @@ const dispatchInbound = (raw: unknown): void => {
   const envelope = parseInboundEnvelope(raw);
   if (!envelope) {
     // biome-ignore lint/suspicious/noConsole: dev-visible signal — a host message that fails to parse would otherwise vanish silently.
-    console.warn(
-      "[voidhash-paywall] ignoring unparseable inbound bridge message",
-      raw,
-    );
+    console.warn("[voidhash-paywall] ignoring unparseable inbound bridge message", raw);
     return;
   }
   for (const listener of [...inboundListeners]) {
@@ -120,10 +115,7 @@ const tryDeliver = (envelope: PaywallOutboundEnvelope): boolean => {
     return true;
   }
   if (window.parent && window.parent !== window) {
-    window.parent.postMessage(
-      { source: STUDIO_MESSAGE_SOURCE, message: envelope },
-      "*",
-    );
+    window.parent.postMessage({ source: STUDIO_MESSAGE_SOURCE, message: envelope }, "*");
     return true;
   }
   return false;
@@ -175,9 +167,7 @@ const enqueueOutbound = (envelope: PaywallOutboundEnvelope): void => {
  * environment the message is dropped (the tree renderer passes its own silent
  * bridge instead).
  */
-export const postOutboundEnvelope = (
-  envelope: PaywallOutboundEnvelope,
-): void => {
+export const postOutboundEnvelope = (envelope: PaywallOutboundEnvelope): void => {
   if (typeof window === "undefined") {
     return;
   }

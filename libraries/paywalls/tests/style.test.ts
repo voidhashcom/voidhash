@@ -11,32 +11,26 @@ describe("flattenStyle", () => {
 
   it("flattens nested arrays with later entries winning", () => {
     expect(
-      flattenStyle([
-        { padding: 4, opacity: 1 },
-        [{ padding: 8 }, false, [{ opacity: 0.5 }]],
-        null,
-      ]),
+      flattenStyle([{ padding: 4, opacity: 1 }, [{ padding: 8 }, false, [{ opacity: 0.5 }]], null]),
     ).toEqual({ padding: 8, opacity: 0.5 });
   });
 
   it("supports the conditional-entry idiom", () => {
     const selected = false;
-    expect(
-      flattenStyle([{ borderWidth: 1 }, selected && { borderWidth: 2 }]),
-    ).toEqual({ borderWidth: 1 });
+    expect(flattenStyle([{ borderWidth: 1 }, selected && { borderWidth: 2 }])).toEqual({
+      borderWidth: 1,
+    });
   });
 });
 
 describe("resolveStyle", () => {
   it("expands paddingHorizontal/Vertical into physical edges", () => {
-    expect(resolveStyle({ paddingHorizontal: 16, paddingVertical: 8 })).toEqual(
-      {
-        paddingLeft: 16,
-        paddingRight: 16,
-        paddingTop: 8,
-        paddingBottom: 8,
-      },
-    );
+    expect(resolveStyle({ paddingHorizontal: 16, paddingVertical: 8 })).toEqual({
+      paddingLeft: 16,
+      paddingRight: 16,
+      paddingTop: 8,
+      paddingBottom: 8,
+    });
   });
 
   it("expands marginHorizontal/Vertical into physical edges", () => {
@@ -56,9 +50,10 @@ describe("resolveStyle", () => {
   });
 
   it("expands shorthands provided across array entries", () => {
-    expect(
-      resolveStyle([{ paddingHorizontal: 16 }, { paddingRight: 2 }]),
-    ).toEqual({ paddingLeft: 16, paddingRight: 2 });
+    expect(resolveStyle([{ paddingHorizontal: 16 }, { paddingRight: 2 }])).toEqual({
+      paddingLeft: 16,
+      paddingRight: 2,
+    });
   });
 
   it("converts numeric lineHeight to pixels (RN semantics)", () => {
@@ -81,9 +76,11 @@ describe("resolveStyle", () => {
   });
 
   it("passes the remaining subset through untouched", () => {
-    expect(
-      resolveStyle({ flexDirection: "row", gap: 8, backgroundColor: "#000" }),
-    ).toEqual({ flexDirection: "row", gap: 8, backgroundColor: "#000" });
+    expect(resolveStyle({ flexDirection: "row", gap: 8, backgroundColor: "#000" })).toEqual({
+      flexDirection: "row",
+      gap: 8,
+      backgroundColor: "#000",
+    });
   });
 
   // RN gives longhands precedence within one object regardless of key order;
@@ -98,39 +95,26 @@ describe("resolveStyle", () => {
   it("emits borderRadius before an earlier-declared corner radius", () => {
     const resolved = resolveStyle({ borderTopLeftRadius: 4, borderRadius: 8 });
     expect(resolved).toEqual({ borderRadius: 8, borderTopLeftRadius: 4 });
-    expect(Object.keys(resolved)).toEqual([
-      "borderRadius",
-      "borderTopLeftRadius",
-    ]);
+    expect(Object.keys(resolved)).toEqual(["borderRadius", "borderTopLeftRadius"]);
   });
 
   it("keeps an explicit corner winning when the shorthand arrives in a later array entry", () => {
-    const resolved = resolveStyle([
-      { borderTopLeftRadius: 4 },
-      { borderRadius: 8 },
-    ]);
+    const resolved = resolveStyle([{ borderTopLeftRadius: 4 }, { borderRadius: 8 }]);
     expect(resolved).toEqual({ borderRadius: 8, borderTopLeftRadius: 4 });
-    expect(Object.keys(resolved)).toEqual([
-      "borderRadius",
-      "borderTopLeftRadius",
-    ]);
+    expect(Object.keys(resolved)).toEqual(["borderRadius", "borderTopLeftRadius"]);
   });
 
   it("emits gap before rowGap/columnGap and flex before its longhands", () => {
-    expect(Object.keys(resolveStyle({ rowGap: 4, gap: 8 }))).toEqual([
-      "gap",
-      "rowGap",
-    ]);
-    expect(Object.keys(resolveStyle({ flexGrow: 2, flex: 1 }))).toEqual([
-      "flex",
-      "flexGrow",
-    ]);
+    expect(Object.keys(resolveStyle({ rowGap: 4, gap: 8 }))).toEqual(["gap", "rowGap"]);
+    expect(Object.keys(resolveStyle({ flexGrow: 2, flex: 1 }))).toEqual(["flex", "flexGrow"]);
   });
 
   it("emits Horizontal/Vertical expansions after the plain shorthand", () => {
-    expect(
-      Object.keys(resolveStyle({ paddingHorizontal: 8, padding: 16 })),
-    ).toEqual(["padding", "paddingLeft", "paddingRight"]);
+    expect(Object.keys(resolveStyle({ paddingHorizontal: 8, padding: 16 }))).toEqual([
+      "padding",
+      "paddingLeft",
+      "paddingRight",
+    ]);
     expect(resolveStyle({ paddingHorizontal: 8, padding: 16 })).toEqual({
       padding: 16,
       paddingLeft: 8,

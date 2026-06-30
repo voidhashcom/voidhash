@@ -40,9 +40,7 @@ describe("extractComponentManifest", () => {
         trial: { props: { selected: true } },
       },
       render: ({ props, actions }) => (
-        <Pressable
-          onPress={() => actions.onSelect({ productId: props.product.id })}
-        >
+        <Pressable onPress={() => actions.onSelect({ productId: props.product.id })}>
           <Text>{props.product.displayName}</Text>
           <Slot />
         </Pressable>

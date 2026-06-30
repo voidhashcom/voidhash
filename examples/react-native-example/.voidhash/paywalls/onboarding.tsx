@@ -24,9 +24,7 @@ export default createPaywall({
     const actions = usePaywallActions();
     const { selectedProductId, selectProduct } = useSelectedProduct();
     const accentColor =
-      typeof variables.accentColor === "string"
-        ? variables.accentColor
-        : "#16a34a";
+      typeof variables.accentColor === "string" ? variables.accentColor : "#16a34a";
 
     return (
       <View
@@ -38,9 +36,7 @@ export default createPaywall({
           padding: 24,
         }}
       >
-        <Text style={{ color: "white", fontSize: 28, fontWeight: "800" }}>
-          Unlock everything
-        </Text>
+        <Text style={{ color: "white", fontSize: 28, fontWeight: "800" }}>Unlock everything</Text>
         <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 15 }}>
           Unlimited projects, every pro feature, and priority support.
         </Text>
@@ -64,17 +60,10 @@ export default createPaywall({
             padding: 16,
           }}
         >
-          <Text style={{ color: "white", fontSize: 17, fontWeight: "700" }}>
-            Continue
-          </Text>
+          <Text style={{ color: "white", fontSize: 17, fontWeight: "700" }}>Continue</Text>
         </Pressable>
-        <Pressable
-          onPress={() => actions.close()}
-          style={{ alignItems: "center", padding: 8 }}
-        >
-          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
-            Not now
-          </Text>
+        <Pressable onPress={() => actions.close()} style={{ alignItems: "center", padding: 8 }}>
+          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Not now</Text>
         </Pressable>
       </View>
     );

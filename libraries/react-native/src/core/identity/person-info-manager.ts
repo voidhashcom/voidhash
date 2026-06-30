@@ -9,8 +9,7 @@ const make = Effect.gen(function* effect() {
   const cacheManager = yield* CacheManager;
   const apiClient = yield* ApiClient;
 
-  const generatePersonCacheKey = (distinctId: string) =>
-    `person:${distinctId}`;
+  const generatePersonCacheKey = (distinctId: string) => `person:${distinctId}`;
 
   const getPersonFromCache = (distinctId: string) =>
     cacheManager.get<SdkPerson>(generatePersonCacheKey(distinctId));
@@ -40,11 +39,7 @@ const make = Effect.gen(function* effect() {
             "x-distinct-id": distinctId,
           },
         })
-        .pipe(
-          Effect.catchTag("ApiSdkPersonNotFoundError", () =>
-            Effect.succeed(null)
-          )
-        );
+        .pipe(Effect.catchTag("ApiSdkPersonNotFoundError", () => Effect.succeed(null)));
       if (result === null) {
         return null;
       }
@@ -52,10 +47,7 @@ const make = Effect.gen(function* effect() {
       return result;
     });
 
-  const getPerson = (
-    distinctId: string,
-    cachePolicy: "cache" | "fetch" | "fetch-while-stale"
-  ) =>
+  const getPerson = (distinctId: string, cachePolicy: "cache" | "fetch" | "fetch-while-stale") =>
     Effect.gen(function* getPerson() {
       if (cachePolicy === "cache") {
         const personFromCache = yield* getPersonFromCache(distinctId);
@@ -88,8 +80,9 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class PersonInfoManager extends Context.Service<PersonInfoManager, Effect.Success<typeof make>>()("rn-voidhash/PersonInfoManager") {
-  static Default = Layer.effect(PersonInfoManager, make).pipe(
-    Layer.provide(CacheManager.Default)
-  )
+export class PersonInfoManager extends Context.Service<
+  PersonInfoManager,
+  Effect.Success<typeof make>
+>()("rn-voidhash/PersonInfoManager") {
+  static Default = Layer.effect(PersonInfoManager, make).pipe(Layer.provide(CacheManager.Default));
 }

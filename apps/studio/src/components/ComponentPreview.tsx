@@ -12,10 +12,7 @@ import {
 import { createElement, type ReactNode } from "react";
 
 import type { AnyComponentDefinition } from "../voidhash/paywalls";
-import {
-  DEFAULT_PREVIEW_CONFIG,
-  SILENT_BRIDGE,
-} from "../voidhash/preview-runtime";
+import { DEFAULT_PREVIEW_CONFIG, SILENT_BRIDGE } from "../voidhash/preview-runtime";
 import { PreviewErrorBoundary } from "./PreviewErrorBoundary";
 
 const PLACEHOLDER_IMAGE = `data:image/svg+xml,${encodeURIComponent(
@@ -23,10 +20,7 @@ const PLACEHOLDER_IMAGE = `data:image/svg+xml,${encodeURIComponent(
 )}`;
 
 /** Best-effort value for a required prop with no fixture and no default. */
-const placeholderValue = (
-  schema: PropSchema,
-  products: ReadonlyArray<PaywallProduct>,
-): unknown => {
+const placeholderValue = (schema: PropSchema, products: ReadonlyArray<PaywallProduct>): unknown => {
   switch (schema.kind) {
     case "string":
       return schema.label ?? "Text";
@@ -103,9 +97,7 @@ export interface ComponentPreviewProps {
  * renderer + runtime providers a real paywall renders under, against the mock
  * Studio config (envelopes go to a silent bridge).
  */
-export const ComponentPreview = ({
-  definition,
-}: ComponentPreviewProps): ReactNode => {
+export const ComponentPreview = ({ definition }: ComponentPreviewProps): ReactNode => {
   const state = defaultPreviewState(definition);
   const config = previewConfig(state);
   const props = buildPreviewProps(definition, state, config.products);

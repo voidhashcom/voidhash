@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 
-import {
-  type PaywallDefinition,
-  renderPaywallBody,
-} from "../authoring/create-paywall";
+import { type PaywallDefinition, renderPaywallBody } from "../authoring/create-paywall";
 import { RendererProvider } from "../primitives/host-context";
 import type { HostComponents } from "../primitives/types";
 import type { PaywallBridge } from "../runtime/bridge";

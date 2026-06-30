@@ -18,7 +18,7 @@ export class LifecycleAdapter extends Context.Service<
   LifecycleAdapter,
   {
     readonly subscribe: (
-      listener: (nextState: string, previousState: string | null) => void
+      listener: (nextState: string, previousState: string | null) => void,
     ) => Effect.Effect<LifecycleSubscription | null>;
   }
 >()("rn-voidhash/LifecycleAdapter") {}

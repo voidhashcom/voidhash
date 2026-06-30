@@ -5,18 +5,14 @@ import type { StorekitProduct } from "./StorekitProduct.nitro";
 import type { StorekitTransaction } from "./StorekitTransaction.nitro";
 
 export interface Storekit extends HybridObject<{ ios: "swift" }> {
-  initConnection(
-    onTransaction?: (transaction: StorekitTransaction) => void
-  ): Promise<boolean>;
+  initConnection(onTransaction?: (transaction: StorekitTransaction) => void): Promise<boolean>;
   endConnection(): Promise<boolean>;
-  getPurchasedItems(
-    onlyIncludeActiveItems: boolean
-  ): Promise<StorekitTransaction[]>;
+  getPurchasedItems(onlyIncludeActiveItems: boolean): Promise<StorekitTransaction[]>;
   getItems(skus: string[]): Promise<StorekitProduct[]>;
   buyProduct(
     sku: string,
     appAccountToken: string,
-    quantity: number
+    quantity: number,
     // offer?: Record<string, string>
   ): Promise<StorekitTransaction>;
   finishTransaction(transactionId: string): Promise<void>;

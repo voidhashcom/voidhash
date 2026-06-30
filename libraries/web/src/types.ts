@@ -83,12 +83,7 @@ export interface AnalyticsPartialRejectionEvent extends AnalyticsFlushResult {}
 export interface VoidhashErrorEvent {
   readonly error?: unknown;
   readonly message: string;
-  readonly source:
-    | "analytics"
-    | "client"
-    | "feature-flags"
-    | "identity"
-    | "storage";
+  readonly source: "analytics" | "client" | "feature-flags" | "identity" | "storage";
 }
 
 export interface VoidhashEventMap {

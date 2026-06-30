@@ -48,10 +48,7 @@ const make = Effect.gen(function* effect() {
    * forwarded as `traits`. `setOnce`/`clientEventId` are intentionally omitted
    * — the server treats them as optional.
    */
-  const syncPersonAttributes = (
-    distinctId: string,
-    attributes: PersonAttributes
-  ) =>
+  const syncPersonAttributes = (distinctId: string, attributes: PersonAttributes) =>
     Effect.gen(function* syncPersonAttributes() {
       const { email, name, traits } = splitReservedAttributes(attributes);
       const commonHeaders = yield* getCommonSdkHeaders();
@@ -78,8 +75,11 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class PersonAttributeManager extends Context.Service<PersonAttributeManager, Effect.Success<typeof make>>()("rn-voidhash/PersonAttributeManager") {
+export class PersonAttributeManager extends Context.Service<
+  PersonAttributeManager,
+  Effect.Success<typeof make>
+>()("rn-voidhash/PersonAttributeManager") {
   static Default = Layer.effect(PersonAttributeManager, make).pipe(
-    Layer.provide(CacheManager.Default)
-  )
+    Layer.provide(CacheManager.Default),
+  );
 }

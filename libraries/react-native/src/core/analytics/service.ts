@@ -2,15 +2,7 @@ import {
   make as makeEventCaptureClient,
   type VoidhashEventCaptureClient,
 } from "@voidhash/generated-clients/event-capture";
-import {
-  Duration,
-  Effect,
-  Latch,
-  Layer,
-  Ref,
-  Schedule,
-  Context,
-} from "effect";
+import { Duration, Effect, Latch, Layer, Ref, Schedule, Context } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { CacheManager } from "../caching/cache-manager";
@@ -18,11 +10,7 @@ import { IdentityManager } from "../identity/identity-manager";
 import { SdkConfiguration } from "../sdk-configuration";
 import { getNonce } from "../utils/crypto";
 import { AUTOMATIC_EVENTS } from "./constants";
-import {
-  AnalyticsIngestEvent,
-  AnalyticsSendFailure,
-  QueuedAnalyticsEvent,
-} from "./types";
+import { AnalyticsIngestEvent, AnalyticsSendFailure, QueuedAnalyticsEvent } from "./types";
 import {
   createQueuedAnalyticsEvent,
   getAnalyticsStandardizedProperties,
@@ -39,8 +27,7 @@ const MAX_ANALYTICS_RETRY_DELAY_MS = 30_000;
  * counterparts and so don't go through the status-set fallback.
  */
 const RETRYABLE_HTTP_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
-const ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY =
-  "voidhash:analytics:last-seen-app-release";
+const ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY = "voidhash:analytics:last-seen-app-release";
 
 interface AppReleaseInfo {
   readonly appBuild: string | null;
@@ -50,9 +37,7 @@ interface AppReleaseInfo {
 const toNullableString = (value: unknown): string | null =>
   value !== null && value !== undefined ? String(value) : null;
 
-const toAppReleaseInfo = (
-  value: AppReleaseInfo | undefined | null
-): AppReleaseInfo | null => {
+const toAppReleaseInfo = (value: AppReleaseInfo | undefined | null): AppReleaseInfo | null => {
   if (!value) return null;
   return {
     appBuild: value.appBuild,
@@ -63,9 +48,7 @@ const toAppReleaseInfo = (
 const getAnalyticsRetryDelayMs = (attempts: number) =>
   Math.min(1000 * 2 ** Math.max(attempts - 1, 0), MAX_ANALYTICS_RETRY_DELAY_MS);
 
-const parseRetryAfterMs = (
-  value: string | null | undefined
-): number | undefined => {
+const parseRetryAfterMs = (value: string | null | undefined): number | undefined => {
   if (!value) {
     return undefined;
   }
@@ -89,10 +72,9 @@ const parseRetryAfterMs = (
  * predicate so they're postponed in the queue instead — preserving the
  * cool-down behavior expected by the rate-limit tests.
  */
-const inlineRetrySchedule = Schedule.exponential(
-  Duration.seconds(1),
-  2
-).pipe(Schedule.both(Schedule.recurs(2)));
+const inlineRetrySchedule = Schedule.exponential(Duration.seconds(1), 2).pipe(
+  Schedule.both(Schedule.recurs(2)),
+);
 
 /**
  * Owns the analytics pipeline: an in-memory event queue with batching, a
@@ -134,11 +116,11 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
             Effect.succeed(
               client.pipe(
                 HttpClient.mapRequest((request) =>
-                  HttpClientRequest.prependUrl(request, ingestBaseUrl)
-                )
-              )
+                  HttpClientRequest.prependUrl(request, ingestBaseUrl),
+                ),
+              ),
             ),
-        }
+        },
       );
 
       const failNonRetryable = (status: number) =>
@@ -147,7 +129,7 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
             message: `Analytics ingest request failed: ${status}`,
             retryable: false,
             status,
-          })
+          }),
         );
 
       const failRetryable = (status: number, retryAfterMs?: number) =>
@@ -157,11 +139,11 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
             retryAfterMs,
             retryable: true,
             status,
-          })
+          }),
         );
 
       const sendAnalyticsEvents = (
-        events: ReadonlyArray<AnalyticsIngestEvent>
+        events: ReadonlyArray<AnalyticsIngestEvent>,
       ): Effect.Effect<void, AnalyticsSendFailure> =>
         Effect.gen(function* () {
           if (events.length === 0) return;
@@ -182,23 +164,18 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
           });
         }).pipe(
           Effect.catchTags({
-            CaptureDependencyUnavailableError: (err) =>
-              failRetryable(err.response.status),
-            CaptureInternalServerError: (err) =>
-              failRetryable(err.response.status),
-            CapturePayloadTooLargeError: (err) =>
-              failNonRetryable(err.response.status),
+            CaptureDependencyUnavailableError: (err) => failRetryable(err.response.status),
+            CaptureInternalServerError: (err) => failRetryable(err.response.status),
+            CapturePayloadTooLargeError: (err) => failNonRetryable(err.response.status),
             CaptureRateLimitedError: (err) =>
               failRetryable(
                 err.response.status,
                 parseRetryAfterMs(err.response.headers["retry-after"]) ??
                   err.data.retry_after_ms ??
-                  undefined
+                  undefined,
               ),
-            CaptureUnauthorizedError: (err) =>
-              failNonRetryable(err.response.status),
-            EventCaptureBatch400: (err) =>
-              failNonRetryable(err.response.status),
+            CaptureUnauthorizedError: (err) => failNonRetryable(err.response.status),
+            EventCaptureBatch400: (err) => failNonRetryable(err.response.status),
           }),
           // Unmapped status codes (e.g. 408/502/504) surface as
           // `HttpClientError`; treat network errors and the retryable subset
@@ -211,27 +188,25 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
                   cause,
                   message: "Analytics request failed",
                   retryable: true,
-                })
+                }),
               );
             }
             return RETRYABLE_HTTP_STATUS_CODES.has(status)
               ? failRetryable(status)
               : failNonRetryable(status);
-          })
+          }),
         );
 
       // Inline retry wrapper used by the queue-draining `flush()` path. Public
       // `sendAnalyticsEvents` stays single-shot so callers can implement their
       // own retry strategy.
-      const sendWithInlineRetry = (
-        events: ReadonlyArray<AnalyticsIngestEvent>
-      ) =>
+      const sendWithInlineRetry = (events: ReadonlyArray<AnalyticsIngestEvent>) =>
         sendAnalyticsEvents(events).pipe(
           Effect.retry({
             schedule: inlineRetrySchedule,
             while: (failure: AnalyticsSendFailure) =>
               failure.retryable && failure.retryAfterMs === undefined,
-          })
+          }),
         );
 
       // Re-inserts a failed batch at the head of the queue with bumped
@@ -241,7 +216,7 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
       // `takeDueBatch` already removed them.
       const postponeQueuedBatch = (
         events: ReadonlyArray<QueuedAnalyticsEvent>,
-        nextAvailableAt: number
+        nextAvailableAt: number,
       ) =>
         Ref.update(queueRef, (queue) => {
           const postponed = events.map((event) => ({
@@ -276,14 +251,10 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
 
       const processQueuedBatch = (
         queuedBatch: ReadonlyArray<QueuedAnalyticsEvent>,
-        standardizedProperties: Record<string, unknown>
+        standardizedProperties: Record<string, unknown>,
       ): Effect.Effect<void> => {
         const ingestBatch = queuedBatch.map((event) =>
-          mapQueuedAnalyticsEventToIngestEvent(
-            event,
-            standardizedProperties,
-            sessionId
-          )
+          mapQueuedAnalyticsEventToIngestEvent(event, standardizedProperties, sessionId),
         );
 
         return sendWithInlineRetry(ingestBatch).pipe(
@@ -291,48 +262,33 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
             if (failure.status === 413 && queuedBatch.length > 1) {
               const midpoint = Math.ceil(queuedBatch.length / 2);
               return Effect.gen(function* () {
-                yield* processQueuedBatch(
-                  queuedBatch.slice(0, midpoint),
-                  standardizedProperties
-                );
-                yield* processQueuedBatch(
-                  queuedBatch.slice(midpoint),
-                  standardizedProperties
-                );
+                yield* processQueuedBatch(queuedBatch.slice(0, midpoint), standardizedProperties);
+                yield* processQueuedBatch(queuedBatch.slice(midpoint), standardizedProperties);
               });
             }
 
             if (failure.status === 413) {
-              return Effect.logWarning(
-                "Dropping analytics event after 413 response",
-                { eventId: queuedBatch[0]?.id }
-              );
+              return Effect.logWarning("Dropping analytics event after 413 response", {
+                eventId: queuedBatch[0]?.id,
+              });
             }
 
             if (failure.retryable) {
               const delayMs =
                 failure.retryAfterMs ??
-                getAnalyticsRetryDelayMs(
-                  (queuedBatch[0]?.attempts ?? 0) + 1
-                );
+                getAnalyticsRetryDelayMs((queuedBatch[0]?.attempts ?? 0) + 1);
               return postponeQueuedBatch(queuedBatch, Date.now() + delayMs);
             }
 
-            return Effect.logWarning(
-              "Dropping analytics batch after non-retryable response",
-              {
-                eventIds: queuedBatch.map((event) => event.id),
-                status: failure.status,
-              }
-            );
-          })
+            return Effect.logWarning("Dropping analytics batch after non-retryable response", {
+              eventIds: queuedBatch.map((event) => event.id),
+              status: failure.status,
+            });
+          }),
         );
       };
 
-      const capture = (
-        eventName: string,
-        properties: Record<string, unknown> = {}
-      ) =>
+      const capture = (eventName: string, properties: Record<string, unknown> = {}) =>
         Effect.sync(() => {
           const normalized = eventName.trim();
           if (!normalized) return;
@@ -363,16 +319,14 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
         events: ReadonlyArray<{
           eventName: string;
           properties: Record<string, unknown>;
-        }>
+        }>,
       ) =>
         Effect.sync(() => {
           const additions: QueuedAnalyticsEvent[] = [];
           for (const event of events) {
             const normalized = event.eventName.trim();
             if (!normalized) continue;
-            additions.push(
-              createQueuedAnalyticsEvent(normalized, event.properties)
-            );
+            additions.push(createQueuedAnalyticsEvent(normalized, event.properties));
           }
           if (additions.length === 0) return;
           queueRef.ref.current = [...queueRef.ref.current, ...additions];
@@ -397,28 +351,19 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
 
           const additions: QueuedAnalyticsEvent[] = [];
           if (!previousAppRelease) {
-            additions.push(
-              createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_INSTALLED, {})
-            );
+            additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_INSTALLED, {}));
           } else if (
             previousAppRelease.appBuild !== currentAppRelease.appBuild ||
             previousAppRelease.appVersion !== currentAppRelease.appVersion
           ) {
-            additions.push(
-              createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_UPDATED, {})
-            );
+            additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_UPDATED, {}));
           }
-          additions.push(
-            createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_OPENED, {})
-          );
+          additions.push(createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_OPENED, {}));
 
           queueRef.ref.current = [...queueRef.ref.current, ...additions];
 
           yield* cacheManager
-            .set(
-              ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY,
-              currentAppRelease
-            )
+            .set(ANALYTICS_LAST_SEEN_APP_RELEASE_STORAGE_KEY, currentAppRelease)
             .pipe(Effect.orElseSucceed(() => undefined));
         });
 
@@ -430,11 +375,11 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
         Effect.gen(function* () {
           yield* Effect.race(
             Effect.sleep(Duration.millis(ANALYTICS_FLUSH_INTERVAL_MS)),
-            latch.await
+            latch.await,
           );
           yield* latch.close;
           yield* Effect.sync(() => flushCallback?.());
-        })
+        }),
       );
       yield* Effect.forkScoped(daemon);
 
@@ -451,7 +396,7 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
         transferEvents,
       } as const;
     }),
-  }
+  },
 ) {
   static readonly layer = Layer.effect(this, this.make);
 }

@@ -1,10 +1,7 @@
 import { Component, type ReactNode } from "react";
 
 import { postOutboundEnvelope } from "../runtime/bridge";
-import {
-  createEventEnvelope,
-  type PaywallOutboundEnvelope,
-} from "../runtime/envelope";
+import { createEventEnvelope, type PaywallOutboundEnvelope } from "../runtime/envelope";
 
 export interface PaywallErrorBoundaryProps {
   /** Posts an outbound envelope; defaults to the production bridge channel. */

@@ -9,18 +9,9 @@
 /** A length value: device-independent pixels or a string (e.g. `"50%"`). */
 export type PaywallDimension = number | string;
 
-export type PaywallFlexDirection =
-  | "row"
-  | "row-reverse"
-  | "column"
-  | "column-reverse";
+export type PaywallFlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 
-export type PaywallAlignItems =
-  | "flex-start"
-  | "flex-end"
-  | "center"
-  | "stretch"
-  | "baseline";
+export type PaywallAlignItems = "flex-start" | "flex-end" | "center" | "stretch" | "baseline";
 
 export type PaywallAlignSelf = "auto" | PaywallAlignItems;
 
@@ -121,11 +112,7 @@ export interface PaywallStyle {
   letterSpacing?: number;
   textAlign?: "auto" | "left" | "right" | "center" | "justify";
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
-  textDecorationLine?:
-    | "none"
-    | "underline"
-    | "line-through"
-    | "underline line-through";
+  textDecorationLine?: "none" | "underline" | "line-through" | "underline line-through";
   fontFamily?: string;
 }
 
@@ -203,9 +190,4 @@ export const PAYWALL_STYLE_KEYS = [
  * or a falsy value — mirroring React Native's `StyleProp`. Falsy entries are
  * ignored so `style={[base, condition && override]}` works as expected.
  */
-export type StyleProp =
-  | PaywallStyle
-  | false
-  | null
-  | undefined
-  | ReadonlyArray<StyleProp>;
+export type StyleProp = PaywallStyle | false | null | undefined | ReadonlyArray<StyleProp>;

@@ -71,9 +71,7 @@ let eventCounter = 0;
  * delivers inbound envelopes (`configure`/`response`/`status`), so `subscribe`
  * is a no-op subscription.
  */
-export const createStudioBridge = (
-  onEvent: (event: PreviewEvent) => void,
-): PaywallBridge => ({
+export const createStudioBridge = (onEvent: (event: PreviewEvent) => void): PaywallBridge => ({
   post: (envelope) => {
     eventCounter += 1;
     onEvent({ at: Date.now(), envelope, key: eventCounter });

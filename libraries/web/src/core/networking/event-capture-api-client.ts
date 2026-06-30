@@ -15,9 +15,9 @@ const make = Effect.gen(function* effect() {
       Effect.succeed(
         client.pipe(
           HttpClient.mapRequest((request) =>
-            HttpClientRequest.prependUrl(request, config.analytics.baseUrl)
-          )
-        )
+            HttpClientRequest.prependUrl(request, config.analytics.baseUrl),
+          ),
+        ),
       ),
   });
 });

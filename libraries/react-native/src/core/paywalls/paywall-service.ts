@@ -11,17 +11,13 @@ import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
  * `runtime` block for code releases (`null`/absent for visual-editor
  * releases). Passed through from the server response untouched.
  */
-export type ResolvedPaywallRelease = NonNullable<
-  SdkResolvedPaywall["showing"]["paywallRelease"]
->;
+export type ResolvedPaywallRelease = NonNullable<SdkResolvedPaywall["showing"]["paywallRelease"]>;
 
 /**
  * The §6 runtime block of a code-release paywall: content-addressed identity,
  * the product slugs the paywall uses and the author-configured variables.
  */
-export type PaywallReleaseRuntime = NonNullable<
-  ResolvedPaywallRelease["runtime"]
->;
+export type PaywallReleaseRuntime = NonNullable<ResolvedPaywallRelease["runtime"]>;
 
 /**
  * Resolves the currently assigned paywall for a location slug. Stateless;

@@ -10,7 +10,7 @@ export interface FetchCall {
 export const createJsonResponse = (
   body: Record<string, unknown>,
   status = 200,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
 ) =>
   new Response(JSON.stringify(body), {
     headers: {
@@ -26,9 +26,7 @@ export const flushMicrotasks = async (times = 4) => {
   }
 };
 
-export const installFetchMock = (
-  handler: (call: FetchCall) => Promise<Response> | Response
-) => {
+export const installFetchMock = (handler: (call: FetchCall) => Promise<Response> | Response) => {
   const calls: FetchCall[] = [];
   const fetchMock = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
     let url: string;

@@ -13,10 +13,7 @@ export type PaywallWebViewNavigationType =
   | "formresubmit"
   | "other";
 
-export type PaywallWebViewMixedContentMode =
-  | "never"
-  | "always"
-  | "compatibility";
+export type PaywallWebViewMixedContentMode = "never" | "always" | "compatibility";
 
 export type PaywallWebViewOverScrollModeType = "always" | "content" | "never";
 
@@ -67,8 +64,7 @@ export interface PaywallWebViewNavigationEvent extends PaywallWebViewBaseEvent {
   mainDocumentURL?: string;
 }
 
-export interface PaywallWebViewShouldStartLoadRequest
-  extends PaywallWebViewNavigationEvent {
+export interface PaywallWebViewShouldStartLoadRequest extends PaywallWebViewNavigationEvent {
   isTopFrame: boolean;
 }
 
@@ -161,9 +157,7 @@ export interface PaywallWebViewProps extends HybridViewProps {
   onFileDownload?: (event: PaywallWebViewFileDownloadEvent) => void;
   onRenderProcessGone?: (event: PaywallWebViewRenderProcessGoneEvent) => void;
   onContentProcessDidTerminate?: (event: PaywallWebViewBaseEvent) => void;
-  onShouldStartLoadWithRequest?: Sync<
-    (event: PaywallWebViewShouldStartLoadRequest) => boolean
-  >;
+  onShouldStartLoadWithRequest?: Sync<(event: PaywallWebViewShouldStartLoadRequest) => boolean>;
 }
 
 export interface PaywallWebViewMethods extends HybridViewMethods {
@@ -180,7 +174,4 @@ export interface PaywallWebViewMethods extends HybridViewMethods {
   clearCache(includeDiskFiles: boolean): void;
 }
 
-export type PaywallWebView = HybridView<
-  PaywallWebViewProps,
-  PaywallWebViewMethods
->;
+export type PaywallWebView = HybridView<PaywallWebViewProps, PaywallWebViewMethods>;

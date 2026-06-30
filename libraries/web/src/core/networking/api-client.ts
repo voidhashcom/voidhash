@@ -48,7 +48,7 @@ interface WebSdkHeaders {
 }
 
 const normalizeFeatureFlagsResponse = (
-  response: SdkFeatureFlagsResponse
+  response: SdkFeatureFlagsResponse,
 ): WebFeatureFlagsResponse => ({
   flags: response.flags.map((flag) => ({
     enabled: flag.enabled,
@@ -69,22 +69,16 @@ const bindWebSdkClient = (client: VoidhashCoreClient) => ({
           params: request.headers as SdkEvaluateFeatureFlagsParams,
           payload: request.payload,
         }),
-        normalizeFeatureFlagsResponse
+        normalizeFeatureFlagsResponse,
       ),
     getPerson: (request: { headers: WebSdkHeaders }) =>
       client.sdkGetPerson(request.headers as SdkGetPersonParams),
-    identify: (request: {
-      headers: WebSdkHeaders;
-      payload: SdkIdentifyBody;
-    }) =>
+    identify: (request: { headers: WebSdkHeaders; payload: SdkIdentifyBody }) =>
       client.sdkIdentifyPerson({
         params: request.headers as SdkIdentifyPersonParams,
         payload: request.payload,
       }),
-    resolvePaywall: (request: {
-      headers: WebSdkHeaders;
-      payload: SdkResolvePaywallBody;
-    }) =>
+    resolvePaywall: (request: { headers: WebSdkHeaders; payload: SdkResolvePaywallBody }) =>
       client.sdkResolvePaywall({
         params: request.headers as Parameters<typeof client.sdkResolvePaywall>[0]["params"],
         payload: request.payload,
@@ -109,17 +103,16 @@ const make = Effect.gen(function* effect() {
         Effect.succeed(
           client.pipe(
             HttpClient.mapRequest((request) =>
-              HttpClientRequest.prependUrl(request, config.baseUrl)
-            )
-          )
+              HttpClientRequest.prependUrl(request, config.baseUrl),
+            ),
+          ),
         ),
-    })
+    }),
   );
 });
 
-export class ApiClient extends Context.Service<
-  ApiClient,
-  Effect.Success<typeof make>
->()("web-voidhash/ApiClient") {
+export class ApiClient extends Context.Service<ApiClient, Effect.Success<typeof make>>()(
+  "web-voidhash/ApiClient",
+) {
   static Default = Layer.effect(ApiClient, make);
 }

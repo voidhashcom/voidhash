@@ -181,11 +181,7 @@ export class Logger {
   }
 
   // Convenience method for logging errors with stack traces
-  errorWithStack(
-    message: string,
-    error: Error,
-    data?: Record<string, unknown>
-  ): void {
+  errorWithStack(message: string, error: Error, data?: Record<string, unknown>): void {
     this.log(LogLevel.ERROR, message, {
       ...data,
       error: {
@@ -200,7 +196,7 @@ export class Logger {
   child(additionalContext: string): Logger {
     const childLogger = new Logger(
       this.context ? `${this.context}.${additionalContext}` : additionalContext,
-      this.level
+      this.level,
     );
 
     // Copy handlers from parent

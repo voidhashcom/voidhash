@@ -25,9 +25,7 @@ export interface PaywallProduct {
 }
 
 /** Author-configurable values the dashboard/experiments can override at runtime. */
-export type PaywallVariables = Readonly<
-  Record<string, string | number | boolean>
->;
+export type PaywallVariables = Readonly<Record<string, string | number | boolean>>;
 
 /** Platform the paywall is being presented on. */
 export type PaywallPlatform = "ios" | "android" | "web";

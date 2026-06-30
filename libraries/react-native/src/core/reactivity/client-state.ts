@@ -10,8 +10,7 @@ export type { FeatureFlagsResult };
  * Reactive store of the currently identified person. Written by the
  * person/identity facade paths and read by `useCurrentPerson`.
  */
-export const currentPersonAtom: Atom.Writable<SdkPerson | null> =
-  Atom.make<SdkPerson | null>(null);
+export const currentPersonAtom: Atom.Writable<SdkPerson | null> = Atom.make<SdkPerson | null>(null);
 
 /**
  * Reactive store of the runtime schema fetched at init time and refreshed
@@ -22,8 +21,9 @@ export const currentPersonAtom: Atom.Writable<SdkPerson | null> =
  * publishes — the cached value first, then the freshly refreshed value
  * when the background fetch lands. The two values are usually identical.
  */
-export const schemaAtom: Atom.Writable<RuntimeSchema | null> =
-  Atom.make<RuntimeSchema | null>(null);
+export const schemaAtom: Atom.Writable<RuntimeSchema | null> = Atom.make<RuntimeSchema | null>(
+  null,
+);
 
 /**
  * Reactive store of feature flag results, keyed by their normalized flag-key
@@ -31,9 +31,8 @@ export const schemaAtom: Atom.Writable<RuntimeSchema | null> =
  * request set in its own slot prevents one hook's fetch from overwriting the
  * value of another hook that asked for a different set of flags.
  */
-export const featureFlagsByKeyAtom: Atom.Writable<
-  Readonly<Record<string, FeatureFlagsResult>>
-> = Atom.make<Readonly<Record<string, FeatureFlagsResult>>>({});
+export const featureFlagsByKeyAtom: Atom.Writable<Readonly<Record<string, FeatureFlagsResult>>> =
+  Atom.make<Readonly<Record<string, FeatureFlagsResult>>>({});
 
 /**
  * Normalizes a feature-flag request signature so that any callers asking for
@@ -41,9 +40,7 @@ export const featureFlagsByKeyAtom: Atom.Writable<
  * sort a copy because the caller's array is part of their input and must not
  * be mutated.
  */
-export const normalizeFeatureFlagKeys = (
-  flagKeys?: readonly string[]
-): string => {
+export const normalizeFeatureFlagKeys = (flagKeys?: readonly string[]): string => {
   if (!flagKeys || flagKeys.length === 0) {
     return "all";
   }
@@ -54,7 +51,7 @@ const featureFlagsForNormalizedKeyAtom = Atom.family((normalizedKey: string) =>
   Atom.make((get): FeatureFlagsResult | null => {
     const byKey = get(featureFlagsByKeyAtom);
     return byKey[normalizedKey] ?? null;
-  })
+  }),
 );
 
 /**

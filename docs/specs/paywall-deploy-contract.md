@@ -14,50 +14,83 @@ Produced by `voidhash-cli deploy` at `.voidhash/.build/manifest.json`. Supersede
 {
   "schemaVersion": 2,
   "cliVersion": "0.0.1-alpha.1",
-  "runtimeVersion": "0.0.1-alpha.1",        // @voidhash/paywalls version built against
-  "team": "voidhash-dev-sro",               // organization slug
-  "project": "dev-proj",                    // project slug
+  "runtimeVersion": "0.0.1-alpha.1", // @voidhash/paywalls version built against
+  "team": "voidhash-dev-sro", // organization slug
+  "project": "dev-proj", // project slug
   "createdAt": "2026-06-11T10:00:00.000Z",
 
   "paywalls": [
     {
-      "id": "onboarding",                   // slug, from filename; ^[a-z0-9][a-z0-9-]{0,63}$
+      "id": "onboarding", // slug, from filename; ^[a-z0-9][a-z0-9-]{0,63}$
       "title": "Onboarding",
-      "description": "Full-screen onboarding paywall.",   // optional
-      "products": ["yearly", "monthly"],    // product slugs the paywall uses (may be empty)
-      "variables": { "accentColor": "#16a34a" },          // string|number|boolean values only
-      "source":  { "path": ".voidhash/paywalls/onboarding.tsx", "bytes": 4096, "sha256": "…" },
+      "description": "Full-screen onboarding paywall.", // optional
+      "products": ["yearly", "monthly"], // product slugs the paywall uses (may be empty)
+      "variables": { "accentColor": "#16a34a" }, // string|number|boolean values only
+      "source": { "path": ".voidhash/paywalls/onboarding.tsx", "bytes": 4096, "sha256": "…" },
       "artifacts": {
-        "html": { "path": ".voidhash/.build/paywalls/onboarding/index.html", "bytes": 900,    "sha256": "…", "contentType": "text/html; charset=utf-8" },
-        "js":   { "path": ".voidhash/.build/paywalls/onboarding/bundle.js",  "bytes": 201000, "sha256": "…", "contentType": "text/javascript; charset=utf-8" }
+        "html": {
+          "path": ".voidhash/.build/paywalls/onboarding/index.html",
+          "bytes": 900,
+          "sha256": "…",
+          "contentType": "text/html; charset=utf-8",
+        },
+        "js": {
+          "path": ".voidhash/.build/paywalls/onboarding/bundle.js",
+          "bytes": 201000,
+          "sha256": "…",
+          "contentType": "text/javascript; charset=utf-8",
+        },
       },
-      "assets": [".voidhash/.build/paywalls/onboarding/assets/hero-AB12CD.png"],  // paths into top-level assets[]
-      "contentHash": "5b00934c90ee…"        // see §1.2
-    }
+      "assets": [".voidhash/.build/paywalls/onboarding/assets/hero-AB12CD.png"], // paths into top-level assets[]
+      "contentHash": "5b00934c90ee…", // see §1.2
+    },
   ],
 
   "components": [
     {
-      "id": "product-option",               // slug, from filename; same regex as paywall ids
-      "title": "Product Option",            // optional, from definition
-      "source":   { "path": ".voidhash/components/product-option.tsx", "bytes": 1500, "sha256": "…" },
-      "manifest": { "path": ".voidhash/.build/components/product-option/manifest.json", "bytes": 800, "sha256": "…", "contentType": "application/json" },
+      "id": "product-option", // slug, from filename; same regex as paywall ids
+      "title": "Product Option", // optional, from definition
+      "source": { "path": ".voidhash/components/product-option.tsx", "bytes": 1500, "sha256": "…" },
+      "manifest": {
+        "path": ".voidhash/.build/components/product-option/manifest.json",
+        "bytes": 800,
+        "sha256": "…",
+        "contentType": "application/json",
+      },
       "previews": [
-        { "state": "default", "file": { "path": ".voidhash/.build/components/product-option/previews/default.json", "bytes": 2000, "sha256": "…", "contentType": "application/json" } }
+        {
+          "state": "default",
+          "file": {
+            "path": ".voidhash/.build/components/product-option/previews/default.json",
+            "bytes": 2000,
+            "sha256": "…",
+            "contentType": "application/json",
+          },
+        },
       ],
       "artifacts": {
-        "runtime": { "path": ".voidhash/.build/components/product-option/runtime.js", "bytes": 6000, "sha256": "…", "contentType": "text/javascript; charset=utf-8" },
-        "panel":   null                     // or a file entry when the component declares a custom panel
+        "runtime": {
+          "path": ".voidhash/.build/components/product-option/runtime.js",
+          "bytes": 6000,
+          "sha256": "…",
+          "contentType": "text/javascript; charset=utf-8",
+        },
+        "panel": null, // or a file entry when the component declares a custom panel
       },
-      "contentHash": "ab93f1…"              // see §1.2
-    }
+      "contentHash": "ab93f1…", // see §1.2
+    },
   ],
 
   "config": { "path": "voidhash.config.ts", "bytes": 120, "sha256": "…" },
 
   "assets": [
-    { "path": ".voidhash/.build/paywalls/onboarding/assets/hero-AB12CD.png", "bytes": 88000, "sha256": "…", "contentType": "image/png" }
-  ]
+    {
+      "path": ".voidhash/.build/paywalls/onboarding/assets/hero-AB12CD.png",
+      "bytes": 88000,
+      "sha256": "…",
+      "contentType": "image/png",
+    },
+  ],
 }
 ```
 
@@ -94,37 +127,37 @@ Emitted per component by the CLI (extracted from `defineComponent` in a local no
 {
   "manifestVersion": 1,
   "id": "product-option",
-  "title": "Product Option",                // optional
-  "description": "…",                       // optional
+  "title": "Product Option", // optional
+  "description": "…", // optional
   "props": {
-    "product":     { "kind": "ref", "refType": "product", "label": "Product", "optional": false },
-    "selected":    { "kind": "boolean", "default": false, "optional": true },
+    "product": { "kind": "ref", "refType": "product", "label": "Product", "optional": false },
+    "selected": { "kind": "boolean", "default": false, "optional": true },
     "accentColor": { "kind": "string", "editor": "color", "default": "#16a34a", "optional": true },
-    "badge":       { "kind": "component", "optional": true },
-    "features":    { "kind": "array", "item": { "kind": "string" }, "optional": true },
-    "plan":        { "kind": "select", "options": ["monthly", "yearly"], "optional": true }
+    "badge": { "kind": "component", "optional": true },
+    "features": { "kind": "array", "item": { "kind": "string" }, "optional": true },
+    "plan": { "kind": "select", "options": ["monthly", "yearly"], "optional": true },
   },
   "actions": {
-    "onSelect": { "payload": { "productId": { "kind": "string" } } }   // payload may be {}
+    "onSelect": { "payload": { "productId": { "kind": "string" } } }, // payload may be {}
   },
-  "slot": true,                             // exactly one <Slot/> allowed per component
+  "slot": true, // exactly one <Slot/> allowed per component
   "previewStates": ["default", "trial"],
-  "hostData": ["products"]                  // which injected runtime data the component reads
+  "hostData": ["products"], // which injected runtime data the component reads
 }
 ```
 
 Prop kinds: `string | number | boolean | select | image | ref | component | array`. Per-kind fields and constraints:
 
-| `kind` | extra fields | `editor` | `default` |
-| --- | --- | --- | --- |
-| `string` | — | allowed (`"color"` for now) | `string` |
-| `number` | — | not allowed | `number` |
-| `boolean` | — | not allowed | `boolean` |
-| `select` | `options`: **non-empty** `string[]` (empty options are a build error in the CLI and rejected at finalize) | not allowed | `string` |
-| `image` | — | not allowed | `string` (URL / asset reference) |
-| `ref` | `refType`: `"product"` only in P1 | not allowed | — |
-| `component` | — | not allowed | — |
-| `array` | `item`: a non-array kind (carries the same per-kind fields) | not allowed | array of scalars matching `item` |
+| `kind`      | extra fields                                                                                              | `editor`                    | `default`                        |
+| ----------- | --------------------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------- |
+| `string`    | —                                                                                                         | allowed (`"color"` for now) | `string`                         |
+| `number`    | —                                                                                                         | not allowed                 | `number`                         |
+| `boolean`   | —                                                                                                         | not allowed                 | `boolean`                        |
+| `select`    | `options`: **non-empty** `string[]` (empty options are a build error in the CLI and rejected at finalize) | not allowed                 | `string`                         |
+| `image`     | —                                                                                                         | not allowed                 | `string` (URL / asset reference) |
+| `ref`       | `refType`: `"product"` only in P1                                                                         | not allowed                 | —                                |
+| `component` | —                                                                                                         | not allowed                 | —                                |
+| `array`     | `item`: a non-array kind (carries the same per-kind fields)                                               | not allowed                 | array of scalars matching `item` |
 
 `editor` is a UI hint and only legal on `string` props — the authoring API enforces this at the type level. Non-JSON-serializable defaults (e.g. React nodes) are omitted from the manifest. A prop with a `default` is always emitted with `optional: true`. All kinds also accept optional `label`, `description`, `optional`.
 
@@ -137,15 +170,15 @@ The component SSR-ed at CLI build time against the preview state's fixtures, ren
   "treeVersion": 1,
   "state": "default",
   "root": {
-    "type": "view",                         // view|text|image|pressable|scroll|slot|placeholder
-    "style": { "flexDirection": "row", "padding": 16 },   // RN-compatible subset, see §3.1
+    "type": "view", // view|text|image|pressable|scroll|slot|placeholder
+    "style": { "flexDirection": "row", "padding": 16 }, // RN-compatible subset, see §3.1
     "children": [
       { "type": "text", "style": { "color": "#fff" }, "text": "Yearly" },
       { "type": "image", "style": {}, "src": "https://…", "resizeMode": "cover" },
-      { "type": "slot" },                   // slot marker — editor mounts children here
-      { "type": "placeholder", "reason": "render returned null" }
-    ]
-  }
+      { "type": "slot" }, // slot marker — editor mounts children here
+      { "type": "placeholder", "reason": "render returned null" },
+    ],
+  },
 }
 ```
 
@@ -196,6 +229,7 @@ POST /api/v1/paywall-deploys/:deployId/finalize
 Finalize is the immutable commit point. Server-side validation (trusts nothing): every referenced blob present; recompute every sha256 + every `contentHash`; schema-validate component manifests (§2) and preview trees (§3) from the stored blobs; enforce §1.1 caps. Any failure → `409 { missing: [...] }` for incompleteness, `422` with details for validation failures; the deploy stays pending and can be retried. On a `409` whose `missing` hashes map back to manifest files, the CLI re-uploads exactly those blobs and retries finalize once; a second failure surfaces as an error. Finalizing an already-`ready` deploy is a fully re-validated no-op: it re-copies the idempotent serving objects and returns the current release/component summaries (releases are reused when the latest released `contentHash` matches, so no new versions are created).
 
 Effects on success, per paywall in the manifest:
+
 1. Upsert a `paywall` row by `(projectId, slug=id)` with `source = code`.
 2. If the latest released release for that paywall already has this `contentHash`, reuse it (no new version). Otherwise create a released `paywall_release` row: `version = max+1`, `s3Key = "p/<contentHash>/index.html"`, `contentHash`, `deployId`, `runtimeConfig = { productSlugs, variables }`, and mark it active (previous active cleared).
 3. Copy blobs into the public serving layout (§5).
@@ -264,15 +298,15 @@ The bundle reads `window.__VOIDHASH_PAYWALL__` (shape below) if set before it ru
 ```ts
 interface PaywallRuntimeConfig {
   products: Array<{
-    id: string;                 // store product id
-    slug: string;               // voidhash product slug
+    id: string; // store product id
+    slug: string; // voidhash product slug
     displayName: string;
     description?: string;
     price?: number;
-    priceString: string;        // locale-correct, from StoreKit/Play Billing
+    priceString: string; // locale-correct, from StoreKit/Play Billing
     currencyCode?: string;
     period?: "month" | "year" | "week" | "lifetime";
-    trialPeriod?: string;       // e.g. "7d"
+    trialPeriod?: string; // e.g. "7d"
   }>;
   variables: Record<string, string | number | boolean>;
   locale?: string;

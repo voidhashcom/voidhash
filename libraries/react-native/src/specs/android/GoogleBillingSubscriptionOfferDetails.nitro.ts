@@ -1,7 +1,6 @@
-import type { HybridObject } from 'react-native-nitro-modules';
+import type { HybridObject } from "react-native-nitro-modules";
 
-export interface GoogleBillingPricingPhase
-  extends HybridObject<{ android: 'kotlin' }> {
+export interface GoogleBillingPricingPhase extends HybridObject<{ android: "kotlin" }> {
   readonly formattedPrice: string;
   readonly priceCurrencyCode: string;
   readonly billingPeriod: string;
@@ -10,13 +9,11 @@ export interface GoogleBillingPricingPhase
   readonly recurrenceMode: number;
 }
 
-export interface GoogleBillingPricingPhases
-  extends HybridObject<{ android: 'kotlin' }> {
+export interface GoogleBillingPricingPhases extends HybridObject<{ android: "kotlin" }> {
   readonly pricingPhaseList: GoogleBillingPricingPhase[];
 }
 
-export interface GoogleBillingSubscriptionOfferDetails
-  extends HybridObject<{ android: 'kotlin' }> {
+export interface GoogleBillingSubscriptionOfferDetails extends HybridObject<{ android: "kotlin" }> {
   readonly basePlanId: string;
   readonly offerId?: string;
   readonly offerToken: string;

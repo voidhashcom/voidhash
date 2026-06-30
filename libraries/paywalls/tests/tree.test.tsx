@@ -35,11 +35,7 @@ describe("renderToNodeTree", () => {
     const tree = await renderToNodeTree(
       <View style={{ flexDirection: "row", padding: 16 }}>
         <Text style={{ color: "#fff" }}>Yearly</Text>
-        <Image
-          resizeMode="cover"
-          source="https://cdn.test/hero.png"
-          style={{}}
-        />
+        <Image resizeMode="cover" source="https://cdn.test/hero.png" style={{}} />
       </View>,
     );
 
@@ -129,10 +125,7 @@ describe("renderToNodeTree", () => {
     expect(tree.root).toEqual({
       type: "view",
       style: {},
-      children: [
-        { type: "text", style: {}, text: "Untitled" },
-        { type: "slot" },
-      ],
+      children: [{ type: "text", style: {}, text: "Untitled" }, { type: "slot" }],
     });
   });
 
@@ -179,10 +172,7 @@ describe("renderToNodeTree", () => {
     const tree = await renderToNodeTree(<Selectable />);
     expect(tree.root).toMatchObject({
       type: "view",
-      children: [
-        { type: "pressable", action: "onSelect" },
-        { type: "pressable" },
-      ],
+      children: [{ type: "pressable", action: "onSelect" }, { type: "pressable" }],
     });
     if (tree.root.type !== "view") {
       throw new Error("expected a view root");

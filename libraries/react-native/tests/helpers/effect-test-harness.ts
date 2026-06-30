@@ -103,7 +103,7 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
                 variantKey: "on",
               },
             ],
-          }
+          },
         );
       },
       getPerson: (request: ApiSdkCall) => {
@@ -118,24 +118,18 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
           });
         }
         const distinctId = String(request.headers["x-distinct-id"]);
-        return Effect.succeed(
-          options.getPersonResult ?? createSdkPerson(distinctId)
-        );
+        return Effect.succeed(options.getPersonResult ?? createSdkPerson(distinctId));
       },
       identify: (request: ApiSdkCall) => {
         state.identifyCalls.push(request);
         const distinctId = String(request.payload?.distinctId ?? "identified-user");
-        return Effect.succeed(
-          options.identifyResult ?? createSdkPerson(distinctId)
-        );
+        return Effect.succeed(options.identifyResult ?? createSdkPerson(distinctId));
       },
       resolvePaywall: () => Effect.succeed(null),
       syncPersonAttributes: (request: ApiSdkCall) => {
         state.syncPersonAttributesCalls.push(request);
         const distinctId = String(request.headers["x-distinct-id"]);
-        return Effect.succeed(
-          options.syncPersonAttributesResult ?? createSdkPerson(distinctId)
-        );
+        return Effect.succeed(options.syncPersonAttributesResult ?? createSdkPerson(distinctId));
       },
       syncTransaction: (request: ApiSdkCall) => {
         state.syncTransactionCalls.push(request);
@@ -170,9 +164,7 @@ export interface PaymentAdapterDoubleOptions {
   products?: Product[];
 }
 
-export function createPaymentAdapterDouble(
-  options: PaymentAdapterDoubleOptions = {}
-) {
+export function createPaymentAdapterDouble(options: PaymentAdapterDoubleOptions = {}) {
   const state: PaymentAdapterDoubleState = {
     acknowledgePurchaseCalls: [],
     buyProductCalls: [],
@@ -191,23 +183,14 @@ export function createPaymentAdapterDouble(
       state.buyProductCalls.push(product);
       return Effect.succeed(
         options.buyProductTransaction ??
-          new Transaction(
-            "tx-id",
-            "tx-id",
-            product.slug,
-            Date.now(),
-            1,
-            false,
-            "ios"
-          )
+          new Transaction("tx-id", "tx-id", product.slug, Date.now(), 1, false, "ios"),
       );
     },
     endConnection: () => {
       state.endConnectionCalls += 1;
       return Effect.void;
     },
-    getPendingTransactions: () =>
-      Effect.succeed(options.pendingTransactions ?? []),
+    getPendingTransactions: () => Effect.succeed(options.pendingTransactions ?? []),
     getProducts: () => {
       state.getProductsCalls += 1;
       return Effect.succeed(options.products ?? []);
@@ -308,22 +291,17 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
     Layer.provideMerge(IdentityManager.Default),
     Layer.provideMerge(CacheManager.Default),
     Layer.provideMerge(Layer.succeed(CacheAdapter, options.cacheAdapter)),
-    Layer.provideMerge(
-      Layer.succeed(ApiClient, options.apiClient as typeof ApiClient.Service)
-    ),
+    Layer.provideMerge(Layer.succeed(ApiClient, options.apiClient as typeof ApiClient.Service)),
     Layer.provideMerge(FetchHttpClient.layer),
     Layer.provideMerge(
-      Layer.succeed(
-        PaymentAdapter,
-        options.paymentAdapter as typeof PaymentAdapter.Service
-      )
+      Layer.succeed(PaymentAdapter, options.paymentAdapter as typeof PaymentAdapter.Service),
     ),
     Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
     Layer.provideMerge(
       Layer.succeed(PlatformProvider, {
         ...defaultPlatformInfo,
         ...options.platform,
-      })
+      }),
     ),
     Layer.provideMerge(
       Layer.succeed(SdkConfiguration, {
@@ -332,14 +310,11 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
         ingestUrl: options.ingestUrl,
         publishableKey: options.publishableKey ?? "pk_test",
         readOnly: options.readOnly ?? false,
-      })
-    )
+      }),
+    ),
   );
   const layer = options.fetch
-    ? pipe(
-        baseLayer,
-        Layer.provideMerge(Layer.succeed(FetchHttpClient.Fetch, options.fetch))
-      )
+    ? pipe(baseLayer, Layer.provideMerge(Layer.succeed(FetchHttpClient.Fetch, options.fetch)))
     : baseLayer;
 
   return {

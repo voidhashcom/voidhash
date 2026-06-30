@@ -2,7 +2,7 @@ import type { PaywallWebViewSource } from "../../specs/PaywallWebView.nitro";
 import type { PaywallWebViewProps } from "./types";
 
 export function wrapNitroCallback<T extends Function | undefined>(
-  callback: T
+  callback: T,
 ): { f: T } | undefined {
   if (!callback) {
     return undefined;
@@ -12,7 +12,7 @@ export function wrapNitroCallback<T extends Function | undefined>(
 }
 
 export function normalizeSource(
-  source?: PaywallWebViewProps["source"]
+  source?: PaywallWebViewProps["source"],
 ): PaywallWebViewSource | undefined {
   if (!source || typeof source === "number") {
     return undefined;

@@ -28,9 +28,7 @@ const Card = defineComponent({
   ),
 }).component;
 
-const collectingBridge = (
-  posted: PaywallOutboundEnvelope[],
-): PaywallBridge => ({
+const collectingBridge = (posted: PaywallOutboundEnvelope[]): PaywallBridge => ({
   post: (envelope) => {
     posted.push(envelope);
   },
@@ -80,9 +78,7 @@ describe("DOM paywall rendering", () => {
       title: "Override",
       render: <Card title="Pro" />,
     });
-    expect(
-      renderToStaticMarkup(<PaywallRenderer paywall={paywall} />),
-    ).toContain("Card Pro");
+    expect(renderToStaticMarkup(<PaywallRenderer paywall={paywall} />)).toContain("Card Pro");
   });
 
   it("exposes runtime products and variables through hooks", () => {
@@ -91,8 +87,7 @@ describe("DOM paywall rendering", () => {
       const variables = usePaywallVariables();
       return (
         <Text>
-          {products.map((product) => product.displayName).join(",")}|
-          {String(variables.accentColor)}
+          {products.map((product) => product.displayName).join(",")}|{String(variables.accentColor)}
         </Text>
       );
     };
@@ -137,9 +132,7 @@ describe("DOM paywall rendering", () => {
   it("accepts an injected bridge (no envelopes from a static render)", () => {
     const posted: PaywallOutboundEnvelope[] = [];
     const paywall = createPaywall({ title: "Bridge", render: <View /> });
-    renderToStaticMarkup(
-      <PaywallRenderer bridge={collectingBridge(posted)} paywall={paywall} />,
-    );
+    renderToStaticMarkup(<PaywallRenderer bridge={collectingBridge(posted)} paywall={paywall} />);
     // Static SSR runs no effects, so `ready` is not announced here; the
     // mount-time behaviour is covered by the tree renderer tests.
     expect(posted).toEqual([]);

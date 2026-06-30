@@ -30,9 +30,7 @@ export interface AnalyticsIngestEvent {
  * `retryable` indicates whether the failure is worth re-attempting; `retryAfterMs`
  * communicates a server-suggested backoff (from `Retry-After` header or body).
  */
-export class AnalyticsSendFailure extends Data.TaggedError(
-  "AnalyticsSendFailure"
-)<{
+export class AnalyticsSendFailure extends Data.TaggedError("AnalyticsSendFailure")<{
   readonly message: string;
   readonly retryable: boolean;
   readonly retryAfterMs?: number | undefined;

@@ -1,11 +1,11 @@
 // Credits: A lot of this was inspired by https://github.com/hyochan/expo-iap
-import type { HybridObject } from 'react-native-nitro-modules';
+import type { HybridObject } from "react-native-nitro-modules";
 
-import type { GoogleBillingAcknowledgeResult } from './GoogleBillingAcknowledgeResult.nitro';
-import type { GoogleBillingProductDetail } from './GoogleBillingProductDetail.nitro';
-import type { GoogleBillingPurchase } from './GoogleBillingPurchase.nitro';
+import type { GoogleBillingAcknowledgeResult } from "./GoogleBillingAcknowledgeResult.nitro";
+import type { GoogleBillingProductDetail } from "./GoogleBillingProductDetail.nitro";
+import type { GoogleBillingPurchase } from "./GoogleBillingPurchase.nitro";
 
-export type GoogleBillingProductType = 'inapp' | 'subs';
+export type GoogleBillingProductType = "inapp" | "subs";
 
 // export interface GoogleBillingConsumeResult {
 //   readonly responseCode: number;
@@ -26,22 +26,16 @@ export interface GoogleBillingBuyItemByTypeParams {
   readonly isOfferPersonalized?: boolean;
 }
 
-export interface GoogleBilling extends HybridObject<{ android: 'kotlin' }> {
-  initConnection(
-    onPurchase?: (purchase: GoogleBillingPurchase) => void
-  ): Promise<boolean>;
+export interface GoogleBilling extends HybridObject<{ android: "kotlin" }> {
+  initConnection(onPurchase?: (purchase: GoogleBillingPurchase) => void): Promise<boolean>;
   endConnection(): Promise<boolean>;
   getItemsByType(
     type: GoogleBillingProductType,
-    skus: string[]
+    skus: string[],
   ): Promise<GoogleBillingProductDetail[]>;
-  buyItemByType(
-    params: GoogleBillingBuyItemByTypeParams
-  ): Promise<GoogleBillingPurchase[]>;
+  buyItemByType(params: GoogleBillingBuyItemByTypeParams): Promise<GoogleBillingPurchase[]>;
   acknowledgePurchase(token: string): Promise<GoogleBillingAcknowledgeResult>;
-  getAvailableItemsByType(
-    type: GoogleBillingProductType
-  ): Promise<GoogleBillingPurchase[]>;
+  getAvailableItemsByType(type: GoogleBillingProductType): Promise<GoogleBillingPurchase[]>;
   // Consume a product (for consumable items)
   // consumeProduct(token: string): Promise<GoogleBillingConsumeResult>;
 

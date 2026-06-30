@@ -30,15 +30,11 @@ describe("PersonInfoManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(PersonInfoManager, (manager) =>
-          manager.cache("cached-user", person)
-        )
+        Effect.flatMap(PersonInfoManager, (manager) => manager.cache("cached-user", person)),
       );
 
       const result = await harness.runtime.runPromise(
-        Effect.flatMap(PersonInfoManager, (manager) =>
-          manager.getPerson("cached-user", "cache")
-        )
+        Effect.flatMap(PersonInfoManager, (manager) => manager.getPerson("cached-user", "cache")),
       );
 
       expect(result).toEqual(person);
@@ -62,14 +58,10 @@ describe("PersonInfoManager", () => {
 
     try {
       const result = await harness.runtime.runPromise(
-        Effect.flatMap(PersonInfoManager, (manager) =>
-          manager.getPerson("fetched-user", "fetch")
-        )
+        Effect.flatMap(PersonInfoManager, (manager) => manager.getPerson("fetched-user", "fetch")),
       );
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(PersonInfoManager, (manager) =>
-          manager.getPersonFromCache("fetched-user")
-        )
+        Effect.flatMap(PersonInfoManager, (manager) => manager.getPersonFromCache("fetched-user")),
       );
 
       if (result === null) {
@@ -97,13 +89,13 @@ describe("PersonInfoManager", () => {
     try {
       const result = await harness.runtime.runPromise(
         Effect.flatMap(PersonInfoManager, (manager) =>
-          manager.getPerson("brand-new-user", "fetch")
-        )
+          manager.getPerson("brand-new-user", "fetch"),
+        ),
       );
       const cached = await harness.runtime.runPromise(
         Effect.flatMap(PersonInfoManager, (manager) =>
-          manager.getPersonFromCache("brand-new-user")
-        )
+          manager.getPersonFromCache("brand-new-user"),
+        ),
       );
 
       expect(result).toBeNull();
@@ -128,13 +120,13 @@ describe("PersonInfoManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(PersonInfoManager, (manager) => manager.cache("fresh-user", person))
+        Effect.flatMap(PersonInfoManager, (manager) => manager.cache("fresh-user", person)),
       );
 
       const result = await harness.runtime.runPromise(
         Effect.flatMap(PersonInfoManager, (manager) =>
-          manager.getPerson("fresh-user", "fetch-while-stale")
-        )
+          manager.getPerson("fresh-user", "fetch-while-stale"),
+        ),
       );
 
       expect(result).toEqual(person);
@@ -164,15 +156,15 @@ describe("PersonInfoManager", () => {
           manager.set("person:stale-user", stalePerson, {
             staleTime: 1,
             ttl: 1000,
-          })
-        )
+          }),
+        ),
       );
       await wait(5);
 
       const result = await harness.runtime.runPromise(
         Effect.flatMap(PersonInfoManager, (manager) =>
-          manager.getPerson("stale-user", "fetch-while-stale")
-        )
+          manager.getPerson("stale-user", "fetch-while-stale"),
+        ),
       );
 
       expect(apiDouble.state.getPersonCalls).toHaveLength(1);

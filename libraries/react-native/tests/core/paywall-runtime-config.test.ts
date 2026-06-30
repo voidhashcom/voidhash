@@ -31,9 +31,7 @@ function makeSubscriptionProduct(overrides: {
   );
 }
 
-function makeRuntime(
-  overrides: Partial<PaywallReleaseRuntime> = {},
-): PaywallReleaseRuntime {
+function makeRuntime(overrides: Partial<PaywallReleaseRuntime> = {}): PaywallReleaseRuntime {
   return {
     contentHash: "abc123",
     productSlugs: ["yearly", "monthly"],
@@ -130,9 +128,7 @@ describe("buildPaywallRuntimeConfig", () => {
     });
 
     expect(skipped).toEqual(["missing", "unknown"]);
-    expect(config.products.map((product) => product.id)).toEqual([
-      "store_monthly",
-    ]);
+    expect(config.products.map((product) => product.id)).toEqual(["store_monthly"]);
     expect(config.defaultSelectedProductId).toBe("store_monthly");
   });
 

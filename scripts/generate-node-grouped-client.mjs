@@ -8,7 +8,7 @@ const [specPathArg, outputPathArg] = process.argv.slice(2);
 
 if (!specPathArg || !outputPathArg) {
   console.error(
-    "Usage: node ./scripts/generate-node-grouped-client.mjs <core-openapi.json> <output-file>"
+    "Usage: node ./scripts/generate-node-grouped-client.mjs <core-openapi.json> <output-file>",
   );
   process.exit(1);
 }
@@ -18,16 +18,14 @@ const outputPath = path.resolve(outputPathArg);
 mkdirSync(path.dirname(outputPath), { recursive: true });
 const spec = JSON.parse(readFileSync(specPath, "utf8"));
 
-const camelCase = (value) =>
-  value.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+const camelCase = (value) => value.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
 
 const pascalCase = (value) => {
   const camel = camelCase(value);
   return camel.charAt(0).toUpperCase() + camel.slice(1);
 };
 
-const toMethodName = (groupName, methodName) =>
-  `${camelCase(groupName)}${pascalCase(methodName)}`;
+const toMethodName = (groupName, methodName) => `${camelCase(groupName)}${pascalCase(methodName)}`;
 
 const toTypeLiteral = (schema) => {
   if (!schema) {
@@ -138,7 +136,7 @@ for (const [routePath, pathItem] of Object.entries(spec.paths)) {
 
     const methodName = toMethodName(groupName, memberName);
     const parameters = [...(pathItem.parameters ?? []), ...(operation.parameters ?? [])].filter(
-      (parameter) => parameter.in !== "header"
+      (parameter) => parameter.in !== "header",
     );
     const parameterNames = parameters.map((parameter) => parameter.name);
     const parameterTypes = parameters.map((parameter) => toTypeLiteral(parameter.schema));

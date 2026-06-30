@@ -21,7 +21,7 @@ import { createTestSchema } from "../helpers/test-schema";
  */
 const waitFor = async (
   predicate: () => boolean,
-  options: { timeoutMs?: number; intervalMs?: number } = {}
+  options: { timeoutMs?: number; intervalMs?: number } = {},
 ) => {
   const timeoutMs = options.timeoutMs ?? 1_000;
   const intervalMs = options.intervalMs ?? 5;
@@ -33,13 +33,8 @@ const waitFor = async (
   throw new Error(`waitFor timed out after ${timeoutMs}ms`);
 };
 
-const resolveSchemaEffect = (args: {
-  distinctId: string;
-  internalSchema?: RuntimeSchema;
-}) =>
-  Effect.flatMap(SchemaManager, (manager) =>
-    manager.resolveSchema(args)
-  );
+const resolveSchemaEffect = (args: { distinctId: string; internalSchema?: RuntimeSchema }) =>
+  Effect.flatMap(SchemaManager, (manager) => manager.resolveSchema(args));
 
 const createAltSchema = (): RuntimeSchema => ({
   version: "sha256:alt",
@@ -65,7 +60,7 @@ describe("SchemaManager", () => {
         resolveSchemaEffect({
           distinctId: "user-1",
           internalSchema,
-        })
+        }),
       );
 
       expect(result).toEqual(internalSchema);
@@ -73,9 +68,7 @@ describe("SchemaManager", () => {
       expect(harness.atomRegistry.get(schemaAtom)).toEqual(internalSchema);
       // Cache should still be empty because we bypassed it entirely.
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
-          manager.get<RuntimeSchema>("schema:1.0.0")
-        )
+        Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:1.0.0")),
       );
       expect(cached).toBeNull();
     } finally {
@@ -96,7 +89,7 @@ describe("SchemaManager", () => {
 
     try {
       const result = await harness.runtime.runPromise(
-        resolveSchemaEffect({ distinctId: "user-1" })
+        resolveSchemaEffect({ distinctId: "user-1" }),
       );
 
       expect(result).toEqual(remoteSchema);
@@ -104,9 +97,7 @@ describe("SchemaManager", () => {
       expect(harness.atomRegistry.get(schemaAtom)).toEqual(remoteSchema);
 
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
-          manager.get<RuntimeSchema>("schema:1.0.0")
-        )
+        Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:1.0.0")),
       );
       expect(cached?.value).toEqual(remoteSchema);
     } finally {
@@ -135,12 +126,12 @@ describe("SchemaManager", () => {
         Effect.flatMap(CacheManager, (manager) =>
           manager.set("schema:1.0.0", cachedSchema, {
             ttl: 1000 * 60 * 60 * 24 * 30,
-          })
-        )
+          }),
+        ),
       );
 
       const result = await harness.runtime.runPromise(
-        resolveSchemaEffect({ distinctId: "user-1" })
+        resolveSchemaEffect({ distinctId: "user-1" }),
       );
 
       // The synchronous return value is the cached schema — what the
@@ -154,15 +145,13 @@ describe("SchemaManager", () => {
       await waitFor(
         () =>
           apiDouble.state.getSchemaCalls.length === 1 &&
-          harness.atomRegistry.get(schemaAtom) === refreshedSchema
+          harness.atomRegistry.get(schemaAtom) === refreshedSchema,
       );
       expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
       expect(harness.atomRegistry.get(schemaAtom)).toEqual(refreshedSchema);
 
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
-          manager.get<RuntimeSchema>("schema:1.0.0")
-        )
+        Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:1.0.0")),
       );
       expect(cached?.value).toEqual(refreshedSchema);
     } finally {
@@ -185,7 +174,7 @@ describe("SchemaManager", () => {
 
     try {
       const exit = await harness.runtime.runPromiseExit(
-        resolveSchemaEffect({ distinctId: "user-1" })
+        resolveSchemaEffect({ distinctId: "user-1" }),
       );
 
       expect(Exit.isFailure(exit)).toBe(true);
@@ -219,21 +208,19 @@ describe("SchemaManager", () => {
         Effect.flatMap(CacheManager, (manager) =>
           manager.set("schema:1.0.0", previousVersionSchema, {
             ttl: 1000 * 60 * 60 * 24 * 30,
-          })
-        )
+          }),
+        ),
       );
 
       const result = await harness.runtime.runPromise(
-        resolveSchemaEffect({ distinctId: "user-1" })
+        resolveSchemaEffect({ distinctId: "user-1" }),
       );
 
       expect(result).toEqual(remoteSchema);
       expect(apiDouble.state.getSchemaCalls).toHaveLength(1);
 
       const cachedForNewVersion = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
-          manager.get<RuntimeSchema>("schema:2.0.0")
-        )
+        Effect.flatMap(CacheManager, (manager) => manager.get<RuntimeSchema>("schema:2.0.0")),
       );
       expect(cachedForNewVersion?.value).toEqual(remoteSchema);
     } finally {
@@ -255,7 +242,7 @@ describe("SchemaManager", () => {
 
     try {
       const result = await harness.runtime.runPromise(
-        resolveSchemaEffect({ distinctId: "user-1" })
+        resolveSchemaEffect({ distinctId: "user-1" }),
       );
 
       expect(result).toEqual(remoteSchema);
@@ -264,13 +251,9 @@ describe("SchemaManager", () => {
 
       // No cache key should have been written.
       const cacheKeys = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
-          manager.getCacheKeys()
-        )
+        Effect.flatMap(CacheManager, (manager) => manager.getCacheKeys()),
       );
-      expect(
-        cacheKeys.some((key) => key.startsWith("schema:"))
-      ).toBe(false);
+      expect(cacheKeys.some((key) => key.startsWith("schema:"))).toBe(false);
     } finally {
       await harness.runtime.dispose();
     }
@@ -290,7 +273,7 @@ describe("SchemaManager", () => {
 
     try {
       const exit = await harness.runtime.runPromiseExit(
-        resolveSchemaEffect({ distinctId: "user-1" })
+        resolveSchemaEffect({ distinctId: "user-1" }),
       );
 
       expect(Exit.isFailure(exit)).toBe(true);

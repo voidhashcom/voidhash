@@ -49,9 +49,7 @@ export const getCommonSdkHeaders = (): Effect.Effect<
 
     const { locales } = platformProvider;
     const preferredLocales =
-      locales.length > 0
-        ? locales.map((locale) => locale.languageTag).join(",")
-        : undefined;
+      locales.length > 0 ? locales.map((locale) => locale.languageTag).join(",") : undefined;
     const clientLocale = locales[0]?.languageTag ?? undefined;
 
     return {

@@ -32,7 +32,7 @@ export class Transaction {
       receipt?: string;
       price?: number;
       currency?: string;
-    }
+    },
   ) {
     this.id = id;
     this.transactionId = transactionId;

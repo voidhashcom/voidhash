@@ -54,18 +54,8 @@ export {
   type PropValueOf,
 } from "./authoring/props";
 // ── Primitives ───────────────────────────────────────────────────────────────
-export {
-  Image,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "./primitives/components";
-export {
-  RendererProvider,
-  type RendererProviderProps,
-  useHost,
-} from "./primitives/host-context";
+export { Image, Pressable, ScrollView, Text, View } from "./primitives/components";
+export { RendererProvider, type RendererProviderProps, useHost } from "./primitives/host-context";
 export { Slot, type SlotProps, SlotProvider } from "./primitives/slot";
 export type {
   HostComponents,
@@ -82,10 +72,7 @@ export type {
 } from "./primitives/types";
 export { domHostComponents } from "./renderer/dom-host";
 // ── Renderer / runtime ───────────────────────────────────────────────────────
-export {
-  PaywallRenderer,
-  type PaywallRendererProps,
-} from "./renderer/paywall-renderer";
+export { PaywallRenderer, type PaywallRendererProps } from "./renderer/paywall-renderer";
 export {
   createDefaultBridge,
   NATIVE_INBOUND_GLOBAL,

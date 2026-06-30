@@ -26,8 +26,7 @@ export interface VoidhashReactContextValue {
   readonly isInitialized: boolean;
 }
 
-export const VoidhashReactContext =
-  createContext<VoidhashReactContextValue | null>(null);
+export const VoidhashReactContext = createContext<VoidhashReactContextValue | null>(null);
 
 export function VoidhashProvider(props: ProviderWithClient | ProviderWithConfig) {
   const clientRef = useRef<VoidhashWebClient | null>(null);
@@ -81,12 +80,10 @@ export function VoidhashProvider(props: ProviderWithClient | ProviderWithConfig)
       distinctId,
       isInitialized,
     }),
-    [client, distinctId, isInitialized]
+    [client, distinctId, isInitialized],
   );
 
   return (
-    <VoidhashReactContext.Provider value={value}>
-      {props.children}
-    </VoidhashReactContext.Provider>
+    <VoidhashReactContext.Provider value={value}>{props.children}</VoidhashReactContext.Provider>
   );
 }

@@ -4,10 +4,7 @@ import { AtomRegistry } from "effect/unstable/reactivity";
 import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../constants";
 import { CacheManager } from "../caching/cache-manager";
 import { ApiClient } from "../networking/api-client";
-import {
-  currentPersonAtom,
-  featureFlagsByKeyAtom,
-} from "../reactivity/client-state";
+import { currentPersonAtom, featureFlagsByKeyAtom } from "../reactivity/client-state";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 import { PersonInfoManager } from "./person-info-manager";
 
@@ -44,7 +41,7 @@ const make = Effect.gen(function* effect() {
     options: {
       email?: string;
       name?: string;
-    }
+    },
   ) =>
     Effect.gen(function* identify() {
       const currentDistinctId = yield* getDistinctId();
@@ -86,11 +83,8 @@ const make = Effect.gen(function* effect() {
   const generateAnonymousDistinctId = () =>
     `${ANONYMOUS_DISTINCT_ID_PREFIX}${Math.random().toString(36).slice(2, 15)}`;
   const getDistinctIdFromCache = () =>
-    cacheManager
-      .get<string>(CACHE_KEY)
-      .pipe(Effect.map((distinctId) => distinctId?.value ?? null));
-  const setDistinctIdInCache = (distinctId: string) =>
-    cacheManager.set(CACHE_KEY, distinctId);
+    cacheManager.get<string>(CACHE_KEY).pipe(Effect.map((distinctId) => distinctId?.value ?? null));
+  const setDistinctIdInCache = (distinctId: string) => cacheManager.set(CACHE_KEY, distinctId);
 
   return {
     getDistinctId,
@@ -101,11 +95,11 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class IdentityManager extends Context.Service<IdentityManager, Effect.Success<typeof make>>()("rn-voidhash/IdentityManager") {
+export class IdentityManager extends Context.Service<
+  IdentityManager,
+  Effect.Success<typeof make>
+>()("rn-voidhash/IdentityManager") {
   static Default = Layer.effect(IdentityManager, make).pipe(
-    Layer.provide(Layer.mergeAll(
-      CacheManager.Default,
-      PersonInfoManager.Default,
-    ))
-  )
+    Layer.provide(Layer.mergeAll(CacheManager.Default, PersonInfoManager.Default)),
+  );
 }

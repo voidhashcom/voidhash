@@ -37,8 +37,7 @@ export interface PaywallRestoreEnvelope extends OutboundBase<"restore"> {
   readonly payload?: { readonly source?: string };
 }
 
-export interface PaywallOpenExternalEnvelope
-  extends OutboundBase<"openExternal"> {
+export interface PaywallOpenExternalEnvelope extends OutboundBase<"openExternal"> {
   readonly payload: { readonly url: string };
 }
 
@@ -125,9 +124,7 @@ export type PaywallInboundEnvelope =
 
 // ── Encode ───────────────────────────────────────────────────────────────────
 
-export const createReadyEnvelope = (
-  templateVersion?: string,
-): PaywallReadyEnvelope => ({
+export const createReadyEnvelope = (templateVersion?: string): PaywallReadyEnvelope => ({
   version: PAYWALL_BRIDGE_VERSION,
   type: "ready",
   ...(templateVersion === undefined ? {} : { payload: { templateVersion } }),
@@ -149,17 +146,13 @@ export const createPurchaseEnvelope = (
   payload: { productId },
 });
 
-export const createRestoreEnvelope = (
-  requestId?: string,
-): PaywallRestoreEnvelope => ({
+export const createRestoreEnvelope = (requestId?: string): PaywallRestoreEnvelope => ({
   version: PAYWALL_BRIDGE_VERSION,
   type: "restore",
   requestId,
 });
 
-export const createOpenExternalEnvelope = (
-  url: string,
-): PaywallOpenExternalEnvelope => ({
+export const createOpenExternalEnvelope = (url: string): PaywallOpenExternalEnvelope => ({
   version: PAYWALL_BRIDGE_VERSION,
   type: "openExternal",
   payload: { url },
@@ -194,13 +187,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
 const readRequestId = (value: Record<string, unknown>): string | undefined =>
-  typeof value.requestId === "string" && value.requestId.length > 0
-    ? value.requestId
-    : undefined;
+  typeof value.requestId === "string" && value.requestId.length > 0 ? value.requestId : undefined;
 
-const parseResponse = (
-  value: Record<string, unknown>,
-): PaywallResponseEnvelope | null => {
+const parseResponse = (value: Record<string, unknown>): PaywallResponseEnvelope | null => {
   const payload = value.payload;
   if (!isRecord(payload)) {
     return null;
@@ -213,9 +202,7 @@ const parseResponse = (
     return null;
   }
   const parsedError =
-    isRecord(error) &&
-    typeof error.code === "string" &&
-    typeof error.message === "string"
+    isRecord(error) && typeof error.code === "string" && typeof error.message === "string"
       ? { code: error.code, message: error.message }
       : undefined;
   return {
@@ -231,9 +218,7 @@ const parseResponse = (
   };
 };
 
-const parseStatus = (
-  value: Record<string, unknown>,
-): PaywallStatusEnvelope | null => {
+const parseStatus = (value: Record<string, unknown>): PaywallStatusEnvelope | null => {
   const payload = value.payload;
   if (!isRecord(payload)) {
     return null;
@@ -251,16 +236,13 @@ const parseStatus = (
     requestId: readRequestId(value),
     payload: {
       status: status as PaywallTransactionStatus,
-      productId:
-        typeof payload.productId === "string" ? payload.productId : undefined,
+      productId: typeof payload.productId === "string" ? payload.productId : undefined,
       error: typeof payload.error === "string" ? payload.error : undefined,
     },
   };
 };
 
-const parseConfigure = (
-  value: Record<string, unknown>,
-): PaywallConfigureEnvelope | null => {
+const parseConfigure = (value: Record<string, unknown>): PaywallConfigureEnvelope | null => {
   const payload = value.payload;
   if (!isRecord(payload)) {
     return null;
@@ -279,9 +261,7 @@ const parseConfigure = (
  * versions and unknown actions — the runtime ignores those rather than
  * crashing the paywall.
  */
-export const parseInboundEnvelope = (
-  raw: unknown,
-): PaywallInboundEnvelope | null => {
+export const parseInboundEnvelope = (raw: unknown): PaywallInboundEnvelope | null => {
   let value: unknown = raw;
   if (typeof raw === "string") {
     try {

@@ -38,9 +38,7 @@ export class PreviewErrorBoundary extends Component<
       }
       return (
         <div className="flex h-full flex-col items-center justify-center gap-2 bg-red-50 p-6 text-center">
-          <p className="font-semibold text-red-700 text-sm">
-            This paywall failed to render
-          </p>
+          <p className="font-semibold text-red-700 text-sm">This paywall failed to render</p>
           <pre className="max-w-full overflow-auto whitespace-pre-wrap text-red-600 text-xs">
             {error.message}
           </pre>

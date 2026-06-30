@@ -49,12 +49,8 @@ export interface ActionFactory {
 }
 
 function buildAction(): ActionBuilder<undefined>;
-function buildAction<S extends ActionPayloadShape>(
-  payload: S,
-): ActionBuilder<S>;
-function buildAction<S extends ActionPayloadShape>(
-  payload?: S,
-): ActionBuilder<S | undefined> {
+function buildAction<S extends ActionPayloadShape>(payload: S): ActionBuilder<S>;
+function buildAction<S extends ActionPayloadShape>(payload?: S): ActionBuilder<S | undefined> {
   return new ActionBuilder<S | undefined>(payload);
 }
 

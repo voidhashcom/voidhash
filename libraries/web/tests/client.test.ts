@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  VoidhashNotInitializedError,
-  createVoidhashClient,
-} from "../src/index";
+import { VoidhashNotInitializedError, createVoidhashClient } from "../src/index";
 import { createJsonResponse, flushMicrotasks, installFetchMock } from "./helpers";
 
 describe("VoidhashWebClient", () => {
@@ -20,9 +17,7 @@ describe("VoidhashWebClient", () => {
       publishableKey: "vh_pk_test",
     });
 
-    await expect(client.getFeatureFlags()).rejects.toBeInstanceOf(
-      VoidhashNotInitializedError
-    );
+    await expect(client.getFeatureFlags()).rejects.toBeInstanceOf(VoidhashNotInitializedError);
   });
 
   it("initializes, fetches flags, derives analytics url, and flushes events", async () => {
@@ -46,7 +41,7 @@ describe("VoidhashWebClient", () => {
             accepted: 1,
             rejected: 0,
           },
-          202
+          202,
         );
       }
 
@@ -134,9 +129,7 @@ describe("VoidhashWebClient", () => {
     await client.reset();
 
     // No person-attributes sync endpoint is hit during identify/reset anymore.
-    expect(
-      calls.some((call) => call.url.includes("sync-person-attributes"))
-    ).toBe(false);
+    expect(calls.some((call) => call.url.includes("sync-person-attributes"))).toBe(false);
 
     const identifyCall = calls.find((call) => call.url.endsWith("/sdk/identify"));
     expect(JSON.parse(identifyCall?.body ?? "{}")).toEqual({
@@ -150,9 +143,7 @@ describe("VoidhashWebClient", () => {
     // The queued event flushed before the identity switch, attributed to the
     // original anonymous distinct id.
     const batchCall = calls.find((call) => call.url.endsWith("/batch"));
-    expect(JSON.parse(batchCall?.body ?? "{}").events?.[0]?.distinct_id).toBe(
-      initialDistinctId
-    );
+    expect(JSON.parse(batchCall?.body ?? "{}").events?.[0]?.distinct_id).toBe(initialDistinctId);
 
     expect(client.getDistinctId()).toMatch(/^vh:anon:/);
 
@@ -237,9 +228,7 @@ describe("VoidhashWebClient", () => {
       name: "Ada",
     });
 
-    const syncCall = calls.find((call) =>
-      call.url.endsWith("/sdk/person/traits")
-    );
+    const syncCall = calls.find((call) => call.url.endsWith("/sdk/person/traits"));
     expect(syncCall?.headers["x-distinct-id"]).toBe(distinctId);
     expect(JSON.parse(syncCall?.body ?? "{}")).toEqual({
       email: "ada@example.com",

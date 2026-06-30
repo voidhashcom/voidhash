@@ -1,9 +1,6 @@
 // The real `@voidhash/paywalls` runtime encoder — round-tripping its output
 // through this parser proves the two packages agree on the wire format.
-import {
-  createEventEnvelope,
-  serializeEnvelope,
-} from "../../../paywalls/src/runtime/envelope";
+import { createEventEnvelope, serializeEnvelope } from "../../../paywalls/src/runtime/envelope";
 import {
   PaywallBridgeParseError,
   parsePaywallBridgeEnvelope,
@@ -19,7 +16,7 @@ describe("parsePaywallBridgeEnvelope", () => {
         },
         type: "purchase",
         version: 1,
-      })
+      }),
     );
 
     expect(parsed.type).toBe("purchase");
@@ -34,8 +31,8 @@ describe("parsePaywallBridgeEnvelope", () => {
         JSON.stringify({
           type: "ready",
           version: 99,
-        })
-      )
+        }),
+      ),
     ).toThrow(PaywallBridgeParseError);
   });
 
@@ -48,8 +45,8 @@ describe("parsePaywallBridgeEnvelope", () => {
           },
           type: "purchase",
           version: 1,
-        })
-      )
+        }),
+      ),
     ).toThrow(PaywallBridgeParseError);
   });
 
@@ -62,7 +59,7 @@ describe("parsePaywallBridgeEnvelope", () => {
         },
         type: "event",
         version: 1,
-      })
+      }),
     );
 
     expect(parsed.type).toBe("event");
@@ -80,7 +77,7 @@ describe("parsePaywallBridgeEnvelope", () => {
         },
         type: "event",
         version: 1,
-      })
+      }),
     );
 
     expect(parsed.type).toBe("event");
@@ -96,8 +93,8 @@ describe("parsePaywallBridgeEnvelope", () => {
           payload: { properties: {} },
           type: "event",
           version: 1,
-        })
-      )
+        }),
+      ),
     ).toThrow(PaywallBridgeParseError);
   });
 
@@ -108,14 +105,14 @@ describe("parsePaywallBridgeEnvelope", () => {
           payload: { name: "cta_seen", properties: "nope" },
           type: "event",
           version: 1,
-        })
-      )
+        }),
+      ),
     ).toThrow(PaywallBridgeParseError);
   });
 
   it("round-trips the paywalls runtime's createEventEnvelope output", () => {
     const parsed = parsePaywallBridgeEnvelope(
-      serializeEnvelope(createEventEnvelope("cta_seen", { screen: "home" }))
+      serializeEnvelope(createEventEnvelope("cta_seen", { screen: "home" })),
     );
 
     expect(parsed).toMatchObject({

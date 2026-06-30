@@ -8,7 +8,7 @@ import { BrowserPlatformProvider } from "../platform/browser-platform-provider";
 import type { AnalyticsRequestEvent } from "./contracts";
 
 const normalizeAnalyticsValue = (
-  value: unknown
+  value: unknown,
 ): EventContextField | EventPropertiesField | undefined => {
   if (
     value === null ||
@@ -34,7 +34,7 @@ const normalizeAnalyticsValue = (
       Object.entries(value).flatMap(([key, entry]) => {
         const normalized = normalizeAnalyticsValue(entry);
         return typeof normalized === "undefined" ? [] : [[key, normalized]];
-      })
+      }),
     );
   }
 
@@ -42,13 +42,13 @@ const normalizeAnalyticsValue = (
 };
 
 const normalizeAnalyticsRecord = (
-  entries: Record<string, unknown>
+  entries: Record<string, unknown>,
 ): Record<string, EventContextField | EventPropertiesField> =>
   Object.fromEntries(
     Object.entries(entries).flatMap(([key, value]) => {
       const normalized = normalizeAnalyticsValue(value);
       return typeof normalized === "undefined" ? [] : [[key, normalized]];
-    })
+    }),
   );
 
 const createEventId = (platform: BrowserPlatformProvider) =>
@@ -59,7 +59,7 @@ export const createAnalyticsEvent = (
   distinctId: string,
   eventName: string,
   properties?: Record<string, unknown>,
-  options?: VoidhashTrackOptions
+  options?: VoidhashTrackOptions,
 ): AnalyticsRequestEvent => ({
   context: normalizeAnalyticsRecord(platform.buildAnalyticsContext()),
   distinct_id: distinctId,

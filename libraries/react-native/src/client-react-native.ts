@@ -24,10 +24,7 @@ import { purchaseHookFactory } from "./react/hooks/use-purchase";
  * - Type safety for product / location / perk slugs comes from the generated
  *   `voidhash.gen.d.ts` (run `voidhash-cli types generate`).
  */
-export function createVoidhashClient(
-  publishableKey: string,
-  options: VoidhashClientOptions = {}
-) {
+export function createVoidhashClient(publishableKey: string, options: VoidhashClientOptions = {}) {
   const baseUrl = options.baseUrl || "https://api.voidhash.com";
   const debug = options.debug ?? false;
   const distinctId = options.distinctId ?? null;
@@ -58,7 +55,7 @@ export function createVoidhashClient(
     atomRegistry,
     platform,
     debug,
-    options.unstable_internalSchema
+    options.unstable_internalSchema,
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);

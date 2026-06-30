@@ -117,14 +117,9 @@ export interface PropFactory {
   /** A nested element the editor can fill. The template receives a ReactNode. */
   component(): PropBuilder<ReactNode, false, false, "component">;
   /** A homogeneous list. The item must be a non-array kind. */
-  array<
-    B extends PropBuilder<
-      unknown,
-      boolean,
-      boolean,
-      Exclude<PropKind, "array">
-    >,
-  >(item: B): PropBuilder<Array<B["__value"]>, false, false, "array">;
+  array<B extends PropBuilder<unknown, boolean, boolean, Exclude<PropKind, "array">>>(
+    item: B,
+  ): PropBuilder<Array<B["__value"]>, false, false, "array">;
 }
 
 export const propFactory: PropFactory = {
@@ -165,14 +160,7 @@ export const propFactory: PropFactory = {
       ...base("component"),
       kind: "component",
     }),
-  array: <
-    B extends PropBuilder<
-      unknown,
-      boolean,
-      boolean,
-      Exclude<PropKind, "array">
-    >,
-  >(
+  array: <B extends PropBuilder<unknown, boolean, boolean, Exclude<PropKind, "array">>>(
     item: B,
   ) => {
     // Type-level enforced; runtime guard covers untyped (plain JS) authors.
@@ -188,14 +176,7 @@ export const propFactory: PropFactory = {
 };
 
 /** The runtime value type of a prop builder. */
-export type PropValueOf<B> = B extends PropBuilder<
-  infer T,
-  boolean,
-  boolean,
-  PropKind
->
-  ? T
-  : never;
+export type PropValueOf<B> = B extends PropBuilder<infer T, boolean, boolean, PropKind> ? T : never;
 
 /**
  * The props object a component template receives: defaults are always filled

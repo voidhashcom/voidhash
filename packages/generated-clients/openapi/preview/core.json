@@ -7,9 +7,7 @@
   "paths": {
     "/api/v1/auth/session": {
       "get": {
-        "tags": [
-          "auth"
-        ],
+        "tags": ["auth"],
         "operationId": "auth.session",
         "parameters": [],
         "security": [
@@ -38,21 +36,15 @@
                       "anyOf": [
                         {
                           "type": "string",
-                          "enum": [
-                            "api-key"
-                          ]
+                          "enum": ["api-key"]
                         },
                         {
                           "type": "string",
-                          "enum": [
-                            "publishable-key"
-                          ]
+                          "enum": ["publishable-key"]
                         },
                         {
                           "type": "string",
-                          "enum": [
-                            "secret-key"
-                          ]
+                          "enum": ["secret-key"]
                         }
                       ]
                     },
@@ -74,11 +66,7 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "id",
-                          "name",
-                          "slug"
-                        ],
+                        "required": ["id", "name", "slug"],
                         "additionalProperties": false
                       }
                     },
@@ -100,22 +88,12 @@
                             "type": "string"
                           }
                         },
-                        "required": [
-                          "id",
-                          "name",
-                          "organizationId",
-                          "slug"
-                        ],
+                        "required": ["id", "name", "organizationId", "slug"],
                         "additionalProperties": false
                       }
                     }
                   },
-                  "required": [
-                    "method",
-                    "name",
-                    "organizations",
-                    "projects"
-                  ],
+                  "required": ["method", "name", "organizations", "projects"],
                   "additionalProperties": false
                 }
               }
@@ -163,9 +141,7 @@
     },
     "/api/v1/api-keys": {
       "post": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "api_keys.createSecretKey",
         "parameters": [],
         "security": [
@@ -250,9 +226,7 @@
         }
       },
       "get": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "api_keys.listApiKeys",
         "parameters": [],
         "security": [
@@ -332,9 +306,7 @@
     },
     "/api/v1/api-keys/{apiKeyId}": {
       "get": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "api_keys.getApiKeyById",
         "parameters": [
           {
@@ -428,9 +400,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "api_keys.deleteApiKey",
         "parameters": [
           {
@@ -519,9 +489,7 @@
     },
     "/api/v1/api-keys/{apiKeyId}/rotate": {
       "post": {
-        "tags": [
-          "api_keys"
-        ],
+        "tags": ["api_keys"],
         "operationId": "api_keys.rotateSecretKey",
         "parameters": [
           {
@@ -617,9 +585,7 @@
     },
     "/api/v1/customers": {
       "post": {
-        "tags": [
-          "customers"
-        ],
+        "tags": ["customers"],
         "operationId": "customers.createCustomer",
         "parameters": [],
         "security": [
@@ -711,9 +677,7 @@
         }
       },
       "get": {
-        "tags": [
-          "customers"
-        ],
+        "tags": ["customers"],
         "operationId": "customers.listCustomers",
         "parameters": [],
         "security": [
@@ -793,9 +757,7 @@
     },
     "/api/v1/customers/{customerId}": {
       "get": {
-        "tags": [
-          "customers"
-        ],
+        "tags": ["customers"],
         "operationId": "customers.getCustomerById",
         "parameters": [
           {
@@ -891,9 +853,7 @@
     },
     "/api/v1/customers/by-distinct-id/{distinctId}": {
       "get": {
-        "tags": [
-          "customers"
-        ],
+        "tags": ["customers"],
         "operationId": "customers.byDistinctId",
         "parameters": [
           {
@@ -989,9 +949,7 @@
     },
     "/api/v1/organizations": {
       "post": {
-        "tags": [
-          "organizations"
-        ],
+        "tags": ["organizations"],
         "operationId": "organizations.createOrganization",
         "parameters": [],
         "security": [
@@ -1068,9 +1026,7 @@
     },
     "/api/v1/perks": {
       "get": {
-        "tags": [
-          "perks"
-        ],
+        "tags": ["perks"],
         "operationId": "perks.listPerks",
         "parameters": [],
         "security": [
@@ -1150,9 +1106,7 @@
     },
     "/api/v1/paywall-locations": {
       "get": {
-        "tags": [
-          "paywall_locations"
-        ],
+        "tags": ["paywall_locations"],
         "operationId": "paywall_locations.listPaywallLocations",
         "parameters": [],
         "security": [
@@ -1232,9 +1186,7 @@
     },
     "/api/v1/projects": {
       "post": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "operationId": "projects.createProject",
         "parameters": [],
         "security": [
@@ -1324,9 +1276,7 @@
     },
     "/api/v1/projects/{organizationId}": {
       "get": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "operationId": "projects.listProjects",
         "parameters": [
           {
@@ -1415,9 +1365,7 @@
     },
     "/api/v1/products": {
       "get": {
-        "tags": [
-          "products"
-        ],
+        "tags": ["products"],
         "operationId": "products.listProducts",
         "parameters": [],
         "security": [
@@ -1497,9 +1445,7 @@
     },
     "/api/v1/product-perks/by-product-id/{productId}": {
       "get": {
-        "tags": [
-          "product_perks"
-        ],
+        "tags": ["product_perks"],
         "operationId": "product_perks.listProductPerksByProductId",
         "parameters": [
           {
@@ -1595,9 +1541,7 @@
     },
     "/api/v1/sdk/get-customer": {
       "get": {
-        "tags": [
-          "sdk"
-        ],
+        "tags": ["sdk"],
         "operationId": "sdk.getCustomer",
         "parameters": [
           {
@@ -1659,9 +1603,7 @@
             "in": "header",
             "schema": {
               "type": "string",
-              "enum": [
-                "false"
-              ]
+              "enum": ["false"]
             },
             "required": true
           },
@@ -1672,15 +1614,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -1708,15 +1646,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -1767,15 +1701,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "native"
-                  ]
+                  "enum": ["native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "browser"
-                  ]
+                  "enum": ["browser"]
                 }
               ]
             },
@@ -1833,15 +1763,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "react-native"
-                  ]
+                  "enum": ["react-native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "web"
-                  ]
+                  "enum": ["web"]
                 }
               ]
             },
@@ -1955,9 +1881,7 @@
     },
     "/api/v1/sdk/identify": {
       "post": {
-        "tags": [
-          "sdk"
-        ],
+        "tags": ["sdk"],
         "operationId": "sdk.identify",
         "parameters": [
           {
@@ -2019,9 +1943,7 @@
             "in": "header",
             "schema": {
               "type": "string",
-              "enum": [
-                "false"
-              ]
+              "enum": ["false"]
             },
             "required": true
           },
@@ -2032,15 +1954,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -2068,15 +1986,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -2127,15 +2041,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "native"
-                  ]
+                  "enum": ["native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "browser"
-                  ]
+                  "enum": ["browser"]
                 }
               ]
             },
@@ -2193,15 +2103,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "react-native"
-                  ]
+                  "enum": ["react-native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "web"
-                  ]
+                  "enum": ["web"]
                 }
               ]
             },
@@ -2325,9 +2231,7 @@
     },
     "/api/v1/sdk/sync-customer-attributes": {
       "post": {
-        "tags": [
-          "sdk"
-        ],
+        "tags": ["sdk"],
         "operationId": "sdk.syncCustomerAttributes",
         "parameters": [
           {
@@ -2389,9 +2293,7 @@
             "in": "header",
             "schema": {
               "type": "string",
-              "enum": [
-                "false"
-              ]
+              "enum": ["false"]
             },
             "required": true
           },
@@ -2402,15 +2304,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -2438,15 +2336,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -2497,15 +2391,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "native"
-                  ]
+                  "enum": ["native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "browser"
-                  ]
+                  "enum": ["browser"]
                 }
               ]
             },
@@ -2563,15 +2453,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "react-native"
-                  ]
+                  "enum": ["react-native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "web"
-                  ]
+                  "enum": ["web"]
                 }
               ]
             },
@@ -2685,9 +2571,7 @@
     },
     "/api/v1/sdk/sync-transaction": {
       "post": {
-        "tags": [
-          "sdk"
-        ],
+        "tags": ["sdk"],
         "operationId": "sdk.syncTransaction",
         "parameters": [
           {
@@ -2749,9 +2633,7 @@
             "in": "header",
             "schema": {
               "type": "string",
-              "enum": [
-                "false"
-              ]
+              "enum": ["false"]
             },
             "required": true
           },
@@ -2762,15 +2644,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -2798,15 +2676,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -2857,15 +2731,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "native"
-                  ]
+                  "enum": ["native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "browser"
-                  ]
+                  "enum": ["browser"]
                 }
               ]
             },
@@ -2923,15 +2793,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "react-native"
-                  ]
+                  "enum": ["react-native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "web"
-                  ]
+                  "enum": ["web"]
                 }
               ]
             },
@@ -3041,15 +2907,11 @@
                     "anyOf": [
                       {
                         "type": "string",
-                        "enum": [
-                          "ios"
-                        ]
+                        "enum": ["ios"]
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "android"
-                        ]
+                        "enum": ["android"]
                       }
                     ]
                   },
@@ -3063,21 +2925,15 @@
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "NaN"
-                        ]
+                        "enum": ["NaN"]
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "Infinity"
-                        ]
+                        "enum": ["Infinity"]
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "-Infinity"
-                        ]
+                        "enum": ["-Infinity"]
                       }
                     ]
                   },
@@ -3098,21 +2954,15 @@
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "NaN"
-                        ]
+                        "enum": ["NaN"]
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "Infinity"
-                        ]
+                        "enum": ["Infinity"]
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "-Infinity"
-                        ]
+                        "enum": ["-Infinity"]
                       }
                     ]
                   },
@@ -3130,13 +2980,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "platform",
-                  "productId",
-                  "purchaseDate",
-                  "quantity",
-                  "transactionId"
-                ],
+                "required": ["platform", "productId", "purchaseDate", "quantity", "transactionId"],
                 "additionalProperties": false
               }
             }
@@ -3147,9 +2991,7 @@
     },
     "/api/v1/sdk/evaluate-flags": {
       "post": {
-        "tags": [
-          "sdk"
-        ],
+        "tags": ["sdk"],
         "operationId": "sdk.evaluateFeatureFlags",
         "parameters": [
           {
@@ -3211,9 +3053,7 @@
             "in": "header",
             "schema": {
               "type": "string",
-              "enum": [
-                "false"
-              ]
+              "enum": ["false"]
             },
             "required": true
           },
@@ -3224,15 +3064,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -3260,15 +3096,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -3319,15 +3151,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "native"
-                  ]
+                  "enum": ["native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "browser"
-                  ]
+                  "enum": ["browser"]
                 }
               ]
             },
@@ -3385,15 +3213,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "react-native"
-                  ]
+                  "enum": ["react-native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "web"
-                  ]
+                  "enum": ["web"]
                 }
               ]
             },
@@ -3500,9 +3324,7 @@
     },
     "/api/v1/sdk/resolve-paywall": {
       "post": {
-        "tags": [
-          "sdk"
-        ],
+        "tags": ["sdk"],
         "operationId": "sdk.resolvePaywall",
         "parameters": [
           {
@@ -3564,9 +3386,7 @@
             "in": "header",
             "schema": {
               "type": "string",
-              "enum": [
-                "false"
-              ]
+              "enum": ["false"]
             },
             "required": true
           },
@@ -3577,15 +3397,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -3613,15 +3429,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               ]
             },
@@ -3672,15 +3484,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "native"
-                  ]
+                  "enum": ["native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "browser"
-                  ]
+                  "enum": ["browser"]
                 }
               ]
             },
@@ -3738,15 +3546,11 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "react-native"
-                  ]
+                  "enum": ["react-native"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "web"
-                  ]
+                  "enum": ["web"]
                 }
               ]
             },
@@ -3867,9 +3671,7 @@
     },
     "/api/v1/users/current": {
       "get": {
-        "tags": [
-          "users"
-        ],
+        "tags": ["users"],
         "operationId": "users.getUser",
         "parameters": [],
         "security": [
@@ -3939,9 +3741,7 @@
     },
     "/api/v1/payment-provider-configurations": {
       "get": {
-        "tags": [
-          "payment_provider_configurations"
-        ],
+        "tags": ["payment_provider_configurations"],
         "operationId": "payment_provider_configurations.listPaymentProviderConfigurations",
         "parameters": [],
         "security": [
@@ -4021,9 +3821,7 @@
     },
     "/api/v1/payment-provider-products": {
       "get": {
-        "tags": [
-          "payment_provider_products"
-        ],
+        "tags": ["payment_provider_products"],
         "operationId": "payment_provider_products.listPaymentProviderProducts",
         "parameters": [],
         "security": [
@@ -4103,9 +3901,7 @@
     },
     "/api/v1/changesets/deploy": {
       "post": {
-        "tags": [
-          "changesets"
-        ],
+        "tags": ["changesets"],
         "operationId": "changesets.deployChangeset",
         "parameters": [],
         "security": [
@@ -4195,9 +3991,7 @@
     },
     "/api/v1/webhooks/endpoints": {
       "post": {
-        "tags": [
-          "webhooks"
-        ],
+        "tags": ["webhooks"],
         "operationId": "webhooks.createWebhookEndpoint",
         "parameters": [],
         "security": [
@@ -4289,9 +4083,7 @@
         }
       },
       "get": {
-        "tags": [
-          "webhooks"
-        ],
+        "tags": ["webhooks"],
         "operationId": "webhooks.listWebhookEndpoints",
         "parameters": [],
         "security": [
@@ -4371,9 +4163,7 @@
     },
     "/api/v1/webhooks/endpoints/{endpointId}": {
       "get": {
-        "tags": [
-          "webhooks"
-        ],
+        "tags": ["webhooks"],
         "operationId": "webhooks.getWebhookEndpoint",
         "parameters": [
           {
@@ -4467,9 +4257,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "webhooks"
-        ],
+        "tags": ["webhooks"],
         "operationId": "webhooks.updateWebhookEndpoint",
         "parameters": [
           {
@@ -4580,9 +4368,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "webhooks"
-        ],
+        "tags": ["webhooks"],
         "operationId": "webhooks.deleteWebhookEndpoint",
         "parameters": [
           {
@@ -4671,9 +4457,7 @@
     },
     "/api/v1/webhooks/endpoints/{endpointId}/rotate-secret": {
       "post": {
-        "tags": [
-          "webhooks"
-        ],
+        "tags": ["webhooks"],
         "operationId": "webhooks.rotateWebhookSecret",
         "parameters": [
           {
@@ -4769,9 +4553,7 @@
     },
     "/api/v1/webhooks/endpoints/{endpointId}/test": {
       "post": {
-        "tags": [
-          "webhooks"
-        ],
+        "tags": ["webhooks"],
         "operationId": "webhooks.testWebhookEndpoint",
         "parameters": [
           {
@@ -4867,9 +4649,7 @@
     },
     "/api/v1/webhooks/deliveries": {
       "get": {
-        "tags": [
-          "webhooks"
-        ],
+        "tags": ["webhooks"],
         "operationId": "webhooks.listWebhookDeliveries",
         "parameters": [],
         "security": [
@@ -4949,9 +4729,7 @@
     },
     "/api/v1/webhooks/deliveries/{deliveryId}": {
       "get": {
-        "tags": [
-          "webhooks"
-        ],
+        "tags": ["webhooks"],
         "operationId": "webhooks.getWebhookDelivery",
         "parameters": [
           {
@@ -5047,9 +4825,7 @@
     },
     "/api/v1/webhooks/deliveries/{deliveryId}/retry": {
       "post": {
-        "tags": [
-          "webhooks"
-        ],
+        "tags": ["webhooks"],
         "operationId": "webhooks.retryWebhookDelivery",
         "parameters": [
           {
@@ -5158,18 +4934,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "ActionForbiddenError"
-            ]
+            "enum": ["ActionForbiddenError"]
           },
           "message": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "message"
-        ],
+        "required": ["_tag", "message"],
         "additionalProperties": false
       },
       "AuthenticationError": {
@@ -5177,9 +4948,7 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "AuthenticationError"
-            ]
+            "enum": ["AuthenticationError"]
           },
           "cause": {
             "type": "string"
@@ -5188,11 +4957,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause",
-          "message"
-        ],
+        "required": ["_tag", "cause", "message"],
         "additionalProperties": false
       },
       "NotAuthenticatedError": {
@@ -5200,18 +4965,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "NotAuthenticatedError"
-            ]
+            "enum": ["NotAuthenticatedError"]
           },
           "message": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "message"
-        ],
+        "required": ["_tag", "message"],
         "additionalProperties": false
       },
       "effect_HttpApiSchemaError": {
@@ -5219,18 +4979,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "HttpApiSchemaError"
-            ]
+            "enum": ["HttpApiSchemaError"]
           },
           "message": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "message"
-        ],
+        "required": ["_tag", "message"],
         "additionalProperties": false
       },
       "CreateSecretKeyBody": {
@@ -5243,10 +4998,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "name",
-          "projectId"
-        ],
+        "required": ["name", "projectId"],
         "additionalProperties": false
       },
       "ApiKeyWithRawKey": {
@@ -5274,15 +5026,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "end",
-          "id",
-          "isPublic",
-          "name",
-          "prefix",
-          "projectId",
-          "rawKey"
-        ],
+        "required": ["end", "id", "isPublic", "name", "prefix", "projectId", "rawKey"],
         "additionalProperties": false
       },
       "ApiKeyServiceError": {
@@ -5290,18 +5034,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "ApiKeyServiceError"
-            ]
+            "enum": ["ApiKeyServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "ApiKey": {
@@ -5336,14 +5075,7 @@
             ]
           }
         },
-        "required": [
-          "end",
-          "id",
-          "isPublic",
-          "name",
-          "prefix",
-          "projectId"
-        ],
+        "required": ["end", "id", "isPublic", "name", "prefix", "projectId"],
         "additionalProperties": false
       },
       "ApiKeyNotFoundError": {
@@ -5351,18 +5083,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "ApiKeyNotFoundError"
-            ]
+            "enum": ["ApiKeyNotFoundError"]
           },
           "message": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "message"
-        ],
+        "required": ["_tag", "message"],
         "additionalProperties": false
       },
       "CreateCustomerBody": {
@@ -5392,9 +5119,7 @@
             ]
           }
         },
-        "required": [
-          "distinctId"
-        ],
+        "required": ["distinctId"],
         "additionalProperties": false
       },
       "Customer": {
@@ -5427,12 +5152,7 @@
             ]
           }
         },
-        "required": [
-          "customerId",
-          "distinctId",
-          "email",
-          "name"
-        ],
+        "required": ["customerId", "distinctId", "email", "name"],
         "additionalProperties": false
       },
       "CustomerInvalidAnonymousIdError": {
@@ -5440,9 +5160,7 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "CustomerInvalidAnonymousIdError"
-            ]
+            "enum": ["CustomerInvalidAnonymousIdError"]
           },
           "id": {
             "type": "string",
@@ -5453,10 +5171,7 @@
             ]
           }
         },
-        "required": [
-          "_tag",
-          "id"
-        ],
+        "required": ["_tag", "id"],
         "additionalProperties": false
       },
       "CustomerServiceError": {
@@ -5464,18 +5179,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "CustomerServiceError"
-            ]
+            "enum": ["CustomerServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "CustomerNotFoundError": {
@@ -5483,9 +5193,7 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "CustomerNotFoundError"
-            ]
+            "enum": ["CustomerNotFoundError"]
           },
           "id": {
             "type": "string",
@@ -5496,10 +5204,7 @@
             ]
           }
         },
-        "required": [
-          "_tag",
-          "id"
-        ],
+        "required": ["_tag", "id"],
         "additionalProperties": false
       },
       "CreateOrganizationBody": {
@@ -5509,9 +5214,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "additionalProperties": false
       },
       "Organization": {
@@ -5527,11 +5230,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "slug"
-        ],
+        "required": ["id", "name", "slug"],
         "additionalProperties": false
       },
       "OrganizationServiceError": {
@@ -5539,18 +5238,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "OrganizationServiceError"
-            ]
+            "enum": ["OrganizationServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "Perk": {
@@ -5569,12 +5263,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "projectId",
-          "slug"
-        ],
+        "required": ["id", "name", "projectId", "slug"],
         "additionalProperties": false
       },
       "PerkServiceError": {
@@ -5582,18 +5271,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "PerkServiceError"
-            ]
+            "enum": ["PerkServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "PaywallLocation": {
@@ -5622,13 +5306,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "description",
-          "id",
-          "name",
-          "projectId",
-          "slug"
-        ],
+        "required": ["description", "id", "name", "projectId", "slug"],
         "additionalProperties": false
       },
       "PaywallLocationServiceError": {
@@ -5636,18 +5314,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "PaywallLocationServiceError"
-            ]
+            "enum": ["PaywallLocationServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "CreateProjectBody": {
@@ -5660,10 +5333,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "name",
-          "organizationId"
-        ],
+        "required": ["name", "organizationId"],
         "additionalProperties": false
       },
       "Project": {
@@ -5679,11 +5349,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "name",
-          "slug"
-        ],
+        "required": ["id", "name", "slug"],
         "additionalProperties": false
       },
       "ProjectServiceError": {
@@ -5691,18 +5357,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "ProjectServiceError"
-            ]
+            "enum": ["ProjectServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "Product": {
@@ -5724,32 +5385,20 @@
             "anyOf": [
               {
                 "type": "string",
-                "enum": [
-                  "subscription"
-                ]
+                "enum": ["subscription"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "one-time"
-                ]
+                "enum": ["one-time"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "one-time-consumable"
-                ]
+                "enum": ["one-time-consumable"]
               }
             ]
           }
         },
-        "required": [
-          "id",
-          "name",
-          "projectId",
-          "slug",
-          "type"
-        ],
+        "required": ["id", "name", "projectId", "slug", "type"],
         "additionalProperties": false
       },
       "ProductServiceError": {
@@ -5757,18 +5406,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "ProductServiceError"
-            ]
+            "enum": ["ProductServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "ProductPerk": {
@@ -5784,11 +5428,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "perkId",
-          "productId"
-        ],
+        "required": ["id", "perkId", "productId"],
         "additionalProperties": false
       },
       "ProductPerkServiceError": {
@@ -5796,18 +5436,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "ProductPerkServiceError"
-            ]
+            "enum": ["ProductPerkServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "ProductPerkValidationError": {
@@ -5815,18 +5450,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "ProductPerkValidationError"
-            ]
+            "enum": ["ProductPerkValidationError"]
           },
           "message": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "message"
-        ],
+        "required": ["_tag", "message"],
         "additionalProperties": false
       },
       "SdkCustomer": {
@@ -5859,12 +5489,7 @@
             ]
           }
         },
-        "required": [
-          "customerId",
-          "distinctId",
-          "email",
-          "name"
-        ],
+        "required": ["customerId", "distinctId", "email", "name"],
         "additionalProperties": false
       },
       "SdkServiceError": {
@@ -5872,18 +5497,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "SdkServiceError"
-            ]
+            "enum": ["SdkServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "SdkCustomerNotFoundError": {
@@ -5891,18 +5511,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "SdkCustomerNotFoundError"
-            ]
+            "enum": ["SdkCustomerNotFoundError"]
           },
           "message": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "message"
-        ],
+        "required": ["_tag", "message"],
         "additionalProperties": false
       },
       "SdkValidationError": {
@@ -5910,18 +5525,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "SdkValidationError"
-            ]
+            "enum": ["SdkValidationError"]
           },
           "message": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "message"
-        ],
+        "required": ["_tag", "message"],
         "additionalProperties": false
       },
       "SdkIdentifyBody": {
@@ -5966,21 +5576,15 @@
                         },
                         {
                           "type": "string",
-                          "enum": [
-                            "NaN"
-                          ]
+                          "enum": ["NaN"]
                         },
                         {
                           "type": "string",
-                          "enum": [
-                            "Infinity"
-                          ]
+                          "enum": ["Infinity"]
                         },
                         {
                           "type": "string",
-                          "enum": [
-                            "-Infinity"
-                          ]
+                          "enum": ["-Infinity"]
                         }
                       ]
                     },
@@ -5999,9 +5603,7 @@
             ]
           }
         },
-        "required": [
-          "distinctId"
-        ],
+        "required": ["distinctId"],
         "additionalProperties": false
       },
       "SdkCustomerAlreadyIdentifiedError": {
@@ -6009,18 +5611,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "SdkCustomerAlreadyIdentifiedError"
-            ]
+            "enum": ["SdkCustomerAlreadyIdentifiedError"]
           },
           "distinctId": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "distinctId"
-        ],
+        "required": ["_tag", "distinctId"],
         "additionalProperties": false
       },
       "SdkSyncCustomerAttributesBody": {
@@ -6062,21 +5659,15 @@
                         },
                         {
                           "type": "string",
-                          "enum": [
-                            "NaN"
-                          ]
+                          "enum": ["NaN"]
                         },
                         {
                           "type": "string",
-                          "enum": [
-                            "Infinity"
-                          ]
+                          "enum": ["Infinity"]
                         },
                         {
                           "type": "string",
-                          "enum": [
-                            "-Infinity"
-                          ]
+                          "enum": ["-Infinity"]
                         }
                       ]
                     },
@@ -6104,9 +5695,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "accepted"
-        ],
+        "required": ["accepted"],
         "additionalProperties": false
       },
       "EvaluateFeatureFlagsBody": {
@@ -6158,12 +5747,7 @@
             ]
           }
         },
-        "required": [
-          "enabled",
-          "key",
-          "payload",
-          "variantKey"
-        ],
+        "required": ["enabled", "key", "payload", "variantKey"],
         "additionalProperties": false
       },
       "SdkFeatureFlagsResponse": {
@@ -6176,9 +5760,7 @@
             }
           }
         },
-        "required": [
-          "flags"
-        ],
+        "required": ["flags"],
         "additionalProperties": false
       },
       "SdkResolvePaywallBody": {
@@ -6188,9 +5770,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "locationSlug"
-        ],
+        "required": ["locationSlug"],
         "additionalProperties": false
       },
       "SdkResolvedPaywallShowing": {
@@ -6214,11 +5794,7 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "id",
-                  "name",
-                  "slug"
-                ],
+                "required": ["id", "name", "slug"],
                 "additionalProperties": false
               },
               {
@@ -6264,31 +5840,20 @@
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "NaN"
-                        ]
+                        "enum": ["NaN"]
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "Infinity"
-                        ]
+                        "enum": ["Infinity"]
                       },
                       {
                         "type": "string",
-                        "enum": [
-                          "-Infinity"
-                        ]
+                        "enum": ["-Infinity"]
                       }
                     ]
                   }
                 },
-                "required": [
-                  "htmlUrl",
-                  "publishedAt",
-                  "releaseId",
-                  "version"
-                ],
+                "required": ["htmlUrl", "publishedAt", "releaseId", "version"],
                 "additionalProperties": false
               },
               {
@@ -6313,15 +5878,11 @@
             "anyOf": [
               {
                 "type": "string",
-                "enum": [
-                  "paywall_release"
-                ]
+                "enum": ["paywall_release"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "feature_flag"
-                ]
+                "enum": ["feature_flag"]
               }
             ]
           }
@@ -6353,21 +5914,14 @@
                 "type": "string"
               }
             },
-            "required": [
-              "id",
-              "name",
-              "slug"
-            ],
+            "required": ["id", "name", "slug"],
             "additionalProperties": false
           },
           "showing": {
             "$ref": "#/components/schemas/SdkResolvedPaywallShowing"
           }
         },
-        "required": [
-          "location",
-          "showing"
-        ],
+        "required": ["location", "showing"],
         "additionalProperties": false
       },
       "User": {
@@ -6423,12 +5977,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "id",
-                "logo",
-                "name",
-                "slug"
-              ],
+              "required": ["id", "logo", "name", "slug"],
               "additionalProperties": false
             }
           },
@@ -6460,13 +6009,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "id",
-                "logo",
-                "name",
-                "organizationId",
-                "slug"
-              ],
+              "required": ["id", "logo", "name", "organizationId", "slug"],
               "additionalProperties": false
             }
           },
@@ -6492,18 +6035,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "UserServiceError"
-            ]
+            "enum": ["UserServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "PaymentProviderConfiguration": {
@@ -6525,13 +6063,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "enabled",
-          "id",
-          "name",
-          "projectId",
-          "providerId"
-        ],
+        "required": ["enabled", "id", "name", "projectId", "providerId"],
         "additionalProperties": false
       },
       "PaymentProviderConfigurationServiceError": {
@@ -6539,18 +6071,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "PaymentProviderConfigurationServiceError"
-            ]
+            "enum": ["PaymentProviderConfigurationServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "PaymentProviderProduct": {
@@ -6589,18 +6116,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "PaymentProviderProductServiceError"
-            ]
+            "enum": ["PaymentProviderProductServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "DeployChangesetBody": {
@@ -6618,9 +6140,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "create-paywall-location"
-                          ]
+                          "enum": ["create-paywall-location"]
                         },
                         "key": {
                           "type": "string"
@@ -6652,18 +6172,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "name",
-                            "slug"
-                          ],
+                          "required": ["name", "slug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -6671,9 +6184,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "update-paywall-location"
-                          ]
+                          "enum": ["update-paywall-location"]
                         },
                         "key": {
                           "type": "string"
@@ -6705,18 +6216,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "name",
-                            "slug"
-                          ],
+                          "required": ["name", "slug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -6724,9 +6228,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "archive-paywall-location"
-                          ]
+                          "enum": ["archive-paywall-location"]
                         },
                         "key": {
                           "type": "string"
@@ -6738,17 +6240,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "slug"
-                          ],
+                          "required": ["slug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -6756,9 +6252,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "create-perk"
-                          ]
+                          "enum": ["create-perk"]
                         },
                         "key": {
                           "type": "string"
@@ -6773,18 +6267,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "name",
-                            "slug"
-                          ],
+                          "required": ["name", "slug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -6792,9 +6279,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "update-perk"
-                          ]
+                          "enum": ["update-perk"]
                         },
                         "key": {
                           "type": "string"
@@ -6809,18 +6294,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "name",
-                            "slug"
-                          ],
+                          "required": ["name", "slug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -6828,9 +6306,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "delete-perk"
-                          ]
+                          "enum": ["delete-perk"]
                         },
                         "key": {
                           "type": "string"
@@ -6842,17 +6318,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "slug"
-                          ],
+                          "required": ["slug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -6860,9 +6330,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "create-product"
-                          ]
+                          "enum": ["create-product"]
                         },
                         "key": {
                           "type": "string"
@@ -6877,18 +6345,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "name",
-                            "slug"
-                          ],
+                          "required": ["name", "slug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -6896,9 +6357,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "update-product"
-                          ]
+                          "enum": ["update-product"]
                         },
                         "key": {
                           "type": "string"
@@ -6913,18 +6372,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "name",
-                            "slug"
-                          ],
+                          "required": ["name", "slug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -6932,9 +6384,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "delete-product"
-                          ]
+                          "enum": ["delete-product"]
                         },
                         "key": {
                           "type": "string"
@@ -6946,17 +6396,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "slug"
-                          ],
+                          "required": ["slug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -6964,9 +6408,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "create-product-perk"
-                          ]
+                          "enum": ["create-product-perk"]
                         },
                         "key": {
                           "type": "string"
@@ -6981,18 +6423,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "perkSlug",
-                            "productSlug"
-                          ],
+                          "required": ["perkSlug", "productSlug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -7000,9 +6435,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "delete-product-perk"
-                          ]
+                          "enum": ["delete-product-perk"]
                         },
                         "key": {
                           "type": "string"
@@ -7017,18 +6450,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "perkSlug",
-                            "productSlug"
-                          ],
+                          "required": ["perkSlug", "productSlug"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -7036,9 +6462,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "create-payment-provider-product"
-                          ]
+                          "enum": ["create-payment-provider-product"]
                         },
                         "key": {
                           "type": "string"
@@ -7059,19 +6483,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "configuration",
-                            "productSlug",
-                            "providerId"
-                          ],
+                          "required": ["configuration", "productSlug", "providerId"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -7079,9 +6495,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "update-payment-provider-product"
-                          ]
+                          "enum": ["update-payment-provider-product"]
                         },
                         "key": {
                           "type": "string"
@@ -7102,19 +6516,11 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "configuration",
-                            "productSlug",
-                            "providerId"
-                          ],
+                          "required": ["configuration", "productSlug", "providerId"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     },
                     {
@@ -7122,9 +6528,7 @@
                       "properties": {
                         "changeType": {
                           "type": "string",
-                          "enum": [
-                            "delete-payment-provider-product"
-                          ]
+                          "enum": ["delete-payment-provider-product"]
                         },
                         "key": {
                           "type": "string"
@@ -7139,33 +6543,22 @@
                               "type": "string"
                             }
                           },
-                          "required": [
-                            "productSlug",
-                            "providerId"
-                          ],
+                          "required": ["productSlug", "providerId"],
                           "additionalProperties": false
                         }
                       },
-                      "required": [
-                        "changeType",
-                        "key",
-                        "payload"
-                      ],
+                      "required": ["changeType", "key", "payload"],
                       "additionalProperties": false
                     }
                   ]
                 }
               }
             },
-            "required": [
-              "changes"
-            ],
+            "required": ["changes"],
             "additionalProperties": false
           }
         },
-        "required": [
-          "changeset"
-        ],
+        "required": ["changeset"],
         "additionalProperties": false
       },
       "DeployChangesetResponse": {
@@ -7175,9 +6568,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "deploymentId"
-        ],
+        "required": ["deploymentId"],
         "additionalProperties": false
       },
       "ChangesetDeploymentServiceError": {
@@ -7185,18 +6576,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "ChangesetDeploymentServiceError"
-            ]
+            "enum": ["ChangesetDeploymentServiceError"]
           },
           "cause": {
             "type": "null"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "CreateWebhookEndpointBody": {
@@ -7225,11 +6611,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "events",
-          "name",
-          "url"
-        ],
+        "required": ["events", "name", "url"],
         "additionalProperties": false
       },
       "WebhookEndpoint": {
@@ -7242,21 +6624,15 @@
               },
               {
                 "type": "string",
-                "enum": [
-                  "NaN"
-                ]
+                "enum": ["NaN"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "Infinity"
-                ]
+                "enum": ["Infinity"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "-Infinity"
-                ]
+                "enum": ["-Infinity"]
               }
             ]
           },
@@ -7286,57 +6662,39 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "enum": [
-                    "customer.created"
-                  ]
+                  "enum": ["customer.created"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "customer.updated"
-                  ]
+                  "enum": ["customer.updated"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "customer.deleted"
-                  ]
+                  "enum": ["customer.deleted"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "subscription.created"
-                  ]
+                  "enum": ["subscription.created"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "subscription.renewed"
-                  ]
+                  "enum": ["subscription.renewed"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "subscription.cancelled"
-                  ]
+                  "enum": ["subscription.cancelled"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "subscription.expired"
-                  ]
+                  "enum": ["subscription.expired"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "purchase.completed"
-                  ]
+                  "enum": ["purchase.completed"]
                 },
                 {
                   "type": "string",
-                  "enum": [
-                    "purchase.refunded"
-                  ]
+                  "enum": ["purchase.refunded"]
                 }
               ]
             }
@@ -7367,21 +6725,15 @@
             "anyOf": [
               {
                 "type": "string",
-                "enum": [
-                  "active"
-                ]
+                "enum": ["active"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "disabled"
-                ]
+                "enum": ["disabled"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "failed"
-                ]
+                "enum": ["failed"]
               }
             ]
           },
@@ -7409,18 +6761,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "WebhookValidationError"
-            ]
+            "enum": ["WebhookValidationError"]
           },
           "message": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "message"
-        ],
+        "required": ["_tag", "message"],
         "additionalProperties": false
       },
       "WebhookServiceError": {
@@ -7428,18 +6775,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "WebhookServiceError"
-            ]
+            "enum": ["WebhookServiceError"]
           },
           "cause": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "cause"
-        ],
+        "required": ["_tag", "cause"],
         "additionalProperties": false
       },
       "WebhookEndpointNotFoundError": {
@@ -7447,18 +6789,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "WebhookEndpointNotFoundError"
-            ]
+            "enum": ["WebhookEndpointNotFoundError"]
           },
           "endpointId": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "endpointId"
-        ],
+        "required": ["_tag", "endpointId"],
         "additionalProperties": false
       },
       "UpdateWebhookEndpointBody": {
@@ -7510,15 +6847,11 @@
                 "anyOf": [
                   {
                     "type": "string",
-                    "enum": [
-                      "active"
-                    ]
+                    "enum": ["active"]
                   },
                   {
                     "type": "string",
-                    "enum": [
-                      "disabled"
-                    ]
+                    "enum": ["disabled"]
                   }
                 ]
               },
@@ -7550,21 +6883,15 @@
               },
               {
                 "type": "string",
-                "enum": [
-                  "NaN"
-                ]
+                "enum": ["NaN"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "Infinity"
-                ]
+                "enum": ["Infinity"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "-Infinity"
-                ]
+                "enum": ["-Infinity"]
               }
             ]
           },
@@ -7604,21 +6931,15 @@
               },
               {
                 "type": "string",
-                "enum": [
-                  "NaN"
-                ]
+                "enum": ["NaN"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "Infinity"
-                ]
+                "enum": ["Infinity"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "-Infinity"
-                ]
+                "enum": ["-Infinity"]
               }
             ]
           },
@@ -7642,33 +6963,23 @@
             "anyOf": [
               {
                 "type": "string",
-                "enum": [
-                  "pending"
-                ]
+                "enum": ["pending"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "in_progress"
-                ]
+                "enum": ["in_progress"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "succeeded"
-                ]
+                "enum": ["succeeded"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "failed"
-                ]
+                "enum": ["failed"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "exhausted"
-                ]
+                "enum": ["exhausted"]
               }
             ]
           },
@@ -7702,21 +7013,15 @@
               },
               {
                 "type": "string",
-                "enum": [
-                  "NaN"
-                ]
+                "enum": ["NaN"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "Infinity"
-                ]
+                "enum": ["Infinity"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "-Infinity"
-                ]
+                "enum": ["-Infinity"]
               }
             ]
           },
@@ -7739,21 +7044,15 @@
                   },
                   {
                     "type": "string",
-                    "enum": [
-                      "NaN"
-                    ]
+                    "enum": ["NaN"]
                   },
                   {
                     "type": "string",
-                    "enum": [
-                      "Infinity"
-                    ]
+                    "enum": ["Infinity"]
                   },
                   {
                     "type": "string",
-                    "enum": [
-                      "-Infinity"
-                    ]
+                    "enum": ["-Infinity"]
                   }
                 ]
               },
@@ -7794,21 +7093,15 @@
                   },
                   {
                     "type": "string",
-                    "enum": [
-                      "NaN"
-                    ]
+                    "enum": ["NaN"]
                   },
                   {
                     "type": "string",
-                    "enum": [
-                      "Infinity"
-                    ]
+                    "enum": ["Infinity"]
                   },
                   {
                     "type": "string",
-                    "enum": [
-                      "-Infinity"
-                    ]
+                    "enum": ["-Infinity"]
                   }
                 ]
               },
@@ -7843,21 +7136,15 @@
               },
               {
                 "type": "string",
-                "enum": [
-                  "NaN"
-                ]
+                "enum": ["NaN"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "Infinity"
-                ]
+                "enum": ["Infinity"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "-Infinity"
-                ]
+                "enum": ["-Infinity"]
               }
             ]
           },
@@ -7903,21 +7190,15 @@
               },
               {
                 "type": "string",
-                "enum": [
-                  "NaN"
-                ]
+                "enum": ["NaN"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "Infinity"
-                ]
+                "enum": ["Infinity"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "-Infinity"
-                ]
+                "enum": ["-Infinity"]
               }
             ]
           },
@@ -7941,33 +7222,23 @@
             "anyOf": [
               {
                 "type": "string",
-                "enum": [
-                  "pending"
-                ]
+                "enum": ["pending"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "in_progress"
-                ]
+                "enum": ["in_progress"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "succeeded"
-                ]
+                "enum": ["succeeded"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "failed"
-                ]
+                "enum": ["failed"]
               },
               {
                 "type": "string",
-                "enum": [
-                  "exhausted"
-                ]
+                "enum": ["exhausted"]
               }
             ]
           },
@@ -7997,18 +7268,13 @@
         "properties": {
           "_tag": {
             "type": "string",
-            "enum": [
-              "WebhookDeliveryNotFoundError"
-            ]
+            "enum": ["WebhookDeliveryNotFoundError"]
           },
           "deliveryId": {
             "type": "string"
           }
         },
-        "required": [
-          "_tag",
-          "deliveryId"
-        ],
+        "required": ["_tag", "deliveryId"],
         "additionalProperties": false
       }
     },

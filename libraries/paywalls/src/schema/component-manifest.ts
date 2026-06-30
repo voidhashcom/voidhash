@@ -89,9 +89,7 @@ export type ManifestActionPayloadKind = "string" | "number" | "boolean";
 
 export interface ManifestAction {
   /** Payload field shapes. May be `{}` for payload-less actions. */
-  readonly payload: Readonly<
-    Record<string, { readonly kind: ManifestActionPayloadKind }>
-  >;
+  readonly payload: Readonly<Record<string, { readonly kind: ManifestActionPayloadKind }>>;
 }
 
 /** Injected runtime data a component reads. `"products"` only in Phase 1. */

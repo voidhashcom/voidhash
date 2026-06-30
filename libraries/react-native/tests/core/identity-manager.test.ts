@@ -4,10 +4,7 @@ import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../src/constants";
 import { CacheManager } from "../../src/core/caching/cache-manager";
 import { PersonInfoManager } from "../../src/core/identity/person-info-manager";
 import { IdentityManager } from "../../src/core/identity/identity-manager";
-import {
-  currentPersonAtom,
-  featureFlagsByKeyAtom,
-} from "../../src/core/reactivity/client-state";
+import { currentPersonAtom, featureFlagsByKeyAtom } from "../../src/core/reactivity/client-state";
 import {
   createApiClientDouble,
   createEffectTestHarness,
@@ -30,11 +27,11 @@ describe("IdentityManager", () => {
 
     try {
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "cached-user"))
+        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "cached-user")),
       );
 
       const distinctId = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctId())
+        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctId()),
       );
 
       expect(distinctId).toBe("cached-user");
@@ -55,10 +52,10 @@ describe("IdentityManager", () => {
 
     try {
       const distinctId = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctId())
+        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctId()),
       );
       const cached = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache())
+        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache()),
       );
 
       expect(distinctId.startsWith(ANONYMOUS_DISTINCT_ID_PREFIX)).toBe(true);
@@ -85,9 +82,7 @@ describe("IdentityManager", () => {
       });
 
       await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) =>
-          manager.set("distinctId", "old-user")
-        )
+        Effect.flatMap(CacheManager, (manager) => manager.set("distinctId", "old-user")),
       );
 
       await harness.runtime.runPromise(
@@ -95,17 +90,15 @@ describe("IdentityManager", () => {
           manager.identify("new-user", {
             email: "new@voidhash.test",
             name: "New User",
-          })
-        )
+          }),
+        ),
       );
 
       const cachedDistinctId = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache())
+        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache()),
       );
       const cachedPerson = await harness.runtime.runPromise(
-        Effect.flatMap(PersonInfoManager, (manager) =>
-          manager.getPersonFromCache("new-user")
-        )
+        Effect.flatMap(PersonInfoManager, (manager) => manager.getPersonFromCache("new-user")),
       );
 
       // identify no longer auto-syncs attributes — only the identify POST runs.
@@ -142,10 +135,7 @@ describe("IdentityManager", () => {
 
     try {
       // Seed reactive state so we can assert reset clears it.
-      harness.atomRegistry.set(
-        currentPersonAtom,
-        createSdkPerson("signed-in-user")
-      );
+      harness.atomRegistry.set(currentPersonAtom, createSdkPerson("signed-in-user"));
       harness.atomRegistry.set(featureFlagsByKeyAtom, {
         all: { flags: [] },
       });
@@ -155,19 +145,19 @@ describe("IdentityManager", () => {
           Effect.all([
             manager.set("distinctId", "signed-in-user"),
             manager.set("person:some-user", { id: "some-user" }),
-          ])
-        )
+          ]),
+        ),
       );
 
       await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.reset())
+        Effect.flatMap(IdentityManager, (manager) => manager.reset()),
       );
 
       const distinctIdFromCache = await harness.runtime.runPromise(
-        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache())
+        Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache()),
       );
       const cacheKeys = await harness.runtime.runPromise(
-        Effect.flatMap(CacheManager, (manager) => manager.getCacheKeys())
+        Effect.flatMap(CacheManager, (manager) => manager.getCacheKeys()),
       );
 
       // reset no longer auto-syncs attributes.
