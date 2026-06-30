@@ -17,90 +17,83 @@ import { userError } from "../../utils/error-formatter";
  * non-zero with a clear message when they diverge, so a stale commit can't
  * pass PR CI.
  */
-export const typesCheckCommand = Command.make(
-  "check",
-  {},
-  () =>
-    Effect.gen(function* typesCheckCommand() {
-      const auth = yield* Auth;
-      const sourceCode = yield* SourceCode;
-      const schemaService = yield* SchemaService;
-      const codegen = yield* Codegen;
-      const pathService = yield* Path.Path;
+export const typesCheckCommand = Command.make("check", {}, () =>
+  Effect.gen(function* typesCheckCommand() {
+    const auth = yield* Auth;
+    const sourceCode = yield* SourceCode;
+    const schemaService = yield* SchemaService;
+    const codegen = yield* Codegen;
+    const pathService = yield* Path.Path;
 
-      yield* auth.getSignedInSession.pipe(
-        Effect.catchTag("NoSignedInUserError", () =>
-          Effect.fail(
-            userError(
-              "You must be logged in to check types. Run 'voidhash-cli auth login' first."
-            )
-          )
-        )
-      );
+    yield* auth.getSignedInSession.pipe(
+      Effect.catchTag("NoSignedInUserError", () =>
+        Effect.fail(
+          userError("You must be logged in to check types. Run 'voidhash-cli auth login' first."),
+        ),
+      ),
+    );
 
-      const config = yield* sourceCode.loadVoidhashConfig().pipe(
+    const config = yield* sourceCode
+      .loadVoidhashConfig()
+      .pipe(
         Effect.catchTag("VoidhashConfigNotFoundError", () =>
           Effect.fail(
-            userError(
-              "voidhash.config.ts not found. Run 'voidhash-cli init' to create one."
-            )
-          )
-        )
+            userError("voidhash.config.ts not found. Run 'voidhash-cli init' to create one."),
+          ),
+        ),
       );
 
-      const typesOutput = resolveTypesOutput(config);
-      const outPath = pathService.resolve(typesOutput);
+    const typesOutput = resolveTypesOutput(config);
+    const outPath = pathService.resolve(typesOutput);
 
-      const localVersion = yield* codegen.readDeclarationVersion(outPath).pipe(
+    const localVersion = yield* codegen
+      .readDeclarationVersion(outPath)
+      .pipe(
         Effect.catch(() =>
           Effect.fail(
             userError(
-              `Could not read generated types at ${typesOutput}. Run 'voidhash-cli types generate' first.`
-            )
-          )
-        )
+              `Could not read generated types at ${typesOutput}. Run 'voidhash-cli types generate' first.`,
+            ),
+          ),
+        ),
       );
 
-      if (localVersion === null) {
-        return yield* Effect.fail(
-          userError(
-            `${typesOutput} is missing the @voidhash:version header. Re-run 'voidhash-cli types generate' to regenerate.`
-          )
-        );
-      }
-
-      const remoteVersion = yield* schemaService.fetchSchemaVersion().pipe(
-        Effect.catchTag("RemoteSchemaFetchError", (e) =>
-          Effect.fail(
-            userError(
-              `Failed to fetch remote schema version: ${String(e.cause)}`
-            )
-          )
-        )
-      );
-
-      if (localVersion === remoteVersion) {
-        yield* Console.log(
-          `✓ Types are up to date (version ${localVersion.slice(0, 19)}...)`
-        );
-        return;
-      }
-
-      yield* Console.log("✗ Types are stale.");
-      yield* Console.log(`  Local:  ${localVersion}`);
-      yield* Console.log(`  Server: ${remoteVersion}`);
-      yield* Console.log(
-        "\nRun 'voidhash-cli types generate' to refresh, then commit the updated declaration file."
-      );
-
+    if (localVersion === null) {
       return yield* Effect.fail(
-        new SchemaCheckFailedError({
-          message: `Local types version ${localVersion} does not match server version ${remoteVersion}`,
-        })
+        userError(
+          `${typesOutput} is missing the @voidhash:version header. Re-run 'voidhash-cli types generate' to regenerate.`,
+        ),
       );
-    })
+    }
+
+    const remoteVersion = yield* schemaService
+      .fetchSchemaVersion()
+      .pipe(
+        Effect.catchTag("RemoteSchemaFetchError", (e) =>
+          Effect.fail(userError(`Failed to fetch remote schema version: ${String(e.cause)}`)),
+        ),
+      );
+
+    if (localVersion === remoteVersion) {
+      yield* Console.log(`✓ Types are up to date (version ${localVersion.slice(0, 19)}...)`);
+      return;
+    }
+
+    yield* Console.log("✗ Types are stale.");
+    yield* Console.log(`  Local:  ${localVersion}`);
+    yield* Console.log(`  Server: ${remoteVersion}`);
+    yield* Console.log(
+      "\nRun 'voidhash-cli types generate' to refresh, then commit the updated declaration file.",
+    );
+
+    return yield* Effect.fail(
+      new SchemaCheckFailedError({
+        message: `Local types version ${localVersion} does not match server version ${remoteVersion}`,
+      }),
+    );
+  }),
 ).pipe(
   Command.withDescription(
-    "Check whether the locally generated types are in sync with the server schema."
-  )
+    "Check whether the locally generated types are in sync with the server schema.",
+  ),
 );

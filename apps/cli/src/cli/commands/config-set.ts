@@ -19,11 +19,9 @@ export const configSetCommand = Command.make(
         })
         .pipe(
           Effect.catchTag("SchemaError", () =>
-            Effect.fail(
-              userError("Failed to set configuration")
-            )
-          )
+            Effect.fail(userError("Failed to set configuration")),
+          ),
         );
       yield* Console.log("Configuration set successfully.");
-    })
+    }),
 ).pipe(Command.withDescription("Set a Voidhash configuration value."));

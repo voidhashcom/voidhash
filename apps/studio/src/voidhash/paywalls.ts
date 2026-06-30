@@ -71,9 +71,7 @@ const findComponentDefinition = (
   return null;
 };
 
-const safeManifest = (
-  definition: AnyComponentDefinition,
-): ComponentManifest | null => {
+const safeManifest = (definition: AnyComponentDefinition): ComponentManifest | null => {
   try {
     return extractComponentManifest(definition);
   } catch {

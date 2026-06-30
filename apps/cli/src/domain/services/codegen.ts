@@ -33,7 +33,7 @@ function toUnionType(slugs: string[]): string {
 export function generateTypesDeclaration(
   schema: NormalizedSchema,
   version: string,
-  options: { fetchedAt?: Date } = {}
+  options: { fetchedAt?: Date } = {},
 ): string {
   const fetchedAt = (options.fetchedAt ?? new Date()).toISOString();
 
@@ -76,10 +76,7 @@ const make = Effect.gen(function* effect() {
    * like `<voidhash.Provider>` or `voidhash.useProducts()`. The parent
    * directory (`src/lib` or `lib`) is created if it does not exist yet.
    */
-  const generateClientFile = (
-    filePath: string,
-    options: { publishableKey: string }
-  ) =>
+  const generateClientFile = (filePath: string, options: { publishableKey: string }) =>
     Effect.gen(function* generateClientFile() {
       yield* fileSystem.makeDirectory(path.dirname(filePath), {
         recursive: true,
@@ -101,7 +98,7 @@ const make = Effect.gen(function* effect() {
 
   const generateVoidhashConfigFile = (
     filePath: string,
-    config: Writable<typeof VoidhashConfigSchema.Type>
+    config: Writable<typeof VoidhashConfigSchema.Type>,
   ) =>
     Effect.gen(function* generateVoidhashConfigFile() {
       const lines = [
@@ -126,7 +123,7 @@ const make = Effect.gen(function* effect() {
   const generateTypesDeclarationFile = (
     filePath: string,
     schema: NormalizedSchema,
-    version: string
+    version: string,
   ) =>
     Effect.gen(function* generateTypesDeclarationFile() {
       const content = generateTypesDeclaration(schema, version);
@@ -150,8 +147,6 @@ const make = Effect.gen(function* effect() {
 
 type CodegenShape = Effect.Success<typeof make>;
 
-export class Codegen extends Context.Service<Codegen, CodegenShape>()(
-  "voidhash-cli/Codegen"
-) {
+export class Codegen extends Context.Service<Codegen, CodegenShape>()("voidhash-cli/Codegen") {
   static Default = Layer.effect(Codegen, make);
 }

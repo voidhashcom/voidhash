@@ -8,8 +8,11 @@ import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";
 import { CacheManager } from "./core/caching/cache-manager";
 import type { SubscriptionProduct } from "./core/entities/product";
 import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
-import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
-import { CustomerInfoManager } from "./core/identity/customer-info-manager";
+import {
+  type PersonAttributes,
+  PersonAttributeManager,
+} from "./core/identity/person-attribute-manager";
+import { PersonInfoManager } from "./core/identity/person-info-manager";
 import { IdentityManager } from "./core/identity/identity-manager";
 import { LifecycleService } from "./core/lifecycle/lifecycle-service";
 import { ReactNativeLifecycleAdapter } from "./core/lifecycle/react-native-lifecycle-adapter";
@@ -57,7 +60,7 @@ const CreateEffectRuntime = (
 ) =>
   ManagedRuntime.make(
     pipe(
-      CustomerAttributeManager.Default,
+      PersonAttributeManager.Default,
       Layer.provideMerge(ProductService.layer),
       Layer.provideMerge(FeatureFlagService.layer),
       Layer.provideMerge(PaywallService.layer),
@@ -65,7 +68,7 @@ const CreateEffectRuntime = (
       Layer.provideMerge(AnalyticsService.layer),
       Layer.provideMerge(LifecycleService.layer),
       Layer.provideMerge(ReactNativeLifecycleAdapter),
-      Layer.provideMerge(CustomerInfoManager.Default),
+      Layer.provideMerge(PersonInfoManager.Default),
       Layer.provideMerge(SchemaManager.layer),
       Layer.provideMerge(IdentityManager.Default),
       Layer.provideMerge(CacheManager.Default),
@@ -266,13 +269,46 @@ export class VoidhashClient {
   }
 
   /**
-   * Returns currently identified customer.
+   * Returns currently identified person.
    */
-  async getCurrentCustomer(forceFetch = false) {
+  async getCurrentPerson(forceFetch = false) {
     this.ensureInitialized();
     return this.runEffect(
-      this.initializedClient!.getCurrentCustomer(forceFetch),
-      "FAILED_TO_GET_CURRENT_CUSTOMER",
+      this.initializedClient!.getCurrentPerson(forceFetch),
+      "FAILED_TO_GET_CURRENT_PERSON",
+    );
+  }
+
+  /**
+   * Sets person attributes asynchronously. Reserved `email`/`name` keys map to
+   * the dedicated server fields; any other key is forwarded as a custom trait.
+   * The update rides the analytics queue (fire-and-forget) — call `flush()` if
+   * you need it delivered promptly.
+   */
+  async setPersonAttributes(attributes: PersonAttributes) {
+    await this.runSideEffect("setPersonAttributes", async () => {
+      this.ensureInitialized();
+      await this.runEffect(
+        this.initializedClient!.setPersonAttributes(attributes),
+        "FAILED_TO_SET_PERSON_ATTRIBUTES",
+      );
+    });
+  }
+
+  /**
+   * Sets person attributes synchronously and returns the updated person
+   * snapshot. Performs a network round-trip, so this is a write — it is blocked
+   * in read-only mode, mirroring `purchase`.
+   */
+  async setPersonAttributesSync(attributes: PersonAttributes) {
+    this.ensureInitialized();
+    if (this.readOnly) {
+      throw new ReadOnlyModePurchaseNotAllowedError();
+    }
+
+    return this.runEffect(
+      this.initializedClient!.setPersonAttributesSync(attributes),
+      "FAILED_TO_SET_PERSON_ATTRIBUTES_SYNC",
     );
   }
 
@@ -313,8 +349,19 @@ export class VoidhashClient {
     });
   }
 
+  /**
+   * Signs the current user out: captures the built-in `$sign_out` event,
+   * flushes it under the signing-out identity, then resets to a fresh
+   * anonymous distinct id.
+   */
   async signOut() {
-    return this.reset();
+    await this.runSideEffect("signOut", async () => {
+      this.ensureInitialized();
+      await this.runEffect(
+        this.initializedClient!.signOut(),
+        "FAILED_TO_SIGN_OUT",
+      );
+    });
   }
 
   /**
@@ -389,7 +436,7 @@ export class VoidhashClient {
 
   /**
    * Restores purchases by reconciling pending/past store transactions and
-   * refreshing customer state.
+   * refreshing person state.
    */
   async restorePurchases() {
     await this.runSideEffect("restorePurchases", async () => {
@@ -518,7 +565,7 @@ export class VoidhashClient {
   }
 
   // ===============================
-  // Customer helpers
+  // Person helpers
   // ===============================
 
   /**

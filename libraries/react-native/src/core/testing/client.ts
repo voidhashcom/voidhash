@@ -2,8 +2,8 @@
 // import { CacheManager } from '../caching/cache-manager';
 // import type { PlatformInfo } from '../constants';
 // import { EventBus } from '../event-bus';
-// import { CustomerAttributeManager } from '../identity/customer-attribute-manager';
-// import { CustomerInfoManager } from '../identity/customer-info-manager';
+// import { PersonAttributeManager } from '../identity/person-attribute-manager';
+// import { PersonInfoManager } from '../identity/person-info-manager';
 // import { IdentityManager } from '../identity/identity-manager';
 // import { Logger, LogLevel } from '../logging';
 // import { createApi } from '../networking/_/api';
@@ -22,8 +22,8 @@
 //   eventBus?: EventBus;
 //   platformProvider?: PlatformProvider;
 //   cacheManager?: CacheManager;
-//   customerInfoManager?: CustomerInfoManager;
-//   customerAttributeManager?: CustomerAttributeManager;
+//   personInfoManager?: PersonInfoManager;
+//   personAttributeManager?: PersonAttributeManager;
 //   identityManager?: IdentityManager;
 //   paymentAdapter?: PaymentAdapter;
 // };
@@ -35,8 +35,8 @@
 //   cacheManager: cacheManagerOverride,
 //   eventBus: eventBusOverride,
 //   platformProvider: platformProviderOverride,
-//   customerInfoManager: customerInfoManagerOverride,
-//   customerAttributeManager: customerAttributeManagerOverride,
+//   personInfoManager: personInfoManagerOverride,
+//   personAttributeManager: personAttributeManagerOverride,
 //   identityManager: identityManagerOverride,
 //   paymentAdapter: paymentAdapterOverride
 // }: CreateVoidhashTestClientOptions) {
@@ -54,19 +54,19 @@
 //     logger
 //   });
 //   const api = createApi(httpClient);
-//   const customerInfoManager =
-//     customerInfoManagerOverride ??
-//     new CustomerInfoManager(cacheManager, logger, api, eventBus);
-//   const customerAttributeManager =
-//     customerAttributeManagerOverride ??
-//     new CustomerAttributeManager(cacheManager, logger, api);
+//   const personInfoManager =
+//     personInfoManagerOverride ??
+//     new PersonInfoManager(cacheManager, logger, api, eventBus);
+//   const personAttributeManager =
+//     personAttributeManagerOverride ??
+//     new PersonAttributeManager(cacheManager, logger, api);
 //   const identityManager =
 //     identityManagerOverride ??
 //     new IdentityManager(
 //       cacheManager,
 //       logger,
-//       customerInfoManager,
-//       customerAttributeManager,
+//       personInfoManager,
+//       personAttributeManager,
 //       api,
 //       eventBus
 //     );
@@ -76,9 +76,9 @@
 //     scheme,
 //     logger,
 //     cacheManager,
-//     customerInfoManager,
+//     personInfoManager,
 //     identityManager,
-//     customerAttributeManager,
+//     personAttributeManager,
 //     schema,
 //     paymentAdapter,
 //     eventBus,

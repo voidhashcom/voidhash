@@ -71,7 +71,7 @@ const bindWebSdkClient = (client: VoidhashCoreClient) => ({
         }),
         normalizeFeatureFlagsResponse
       ),
-    getCustomer: (request: { headers: WebSdkHeaders }) =>
+    getPerson: (request: { headers: WebSdkHeaders }) =>
       client.sdkGetPerson(request.headers as SdkGetPersonParams),
     identify: (request: {
       headers: WebSdkHeaders;
@@ -89,7 +89,7 @@ const bindWebSdkClient = (client: VoidhashCoreClient) => ({
         params: request.headers as Parameters<typeof client.sdkResolvePaywall>[0]["params"],
         payload: request.payload,
       }),
-    syncCustomerAttributes: (request: {
+    syncPersonAttributes: (request: {
       headers: WebSdkHeaders;
       payload: SdkSyncPersonAttributesBody;
     }) =>

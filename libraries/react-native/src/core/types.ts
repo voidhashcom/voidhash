@@ -57,8 +57,8 @@ export type FetchEsque = (
 ) => Promise<ResponseEsque>;
 
 // API
-export interface CustomerResponse {
-  customerId: string;
+export interface PersonResponse {
+  personId: string;
   name: null;
   email: null;
   distinctId: null;

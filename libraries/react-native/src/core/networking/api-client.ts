@@ -101,7 +101,7 @@ const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
         }),
         normalizeFeatureFlagsResponse
       ),
-    getCustomer: (request: { headers: ReactNativeSdkHeaders }) =>
+    getPerson: (request: { headers: ReactNativeSdkHeaders }) =>
       client.sdkGetPerson(request.headers as SdkGetPersonParams),
     identify: (request: {
       headers: ReactNativeSdkHeaders;
@@ -119,7 +119,7 @@ const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
         params: request.headers as Parameters<typeof client.sdkResolvePaywall>[0]["params"],
         payload: request.payload,
       }),
-    syncCustomerAttributes: (request: {
+    syncPersonAttributes: (request: {
       headers: ReactNativeSdkHeaders;
       payload: SdkSyncPersonAttributesBody;
     }) =>

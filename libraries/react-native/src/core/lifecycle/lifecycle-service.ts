@@ -1,12 +1,13 @@
 import { Effect, Layer, Context } from "effect";
 
+import { AUTOMATIC_EVENTS } from "../analytics/constants";
 import { LifecycleAdapter, type LifecycleSubscription } from "./lifecycle-adapter";
 
 /**
  * Wires raw platform lifecycle transitions to high-level analytics-style
  * events. Translates background/active transitions delivered by
- * `LifecycleAdapter` into `app_backgrounded` and `app_became_active` callbacks
- * which the caller is expected to forward to the analytics pipeline.
+ * `LifecycleAdapter` into `$app_backgrounded` and `$app_became_active`
+ * callbacks which the caller is expected to forward to the analytics pipeline.
  */
 export class LifecycleService extends Context.Service<LifecycleService>()(
   "rn-voidhash/LifecycleService",
@@ -19,7 +20,7 @@ export class LifecycleService extends Context.Service<LifecycleService>()(
       ): Effect.Effect<LifecycleSubscription | null> =>
         adapter.subscribe((nextState, previousState) => {
           if (nextState === "background" && previousState !== "background") {
-            captureEvent("app_backgrounded");
+            captureEvent(AUTOMATIC_EVENTS.APP_BACKGROUNDED);
             return;
           }
 
@@ -28,7 +29,7 @@ export class LifecycleService extends Context.Service<LifecycleService>()(
             previousState !== null &&
             previousState !== "active"
           ) {
-            captureEvent("app_became_active");
+            captureEvent(AUTOMATIC_EVENTS.APP_BECAME_ACTIVE);
           }
         });
 

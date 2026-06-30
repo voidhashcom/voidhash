@@ -12,11 +12,11 @@ export const authStatusCommand = Command.make("status", {}, () =>
         FailedToGetSessionError: () =>
           Effect.fail(
             userError(
-              "Failed to get user session. Please try again or run 'voidhash-cli auth login'."
-            )
+              "Failed to get user session. Please try again or run 'voidhash-cli auth login'.",
+            ),
           ),
         NoSignedInUserError: () => Effect.succeed(null),
-      })
+      }),
     );
 
     if (user) {
@@ -24,5 +24,5 @@ export const authStatusCommand = Command.make("status", {}, () =>
     } else {
       yield* Console.log("Not logged in");
     }
-  })
+  }),
 ).pipe(Command.withDescription("Check the status of the Voidhash CLI."));

@@ -2,11 +2,10 @@ import { Effect } from "effect";
 
 import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../src/constants";
 import { CacheManager } from "../../src/core/caching/cache-manager";
-import { CustomerAttributeManager } from "../../src/core/identity/customer-attribute-manager";
-import { CustomerInfoManager } from "../../src/core/identity/customer-info-manager";
+import { PersonInfoManager } from "../../src/core/identity/person-info-manager";
 import { IdentityManager } from "../../src/core/identity/identity-manager";
 import {
-  currentCustomerAtom,
+  currentPersonAtom,
   featureFlagsByKeyAtom,
 } from "../../src/core/reactivity/client-state";
 import {
@@ -14,7 +13,7 @@ import {
   createEffectTestHarness,
   createInMemoryCacheAdapter,
   createPaymentAdapterDouble,
-  createSdkCustomer,
+  createSdkPerson,
 } from "../helpers/effect-test-harness";
 import { describe, expect, it } from "../helpers/effect-vitest";
 
@@ -69,7 +68,7 @@ describe("IdentityManager", () => {
     }
   });
 
-  it("identify syncs previous traits, updates cache and publishes new customer", async () => {
+  it("identify switches distinct id, updates cache and publishes new person", async () => {
     const apiDouble = createApiClientDouble();
     const paymentDouble = createPaymentAdapterDouble();
     const cache = createInMemoryCacheAdapter();
@@ -87,13 +86,7 @@ describe("IdentityManager", () => {
 
       await harness.runtime.runPromise(
         Effect.flatMap(CacheManager, (manager) =>
-          Effect.all([
-            manager.set("distinctId", "old-user"),
-            manager.set("customer-attributes:old-user", {
-              email: "old@voidhash.test",
-              name: "Old User",
-            }),
-          ])
+          manager.set("distinctId", "old-user")
         )
       );
 
@@ -109,16 +102,14 @@ describe("IdentityManager", () => {
       const cachedDistinctId = await harness.runtime.runPromise(
         Effect.flatMap(IdentityManager, (manager) => manager.getDistinctIdFromCache())
       );
-      const cachedCustomer = await harness.runtime.runPromise(
-        Effect.flatMap(CustomerInfoManager, (manager) =>
-          manager.getCustomerFromCache("new-user")
+      const cachedPerson = await harness.runtime.runPromise(
+        Effect.flatMap(PersonInfoManager, (manager) =>
+          manager.getPersonFromCache("new-user")
         )
       );
 
-      expect(apiDouble.state.syncCustomerAttributesCalls).toHaveLength(1);
-      expect(apiDouble.state.syncCustomerAttributesCalls[0]?.headers["x-distinct-id"]).toBe(
-        "old-user"
-      );
+      // identify no longer auto-syncs attributes — only the identify POST runs.
+      expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(0);
 
       expect(apiDouble.state.identifyCalls).toHaveLength(1);
       expect(apiDouble.state.identifyCalls[0]?.payload).toMatchObject({
@@ -129,17 +120,17 @@ describe("IdentityManager", () => {
       expect(apiDouble.state.identifyCalls[0]?.headers["x-distinct-id"]).toBe("old-user");
 
       expect(cachedDistinctId).toBe("new-user");
-      expect(cachedCustomer?.value.distinctId).toBe("new-user");
+      expect(cachedPerson?.value.distinctId).toBe("new-user");
 
-      const publishedCustomer = harness.atomRegistry.get(currentCustomerAtom);
-      expect(publishedCustomer?.distinctId).toBe("new-user");
+      const publishedPerson = harness.atomRegistry.get(currentPersonAtom);
+      expect(publishedPerson?.distinctId).toBe("new-user");
       expect(harness.atomRegistry.get(featureFlagsByKeyAtom)).toEqual({});
     } finally {
       await harness.runtime.dispose();
     }
   });
 
-  it("reset syncs attributes, clears cache and resets reactive state", async () => {
+  it("reset clears cache and resets reactive state without syncing attributes", async () => {
     const apiDouble = createApiClientDouble();
     const paymentDouble = createPaymentAdapterDouble();
     const cache = createInMemoryCacheAdapter();
@@ -152,8 +143,8 @@ describe("IdentityManager", () => {
     try {
       // Seed reactive state so we can assert reset clears it.
       harness.atomRegistry.set(
-        currentCustomerAtom,
-        createSdkCustomer("signed-in-user")
+        currentPersonAtom,
+        createSdkPerson("signed-in-user")
       );
       harness.atomRegistry.set(featureFlagsByKeyAtom, {
         all: { flags: [] },
@@ -163,16 +154,8 @@ describe("IdentityManager", () => {
         Effect.flatMap(CacheManager, (manager) =>
           Effect.all([
             manager.set("distinctId", "signed-in-user"),
-            manager.set("customer:some-user", { id: "some-user" }),
+            manager.set("person:some-user", { id: "some-user" }),
           ])
-        )
-      );
-      await harness.runtime.runPromise(
-        Effect.flatMap(CustomerAttributeManager, (manager) =>
-          manager.setCustomerAttributes("signed-in-user", {
-            email: "signed@voidhash.test",
-            name: "Signed User",
-          })
         )
       );
 
@@ -187,13 +170,11 @@ describe("IdentityManager", () => {
         Effect.flatMap(CacheManager, (manager) => manager.getCacheKeys())
       );
 
-      expect(apiDouble.state.syncCustomerAttributesCalls).toHaveLength(1);
-      expect(apiDouble.state.syncCustomerAttributesCalls[0]?.headers["x-distinct-id"]).toBe(
-        "signed-in-user"
-      );
+      // reset no longer auto-syncs attributes.
+      expect(apiDouble.state.syncPersonAttributesCalls).toHaveLength(0);
       expect(distinctIdFromCache).toBeNull();
       expect(cacheKeys).toEqual([]);
-      expect(harness.atomRegistry.get(currentCustomerAtom)).toBeNull();
+      expect(harness.atomRegistry.get(currentPersonAtom)).toBeNull();
       expect(harness.atomRegistry.get(featureFlagsByKeyAtom)).toEqual({});
     } finally {
       await harness.runtime.dispose();

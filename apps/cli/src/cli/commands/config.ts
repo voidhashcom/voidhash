@@ -31,8 +31,8 @@ export const configCommand = Command.make("config", {}, () =>
     if (profileNames.length > 0) {
       yield* Console.log(`\nProfiles: ${profileNames.join(", ")}`);
     }
-  })
+  }),
 ).pipe(
   Command.withDescription("Manage the Voidhash authentication."),
-  Command.withSubcommands([configSetCommand, configResetCommand])
+  Command.withSubcommands([configSetCommand, configResetCommand]),
 );

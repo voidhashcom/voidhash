@@ -50,7 +50,7 @@ describe("VoidhashWebClient", () => {
         );
       }
 
-      if (call.url.endsWith("/sdk/sync-customer-attributes")) {
+      if (call.url.endsWith("/sdk/sync-person-attributes")) {
         return createJsonResponse({});
       }
 
@@ -100,26 +100,119 @@ describe("VoidhashWebClient", () => {
     await client.destroy();
   });
 
-  it("syncs traits before identify and reset identity", async () => {
+  it("flushes queued analytics before identify and reset identity", async () => {
     const { calls } = installFetchMock((call) => {
       if (call.url.endsWith("/sdk/identify")) {
         return createJsonResponse({
-          customerId: "customer_123",
+          personId: "person_123",
           distinctId: "user_123",
           email: null,
           name: null,
         });
       }
 
-      if (call.url.endsWith("/sdk/sync-customer-attributes")) {
-        return createJsonResponse({
-          customerId: "customer_sync",
-          distinctId: "synced",
-          email: null,
-          name: null,
-        });
+      if (call.url.endsWith("/batch")) {
+        return createJsonResponse({ accepted: 1, rejected: 0 }, 202);
       }
 
+      return createJsonResponse({});
+    });
+    const client = createVoidhashClient({
+      analytics: {
+        flushIntervalMs: 60_000,
+      },
+      publishableKey: "vh_pk_test",
+    });
+
+    await client.initialize();
+    const initialDistinctId = client.getDistinctId();
+
+    // Queue an event under the anonymous id, then identify. The pending event
+    // must flush attributed to the pre-switch distinct id.
+    await client.track("checkout_started", { source: "pricing_page" });
+    await client.identify("user_123", { companyId: "acme", plan: "pro" });
+    await client.reset();
+
+    // No person-attributes sync endpoint is hit during identify/reset anymore.
+    expect(
+      calls.some((call) => call.url.includes("sync-person-attributes"))
+    ).toBe(false);
+
+    const identifyCall = calls.find((call) => call.url.endsWith("/sdk/identify"));
+    expect(JSON.parse(identifyCall?.body ?? "{}")).toEqual({
+      distinctId: "user_123",
+      traits: {
+        companyId: "acme",
+        plan: "pro",
+      },
+    });
+
+    // The queued event flushed before the identity switch, attributed to the
+    // original anonymous distinct id.
+    const batchCall = calls.find((call) => call.url.endsWith("/batch"));
+    expect(JSON.parse(batchCall?.body ?? "{}").events?.[0]?.distinct_id).toBe(
+      initialDistinctId
+    );
+
+    expect(client.getDistinctId()).toMatch(/^vh:anon:/);
+
+    await client.destroy();
+  });
+
+  it("setPersonAttributes enqueues a $set event with $process_person_profile", async () => {
+    const { calls } = installFetchMock((call) => {
+      if (call.url.endsWith("/batch")) {
+        return createJsonResponse({ accepted: 1, rejected: 0 }, 202);
+      }
+      return createJsonResponse({});
+    });
+    const client = createVoidhashClient({
+      analytics: {
+        flushIntervalMs: 60_000,
+      },
+      publishableKey: "vh_pk_test",
+    });
+
+    await client.initialize();
+    const distinctId = client.getDistinctId();
+
+    await client.setPersonAttributes({
+      email: "ada@example.com",
+      name: "Ada",
+      plan: "pro",
+    });
+    const flushResult = await client.flushAnalytics();
+
+    expect(flushResult).toEqual({ accepted: 1, rejected: 0 });
+
+    const batchCall = calls.find((call) => call.url.endsWith("/batch"));
+    const event = JSON.parse(batchCall?.body ?? "{}").events?.[0];
+    expect(event).toMatchObject({
+      distinct_id: distinctId,
+      event: "$set",
+      properties: {
+        $process_person_profile: true,
+        $set: {
+          email: "ada@example.com",
+          name: "Ada",
+          plan: "pro",
+        },
+      },
+    });
+
+    await client.destroy();
+  });
+
+  it("setPersonAttributesSync posts attributes and returns the person snapshot", async () => {
+    const { calls } = installFetchMock((call) => {
+      if (call.url.endsWith("/sdk/person/traits")) {
+        return createJsonResponse({
+          personId: "person_sync",
+          distinctId: "synced",
+          email: "ada@example.com",
+          name: "Ada",
+        });
+      }
       return createJsonResponse({});
     });
     const client = createVoidhashClient({
@@ -130,25 +223,31 @@ describe("VoidhashWebClient", () => {
     });
 
     await client.initialize();
-    const initialDistinctId = client.getDistinctId();
-    await client.identify("user_123", { companyId: "acme", plan: "pro" });
-    await client.reset();
+    const distinctId = client.getDistinctId();
 
-    const syncCalls = calls.filter((call) =>
+    const snapshot = await client.setPersonAttributesSync({
+      email: "ada@example.com",
+      name: "Ada",
+      plan: "pro",
+    });
+
+    expect(snapshot).toMatchObject({
+      personId: "person_sync",
+      email: "ada@example.com",
+      name: "Ada",
+    });
+
+    const syncCall = calls.find((call) =>
       call.url.endsWith("/sdk/person/traits")
     );
-    const identifyCall = calls.find((call) => call.url.endsWith("/sdk/identify"));
-
-    expect(syncCalls[0]?.headers["x-distinct-id"]).toBe(initialDistinctId);
-    expect(JSON.parse(identifyCall?.body ?? "{}")).toEqual({
-      distinctId: "user_123",
+    expect(syncCall?.headers["x-distinct-id"]).toBe(distinctId);
+    expect(JSON.parse(syncCall?.body ?? "{}")).toEqual({
+      email: "ada@example.com",
+      name: "Ada",
       traits: {
-        companyId: "acme",
         plan: "pro",
       },
     });
-    expect(syncCalls[1]?.headers["x-distinct-id"]).toBe("user_123");
-    expect(client.getDistinctId()).toMatch(/^vh:anon:/);
 
     await client.destroy();
   });

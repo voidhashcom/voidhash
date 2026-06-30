@@ -51,14 +51,8 @@ const buildErrors = async (
 beforeAll(async () => {
   projectRoot = await fsp.mkdtemp(join(tmpdir(), "voidhash-closed-imports-"));
   voidhashDir = join(projectRoot, ".voidhash");
-  await writeSource(
-    ".voidhash/components/helper.ts",
-    "export const helper = 1;\n",
-  );
-  await fsp.writeFile(
-    join(projectRoot, "app-code.ts"),
-    "export const y = 1;\n",
-  );
+  await writeSource(".voidhash/components/helper.ts", "export const helper = 1;\n");
+  await fsp.writeFile(join(projectRoot, "app-code.ts"), "export const y = 1;\n");
 });
 
 afterAll(async () => {
@@ -135,8 +129,6 @@ describe("closedImportsPlugin", () => {
     const entry = join(projectRoot, "vendor-entry.ts");
     await fsp.writeFile(entry, 'import "react-dom";\nexport {};\n');
 
-    expect(
-      await buildErrors(entry, { external: [...EXTERNALS, "react-dom"] }),
-    ).toEqual([]);
+    expect(await buildErrors(entry, { external: [...EXTERNALS, "react-dom"] })).toEqual([]);
   });
 });

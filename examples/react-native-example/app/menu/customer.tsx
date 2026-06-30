@@ -7,12 +7,12 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { client } = voidhash.useVoidhash();
   const {
-    data: customer,
-    isLoading: isCustomerLoading,
-    error: customerError,
-  } = voidhash.useCurrentCustomer();
+    data: person,
+    isLoading: isPersonLoading,
+    error: personError,
+  } = voidhash.useCurrentPerson();
 
-  if (isCustomerLoading) {
+  if (isPersonLoading) {
     return null;
   }
 
@@ -28,9 +28,9 @@ export default function HomeScreen() {
   return (
     <View style={containerStyle}>
       <View>
-        <Text style={styles.title}>Customer</Text>
-        <Text style={styles.jsonText}>{JSON.stringify(customer, null, 2)}</Text>
-        <Text style={styles.jsonText}>{JSON.stringify(customerError, null, 2)}</Text>
+        <Text style={styles.title}>Person</Text>
+        <Text style={styles.jsonText}>{JSON.stringify(person, null, 2)}</Text>
+        <Text style={styles.jsonText}>{JSON.stringify(personError, null, 2)}</Text>
 
         {Platform.OS === "ios" && (
           <View style={styles.actions}>

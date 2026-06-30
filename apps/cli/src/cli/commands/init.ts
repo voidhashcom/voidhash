@@ -32,18 +32,16 @@ export const initCommand = Command.make("init", {}, () =>
     const schemaService = yield* SchemaService;
     const path = yield* Path.Path;
 
-    const voidhashConfig = yield* sourceCode.loadVoidhashConfig().pipe(
-      Effect.catchTag("VoidhashConfigNotFoundError", () =>
-        Effect.succeed(null)
-      )
-    );
+    const voidhashConfig = yield* sourceCode
+      .loadVoidhashConfig()
+      .pipe(Effect.catchTag("VoidhashConfigNotFoundError", () => Effect.succeed(null)));
 
     if (voidhashConfig) {
       const shouldContinue = yield* Prompt.run(
         Prompt.confirm({
           message:
             "Voidhash was already initialized in this project. This will overwrite the existing configuration. Do you want to continue?",
-        })
+        }),
       );
       if (!shouldContinue) {
         return yield* Console.log("Initialization cancelled.");
@@ -60,28 +58,24 @@ export const initCommand = Command.make("init", {}, () =>
               Prompt.confirm({
                 message:
                   "You are not logged in. In the next step, we will open a browser window to sign you in. Do you want to continue?",
-              })
+              }),
             );
             if (!shouldContinue) {
               return yield* Effect.fail(userError("Login cancelled."));
             }
-            return yield* auth.login.pipe(
-              Effect.andThen(auth.getSignedInSession)
-            );
-          })
-        )
+            return yield* auth.login.pipe(Effect.andThen(auth.getSignedInSession));
+          }),
+        ),
       )
       .pipe(
         Effect.catchTags({
           FailedToGetSessionError: (e) =>
-            Effect.fail(
-              userError("Failed to get user session. Please try again.")
-            ).pipe(Effect.tapError(() => Effect.logDebug(e))),
-          NoSignedInUserError: () =>
-            Effect.fail(
-              userError("We were unable to sign you in. Please try it again.")
+            Effect.fail(userError("Failed to get user session. Please try again.")).pipe(
+              Effect.tapError(() => Effect.logDebug(e)),
             ),
-        })
+          NoSignedInUserError: () =>
+            Effect.fail(userError("We were unable to sign you in. Please try it again.")),
+        }),
       );
 
     // Select team
@@ -90,7 +84,7 @@ export const initCommand = Command.make("init", {}, () =>
     // Select project
     const project = yield* selectProject(
       organization.id,
-      session.projects.filter((p) => p.organizationId === organization.id)
+      session.projects.filter((p) => p.organizationId === organization.id),
     );
 
     // Sanity-check that a publishable key exists for this project; we don't
@@ -103,13 +97,11 @@ export const initCommand = Command.make("init", {}, () =>
       rawKey?: string;
     }[];
     const publishableApiKey = apiKeys.find(
-      (apiKey) => apiKey.isPublic && apiKey.projectId === project.id
+      (apiKey) => apiKey.isPublic && apiKey.projectId === project.id,
     );
     if (!publishableApiKey?.rawKey?.startsWith("vh_pk_")) {
       return yield* Effect.fail(
-        userError(
-          "Could not retrieve a valid publishable key for the selected project."
-        )
+        userError("Could not retrieve a valid publishable key for the selected project."),
       );
     }
     const publishableKey = publishableApiKey.rawKey;
@@ -117,8 +109,7 @@ export const initCommand = Command.make("init", {}, () =>
     // Decide where the generated `.d.ts` lives. We default to the project
     // root since module augmentation works from anywhere in `tsconfig.include`.
     const language = yield* sourceCode.detectSrcLanguage();
-    const configFileName =
-      language === "ts" ? "voidhash.config.ts" : "voidhash.config.js";
+    const configFileName = language === "ts" ? "voidhash.config.ts" : "voidhash.config.js";
 
     const configFilePath = path.resolve(configFileName);
     const typesOutputPath = path.resolve(DEFAULT_TYPES_OUTPUT);
@@ -147,22 +138,16 @@ export const initCommand = Command.make("init", {}, () =>
     // Produce the initial declaration file so the user has working
     // autocomplete on the first run. Failures here are non-fatal — the user
     // can re-run `voidhash-cli types generate` later.
-    const generatedVersion = yield* schemaService
-      .fetchRemoteSchema()
-      .pipe(
-        Effect.flatMap(({ schema, version }) =>
-          codegen.generateTypesDeclarationFile(
-            typesOutputPath,
-            schema,
-            version
-          )
-        ),
-        Effect.catch((e) =>
-          Effect.logWarning(
-            `Failed to generate initial types: ${String(e)}. You can run 'voidhash-cli types generate' later.`
-          ).pipe(Effect.as(null))
-        )
-      );
+    const generatedVersion = yield* schemaService.fetchRemoteSchema().pipe(
+      Effect.flatMap(({ schema, version }) =>
+        codegen.generateTypesDeclarationFile(typesOutputPath, schema, version),
+      ),
+      Effect.catch((e) =>
+        Effect.logWarning(
+          `Failed to generate initial types: ${String(e)}. You can run 'voidhash-cli types generate' later.`,
+        ).pipe(Effect.as(null)),
+      ),
+    );
 
     yield* Console.log("\nVoidhash initialized successfully!");
     yield* Console.log(`  Config:  ${configFilePath}`);
@@ -172,13 +157,13 @@ export const initCommand = Command.make("init", {}, () =>
     }
     yield* Console.log(`\nNext steps:`);
     yield* Console.log(
-      `  1. Wrap your app with <voidhash.Provider> from ${path.relative(".", clientFilePath)}.`
+      `  1. Wrap your app with <voidhash.Provider> from ${path.relative(".", clientFilePath)}.`,
     );
     yield* Console.log(
-      `  2. Create your products and paywall locations in the Voidhash dashboard.`
+      `  2. Create your products and paywall locations in the Voidhash dashboard.`,
     );
     yield* Console.log(
-      `  3. Re-run 'voidhash-cli types generate' whenever the dashboard schema changes.`
+      `  3. Re-run 'voidhash-cli types generate' whenever the dashboard schema changes.`,
     );
-  })
+  }),
 ).pipe(Command.withDescription("Initialize a new Voidhash project."));

@@ -1,53 +1,41 @@
 import { Data } from "effect";
 
-export class PackageJsonNotFoundError extends Data.TaggedError(
-  "PackageJsonNotFoundError"
-)<{
+export class PackageJsonNotFoundError extends Data.TaggedError("PackageJsonNotFoundError")<{
   readonly message: string;
 }> {}
 
-export class InvalidPackageJsonError extends Data.TaggedError(
-  "InvalidPackageJsonError"
-)<{
+export class InvalidPackageJsonError extends Data.TaggedError("InvalidPackageJsonError")<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
-export class FailedToLoadPackageJsonError extends Data.TaggedError(
-  "FailedToLoadPackageJsonError"
-)<{
+export class FailedToLoadPackageJsonError extends Data.TaggedError("FailedToLoadPackageJsonError")<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
-export class NoPackageManagerFoundError extends Data.TaggedError(
-  "NoPackageManagerFoundError"
-)<{
+export class NoPackageManagerFoundError extends Data.TaggedError("NoPackageManagerFoundError")<{
   readonly message: string;
 }> {}
 
 export class FailedToDetectPackageManagerError extends Data.TaggedError(
-  "FailedToDetectPackageManagerError"
+  "FailedToDetectPackageManagerError",
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
-export class VoidhashConfigNotFoundError extends Data.TaggedError(
-  "VoidhashConfigNotFoundError"
-)<{
+export class VoidhashConfigNotFoundError extends Data.TaggedError("VoidhashConfigNotFoundError")<{
   readonly message: string;
 }> {}
 
-export class InvalidVoidhashConfigError extends Data.TaggedError(
-  "InvalidVoidhashConfigError"
-)<{
+export class InvalidVoidhashConfigError extends Data.TaggedError("InvalidVoidhashConfigError")<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
 export class FailedToLoadVoidhashConfigError extends Data.TaggedError(
-  "FailedToLoadVoidhashConfigError"
+  "FailedToLoadVoidhashConfigError",
 )<{
   readonly message: string;
   readonly cause?: unknown;

@@ -14,7 +14,9 @@ export interface SourceCodeDetailsType {
   packageJson: typeof PackageJsonSchema.Type;
 }
 
-export class SourceCodeDetails extends Context.Service<SourceCodeDetails, SourceCodeDetailsType>()("app/SourceCodeDetails") {
+export class SourceCodeDetails extends Context.Service<SourceCodeDetails, SourceCodeDetailsType>()(
+  "app/SourceCodeDetails",
+) {
   static readonly provide =
     (details: SourceCodeDetailsType) =>
     <A, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -37,12 +39,10 @@ export const retrieveSourceCodeDetails = () =>
       ],
       {
         concurrency: "unbounded",
-      }
+      },
     );
 
-    const packageManager = yield* sourceCode.detectPackageManager(
-      monorepoRootPath ?? "./"
-    );
+    const packageManager = yield* sourceCode.detectPackageManager(monorepoRootPath ?? "./");
     const isExpoProject = checkIsExpoProject(packageJson);
 
     return {

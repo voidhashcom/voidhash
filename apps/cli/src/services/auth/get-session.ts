@@ -6,7 +6,7 @@ import { OrganizationServiceError } from "../organization/errors";
 const hasNestedTag = (
   error: unknown,
   outerTag: string,
-  innerTag: string
+  innerTag: string,
 ): error is { readonly _tag: string; readonly data: { readonly _tag: string } } =>
   typeof error === "object" &&
   error !== null &&
@@ -31,9 +31,8 @@ export const getSession = Effect.gen(function* getSession() {
           if (hasNestedTag(error, "AuthSession500", "NotAuthenticatedError")) {
             return Effect.fail(
               new OrganizationServiceError({
-                message:
-                  "Failed to fetch the session because you are not authenticated.",
-              })
+                message: "Failed to fetch the session because you are not authenticated.",
+              }),
             );
           }
 
@@ -41,9 +40,9 @@ export const getSession = Effect.gen(function* getSession() {
             new OrganizationServiceError({
               message:
                 "Failed to fetch the session because of an unknown error. Please try again. If the problem persists, please contact us at support@voidhash.com",
-            })
+            }),
           );
-        })
-      )
+        }),
+      ),
   );
 });

@@ -1,4 +1,4 @@
-import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
+import type { SdkPerson } from "@voidhash/generated-clients";
 import { Atom } from "effect/unstable/reactivity";
 
 import type { FeatureFlagsResult } from "../feature-flags/feature-flag-service";
@@ -7,11 +7,11 @@ import type { RuntimeSchema } from "../schema/runtime";
 export type { FeatureFlagsResult };
 
 /**
- * Reactive store of the currently identified customer. Written by the
- * customer/identity facade paths and read by `useCurrentCustomer`.
+ * Reactive store of the currently identified person. Written by the
+ * person/identity facade paths and read by `useCurrentPerson`.
  */
-export const currentCustomerAtom: Atom.Writable<SdkCustomer | null> =
-  Atom.make<SdkCustomer | null>(null);
+export const currentPersonAtom: Atom.Writable<SdkPerson | null> =
+  Atom.make<SdkPerson | null>(null);
 
 /**
  * Reactive store of the runtime schema fetched at init time and refreshed

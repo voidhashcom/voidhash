@@ -541,7 +541,9 @@ export interface SdkSyncPersonAttributesParams {
 export interface SdkSyncPersonAttributesBody {
   readonly "email"?: string | null | undefined;
   readonly "name"?: string | null | undefined;
-  readonly "traits"?: Record<string, unknown> | null | undefined
+  readonly "traits"?: Record<string, unknown> | null | undefined;
+  readonly "setOnce"?: Record<string, unknown> | null | undefined;
+  readonly "clientEventId"?: string | null | undefined
 }
 
 export type SdkSyncPersonAttributes400 = ApiSdkValidationError | EffectHttpApiSchemaError

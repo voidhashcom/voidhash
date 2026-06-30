@@ -8,9 +8,7 @@ import { dirname, join } from "node:path";
 import { Data, Effect } from "effect";
 import ts from "typescript";
 
-export class PaywallTypecheckError extends Data.TaggedError(
-  "PaywallTypecheckError",
-)<{
+export class PaywallTypecheckError extends Data.TaggedError("PaywallTypecheckError")<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
@@ -36,8 +34,7 @@ export const PAYWALL_ASSET_EXTENSIONS = [
 
 /** Ambient `declare module "*.png" { … }` block per supported asset extension. */
 const ASSET_MODULE_DECLARATIONS = PAYWALL_ASSET_EXTENSIONS.map(
-  (ext) =>
-    `declare module "*.${ext}" {\n  const url: string;\n  export default url;\n}\n`,
+  (ext) => `declare module "*.${ext}" {\n  const url: string;\n  export default url;\n}\n`,
 ).join("\n");
 
 /**
@@ -66,11 +63,7 @@ const formatHost: ts.FormatDiagnosticsHost = {
 const loadCompilerOptions = (
   projectRoot: string,
 ): { options: ts.CompilerOptions; configPath: string | undefined } => {
-  const configPath = ts.findConfigFile(
-    projectRoot,
-    ts.sys.fileExists,
-    "tsconfig.json",
-  );
+  const configPath = ts.findConfigFile(projectRoot, ts.sys.fileExists, "tsconfig.json");
   if (!configPath) {
     return { configPath: undefined, options: { ...FALLBACK_OPTIONS } };
   }
@@ -98,25 +91,16 @@ const loadCompilerOptions = (
  * Wraps a compiler host so the in-memory asset declaration file exists at
  * `assetDeclPath` without ever touching disk.
  */
-const withAssetDeclarations = (
-  host: ts.CompilerHost,
-  assetDeclPath: string,
-): ts.CompilerHost => {
+const withAssetDeclarations = (host: ts.CompilerHost, assetDeclPath: string): ts.CompilerHost => {
   const getSourceFile = host.getSourceFile.bind(host);
   const fileExists = host.fileExists.bind(host);
   const readFile = host.readFile.bind(host);
   return {
     ...host,
-    fileExists: (fileName) =>
-      fileName === assetDeclPath || fileExists(fileName),
+    fileExists: (fileName) => fileName === assetDeclPath || fileExists(fileName),
     getSourceFile: (fileName, languageVersionOrOptions, ...rest) =>
       fileName === assetDeclPath
-        ? ts.createSourceFile(
-            fileName,
-            ASSET_MODULE_DECLARATIONS,
-            languageVersionOrOptions,
-            true,
-          )
+        ? ts.createSourceFile(fileName, ASSET_MODULE_DECLARATIONS, languageVersionOrOptions, true)
         : getSourceFile(fileName, languageVersionOrOptions, ...rest),
     readFile: (fileName) =>
       fileName === assetDeclPath ? ASSET_MODULE_DECLARATIONS : readFile(fileName),
@@ -137,9 +121,7 @@ export const typecheckPaywallSources = (options: {
 }): Effect.Effect<void, PaywallTypecheckError> =>
   Effect.try({
     try: () => {
-      const { options: compilerOptions } = loadCompilerOptions(
-        options.projectRoot,
-      );
+      const { options: compilerOptions } = loadCompilerOptions(options.projectRoot);
 
       const finalOptions: ts.CompilerOptions = {
         ...compilerOptions,
@@ -151,15 +133,9 @@ export const typecheckPaywallSources = (options: {
         skipLibCheck: true,
       };
 
-      const assetDeclPath = join(
-        options.projectRoot,
-        ASSET_DECLARATIONS_FILE_NAME,
-      );
+      const assetDeclPath = join(options.projectRoot, ASSET_DECLARATIONS_FILE_NAME);
       const program = ts.createProgram({
-        host: withAssetDeclarations(
-          ts.createCompilerHost(finalOptions),
-          assetDeclPath,
-        ),
+        host: withAssetDeclarations(ts.createCompilerHost(finalOptions), assetDeclPath),
         options: finalOptions,
         rootNames: [...options.files, assetDeclPath],
       });
@@ -178,9 +154,6 @@ export const typecheckPaywallSources = (options: {
     catch: (cause) =>
       new PaywallTypecheckError({
         cause,
-        message:
-          cause instanceof Error
-            ? cause.message
-            : "Failed to typecheck .voidhash sources.",
+        message: cause instanceof Error ? cause.message : "Failed to typecheck .voidhash sources.",
       }),
   });

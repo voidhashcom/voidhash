@@ -8,7 +8,7 @@ import { Flag } from "effect/unstable/cli";
 export const debugOption = Flag.boolean("debug").pipe(
   Flag.withAlias("d"),
   Flag.withDescription("Enable debug logging with full error traces"),
-  Flag.withDefault(false)
+  Flag.withDefault(false),
 );
 
 /**
@@ -20,8 +20,6 @@ export const debugOption = Flag.boolean("debug").pipe(
  * No short alias: `-p` is already used by the `studio` command for `--port`.
  */
 export const profileOption = Flag.string("profile").pipe(
-  Flag.withDescription(
-    "Use a named config profile (overrides merged onto the base config)"
-  ),
-  Flag.withDefault("")
+  Flag.withDescription("Use a named config profile (overrides merged onto the base config)"),
+  Flag.withDefault(""),
 );

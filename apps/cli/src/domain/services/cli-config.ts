@@ -1,11 +1,7 @@
 import { Effect, FileSystem, Layer, Path, Schema, Context } from "effect";
 import os from "node:os";
 
-import {
-  CONFIG_FILE_NAME,
-  DEFAULT_API_URL,
-  DEFAULT_WEB_URL,
-} from "../../constants";
+import { CONFIG_FILE_NAME, DEFAULT_API_URL, DEFAULT_WEB_URL } from "../../constants";
 import { getActiveProfile } from "../../utils/error-formatter";
 import { FailedToReadCliConfigError } from "../errors/cli-config";
 import {
@@ -74,16 +70,16 @@ const make = Effect.gen(function* effect() {
             new FailedToReadCliConfigError({
               cause: e,
               message: "Failed to read config",
-            })
+            }),
           ),
         SchemaError: (e) =>
           Effect.fail(
             new FailedToReadCliConfigError({
               cause: e,
               message: "Failed to read config",
-            })
+            }),
           ),
-      })
+      }),
     );
 
   /**
@@ -114,7 +110,7 @@ const make = Effect.gen(function* effect() {
     Effect.gen(function* writeToConfig() {
       yield* Effect.logDebug(`Writing config to ${filePath}`);
       const currentConfig = yield* readRawConfig().pipe(
-        Effect.catch(() => Effect.succeed<ConfigFile>(emptyConfig))
+        Effect.catch(() => Effect.succeed<ConfigFile>(emptyConfig)),
       );
 
       const mergedConfig: ConfigFile = activeProfile
@@ -130,12 +126,8 @@ const make = Effect.gen(function* effect() {
           }
         : { ...currentConfig, ...config };
 
-      const validatedConfig =
-        yield* Schema.decodeUnknownEffect(CliConfigSchema)(mergedConfig);
-      yield* fileSystem.writeFileString(
-        filePath,
-        JSON.stringify(validatedConfig)
-      );
+      const validatedConfig = yield* Schema.decodeUnknownEffect(CliConfigSchema)(mergedConfig);
+      yield* fileSystem.writeFileString(filePath, JSON.stringify(validatedConfig));
       yield* Effect.logDebug("Config file written successfully");
     }).pipe(Effect.withSpan("CliConfig.writeToConfig"));
 
@@ -161,12 +153,8 @@ const make = Effect.gen(function* effect() {
           ...baseOf(raw),
           profiles: { ...raw.profiles, [activeProfile]: preserved },
         };
-        const validatedConfig =
-          yield* Schema.decodeUnknownEffect(CliConfigSchema)(mergedConfig);
-        yield* fileSystem.writeFileString(
-          filePath,
-          JSON.stringify(validatedConfig)
-        );
+        const validatedConfig = yield* Schema.decodeUnknownEffect(CliConfigSchema)(mergedConfig);
+        yield* fileSystem.writeFileString(filePath, JSON.stringify(validatedConfig));
         yield* Effect.logDebug("Config reset complete");
         return;
       }
@@ -190,7 +178,7 @@ const make = Effect.gen(function* effect() {
 type CliConfigShape = Effect.Success<typeof make>;
 
 export class CliConfig extends Context.Service<CliConfig, CliConfigShape>()(
-  "voidhash-cli/CliConfig"
+  "voidhash-cli/CliConfig",
 ) {
-  static Default = Layer.effect(CliConfig, make)
+  static Default = Layer.effect(CliConfig, make);
 }

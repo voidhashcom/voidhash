@@ -21,8 +21,7 @@ import {
 let projectRoot: string;
 let manifest: DeployManifest;
 
-const sha256Hex = (data: string): string =>
-  createHash("sha256").update(data).digest("hex");
+const sha256Hex = (data: string): string => createHash("sha256").update(data).digest("hex");
 
 const FILES = {
   config: { contents: "export default {};\n", path: "voidhash.config.ts" },
@@ -142,9 +141,7 @@ const cliConfigStub: typeof CliConfig.Service = {
   writeToConfig: () => Effect.void,
 };
 
-const runUpload = (
-  client: HttpClient.HttpClient,
-): Promise<UploadPaywallDeployResult> =>
+const runUpload = (client: HttpClient.HttpClient): Promise<UploadPaywallDeployResult> =>
   Effect.runPromise(
     uploadPaywallDeploy({ manifest, projectRoot }).pipe(
       Effect.provideService(HttpClient.HttpClient, client),
@@ -152,9 +149,7 @@ const runUpload = (
     ),
   );
 
-const runUploadError = (
-  client: HttpClient.HttpClient,
-): Promise<PaywallDeployUploadError> =>
+const runUploadError = (client: HttpClient.HttpClient): Promise<PaywallDeployUploadError> =>
   Effect.runPromise(
     uploadPaywallDeploy({ manifest, projectRoot }).pipe(
       Effect.flip,
@@ -206,9 +201,7 @@ describe("uploadPaywallDeploy finalize-409 retry", () => {
       `/api/v1/paywall-deploys/pw_dep_test/blobs/${hashOf(FILES.js)}`,
       `/api/v1/paywall-deploys/pw_dep_test/blobs/${hashOf(FILES.html)}`,
     ]);
-    expect(
-      requests.filter((r) => r.path.endsWith("/finalize")),
-    ).toHaveLength(2);
+    expect(requests.filter((r) => r.path.endsWith("/finalize"))).toHaveLength(2);
   });
 
   it("retries at most once and fails readably when finalize stays 409", async () => {
@@ -227,9 +220,7 @@ describe("uploadPaywallDeploy finalize-409 retry", () => {
     expect(error._tag).toBe("PaywallDeployUploadError");
     expect(error.message).toContain("Finalizing the deploy failed");
     expect(error.message).toContain(hashOf(FILES.html));
-    expect(
-      requests.filter((r) => r.path.endsWith("/finalize")),
-    ).toHaveLength(2);
+    expect(requests.filter((r) => r.path.endsWith("/finalize"))).toHaveLength(2);
   });
 
   it("fails without retrying when the 409 carries no usable missing list", async () => {
@@ -243,9 +234,7 @@ describe("uploadPaywallDeploy finalize-409 retry", () => {
     );
 
     expect(error._tag).toBe("PaywallDeployUploadError");
-    expect(
-      requests.filter((r) => r.path.endsWith("/finalize")),
-    ).toHaveLength(1);
+    expect(requests.filter((r) => r.path.endsWith("/finalize"))).toHaveLength(1);
     expect(requests.filter((r) => r.method === "PUT")).toHaveLength(0);
   });
 
@@ -254,17 +243,13 @@ describe("uploadPaywallDeploy finalize-409 retry", () => {
     const error = await runUploadError(
       makeStubClient({
         createMissing: [],
-        finalizeResponses: [
-          { body: { missing: ["f".repeat(64)] }, status: 409 },
-        ],
+        finalizeResponses: [{ body: { missing: ["f".repeat(64)] }, status: 409 }],
         requests,
       }),
     );
 
     expect(error._tag).toBe("PaywallDeployUploadError");
     expect(error.message).toContain("f".repeat(64));
-    expect(
-      requests.filter((r) => r.path.endsWith("/finalize")),
-    ).toHaveLength(1);
+    expect(requests.filter((r) => r.path.endsWith("/finalize"))).toHaveLength(1);
   });
 });

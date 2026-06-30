@@ -8,18 +8,12 @@ import { promises as fsp } from "node:fs";
 import { join } from "node:path";
 
 import { Data, Effect, Schema } from "effect";
-import {
-  HttpClient,
-  HttpClientRequest,
-  type HttpClientResponse,
-} from "effect/unstable/http";
+import { HttpClient, HttpClientRequest, type HttpClientResponse } from "effect/unstable/http";
 
 import type { DeployManifest } from "../schema/paywall-deploy";
 import { CliConfig } from "./cli-config";
 
-export class PaywallDeployUploadError extends Data.TaggedError(
-  "PaywallDeployUploadError",
-)<{
+export class PaywallDeployUploadError extends Data.TaggedError("PaywallDeployUploadError")<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
@@ -63,13 +57,9 @@ export type FinalizeResponse = typeof FinalizeResponseSchema.Type;
  * Maps every file hash in the manifest to its project-root-relative path —
  * the lookup used to satisfy the server's `missing` list.
  */
-export const collectManifestFiles = (
-  manifest: DeployManifest,
-): Map<string, string> => {
+export const collectManifestFiles = (manifest: DeployManifest): Map<string, string> => {
   const files = new Map<string, string>();
-  const add = (
-    file: { readonly path: string; readonly sha256: string } | null,
-  ): void => {
+  const add = (file: { readonly path: string; readonly sha256: string } | null): void => {
     if (file) {
       files.set(file.sha256, file.path);
     }
@@ -125,14 +115,9 @@ const readMissingHashes = (body: string): string[] | undefined => {
 };
 
 /** Renders a non-2xx response into an actionable message (esp. 422 details). */
-const describeHttpFailure = (
-  step: string,
-  status: number,
-  body: string,
-): string => {
+const describeHttpFailure = (step: string, status: number, body: string): string => {
   const parsed = tryParseJson(body);
-  const details =
-    parsed !== undefined ? JSON.stringify(parsed, null, 2) : body.trim();
+  const details = parsed !== undefined ? JSON.stringify(parsed, null, 2) : body.trim();
   const hint =
     status === 400
       ? " The server rejected the manifest — your CLI may be outdated; try upgrading voidhash-cli."
@@ -145,9 +130,7 @@ const describeHttpFailure = (
             : status === 422
               ? " The server rejected the deploy contents:"
               : "";
-  return `${step} failed with status ${status}.${hint}${
-    details ? `\n${details}` : ""
-  }`;
+  return `${step} failed with status ${status}.${hint}${details ? `\n${details}` : ""}`;
 };
 
 const failHttp = (
@@ -242,8 +225,7 @@ export const uploadPaywallDeploy = ({
     if (!config.api_key) {
       return yield* Effect.fail(
         new PaywallDeployUploadError({
-          message:
-            "You must be logged in to deploy. Run 'voidhash-cli auth login' first.",
+          message: "You must be logged in to deploy. Run 'voidhash-cli auth login' first.",
         }),
       );
     }
@@ -252,10 +234,7 @@ export const uploadPaywallDeploy = ({
     const send = (
       step: string,
       request: HttpClientRequest.HttpClientRequest,
-    ): Effect.Effect<
-      HttpClientResponse.HttpClientResponse,
-      PaywallDeployUploadError
-    > =>
+    ): Effect.Effect<HttpClientResponse.HttpClientResponse, PaywallDeployUploadError> =>
       httpClient
         .execute(
           request.pipe(
@@ -279,18 +258,12 @@ export const uploadPaywallDeploy = ({
     if (createResponse.status < 200 || createResponse.status >= 300) {
       return yield* failHttp(createStep, createResponse);
     }
-    const created = yield* decodeJson(
-      createStep,
-      CreateDeployResponseSchema,
-      createResponse,
-    );
+    const created = yield* decodeJson(createStep, CreateDeployResponseSchema, createResponse);
 
     // 2. Upload every blob the server is missing.
     const filesByHash = collectManifestFiles(manifest);
 
-    const uploadBlob = (
-      sha256: string,
-    ): Effect.Effect<void, PaywallDeployUploadError> =>
+    const uploadBlob = (sha256: string): Effect.Effect<void, PaywallDeployUploadError> =>
       Effect.gen(function* uploadBlob() {
         const relPath = filesByHash.get(sha256);
         if (relPath === undefined) {
@@ -313,9 +286,7 @@ export const uploadPaywallDeploy = ({
         const uploadStep = `Uploading ${relPath}`;
         const uploadResponse = yield* send(
           uploadStep,
-          HttpClientRequest.put(
-            `/api/v1/paywall-deploys/${created.deployId}/blobs/${sha256}`,
-          ).pipe(
+          HttpClientRequest.put(`/api/v1/paywall-deploys/${created.deployId}/blobs/${sha256}`).pipe(
             HttpClientRequest.bodyUint8Array(bytes, "application/octet-stream"),
           ),
         );
@@ -344,18 +315,14 @@ export const uploadPaywallDeploy = ({
     > =>
       send(
         finalizeStep,
-        HttpClientRequest.post(
-          `/api/v1/paywall-deploys/${created.deployId}/finalize`,
-        ),
+        HttpClientRequest.post(`/api/v1/paywall-deploys/${created.deployId}/finalize`),
       );
 
     let finalizeResponse = yield* requestFinalize();
     let retriedUploadCount = 0;
 
     if (finalizeResponse.status === 409) {
-      const body = yield* finalizeResponse.text.pipe(
-        Effect.orElseSucceed(() => ""),
-      );
+      const body = yield* finalizeResponse.text.pipe(Effect.orElseSucceed(() => ""));
       const missingOnFinalize = readMissingHashes(body);
       if (
         missingOnFinalize === undefined ||
@@ -382,11 +349,7 @@ export const uploadPaywallDeploy = ({
     if (finalizeResponse.status < 200 || finalizeResponse.status >= 300) {
       return yield* failHttp(finalizeStep, finalizeResponse);
     }
-    const finalize = yield* decodeJson(
-      finalizeStep,
-      FinalizeResponseSchema,
-      finalizeResponse,
-    );
+    const finalize = yield* decodeJson(finalizeStep, FinalizeResponseSchema, finalizeResponse);
 
     return {
       cachedCount: filesByHash.size - created.missing.length,

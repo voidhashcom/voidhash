@@ -17,6 +17,7 @@ import { CacheManager } from "../caching/cache-manager";
 import { IdentityManager } from "../identity/identity-manager";
 import { SdkConfiguration } from "../sdk-configuration";
 import { getNonce } from "../utils/crypto";
+import { AUTOMATIC_EVENTS } from "./constants";
 import {
   AnalyticsIngestEvent,
   AnalyticsSendFailure,
@@ -96,7 +97,7 @@ const inlineRetrySchedule = Schedule.exponential(
 /**
  * Owns the analytics pipeline: an in-memory event queue with batching, a
  * declarative retry schedule, `Retry-After` honouring, automatic startup
- * events (`app_installed` / `app_updated` / `app_opened`), and a periodic
+ * events (`$app_installed` / `$app_updated` / `$app_opened`), and a periodic
  * flush daemon forked into the service scope. Disposing the runtime closes
  * the scope, which interrupts the daemon — no manual timer cleanup required.
  *
@@ -386,7 +387,7 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
           };
 
           // If reading the cached release fails, fall back to recording the
-          // session as a fresh `app_opened`. Captures still flow through the
+          // session as a fresh `$app_opened`. Captures still flow through the
           // same queue so the failure mode is "lose the install/update event,"
           // not "drop the session start."
           const cachedRelease = yield* cacheManager
@@ -396,14 +397,20 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()(
 
           const additions: QueuedAnalyticsEvent[] = [];
           if (!previousAppRelease) {
-            additions.push(createQueuedAnalyticsEvent("app_installed", {}));
+            additions.push(
+              createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_INSTALLED, {})
+            );
           } else if (
             previousAppRelease.appBuild !== currentAppRelease.appBuild ||
             previousAppRelease.appVersion !== currentAppRelease.appVersion
           ) {
-            additions.push(createQueuedAnalyticsEvent("app_updated", {}));
+            additions.push(
+              createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_UPDATED, {})
+            );
           }
-          additions.push(createQueuedAnalyticsEvent("app_opened", {}));
+          additions.push(
+            createQueuedAnalyticsEvent(AUTOMATIC_EVENTS.APP_OPENED, {})
+          );
 
           queueRef.ref.current = [...queueRef.ref.current, ...additions];
 

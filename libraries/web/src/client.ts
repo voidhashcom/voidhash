@@ -12,6 +12,8 @@ import {
   refreshTrackedKeySetsEffect,
   resetEffect,
   resolveVoidhashConfig,
+  setPersonAttributesEffect,
+  setPersonAttributesSyncEffect,
   startAnalyticsEffect,
   stopAnalyticsEffect,
   trackEffect,
@@ -25,6 +27,7 @@ import type {
   VoidhashClientOptions,
   VoidhashEventMap,
   VoidhashEventName,
+  VoidhashPersonAttributes,
   VoidhashTrackOptions,
   VoidhashTraits,
 } from "./types";
@@ -200,6 +203,32 @@ export class VoidhashWebClient {
   async reset() {
     this.ensureReady();
     await this.runEffect(resetEffect(), "FAILED_TO_RESET");
+  }
+
+  /**
+   * Updates the current person's attributes by enqueuing a `$set` analytics
+   * event. Reserved `email`/`name` are forwarded as dedicated profile fields;
+   * everything else is sent as free-form traits. Fire-and-forget — the event is
+   * queued and flushed by the normal analytics pipeline.
+   */
+  async setPersonAttributes(attributes: VoidhashPersonAttributes) {
+    this.ensureReady();
+    await this.runEffect(
+      setPersonAttributesEffect(attributes),
+      "FAILED_TO_SET_PERSON_ATTRIBUTES"
+    );
+  }
+
+  /**
+   * Synchronously persists the current person's attributes to the server and
+   * returns the resulting person snapshot.
+   */
+  async setPersonAttributesSync(attributes: VoidhashPersonAttributes) {
+    this.ensureReady();
+    return this.runEffect(
+      setPersonAttributesSyncEffect(attributes),
+      "FAILED_TO_SET_PERSON_ATTRIBUTES_SYNC"
+    );
   }
 
   async track(

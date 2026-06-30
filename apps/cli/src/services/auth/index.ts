@@ -7,7 +7,7 @@ const make = Effect.gen(function* scoped() {
 type AuthServiceShape = Effect.Success<typeof make>;
 
 export class AuthService extends Context.Service<AuthService, AuthServiceShape>()(
-  "voidhash-cli/services/AuthService"
+  "voidhash-cli/services/AuthService",
 ) {
-  static Default = Layer.effect(AuthService, make)
+  static Default = Layer.effect(AuthService, make);
 }

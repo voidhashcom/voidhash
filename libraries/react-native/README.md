@@ -53,7 +53,7 @@ When `unstable_swallowErrors: true`, the SDK logs warnings and does not reject f
 
 The following remain strict and still reject on failures:
 
-- `getCurrentCustomer(...)`
+- `getCurrentPerson(...)`
 - `getFeatureFlags(...)`
 - `getPaywallForLocation(...)`
 - `getProducts()`

@@ -3,7 +3,7 @@ import { Effect, Layer, Context } from "effect";
 import { CacheManager } from "../caching/cache-manager";
 import type { SubscriptionProduct } from "../entities/product";
 import type { Transaction } from "../entities/transaction";
-import { CustomerInfoManager } from "../identity/customer-info-manager";
+import { PersonInfoManager } from "../identity/person-info-manager";
 import { IdentityManager } from "../identity/identity-manager";
 import { ApiClient } from "../networking/api-client";
 import { PaymentAdapter } from "../payment-adapters/payment-adapter";
@@ -88,7 +88,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
     make: Effect.gen(function* () {
       const apiClient = yield* ApiClient;
       const cacheManager = yield* CacheManager;
-      const customerInfoManager = yield* CustomerInfoManager;
+      const personInfoManager = yield* PersonInfoManager;
       const identityManager = yield* IdentityManager;
       const paymentAdapter = yield* PaymentAdapter;
       const sdkConfiguration = yield* SdkConfiguration;
@@ -199,7 +199,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
         Effect.gen(function* () {
           yield* reconcileObservedTransactions(schema);
           const distinctId = yield* identityManager.getDistinctId();
-          yield* customerInfoManager.getCustomer(distinctId, "fetch");
+          yield* personInfoManager.getPerson(distinctId, "fetch");
         });
 
       const startTransactionObserver = (

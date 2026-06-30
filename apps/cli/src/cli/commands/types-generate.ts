@@ -20,16 +20,12 @@ export const typesGenerateCommand = Command.make(
   "generate",
   {
     pollIntervalMs: Flag.integer("poll-interval-ms").pipe(
-      Flag.withDescription(
-        "Polling interval for --watch mode, in milliseconds"
-      ),
-      Flag.withDefault(5000)
+      Flag.withDescription("Polling interval for --watch mode, in milliseconds"),
+      Flag.withDefault(5000),
     ),
     watch: Flag.boolean("watch").pipe(
-      Flag.withDescription(
-        "Watch the server schema and regenerate types when it changes"
-      ),
-      Flag.withDefault(false)
+      Flag.withDescription("Watch the server schema and regenerate types when it changes"),
+      Flag.withDefault(false),
     ),
   },
   ({ pollIntervalMs, watch }) =>
@@ -44,21 +40,21 @@ export const typesGenerateCommand = Command.make(
         Effect.catchTag("NoSignedInUserError", () =>
           Effect.fail(
             userError(
-              "You must be logged in to generate types. Run 'voidhash-cli auth login' first."
-            )
-          )
-        )
+              "You must be logged in to generate types. Run 'voidhash-cli auth login' first.",
+            ),
+          ),
+        ),
       );
 
-      const config = yield* sourceCode.loadVoidhashConfig().pipe(
-        Effect.catchTag("VoidhashConfigNotFoundError", () =>
-          Effect.fail(
-            userError(
-              "voidhash.config.ts not found. Run 'voidhash-cli init' to create one."
-            )
-          )
-        )
-      );
+      const config = yield* sourceCode
+        .loadVoidhashConfig()
+        .pipe(
+          Effect.catchTag("VoidhashConfigNotFoundError", () =>
+            Effect.fail(
+              userError("voidhash.config.ts not found. Run 'voidhash-cli init' to create one."),
+            ),
+          ),
+        );
 
       const typesOutput = resolveTypesOutput(config);
       const outPath = pathService.resolve(typesOutput);
@@ -69,19 +65,14 @@ export const typesGenerateCommand = Command.make(
           .fetchRemoteSchema()
           .pipe(
             Effect.catchTag("RemoteSchemaFetchError", (e) =>
-              Effect.fail(
-                userError(`Failed to fetch remote schema: ${String(e.cause)}`)
-              )
-            )
+              Effect.fail(userError(`Failed to fetch remote schema: ${String(e.cause)}`)),
+            ),
           );
 
         yield* codegen.generateTypesDeclarationFile(outPath, schema, version);
 
         yield* Console.log(
-          `✓ Types written to ${typesOutput} (version ${version.slice(
-            0,
-            19
-          )}...)`
+          `✓ Types written to ${typesOutput} (version ${version.slice(0, 19)}...)`,
         );
         return version;
       });
@@ -93,7 +84,7 @@ export const typesGenerateCommand = Command.make(
       }
 
       yield* Console.log(
-        `\nWatching for schema changes (poll every ${pollIntervalMs}ms). Press Ctrl+C to stop.`
+        `\nWatching for schema changes (poll every ${pollIntervalMs}ms). Press Ctrl+C to stop.`,
       );
 
       // Keep the last known version in a closure-shared ref so the poll loop
@@ -101,13 +92,15 @@ export const typesGenerateCommand = Command.make(
       let lastVersion = initialVersion;
 
       const pollOnce = Effect.gen(function* pollOnce() {
-        const latest = yield* schemaService.fetchSchemaVersion().pipe(
-          Effect.catch((e) =>
-            Effect.logWarning(
-              `[voidhash-cli types --watch] Skipping poll due to error: ${String(e)}`
-            ).pipe(Effect.as(null))
-          )
-        );
+        const latest = yield* schemaService
+          .fetchSchemaVersion()
+          .pipe(
+            Effect.catch((e) =>
+              Effect.logWarning(
+                `[voidhash-cli types --watch] Skipping poll due to error: ${String(e)}`,
+              ).pipe(Effect.as(null)),
+            ),
+          );
 
         if (latest === null || latest === lastVersion) {
           return;
@@ -117,22 +110,19 @@ export const typesGenerateCommand = Command.make(
         const next = yield* regenerate.pipe(
           Effect.catch((e) =>
             Effect.logWarning(
-              `[voidhash-cli types --watch] Regeneration failed: ${String(e)}`
-            ).pipe(Effect.as(null))
-          )
+              `[voidhash-cli types --watch] Regeneration failed: ${String(e)}`,
+            ).pipe(Effect.as(null)),
+          ),
         );
         if (next !== null) {
           lastVersion = next;
         }
       });
 
-      yield* Effect.repeat(
-        pollOnce,
-        Schedule.spaced(`${pollIntervalMs} millis`)
-      );
-    })
+      yield* Effect.repeat(pollOnce, Schedule.spaced(`${pollIntervalMs} millis`));
+    }),
 ).pipe(
   Command.withDescription(
-    "Generate the voidhash.gen.d.ts declaration file from the server schema."
-  )
+    "Generate the voidhash.gen.d.ts declaration file from the server schema.",
+  ),
 );

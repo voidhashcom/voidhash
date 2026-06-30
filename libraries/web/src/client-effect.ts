@@ -1,11 +1,14 @@
 import { Cause, Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
 import { FetchHttpClient, HttpClient } from "effect/unstable/http";
 
+import type { SdkPerson } from "@voidhash/generated-clients";
+
 import { VoidhashConfigurationError } from "./errors";
 import type {
   AnalyticsFlushResult,
   ResolvedVoidhashConfig,
   VoidhashClientOptions,
+  VoidhashPersonAttributes,
   VoidhashTrackOptions,
   VoidhashTraits,
 } from "./types";
@@ -126,6 +129,15 @@ export const initializeEffect = (initialDistinctId?: string) =>
     return yield* identityManager.initialize(initialDistinctId);
   });
 
+// Drain the analytics queue so any pending events are attributed to the
+// current distinct id before it is switched out by identify/reset.
+const flushAnalyticsForIdentitySwitch = Effect.gen(
+  function* flushForIdentitySwitch() {
+    const analyticsService = yield* AnalyticsService;
+    yield* analyticsService.flush();
+  }
+);
+
 export const identifyEffect = (
   distinctId: string,
   traits?: VoidhashTraits
@@ -133,6 +145,7 @@ export const identifyEffect = (
   Effect.gen(function* identify() {
     const identityManager = yield* IdentityManager;
     const featureFlags = yield* FeatureFlagService;
+    yield* flushAnalyticsForIdentitySwitch;
     yield* identityManager.identify(distinctId, traits);
     yield* featureFlags.clearCachedFlags();
     yield* featureFlags.refreshTrackedKeySets();
@@ -142,9 +155,63 @@ export const resetEffect = () =>
   Effect.gen(function* reset() {
     const identityManager = yield* IdentityManager;
     const featureFlags = yield* FeatureFlagService;
+    yield* flushAnalyticsForIdentitySwitch;
     yield* identityManager.reset();
     yield* featureFlags.clearCachedFlags();
     yield* featureFlags.refreshTrackedKeySets();
+  });
+
+/**
+ * Splits person attributes into the reserved `email`/`name` fields and the
+ * remaining free-form traits.
+ */
+const splitPersonAttributes = (attributes: VoidhashPersonAttributes) => {
+  const { email, name, ...rest } = attributes;
+  const traits: VoidhashTraits = {};
+  for (const [key, value] of Object.entries(rest)) {
+    if (value !== undefined) {
+      traits[key] = value;
+    }
+  }
+  return { email, name, traits };
+};
+
+/**
+ * Enqueues a `$set` analytics event that updates the current person profile.
+ * Fire-and-forget: the event is queued and flushed by the normal pipeline.
+ */
+export const setPersonAttributesEffect = (
+  attributes: VoidhashPersonAttributes
+) =>
+  Effect.gen(function* setPersonAttributes() {
+    const analyticsService = yield* AnalyticsService;
+    const { email, name, traits } = splitPersonAttributes(attributes);
+    const $set = {
+      ...traits,
+      ...(email !== undefined ? { email } : {}),
+      ...(name !== undefined ? { name } : {}),
+    };
+    yield* analyticsService.enqueue("$set", {
+      $set,
+      $process_person_profile: true,
+    });
+  });
+
+/**
+ * Synchronously persists person attributes to the server and returns the
+ * resulting person snapshot.
+ */
+export const setPersonAttributesSyncEffect = (
+  attributes: VoidhashPersonAttributes
+): Effect.Effect<SdkPerson, unknown, IdentityManager> =>
+  Effect.gen(function* setPersonAttributesSync() {
+    const identityManager = yield* IdentityManager;
+    const { email, name, traits } = splitPersonAttributes(attributes);
+    return yield* identityManager.setPersonAttributesSync({
+      email,
+      name,
+      traits: Object.keys(traits).length > 0 ? traits : undefined,
+    });
   });
 
 export const trackEffect = (

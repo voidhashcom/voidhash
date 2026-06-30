@@ -48,9 +48,7 @@ export const userError = (message: string): CliError.UserError =>
 /**
  * Check if an error is a CliError from @effect/cli
  */
-const isCliError = (
-  error: unknown
-): error is CliError.CliError =>
+const isCliError = (error: unknown): error is CliError.CliError =>
   typeof error === "object" && error !== null && CliErrorTypeId in error;
 
 /**
@@ -63,7 +61,7 @@ const isCliError = (
  * In debug mode, it also logs the full error cause chain before the user-friendly message.
  */
 export const withValidationErrorHandler = <A, E, R>(
-  effect: Effect.Effect<A, E, R>
+  effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<A | void, Exclude<E, CliError.CliError>, R> =>
   effect.pipe(
     Effect.catchCause((cause) => {
@@ -76,18 +74,16 @@ export const withValidationErrorHandler = <A, E, R>(
           // In debug mode, show the full cause chain
           if (isDebugMode()) {
             return Console.error("\n--- Debug Trace ---").pipe(
-              Effect.andThen(
-                Console.error(Cause.pretty(cause))
-              ),
+              Effect.andThen(Console.error(Cause.pretty(cause))),
               Effect.andThen(Console.error("--- End Debug Trace ---\n")),
               Effect.andThen(Console.error(failure.message)),
-              Effect.andThen(Effect.sync(() => process.exit(1)))
+              Effect.andThen(Effect.sync(() => process.exit(1))),
             );
           }
 
           // Normal mode: just show the user-friendly message
           return Console.error(failure.message).pipe(
-            Effect.andThen(Effect.sync(() => process.exit(1)))
+            Effect.andThen(Effect.sync(() => process.exit(1))),
           );
         }
       }
@@ -95,25 +91,19 @@ export const withValidationErrorHandler = <A, E, R>(
       // For non-CliError failures, show full cause in debug mode
       if (isDebugMode() && cause.reasons.length > 0) {
         return Console.error("\n--- Debug Trace ---").pipe(
-          Effect.andThen(
-            Console.error(Cause.pretty(cause))
-          ),
+          Effect.andThen(Console.error(Cause.pretty(cause))),
           Effect.andThen(Console.error("--- End Debug Trace ---\n")),
-          Effect.andThen(Effect.sync(() => process.exit(1)))
+          Effect.andThen(Effect.sync(() => process.exit(1))),
         );
       }
 
       // Re-fail with non-CliError
       const firstFailure = failures[0];
       if (firstFailure !== undefined) {
-        return Effect.fail(
-          firstFailure as Exclude<E, CliError.CliError>
-        );
+        return Effect.fail(firstFailure as Exclude<E, CliError.CliError>);
       }
 
       // Handle defects
-      return Effect.failCause(
-        cause as Cause.Cause<Exclude<E, CliError.CliError>>
-      );
-    })
+      return Effect.failCause(cause as Cause.Cause<Exclude<E, CliError.CliError>>);
+    }),
   );

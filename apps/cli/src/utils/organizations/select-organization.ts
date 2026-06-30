@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { createOrganization } from "./create-organization";
 
 export const selectOrganization = (
-  organizations: readonly { id: string; slug: string; name: string }[]
+  organizations: readonly { id: string; slug: string; name: string }[],
 ) =>
   Effect.gen(function* selectOrganization() {
     if (organizations.length === 0) {
@@ -23,7 +23,7 @@ export const selectOrganization = (
           },
         ],
         message: "Select an organization",
-      })
+      }),
     );
     if (organizationSlug === "create-new-organization") {
       return yield* createOrganization();
@@ -31,7 +31,7 @@ export const selectOrganization = (
     const organization = organizations.find((t) => t.slug === organizationSlug);
     if (!organization) {
       return yield* Effect.die(
-        "Organization not found even though it was selected and should exist."
+        "Organization not found even though it was selected and should exist.",
       );
     }
     return organization;

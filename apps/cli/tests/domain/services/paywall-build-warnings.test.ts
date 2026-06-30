@@ -50,9 +50,7 @@ describe("collectRenderErrorPlaceholderReasons", () => {
 
   it("returns nothing for clean trees and non-tree values", () => {
     expect(
-      collectRenderErrorPlaceholderReasons(
-        tree({ children: [], style: {}, type: "view" }),
-      ),
+      collectRenderErrorPlaceholderReasons(tree({ children: [], style: {}, type: "view" })),
     ).toEqual([]);
     expect(collectRenderErrorPlaceholderReasons(undefined)).toEqual([]);
     expect(collectRenderErrorPlaceholderReasons("nonsense")).toEqual([]);
@@ -60,13 +58,9 @@ describe("collectRenderErrorPlaceholderReasons", () => {
   });
 
   it("ignores placeholder-shaped nodes without a string reason", () => {
-    expect(
-      collectRenderErrorPlaceholderReasons(tree({ type: "placeholder" })),
-    ).toEqual([]);
-    expect(
-      collectRenderErrorPlaceholderReasons(
-        tree({ reason: 42, type: "placeholder" }),
-      ),
-    ).toEqual([]);
+    expect(collectRenderErrorPlaceholderReasons(tree({ type: "placeholder" }))).toEqual([]);
+    expect(collectRenderErrorPlaceholderReasons(tree({ reason: 42, type: "placeholder" }))).toEqual(
+      [],
+    );
   });
 });
