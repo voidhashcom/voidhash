@@ -316,6 +316,9 @@ importers:
       '@voidhash/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      esbuild:
+        specifier: ^0.25.10
+        version: 0.25.12
       react:
         specifier: 19.1.0
         version: 19.1.0

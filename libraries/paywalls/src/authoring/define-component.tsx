@@ -1,5 +1,12 @@
 import { type ReactNode, useMemo, useRef } from "react";
 
+import type {
+  PanelContext,
+  PanelProps,
+  PanelPropHandle,
+  PanelReadonlyPropHandle,
+  PanelRefPropHandle,
+} from "../panel/context";
 import { SlotProvider } from "../primitives/slot";
 import type { PaywallProduct, PaywallVariables } from "../runtime/config";
 import {
@@ -14,6 +21,7 @@ import {
   applyPropDefaults,
   type InferExternalProps,
   type InferProps,
+  type PropBuilder,
   type PropFactory,
   type PropMap,
   propFactory,
@@ -57,6 +65,33 @@ export interface PaywallComponentMeta {
   readonly description?: string;
 }
 
+/**
+ * The refined `ctx.props` handle for one declared prop, chosen by its kind: a
+ * `ref` prop becomes a {@link PanelRefPropHandle}, a `component` prop a
+ * read-only handle, everything else a writable {@link PanelPropHandle} typed to
+ * the prop's value.
+ */
+type PanelPropHandleFor<B> = B extends PropBuilder<infer T, boolean, boolean, infer K>
+  ? K extends "ref"
+    ? PanelRefPropHandle
+    : K extends "component"
+      ? PanelReadonlyPropHandle<T>
+      : PanelPropHandle<T>
+  : never;
+
+/** The `ctx.props` bag for a panel, refined against the component's prop map. */
+export type PanelPropsFor<M extends PropMap> = {
+  readonly [K in keyof M]: PanelPropHandleFor<M[K]>;
+} & PanelProps;
+
+/**
+ * A component's custom editor panel: a function of a {@link PanelContext}
+ * refined against the component's declared props. Compose it from the `Panel.*`
+ * primitives (`@voidhash/paywalls/panel`); the reconciler serializes the
+ * returned element into a data-only {@link PanelTree}.
+ */
+export type ComponentPanel<M extends PropMap> = (ctx: PanelContext<PanelPropsFor<M>>) => ReactNode;
+
 export interface DefineComponentInput<M extends PropMap, A extends ActionMap> {
   /** Stable component slug (`^[a-z0-9][a-z0-9-]{0,63}$`), e.g. "product-option". */
   readonly id: string;
@@ -70,10 +105,11 @@ export interface DefineComponentInput<M extends PropMap, A extends ActionMap> {
   /** Named preview states the CLI renders to §3 node trees at build time. */
   readonly previews?: Readonly<Record<string, ComponentPreviewState<M>>>;
   /**
-   * Custom editor panel (data-only `@voidhash/paywalls/panel` elements).
-   * Accepted but inert in Phase 1.
+   * Custom editor panel: `(ctx) => ReactNode` built from the `Panel.*`
+   * primitives. Runs in a {@link createPanelSession}; omit it for the default
+   * host-generated panel.
    */
-  readonly panel?: ReactNode;
+  readonly panel?: ComponentPanel<M>;
   /** The component template. Receives fully-typed props and action callbacks. */
   readonly render: (ctx: ComponentRenderContext<M, A>) => ReactNode;
 }
@@ -91,7 +127,7 @@ export interface ComponentDefinition<M extends PropMap, A extends ActionMap> {
   /** The resolved action builders, keyed by name. */
   readonly actions: A;
   readonly previews: Readonly<Record<string, ComponentPreviewState<M>>>;
-  readonly panel?: ReactNode;
+  readonly panel?: ComponentPanel<M>;
   /** The original template function (used for declarative slot detection). */
   readonly render: (ctx: ComponentRenderContext<M, A>) => ReactNode;
   /** The renderable React component. */

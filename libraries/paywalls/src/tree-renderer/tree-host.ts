@@ -38,10 +38,16 @@ const TreeView = ({ style, children }: ViewProps): ReactNode =>
 const TreeText = ({ style, children }: TextProps): ReactNode =>
   createElement(TREE_ELEMENT_TYPES.text, { style }, children);
 
-const TreePressable = ({ style, children, actionName }: PressableHostProps): ReactNode =>
+const TreePressable = ({ style, children, actionName, onPress }: PressableHostProps): ReactNode =>
+  // `actionName` (a direct `onPress={actions.onSelect}` binding) carries the
+  // action name safely. The raw `onPress` is forwarded untouched so the
+  // serializer can probe an inline handler (`onPress={() => actions.onSelect(…)}`)
+  // for its action name AFTER the render has committed — never during render,
+  // where invoking the author's handler could schedule state updates and
+  // corrupt the tree (see `resolvePressableAction`).
   createElement(
     TREE_ELEMENT_TYPES.pressable,
-    { action: actionName, style },
+    { action: actionName, onPress, style },
     typeof children === "function" ? children({ pressed: false }) : children,
   );
 

@@ -13,7 +13,7 @@ import {
   type InferComponentProps,
   type InferExternalProps,
   type InferProps,
-  type PAYWALL_STYLE_KEYS,
+  type PAYWALL_STYLE_KEY_LIST,
   type PaywallProduct,
   type PaywallStyle,
 } from "../src/index";
@@ -136,8 +136,8 @@ describe("defineComponent end-to-end typing", () => {
 });
 
 describe("PaywallStyle subset", () => {
-  it("PAYWALL_STYLE_KEYS covers every PaywallStyle key", () => {
-    type Listed = (typeof PAYWALL_STYLE_KEYS)[number];
+  it("PAYWALL_STYLE_KEY_LIST covers every PaywallStyle key", () => {
+    type Listed = (typeof PAYWALL_STYLE_KEY_LIST)[number];
     expectTypeOf<Exclude<keyof PaywallStyle, Listed>>().toEqualTypeOf<never>();
     expectTypeOf<Exclude<Listed, keyof PaywallStyle>>().toEqualTypeOf<never>();
   });

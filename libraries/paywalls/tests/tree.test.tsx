@@ -33,7 +33,7 @@ const monthly: PaywallProduct = {
 describe("renderToNodeTree", () => {
   it("serializes primitives to §3 nodes with the style subset intact", async () => {
     const tree = await renderToNodeTree(
-      <View style={{ flexDirection: "row", padding: 16 }}>
+      <View style={{ flexDirection: "row", paddingTop: 16, paddingLeft: 16 }}>
         <Text style={{ color: "#fff" }}>Yearly</Text>
         <Image resizeMode="cover" source="https://cdn.test/hero.png" style={{}} />
       </View>,
@@ -44,7 +44,7 @@ describe("renderToNodeTree", () => {
       state: "default",
       root: {
         type: "view",
-        style: { flexDirection: "row", padding: 16 },
+        style: { flexDirection: "row", paddingTop: 16, paddingLeft: 16 },
         children: [
           { type: "text", style: { color: "#fff" }, text: "Yearly" },
           {
@@ -58,13 +58,21 @@ describe("renderToNodeTree", () => {
     });
   });
 
-  it("keeps paddingHorizontal/Vertical shorthands (allowed by §3.1)", async () => {
+  it("keeps the RN-expanded edge fields and drops out-of-contract shorthands", async () => {
     const tree = await renderToNodeTree(
-      <View style={[{ paddingHorizontal: 24 }, { marginVertical: 8 }]} />,
+      // `padding` / `marginVertical` are no longer in the contract; a value
+      // smuggled through a cast must be filtered out of the serialized style.
+      <View
+        style={[
+          { paddingLeft: 24, paddingRight: 24 },
+          { marginTop: 8, marginBottom: 8 },
+          { padding: 99, marginVertical: 99 } as never,
+        ]}
+      />,
     );
     expect(tree.root).toEqual({
       type: "view",
-      style: { paddingHorizontal: 24, marginVertical: 8 },
+      style: { paddingLeft: 24, paddingRight: 24, marginTop: 8, marginBottom: 8 },
       children: [],
     });
   });
@@ -152,7 +160,7 @@ describe("renderToNodeTree", () => {
     });
   });
 
-  it("records the action name on pressables bound to declared actions", async () => {
+  it("records the action name for both direct and inline-arrow action bindings", async () => {
     const definition = defineComponent({
       id: "selectable",
       actions: (a) => ({ onSelect: a.action({ productId: a.string() }) }),
@@ -170,14 +178,15 @@ describe("renderToNodeTree", () => {
     const Selectable = definition.component;
 
     const tree = await renderToNodeTree(<Selectable />);
+    // A direct binding carries the brand; an inline arrow is probed once by the
+    // tree host and reports the same action — both record it.
     expect(tree.root).toMatchObject({
       type: "view",
-      children: [{ type: "pressable", action: "onSelect" }, { type: "pressable" }],
+      children: [
+        { type: "pressable", action: "onSelect" },
+        { type: "pressable", action: "onSelect" },
+      ],
     });
-    if (tree.root.type !== "view") {
-      throw new Error("expected a view root");
-    }
-    expect(tree.root.children[1]).not.toHaveProperty("action");
   });
 
   it("serializes scroll views and preserves contentContainerStyle as a view", async () => {

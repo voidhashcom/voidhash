@@ -29,6 +29,16 @@ declare module "react-reconciler" {
       callback?: (() => void) | null,
     ): number;
     flushPassiveEffects(): boolean;
+    /**
+     * Runs `fn` at discrete (highest, "2") update priority with transitions
+     * disabled, then synchronously flushes all pending sync work before
+     * returning. Any `setState` inside `fn` is committed before this returns —
+     * the mechanism the long-lived panel session uses to make an event
+     * handler's state update observable before `dispatchEvent` returns.
+     */
+    flushSyncFromReconciler<R>(fn: () => R): R;
+    /** Flushes any pending synchronous work across all roots. */
+    flushSyncWork(): boolean;
   }
 
   /**

@@ -529,6 +529,62 @@ const componentBuildOptions = (voidhashDir: string): esbuild.BuildOptions => ({
   write: false,
 });
 
+/**
+ * The exact module specifiers the studio panel sandbox's `require` shim
+ * resolves (`@voidhash/paywalls/sandbox`'s `modules` map). A panel bundle MUST
+ * leave every one of these external so the shim satisfies it at evaluation
+ * time; a bundled copy would ship a second React/SDK instance and break hooks.
+ * Kept an explicit list (not the runtime's `@voidhash/paywalls/*` glob) so it
+ * mirrors the shim's keys one-for-one.
+ */
+export const PANEL_SANDBOX_EXTERNALS = [
+  "react",
+  "react/jsx-runtime",
+  "react/jsx-dev-runtime",
+  "@voidhash/paywalls",
+  "@voidhash/paywalls/panel",
+  "@voidhash/paywalls/jsx-runtime",
+  "@voidhash/paywalls/jsx-dev-runtime",
+];
+
+/**
+ * esbuild settings for the panel bundle. It mirrors the studio's BROWSER
+ * compile pipeline (`code-mode/compile-pipeline.ts`) exactly so the emitted
+ * module is byte-compatible with what the panel sandbox evaluates:
+ *
+ * - `format: "cjs"` — the sandbox runs it via `new Function("require",
+ *   "module", "exports", code)` and reads `module.exports.default`, so ES
+ *   module syntax cannot be used.
+ * - `jsxImportSource: "@voidhash/paywalls"` — JSX compiles to
+ *   `require("@voidhash/paywalls/jsx-runtime")`, which the shim resolves to the
+ *   sandbox's single shared React (matching the browser transform).
+ * - externals = {@link PANEL_SANDBOX_EXTERNALS}, the shim's module keys.
+ */
+const panelBuildOptions = (voidhashDir: string): esbuild.BuildOptions => ({
+  bundle: true,
+  define: { "process.env.NODE_ENV": '"production"' },
+  external: [...PANEL_SANDBOX_EXTERNALS],
+  format: "cjs",
+  jsx: "automatic",
+  jsxImportSource: "@voidhash/paywalls",
+  loader: COMPONENT_ASSET_LOADERS,
+  logLevel: "silent",
+  minify: true,
+  platform: "browser",
+  plugins: [closedImportsPlugin(voidhashDir)],
+  target: ["es2020"],
+  write: false,
+});
+
+/**
+ * Whether a component definition declares a custom editor panel — decided the
+ * SAME way the studio's browser pipeline does (`@voidhash/paywalls`'s
+ * `definitionHasPanel`): a live `panel` FUNCTION, not merely a present key.
+ * Only a `hasPanel` component emits/uploads the `panel.js` artifact.
+ */
+export const definitionHasPanel = (definition: { readonly panel?: unknown }): boolean =>
+  typeof definition.panel === "function";
+
 const firstJsOutput = (result: esbuild.BuildResult): Uint8Array => {
   const file = (result.outputFiles ?? []).find((f) => f.path.endsWith(".js"));
   if (!file) {
@@ -555,8 +611,14 @@ const bundleComponentRuntime = (
   });
 
 /**
- * Bundles a component's custom editor panel: an ESM module whose default
- * export is the definition's `panel` element tree.
+ * Bundles a component's custom editor panel: the WHOLE definition module as a
+ * single CJS module whose `default` export is the `defineComponent({ … })`
+ * definition — identical in shape to what the studio's browser compile
+ * pipeline produces. The panel sandbox evaluates this module, reads the
+ * definition off `module.exports.default`, and drives `definition.panel` live;
+ * it needs the full definition (props + panel + render), not the panel tree
+ * alone. Uses {@link panelBuildOptions} (CJS, `@voidhash/paywalls` JSX, shim
+ * externals) so the byte output matches the sandbox's require shim exactly.
  */
 const bundleComponentPanel = (
   voidhashDir: string,
@@ -566,16 +628,9 @@ const bundleComponentPanel = (
     try: async () =>
       firstJsOutput(
         await esbuild.build({
-          ...componentBuildOptions(voidhashDir),
+          ...panelBuildOptions(voidhashDir),
+          entryPoints: [componentAbsPath],
           outdir: "out",
-          stdin: {
-            contents: `import definition from ${JSON.stringify(componentAbsPath)};
-export default definition.panel;
-`,
-            loader: "ts",
-            resolveDir: dirname(componentAbsPath),
-            sourcefile: "voidhash-panel-entry.ts",
-          },
         }),
       ),
     catch: bundleFailure(`panel of component ${basename(componentAbsPath)}`),
@@ -877,8 +932,11 @@ export const buildPaywalls = ({
           runtimeBytes,
         );
 
+        // Emit + upload the panel.js artifact ONLY for a component with a live
+        // `panel` function (the same `hasPanel` test the browser pipeline uses),
+        // per the reserved `artifacts.panel` contract field.
         let panel: DeployArtifact | null = null;
-        if (definition.panel !== undefined && definition.panel !== null) {
+        if (definitionHasPanel(definition)) {
           const panelBytes = yield* bundleComponentPanel(voidhashDir, file);
           panel = yield* writeArtifact(projectRoot, join(componentOutDir, "panel.js"), panelBytes);
         }

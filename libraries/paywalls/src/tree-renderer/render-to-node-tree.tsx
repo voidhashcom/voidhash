@@ -11,6 +11,7 @@ import createReconciler from "react-reconciler";
 // ESM resolution of the bare "react-reconciler/constants" specifier fails.
 import { ConcurrentRoot, DefaultEventPriority } from "react-reconciler/constants.js";
 
+import { captureInlineActionName } from "../internal/action-brand";
 import { RendererProvider } from "../primitives/host-context";
 import type { PaywallBridge } from "../runtime/bridge";
 import { normalizeRuntimeConfig, type PaywallRuntimeConfig } from "../runtime/config";
@@ -21,7 +22,7 @@ import {
   type PaywallNodeResizeMode,
   type PaywallNodeTree,
 } from "../schema/node-tree";
-import { PAYWALL_STYLE_KEYS, type PaywallStyle, type StyleProp } from "../schema/style";
+import { PAYWALL_STYLE_KEY_LIST, type PaywallStyle, type StyleProp } from "../schema/style";
 import { flattenStyle } from "../style/resolve";
 import { TREE_ELEMENT_TYPES, treeHostComponents } from "./tree-host";
 
@@ -176,7 +177,7 @@ const reconciler = createReconciler<TreeContainer>({
 
 // ── Serialization ────────────────────────────────────────────────────────────
 
-const ALLOWED_STYLE_KEYS = new Set<string>(PAYWALL_STYLE_KEYS);
+const ALLOWED_STYLE_KEYS = new Set<string>(PAYWALL_STYLE_KEY_LIST);
 
 const sanitizeStyle = (style: unknown): PaywallStyle => {
   const flat = flattenStyle(style as StyleProp);
@@ -208,6 +209,26 @@ const RESIZE_MODES: ReadonlyArray<PaywallNodeResizeMode> = [
   "center",
 ];
 
+/**
+ * Resolves the declared action a pressable fires, for serialization. A direct
+ * `onPress={actions.onSelect}` binding already carries its name in `action`.
+ * An inline handler (`onPress={() => actions.onSelect(…)}`) is an unbranded
+ * arrow, so it is probed once (its branded action callbacks report their name).
+ *
+ * This runs at serialize time — AFTER the reconciler has committed and passive
+ * effects have flushed — so a probe that triggers an author `setState` merely
+ * schedules a concurrent update that never commits before the tree is read
+ * synchronously and the container is unmounted. Probing during render (where
+ * such an update would re-commit and mutate the tree) is unsafe and avoided.
+ */
+const resolvePressableAction = (props: Record<string, unknown>): string | undefined => {
+  if (typeof props.action === "string") {
+    return props.action;
+  }
+  const onPress = props.onPress;
+  return typeof onPress === "function" ? captureInlineActionName(onPress as () => void) : undefined;
+};
+
 const serializeChildren = (children: ReadonlyArray<TreeChild>): PaywallNode[] =>
   children.map(serializeChild);
 
@@ -225,12 +246,12 @@ const serializeChild = (child: TreeChild): PaywallNode => {
         children: serializeChildren(child.children),
       };
     case TREE_ELEMENT_TYPES.pressable: {
-      const action = child.props.action;
+      const action = resolvePressableAction(child.props);
       return {
         type: "pressable",
         style,
         children: serializeChildren(child.children),
-        ...(typeof action === "string" ? { action } : {}),
+        ...(action !== undefined ? { action } : {}),
       };
     }
     case TREE_ELEMENT_TYPES.scroll:
@@ -370,11 +391,20 @@ export const renderToNodeTree = async (
     reconciler.updateContainer(wrapped, root, null, () => resolve());
   });
   // Let passive effects (and any state updates they schedule) settle before
-  // reading the committed tree.
-  reconciler.flushPassiveEffects();
-  await new Promise<void>((resolve) => {
-    setTimeout(resolve, 0);
-  });
+  // reading the committed tree. A passive effect's `setState` schedules a commit
+  // handled by the shared React scheduler asynchronously; a single `setTimeout`
+  // can read the tree before that commit lands when another reconciler (a live
+  // panel session, another concurrent render) contends for the scheduler.
+  // Interleave a passive-effect flush with a macrotask and stop only once two
+  // consecutive flushes report no work — settling then waits for the async
+  // commit deterministically rather than racing one timer. Bounded.
+  for (let i = 0; i < 20; i++) {
+    const flushed = reconciler.flushPassiveEffects();
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    if (!flushed && !reconciler.flushPassiveEffects()) break;
+  }
 
   const tree: PaywallNodeTree = {
     treeVersion: PAYWALL_TREE_VERSION,

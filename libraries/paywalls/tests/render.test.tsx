@@ -21,7 +21,7 @@ const Card = defineComponent({
     title: p.string().label("Title").default("Untitled"),
   }),
   render: ({ props }) => (
-    <View style={{ padding: 16 }}>
+    <View style={{ paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16 }}>
       <Text>Card {props.title}</Text>
       <Slot />
     </View>
@@ -42,7 +42,7 @@ describe("DOM paywall rendering", () => {
     const paywall = createPaywall({
       title: "Onboarding",
       render: (
-        <View style={{ paddingHorizontal: 24 }}>
+        <View style={{ paddingLeft: 24, paddingRight: 24 }}>
           <Pressable>
             <Text>Hello World</Text>
           </Pressable>
