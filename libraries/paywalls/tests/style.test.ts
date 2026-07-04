@@ -66,6 +66,26 @@ describe("resolveStyle", () => {
     });
   });
 
+  it("passes absolute position and numeric offsets through (React appends px)", () => {
+    expect(resolveStyle({ position: "absolute", top: 10, left: 20 })).toEqual({
+      position: "absolute",
+      top: 10,
+      left: 20,
+    });
+  });
+
+  it('passes "auto" offsets and relative position through untouched', () => {
+    expect(
+      resolveStyle({ position: "relative", top: "auto", right: "auto", bottom: 0, left: "auto" }),
+    ).toEqual({
+      position: "relative",
+      top: "auto",
+      right: "auto",
+      bottom: 0,
+      left: "auto",
+    });
+  });
+
   // RN gives longhands precedence within one object regardless of key order;
   // on the DOM a CSS shorthand committed later resets its longhands (`flex`
   // expands to flex-grow/flex-shrink/flex-basis). The resolver must therefore

@@ -159,6 +159,13 @@ export const STYLE_FIELD_TYPES = {
   zIndex: { kind: "number" },
   display: { kind: "enum", values: ["flex", "none"] },
 
+  // Position (RN absolute/relative flow; offsets are `number | "auto"`)
+  position: { kind: "enum", values: ["absolute", "relative"] },
+  top: { kind: "dimension" },
+  right: { kind: "dimension" },
+  bottom: { kind: "dimension" },
+  left: { kind: "dimension" },
+
   // Shadow (compose-only)
   shadowEnabled: { kind: "boolean" },
   shadowColor: { kind: "color" },
@@ -370,6 +377,11 @@ export const VIEW_STYLE_ENTRIES = [
   { field: "opacity", default: 1 },
   { field: "overflow", default: "visible" },
   { field: "zIndex", default: 0 },
+  { field: "position", default: "relative" },
+  { field: "left", default: "auto" },
+  { field: "top", default: "auto" },
+  { field: "right", default: "auto" },
+  { field: "bottom", default: "auto" },
   { field: "display", default: "flex" },
   { field: "shadowEnabled", default: false },
   { field: "shadowColor", default: "rgba(0, 0, 0, 1)" },
@@ -415,6 +427,11 @@ export const TEXT_STYLE_ENTRIES = [
   { field: "opacity", default: 1 },
   { field: "overflow", default: "visible" },
   { field: "zIndex", default: 0 },
+  { field: "position", default: "relative" },
+  { field: "left", default: "auto" },
+  { field: "top", default: "auto" },
+  { field: "right", default: "auto" },
+  { field: "bottom", default: "auto" },
   { field: "display", default: "flex" },
   { field: "shadowEnabled", default: false },
   { field: "shadowColor", default: "rgba(0, 0, 0, 1)" },

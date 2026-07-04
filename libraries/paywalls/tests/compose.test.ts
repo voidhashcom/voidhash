@@ -107,6 +107,46 @@ export default paywall(() => (<Screen><Text>{"  spaced  "}</Text></Screen>));`;
     roundtrip(src);
   });
 
+  test("absolute position + offsets round-trip (emitted in registry order)", () => {
+    const src = `import { paywall, Screen, View } from "@voidhash/paywalls/compose";
+export default paywall(() => (<Screen><View name="Badge" style={{ position: "absolute", top: 10, left: 20 }} /></Screen>));`;
+    const printed = printComposition(parseComposition(src));
+    // Registry style order emits position, then left, then top.
+    expect(printed).toContain('style={{ position: "absolute", left: 20, top: 10 }}');
+    roundtrip(src);
+  });
+
+  test('the default position: "relative" (and "auto" offsets) are omitted on print', () => {
+    const src = `import { paywall, Screen, View } from "@voidhash/paywalls/compose";
+export default paywall(() => (<Screen><View name="Flow" style={{ position: "relative", top: "auto", left: 4 }} /></Screen>));`;
+    const printed = printComposition(parseComposition(src));
+    // Only the non-default offset survives; the default position/offset are dropped.
+    expect(printed).toContain("style={{ left: 4 }}");
+    expect(printed).not.toContain("position:");
+    expect(printed).not.toContain('top: "auto"');
+    roundtrip(src);
+  });
+
+  test("<Text> absolute position + offsets round-trip (emitted in registry order)", () => {
+    const src = `import { paywall, Screen, Text } from "@voidhash/paywalls/compose";
+export default paywall(() => (<Screen><Text style={{ position: "absolute", top: 10, left: 20 }}>Badge</Text></Screen>));`;
+    const printed = printComposition(parseComposition(src));
+    // Registry style order emits position, then left, then top.
+    expect(printed).toContain('style={{ position: "absolute", left: 20, top: 10 }}');
+    roundtrip(src);
+  });
+
+  test('<Text> default position: "relative" (and "auto" offsets) are omitted on print', () => {
+    const src = `import { paywall, Screen, Text } from "@voidhash/paywalls/compose";
+export default paywall(() => (<Screen><Text style={{ position: "relative", top: "auto", left: 4 }}>Flow</Text></Screen>));`;
+    const printed = printComposition(parseComposition(src));
+    // Only the non-default offset survives; the default position/offset are dropped.
+    expect(printed).toContain("style={{ left: 4 }}");
+    expect(printed).not.toContain("position:");
+    expect(printed).not.toContain('top: "auto"');
+    roundtrip(src);
+  });
+
   test("<View onPress={none()}> round-trips (fresh designer interaction)", () => {
     // A designer-authored `<View>` with a fresh (`{type:"none"}`) click
     // interaction lifts + prints to `onPress={none()}`; the node-level grammar
