@@ -117,13 +117,46 @@ export interface CompositionRegistry {
   readonly components: readonly CompositionComponent[];
 }
 
-/** Index a registry by JSX tag (parser lookup: source tag → component). */
+/**
+ * Index a registry by JSX tag (parser lookup: source tag → component).
+ *
+ * This is the funnel every registry-consuming parse passes through, so it is
+ * also where the hard-reserved-`id` invariant is enforced: `id` is always a
+ * node id, never a prop slot, so a component manifest declaring a prop literally
+ * named "id" is rejected here (losing that slot would silently break identity
+ * for the component's instances). See {@link assertNoReservedIdProp}.
+ */
 export function registryByTag(registry: CompositionRegistry): Map<string, CompositionComponent> {
   const byTag = new Map<string, CompositionComponent>();
   for (const component of registry.components) {
+    assertNoReservedIdProp(component.tag, component.manifest);
     byTag.set(component.tag, component);
   }
   return byTag;
+}
+
+/**
+ * Reject a component manifest that declares a prop (or action) named `id`. `id`
+ * is hard-reserved for node identity in the composition grammar, so a manifest
+ * slot of the same name is unrepresentable — fail loudly at registry
+ * construction rather than silently dropping the slot on every instance.
+ */
+export function assertNoReservedIdProp(
+  tag: string,
+  manifest: CompositionComponentManifest,
+): void {
+  if (Object.hasOwn(manifest.props, "id")) {
+    throw new Error(
+      `Component "${tag}" declares a prop named "id", which is reserved for node ` +
+        `identity in the composition grammar. Rename the prop.`,
+    );
+  }
+  if (manifest.actions && Object.hasOwn(manifest.actions, "id")) {
+    throw new Error(
+      `Component "${tag}" declares an action named "id", which is reserved for node ` +
+        `identity in the composition grammar. Rename the action.`,
+    );
+  }
 }
 
 /**

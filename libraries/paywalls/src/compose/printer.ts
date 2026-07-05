@@ -138,6 +138,11 @@ class Printer {
     const attrs: string[] = [];
     const meta = NODE_STYLE_VOCABULARY[type];
 
+    // `id` is emitted first (when present) so identity is stable + greppable.
+    if (node.id !== undefined) {
+      attrs.push(formatStringAttr("id", node.id));
+    }
+
     if (node.name !== undefined && node.name !== meta.defaultName) {
       attrs.push(formatStringAttr("name", node.name));
     }
@@ -277,6 +282,11 @@ class Printer {
     component: CompositionComponent,
   ): string[] {
     const attrs: string[] = [];
+
+    // `id` is emitted first (when present), matching built-in elements.
+    if (node.id !== undefined) {
+      attrs.push(formatStringAttr("id", node.id));
+    }
 
     // Skip the reserved display-name attribute when the component declares a
     // prop literally named "name" (that prop owns the `name=` attribute instead).

@@ -9,9 +9,11 @@
  *
  * The AST carries exactly the information the grammar expresses — node
  * structure, styles, interactions, variables, component props/action bindings —
- * as plain data (no mimic envelopes, no react). Node ids/positions are NOT part
- * of the AST: the lowerer assigns them positionally (matching today's scheme)
- * and the printer never emits them.
+ * as plain data (no mimic envelopes, no react). Element nodes carry an optional
+ * inline `id`: the printer emits it (first attribute) when present and the
+ * parser reads it back, so a mimic node's identity survives a code round-trip.
+ * `id` is absent for hand-authored, id-free source (the lowerer mints one). Node
+ * positions are NOT part of the AST.
  */
 
 /** Declared variable type. */
@@ -101,6 +103,12 @@ export interface CompositionInteraction {
 export interface CompositionElementNode {
   readonly kind: "element";
   readonly type: "screen" | "view" | "text";
+  /**
+   * The mimic node id, carried inline as the reserved `id` attribute. Present
+   * when lifted from (or authored against) a real document; absent for id-free
+   * hand-authored source, in which case the lowerer mints a fresh id.
+   */
+  readonly id?: string;
   /** Node display name (`name=` attribute), or absent (⇒ default). */
   readonly name?: string;
   /** Style field name → value. Field names are the exact mimic style fields. */
@@ -116,6 +124,11 @@ export interface CompositionComponentNode {
   readonly kind: "component";
   /** The registry tag this instance referenced (printer/lowerer identity). */
   readonly tag: string;
+  /**
+   * The mimic node id, carried inline as the reserved `id` attribute (same
+   * semantics as {@link CompositionElementNode.id}).
+   */
+  readonly id?: string;
   /** Node display name (`name=` attribute), or absent (⇒ default). */
   readonly name?: string;
   readonly props: readonly CompositionPropBinding[];

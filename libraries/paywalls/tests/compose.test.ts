@@ -396,6 +396,99 @@ export default paywall(() => (<Screen name="Main"><Widget name="Buy now" /></Scr
   });
 });
 
+describe("inline id attributes (node identity)", () => {
+  test("parses id on built-in tags into the AST id field", () => {
+    const src = `import { paywall, Screen, View, Text } from "@voidhash/paywalls/compose";
+export default paywall(() => (
+  <Screen id="scr1">
+    <View id="v1" name="CTA">
+      <Text id="t1">Continue</Text>
+    </View>
+  </Screen>
+));`;
+    const ast = parseComposition(src);
+    expect(ast.root.id).toBe("scr1");
+    const view = ast.root.children[0]!;
+    expect(view.kind).toBe("element");
+    if (view.kind !== "element") return;
+    expect(view.id).toBe("v1");
+    expect(view.name).toBe("CTA");
+    expect(view.children[0]!.id).toBe("t1");
+  });
+
+  test("prints id as the first attribute on every element", () => {
+    const src = `import { paywall, Screen, View, Text } from "@voidhash/paywalls/compose";
+export default paywall(() => (
+  <Screen id="scr1" name="Main">
+    <View id="v1" name="CTA" style={{ gap: 12 }}>
+      <Text id="t1">Continue</Text>
+    </View>
+  </Screen>
+));`;
+    const printed = printComposition(parseComposition(src));
+    expect(printed).toContain('<Screen id="scr1" name="Main">');
+    expect(printed).toContain('<View id="v1" name="CTA" style={{ gap: 12 }}>');
+    expect(printed).toContain('<Text id="t1">Continue</Text>');
+    roundtrip(src);
+  });
+
+  test("elements without ids print unchanged", () => {
+    const src = `import { paywall, Screen, View } from "@voidhash/paywalls/compose";
+export default paywall(() => (<Screen><View name="M" style={{ gap: 4 }} /></Screen>));`;
+    const printed = printComposition(parseComposition(src));
+    expect(printed).toContain("<Screen>");
+    expect(printed).toContain('<View name="M" style={{ gap: 4 }} />');
+    expect(printed).not.toContain("id=");
+    roundtrip(src);
+  });
+
+  test("id is hard-reserved on component tags (never a prop)", () => {
+    const registry: CompositionRegistry = {
+      components: [
+        {
+          tag: "Widget",
+          source: "local",
+          localComponentId: "cc_w",
+          componentSlug: "widget",
+          componentVersion: 0,
+          contentHash: "",
+          manifest: { slot: false, props: { title: { kind: "string" } }, actions: {} },
+        },
+      ],
+    };
+    const src = `import { paywall, Screen, Widget } from "@voidhash/paywalls/compose";
+export default paywall(() => (<Screen id="s"><Widget id="w1" title="Hi" /></Screen>));`;
+    const ast = parseComposition(src, { registry });
+    const widget = ast.root.children[0]!;
+    expect(widget.kind).toBe("component");
+    if (widget.kind !== "component") return;
+    expect(widget.id).toBe("w1");
+    expect(widget.props).toEqual([{ name: "title", value: { kind: "literal-string", value: "Hi" } }]);
+    const printed = printComposition(ast, { registry });
+    expect(printed).toContain('<Widget id="w1" title="Hi" />');
+    roundtrip(src, registry);
+  });
+
+  test("a manifest prop named id is rejected at registry construction", () => {
+    const registry: CompositionRegistry = {
+      components: [
+        {
+          tag: "Widget",
+          source: "local",
+          localComponentId: "cc_w",
+          componentSlug: "widget",
+          componentVersion: 0,
+          contentHash: "",
+          manifest: { slot: false, props: { id: { kind: "string" } }, actions: {} },
+        },
+      ],
+    };
+    const src = `import { paywall, Screen, Widget } from "@voidhash/paywalls/compose";
+export default paywall(() => (<Screen><Widget id="w1" /></Screen>));`;
+    expect(() => parseComposition(src, { registry })).toThrow(/reserved for node identity/);
+  });
+});
+
 describe("structured background style values (gradient + image)", () => {
   test("a non-default gradient parses into JSON style data", () => {
     const src = `import { paywall, Screen, View } from "@voidhash/paywalls/compose";

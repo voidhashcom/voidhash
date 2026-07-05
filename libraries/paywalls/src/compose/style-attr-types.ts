@@ -11,6 +11,8 @@
  * (`name`, `onPress`, children) are siblings of `style`, from the PARSER's
  * accepted surface, not the style registry:
  *
+ * - `id` — the optional inline node id on every node (parser: any node); the
+ *   printer emits it and the lowerer consumes it to preserve identity.
  * - `name` — an optional display-name string on every node (parser: any node).
  * - `onPress` — a bound {@link Action}, `<View>` only (parser rejects it on
  *   Screen/Text).
@@ -49,6 +51,7 @@ type LayoutChild = unknown;
  * code-component authoring look.
  */
 export type ScreenProps = {
+  readonly id?: string;
   readonly style?: NodeStyleProps<"screen">;
   readonly name?: string;
   readonly children?: LayoutChild | readonly LayoutChild[];
@@ -56,6 +59,7 @@ export type ScreenProps = {
 
 /** `<View>` props: a `style` object + optional name + `onPress` action + element children. */
 export type ViewProps = {
+  readonly id?: string;
   readonly style?: NodeStyleProps<"view">;
   readonly name?: string;
   /** A node interaction bound to press/click. `<View>` only. */
@@ -65,6 +69,7 @@ export type ViewProps = {
 
 /** `<Text>` props: a `style` object + optional name + a literal string child (its content). */
 export type TextProps = {
+  readonly id?: string;
   readonly style?: NodeStyleProps<"text">;
   readonly name?: string;
   readonly children?: string;

@@ -106,7 +106,8 @@ function tagDeclaration(tag: string, node: keyof typeof NODE_STYLE_ENTRIES, shap
     const descriptor = STYLE_FIELD_TYPES[entry.field as StyleFieldName];
     styleMembers.push(`        ${entry.field}?: ${descriptorTsType(descriptor)};`);
   }
-  const members: string[] = [`      style?: {\n${styleMembers.join("\n")}\n      };`];
+  const members: string[] = [`      id?: string;`];
+  members.push(`      style?: {\n${styleMembers.join("\n")}\n      };`);
   members.push(`      name?: string;`);
   if (shape.onPress) {
     members.push(`      onPress?: Action;`);
@@ -144,7 +145,7 @@ function componentDeclaration(
     slot?: boolean;
   },
 ): string {
-  const members: string[] = [];
+  const members: string[] = [`      id?: string;`];
   for (const [name, def] of Object.entries(manifest.props)) {
     members.push(`      ${propMember(name, def)}`);
   }

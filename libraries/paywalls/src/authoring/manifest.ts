@@ -24,6 +24,21 @@ const serializableDefault = (value: unknown): unknown => {
   return;
 };
 
+/**
+ * Rejects a prop or action literally named `id`. `id` is hard-reserved for node
+ * identity in the composition grammar (emitted/consumed as the inline `id`
+ * attribute), so a same-named manifest slot is unrepresentable. Caught here at
+ * authoring time for a friendly early error; the registry re-checks defensively.
+ */
+const assertReservedPropName = (componentId: string, name: string): void => {
+  if (name === "id") {
+    throw new Error(
+      `Component "${componentId}": "id" is reserved for node identity and cannot ` +
+        "be used as a prop or action name.",
+    );
+  }
+};
+
 const isEmptySelect = (schema: PropSchema | undefined): boolean =>
   schema?.kind === "select" && (schema.options === undefined || schema.options.length === 0);
 
@@ -113,12 +128,14 @@ export const extractComponentManifest = <M extends PropMap, A extends ActionMap>
 ): ComponentManifest => {
   const props: Record<string, ManifestProp> = {};
   for (const [name, builder] of Object.entries(definition.props)) {
+    assertReservedPropName(definition.id, name);
     assertSelectHasOptions(definition.id, name, builder.schema);
     props[name] = toManifestProp(builder.schema);
   }
 
   const actions: Record<string, ManifestAction> = {};
   for (const [name, builder] of Object.entries(definition.actions)) {
+    assertReservedPropName(definition.id, name);
     const payload: Record<string, { kind: "string" | "number" | "boolean" }> = {};
     for (const [field, fieldBuilder] of Object.entries(builder.payloadShape ?? {})) {
       payload[field] = { kind: fieldBuilder.kind };

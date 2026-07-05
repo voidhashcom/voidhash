@@ -254,12 +254,18 @@ class Parser {
       throw this.error(el, `Unknown element <${tag}>`);
     }
 
+    let id: string | undefined;
     let name: string | undefined;
     const style: Record<string, CompositionStyleValue> = {};
     const interactions: CompositionInteraction[] = [];
 
     for (const attr of this.attributesOf(el)) {
       const attrName = attr.name.getText(this.sf);
+      // `id` is HARD-reserved: it always maps to the node id, never a prop.
+      if (attrName === "id") {
+        id = this.expectStringAttr(attr);
+        continue;
+      }
       if (attrName === "name") {
         name = this.expectStringAttr(attr);
         continue;
@@ -290,6 +296,7 @@ class Parser {
     const node: CompositionElementNode = {
       kind: "element",
       type,
+      ...(id !== undefined ? { id } : {}),
       ...(name !== undefined ? { name } : {}),
       style,
       interactions,
@@ -371,12 +378,20 @@ class Parser {
     component: CompositionComponent,
   ): CompositionComponentNode {
     const manifest = component.manifest;
+    let id: string | undefined;
     let name: string | undefined;
     const propByName = new Map<string, CompositionPropValue>();
     const actionByName = new Map<string, CompositionAction>();
 
     for (const attr of this.attributesOf(el)) {
       const attrName = attr.name.getText(this.sf);
+      // `id` is HARD-reserved on component tags too: it is unconditionally the
+      // node id, never a prop. Unlike `name`, a manifest prop literally named
+      // "id" cannot win the slot — the registry rejects such manifests up front.
+      if (attrName === "id") {
+        id = this.expectStringAttr(attr);
+        continue;
+      }
       // `name` is the reserved instance display-name attribute — UNLESS the
       // component declares a prop literally named "name", in which case the
       // functional prop wins the single `name=` slot (a manifest prop named
@@ -417,6 +432,7 @@ class Parser {
     return {
       kind: "component",
       tag: component.tag,
+      ...(id !== undefined ? { id } : {}),
       ...(name !== undefined ? { name } : {}),
       props,
       actionBindings,

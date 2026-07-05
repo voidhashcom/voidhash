@@ -226,6 +226,29 @@ describe("extractComponentManifest", () => {
     );
   });
 
+  it('rejects a prop named "id" (reserved for node identity)', () => {
+    const definition = defineComponent({
+      id: "reserved-id-prop",
+      props: (p) => ({ id: p.string() }),
+      render: () => <View />,
+    });
+    expect(() => extractComponentManifest(definition)).toThrow(
+      /"id" is reserved for node identity/,
+    );
+  });
+
+  it('rejects an action named "id" (reserved for node identity)', () => {
+    const definition = defineComponent({
+      id: "reserved-id-action",
+      props: (p) => ({ title: p.string() }),
+      actions: (a) => ({ id: a.action({}) }),
+      render: () => <View />,
+    });
+    expect(() => extractComponentManifest(definition)).toThrow(
+      /"id" is reserved for node identity/,
+    );
+  });
+
   it("keeps explicit optional() and default() both consumer-optional", () => {
     const definition = defineComponent({
       id: "optionality",

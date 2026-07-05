@@ -68,6 +68,7 @@ export {
 // Component/registry vocabulary (prop/action kinds from `../schema`).
 export {
   arrayItemKey,
+  assertNoReservedIdProp,
   defaultComponentTag,
   registryByTag,
   resolveComponentForNode,
