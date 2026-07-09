@@ -296,7 +296,9 @@ const PROP_COMMON_KEYS = [...PROP_META_KEYS, "default"];
 const propKeysFor = (kind: string): ReadonlySet<string> => {
   switch (kind) {
     case "string":
-      return new Set([...PROP_COMMON_KEYS, "editor"]);
+      return new Set([...PROP_COMMON_KEYS, "editor", "localizable"]);
+    case "image":
+      return new Set([...PROP_COMMON_KEYS, "localizable"]);
     case "select":
       return new Set([...PROP_COMMON_KEYS, "options"]);
     case "ref":
@@ -323,6 +325,11 @@ const validateCommonPropFields = (
   }
   if (prop.optional !== undefined && typeof prop.optional !== "boolean") {
     errors.push(`${path}.optional must be a boolean`);
+  }
+  // `localizable` is only an allowed key on string/image props (see
+  // `propKeysFor`); its value, when present, must be a boolean.
+  if (prop.localizable !== undefined && typeof prop.localizable !== "boolean") {
+    errors.push(`${path}.localizable must be a boolean`);
   }
 };
 

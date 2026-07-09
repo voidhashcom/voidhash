@@ -303,6 +303,38 @@ describe("parseComponentManifest", () => {
     }
   });
 
+  it("accepts localizable on string and image props", () => {
+    expect(
+      parseComponentManifest({
+        manifestVersion: 2,
+        props: {
+          title: { kind: "string", localizable: true, optional: false },
+          hero: { kind: "image", localizable: true, optional: false },
+        },
+      }).ok,
+    ).toBe(true);
+  });
+
+  it("rejects localizable on a non-string/image prop and a non-boolean value", () => {
+    const wrongKind = parseComponentManifest({
+      manifestVersion: 2,
+      props: { a: { kind: "number", localizable: true, optional: false } },
+    });
+    expect(wrongKind.ok).toBe(false);
+    if (!wrongKind.ok) {
+      expect(wrongKind.errors.some((e) => e.includes('unknown key "localizable"'))).toBe(true);
+    }
+
+    const wrongType = parseComponentManifest({
+      manifestVersion: 2,
+      props: { a: { kind: "string", localizable: "yes", optional: false } },
+    });
+    expect(wrongType.ok).toBe(false);
+    if (!wrongType.ok) {
+      expect(wrongType.errors.some((e) => e.includes("localizable must be a boolean"))).toBe(true);
+    }
+  });
+
   it("rejects an array item that is itself an array", () => {
     const result = parseComponentManifest({
       manifestVersion: 2,

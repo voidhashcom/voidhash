@@ -65,6 +65,34 @@ describe("PropBuilder.editor() (contract §2: string props only)", () => {
   });
 });
 
+describe("PropBuilder.localizable() (contract §2: string/image props only)", () => {
+  it("is callable on string/image builders and uncallable on every other kind", () => {
+    // Callable on both localizable kinds.
+    expectTypeOf(p.string().localizable()).not.toBeNever();
+    expectTypeOf(p.image().localizable()).not.toBeNever();
+
+    // Chaining keeps working in any order and preserves the concrete kind, so
+    // string-only `.editor()` still resolves after `.localizable()`.
+    expectTypeOf(p.string().localizable().label("Title").default("Hi")).not.toBeNever();
+    expectTypeOf(p.string().label("Title").localizable()).not.toBeNever();
+    expectTypeOf(p.string().localizable().editor("color")).not.toBeNever();
+    expectTypeOf(p.image().default("https://cdn.test/x.png").localizable()).not.toBeNever();
+
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.number().localizable();
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.boolean().localizable();
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.select(["a", "b"]).localizable();
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.ref("product").localizable();
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.component().localizable();
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.array(p.string()).localizable();
+  });
+});
+
 describe("InferProps (template-facing)", () => {
   it("infers value types and optionality", () => {
     expectTypeOf<Props["required"]>().toEqualTypeOf<string>();

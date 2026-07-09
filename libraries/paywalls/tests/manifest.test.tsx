@@ -256,4 +256,51 @@ describe("extractComponentManifest", () => {
       optional: true,
     });
   });
+
+  it("emits localizable: true for string/image props marked .localizable()", () => {
+    const definition = defineComponent({
+      props: (p) => ({
+        title: p.string().label("Title").localizable(),
+        hero: p.image().localizable(),
+        subtitle: p.string(),
+      }),
+      render: () => <View />,
+    });
+
+    const manifest = extractComponentManifest(definition);
+    expect(manifest.props.title).toEqual({
+      kind: "string",
+      label: "Title",
+      localizable: true,
+      optional: false,
+    });
+    expect(manifest.props.hero).toEqual({
+      kind: "image",
+      localizable: true,
+      optional: false,
+    });
+    // Props without .localizable() carry no `localizable` key at all.
+    expect(manifest.props.subtitle).toEqual({ kind: "string", optional: false });
+    expect("localizable" in manifest.props.subtitle!).toBe(false);
+  });
+
+  it("is order-independent: .localizable() before or after other chains", () => {
+    const definition = defineComponent({
+      props: (p) => ({
+        before: p.string().localizable().default("hi").label("Before"),
+        after: p.string().label("After").default("hi").localizable(),
+      }),
+      render: () => <View />,
+    });
+
+    const manifest = extractComponentManifest(definition);
+    const expected = {
+      kind: "string",
+      localizable: true,
+      default: "hi",
+      optional: true,
+    };
+    expect(manifest.props.before).toEqual({ ...expected, label: "Before" });
+    expect(manifest.props.after).toEqual({ ...expected, label: "After" });
+  });
 });
