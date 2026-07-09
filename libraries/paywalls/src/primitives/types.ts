@@ -1,5 +1,17 @@
-import type { ReactNode } from "react";
+import type {
+  ComponentType,
+  ReactNode,
+  RefAttributes,
+} from "react";
 
+import type {
+  DraggableMotionProps,
+  MotionNodeHandle,
+  MotionStyleProp,
+  MotionVisualProps,
+  PressableMotionProps,
+  ScrollViewHandle,
+} from "../motion/types";
 import type { StyleProp } from "../schema/style";
 
 /** Interaction state passed to a {@link PressableProps} render-prop child. */
@@ -13,8 +25,8 @@ export type ImageSource = string | { readonly uri: string };
 /** How an {@link ImageProps} image fills its frame. Mirrors RN `resizeMode`. */
 export type ResizeMode = "cover" | "contain" | "stretch" | "center";
 
-export interface ViewProps {
-  style?: StyleProp;
+export interface ViewProps extends MotionVisualProps, DraggableMotionProps {
+  style?: MotionStyleProp;
   children?: ReactNode;
   /** Stable identifier for testing / analytics targeting. */
   testID?: string;
@@ -22,8 +34,8 @@ export interface ViewProps {
   accessibilityLabel?: string;
 }
 
-export interface TextProps {
-  style?: StyleProp;
+export interface TextProps extends MotionVisualProps {
+  style?: MotionStyleProp;
   children?: ReactNode;
   /** Truncate to N lines with an ellipsis. `0`/undefined means unlimited. */
   numberOfLines?: number;
@@ -31,8 +43,11 @@ export interface TextProps {
   accessibilityLabel?: string;
 }
 
-export interface PressableProps {
-  style?: StyleProp;
+export interface PressableProps
+  extends MotionVisualProps,
+    PressableMotionProps,
+    DraggableMotionProps {
+  style?: MotionStyleProp;
   /** Static children, or a render-prop receiving the {@link PressableState}. */
   children?: ReactNode | ((state: PressableState) => ReactNode);
   /**
@@ -49,8 +64,8 @@ export interface PressableProps {
   accessibilityLabel?: string;
 }
 
-export interface ScrollViewProps {
-  style?: StyleProp;
+export interface ScrollViewProps extends MotionVisualProps {
+  style?: MotionStyleProp;
   /** Style applied to the inner content wrapper (RN `contentContainerStyle`). */
   contentContainerStyle?: StyleProp;
   /** Scroll on the x-axis instead of the y-axis. */
@@ -59,8 +74,8 @@ export interface ScrollViewProps {
   testID?: string;
 }
 
-export interface ImageProps {
-  style?: StyleProp;
+export interface ImageProps extends MotionVisualProps, DraggableMotionProps {
+  style?: MotionStyleProp;
   source: ImageSource;
   resizeMode?: ResizeMode;
   accessibilityLabel?: string;
@@ -86,6 +101,10 @@ export interface SlotHostProps {
   fallback?: ReactNode;
 }
 
+type MotionHostComponent<Props, Handle extends MotionNodeHandle> = ComponentType<
+  Props & RefAttributes<Handle>
+>;
+
 /**
  * The set of host components a renderer must provide. The abstract primitives
  * exported from `@voidhash/paywalls` resolve their implementation from the
@@ -93,10 +112,10 @@ export interface SlotHostProps {
  * target the DOM, the preview node tree, and native views later.
  */
 export interface HostComponents {
-  View: (props: ViewProps) => ReactNode;
-  Text: (props: TextProps) => ReactNode;
-  Pressable: (props: PressableHostProps) => ReactNode;
-  ScrollView: (props: ScrollViewProps) => ReactNode;
-  Image: (props: ImageProps) => ReactNode;
+  View: MotionHostComponent<ViewProps, MotionNodeHandle>;
+  Text: MotionHostComponent<TextProps, MotionNodeHandle>;
+  Pressable: MotionHostComponent<PressableHostProps, MotionNodeHandle>;
+  ScrollView: MotionHostComponent<ScrollViewProps, ScrollViewHandle>;
+  Image: MotionHostComponent<ImageProps, MotionNodeHandle>;
   Slot: (props: SlotHostProps) => ReactNode;
 }

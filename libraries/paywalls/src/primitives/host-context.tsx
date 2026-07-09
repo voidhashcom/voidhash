@@ -1,6 +1,11 @@
 import { createContext, type ReactNode, useContext } from "react";
 
 import { domHostComponents } from "../renderer/dom-host";
+import {
+  domMotionPlatformAdapter,
+  MotionPlatformContext,
+} from "../motion/platform";
+import type { MotionPlatformAdapter } from "../motion/types";
 import type { HostComponents } from "./types";
 
 /**
@@ -19,6 +24,8 @@ export const useHost = (): HostComponents => useContext(HostContext);
 
 export interface RendererProviderProps {
   host?: HostComponents;
+  /** Platform clock, measurement, and accessibility capability adapter. */
+  motion?: MotionPlatformAdapter;
   children: ReactNode;
 }
 
@@ -28,7 +35,10 @@ export interface RendererProviderProps {
  */
 export const RendererProvider = ({
   host = domHostComponents,
+  motion = domMotionPlatformAdapter,
   children,
 }: RendererProviderProps): ReactNode => (
-  <HostContext.Provider value={host}>{children}</HostContext.Provider>
+  <MotionPlatformContext.Provider value={motion}>
+    <HostContext.Provider value={host}>{children}</HostContext.Provider>
+  </MotionPlatformContext.Provider>
 );

@@ -16,6 +16,9 @@ import {
   type PAYWALL_STYLE_KEYS,
   type PaywallProduct,
   type PaywallStyle,
+  type ScrollViewProps,
+  type TextProps,
+  type ViewProps,
 } from "../src/index";
 
 const p = propFactory;
@@ -152,5 +155,17 @@ describe("PaywallStyle subset", () => {
     // @ts-expect-error transform is not part of the §3.1 subset
     const bad: PaywallStyle = { transform: "scale(2)" };
     void bad;
+  });
+});
+
+describe("motion primitive support matrix", () => {
+  it("keeps drag off Text and ScrollView while exposing it on View", () => {
+    expectTypeOf<ViewProps>().toMatchTypeOf<{ drag?: "x" | "y" | true }>();
+    // @ts-expect-error Text is visual but never draggable.
+    const text: TextProps = { drag: "x" };
+    // @ts-expect-error ScrollView is a scroll source and animation target, never draggable.
+    const scroll: ScrollViewProps = { drag: "y" };
+    void text;
+    void scroll;
   });
 });

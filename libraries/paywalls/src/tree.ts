@@ -20,11 +20,13 @@ export {
   type PaywallTextNode,
   type PaywallViewNode,
 } from "./schema/node-tree";
+export type { ResolvedMotionStyle } from "./motion/types";
 export {
   type RenderToNodeTreeOptions,
   renderToNodeTree,
 } from "./tree-renderer/render-to-node-tree";
 export {
   TREE_ELEMENT_TYPES,
+  staticMotionPlatformAdapter,
   treeHostComponents,
 } from "./tree-renderer/tree-host";

@@ -81,6 +81,48 @@ export type {
   ViewProps,
 } from "./primitives/types";
 export { domHostComponents } from "./renderer/dom-host";
+// ── Motion ─────────────────────────────────────────────────────────────────
+export { MotionConfig, useMotionConfig, useReducedMotion } from "./motion/context";
+export { domMotionPlatformAdapter, staticMotionPlatformAdapter, useMotionPlatform } from "./motion/platform";
+export { useMotionValue, useMotionValueEvent, useSpring, useTransform, useVelocity } from "./motion/hooks";
+export { useDragControls } from "./motion/drag";
+export { useMotionRef } from "./motion/ref";
+export { useInView, useScroll } from "./motion/scroll";
+export { compileMotionCss, compileMotionTransform } from "./motion/transform";
+export { motionValue, type MotionValue, type MotionValueEventName } from "./motion/value";
+export {
+  MOTION_STYLE_KEYS,
+  type AnimationControls,
+  type DragAxis,
+  type DragConstraints,
+  type DragControls,
+  type DragInfo,
+  type DraggableMotionProps,
+  type MotionConfigProps,
+  type MotionGestureEvent,
+  type MotionLayoutBox,
+  type MotionNodeHandle,
+  type MotionPlatformAdapter,
+  type MotionRef,
+  type MotionScrollMetrics,
+  type MotionStyle,
+  type MotionStyleKey,
+  type MotionStyleObject,
+  type MotionStyleProp,
+  type MotionTarget,
+  type MotionTransformOrigin,
+  type MotionVisualProps,
+  type PressableMotionProps,
+  type ReducedMotion,
+  type ResolvedMotionStyle,
+  type ScrollMotionValues,
+  type ScrollViewHandle,
+  type Transition,
+  type TransitionByKey,
+  type UseScrollOptions,
+  type VariantLabel,
+  type ViewportOptions,
+} from "./motion/types";
 // ── Renderer / runtime ───────────────────────────────────────────────────────
 export {
   PaywallRenderer,
