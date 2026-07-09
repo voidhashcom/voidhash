@@ -4,8 +4,15 @@
  * bundle. Servers validate uploaded manifests against exactly these shapes.
  */
 
-/** Wire version of the component manifest format. */
-export const COMPONENT_MANIFEST_VERSION = 1 as const;
+/**
+ * Wire version of the component manifest format.
+ *
+ * v2 dropped the manifest `id` field: a component is identified by its relative
+ * file path in the paywall document (the import specifier), not by an embedded
+ * slug. A v1 (or any id-bearing) manifest is rejected by
+ * {@link parseComponentManifest}.
+ */
+export const COMPONENT_MANIFEST_VERSION = 2 as const;
 
 /** Editor kinds a component prop can map to. */
 export type ManifestPropKind =
@@ -97,7 +104,6 @@ export type ManifestHostData = "products";
 
 export interface ComponentManifest {
   readonly manifestVersion: typeof COMPONENT_MANIFEST_VERSION;
-  readonly id: string;
   readonly title?: string;
   readonly description?: string;
   readonly props: Readonly<Record<string, ManifestProp>>;

@@ -450,7 +450,6 @@ const validateAction = (action: unknown, path: string, errors: string[]): void =
 
 const MANIFEST_KEYS = new Set([
   "manifestVersion",
-  "id",
   "title",
   "description",
   "props",
@@ -466,7 +465,9 @@ const MANIFEST_KEYS = new Set([
  * unknown prop/action kinds, empty `select` options, array items that are
  * themselves arrays, `editor` on a non-string prop, malformed action payload
  * kinds, non-boolean `slot`, empty `previewStates`, and out-of-subset
- * `hostData` are all rejected.
+ * `hostData` are all rejected. A v1 (or otherwise id-bearing) manifest fails
+ * the `manifestVersion` / unknown-key checks: `id` is no longer a manifest
+ * field (a component is identified by its file path in the paywall document).
  */
 export const parseComponentManifest = (input: unknown): ParseResult<ComponentManifest> => {
   const errors: string[] = [];
@@ -478,9 +479,6 @@ export const parseComponentManifest = (input: unknown): ParseResult<ComponentMan
   }
   if (input.manifestVersion !== COMPONENT_MANIFEST_VERSION) {
     errors.push(`manifest.manifestVersion must be ${COMPONENT_MANIFEST_VERSION}`);
-  }
-  if (typeof input.id !== "string" || !DEPLOY_SLUG_PATTERN.test(input.id)) {
-    errors.push(`manifest.id "${String(input.id)}" must match ${DEPLOY_SLUG_PATTERN}`);
   }
   if (input.title !== undefined && typeof input.title !== "string") {
     errors.push("manifest.title must be a string");

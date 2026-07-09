@@ -7,8 +7,7 @@ import { parseComponentManifest } from "../src/schema/validate";
  * one field under test so each fixture isolates a single rejection reason.
  */
 const validManifest = () => ({
-  manifestVersion: 1,
-  id: "pro-card",
+  manifestVersion: 2,
   props: {
     heading: { kind: "string", optional: false },
     product: { kind: "ref", refType: "product", optional: false },
@@ -20,8 +19,7 @@ const validManifest = () => ({
 describe("component manifest validator — prop `default` allowance", () => {
   test("accepts `default` on string/number/boolean/select/image/array props", () => {
     const manifest = {
-      manifestVersion: 1,
-      id: "c",
+      manifestVersion: 2,
       props: {
         s: { kind: "string", default: "x" },
         n: { kind: "number", default: 3 },

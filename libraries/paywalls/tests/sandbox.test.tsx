@@ -18,7 +18,7 @@ import {
  * `<Slot/>`, and two preview states.
  */
 const definition = defineComponent({
-  id: "product-option",
+  title: "Product Option",
   props: (p) => ({
     accentColor: p.string().editor("color").default("#16a34a"),
   }),
@@ -83,7 +83,6 @@ describe("sandbox renderComponentToTree", () => {
 
   it("records the action name for the idiomatic inline-arrow handler", async () => {
     const inlineDefinition = defineComponent({
-      id: "inline-action",
       actions: (a) => ({ onSelect: a.action({ productId: a.string() }) }),
       render: ({ actions }) => (
         <Pressable onPress={() => actions.onSelect({ productId: "p1" })}>
@@ -107,7 +106,6 @@ describe("sandbox renderComponentToTree", () => {
     // The action probe must NOT run the author's setState during the committed
     // render — otherwise the counter compounds and differs run-to-run.
     const stateful = defineComponent({
-      id: "stateful-press",
       actions: (a) => ({ onSelect: a.action() }),
       render: ({ actions }) => {
         const [n, setN] = useState(0);
@@ -136,7 +134,6 @@ describe("sandbox renderComponentToTree", () => {
 
   it("flows preview-state variables into usePaywallVariables", async () => {
     const withVars = defineComponent({
-      id: "with-vars",
       render: () => {
         const variables = usePaywallVariables();
         return <Text>{String(variables.headline ?? "NONE")}</Text>;
@@ -152,7 +149,9 @@ describe("sandbox renderComponentToTree", () => {
 
   it("extracts a manifest matching the definition", () => {
     const manifest = extractComponentManifest(definition);
-    expect(manifest.id).toBe("product-option");
+    // Manifest v2 carries no `id` (identity is the component's file path); the
+    // optional display title survives.
+    expect(manifest.title).toBe("Product Option");
     expect(manifest.slot).toBe(true);
     expect(manifest.previewStates).toEqual(["default", "trial"]);
     expect(Object.keys(manifest.actions)).toEqual(["onSelect"]);
@@ -170,7 +169,6 @@ describe("sandbox renderComponentToTree", () => {
 
   it("reports hasPanel=true when the definition declares a panel", () => {
     const withPanel = defineComponent({
-      id: "with-panel",
       props: (p) => ({ accentColor: p.string().editor("color").default("#000") }),
       panel: (ctx) => (
         <Panel>

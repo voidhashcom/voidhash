@@ -117,7 +117,6 @@ describe("InferActions", () => {
 describe("defineComponent end-to-end typing", () => {
   it("types the render context and the produced component", () => {
     const definition = defineComponent({
-      id: "typed",
       props: () => propMap,
       actions: () => actionMap,
       render: ({ props, actions }) => {

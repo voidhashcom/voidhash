@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import type { Action } from "../authoring/compose-values";
 import type { StyleProp } from "../schema/style";
 
 /** Interaction state passed to a {@link PressableProps} render-prop child. */
@@ -16,6 +17,15 @@ export type ResizeMode = "cover" | "contain" | "stretch" | "center";
 export interface ViewProps {
   style?: StyleProp;
   children?: ReactNode;
+  /** Inert node id annotation; the runtime renderer ignores it. */
+  id?: string;
+  /** Inert node display-name annotation; the runtime renderer ignores it. */
+  name?: string;
+  /**
+   * Inert bound-interaction annotation ({@link Action} marker); the runtime
+   * renderer ignores it (real presses use {@link PressableProps.onPress}).
+   */
+  onPress?: Action;
   /** Stable identifier for testing / analytics targeting. */
   testID?: string;
   /** Accessibility label surfaced to screen readers. */
@@ -25,6 +35,10 @@ export interface ViewProps {
 export interface TextProps {
   style?: StyleProp;
   children?: ReactNode;
+  /** Inert node id annotation; ignored by the runtime renderer. */
+  id?: string;
+  /** Inert node display-name annotation; ignored by the runtime renderer. */
+  name?: string;
   /** Truncate to N lines with an ellipsis. `0`/undefined means unlimited. */
   numberOfLines?: number;
   testID?: string;

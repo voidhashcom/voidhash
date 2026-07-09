@@ -19,9 +19,6 @@ const buildEntries = async (): Promise<void> => {
   await tsup.build({
     dts: true,
     entryPoints: {
-      // Composition grammar/AST/printer/dts + inert author surface. Mimic-free;
-      // imports `typescript` (external) for the whitelist parser.
-      compose: "./src/compose/index.ts",
       dom: "./src/dom.tsx",
       index: "./src/index.ts",
       "jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
@@ -44,9 +41,6 @@ const buildEntries = async (): Promise<void> => {
       // browser entries because nothing outside `src/tree-renderer` imports it.
       "react-reconciler",
       "react-reconciler/constants",
-      // The composition parser imports the TypeScript compiler; keep it external
-      // (consumers provide it as an optional peer) instead of inlining ~10MB.
-      "typescript",
     ],
     format: ["cjs", "esm"],
     outDir: "./dist",

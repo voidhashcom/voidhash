@@ -21,7 +21,6 @@ const yearly: PaywallProduct = {
 describe("extractComponentManifest", () => {
   it("emits the contract §2 manifest for a full-surface component", () => {
     const definition = defineComponent({
-      id: "product-option",
       title: "Product Option",
       description: "A selectable product row.",
       props: (p) => ({
@@ -48,8 +47,7 @@ describe("extractComponentManifest", () => {
     });
 
     expect(extractComponentManifest(definition)).toEqual({
-      manifestVersion: 1,
-      id: "product-option",
+      manifestVersion: 2,
       title: "Product Option",
       description: "A selectable product row.",
       props: {
@@ -85,7 +83,6 @@ describe("extractComponentManifest", () => {
 
   it("reports slot: false and empty hostData for a plain component", () => {
     const definition = defineComponent({
-      id: "title-block",
       props: (p) => ({ title: p.string() }),
       render: ({ props }) => (
         <View>
@@ -104,7 +101,6 @@ describe("extractComponentManifest", () => {
 
   it("reports hostData products when a prop is ref('product')", () => {
     const definition = defineComponent({
-      id: "with-ref",
       props: (p) => ({ product: p.ref("product") }),
       render: ({ props }) => <Text>{props.product.displayName}</Text>,
     });
@@ -113,7 +109,6 @@ describe("extractComponentManifest", () => {
 
   it("reports hostData products when a preview declares product data", () => {
     const definition = defineComponent({
-      id: "with-preview-products",
       previews: { default: { data: { products: [yearly] } } },
       render: () => <View />,
     });
@@ -122,7 +117,6 @@ describe("extractComponentManifest", () => {
 
   it("reports hostData products when the template reads products via a runtime hook", () => {
     const definition = defineComponent({
-      id: "with-products-hook",
       render: () => {
         const products = usePaywallProducts();
         return <Text>{products.length}</Text>;
@@ -133,7 +127,6 @@ describe("extractComponentManifest", () => {
 
   it("emits payload-less actions as empty payload objects", () => {
     const definition = defineComponent({
-      id: "with-bare-action",
       actions: (a) => ({ onDismiss: a.action() }),
       render: ({ actions }) => <Pressable onPress={actions.onDismiss} />,
     });
@@ -144,7 +137,6 @@ describe("extractComponentManifest", () => {
 
   it("omits non-serializable defaults from the manifest", () => {
     const definition = defineComponent({
-      id: "with-node-default",
       props: (p) => ({ badge: p.component().default(<Text>hi</Text>) }),
       render: ({ props }) => <View>{props.badge}</View>,
     });
@@ -156,7 +148,6 @@ describe("extractComponentManifest", () => {
 
   it("emits the contract §2 per-kind table for every builder combination", () => {
     const definition = defineComponent({
-      id: "per-kind",
       props: (p) => ({
         headline: p.string().editor("color").default("#16a34a"),
         count: p.number().default(3),
@@ -206,7 +197,7 @@ describe("extractComponentManifest", () => {
 
   it("rejects p.select([]) with an error naming the component and prop", () => {
     const definition = defineComponent({
-      id: "broken-select",
+      title: "broken-select",
       props: (p) => ({ plan: p.select([]) }),
       render: () => <View />,
     });
@@ -217,7 +208,7 @@ describe("extractComponentManifest", () => {
 
   it("rejects p.array(p.select([])) items the same way", () => {
     const definition = defineComponent({
-      id: "broken-array-select",
+      title: "broken-array-select",
       props: (p) => ({ plans: p.array(p.select([])) }),
       render: () => <View />,
     });
@@ -228,7 +219,6 @@ describe("extractComponentManifest", () => {
 
   it('rejects a prop named "id" (reserved for node identity)', () => {
     const definition = defineComponent({
-      id: "reserved-id-prop",
       props: (p) => ({ id: p.string() }),
       render: () => <View />,
     });
@@ -239,7 +229,6 @@ describe("extractComponentManifest", () => {
 
   it('rejects an action named "id" (reserved for node identity)', () => {
     const definition = defineComponent({
-      id: "reserved-id-action",
       props: (p) => ({ title: p.string() }),
       actions: (a) => ({ id: a.action({}) }),
       render: () => <View />,
@@ -251,7 +240,6 @@ describe("extractComponentManifest", () => {
 
   it("keeps explicit optional() and default() both consumer-optional", () => {
     const definition = defineComponent({
-      id: "optionality",
       props: (p) => ({
         required: p.string(),
         optional: p.string().optional(),

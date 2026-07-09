@@ -80,16 +80,6 @@
         "default": "./dist/schema.cjs"
       }
     },
-    "./compose": {
-      "import": {
-        "types": "./dist/compose.d.ts",
-        "default": "./dist/compose.mjs"
-      },
-      "require": {
-        "types": "./dist/compose.d.ts",
-        "default": "./dist/compose.cjs"
-      }
-    },
     "./jsx-runtime": {
       "import": {
         "types": "./dist/jsx-runtime.d.ts",
@@ -168,12 +158,6 @@
   },
   "peerDependencies": {
     "react": ">=18",
-    "react-dom": ">=18",
-    "typescript": ">=5"
-  },
-  "peerDependenciesMeta": {
-    "typescript": {
-      "optional": true
-    }
+    "react-dom": ">=18"
   }
 }

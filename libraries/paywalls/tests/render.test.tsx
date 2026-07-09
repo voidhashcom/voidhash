@@ -16,7 +16,6 @@ import {
 } from "../src/index";
 
 const Card = defineComponent({
-  id: "card",
   props: (p) => ({
     title: p.string().label("Title").default("Untitled"),
   }),

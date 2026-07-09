@@ -88,17 +88,6 @@ export {
   type VariableFieldNode,
 } from "./panel-tree";
 export {
-  NODE_STYLE_ENTRIES,
-  STYLE_FIELD_TYPES,
-  type StyleFieldEntry,
-  type StyleFieldName,
-  type StyleFieldValue,
-  type StyleGradientValue,
-  type StyleImageValue,
-  type StyleValueDescriptor,
-  type StyleValueTypeOf,
-} from "./style-registry";
-export {
   PAYWALL_STYLE_KEY_LIST,
   type PaywallAlignItems,
   type PaywallAlignSelf,

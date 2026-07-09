@@ -26,14 +26,14 @@ const serializableDefault = (value: unknown): unknown => {
 
 /**
  * Rejects a prop or action literally named `id`. `id` is hard-reserved for node
- * identity in the composition grammar (emitted/consumed as the inline `id`
- * attribute), so a same-named manifest slot is unrepresentable. Caught here at
- * authoring time for a friendly early error; the registry re-checks defensively.
+ * identity in the paywall document, so a same-named manifest slot is
+ * unrepresentable. Caught here at authoring time for a friendly early error; the
+ * registry re-checks defensively.
  */
-const assertReservedPropName = (componentId: string, name: string): void => {
+const assertReservedPropName = (componentLabel: string, name: string): void => {
   if (name === "id") {
     throw new Error(
-      `Component "${componentId}": "id" is reserved for node identity and cannot ` +
+      `Component "${componentLabel}": "id" is reserved for node identity and cannot ` +
         "be used as a prop or action name.",
     );
   }
@@ -48,13 +48,13 @@ const isEmptySelect = (schema: PropSchema | undefined): boolean =>
  * select props and `p.array(p.select([]))` items.
  */
 const assertSelectHasOptions = (
-  componentId: string,
+  componentLabel: string,
   propName: string,
   schema: PropSchema,
 ): void => {
   if (isEmptySelect(schema) || (schema.kind === "array" && isEmptySelect(schema.item))) {
     throw new Error(
-      `Component "${componentId}": prop "${propName}" declares p.select([]) ` +
+      `Component "${componentLabel}": prop "${propName}" declares p.select([]) ` +
         "with no options — select props need at least one option.",
     );
   }
@@ -126,16 +126,19 @@ const detectProductHookUsage = (render: (ctx: never) => unknown): boolean =>
 export const extractComponentManifest = <M extends PropMap, A extends ActionMap>(
   definition: ComponentDefinition<M, A>,
 ): ComponentManifest => {
+  // `id` is gone from component definitions (identity is the file path); error
+  // messages fall back to the display title, then a generic label.
+  const label = definition.title ?? "component";
   const props: Record<string, ManifestProp> = {};
   for (const [name, builder] of Object.entries(definition.props)) {
-    assertReservedPropName(definition.id, name);
-    assertSelectHasOptions(definition.id, name, builder.schema);
+    assertReservedPropName(label, name);
+    assertSelectHasOptions(label, name, builder.schema);
     props[name] = toManifestProp(builder.schema);
   }
 
   const actions: Record<string, ManifestAction> = {};
   for (const [name, builder] of Object.entries(definition.actions)) {
-    assertReservedPropName(definition.id, name);
+    assertReservedPropName(label, name);
     const payload: Record<string, { kind: "string" | "number" | "boolean" }> = {};
     for (const [field, fieldBuilder] of Object.entries(builder.payloadShape ?? {})) {
       payload[field] = { kind: fieldBuilder.kind };
@@ -153,7 +156,6 @@ export const extractComponentManifest = <M extends PropMap, A extends ActionMap>
 
   return {
     manifestVersion: COMPONENT_MANIFEST_VERSION,
-    id: definition.id,
     ...(definition.title !== undefined ? { title: definition.title } : {}),
     ...(definition.description !== undefined ? { description: definition.description } : {}),
     props,

@@ -22,6 +22,17 @@ export {
 } from "./authoring/actions";
 // ── Authoring API ────────────────────────────────────────────────────────────
 export {
+  type Action,
+  closePaywall,
+  none,
+  payload,
+  product,
+  type ProductRef,
+  purchase,
+  variable,
+  type VariableHandle,
+} from "./authoring/compose-values";
+export {
   type CreatePaywallInput,
   createPaywall,
   isPaywallDefinition,
@@ -32,9 +43,11 @@ export {
 } from "./authoring/create-paywall";
 export {
   type ComponentDefinition,
+  type ComponentDefinitionFields,
   type ComponentPanel,
   type ComponentPreviewState,
   type ComponentRenderContext,
+  type ComposeComponentProps,
   type DefineComponentInput,
   defineComponent,
   type InferComponentProps,
@@ -43,7 +56,15 @@ export {
   type PaywallComponent,
   type PaywallComponentMeta,
 } from "./authoring/define-component";
+export {
+  type DefinePaywallInput,
+  definePaywall,
+  isPaywallCompositionDefinition,
+  type PaywallCompositionDefinition,
+  type PaywallCompositionMeta,
+} from "./authoring/define-paywall";
 export { extractComponentManifest } from "./authoring/manifest";
+export { type ScreenProps, type ScreenStyle, Screen } from "./authoring/screen";
 export {
   type AnyPropBuilder,
   type InferExternalProps,

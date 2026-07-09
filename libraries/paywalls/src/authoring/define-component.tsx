@@ -17,6 +17,7 @@ import {
   buildActionCallbacks,
   type InferActions,
 } from "./actions";
+import type { Action, VariableHandle } from "./compose-values";
 import {
   applyPropDefaults,
   type InferExternalProps,
@@ -25,6 +26,7 @@ import {
   type PropFactory,
   type PropMap,
   propFactory,
+  type PropValueOf,
 } from "./props";
 
 /** Fixtures one preview state renders against (contract §2 `previewStates`). */
@@ -60,7 +62,6 @@ export type PaywallComponent<M extends PropMap, A extends ActionMap> = (
 /** Identity metadata attached to every component definition. */
 export interface PaywallComponentMeta {
   readonly kind: "component";
-  readonly id: string;
   readonly title?: string;
   readonly description?: string;
 }
@@ -92,10 +93,30 @@ export type PanelPropsFor<M extends PropMap> = {
  */
 export type ComponentPanel<M extends PropMap> = (ctx: PanelContext<PanelPropsFor<M>>) => ReactNode;
 
+/**
+ * The widened prop surface for a component instance placed in a paywall
+ * document. Each declared prop accepts its literal value OR a matching
+ * {@link VariableHandle}; each declared action accepts a real handler OR an
+ * {@link Action} marker (e.g. `purchase(…)`); plus the reserved `id`/`name` node
+ * attributes and, when the component renders a `<Slot/>`, `children`.
+ *
+ * This is intentionally wider than {@link InferComponentProps} (the runtime
+ * consumer surface) so that a component instance whose `title` binds to a
+ * variable and `onSelect` binds to `purchase(p)` type-checks. Slotting is not
+ * knowable from the types alone, so `children` is always permitted here.
+ */
+export type ComposeComponentProps<M extends PropMap, A extends ActionMap> = {
+  [K in keyof M]?: PropValueOf<M[K]> | VariableHandle<PropValueOf<M[K]>>;
+} & {
+  [K in keyof A]?: (ActionHandlerProps<A>[K] extends infer H ? H : never) | Action;
+} & {
+  readonly id?: string;
+  readonly name?: string;
+  readonly children?: ReactNode;
+};
+
 export interface DefineComponentInput<M extends PropMap, A extends ActionMap> {
-  /** Stable component slug (`^[a-z0-9][a-z0-9-]{0,63}$`), e.g. "product-option". */
-  readonly id: string;
-  /** Display name shown in the editor. */
+  /** Display name shown in the editor / catalog. */
   readonly title?: string;
   readonly description?: string;
   /** Declares the component's editable props using the `p` builder factory. */
@@ -114,12 +135,8 @@ export interface DefineComponentInput<M extends PropMap, A extends ActionMap> {
   readonly render: (ctx: ComponentRenderContext<M, A>) => ReactNode;
 }
 
-/**
- * A reusable paywall component definition: the renderable React component plus
- * everything the CLI needs to emit the §2 manifest and §3 preview trees.
- */
-export interface ComponentDefinition<M extends PropMap, A extends ActionMap> {
-  readonly id: string;
+/** The metadata fields attached to a component definition (everything but the call signature). */
+export interface ComponentDefinitionFields<M extends PropMap, A extends ActionMap> {
   readonly title?: string;
   readonly description?: string;
   /** The resolved prop builders, keyed by name. */
@@ -130,17 +147,40 @@ export interface ComponentDefinition<M extends PropMap, A extends ActionMap> {
   readonly panel?: ComponentPanel<M>;
   /** The original template function (used for declarative slot detection). */
   readonly render: (ctx: ComponentRenderContext<M, A>) => ReactNode;
-  /** The renderable React component. */
+  /**
+   * The renderable React component. Alias of the definition's own call
+   * signature — kept because the sandbox/render pipelines reference `.component`
+   * explicitly. Prefer calling the definition directly (`<X/>`) in composition
+   * code.
+   */
   readonly component: PaywallComponent<M, A>;
   readonly __voidhash: PaywallComponentMeta;
 }
 
 /**
+ * A reusable paywall component definition: a CALLABLE React component (so
+ * `import X from "./components/x"; <X/>` works as a real module and typechecks
+ * against the widened prop surface) carrying all the metadata needed to extract
+ * the §2 manifest and render §3 preview trees.
+ *
+ * The call signature accepts {@link ComposeComponentProps} (widened to accept
+ * variable/action bindings); {@link renderComponentToTree} and other runtime
+ * consumers invoke `.component` (the same function) with resolved runtime props.
+ */
+export type ComponentDefinition<M extends PropMap, A extends ActionMap> = ((
+  props: ComposeComponentProps<M, A>,
+) => ReactNode) &
+  ComponentDefinitionFields<M, A>;
+
+/**
  * Defines a reusable, code-driven paywall component.
  *
+ * A component file default-exports the definition. The component is stored as
+ * real source in a `codeComponent` node of the paywall document, compiled
+ * in-browser (esbuild-wasm) and referenced from component instances by node id.
+ *
  * ```tsx
- * export const definition = defineComponent({
- *   id: "product-option",
+ * export default defineComponent({
  *   props: (p) => ({
  *     product: p.ref("product"),
  *     accentColor: p.string().editor("color").default("#16a34a"),
@@ -153,7 +193,6 @@ export interface ComponentDefinition<M extends PropMap, A extends ActionMap> {
  *     </Pressable>
  *   ),
  * });
- * export const ProductOption = definition.component;
  * ```
  */
 export const defineComponent = <
@@ -177,33 +216,39 @@ export const defineComponent = <
     const props = applyPropDefaults(propMap, rest);
     return <SlotProvider value={children ?? null}>{render({ actions, props })}</SlotProvider>;
   };
-  Component.displayName = input.title ?? input.id;
+  Component.displayName = input.title ?? "Component";
 
-  return {
+  // The definition IS the React component (so `import X from "./x"; <X/>` works
+  // as a real module) with all metadata assigned onto the same function. The
+  // runtime component's typed prop surface differs from the widened call
+  // signature `ComponentDefinition` advertises, so the assembled object is cast
+  // to the definition type — both surfaces are backed by this one function.
+  const fields: ComponentDefinitionFields<M, A> = {
     __voidhash: {
       kind: "component",
-      id: input.id,
       title: input.title,
       description: input.description,
     },
     actions: actionMap,
     component: Component,
     description: input.description,
-    id: input.id,
     panel: input.panel,
     previews: input.previews ?? {},
     props: propMap,
     render,
     title: input.title,
   };
+  return Object.assign(Component, fields) as unknown as ComponentDefinition<M, A>;
 };
 
-/** Type guard for a {@link ComponentDefinition}. */
+/**
+ * Type guard for a {@link ComponentDefinition}. A definition is now a callable
+ * function carrying `__voidhash.kind === "component"` and a `render` template.
+ */
 export const isComponentDefinition = (
   value: unknown,
 ): value is ComponentDefinition<PropMap, ActionMap> =>
-  typeof value === "object" &&
-  value !== null &&
+  typeof value === "function" &&
   (value as { __voidhash?: PaywallComponentMeta }).__voidhash?.kind === "component" &&
   typeof (value as { render?: unknown }).render === "function" &&
   typeof (value as { component?: unknown }).component === "function";

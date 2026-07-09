@@ -28,7 +28,6 @@ const yearly: PaywallProduct = {
 };
 
 const fullComponent = defineComponent({
-  id: "product-option",
   title: "Product Option",
   props: (p) => ({
     product: p.ref("product").label("Product"),
@@ -253,8 +252,7 @@ describe("parseComponentManifest", () => {
 
   it("rejects an unknown top-level key", () => {
     const result = parseComponentManifest({
-      manifestVersion: 1,
-      id: "x",
+      manifestVersion: 2,
       props: {},
       extra: true,
     });
@@ -264,18 +262,31 @@ describe("parseComponentManifest", () => {
     }
   });
 
+  it("rejects a v1 (id-bearing) manifest — id is no longer a manifest field", () => {
+    // Manifest v2 dropped `id` (identity is the component's file path). A legacy
+    // v1 manifest fails on BOTH the version check and the unknown `id` key.
+    const result = parseComponentManifest({
+      manifestVersion: 1,
+      id: "product-option",
+      props: {},
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.includes("manifestVersion must be 2"))).toBe(true);
+      expect(result.errors.some((e) => e.includes('unknown key "id"'))).toBe(true);
+    }
+  });
+
   it("rejects an unknown prop kind and empty select options", () => {
     expect(
       parseComponentManifest({
-        manifestVersion: 1,
-        id: "x",
+        manifestVersion: 2,
         props: { a: { kind: "date", optional: false } },
       }).ok,
     ).toBe(false);
     expect(
       parseComponentManifest({
-        manifestVersion: 1,
-        id: "x",
+        manifestVersion: 2,
         props: { a: { kind: "select", options: [], optional: false } },
       }).ok,
     ).toBe(false);
@@ -283,8 +294,7 @@ describe("parseComponentManifest", () => {
 
   it("rejects editor on a non-string prop", () => {
     const result = parseComponentManifest({
-      manifestVersion: 1,
-      id: "x",
+      manifestVersion: 2,
       props: { a: { kind: "number", editor: "color", optional: false } },
     });
     expect(result.ok).toBe(false);
@@ -295,8 +305,7 @@ describe("parseComponentManifest", () => {
 
   it("rejects an array item that is itself an array", () => {
     const result = parseComponentManifest({
-      manifestVersion: 1,
-      id: "x",
+      manifestVersion: 2,
       props: { a: { kind: "array", item: { kind: "array" }, optional: false } },
     });
     expect(result.ok).toBe(false);
@@ -308,39 +317,27 @@ describe("parseComponentManifest", () => {
   it("rejects a bad action payload kind, non-boolean slot, empty previewStates, bad hostData", () => {
     expect(
       parseComponentManifest({
-        manifestVersion: 1,
-        id: "x",
+        manifestVersion: 2,
         props: {},
         actions: { onSelect: { payload: { id: { kind: "object" } } } },
       }).ok,
     ).toBe(false);
-    expect(parseComponentManifest({ manifestVersion: 1, id: "x", props: {}, slot: "yes" }).ok).toBe(
+    expect(parseComponentManifest({ manifestVersion: 2, props: {}, slot: "yes" }).ok).toBe(false);
+    expect(parseComponentManifest({ manifestVersion: 2, props: {}, previewStates: [] }).ok).toBe(
       false,
     );
-    expect(
-      parseComponentManifest({ manifestVersion: 1, id: "x", props: {}, previewStates: [] }).ok,
-    ).toBe(false);
-    expect(
-      parseComponentManifest({ manifestVersion: 1, id: "x", props: {}, hostData: ["secrets"] }).ok,
-    ).toBe(false);
-  });
-
-  it("rejects an id that violates the slug pattern (mirrors server DeploySlug)", () => {
-    expect(parseComponentManifest({ manifestVersion: 1, id: "Product_Option", props: {} }).ok).toBe(
+    expect(parseComponentManifest({ manifestVersion: 2, props: {}, hostData: ["secrets"] }).ok).toBe(
       false,
-    );
-    expect(parseComponentManifest({ manifestVersion: 1, id: "", props: {} }).ok).toBe(false);
-    expect(parseComponentManifest({ manifestVersion: 1, id: "ok-slug-1", props: {} }).ok).toBe(
-      true,
     );
   });
 
   it("rejects a wrong manifestVersion and a bad refType", () => {
-    expect(parseComponentManifest({ manifestVersion: 2, id: "x", props: {} }).ok).toBe(false);
+    // v1 and v3 are both wrong; only v2 is accepted.
+    expect(parseComponentManifest({ manifestVersion: 1, props: {} }).ok).toBe(false);
+    expect(parseComponentManifest({ manifestVersion: 3, props: {} }).ok).toBe(false);
     expect(
       parseComponentManifest({
-        manifestVersion: 1,
-        id: "x",
+        manifestVersion: 2,
         props: { a: { kind: "ref", refType: "user", optional: false } },
       }).ok,
     ).toBe(false);

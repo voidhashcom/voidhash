@@ -19,7 +19,6 @@ const describeBuilt = built ? describe : describe.skip;
 const SOURCE = `import { defineComponent, View, Text, Pressable, Slot, usePaywallProducts, useState, useEffect } from "@voidhash/paywalls";
 
 export default defineComponent({
-  id: "product-option",
   props: (p) => ({
     accentColor: p.string().editor("color").default("#16a34a"),
   }),
@@ -110,7 +109,20 @@ describeBuilt("generated Monaco dts", () => {
   it("is a self-contained ambient module with the key author identifiers", async () => {
     const { sandboxDts } = (await import(dtsModule)) as { sandboxDts: string };
     expect(sandboxDts).toContain('declare module "@voidhash/paywalls"');
-    for (const identifier of ["defineComponent", "useState", "View", "Slot", "Pressable", "Text"]) {
+    // The ONE root module now covers BOTH file kinds: component authoring
+    // (defineComponent + primitives + hooks) and paywall composition
+    // (definePaywall + Screen + variable + the compose helpers).
+    for (const identifier of [
+      "defineComponent",
+      "definePaywall",
+      "Screen",
+      "variable",
+      "useState",
+      "View",
+      "Slot",
+      "Pressable",
+      "Text",
+    ]) {
       expect(sandboxDts).toContain(identifier);
     }
     // The react imports must have been stripped (self-contained ambient module).

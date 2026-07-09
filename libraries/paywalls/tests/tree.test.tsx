@@ -118,7 +118,6 @@ describe("renderToNodeTree", () => {
 
   it("emits a slot marker for an empty Slot in a component preview", async () => {
     const definition = defineComponent({
-      id: "card",
       props: (p) => ({ title: p.string().default("Untitled") }),
       render: ({ props }) => (
         <View>
@@ -139,7 +138,6 @@ describe("renderToNodeTree", () => {
 
   it("renders consumer children in place of the slot marker", async () => {
     const definition = defineComponent({
-      id: "card",
       render: () => (
         <View>
           <Slot />
@@ -162,7 +160,6 @@ describe("renderToNodeTree", () => {
 
   it("records the action name for both direct and inline-arrow action bindings", async () => {
     const definition = defineComponent({
-      id: "selectable",
       actions: (a) => ({ onSelect: a.action({ productId: a.string() }) }),
       render: ({ actions }) => (
         <View>
