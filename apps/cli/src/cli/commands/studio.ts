@@ -15,32 +15,22 @@ const resolveStudioPaths = () =>
       // development. We resolve the package manifest to get the app root, and
       // Vite's own CLI entry so we can launch it without depending on bin
       // shims being hoisted in any particular way.
-      const studioDir = dirname(
-        require.resolve("@voidhash/studio/package.json"),
-      );
+      const studioDir = dirname(require.resolve("@voidhash/studio/package.json"));
       // Resolve Vite via its package.json (an exported subpath) from the Studio
       // package, then join the CLI entry — `vite/bin/vite.js` is not an exported
       // subpath, so it can't be resolved directly under Node's exports rules.
-      const viteDir = dirname(
-        require.resolve("vite/package.json", { paths: [studioDir] }),
-      );
+      const viteDir = dirname(require.resolve("vite/package.json", { paths: [studioDir] }));
       const viteBin = join(viteDir, "bin", "vite.js");
       return { studioDir, viteBin };
     },
     catch: () =>
-      userError(
-        "Could not locate the Voidhash Studio app. Reinstall the CLI and try again.",
-      ),
+      userError("Could not locate the Voidhash Studio app. Reinstall the CLI and try again."),
   });
 
 /** Best-effort: open the given URL in the user's default browser. */
 const openBrowser = (url: string): void => {
   const command =
-    process.platform === "darwin"
-      ? "open"
-      : process.platform === "win32"
-        ? "cmd"
-        : "xdg-open";
+    process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
   const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
   try {
     spawn(command, args, { stdio: "ignore", detached: true }).unref();
@@ -98,15 +88,11 @@ export const studioCommand = Command.make(
       // child is terminated if the fiber is interrupted (Ctrl+C).
       yield* Effect.acquireUseRelease(
         Effect.sync(() =>
-          spawn(
-            process.execPath,
-            [viteBin, "--port", String(port), "--strictPort"],
-            {
-              cwd: studioDir,
-              env: { ...process.env, VOIDHASH_PROJECT_ROOT: projectRoot },
-              stdio: "inherit",
-            },
-          ),
+          spawn(process.execPath, [viteBin, "--port", String(port), "--strictPort"], {
+            cwd: studioDir,
+            env: { ...process.env, VOIDHASH_PROJECT_ROOT: projectRoot },
+            stdio: "inherit",
+          }),
         ),
         (child: ChildProcess) => {
           if (open) {
@@ -126,8 +112,4 @@ export const studioCommand = Command.make(
           }),
       );
     }),
-).pipe(
-  Command.withDescription(
-    "Launch the paywall preview Studio for this project.",
-  ),
-);
+).pipe(Command.withDescription("Launch the paywall preview Studio for this project."));

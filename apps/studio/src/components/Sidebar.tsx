@@ -2,11 +2,7 @@ import type { PaywallOutboundEnvelope } from "@voidhash/paywalls";
 import type { ReactNode } from "react";
 
 import { cn } from "../lib/cn";
-import type {
-  ComponentEntry,
-  InvalidEntry,
-  PaywallEntry,
-} from "../voidhash/paywalls";
+import type { ComponentEntry, InvalidEntry, PaywallEntry } from "../voidhash/paywalls";
 import type { PreviewEvent } from "../voidhash/preview-runtime";
 import { ComponentPreview } from "./ComponentPreview";
 
@@ -108,9 +104,7 @@ export const Sidebar = ({
                 key={entry.id}
               >
                 <p className="font-medium text-amber-300 text-xs">{entry.id}</p>
-                <p className="mt-0.5 text-[11px] text-amber-500/80">
-                  {entry.reason}
-                </p>
+                <p className="mt-0.5 text-[11px] text-amber-500/80">{entry.reason}</p>
               </div>
             ))}
           </div>
@@ -122,10 +116,7 @@ export const Sidebar = ({
           <SectionLabel>Components</SectionLabel>
           <div className="flex flex-col gap-2 px-3 pb-2">
             {components.map((c) => (
-              <div
-                className="rounded-md border border-neutral-800 bg-neutral-900/40"
-                key={c.id}
-              >
+              <div className="rounded-md border border-neutral-800 bg-neutral-900/40" key={c.id}>
                 <div className="flex items-baseline justify-between px-2.5 pt-2 pb-1">
                   <span className="font-medium text-neutral-300 text-xs">
                     {c.definition?.title ?? c.id}
@@ -184,14 +175,9 @@ export const Sidebar = ({
                     className="flex items-baseline gap-2 rounded bg-neutral-900 px-2 py-1 font-mono text-[11px]"
                     key={event.key}
                   >
-                    <span className="shrink-0 text-emerald-300">
-                      {event.envelope.type}
-                    </span>
+                    <span className="shrink-0 text-emerald-300">{event.envelope.type}</span>
                     {detail && (
-                      <span
-                        className="truncate text-neutral-400"
-                        title={detail}
-                      >
+                      <span className="truncate text-neutral-400" title={detail}>
                         {detail}
                       </span>
                     )}

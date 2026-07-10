@@ -42,9 +42,7 @@ const fetchMock = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => 
   return currentHandler(call);
 });
 
-export const installFetchMock = (
-  handler: (call: FetchCall) => Promise<Response> | Response
-) => {
+export const installFetchMock = (handler: (call: FetchCall) => Promise<Response> | Response) => {
   currentCalls = [];
   currentHandler = handler;
   fetchMock.mockClear();

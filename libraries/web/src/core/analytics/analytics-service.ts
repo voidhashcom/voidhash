@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import type { CaptureAcceptedResponse } from "@voidhash/generated-clients/event-capture";
 
 import type { AnalyticsFlushResult } from "../../types";
@@ -8,20 +8,12 @@ import { IdentityManager } from "../identity/identity-manager";
 import { PlatformProvider } from "../platform/platform-provider";
 import { SdkConfiguration } from "../sdk-configuration";
 import { createAnalyticsEvent } from "./analytics-context";
-import type {
-  AnalyticsRequestEvent,
-  QueuedAnalyticsEvent,
-} from "./contracts";
+import type { AnalyticsRequestEvent, QueuedAnalyticsEvent } from "./contracts";
 
 const QUEUE_KEY = "analytics:queue";
 const MAX_INGEST_BATCH_SIZE = 100;
-const RETRYABLE_ERROR_CODES = new Set([
-  "rate_limited",
-  "dependency_unavailable",
-  "internal_error",
-]);
-const getBackoffMs = (attempts: number) =>
-  Math.min(1000 * 2 ** Math.max(attempts - 1, 0), 30_000);
+const RETRYABLE_ERROR_CODES = new Set(["rate_limited", "dependency_unavailable", "internal_error"]);
+const getBackoffMs = (attempts: number) => Math.min(1000 * 2 ** Math.max(attempts - 1, 0), 30_000);
 
 const estimateEventBytes = (event: QueuedAnalyticsEvent) =>
   new TextEncoder().encode(JSON.stringify(event.payload)).byteLength;
@@ -38,8 +30,7 @@ const extractCaptureError = (input: {
     if (typeof err.code === "string") {
       return {
         code: err.code,
-        retry_after_ms:
-          typeof err.retry_after_ms === "number" ? err.retry_after_ms : undefined,
+        retry_after_ms: typeof err.retry_after_ms === "number" ? err.retry_after_ms : undefined,
       };
     }
   }
@@ -78,8 +69,7 @@ const make = Effect.gen(function* effect() {
   const loadQueue = () =>
     Effect.gen(function* loadQueue() {
       if (isLoaded) return;
-      const cached =
-        yield* cacheManager.get<QueuedAnalyticsEvent[]>(QUEUE_KEY);
+      const cached = yield* cacheManager.get<QueuedAnalyticsEvent[]>(QUEUE_KEY);
       events = cached?.value ?? [];
       isLoaded = true;
     });
@@ -91,21 +81,15 @@ const make = Effect.gen(function* effect() {
     events = events.filter((event) => !ids.has(event.id));
   };
 
-  const postponeEvents = (
-    ids: ReadonlySet<string>,
-    nextAvailableAt: number
-  ) => {
+  const postponeEvents = (ids: ReadonlySet<string>, nextAvailableAt: number) => {
     events = events.map((event) =>
       ids.has(event.id)
         ? { ...event, attempts: event.attempts + 1, availableAt: nextAvailableAt }
-        : event
+        : event,
     );
   };
 
-  const peekBatch = (input: {
-    maxBatchBytes: number;
-    maxBatchSize: number;
-  }) => {
+  const peekBatch = (input: { maxBatchBytes: number; maxBatchSize: number }) => {
     const now = Date.now();
     const dueEvents = events.filter((event) => event.availableAt <= now);
     if (dueEvents.length === 0) return [];
@@ -126,9 +110,7 @@ const make = Effect.gen(function* effect() {
     return selected;
   };
 
-  const sendBatchViaClient = (
-    batchEvents: ReadonlyArray<AnalyticsRequestEvent>
-  ) =>
+  const sendBatchViaClient = (batchEvents: ReadonlyArray<AnalyticsRequestEvent>) =>
     Effect.tryPromise({
       try: async () => {
         const response = await fetch(new URL("/batch", config.analytics.baseUrl), {
@@ -157,9 +139,7 @@ const make = Effect.gen(function* effect() {
     });
 
   // Raw fetch fallback — only used for keepalive on pagehide
-  const sendBatchKeepalive = (
-    batchEvents: ReadonlyArray<AnalyticsRequestEvent>
-  ) =>
+  const sendBatchKeepalive = (batchEvents: ReadonlyArray<AnalyticsRequestEvent>) =>
     Effect.tryPromise({
       try: () =>
         fetch(new URL("/batch", config.analytics.baseUrl), {
@@ -178,7 +158,7 @@ const make = Effect.gen(function* effect() {
   // Core flush logic
   const sendBatch = (
     batch: ReadonlyArray<QueuedAnalyticsEvent>,
-    options?: { keepalive?: boolean }
+    options?: { keepalive?: boolean },
   ): Effect.Effect<AnalyticsFlushResult | null> =>
     Effect.gen(function* sendBatchEffect() {
       if (batch.length === 0) return null;
@@ -191,9 +171,7 @@ const make = Effect.gen(function* effect() {
 
       // keepalive sends use raw fetch (best-effort, fire-and-forget)
       if (options?.keepalive) {
-        const result = yield* Effect.exit(
-          sendBatchKeepalive(batchPayloads)
-        );
+        const result = yield* Effect.exit(sendBatchKeepalive(batchPayloads));
         if (result._tag === "Success") {
           dropEvents(ids);
           yield* persistQueue();
@@ -201,9 +179,7 @@ const make = Effect.gen(function* effect() {
         return null;
       }
 
-      const result = yield* Effect.exit(
-        sendBatchViaClient(batchPayloads)
-      );
+      const result = yield* Effect.exit(sendBatchViaClient(batchPayloads));
 
       if (result._tag === "Success") {
         if (result.value.status === 202) {
@@ -213,10 +189,7 @@ const make = Effect.gen(function* effect() {
             typeof (result.value.data as CaptureAcceptedResponse).accepted !== "number" ||
             typeof (result.value.data as CaptureAcceptedResponse).rejected !== "number"
           ) {
-            postponeEvents(
-              ids,
-              Date.now() + getBackoffMs((batch[0]?.attempts ?? 0) + 1)
-            );
+            postponeEvents(ids, Date.now() + getBackoffMs((batch[0]?.attempts ?? 0) + 1));
             yield* persistQueue();
             return null;
           }
@@ -244,8 +217,7 @@ const make = Effect.gen(function* effect() {
         if (error && RETRYABLE_ERROR_CODES.has(error.code)) {
           postponeEvents(
             ids,
-            Date.now() +
-              (error.retry_after_ms ?? getBackoffMs((batch[0]?.attempts ?? 0) + 1))
+            Date.now() + (error.retry_after_ms ?? getBackoffMs((batch[0]?.attempts ?? 0) + 1)),
           );
           yield* persistQueue();
           return null;
@@ -262,17 +234,14 @@ const make = Effect.gen(function* effect() {
         }
       }
 
-      postponeEvents(
-        ids,
-        Date.now() + getBackoffMs((batch[0]?.attempts ?? 0) + 1)
-      );
+      postponeEvents(ids, Date.now() + getBackoffMs((batch[0]?.attempts ?? 0) + 1));
       yield* persistQueue();
       return null;
     });
 
   const handlePayloadTooLarge = (
     batch: ReadonlyArray<QueuedAnalyticsEvent>,
-    options?: { keepalive?: boolean }
+    options?: { keepalive?: boolean },
   ): Effect.Effect<AnalyticsFlushResult | null> =>
     Effect.gen(function* handlePayloadTooLargeEffect() {
       if (batch.length === 1) {
@@ -306,7 +275,7 @@ const make = Effect.gen(function* effect() {
       eventId?: string;
       sessionId?: string;
       timestamp?: string;
-    }
+    },
   ) =>
     Effect.gen(function* enqueue() {
       yield* loadQueue();
@@ -314,13 +283,7 @@ const make = Effect.gen(function* effect() {
       const distinctId = identityManager.getDistinctId();
       if (!distinctId) return;
 
-      const event = createAnalyticsEvent(
-        platform,
-        distinctId,
-        eventName,
-        properties,
-        options
-      );
+      const event = createAnalyticsEvent(platform, distinctId, eventName, properties, options);
 
       events.push({
         attempts: 0,
@@ -329,10 +292,7 @@ const make = Effect.gen(function* effect() {
         payload: event,
       });
 
-      const droppedCount = Math.max(
-        events.length - config.analytics.maxQueueSize,
-        0
-      );
+      const droppedCount = Math.max(events.length - config.analytics.maxQueueSize, 0);
       if (droppedCount > 0) {
         events.splice(0, droppedCount);
         eventBus.emit("error", {
@@ -345,17 +305,12 @@ const make = Effect.gen(function* effect() {
       return events.length;
     });
 
-  const flush = (options?: {
-    keepalive?: boolean;
-  }): Effect.Effect<AnalyticsFlushResult | null> =>
+  const flush = (options?: { keepalive?: boolean }): Effect.Effect<AnalyticsFlushResult | null> =>
     Effect.gen(function* flushEffect() {
       yield* loadQueue();
       const batch = peekBatch({
         maxBatchBytes: config.analytics.maxBatchBytes,
-        maxBatchSize: Math.min(
-          config.analytics.maxBatchSize,
-          MAX_INGEST_BATCH_SIZE
-        ),
+        maxBatchSize: Math.min(config.analytics.maxBatchSize, MAX_INGEST_BATCH_SIZE),
       });
       if (batch.length === 0) return null;
       return yield* sendBatch(batch, options);
@@ -392,7 +347,7 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class AnalyticsService extends ServiceMap.Service<
+export class AnalyticsService extends Context.Service<
   AnalyticsService,
   Effect.Success<typeof make>
 >()("web-voidhash/AnalyticsService") {

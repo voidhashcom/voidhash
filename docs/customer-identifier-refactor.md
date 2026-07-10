@@ -102,11 +102,11 @@ Target public API:
 await client.identify("user_123", {
   email: "user@example.com",
   name: "User",
-})
+});
 
-await client.reset()
+await client.reset();
 
-const distinctId = await client.getDistinctId()
+const distinctId = await client.getDistinctId();
 ```
 
 Recommended method names:
@@ -141,7 +141,7 @@ The current `vh:anon:` prefix is acceptable if kept consistent, but the importan
 Calling:
 
 ```ts
-await client.identify("user_123")
+await client.identify("user_123");
 ```
 
 means:
@@ -179,11 +179,11 @@ Target response shape:
 
 ```ts
 type SdkCustomer = {
-  customerId: string
-  distinctId: string
-  email: string | null
-  name: string | null
-}
+  customerId: string;
+  distinctId: string;
+  email: string | null;
+  name: string | null;
+};
 ```
 
 If the backend still exposes the customer's primary identified value, it should still be called `distinctId`, not `appUserId`.

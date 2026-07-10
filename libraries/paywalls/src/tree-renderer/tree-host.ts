@@ -6,9 +6,9 @@
  */
 import { createElement, forwardRef, type ReactNode } from "react";
 
+import { staticMotionPlatformAdapter } from "../motion/platform";
 import { resolveMotionRestStyle } from "../motion/resolve";
 import type { MotionNodeHandle, MotionStyleProp, MotionVisualProps, ScrollViewHandle } from "../motion/types";
-import { staticMotionPlatformAdapter } from "../motion/platform";
 import type {
   HostComponents,
   ImageProps,
@@ -33,8 +33,7 @@ export const TREE_ELEMENT_TYPES = {
   view: "vh-view",
 } as const;
 
-const hasStyleKeys = (style: StyleProp): boolean =>
-  Object.keys(flattenStyle(style)).length > 0;
+const hasStyleKeys = (style: StyleProp): boolean => Object.keys(flattenStyle(style)).length > 0;
 
 const withMotion = <Props extends MotionVisualProps & { style?: MotionStyleProp }>(props: Props) => {
   const motion = resolveMotionRestStyle(props, props.style);
@@ -49,15 +48,18 @@ const TreeText = forwardRef<MotionNodeHandle, TextProps>(({ style, children, ...
   createElement(TREE_ELEMENT_TYPES.text, { style, ...withMotion({ ...props, style }) }, children),
 );
 
+// `actionName` carries a direct declared action binding. Forward `onPress` as
+// well so the serializer can probe an inline handler after rendering commits.
 const TreePressable = forwardRef<MotionNodeHandle, PressableHostProps>(({
   style,
   children,
   actionName,
+  onPress,
   ...props
 }, _ref): ReactNode =>
   createElement(
     TREE_ELEMENT_TYPES.pressable,
-    { action: actionName, style, ...withMotion({ ...props, style }) },
+    { action: actionName, onPress, style, ...withMotion({ ...props, style }) },
     typeof children === "function" ? children({ pressed: false }) : children,
   ),
 );
@@ -80,11 +82,7 @@ const TreeScrollView = forwardRef<ScrollViewHandle, ScrollViewProps>(({
     // RN's contentContainerStyle has no §3 equivalent — preserve it as an
     // inner view when it actually styles something.
     hasStyleKeys(contentContainerStyle)
-      ? createElement(
-          TREE_ELEMENT_TYPES.view,
-          { style: contentContainerStyle },
-          children,
-        )
+      ? createElement(TREE_ELEMENT_TYPES.view, { style: contentContainerStyle }, children)
       : children,
   ),
 );

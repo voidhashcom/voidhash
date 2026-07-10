@@ -18,7 +18,7 @@ type RuntimePromisifyClient<TClient> = {
 };
 
 const promisifyClient = <TClient extends object>(
-  client: TClient
+  client: TClient,
 ): RuntimePromisifyClient<TClient> => {
   const entries = Object.entries(client).map(([key, value]) => {
     if (typeof value === "function") {
@@ -29,8 +29,8 @@ const promisifyClient = <TClient extends object>(
             Reflect.apply(
               value as (...parameters: Array<unknown>) => Effect.Effect<unknown>,
               client,
-              args
-            )
+              args,
+            ),
           ),
       ];
     }
@@ -47,11 +47,7 @@ const promisifyClient = <TClient extends object>(
 
 export type VoidhashNodeClient = RuntimePromisifyClient<VoidhashNodeEffectClient>;
 
-export const createVoidhashSdk = (
-  options: VoidhashNodeClientOptions
-): VoidhashNodeClient =>
-  promisifyClient(
-    createVoidhashEffectSdk(options)
-  ) as unknown as VoidhashNodeClient;
+export const createVoidhashSdk = (options: VoidhashNodeClientOptions): VoidhashNodeClient =>
+  promisifyClient(createVoidhashEffectSdk(options)) as unknown as VoidhashNodeClient;
 
 export type { VoidhashNodeEffectClient };

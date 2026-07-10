@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import type { VoidhashTraits } from "../../types";
 import { CacheManager } from "../caching/cache-manager";
@@ -43,22 +43,6 @@ const make = Effect.gen(function* effect() {
       "x-distinct-id": distinctId,
     }) as any;
 
-  const syncTraits = (distinctId?: string) =>
-    Effect.gen(function* syncTraits() {
-      const resolvedDistinctId = distinctId ?? currentDistinctId;
-      if (!resolvedDistinctId) return;
-
-      const cached = yield* cacheManager.get<VoidhashTraits>(
-        buildTraitsKey(resolvedDistinctId)
-      );
-
-      const traits = normalizeTraits(cached?.value);
-      yield* apiClient.sdk.syncCustomerAttributes({
-        headers: buildHeaders(resolvedDistinctId),
-        payload: traits ? { traits } : {},
-      });
-    });
-
   const initialize = (initialDistinctId?: string) =>
     Effect.gen(function* initialize() {
       const cached = yield* cacheManager.get<string>(DISTINCT_ID_KEY);
@@ -69,11 +53,7 @@ const make = Effect.gen(function* effect() {
 
       yield* cacheManager.set(DISTINCT_ID_KEY, currentDistinctId);
 
-      if (
-        initialDistinctId &&
-        cached?.value &&
-        cached.value !== initialDistinctId
-      ) {
+      if (initialDistinctId && cached?.value && cached.value !== initialDistinctId) {
         yield* identify(initialDistinctId);
         return currentDistinctId;
       }
@@ -88,14 +68,11 @@ const make = Effect.gen(function* effect() {
       }
 
       const previousDistinctId = currentDistinctId;
-      yield* syncTraits(previousDistinctId);
 
       const normalizedTraits = normalizeTraits(traits);
       yield* apiClient.sdk.identify({
         headers: buildHeaders(previousDistinctId),
-        payload: normalizedTraits
-          ? { distinctId, traits: normalizedTraits }
-          : { distinctId },
+        payload: normalizedTraits ? { distinctId, traits: normalizedTraits } : { distinctId },
       });
 
       yield* cacheManager.set(DISTINCT_ID_KEY, distinctId);
@@ -114,7 +91,6 @@ const make = Effect.gen(function* effect() {
       }
 
       const previousDistinctId = currentDistinctId;
-      yield* syncTraits(previousDistinctId);
       const nextAnonymousId = `${ANONYMOUS_DISTINCT_ID_PREFIX}${platform.randomId()}`;
       yield* cacheManager.set(DISTINCT_ID_KEY, nextAnonymousId);
       yield* cacheManager.set(buildTraitsKey(nextAnonymousId), {});
@@ -125,16 +101,42 @@ const make = Effect.gen(function* effect() {
       });
     });
 
+  /**
+   * Synchronously persists person attributes to the server and returns the
+   * resulting person snapshot. Reserved `email`/`name` are sent as dedicated
+   * fields; everything else is forwarded as `traits`.
+   */
+  const setPersonAttributesSync = (input: {
+    email?: string | undefined;
+    name?: string | undefined;
+    traits?: VoidhashTraits | undefined;
+  }) =>
+    Effect.gen(function* setPersonAttributesSync() {
+      if (!currentDistinctId) {
+        throw new Error("Distinct id has not been initialized.");
+      }
+
+      const normalizedTraits = normalizeTraits(input.traits);
+      return yield* apiClient.sdk.syncPersonAttributes({
+        headers: buildHeaders(currentDistinctId),
+        payload: {
+          ...(input.email !== undefined ? { email: input.email } : {}),
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(normalizedTraits ? { traits: normalizedTraits } : {}),
+        },
+      });
+    });
+
   return {
     getDistinctId,
     identify,
     initialize,
     reset,
-    syncTraits,
+    setPersonAttributesSync,
   } as const;
 });
 
-export class IdentityManager extends ServiceMap.Service<
+export class IdentityManager extends Context.Service<
   IdentityManager,
   Effect.Success<typeof make>
 >()("web-voidhash/IdentityManager") {

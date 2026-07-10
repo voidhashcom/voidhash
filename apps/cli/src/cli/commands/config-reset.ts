@@ -11,16 +11,12 @@ export const configResetCommand = Command.make("reset", {}, () =>
     yield* cliConfig
       .resetConfig()
       .pipe(
-        Effect.catchTag("SchemaError", () =>
-          Effect.fail(
-            userError("Failed to set configuration")
-          )
-        )
+        Effect.catchTag("SchemaError", () => Effect.fail(userError("Failed to set configuration"))),
       );
     yield* Console.log("Configuration reset successfully.");
-  })
+  }),
 ).pipe(
   Command.withDescription(
-    "Reset the Voidhash configuration to the default values. If authenticated, persists the authentication state. For logout, use the `auth logout` command."
-  )
+    "Reset the Voidhash configuration to the default values. If authenticated, persists the authentication state. For logout, use the `auth logout` command.",
+  ),
 );

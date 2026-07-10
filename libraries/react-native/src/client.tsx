@@ -8,18 +8,18 @@ import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";
 import { CacheManager } from "./core/caching/cache-manager";
 import type { SubscriptionProduct } from "./core/entities/product";
 import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
-import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
-import { CustomerInfoManager } from "./core/identity/customer-info-manager";
+import {
+  type PersonAttributes,
+  PersonAttributeManager,
+} from "./core/identity/person-attribute-manager";
+import { PersonInfoManager } from "./core/identity/person-info-manager";
 import { IdentityManager } from "./core/identity/identity-manager";
 import { LifecycleService } from "./core/lifecycle/lifecycle-service";
 import { ReactNativeLifecycleAdapter } from "./core/lifecycle/react-native-lifecycle-adapter";
 import { ApiClient } from "./core/networking/api-client";
 import { AppStoreAdapter } from "./core/payment-adapters/app-store-adapter";
 import { GooglePlayAdapter } from "./core/payment-adapters/google-play-adapter";
-import {
-  type PaywallReleaseRuntime,
-  PaywallService,
-} from "./core/paywalls/paywall-service";
+import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
 import type { PlatformInfo } from "./core/platform/platform-provider";
 import { ReactNativePlatformProvider } from "./core/platform/react-native-platform-provider";
 import { ProductService } from "./core/products/product-service";
@@ -57,7 +57,7 @@ const CreateEffectRuntime = (
 ) =>
   ManagedRuntime.make(
     pipe(
-      CustomerAttributeManager.Default,
+      PersonAttributeManager.Default,
       Layer.provideMerge(ProductService.layer),
       Layer.provideMerge(FeatureFlagService.layer),
       Layer.provideMerge(PaywallService.layer),
@@ -65,19 +65,15 @@ const CreateEffectRuntime = (
       Layer.provideMerge(AnalyticsService.layer),
       Layer.provideMerge(LifecycleService.layer),
       Layer.provideMerge(ReactNativeLifecycleAdapter),
-      Layer.provideMerge(CustomerInfoManager.Default),
+      Layer.provideMerge(PersonInfoManager.Default),
       Layer.provideMerge(SchemaManager.layer),
       Layer.provideMerge(IdentityManager.Default),
       Layer.provideMerge(CacheManager.Default),
       Layer.provideMerge(AsyncStorageCacheAdapter),
       Layer.provideMerge(ApiClient.Default),
       Layer.provideMerge(FetchHttpClient.layer),
-      Layer.provideMerge(
-        platform === "ios" ? AppStoreAdapter : GooglePlayAdapter,
-      ),
-      Layer.provideMerge(
-        Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry),
-      ),
+      Layer.provideMerge(platform === "ios" ? AppStoreAdapter : GooglePlayAdapter),
+      Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
       Layer.provideMerge(ReactNativePlatformProvider),
       Layer.provideMerge(
         Layer.succeed(SdkConfiguration, {
@@ -92,17 +88,12 @@ const CreateEffectRuntime = (
   );
 
 const toErrorWithMessage = (code: string, unknownCause: unknown) => {
-  const cause =
-    unknownCause instanceof Error
-      ? unknownCause
-      : new Error(String(unknownCause));
+  const cause = unknownCause instanceof Error ? unknownCause : new Error(String(unknownCause));
 
   return new VoidhashError(`${code}: ${cause.message}`, cause);
 };
 
-type UninitializedEffectClient = ReturnType<
-  typeof VoidhashEffectClient.makeUnitializedClient
->;
+type UninitializedEffectClient = ReturnType<typeof VoidhashEffectClient.makeUnitializedClient>;
 
 // `makeInitializedClient` now returns `Effect<Facade, ...>` — unwrap to the
 // facade type by extracting the Effect's Success channel.
@@ -198,9 +189,7 @@ export class VoidhashClient {
         "FAILED_TO_INITIALIZE_VOIDHASH_CLIENT",
       );
 
-      void this.effectRuntime.runPromiseExit(
-        initializedClient.reconcileObservedTransactions(),
-      );
+      void this.effectRuntime.runPromiseExit(initializedClient.reconcileObservedTransactions());
 
       this.initializedClient = initializedClient;
       this._isInitialized = true;
@@ -212,9 +201,7 @@ export class VoidhashClient {
 
       if (this.preInitAnalyticsBuffer.length > 0) {
         this.effectRuntime.runSync(
-          initializedClient.transferAnalyticsEvents(
-            this.preInitAnalyticsBuffer,
-          ),
+          initializedClient.transferAnalyticsEvents(this.preInitAnalyticsBuffer),
         );
         this.preInitAnalyticsBuffer = [];
       }
@@ -224,10 +211,7 @@ export class VoidhashClient {
         "FAILED_TO_CAPTURE_STARTUP_EVENTS",
       ).catch((error) => {
         // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
-        console.warn(
-          "[voidhash] failed to capture automatic startup analytics",
-          error,
-        );
+        console.warn("[voidhash] failed to capture automatic startup analytics", error);
       });
 
       this.appLifecycleSubscription = this.effectRuntime.runSync(
@@ -248,10 +232,7 @@ export class VoidhashClient {
     await this.runSideEffect("end", async () => {
       this.ensureInitialized();
       await this.flush();
-      await this.runEffect(
-        this.initializedClient!.end(),
-        "FAILED_TO_END_VOIDHASH_CLIENT",
-      );
+      await this.runEffect(this.initializedClient!.end(), "FAILED_TO_END_VOIDHASH_CLIENT");
       this.appLifecycleSubscription?.remove();
       this.appLifecycleSubscription = null;
       this._isInitialized = false;
@@ -266,22 +247,52 @@ export class VoidhashClient {
   }
 
   /**
-   * Returns currently identified customer.
+   * Returns currently identified person.
    */
-  async getCurrentCustomer(forceFetch = false) {
+  async getCurrentPerson(forceFetch = false) {
     this.ensureInitialized();
     return this.runEffect(
-      this.initializedClient!.getCurrentCustomer(forceFetch),
-      "FAILED_TO_GET_CURRENT_CUSTOMER",
+      this.initializedClient!.getCurrentPerson(forceFetch),
+      "FAILED_TO_GET_CURRENT_PERSON",
+    );
+  }
+
+  /**
+   * Sets person attributes asynchronously. Reserved `email`/`name` keys map to
+   * the dedicated server fields; any other key is forwarded as a custom trait.
+   * The update rides the analytics queue (fire-and-forget) — call `flush()` if
+   * you need it delivered promptly.
+   */
+  async setPersonAttributes(attributes: PersonAttributes) {
+    await this.runSideEffect("setPersonAttributes", async () => {
+      this.ensureInitialized();
+      await this.runEffect(
+        this.initializedClient!.setPersonAttributes(attributes),
+        "FAILED_TO_SET_PERSON_ATTRIBUTES",
+      );
+    });
+  }
+
+  /**
+   * Sets person attributes synchronously and returns the updated person
+   * snapshot. Performs a network round-trip, so this is a write — it is blocked
+   * in read-only mode, mirroring `purchase`.
+   */
+  async setPersonAttributesSync(attributes: PersonAttributes) {
+    this.ensureInitialized();
+    if (this.readOnly) {
+      throw new ReadOnlyModePurchaseNotAllowedError();
+    }
+
+    return this.runEffect(
+      this.initializedClient!.setPersonAttributesSync(attributes),
+      "FAILED_TO_SET_PERSON_ATTRIBUTES_SYNC",
     );
   }
 
   async getDistinctId() {
     this.ensureInitialized();
-    return this.runEffect(
-      this.initializedClient!.getDistinctId(),
-      "FAILED_TO_GET_DISTINCT_ID",
-    );
+    return this.runEffect(this.initializedClient!.getDistinctId(), "FAILED_TO_GET_DISTINCT_ID");
   }
 
   /**
@@ -313,8 +324,16 @@ export class VoidhashClient {
     });
   }
 
+  /**
+   * Signs the current user out: captures the built-in `$sign_out` event,
+   * flushes it under the signing-out identity, then resets to a fresh
+   * anonymous distinct id.
+   */
   async signOut() {
-    return this.reset();
+    await this.runSideEffect("signOut", async () => {
+      this.ensureInitialized();
+      await this.runEffect(this.initializedClient!.signOut(), "FAILED_TO_SIGN_OUT");
+    });
   }
 
   /**
@@ -361,10 +380,7 @@ export class VoidhashClient {
    */
   async getProducts() {
     this.ensureInitialized();
-    return this.runEffect(
-      this.initializedClient!.getProducts(),
-      "FAILED_TO_GET_PRODUCTS",
-    );
+    return this.runEffect(this.initializedClient!.getProducts(), "FAILED_TO_GET_PRODUCTS");
   }
 
   /**
@@ -381,15 +397,12 @@ export class VoidhashClient {
       throw new ReadOnlyModePurchaseNotAllowedError();
     }
 
-    await this.runEffect(
-      this.initializedClient!.purchase(product, _options),
-      "FAILED_TO_PURCHASE",
-    );
+    await this.runEffect(this.initializedClient!.purchase(product, _options), "FAILED_TO_PURCHASE");
   }
 
   /**
    * Restores purchases by reconciling pending/past store transactions and
-   * refreshing customer state.
+   * refreshing person state.
    */
   async restorePurchases() {
     await this.runSideEffect("restorePurchases", async () => {
@@ -414,9 +427,7 @@ export class VoidhashClient {
       return;
     }
 
-    this.effectRuntime.runSync(
-      this.initializedClient.capture(eventName, properties),
-    );
+    this.effectRuntime.runSync(this.initializedClient.capture(eventName, properties));
   }
 
   /**
@@ -518,7 +529,7 @@ export class VoidhashClient {
   }
 
   // ===============================
-  // Customer helpers
+  // Person helpers
   // ===============================
 
   /**

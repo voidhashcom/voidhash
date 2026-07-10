@@ -53,11 +53,7 @@ export const mountPaywall = (
 
   const tree = (
     <PaywallErrorBoundary post={options.bridge?.post}>
-      <PaywallRenderer
-        bridge={options.bridge}
-        config={options.config}
-        paywall={paywall}
-      />
+      <PaywallRenderer bridge={options.bridge} config={options.config} paywall={paywall} />
     </PaywallErrorBoundary>
   );
 
@@ -67,11 +63,5 @@ export const mountPaywall = (
 };
 
 export { domHostComponents } from "./renderer/dom-host";
-export {
-  PaywallErrorBoundary,
-  type PaywallErrorBoundaryProps,
-} from "./renderer/error-boundary";
-export {
-  PaywallRenderer,
-  type PaywallRendererProps,
-} from "./renderer/paywall-renderer";
+export { PaywallErrorBoundary, type PaywallErrorBoundaryProps } from "./renderer/error-boundary";
+export { PaywallRenderer, type PaywallRendererProps } from "./renderer/paywall-renderer";

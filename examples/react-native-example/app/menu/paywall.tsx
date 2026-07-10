@@ -24,15 +24,11 @@ export default function PaywallScreen() {
         setStatusMessage("Restore completed");
       },
     }),
-    []
+    [],
   );
 
-  const { show } = voidhash.usePaywallByLocation(
-    PAYWALL_LOCATION_SLUG,
-    paywallOptions
-  );
-  const { data: customer, isLoading: isCustomerLoading } =
-    voidhash.useCurrentCustomer();
+  const { show } = voidhash.usePaywallByLocation(PAYWALL_LOCATION_SLUG, paywallOptions);
+  const { data: person, isLoading: isPersonLoading } = voidhash.useCurrentPerson();
 
   const handleShowPaywall = async () => {
     setIsOpening(true);
@@ -59,13 +55,9 @@ export default function PaywallScreen() {
           Opens a preloaded full-screen paywall rendered by Swift/Kotlin.
         </Text>
         <Text style={styles.location}>Location: {PAYWALL_LOCATION_SLUG}</Text>
-        {statusMessage && (
-          <Text style={styles.statusMessage}>{statusMessage}</Text>
-        )}
-        <Text style={styles.customerState}>
-          {isCustomerLoading
-            ? "Loading customer..."
-            : `Customer: ${JSON.stringify(customer)}`}
+        {statusMessage && <Text style={styles.statusMessage}>{statusMessage}</Text>}
+        <Text style={styles.personState}>
+          {isPersonLoading ? "Loading person..." : `Person: ${JSON.stringify(person)}`}
         </Text>
 
         <Button
@@ -109,7 +101,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     padding: 12,
   },
-  customerState: {
+  personState: {
     color: "#a1a1aa",
     marginTop: 16,
   },

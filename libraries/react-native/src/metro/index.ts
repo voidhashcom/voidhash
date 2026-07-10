@@ -47,7 +47,7 @@ interface ChildProcessModule {
     options: {
       env: Record<string, string | undefined>;
       stdio: "inherit";
-    }
+    },
   ): ChildProcessLike;
 }
 
@@ -109,7 +109,7 @@ function startWatcher(options: WithVoidhashOptions) {
       // biome-ignore lint/suspicious/noConsole: dev-time diagnostic
       console.warn(
         `[voidhash/metro] Failed to spawn '${binary} ${args.join(" ")}': ${error.message}. ` +
-          "Ensure voidhash-cli is installed in this project."
+          "Ensure voidhash-cli is installed in this project.",
       );
       activeChildProcess = null;
     });
@@ -124,7 +124,7 @@ function startWatcher(options: WithVoidhashOptions) {
     console.warn(
       `[voidhash/metro] Could not start types watcher: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     );
     activeChildProcess = null;
   }
@@ -137,7 +137,7 @@ function startWatcher(options: WithVoidhashOptions) {
  */
 export function withVoidhash<TConfig extends MetroConfig>(
   metroConfig: TConfig,
-  options: WithVoidhashOptions = {}
+  options: WithVoidhashOptions = {},
 ): TConfig {
   // Kick the watcher off lazily so that simply *importing* this module from a
   // non-dev context doesn't spawn a background process.

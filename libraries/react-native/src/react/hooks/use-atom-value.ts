@@ -13,10 +13,7 @@ const storeRegistry = new WeakMap<
   WeakMap<Atom.Atom<unknown>, AtomStore<unknown>>
 >();
 
-function getStore<A>(
-  registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<A>
-): AtomStore<A> {
+function getStore<A>(registry: AtomRegistry.AtomRegistry, atom: Atom.Atom<A>): AtomStore<A> {
   let stores = storeRegistry.get(registry);
   if (stores === undefined) {
     stores = new WeakMap();
@@ -43,10 +40,7 @@ function getStore<A>(
  * to the SDK so we don't pull in `@effect/atom-react` (which targets a newer
  * React peer range than this package currently supports).
  */
-export function useAtomValue<A>(
-  registry: AtomRegistry.AtomRegistry,
-  atom: Atom.Atom<A>
-): A {
+export function useAtomValue<A>(registry: AtomRegistry.AtomRegistry, atom: Atom.Atom<A>): A {
   const store = getStore(registry, atom);
   const value = React.useSyncExternalStore(store.subscribe, store.snapshot);
 

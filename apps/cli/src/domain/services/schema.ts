@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import { ApiClient } from "../../utils/api-client";
 import { RemoteSchemaFetchError } from "../errors/schema";
@@ -52,9 +52,7 @@ const make = Effect.gen(function* effect() {
           name: product.name,
           perks: [...product.perks],
           providers: product.providers
-            .filter((provider) =>
-              SUPPORTED_PROVIDER_IDS.has(provider.providerId as string)
-            )
+            .filter((provider) => SUPPORTED_PROVIDER_IDS.has(provider.providerId as string))
             .map((provider) => ({
               configuration: provider.configuration,
               providerId: provider.providerId as ProviderId,
@@ -69,7 +67,7 @@ const make = Effect.gen(function* effect() {
       }
 
       yield* Effect.logDebug(
-        `Fetched ${schema.locations.size} locations, ${schema.perks.size} perks, ${schema.products.size} products`
+        `Fetched ${schema.locations.size} locations, ${schema.perks.size} perks, ${schema.products.size} products`,
       );
 
       // The server-side version is the canonical hash and trumps any local
@@ -82,9 +80,9 @@ const make = Effect.gen(function* effect() {
         Effect.fail(
           new RemoteSchemaFetchError({
             cause: e,
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 
   /**
@@ -103,9 +101,9 @@ const make = Effect.gen(function* effect() {
         Effect.fail(
           new RemoteSchemaFetchError({
             cause: e,
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 
   return {
@@ -116,11 +114,8 @@ const make = Effect.gen(function* effect() {
 
 type SchemaServiceShape = Effect.Success<typeof make>;
 
-export class SchemaService extends ServiceMap.Service<
-  SchemaService,
-  SchemaServiceShape
->()("voidhash-cli/Schema") {
-  static Default = Layer.effect(SchemaService, make).pipe(
-    Layer.provide(ApiClient.Default)
-  );
+export class SchemaService extends Context.Service<SchemaService, SchemaServiceShape>()(
+  "voidhash-cli/Schema",
+) {
+  static Default = Layer.effect(SchemaService, make).pipe(Layer.provide(ApiClient.Default));
 }

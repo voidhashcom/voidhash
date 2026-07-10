@@ -27,23 +27,20 @@ import { PaymentAdapter } from "./payment-adapter";
 
 export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
   acknowledgePurchase(
-    transaction: Transaction
+    transaction: Transaction,
   ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never> {
     return Effect.gen(function* acknowledgePurchase() {
       if (!Storekit) {
         return yield* Effect.fail(
           new FailedToAcknowledgePurchaseError({
             message: "StoreKit is not available on this platform",
-          })
+          }),
         );
       }
 
       yield* Effect.tryPromise({
         catch: (error) => {
-          if (
-            error instanceof Error &&
-            error.message.startsWith("TRANSACTION_NOT_FOUND")
-          ) {
+          if (error instanceof Error && error.message.startsWith("TRANSACTION_NOT_FOUND")) {
             return new FailedToAcknowledgePurchaseError({
               cause: new Error("Transaction not found"),
               message: "Failed to acknowledge purchase",
@@ -64,7 +61,7 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
   buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
     product: TSubscriptionProduct,
     quantity = 1,
-    appAccountToken?: string
+    appAccountToken?: string,
   ): Effect.Effect<
     Transaction,
     | UserCancelledError
@@ -79,7 +76,7 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
         return yield* Effect.fail(
           new NativeAdapterNotInitializedError({
             message: "StoreKit is not available on this platform",
-          })
+          }),
         );
       }
 
@@ -116,13 +113,10 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
             message: "Failed to buy product",
           });
         },
-        try: () =>
-          Storekit!.buyProduct(product.id, appAccountToken || "", quantity),
+        try: () => Storekit!.buyProduct(product.id, appAccountToken || "", quantity),
       });
 
-      return yield* Effect.succeed(
-        mapStorekitTransactionToTransaction(nativeTransaction)
-      );
+      return yield* Effect.succeed(mapStorekitTransactionToTransaction(nativeTransaction));
     });
   },
 
@@ -132,7 +126,7 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
         return yield* Effect.fail(
           new FailedToEndNativeAdapterError({
             message: "StoreKit is not available on this platform",
-          })
+          }),
         );
       }
 
@@ -149,7 +143,7 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
         return yield* Effect.fail(
           new FailedToEndNativeAdapterError({
             message: "Failed to end native adapter",
-          })
+          }),
         );
       }
 
@@ -157,17 +151,13 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
     });
   },
 
-  getPendingTransactions(): Effect.Effect<
-    Transaction[],
-    GetPendingTransactionsError,
-    never
-  > {
+  getPendingTransactions(): Effect.Effect<Transaction[], GetPendingTransactionsError, never> {
     return Effect.gen(function* getPendingTransactions() {
       if (!Storekit) {
         return yield* Effect.fail(
           new GetPendingTransactionsError({
             message: "StoreKit is not available on this platform",
-          })
+          }),
         );
       }
 
@@ -180,25 +170,19 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
         try: () => Storekit!.getPendingTransactions(),
       });
 
-      return yield* Effect.succeed(
-        nativeTransactions.map(mapStorekitTransactionToTransaction)
-      );
+      return yield* Effect.succeed(nativeTransactions.map(mapStorekitTransactionToTransaction));
     });
   },
 
   getProducts(
-    productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
-  ): Effect.Effect<
-    Product[],
-    NativeAdapterNotInitializedError | FailedToGetProductsError,
-    never
-  > {
+    productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
+  ): Effect.Effect<Product[], NativeAdapterNotInitializedError | FailedToGetProductsError, never> {
     return Effect.gen(function* getProducts() {
       if (!Storekit) {
         return yield* Effect.fail(
           new NativeAdapterNotInitializedError({
             message: "StoreKit is not available on this platform",
-          })
+          }),
         );
       }
 
@@ -218,10 +202,7 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
             slug: productDefinition.slug,
           };
         })
-        .filter(
-          (slugIdPair): slugIdPair is { slug: string; id: string } =>
-            slugIdPair !== null
-        );
+        .filter((slugIdPair): slugIdPair is { slug: string; id: string } => slugIdPair !== null);
 
       Effect.logDebug("Getting products from App Store", {
         productIds: productIds.map(({ id }) => id),
@@ -229,10 +210,7 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
 
       const nativeProducts = yield* Effect.tryPromise({
         catch: (error) => {
-          if (
-            error instanceof Error &&
-            error.message.startsWith("STOREKIT_NOT_INITIALIZED")
-          ) {
+          if (error instanceof Error && error.message.startsWith("STOREKIT_NOT_INITIALIZED")) {
             Effect.logError("Failed to get products from App Store", {
               error: error as Error,
             });
@@ -261,28 +239,27 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
         nativeProducts
           .map((nativeProduct) => {
             const matched = productDefinitionsArray.find(
-              (productDefinition) =>
-                getProductId(productDefinition) === nativeProduct.id
+              (productDefinition) => getProductId(productDefinition) === nativeProduct.id,
             );
             if (!matched) {
               return null;
             }
             return mapStorekitProductToProduct(matched, nativeProduct);
           })
-          .filter((p): p is Product => p !== null)
+          .filter((p): p is Product => p !== null),
       );
     });
   },
 
   getPurchaseHistory(
-    onlyIncludeActiveItems = false
+    onlyIncludeActiveItems = false,
   ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never> {
     return Effect.gen(function* getPurchaseHistory() {
       if (!Storekit) {
         return yield* Effect.fail(
           new GetPurchaseHistoryError({
             message: "StoreKit is not available on this platform",
-          })
+          }),
         );
       }
 
@@ -295,29 +272,26 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
         try: () => Storekit!.getPurchasedItems(onlyIncludeActiveItems),
       });
 
-      return yield* Effect.succeed(
-        nativeTransactions.map(mapStorekitTransactionToTransaction)
-      );
+      return yield* Effect.succeed(nativeTransactions.map(mapStorekitTransactionToTransaction));
     });
   },
 
   initConnection(
-    onPurchase?: (transaction: Transaction) => void
+    onPurchase?: (transaction: Transaction) => void,
   ): Effect.Effect<void, FailedToInitializeNativeAdapterError, never> {
     return Effect.gen(function* initConnection() {
       if (!Storekit) {
         return yield* Effect.fail(
           new FailedToInitializeNativeAdapterError({
             message: "StoreKit is not available on this platform",
-          })
+          }),
         );
       }
 
       Effect.logDebug("Initializing App Store connection");
       const onTransaction = onPurchase
         ? (nativeTransaction: StorekitTransaction) => {
-            const transaction =
-              mapStorekitTransactionToTransaction(nativeTransaction);
+            const transaction = mapStorekitTransactionToTransaction(nativeTransaction);
             onPurchase(transaction);
           }
         : undefined;
@@ -336,7 +310,7 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
         return yield* Effect.fail(
           new FailedToInitializeNativeAdapterError({
             message: "Failed to initialize native adapter",
-          })
+          }),
         );
       }
 
@@ -354,7 +328,7 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
         return yield* Effect.fail(
           new FailedToPresentCodeRedemptionSheetError({
             message: "StoreKit is not available on this platform",
-          })
+          }),
         );
       }
 
@@ -371,17 +345,13 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
     });
   },
 
-  showManageSubscriptions(): Effect.Effect<
-    void,
-    FailedToShowManageSubscriptionsError,
-    never
-  > {
+  showManageSubscriptions(): Effect.Effect<void, FailedToShowManageSubscriptionsError, never> {
     return Effect.gen(function* showManageSubscriptions() {
       if (!Storekit) {
         return yield* Effect.fail(
           new FailedToShowManageSubscriptionsError({
             message: "StoreKit is not available on this platform",
-          })
+          }),
         );
       }
 
@@ -402,7 +372,7 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
 // Helper functions for mapping StoreKit objects to our domain objects
 function mapStorekitProductToProduct(
   productDefinition: RuntimeProductDefinition,
-  nativeProduct: StorekitProduct
+  nativeProduct: StorekitProduct,
 ): Product {
   return new Product(
     nativeProduct.id,
@@ -414,13 +384,11 @@ function mapStorekitProductToProduct(
     nativeProduct.price,
     nativeProduct.currency,
     nativeProduct.type,
-    "ios"
+    "ios",
   );
 }
 
-function mapStorekitTransactionToTransaction(
-  nativeTransaction: StorekitTransaction
-): Transaction {
+function mapStorekitTransactionToTransaction(nativeTransaction: StorekitTransaction): Transaction {
   return new Transaction(
     nativeTransaction.id,
     nativeTransaction.transactionId,
@@ -436,6 +404,6 @@ function mapStorekitTransactionToTransaction(
       originalTransactionId: nativeTransaction.originalTransactionIdentifierIos,
       price: nativeTransaction.priceIos,
       receipt: nativeTransaction.transactionReceipt,
-    }
+    },
   );
 }

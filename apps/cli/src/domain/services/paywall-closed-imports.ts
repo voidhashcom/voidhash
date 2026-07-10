@@ -41,10 +41,7 @@ const isAllowedBareImport = (specifier: string): boolean => {
     return true;
   }
   // Any @voidhash/paywalls subpath except ./tree (dom, panel, …).
-  return (
-    specifier.startsWith(`${PAYWALLS_PACKAGE}/`) &&
-    specifier !== FORBIDDEN_PAYWALLS_SUBPATH
-  );
+  return specifier.startsWith(`${PAYWALLS_PACKAGE}/`) && specifier !== FORBIDDEN_PAYWALLS_SUBPATH;
 };
 
 const disallowedMessage = (specifier: string, importer: string): string =>
@@ -76,8 +73,7 @@ export const closedImportsPlugin = (voidhashDir: string): esbuild.Plugin => ({
       }
       // Only user-authored sources are constrained. Synthetic stdin entries
       // (non-absolute importer) count as user sources.
-      const fromUserSource =
-        !isAbsolute(args.importer) || isPathWithin(voidhashDir, args.importer);
+      const fromUserSource = !isAbsolute(args.importer) || isPathWithin(voidhashDir, args.importer);
       if (!fromUserSource) {
         return null;
       }

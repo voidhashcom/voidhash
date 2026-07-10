@@ -22,6 +22,17 @@ export {
 } from "./authoring/actions";
 // ── Authoring API ────────────────────────────────────────────────────────────
 export {
+  type Action,
+  closePaywall,
+  none,
+  payload,
+  product,
+  type ProductRef,
+  purchase,
+  variable,
+  type VariableHandle,
+} from "./authoring/compose-values";
+export {
   type CreatePaywallInput,
   createPaywall,
   isPaywallDefinition,
@@ -32,16 +43,28 @@ export {
 } from "./authoring/create-paywall";
 export {
   type ComponentDefinition,
+  type ComponentDefinitionFields,
+  type ComponentPanel,
   type ComponentPreviewState,
   type ComponentRenderContext,
+  type ComposeComponentProps,
   type DefineComponentInput,
   defineComponent,
   type InferComponentProps,
   isComponentDefinition,
+  type PanelPropsFor,
   type PaywallComponent,
   type PaywallComponentMeta,
 } from "./authoring/define-component";
+export {
+  type DefinePaywallInput,
+  definePaywall,
+  isPaywallCompositionDefinition,
+  type PaywallCompositionDefinition,
+  type PaywallCompositionMeta,
+} from "./authoring/define-paywall";
 export { extractComponentManifest } from "./authoring/manifest";
+export { type ScreenProps, type ScreenStyle, Screen } from "./authoring/screen";
 export {
   type AnyPropBuilder,
   type InferExternalProps,
@@ -54,18 +77,8 @@ export {
   type PropValueOf,
 } from "./authoring/props";
 // ── Primitives ───────────────────────────────────────────────────────────────
-export {
-  Image,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "./primitives/components";
-export {
-  RendererProvider,
-  type RendererProviderProps,
-  useHost,
-} from "./primitives/host-context";
+export { Image, Pressable, ScrollView, Text, View } from "./primitives/components";
+export { RendererProvider, type RendererProviderProps, useHost } from "./primitives/host-context";
 export { Slot, type SlotProps, SlotProvider } from "./primitives/slot";
 export type {
   HostComponents,
@@ -124,10 +137,7 @@ export {
   type ViewportOptions,
 } from "./motion/types";
 // ── Renderer / runtime ───────────────────────────────────────────────────────
-export {
-  PaywallRenderer,
-  type PaywallRendererProps,
-} from "./renderer/paywall-renderer";
+export { PaywallRenderer, type PaywallRendererProps } from "./renderer/paywall-renderer";
 export {
   createDefaultBridge,
   NATIVE_INBOUND_GLOBAL,
@@ -218,9 +228,59 @@ export {
   type PaywallTextNode,
   type PaywallViewNode,
 } from "./schema/node-tree";
+export {
+  type ActionEditorFieldNode,
+  type AlignmentGridNode,
+  type ButtonNode,
+  type CalloutNode,
+  type ColorFieldNode,
+  type ColorPickerNode,
+  type ColumnNode,
+  type DefaultPropsNode,
+  type DimensionFieldNode,
+  type FieldNode,
+  type FillFieldNode,
+  type GradientStopsNode,
+  type IconName,
+  type ImageFieldNode,
+  type MenuNode,
+  PANEL_CAPS,
+  PANEL_ICON_NAME_LIST,
+  PANEL_NODE_SPECS,
+  PANEL_TREE_VERSION,
+  type PanelJsonValue,
+  type PanelNode,
+  type PanelNodeBase,
+  type PanelNodeSpec,
+  type PanelNodeType,
+  type PanelRootNode,
+  type PanelTree,
+  type PopoverContentNode,
+  type PopoverNode,
+  type PopoverTriggerNode,
+  type PropFieldNode,
+  type ResetAffordanceNode,
+  type RowNode,
+  type SectionActionsNode,
+  type SectionNode,
+  type SelectFieldNode,
+  type SliderFieldNode,
+  type SubsectionNode,
+  type SwatchNode,
+  type SwitchFieldNode,
+  type TextFieldNode,
+  type TextNode,
+  type ToggleGroupNode,
+  type VariableFieldNode,
+} from "./schema/panel-tree";
+export {
+  PANEL_ICON_NAMES,
+  type ParsePanelResult,
+  parsePanelTree,
+} from "./schema/validate-panel";
 // ── Schema (shared wire types) ───────────────────────────────────────────────
 export {
-  PAYWALL_STYLE_KEYS,
+  PAYWALL_STYLE_KEY_LIST,
   type PaywallAlignItems,
   type PaywallAlignSelf,
   type PaywallDimension,
@@ -230,5 +290,20 @@ export {
   type PaywallStyle,
   type StyleProp,
 } from "./schema/style";
+export {
+  countSlotNodes,
+  PAYWALL_STYLE_KEYS,
+  type ParseResult,
+  parseComponentManifest,
+  parsePreviewTree,
+  PREVIEW_STATE_PATTERN,
+} from "./schema/validate";
 // ── Style ────────────────────────────────────────────────────────────────────
 export { flattenStyle, resolveStyle } from "./style/resolve";
+/**
+ * React hooks re-exported so authored paywall code needs only
+ * `@voidhash/paywalls` imports — never a direct `react` import. They ARE
+ * React's own hooks (paywall components are real React); this re-export keeps
+ * a single, stable author-facing import surface.
+ */
+export { useCallback, useEffect, useMemo, useRef, useState } from "react";

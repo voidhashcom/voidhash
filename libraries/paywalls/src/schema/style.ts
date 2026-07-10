@@ -4,23 +4,21 @@
  * `React.CSSProperties`) on primitive props enforces the subset at compile
  * time, so authored paywalls stay renderable on the DOM today and on native
  * views later.
+ *
+ * The {@link PaywallStyle} interface is hand-written for documentation and DX,
+ * but its key set is single-sourced from `./style-registry`: {@link
+ * PAYWALL_STYLE_KEY_LIST} is derived from `WIRE_STYLE_ORDER`, and the two
+ * compile-time locks at the bottom of this file fail `tsc` if the interface and
+ * the registry's wire-field set drift in either direction.
  */
+import { WIRE_STYLE_ORDER, type WireStyleKey } from "./style-registry";
 
 /** A length value: device-independent pixels or a string (e.g. `"50%"`). */
 export type PaywallDimension = number | string;
 
-export type PaywallFlexDirection =
-  | "row"
-  | "row-reverse"
-  | "column"
-  | "column-reverse";
+export type PaywallFlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 
-export type PaywallAlignItems =
-  | "flex-start"
-  | "flex-end"
-  | "center"
-  | "stretch"
-  | "baseline";
+export type PaywallAlignItems = "flex-start" | "flex-end" | "center" | "stretch" | "baseline";
 
 export type PaywallAlignSelf = "auto" | PaywallAlignItems;
 
@@ -31,6 +29,36 @@ export type PaywallJustifyContent =
   | "space-between"
   | "space-around"
   | "space-evenly";
+
+/** Which background fill a node renders. `backgroundEnabled` gates all three. */
+export type PaywallBackgroundType = "solid" | "gradient" | "image";
+
+/** A single gradient color stop: an RGBA color at a `0..1` position along the line. */
+export interface PaywallGradientStop {
+  color: string;
+  position: number;
+}
+
+/**
+ * A gradient background. Geometry is a two-point line in normalized node space
+ * (`0..1` typical, not clamped): `start` → `end`. Maps directly onto
+ * expo-linear-gradient `start`/`end` on native; a radial gradient's radius is
+ * the euclidean distance from start to end.
+ */
+export interface PaywallBackgroundGradient {
+  kind: "linear" | "radial";
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  stops: PaywallGradientStop[];
+}
+
+/** An image background. An empty `url` renders as transparent. */
+export interface PaywallBackgroundImage {
+  url: string;
+  resizeMode: "cover" | "contain" | "stretch" | "center";
+}
 
 export type PaywallFontWeight =
   | number
@@ -60,8 +88,6 @@ export interface PaywallStyle {
   justifyContent?: PaywallJustifyContent;
   flexWrap?: "wrap" | "nowrap" | "wrap-reverse";
   gap?: PaywallDimension;
-  rowGap?: PaywallDimension;
-  columnGap?: PaywallDimension;
   flexGrow?: number;
   flexShrink?: number;
   flexBasis?: PaywallDimension;
@@ -73,26 +99,22 @@ export interface PaywallStyle {
   minHeight?: PaywallDimension;
   maxWidth?: PaywallDimension;
   maxHeight?: PaywallDimension;
-  padding?: PaywallDimension;
   paddingTop?: PaywallDimension;
   paddingBottom?: PaywallDimension;
   paddingLeft?: PaywallDimension;
   paddingRight?: PaywallDimension;
-  paddingHorizontal?: PaywallDimension;
-  paddingVertical?: PaywallDimension;
-  margin?: PaywallDimension;
   marginTop?: PaywallDimension;
   marginBottom?: PaywallDimension;
   marginLeft?: PaywallDimension;
   marginRight?: PaywallDimension;
-  marginHorizontal?: PaywallDimension;
-  marginVertical?: PaywallDimension;
   aspectRatio?: number | string;
 
   // Border
-  borderWidth?: number;
+  borderTopWidth?: number;
+  borderRightWidth?: number;
+  borderBottomWidth?: number;
+  borderLeftWidth?: number;
   borderColor?: string;
-  borderRadius?: number;
   borderTopLeftRadius?: number;
   borderTopRightRadius?: number;
   borderBottomLeftRadius?: number;
@@ -101,6 +123,9 @@ export interface PaywallStyle {
 
   // Visual
   backgroundColor?: string;
+  backgroundType?: PaywallBackgroundType;
+  backgroundGradient?: PaywallBackgroundGradient;
+  backgroundImage?: PaywallBackgroundImage;
   opacity?: number;
   overflow?: "visible" | "hidden" | "scroll";
 
@@ -121,91 +146,42 @@ export interface PaywallStyle {
   letterSpacing?: number;
   textAlign?: "auto" | "left" | "right" | "center" | "justify";
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
-  textDecorationLine?:
-    | "none"
-    | "underline"
-    | "line-through"
-    | "underline line-through";
+  textDecorationLine?: "none" | "underline" | "line-through" | "underline line-through";
   fontFamily?: string;
 }
 
 /**
- * Every key allowed by the §3.1 subset, as a runtime value. The tree renderer
- * filters serialized styles down to this list so an out-of-contract key (e.g.
- * smuggled in through a cast) never reaches a preview tree the server would
- * reject.
+ * The §3.1 style vocabulary as a runtime list, single-sourced from the
+ * `./style-registry` `WIRE_STYLE_ORDER` (content AND order). The two locks below
+ * tie it to the {@link PaywallStyle} type in both directions — a key added to or
+ * removed from either side fails to compile. The `./schema` entry derives its
+ * {@link PAYWALL_STYLE_KEYS} `Set` from this list so the runtime key set and the
+ * type never drift, and the tree renderer filters serialized styles down to
+ * these keys so an out-of-contract key (e.g. smuggled in through a cast) never
+ * reaches a preview tree the server would reject.
  */
-export const PAYWALL_STYLE_KEYS = [
-  "flex",
-  "flexDirection",
-  "alignItems",
-  "alignSelf",
-  "justifyContent",
-  "flexWrap",
-  "gap",
-  "rowGap",
-  "columnGap",
-  "flexGrow",
-  "flexShrink",
-  "flexBasis",
-  "width",
-  "height",
-  "minWidth",
-  "minHeight",
-  "maxWidth",
-  "maxHeight",
-  "padding",
-  "paddingTop",
-  "paddingBottom",
-  "paddingLeft",
-  "paddingRight",
-  "paddingHorizontal",
-  "paddingVertical",
-  "margin",
-  "marginTop",
-  "marginBottom",
-  "marginLeft",
-  "marginRight",
-  "marginHorizontal",
-  "marginVertical",
-  "aspectRatio",
-  "borderWidth",
-  "borderColor",
-  "borderRadius",
-  "borderTopLeftRadius",
-  "borderTopRightRadius",
-  "borderBottomLeftRadius",
-  "borderBottomRightRadius",
-  "borderStyle",
-  "backgroundColor",
-  "opacity",
-  "overflow",
-  "position",
-  "top",
-  "right",
-  "bottom",
-  "left",
-  "zIndex",
-  "color",
-  "fontSize",
-  "fontWeight",
-  "fontStyle",
-  "lineHeight",
-  "letterSpacing",
-  "textAlign",
-  "textTransform",
-  "textDecorationLine",
-  "fontFamily",
-] as const satisfies ReadonlyArray<keyof PaywallStyle>;
+export const PAYWALL_STYLE_KEY_LIST = WIRE_STYLE_ORDER;
 
 /**
  * A style prop may be a single object, a (possibly nested) array of objects,
  * or a falsy value — mirroring React Native's `StyleProp`. Falsy entries are
  * ignored so `style={[base, condition && override]}` works as expected.
  */
-export type StyleProp =
-  | PaywallStyle
-  | false
-  | null
-  | undefined
-  | ReadonlyArray<StyleProp>;
+export type StyleProp = PaywallStyle | false | null | undefined | ReadonlyArray<StyleProp>;
+
+// Bidirectional compile-time lock between the hand-written PaywallStyle
+// interface and the registry's wire-field set. `AssertKeysEqual<A, B>` resolves
+// to `never` (a type error where used) unless A and B are the exact same key
+// set: the first mapped type surfaces a key present in A but missing from B, the
+// second the reverse. Assigning the result to a `[]` const forces tsc to
+// evaluate it, so a key added to or dropped from EITHER the interface or
+// `WIRE_STYLE_ORDER` (without matching the other) fails the build here.
+type MissingKeys<From, In> = { [K in keyof From]: K extends In ? never : K }[keyof From];
+type AssertKeysEqual<A, B> = MissingKeys<A, B> extends never
+  ? MissingKeys<Record<B & PropertyKey, unknown>, keyof A> extends never
+    ? true
+    : never
+  : never;
+
+const _wireMatchesInterface: AssertKeysEqual<Required<PaywallStyle>, WireStyleKey> = true;
+void _wireMatchesInterface;

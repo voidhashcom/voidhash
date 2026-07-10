@@ -13,7 +13,10 @@ const generatedClientsRoot = path.join(repoRoot, "packages/generated-clients");
 const nodeGeneratedRoot = path.join(repoRoot, "libraries/node/src/generated");
 const openapiRoot = path.join(generatedClientsRoot, "openapi");
 
-const rawHost = process.argv.slice(2).find((arg) => arg !== "--")?.trim();
+const rawHost = process.argv
+  .slice(2)
+  .find((arg) => arg !== "--")
+  ?.trim();
 
 if (!rawHost) {
   console.error(

@@ -4,5 +4,5 @@ export class OrganizationServiceError extends Schema.TaggedErrorClass<Organizati
   "OrganizationServiceError",
   {
     message: Schema.String,
-  }
+  },
 ) {}

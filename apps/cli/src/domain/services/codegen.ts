@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Layer, ServiceMap } from "effect";
+import { Effect, FileSystem, Layer, Path, Context } from "effect";
 
 import {
   VOIDHASH_FETCHED_AT_COMMENT_PREFIX,
@@ -33,7 +33,7 @@ function toUnionType(slugs: string[]): string {
 export function generateTypesDeclaration(
   schema: NormalizedSchema,
   version: string,
-  options: { fetchedAt?: Date } = {}
+  options: { fetchedAt?: Date } = {},
 ): string {
   const fetchedAt = (options.fetchedAt ?? new Date()).toISOString();
 
@@ -64,10 +64,41 @@ export function generateTypesDeclaration(
 
 const make = Effect.gen(function* effect() {
   const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+
+  /**
+   * Scaffold the SDK client module (`voidhash.ts` / `.js`) that wires up
+   * `@voidhash/react-native` with the project's publishable key.
+   *
+   * The key is pre-filled as the default so the file works out of the box;
+   * the user is free to edit it and the client options afterwards. The client
+   * is exported as a single `voidhash` object, so the rest of the app uses it
+   * like `<voidhash.Provider>` or `voidhash.useProducts()`. The parent
+   * directory (`src/lib` or `lib`) is created if it does not exist yet.
+   */
+  const generateClientFile = (filePath: string, options: { publishableKey: string }) =>
+    Effect.gen(function* generateClientFile() {
+      yield* fileSystem.makeDirectory(path.dirname(filePath), {
+        recursive: true,
+      });
+      const lines = [
+        'import { createVoidhashClient } from "@voidhash/react-native";',
+        "",
+        "/**",
+        " * Voidhash SDK client. Safe to edit.",
+        " *",
+        " * Use it like `<voidhash.Provider>` and `voidhash.useProducts()`. The",
+        " * publishable key is safe to ship in client code.",
+        " */",
+        `export const voidhash = createVoidhashClient("${options.publishableKey}");`,
+        "",
+      ];
+      yield* fileSystem.writeFileString(filePath, lines.join("\n"));
+    });
 
   const generateVoidhashConfigFile = (
     filePath: string,
-    config: Writable<typeof VoidhashConfigSchema.Type>
+    config: Writable<typeof VoidhashConfigSchema.Type>,
   ) =>
     Effect.gen(function* generateVoidhashConfigFile() {
       const lines = [
@@ -92,7 +123,7 @@ const make = Effect.gen(function* effect() {
   const generateTypesDeclarationFile = (
     filePath: string,
     schema: NormalizedSchema,
-    version: string
+    version: string,
   ) =>
     Effect.gen(function* generateTypesDeclarationFile() {
       const content = generateTypesDeclaration(schema, version);
@@ -107,6 +138,7 @@ const make = Effect.gen(function* effect() {
     });
 
   return {
+    generateClientFile,
     generateTypesDeclarationFile,
     generateVoidhashConfigFile,
     readDeclarationVersion,
@@ -115,8 +147,6 @@ const make = Effect.gen(function* effect() {
 
 type CodegenShape = Effect.Success<typeof make>;
 
-export class Codegen extends ServiceMap.Service<Codegen, CodegenShape>()(
-  "voidhash-cli/Codegen"
-) {
+export class Codegen extends Context.Service<Codegen, CodegenShape>()("voidhash-cli/Codegen") {
   static Default = Layer.effect(Codegen, make);
 }

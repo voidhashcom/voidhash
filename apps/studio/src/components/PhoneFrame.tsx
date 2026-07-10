@@ -18,9 +18,7 @@ export const PhoneFrame = ({ children }: PhoneFrameProps): ReactNode => (
       {/* Notch */}
       <div className="-translate-x-1/2 pointer-events-none absolute top-0 left-1/2 z-10 h-6 w-32 rounded-b-2xl bg-neutral-950" />
       {/* Screen — the paywall mounts here */}
-      <div className="absolute inset-0 flex flex-col bg-white text-black">
-        {children}
-      </div>
+      <div className="absolute inset-0 flex flex-col bg-white text-black">{children}</div>
       {/* Home indicator */}
       <div className="-translate-x-1/2 pointer-events-none absolute bottom-1.5 left-1/2 z-10 h-1 w-28 rounded-full bg-neutral-900/30" />
     </div>

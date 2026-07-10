@@ -15,6 +15,5 @@ export const relativePathPrefixFromDepth = (depth: number) =>
  * @param packageJson - The package.json contents.
  * @returns True if the project is an Expo project, false otherwise.
  */
-export const checkIsExpoProject = (
-  packageJson: typeof PackageJsonSchema.Type
-) => packageJson.dependencies?.expo !== undefined;
+export const checkIsExpoProject = (packageJson: typeof PackageJsonSchema.Type) =>
+  packageJson.dependencies?.expo !== undefined;

@@ -18,9 +18,7 @@ import { subscribeToInboundEnvelopes } from "../src/runtime/bridge";
 import type { PaywallInboundEnvelope } from "../src/runtime/envelope";
 import { renderToNodeTree } from "../src/tree";
 
-const collectingBridge = (
-  posted: PaywallOutboundEnvelope[],
-): PaywallBridge => ({
+const collectingBridge = (posted: PaywallOutboundEnvelope[]): PaywallBridge => ({
   post: (envelope) => {
     posted.push(envelope);
   },
@@ -30,10 +28,7 @@ const collectingBridge = (
 });
 
 interface FakeWindow {
-  addEventListener: (
-    type: string,
-    listener: (event: { data: unknown }) => void,
-  ) => void;
+  addEventListener: (type: string, listener: (event: { data: unknown }) => void) => void;
   onVoidhashNativeMessage?: (data: string) => void;
 }
 
@@ -107,9 +102,7 @@ describe("purchase() without a product", () => {
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("purchase() called with no selected"),
     );
-    expect(posted.filter((envelope) => envelope.type === "purchase")).toEqual(
-      [],
-    );
+    expect(posted.filter((envelope) => envelope.type === "purchase")).toEqual([]);
   });
 });
 

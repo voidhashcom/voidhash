@@ -1,13 +1,10 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { CacheManager } from "../caching/cache-manager";
 import { IdentityManager } from "../identity/identity-manager";
 import { ApiClient } from "../networking/api-client";
-import {
-  featureFlagsByKeyAtom,
-  normalizeFeatureFlagKeys,
-} from "../reactivity/client-state";
+import { featureFlagsByKeyAtom, normalizeFeatureFlagKeys } from "../reactivity/client-state";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 
 export interface FeatureFlagsResult {
@@ -32,7 +29,7 @@ const generateCacheKey = (flagKeys: string[] | undefined) =>
  * keyed by the normalized request signature, so React hooks can subscribe to
  * exactly the slice of state they asked for.
  */
-export class FeatureFlagService extends ServiceMap.Service<FeatureFlagService>()(
+export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
   "rn-voidhash/FeatureFlagService",
   {
     make: Effect.gen(function* () {
@@ -41,10 +38,7 @@ export class FeatureFlagService extends ServiceMap.Service<FeatureFlagService>()
       const atomRegistry = yield* AtomRegistry.AtomRegistry;
       const identityManager = yield* IdentityManager;
 
-      const publishResult = (
-        flagKeys: string[] | undefined,
-        result: FeatureFlagsResult
-      ) => {
+      const publishResult = (flagKeys: string[] | undefined, result: FeatureFlagsResult) => {
         const normalizedKey = normalizeFeatureFlagKeys(flagKeys);
         const current = atomRegistry.get(featureFlagsByKeyAtom);
         atomRegistry.set(featureFlagsByKeyAtom, {
@@ -82,7 +76,7 @@ export class FeatureFlagService extends ServiceMap.Service<FeatureFlagService>()
 
       return { getFeatureFlags } as const;
     }),
-  }
+  },
 ) {
   static readonly layer = Layer.effect(this, this.make);
 }

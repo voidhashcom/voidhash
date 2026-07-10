@@ -1,7 +1,4 @@
-import type {
-  CaptureBatchRequest,
-  CaptureEvent,
-} from "@voidhash/generated-clients/event-capture";
+import type { CaptureBatchRequest, CaptureEvent } from "@voidhash/generated-clients/event-capture";
 
 import type { AnalyticsFlushResult } from "../../types";
 

@@ -4,8 +4,15 @@
  * bundle. Servers validate uploaded manifests against exactly these shapes.
  */
 
-/** Wire version of the component manifest format. */
-export const COMPONENT_MANIFEST_VERSION = 1 as const;
+/**
+ * Wire version of the component manifest format.
+ *
+ * v2 dropped the manifest `id` field: a component is identified by its relative
+ * file path in the paywall document (the import specifier), not by an embedded
+ * slug. A v1 (or any id-bearing) manifest is rejected by
+ * {@link parseComponentManifest}.
+ */
+export const COMPONENT_MANIFEST_VERSION = 2 as const;
 
 /** Editor kinds a component prop can map to. */
 export type ManifestPropKind =
@@ -29,6 +36,8 @@ interface ManifestPropBase {
   readonly default?: unknown;
   readonly editor?: ManifestPropEditor;
   readonly optional: boolean;
+  /** Whether this prop's value is translated per locale (`"string"`/`"image"` only). */
+  readonly localizable?: boolean;
 }
 
 export interface ManifestStringProp extends ManifestPropBase {
@@ -89,9 +98,7 @@ export type ManifestActionPayloadKind = "string" | "number" | "boolean";
 
 export interface ManifestAction {
   /** Payload field shapes. May be `{}` for payload-less actions. */
-  readonly payload: Readonly<
-    Record<string, { readonly kind: ManifestActionPayloadKind }>
-  >;
+  readonly payload: Readonly<Record<string, { readonly kind: ManifestActionPayloadKind }>>;
 }
 
 /** Injected runtime data a component reads. `"products"` only in Phase 1. */
@@ -99,7 +106,6 @@ export type ManifestHostData = "products";
 
 export interface ComponentManifest {
   readonly manifestVersion: typeof COMPONENT_MANIFEST_VERSION;
-  readonly id: string;
   readonly title?: string;
   readonly description?: string;
   readonly props: Readonly<Record<string, ManifestProp>>;

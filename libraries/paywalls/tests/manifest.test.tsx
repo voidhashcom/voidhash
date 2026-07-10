@@ -21,7 +21,6 @@ const yearly: PaywallProduct = {
 describe("extractComponentManifest", () => {
   it("emits the contract §2 manifest for a full-surface component", () => {
     const definition = defineComponent({
-      id: "product-option",
       title: "Product Option",
       description: "A selectable product row.",
       props: (p) => ({
@@ -40,9 +39,7 @@ describe("extractComponentManifest", () => {
         trial: { props: { selected: true } },
       },
       render: ({ props, actions }) => (
-        <Pressable
-          onPress={() => actions.onSelect({ productId: props.product.id })}
-        >
+        <Pressable onPress={() => actions.onSelect({ productId: props.product.id })}>
           <Text>{props.product.displayName}</Text>
           <Slot />
         </Pressable>
@@ -50,8 +47,7 @@ describe("extractComponentManifest", () => {
     });
 
     expect(extractComponentManifest(definition)).toEqual({
-      manifestVersion: 1,
-      id: "product-option",
+      manifestVersion: 2,
       title: "Product Option",
       description: "A selectable product row.",
       props: {
@@ -87,7 +83,6 @@ describe("extractComponentManifest", () => {
 
   it("reports slot: false and empty hostData for a plain component", () => {
     const definition = defineComponent({
-      id: "title-block",
       props: (p) => ({ title: p.string() }),
       render: ({ props }) => (
         <View>
@@ -106,7 +101,6 @@ describe("extractComponentManifest", () => {
 
   it("reports hostData products when a prop is ref('product')", () => {
     const definition = defineComponent({
-      id: "with-ref",
       props: (p) => ({ product: p.ref("product") }),
       render: ({ props }) => <Text>{props.product.displayName}</Text>,
     });
@@ -115,7 +109,6 @@ describe("extractComponentManifest", () => {
 
   it("reports hostData products when a preview declares product data", () => {
     const definition = defineComponent({
-      id: "with-preview-products",
       previews: { default: { data: { products: [yearly] } } },
       render: () => <View />,
     });
@@ -124,7 +117,6 @@ describe("extractComponentManifest", () => {
 
   it("reports hostData products when the template reads products via a runtime hook", () => {
     const definition = defineComponent({
-      id: "with-products-hook",
       render: () => {
         const products = usePaywallProducts();
         return <Text>{products.length}</Text>;
@@ -135,7 +127,6 @@ describe("extractComponentManifest", () => {
 
   it("emits payload-less actions as empty payload objects", () => {
     const definition = defineComponent({
-      id: "with-bare-action",
       actions: (a) => ({ onDismiss: a.action() }),
       render: ({ actions }) => <Pressable onPress={actions.onDismiss} />,
     });
@@ -146,7 +137,6 @@ describe("extractComponentManifest", () => {
 
   it("omits non-serializable defaults from the manifest", () => {
     const definition = defineComponent({
-      id: "with-node-default",
       props: (p) => ({ badge: p.component().default(<Text>hi</Text>) }),
       render: ({ props }) => <View>{props.badge}</View>,
     });
@@ -158,7 +148,6 @@ describe("extractComponentManifest", () => {
 
   it("emits the contract §2 per-kind table for every builder combination", () => {
     const definition = defineComponent({
-      id: "per-kind",
       props: (p) => ({
         headline: p.string().editor("color").default("#16a34a"),
         count: p.number().default(3),
@@ -208,7 +197,7 @@ describe("extractComponentManifest", () => {
 
   it("rejects p.select([]) with an error naming the component and prop", () => {
     const definition = defineComponent({
-      id: "broken-select",
+      title: "broken-select",
       props: (p) => ({ plan: p.select([]) }),
       render: () => <View />,
     });
@@ -219,7 +208,7 @@ describe("extractComponentManifest", () => {
 
   it("rejects p.array(p.select([])) items the same way", () => {
     const definition = defineComponent({
-      id: "broken-array-select",
+      title: "broken-array-select",
       props: (p) => ({ plans: p.array(p.select([])) }),
       render: () => <View />,
     });
@@ -228,9 +217,29 @@ describe("extractComponentManifest", () => {
     );
   });
 
+  it('rejects a prop named "id" (reserved for node identity)', () => {
+    const definition = defineComponent({
+      props: (p) => ({ id: p.string() }),
+      render: () => <View />,
+    });
+    expect(() => extractComponentManifest(definition)).toThrow(
+      /"id" is reserved for node identity/,
+    );
+  });
+
+  it('rejects an action named "id" (reserved for node identity)', () => {
+    const definition = defineComponent({
+      props: (p) => ({ title: p.string() }),
+      actions: (a) => ({ id: a.action({}) }),
+      render: () => <View />,
+    });
+    expect(() => extractComponentManifest(definition)).toThrow(
+      /"id" is reserved for node identity/,
+    );
+  });
+
   it("keeps explicit optional() and default() both consumer-optional", () => {
     const definition = defineComponent({
-      id: "optionality",
       props: (p) => ({
         required: p.string(),
         optional: p.string().optional(),
@@ -246,5 +255,52 @@ describe("extractComponentManifest", () => {
       default: 3,
       optional: true,
     });
+  });
+
+  it("emits localizable: true for string/image props marked .localizable()", () => {
+    const definition = defineComponent({
+      props: (p) => ({
+        title: p.string().label("Title").localizable(),
+        hero: p.image().localizable(),
+        subtitle: p.string(),
+      }),
+      render: () => <View />,
+    });
+
+    const manifest = extractComponentManifest(definition);
+    expect(manifest.props.title).toEqual({
+      kind: "string",
+      label: "Title",
+      localizable: true,
+      optional: false,
+    });
+    expect(manifest.props.hero).toEqual({
+      kind: "image",
+      localizable: true,
+      optional: false,
+    });
+    // Props without .localizable() carry no `localizable` key at all.
+    expect(manifest.props.subtitle).toEqual({ kind: "string", optional: false });
+    expect("localizable" in manifest.props.subtitle!).toBe(false);
+  });
+
+  it("is order-independent: .localizable() before or after other chains", () => {
+    const definition = defineComponent({
+      props: (p) => ({
+        before: p.string().localizable().default("hi").label("Before"),
+        after: p.string().label("After").default("hi").localizable(),
+      }),
+      render: () => <View />,
+    });
+
+    const manifest = extractComponentManifest(definition);
+    const expected = {
+      kind: "string",
+      localizable: true,
+      default: "hi",
+      optional: true,
+    };
+    expect(manifest.props.before).toEqual({ ...expected, label: "Before" });
+    expect(manifest.props.after).toEqual({ ...expected, label: "After" });
   });
 });

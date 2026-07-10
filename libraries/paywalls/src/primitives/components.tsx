@@ -3,13 +3,7 @@ import { forwardRef, type ReactNode } from "react";
 import { getActionName } from "../internal/action-brand";
 import type { MotionNodeHandle, ScrollViewHandle } from "../motion/types";
 import { useHost } from "./host-context";
-import type {
-  ImageProps,
-  PressableProps,
-  ScrollViewProps,
-  TextProps,
-  ViewProps,
-} from "./types";
+import type { ImageProps, PressableProps, ScrollViewProps, TextProps, ViewProps } from "./types";
 
 /**
  * The abstract paywall primitives. Each one resolves the active renderer and

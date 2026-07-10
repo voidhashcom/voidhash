@@ -32,17 +32,11 @@ describe("typecheckPaywallSources", () => {
   it("passes a source importing a .png via the injected asset declarations", async () => {
     const entry = await writeSource(
       ".voidhash/paywalls/with-asset.ts",
-      [
-        'import hero from "./hero.png";',
-        "export const heroUrl: string = hero;",
-        "",
-      ].join("\n"),
+      ['import hero from "./hero.png";', "export const heroUrl: string = hero;", ""].join("\n"),
     );
 
     await expect(
-      Effect.runPromise(
-        typecheckPaywallSources({ files: [entry], projectRoot }),
-      ),
+      Effect.runPromise(typecheckPaywallSources({ files: [entry], projectRoot })),
     ).resolves.toBeUndefined();
   });
 
@@ -59,26 +53,18 @@ describe("typecheckPaywallSources", () => {
     );
 
     await expect(
-      Effect.runPromise(
-        typecheckPaywallSources({ files: [entry], projectRoot }),
-      ),
+      Effect.runPromise(typecheckPaywallSources({ files: [entry], projectRoot })),
     ).resolves.toBeUndefined();
   });
 
   it("still fails a genuinely type-broken source", async () => {
     const entry = await writeSource(
       ".voidhash/paywalls/broken.ts",
-      [
-        'import hero from "./hero.png";',
-        "export const broken: number = hero;",
-        "",
-      ].join("\n"),
+      ['import hero from "./hero.png";', "export const broken: number = hero;", ""].join("\n"),
     );
 
     const error = await Effect.runPromise(
-      typecheckPaywallSources({ files: [entry], projectRoot }).pipe(
-        Effect.flip,
-      ),
+      typecheckPaywallSources({ files: [entry], projectRoot }).pipe(Effect.flip),
     );
     expect(error).toBeInstanceOf(PaywallTypecheckError);
     expect(error.message).toContain("broken.ts");
@@ -87,15 +73,11 @@ describe("typecheckPaywallSources", () => {
   it("still fails an import of an undeclared module kind", async () => {
     const entry = await writeSource(
       ".voidhash/paywalls/bad-import.ts",
-      ['import data from "./data.bin";', "export const d = data;", ""].join(
-        "\n",
-      ),
+      ['import data from "./data.bin";', "export const d = data;", ""].join("\n"),
     );
 
     const error = await Effect.runPromise(
-      typecheckPaywallSources({ files: [entry], projectRoot }).pipe(
-        Effect.flip,
-      ),
+      typecheckPaywallSources({ files: [entry], projectRoot }).pipe(Effect.flip),
     );
     expect(error).toBeInstanceOf(PaywallTypecheckError);
   });

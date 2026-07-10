@@ -12,10 +12,7 @@ export class FileExistsError extends Data.TaggedError("FileExistsError")<{
  * @param pathToAssert - The path to assert the file can be created at.
  * @returns An Effect that succeeds if the file can be created, or fails if the file already exists and the user does not want to overwrite it.
  */
-export const assertFileCanBeCreated = (
-  filename: string,
-  pathToAssert: string
-) =>
+export const assertFileCanBeCreated = (filename: string, pathToAssert: string) =>
   Effect.gen(function* assertFileCanBeCreated() {
     const fileSystem = yield* FileSystem.FileSystem;
 
@@ -25,12 +22,10 @@ export const assertFileCanBeCreated = (
       const overwrite = yield* Prompt.run(
         Prompt.confirm({
           message: `File ${filename} already exists. Do you want to overwrite it?`,
-        })
+        }),
       );
       if (!overwrite) {
-        return yield* Effect.fail(
-          new FileExistsError({ message: "File already exists" })
-        );
+        return yield* Effect.fail(new FileExistsError({ message: "File already exists" }));
       }
 
       return yield* Effect.succeed(true);

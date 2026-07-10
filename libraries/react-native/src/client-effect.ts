@@ -1,27 +1,25 @@
 import { Effect } from "effect";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
+import { AUTOMATIC_EVENTS } from "./core/analytics/constants";
 import { AnalyticsService } from "./core/analytics/service";
 import type { AnalyticsIngestEvent } from "./core/analytics/types";
 import type { SubscriptionProduct } from "./core/entities/product";
 import type { Transaction } from "./core/entities/transaction";
 import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
-import { CustomerAttributeManager } from "./core/identity/customer-attribute-manager";
-import { CustomerInfoManager } from "./core/identity/customer-info-manager";
+import {
+  type PersonAttributes,
+  PersonAttributeManager,
+} from "./core/identity/person-attribute-manager";
+import { PersonInfoManager } from "./core/identity/person-info-manager";
 import { IdentityManager } from "./core/identity/identity-manager";
 import { LifecycleService } from "./core/lifecycle/lifecycle-service";
 import { PaymentAdapter } from "./core/payment-adapters/payment-adapter";
 import { buildPaywallRuntimeConfig } from "./core/paywalls/paywall-runtime-config";
-import {
-  type PaywallReleaseRuntime,
-  PaywallService,
-} from "./core/paywalls/paywall-service";
+import { type PaywallReleaseRuntime, PaywallService } from "./core/paywalls/paywall-service";
 import { PlatformProvider } from "./core/platform/platform-provider";
-import {
-  ProductService,
-  type ProductsBySlug,
-} from "./core/products/product-service";
-import { currentCustomerAtom } from "./core/reactivity/client-state";
+import { ProductService, type ProductsBySlug } from "./core/products/product-service";
+import { currentPersonAtom } from "./core/reactivity/client-state";
 import type { LocationSlug } from "./core/schema/registry";
 import type { RuntimeSchema } from "./core/schema/runtime";
 import { SchemaManager } from "./core/schema/schema-manager";
@@ -30,6 +28,7 @@ import { UnsupportedPlatformError } from "./errors";
 
 export type { ProductsBySlug };
 export type { AnalyticsIngestEvent };
+export type { PersonAttributes };
 
 interface InitOptions {
   readonly distinctId?: string;
@@ -58,8 +57,7 @@ const makeUnitializedClient = () => ({
   init: (initOptions: InitOptions = {}) =>
     Effect.gen(function* init() {
       const identityManager = yield* IdentityManager;
-      const customerAttributeManager = yield* CustomerAttributeManager;
-      const customerInfoManager = yield* CustomerInfoManager;
+      const personInfoManager = yield* PersonInfoManager;
       const schemaManager = yield* SchemaManager;
       const atomRegistry = yield* AtomRegistry.AtomRegistry;
 
@@ -68,9 +66,8 @@ const makeUnitializedClient = () => ({
           distinctId: initOptions.distinctId,
         });
 
-        // `identityManager.identify()` internally syncs attributes for the
-        // current cached distinctId AND publishes the new customer to
-        // `currentCustomerAtom`, so we don't duplicate either here.
+        // `identityManager.identify()` publishes the new person to
+        // `currentPersonAtom`, so we don't duplicate that here.
         const [, runtimeSchema] = yield* Effect.all(
           [
             identityManager.identify(initOptions.distinctId, {}),
@@ -89,10 +86,9 @@ const makeUnitializedClient = () => ({
         distinctId,
       });
 
-      const [, prefetchedCustomer, runtimeSchema] = yield* Effect.all(
+      const [prefetchedPerson, runtimeSchema] = yield* Effect.all(
         [
-          customerAttributeManager.syncCustomerAttributes(distinctId),
-          customerInfoManager.getCustomer(distinctId, "fetch"),
+          personInfoManager.getPerson(distinctId, "fetch"),
           schemaManager.resolveSchema({
             distinctId,
             internalSchema: initOptions.internalSchema,
@@ -101,10 +97,10 @@ const makeUnitializedClient = () => ({
         { concurrency: "unbounded" },
       );
 
-      // Publish the prefetched customer so React subscribers see initial
+      // Publish the prefetched person so React subscribers see initial
       // state without having to wait for a hook-driven refetch.
       // `SchemaManager` publishes `schemaAtom` itself.
-      atomRegistry.set(currentCustomerAtom, prefetchedCustomer);
+      atomRegistry.set(currentPersonAtom, prefetchedPerson);
 
       return yield* makeInitializedClient({ schema: runtimeSchema });
     }),
@@ -151,9 +147,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           const productService = yield* ProductService;
           const platformProvider = yield* PlatformProvider;
 
-          const productsBySlug = yield* productService.getProducts(
-            options.schema,
-          );
+          const productsBySlug = yield* productService.getProducts(options.schema);
 
           const skippedSlugs: string[] = [];
           const runtimeConfig = buildPaywallRuntimeConfig({
@@ -165,30 +159,70 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
           });
 
           if (skippedSlugs.length > 0) {
-            yield* Effect.logDebug(
-              "Skipping paywall products unresolved in the native store",
-              { slugs: skippedSlugs },
-            );
+            yield* Effect.logDebug("Skipping paywall products unresolved in the native store", {
+              slugs: skippedSlugs,
+            });
           }
 
           return runtimeConfig;
         }),
 
-      getCurrentCustomer: (forceFetch = false) =>
-        Effect.gen(function* getCurrentCustomer() {
+      getCurrentPerson: (forceFetch = false) =>
+        Effect.gen(function* getCurrentPerson() {
           const identityManager = yield* IdentityManager;
-          const customerInfoManager = yield* CustomerInfoManager;
+          const personInfoManager = yield* PersonInfoManager;
           const atomRegistry = yield* AtomRegistry.AtomRegistry;
           const distinctId = yield* identityManager.getDistinctId();
-          const customer = yield* customerInfoManager.getCustomer(
+          const person = yield* personInfoManager.getPerson(
             distinctId,
             forceFetch ? "fetch" : "fetch-while-stale",
           );
           // Publish to the reactive store so any subscribed React hook
           // re-renders with the latest result (whether cached or freshly
           // fetched).
-          atomRegistry.set(currentCustomerAtom, customer);
-          return customer;
+          atomRegistry.set(currentPersonAtom, person);
+          return person;
+        }),
+
+      /**
+       * Sets person attributes asynchronously (primary, fire-and-forget).
+       * Reserved `email`/`name` keys map to the dedicated server fields; any
+       * other key is forwarded as a custom trait. Rides the existing analytics
+       * queue as a `$set` capture — the queue's own batching/flushing delivers
+       * it. `$process_person_profile: true` is required so anonymous users
+       * still get a person created server-side. Returns void; does not flush.
+       */
+      setPersonAttributes: (attributes: PersonAttributes) =>
+        Effect.gen(function* setPersonAttributes() {
+          const { email, name, ...rest } = attributes;
+          const properties = {
+            $set: {
+              ...rest,
+              ...(email !== undefined ? { email } : {}),
+              ...(name !== undefined ? { name } : {}),
+            },
+            $process_person_profile: true,
+          };
+          yield* analyticsService.capture("$set", properties);
+        }),
+
+      /**
+       * Sets person attributes synchronously (opt-in). Performs the network
+       * sync, caches and publishes the returned person snapshot to
+       * `currentPersonAtom`, and returns it. Use when the caller needs the
+       * updated snapshot immediately; otherwise prefer `setPersonAttributes`.
+       */
+      setPersonAttributesSync: (attributes: PersonAttributes) =>
+        Effect.gen(function* setPersonAttributesSync() {
+          const identityManager = yield* IdentityManager;
+          const personAttributeManager = yield* PersonAttributeManager;
+          const personInfoManager = yield* PersonInfoManager;
+          const atomRegistry = yield* AtomRegistry.AtomRegistry;
+          const distinctId = yield* identityManager.getDistinctId();
+          const person = yield* personAttributeManager.syncPersonAttributes(distinctId, attributes);
+          yield* personInfoManager.cache(distinctId, person);
+          atomRegistry.set(currentPersonAtom, person);
+          return person;
         }),
 
       getDistinctId: () =>
@@ -215,6 +249,11 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
       ) =>
         Effect.gen(function* identify() {
           const identityManager = yield* IdentityManager;
+          // Drain queued events first so they attribute to the pre-switch
+          // distinct id. Flushed here in the facade (not in `IdentityManager`)
+          // because `AnalyticsService` depends on `IdentityManager` — a flush
+          // inside the manager would create a layer cycle.
+          yield* analyticsService.flush();
           return yield* identityManager.identify(distinctId, identifyOptions);
         }),
 
@@ -249,10 +288,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
       processObservedTransaction: (transaction: Transaction) =>
         Effect.gen(function* processObservedTransaction() {
           const transactionService = yield* TransactionService;
-          return yield* transactionService.processObservedTransaction(
-            transaction,
-            options.schema,
-          );
+          return yield* transactionService.processObservedTransaction(transaction, options.schema);
         }),
 
       purchase: (
@@ -275,15 +311,12 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
       reconcileObservedTransactions: () =>
         Effect.gen(function* reconcileObservedTransactions() {
           const transactionService = yield* TransactionService;
-          return yield* transactionService.reconcileObservedTransactions(
-            options.schema,
-          );
+          return yield* transactionService.reconcileObservedTransactions(options.schema);
         }),
 
       // --- Analytics: Effect methods delegate to AnalyticsService ---
 
-      getAnalyticsStandardizedProperties: () =>
-        analyticsService.getStandardizedProperties(),
+      getAnalyticsStandardizedProperties: () => analyticsService.getStandardizedProperties(),
 
       capture: (eventName: string, properties: Record<string, unknown> = {}) =>
         analyticsService.capture(eventName, properties),
@@ -297,20 +330,15 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         }>,
       ) => analyticsService.transferEvents(events),
 
-      captureAutomaticStartupEvents: () =>
-        analyticsService.captureAutomaticStartupEvents(),
+      captureAutomaticStartupEvents: () => analyticsService.captureAutomaticStartupEvents(),
 
       sendAnalyticsEvents: (events: ReadonlyArray<AnalyticsIngestEvent>) =>
         analyticsService.sendAnalyticsEvents(events),
 
-      setupAutomaticLifecycleEvents: (
-        captureEvent: (eventName: string) => void,
-      ) =>
+      setupAutomaticLifecycleEvents: (captureEvent: (eventName: string) => void) =>
         Effect.gen(function* setupAutomaticLifecycleEvents() {
           const lifecycleService = yield* LifecycleService;
-          return yield* lifecycleService.setupAutomaticLifecycleEvents(
-            captureEvent,
-          );
+          return yield* lifecycleService.setupAutomaticLifecycleEvents(captureEvent);
         }),
 
       // --- Analytics: sync accessors read directly from the service ---
@@ -326,18 +354,28 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
       reset: () =>
         Effect.gen(function* reset() {
           const identityManager = yield* IdentityManager;
+          // Drain queued events first so they attribute to the pre-reset
+          // distinct id (after reset, `getDistinctId()` mints a fresh anon id).
+          // Flushed in the facade, not in `IdentityManager`, to avoid a layer
+          // cycle (`AnalyticsService` depends on `IdentityManager`).
+          yield* analyticsService.flush();
           return yield* identityManager.reset();
         }),
 
       signOut: () =>
         Effect.gen(function* signOut() {
           const identityManager = yield* IdentityManager;
+          // Capture the built-in sign-out event and drain the queue *before*
+          // resetting: `reset()` clears the identity cache, after which
+          // `getDistinctId()` mints a fresh anonymous id. Flushing first keeps
+          // `$sign_out` (and any pending events) attributed to the
+          // signing-out distinct id rather than the post-reset anonymous one.
+          yield* analyticsService.capture(AUTOMATIC_EVENTS.SIGN_OUT);
+          yield* analyticsService.flush();
           return yield* identityManager.reset();
         }),
 
-      startTransactionObserver: (
-        onPurchase?: (transaction: Transaction) => void,
-      ) =>
+      startTransactionObserver: (onPurchase?: (transaction: Transaction) => void) =>
         Effect.gen(function* startTransactionObserver() {
           const transactionService = yield* TransactionService;
           return yield* transactionService.startTransactionObserver(onPurchase);

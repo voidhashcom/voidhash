@@ -8,8 +8,8 @@ import { authStatusCommand } from "./auth-status";
 export const authCommand = Command.make("auth", {}, () =>
   Effect.gen(function* authCommand() {
     // TODO: Show sucommands documentation
-  })
+  }),
 ).pipe(
   Command.withDescription("Manage the Voidhash authentication."),
-  Command.withSubcommands([loginCommand, logoutCommand, authStatusCommand])
+  Command.withSubcommands([loginCommand, logoutCommand, authStatusCommand]),
 );

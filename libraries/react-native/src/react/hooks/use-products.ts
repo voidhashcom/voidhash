@@ -8,7 +8,7 @@ import useAsyncFunction from "./use-async-function";
 
 export function productsHookFactory(
   client: VoidhashClient,
-  vhContext: React.Context<VoidhashContext | null>
+  vhContext: React.Context<VoidhashContext | null>,
 ) {
   function useProducts() {
     const voidhashContext = React.useContext(vhContext);
@@ -29,21 +29,21 @@ export function productsHookFactory(
           return null;
         }
         // ProductSlug is `string` at runtime; the index access is safe.
-        return (products as Record<string, SubscriptionProduct | null>)[
-          String(productSlug)
-        ] ?? null;
+        return (
+          (products as Record<string, SubscriptionProduct | null>)[String(productSlug)] ?? null
+        );
       },
-      [products]
+      [products],
     );
 
     const toList = useCallback(
       (): SubscriptionProduct[] =>
         products
           ? (Object.values(products) as Array<SubscriptionProduct | null>).filter(
-              (product): product is SubscriptionProduct => product !== null
+              (product): product is SubscriptionProduct => product !== null,
             )
           : [],
-      [products]
+      [products],
     );
 
     const data = useMemo(
@@ -52,7 +52,7 @@ export function productsHookFactory(
         get: getProduct,
         toList,
       }),
-      [products, getProduct, toList]
+      [products, getProduct, toList],
     );
 
     return {

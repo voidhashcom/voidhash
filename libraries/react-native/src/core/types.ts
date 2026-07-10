@@ -53,12 +53,12 @@ export type MaybeUrl = string | URL;
  */
 export type FetchEsque = (
   input: RequestInfo | MaybeUrl,
-  init?: RequestInit | RequestInitEsque
+  init?: RequestInit | RequestInitEsque,
 ) => Promise<ResponseEsque>;
 
 // API
-export interface CustomerResponse {
-  customerId: string;
+export interface PersonResponse {
+  personId: string;
   name: null;
   email: null;
   distinctId: null;

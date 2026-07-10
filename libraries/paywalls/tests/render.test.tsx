@@ -16,21 +16,18 @@ import {
 } from "../src/index";
 
 const Card = defineComponent({
-  id: "card",
   props: (p) => ({
     title: p.string().label("Title").default("Untitled"),
   }),
   render: ({ props }) => (
-    <View style={{ padding: 16 }}>
+    <View style={{ paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16 }}>
       <Text>Card {props.title}</Text>
       <Slot />
     </View>
   ),
 }).component;
 
-const collectingBridge = (
-  posted: PaywallOutboundEnvelope[],
-): PaywallBridge => ({
+const collectingBridge = (posted: PaywallOutboundEnvelope[]): PaywallBridge => ({
   post: (envelope) => {
     posted.push(envelope);
   },
@@ -44,7 +41,7 @@ describe("DOM paywall rendering", () => {
     const paywall = createPaywall({
       title: "Onboarding",
       render: (
-        <View style={{ paddingHorizontal: 24 }}>
+        <View style={{ paddingLeft: 24, paddingRight: 24 }}>
           <Pressable>
             <Text>Hello World</Text>
           </Pressable>
@@ -80,9 +77,7 @@ describe("DOM paywall rendering", () => {
       title: "Override",
       render: <Card title="Pro" />,
     });
-    expect(
-      renderToStaticMarkup(<PaywallRenderer paywall={paywall} />),
-    ).toContain("Card Pro");
+    expect(renderToStaticMarkup(<PaywallRenderer paywall={paywall} />)).toContain("Card Pro");
   });
 
   it("exposes runtime products and variables through hooks", () => {
@@ -91,8 +86,7 @@ describe("DOM paywall rendering", () => {
       const variables = usePaywallVariables();
       return (
         <Text>
-          {products.map((product) => product.displayName).join(",")}|
-          {String(variables.accentColor)}
+          {products.map((product) => product.displayName).join(",")}|{String(variables.accentColor)}
         </Text>
       );
     };
@@ -137,9 +131,7 @@ describe("DOM paywall rendering", () => {
   it("accepts an injected bridge (no envelopes from a static render)", () => {
     const posted: PaywallOutboundEnvelope[] = [];
     const paywall = createPaywall({ title: "Bridge", render: <View /> });
-    renderToStaticMarkup(
-      <PaywallRenderer bridge={collectingBridge(posted)} paywall={paywall} />,
-    );
+    renderToStaticMarkup(<PaywallRenderer bridge={collectingBridge(posted)} paywall={paywall} />);
     // Static SSR runs no effects, so `ready` is not announced here; the
     // mount-time behaviour is covered by the tree renderer tests.
     expect(posted).toEqual([]);

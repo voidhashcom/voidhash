@@ -69,20 +69,13 @@ ERROR_CODE: descriptive message
 ### In TypeScript/JavaScript
 
 ```typescript
-import {
-  VoidhashError,
-  createNativeErrorMessage,
-  parseNativeError,
-} from "./core/errors";
+import { VoidhashError, createNativeErrorMessage, parseNativeError } from "./core/errors";
 
 // Creating errors
 throw new VoidhashError("INVALID_PRODUCT_ID", originalError);
 
 // Creating native error messages
-const errorMessage = createNativeErrorMessage(
-  "PURCHASE_FAILED",
-  "Additional context"
-);
+const errorMessage = createNativeErrorMessage("PURCHASE_FAILED", "Additional context");
 
 // Parsing native error messages
 const error = parseNativeError("PURCHASE_FAILED: Purchase operation failed");

@@ -14,23 +14,18 @@ describe("CacheManager", () => {
   it("returns value and metadata for set/get", async () => {
     const cache = createInMemoryCacheAdapter();
     const runtime = ManagedRuntime.make(
-      pipe(
-        CacheManager.Default,
-        Layer.provideMerge(Layer.succeed(CacheAdapter, cache.adapter))
-      )
+      pipe(CacheManager.Default, Layer.provideMerge(Layer.succeed(CacheAdapter, cache.adapter))),
     );
 
     try {
       await runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
-          manager.set("customer:1", { id: "1" }, { staleTime: 1000, ttl: 1000 })
-        )
+        Effect.flatMap(CacheManager, (manager) =>
+          manager.set("person:1", { id: "1" }, { staleTime: 1000, ttl: 1000 }),
+        ),
       );
 
       const result = await runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
-          manager.get<{ id: string }>("customer:1")
-        )
+        Effect.flatMap(CacheManager, (manager) => manager.get<{ id: string }>("person:1")),
       );
 
       expect(result).not.toBeNull();
@@ -46,28 +41,23 @@ describe("CacheManager", () => {
   it("returns null and deletes expired entries", async () => {
     const cache = createInMemoryCacheAdapter();
     const runtime = ManagedRuntime.make(
-      pipe(
-        CacheManager.Default,
-        Layer.provideMerge(Layer.succeed(CacheAdapter, cache.adapter))
-      )
+      pipe(CacheManager.Default, Layer.provideMerge(Layer.succeed(CacheAdapter, cache.adapter))),
     );
 
     try {
       await runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
-          manager.set("customer:expired", { id: "expired" }, { ttl: 1 })
-        )
+        Effect.flatMap(CacheManager, (manager) =>
+          manager.set("person:expired", { id: "expired" }, { ttl: 1 }),
+        ),
       );
       await wait(5);
 
       const result = await runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
-          manager.get<{ id: string }>("customer:expired")
-        )
+        Effect.flatMap(CacheManager, (manager) => manager.get<{ id: string }>("person:expired")),
       );
 
       expect(result).toBeNull();
-      expect(cache.store.has("customer:expired")).toBe(false);
+      expect(cache.store.has("person:expired")).toBe(false);
     } finally {
       await runtime.dispose();
     }
@@ -76,24 +66,19 @@ describe("CacheManager", () => {
   it("marks stale entries as stale while still returning value", async () => {
     const cache = createInMemoryCacheAdapter();
     const runtime = ManagedRuntime.make(
-      pipe(
-        CacheManager.Default,
-        Layer.provideMerge(Layer.succeed(CacheAdapter, cache.adapter))
-      )
+      pipe(CacheManager.Default, Layer.provideMerge(Layer.succeed(CacheAdapter, cache.adapter))),
     );
 
     try {
       await runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
-          manager.set("customer:stale", { id: "stale" }, { staleTime: 1, ttl: 1000 })
-        )
+        Effect.flatMap(CacheManager, (manager) =>
+          manager.set("person:stale", { id: "stale" }, { staleTime: 1, ttl: 1000 }),
+        ),
       );
       await wait(5);
 
       const result = await runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
-          manager.get<{ id: string }>("customer:stale")
-        )
+        Effect.flatMap(CacheManager, (manager) => manager.get<{ id: string }>("person:stale")),
       );
 
       expect(result).not.toBeNull();
@@ -108,31 +93,24 @@ describe("CacheManager", () => {
   it("clear removes tracked keys and cache index", async () => {
     const cache = createInMemoryCacheAdapter();
     const runtime = ManagedRuntime.make(
-      pipe(
-        CacheManager.Default,
-        Layer.provideMerge(Layer.succeed(CacheAdapter, cache.adapter))
-      )
+      pipe(CacheManager.Default, Layer.provideMerge(Layer.succeed(CacheAdapter, cache.adapter))),
     );
 
     try {
       await runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) =>
-          Effect.all([
-            manager.set("k1", "v1"),
-            manager.set("k2", "v2"),
-            manager.clear(),
-          ])
-        )
+        Effect.flatMap(CacheManager, (manager) =>
+          Effect.all([manager.set("k1", "v1"), manager.set("k2", "v2"), manager.clear()]),
+        ),
       );
 
       const keys = await runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.getCacheKeys())
+        Effect.flatMap(CacheManager, (manager) => manager.getCacheKeys()),
       );
       const k1 = await runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.get<string>("k1"))
+        Effect.flatMap(CacheManager, (manager) => manager.get<string>("k1")),
       );
       const k2 = await runtime.runPromise(
-        Effect.flatMap(CacheManager.asEffect(), (manager) => manager.get<string>("k2"))
+        Effect.flatMap(CacheManager, (manager) => manager.get<string>("k2")),
       );
 
       expect(keys).toEqual([]);

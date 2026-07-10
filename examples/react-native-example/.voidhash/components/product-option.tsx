@@ -1,10 +1,4 @@
-import {
-  defineComponent,
-  type PaywallProduct,
-  Pressable,
-  Text,
-  View,
-} from "@voidhash/paywalls";
+import { defineComponent, type PaywallProduct, Pressable, Text, View } from "@voidhash/paywalls";
 
 const yearlyFixture: PaywallProduct = {
   currencyCode: "USD",
@@ -42,12 +36,8 @@ export default defineComponent({
       onPress={() => actions.onSelect({ productId: props.product.id })}
       style={{
         alignItems: "center",
-        backgroundColor: props.selected
-          ? "rgba(255,255,255,0.10)"
-          : "transparent",
-        borderColor: props.selected
-          ? props.accentColor
-          : "rgba(255,255,255,0.15)",
+        backgroundColor: props.selected ? "rgba(255,255,255,0.10)" : "transparent",
+        borderColor: props.selected ? props.accentColor : "rgba(255,255,255,0.15)",
         borderRadius: 16,
         borderWidth: 2,
         flexDirection: "row",

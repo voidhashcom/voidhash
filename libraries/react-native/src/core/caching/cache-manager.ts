@@ -1,4 +1,4 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 
 import { CacheAdapter } from "./cache-adapter";
 
@@ -24,12 +24,8 @@ const make = Effect.gen(function* effect() {
       if (cachedValue) {
         const cacheHit = JSON.parse(cachedValue) as CacheEnvelope<T>;
 
-        const isExpired = cacheHit.expiresAt
-          ? cacheHit.expiresAt < Date.now()
-          : false;
-        const isStale = cacheHit.staleAt
-          ? cacheHit.staleAt < Date.now()
-          : false;
+        const isExpired = cacheHit.expiresAt ? cacheHit.expiresAt < Date.now() : false;
+        const isStale = cacheHit.staleAt ? cacheHit.staleAt < Date.now() : false;
 
         if (isExpired) {
           yield* deleteValue(key);
@@ -45,22 +41,16 @@ const make = Effect.gen(function* effect() {
       return null;
     });
 
-  const setValue = <T>(
-    key: string,
-    value: T,
-    options?: { ttl?: number; staleTime?: number }
-  ) =>
+  const setValue = <T>(key: string, value: T, options?: { ttl?: number; staleTime?: number }) =>
     Effect.all([
       cache.set(
         key,
         JSON.stringify({
           createdAt: Date.now(),
           expiresAt: options?.ttl ? Date.now() + options.ttl : null,
-          staleAt: options?.staleTime
-            ? Date.now() + options.staleTime
-            : null,
+          staleAt: options?.staleTime ? Date.now() + options.staleTime : null,
           value,
-        } satisfies CacheEnvelope<T>)
+        } satisfies CacheEnvelope<T>),
       ),
       storeCacheKey(key),
     ]);
@@ -104,6 +94,8 @@ const make = Effect.gen(function* effect() {
   } as const;
 });
 
-export class CacheManager extends ServiceMap.Service<CacheManager, Effect.Success<typeof make>>()("rn-voidhash/CacheManager") {
-  static Default = Layer.effect(CacheManager, make)
+export class CacheManager extends Context.Service<CacheManager, Effect.Success<typeof make>>()(
+  "rn-voidhash/CacheManager",
+) {
+  static Default = Layer.effect(CacheManager, make);
 }

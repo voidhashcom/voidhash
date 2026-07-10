@@ -1,4 +1,4 @@
-import type { SdkPerson as SdkCustomer } from "@voidhash/generated-clients";
+import type { SdkPerson } from "@voidhash/generated-clients";
 import { Effect, Layer, ManagedRuntime, pipe } from "effect";
 import { FetchHttpClient } from "effect/unstable/http";
 import { AtomRegistry } from "effect/unstable/reactivity";
@@ -7,8 +7,8 @@ import { CacheAdapter } from "../../src/core/caching/cache-adapter";
 import { CacheManager } from "../../src/core/caching/cache-manager";
 import { Product, type SubscriptionProduct } from "../../src/core/entities/product";
 import { Transaction } from "../../src/core/entities/transaction";
-import { CustomerAttributeManager } from "../../src/core/identity/customer-attribute-manager";
-import { CustomerInfoManager } from "../../src/core/identity/customer-info-manager";
+import { PersonAttributeManager } from "../../src/core/identity/person-attribute-manager";
+import { PersonInfoManager } from "../../src/core/identity/person-info-manager";
 import { IdentityManager } from "../../src/core/identity/identity-manager";
 import { AnalyticsService } from "../../src/core/analytics/service";
 import { FeatureFlagService } from "../../src/core/feature-flags/feature-flag-service";
@@ -41,38 +41,44 @@ export type ApiSdkCall = {
 
 export interface ApiClientDoubleState {
   readonly evaluateFeatureFlagsCalls: ApiSdkCall[];
-  readonly getCustomerCalls: ApiSdkCall[];
+  readonly getPersonCalls: ApiSdkCall[];
   readonly getSchemaCalls: ApiSdkCall[];
   readonly identifyCalls: ApiSdkCall[];
-  readonly syncCustomerAttributesCalls: ApiSdkCall[];
+  readonly syncPersonAttributesCalls: ApiSdkCall[];
   readonly syncTransactionCalls: ApiSdkCall[];
 }
 
 export interface ApiClientDoubleOptions {
   evaluateFeatureFlagsResult?: FeatureFlagsResult;
-  getCustomerResult?: SdkCustomer;
+  getPersonResult?: SdkPerson;
+  /**
+   * Simulate the server's `GET /sdk/person` 404 for a not-yet-persisted
+   * person (the `ApiSdkPersonNotFoundError` the generated client surfaces).
+   */
+  getPersonShouldNotFound?: boolean;
   getSchemaResult?: ReturnType<typeof createTestSchema>;
   getSchemaShouldFail?: boolean;
-  identifyResult?: SdkCustomer;
+  identifyResult?: SdkPerson;
+  syncPersonAttributesResult?: SdkPerson;
   syncTransactionShouldFail?: boolean;
 }
 
-export function createSdkCustomer(distinctId: string) {
+export function createSdkPerson(distinctId: string) {
   return {
     distinctId,
     personId: `person-${distinctId}`,
     email: null,
     name: null,
-  } as SdkCustomer;
+  } as SdkPerson;
 }
 
 export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
   const state: ApiClientDoubleState = {
     evaluateFeatureFlagsCalls: [],
-    getCustomerCalls: [],
+    getPersonCalls: [],
     getSchemaCalls: [],
     identifyCalls: [],
-    syncCustomerAttributesCalls: [],
+    syncPersonAttributesCalls: [],
     syncTransactionCalls: [],
   };
 
@@ -97,27 +103,33 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
                 variantKey: "on",
               },
             ],
-          }
+          },
         );
       },
-      getCustomer: (request: ApiSdkCall) => {
-        state.getCustomerCalls.push(request);
+      getPerson: (request: ApiSdkCall) => {
+        state.getPersonCalls.push(request);
+        if (options.getPersonShouldNotFound) {
+          return Effect.fail({
+            _tag: "ApiSdkPersonNotFoundError",
+            message: JSON.stringify({
+              _tag: "Api/SdkPersonNotFoundError",
+              message: "Person not found",
+            }),
+          });
+        }
         const distinctId = String(request.headers["x-distinct-id"]);
-        return Effect.succeed(
-          options.getCustomerResult ?? createSdkCustomer(distinctId)
-        );
+        return Effect.succeed(options.getPersonResult ?? createSdkPerson(distinctId));
       },
       identify: (request: ApiSdkCall) => {
         state.identifyCalls.push(request);
         const distinctId = String(request.payload?.distinctId ?? "identified-user");
-        return Effect.succeed(
-          options.identifyResult ?? createSdkCustomer(distinctId)
-        );
+        return Effect.succeed(options.identifyResult ?? createSdkPerson(distinctId));
       },
       resolvePaywall: () => Effect.succeed(null),
-      syncCustomerAttributes: (request: ApiSdkCall) => {
-        state.syncCustomerAttributesCalls.push(request);
-        return Effect.void;
+      syncPersonAttributes: (request: ApiSdkCall) => {
+        state.syncPersonAttributesCalls.push(request);
+        const distinctId = String(request.headers["x-distinct-id"]);
+        return Effect.succeed(options.syncPersonAttributesResult ?? createSdkPerson(distinctId));
       },
       syncTransaction: (request: ApiSdkCall) => {
         state.syncTransactionCalls.push(request);
@@ -152,9 +164,7 @@ export interface PaymentAdapterDoubleOptions {
   products?: Product[];
 }
 
-export function createPaymentAdapterDouble(
-  options: PaymentAdapterDoubleOptions = {}
-) {
+export function createPaymentAdapterDouble(options: PaymentAdapterDoubleOptions = {}) {
   const state: PaymentAdapterDoubleState = {
     acknowledgePurchaseCalls: [],
     buyProductCalls: [],
@@ -173,23 +183,14 @@ export function createPaymentAdapterDouble(
       state.buyProductCalls.push(product);
       return Effect.succeed(
         options.buyProductTransaction ??
-          new Transaction(
-            "tx-id",
-            "tx-id",
-            product.slug,
-            Date.now(),
-            1,
-            false,
-            "ios"
-          )
+          new Transaction("tx-id", "tx-id", product.slug, Date.now(), 1, false, "ios"),
       );
     },
     endConnection: () => {
       state.endConnectionCalls += 1;
       return Effect.void;
     },
-    getPendingTransactions: () =>
-      Effect.succeed(options.pendingTransactions ?? []),
+    getPendingTransactions: () => Effect.succeed(options.pendingTransactions ?? []),
     getProducts: () => {
       state.getProductsCalls += 1;
       return Effect.succeed(options.products ?? []);
@@ -277,7 +278,7 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
   const lifecycle = options.lifecycleAdapter ?? createLifecycleAdapterDouble();
 
   const baseLayer = pipe(
-    CustomerAttributeManager.Default,
+    PersonAttributeManager.Default,
     Layer.provideMerge(ProductService.layer),
     Layer.provideMerge(FeatureFlagService.layer),
     Layer.provideMerge(PaywallService.layer),
@@ -285,27 +286,22 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
     Layer.provideMerge(AnalyticsService.layer),
     Layer.provideMerge(LifecycleService.layer),
     Layer.provideMerge(Layer.succeed(LifecycleAdapter, lifecycle.adapter)),
-    Layer.provideMerge(CustomerInfoManager.Default),
+    Layer.provideMerge(PersonInfoManager.Default),
     Layer.provideMerge(SchemaManager.layer),
     Layer.provideMerge(IdentityManager.Default),
     Layer.provideMerge(CacheManager.Default),
     Layer.provideMerge(Layer.succeed(CacheAdapter, options.cacheAdapter)),
-    Layer.provideMerge(
-      Layer.succeed(ApiClient, options.apiClient as typeof ApiClient.Service)
-    ),
+    Layer.provideMerge(Layer.succeed(ApiClient, options.apiClient as typeof ApiClient.Service)),
     Layer.provideMerge(FetchHttpClient.layer),
     Layer.provideMerge(
-      Layer.succeed(
-        PaymentAdapter,
-        options.paymentAdapter as typeof PaymentAdapter.Service
-      )
+      Layer.succeed(PaymentAdapter, options.paymentAdapter as typeof PaymentAdapter.Service),
     ),
     Layer.provideMerge(Layer.succeed(AtomRegistry.AtomRegistry, atomRegistry)),
     Layer.provideMerge(
       Layer.succeed(PlatformProvider, {
         ...defaultPlatformInfo,
         ...options.platform,
-      })
+      }),
     ),
     Layer.provideMerge(
       Layer.succeed(SdkConfiguration, {
@@ -314,14 +310,11 @@ export function createEffectTestHarness(options: EffectTestHarnessOptions) {
         ingestUrl: options.ingestUrl,
         publishableKey: options.publishableKey ?? "pk_test",
         readOnly: options.readOnly ?? false,
-      })
-    )
+      }),
+    ),
   );
   const layer = options.fetch
-    ? pipe(
-        baseLayer,
-        Layer.provideMerge(Layer.succeed(FetchHttpClient.Fetch, options.fetch))
-      )
+    ? pipe(baseLayer, Layer.provideMerge(Layer.succeed(FetchHttpClient.Fetch, options.fetch)))
     : baseLayer;
 
   return {

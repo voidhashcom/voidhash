@@ -178,7 +178,7 @@ export function sortChangeset(changeset: typeof ChangesetSchema.Type) {
   const sortedChangeset = [...changeset.changes].sort(
     (a, b) =>
       sortedChangeTypesByPriority.indexOf(a.changeType) -
-      sortedChangeTypesByPriority.indexOf(b.changeType)
+      sortedChangeTypesByPriority.indexOf(b.changeType),
   );
 
   return sortedChangeset;

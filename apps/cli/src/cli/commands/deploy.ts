@@ -2,10 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Console, Effect, Path } from "effect";
 import { Command, Flag } from "effect/unstable/cli";
-import {
-  type BuildPaywallsResult,
-  buildPaywalls,
-} from "../../domain/services/paywall-build";
+import { type BuildPaywallsResult, buildPaywalls } from "../../domain/services/paywall-build";
 import {
   type UploadPaywallDeployResult,
   uploadPaywallDeploy,
@@ -55,9 +52,7 @@ const reportDeploy = (result: UploadPaywallDeployResult) =>
     if (result.finalize.paywalls.length > 0) {
       yield* Console.log("\nPaywalls:");
       for (const paywall of result.finalize.paywalls) {
-        yield* Console.log(
-          `  • ${paywall.id}  v${paywall.version}\n      ${paywall.url}`,
-        );
+        yield* Console.log(`  • ${paywall.id}  v${paywall.version}\n      ${paywall.url}`);
       }
     }
     if (result.finalize.components.length > 0) {
@@ -94,9 +89,7 @@ export const deployCommand = Command.make(
         .pipe(
           Effect.catchTag("VoidhashConfigNotFoundError", () =>
             Effect.fail(
-              userError(
-                "voidhash.config.ts not found. Run 'voidhash-cli init' to create one.",
-              ),
+              userError("voidhash.config.ts not found. Run 'voidhash-cli init' to create one."),
             ),
           ),
         );
@@ -112,21 +105,14 @@ export const deployCommand = Command.make(
           const entry = require.resolve("@voidhash/paywalls", {
             paths: [projectRoot],
           });
-          for (
-            let dir = dirname(entry);
-            dir !== dirname(dir);
-            dir = dirname(dir)
-          ) {
+          for (let dir = dirname(entry); dir !== dirname(dir); dir = dirname(dir)) {
             const pkgPath = join(dir, "package.json");
             if (existsSync(pkgPath)) {
               const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as {
                 name?: string;
                 version?: string;
               };
-              if (
-                pkg.name === "@voidhash/paywalls" &&
-                typeof pkg.version === "string"
-              ) {
+              if (pkg.name === "@voidhash/paywalls" && typeof pkg.version === "string") {
                 return pkg.version;
               }
             }
@@ -147,9 +133,7 @@ export const deployCommand = Command.make(
         team: config.team,
       }).pipe(
         Effect.catchTag("PaywallBuildError", (e) =>
-          Effect.fail(userError(e.message)).pipe(
-            Effect.tapError(() => Effect.logDebug(e.cause)),
-          ),
+          Effect.fail(userError(e.message)).pipe(Effect.tapError(() => Effect.logDebug(e.cause))),
         ),
       );
 
@@ -168,9 +152,7 @@ export const deployCommand = Command.make(
         projectRoot,
       }).pipe(
         Effect.catchTag("PaywallDeployUploadError", (e) =>
-          Effect.fail(userError(e.message)).pipe(
-            Effect.tapError(() => Effect.logDebug(e.cause)),
-          ),
+          Effect.fail(userError(e.message)).pipe(Effect.tapError(() => Effect.logDebug(e.cause))),
         ),
       );
 

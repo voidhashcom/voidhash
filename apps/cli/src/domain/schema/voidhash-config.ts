@@ -19,8 +19,6 @@ export const VoidhashConfigSchema = Schema.Struct({
 /**
  * Resolve `typesOutput` from a loaded config, applying the default.
  */
-export function resolveTypesOutput(
-  config: typeof VoidhashConfigSchema.Type
-): string {
+export function resolveTypesOutput(config: typeof VoidhashConfigSchema.Type): string {
   return config.typesOutput ?? DEFAULT_TYPES_OUTPUT;
 }

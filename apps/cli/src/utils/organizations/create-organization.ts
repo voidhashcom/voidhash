@@ -19,26 +19,22 @@ export const createOrganization = () =>
   Effect.gen(function* createOrganization() {
     const client = yield* ApiClient;
 
-    const attemptToCreateOrganization = Effect.gen(
-      function* attemptToCreateOrganization() {
-        const name = yield* Prompt.run(
-          Prompt.text({
-            message: "Enter a name for the organization",
-            validate: (value) => validateOrganizationName(value),
-          })
-        );
+    const attemptToCreateOrganization = Effect.gen(function* attemptToCreateOrganization() {
+      const name = yield* Prompt.run(
+        Prompt.text({
+          message: "Enter a name for the organization",
+          validate: (value) => validateOrganizationName(value),
+        }),
+      );
 
-        const organization = yield* client.organizationsCreateOrganization({
-          name,
-        });
+      const organization = yield* client.organizationsCreateOrganization({
+        name,
+      });
 
-        yield* Console.log(
-          `Successfully created organization ${organization.name}`
-        );
+      yield* Console.log(`Successfully created organization ${organization.name}`);
 
-        return organization;
-      }
-    );
+      return organization;
+    });
 
     return yield* attemptToCreateOrganization;
   });

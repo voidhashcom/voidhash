@@ -20,7 +20,7 @@ export class Product {
     price: number,
     currency: string,
     type: string,
-    platform: "ios" | "android"
+    platform: "ios" | "android",
   ) {
     this.id = id;
     this.slug = slug;
@@ -49,20 +49,9 @@ export class SubscriptionProduct extends Product {
     currency: string,
     type: string,
     platform: "ios" | "android",
-    interval: string
+    interval: string,
   ) {
-    super(
-      id,
-      slug,
-      name,
-      description,
-      displayName,
-      displayPrice,
-      price,
-      currency,
-      type,
-      platform
-    );
+    super(id, slug, name, description, displayName, displayPrice, price, currency, type, platform);
     this.interval = interval;
   }
 }

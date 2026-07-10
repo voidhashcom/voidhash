@@ -13,9 +13,7 @@ export class FailedToFetchSchemaError extends VoidhashError {}
 
 export class NotInitializedError extends VoidhashError {
   constructor() {
-    super(
-      "Voidhash Client was not initialized. Call init() before calling this method."
-    );
+    super("Voidhash Client was not initialized. Call init() before calling this method.");
   }
 }
 
@@ -42,9 +40,7 @@ export class PurchaseCancelledError extends VoidhashError {}
 
 export class ReadOnlyModePurchaseNotAllowedError extends VoidhashError {
   constructor() {
-    super(
-      "Read-only mode is enabled. Purchasing is disabled for observer-only operation."
-    );
+    super("Read-only mode is enabled. Purchasing is disabled for observer-only operation.");
   }
 }
 

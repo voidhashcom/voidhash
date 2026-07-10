@@ -21,43 +21,41 @@ export interface NativeEvent<TEvent> {
 }
 
 export type PaywallWebViewNavigationEventHandler = (
-  event: NativeEvent<PaywallWebViewNavigationEvent>
+  event: NativeEvent<PaywallWebViewNavigationEvent>,
 ) => void;
 
 export type PaywallWebViewProgressEventHandler = (
-  event: NativeEvent<PaywallWebViewProgressEvent>
+  event: NativeEvent<PaywallWebViewProgressEvent>,
 ) => void;
 
 export type PaywallWebViewMessageEventHandler = (
-  event: NativeEvent<PaywallWebViewMessageEvent>
+  event: NativeEvent<PaywallWebViewMessageEvent>,
 ) => void;
 
 export type PaywallWebViewErrorEventHandler = (
-  event: NativeEvent<PaywallWebViewErrorEvent>
+  event: NativeEvent<PaywallWebViewErrorEvent>,
 ) => void;
 
 export type PaywallWebViewHttpErrorEventHandler = (
-  event: NativeEvent<PaywallWebViewHttpErrorEvent>
+  event: NativeEvent<PaywallWebViewHttpErrorEvent>,
 ) => void;
 
 export type PaywallWebViewOpenWindowEventHandler = (
-  event: NativeEvent<PaywallWebViewOpenWindowEvent>
+  event: NativeEvent<PaywallWebViewOpenWindowEvent>,
 ) => void;
 
 export type PaywallWebViewFileDownloadEventHandler = (
-  event: NativeEvent<PaywallWebViewFileDownloadEvent>
+  event: NativeEvent<PaywallWebViewFileDownloadEvent>,
 ) => void;
 
 export type PaywallWebViewRenderProcessGoneEventHandler = (
-  event: NativeEvent<PaywallWebViewRenderProcessGoneEvent>
+  event: NativeEvent<PaywallWebViewRenderProcessGoneEvent>,
 ) => void;
 
-export type PaywallWebViewBaseEventHandler = (
-  event: NativeEvent<PaywallWebViewBaseEvent>
-) => void;
+export type PaywallWebViewBaseEventHandler = (event: NativeEvent<PaywallWebViewBaseEvent>) => void;
 
 export type PaywallWebViewShouldStartLoadWithRequest = (
-  event: PaywallWebViewShouldStartLoadRequest
+  event: PaywallWebViewShouldStartLoadRequest,
 ) => boolean;
 
 export interface PaywallWebViewImperativeRef {
@@ -134,9 +132,5 @@ export interface PaywallWebViewProps {
 
   startInLoadingState?: boolean;
   renderLoading?: () => ReactElement;
-  renderError?: (
-    domain: string | undefined,
-    code: number,
-    description: string
-  ) => ReactElement;
+  renderError?: (domain: string | undefined, code: number, description: string) => ReactElement;
 }

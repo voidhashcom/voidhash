@@ -4,6 +4,11 @@
   "private": true,
   "description": "Voidhash paywall preview studio (Vite app launched by the CLI).",
   "license": "MIT",
+  "files": [
+    "src",
+    "index.html",
+    "vite.config.ts"
+  ],
   "type": "module",
   "exports": {
     "./package.json": "./package.json",
@@ -11,11 +16,6 @@
       "import": "./src/server/index.ts"
     }
   },
-  "files": [
-    "src",
-    "index.html",
-    "vite.config.ts"
-  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",

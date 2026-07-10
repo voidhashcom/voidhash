@@ -8,7 +8,7 @@ interface ReactNativeAppState {
   readonly currentState?: AppLifecycleState;
   addEventListener: (
     eventType: "change",
-    listener: (nextState: AppLifecycleState) => void
+    listener: (nextState: AppLifecycleState) => void,
   ) => LifecycleSubscription;
 }
 

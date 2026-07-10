@@ -13,7 +13,7 @@ import {
   type InferComponentProps,
   type InferExternalProps,
   type InferProps,
-  type PAYWALL_STYLE_KEYS,
+  type PAYWALL_STYLE_KEY_LIST,
   type PaywallProduct,
   type PaywallStyle,
   type ScrollViewProps,
@@ -68,6 +68,34 @@ describe("PropBuilder.editor() (contract §2: string props only)", () => {
   });
 });
 
+describe("PropBuilder.localizable() (contract §2: string/image props only)", () => {
+  it("is callable on string/image builders and uncallable on every other kind", () => {
+    // Callable on both localizable kinds.
+    expectTypeOf(p.string().localizable()).not.toBeNever();
+    expectTypeOf(p.image().localizable()).not.toBeNever();
+
+    // Chaining keeps working in any order and preserves the concrete kind, so
+    // string-only `.editor()` still resolves after `.localizable()`.
+    expectTypeOf(p.string().localizable().label("Title").default("Hi")).not.toBeNever();
+    expectTypeOf(p.string().label("Title").localizable()).not.toBeNever();
+    expectTypeOf(p.string().localizable().editor("color")).not.toBeNever();
+    expectTypeOf(p.image().default("https://cdn.test/x.png").localizable()).not.toBeNever();
+
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.number().localizable();
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.boolean().localizable();
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.select(["a", "b"]).localizable();
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.ref("product").localizable();
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.component().localizable();
+    // @ts-expect-error localizable() is a string/image-only marker
+    p.array(p.string()).localizable();
+  });
+});
+
 describe("InferProps (template-facing)", () => {
   it("infers value types and optionality", () => {
     expectTypeOf<Props["required"]>().toEqualTypeOf<string>();
@@ -112,19 +140,14 @@ describe("InferActions", () => {
     expectTypeOf<ComponentProps["onSelect"]>().toEqualTypeOf<
       ((payload: { productId: string; index: number }) => void) | undefined
     >();
-    expectTypeOf<ComponentProps["onDismiss"]>().toEqualTypeOf<
-      (() => void) | undefined
-    >();
-    expectTypeOf<ComponentProps["children"]>().toEqualTypeOf<
-      ReactNode | undefined
-    >();
+    expectTypeOf<ComponentProps["onDismiss"]>().toEqualTypeOf<(() => void) | undefined>();
+    expectTypeOf<ComponentProps["children"]>().toEqualTypeOf<ReactNode | undefined>();
   });
 });
 
 describe("defineComponent end-to-end typing", () => {
   it("types the render context and the produced component", () => {
     const definition = defineComponent({
-      id: "typed",
       props: () => propMap,
       actions: () => actionMap,
       render: ({ props, actions }) => {
@@ -138,15 +161,13 @@ describe("defineComponent end-to-end typing", () => {
       },
     });
 
-    expectTypeOf(definition.component)
-      .parameter(0)
-      .toEqualTypeOf<ComponentProps>();
+    expectTypeOf(definition.component).parameter(0).toEqualTypeOf<ComponentProps>();
   });
 });
 
 describe("PaywallStyle subset", () => {
-  it("PAYWALL_STYLE_KEYS covers every PaywallStyle key", () => {
-    type Listed = (typeof PAYWALL_STYLE_KEYS)[number];
+  it("PAYWALL_STYLE_KEY_LIST covers every PaywallStyle key", () => {
+    type Listed = (typeof PAYWALL_STYLE_KEY_LIST)[number];
     expectTypeOf<Exclude<keyof PaywallStyle, Listed>>().toEqualTypeOf<never>();
     expectTypeOf<Exclude<Listed, keyof PaywallStyle>>().toEqualTypeOf<never>();
   });

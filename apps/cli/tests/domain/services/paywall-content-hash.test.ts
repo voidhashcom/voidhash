@@ -8,8 +8,7 @@ import {
   sha256Hex,
 } from "../../../src/domain/services/paywall-build";
 
-const digest = (input: string): string =>
-  createHash("sha256").update(input).digest("hex");
+const digest = (input: string): string => createHash("sha256").update(input).digest("hex");
 
 const h = sha256Hex("html");
 const j = sha256Hex("js");

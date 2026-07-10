@@ -2,6 +2,17 @@ export type VoidhashTraitValue = string | number | boolean | null;
 
 export type VoidhashTraits = Record<string, VoidhashTraitValue>;
 
+/**
+ * Person attributes accepted by `setPersonAttributes` /
+ * `setPersonAttributesSync`. `email` and `name` are reserved fields; every
+ * other key is treated as a free-form person trait.
+ */
+export type VoidhashPersonAttributes = {
+  readonly email?: string;
+  readonly name?: string;
+  readonly [key: string]: VoidhashTraitValue | undefined;
+};
+
 export interface FeatureFlagEntry {
   readonly enabled: boolean;
   readonly key: string;
@@ -72,12 +83,7 @@ export interface AnalyticsPartialRejectionEvent extends AnalyticsFlushResult {}
 export interface VoidhashErrorEvent {
   readonly error?: unknown;
   readonly message: string;
-  readonly source:
-    | "analytics"
-    | "client"
-    | "feature-flags"
-    | "identity"
-    | "storage";
+  readonly source: "analytics" | "client" | "feature-flags" | "identity" | "storage";
 }
 
 export interface VoidhashEventMap {

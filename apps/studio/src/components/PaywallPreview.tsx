@@ -1,8 +1,4 @@
-import {
-  type PaywallBridge,
-  PaywallRenderer,
-  type PaywallRuntimeConfig,
-} from "@voidhash/paywalls";
+import { type PaywallBridge, PaywallRenderer, type PaywallRuntimeConfig } from "@voidhash/paywalls";
 import type { ReactNode } from "react";
 
 import type { PaywallEntry } from "../voidhash/paywalls";
@@ -19,18 +15,10 @@ export interface PaywallPreviewProps {
  * Renders the selected paywall inside the phone frame using the real
  * `@voidhash/paywalls` DOM renderer — the same code path that runs on a device.
  */
-export const PaywallPreview = ({
-  entry,
-  config,
-  bridge,
-}: PaywallPreviewProps): ReactNode => (
+export const PaywallPreview = ({ entry, config, bridge }: PaywallPreviewProps): ReactNode => (
   <PhoneFrame>
     <PreviewErrorBoundary key={entry.id}>
-      <PaywallRenderer
-        bridge={bridge}
-        config={config}
-        paywall={entry.definition}
-      />
+      <PaywallRenderer bridge={bridge} config={config} paywall={entry.definition} />
     </PreviewErrorBoundary>
   </PhoneFrame>
 );

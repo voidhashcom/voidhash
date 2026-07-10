@@ -12,9 +12,7 @@ export default defineComponent({
   }),
   render: ({ props }) => (
     <View style={{ gap: 8, padding: 16 }}>
-      <Text style={{ color: "white", fontSize: 18, fontWeight: "700" }}>
-        {props.title}
-      </Text>
+      <Text style={{ color: "white", fontSize: 18, fontWeight: "700" }}>{props.title}</Text>
       <Slot />
     </View>
   ),

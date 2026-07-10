@@ -1,7 +1,6 @@
-import type { HybridObject } from 'react-native-nitro-modules';
+import type { HybridObject } from "react-native-nitro-modules";
 
-export interface GoogleBillingPurchase
-  extends HybridObject<{ android: 'kotlin' }> {
+export interface GoogleBillingPurchase extends HybridObject<{ android: "kotlin" }> {
   readonly id: string;
   readonly ids: string[];
   readonly orderId?: string;

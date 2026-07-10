@@ -14,13 +14,7 @@ esbuild.buildSync({
   entryPoints: ["./src/cli/index.ts"],
   // These are resolved/launched at runtime (Studio's Vite app, the paywalls
   // runtime, Vite itself) — keep them out of the bundle.
-  external: [
-    "esbuild",
-    "@voidhash/studio",
-    "@voidhash/paywalls",
-    "vite",
-    "typescript",
-  ],
+  external: ["esbuild", "@voidhash/studio", "@voidhash/paywalls", "vite", "typescript"],
   format: "cjs",
   outfile: "dist/bin.cjs",
   platform: "node",
@@ -38,7 +32,7 @@ const main = async () => {
       if (ctx.format === "cjs") {
         return {
           dts: ".d.ts",
-          js: ".js",
+          js: ".cjs",
         };
       }
       return {

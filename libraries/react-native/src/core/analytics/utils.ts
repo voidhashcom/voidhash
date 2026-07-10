@@ -56,14 +56,14 @@ export const getAnalyticsStandardizedProperties = () => {
       Effect.orElseSucceed(() => {
         cached = fallbackProperties;
         return fallbackProperties;
-      })
+      }),
     );
 };
 
 export const mapQueuedAnalyticsEventToIngestEvent = (
   event: QueuedAnalyticsEvent,
   standardizedProperties: Record<string, unknown>,
-  sessionId: string
+  sessionId: string,
 ) => ({
   context: {},
   event_id: event.id,

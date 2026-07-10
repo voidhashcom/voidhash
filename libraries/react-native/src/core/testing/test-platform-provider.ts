@@ -1,9 +1,6 @@
 import { Layer } from "effect";
 
-import {
-  type PlatformInfo,
-  PlatformProvider,
-} from "../platform/platform-provider";
+import { type PlatformInfo, PlatformProvider } from "../platform/platform-provider";
 
 const defaultTestPlatformInfo: PlatformInfo = {
   appBuild: "100",
@@ -22,9 +19,7 @@ const defaultTestPlatformInfo: PlatformInfo = {
   systemVersion: "1.0.0",
 };
 
-export const ReactNativePlatformProvider = (
-  platformInfo: Partial<PlatformInfo> = {}
-) =>
+export const ReactNativePlatformProvider = (platformInfo: Partial<PlatformInfo> = {}) =>
   Layer.succeed(PlatformProvider, {
     ...defaultTestPlatformInfo,
     ...platformInfo,

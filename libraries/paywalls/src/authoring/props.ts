@@ -26,6 +26,7 @@ export interface PropSchema {
   readonly options?: ReadonlyArray<string>;
   readonly refType?: ManifestRefType;
   readonly item?: PropSchema;
+  readonly localizable?: boolean;
 }
 
 /**
@@ -83,6 +84,21 @@ export class PropBuilder<
     return new PropBuilder({ ...this.schema, editor });
   }
 
+  /**
+   * Marks the prop as translatable per locale. Only `"string"` and `"image"`
+   * props carry localizable content (contract §2) — the `this` constraint makes
+   * the method uncallable on any other prop kind. The returned builder keeps the
+   * receiver's concrete kind so later kind-specific chaining (e.g. string-only
+   * `.editor()`) still works.
+   */
+  localizable(
+    this: PropBuilder<T, Opt, Def, "string" | "image">,
+  ): PropBuilder<T, Opt, Def, K> {
+    // The returned builder preserves the receiver's concrete kind `K`, which the
+    // `this` constraint widens to the localizable union; the cast re-narrows it.
+    return new PropBuilder({ ...this.schema, localizable: true }) as PropBuilder<T, Opt, Def, K>;
+  }
+
   /** Marks the prop as omittable; the template receives `T | undefined`. */
   optional(): PropBuilder<T, true, Def, K> {
     return new PropBuilder({ ...this.schema, optional: true });
@@ -117,14 +133,9 @@ export interface PropFactory {
   /** A nested element the editor can fill. The template receives a ReactNode. */
   component(): PropBuilder<ReactNode, false, false, "component">;
   /** A homogeneous list. The item must be a non-array kind. */
-  array<
-    B extends PropBuilder<
-      unknown,
-      boolean,
-      boolean,
-      Exclude<PropKind, "array">
-    >,
-  >(item: B): PropBuilder<Array<B["__value"]>, false, false, "array">;
+  array<B extends PropBuilder<unknown, boolean, boolean, Exclude<PropKind, "array">>>(
+    item: B,
+  ): PropBuilder<Array<B["__value"]>, false, false, "array">;
 }
 
 export const propFactory: PropFactory = {
@@ -165,14 +176,7 @@ export const propFactory: PropFactory = {
       ...base("component"),
       kind: "component",
     }),
-  array: <
-    B extends PropBuilder<
-      unknown,
-      boolean,
-      boolean,
-      Exclude<PropKind, "array">
-    >,
-  >(
+  array: <B extends PropBuilder<unknown, boolean, boolean, Exclude<PropKind, "array">>>(
     item: B,
   ) => {
     // Type-level enforced; runtime guard covers untyped (plain JS) authors.
@@ -188,14 +192,7 @@ export const propFactory: PropFactory = {
 };
 
 /** The runtime value type of a prop builder. */
-export type PropValueOf<B> = B extends PropBuilder<
-  infer T,
-  boolean,
-  boolean,
-  PropKind
->
-  ? T
-  : never;
+export type PropValueOf<B> = B extends PropBuilder<infer T, boolean, boolean, PropKind> ? T : never;
 
 /**
  * The props object a component template receives: defaults are always filled

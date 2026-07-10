@@ -65,16 +65,13 @@ const PaywallRuntimeContext = createContext<PaywallRuntimeValue | null>(null);
 const useRuntimeOrThrow = (hook: string): PaywallRuntimeValue => {
   const value = useContext(PaywallRuntimeContext);
   if (!value) {
-    throw new Error(
-      `${hook} must be used inside a paywall rendered by @voidhash/paywalls.`,
-    );
+    throw new Error(`${hook} must be used inside a paywall rendered by @voidhash/paywalls.`);
   }
   return value;
 };
 
 let requestCounter = 0;
-const nextRequestId = (): string =>
-  `vh-${Date.now().toString(36)}-${++requestCounter}`;
+const nextRequestId = (): string => `vh-${Date.now().toString(36)}-${++requestCounter}`;
 
 const IDLE_STATUS: PaywallStatusSnapshot = { status: "idle" };
 
@@ -117,10 +114,7 @@ export const PaywallRuntimeProvider = ({
   bridge,
   children,
 }: PaywallRuntimeProviderProps): ReactNode => {
-  const resolvedBridge = useMemo(
-    () => bridge ?? createDefaultBridge(),
-    [bridge],
-  );
+  const resolvedBridge = useMemo(() => bridge ?? createDefaultBridge(), [bridge]);
 
   const [config, setConfig] = useState<PaywallRuntimeConfig>(
     () => configProp ?? readInjectedConfig(),
@@ -131,9 +125,7 @@ export const PaywallRuntimeProvider = ({
     }
   }, [configProp]);
 
-  const [explicitSelection, setExplicitSelection] = useState<
-    string | undefined
-  >(undefined);
+  const [explicitSelection, setExplicitSelection] = useState<string | undefined>(undefined);
   // An explicit user selection survives reconfiguration as long as the product
   // still exists; otherwise fall back to the configured default.
   const selectedProductId = useMemo(() => {
@@ -163,10 +155,7 @@ export const PaywallRuntimeProvider = ({
         setStatus({
           status: nextStatus,
           productId,
-          error:
-            error === undefined
-              ? undefined
-              : { code: "HOST_STATUS", message: error },
+          error: error === undefined ? undefined : { code: "HOST_STATUS", message: error },
         });
         return;
       }
@@ -204,8 +193,7 @@ export const PaywallRuntimeProvider = ({
       },
       close: (reason) => resolvedBridge.post(createCloseEnvelope(reason)),
       openUrl: (url) => resolvedBridge.post(createOpenExternalEnvelope(url)),
-      track: (name, properties) =>
-        resolvedBridge.post(createEventEnvelope(name, properties)),
+      track: (name, properties) => resolvedBridge.post(createEventEnvelope(name, properties)),
       selectProduct: (productId) => setExplicitSelection(productId),
     }),
     [resolvedBridge, selectedProductId],
@@ -216,9 +204,7 @@ export const PaywallRuntimeProvider = ({
       actions,
       config,
       products: config.products,
-      selectedProduct: config.products.find(
-        (product) => product.id === selectedProductId,
-      ),
+      selectedProduct: config.products.find((product) => product.id === selectedProductId),
       selectedProductId,
       status,
       variables: config.variables,
@@ -226,11 +212,7 @@ export const PaywallRuntimeProvider = ({
     [actions, config, selectedProductId, status],
   );
 
-  return (
-    <PaywallRuntimeContext.Provider value={value}>
-      {children}
-    </PaywallRuntimeContext.Provider>
-  );
+  return <PaywallRuntimeContext.Provider value={value}>{children}</PaywallRuntimeContext.Provider>;
 };
 
 /** The products available on this paywall. */

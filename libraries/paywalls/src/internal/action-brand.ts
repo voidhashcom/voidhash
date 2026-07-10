@@ -31,3 +31,47 @@ export const getActionName = (callback: unknown): string | undefined => {
   }
   return (callback as BrandedCallback)[ACTION_NAME_BRAND];
 };
+
+// ── Inline-handler action capture ──────────────────────────────────────────
+//
+// A direct binding (`onPress={actions.onSelect}`) carries the brand, but the
+// idiomatic inline handler (`onPress={() => actions.onSelect({ … })}`) is a
+// fresh arrow that does not. To record which action such a handler fires, the
+// preview tree host invokes it once inside `withActionRecording`: the first
+// branded action callback that runs reports its name here. This runs ONLY in
+// the preview-tree renderer (never on a real device), and the branded
+// callbacks are side-effect-free in preview (no consumer handler is attached).
+
+let activeRecorder: { name: string | undefined } | null = null;
+
+/**
+ * Notifies the active recorder (if any) that a branded action callback with
+ * `actionName` was invoked. Called by the branded callbacks in
+ * `buildActionCallbacks`. Records only the first name so the outermost action
+ * an inline handler fires wins.
+ */
+export const recordActionInvocation = (actionName: string): void => {
+  if (activeRecorder !== null && activeRecorder.name === undefined) {
+    activeRecorder.name = actionName;
+  }
+};
+
+/**
+ * Invokes `handler` once with a recording scope active and returns the name of
+ * the first branded action it fired, or `undefined`. Nesting is supported (the
+ * previous recorder is restored). Handler exceptions are swallowed — a preview
+ * probe must never fail the render.
+ */
+export const captureInlineActionName = (handler: () => void): string | undefined => {
+  const previous = activeRecorder;
+  const recorder: { name: string | undefined } = { name: undefined };
+  activeRecorder = recorder;
+  try {
+    handler();
+  } catch {
+    // A probing invocation's side effects/failures are irrelevant to the tree.
+  } finally {
+    activeRecorder = previous;
+  }
+  return recorder.name;
+};

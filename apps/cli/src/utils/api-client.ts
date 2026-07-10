@@ -1,8 +1,5 @@
-import {
-  make as makeCoreClient,
-  type VoidhashCoreClient,
-} from "@voidhash/generated-clients";
-import { Effect, Layer, ServiceMap } from "effect";
+import { make as makeCoreClient, type VoidhashCoreClient } from "@voidhash/generated-clients";
+import { Effect, Layer, Context } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { CliConfig } from "../domain/services/cli-config";
@@ -17,33 +14,29 @@ const make = Effect.gen(function* effect() {
         client.pipe(
           HttpClient.mapRequestEffect((request) =>
             Effect.gen(function* transformClient() {
-              const config = yield* cliConfig.readConfig().pipe(
-                Effect.catch(() =>
-                  Effect.die("Failed to read config")
-                )
-              );
+              const config = yield* cliConfig
+                .readConfig()
+                .pipe(Effect.catch(() => Effect.die("Failed to read config")));
 
-              yield* Effect.logDebug(
-                `API Request: ${request.method} ${request.url}`
-              );
+              yield* Effect.logDebug(`API Request: ${request.method} ${request.url}`);
 
               return HttpClientRequest.setHeaders(
                 HttpClientRequest.prependUrl(request, config.api_url),
-                config.api_key ? { "x-api-key": config.api_key } : {}
+                config.api_key ? { "x-api-key": config.api_key } : {},
               );
-            }).pipe(Effect.withSpan("ApiClient.transformRequest"))
-          )
-        )
+            }).pipe(Effect.withSpan("ApiClient.transformRequest")),
+          ),
+        ),
       ),
   });
 }).pipe(Effect.withSpan("ApiClient.make"));
 
 type ApiClientShape = Effect.Success<typeof make>;
 
-export class ApiClient extends ServiceMap.Service<ApiClient, ApiClientShape>()(
-  "voidhash-cli/ApiClient"
+export class ApiClient extends Context.Service<ApiClient, ApiClientShape>()(
+  "voidhash-cli/ApiClient",
 ) {
   static Default = Layer.effect(ApiClient, make).pipe(
-    Layer.provide(Layer.mergeAll(FetchHttpClient.layer, CliConfig.Default))
-  )
+    Layer.provide(Layer.mergeAll(FetchHttpClient.layer, CliConfig.Default)),
+  );
 }

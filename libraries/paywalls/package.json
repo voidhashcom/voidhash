@@ -4,11 +4,11 @@
   "private": false,
   "description": "Code-driven paywall authoring runtime and renderer for Voidhash.",
   "keywords": [
-    "voidhash",
     "paywalls",
     "react",
     "renderer",
-    "subscriptions"
+    "subscriptions",
+    "voidhash"
   ],
   "homepage": "https://voidhash.com/docs",
   "bugs": {
@@ -21,18 +21,14 @@
     "url": "https://github.com/voidhashcom/voidhash",
     "directory": "libraries/paywalls"
   },
-  "type": "module",
   "files": [
     "dist"
   ],
+  "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "sideEffects": false,
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
-  },
   "exports": {
     ".": {
       "import": {
@@ -73,7 +69,71 @@
         "types": "./dist/panel.d.ts",
         "default": "./dist/panel.cjs"
       }
+    },
+    "./schema": {
+      "import": {
+        "types": "./dist/schema.d.ts",
+        "default": "./dist/schema.mjs"
+      },
+      "require": {
+        "types": "./dist/schema.d.ts",
+        "default": "./dist/schema.cjs"
+      }
+    },
+    "./jsx-runtime": {
+      "import": {
+        "types": "./dist/jsx-runtime.d.ts",
+        "default": "./dist/jsx-runtime.mjs"
+      },
+      "require": {
+        "types": "./dist/jsx-runtime.d.ts",
+        "default": "./dist/jsx-runtime.cjs"
+      }
+    },
+    "./jsx-dev-runtime": {
+      "import": {
+        "types": "./dist/jsx-dev-runtime.d.ts",
+        "default": "./dist/jsx-dev-runtime.mjs"
+      },
+      "require": {
+        "types": "./dist/jsx-dev-runtime.d.ts",
+        "default": "./dist/jsx-dev-runtime.cjs"
+      }
+    },
+    "./sandbox": {
+      "import": {
+        "types": "./dist/sandbox.d.ts",
+        "default": "./dist/sandbox.mjs"
+      },
+      "require": {
+        "types": "./dist/sandbox.d.ts",
+        "default": "./dist/sandbox.cjs"
+      }
+    },
+    "./sandbox-bundle": {
+      "import": {
+        "types": "./dist/sandbox-bundle.d.ts",
+        "default": "./dist/sandbox-bundle.mjs"
+      },
+      "require": {
+        "types": "./dist/sandbox-bundle.d.ts",
+        "default": "./dist/sandbox-bundle.cjs"
+      }
+    },
+    "./sandbox-dts": {
+      "import": {
+        "types": "./dist/sandbox-dts.d.ts",
+        "default": "./dist/sandbox-dts.mjs"
+      },
+      "require": {
+        "types": "./dist/sandbox-dts.d.ts",
+        "default": "./dist/sandbox-dts.cjs"
+      }
     }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
     "build": "rm -rf ./dist && tsx build.ts",
@@ -84,19 +144,20 @@
   "dependencies": {
     "react-reconciler": "^0.32.0"
   },
-  "peerDependencies": {
-    "react": ">=18",
-    "react-dom": ">=18"
-  },
   "devDependencies": {
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@voidhash/tsconfig": "workspace:*",
+    "esbuild": "^0.25.10",
     "react": "catalog:",
     "react-dom": "catalog:",
     "tsup": "^6.1.3",
     "tsx": "^4.19.3",
     "typescript": "5.6.3",
     "vitest": "^3.0.9"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
   }
 }

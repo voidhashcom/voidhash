@@ -1,19 +1,9 @@
-import {
-  make as makeCoreClient,
-  type VoidhashCoreClient,
-} from "@voidhash/generated-clients";
+import { make as makeCoreClient, type VoidhashCoreClient } from "@voidhash/generated-clients";
 import { Effect } from "effect";
-import {
-  FetchHttpClient,
-  HttpClient,
-  HttpClientRequest,
-} from "effect/unstable/http";
+import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import { VoidhashNodeConfigurationError } from "../errors";
-import {
-  groupCoreClient,
-  type GroupedVoidhashNodeEffectClient,
-} from "../generated/grouped-client";
+import { groupCoreClient, type GroupedVoidhashNodeEffectClient } from "../generated/grouped-client";
 import type { VoidhashNodeClientOptions } from "../types";
 export type GeneratedVoidhashNodeEffectClient = GroupedVoidhashNodeEffectClient;
 
@@ -21,20 +11,16 @@ export const DEFAULT_BASE_URL = "https://api.voidhash.com";
 
 const SECRET_KEY_HEADER = "x-secret-key";
 
-const hasSecretKeyHeader = (
-  headers: Record<string, string | undefined> | undefined
-) =>
-  Object.keys(headers ?? {}).some(
-    (headerName) => headerName.toLowerCase() === SECRET_KEY_HEADER
-  );
+const hasSecretKeyHeader = (headers: Record<string, string | undefined> | undefined) =>
+  Object.keys(headers ?? {}).some((headerName) => headerName.toLowerCase() === SECRET_KEY_HEADER);
 
 const normalizeHeaders = (
-  headers: Record<string, string | undefined> | undefined
+  headers: Record<string, string | undefined> | undefined,
 ): Record<string, string> =>
   Object.fromEntries(
     Object.entries(headers ?? {}).filter(
-      (entry): entry is [string, string] => typeof entry[1] === "string"
-    )
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
   );
 
 const resolveBaseUrl = (baseUrl: string | undefined) => {
@@ -42,9 +28,7 @@ const resolveBaseUrl = (baseUrl: string | undefined) => {
     const resolved = new URL(baseUrl ?? DEFAULT_BASE_URL);
 
     if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
-      throw new VoidhashNodeConfigurationError(
-        "baseUrl must use the http or https protocol."
-      );
+      throw new VoidhashNodeConfigurationError("baseUrl must use the http or https protocol.");
     }
 
     return resolved.toString();
@@ -65,15 +49,11 @@ const resolveOptions = (options: VoidhashNodeClientOptions) => {
   }
 
   if (typeof globalThis.fetch !== "function") {
-    throw new VoidhashNodeConfigurationError(
-      "globalThis.fetch must be available."
-    );
+    throw new VoidhashNodeConfigurationError("globalThis.fetch must be available.");
   }
 
   if (hasSecretKeyHeader(options.headers)) {
-    throw new VoidhashNodeConfigurationError(
-      "headers.x-secret-key cannot be set explicitly."
-    );
+    throw new VoidhashNodeConfigurationError("headers.x-secret-key cannot be set explicitly.");
   }
 
   return {
@@ -84,7 +64,7 @@ const resolveOptions = (options: VoidhashNodeClientOptions) => {
 };
 
 export const makeGeneratedClient = (
-  options: VoidhashNodeClientOptions
+  options: VoidhashNodeClientOptions,
 ): Effect.Effect<GeneratedVoidhashNodeEffectClient> => {
   const resolvedOptions = resolveOptions(options);
 
@@ -98,13 +78,13 @@ export const makeGeneratedClient = (
               HttpClientRequest.setHeader(
                 HttpClientRequest.setHeaders(
                   HttpClientRequest.prependUrl(request, resolvedOptions.baseUrl),
-                  resolvedOptions.headers
+                  resolvedOptions.headers,
                 ),
                 SECRET_KEY_HEADER,
-                resolvedOptions.secretKey
-              )
-            )
-          )
+                resolvedOptions.secretKey,
+              ),
+            ),
+          ),
         ),
     });
 

@@ -58,10 +58,7 @@ function normalizeLocation(locationSlug: string): string {
 }
 
 function getResolvedPaywallEntry(
-  resolvedPaywall:
-    | Awaited<ReturnType<VoidhashClient["getPaywallForLocation"]>>
-    | null
-    | undefined,
+  resolvedPaywall: Awaited<ReturnType<VoidhashClient["getPaywallForLocation"]>> | null | undefined,
 ): ResolvedPaywallEntry | null {
   if (!resolvedPaywall) {
     return null;
@@ -117,9 +114,7 @@ interface PaywallPresenterBridgeAdapter {
 
 /** `Platform.OS` narrowed to the contract §7.1 platform union. */
 function getBridgePlatform(): "ios" | "android" | undefined {
-  return Platform.OS === "ios" || Platform.OS === "android"
-    ? Platform.OS
-    : undefined;
+  return Platform.OS === "ios" || Platform.OS === "android" ? Platform.OS : undefined;
 }
 
 /**
@@ -144,8 +139,7 @@ async function sendConfigureMessage(options: {
   }
 
   try {
-    const runtimeConfig =
-      await client.internal_buildPaywallRuntimeConfig(runtime);
+    const runtimeConfig = await client.internal_buildPaywallRuntimeConfig(runtime);
     presenter.postMessage(
       locationKey,
       createPaywallBridgeConfigureMessage(runtimeConfig, requestId),
@@ -168,10 +162,7 @@ async function sendConfigureMessage(options: {
       );
     } catch (fallbackError) {
       // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
-      console.warn(
-        "[voidhash] failed to send fallback paywall configure message",
-        fallbackError,
-      );
+      console.warn("[voidhash] failed to send fallback paywall configure message", fallbackError);
     }
   }
 }
@@ -184,24 +175,15 @@ async function handlePaywallBridgeEvent(options: {
   presenter: PaywallPresenterBridgeAdapter;
   rawBridgeEvent: string;
 }) {
-  const {
-    client,
-    locationKey,
-    openExternalUrl,
-    paywallOptions,
-    presenter,
-    rawBridgeEvent,
-  } = options;
+  const { client, locationKey, openExternalUrl, paywallOptions, presenter, rawBridgeEvent } =
+    options;
 
   let bridgeEvent: ReturnType<typeof parsePaywallBridgeEnvelope>;
   try {
     bridgeEvent = parsePaywallBridgeEnvelope(rawBridgeEvent);
   } catch (error) {
     // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
-    console.warn(
-      "[voidhash] ignoring unparseable paywall bridge message",
-      error,
-    );
+    console.warn("[voidhash] ignoring unparseable paywall bridge message", error);
     return;
   }
 
@@ -261,10 +243,7 @@ async function handlePaywallBridgeEvent(options: {
   try {
     if (bridgeEvent.type === "purchase") {
       const products = await client.getProducts();
-      const product = findProductByBridgeProductId(
-        products,
-        bridgeEvent.payload.productId,
-      );
+      const product = findProductByBridgeProductId(products, bridgeEvent.payload.productId);
 
       if (!product) {
         const productNotFoundMessage = `Product not found: ${bridgeEvent.payload.productId}`;
@@ -372,14 +351,9 @@ async function showResolvedPaywall(options: {
 }): Promise<boolean> {
   const { client, htmlUrl, locationKey, onBridgeEvent, presenter } = options;
 
-  const shown = await presenter.show(
-    locationKey,
-    htmlUrl,
-    onBridgeEvent,
-    () => {
-      inFlightActionByLocation.delete(locationKey);
-    },
-  );
+  const shown = await presenter.show(locationKey, htmlUrl, onBridgeEvent, () => {
+    inFlightActionByLocation.delete(locationKey);
+  });
 
   if (shown) {
     void sendConfigureMessage({
@@ -488,13 +462,7 @@ export function paywallByLocationHookFactory(
         },
         presenter: PaywallPresenter,
       });
-    }, [
-      client,
-      handleBridgeEvent,
-      locationKey,
-      preloadPaywall,
-      voidhashContext?.isInitialized,
-    ]);
+    }, [client, handleBridgeEvent, locationKey, preloadPaywall, voidhashContext?.isInitialized]);
 
     useEffect(() => {
       incrementActiveHookCount(locationKey);
@@ -515,14 +483,11 @@ export function paywallByLocationHookFactory(
 
       void preloadPaywall();
 
-      const appStateSubscription = AppState.addEventListener(
-        "change",
-        (nextState) => {
-          if (nextState === "active") {
-            void preloadPaywall();
-          }
-        },
-      );
+      const appStateSubscription = AppState.addEventListener("change", (nextState) => {
+        if (nextState === "active") {
+          void preloadPaywall();
+        }
+      });
 
       return () => {
         appStateSubscription.remove();

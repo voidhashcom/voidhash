@@ -6,7 +6,7 @@ import { OrganizationServiceError } from "./errors";
 const hasNestedTag = (
   error: unknown,
   outerTag: string,
-  innerTag: string
+  innerTag: string,
 ): error is { readonly _tag: string; readonly data: { readonly _tag: string } } =>
   typeof error === "object" &&
   error !== null &&
@@ -31,18 +31,11 @@ export const createOrganization = Effect.gen(function* createOrganization() {
     (effect) =>
       effect.pipe(
         Effect.catch((error) => {
-          if (
-            hasNestedTag(
-              error,
-              "OrganizationsCreateOrganization500",
-              "NotAuthenticatedError"
-            )
-          ) {
+          if (hasNestedTag(error, "OrganizationsCreateOrganization500", "NotAuthenticatedError")) {
             return Effect.fail(
               new OrganizationServiceError({
-                message:
-                  "Failed to create an organization because you are not authenticated.",
-              })
+                message: "Failed to create an organization because you are not authenticated.",
+              }),
             );
           }
 
@@ -50,9 +43,9 @@ export const createOrganization = Effect.gen(function* createOrganization() {
             new OrganizationServiceError({
               message:
                 "Failed to create an organization because of an unknown error. Please try again. If the problem persists, please contact us at support@voidhash.com",
-            })
+            }),
           );
-        })
-      )
+        }),
+      ),
   );
 });

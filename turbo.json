@@ -1,56 +1,56 @@
 {
-	"$schema": "https://turborepo.org/schema.json",
-	"tasks": {
-		"dev": {
-			"cache": false,
-			"persistent": true
-		},
-		"build": {
-			"dependsOn": ["^build"],
-			"outputs": ["dist/**", ".next/*", "!.next/cache/**"],
-			"env": [
-				"NEXT_PUBLIC_APP_NAME",
-				"NEXT_PUBLIC_APP_DOMAIN",
-				"NEXT_PUBLIC_VERCEL_ENV",
-				"BETTER_AUTH_SECRET",
-				"DATABASE_HOST",
-				"DATABASE_USERNAME",
-				"DATABASE_PASSWORD",
-				"DATABASE_NAME",
-				"VOIDHASH_SECRET_KEY",
-				"POLAR_ACCESS_TOKEN",
-				"GITHUB_CLIENT_ID",
-				"GITHUB_CLIENT_SECRET",
-				"AXIOM_TOKEN",
-				"AXIOM_LOGS_DATASET",
-				"AXIOM_LOG_LEVEL"
-			]
-		},
-		"clean": {},
-		"format": {},
-		"lint": {},
-		"knip": {
-			"cache": true
-		},
-		"start": {
-			"cache": false
-		},
-		"test": {
-			"dependsOn": ["build"],
-			"outputs": []
-		},
-		"typecheck": {
-			"outputs": [],
-			"cache": false
-		},
-		"deploy": {
-			"cache": false
-		},
-		"migrate": {
-			"cache": false
-		},
-		"generate": {
-			"cache": false
-		}
-	}
+  "$schema": "https://turborepo.org/schema.json",
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/*", "!.next/cache/**"],
+      "env": [
+        "NEXT_PUBLIC_APP_NAME",
+        "NEXT_PUBLIC_APP_DOMAIN",
+        "NEXT_PUBLIC_VERCEL_ENV",
+        "BETTER_AUTH_SECRET",
+        "DATABASE_HOST",
+        "DATABASE_USERNAME",
+        "DATABASE_PASSWORD",
+        "DATABASE_NAME",
+        "VOIDHASH_SECRET_KEY",
+        "POLAR_ACCESS_TOKEN",
+        "GITHUB_CLIENT_ID",
+        "GITHUB_CLIENT_SECRET",
+        "AXIOM_TOKEN",
+        "AXIOM_LOGS_DATASET",
+        "AXIOM_LOG_LEVEL"
+      ]
+    },
+    "clean": {},
+    "format": {},
+    "lint": {},
+    "knip": {
+      "cache": true
+    },
+    "start": {
+      "cache": false
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "typecheck": {
+      "outputs": [],
+      "cache": false
+    },
+    "deploy": {
+      "cache": false
+    },
+    "migrate": {
+      "cache": false
+    },
+    "generate": {
+      "cache": false
+    }
+  }
 }

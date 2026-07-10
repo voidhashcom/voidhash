@@ -24,11 +24,7 @@ const artifact = (path: string, char: string, contentType: string) => ({
 /** A fully-populated, contract-§1-shaped manifest fixture. */
 const validManifest = () => ({
   assets: [
-    artifact(
-      ".voidhash/.build/paywalls/onboarding/assets/hero-AB12CD.png",
-      "e",
-      "image/png",
-    ),
+    artifact(".voidhash/.build/paywalls/onboarding/assets/hero-AB12CD.png", "e", "image/png"),
   ],
   cliVersion: "0.0.1-alpha.1",
   components: [

@@ -13,7 +13,7 @@ import {
   type SdkSyncPersonAttributesParams,
   type SdkSyncTransactionRequest,
 } from "@voidhash/generated-clients";
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 
 import type { RuntimeSchema } from "../schema/runtime";
@@ -62,7 +62,7 @@ interface ReactNativeSdkHeaders {
 }
 
 const normalizeFeatureFlagsResponse = (
-  response: SdkFeatureFlagsResponse
+  response: SdkFeatureFlagsResponse,
 ): ReactNativeFeatureFlagsResponse => ({
   flags: response.flags.map((flag) => ({
     enabled: flag.enabled,
@@ -88,7 +88,7 @@ const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
     getSchema: (request: { headers: ReactNativeSdkHeaders }) =>
       Effect.map(
         client.sdkGetSchema(request.headers as SdkGetSchemaParams),
-        (response): RuntimeSchema => response as unknown as RuntimeSchema
+        (response): RuntimeSchema => response as unknown as RuntimeSchema,
       ),
     evaluateFeatureFlags: (request: {
       headers: ReactNativeSdkHeaders;
@@ -99,27 +99,21 @@ const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
           params: request.headers as SdkEvaluateFeatureFlagsParams,
           payload: request.payload,
         }),
-        normalizeFeatureFlagsResponse
+        normalizeFeatureFlagsResponse,
       ),
-    getCustomer: (request: { headers: ReactNativeSdkHeaders }) =>
+    getPerson: (request: { headers: ReactNativeSdkHeaders }) =>
       client.sdkGetPerson(request.headers as SdkGetPersonParams),
-    identify: (request: {
-      headers: ReactNativeSdkHeaders;
-      payload: SdkIdentifyBody;
-    }) =>
+    identify: (request: { headers: ReactNativeSdkHeaders; payload: SdkIdentifyBody }) =>
       client.sdkIdentifyPerson({
         params: request.headers as SdkIdentifyPersonParams,
         payload: request.payload,
       }),
-    resolvePaywall: (request: {
-      headers: ReactNativeSdkHeaders;
-      payload: SdkResolvePaywallBody;
-    }) =>
+    resolvePaywall: (request: { headers: ReactNativeSdkHeaders; payload: SdkResolvePaywallBody }) =>
       client.sdkResolvePaywall({
         params: request.headers as Parameters<typeof client.sdkResolvePaywall>[0]["params"],
         payload: request.payload,
       }),
-    syncCustomerAttributes: (request: {
+    syncPersonAttributes: (request: {
       headers: ReactNativeSdkHeaders;
       payload: SdkSyncPersonAttributesBody;
     }) =>
@@ -148,22 +142,24 @@ const make = Effect.gen(function* effect() {
             Effect.succeed(
               withHttpDebugLogging(client).pipe(
                 HttpClient.mapRequest((request) =>
-                  HttpClientRequest.prependUrl(request, sdkConfiguration.baseUrl)
-                )
-              )
+                  HttpClientRequest.prependUrl(request, sdkConfiguration.baseUrl),
+                ),
+              ),
             )
         : (client) =>
             Effect.succeed(
               client.pipe(
                 HttpClient.mapRequest((request) =>
-                  HttpClientRequest.prependUrl(request, sdkConfiguration.baseUrl)
-                )
-              )
+                  HttpClientRequest.prependUrl(request, sdkConfiguration.baseUrl),
+                ),
+              ),
             ),
-    })
+    }),
   );
 });
 
-export class ApiClient extends ServiceMap.Service<ApiClient, Effect.Success<typeof make>>()("rn-voidhash/ApiClient") {
-  static Default = Layer.effect(ApiClient, make)
+export class ApiClient extends Context.Service<ApiClient, Effect.Success<typeof make>>()(
+  "rn-voidhash/ApiClient",
+) {
+  static Default = Layer.effect(ApiClient, make);
 }

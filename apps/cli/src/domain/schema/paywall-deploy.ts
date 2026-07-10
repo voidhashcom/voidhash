@@ -16,14 +16,10 @@ export const DEPLOY_SLUG_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SHA256_HEX_REGEX = /^[a-f0-9]{64}$/;
 
 /** A slug identifier derived from a source file name, e.g. `onboarding`. */
-export const DeploySlugSchema = Schema.String.check(
-  Schema.isPattern(DEPLOY_SLUG_REGEX),
-);
+export const DeploySlugSchema = Schema.String.check(Schema.isPattern(DEPLOY_SLUG_REGEX));
 
 /** Lowercase hex SHA-256 digest. */
-export const DeploySha256Schema = Schema.String.check(
-  Schema.isPattern(SHA256_HEX_REGEX),
-);
+export const DeploySha256Schema = Schema.String.check(Schema.isPattern(SHA256_HEX_REGEX));
 
 /** A file's identity: where it lives, how big it is, and its content hash. */
 export const DeployFileSchema = Schema.Struct({
@@ -55,10 +51,7 @@ export const DeployVariableValueSchema = Schema.Union([
 export type DeployVariableValue = typeof DeployVariableValueSchema.Type;
 
 /** The paywall's author variables, keyed by name. */
-export const DeployVariablesSchema = Schema.Record(
-  Schema.String,
-  DeployVariableValueSchema,
-);
+export const DeployVariablesSchema = Schema.Record(Schema.String, DeployVariableValueSchema);
 export type DeployVariables = typeof DeployVariablesSchema.Type;
 
 /** The compiled, WebView-ready output for a single paywall. */
@@ -107,8 +100,7 @@ export const DeployComponentArtifactsSchema = Schema.Struct({
   /** Custom editor panel bundle, or `null` when none is declared. */
   panel: Schema.NullOr(DeployArtifactSchema),
 });
-export type DeployComponentArtifacts =
-  typeof DeployComponentArtifactsSchema.Type;
+export type DeployComponentArtifacts = typeof DeployComponentArtifactsSchema.Type;
 
 /** One reusable component in the deploy manifest (contract §1). */
 export const DeployComponentSchema = Schema.Struct({

@@ -13,19 +13,15 @@ export const configSetCommand = Command.make(
   ({ key, value }) =>
     Effect.gen(function* configSetCommand() {
       const cliConfig = yield* CliConfig;
-      const config = yield* cliConfig.readConfig();
       yield* cliConfig
         .writeToConfig({
-          ...config,
           [key]: value,
         })
         .pipe(
           Effect.catchTag("SchemaError", () =>
-            Effect.fail(
-              userError("Failed to set configuration")
-            )
-          )
+            Effect.fail(userError("Failed to set configuration")),
+          ),
         );
       yield* Console.log("Configuration set successfully.");
-    })
+    }),
 ).pipe(Command.withDescription("Set a Voidhash configuration value."));

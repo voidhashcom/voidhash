@@ -13,8 +13,7 @@ export const PAYWALL_BRIDGE_VERSION = 1 as const;
 const toAsciiSafeJson = (value: unknown): string =>
   JSON.stringify(value).replace(
     /[\u0080-\uffff]/g,
-    (character) =>
-      `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
   );
 
 export type PaywallBridgeActionType =
@@ -26,45 +25,38 @@ export type PaywallBridgeActionType =
   | "event"
   | "log";
 
-export interface PaywallBridgeBaseEnvelope<
-  TType extends PaywallBridgeActionType,
-> {
+export interface PaywallBridgeBaseEnvelope<TType extends PaywallBridgeActionType> {
   version: typeof PAYWALL_BRIDGE_VERSION;
   type: TType;
   requestId?: string;
 }
 
-export interface PaywallBridgeReadyEnvelope
-  extends PaywallBridgeBaseEnvelope<"ready"> {
+export interface PaywallBridgeReadyEnvelope extends PaywallBridgeBaseEnvelope<"ready"> {
   payload?: {
     templateVersion?: string;
   };
 }
 
-export interface PaywallBridgeCloseEnvelope
-  extends PaywallBridgeBaseEnvelope<"close"> {
+export interface PaywallBridgeCloseEnvelope extends PaywallBridgeBaseEnvelope<"close"> {
   payload?: {
     reason?: string;
   };
 }
 
-export interface PaywallBridgePurchaseEnvelope
-  extends PaywallBridgeBaseEnvelope<"purchase"> {
+export interface PaywallBridgePurchaseEnvelope extends PaywallBridgeBaseEnvelope<"purchase"> {
   payload: {
     productId: string;
     paywallProductId?: string;
   };
 }
 
-export interface PaywallBridgeRestoreEnvelope
-  extends PaywallBridgeBaseEnvelope<"restore"> {
+export interface PaywallBridgeRestoreEnvelope extends PaywallBridgeBaseEnvelope<"restore"> {
   payload?: {
     source?: string;
   };
 }
 
-export interface PaywallBridgeOpenExternalEnvelope
-  extends PaywallBridgeBaseEnvelope<"openExternal"> {
+export interface PaywallBridgeOpenExternalEnvelope extends PaywallBridgeBaseEnvelope<"openExternal"> {
   payload: {
     url: string;
   };
@@ -75,16 +67,14 @@ export interface PaywallBridgeOpenExternalEnvelope
  * Fire-and-forget: the SDK routes it to analytics capture and never sends a
  * response envelope.
  */
-export interface PaywallBridgeEventEnvelope
-  extends PaywallBridgeBaseEnvelope<"event"> {
+export interface PaywallBridgeEventEnvelope extends PaywallBridgeBaseEnvelope<"event"> {
   payload: {
     name: string;
     properties?: Record<string, unknown>;
   };
 }
 
-export interface PaywallBridgeLogEnvelope
-  extends PaywallBridgeBaseEnvelope<"log"> {
+export interface PaywallBridgeLogEnvelope extends PaywallBridgeBaseEnvelope<"log"> {
   payload: {
     level: "debug" | "info" | "warn" | "error";
     message: string;
@@ -139,11 +129,7 @@ export function createPaywallBridgeSuccessResponse(
 }
 
 /** Billing period of a {@link PaywallRuntimeConfigProduct} (contract §7.1). */
-export type PaywallRuntimeConfigProductPeriod =
-  | "month"
-  | "year"
-  | "week"
-  | "lifetime";
+export type PaywallRuntimeConfigProductPeriod = "month" | "year" | "week" | "lifetime";
 
 /**
  * A purchasable product surfaced to a paywall bundle, per deploy-contract

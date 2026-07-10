@@ -7,15 +7,7 @@
  */
 import { createHash } from "node:crypto";
 import { existsSync, promises as fsp, readdirSync, statSync } from "node:fs";
-import {
-  basename,
-  dirname,
-  extname,
-  join,
-  posix,
-  relative,
-  sep,
-} from "node:path";
+import { basename, dirname, extname, join, posix, relative, sep } from "node:path";
 import { Data, Effect, Schema } from "effect";
 import * as esbuild from "esbuild";
 
@@ -33,10 +25,7 @@ import {
   type DeployVariables,
 } from "../schema/paywall-deploy";
 import { closedImportsPlugin } from "./paywall-closed-imports";
-import {
-  PAYWALL_ASSET_EXTENSIONS,
-  typecheckPaywallSources,
-} from "./paywall-typecheck";
+import { PAYWALL_ASSET_EXTENSIONS, typecheckPaywallSources } from "./paywall-typecheck";
 
 export class PaywallBuildError extends Data.TaggedError("PaywallBuildError")<{
   readonly message: string;
@@ -52,19 +41,17 @@ const SOURCE_EXTENSIONS = [".tsx", ".jsx", ".ts", ".js"];
  * Binary asset types paywall bundles may import; emitted as files. Derived
  * from the typecheck gate's extension list so the two can never drift.
  */
-const PAYWALL_ASSET_LOADERS: Record<string, esbuild.Loader> =
-  Object.fromEntries(
-    PAYWALL_ASSET_EXTENSIONS.map((ext) => [`.${ext}`, "file"]),
-  );
+const PAYWALL_ASSET_LOADERS: Record<string, esbuild.Loader> = Object.fromEntries(
+  PAYWALL_ASSET_EXTENSIONS.map((ext) => [`.${ext}`, "file"]),
+);
 
 /**
  * Component runtime bundles must stay a single file (the manifest has no
  * per-component asset list), so binary imports are inlined as data URLs.
  */
-const COMPONENT_ASSET_LOADERS: Record<string, esbuild.Loader> =
-  Object.fromEntries(
-    Object.keys(PAYWALL_ASSET_LOADERS).map((ext) => [ext, "dataurl"]),
-  );
+const COMPONENT_ASSET_LOADERS: Record<string, esbuild.Loader> = Object.fromEntries(
+  Object.keys(PAYWALL_ASSET_LOADERS).map((ext) => [ext, "dataurl"]),
+);
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -97,11 +84,7 @@ export const computePaywallContentHash = (input: {
   readonly jsSha256: string;
   readonly assetSha256s: ReadonlyArray<string>;
 }): string =>
-  sha256Hex(
-    `${input.htmlSha256}:${input.jsSha256}:${[...input.assetSha256s]
-      .sort()
-      .join(":")}`,
-  );
+  sha256Hex(`${input.htmlSha256}:${input.jsSha256}:${[...input.assetSha256s].sort().join(":")}`);
 
 /**
  * Contract §1.2 component content hash:
@@ -131,11 +114,9 @@ const toRelPosix = (projectRoot: string, abs: string): string =>
 // Studio's virtual-paywalls plugin
 // (apps/studio/src/server/virtual-paywalls-plugin.ts) — keep both in sync.
 const isSourceFile = (name: string): boolean =>
-  SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext)) &&
-  !name.endsWith(".d.ts");
+  SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext)) && !name.endsWith(".d.ts");
 
-const idFromFile = (file: string): string =>
-  basename(file).replace(/\.(tsx|jsx|ts|js)$/, "");
+const idFromFile = (file: string): string => basename(file).replace(/\.(tsx|jsx|ts|js)$/, "");
 
 /** Recursively lists files under a directory (absolute paths). */
 const listFilesRecursive = (dir: string): string[] => {
@@ -179,9 +160,7 @@ const bundleFailure = (subject: string) => (cause: unknown) => {
   const details = describeEsbuildFailure(cause);
   return new PaywallBuildError({
     cause,
-    message: details
-      ? `Failed to bundle ${subject}:\n${details}`
-      : `Failed to bundle ${subject}`,
+    message: details ? `Failed to bundle ${subject}:\n${details}` : `Failed to bundle ${subject}`,
   });
 };
 
@@ -211,10 +190,7 @@ interface UserTreeLib {
 }
 
 interface UserReactLib {
-  readonly createElement: (
-    type: unknown,
-    props: Record<string, unknown> | null,
-  ) => unknown;
+  readonly createElement: (type: unknown, props: Record<string, unknown> | null) => unknown;
 }
 
 interface ComponentPreviewStateLike {
@@ -240,8 +216,7 @@ const requireFromProject = <T>(
   specifier: string,
 ): Effect.Effect<T, PaywallBuildError> =>
   Effect.try({
-    try: () =>
-      require(require.resolve(specifier, { paths: [projectRoot] })) as T,
+    try: () => require(require.resolve(specifier, { paths: [projectRoot] })) as T,
     catch: (cause) =>
       new PaywallBuildError({
         cause,
@@ -257,10 +232,7 @@ const requireFromProject = <T>(
  * and preview rendering. The shared `safeRegister` helper uses the `ts`
  * loader, which rejects JSX — hence a dedicated hook here.
  */
-const registerTsxLoader = (): Effect.Effect<
-  { unregister: () => void },
-  PaywallBuildError
-> =>
+const registerTsxLoader = (): Effect.Effect<{ unregister: () => void }, PaywallBuildError> =>
   Effect.tryPromise({
     try: async () => {
       const { register } = await import("esbuild-register/dist/node");
@@ -273,9 +245,7 @@ const registerTsxLoader = (): Effect.Effect<
       }),
   });
 
-const loadModuleDefault = (
-  file: string,
-): Effect.Effect<unknown, PaywallBuildError> =>
+const loadModuleDefault = (file: string): Effect.Effect<unknown, PaywallBuildError> =>
   Effect.try({
     try: () => {
       delete require.cache[require.resolve(file)];
@@ -292,9 +262,7 @@ const loadModuleDefault = (
   });
 
 const isScalar = (value: unknown): value is string | number | boolean =>
-  typeof value === "string" ||
-  typeof value === "number" ||
-  typeof value === "boolean";
+  typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 
 interface PaywallModuleMeta {
   readonly title: string;
@@ -304,14 +272,10 @@ interface PaywallModuleMeta {
 }
 
 /** Reads the `__voidhash` metadata off a paywall module's default export. */
-const loadPaywallMeta = (
-  file: string,
-): Effect.Effect<PaywallModuleMeta, PaywallBuildError> =>
+const loadPaywallMeta = (file: string): Effect.Effect<PaywallModuleMeta, PaywallBuildError> =>
   loadModuleDefault(file).pipe(
     Effect.flatMap((def) => {
-      const meta = (
-        def as { __voidhash?: Record<string, unknown> } | null | undefined
-      )?.__voidhash;
+      const meta = (def as { __voidhash?: Record<string, unknown> } | null | undefined)?.__voidhash;
       if (!meta || meta.kind !== "paywall") {
         return Effect.fail(
           new PaywallBuildError({
@@ -320,11 +284,8 @@ const loadPaywallMeta = (
         );
       }
       const title =
-        typeof meta.title === "string" && meta.title.length > 0
-          ? meta.title
-          : idFromFile(file);
-      const description =
-        typeof meta.description === "string" ? meta.description : undefined;
+        typeof meta.title === "string" && meta.title.length > 0 ? meta.title : idFromFile(file);
+      const description = typeof meta.description === "string" ? meta.description : undefined;
       const products = Array.isArray(meta.products)
         ? meta.products.filter((p): p is string => typeof p === "string")
         : [];
@@ -392,17 +353,13 @@ const loadComponentDefinition = (
 
 // ── Output writing ───────────────────────────────────────────────────────────
 
-const writeFile = (
-  absPath: string,
-  bytes: Uint8Array,
-): Effect.Effect<void, PaywallBuildError> =>
+const writeFile = (absPath: string, bytes: Uint8Array): Effect.Effect<void, PaywallBuildError> =>
   Effect.tryPromise({
     try: async () => {
       await fsp.mkdir(dirname(absPath), { recursive: true });
       await fsp.writeFile(absPath, bytes);
     },
-    catch: (cause) =>
-      new PaywallBuildError({ cause, message: `Failed to write ${absPath}` }),
+    catch: (cause) => new PaywallBuildError({ cause, message: `Failed to write ${absPath}` }),
   });
 
 /** Writes `bytes` to `absPath` and returns its manifest artifact entry. */
@@ -433,8 +390,7 @@ const readDeployFile = (
         sha256: sha256Hex(bytes),
       };
     },
-    catch: (cause) =>
-      new PaywallBuildError({ cause, message: `Failed to read ${absPath}` }),
+    catch: (cause) => new PaywallBuildError({ cause, message: `Failed to read ${absPath}` }),
   });
 
 // ── Paywall bundling ─────────────────────────────────────────────────────────
@@ -573,6 +529,62 @@ const componentBuildOptions = (voidhashDir: string): esbuild.BuildOptions => ({
   write: false,
 });
 
+/**
+ * The exact module specifiers the studio panel sandbox's `require` shim
+ * resolves (`@voidhash/paywalls/sandbox`'s `modules` map). A panel bundle MUST
+ * leave every one of these external so the shim satisfies it at evaluation
+ * time; a bundled copy would ship a second React/SDK instance and break hooks.
+ * Kept an explicit list (not the runtime's `@voidhash/paywalls/*` glob) so it
+ * mirrors the shim's keys one-for-one.
+ */
+export const PANEL_SANDBOX_EXTERNALS = [
+  "react",
+  "react/jsx-runtime",
+  "react/jsx-dev-runtime",
+  "@voidhash/paywalls",
+  "@voidhash/paywalls/panel",
+  "@voidhash/paywalls/jsx-runtime",
+  "@voidhash/paywalls/jsx-dev-runtime",
+];
+
+/**
+ * esbuild settings for the panel bundle. It mirrors the studio's BROWSER
+ * compile pipeline (`code-mode/compile-pipeline.ts`) exactly so the emitted
+ * module is byte-compatible with what the panel sandbox evaluates:
+ *
+ * - `format: "cjs"` — the sandbox runs it via `new Function("require",
+ *   "module", "exports", code)` and reads `module.exports.default`, so ES
+ *   module syntax cannot be used.
+ * - `jsxImportSource: "@voidhash/paywalls"` — JSX compiles to
+ *   `require("@voidhash/paywalls/jsx-runtime")`, which the shim resolves to the
+ *   sandbox's single shared React (matching the browser transform).
+ * - externals = {@link PANEL_SANDBOX_EXTERNALS}, the shim's module keys.
+ */
+const panelBuildOptions = (voidhashDir: string): esbuild.BuildOptions => ({
+  bundle: true,
+  define: { "process.env.NODE_ENV": '"production"' },
+  external: [...PANEL_SANDBOX_EXTERNALS],
+  format: "cjs",
+  jsx: "automatic",
+  jsxImportSource: "@voidhash/paywalls",
+  loader: COMPONENT_ASSET_LOADERS,
+  logLevel: "silent",
+  minify: true,
+  platform: "browser",
+  plugins: [closedImportsPlugin(voidhashDir)],
+  target: ["es2020"],
+  write: false,
+});
+
+/**
+ * Whether a component definition declares a custom editor panel — decided the
+ * SAME way the studio's browser pipeline does (`@voidhash/paywalls`'s
+ * `definitionHasPanel`): a live `panel` FUNCTION, not merely a present key.
+ * Only a `hasPanel` component emits/uploads the `panel.js` artifact.
+ */
+export const definitionHasPanel = (definition: { readonly panel?: unknown }): boolean =>
+  typeof definition.panel === "function";
+
 const firstJsOutput = (result: esbuild.BuildResult): Uint8Array => {
   const file = (result.outputFiles ?? []).find((f) => f.path.endsWith(".js"));
   if (!file) {
@@ -599,8 +611,14 @@ const bundleComponentRuntime = (
   });
 
 /**
- * Bundles a component's custom editor panel: an ESM module whose default
- * export is the definition's `panel` element tree.
+ * Bundles a component's custom editor panel: the WHOLE definition module as a
+ * single CJS module whose `default` export is the `defineComponent({ … })`
+ * definition — identical in shape to what the studio's browser compile
+ * pipeline produces. The panel sandbox evaluates this module, reads the
+ * definition off `module.exports.default`, and drives `definition.panel` live;
+ * it needs the full definition (props + panel + render), not the panel tree
+ * alone. Uses {@link panelBuildOptions} (CJS, `@voidhash/paywalls` JSX, shim
+ * externals) so the byte output matches the sandbox's require shim exactly.
  */
 const bundleComponentPanel = (
   voidhashDir: string,
@@ -610,16 +628,9 @@ const bundleComponentPanel = (
     try: async () =>
       firstJsOutput(
         await esbuild.build({
-          ...componentBuildOptions(voidhashDir),
+          ...panelBuildOptions(voidhashDir),
+          entryPoints: [componentAbsPath],
           outdir: "out",
-          stdin: {
-            contents: `import definition from ${JSON.stringify(componentAbsPath)};
-export default definition.panel;
-`,
-            loader: "ts",
-            resolveDir: dirname(componentAbsPath),
-            sourcefile: "voidhash-panel-entry.ts",
-          },
         }),
       ),
     catch: bundleFailure(`panel of component ${basename(componentAbsPath)}`),
@@ -636,9 +647,7 @@ const LEGITIMATE_NULL_REASON = "render returned null";
  * unsupported element type, … Placeholders carrying the legitimate
  * `"render returned null"` reason are not errors and are skipped.
  */
-export const collectRenderErrorPlaceholderReasons = (
-  tree: unknown,
-): string[] => {
+export const collectRenderErrorPlaceholderReasons = (tree: unknown): string[] => {
   const reasons: string[] = [];
   const visit = (node: unknown): void => {
     if (typeof node !== "object" || node === null) {
@@ -739,13 +748,9 @@ export const buildPaywalls = ({
   cliVersion,
   runtimeVersion,
   onWarn,
-}: BuildPaywallsOptions): Effect.Effect<
-  BuildPaywallsResult,
-  PaywallBuildError
-> =>
+}: BuildPaywallsOptions): Effect.Effect<BuildPaywallsResult, PaywallBuildError> =>
   Effect.gen(function* buildPaywalls() {
-    const warn = (message: string): Effect.Effect<void> =>
-      onWarn ? onWarn(message) : Effect.void;
+    const warn = (message: string): Effect.Effect<void> => (onWarn ? onWarn(message) : Effect.void);
     const voidhashDir = join(projectRoot, ".voidhash");
     const paywallsDir = join(voidhashDir, "paywalls");
     const componentsDir = join(voidhashDir, "components");
@@ -771,17 +776,14 @@ export const buildPaywalls = ({
       projectRoot,
     }).pipe(
       Effect.catchTag("PaywallTypecheckError", (e) =>
-        Effect.fail(
-          new PaywallBuildError({ cause: e.cause, message: e.message }),
-        ),
+        Effect.fail(new PaywallBuildError({ cause: e.cause, message: e.message })),
       ),
     );
 
     // Clear any previous build so removed paywalls/components don't linger.
     yield* Effect.tryPromise({
       try: () => fsp.rm(outDir, { force: true, recursive: true }),
-      catch: (cause) =>
-        new PaywallBuildError({ cause, message: "Failed to clean build dir" }),
+      catch: (cause) => new PaywallBuildError({ cause, message: "Failed to clean build dir" }),
     });
 
     // Register esbuild so we can `require` paywall/component modules (JSX) to
@@ -828,9 +830,7 @@ export const buildPaywalls = ({
         artifacts: { html, js },
         assets: referencedAssets,
         contentHash: computePaywallContentHash({
-          assetSha256s: referencedAssets.map(
-            (path) => assetIndex.get(path)?.sha256 ?? "",
-          ),
+          assetSha256s: referencedAssets.map((path) => assetIndex.get(path)?.sha256 ?? ""),
           htmlSha256: html.sha256,
           jsSha256: js.sha256,
         }),
@@ -856,10 +856,7 @@ export const buildPaywalls = ({
         projectRoot,
         "@voidhash/paywalls/tree",
       );
-      const react = yield* requireFromProject<UserReactLib>(
-        projectRoot,
-        "react",
-      );
+      const react = yield* requireFromProject<UserReactLib>(projectRoot, "react");
 
       for (const file of componentFiles) {
         const id = idFromFile(file);
@@ -935,14 +932,13 @@ export const buildPaywalls = ({
           runtimeBytes,
         );
 
+        // Emit + upload the panel.js artifact ONLY for a component with a live
+        // `panel` function (the same `hasPanel` test the browser pipeline uses),
+        // per the reserved `artifacts.panel` contract field.
         let panel: DeployArtifact | null = null;
-        if (definition.panel !== undefined && definition.panel !== null) {
+        if (definitionHasPanel(definition)) {
           const panelBytes = yield* bundleComponentPanel(voidhashDir, file);
-          panel = yield* writeArtifact(
-            projectRoot,
-            join(componentOutDir, "panel.js"),
-            panelBytes,
-          );
+          panel = yield* writeArtifact(projectRoot, join(componentOutDir, "panel.js"), panelBytes);
         }
 
         const source = yield* readDeployFile(projectRoot, file);
@@ -974,17 +970,14 @@ export const buildPaywalls = ({
     if (!configFile) {
       return yield* Effect.fail(
         new PaywallBuildError({
-          message:
-            "voidhash.config.* not found. Run 'voidhash-cli init' first.",
+          message: "voidhash.config.* not found. Run 'voidhash-cli init' first.",
         }),
       );
     }
     const config = yield* readDeployFile(projectRoot, configFile);
 
     const manifest: DeployManifest = {
-      assets: [...assetIndex.values()].sort((a, b) =>
-        a.path.localeCompare(b.path),
-      ),
+      assets: [...assetIndex.values()].sort((a, b) => a.path.localeCompare(b.path)),
       cliVersion,
       components,
       config,
@@ -1009,10 +1002,7 @@ export const buildPaywalls = ({
     );
 
     const manifestPath = join(outDir, "manifest.json");
-    yield* writeFile(
-      manifestPath,
-      textEncoder.encode(`${JSON.stringify(manifest, null, 2)}\n`),
-    );
+    yield* writeFile(manifestPath, textEncoder.encode(`${JSON.stringify(manifest, null, 2)}\n`));
 
     return { manifest, manifestPath, outDir };
   });

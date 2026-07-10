@@ -4,11 +4,11 @@ This document specifies the backend Voidhash must implement so the paywall syste
 (`@voidhash/paywalls`, the Studio, and the `voidhash-cli deploy`/`studio`
 commands) integrates end-to-end. It is the contract between three actors:
 
-| Actor | Role |
-| --- | --- |
-| **CLI** (`voidhash-cli deploy`) | Builds paywalls and **uploads** the deploy payload. |
-| **Server** (this spec) | Stores deploys, serves the live paywall to devices, resolves placements + entitlements. |
-| **Device SDK** (`@voidhash/react-native`) | Presents a paywall in a WebView, **injects** runtime config, handles the **bridge**. |
+| Actor                                     | Role                                                                                    |
+| ----------------------------------------- | --------------------------------------------------------------------------------------- |
+| **CLI** (`voidhash-cli deploy`)           | Builds paywalls and **uploads** the deploy payload.                                     |
+| **Server** (this spec)                    | Stores deploys, serves the live paywall to devices, resolves placements + entitlements. |
+| **Device SDK** (`@voidhash/react-native`) | Presents a paywall in a WebView, **injects** runtime config, handles the **bridge**.    |
 
 The client side is implemented today. Everything marked **[server]** is what this
 task hands off; everything marked **[done]** already exists in this repo and the
@@ -16,10 +16,11 @@ server must remain compatible with it.
 
 > **Source of truth for shapes.** The TypeScript contracts referenced here are
 > real and version-locked:
+>
 > - Deploy payload: [`apps/cli/src/domain/schema/paywall-deploy.ts`](apps/cli/src/domain/schema/paywall-deploy.ts) (`DeployManifest`, `schemaVersion: 1`).
 > - Runtime config: [`libraries/paywalls/src/runtime/config.ts`](libraries/paywalls/src/runtime/config.ts) (`PaywallRuntimeConfig`).
 > - Bridge protocol: [`libraries/paywalls/src/runtime/bridge.ts`](libraries/paywalls/src/runtime/bridge.ts) (`PaywallOutboundMessage`, `PaywallInboundMessage`).
-> The server MUST keep these in sync; bump `schemaVersion` on any breaking change.
+>   The server MUST keep these in sync; bump `schemaVersion` on any breaking change.
 
 ---
 
@@ -32,8 +33,8 @@ server must remain compatible with it.
 - **Asset** — a binary (image/font) referenced by a paywall, content-addressed.
 - **Deploy** — one immutable upload of all paywalls/components/assets for a
   project, produced by `voidhash-cli deploy`.
-- **Placement** (a.k.a. *location*) — a named slot in the app (e.g. `onboarding`,
-  `settings_upgrade`) that the SDK presents. A placement is *assigned* a paywall.
+- **Placement** (a.k.a. _location_) — a named slot in the app (e.g. `onboarding`,
+  `settings_upgrade`) that the SDK presents. A placement is _assigned_ a paywall.
   This indirection is what lets customers swap paywalls without an app release.
 - **Content hash** — lowercase hex SHA-256. Every file and every paywall has one;
   identical content ⇒ identical hash ⇒ dedupe + cache key.
@@ -150,7 +151,7 @@ project root, POSIX-separated):
 {
   "schemaVersion": 1,
   "cliVersion": "0.0.1-alpha.1",
-  "runtimeVersion": "0.0.1-alpha.1",        // @voidhash/paywalls version built against
+  "runtimeVersion": "0.0.1-alpha.1", // @voidhash/paywalls version built against
   "team": "voidhash-dev-sro",
   "project": "dev-proj",
   "createdAt": "2026-06-03T10:00:00.000Z",
@@ -159,22 +160,40 @@ project root, POSIX-separated):
       "id": "onboarding-green",
       "title": "Onboarding (Green)",
       "description": "Full-screen onboarding paywall with selectable plans.",
-      "source":    { "path": ".voidhash/paywalls/onboarding-green.tsx", "bytes": 4096, "sha256": "…" },
+      "source": { "path": ".voidhash/paywalls/onboarding-green.tsx", "bytes": 4096, "sha256": "…" },
       "artifacts": {
-        "html":    { "path": ".voidhash/.build/onboarding-green/index.html", "bytes": 900,   "sha256": "…", "contentType": "text/html; charset=utf-8" },
-        "js":      { "path": ".voidhash/.build/onboarding-green/bundle.js",   "bytes": 201000,"sha256": "…", "contentType": "text/javascript; charset=utf-8" }
+        "html": {
+          "path": ".voidhash/.build/onboarding-green/index.html",
+          "bytes": 900,
+          "sha256": "…",
+          "contentType": "text/html; charset=utf-8",
+        },
+        "js": {
+          "path": ".voidhash/.build/onboarding-green/bundle.js",
+          "bytes": 201000,
+          "sha256": "…",
+          "contentType": "text/javascript; charset=utf-8",
+        },
       },
       "assets": [".voidhash/.build/onboarding-green/assets/hero-AB12CD.png"],
-      "contentHash": "5b00934c90ee…"          // identity of the deployable paywall
-    }
+      "contentHash": "5b00934c90ee…", // identity of the deployable paywall
+    },
   ],
   "components": [
-    { "id": "product-option", "source": { "path": ".voidhash/components/product-option.tsx", "bytes": 1500, "sha256": "…" } }
+    {
+      "id": "product-option",
+      "source": { "path": ".voidhash/components/product-option.tsx", "bytes": 1500, "sha256": "…" },
+    },
   ],
   "config": { "path": "voidhash.config.ts", "bytes": 120, "sha256": "…" },
   "assets": [
-    { "path": ".voidhash/.build/onboarding-green/assets/hero-AB12CD.png", "bytes": 88000, "sha256": "…", "contentType": "image/png" }
-  ]
+    {
+      "path": ".voidhash/.build/onboarding-green/assets/hero-AB12CD.png",
+      "bytes": 88000,
+      "sha256": "…",
+      "contentType": "image/png",
+    },
+  ],
 }
 ```
 
@@ -286,7 +305,7 @@ Before the bundle script runs, the SDK MUST set the global
 WebView this is `injectedJavaScriptBeforeContentLoaded`:
 
 ```js
-`window.__VOIDHASH_PAYWALL__ = ${JSON.stringify(runtime)};`
+`window.__VOIDHASH_PAYWALL__ = ${JSON.stringify(runtime)};`;
 ```
 
 The bundle reads it via `readInjectedConfig()` and exposes it to author code
@@ -306,24 +325,24 @@ back down. The wire format is fixed in
 **Outbound — WebView → native** (delivered via `window.ReactNativeWebView.postMessage(json)`).
 The SDK parses `event.nativeEvent.data` as JSON:
 
-| `type` | Payload | Native action |
-| --- | --- | --- |
-| `voidhash.paywall.ready` | — | Paywall mounted; safe to inject status. |
-| `voidhash.paywall.purchase` | `{ productId }` | Start StoreKit/Billing purchase for `productId`. |
-| `voidhash.paywall.restore` | — | Restore entitlements. |
-| `voidhash.paywall.close` | — | Dismiss the paywall. |
-| `voidhash.paywall.openUrl` | `{ url }` | Open `url` (terms/privacy) in a browser. |
-| `voidhash.paywall.event` | `{ name, properties? }` | Forward to analytics (ties into existing Voidhash analytics). |
+| `type`                      | Payload                 | Native action                                                 |
+| --------------------------- | ----------------------- | ------------------------------------------------------------- |
+| `voidhash.paywall.ready`    | —                       | Paywall mounted; safe to inject status.                       |
+| `voidhash.paywall.purchase` | `{ productId }`         | Start StoreKit/Billing purchase for `productId`.              |
+| `voidhash.paywall.restore`  | —                       | Restore entitlements.                                         |
+| `voidhash.paywall.close`    | —                       | Dismiss the paywall.                                          |
+| `voidhash.paywall.openUrl`  | `{ url }`               | Open `url` (terms/privacy) in a browser.                      |
+| `voidhash.paywall.event`    | `{ name, properties? }` | Forward to analytics (ties into existing Voidhash analytics). |
 
 **Inbound — native → WebView.** The SDK calls the function the runtime installs on
 `window`:
 
 ```js
-webview.injectJavaScript(`window.__voidhashPaywallReceive(${JSON.stringify(msg)});`)
+webview.injectJavaScript(`window.__voidhashPaywallReceive(${JSON.stringify(msg)});`);
 ```
 
-| `type` | Payload |
-| --- | --- |
+| `type`                    | Payload                                                                                                                           |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `voidhash.paywall.status` | `{ status, productId?, error? }` where `status ∈ idle \| purchasing \| restoring \| purchased \| restored \| cancelled \| failed` |
 
 The paywall reflects `status` (e.g. disables the CTA while `purchasing`). On
@@ -404,4 +423,7 @@ placement_assignments(channel_id, placement_id, paywall_content_hash, product_gr
 - [ ] Enforce key scopes (`vh_sk_` deploy, `vh_pk_` resolve) + size/type limits.
 - [ ] Keep `runtime` (resolve) and the bridge message types in lockstep with `@voidhash/paywalls`; bump `schemaVersion` on breaking changes.
 - [ ] Wire the CLI upload: replace the `// Upload` placeholder in `deploy.ts` with the phase-1/2 calls.
+
+```
+
 ```

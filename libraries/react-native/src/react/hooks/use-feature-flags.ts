@@ -8,15 +8,12 @@ import { useAtomValue } from "./use-atom-value";
 
 export function featureFlagsHookFactory(
   client: VoidhashClient,
-  vhContext: React.Context<VoidhashContext | null>
+  vhContext: React.Context<VoidhashContext | null>,
 ) {
   function useFeatureFlags(flagKeys?: string[]) {
     const voidhashContext = React.useContext(vhContext);
 
-    const fetchFlags = useCallback(
-      () => client.getFeatureFlags(flagKeys),
-      [flagKeys]
-    );
+    const fetchFlags = useCallback(() => client.getFeatureFlags(flagKeys), [flagKeys]);
 
     const { isLoading, error, refetch } = useAsyncFunction(fetchFlags, {
       enabled: voidhashContext?.isInitialized,
@@ -30,9 +27,8 @@ export function featureFlagsHookFactory(
     const flags = useAtomValue(client.internal_getAtomRegistry(), flagsAtom);
 
     const isEnabled = useCallback(
-      (key: string) =>
-        flags?.flags.find((f) => f.key === key)?.enabled ?? false,
-      [flags]
+      (key: string) => flags?.flags.find((f) => f.key === key)?.enabled ?? false,
+      [flags],
     );
 
     const getVariant = useCallback(
@@ -46,14 +42,14 @@ export function featureFlagsHookFactory(
             }
           : null;
       },
-      [flags]
+      [flags],
     );
 
     const data = useMemo(
       () => ({
         flags: flags?.flags ?? [],
       }),
-      [flags]
+      [flags],
     );
 
     return {

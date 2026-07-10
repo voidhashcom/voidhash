@@ -65,16 +65,16 @@ The web package should expose:
 
 The React Native SDK already gives us the right architectural direction. The web SDK should intentionally mirror the same internal module boundaries where they still make sense.
 
-| React Native concept | Web plan |
-| --- | --- |
-| `createVoidhashClient` entrypoint | Keep a similar factory as the main way to construct the SDK. |
-| Initialization guards in `client.tsx` | Public methods should reject or no-op consistently until initialization completes. |
+| React Native concept                     | Web plan                                                                                      |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `createVoidhashClient` entrypoint        | Keep a similar factory as the main way to construct the SDK.                                  |
+| Initialization guards in `client.tsx`    | Public methods should reject or no-op consistently until initialization completes.            |
 | `client-effect.ts` runtime orchestration | Keep a dedicated internal runtime layer for networking, caching, identity, and feature flags. |
-| `IdentityManager` | Reuse the same anonymous-to-identified user model, adapted to browser storage. |
-| `CacheManager` with TTL support | Keep the same cache semantics, backed by memory plus optional persistent browser storage. |
-| Event bus | Reuse an internal event bus so hooks and client subscribers share the same update path. |
-| `useFeatureFlags` hook | Preserve the same basic return shape and behavior in React. |
-| Shared SDK headers | Reuse the existing header model and fill the browser-compatible subset. |
+| `IdentityManager`                        | Reuse the same anonymous-to-identified user model, adapted to browser storage.                |
+| `CacheManager` with TTL support          | Keep the same cache semantics, backed by memory plus optional persistent browser storage.     |
+| Event bus                                | Reuse an internal event bus so hooks and client subscribers share the same update path.       |
+| `useFeatureFlags` hook                   | Preserve the same basic return shape and behavior in React.                                   |
+| Shared SDK headers                       | Reuse the existing header model and fill the browser-compatible subset.                       |
 
 One important difference: analytics for web will need new implementation work and likely some API-spec additions, because the current React Native SDK does not yet appear to ship an analytics transport.
 
@@ -174,11 +174,7 @@ const enabled = voidhash.isFeatureEnabled("new-checkout");
 ### React Surface
 
 ```ts
-import {
-  VoidhashProvider,
-  useFeatureFlags,
-  useVoidhash,
-} from "@voidhash/web/react";
+import { VoidhashProvider, useFeatureFlags, useVoidhash } from "@voidhash/web/react";
 ```
 
 The React hooks should mirror the React Native ergonomics as closely as possible:
@@ -494,14 +490,14 @@ Documentation should cover:
 
 ## Phased Delivery Plan
 
-| Phase | Scope | Output |
-| --- | --- | --- |
-| 0 | API and package alignment | Confirm `libraries/web`, confirm `@voidhash/web`, finalize analytics API contract in `@voidhash/generated-clients`. |
-| 1 | Core runtime | Create client factory, runtime layer, event bus, identity manager, cache manager, browser platform provider, fetch transport. |
-| 2 | Feature flags | Implement `getFeatureFlags`, caching, refetch behavior, React hook parity, tests. |
-| 3 | Analytics | Implement `track`, `page`, queueing, batching, retrying, page-exit flush, tests. |
-| 4 | React layer and examples | Add provider, hooks, example apps, usage docs. |
-| 5 | Hardening and release | Add observability, edge-case fixes, publishing config, release docs. |
+| Phase | Scope                     | Output                                                                                                                        |
+| ----- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 0     | API and package alignment | Confirm `libraries/web`, confirm `@voidhash/web`, finalize analytics API contract in `@voidhash/generated-clients`.           |
+| 1     | Core runtime              | Create client factory, runtime layer, event bus, identity manager, cache manager, browser platform provider, fetch transport. |
+| 2     | Feature flags             | Implement `getFeatureFlags`, caching, refetch behavior, React hook parity, tests.                                             |
+| 3     | Analytics                 | Implement `track`, `page`, queueing, batching, retrying, page-exit flush, tests.                                              |
+| 4     | React layer and examples  | Add provider, hooks, example apps, usage docs.                                                                                |
+| 5     | Hardening and release     | Add observability, edge-case fixes, publishing config, release docs.                                                          |
 
 ## Decisions To Lock Early
 

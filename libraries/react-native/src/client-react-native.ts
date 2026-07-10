@@ -9,7 +9,7 @@ import { useRetrieveAppStoreProduct } from "./react/hooks/app-store/use-retrieve
 import { useRetrieveAppStoreProducts } from "./react/hooks/app-store/use-retrieve-app-store-products";
 import { useRetrieveGooglePlayProduct } from "./react/hooks/google-play/use-retrieve-google-play-product";
 import { useRetrieveGooglePlayProducts } from "./react/hooks/google-play/use-retrieve-google-play-products";
-import { currentCustomerHookFactory } from "./react/hooks/use-customer";
+import { currentPersonHookFactory } from "./react/hooks/use-person";
 import { featureFlagsHookFactory } from "./react/hooks/use-feature-flags";
 import { paywallByLocationHookFactory } from "./react/hooks/use-paywall-by-location";
 import { productsHookFactory } from "./react/hooks/use-products";
@@ -24,10 +24,7 @@ import { purchaseHookFactory } from "./react/hooks/use-purchase";
  * - Type safety for product / location / perk slugs comes from the generated
  *   `voidhash.gen.d.ts` (run `voidhash-cli types generate`).
  */
-export function createVoidhashClient(
-  publishableKey: string,
-  options: VoidhashClientOptions = {}
-) {
+export function createVoidhashClient(publishableKey: string, options: VoidhashClientOptions = {}) {
   const baseUrl = options.baseUrl || "https://api.voidhash.com";
   const debug = options.debug ?? false;
   const distinctId = options.distinctId ?? null;
@@ -58,7 +55,7 @@ export function createVoidhashClient(
     atomRegistry,
     platform,
     debug,
-    options.unstable_internalSchema
+    options.unstable_internalSchema,
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);
@@ -74,7 +71,7 @@ export function createVoidhashClient(
       useRetrieveProduct: useRetrieveGooglePlayProduct,
       useRetrieveProducts: useRetrieveGooglePlayProducts,
     },
-    useCurrentCustomer: currentCustomerHookFactory(client, context),
+    useCurrentPerson: currentPersonHookFactory(client, context),
     useFeatureFlags: featureFlagsHookFactory(client, context),
     usePaywallByLocation: paywallByLocationHookFactory(client, context),
     useProducts: productsHookFactory(client, context),

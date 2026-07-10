@@ -27,11 +27,9 @@ interface SourceEntry {
 // `isSourceFile`, `idFromFile`) so Studio shows exactly what `deploy` ships:
 // recursive scan, same source extensions, id = file basename without extension.
 const isSourceFile = (name: string): boolean =>
-  SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext)) &&
-  !name.endsWith(".d.ts");
+  SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext)) && !name.endsWith(".d.ts");
 
-const idFromFile = (file: string): string =>
-  basename(file).replace(/\.(tsx|jsx|ts|js)$/, "");
+const idFromFile = (file: string): string => basename(file).replace(/\.(tsx|jsx|ts|js)$/, "");
 
 /** Recursively lists files under a directory (absolute paths). */
 const listFilesRecursive = (dir: string): string[] => {
@@ -73,18 +71,14 @@ const generateModule = (
   const componentRefs: string[] = [];
 
   paywalls.forEach((entry, i) => {
-    lines.push(
-      `import * as __pw${i} from ${JSON.stringify(fsImportSpecifier(entry.file))};`,
-    );
+    lines.push(`import * as __pw${i} from ${JSON.stringify(fsImportSpecifier(entry.file))};`);
     paywallRefs.push(
       `{ id: ${JSON.stringify(entry.id)}, file: ${JSON.stringify(entry.file)}, module: __pw${i} }`,
     );
   });
 
   components.forEach((entry, i) => {
-    lines.push(
-      `import * as __cmp${i} from ${JSON.stringify(fsImportSpecifier(entry.file))};`,
-    );
+    lines.push(`import * as __cmp${i} from ${JSON.stringify(fsImportSpecifier(entry.file))};`);
     componentRefs.push(
       `{ id: ${JSON.stringify(entry.id)}, file: ${JSON.stringify(entry.file)}, module: __cmp${i} }`,
     );
@@ -107,9 +101,7 @@ export interface VoidhashPaywallsPluginOptions {
  * file triggers HMR through the static-import graph, while adding or removing a
  * file invalidates the virtual module and reloads so the sidebar stays in sync.
  */
-export const voidhashPaywallsPlugin = ({
-  projectRoot,
-}: VoidhashPaywallsPluginOptions): Plugin => {
+export const voidhashPaywallsPlugin = ({ projectRoot }: VoidhashPaywallsPluginOptions): Plugin => {
   const voidhashDir = join(projectRoot, ".voidhash");
   let server: ViteDevServer | undefined;
 

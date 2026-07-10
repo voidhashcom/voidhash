@@ -5,7 +5,7 @@
  * action is a typed callback that invokes the consumer-passed prop of the
  * same name (e.g. action `onSelect` → component prop `onSelect`).
  */
-import { brandActionCallback } from "../internal/action-brand";
+import { brandActionCallback, recordActionInvocation } from "../internal/action-brand";
 import type { ManifestActionPayloadKind } from "../schema/component-manifest";
 
 /** Describes one scalar field of an action payload. */
@@ -49,12 +49,8 @@ export interface ActionFactory {
 }
 
 function buildAction(): ActionBuilder<undefined>;
-function buildAction<S extends ActionPayloadShape>(
-  payload: S,
-): ActionBuilder<S>;
-function buildAction<S extends ActionPayloadShape>(
-  payload?: S,
-): ActionBuilder<S | undefined> {
+function buildAction<S extends ActionPayloadShape>(payload: S): ActionBuilder<S>;
+function buildAction<S extends ActionPayloadShape>(payload?: S): ActionBuilder<S | undefined> {
   return new ActionBuilder<S | undefined>(payload);
 }
 
@@ -107,6 +103,10 @@ export const buildActionCallbacks = <A extends ActionMap>(
   const callbacks: Record<string, (payload?: unknown) => void> = {};
   for (const name of Object.keys(actionMap)) {
     callbacks[name] = brandActionCallback((payload?: unknown) => {
+      // Let the preview tree host learn this action's name when it probes an
+      // inline handler (`onPress={() => actions.onSelect(…)}`). No-op outside a
+      // recording scope, so real presses are unaffected.
+      recordActionInvocation(name);
       const handler = getHandlers()[name];
       if (typeof handler === "function") {
         handler(payload);

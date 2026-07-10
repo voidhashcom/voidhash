@@ -1,4 +1,4 @@
-import { ServiceMap, type Effect } from "effect";
+import { Context, type Effect } from "effect";
 
 import type { Product, SubscriptionProduct } from "../entities/product";
 import type { Transaction } from "../entities/transaction";
@@ -19,11 +19,11 @@ import type {
   UserCancelledError,
 } from "./errors";
 
-export class PaymentAdapter extends ServiceMap.Service<
+export class PaymentAdapter extends Context.Service<
   PaymentAdapter,
   {
     initConnection(
-      onPurchase?: (transaction: Transaction) => void
+      onPurchase?: (transaction: Transaction) => void,
     ): Effect.Effect<void, FailedToInitializeNativeAdapterError>;
 
     endConnection(): Effect.Effect<void, FailedToEndNativeAdapterError, never>;
@@ -35,17 +35,13 @@ export class PaymentAdapter extends ServiceMap.Service<
      * from the definition's `configuration.providers.*`.
      */
     getProducts(
-      productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>
-    ): Effect.Effect<
-      Product[],
-      NativeAdapterNotInitializedError | FailedToGetProductsError,
-      never
-    >;
+      productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
+    ): Effect.Effect<Product[], NativeAdapterNotInitializedError | FailedToGetProductsError, never>;
 
     buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
       product: TSubscriptionProduct,
       quantity?: number,
-      appAccountToken?: string
+      appAccountToken?: string,
     ): Effect.Effect<
       Transaction,
       | UserCancelledError
@@ -57,18 +53,14 @@ export class PaymentAdapter extends ServiceMap.Service<
     >;
 
     acknowledgePurchase(
-      transaction: Transaction
+      transaction: Transaction,
     ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never>;
 
     getPurchaseHistory(
-      onlyIncludeActiveItems?: boolean
+      onlyIncludeActiveItems?: boolean,
     ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never>;
 
-    getPendingTransactions(): Effect.Effect<
-      Transaction[],
-      GetPendingTransactionsError,
-      never
-    >;
+    getPendingTransactions(): Effect.Effect<Transaction[], GetPendingTransactionsError, never>;
 
     // Platform specific methods
     presentCodeRedemptionSheet?(): Effect.Effect<
@@ -77,10 +69,6 @@ export class PaymentAdapter extends ServiceMap.Service<
       never
     >;
 
-    showManageSubscriptions?(): Effect.Effect<
-      void,
-      FailedToShowManageSubscriptionsError,
-      never
-    >;
+    showManageSubscriptions?(): Effect.Effect<void, FailedToShowManageSubscriptionsError, never>;
   }
 >()("rn-voidhash/PaymentAdapter") {}
