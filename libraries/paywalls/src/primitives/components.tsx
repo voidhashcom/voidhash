@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 
 import { getActionName } from "../internal/action-brand";
+import type { MotionNodeHandle, ScrollViewHandle } from "../motion/types";
 import { useHost } from "./host-context";
 import type { ImageProps, PressableProps, ScrollViewProps, TextProps, ViewProps } from "./types";
 
@@ -11,16 +12,16 @@ import type { ImageProps, PressableProps, ScrollViewProps, TextProps, ViewProps 
  */
 
 /** A generic flexbox container (column layout by default), like RN `View`. */
-export const View = (props: ViewProps): ReactNode => {
+export const View = forwardRef<MotionNodeHandle, ViewProps>((props, ref): ReactNode => {
   const HostView = useHost().View;
-  return <HostView {...props} />;
-};
+  return <HostView {...props} ref={ref} />;
+});
 
 /** Displays text, like RN `Text`. */
-export const Text = (props: TextProps): ReactNode => {
+export const Text = forwardRef<MotionNodeHandle, TextProps>((props, ref): ReactNode => {
   const HostText = useHost().Text;
-  return <HostText {...props} />;
-};
+  return <HostText {...props} ref={ref} />;
+});
 
 /**
  * A tappable surface, like RN `Pressable`. Use `onPress` for actions. When
@@ -28,20 +29,20 @@ export const Text = (props: TextProps): ReactNode => {
  * `onPress={actions.onSelect}`), the action name is forwarded to the host so
  * preview trees can record which action the pressable fires.
  */
-export const Pressable = (props: PressableProps): ReactNode => {
+export const Pressable = forwardRef<MotionNodeHandle, PressableProps>((props, ref): ReactNode => {
   const HostPressable = useHost().Pressable;
   const actionName = getActionName(props.onPress);
-  return <HostPressable {...props} actionName={actionName} />;
-};
+  return <HostPressable {...props} actionName={actionName} ref={ref} />;
+});
 
 /** A scrollable container, like RN `ScrollView`. */
-export const ScrollView = (props: ScrollViewProps): ReactNode => {
+export const ScrollView = forwardRef<ScrollViewHandle, ScrollViewProps>((props, ref): ReactNode => {
   const HostScrollView = useHost().ScrollView;
-  return <HostScrollView {...props} />;
-};
+  return <HostScrollView {...props} ref={ref} />;
+});
 
 /** Displays an image from a URL or `{ uri }` source, like RN `Image`. */
-export const Image = (props: ImageProps): ReactNode => {
+export const Image = forwardRef<MotionNodeHandle, ImageProps>((props, ref): ReactNode => {
   const HostImage = useHost().Image;
-  return <HostImage {...props} />;
-};
+  return <HostImage {...props} ref={ref} />;
+});

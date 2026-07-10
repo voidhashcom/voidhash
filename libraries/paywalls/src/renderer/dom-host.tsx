@@ -1,5 +1,17 @@
-import { type CSSProperties, type KeyboardEvent, type ReactNode, useState } from "react";
+import {
+  forwardRef,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
+import { useMotionRef } from "../motion/ref";
+import { useInView } from "../motion/scroll";
+import { MOTION_STYLE_KEYS, type MotionNodeHandle, type MotionStyleProp, type ScrollViewHandle } from "../motion/types";
 import type {
   HostComponents,
   ImageProps,
@@ -11,14 +23,11 @@ import type {
   TextProps,
   ViewProps,
 } from "../primitives/types";
-import { resolveStyle } from "../style/resolve";
+import type { StyleProp } from "../schema/style";
+import { flattenStyle, resolveStyle } from "../style/resolve";
+import { useDomDrag } from "./dom-drag";
+import { useDomMotion, useDomNodeHandle } from "./dom-motion";
 
-/**
- * Flexbox defaults that mirror React Native's `View` reset. Authoring code is
- * written with RN layout expectations (column flow, no implicit shrink, border
- * box), so the DOM renderer re-creates them rather than inheriting the
- * browser's block-layout defaults.
- */
 const VIEW_BASE: CSSProperties = {
   alignItems: "stretch",
   boxSizing: "border-box",
@@ -63,57 +72,90 @@ const lineClampStyle = (numberOfLines?: number): CSSProperties =>
       }
     : {};
 
-const DomView = ({ style, children, testID, accessibilityLabel }: ViewProps): ReactNode => (
-  <div
-    aria-label={accessibilityLabel}
-    data-testid={testID}
-    style={{ ...VIEW_BASE, ...resolveStyle(style) }}
-  >
-    {children}
-  </div>
-);
+const resolveStaticStyle = (style: MotionStyleProp | undefined): CSSProperties => {
+  const flat = { ...(flattenStyle(style as never) as Record<string, unknown>) };
+  for (const key of MOTION_STYLE_KEYS) delete flat[key];
+  return resolveStyle(flat as StyleProp);
+};
 
-const DomText = ({
-  style,
-  children,
-  numberOfLines,
-  testID,
-  accessibilityLabel,
-}: TextProps): ReactNode => (
-  <div
-    aria-label={accessibilityLabel}
-    data-testid={testID}
-    style={{
-      ...TEXT_BASE,
-      ...lineClampStyle(numberOfLines),
-      ...resolveStyle(style),
-    }}
-  >
-    {children}
-  </div>
-);
+const useViewMotion = (
+  elementRef: RefObject<HTMLDivElement | HTMLImageElement | null>,
+  props: ViewProps | TextProps | ImageProps | PressableHostProps | ScrollViewProps,
+  handle: MotionNodeHandle,
+  state: { readonly pressed?: boolean; readonly focused?: boolean; readonly dragging?: boolean } = {},
+) => {
+  const motionRef = useMotionRef<MotionNodeHandle>();
+  motionRef.current = handle;
+  const inView = useInView(motionRef, props.viewport);
+  return useDomMotion(elementRef, props, { ...state, inView });
+};
 
-const DomPressable = ({
-  style,
-  children,
-  onPress,
-  disabled,
-  testID,
-  accessibilityLabel,
-}: PressableHostProps): ReactNode => {
+const DomView = forwardRef<MotionNodeHandle, ViewProps>((props, ref): ReactNode => {
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  const handle = useDomNodeHandle(elementRef);
+  useImperativeHandle(ref, () => handle, [handle]);
+  const [dragging, setDragging] = useState(false);
+  const motion = useViewMotion(elementRef, props, handle, { dragging });
+  const drag = useDomDrag(elementRef, handle, props, motion, {
+    onEnd: () => setDragging(false),
+    onStart: () => setDragging(true),
+  });
+
+  return (
+    <div
+      aria-label={props.accessibilityLabel}
+      data-testid={props.testID}
+      onPointerCancel={drag.onPointerCancel}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
+      ref={elementRef}
+      style={{ ...VIEW_BASE, ...resolveStaticStyle(props.style), ...motion.staticStyle, touchAction: drag.touchAction }}
+    >
+      {props.children}
+    </div>
+  );
+});
+
+const DomText = forwardRef<MotionNodeHandle, TextProps>((props, ref): ReactNode => {
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  const handle = useDomNodeHandle(elementRef);
+  useImperativeHandle(ref, () => handle, [handle]);
+  const motion = useViewMotion(elementRef, props, handle);
+  return (
+    <div
+      aria-label={props.accessibilityLabel}
+      data-testid={props.testID}
+      ref={elementRef}
+      style={{ ...TEXT_BASE, ...lineClampStyle(props.numberOfLines), ...resolveStaticStyle(props.style), ...motion.staticStyle }}
+    >
+      {props.children}
+    </div>
+  );
+});
+
+const DomPressable = forwardRef<MotionNodeHandle, PressableHostProps>((props, ref): ReactNode => {
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  const handle = useDomNodeHandle(elementRef);
+  useImperativeHandle(ref, () => handle, [handle]);
   const [pressed, setPressed] = useState(false);
-
+  const [focused, setFocused] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const cancelledPress = useRef(false);
+  const motion = useViewMotion(elementRef, props, handle, { dragging, focused, pressed });
+  const drag = useDomDrag(elementRef, handle, props, motion, {
+    onEnd: () => setDragging(false),
+    onStart: () => {
+      cancelledPress.current = true;
+      setDragging(true);
+      setPressed(false);
+    },
+  });
   const handleActivate = () => {
-    if (disabled) {
-      return;
-    }
-    onPress?.();
+    if (!props.disabled) props.onPress?.();
   };
-
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (disabled) {
-      return;
-    }
+    if (props.disabled) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       handleActivate();
@@ -122,83 +164,120 @@ const DomPressable = ({
 
   return (
     <div
-      aria-disabled={disabled || undefined}
-      aria-label={accessibilityLabel}
+      aria-disabled={props.disabled || undefined}
+      aria-label={props.accessibilityLabel}
       data-pressed={pressed || undefined}
-      data-testid={testID}
-      onClick={handleActivate}
+      data-testid={props.testID}
+      onBlur={() => setFocused(false)}
+      onClick={(event) => {
+        if (cancelledPress.current) {
+          cancelledPress.current = false;
+          event.preventDefault();
+          return;
+        }
+        handleActivate();
+      }}
+      onFocus={() => setFocused(true)}
       onKeyDown={handleKeyDown}
-      onPointerCancel={() => setPressed(false)}
-      onPointerDown={() => setPressed(true)}
+      onPointerCancel={(event) => {
+        setPressed(false);
+        drag.onPointerCancel(event);
+      }}
+      onPointerDown={(event) => {
+        if (!props.disabled) setPressed(true);
+        drag.onPointerDown(event);
+      }}
       onPointerLeave={() => setPressed(false)}
-      onPointerUp={() => setPressed(false)}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={(event) => {
+        setPressed(false);
+        drag.onPointerUp(event);
+      }}
+      ref={elementRef}
       role="button"
       style={{
         ...VIEW_BASE,
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-        touchAction: "manipulation",
+        cursor: props.disabled ? "default" : "pointer",
+        opacity: props.disabled ? 0.5 : undefined,
+        touchAction: drag.touchAction,
         userSelect: "none",
-        ...resolveStyle(style),
+        ...resolveStaticStyle(props.style),
+        ...motion.staticStyle,
       }}
-      tabIndex={disabled ? -1 : 0}
+      tabIndex={props.disabled ? -1 : 0}
     >
-      {typeof children === "function" ? children({ pressed }) : children}
+      {typeof props.children === "function" ? props.children({ pressed }) : props.children}
     </div>
   );
-};
+});
 
-const DomScrollView = ({
-  style,
-  contentContainerStyle,
-  horizontal,
-  children,
-  testID,
-}: ScrollViewProps): ReactNode => (
-  <div
-    data-testid={testID}
-    style={{
-      ...VIEW_BASE,
-      flexDirection: horizontal ? "row" : "column",
-      overflowX: horizontal ? "auto" : "hidden",
-      overflowY: horizontal ? "hidden" : "auto",
-      WebkitOverflowScrolling: "touch",
-      ...resolveStyle(style),
-    }}
-  >
+const DomScrollView = forwardRef<ScrollViewHandle, ScrollViewProps>((props, ref): ReactNode => {
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  const handle = useDomNodeHandle<ScrollViewHandle>(elementRef, true);
+  useImperativeHandle(ref, () => handle, [handle]);
+  const motion = useViewMotion(elementRef, props, handle);
+  return (
     <div
+      data-testid={props.testID}
+      data-vh-scroll-axis={props.horizontal ? "x" : "y"}
+      ref={elementRef}
       style={{
         ...VIEW_BASE,
-        flexDirection: horizontal ? "row" : "column",
-        flexGrow: 1,
-        flexShrink: 0,
-        ...resolveStyle(contentContainerStyle),
+        flexDirection: props.horizontal ? "row" : "column",
+        overflowX: props.horizontal ? "auto" : "hidden",
+        overflowY: props.horizontal ? "hidden" : "auto",
+        WebkitOverflowScrolling: "touch",
+        ...resolveStaticStyle(props.style),
+        ...motion.staticStyle,
       }}
     >
-      {children}
+      <div
+        style={{
+          ...VIEW_BASE,
+          flexDirection: props.horizontal ? "row" : "column",
+          flexGrow: 1,
+          flexShrink: 0,
+          ...resolveStyle(props.contentContainerStyle),
+        }}
+      >
+        {props.children}
+      </div>
     </div>
-  </div>
-);
+  );
+});
 
-const DomImage = ({
-  style,
-  source,
-  resizeMode = "cover",
-  accessibilityLabel,
-  testID,
-}: ImageProps): ReactNode => (
-  <img
-    alt={accessibilityLabel ?? ""}
-    data-testid={testID}
-    src={resolveImageSource(source)}
-    style={{
-      boxSizing: "border-box",
-      display: "block",
-      objectFit: RESIZE_MODE_TO_OBJECT_FIT[resizeMode],
-      ...resolveStyle(style),
-    }}
-  />
-);
+const DomImage = forwardRef<MotionNodeHandle, ImageProps>((props, ref): ReactNode => {
+  const elementRef = useRef<HTMLImageElement | null>(null);
+  const handle = useDomNodeHandle(elementRef);
+  useImperativeHandle(ref, () => handle, [handle]);
+  const [dragging, setDragging] = useState(false);
+  const motion = useViewMotion(elementRef, props, handle, { dragging });
+  const drag = useDomDrag(elementRef, handle, props, motion, {
+    onEnd: () => setDragging(false),
+    onStart: () => setDragging(true),
+  });
+  return (
+    <img
+      alt={props.accessibilityLabel ?? ""}
+      data-testid={props.testID}
+      draggable={false}
+      onPointerCancel={drag.onPointerCancel}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
+      ref={elementRef}
+      src={resolveImageSource(props.source)}
+      style={{
+        boxSizing: "border-box",
+        display: "block",
+        objectFit: RESIZE_MODE_TO_OBJECT_FIT[props.resizeMode ?? "cover"],
+        touchAction: drag.touchAction,
+        ...resolveStaticStyle(props.style),
+        ...motion.staticStyle,
+      }}
+    />
+  );
+});
 
 const DomSlot = ({ children, fallback }: SlotHostProps): ReactNode => children ?? fallback ?? null;
 

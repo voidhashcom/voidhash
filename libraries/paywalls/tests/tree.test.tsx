@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   defineComponent,
   Image,
+  motionValue,
   type PaywallProduct,
   Pressable,
   ScrollView,
@@ -40,7 +41,7 @@ describe("renderToNodeTree", () => {
     );
 
     expect(tree).toEqual({
-      treeVersion: 1,
+      treeVersion: 2,
       state: "default",
       root: {
         type: "view",
@@ -55,6 +56,37 @@ describe("renderToNodeTree", () => {
           },
         ],
       },
+    });
+  });
+
+  it("serializes only a resolved rest visual state for motion-capable primitives", async () => {
+    const liveOpacity = motionValue(0.2);
+    const tree = await renderToNodeTree(
+      <View
+        animate="visible"
+        initial={{ opacity: 0, y: 16 }}
+        style={{ scale: 0.96, x: 12, opacity: liveOpacity }}
+        variants={{ visible: { opacity: 1, y: 0 } }}
+        whileInView={{ y: -20 }}
+      />,
+    );
+
+    expect(tree.root).toEqual({
+      type: "view",
+      style: {},
+      motion: { opacity: 1, scale: 0.96, x: 12, y: 0 },
+      children: [],
+    });
+    expect(JSON.stringify(tree)).not.toContain("whileInView");
+  });
+
+  it("uses initial when a component has no animate target", async () => {
+    const tree = await renderToNodeTree(<Text initial={{ opacity: 0, y: 12 }}>Loading</Text>);
+    expect(tree.root).toEqual({
+      type: "text",
+      style: {},
+      motion: { opacity: 0, y: 12 },
+      text: "Loading",
     });
   });
 

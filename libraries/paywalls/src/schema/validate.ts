@@ -12,7 +12,7 @@
  * unknown node types, unknown keys, and out-of-vocabulary style keys are all
  * rejected. No `effect`, no `react`.
  */
-import { PAYWALL_TREE_VERSION, type PaywallNode, type PaywallNodeTree } from "./node-tree";
+import { MOTION_STYLE_KEYS } from "../motion/types";
 import {
   COMPONENT_MANIFEST_VERSION,
   type ComponentManifest,
@@ -20,6 +20,7 @@ import {
   type ManifestArrayItem,
   type ManifestProp,
 } from "./component-manifest";
+import { PAYWALL_TREE_VERSION, type PaywallNode, type PaywallNodeTree } from "./node-tree";
 import { PAYWALL_STYLE_KEY_LIST } from "./style";
 
 /** Discriminated result of a validator: parsed value or a list of error messages. */
@@ -76,6 +77,7 @@ const STYLE_VALUE_LABEL = "a number or string";
 
 const BACKGROUND_TYPES = new Set(["solid", "gradient", "image"]);
 const GRADIENT_KINDS = new Set(["linear", "radial"]);
+const MOTION_STYLE_KEY_SET: ReadonlySet<string> = new Set(MOTION_STYLE_KEYS);
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -162,12 +164,41 @@ const validateStyle = (style: unknown, path: string, errors: string[]): void => 
   }
 };
 
+const validateMotion = (motion: unknown, path: string, errors: string[]): void => {
+  if (!isPlainObject(motion)) {
+    errors.push(`${path}.motion must be an object`);
+    return;
+  }
+  for (const [key, value] of Object.entries(motion)) {
+    if (!MOTION_STYLE_KEY_SET.has(key)) {
+      errors.push(`${path}.motion has unknown key "${key}"`);
+    } else if (key === "backgroundColor") {
+      if (typeof value !== "string") {
+        errors.push(`${path}.motion.backgroundColor must be a string`);
+      }
+    } else if (key === "transformOrigin") {
+      if (!isPlainObject(value)) {
+        errors.push(`${path}.motion.transformOrigin must be an object`);
+      } else {
+        for (const originKey of unknownKeys(value, new Set(["x", "y"]))) {
+          errors.push(`${path}.motion.transformOrigin has unknown key "${originKey}"`);
+        }
+        if (!isFiniteNumber(value.x) || !isFiniteNumber(value.y)) {
+          errors.push(`${path}.motion.transformOrigin.x and .y must be finite numbers`);
+        }
+      }
+    } else if (!isFiniteNumber(value)) {
+      errors.push(`${path}.motion.${key} must be a finite number`);
+    }
+  }
+};
+
 const NODE_KEYS: Record<string, ReadonlySet<string>> = {
-  view: new Set(["type", "style", "children"]),
-  scroll: new Set(["type", "style", "children"]),
-  pressable: new Set(["type", "style", "children", "action"]),
-  text: new Set(["type", "style", "text"]),
-  image: new Set(["type", "style", "src", "resizeMode"]),
+  view: new Set(["type", "style", "motion", "children"]),
+  scroll: new Set(["type", "style", "motion", "children"]),
+  pressable: new Set(["type", "style", "motion", "children", "action"]),
+  text: new Set(["type", "style", "motion", "text"]),
+  image: new Set(["type", "style", "motion", "src", "resizeMode"]),
   slot: new Set(["type"]),
   placeholder: new Set(["type", "reason"]),
 };
@@ -191,6 +222,9 @@ const validateNode = (node: unknown, path: string, errors: string[]): void => {
     case "scroll":
     case "pressable": {
       validateStyle(node.style, path, errors);
+      if (node.motion !== undefined) {
+        validateMotion(node.motion, path, errors);
+      }
       if (!Array.isArray(node.children)) {
         errors.push(`${path}.children must be an array`);
       } else {
@@ -205,6 +239,9 @@ const validateNode = (node: unknown, path: string, errors: string[]): void => {
     }
     case "text": {
       validateStyle(node.style, path, errors);
+      if (node.motion !== undefined) {
+        validateMotion(node.motion, path, errors);
+      }
       if (typeof node.text !== "string") {
         errors.push(`${path}.text must be a string`);
       }
@@ -212,6 +249,9 @@ const validateNode = (node: unknown, path: string, errors: string[]): void => {
     }
     case "image": {
       validateStyle(node.style, path, errors);
+      if (node.motion !== undefined) {
+        validateMotion(node.motion, path, errors);
+      }
       if (typeof node.src !== "string") {
         errors.push(`${path}.src must be a string`);
       }

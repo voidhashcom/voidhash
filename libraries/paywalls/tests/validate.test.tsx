@@ -13,6 +13,7 @@ import {
 } from "../src/index";
 import {
   countSlotNodes,
+  PAYWALL_TREE_VERSION,
   PAYWALL_STYLE_KEY_LIST,
   PAYWALL_STYLE_KEYS,
   parseComponentManifest,
@@ -65,16 +66,23 @@ describe("parsePreviewTree", () => {
 
   it("accepts every §3 node type in one hand-built fixture", () => {
     const tree = {
-      treeVersion: 1,
+      treeVersion: PAYWALL_TREE_VERSION,
       state: "default",
       root: {
         type: "view",
         style: {},
+        motion: { backgroundColor: "#000", transformOrigin: { x: 0.5, y: 0.5 } },
         children: [
-          { type: "text", style: { color: "#fff" }, text: "Yearly" },
-          { type: "image", style: {}, src: "https://x", resizeMode: "contain" },
-          { type: "pressable", style: {}, action: "onSelect", children: [] },
-          { type: "scroll", style: {}, children: [] },
+          { type: "text", style: { color: "#fff" }, motion: { opacity: 0.8 }, text: "Yearly" },
+          {
+            type: "image",
+            style: {},
+            motion: { scale: 1.05 },
+            src: "https://x",
+            resizeMode: "contain",
+          },
+          { type: "pressable", style: {}, motion: { y: -2 }, action: "onSelect", children: [] },
+          { type: "scroll", style: {}, motion: { x: 4 }, children: [] },
           { type: "slot" },
           { type: "placeholder", reason: "render returned null" },
         ],
@@ -85,7 +93,7 @@ describe("parsePreviewTree", () => {
 
   it("rejects an unknown node type", () => {
     const result = parsePreviewTree({
-      treeVersion: 1,
+      treeVersion: PAYWALL_TREE_VERSION,
       state: "default",
       root: { type: "canvas", style: {}, children: [] },
     });
@@ -97,7 +105,7 @@ describe("parsePreviewTree", () => {
 
   it("rejects an unknown key on a node", () => {
     const result = parsePreviewTree({
-      treeVersion: 1,
+      treeVersion: PAYWALL_TREE_VERSION,
       state: "default",
       root: { type: "text", style: {}, text: "hi", onClick: "nope" },
     });
@@ -109,7 +117,7 @@ describe("parsePreviewTree", () => {
 
   it("rejects an out-of-vocabulary style key", () => {
     const result = parsePreviewTree({
-      treeVersion: 1,
+      treeVersion: PAYWALL_TREE_VERSION,
       state: "default",
       root: { type: "view", style: { transform: "scale(2)" }, children: [] },
     });
@@ -119,25 +127,51 @@ describe("parsePreviewTree", () => {
     }
   });
 
+  it("rejects malformed or non-resolved motion payloads", () => {
+    expect(
+      parsePreviewTree({
+        treeVersion: PAYWALL_TREE_VERSION,
+        state: "default",
+        root: {
+          type: "view",
+          style: {},
+          motion: {
+            opacity: Number.POSITIVE_INFINITY,
+            transformOrigin: { x: 0, y: "center" },
+            transition: { duration: 1 },
+          },
+          children: [],
+        },
+      }).ok,
+    ).toBe(false);
+    expect(
+      parsePreviewTree({
+        treeVersion: PAYWALL_TREE_VERSION,
+        state: "default",
+        root: { type: "slot", motion: { opacity: 0 } },
+      }).ok,
+    ).toBe(false);
+  });
+
   it("rejects a bad resizeMode and a wrong treeVersion and a malformed state", () => {
     expect(
       parsePreviewTree({
-        treeVersion: 1,
+        treeVersion: PAYWALL_TREE_VERSION,
         state: "default",
         root: { type: "image", style: {}, src: "x", resizeMode: "fill" },
       }).ok,
     ).toBe(false);
-    expect(parsePreviewTree({ treeVersion: 2, state: "default", root: { type: "slot" } }).ok).toBe(
+    expect(parsePreviewTree({ treeVersion: 1, state: "default", root: { type: "slot" } }).ok).toBe(
       false,
     );
     expect(
-      parsePreviewTree({ treeVersion: 1, state: "bad state!", root: { type: "slot" } }).ok,
+      parsePreviewTree({ treeVersion: PAYWALL_TREE_VERSION, state: "bad state!", root: { type: "slot" } }).ok,
     ).toBe(false);
   });
 
   it("accepts the structured background style keys", () => {
     const result = parsePreviewTree({
-      treeVersion: 1,
+      treeVersion: PAYWALL_TREE_VERSION,
       state: "default",
       root: {
         type: "view",
@@ -165,14 +199,14 @@ describe("parsePreviewTree", () => {
   it("rejects a malformed backgroundType, gradient, and image", () => {
     expect(
       parsePreviewTree({
-        treeVersion: 1,
+        treeVersion: PAYWALL_TREE_VERSION,
         state: "default",
         root: { type: "view", style: { backgroundType: "swirl" }, children: [] },
       }).ok,
     ).toBe(false);
     expect(
       parsePreviewTree({
-        treeVersion: 1,
+        treeVersion: PAYWALL_TREE_VERSION,
         state: "default",
         root: {
           type: "view",
@@ -183,7 +217,7 @@ describe("parsePreviewTree", () => {
     ).toBe(false);
     expect(
       parsePreviewTree({
-        treeVersion: 1,
+        treeVersion: PAYWALL_TREE_VERSION,
         state: "default",
         root: {
           type: "view",
@@ -196,7 +230,7 @@ describe("parsePreviewTree", () => {
 
   it("rejects a non-finite gradient coordinate and a non-string stop color", () => {
     const bad = parsePreviewTree({
-      treeVersion: 1,
+      treeVersion: PAYWALL_TREE_VERSION,
       state: "default",
       root: {
         type: "view",

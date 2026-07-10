@@ -12,6 +12,9 @@ import createReconciler from "react-reconciler";
 import { ConcurrentRoot, DefaultEventPriority } from "react-reconciler/constants.js";
 
 import { captureInlineActionName } from "../internal/action-brand";
+import { staticMotionPlatformAdapter } from "../motion/platform";
+import { MOTION_STYLE_KEYS, type ResolvedMotionStyle } from "../motion/types";
+import { isMotionValue } from "../motion/value";
 import { RendererProvider } from "../primitives/host-context";
 import type { PaywallBridge } from "../runtime/bridge";
 import { normalizeRuntimeConfig, type PaywallRuntimeConfig } from "../runtime/config";
@@ -22,7 +25,11 @@ import {
   type PaywallNodeResizeMode,
   type PaywallNodeTree,
 } from "../schema/node-tree";
-import { PAYWALL_STYLE_KEY_LIST, type PaywallStyle, type StyleProp } from "../schema/style";
+import {
+  PAYWALL_STYLE_KEY_LIST,
+  type PaywallStyle,
+  type StyleProp,
+} from "../schema/style";
 import { flattenStyle } from "../style/resolve";
 import { TREE_ELEMENT_TYPES, treeHostComponents } from "./tree-host";
 
@@ -183,11 +190,37 @@ const sanitizeStyle = (style: unknown): PaywallStyle => {
   const flat = flattenStyle(style as StyleProp);
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(flat)) {
-    if (value !== undefined && value !== null && ALLOWED_STYLE_KEYS.has(key)) {
+    if (
+      value !== undefined &&
+      value !== null &&
+      !isMotionValue(value) &&
+      ALLOWED_STYLE_KEYS.has(key)
+    ) {
       out[key] = value;
     }
   }
   return out as PaywallStyle;
+};
+
+const sanitizeMotion = (motion: unknown): ResolvedMotionStyle | undefined => {
+  if (typeof motion !== "object" || motion === null) return undefined;
+  const candidate = motion as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const key of MOTION_STYLE_KEYS) {
+    const value = candidate[key];
+    if (
+      (typeof value === "number" && Number.isFinite(value)) ||
+      (key === "backgroundColor" && typeof value === "string") ||
+      (key === "transformOrigin" &&
+        typeof value === "object" &&
+        value !== null &&
+        typeof (value as Record<string, unknown>).x === "number" &&
+        typeof (value as Record<string, unknown>).y === "number")
+    ) {
+      out[key] = value;
+    }
+  }
+  return Object.keys(out).length === 0 ? undefined : (out as ResolvedMotionStyle);
 };
 
 const collectText = (children: ReadonlyArray<TreeChild>): string => {
@@ -238,11 +271,13 @@ const serializeChild = (child: TreeChild): PaywallNode => {
     return { type: "text", style: {}, text: child.text };
   }
   const style = sanitizeStyle(child.props.style);
+  const motion = sanitizeMotion(child.props.motion);
   switch (child.type) {
     case TREE_ELEMENT_TYPES.view:
       return {
         type: "view",
         style,
+        ...(motion ? { motion } : {}),
         children: serializeChildren(child.children),
       };
     case TREE_ELEMENT_TYPES.pressable: {
@@ -250,6 +285,7 @@ const serializeChild = (child: TreeChild): PaywallNode => {
       return {
         type: "pressable",
         style,
+        ...(motion ? { motion } : {}),
         children: serializeChildren(child.children),
         ...(action !== undefined ? { action } : {}),
       };
@@ -258,15 +294,17 @@ const serializeChild = (child: TreeChild): PaywallNode => {
       return {
         type: "scroll",
         style,
+        ...(motion ? { motion } : {}),
         children: serializeChildren(child.children),
       };
     case TREE_ELEMENT_TYPES.text:
-      return { type: "text", style, text: collectText(child.children) };
+      return { type: "text", style, ...(motion ? { motion } : {}), text: collectText(child.children) };
     case TREE_ELEMENT_TYPES.image: {
       const resizeMode = child.props.resizeMode as PaywallNodeResizeMode | undefined;
       return {
         type: "image",
         style,
+        ...(motion ? { motion } : {}),
         src: typeof child.props.src === "string" ? child.props.src : "",
         ...(resizeMode && RESIZE_MODES.includes(resizeMode) ? { resizeMode } : {}),
       };
@@ -380,8 +418,11 @@ export const renderToNodeTree = async (
   );
 
   const wrapped = (
-    <RendererProvider host={treeHostComponents}>
-      <PaywallRuntimeProvider bridge={silentBridge} config={normalizeRuntimeConfig(options.config)}>
+    <RendererProvider host={treeHostComponents} motion={staticMotionPlatformAdapter}>
+      <PaywallRuntimeProvider
+        bridge={silentBridge}
+        config={normalizeRuntimeConfig(options.config)}
+      >
         <TreeErrorBoundary>{element}</TreeErrorBoundary>
       </PaywallRuntimeProvider>
     </RendererProvider>

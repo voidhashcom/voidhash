@@ -4,9 +4,10 @@
  * Servers validate uploaded trees against exactly these shapes.
  */
 import type { PaywallStyle } from "./style";
+import type { ResolvedMotionStyle } from "../motion/types";
 
 /** Wire version of the preview node tree format. */
-export const PAYWALL_TREE_VERSION = 1 as const;
+export const PAYWALL_TREE_VERSION = 2 as const;
 
 /** How an image node fills its frame. Mirrors RN `resizeMode`. */
 export type PaywallNodeResizeMode = "cover" | "contain" | "stretch" | "center";
@@ -14,12 +15,15 @@ export type PaywallNodeResizeMode = "cover" | "contain" | "stretch" | "center";
 export interface PaywallViewNode {
   readonly type: "view";
   readonly style: PaywallStyle;
+  /** Resolved rest visual output only; never a transition, callback, or live value. */
+  readonly motion?: ResolvedMotionStyle;
   readonly children: ReadonlyArray<PaywallNode>;
 }
 
 export interface PaywallPressableNode {
   readonly type: "pressable";
   readonly style: PaywallStyle;
+  readonly motion?: ResolvedMotionStyle;
   readonly children: ReadonlyArray<PaywallNode>;
   /** The declared action name this pressable fires, when known. */
   readonly action?: string;
@@ -28,18 +32,21 @@ export interface PaywallPressableNode {
 export interface PaywallScrollNode {
   readonly type: "scroll";
   readonly style: PaywallStyle;
+  readonly motion?: ResolvedMotionStyle;
   readonly children: ReadonlyArray<PaywallNode>;
 }
 
 export interface PaywallTextNode {
   readonly type: "text";
   readonly style: PaywallStyle;
+  readonly motion?: ResolvedMotionStyle;
   readonly text: string;
 }
 
 export interface PaywallImageNode {
   readonly type: "image";
   readonly style: PaywallStyle;
+  readonly motion?: ResolvedMotionStyle;
   readonly src: string;
   readonly resizeMode?: PaywallNodeResizeMode;
 }
