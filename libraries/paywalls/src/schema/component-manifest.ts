@@ -36,6 +36,8 @@ interface ManifestPropBase {
   readonly default?: unknown;
   readonly editor?: ManifestPropEditor;
   readonly optional: boolean;
+  /** Whether this prop's value is translated per locale (`"string"`/`"image"` only). */
+  readonly localizable?: boolean;
 }
 
 export interface ManifestStringProp extends ManifestPropBase {

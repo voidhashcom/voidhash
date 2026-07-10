@@ -77,6 +77,7 @@ const toManifestProp = (schema: PropSchema): ManifestProp => {
     ...(schema.label !== undefined ? { label: schema.label } : {}),
     ...(defaultValue !== undefined ? { default: defaultValue } : {}),
     ...(schema.editor !== undefined ? { editor: schema.editor } : {}),
+    ...(schema.localizable ? { localizable: true } : {}),
     // A prop with a default is omittable for consumers, so the manifest
     // reports it as optional even without an explicit `.optional()`.
     optional: schema.optional || schema.hasDefault,
