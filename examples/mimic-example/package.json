@@ -1,0 +1,54 @@
+{
+  "name": "@voidhash/mimic-example",
+  "version": "1.0.0-beta.19",
+  "private": true,
+  "description": "Example React application and Node server for the Mimic collaboration SDK.",
+  "author": "Voidhash (https://voidhash.com)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "examples/mimic-example"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "dev:server": "tsx watch src/server/index.ts",
+    "build": "vp build",
+    "preview": "vp preview",
+    "start:server": "tsx src/server/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@effect/platform-node": "4.0.0-beta.84",
+    "@tailwindcss/postcss": "^4.1.15",
+    "@tanstack/react-router": "1.163.3",
+    "@tanstack/react-router-devtools": "1.163.3",
+    "@tanstack/router-plugin": "1.163.3",
+    "@voidhash/mimic": "workspace:*",
+    "@voidhash/mimic-core": "workspace:*",
+    "@voidhash/mimic-server": "workspace:*",
+    "effect": "4.0.0-beta.84",
+    "postcss": "^8.5.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "redaxios": "^0.5.1",
+    "tailwindcss": "^4.1.17",
+    "zod": "^3.24.2",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "19.1.17",
+    "@types/react-dom": "19.1.9",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@voidhash/tsconfig": "workspace:*",
+    "tsx": "^4.19.3",
+    "typescript": "5.8.3",
+    "vite": "catalog:",
+    "vite-plus": "0.1.23"
+  }
+}
