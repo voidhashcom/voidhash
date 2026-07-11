@@ -1,0 +1,55 @@
+{
+  "name": "@voidhash/mimic-server",
+  "version": "1.0.0-beta.19",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/mimic-server"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "require": "./dist/index.cjs"
+    },
+    "./effect": {
+      "types": "./src/effect/index.ts",
+      "import": "./src/effect/index.ts",
+      "require": "./dist/effect/index.cjs"
+    },
+    "./rpc": {
+      "types": "./src/rpc/index.ts",
+      "import": "./src/rpc/index.ts",
+      "require": "./dist/rpc/index.cjs"
+    },
+    "./migrate": {
+      "types": "./src/migrate/index.ts",
+      "import": "./src/migrate/index.ts",
+      "require": "./dist/migrate/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vp test run -c vitest.mts",
+    "test:watch": "vp test -c vitest.mts"
+  },
+  "dependencies": {
+    "@voidhash/mimic-core": "workspace:*",
+    "effect": "4.0.0-beta.84"
+  },
+  "devDependencies": {
+    "tsdown": "^0.18.2",
+    "typescript": "5.8.3",
+    "vite-plus": "0.1.23",
+    "vitest": "^3.2.7"
+  }
+}
