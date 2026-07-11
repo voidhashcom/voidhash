@@ -1,0 +1,500 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voidha.sh/mimic-db/spec/fixture-suite.schema.json",
+  "title": "Mimic DB Fixture Suite",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "suite", "cases"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "suite": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/case"
+      }
+    }
+  },
+  "$defs": {
+    "pathSegment": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "key"],
+          "properties": {
+            "kind": {
+              "const": "field"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "id"],
+          "properties": {
+            "kind": {
+              "const": "item"
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "id"],
+          "properties": {
+            "kind": {
+              "const": "node"
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": {
+              "const": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": {
+              "const": "number"
+            },
+            "value": {
+              "type": "number"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": {
+              "const": "boolean"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "fields"],
+          "properties": {
+            "kind": {
+              "const": "object"
+            },
+            "fields": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/value"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "items"],
+          "properties": {
+            "kind": {
+              "const": "array"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "pos", "value"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "pos": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "value": {
+                    "$ref": "#/$defs/value"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "nodes"],
+          "properties": {
+            "kind": {
+              "const": "tree"
+            },
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "parent", "pos", "value"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "parent": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "pos": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind", "fields"],
+                    "properties": {
+                      "kind": {
+                        "const": "object"
+                      },
+                      "fields": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "$ref": "#/$defs/value"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "command": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path", "value"],
+          "properties": {
+            "kind": {
+              "const": "value.set"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pathSegment"
+              }
+            },
+            "value": {
+              "$ref": "#/$defs/value"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path", "key", "value"],
+          "properties": {
+            "kind": {
+              "const": "object.set"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pathSegment"
+              }
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "$ref": "#/$defs/value"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path", "key"],
+          "properties": {
+            "kind": {
+              "const": "object.delete"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pathSegment"
+              }
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path", "item"],
+          "properties": {
+            "kind": {
+              "const": "array.insert"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pathSegment"
+              }
+            },
+            "item": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "pos", "value"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "pos": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "value": {
+                  "$ref": "#/$defs/value"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path", "id", "pos"],
+          "properties": {
+            "kind": {
+              "const": "array.move"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pathSegment"
+              }
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "pos": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path", "id"],
+          "properties": {
+            "kind": {
+              "const": "array.delete"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pathSegment"
+              }
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path", "node"],
+          "properties": {
+            "kind": {
+              "const": "tree.insert"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pathSegment"
+              }
+            },
+            "node": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "parent", "pos", "value"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "parent": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "pos": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "value": {
+                  "$ref": "#/$defs/value"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path", "id", "parent", "pos"],
+          "properties": {
+            "kind": {
+              "const": "tree.move"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pathSegment"
+              }
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "parent": {
+              "type": "string",
+              "minLength": 1
+            },
+            "pos": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path", "id"],
+          "properties": {
+            "kind": {
+              "const": "tree.delete"
+            },
+            "path": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/pathSegment"
+              }
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "invalid_command",
+            "invalid_path",
+            "type_mismatch",
+            "missing_field",
+            "missing_array_item",
+            "missing_tree_node",
+            "duplicate_array_item_id",
+            "duplicate_array_pos",
+            "duplicate_tree_node_id",
+            "duplicate_tree_pos",
+            "invalid_tree_parent",
+            "tree_cycle",
+            "tree_node_value_must_be_object",
+            "reserved_identifier"
+          ]
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "initial", "commands"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "initial": {
+          "$ref": "#/$defs/value"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/command"
+          }
+        },
+        "expect": {
+          "$ref": "#/$defs/value"
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["expect"]
+        },
+        {
+          "required": ["error"]
+        }
+      ]
+    }
+  }
+}

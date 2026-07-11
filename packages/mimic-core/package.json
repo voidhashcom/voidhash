@@ -1,0 +1,36 @@
+{
+  "name": "@voidhash/mimic-core",
+  "version": "1.0.0-beta.19",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/mimic-core"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "require": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vp test run -c vitest.mts",
+    "test:watch": "vp test -c vitest.mts"
+  },
+  "devDependencies": {
+    "tsdown": "^0.18.2",
+    "typescript": "5.8.3",
+    "vite-plus": "0.1.23",
+    "vitest": "^3.2.7"
+  }
+}

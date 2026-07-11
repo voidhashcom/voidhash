@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "suite": "fractional",
+  "cases": [
+    {
+      "name": "plain empty list",
+      "mode": "plain",
+      "count": 1,
+      "lower": null,
+      "upper": null,
+      "expect": ["a0"]
+    },
+    {
+      "name": "plain between a0 and a1",
+      "mode": "plain",
+      "count": 1,
+      "lower": "a0",
+      "upper": "a1",
+      "expect": ["a0V"]
+    },
+    {
+      "name": "plain three between a0 and a1",
+      "mode": "plain",
+      "count": 3,
+      "lower": "a0",
+      "upper": "a1",
+      "expect": ["a0F", "a0V", "a0k"]
+    },
+    {
+      "name": "jittered empty list",
+      "mode": "jittered",
+      "count": 1,
+      "lower": null,
+      "upper": null,
+      "random": [0.5],
+      "expect": ["a06CO"]
+    },
+    {
+      "name": "jittered between a0 and a1",
+      "mode": "jittered",
+      "count": 1,
+      "lower": "a0",
+      "upper": "a1",
+      "random": [0.5],
+      "expect": ["a0V6CO"]
+    },
+    {
+      "name": "jittered three between a0 and a1",
+      "mode": "jittered",
+      "count": 3,
+      "lower": "a0",
+      "upper": "a1",
+      "random": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+      "expect": ["a0FeIa", "a0V6CO", "a0keIa"]
+    }
+  ]
+}
