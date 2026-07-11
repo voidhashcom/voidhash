@@ -1,0 +1,74 @@
+---
+title: Set up the App Store Connect API
+description: Create an App Store Connect API key and find your Vendor Number so Voidhash can import products and financial reports.
+---
+
+The **App Store Connect API** key lets Voidhash import your products and keep their metadata
+in sync. You'll need the key's **Issuer ID** and **Key ID** (plus the private `.p8` key that
+authenticates calls), along with your **Vendor Number** for downloading financial reports.
+
+<Steps>
+
+<Step>
+### Open the Integrations Team Keys
+
+In [App Store Connect](https://appstoreconnect.apple.com) go to **Users and Access**, click the
+**Integrations** tab, and under **App Store Connect API** select **Team Keys**. A team key works
+across all apps in the account, which suits product and metadata sync.
+
+<Callout type="info" title="Who can do this?">
+Only the **Account Holder** can first enable App Store Connect API access for the team. After
+that, the **Account Holder** or an **Admin** can generate Team keys — if you have Developer or
+App Manager access, ask one of them to create it.
+</Callout>
+</Step>
+
+<Step>
+### Copy the Issuer ID
+
+The **Issuer ID** is a UUID (e.g. `c055ca8c-e5a8-4836-b61d-aa5794eeb3f4`) shown above the
+**Active** keys table. It's shared by every key in the team. Copy it into the **Issuer ID**
+field in Voidhash.
+</Step>
+
+<Step>
+### Generate a Team key
+
+Click **Generate API Key**, give it a name (for your reference only), and choose an access role.
+**App Manager** is the recommended minimum for importing products and metadata; **Admin** grants
+broader access. Click **Generate** — the name and access level can't be edited afterward, so
+revoke and recreate the key to change them.
+</Step>
+
+<Step>
+### Copy the Key ID and download the .p8
+
+The new key appears with its **Key ID**, a 10-character value (e.g. `T9GPZ92M7K`) — copy it into
+the **Key ID** field in Voidhash. Then click **Download API Key** to save the private `.p8` file;
+Voidhash needs it together with the Issuer ID and Key ID to authenticate API calls.
+
+<Callout type="warn" title="Download the .p8 now — only once">
+Apple lets you download the private `.p8` key **only once**, at creation time. If you lose it,
+you must revoke the key and generate a new one.
+</Callout>
+</Step>
+
+<Step>
+### Find your Vendor Number
+
+From the App Store Connect home, open **Payments and Financial Reports**, then select **Reports**
+at the top of the page. Your **Vendor Number** appears in the top-left under your **Legal Entity
+Name**, labeled `Vendor #`. Copy that number into the **Vendor Number** field in Voidhash.
+
+<Callout type="info" title="Multiple legal entities?">
+If the top-left menu lists more than one legal entity, open it and pick the vendor number for the
+entity whose App Store sales you're syncing. Viewing this area requires the **Account Holder**,
+**Admin**, or **Finance** role.
+</Callout>
+</Step>
+
+</Steps>
+
+{/* To add a screenshot, drop an image at
+apps/www/public/docs/guides/payment-providers/apple-app-store/app-store-connect-api.png and reference it:
+![Integrations tab showing the Issuer ID and Team Keys](/docs/guides/payment-providers/apple-app-store/app-store-connect-api.png) */}

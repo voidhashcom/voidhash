@@ -1,0 +1,153 @@
+---
+title: Card
+description: A container component for grouping related content and actions.
+---
+
+## Usage
+
+<Preview centered={false}>
+  <Card className="w-full max-w-md">
+    <CardHeader>
+      <CardTitle>Card Title</CardTitle>
+      <CardDescription>Card description with additional context.</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <p>Card content goes here. This can contain any content you need.</p>
+    </CardContent>
+    <CardFooter>
+      <Button>Action</Button>
+    </CardFooter>
+  </Card>
+</Preview>
+
+```tsx
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@voidhash/ui";
+
+<Card>
+  <CardHeader>
+    <CardTitle>Card Title</CardTitle>
+    <CardDescription>Card description.</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <p>Card content goes here.</p>
+  </CardContent>
+  <CardFooter>
+    <Button>Action</Button>
+  </CardFooter>
+</Card>;
+```
+
+## Components
+
+### Card
+
+The main container with optional variant styling.
+
+### CardHeader
+
+Container for title, description, and optional action.
+
+### CardTitle
+
+The card's heading text.
+
+### CardDescription
+
+Secondary text describing the card's purpose.
+
+### CardAction
+
+An action element positioned in the header.
+
+### CardContent
+
+The main content area of the card.
+
+### CardFooter
+
+Container for action buttons at the bottom.
+
+## Variants
+
+<div className="grid gap-4">
+  <Preview centered={false}>
+    <Card variant="default" className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle>Default Card</CardTitle>
+        <CardDescription>Standard card styling.</CardDescription>
+      </CardHeader>
+      <CardContent>Default variant content.</CardContent>
+    </Card>
+  </Preview>
+  <Preview centered={false}>
+    <Card variant="destructive" className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle>Destructive Card</CardTitle>
+        <CardDescription>Card with destructive border.</CardDescription>
+      </CardHeader>
+      <CardContent>Destructive variant content.</CardContent>
+    </Card>
+  </Preview>
+</div>
+
+```tsx
+<Card variant="default">...</Card>
+<Card variant="destructive">...</Card>
+```
+
+## Examples
+
+### With Action Button
+
+<Preview centered={false}>
+  <Card className="w-full max-w-md">
+    <CardHeader>
+      <CardTitle>Settings</CardTitle>
+      <CardDescription>Manage your account settings.</CardDescription>
+      <CardAction>
+        <Button variant="outline" size="sm">
+          Edit
+        </Button>
+      </CardAction>
+    </CardHeader>
+    <CardContent>
+      <p>Your current settings are displayed here.</p>
+    </CardContent>
+  </Card>
+</Preview>
+
+```tsx
+<Card>
+  <CardHeader>
+    <CardTitle>Settings</CardTitle>
+    <CardDescription>Manage your account settings.</CardDescription>
+    <CardAction>
+      <Button variant="outline" size="sm">
+        Edit
+      </Button>
+    </CardAction>
+  </CardHeader>
+  <CardContent>...</CardContent>
+</Card>
+```
+
+## Props
+
+### Card Props
+
+<TypeTable
+  type={{
+    variant: {
+      description: "The visual style of the card",
+      type: "'default' | 'destructive'",
+      default: "'default'",
+    },
+  }}
+/>

@@ -7,10 +7,10 @@
  * `PaywallStyle` uses precise per-key literal unions (`flexDirection?: "row" | …`,
  * `flex?: number`, …), whereas the render side treats every §3.1 style value as
  * `string | number` ({@link PreviewNodeStyle}). This keeps the render side a
- * strict superset of both OSS `PaywallStyle` and `@voidhash-mono/core`'s
+ * strict superset of both OSS `PaywallStyle` and `@voidhash/core`'s
  * effect-Schema `PreviewStyle` (whose decoded values are also `string | number`),
  * so a core-decoded tree stays structurally assignable to {@link PreviewTree}.
- * Validation is the server's job (`PreviewTreeSchema` in `@voidhash-mono/core`);
+ * Validation is the server's job (`PreviewTreeSchema` in `@voidhash/core`);
  * these types exist so renderers do not depend on `effect` or the server.
  */
 
@@ -47,7 +47,7 @@ export interface PreviewGradientStop {
 
 /**
  * A gradient background descriptor. Structurally a superset of both OSS
- * `PaywallBackgroundGradient` (mutable `stops`) and `@voidhash-mono/core`'s
+ * `PaywallBackgroundGradient` (mutable `stops`) and `@voidhash/core`'s
  * effect-decoded gradient (`readonly` `stops`) — `stops` is `readonly` here so
  * either assigns in, keeping {@link PreviewNodeStyle} a strict superset of both.
  */

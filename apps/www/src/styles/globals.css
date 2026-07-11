@@ -1,0 +1,36 @@
+/** biome-ignore-all lint/nursery/noUnknownAtRule: tailwind */
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "fumadocs-ui/css/shadcn.css";
+@import "fumadocs-ui/css/preset.css";
+@import "@voidhash/ui/styles/brand-theme.css";
+
+@source "../../../../packages/ui";
+@source "../../../../packages/features";
+@source "../../src";
+@source "../../../overwatch/src";
+
+@custom-variant dark (&:is(.dark *));
+
+::selection {
+  background: #0673ff;
+  color: #fff;
+}
+
+:root,
+.dark {
+  --stripe-width: 30px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Geist Variable", sans-serif;
+  }
+}

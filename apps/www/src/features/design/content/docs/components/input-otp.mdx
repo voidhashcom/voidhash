@@ -1,0 +1,136 @@
+---
+title: Input OTP
+description: A one-time password input component for verification codes.
+---
+
+## Usage
+
+<Preview>
+  <InputOTP maxLength={6}>
+    <InputOTPGroup>
+      <InputOTPSlot index={0} />
+      <InputOTPSlot index={1} />
+      <InputOTPSlot index={2} />
+    </InputOTPGroup>
+    <InputOTPSeparator />
+    <InputOTPGroup>
+      <InputOTPSlot index={3} />
+      <InputOTPSlot index={4} />
+      <InputOTPSlot index={5} />
+    </InputOTPGroup>
+  </InputOTP>
+</Preview>
+
+```tsx
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "@voidhash/ui";
+
+<InputOTP maxLength={6}>
+  <InputOTPGroup>
+    <InputOTPSlot index={0} />
+    <InputOTPSlot index={1} />
+    <InputOTPSlot index={2} />
+  </InputOTPGroup>
+  <InputOTPSeparator />
+  <InputOTPGroup>
+    <InputOTPSlot index={3} />
+    <InputOTPSlot index={4} />
+    <InputOTPSlot index={5} />
+  </InputOTPGroup>
+</InputOTP>;
+```
+
+## Components
+
+### InputOTP
+
+The root component managing OTP input state.
+
+### InputOTPGroup
+
+A group of OTP slots.
+
+### InputOTPSlot
+
+A single input slot for one character.
+
+### InputOTPSeparator
+
+A visual separator between groups.
+
+## Examples
+
+### 4-Digit Code
+
+<Preview>
+  <InputOTP maxLength={4}>
+    <InputOTPGroup>
+      <InputOTPSlot index={0} />
+      <InputOTPSlot index={1} />
+      <InputOTPSlot index={2} />
+      <InputOTPSlot index={3} />
+    </InputOTPGroup>
+  </InputOTP>
+</Preview>
+
+```tsx
+<InputOTP maxLength={4}>
+  <InputOTPGroup>
+    <InputOTPSlot index={0} />
+    <InputOTPSlot index={1} />
+    <InputOTPSlot index={2} />
+    <InputOTPSlot index={3} />
+  </InputOTPGroup>
+</InputOTP>
+```
+
+### Controlled
+
+```tsx
+const [value, setValue] = useState("");
+
+<InputOTP maxLength={6} value={value} onChange={setValue}>
+  ...
+</InputOTP>;
+```
+
+### Pattern Validation
+
+```tsx
+<InputOTP maxLength={6} pattern={REGEXP_ONLY_DIGITS}>
+  ...
+</InputOTP>
+```
+
+## Props
+
+### InputOTP Props
+
+<TypeTable
+  type={{
+    maxLength: {
+      description: "Maximum number of characters",
+      type: "number",
+      default: "Required",
+    },
+    value: {
+      description: "Controlled value",
+      type: "string",
+      default: "undefined",
+    },
+    onChange: {
+      description: "Callback when value changes",
+      type: "(value: string) => void",
+      default: "undefined",
+    },
+    pattern: {
+      description: "Regex pattern for validation",
+      type: "string | RegExp",
+      default: "undefined",
+    },
+    disabled: {
+      description: "Disable the input",
+      type: "boolean",
+      default: "false",
+    },
+  }}
+/>

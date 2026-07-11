@@ -69,6 +69,7 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@voidhash/tsconfig": "workspace:*",
+    "effect": "catalog:",
     "jsdom": "^20.0.3",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -79,7 +80,6 @@
     "vitest": "^3.2.7"
   },
   "peerDependencies": {
-    "@effect/platform": "catalog:",
     "effect": "catalog:",
     "react": "*"
   },

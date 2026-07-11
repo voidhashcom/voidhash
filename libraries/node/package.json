@@ -65,7 +65,6 @@
     "@voidhash/generated-clients": "workspace:*"
   },
   "devDependencies": {
-    "@effect/platform": "catalog:",
     "@voidhash/tsconfig": "workspace:*",
     "effect": "catalog:",
     "tsup": "^8.5.1",
@@ -75,7 +74,6 @@
     "vitest": "^3.2.7"
   },
   "peerDependencies": {
-    "@effect/platform": "catalog:",
     "effect": "catalog:"
   }
 }

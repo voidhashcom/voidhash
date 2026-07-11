@@ -10,7 +10,7 @@ export interface CurrentUserShape {
 }
 
 export class CurrentUser extends Context.Service<CurrentUser, CurrentUserShape>()(
-  "@voidhash-mono/mimic-rpc/CurrentUser",
+  "@voidhash/mimic-rpc/CurrentUser",
 ) {}
 
 export class AuthMiddleware extends RpcMiddleware.Service<
@@ -18,6 +18,6 @@ export class AuthMiddleware extends RpcMiddleware.Service<
   {
     provides: CurrentUser;
   }
->()("@voidhash-mono/mimic-rpc/AuthMiddleware", {
+>()("@voidhash/mimic-rpc/AuthMiddleware", {
   error: UnauthorizedError,
 }) {}

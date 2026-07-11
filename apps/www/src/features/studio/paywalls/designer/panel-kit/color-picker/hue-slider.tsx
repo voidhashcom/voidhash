@@ -1,0 +1,97 @@
+"use client";
+
+import { useCallback, useEffect, useRef } from "react";
+
+export interface HueSliderProps {
+  hue: number;
+  onChange: (hue: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  onDiscard?: () => void;
+}
+
+export function HueSlider({ hue, onChange, onDragStart, onDragEnd, onDiscard }: HueSliderProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  const updateHue = useCallback(
+    (clientX: number) => {
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+
+      const rect = container.getBoundingClientRect();
+      const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+      const h = (x / rect.width) * 360;
+      onChange(h);
+    },
+    [onChange],
+  );
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    onDragStart?.();
+    updateHue(e.clientX);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging.current) {
+        updateHue(e.clientX);
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (isDragging.current) {
+        isDragging.current = false;
+        onDragEnd?.();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isDragging.current) {
+        isDragging.current = false;
+        onDiscard?.();
+      }
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [updateHue, onDragEnd, onDiscard]);
+
+  return (
+    <div
+      aria-label="Hue slider"
+      aria-valuemax={360}
+      aria-valuemin={0}
+      aria-valuenow={Math.round(hue)}
+      className="relative h-3 w-full cursor-pointer rounded-full"
+      onMouseDown={handleMouseDown}
+      ref={containerRef}
+      role="slider"
+      style={{
+        background:
+          "linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)",
+      }}
+      tabIndex={0}
+    >
+      {/* Slider handle */}
+      <div
+        className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute top-1/2 size-3.5 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"
+        style={{
+          backgroundColor: `hsl(${hue}, 100%, 50%)`,
+          left: `${(hue / 360) * 100}%`,
+        }}
+      />
+    </div>
+  );
+}

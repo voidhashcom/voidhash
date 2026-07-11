@@ -143,6 +143,7 @@ dist
 # Serverless directories
 
 .serverless/
+.alchemy/
 
 # FuseBox cache
 

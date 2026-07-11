@@ -1,0 +1,36 @@
+{
+  "name": "@voidhash/db",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./db": "./src/db.ts",
+    "./migrations": "./src/migrations.ts",
+    "./schema": "./src/schema.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "test": "vp test run -c vitest.mts",
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@effect/sql-pg": "catalog:",
+    "@voidhash/lib": "workspace:*",
+    "drizzle-orm": "1.0.0-rc.3",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.12",
+    "@types/pg": "^8.15.0",
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

@@ -1,0 +1,179 @@
+---
+title: Sidebar
+description: A collapsible sidebar component for application navigation.
+---
+
+## Usage
+
+The Sidebar component provides a complete sidebar navigation system with collapsible behavior.
+
+```tsx
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@voidhash/ui";
+
+<SidebarProvider>
+  <Sidebar>
+    <SidebarHeader>
+      <h2>App Name</h2>
+    </SidebarHeader>
+    <SidebarContent>
+      <SidebarGroup>
+        <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <a href="/dashboard">
+                  <HomeIcon /> Dashboard
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <a href="/settings">
+                  <SettingsIcon /> Settings
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </SidebarContent>
+  </Sidebar>
+  <main>Content</main>
+</SidebarProvider>;
+```
+
+## Components
+
+### SidebarProvider
+
+Provides context for sidebar state management.
+
+### Sidebar
+
+The main sidebar container.
+
+### SidebarHeader
+
+The header section of the sidebar.
+
+### SidebarContent
+
+The main content area with scroll support.
+
+### SidebarFooter
+
+The footer section of the sidebar.
+
+### SidebarGroup
+
+A group of related menu items.
+
+### SidebarGroupLabel
+
+A label for a group of items.
+
+### SidebarGroupContent
+
+The content of a group.
+
+### SidebarMenu
+
+A navigation menu container.
+
+### SidebarMenuItem
+
+A single menu item.
+
+### SidebarMenuButton
+
+A clickable button within a menu item.
+
+### SidebarTrigger
+
+A button to toggle sidebar visibility.
+
+### SidebarRail
+
+The collapsed rail for the sidebar.
+
+## Examples
+
+### With useSidebar Hook
+
+```tsx
+import { useSidebar } from "@voidhash/ui";
+
+function SidebarToggle() {
+  const { open, setOpen, toggleSidebar } = useSidebar();
+
+  return <Button onClick={toggleSidebar}>{open ? "Close" : "Open"} Sidebar</Button>;
+}
+```
+
+### Controlled State
+
+```tsx
+const [open, setOpen] = useState(true);
+
+<SidebarProvider open={open} onOpenChange={setOpen}>
+  <Sidebar>...</Sidebar>
+</SidebarProvider>;
+```
+
+## Props
+
+### SidebarProvider Props
+
+<TypeTable
+  type={{
+    open: {
+      description: "Controlled open state",
+      type: "boolean",
+      default: "undefined",
+    },
+    onOpenChange: {
+      description: "Callback when open state changes",
+      type: "(open: boolean) => void",
+      default: "undefined",
+    },
+    defaultOpen: {
+      description: "Initial open state",
+      type: "boolean",
+      default: "true",
+    },
+  }}
+/>
+
+### Sidebar Props
+
+<TypeTable
+  type={{
+    side: {
+      description: "Which side to display",
+      type: "'left' | 'right'",
+      default: "'left'",
+    },
+    variant: {
+      description: "Sidebar variant",
+      type: "'sidebar' | 'floating' | 'inset'",
+      default: "'sidebar'",
+    },
+    collapsible: {
+      description: "Collapse behavior",
+      type: "'offcanvas' | 'icon' | 'none'",
+      default: "'offcanvas'",
+    },
+  }}
+/>

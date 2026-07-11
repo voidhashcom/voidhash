@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 // ChangesetDeploymentServiceError has been moved to:
 // - @voidhash/generated-clients (API layer)
-// - @voidhash-internal/core/domain/errors (domain layer)
+// - @voidhash/core/domain/errors (domain layer)
 
 // Paywall Locations
 export const PaywallLocationCreateChangeSchema = Schema.Struct({

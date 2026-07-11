@@ -1,0 +1,93 @@
+---
+title: Calendar
+description: A date picker component for selecting dates.
+---
+
+## Usage
+
+<Preview>
+  <Calendar mode="single" className="rounded-md border" />
+</Preview>
+
+```tsx
+import { Calendar } from "@voidhash/ui";
+
+<Calendar mode="single" />;
+```
+
+## Examples
+
+### Single Date Selection
+
+<Preview>
+  <Calendar mode="single" className="rounded-md border" />
+</Preview>
+
+```tsx
+const [date, setDate] = useState<Date | undefined>(new Date());
+
+<Calendar mode="single" selected={date} onSelect={setDate} />;
+```
+
+### Range Selection
+
+<Preview>
+  <Calendar mode="range" numberOfMonths={2} className="rounded-md border" />
+</Preview>
+
+```tsx
+<Calendar mode="range" numberOfMonths={2} selected={dateRange} onSelect={setDateRange} />
+```
+
+### Multiple Months
+
+<Preview>
+  <Calendar mode="single" numberOfMonths={2} className="rounded-md border" />
+</Preview>
+
+```tsx
+<Calendar mode="single" numberOfMonths={2} />
+```
+
+### Disabled Dates
+
+```tsx
+<Calendar mode="single" disabled={(date) => date < new Date()} />
+```
+
+## Props
+
+<TypeTable
+  type={{
+    mode: {
+      description: "Selection mode",
+      type: "'single' | 'range' | 'multiple'",
+      default: "'single'",
+    },
+    selected: {
+      description: "Selected date(s)",
+      type: "Date | DateRange | Date[]",
+      default: "undefined",
+    },
+    onSelect: {
+      description: "Callback when selection changes",
+      type: "(date: Date | DateRange | Date[]) => void",
+      default: "undefined",
+    },
+    numberOfMonths: {
+      description: "Number of months to display",
+      type: "number",
+      default: "1",
+    },
+    disabled: {
+      description: "Disable specific dates",
+      type: "Matcher | Matcher[]",
+      default: "undefined",
+    },
+    defaultMonth: {
+      description: "Initial month to display",
+      type: "Date",
+      default: "new Date()",
+    },
+  }}
+/>

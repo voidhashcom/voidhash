@@ -5,7 +5,7 @@ const detailsField = {
 } as const;
 
 export class UnauthorizedError extends Schema.ErrorClass<UnauthorizedError>(
-  "@voidhash-mono/mimic-rpc/UnauthorizedError",
+  "@voidhash/mimic-rpc/UnauthorizedError",
 )({
   _tag: Schema.tag("UnauthorizedError"),
   code: Schema.Literal("unauthorized"),
@@ -14,7 +14,7 @@ export class UnauthorizedError extends Schema.ErrorClass<UnauthorizedError>(
 }) {}
 
 export class ForbiddenError extends Schema.ErrorClass<ForbiddenError>(
-  "@voidhash-mono/mimic-rpc/ForbiddenError",
+  "@voidhash/mimic-rpc/ForbiddenError",
 )({
   _tag: Schema.tag("ForbiddenError"),
   code: Schema.Literal("forbidden"),
@@ -23,7 +23,7 @@ export class ForbiddenError extends Schema.ErrorClass<ForbiddenError>(
 }) {}
 
 export class NotFoundError extends Schema.ErrorClass<NotFoundError>(
-  "@voidhash-mono/mimic-rpc/NotFoundError",
+  "@voidhash/mimic-rpc/NotFoundError",
 )({
   _tag: Schema.tag("NotFoundError"),
   code: Schema.Literal("not_found"),
@@ -32,7 +32,7 @@ export class NotFoundError extends Schema.ErrorClass<NotFoundError>(
 }) {}
 
 export class ConflictError extends Schema.ErrorClass<ConflictError>(
-  "@voidhash-mono/mimic-rpc/ConflictError",
+  "@voidhash/mimic-rpc/ConflictError",
 )({
   _tag: Schema.tag("ConflictError"),
   code: Schema.Literal("conflict"),
@@ -41,7 +41,7 @@ export class ConflictError extends Schema.ErrorClass<ConflictError>(
 }) {}
 
 export class ValidationError extends Schema.ErrorClass<ValidationError>(
-  "@voidhash-mono/mimic-rpc/ValidationError",
+  "@voidhash/mimic-rpc/ValidationError",
 )({
   _tag: Schema.tag("ValidationError"),
   code: Schema.Literal("validation_error"),
@@ -50,7 +50,7 @@ export class ValidationError extends Schema.ErrorClass<ValidationError>(
 }) {}
 
 export class VersionConflictError extends Schema.ErrorClass<VersionConflictError>(
-  "@voidhash-mono/mimic-rpc/VersionConflictError",
+  "@voidhash/mimic-rpc/VersionConflictError",
 )({
   _tag: Schema.tag("VersionConflictError"),
   code: Schema.Literal("version_conflict"),
@@ -59,7 +59,7 @@ export class VersionConflictError extends Schema.ErrorClass<VersionConflictError
 }) {}
 
 export class InvalidSchemaError extends Schema.ErrorClass<InvalidSchemaError>(
-  "@voidhash-mono/mimic-rpc/InvalidSchemaError",
+  "@voidhash/mimic-rpc/InvalidSchemaError",
 )({
   _tag: Schema.tag("InvalidSchemaError"),
   code: Schema.Literal("invalid_schema"),
@@ -68,7 +68,7 @@ export class InvalidSchemaError extends Schema.ErrorClass<InvalidSchemaError>(
 }) {}
 
 export class InvalidValueError extends Schema.ErrorClass<InvalidValueError>(
-  "@voidhash-mono/mimic-rpc/InvalidValueError",
+  "@voidhash/mimic-rpc/InvalidValueError",
 )({
   _tag: Schema.tag("InvalidValueError"),
   code: Schema.Literal("invalid_value"),
@@ -77,7 +77,7 @@ export class InvalidValueError extends Schema.ErrorClass<InvalidValueError>(
 }) {}
 
 export class MigrationFailedError extends Schema.ErrorClass<MigrationFailedError>(
-  "@voidhash-mono/mimic-rpc/MigrationFailedError",
+  "@voidhash/mimic-rpc/MigrationFailedError",
 )({
   _tag: Schema.tag("MigrationFailedError"),
   code: Schema.Literal("migration_failed"),
@@ -86,7 +86,7 @@ export class MigrationFailedError extends Schema.ErrorClass<MigrationFailedError
 }) {}
 
 export class InternalError extends Schema.ErrorClass<InternalError>(
-  "@voidhash-mono/mimic-rpc/InternalError",
+  "@voidhash/mimic-rpc/InternalError",
 )({
   _tag: Schema.tag("InternalError"),
   code: Schema.Literal("internal_error"),

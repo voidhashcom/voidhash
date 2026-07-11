@@ -1,0 +1,110 @@
+---
+title: Avatar
+description: An image element with a fallback for representing the user.
+---
+
+## Usage
+
+<Preview>
+  <Avatar>
+    <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
+    <AvatarFallback>CN</AvatarFallback>
+  </Avatar>
+</Preview>
+
+```tsx
+import { Avatar, AvatarFallback, AvatarImage } from "@voidhash/ui";
+
+<Avatar>
+  <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
+  <AvatarFallback>CN</AvatarFallback>
+</Avatar>;
+```
+
+## Components
+
+### Avatar
+
+The root container that wraps the image and fallback.
+
+### AvatarImage
+
+The image element that displays the user's avatar.
+
+### AvatarFallback
+
+A fallback element shown when the image fails to load.
+
+## Examples
+
+### With Fallback
+
+<Preview>
+  <Avatar>
+    <AvatarImage src="/broken-image.jpg" alt="User" />
+    <AvatarFallback>JD</AvatarFallback>
+  </Avatar>
+</Preview>
+
+```tsx
+<Avatar>
+  <AvatarImage src="/broken-image.jpg" alt="User" />
+  <AvatarFallback>JD</AvatarFallback>
+</Avatar>
+```
+
+### Different Sizes
+
+<Preview>
+  <div className="flex items-center gap-4">
+    <Avatar className="size-6">
+      <AvatarImage src="https://github.com/shadcn.png" />
+      <AvatarFallback>S</AvatarFallback>
+    </Avatar>
+    <Avatar className="size-8">
+      <AvatarImage src="https://github.com/shadcn.png" />
+      <AvatarFallback>M</AvatarFallback>
+    </Avatar>
+    <Avatar className="size-12">
+      <AvatarImage src="https://github.com/shadcn.png" />
+      <AvatarFallback>L</AvatarFallback>
+    </Avatar>
+  </div>
+</Preview>
+
+```tsx
+<Avatar className="size-6">...</Avatar>
+<Avatar className="size-8">...</Avatar>
+<Avatar className="size-12">...</Avatar>
+```
+
+## Props
+
+### Avatar Props
+
+<TypeTable
+  type={{
+    className: {
+      description: "Additional CSS classes for sizing",
+      type: "string",
+      default: "size-8",
+    },
+  }}
+/>
+
+### AvatarImage Props
+
+<TypeTable
+  type={{
+    src: {
+      description: "The image source URL",
+      type: "string",
+      default: "Required",
+    },
+    alt: {
+      description: "Alternative text for the image",
+      type: "string",
+      default: "undefined",
+    },
+  }}
+/>

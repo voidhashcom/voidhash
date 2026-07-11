@@ -1,0 +1,16 @@
+{
+  "extends": "@voidhash/tsconfig/typescript-6.json",
+  "compilerOptions": {
+    "types": ["bun"],
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "tests"],
+  "exclude": ["**/node_modules/**"]
+}

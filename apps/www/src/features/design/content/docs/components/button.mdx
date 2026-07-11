@@ -1,0 +1,188 @@
+---
+title: Button
+description: A versatile button component with multiple variants and sizes.
+---
+
+## Usage
+
+<Preview>
+  <Button>Click me</Button>
+</Preview>
+
+```tsx
+import { Button } from "@voidhash/ui";
+
+<Button>Click me</Button>;
+```
+
+## Variants
+
+The Button component supports the following visual variants:
+
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+  <Preview className="p-4">
+    <Button variant="default">Default</Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button variant="secondary">Secondary</Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button variant="destructive">Destructive</Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button variant="success">Success</Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button variant="outline">Outline</Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button variant="ghost">Ghost</Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button variant="link">Link</Button>
+  </Preview>
+</div>
+
+```tsx
+<Button variant="default">Default</Button>
+<Button variant="secondary">Secondary</Button>
+<Button variant="destructive">Destructive</Button>
+<Button variant="success">Success</Button>
+<Button variant="outline">Outline</Button>
+<Button variant="ghost">Ghost</Button>
+<Button variant="link">Link</Button>
+```
+
+## Sizes
+
+<div className="flex flex-wrap items-center gap-4">
+  <Preview className="p-4">
+    <Button size="sm">Small</Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button size="default">Default</Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button size="lg">Large</Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button size="icon">
+      <PlusIcon />
+    </Button>
+  </Preview>
+</div>
+
+```tsx
+<Button size="sm">Small</Button>
+<Button size="default">Default</Button>
+<Button size="lg">Large</Button>
+<Button size="icon"><PlusIcon /></Button>
+```
+
+## Examples
+
+### With Icon
+
+<Preview>
+  <Button>
+    <MailIcon /> Login with Email
+  </Button>
+</Preview>
+
+```tsx
+<Button>
+  <MailIcon /> Login with Email
+</Button>
+```
+
+### Disabled State
+
+<Preview>
+  <Button disabled>Disabled</Button>
+</Preview>
+
+```tsx
+<Button disabled>Disabled</Button>
+```
+
+### Loading State
+
+Use the `loading` prop to show a spinner and disable the button:
+
+<Preview>
+  <Button loading>Loading</Button>
+</Preview>
+
+```tsx
+<Button loading>Loading</Button>
+```
+
+<div className="flex flex-wrap items-center gap-4">
+  <Preview className="p-4">
+    <Button loading>Saving...</Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button variant="secondary" loading>
+      Processing
+    </Button>
+  </Preview>
+  <Preview className="p-4">
+    <Button variant="outline" loading>
+      Loading
+    </Button>
+  </Preview>
+</div>
+
+```tsx
+<Button loading>Saving...</Button>
+<Button variant="secondary" loading>Processing</Button>
+<Button variant="outline" loading>Loading</Button>
+```
+
+### As Link
+
+Use the `asChild` prop to render the button as a child element, like a link:
+
+<Preview>
+  <Button asChild>
+    <a href="#">Link Button</a>
+  </Button>
+</Preview>
+
+```tsx
+<Button asChild>
+  <a href="/dashboard">Go to Dashboard</a>
+</Button>
+```
+
+## Props
+
+<TypeTable
+  type={{
+    variant: {
+      description: "The visual style of the button",
+      type: "'default' | 'destructive' | 'success' | 'outline' | 'secondary' | 'ghost' | 'link'",
+      default: "'default'",
+    },
+    size: {
+      description: "The size of the button",
+      type: "'default' | 'sm' | 'lg' | 'icon'",
+      default: "'default'",
+    },
+    asChild: {
+      description: "Render as a child element using Radix Slot",
+      type: "boolean",
+      default: "false",
+    },
+    disabled: {
+      description: "Whether the button is disabled",
+      type: "boolean",
+      default: "false",
+    },
+    loading: {
+      description: "Whether the button is in a loading state (shows spinner and disables button)",
+      type: "boolean",
+      default: "false",
+    },
+  }}
+/>

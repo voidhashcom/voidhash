@@ -1,0 +1,40 @@
+{
+  "name": "@voidhash/mimic-db",
+  "version": "1.0.0-beta.19",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./app/*": "./src/app/*.ts",
+    "./config": "./src/config.ts",
+    "./core/*": "./src/core/*.ts",
+    "./document/*": "./src/document/*.ts",
+    "./http/*": "./src/http/*.ts",
+    "./worker/*": "./src/worker/*.ts",
+    "./ws/*": "./src/ws/*.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/entrypoints/standalone/main.ts",
+    "start": "tsx src/entrypoints/standalone/main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vp test run -c vitest.mts",
+    "test:watch": "vp test -c vitest.mts"
+  },
+  "dependencies": {
+    "@effect/platform-node": "catalog:",
+    "@effect/sql-pg": "catalog:",
+    "@voidhash/mimic-core": "workspace:*",
+    "@voidhash/mimic-server": "workspace:*",
+    "@voidhash/platform": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@voidhash/tsconfig": "workspace:*",
+    "tsx": "^4.19.3",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

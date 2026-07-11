@@ -1,0 +1,71 @@
+name: Self-host Compose
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - preview
+      - oss
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: selfhost-compose-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSE_PROJECT_NAME: voidhash-selfhost-ci-${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install workspace dependencies
+        run: corepack pnpm@11.1.3 install --frozen-lockfile
+
+      - name: Start stateful stores
+        run: docker compose -f selfhost/docker-compose.yml --profile analytics up -d clickhouse minio --wait --wait-timeout 180
+
+      - name: Initialize object store
+        run: docker compose -f selfhost/docker-compose.yml --profile analytics run --rm minio-init
+
+      - name: Verify S3-compatible object store
+        env:
+          PLATFORM_NODE_S3_ENDPOINT: http://127.0.0.1:9000
+          PLATFORM_NODE_S3_TEST: 1
+        run: corepack pnpm@11.1.3 --filter @voidhash/platform-node exec vp test run -c vitest.mts tests/S3ObjectStore.integration.test.ts
+
+      - name: Build and start Community Compose
+        env:
+          CLICKHOUSE_URL: http://clickhouse:8123
+          MIMIC_DOCUMENT_IDLE_NOTIFY_DEBOUNCE_MS: 250
+        run: docker compose -f selfhost/docker-compose.yml --profile analytics up --build --wait --wait-timeout 180
+
+      - name: Reclaim image build cache
+        run: docker builder prune --all --force
+
+      - name: Run self-host smoke
+        run: corepack pnpm@11.1.3 exec tsx selfhost/smoke.mts
+
+      - name: Run self-host release smoke
+        run: corepack pnpm@11.1.3 exec tsx selfhost/release-smoke.mts
+
+      - name: Show Compose diagnostics
+        if: always()
+        run: |
+          docker compose -f selfhost/docker-compose.yml --profile analytics ps || true
+          docker compose -f selfhost/docker-compose.yml --profile analytics logs --no-color || true
+
+      - name: Stop Compose
+        if: always()
+        run: docker compose -f selfhost/docker-compose.yml --profile analytics down --volumes --remove-orphans

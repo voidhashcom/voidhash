@@ -1,0 +1,132 @@
+---
+title: Breadcrumb
+description: Displays the path to the current resource using a hierarchy of links.
+---
+
+## Usage
+
+<Preview centered={false}>
+  <Breadcrumb>
+    <BreadcrumbList>
+      <BreadcrumbItem>
+        <BreadcrumbLink href="/">Home</BreadcrumbLink>
+      </BreadcrumbItem>
+      <BreadcrumbSeparator />
+      <BreadcrumbItem>
+        <BreadcrumbLink href="/components">Components</BreadcrumbLink>
+      </BreadcrumbItem>
+      <BreadcrumbSeparator />
+      <BreadcrumbItem>
+        <BreadcrumbPage>Breadcrumb</BreadcrumbPage>
+      </BreadcrumbItem>
+    </BreadcrumbList>
+  </Breadcrumb>
+</Preview>
+
+```tsx
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@voidhash/ui";
+
+<Breadcrumb>
+  <BreadcrumbList>
+    <BreadcrumbItem>
+      <BreadcrumbLink href="/">Home</BreadcrumbLink>
+    </BreadcrumbItem>
+    <BreadcrumbSeparator />
+    <BreadcrumbItem>
+      <BreadcrumbLink href="/components">Components</BreadcrumbLink>
+    </BreadcrumbItem>
+    <BreadcrumbSeparator />
+    <BreadcrumbItem>
+      <BreadcrumbPage>Breadcrumb</BreadcrumbPage>
+    </BreadcrumbItem>
+  </BreadcrumbList>
+</Breadcrumb>;
+```
+
+## Components
+
+### Breadcrumb
+
+The root navigation element.
+
+### BreadcrumbList
+
+The ordered list container for breadcrumb items.
+
+### BreadcrumbItem
+
+A single item in the breadcrumb trail.
+
+### BreadcrumbLink
+
+A clickable link within a breadcrumb item.
+
+### BreadcrumbPage
+
+The current page indicator (non-clickable).
+
+### BreadcrumbSeparator
+
+The separator between breadcrumb items (default: chevron).
+
+### BreadcrumbEllipsis
+
+An ellipsis indicator for collapsed breadcrumb items.
+
+## Examples
+
+### With Ellipsis
+
+<Preview centered={false}>
+  <Breadcrumb>
+    <BreadcrumbList>
+      <BreadcrumbItem>
+        <BreadcrumbLink href="/">Home</BreadcrumbLink>
+      </BreadcrumbItem>
+      <BreadcrumbSeparator />
+      <BreadcrumbItem>
+        <BreadcrumbEllipsis />
+      </BreadcrumbItem>
+      <BreadcrumbSeparator />
+      <BreadcrumbItem>
+        <BreadcrumbLink href="/docs">Documentation</BreadcrumbLink>
+      </BreadcrumbItem>
+      <BreadcrumbSeparator />
+      <BreadcrumbItem>
+        <BreadcrumbPage>Current</BreadcrumbPage>
+      </BreadcrumbItem>
+    </BreadcrumbList>
+  </Breadcrumb>
+</Preview>
+
+```tsx
+<BreadcrumbItem>
+  <BreadcrumbEllipsis />
+</BreadcrumbItem>
+```
+
+## Props
+
+### BreadcrumbLink Props
+
+<TypeTable
+  type={{
+    href: {
+      description: "The URL to navigate to",
+      type: "string",
+      default: "undefined",
+    },
+    asChild: {
+      description: "Render as child element",
+      type: "boolean",
+      default: "false",
+    },
+  }}
+/>

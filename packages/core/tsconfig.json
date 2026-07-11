@@ -1,0 +1,21 @@
+{
+  "extends": "@voidhash/tsconfig/internal-package-typescript-6.json",
+  "include": ["src", "test", "sst-env.d.ts"],
+  "exclude": [
+    "**/node_modules/**",
+    "**/*.integration.test.ts",
+    "test/services/paymentProviders/stripe/stripe-test-support.ts"
+  ],
+  "compilerOptions": {
+    "rootDir": ".",
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    // Deploy loads these files via Node's strip-only TS support, which rejects
+    // non-erasable syntax (parameter properties, enums, runtime namespaces).
+    // Fail typecheck on it here so CI catches it before the deploy step.
+    "erasableSyntaxOnly": true,
+    "paths": {
+      "@testing/*": ["./test/_testing/*"]
+    }
+  }
+}
