@@ -134,9 +134,19 @@ services:
   compiler:
     <<: *entry-image
     command: ["./node_modules/.bin/tsx", "src/compiler/main.ts"]
+    cap_drop:
+      - ALL
     environment:
       COMPILER_HOST: 0.0.0.0
       COMPILER_PORT: 5002
+    networks:
+      - compiler
+    pids_limit: 128
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
     expose:
       - "5002"
     restart: unless-stopped
@@ -191,6 +201,9 @@ services:
       SMTP_VERIFY_ON_START: ${SMTP_VERIFY_ON_START:-true}
     ports:
       - "${MIMIC_PORT:-5001}:5001"
+    networks:
+      - default
+      - compiler
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -217,3 +230,7 @@ volumes:
   mailpit_data:
   minio_data:
   postgres_data:
+
+networks:
+  compiler:
+    internal: true

@@ -6,6 +6,9 @@ import {
   type CompileExtractResult,
 } from "@voidhash/core/services/paywallWorkspace/ComponentCompiler";
 import { Effect } from "effect";
+import { createContext, Script } from "node:vm";
+
+const manifestEvaluationTimeoutMs = 500;
 
 interface EsbuildFailure {
   readonly errors?: ReadonlyArray<{
@@ -53,8 +56,21 @@ const evaluateAndExtractManifest = (
     return module;
   };
   const moduleObject: { exports: Record<string, unknown> } = { exports: {} };
-  const factory = new Function("require", "module", "exports", compiledCode);
-  factory(requireShim, moduleObject, moduleObject.exports);
+  const context = createContext(
+    {
+      exports: moduleObject.exports,
+      module: moduleObject,
+      require: requireShim,
+    },
+    {
+      codeGeneration: { strings: false, wasm: false },
+      microtaskMode: "afterEvaluate",
+      name: "voidhash-component-manifest",
+    },
+  );
+  new Script(compiledCode, { filename: "component.cjs" }).runInContext(context, {
+    timeout: manifestEvaluationTimeoutMs,
+  });
   const definition = moduleObject.exports.default ?? moduleObject.exports.definition;
   if (
     definition === undefined ||
