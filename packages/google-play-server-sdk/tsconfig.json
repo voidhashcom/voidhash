@@ -1,0 +1,10 @@
+{
+  "extends": "@voidhash/tsconfig/base.json",
+  "include": ["src"],
+  "exclude": ["**/node_modules/**"],
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "declaration": false,
+    "lib": ["ES2022", "DOM"]
+  }
+}
