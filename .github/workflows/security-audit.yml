@@ -1,0 +1,49 @@
+name: Security audit
+
+on:
+  push:
+    branches: [main, preview]
+    paths:
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - apps/**/package.json
+      - examples/**/package.json
+      - libraries/**/package.json
+      - packages/**/package.json
+      - .github/workflows/security-audit.yml
+  pull_request:
+    paths:
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - apps/**/package.json
+      - examples/**/package.json
+      - libraries/**/package.json
+      - packages/**/package.json
+      - .github/workflows/security-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  production-dependencies:
+    name: Production dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+          run_install: false
+
+      - name: Reject Critical and High advisories
+        run: pnpm audit --prod --audit-level high
