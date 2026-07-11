@@ -1,0 +1,33 @@
+{
+  "name": "@voidhash/mimic-schema",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/mimic-schema"
+  },
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit",
+    "test": "vp test run -c vitest.mts"
+  },
+  "dependencies": {
+    "@voidhash/mimic-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@voidhash/mimic": "workspace:*",
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "6.0.3",
+    "vite-plus": "0.1.23",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.7"
+  }
+}
