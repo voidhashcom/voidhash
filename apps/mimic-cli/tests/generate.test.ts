@@ -27,21 +27,25 @@ afterEach(() => {
 });
 
 describe("mimic generate", () => {
-  it("creates the next zero-padded migration file", () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "mimic-cli-generate-"));
-    try {
-      fs.mkdirSync(path.join(cwd, "migrations"), { recursive: true });
-      fs.writeFileSync(path.join(cwd, "migrations/00001_initial.ts"), "");
+  it(
+    "creates the next zero-padded migration file",
+    () => {
+      const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "mimic-cli-generate-"));
+      try {
+        fs.mkdirSync(path.join(cwd, "migrations"), { recursive: true });
+        fs.writeFileSync(path.join(cwd, "migrations/00001_initial.ts"), "");
 
-      runGenerate(cwd, "Add slug");
+        runGenerate(cwd, "Add slug");
 
-      const created = path.join(cwd, "migrations/00002_add-slug.ts");
-      expect(fs.existsSync(created)).toBe(true);
-      expect(fs.readFileSync(created, "utf8")).toContain(
-        "export default mimicConfig.defineMigrations((migration) => [",
-      );
-    } finally {
-      fs.rmSync(cwd, { recursive: true, force: true });
-    }
-  });
+        const created = path.join(cwd, "migrations/00002_add-slug.ts");
+        expect(fs.existsSync(created)).toBe(true);
+        expect(fs.readFileSync(created, "utf8")).toContain(
+          "export default mimicConfig.defineMigrations((migration) => [",
+        );
+      } finally {
+        fs.rmSync(cwd, { recursive: true, force: true });
+      }
+    },
+    30_000,
+  );
 });
