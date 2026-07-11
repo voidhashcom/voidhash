@@ -29,6 +29,13 @@
   </p>
 </p>
 
+> [!IMPORTANT]
+> This repository currently contains the open-source SDKs, CLI, Studio, and
+> integration packages. The backend is not public yet. It remains planned for
+> publication under AGPL-3.0-only after alpha and beta security validation; the
+> repository must not be described as the fully open or self-hostable platform
+> until that publication is complete.
+
 ## ✨ Features
 
 - **🏪 Multi-Platform Support** - Seamless integration with Google Play and App Store
@@ -58,7 +65,11 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## 📄 License
 
-Licensed under the AGPL-3.0 License. See [LICENSE.md](LICENSE.md) for more information.
+This repository uses explicit license zones. The code currently published here
+is MIT-licensed unless a more specific notice says otherwise. Future service
+and self-hosting code will use AGPL-3.0-only, and future `ee/` code will have a
+separate source-available enterprise license. See [LICENSE.md](LICENSE.md) for
+the authoritative map and full texts.
 
 ## 🔗 Links
 
