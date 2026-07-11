@@ -305,7 +305,7 @@ importers:
         version: 8.50.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       babel-preset-expo:
         specifier: ^54.0.10
-        version: 54.0.10(@babel/core@7.29.6)(@babel/runtime@7.28.4)(expo@54.0.33)(react-refresh@0.18.0)
+        version: 54.0.10(@babel/core@7.29.6)(@babel/runtime@7.29.7)(expo@54.0.33)(react-refresh@0.18.0)
       eslint:
         specifier: ^9.25.1
         version: 9.39.2(jiti@2.6.1)
@@ -428,7 +428,7 @@ importers:
         version: 8.0.11(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-module-scripts:
         specifier: ^5.0.8
-        version: 5.0.8(@babel/core@7.29.6)(@babel/runtime@7.29.7)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.6))(esbuild@0.25.12)(eslint@9.39.2(jiti@2.6.1))(expo@54.0.33)(jest@29.7.0(@types/node@24.10.4))(prettier@3.8.1)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react-refresh@0.18.0)(react-test-renderer@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 5.0.8(@babel/core@7.29.6)(@babel/runtime@7.28.4)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.6))(esbuild@0.25.12)(eslint@9.39.2(jiti@2.6.1))(expo@54.0.33)(jest@29.7.0(@types/node@24.10.4))(prettier@3.8.1)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react-refresh@0.18.0)(react-test-renderer@19.1.0(react@19.1.0))(react@19.1.0)
       nitro-codegen:
         specifier: 0.26.4
         version: 0.26.4(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -693,6 +693,34 @@ importers:
       vitest:
         specifier: ^3.2.7
         version: 3.2.7(@types/debug@4.1.12)(@types/node@25.3.3)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/paywall-builtins:
+    dependencies:
+      '@voidhash/mimic-schema':
+        specifier: workspace:*
+        version: link:../mimic-schema
+      '@voidhash/paywalls':
+        specifier: workspace:*
+        version: link:../../libraries/paywalls
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      '@voidhash/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vite-plus:
+        specifier: 0.1.23
+        version: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      vite-tsconfig-paths:
+        specifier: ^5.1.4
+        version: 5.1.4(typescript@6.0.3)(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/debug@4.1.12)(@types/node@20.19.43)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
 
   packages/platform:
     devDependencies:
@@ -16908,7 +16936,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  expo-module-scripts@5.0.8(@babel/core@7.29.6)(@babel/runtime@7.29.7)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.6))(esbuild@0.25.12)(eslint@9.39.2(jiti@2.6.1))(expo@54.0.33)(jest@29.7.0(@types/node@24.10.4))(prettier@3.8.1)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react-refresh@0.18.0)(react-test-renderer@19.1.0(react@19.1.0))(react@19.1.0):
+  expo-module-scripts@5.0.8(@babel/core@7.29.6)(@babel/runtime@7.28.4)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.6))(esbuild@0.25.12)(eslint@9.39.2(jiti@2.6.1))(expo@54.0.33)(jest@29.7.0(@types/node@24.10.4))(prettier@3.8.1)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react-refresh@0.18.0)(react-test-renderer@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
       '@babel/cli': 7.28.3(@babel/core@7.29.6)
       '@babel/plugin-transform-export-namespace-from': 7.27.1(@babel/core@7.29.6)
@@ -16919,7 +16947,7 @@ snapshots:
       '@tsconfig/node18': 18.2.6
       '@types/jest': 29.5.14
       babel-plugin-dynamic-import-node: 2.3.3
-      babel-preset-expo: 54.0.10(@babel/core@7.29.6)(@babel/runtime@7.29.7)(expo@54.0.33)(react-refresh@0.18.0)
+      babel-preset-expo: 54.0.10(@babel/core@7.29.6)(@babel/runtime@7.28.4)(expo@54.0.33)(react-refresh@0.18.0)
       commander: 12.1.0
       eslint-config-universe: 15.0.3(eslint@9.39.2(jiti@2.6.1))(prettier@3.8.1)(typescript@5.9.3)
       glob: 13.0.0
