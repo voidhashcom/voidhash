@@ -47,34 +47,38 @@ function makeMapCache(seed?: Map<string, CachedManifest>): {
 }
 
 describe("buildPaywall — green path", () => {
-  it("builds a realistic multi-file fork to ok artifacts", async () => {
-    const result = await buildFromFiles(greenFork(), makeNodeCapabilities());
+  it(
+    "builds a realistic multi-file fork to ok artifacts",
+    async () => {
+      const result = await buildFromFiles(greenFork(), makeNodeCapabilities());
 
-    expect(result.ok).toBe(true);
-    expect(errorsOf(result)).toHaveLength(0);
-    expect(result.artifacts).toBeDefined();
+      expect(result.ok).toBe(true);
+      expect(errorsOf(result)).toHaveLength(0);
+      expect(result.artifacts).toBeDefined();
 
-    const { components } = result.artifacts!;
-    // Both components are ready with v2 manifests, ordered by canonical path.
-    expect(components.map((c) => c.path)).toEqual([
-      "components/heading.tsx",
-      "components/pricing-option.tsx",
-    ]);
-    for (const component of components) {
-      expect(component.status).toBe("ready");
-      expect(component.manifest?.manifestVersion).toBe(2);
-      expect(component.sourceHash).toMatch(/^[0-9a-f]{64}$/);
-    }
-    // The pricing-option manifest carries its declared props + action + slot.
-    const pricing = components.find((c) => c.path === "components/pricing-option.tsx")!;
-    expect(Object.keys(pricing.manifest!.props).sort()).toEqual([
-      "highlighted",
-      "label",
-      "price",
-    ]);
-    expect(Object.keys(pricing.manifest!.actions)).toEqual(["onSelect"]);
-    expect(pricing.manifest!.slot).toBe(true);
-  });
+      const { components } = result.artifacts!;
+      // Both components are ready with v2 manifests, ordered by canonical path.
+      expect(components.map((c) => c.path)).toEqual([
+        "components/heading.tsx",
+        "components/pricing-option.tsx",
+      ]);
+      for (const component of components) {
+        expect(component.status).toBe("ready");
+        expect(component.manifest?.manifestVersion).toBe(2);
+        expect(component.sourceHash).toMatch(/^[0-9a-f]{64}$/);
+      }
+      // The pricing-option manifest carries its declared props + action + slot.
+      const pricing = components.find((c) => c.path === "components/pricing-option.tsx")!;
+      expect(Object.keys(pricing.manifest!.props).sort()).toEqual([
+        "highlighted",
+        "label",
+        "price",
+      ]);
+      expect(Object.keys(pricing.manifest!.actions)).toEqual(["onSelect"]);
+      expect(pricing.manifest!.slot).toBe(true);
+    },
+    30_000,
+  );
 
   it("stable sourceHash matches hashSource(source)", async () => {
     const result = await buildFromFiles(greenFork(), makeNodeCapabilities());

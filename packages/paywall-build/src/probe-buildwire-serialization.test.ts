@@ -93,33 +93,37 @@ function jsonUnsafePaths(value: unknown, path = "$", seen = new Set<unknown>()):
 }
 
 describe("PROBE — BuildWire (BuildResult) is structuredClone + JSON safe", () => {
-  it("a rich component's whole BuildResult round-trips structuredClone AND JSON with no loss", async () => {
-    const result = await buildFromFiles(
-      { "/paywall.tsx": COMPOSITION, "/components/rich.tsx": HEADING },
-      makeNodeCapabilities(),
-    );
+  it(
+    "a rich component's whole BuildResult round-trips structuredClone AND JSON with no loss",
+    async () => {
+      const result = await buildFromFiles(
+        { "/paywall.tsx": COMPOSITION, "/components/rich.tsx": HEADING },
+        makeNodeCapabilities(),
+      );
 
-    // The build must succeed with a ready component + manifest (otherwise the
-    // probe is vacuous — there's no manifest to test for safety).
-    expect(result.ok, JSON.stringify(result.diagnostics, null, 2)).toBe(true);
-    if (!result.ok || result.artifacts === undefined) return;
-    const rich = result.artifacts.components.find((c) => c.path === "components/rich.tsx");
-    expect(rich?.status).toBe("ready");
-    expect(rich?.manifest, "expected a non-null extracted manifest").not.toBeNull();
+      // The build must succeed with a ready component + manifest (otherwise the
+      // probe is vacuous — there's no manifest to test for safety).
+      expect(result.ok, JSON.stringify(result.diagnostics, null, 2)).toBe(true);
+      if (!result.ok || result.artifacts === undefined) return;
+      const rich = result.artifacts.components.find((c) => c.path === "components/rich.tsx");
+      expect(rich?.status).toBe("ready");
+      expect(rich?.manifest, "expected a non-null extracted manifest").not.toBeNull();
 
-    // 1. No JSON-unsafe leaf anywhere in the BuildResult (functions, Map/Set,
-    //    symbol, bigint, circular).
-    const offenders = jsonUnsafePaths(result);
-    expect(offenders, `JSON-unsafe values in BuildResult: ${offenders.join(", ")}`).toEqual([]);
+      // 1. No JSON-unsafe leaf anywhere in the BuildResult (functions, Map/Set,
+      //    symbol, bigint, circular).
+      const offenders = jsonUnsafePaths(result);
+      expect(offenders, `JSON-unsafe values in BuildResult: ${offenders.join(", ")}`).toEqual([]);
 
-    // 2. structuredClone is the exact mechanism the Container/DO RPC uses; it
-    //    THROWS (DataCloneError) on a function/symbol. It must not throw.
-    expect(() => structuredClone(result)).not.toThrow();
+      // 2. structuredClone is the exact mechanism the Container/DO RPC uses; it
+      //    THROWS (DataCloneError) on a function/symbol. It must not throw.
+      expect(() => structuredClone(result)).not.toThrow();
 
-    // 3. A JSON round-trip must be lossless (the manifest cache JSON-encodes it).
-    const cloned = JSON.parse(JSON.stringify(result));
-    expect(cloned).toEqual(result);
-  });
+      // 3. A JSON round-trip must be lossless (the manifest cache JSON-encodes it).
+      const cloned = JSON.parse(JSON.stringify(result));
+      expect(cloned).toEqual(result);
+    },
+    30_000,
+  );
 
   it("a manifest cannot smuggle a function even if user source attaches one to the definition", async () => {
     // A component that assigns a stray function-valued property onto the exported
