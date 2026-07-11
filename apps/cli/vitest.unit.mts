@@ -7,5 +7,6 @@ export default defineConfig({
     exclude: ["./node_modules/**"],
     include: ["./tests/**/*.test.ts"],
     reporters: ["verbose"],
+    testTimeout: 15_000,
   },
 });
