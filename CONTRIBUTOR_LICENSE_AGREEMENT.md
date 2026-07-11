@@ -1,9 +1,5 @@
 # Voidhash Contributor License Agreement
 
-> Draft for legal review. This agreement must be approved by counsel and wired
-> to the chosen CLA acceptance process before external contributions are
-> merged.
-
 Thank you for contributing to projects managed by Voidhash s.r.o. ("Voidhash").
 This Contributor License Agreement (the "Agreement") records the rights you
 grant for contributions and protects your continued ownership of them. It is a

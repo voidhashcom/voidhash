@@ -1,9 +1,5 @@
 # Voidhash Enterprise License
 
-> Draft for legal review. This draft is not yet in effect and does not grant
-> rights in any software unless Voidhash s.r.o. expressly designates that
-> software as governed by this license after the draft is approved.
-
 Copyright (c) 2025-present Voidhash s.r.o. All rights reserved.
 
 ## 1. Acceptance and scope

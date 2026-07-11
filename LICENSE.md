@@ -30,10 +30,9 @@ described in the open-source unification plan are complete.
 ## Enterprise code
 
 Any future `ee/` directory will be source-available and will not be open source.
-It will be governed by a separate Voidhash Enterprise License. A counsel-review
-draft is maintained in
-[LICENSES/Voidhash-Enterprise-DRAFT.md](LICENSES/Voidhash-Enterprise-DRAFT.md),
-but it does not apply to any code unless a file or directory expressly says so.
+It will be governed by the
+[Voidhash Enterprise License](LICENSES/Voidhash-Enterprise.md), but that license
+does not apply to any code unless a file or directory expressly says so.
 
 Third-party components remain under their respective licenses. Their notices
 take precedence for those components.

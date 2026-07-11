@@ -1,12 +1,15 @@
 # Contributing to voidhash
 
-Thanks for taking the time to improve voidhash! This is a small document to get you started.
+Thanks for taking the time to improve voidhash!
 
-Before a contribution can be merged, the contributor must accept the
-Voidhash Contributor License Agreement through the configured acceptance
-process. The current [CLA draft](CONTRIBUTOR_LICENSE_AGREEMENT.md) is awaiting
-legal approval; external contributions must not be merged until the approved
-agreement and its blocking check are live.
+During the repository unification, pull requests are limited to repository
+collaborators and external patches are not yet accepted. Issues and private
+security reports remain welcome.
+
+Before external contributions reopen, Voidhash will enable an acceptance
+process for the [Contributor License Agreement](CONTRIBUTOR_LICENSE_AGREEMENT.md).
+Every external contributor will need to accept that agreement before a
+contribution can be merged.
 
 Please refer to the [getting-started documentation](https://voidhash.com/docs/contribute/getting-started) specific to contributing for more information.
 
