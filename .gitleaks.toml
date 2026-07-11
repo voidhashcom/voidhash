@@ -1,0 +1,24 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "UUID-shaped App Store SDK test tokens"
+condition = "AND"
+targetRules = ["generic-api-key"]
+regexTarget = "secret"
+regexes = ['''(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$''']
+paths = ['''(?:^|/)packages/app-store-server-sdk/tests/''']
+
+[[allowlists]]
+description = "Byte-identical public fixtures from Apple's App Store Server Library"
+targetRules = ["jwt"]
+paths = [
+  '''(?:^|/)packages/app-store-server-sdk/tests/resources/mock_signed_data/missingX5CHeaderClaim$''',
+  '''(?:^|/)packages/app-store-server-sdk/tests/resources/mock_signed_data/renewalInfo$''',
+  '''(?:^|/)packages/app-store-server-sdk/tests/resources/mock_signed_data/testNotification$''',
+  '''(?:^|/)packages/app-store-server-sdk/tests/resources/mock_signed_data/transactionInfo$''',
+  '''(?:^|/)packages/app-store-server-sdk/tests/resources/mock_signed_data/wrongBundleId$''',
+  '''(?:^|/)packages/app-store-server-sdk/tests/resources/xcode/xcode-signed-app-transaction$''',
+  '''(?:^|/)packages/app-store-server-sdk/tests/resources/xcode/xcode-signed-renewal-info$''',
+  '''(?:^|/)packages/app-store-server-sdk/tests/resources/xcode/xcode-signed-transaction$''',
+]
