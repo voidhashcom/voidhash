@@ -583,6 +583,18 @@ importers:
         specifier: 5.6.3
         version: 5.6.3
 
+  packages/platform:
+    devDependencies:
+      '@voidhash/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      effect:
+        specifier: 4.0.0-beta.84
+        version: 4.0.0-beta.84
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+
   packages/shared:
     dependencies:
       effect:
@@ -7715,6 +7727,11 @@ packages:
 
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -16346,6 +16363,8 @@ snapshots:
   typescript@5.6.3: {}
 
   typescript@5.9.3: {}
+
+  typescript@6.0.3: {}
 
   ufo@1.6.1: {}
 
