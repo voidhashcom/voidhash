@@ -83,3 +83,7 @@ onlyBuiltDependencies:
   - sharp
   - simple-git-hooks
   - unrs-resolver
+
+# CI and the private superproject install explicitly before running tasks.
+# Never mutate this standalone workspace implicitly from a nested task.
+verifyDepsBeforeRun: false
