@@ -1,0 +1,45 @@
+{
+  "name": "@voidhash/ai-shared",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "description": "Shared AI request, document-edit, and authoring contracts for Voidhash clients and services.",
+  "keywords": [
+    "ai",
+    "paywalls",
+    "voidhash"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "AGPL-3.0-only",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/ai-shared"
+  },
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit",
+    "test": "vp test run -c vitest.mts"
+  },
+  "dependencies": {
+    "@voidhash/mimic-core": "workspace:*",
+    "@voidhash/mimic-schema": "workspace:*",
+    "@voidhash/paywall-builtins": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "6.0.3",
+    "vite-plus": "0.1.23",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.7"
+  }
+}

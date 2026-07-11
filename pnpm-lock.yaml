@@ -27,9 +27,15 @@ catalogs:
     better-auth:
       specifier: ^1.6.23
       version: 1.6.23
+    vite:
+      specifier: ^7.3.5
+      version: 7.3.5
     vite-tsconfig-paths:
       specifier: ^5.1.4
       version: 5.1.4
+    zod:
+      specifier: ^4.1.13
+      version: 4.3.6
 
 overrides:
   react: 19.1.0
@@ -500,6 +506,37 @@ importers:
         specifier: ^3.2.7
         version: 3.2.7(@types/debug@4.1.12)(@types/node@25.3.3)(jiti@2.6.1)(jsdom@20.0.3)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
 
+  packages/ai-shared:
+    dependencies:
+      '@voidhash/mimic-core':
+        specifier: workspace:*
+        version: link:../mimic-core
+      '@voidhash/mimic-schema':
+        specifier: workspace:*
+        version: link:../mimic-schema
+      '@voidhash/paywall-builtins':
+        specifier: workspace:*
+        version: link:../paywall-builtins
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+    devDependencies:
+      '@voidhash/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vite-plus:
+        specifier: 0.1.23
+        version: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      vite-tsconfig-paths:
+        specifier: ^5.1.4
+        version: 5.1.4(typescript@6.0.3)(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/debug@4.1.12)(@types/node@25.3.3)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+
   packages/api-contracts:
     dependencies:
       effect:
@@ -694,6 +731,37 @@ importers:
         specifier: ^3.2.7
         version: 3.2.7(@types/debug@4.1.12)(@types/node@25.3.3)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
 
+  packages/paywall-build:
+    dependencies:
+      '@voidhash/paywalls':
+        specifier: workspace:*
+        version: link:../../libraries/paywalls
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      '@voidhash/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      esbuild:
+        specifier: ^0.25.10
+        version: 0.25.12
+      tsx:
+        specifier: ^4.19.2
+        version: 4.21.0
+      vite-plus:
+        specifier: 0.1.23
+        version: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      vite-tsconfig-paths:
+        specifier: ^5.1.4
+        version: 5.1.4(typescript@6.0.3)(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/debug@4.1.12)(@types/node@20.19.43)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+
   packages/paywall-builtins:
     dependencies:
       '@voidhash/mimic-schema':
@@ -702,6 +770,105 @@ importers:
       '@voidhash/paywalls':
         specifier: workspace:*
         version: link:../../libraries/paywalls
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      '@voidhash/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vite-plus:
+        specifier: 0.1.23
+        version: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      vite-tsconfig-paths:
+        specifier: ^5.1.4
+        version: 5.1.4(typescript@6.0.3)(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/debug@4.1.12)(@types/node@20.19.43)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/paywall-renderer-preact:
+    dependencies:
+      '@voidhash/mimic-schema':
+        specifier: workspace:*
+        version: link:../mimic-schema
+      '@voidhash/paywall-renderer-web-core':
+        specifier: workspace:*
+        version: link:../paywall-renderer-web-core
+      '@voidhash/paywalls':
+        specifier: workspace:*
+        version: link:../../libraries/paywalls
+      preact:
+        specifier: 10.29.2
+        version: 10.29.2
+      preact-render-to-string:
+        specifier: 6.7.0
+        version: 6.7.0(preact@10.29.2)
+    devDependencies:
+      '@voidhash/paywall-builtins':
+        specifier: workspace:*
+        version: link:../paywall-builtins
+      '@voidhash/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      esbuild:
+        specifier: 0.25.12
+        version: 0.25.12
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+      vite-plus:
+        specifier: 0.1.23
+        version: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/debug@4.1.12)(@types/node@25.3.3)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/paywall-renderer-web-core:
+    dependencies:
+      '@voidhash/mimic-schema':
+        specifier: workspace:*
+        version: link:../mimic-schema
+      '@voidhash/paywalls':
+        specifier: workspace:*
+        version: link:../../libraries/paywalls
+      csstype:
+        specifier: ^3.1.3
+        version: 3.2.3
+    devDependencies:
+      '@voidhash/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vite-plus:
+        specifier: 0.1.23
+        version: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/debug@4.1.12)(@types/node@25.3.3)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/paywall-workspace:
+    dependencies:
+      '@voidhash/ai-shared':
+        specifier: workspace:*
+        version: link:../ai-shared
+      '@voidhash/mimic-core':
+        specifier: workspace:*
+        version: link:../mimic-core
+      '@voidhash/mimic-schema':
+        specifier: workspace:*
+        version: link:../mimic-schema
+      '@voidhash/paywall-renderer-web-core':
+        specifier: workspace:*
+        version: link:../paywall-renderer-web-core
     devDependencies:
       '@types/node':
         specifier: ^20
@@ -8653,6 +8820,14 @@ packages:
     resolution: {integrity: sha512-pMMHxBOZKFU6HgAZ4eyGnwXF/EvPGGqUr0MnZ5+99485wwW41kW91A4LOGxSHhgugZmSChL5AlElNdwlNgcnLQ==}
     engines: {node: ^10 || ^12 || >=14}
 
+  preact-render-to-string@6.7.0:
+    resolution: {integrity: sha512-Z4WR8fmLMRpdYqJ9i7vrlXSsSrxVJydwrkEXHapexfARbWfGb7vGcnvNQnIzN0cXciMVOlz/XLoiMCi9gUsy9Q==}
+    peerDependencies:
+      preact: '>=10 || >= 11.0.0-0'
+
+  preact@10.29.2:
+    resolution: {integrity: sha512-7tNmwg/7mzzAoB/8kSg6Hl37JraAZw3Z3A0JSY7VXlZwo82Xn0G7wKbNNs2qoF4ZEEsQGTwDAroNdqKs1ofJxQ==}
+
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
@@ -14938,6 +15113,23 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
+  '@voidzero-dev/vite-plus-core@0.1.23(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)':
+    dependencies:
+      '@oxc-project/runtime': 0.133.0
+      '@oxc-project/types': 0.133.0
+      lightningcss: 1.32.0
+      postcss: 8.5.10
+    optionalDependencies:
+      '@types/node': 20.19.43
+      esbuild: 0.25.12
+      fsevents: 2.3.3
+      jiti: 2.6.1
+      terser: 5.44.1
+      tsx: 4.21.0
+      typescript: 6.0.3
+      unrun: 0.2.39(synckit@0.11.11)
+      yaml: 2.8.3
+
   '@voidzero-dev/vite-plus-core@0.1.23(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)':
     dependencies:
       '@oxc-project/runtime': 0.133.0
@@ -14947,6 +15139,23 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.19.43
       esbuild: 0.28.1
+      fsevents: 2.3.3
+      jiti: 2.6.1
+      terser: 5.44.1
+      tsx: 4.21.0
+      typescript: 6.0.3
+      unrun: 0.2.39(synckit@0.11.11)
+      yaml: 2.8.3
+
+  '@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)':
+    dependencies:
+      '@oxc-project/runtime': 0.133.0
+      '@oxc-project/types': 0.133.0
+      lightningcss: 1.32.0
+      postcss: 8.5.10
+    optionalDependencies:
+      '@types/node': 25.3.3
+      esbuild: 0.25.12
       fsevents: 2.3.3
       jiti: 2.6.1
       terser: 5.44.1
@@ -14989,6 +15198,23 @@ snapshots:
       unrun: 0.2.39(synckit@0.11.11)
       yaml: 2.8.3
 
+  '@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)':
+    dependencies:
+      '@oxc-project/runtime': 0.133.0
+      '@oxc-project/types': 0.133.0
+      lightningcss: 1.32.0
+      postcss: 8.5.10
+    optionalDependencies:
+      '@types/node': 25.3.3
+      esbuild: 0.28.1
+      fsevents: 2.3.3
+      jiti: 2.6.1
+      terser: 5.44.1
+      tsx: 4.21.0
+      typescript: 6.0.3
+      unrun: 0.2.39(synckit@0.11.11)
+      yaml: 2.8.3
+
   '@voidzero-dev/vite-plus-darwin-arm64@0.1.23':
     optional: true
 
@@ -15006,6 +15232,48 @@ snapshots:
 
   '@voidzero-dev/vite-plus-linux-x64-musl@0.1.23':
     optional: true
+
+  '@voidzero-dev/vite-plus-test@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@types/chai': 5.2.3
+      '@voidzero-dev/vite-plus-core': 0.1.23(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)
+      es-module-lexer: 1.7.0
+      obug: 2.1.1
+      pixelmatch: 7.2.0
+      pngjs: 7.0.0
+      sirv: 3.0.2
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.0.2
+      tinyglobby: 0.2.15
+      vite: 7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+      ws: 8.21.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      '@types/node': 20.19.43
+      jsdom: 26.1.0
+    transitivePeerDependencies:
+      - '@arethetypeswrong/core'
+      - '@tsdown/css'
+      - '@tsdown/exe'
+      - '@vitejs/devtools'
+      - bufferutil
+      - esbuild
+      - jiti
+      - less
+      - publint
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - typescript
+      - unplugin-unused
+      - unrun
+      - utf-8-validate
+      - yaml
 
   '@voidzero-dev/vite-plus-test@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
     dependencies:
@@ -15026,6 +15294,48 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.19.43
+      jsdom: 26.1.0
+    transitivePeerDependencies:
+      - '@arethetypeswrong/core'
+      - '@tsdown/css'
+      - '@tsdown/exe'
+      - '@vitejs/devtools'
+      - bufferutil
+      - esbuild
+      - jiti
+      - less
+      - publint
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - typescript
+      - unplugin-unused
+      - unrun
+      - utf-8-validate
+      - yaml
+
+  '@voidzero-dev/vite-plus-test@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@types/chai': 5.2.3
+      '@voidzero-dev/vite-plus-core': 0.1.23(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)
+      es-module-lexer: 1.7.0
+      obug: 2.1.1
+      pixelmatch: 7.2.0
+      pngjs: 7.0.0
+      sirv: 3.0.2
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.0.2
+      tinyglobby: 0.2.15
+      vite: 7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+      ws: 8.21.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      '@types/node': 25.3.3
       jsdom: 26.1.0
     transitivePeerDependencies:
       - '@arethetypeswrong/core'
@@ -15096,6 +15406,48 @@ snapshots:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
       '@voidzero-dev/vite-plus-core': 0.1.23(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)
+      es-module-lexer: 1.7.0
+      obug: 2.1.1
+      pixelmatch: 7.2.0
+      pngjs: 7.0.0
+      sirv: 3.0.2
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.0.2
+      tinyglobby: 0.2.15
+      vite: 7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+      ws: 8.21.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      '@types/node': 25.3.3
+      jsdom: 26.1.0
+    transitivePeerDependencies:
+      - '@arethetypeswrong/core'
+      - '@tsdown/css'
+      - '@tsdown/exe'
+      - '@vitejs/devtools'
+      - bufferutil
+      - esbuild
+      - jiti
+      - less
+      - publint
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - typescript
+      - unplugin-unused
+      - unrun
+      - utf-8-validate
+      - yaml
+
+  '@voidzero-dev/vite-plus-test@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@types/chai': 5.2.3
+      '@voidzero-dev/vite-plus-core': 0.1.23(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)
       es-module-lexer: 1.7.0
       obug: 2.1.1
       pixelmatch: 7.2.0
@@ -18969,6 +19321,31 @@ snapshots:
       object-keys: 1.1.1
       safe-push-apply: 1.0.0
 
+  oxfmt@0.52.0(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)):
+    dependencies:
+      tinypool: 2.1.0
+    optionalDependencies:
+      '@oxfmt/binding-android-arm-eabi': 0.52.0
+      '@oxfmt/binding-android-arm64': 0.52.0
+      '@oxfmt/binding-darwin-arm64': 0.52.0
+      '@oxfmt/binding-darwin-x64': 0.52.0
+      '@oxfmt/binding-freebsd-x64': 0.52.0
+      '@oxfmt/binding-linux-arm-gnueabihf': 0.52.0
+      '@oxfmt/binding-linux-arm-musleabihf': 0.52.0
+      '@oxfmt/binding-linux-arm64-gnu': 0.52.0
+      '@oxfmt/binding-linux-arm64-musl': 0.52.0
+      '@oxfmt/binding-linux-ppc64-gnu': 0.52.0
+      '@oxfmt/binding-linux-riscv64-gnu': 0.52.0
+      '@oxfmt/binding-linux-riscv64-musl': 0.52.0
+      '@oxfmt/binding-linux-s390x-gnu': 0.52.0
+      '@oxfmt/binding-linux-x64-gnu': 0.52.0
+      '@oxfmt/binding-linux-x64-musl': 0.52.0
+      '@oxfmt/binding-openharmony-arm64': 0.52.0
+      '@oxfmt/binding-win32-arm64-msvc': 0.52.0
+      '@oxfmt/binding-win32-ia32-msvc': 0.52.0
+      '@oxfmt/binding-win32-x64-msvc': 0.52.0
+      vite-plus: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+
   oxfmt@0.52.0(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)):
     dependencies:
       tinypool: 2.1.0
@@ -18993,6 +19370,31 @@ snapshots:
       '@oxfmt/binding-win32-ia32-msvc': 0.52.0
       '@oxfmt/binding-win32-x64-msvc': 0.52.0
       vite-plus: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+
+  oxfmt@0.52.0(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)):
+    dependencies:
+      tinypool: 2.1.0
+    optionalDependencies:
+      '@oxfmt/binding-android-arm-eabi': 0.52.0
+      '@oxfmt/binding-android-arm64': 0.52.0
+      '@oxfmt/binding-darwin-arm64': 0.52.0
+      '@oxfmt/binding-darwin-x64': 0.52.0
+      '@oxfmt/binding-freebsd-x64': 0.52.0
+      '@oxfmt/binding-linux-arm-gnueabihf': 0.52.0
+      '@oxfmt/binding-linux-arm-musleabihf': 0.52.0
+      '@oxfmt/binding-linux-arm64-gnu': 0.52.0
+      '@oxfmt/binding-linux-arm64-musl': 0.52.0
+      '@oxfmt/binding-linux-ppc64-gnu': 0.52.0
+      '@oxfmt/binding-linux-riscv64-gnu': 0.52.0
+      '@oxfmt/binding-linux-riscv64-musl': 0.52.0
+      '@oxfmt/binding-linux-s390x-gnu': 0.52.0
+      '@oxfmt/binding-linux-x64-gnu': 0.52.0
+      '@oxfmt/binding-linux-x64-musl': 0.52.0
+      '@oxfmt/binding-openharmony-arm64': 0.52.0
+      '@oxfmt/binding-win32-arm64-msvc': 0.52.0
+      '@oxfmt/binding-win32-ia32-msvc': 0.52.0
+      '@oxfmt/binding-win32-x64-msvc': 0.52.0
+      vite-plus: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
 
   oxfmt@0.52.0(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.8.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)):
     dependencies:
@@ -19044,6 +19446,31 @@ snapshots:
       '@oxfmt/binding-win32-x64-msvc': 0.52.0
       vite-plus: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
 
+  oxfmt@0.52.0(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)):
+    dependencies:
+      tinypool: 2.1.0
+    optionalDependencies:
+      '@oxfmt/binding-android-arm-eabi': 0.52.0
+      '@oxfmt/binding-android-arm64': 0.52.0
+      '@oxfmt/binding-darwin-arm64': 0.52.0
+      '@oxfmt/binding-darwin-x64': 0.52.0
+      '@oxfmt/binding-freebsd-x64': 0.52.0
+      '@oxfmt/binding-linux-arm-gnueabihf': 0.52.0
+      '@oxfmt/binding-linux-arm-musleabihf': 0.52.0
+      '@oxfmt/binding-linux-arm64-gnu': 0.52.0
+      '@oxfmt/binding-linux-arm64-musl': 0.52.0
+      '@oxfmt/binding-linux-ppc64-gnu': 0.52.0
+      '@oxfmt/binding-linux-riscv64-gnu': 0.52.0
+      '@oxfmt/binding-linux-riscv64-musl': 0.52.0
+      '@oxfmt/binding-linux-s390x-gnu': 0.52.0
+      '@oxfmt/binding-linux-x64-gnu': 0.52.0
+      '@oxfmt/binding-linux-x64-musl': 0.52.0
+      '@oxfmt/binding-openharmony-arm64': 0.52.0
+      '@oxfmt/binding-win32-arm64-msvc': 0.52.0
+      '@oxfmt/binding-win32-ia32-msvc': 0.52.0
+      '@oxfmt/binding-win32-x64-msvc': 0.52.0
+      vite-plus: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+
   oxlint-tsgolint@0.23.0:
     optionalDependencies:
       '@oxlint-tsgolint/darwin-arm64': 0.23.0
@@ -19052,6 +19479,30 @@ snapshots:
       '@oxlint-tsgolint/linux-x64': 0.23.0
       '@oxlint-tsgolint/win32-arm64': 0.23.0
       '@oxlint-tsgolint/win32-x64': 0.23.0
+
+  oxlint@1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)):
+    optionalDependencies:
+      '@oxlint/binding-android-arm-eabi': 1.67.0
+      '@oxlint/binding-android-arm64': 1.67.0
+      '@oxlint/binding-darwin-arm64': 1.67.0
+      '@oxlint/binding-darwin-x64': 1.67.0
+      '@oxlint/binding-freebsd-x64': 1.67.0
+      '@oxlint/binding-linux-arm-gnueabihf': 1.67.0
+      '@oxlint/binding-linux-arm-musleabihf': 1.67.0
+      '@oxlint/binding-linux-arm64-gnu': 1.67.0
+      '@oxlint/binding-linux-arm64-musl': 1.67.0
+      '@oxlint/binding-linux-ppc64-gnu': 1.67.0
+      '@oxlint/binding-linux-riscv64-gnu': 1.67.0
+      '@oxlint/binding-linux-riscv64-musl': 1.67.0
+      '@oxlint/binding-linux-s390x-gnu': 1.67.0
+      '@oxlint/binding-linux-x64-gnu': 1.67.0
+      '@oxlint/binding-linux-x64-musl': 1.67.0
+      '@oxlint/binding-openharmony-arm64': 1.67.0
+      '@oxlint/binding-win32-arm64-msvc': 1.67.0
+      '@oxlint/binding-win32-ia32-msvc': 1.67.0
+      '@oxlint/binding-win32-x64-msvc': 1.67.0
+      oxlint-tsgolint: 0.23.0
+      vite-plus: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
 
   oxlint@1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)):
     optionalDependencies:
@@ -19076,6 +19527,30 @@ snapshots:
       '@oxlint/binding-win32-x64-msvc': 1.67.0
       oxlint-tsgolint: 0.23.0
       vite-plus: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+
+  oxlint@1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)):
+    optionalDependencies:
+      '@oxlint/binding-android-arm-eabi': 1.67.0
+      '@oxlint/binding-android-arm64': 1.67.0
+      '@oxlint/binding-darwin-arm64': 1.67.0
+      '@oxlint/binding-darwin-x64': 1.67.0
+      '@oxlint/binding-freebsd-x64': 1.67.0
+      '@oxlint/binding-linux-arm-gnueabihf': 1.67.0
+      '@oxlint/binding-linux-arm-musleabihf': 1.67.0
+      '@oxlint/binding-linux-arm64-gnu': 1.67.0
+      '@oxlint/binding-linux-arm64-musl': 1.67.0
+      '@oxlint/binding-linux-ppc64-gnu': 1.67.0
+      '@oxlint/binding-linux-riscv64-gnu': 1.67.0
+      '@oxlint/binding-linux-riscv64-musl': 1.67.0
+      '@oxlint/binding-linux-s390x-gnu': 1.67.0
+      '@oxlint/binding-linux-x64-gnu': 1.67.0
+      '@oxlint/binding-linux-x64-musl': 1.67.0
+      '@oxlint/binding-openharmony-arm64': 1.67.0
+      '@oxlint/binding-win32-arm64-msvc': 1.67.0
+      '@oxlint/binding-win32-ia32-msvc': 1.67.0
+      '@oxlint/binding-win32-x64-msvc': 1.67.0
+      oxlint-tsgolint: 0.23.0
+      vite-plus: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
 
   oxlint@1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.8.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)):
     optionalDependencies:
@@ -19124,6 +19599,30 @@ snapshots:
       '@oxlint/binding-win32-x64-msvc': 1.67.0
       oxlint-tsgolint: 0.23.0
       vite-plus: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+
+  oxlint@1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)):
+    optionalDependencies:
+      '@oxlint/binding-android-arm-eabi': 1.67.0
+      '@oxlint/binding-android-arm64': 1.67.0
+      '@oxlint/binding-darwin-arm64': 1.67.0
+      '@oxlint/binding-darwin-x64': 1.67.0
+      '@oxlint/binding-freebsd-x64': 1.67.0
+      '@oxlint/binding-linux-arm-gnueabihf': 1.67.0
+      '@oxlint/binding-linux-arm-musleabihf': 1.67.0
+      '@oxlint/binding-linux-arm64-gnu': 1.67.0
+      '@oxlint/binding-linux-arm64-musl': 1.67.0
+      '@oxlint/binding-linux-ppc64-gnu': 1.67.0
+      '@oxlint/binding-linux-riscv64-gnu': 1.67.0
+      '@oxlint/binding-linux-riscv64-musl': 1.67.0
+      '@oxlint/binding-linux-s390x-gnu': 1.67.0
+      '@oxlint/binding-linux-x64-gnu': 1.67.0
+      '@oxlint/binding-linux-x64-musl': 1.67.0
+      '@oxlint/binding-openharmony-arm64': 1.67.0
+      '@oxlint/binding-win32-arm64-msvc': 1.67.0
+      '@oxlint/binding-win32-ia32-msvc': 1.67.0
+      '@oxlint/binding-win32-x64-msvc': 1.67.0
+      oxlint-tsgolint: 0.23.0
+      vite-plus: 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
 
   p-limit@2.3.0:
     dependencies:
@@ -19253,6 +19752,12 @@ snapshots:
       nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  preact-render-to-string@6.7.0(preact@10.29.2):
+    dependencies:
+      preact: 10.29.2
+
+  preact@10.29.2: {}
 
   prelude-ls@1.2.1: {}
 
@@ -20882,6 +21387,56 @@ snapshots:
       - tsx
       - yaml
 
+  vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3):
+    dependencies:
+      '@oxc-project/types': 0.133.0
+      '@oxlint/plugins': 1.61.0
+      '@voidzero-dev/vite-plus-core': 0.1.23(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)
+      '@voidzero-dev/vite-plus-test': 0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      oxfmt: 0.52.0(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
+      oxlint: 1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
+      oxlint-tsgolint: 0.23.0
+    optionalDependencies:
+      '@voidzero-dev/vite-plus-darwin-arm64': 0.1.23
+      '@voidzero-dev/vite-plus-darwin-x64': 0.1.23
+      '@voidzero-dev/vite-plus-linux-arm64-gnu': 0.1.23
+      '@voidzero-dev/vite-plus-linux-arm64-musl': 0.1.23
+      '@voidzero-dev/vite-plus-linux-x64-gnu': 0.1.23
+      '@voidzero-dev/vite-plus-linux-x64-musl': 0.1.23
+      '@voidzero-dev/vite-plus-win32-arm64-msvc': 0.1.23
+      '@voidzero-dev/vite-plus-win32-x64-msvc': 0.1.23
+    transitivePeerDependencies:
+      - '@arethetypeswrong/core'
+      - '@edge-runtime/vm'
+      - '@opentelemetry/api'
+      - '@tsdown/css'
+      - '@tsdown/exe'
+      - '@types/node'
+      - '@vitejs/devtools'
+      - '@vitest/coverage-istanbul'
+      - '@vitest/coverage-v8'
+      - '@vitest/ui'
+      - bufferutil
+      - esbuild
+      - happy-dom
+      - jiti
+      - jsdom
+      - less
+      - publint
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - svelte
+      - terser
+      - tsx
+      - typescript
+      - unplugin-unused
+      - unrun
+      - utf-8-validate
+      - vite
+      - yaml
+
   vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3):
     dependencies:
       '@oxc-project/types': 0.133.0
@@ -20890,6 +21445,56 @@ snapshots:
       '@voidzero-dev/vite-plus-test': 0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
       oxfmt: 0.52.0(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
       oxlint: 1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@20.19.43)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
+      oxlint-tsgolint: 0.23.0
+    optionalDependencies:
+      '@voidzero-dev/vite-plus-darwin-arm64': 0.1.23
+      '@voidzero-dev/vite-plus-darwin-x64': 0.1.23
+      '@voidzero-dev/vite-plus-linux-arm64-gnu': 0.1.23
+      '@voidzero-dev/vite-plus-linux-arm64-musl': 0.1.23
+      '@voidzero-dev/vite-plus-linux-x64-gnu': 0.1.23
+      '@voidzero-dev/vite-plus-linux-x64-musl': 0.1.23
+      '@voidzero-dev/vite-plus-win32-arm64-msvc': 0.1.23
+      '@voidzero-dev/vite-plus-win32-x64-msvc': 0.1.23
+    transitivePeerDependencies:
+      - '@arethetypeswrong/core'
+      - '@edge-runtime/vm'
+      - '@opentelemetry/api'
+      - '@tsdown/css'
+      - '@tsdown/exe'
+      - '@types/node'
+      - '@vitejs/devtools'
+      - '@vitest/coverage-istanbul'
+      - '@vitest/coverage-v8'
+      - '@vitest/ui'
+      - bufferutil
+      - esbuild
+      - happy-dom
+      - jiti
+      - jsdom
+      - less
+      - publint
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - svelte
+      - terser
+      - tsx
+      - typescript
+      - unplugin-unused
+      - unrun
+      - utf-8-validate
+      - vite
+      - yaml
+
+  vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3):
+    dependencies:
+      '@oxc-project/types': 0.133.0
+      '@oxlint/plugins': 1.61.0
+      '@voidzero-dev/vite-plus-core': 0.1.23(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)
+      '@voidzero-dev/vite-plus-test': 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      oxfmt: 0.52.0(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
+      oxlint: 1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.25.12)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
       oxlint-tsgolint: 0.23.0
     optionalDependencies:
       '@voidzero-dev/vite-plus-darwin-arm64': 0.1.23
@@ -21032,6 +21637,56 @@ snapshots:
       - vite
       - yaml
 
+  vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3):
+    dependencies:
+      '@oxc-project/types': 0.133.0
+      '@oxlint/plugins': 1.61.0
+      '@voidzero-dev/vite-plus-core': 0.1.23(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(yaml@2.8.3)
+      '@voidzero-dev/vite-plus-test': 0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      oxfmt: 0.52.0(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
+      oxlint: 1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.23(@opentelemetry/api@1.9.0)(@types/node@25.3.3)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@26.1.0)(terser@5.44.1)(tsx@4.21.0)(typescript@6.0.3)(unrun@0.2.39(synckit@0.11.11))(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
+      oxlint-tsgolint: 0.23.0
+    optionalDependencies:
+      '@voidzero-dev/vite-plus-darwin-arm64': 0.1.23
+      '@voidzero-dev/vite-plus-darwin-x64': 0.1.23
+      '@voidzero-dev/vite-plus-linux-arm64-gnu': 0.1.23
+      '@voidzero-dev/vite-plus-linux-arm64-musl': 0.1.23
+      '@voidzero-dev/vite-plus-linux-x64-gnu': 0.1.23
+      '@voidzero-dev/vite-plus-linux-x64-musl': 0.1.23
+      '@voidzero-dev/vite-plus-win32-arm64-msvc': 0.1.23
+      '@voidzero-dev/vite-plus-win32-x64-msvc': 0.1.23
+    transitivePeerDependencies:
+      - '@arethetypeswrong/core'
+      - '@edge-runtime/vm'
+      - '@opentelemetry/api'
+      - '@tsdown/css'
+      - '@tsdown/exe'
+      - '@types/node'
+      - '@vitejs/devtools'
+      - '@vitest/coverage-istanbul'
+      - '@vitest/coverage-v8'
+      - '@vitest/ui'
+      - bufferutil
+      - esbuild
+      - happy-dom
+      - jiti
+      - jsdom
+      - less
+      - publint
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - svelte
+      - terser
+      - tsx
+      - typescript
+      - unplugin-unused
+      - unrun
+      - utf-8-validate
+      - vite
+      - yaml
+
   vite-tsconfig-paths@5.1.4(typescript@5.6.3)(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)):
     dependencies:
       debug: 4.4.3
@@ -21061,6 +21716,17 @@ snapshots:
       tsconfck: 3.1.6(typescript@6.0.3)
     optionalDependencies:
       vite: 7.3.5(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
+
+  vite-tsconfig-paths@5.1.4(typescript@6.0.3)(vite@7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)):
+    dependencies:
+      debug: 4.4.3
+      globrex: 0.1.2
+      tsconfck: 3.1.6(typescript@6.0.3)
+    optionalDependencies:
+      vite: 7.3.5(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
       - supports-color
       - typescript

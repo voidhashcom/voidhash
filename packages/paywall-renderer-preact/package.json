@@ -1,0 +1,50 @@
+{
+  "name": "@voidhash/paywall-renderer-preact",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "description": "Preact renderer and runtime bundle tooling for Voidhash paywalls.",
+  "keywords": [
+    "paywalls",
+    "preact",
+    "renderer",
+    "voidhash"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "AGPL-3.0-only",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/paywall-renderer-preact"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./vite-plugin": "./src/vite-plugin.ts"
+  },
+  "scripts": {
+    "runtime:generate": "node scripts/generate-runtime-bundle.mjs",
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit",
+    "test": "node scripts/generate-runtime-bundle.mjs --check && vp test run"
+  },
+  "dependencies": {
+    "@voidhash/mimic-schema": "workspace:*",
+    "@voidhash/paywall-renderer-web-core": "workspace:*",
+    "@voidhash/paywalls": "workspace:*",
+    "preact": "10.29.2",
+    "preact-render-to-string": "6.7.0"
+  },
+  "devDependencies": {
+    "@voidhash/paywall-builtins": "workspace:*",
+    "@voidhash/tsconfig": "workspace:*",
+    "esbuild": "0.25.12",
+    "typescript": "6.0.3",
+    "vite": "catalog:",
+    "vite-plus": "0.1.23",
+    "vitest": "^3.2.7"
+  }
+}

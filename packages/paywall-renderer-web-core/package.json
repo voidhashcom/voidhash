@@ -1,0 +1,42 @@
+{
+  "name": "@voidhash/paywall-renderer-web-core",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "description": "Platform-neutral snapshot evaluation and web-style utilities for Voidhash paywall renderers.",
+  "keywords": [
+    "paywalls",
+    "renderer",
+    "voidhash"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "AGPL-3.0-only",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/paywall-renderer-web-core"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit",
+    "test": "vp test run"
+  },
+  "dependencies": {
+    "@voidhash/mimic-schema": "workspace:*",
+    "@voidhash/paywalls": "workspace:*",
+    "csstype": "^3.1.3"
+  },
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "6.0.3",
+    "vite-plus": "0.1.23",
+    "vitest": "^3.2.7"
+  }
+}
