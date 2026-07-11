@@ -5,6 +5,7 @@ packages:
   - examples/*
 
 catalog:
+  "@better-auth/api-key": ^1.6.23
   # Effect ecosystem
   "@effect/cli": ^0.73.0
   "@effect/rpc": ^0.73.0

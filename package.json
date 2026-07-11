@@ -28,6 +28,7 @@
       "@effect/platform-bun": "4.0.0-beta.84",
       "@effect/language-service": "^0.86.2",
       "@effect/vitest": "4.0.0-beta.84",
+      "@better-auth/api-key": "^1.6.23",
       "better-auth": "^1.6.23"
     }
   },
