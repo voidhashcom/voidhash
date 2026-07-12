@@ -11,7 +11,7 @@ const validProductionEnvironment = {
   PUBLIC_FILES_BASE_URL: "https://files.example.test",
   S3_SECRET_ACCESS_KEY: "object-store-secret",
   SELFHOST_MODE: "production",
-  WORKOS_API_KEY: "sk_test_configured",
+  WORKOS_API_KEY: "configured-workos-key",
   WORKOS_CLIENT_ID: "client_configured",
   WORKOS_COOKIE_PASSWORD: "cookie-secret-with-sufficient-entropy",
   WORKOS_REDIRECT_URI: "https://app.example.test/api/auth/callback",

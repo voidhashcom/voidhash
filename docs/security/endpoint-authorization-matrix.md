@@ -106,7 +106,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | Stripe webhook | Provider signature over exact raw body and timestamp | Configuration lookup is tied to the route ID; ledger IDs deduplicate. | Integrated |
 | WorkOS webhook | Provider signature over exact raw body and timestamp | External event ID uniqueness and membership sync rules. | Integrated |
 | Apple webhook | Signed JWS and application identity | Provider configuration and purchase ledger. | Negative provider-fixture gap remains |
-| Google Play RTDN | Google OIDC signature, issuer, lifetime, audience, verified service-account email | Provider configuration, authoritative Play API re-fetch, notification/ledger uniqueness. | Integrated; independent review pending |
+| Google Play RTDN | Google OIDC signature, issuer, lifetime, audience, verified service-account email | Provider configuration, authoritative Google Play state re-fetch, notification/ledger uniqueness. | Integrated; independent review pending |
 | `/p/*`, `/c/*`, `/files/*` | Public content hash/object key | Only immutable public artifacts; traversal rejected and active HTML sandboxed. | Unit and release-smoke covered |
 | `/health`, `/api/health`, OpenAPI | Public | No tenant data or mutation. | Smoke covered |
 
