@@ -58,6 +58,10 @@ voidhash-cli init
 
 For product documentation, visit [voidhash.com](https://voidhash.com/docs). To
 run the Community platform locally, see the [self-hosting guide](selfhost/README.md).
+The [architecture overview](docs/architecture.md) explains the Community,
+Cloud, and Enterprise composition boundaries, and the
+[licensing and self-hosting FAQ](docs/licensing-and-self-hosting-faq.md) covers
+AGPL and the current BYO WorkOS requirement.
 
 ## 🤝 Contributing
 
@@ -69,9 +73,9 @@ and [Security Policy](SECURITY.md).
 
 This repository uses explicit license zones. SDKs and client libraries are
 MIT-licensed; the backend, dashboard, service packages, and self-hosting code
-are AGPL-3.0-only. Any future `ee/` code will carry a separate source-available
-enterprise license. See [LICENSE.md](LICENSE.md) for the authoritative map and
-full texts.
+are AGPL-3.0-only. Closed Enterprise implementation remains in the private
+cloud repository and is not included here. See [LICENSE.md](LICENSE.md) for the
+authoritative map and full texts.
 
 ## 🔗 Links
 

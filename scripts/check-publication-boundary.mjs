@@ -21,6 +21,12 @@ const requiredFiles = [
   "LICENSES/AGPL-3.0-only.txt",
   "LICENSES/MIT.txt",
   "SECURITY.md",
+  "docs/architecture.md",
+  "docs/licensing-and-self-hosting-faq.md",
+  ".github/ISSUE_TEMPLATE/bug_report.yml",
+  ".github/ISSUE_TEMPLATE/config.yml",
+  ".github/ISSUE_TEMPLATE/feature_request.yml",
+  ".github/pull_request_template.md",
   "scripts/check-publication-boundary.mjs",
 ];
 for (const path of requiredFiles) {
