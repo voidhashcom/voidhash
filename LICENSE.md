@@ -28,10 +28,11 @@ MIT and AGPL terms identified here already apply to their respective zones.
 
 ## Enterprise code
 
-Any future `ee/` directory will be source-available and will not be open source.
-It will be governed by the
-[Voidhash Enterprise License](LICENSES/Voidhash-Enterprise.md), but that license
-does not apply to any code unless a file or directory expressly says so.
+Enterprise code is not included in this repository and remains in Voidhash's
+private cloud repository. The
+[Voidhash Enterprise License](LICENSES/Voidhash-Enterprise.md) is retained here
+as the canonical text for any separately distributed Enterprise Software, but
+it does not apply to code unless a file or directory expressly says so.
 
 Third-party components remain under their respective licenses. Their notices
 take precedence for those components.

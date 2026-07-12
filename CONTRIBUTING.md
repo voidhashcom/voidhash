@@ -38,9 +38,9 @@ pnpm typecheck
 pnpm test
 ```
 
-Use `pnpm lint` to check formatting and lint rules. The
-[self-hosting guide](selfhost/README.md) documents the local Compose environment
-and its smoke tests.
+Use `pnpm check:publication` to validate license metadata and the public/private
+repository boundary. The [self-hosting guide](selfhost/README.md) documents the
+local Compose environment and its smoke tests.
 
 ## Testing
 
