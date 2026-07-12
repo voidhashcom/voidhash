@@ -2,8 +2,28 @@ name: OSV Scanner
 
 on:
   pull_request:
+    paths:
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - apps/**/package.json
+      - examples/**/package.json
+      - libraries/**/package.json
+      - packages/**/package.json
+      - selfhost/**/package.json
+      - .github/workflows/osv-scanner.yml
   push:
-    branches: [main, preview, oss]
+    branches: [main, preview]
+    paths:
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - apps/**/package.json
+      - examples/**/package.json
+      - libraries/**/package.json
+      - packages/**/package.json
+      - selfhost/**/package.json
+      - .github/workflows/osv-scanner.yml
   schedule:
     - cron: "30 12 * * 1"
   workflow_dispatch:

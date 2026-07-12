@@ -2,7 +2,7 @@ name: Security audit
 
 on:
   push:
-    branches: [main, preview, oss]
+    branches: [main, preview]
     paths:
       - package.json
       - pnpm-lock.yaml
@@ -27,6 +27,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: security-audit-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   production-dependencies:
