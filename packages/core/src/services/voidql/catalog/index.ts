@@ -22,7 +22,12 @@ export const CATALOG: Readonly<Record<string, CatalogTable>> = {
 };
 
 /** Reserved internal aliases the substitution injects; not bindable by users (§9). */
-export const RESERVED_INTERNAL_ALIASES = new Set(["events", "persons", "pending_overrides"]);
+export const RESERVED_INTERNAL_ALIASES = new Set([
+  "events",
+  "persons",
+  "pending_overrides",
+  "voidql_union",
+]);
 
 export const getCatalogTable = (name: string): CatalogTable | undefined => CATALOG[name];
 

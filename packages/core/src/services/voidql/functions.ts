@@ -6,9 +6,10 @@
  * is rejected with {@link VoidQlUnsupportedError}. The registry fails *closed* on
  * everything new — the inverse of a blocklist, which fails open on every release.
  *
- * Deferred families (lambdas/higher-order array fns, window fns, `arrayJoin`,
- * parametric aggregates) are simply absent until they land behind a Security-Review
- * Gate.
+ * Deferred families (lambdas/higher-order array functions, `arrayJoin`, and
+ * parametric aggregates) are absent until they land behind a Security-Review Gate.
+ * Window syntax composes with registry functions; window-only functions still need
+ * an explicit row here.
  */
 import type { VoidQLType } from "./catalog/types.ts";
 
@@ -24,6 +25,8 @@ export interface FnSpec {
   readonly aggregate: boolean;
   /** Whether a bare `*` is an acceptable sole argument (only `count(*)`). */
   readonly allowStar?: boolean;
+  /** Whether the function is only valid when immediately followed by `OVER`. */
+  readonly windowOnly?: boolean;
 }
 
 const REGISTRY: Readonly<Record<string, FnSpec>> = {
@@ -52,6 +55,30 @@ const REGISTRY: Readonly<Record<string, FnSpec>> = {
   any: { chName: "any", minArgs: 1, maxArgs: 1, returns: { arg: 0 }, aggregate: true },
   argmin: { chName: "argMin", minArgs: 2, maxArgs: 2, returns: { arg: 0 }, aggregate: true },
   argmax: { chName: "argMax", minArgs: 2, maxArgs: 2, returns: { arg: 0 }, aggregate: true },
+  rownumber: {
+    chName: "row_number",
+    minArgs: 0,
+    maxArgs: 0,
+    returns: "UInt64",
+    aggregate: false,
+    windowOnly: true,
+  },
+  rank: {
+    chName: "rank",
+    minArgs: 0,
+    maxArgs: 0,
+    returns: "UInt64",
+    aggregate: false,
+    windowOnly: true,
+  },
+  denserank: {
+    chName: "dense_rank",
+    minArgs: 0,
+    maxArgs: 0,
+    returns: "UInt64",
+    aggregate: false,
+    windowOnly: true,
+  },
 
   // ── conditional / null handling (pure scalar control flow) ──
   if: { chName: "if", minArgs: 3, maxArgs: 3, returns: { arg: 1 }, aggregate: false },
@@ -65,9 +92,14 @@ const REGISTRY: Readonly<Record<string, FnSpec>> = {
   // ── string / hash (pure) ──
   lower: { chName: "lower", minArgs: 1, maxArgs: 1, returns: "String", aggregate: false },
   upper: { chName: "upper", minArgs: 1, maxArgs: 1, returns: "String", aggregate: false },
+  length: { chName: "length", minArgs: 1, maxArgs: 1, returns: "UInt64", aggregate: false },
+  trim: { chName: "trim", minArgs: 1, maxArgs: 1, returns: "String", aggregate: false },
   concat: { chName: "concat", minArgs: 2, maxArgs: 99, returns: "String", aggregate: false },
   substring: { chName: "substring", minArgs: 2, maxArgs: 3, returns: "String", aggregate: false },
   startswith: { chName: "startsWith", minArgs: 2, maxArgs: 2, returns: "Bool", aggregate: false },
+  endswith: { chName: "endsWith", minArgs: 2, maxArgs: 2, returns: "Bool", aggregate: false },
+  position: { chName: "position", minArgs: 2, maxArgs: 2, returns: "UInt64", aggregate: false },
+  replaceall: { chName: "replaceAll", minArgs: 3, maxArgs: 3, returns: "String", aggregate: false },
   // regex allowed but the query is cost-capped (ReDoS → bounded-time abort, §11).
   match: { chName: "match", minArgs: 2, maxArgs: 2, returns: "Bool", aggregate: false },
   replaceregexpall: {
@@ -88,6 +120,13 @@ const REGISTRY: Readonly<Record<string, FnSpec>> = {
   // ── date / math (pure) ──
   tostartofhour: {
     chName: "toStartOfHour",
+    minArgs: 1,
+    maxArgs: 1,
+    returns: "DateTime",
+    aggregate: false,
+  },
+  tostartofminute: {
+    chName: "toStartOfMinute",
     minArgs: 1,
     maxArgs: 1,
     returns: "DateTime",
@@ -130,9 +169,23 @@ const REGISTRY: Readonly<Record<string, FnSpec>> = {
   },
   todate: { chName: "toDate", minArgs: 1, maxArgs: 1, returns: "DateTime", aggregate: false },
   datediff: { chName: "dateDiff", minArgs: 3, maxArgs: 3, returns: "Int64", aggregate: false },
+  toyear: { chName: "toYear", minArgs: 1, maxArgs: 1, returns: "UInt64", aggregate: false },
+  tomonth: { chName: "toMonth", minArgs: 1, maxArgs: 1, returns: "UInt64", aggregate: false },
+  todayofweek: {
+    chName: "toDayOfWeek",
+    minArgs: 1,
+    maxArgs: 1,
+    returns: "UInt64",
+    aggregate: false,
+  },
   round: { chName: "round", minArgs: 1, maxArgs: 2, returns: "Float64", aggregate: false },
   floor: { chName: "floor", minArgs: 1, maxArgs: 2, returns: "Float64", aggregate: false },
+  ceil: { chName: "ceil", minArgs: 1, maxArgs: 2, returns: "Float64", aggregate: false },
   abs: { chName: "abs", minArgs: 1, maxArgs: 1, returns: { arg: 0 }, aggregate: false },
+  sqrt: { chName: "sqrt", minArgs: 1, maxArgs: 1, returns: "Float64", aggregate: false },
+  pow: { chName: "pow", minArgs: 2, maxArgs: 2, returns: "Float64", aggregate: false },
+  exp: { chName: "exp", minArgs: 1, maxArgs: 1, returns: "Float64", aggregate: false },
+  log: { chName: "log", minArgs: 1, maxArgs: 1, returns: "Float64", aggregate: false },
   // only the null-safe casts (HogQL's leading-underscore rule) — never throwing casts
   tofloat64ornull: {
     chName: "toFloat64OrNull",

@@ -87,6 +87,22 @@ export interface FnCall extends Node {
   readonly args: readonly Expr[];
 }
 
+export type WindowFrameBound = "unboundedPreceding" | "currentRow" | "unboundedFollowing";
+
+export interface WindowFrame {
+  readonly unit: "rows" | "range";
+  readonly start: WindowFrameBound;
+  readonly end?: WindowFrameBound;
+}
+
+export interface WindowExpr extends Node {
+  readonly _tag: "WindowExpr";
+  readonly fn: FnCall;
+  readonly partitionBy: readonly Expr[];
+  readonly orderBy: readonly OrderItem[];
+  readonly frame?: WindowFrame;
+}
+
 export type BinaryOp =
   | "or"
   | "and"
@@ -98,6 +114,8 @@ export type BinaryOp =
   | "gte"
   | "like"
   | "notLike"
+  | "ilike"
+  | "notIlike"
   | "add"
   | "sub"
   | "mul"
@@ -120,8 +138,19 @@ export interface Unary extends Node {
 export interface InExpr extends Node {
   readonly _tag: "InExpr";
   readonly expr: Expr;
-  readonly list: readonly Expr[];
+  readonly list?: readonly [Expr, ...Expr[]];
+  readonly query?: Query;
   readonly negated: boolean;
+}
+
+export interface ExistsExpr extends Node {
+  readonly _tag: "ExistsExpr";
+  readonly query: Query;
+}
+
+export interface SubqueryExpr extends Node {
+  readonly _tag: "SubqueryExpr";
+  readonly query: Query;
 }
 
 export interface Between extends Node {
@@ -163,9 +192,12 @@ export type Expr =
   | ColumnRef
   | StarRef
   | FnCall
+  | WindowExpr
   | Binary
   | Unary
   | InExpr
+  | ExistsExpr
+  | SubqueryExpr
   | Between
   | IsNull
   | CaseExpr
@@ -193,7 +225,7 @@ export interface NamedTable extends Node {
 /** A subquery source. Subqueries MUST be aliased (the parser enforces it). */
 export interface SubquerySource extends Node {
   readonly _tag: "SubquerySource";
-  readonly query: Select;
+  readonly query: Query;
   readonly alias: string;
 }
 
@@ -201,38 +233,60 @@ export type TableSource = NamedTable | SubquerySource;
 
 export interface Join extends Node {
   readonly _tag: "Join";
-  readonly kind: "inner" | "left";
+  readonly kind: "inner" | "left" | "right" | "full" | "cross";
   readonly source: TableSource;
-  readonly on: Expr;
+  readonly on?: Expr;
+  readonly using?: readonly [string, ...string[]];
 }
 
 export interface OrderItem extends Node {
   readonly _tag: "OrderItem";
   readonly expr: Expr;
   readonly dir: "asc" | "desc";
+  readonly nulls?: "first" | "last";
 }
 
 export interface Cte extends Node {
   readonly _tag: "Cte";
   readonly name: string;
-  readonly query: Select;
+  readonly query: Query;
+}
+
+export interface LimitBy {
+  readonly limit: number;
+  readonly offset?: number;
+  readonly by: readonly [Expr, ...Expr[]];
 }
 
 export interface Select extends Node {
   readonly _tag: "Select";
   readonly with: readonly Cte[];
+  readonly distinct: boolean;
+  readonly distinctOn: readonly Expr[];
   readonly columns: readonly [SelectItem, ...SelectItem[]];
-  readonly from: TableSource;
+  readonly from?: TableSource;
   readonly joins: readonly Join[];
+  readonly prewhere?: Expr;
   readonly where?: Expr;
   readonly groupBy: readonly Expr[];
+  readonly groupByModifier?: "rollup" | "cube";
+  readonly withTotals: boolean;
   readonly having?: Expr;
+  readonly qualify?: Expr;
   readonly orderBy: readonly OrderItem[];
+  readonly limitBy?: LimitBy;
   readonly limit?: number;
   readonly offset?: number;
+  readonly withTies: boolean;
 }
 
-// `UNION ALL` (`SetQuery`) is a deferred construct — removed from the grammar
-// until it lands behind its own Security-Review Gate (§11). Until then a single
-// `Select` is the whole statement surface.
-export type Statement = Select;
+export type SetOperator = "UNION ALL" | "UNION DISTINCT" | "INTERSECT" | "EXCEPT";
+
+export interface SetQuery extends Node {
+  readonly _tag: "SetQuery";
+  readonly selects: readonly [Select, Select, ...Select[]];
+  readonly operators: readonly [SetOperator, ...SetOperator[]];
+}
+
+export type Query = Select | SetQuery;
+export type Statement = Query;
