@@ -1,80 +1,53 @@
 /**
- * Model Context Protocol endpoint — `POST /api/mcp` (streamable HTTP, STATELESS).
+ * Authenticated, stateless streamable-HTTP MCP endpoint for Cloudflare Workers.
  *
- * Exposes the paywall workspace to MCP clients (Claude Code, the voidhash CLI)
- * as JSON-RPC 2.0 `tools/*`: the stateless, document-first workspace tools
- * (`list_paywalls`, `get_paywall`, `get_components`, `read_component`,
- * `edit_paywall`, `write_component`, `rename_component`, `delete_component`)
- * from the shared tool core (`ai/workspace-tools.ts`).
- *
- * **Auth (v1 API keys → service authz).** The endpoint authenticates with
- * `Authorization: Bearer <secret key>`, validated by the SAME
- * {@link ApiKeyService.validateSecretKey} the v1 API's `x-secret-key` path uses.
- * A voidhash secret key is already PROJECT-scoped, so the key alone determines
- * the workspace scope — MCP tools take no `projectId` argument. From the
- * validated `{ project }` we construct the exact {@link SecretKeySession} the v1
- * middleware builds for a secret key (a real {@link AuthSession} with that one
- * project), and provide it for the request. {@link PaywallWorkspaceService} then
- * runs its normal `PaywallService.getPaywalls(projectId)` project-membership
- * check against that session — no fake super-session, no authz bypass; the same
- * seam every v1 secret-key handler already uses.
- *
- * **Stateless transport.** Each POST is answered with a single JSON response (or
- * 202 for a notification). No SSE stream, no session ids, no server-initiated
- * messages — spec-compliant for a stateless streamable-HTTP server and what
- * Claude Code's client accepts. `GET`/`DELETE` on the endpoint → 405 (there is
- * no stream to open and no session to terminate). Malformed JSON → 400; missing
- * or invalid bearer → 401 with a `WWW-Authenticate` header.
- *
- * Resources are not offered this increment (tools cover the workflow) — see the
- * architecture doc §3.6 follow-ups.
+ * Effect MCP owns the tool/resource registry, schemas, and result model. The
+ * HTTP adapter is intentionally stateless because isolate-local MCP session
+ * maps cannot provide affinity across Cloudflare Worker requests.
  */
-import { ApiKeyService, PaywallWorkspaceService } from "@voidhash/core/services";
 import { AuthSession } from "@voidhash/core/domain/auth/Auth";
+import { ApiKeyService, LocalUserSessionService } from "@voidhash/core/services";
 import type { SecretKeySession } from "@voidhash/rpc";
-import { Cause, Effect, Layer, Result } from "effect";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import { Cause, Context, Effect, Layer, Result } from "effect";
+import { McpSchema, McpServer } from "effect/unstable/ai";
 import * as HttpHeaders from "effect/unstable/http/Headers";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import type { Rpc } from "effect/unstable/rpc";
+import type { RpcGroup } from "effect/unstable/rpc/RpcGroup";
 
+import * as WorkspaceTools from "../ai/workspace-tools.ts";
 import {
-  handleMcpMessage,
-  parseJsonRpcMessage,
+  handleStatelessMcpMessage,
   JsonRpcErrorCode,
-  type CallTool,
-  type JsonRpcResponse,
-} from "../mcp/protocol.ts";
-import { findMcpTool } from "../mcp/tool-manifest.ts";
-import type { WorkspaceToolScope } from "../ai/workspace-tools.ts";
+  parseJsonRpcMessage,
+  SUPPORTED_PROTOCOL_VERSIONS,
+} from "../mcp/cloudflare-http.ts";
+import {
+  makePlatformOperations,
+  type PlatformOperation,
+  platformOperationDescriptors,
+  registerPlatformTools,
+} from "../mcp/platform-tools.ts";
+import { MCP_TOOLS } from "../mcp/tool-manifest.ts";
 
-/** `WWW-Authenticate` challenge returned on any 401 (bearer scheme). */
 const WWW_AUTHENTICATE = 'Bearer realm="voidhash-mcp"';
+const SERVER_INFO = { name: "voidhash", version: "1.0.0" } as const;
 
-/** A bare JSON-RPC error response (used for pre-dispatch failures with a null id). */
 const jsonRpcErrorResponse = (status: number, code: number, message: string) =>
   HttpServerResponse.json({ jsonrpc: "2.0", id: null, error: { code, message } }, { status });
 
-/** Extract a `Bearer <token>` credential from the `authorization` header. */
 const bearerToken = (headers: HttpHeaders.Headers): string | undefined => {
   const raw = HttpHeaders.get(headers, "authorization");
   const value = raw._tag === "Some" ? raw.value : undefined;
-  if (value === undefined) {
-    return undefined;
-  }
-  const match = /^Bearer\s+(.+)$/i.exec(value.trim());
-  return match ? match[1].trim() : undefined;
+  const match = value === undefined ? null : /^Bearer\s+(.+)$/i.exec(value.trim());
+  return match?.[1]?.trim();
 };
 
-/**
- * Construct the {@link SecretKeySession} for a validated project — byte-for-byte
- * the shape the v1 `authenticateSecretKey` middleware builds — so the workspace
- * service's project-membership authz sees a genuine single-project secret-key
- * session.
- */
 const secretKeySessionForProject = (project: {
-  id: string;
-  name: string;
-  organizationId: string;
-  slug: string;
+  readonly id: string;
+  readonly name: string;
+  readonly organizationId: string;
+  readonly slug: string;
 }): SecretKeySession => ({
   cookie: null,
   method: "secret-key",
@@ -94,132 +67,236 @@ const secretKeySessionForProject = (project: {
   user: null,
 });
 
-/**
- * The dispatcher passed to {@link handleMcpMessage}: look up the tool by name,
- * run it against the authenticated `scope` — an unknown tool folds to an
- * `isError` tool result (MCP maps a bad tool name to a tool error, not a
- * JSON-RPC error, so a client retry loop can recover).
- */
-const makeCallTool =
-  (scope: WorkspaceToolScope): CallTool =>
-  (name, args) => {
-    const tool = findMcpTool(name);
-    if (tool === undefined) {
-      return Effect.succeed({ output: `Unknown tool: ${name}`, isError: true });
+const authenticateBearer = (
+  token: string,
+  apiKeys: ApiKeyService["Service"],
+  localSessions: LocalUserSessionService["Service"],
+) =>
+  Effect.gen(function* () {
+    const userKey = yield* Effect.result(apiKeys.validateUserApiKey(token));
+    if (Result.isSuccess(userKey)) {
+      const access = yield* localSessions.loadUserAccess(userKey.success.user.id);
+      return localSessions.toUserSession(userKey.success.user, access, null, null);
     }
-    return tool.dispatch(scope, args);
-  };
 
-/** Handle a single stateless `POST /api/mcp` JSON-RPC message. */
-const handlePost = Effect.gen(function* () {
-  const request = yield* HttpServerRequest.HttpServerRequest;
-
-  // 1. Auth: require a Bearer secret key, validate it via the shared service.
-  const token = bearerToken(request.headers);
-  if (token === undefined) {
-    return HttpServerResponse.setHeader(
-      yield* jsonRpcErrorResponse(
-        401,
-        JsonRpcErrorCode.InvalidRequest,
-        "Missing bearer token",
-      ),
-      "www-authenticate",
-      WWW_AUTHENTICATE,
-    );
-  }
-
-  const apiKeys = yield* ApiKeyService;
-  const validated = yield* Effect.result(apiKeys.validateSecretKey(token));
-  if (Result.isFailure(validated)) {
-    return HttpServerResponse.setHeader(
-      yield* jsonRpcErrorResponse(
-        401,
-        JsonRpcErrorCode.InvalidRequest,
-        "Invalid or expired API key",
-      ),
-      "www-authenticate",
-      WWW_AUTHENTICATE,
-    );
-  }
-  const record = validated.success;
-  const session = secretKeySessionForProject({
-    id: record.project.id,
-    name: record.project.name,
-    organizationId: record.project.organizationId,
-    slug: record.project.slug,
+    const projectKey = yield* Effect.result(apiKeys.validateSecretKey(token));
+    if (Result.isFailure(projectKey)) {
+      return undefined;
+    }
+    return secretKeySessionForProject(projectKey.success.project);
   });
-  // MCP is stateless and document-first — every tool reads/edits the LIVE
-  // document directly, so the scope is just the authenticated project.
-  const scope: WorkspaceToolScope = { projectId: record.project.id };
 
-  // 2. Parse the JSON body → JSON-RPC message.
-  const rawBody = yield* request.text;
-  const parsedJson = yield* Effect.result(
-    Effect.try({
-      try: () => JSON.parse(rawBody) as unknown,
-      catch: () => new Error("Invalid JSON"),
-    }),
-  );
-  if (Result.isFailure(parsedJson)) {
-    return yield* jsonRpcErrorResponse(
-      400,
-      JsonRpcErrorCode.ParseError,
-      "Parse error: request body is not valid JSON",
-    );
-  }
+const workspaceToolResult = (result: WorkspaceTools.WorkspaceToolResult) =>
+  new McpSchema.CallToolResult({
+    content: [{ type: "text", text: result.output }],
+    structuredContent: { output: result.output },
+    isError: result.isError,
+  });
 
-  const parsed = parseJsonRpcMessage(parsedJson.success);
-  if (!parsed.ok) {
-    return yield* jsonRpcErrorResponse(400, JsonRpcErrorCode.InvalidRequest, parsed.reason);
-  }
-
-  // 3. Dispatch the message against the authenticated project scope. The tool
-  //    effects are AuthSession-bound; provide the constructed secret-key session.
-  const response: JsonRpcResponse | null = yield* handleMcpMessage(
-    parsed.message,
-    makeCallTool(scope),
-  ).pipe(Effect.provideService(AuthSession, session));
-
-  // A notification (no response) is answered with 202 + empty body.
-  if (response === null) {
-    return HttpServerResponse.empty({ status: 202 });
-  }
-  return yield* HttpServerResponse.json(response);
-});
-
-/** `GET`/`DELETE` on the stateless endpoint: no stream, no session → 405. */
-const methodNotAllowed = HttpServerResponse.json(
-  { jsonrpc: "2.0", id: null, error: { code: JsonRpcErrorCode.InvalidRequest, message: "Method Not Allowed" } },
-  { status: 405, headers: { allow: "POST" } },
-);
-
-const registerMcpRoute = Effect.gen(function* () {
-  const router = yield* HttpRouter.HttpRouter;
-  yield* router.add(
-    "POST",
-    "/api/mcp",
-    handlePost.pipe(
-      Effect.catchCause((cause) =>
-        Effect.gen(function* () {
-          yield* Effect.logError(`MCP request error: ${Cause.pretty(cause)}`);
-          return yield* jsonRpcErrorResponse(
-            500,
-            JsonRpcErrorCode.InternalError,
-            "Internal error",
-          );
+const registerWorkspaceTools = (server: McpServer.McpServer["Service"]): Effect.Effect<void> =>
+  Effect.forEach(
+    MCP_TOOLS,
+    (tool) =>
+      server.addTool({
+        tool: new McpSchema.Tool({
+          ...tool.descriptor,
+          annotations: {
+            readOnlyHint: [
+              "list_paywalls",
+              "get_paywall",
+              "get_components",
+              "read_component",
+            ].includes(tool.descriptor.name),
+            destructiveHint: tool.descriptor.name === "delete_component",
+            idempotentHint: tool.descriptor.name !== "edit_paywall",
+            openWorldHint: false,
+          },
         }),
-      ),
-    ),
+        annotations: Context.empty(),
+        // The low-level Effect MCP registry types handlers as McpServerClient-
+        // only. AuthSession and workspace services are supplied by this route's
+        // authenticated request context.
+        handle: ((args: unknown) =>
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
+            const projectId = session.projects[0]?.id;
+            if (projectId === undefined) {
+              return workspaceToolResult({
+                output: "This tool requires access to a project.",
+                isError: true,
+              });
+            }
+            return workspaceToolResult(yield* tool.dispatch({ projectId }, args));
+          })) as never,
+      }),
+    { discard: true },
   );
-  yield* router.add("GET", "/api/mcp", methodNotAllowed);
-  yield* router.add("DELETE", "/api/mcp", methodNotAllowed);
-});
 
-/**
- * Registers `POST /api/mcp` (+ 405 on GET/DELETE). The request-scoped
- * requirements — {@link ApiKeyService}, {@link PaywallWorkspaceService}, `Db`
- * (for key validation) — are satisfied via `HttpRouter.provideRequest` by the
- * caller (`BackendApp`), mirroring the AI chat and webhook routes. `AuthSession`
- * is provided in-handler from the validated secret key.
- */
-export const McpRouteLayer = Layer.effectDiscard(registerMcpRoute);
+const registerResources = (
+  server: McpServer.McpServer["Service"],
+  operations: ReadonlyArray<PlatformOperation>,
+): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    const catalogUri = "voidhash://platform/operations";
+    yield* server.addResource({
+      resource: new McpSchema.Resource({
+        uri: catalogUri,
+        name: "Platform operations",
+        description:
+          "Every typed platform operation accepted by platform_call, including its exact input JSON Schema.",
+        mimeType: "application/json",
+      }),
+      annotations: Context.empty(),
+      handle: Effect.succeed({
+        contents: [
+          {
+            uri: catalogUri,
+            mimeType: "application/json",
+            text: JSON.stringify({ operations: platformOperationDescriptors(operations) }, null, 2),
+          },
+        ],
+      }),
+    });
+
+    yield* server.addResourceTemplate({
+      template: new McpSchema.ResourceTemplate({
+        uriTemplate: "voidhash://paywalls/{slug}",
+        name: "Live paywall document",
+        description: "A live paywall document tree addressed by its project-local slug.",
+        mimeType: "application/json",
+      }),
+      routerPath: "voidhash:://paywalls/:0",
+      completions: {},
+      annotations: Context.empty(),
+      // Like tool calls, template reads resolve auth/workspace services from the
+      // current request rather than capturing one user's session at startup.
+      handle: ((uri: string, params: Array<string>) =>
+        Effect.gen(function* () {
+          const session = yield* AuthSession;
+          const projectId = session.projects[0]?.id;
+          if (projectId === undefined) {
+            return yield* Effect.die(new Error("This resource requires access to a project"));
+          }
+          const result = yield* WorkspaceTools.getPaywall({ projectId }, { slug: params[0] });
+          if (result.isError) {
+            return yield* Effect.die(new Error(result.output));
+          }
+          return { contents: [{ uri, mimeType: "application/json", text: result.output }] };
+        })) as never,
+    });
+  });
+
+/** Creates the Effect MCP route layer for all RPCs in the composed platform. */
+export const McpRouteLayer = <Rpcs extends Rpc.Any>(group: RpcGroup<Rpcs>) =>
+  Layer.effectDiscard(
+    Effect.gen(function* () {
+      const router = yield* HttpRouter.HttpRouter;
+      const server = yield* McpServer.McpServer;
+      const apiKeys = yield* ApiKeyService;
+      const localSessions = yield* LocalUserSessionService;
+      const operations = yield* makePlatformOperations(group);
+
+      yield* registerWorkspaceTools(server);
+      yield* registerPlatformTools(server, operations);
+      yield* registerResources(server, operations);
+
+      const handlePost = Effect.gen(function* () {
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        const token = bearerToken(request.headers);
+        if (token === undefined) {
+          return HttpServerResponse.setHeader(
+            yield* jsonRpcErrorResponse(
+              401,
+              JsonRpcErrorCode.InvalidRequest,
+              "Missing bearer token",
+            ),
+            "www-authenticate",
+            WWW_AUTHENTICATE,
+          );
+        }
+
+        const authenticated = yield* Effect.result(
+          authenticateBearer(token, apiKeys, localSessions),
+        );
+        if (Result.isFailure(authenticated) || authenticated.success === undefined) {
+          return HttpServerResponse.setHeader(
+            yield* jsonRpcErrorResponse(
+              401,
+              JsonRpcErrorCode.InvalidRequest,
+              "Invalid or expired API key",
+            ),
+            "www-authenticate",
+            WWW_AUTHENTICATE,
+          );
+        }
+
+        const rawBody = yield* request.text;
+        const parsedJson = yield* Effect.result(
+          Effect.try({
+            try: () => JSON.parse(rawBody) as unknown,
+            catch: () => new Error("Invalid JSON"),
+          }),
+        );
+        if (Result.isFailure(parsedJson)) {
+          return yield* jsonRpcErrorResponse(
+            400,
+            JsonRpcErrorCode.ParseError,
+            "Parse error: request body is not valid JSON",
+          );
+        }
+
+        const parsed = parseJsonRpcMessage(parsedJson.success);
+        if (!parsed.ok) {
+          return yield* jsonRpcErrorResponse(400, JsonRpcErrorCode.InvalidRequest, parsed.reason);
+        }
+
+        const response = yield* handleStatelessMcpMessage(server, parsed.message, SERVER_INFO).pipe(
+          Effect.provideService(AuthSession, authenticated.success),
+        );
+        if (response === null) {
+          return HttpServerResponse.empty({ status: 202 });
+        }
+
+        const protocolVersion =
+          typeof parsed.message.params?.protocolVersion === "string" &&
+          (SUPPORTED_PROTOCOL_VERSIONS as ReadonlyArray<string>).includes(
+            parsed.message.params.protocolVersion,
+          )
+            ? parsed.message.params.protocolVersion
+            : SUPPORTED_PROTOCOL_VERSIONS[0];
+        return HttpServerResponse.setHeader(
+          yield* HttpServerResponse.json(response),
+          "mcp-protocol-version",
+          protocolVersion,
+        );
+      });
+
+      const methodNotAllowed = HttpServerResponse.json(
+        {
+          jsonrpc: "2.0",
+          id: null,
+          error: { code: JsonRpcErrorCode.InvalidRequest, message: "Method Not Allowed" },
+        },
+        { status: 405, headers: { allow: "POST" } },
+      );
+
+      yield* router.add(
+        "POST",
+        "/api/mcp",
+        handlePost.pipe(
+          Effect.catchCause((cause) =>
+            Effect.gen(function* () {
+              yield* Effect.logError(`MCP request error: ${Cause.pretty(cause)}`);
+              return yield* jsonRpcErrorResponse(
+                500,
+                JsonRpcErrorCode.InternalError,
+                "Internal error",
+              );
+            }),
+          ),
+        ),
+      );
+      yield* router.add("GET", "/api/mcp", methodNotAllowed);
+      yield* router.add("DELETE", "/api/mcp", methodNotAllowed);
+    }),
+  ).pipe(Layer.provide(McpServer.McpServer.layer));
