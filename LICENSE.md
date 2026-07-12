@@ -7,25 +7,24 @@ closest license notice in its directory, the package metadata, or an SPDX
 license identifier in the file. A more specific notice takes precedence over
 this repository-level map.
 
-## Current public code
+## MIT code
 
-The code currently published in this repository is licensed under the MIT
-License unless a more specific license notice says otherwise. This includes the
-SDKs and other customer-facing packages in `libraries/`, `packages/`, `apps/`,
-and `examples/`.
+SDKs, client libraries, the CLI, Studio, examples, and supporting packages that
+declare `MIT` in their package metadata or carry a local MIT license notice are
+licensed under the MIT License.
 
 The full MIT License is in [LICENSES/MIT.txt](LICENSES/MIT.txt).
 
-## Future service code
+## AGPL service code
 
-Voidhash service and self-hosting code will be licensed under the GNU Affero
-General Public License, version 3 only (`AGPL-3.0-only`), when that code is
-published in this repository. The full license is in
-[LICENSES/AGPL-3.0-only.txt](LICENSES/AGPL-3.0-only.txt).
+The backend, dashboard, service packages, and self-hosting code that declare
+`AGPL-3.0-only` in their package metadata or carry a local AGPL notice are
+licensed under the GNU Affero General Public License, version 3 only. The full
+license is in [LICENSES/AGPL-3.0-only.txt](LICENSES/AGPL-3.0-only.txt).
 
-Backend packages are not part of the public repository yet. They remain planned
-for publication under `AGPL-3.0-only` after the alpha and beta security gates
-described in the open-source unification plan are complete.
+Repository visibility does not change these license grants. The complete code
+is being validated privately before the repository's publication gate, but the
+MIT and AGPL terms identified here already apply to their respective zones.
 
 ## Enterprise code
 

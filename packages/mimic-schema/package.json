@@ -26,7 +26,7 @@
     "@voidhash/mimic": "workspace:*",
     "@voidhash/tsconfig": "workspace:*",
     "typescript": "6.0.3",
-    "vite-plus": "0.1.23",
+    "vite-plus": "catalog:",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.7"
   }

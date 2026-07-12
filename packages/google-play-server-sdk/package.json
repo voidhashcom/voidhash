@@ -27,7 +27,7 @@
   "devDependencies": {
     "@voidhash/tsconfig": "workspace:*",
     "typescript": "5.9.3",
-    "vite-plus": "0.1.23",
+    "vite-plus": "catalog:",
     "vitest": "^3.2.7"
   },
   "peerDependencies": {

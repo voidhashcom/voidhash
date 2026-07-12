@@ -30,11 +30,10 @@
 </p>
 
 > [!IMPORTANT]
-> This repository currently contains the open-source SDKs, CLI, Studio, and
-> integration packages. The backend is not public yet. It remains planned for
-> publication under AGPL-3.0-only after alpha and beta security validation; the
-> repository must not be described as the fully open or self-hostable platform
-> until that publication is complete.
+> This private validation branch contains the complete Community platform,
+> including the backend and self-hosting composition. The repository remains
+> private through alpha and beta security validation and must not be described
+> as publicly launched until the publication gate is complete.
 
 ## ✨ Features
 
@@ -57,19 +56,22 @@ voidhash-cli init
 
 ## 📚 Documentation
 
-For detailed documentation, visit [voidhash.com](https://voidhash.com/docs)
+For product documentation, visit [voidhash.com](https://voidhash.com/docs). To
+run the Community platform locally, see the [self-hosting guide](selfhost/README.md).
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+External pull requests are closed during private validation. Issues and private
+security reports remain welcome; see the [Contributing Guide](CONTRIBUTING.md)
+and [Security Policy](SECURITY.md).
 
 ## 📄 License
 
-This repository uses explicit license zones. The code currently published here
-is MIT-licensed unless a more specific notice says otherwise. Future service
-and self-hosting code will use AGPL-3.0-only, and future `ee/` code will have a
-separate source-available enterprise license. See [LICENSE.md](LICENSE.md) for
-the authoritative map and full texts.
+This repository uses explicit license zones. SDKs and client libraries are
+MIT-licensed; the backend, dashboard, service packages, and self-hosting code
+are AGPL-3.0-only. Any future `ee/` code will carry a separate source-available
+enterprise license. See [LICENSE.md](LICENSE.md) for the authoritative map and
+full texts.
 
 ## 🔗 Links
 

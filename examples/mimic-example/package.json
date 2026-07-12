@@ -49,6 +49,6 @@
     "tsx": "^4.19.3",
     "typescript": "5.8.3",
     "vite": "catalog:",
-    "vite-plus": "0.1.23"
+    "vite-plus": "catalog:"
   }
 }

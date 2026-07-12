@@ -60,6 +60,6 @@
     "tw-animate-css": "^1.3.4",
     "typescript": "6.0.3",
     "vite": "catalog:",
-    "vite-plus": "0.1.23"
+    "vite-plus": "catalog:"
   }
 }
