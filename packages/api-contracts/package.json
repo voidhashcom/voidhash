@@ -1,0 +1,29 @@
+{
+  "name": "@voidhash/api-contracts",
+  "version": "0.0.1-alpha.1",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/api-contracts"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./errors": "./src/errors/index.ts",
+    "./event-capture": "./src/EventCapture.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "5.6.3"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

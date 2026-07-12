@@ -1,6 +1,6 @@
+import { apiKeyClient } from "@better-auth/api-key/client";
 import { createAuthClient } from "better-auth/client";
-import { apiKeyClient } from "better-auth/client/plugins";
-import { Data, Effect, Layer, Context } from "effect";
+import { Context, Data, Effect, Layer } from "effect";
 
 import { CliConfig } from "../../../domain/services/cli-config";
 

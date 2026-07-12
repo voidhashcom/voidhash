@@ -59,14 +59,14 @@
   },
   "scripts": {
     "postinstall": "tsc || exit 0;",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsgo --noEmit -p tsconfig.test.json",
     "build": "expo-module build",
     "test": "vitest --config vitest.unit.mts run",
     "clean": "rm -rf android/build node_modules/**/android/build lib",
     "lint": "biome check .",
     "lint-ci": "biome check .",
     "format": "biome format . --write",
-    "typescript": "tsc",
+    "typescript": "tsc -p tsconfig.test.json --noEmit",
     "specs": "pnpm run typescript && nitro-codegen --logLevel=\"debug\""
   },
   "dependencies": {
@@ -89,7 +89,7 @@
     "typescript": "5.9.3",
     "ultracite": "5.0.39",
     "vite-tsconfig-paths": "catalog:",
-    "vitest": "^4.1.6"
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "@react-native-async-storage/async-storage": "^1.24.0 || ^2.0.0",

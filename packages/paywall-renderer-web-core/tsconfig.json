@@ -1,0 +1,5 @@
+{
+  "extends": "@voidhash/tsconfig/typescript-6.json",
+  "include": ["src"],
+  "exclude": ["**/node_modules/**"]
+}

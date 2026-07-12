@@ -1,0 +1,177 @@
+---
+title: Sheet
+description: A panel that slides out from the edge of the screen.
+---
+
+## Usage
+
+<Preview>
+  <Sheet>
+    <SheetTrigger asChild>
+      <Button variant="outline">Open Sheet</Button>
+    </SheetTrigger>
+    <SheetContent>
+      <SheetHeader>
+        <SheetTitle>Sheet Title</SheetTitle>
+        <SheetDescription>
+          This is a sheet description. Make changes to your settings here.
+        </SheetDescription>
+      </SheetHeader>
+      <div className="p-4">
+        <p>Sheet content goes here.</p>
+      </div>
+      <SheetFooter>
+        <Button>Save changes</Button>
+      </SheetFooter>
+    </SheetContent>
+  </Sheet>
+</Preview>
+
+```tsx
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@voidhash/ui";
+
+<Sheet>
+  <SheetTrigger asChild>
+    <Button variant="outline">Open Sheet</Button>
+  </SheetTrigger>
+  <SheetContent>
+    <SheetHeader>
+      <SheetTitle>Sheet Title</SheetTitle>
+      <SheetDescription>Sheet description.</SheetDescription>
+    </SheetHeader>
+    <div className="p-4">Content here</div>
+    <SheetFooter>
+      <Button>Save</Button>
+    </SheetFooter>
+  </SheetContent>
+</Sheet>;
+```
+
+## Components
+
+### Sheet
+
+The root component managing sheet state.
+
+### SheetTrigger
+
+The element that opens the sheet.
+
+### SheetContent
+
+The sliding panel content.
+
+### SheetHeader
+
+Container for title and description.
+
+### SheetTitle
+
+The sheet's heading.
+
+### SheetDescription
+
+A description of the sheet's purpose.
+
+### SheetFooter
+
+Container for action buttons.
+
+### SheetClose
+
+An element that closes the sheet.
+
+## Examples
+
+### Different Sides
+
+<Preview>
+  <div className="flex gap-2">
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline">Left</Button>
+      </SheetTrigger>
+      <SheetContent side="left">
+        <SheetHeader>
+          <SheetTitle>Left Side</SheetTitle>
+        </SheetHeader>
+      </SheetContent>
+    </Sheet>
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline">Right</Button>
+      </SheetTrigger>
+      <SheetContent side="right">
+        <SheetHeader>
+          <SheetTitle>Right Side</SheetTitle>
+        </SheetHeader>
+      </SheetContent>
+    </Sheet>
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline">Top</Button>
+      </SheetTrigger>
+      <SheetContent side="top">
+        <SheetHeader>
+          <SheetTitle>Top Side</SheetTitle>
+        </SheetHeader>
+      </SheetContent>
+    </Sheet>
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="outline">Bottom</Button>
+      </SheetTrigger>
+      <SheetContent side="bottom">
+        <SheetHeader>
+          <SheetTitle>Bottom Side</SheetTitle>
+        </SheetHeader>
+      </SheetContent>
+    </Sheet>
+  </div>
+</Preview>
+
+```tsx
+<SheetContent side="left">...</SheetContent>
+<SheetContent side="right">...</SheetContent>
+<SheetContent side="top">...</SheetContent>
+<SheetContent side="bottom">...</SheetContent>
+```
+
+## Props
+
+### SheetContent Props
+
+<TypeTable
+  type={{
+    side: {
+      description: "The edge of the screen to slide from",
+      type: "'top' | 'right' | 'bottom' | 'left'",
+      default: "'right'",
+    },
+  }}
+/>
+
+### Sheet Props
+
+<TypeTable
+  type={{
+    open: {
+      description: "Controlled open state",
+      type: "boolean",
+      default: "undefined",
+    },
+    onOpenChange: {
+      description: "Callback when open state changes",
+      type: "(open: boolean) => void",
+      default: "undefined",
+    },
+  }}
+/>

@@ -1,0 +1,12 @@
+{
+  "extends": "@voidhash/tsconfig/typescript-6.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true,
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true
+  },
+  "include": ["src", "tests", "vitest.mts"],
+  "exclude": ["**/node_modules/**"]
+}

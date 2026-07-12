@@ -1,0 +1,36 @@
+{
+  "name": "@voidhash/google-play-server-sdk",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/google-play-server-sdk"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client/index.ts",
+    "./schemas": "./src/schemas/index.ts",
+    "./errors": "./src/errors/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit",
+    "test": "vp test run -c vitest.unit.mts",
+    "test:watch": "vp test -c vitest.unit.mts"
+  },
+  "dependencies": {
+    "jose": "^6.0.11"
+  },
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "5.9.3",
+    "vite-plus": "catalog:",
+    "vitest": "^3.2.7"
+  },
+  "peerDependencies": {
+    "effect": "4.0.0-beta.84"
+  }
+}

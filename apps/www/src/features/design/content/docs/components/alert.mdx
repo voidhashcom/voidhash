@@ -1,0 +1,85 @@
+---
+title: Alert
+description: Displays a callout for user attention with different severity levels.
+---
+
+## Usage
+
+<Preview centered={false}>
+  <Alert>
+    <AlertCircleIcon />
+    <AlertTitle>Heads up!</AlertTitle>
+    <AlertDescription>You can add components to your app using the CLI.</AlertDescription>
+  </Alert>
+</Preview>
+
+```tsx
+import { Alert, AlertDescription, AlertTitle } from "@voidhash/ui";
+import { AlertCircleIcon } from "lucide-react";
+
+<Alert>
+  <AlertCircleIcon />
+  <AlertTitle>Heads up!</AlertTitle>
+  <AlertDescription>You can add components to your app using the CLI.</AlertDescription>
+</Alert>;
+```
+
+## Variants
+
+<div className="grid gap-4">
+  <Preview centered={false}>
+    <Alert variant="default">
+      <AlertCircleIcon />
+      <AlertTitle>Default</AlertTitle>
+      <AlertDescription>This is a default alert.</AlertDescription>
+    </Alert>
+  </Preview>
+  <Preview centered={false}>
+    <Alert variant="success">
+      <CheckIcon />
+      <AlertTitle>Success</AlertTitle>
+      <AlertDescription>Your changes have been saved.</AlertDescription>
+    </Alert>
+  </Preview>
+  <Preview centered={false}>
+    <Alert variant="destructive">
+      <XIcon />
+      <AlertTitle>Error</AlertTitle>
+      <AlertDescription>Something went wrong.</AlertDescription>
+    </Alert>
+  </Preview>
+</div>
+
+```tsx
+<Alert variant="default">...</Alert>
+<Alert variant="success">...</Alert>
+<Alert variant="destructive">...</Alert>
+```
+
+## Components
+
+### Alert
+
+The main container component with variant styling.
+
+### AlertTitle
+
+The title of the alert message.
+
+### AlertDescription
+
+The description or body text of the alert.
+
+## Props
+
+### Alert Props
+
+<TypeTable
+  type={{
+    variant: {
+      description: "The visual style of the alert",
+      type: "'default' | 'success' | 'destructive'",
+      default: "'default'",
+    },
+  }}
+/>

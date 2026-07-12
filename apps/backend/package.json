@@ -1,0 +1,48 @@
+{
+  "name": "@voidhash/backend",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "test": "vp test run -c vitest.unit.mts",
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit",
+    "lint": "vp lint .",
+    "format": "vp fmt ."
+  },
+  "dependencies": {
+    "@voidhash/ai-shared": "workspace:*",
+    "@voidhash/api-contracts": "workspace:*",
+    "@voidhash/app-store-server-sdk": "workspace:*",
+    "@voidhash/clickhouse-db": "workspace:*",
+    "@voidhash/core": "workspace:*",
+    "@voidhash/db": "workspace:*",
+    "@voidhash/google-play-server-sdk": "workspace:*",
+    "@voidhash/mimic-schema": "workspace:*",
+    "@voidhash/paywall-renderer-preact": "workspace:*",
+    "@voidhash/paywall-workspace": "workspace:*",
+    "@voidhash/rpc": "workspace:*",
+    "@workos-inc/node": "9.2.0",
+    "ai": "^7.0.0",
+    "effect": "catalog:",
+    "jose": "catalog:",
+    "preact": "^10.25.4",
+    "workers-ai-provider": "^3.0.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/platform-bun": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "@types/bun": "latest",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@voidhash/platform": "workspace:*",
+    "@voidhash/tsconfig": "workspace:*",
+    "alchemy": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
+}

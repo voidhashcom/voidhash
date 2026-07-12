@@ -1,0 +1,17 @@
+{
+  "extends": "@voidhash/tsconfig/react-library-typescript-6.json",
+  "include": ["src"],
+  "exclude": ["**/node_modules/**", "src/server"],
+  "compilerOptions": {
+    "strict": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "skipLibCheck": true,
+    // This is a frontend app, not a publishable library: it never emits .d.ts, so disable
+    // declaration emit (inherited from the shared library base) to avoid TS2742 portability
+    // checks on inferred return types that reference workspace-internal primitive paths.
+    "declaration": false,
+    "declarationMap": false
+  }
+}

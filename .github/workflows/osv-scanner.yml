@@ -1,0 +1,50 @@
+name: OSV Scanner
+
+on:
+  pull_request:
+    paths:
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - apps/**/package.json
+      - examples/**/package.json
+      - libraries/**/package.json
+      - packages/**/package.json
+      - selfhost/**/package.json
+      - .github/workflows/osv-scanner.yml
+  push:
+    branches: [main, preview]
+    paths:
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - apps/**/package.json
+      - examples/**/package.json
+      - libraries/**/package.json
+      - packages/**/package.json
+      - selfhost/**/package.json
+      - .github/workflows/osv-scanner.yml
+  schedule:
+    - cron: "30 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osv-scanner-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Production lockfile
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject known vulnerabilities
+        uses: google/osv-scanner-action/osv-scanner-action@8dc09193bb540e09b23da07ad7e30bd33bf87018
+        with:
+          scan-args: |-
+            --lockfile=pnpm-lock.yaml

@@ -1,0 +1,84 @@
+---
+title: Separator
+description: Visually separates content into distinct groups.
+---
+
+## Usage
+
+<Preview centered={false}>
+  <div className="w-full max-w-md">
+    <div className="space-y-1">
+      <h4 className="font-medium text-sm leading-none">Radix Primitives</h4>
+      <p className="text-sm text-muted-foreground">An open-source UI component library.</p>
+    </div>
+    <Separator className="my-4" />
+    <div className="flex h-5 items-center space-x-4 text-sm">
+      <div>Blog</div>
+      <Separator orientation="vertical" />
+      <div>Docs</div>
+      <Separator orientation="vertical" />
+      <div>Source</div>
+    </div>
+  </div>
+</Preview>
+
+```tsx
+import { Separator } from "@voidhash/ui";
+
+<div>
+  <div>Content above</div>
+  <Separator className="my-4" />
+  <div>Content below</div>
+</div>;
+```
+
+## Examples
+
+### Horizontal
+
+<Preview centered={false}>
+  <div className="w-full max-w-md space-y-4">
+    <p>First section</p>
+    <Separator />
+    <p>Second section</p>
+    <Separator />
+    <p>Third section</p>
+  </div>
+</Preview>
+
+```tsx
+<Separator />
+```
+
+### Vertical
+
+<Preview>
+  <div className="flex h-5 items-center space-x-4 text-sm">
+    <div>Home</div>
+    <Separator orientation="vertical" />
+    <div>About</div>
+    <Separator orientation="vertical" />
+    <div>Contact</div>
+  </div>
+</Preview>
+
+```tsx
+<Separator orientation="vertical" />
+```
+
+## Props
+
+<TypeTable
+  type={{
+    orientation: {
+      description: "The orientation of the separator",
+      type: "'horizontal' | 'vertical'",
+      default: "'horizontal'",
+    },
+    decorative: {
+      description: "Whether the separator is purely decorative",
+      type: "boolean",
+      default: "true",
+    },
+  }}
+/>

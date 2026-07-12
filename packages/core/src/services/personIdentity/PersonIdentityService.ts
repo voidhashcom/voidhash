@@ -1,0 +1,584 @@
+import { Context, Effect, Layer } from "effect";
+
+import {
+  and,
+  Db,
+  eq,
+  type Person as DbPerson,
+  PersonIdentityKind,
+  type PersonOriginValue,
+  pushPersonDeviceTokens,
+  sql,
+} from "@voidhash/db";
+import { comparePersonForMerge } from "../../domain/person/IdentityGraph.ts";
+import {
+  type PersonIdentityEventV1,
+  type PersonSnapshotEventV1,
+  isAnonymousDistinctId,
+  nextMappingVersion,
+} from "../../domain/person/Person.ts";
+import { firstDefinedString } from "../../utils/first-defined-string.ts";
+import { generateId } from "../../utils/generate-id.ts";
+import { PersonServiceError } from "../persons/PersonService.ts";
+import { IdentityProjectionPublisher } from "./IdentityProjectionPublisher.ts";
+import { DEFAULT_ORIGIN, IdentityMutationService } from "./IdentityMutationService.ts";
+
+export type { PersonIdentityEventV1, PersonSnapshotEventV1 } from "../../domain/person/Person.ts";
+
+export interface ResolvedAnalyticsIdentity {
+  readonly personId?: string;
+  readonly distinctId: string;
+  readonly mode: "full" | "personless";
+}
+
+export interface ResolveDistinctIdInput {
+  readonly distinctId: string;
+  readonly email?: string;
+  /**
+   * Stable per-event id — the deterministic same-timestamp tie-break for
+   * per-trait LWW. The analytics-ingest path supplies the capture id; other
+   * callers (payment providers, SDK) may omit it and tie-break by timestamp.
+   */
+  readonly eventId?: string;
+  readonly eventTimestamp: Date;
+  readonly name?: string;
+  readonly origin?: PersonOriginValue;
+  readonly projectId: string;
+  readonly setAttributes: Record<string, unknown>;
+  readonly setOnceAttributes: Record<string, unknown>;
+  readonly shouldCreatePerson: boolean;
+}
+
+export interface IdentifyDistinctIdInput {
+  readonly previousDistinctId: string;
+  readonly distinctId: string;
+  readonly email?: string;
+  /**
+   * Stable per-event id — the deterministic same-timestamp tie-break for
+   * per-trait LWW. The analytics-ingest path supplies the capture id; other
+   * callers (payment providers, SDK) may omit it and tie-break by timestamp.
+   */
+  readonly eventId?: string;
+  readonly eventTimestamp: Date;
+  readonly name?: string;
+  readonly origin?: PersonOriginValue;
+  readonly projectId: string;
+  readonly setAttributes: Record<string, unknown>;
+  readonly setOnceAttributes: Record<string, unknown>;
+}
+
+export interface PersonIdentityResult {
+  readonly personEvents: ReadonlyArray<PersonSnapshotEventV1>;
+  readonly identity: ResolvedAnalyticsIdentity;
+  readonly mappingEvents: ReadonlyArray<PersonIdentityEventV1>;
+  readonly warnings: ReadonlyArray<string>;
+}
+
+/**
+ * Orchestrates the person-identity-resolution aggregate.
+ *
+ * - `resolveDistinctId` — look up (or lazily create) a person record for a
+ *   given distinct id; the result drives every SDK call that needs to attach a
+ *   person to an analytics event.
+ * - `identifyDistinctId` — promote an anonymous identity to an identified one.
+ *   The synchronous transaction reconciles only the target person so the
+ *   caller sees a consistent view; the source-side merge work is durable and
+ *   handed off to {@link IdentifyDistinctIdCompletionWorkflow}.
+ */
+export class PersonIdentityService extends Context.Service<PersonIdentityService>()(
+  "PersonIdentityService",
+  {
+    make: Effect.gen(function* () {
+      const db = yield* Db;
+      const identityMutations = yield* IdentityMutationService;
+      const publisher = yield* IdentityProjectionPublisher;
+
+      const resolveDistinctId = Effect.fn("resolveDistinctId")(
+        function* (input: ResolveDistinctIdInput) {
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
+          yield* Effect.annotateCurrentSpan("voidhash.person.distinct_id", input.distinctId);
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.person.origin",
+            input.origin ?? DEFAULT_ORIGIN,
+          );
+
+          return yield* db.transaction((tx) =>
+            Effect.gen(function* () {
+              const context = {
+                eventId: input.eventId ?? "",
+                eventTimestamp: input.eventTimestamp,
+                origin: input.origin ?? DEFAULT_ORIGIN,
+                projectId: input.projectId,
+              };
+
+              if (!input.shouldCreatePerson) {
+                const existingMapping = yield* identityMutations.findDistinctIdMapping(tx, {
+                  distinctId: input.distinctId,
+                  projectId: input.projectId,
+                });
+                if (existingMapping) {
+                  yield* Effect.annotateCurrentSpan("voidhash.identity.mode", "full");
+                  yield* Effect.annotateCurrentSpan(
+                    "voidhash.person.id",
+                    existingMapping.canonicalPerson.id,
+                  );
+
+                  return {
+                    personEvents: [],
+                    identity: {
+                      personId: existingMapping.canonicalPerson.id,
+                      distinctId: input.distinctId,
+                      mode: "full" as const,
+                    },
+                    mappingEvents: [],
+                    warnings: [],
+                  } satisfies PersonIdentityResult;
+                }
+
+                yield* identityMutations.ensurePersonlessIdentity(tx, {
+                  distinctId: input.distinctId,
+                  projectId: input.projectId,
+                });
+
+                yield* Effect.annotateCurrentSpan("voidhash.identity.mode", "personless");
+
+                return {
+                  personEvents: [],
+                  identity: {
+                    distinctId: input.distinctId,
+                    mode: "personless" as const,
+                  },
+                  mappingEvents: [],
+                  warnings: [],
+                } satisfies PersonIdentityResult;
+              }
+
+              const resolved = yield* identityMutations.ensureCanonicalPersonForDistinctId(tx, {
+                context,
+                distinctId: input.distinctId,
+                email: input.email,
+                name: input.name,
+                setAttributes: input.setAttributes,
+                setOnceAttributes: input.setOnceAttributes,
+              });
+              let person = resolved.person;
+              if (resolved.wasCreated) {
+                // Only on creation: existing persons already have their binding
+                // (or get it via identify), keeping the hot lookup path at zero
+                // extra writes.
+                yield* identityMutations.upsertAccountTokenBinding(tx, {
+                  distinctId: input.distinctId,
+                  personId: person.id,
+                  projectId: input.projectId,
+                });
+              } else {
+                person = yield* identityMutations.updatePersonProfile(tx, {
+                  person: resolved.person,
+                  email: input.email,
+                  eventId: input.eventId ?? "",
+                  eventTimestamp: input.eventTimestamp,
+                  name: input.name,
+                  setAttributes: input.setAttributes,
+                  setOnceAttributes: input.setOnceAttributes,
+                });
+              }
+
+              yield* Effect.annotateCurrentSpan("voidhash.identity.mode", "full");
+              yield* Effect.annotateCurrentSpan(
+                "voidhash.identity.was_created",
+                resolved.wasCreated,
+              );
+              yield* Effect.annotateCurrentSpan("voidhash.person.id", person.id);
+
+              return {
+                personEvents: [yield* identityMutations.toPersonEvent(tx, { person })],
+                identity: {
+                  personId: person.id,
+                  distinctId: input.distinctId,
+                  mode: "full" as const,
+                },
+                mappingEvents: resolved.mappingEvent ? [resolved.mappingEvent] : [],
+                warnings: [],
+              } satisfies PersonIdentityResult;
+            }),
+          );
+        },
+        (effect) =>
+          effect.pipe(
+            Effect.catchTags({
+              EffectDrizzleQueryError: (error) =>
+                Effect.fail(new PersonServiceError({ cause: String(error.cause) })),
+              SqlError: (error) =>
+                Effect.fail(new PersonServiceError({ cause: String(error.cause) })),
+            }),
+          ),
+      );
+
+      const identifyDistinctId = Effect.fn("identifyDistinctId")(
+        function* (input: IdentifyDistinctIdInput) {
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
+          yield* Effect.annotateCurrentSpan("voidhash.person.distinct_id", input.distinctId);
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.person.previous_distinct_id",
+            input.previousDistinctId,
+          );
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.person.origin",
+            input.origin ?? DEFAULT_ORIGIN,
+          );
+
+          const syncResult = yield* db.transaction((tx) =>
+            Effect.gen(function* () {
+              const warnings: string[] = [];
+              const personEvents: PersonSnapshotEventV1[] = [];
+              const mappingEvents: PersonIdentityEventV1[] = [];
+              const origin = input.origin ?? DEFAULT_ORIGIN;
+              const context = {
+                eventId: input.eventId ?? "",
+                eventTimestamp: input.eventTimestamp,
+                origin,
+                projectId: input.projectId,
+              };
+
+              if (isAnonymousDistinctId(input.distinctId)) {
+                return yield* Effect.fail(
+                  new PersonServiceError({
+                    cause: "identify target distinct id cannot use the anonymous prefix",
+                  }),
+                );
+              }
+
+              yield* identityMutations.lockDistinctIdRows(tx, {
+                distinctIds: [input.previousDistinctId, input.distinctId],
+                projectId: input.projectId,
+              });
+
+              const targetResolved = yield* identityMutations.ensureCanonicalPersonForDistinctId(
+                tx,
+                {
+                  context,
+                  distinctId: input.distinctId,
+                  email: undefined,
+                  name: undefined,
+                  setAttributes: {},
+                  setOnceAttributes: {},
+                },
+              );
+              if (targetResolved.mappingEvent) {
+                mappingEvents.push(targetResolved.mappingEvent);
+              }
+
+              yield* Effect.annotateCurrentSpan(
+                "voidhash.person.target_id",
+                targetResolved.person.id,
+              );
+
+              const sourceMapping = yield* identityMutations.findDistinctIdMapping(tx, {
+                distinctId: input.previousDistinctId,
+                projectId: input.projectId,
+              });
+              if (sourceMapping) {
+                yield* Effect.annotateCurrentSpan(
+                  "voidhash.person.source_id",
+                  sourceMapping.canonicalPerson.id,
+                );
+              }
+              const sourcePersonless = yield* identityMutations.findPersonlessIdentity(tx, {
+                distinctId: input.previousDistinctId,
+                projectId: input.projectId,
+              });
+
+              yield* identityMutations.lockPersonRows(tx, {
+                personIds: [
+                  targetResolved.person.id,
+                  ...(sourceMapping ? [sourceMapping.rawPerson.id] : []),
+                ],
+              });
+
+              if (input.previousDistinctId === input.distinctId) {
+                warnings.push("self-identify is a no-op");
+              }
+
+              const sourceIsConflictingIdentified =
+                sourceMapping &&
+                sourceMapping.canonicalPerson.id !== targetResolved.person.id &&
+                sourceMapping.mapping.kind === PersonIdentityKind.Identified;
+
+              yield* Effect.annotateCurrentSpan(
+                "voidhash.identity.source_conflict",
+                Boolean(sourceIsConflictingIdentified),
+              );
+
+              if (sourceIsConflictingIdentified) {
+                warnings.push("identify source already belongs to a different identified person");
+              }
+
+              // A real merge happens only when the source resolves to a
+              // *different* existing person and is not a conflicting identified
+              // person. The OLDER person wins (comparePersonForMerge) — an
+              // order-independent decision, so a reversed identify chain
+              // converges on the same surviving person. The full merge runs
+              // synchronously in this transaction (no async completion workflow).
+              const sourcePerson = sourceMapping?.canonicalPerson;
+              const isRealMerge =
+                !sourceIsConflictingIdentified &&
+                input.previousDistinctId !== input.distinctId &&
+                sourcePerson !== undefined &&
+                sourcePerson.id !== targetResolved.person.id;
+
+              let canonicalPerson: DbPerson;
+              // True for any genuine identity stitch (person merge OR a
+              // personless/absent source bound to the target) — i.e. anything
+              // that asserts the two distinct ids are the same person and so
+              // must be appended to the assertion log.
+              let didStitch = false;
+
+              if (isRealMerge && sourcePerson) {
+                const sourceWins = comparePersonForMerge(sourcePerson, targetResolved.person) <= 0;
+                const winner = sourceWins ? sourcePerson : targetResolved.person;
+                const loser = sourceWins ? targetResolved.person : sourcePerson;
+                const loserDistinctId = sourceWins ? input.distinctId : input.previousDistinctId;
+                const loserMapping = sourceWins
+                  ? targetResolved.rawMapping
+                  : sourceMapping?.mapping;
+
+                yield* Effect.annotateCurrentSpan("voidhash.person.merge_winner_id", winner.id);
+                yield* Effect.annotateCurrentSpan("voidhash.person.merge_loser_id", loser.id);
+
+                const updatedWinner = yield* identityMutations.updatePersonProfile(tx, {
+                  person: winner,
+                  email: firstDefinedString(winner.email, loser.email, input.email),
+                  eventId: input.eventId ?? "",
+                  eventTimestamp: input.eventTimestamp,
+                  // Fold the loser's traits into the survivor via per-key LWW.
+                  mergeTraitsFrom: loser,
+                  name: firstDefinedString(winner.name, loser.name, input.name),
+                  setAttributes: input.setAttributes,
+                  setOnceAttributes: input.setOnceAttributes,
+                });
+                const archivedLoser = yield* identityMutations.archivePerson(tx, {
+                  eventTimestamp: input.eventTimestamp,
+                  mergedIntoPersonId: updatedWinner.id,
+                  person: loser,
+                });
+
+                // Repoint the ENTIRE loser cluster onto the survivor as explicit
+                // overrides, so every distinct id that resolved to the loser
+                // re-attributes to the survivor — not just the one named by this
+                // identify. Keeping the overrides canonical this way is what makes
+                // the analytics squash transitively convergent in a single pass
+                // (no person-merge chain-following needed downstream).
+                const loserMappings = yield* identityMutations.listMappedDistinctIds(tx, {
+                  personId: loser.id,
+                  projectId: input.projectId,
+                });
+                const repointed = new Map<string, { id?: string; version?: number }>();
+                for (const mapping of loserMappings) {
+                  repointed.set(mapping.distinctId, { id: mapping.id, version: mapping.version });
+                }
+                // The involved loser distinct id was usually just created by
+                // ensureCanonical (so it is already listed) — include it defensively.
+                if (!repointed.has(loserDistinctId)) {
+                  repointed.set(loserDistinctId, {
+                    id: loserMapping?.id,
+                    version: loserMapping?.version,
+                  });
+                }
+                for (const [distinctId, existing] of repointed) {
+                  mappingEvents.push(
+                    yield* identityMutations.upsertPersonIdentity(tx, {
+                      changedAt: input.eventTimestamp,
+                      distinctId,
+                      identityId: existing.id ?? generateId("personDistinctId"),
+                      personId: updatedWinner.id,
+                      previousDistinctId: distinctId,
+                      projectId: input.projectId,
+                      version: nextMappingVersion({
+                        existingVersion: existing.version,
+                        hadHistoricalEvents: true,
+                      }),
+                    }),
+                  );
+                }
+
+                // Re-point the loser's push device-token links to the survivor in
+                // the SAME merge transaction, exactly like personIdentities — so a
+                // merged-away person's devices stay reachable. The NOT EXISTS guard
+                // skips links whose device the survivor ALREADY owns: the
+                // (person_id, push_device_token_id) unique index is global (ignores
+                // deleted_at), so a bare re-point would raise a unique violation and
+                // abort the whole merge. A skipped colliding loser link stays under
+                // the loser and remains reachable via the send-time merged-loser
+                // expansion (belt-and-suspenders). See
+                // PersonNotificationTokenService.repointLinksToSurvivor.
+                yield* tx
+                  .update(pushPersonDeviceTokens)
+                  .set({ personId: updatedWinner.id, updatedAt: new Date() })
+                  .where(
+                    and(
+                      eq(pushPersonDeviceTokens.projectId, input.projectId),
+                      eq(pushPersonDeviceTokens.personId, loser.id),
+                      sql`not exists (select 1 from push_person_device_token s where s.person_id = ${updatedWinner.id} and s.push_device_token_id = push_person_device_token.push_device_token_id)`,
+                    ),
+                  );
+
+                if (sourcePersonless && !sourcePersonless.isMerged) {
+                  yield* identityMutations.markPersonlessIdentityMerged(tx, {
+                    distinctId: input.previousDistinctId,
+                    projectId: input.projectId,
+                  });
+                }
+
+                personEvents.push(
+                  yield* identityMutations.toPersonEvent(tx, { person: updatedWinner }),
+                );
+                personEvents.push(
+                  yield* identityMutations.toPersonEvent(tx, { person: archivedLoser }),
+                );
+
+                canonicalPerson = updatedWinner;
+                didStitch = true;
+              } else {
+                // No real merge (self / conflicting / same person / personless
+                // source). Apply this event's writes to the target; for a
+                // personless-or-absent source being stitched, point its distinct
+                // id at the target.
+                const updatedTarget = yield* identityMutations.updatePersonProfile(tx, {
+                  person: targetResolved.person,
+                  email: firstDefinedString(targetResolved.person.email, input.email),
+                  eventId: input.eventId ?? "",
+                  eventTimestamp: input.eventTimestamp,
+                  name: firstDefinedString(targetResolved.person.name, input.name),
+                  setAttributes: input.setAttributes,
+                  setOnceAttributes: input.setOnceAttributes,
+                });
+                personEvents.push(
+                  yield* identityMutations.toPersonEvent(tx, { person: updatedTarget }),
+                );
+
+                if (
+                  !sourceIsConflictingIdentified &&
+                  input.previousDistinctId !== input.distinctId &&
+                  sourcePerson === undefined
+                ) {
+                  mappingEvents.push(
+                    yield* identityMutations.upsertPersonIdentity(tx, {
+                      changedAt: input.eventTimestamp,
+                      distinctId: input.previousDistinctId,
+                      identityId: generateId("personDistinctId"),
+                      personId: updatedTarget.id,
+                      previousDistinctId: input.previousDistinctId,
+                      projectId: input.projectId,
+                      version: nextMappingVersion({
+                        existingVersion: undefined,
+                        hadHistoricalEvents: Boolean(
+                          sourcePersonless && !sourcePersonless.isMerged,
+                        ),
+                      }),
+                    }),
+                  );
+                  if (sourcePersonless && !sourcePersonless.isMerged) {
+                    yield* identityMutations.markPersonlessIdentityMerged(tx, {
+                      distinctId: input.previousDistinctId,
+                      projectId: input.projectId,
+                    });
+                  }
+                  didStitch = true;
+                }
+
+                canonicalPerson = updatedTarget;
+              }
+
+              // Account-token bindings: both distinct ids bind to the surviving
+              // canonical person so provider webhooks (which carry the derived
+              // token) resolve to it. Skipped for a conflicting identified source
+              // (no merge; repointing would steal the other person's token).
+              yield* identityMutations.upsertAccountTokenBinding(tx, {
+                distinctId: input.distinctId,
+                personId: canonicalPerson.id,
+                projectId: input.projectId,
+              });
+              if (!sourceIsConflictingIdentified && input.previousDistinctId !== input.distinctId) {
+                yield* identityMutations.upsertAccountTokenBinding(tx, {
+                  distinctId: input.previousDistinctId,
+                  personId: canonicalPerson.id,
+                  projectId: input.projectId,
+                });
+              }
+
+              yield* Effect.annotateCurrentSpan("voidhash.person.id", canonicalPerson.id);
+              yield* Effect.annotateCurrentSpan("voidhash.identity.mode", "full");
+
+              if (didStitch) {
+                // Append the immutable identity assertion (the Option B log) for
+                // any genuine stitch. Idempotent on (project, dedupKey); the
+                // ingest path's capture id makes a retried identify log once.
+                yield* identityMutations.appendAssertion(tx, {
+                  dedupKey:
+                    input.eventId && input.eventId.length > 0
+                      ? input.eventId
+                      : generateId("identityAssertion"),
+                  distinctId: input.distinctId,
+                  eventTimestamp: input.eventTimestamp,
+                  previousDistinctId: input.previousDistinctId,
+                  projectId: input.projectId,
+                  source: origin,
+                });
+              }
+
+              return {
+                personEvents,
+                identity: {
+                  personId: canonicalPerson.id,
+                  distinctId: input.distinctId,
+                  mode: "full" as const,
+                },
+                mappingEvents,
+                warnings,
+              } satisfies PersonIdentityResult;
+            }),
+          );
+
+          yield* publisher.publishIdentityResult(syncResult).pipe(
+            Effect.catch((error) =>
+              Effect.logError(
+                "Failed to publish synchronous identity projection events; database is updated but downstream consumers will not receive these changes",
+                {
+                  cause: error,
+                  distinctId: input.distinctId,
+                  personId: syncResult.identity.personId,
+                  projectId: input.projectId,
+                },
+              ),
+            ),
+          );
+
+          return syncResult;
+        },
+        (effect) =>
+          effect.pipe(
+            Effect.catchTags({
+              EffectDrizzleQueryError: (error) =>
+                Effect.fail(
+                  new PersonServiceError({
+                    cause: `Failed to identify distinct id: ${String(error.cause)}`,
+                  }),
+                ),
+              SqlError: (error) =>
+                Effect.fail(
+                  new PersonServiceError({
+                    cause: `Failed to identify distinct id: ${String(error.cause)}`,
+                  }),
+                ),
+            }),
+          ),
+      );
+
+      return { identifyDistinctId, resolveDistinctId } as const;
+    }),
+  },
+) {
+  static layer = Layer.effect(PersonIdentityService)(PersonIdentityService.make).pipe(
+    Layer.provide(IdentityMutationService.layer),
+  );
+}

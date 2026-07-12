@@ -1,0 +1,107 @@
+---
+title: Installation
+description: Learn how to add Voidhash to your project.
+---
+
+<Steps>
+
+<Step>
+### Install the Package
+
+Let's start by adding Voidhash CLI to your react-native project:
+
+```package-install
+npm i voidhash-cli -D
+```
+
+</Step>
+
+<Step>
+### Initialize Voidhash
+Run the following command in the root of your Expo / React Native project:
+
+```package-install
+npx voidhash-cli init
+```
+
+</Step>
+
+<Step>
+### Configure schema
+After initialization, a schema file will be created in your selected folder. Use this file to define your payment providers, perks, and products all in one place.
+
+```ts title="schema.ts"
+import { schemaConfiguration, unlockablePerk } from "@voidhash/react-native";
+
+export const sc = schemaConfiguration({
+  // Payment Providers
+  providers: {},
+
+  // Perks
+  perks: {
+    allAccess: unlockablePerk("all-access", {
+      name: "All Access",
+    }),
+    premiumFeatures: unlockablePerk("premium-features", {
+      name: "Premium Features",
+    }),
+  },
+});
+
+// Products
+export const monthlySub = sc.subscription("monthly_sub", {
+  name: "Monthly",
+  perks: {
+    allAccess: true,
+  },
+  providers: {},
+});
+
+export const yearlySub = sc.subscription("yearly_sub", {
+  name: "Yearly",
+  perks: {
+    allAccess: true,
+    premiumFeatures: true,
+  },
+  providers: {},
+});
+```
+
+#### Configuration Breakdown
+
+**Perks**: Define the features or content that users gain access to when they purchase products. Each perk has a key (for code reference), a slug (for database storage), and a display name.
+
+**Products**: Define your subscription products using `sc.subscription()`. Each product specifies which perks it unlocks and its product IDs for each payment provider.
+
+**Payment Providers**: Enable the app stores you want to support (Apple App Store, Google Play, or both). For development, you can leave them empty to test with a development-only paywall.
+
+</Step>
+
+<Step>
+### Configure payment providers and push the schema
+This step can be delayed until you're ready to test with real purchases or sandbox accounts - it's not required for development. This command syncs your local schema with the Voidhash API and automatically detects if you need to configure payment providers, guiding you through the complete setup process step by step.
+
+<Callout type="info" title="When to push your schema">
+  Push your schema whenever you make changes to products, perks, or payment provider configuration.
+  During development, you can work with an empty providers configuration to test your paywall
+  without actual purchases.
+</Callout>
+
+```package-install
+npx voidhash-cli push
+```
+
+</Step>
+
+<Step>
+### Development build with expo-dev-client (Expo only)
+
+If you're using Expo, you'll need to create a development build to include the native capabilities required for in-app purchases. You can read more about this in the [Expo documentation](https://docs.expo.dev/develop/development-builds/create-a-build/).
+
+</Step>
+
+<Step>
+### Thats it! 🎉
+You are ready to start selling!
+</Step>
+</Steps>

@@ -1,0 +1,92 @@
+---
+title: Progress
+description: Displays an indicator showing the completion progress of a task.
+---
+
+## Usage
+
+<Preview centered={false}>
+  <Progress value={33} className="w-full max-w-md" />
+</Preview>
+
+```tsx
+import { Progress } from "@voidhash/ui";
+
+<Progress value={33} />;
+```
+
+## Examples
+
+### Different Values
+
+<Preview centered={false}>
+  <div className="grid gap-4 w-full max-w-md">
+    <div className="space-y-1">
+      <p className="text-sm">0%</p>
+      <Progress value={0} />
+    </div>
+    <div className="space-y-1">
+      <p className="text-sm">25%</p>
+      <Progress value={25} />
+    </div>
+    <div className="space-y-1">
+      <p className="text-sm">50%</p>
+      <Progress value={50} />
+    </div>
+    <div className="space-y-1">
+      <p className="text-sm">75%</p>
+      <Progress value={75} />
+    </div>
+    <div className="space-y-1">
+      <p className="text-sm">100%</p>
+      <Progress value={100} />
+    </div>
+  </div>
+</Preview>
+
+```tsx
+<Progress value={0} />
+<Progress value={25} />
+<Progress value={50} />
+<Progress value={75} />
+<Progress value={100} />
+```
+
+### With Label
+
+<Preview centered={false}>
+  <div className="w-full max-w-md space-y-2">
+    <div className="flex justify-between text-sm">
+      <span>Uploading...</span>
+      <span>66%</span>
+    </div>
+    <Progress value={66} />
+  </div>
+</Preview>
+
+```tsx
+<div className="space-y-2">
+  <div className="flex justify-between text-sm">
+    <span>Uploading...</span>
+    <span>66%</span>
+  </div>
+  <Progress value={66} />
+</div>
+```
+
+## Props
+
+<TypeTable
+  type={{
+    value: {
+      description: "Current progress value (0-100)",
+      type: "number",
+      default: "0",
+    },
+    max: {
+      description: "Maximum value",
+      type: "number",
+      default: "100",
+    },
+  }}
+/>

@@ -1,0 +1,56 @@
+---
+title: Configure Apple Server Notifications
+description: Point App Store Server Notifications V2 at Voidhash so renewals, cancellations, and refunds are processed automatically.
+---
+
+**App Store Server Notifications** let Apple push subscription events — purchases, renewals,
+cancellations, and refunds — straight to Voidhash. You don't copy this value out of App Store
+Connect; instead you paste the URL Voidhash provides into Apple's notification settings and
+select Version 2.
+
+<Steps>
+
+<Step>
+### Copy your Voidhash notification URL
+
+On the **Apple Server notification** tab of this payment provider in Voidhash, copy the
+**Apple Server Notification URL** using the copy button next to it. It is a publicly reachable
+HTTPS endpoint; your server must support TLS 1.2 or later for Apple to deliver notifications.
+</Step>
+
+<Step>
+### Open your app's notification settings
+
+In [App Store Connect](https://appstoreconnect.apple.com), open **Apps → your app**, then in
+the sidebar under **General** click **App information**. Scroll to **General Information** and
+find the **App Store Server Notifications** section.
+
+<Callout type="info" title="You need the right role">
+Editing these URLs requires the **Account Holder**, **Admin**, **App Manager**, or
+**Marketing** role in App Store Connect.
+</Callout>
+</Step>
+
+<Step>
+### Set the Production Server URL to Version 2
+
+Under **Production Server URL**, click **Set Up URL** (or **Edit** next to an existing URL).
+Paste your Voidhash notification URL, choose **Version 2** (Apple offers "Version 1
+(deprecated) or Version 2 notifications"), and click **Save**.
+</Step>
+
+<Step>
+### Set the Sandbox Server URL to Version 2
+
+Under **Sandbox Server URL**, click **Set Up URL**, paste the same Voidhash notification URL,
+choose **Version 2**, and click **Save**. Each environment stores its URL and version
+independently.
+
+<Callout type="warn" title="Routing fallback">
+If you don't provide a **Sandbox Server URL**, Apple sends notifications for *both*
+environments to the Production URL. If you provide *only* a Sandbox URL, no notifications are
+sent in production. Sandbox changes can take up to about an hour to take effect.
+</Callout>
+</Step>
+
+</Steps>

@@ -1,0 +1,62 @@
+{
+  "name": "@voidhash/mimic-cli",
+  "version": "1.0.0-beta.19",
+  "private": true,
+  "description": "Command-line tooling for configuring and migrating Mimic databases.",
+  "keywords": [
+    "cli",
+    "database",
+    "mimic",
+    "voidhash"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "AGPL-3.0-only",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "apps/mimic-cli"
+  },
+  "bin": {
+    "mimic": "./dist/bin.cjs"
+  },
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./src/index.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./src/index.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "rm -rf ./dist && tsx build.ts && chmod +x ./dist/bin.cjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vp test run -c vitest.mts",
+    "test:watch": "vp test -c vitest.mts"
+  },
+  "dependencies": {
+    "@effect/platform-node-shared": "4.0.0-beta.84",
+    "@voidhash/mimic-core": "workspace:*",
+    "@voidhash/mimic-server": "workspace:*",
+    "dotenv": "^16.4.7",
+    "effect": "4.0.0-beta.84",
+    "esbuild-register": "^3.6.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "tsup": "^8.5.0",
+    "tsx": "^4.19.3",
+    "typescript": "5.8.3",
+    "vite-plus": "catalog:",
+    "vitest": "^3.2.7"
+  }
+}

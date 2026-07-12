@@ -1,8 +1,8 @@
 # Paywall Deploy Contract (Phase 1)
 
 **Status:** Implementation contract for PRD "Paywall Code Components" Phase 1.
-**Implementors:** `voidhash` OSS repo (SDK `@voidhash/paywalls`, `voidhash-cli`, studio, `@voidhash/react-native`) and `voidhash-mono` (backend, www).
-**Rule:** this file is the wire-format source of truth. Both repos validate against schemas that mirror this document exactly. Breaking changes bump `schemaVersion`.
+**Implementors:** `voidhash` (SDK `@voidhash/paywalls`, `voidhash-cli`, studio, `@voidhash/react-native`, backend, and www).
+**Rule:** this file is the wire-format source of truth. Every implementation validates against schemas that mirror this document exactly. Breaking changes bump `schemaVersion`.
 
 ---
 
@@ -190,7 +190,7 @@ Node shapes: `view|pressable|scroll` have `style` + `children[]`; `text` has `st
 
 Keys limited to the RN-compatible vocabulary: flexbox (`flex`, `flexDirection`, `alignItems`, `alignSelf`, `justifyContent`, `flexWrap`, `gap`, `rowGap`, `columnGap`, `flexGrow`, `flexShrink`, `flexBasis`), box (`width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight`, `padding[Top|Bottom|Left|Right|Horizontal|Vertical]`, `margin[…same…]`, `aspectRatio`), border (`borderWidth`, `borderColor`, `borderRadius` + per-corner variants, `borderStyle`), visual (`backgroundColor`, `opacity`, `overflow`), position (`position`, `top`, `right`, `bottom`, `left`, `zIndex`), text-only (`color`, `fontSize`, `fontWeight`, `fontStyle`, `lineHeight`, `letterSpacing`, `textAlign`, `textTransform`, `textDecorationLine`, `fontFamily`). Values: numbers, strings (colors, `"50%"`); no arbitrary CSS.
 
-## 4. Deploy HTTP API (voidhash-mono backend)
+## 4. Deploy HTTP API (`voidhash` backend)
 
 Base: the existing v1 API host. All three endpoints are part of the authenticated studio/CLI surface: header `x-api-key` accepting the same credentials as `/api/v1/auth/session` (CLI user key from device login, or a `vh_sk_` secret key). The authenticated session must include a project whose `slug == manifest.project` within an organization whose `slug == manifest.team`; otherwise `403`.
 

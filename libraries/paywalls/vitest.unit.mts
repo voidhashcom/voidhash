@@ -4,6 +4,7 @@ export default defineConfig({
   esbuild: {
     jsx: "automatic",
     jsxImportSource: "react",
+    tsconfigRaw: "{}",
   },
   test: {
     environment: "node",

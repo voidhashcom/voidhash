@@ -1,0 +1,10 @@
+title: Apple App Store
+pages:
+  - bundle-id
+  - app-apple-id
+  - in-app-purchase-key
+  - app-store-connect-api
+  - apple-server-notifications
+  - apple-small-business-program
+  - storekit-subscription-offer-key
+  - storekit-testing-certificate

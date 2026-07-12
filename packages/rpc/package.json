@@ -1,0 +1,22 @@
+{
+  "name": "@voidhash/rpc",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./errors": "./src/errors/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit"
+  },
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

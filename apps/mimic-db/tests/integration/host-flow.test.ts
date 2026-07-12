@@ -1,0 +1,283 @@
+import { Effect, Result } from "effect";
+import { describe, expect, it } from "vitest";
+
+import { HostServiceTag } from "../../src/app/hostService.ts";
+import type { TransactionEnvelope } from "../../src/document/transaction.ts";
+import {
+  numberValue,
+  objectValue,
+  runHost,
+  runHostWithControl,
+  stringValue,
+  titleCountSchema,
+  titleSchema,
+} from "../helpers.ts";
+
+// A self-contained migration bundle that adds a `count: 7` field.
+const ADD_COUNT_BUNDLE = `
+globalThis.__MIMIC_RUN_MIGRATION__ = function (input) {
+  return {
+    value: {
+      kind: "object",
+      fields: Object.assign({}, input.oldValue.fields, { count: { kind: "number", value: 7 } }),
+    },
+  };
+};
+`;
+
+describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
+  it("bootstraps the root user and authenticates", () =>
+    runHost(
+      Effect.gen(function* () {
+        const host = yield* HostServiceTag;
+        const user = yield* host.authenticateBasic("root", "password");
+        expect(user.isSuperuser).toBe(true);
+        expect(user.username).toBe("root");
+      }),
+    ));
+
+  it("creates database → collection → document and reads it back", () =>
+    runHost(
+      Effect.gen(function* () {
+        const host = yield* HostServiceTag;
+        const db = yield* host.createDatabase("voidhash", "test");
+        const collection = yield* host.createCollection(db.id, "paywalls", titleSchema);
+        expect(collection.schemaVersion).toBe(1);
+
+        const created = yield* host.createDocument(
+          collection.id,
+          "doc-1",
+          objectValue({ title: stringValue("Hello") }),
+        );
+        expect(created.id).toBe("doc-1");
+        expect(created.version).toBe(1);
+        expect((created.value as any).fields.title.value).toBe("Hello");
+
+        const fetched = yield* host.getDocument(collection.id, "doc-1");
+        expect((fetched.value as any).fields.title.value).toBe("Hello");
+        expect(fetched.version).toBe(1);
+      }),
+    ));
+
+  it("re-registers a document id orphaned by an out-of-band collection deletion", () =>
+    runHost(
+      Effect.gen(function* () {
+        const host = yield* HostServiceTag;
+        const db = yield* host.createDatabase("voidhash", "test");
+        const original = yield* host.createCollection(db.id, "paywalls", titleSchema);
+        yield* host.createDocument(
+          original.id,
+          "doc-1",
+          objectValue({ title: stringValue("Hello") }),
+        );
+
+        // Delete + recreate the collection WITHOUT deleting the document —
+        // `deleteCollection` leaves the document_index row behind, pointing
+        // at the dead collection. Before the prepareDocument fix this id was
+        // permanently unusable: create conflicted (global id check) while
+        // get reported NotFound (collection match), so a paywall could never
+        // materialize again after a collection re-provision.
+        yield* host.deleteCollection(original.id);
+        const recreated = yield* host.createCollection(db.id, "paywalls", titleSchema);
+
+        const created = yield* host.createDocument(
+          recreated.id,
+          "doc-1",
+          objectValue({ title: stringValue("Fresh") }),
+        );
+        expect(created.id).toBe("doc-1");
+
+        const fetched = yield* host.getDocument(recreated.id, "doc-1");
+        expect((fetched.value as any).fields.title.value).toBe("Fresh");
+      }),
+    ));
+
+  it("re-seeds a half-dead index row (live + same-collection, but no document state)", () =>
+    runHostWithControl(({ host, control }) =>
+      Effect.gen(function* () {
+        const db = yield* host.createDatabase("voidhash", "test");
+        const collection = yield* host.createCollection(db.id, "paywalls", titleSchema);
+
+        // Reproduce the live-dev orphan: an index row that is live AND points
+        // at the CURRENT collection, yet whose per-document object holds no
+        // state (registered directly, never created). This is what strands a
+        // paywall on the edit-token path — get reports NotFound while create
+        // conflicts on the global id — so the designer can never open it. The
+        // heal only fires because host.createDocument now probes the document
+        // object's materialization before deferring to the index.
+        yield* control.store.registerDocument("doc-1", collection.id);
+
+        const getBefore = yield* Effect.result(host.getDocument(collection.id, "doc-1"));
+        expect(Result.isFailure(getBefore)).toBe(true);
+
+        const created = yield* host.createDocument(
+          collection.id,
+          "doc-1",
+          objectValue({ title: stringValue("Fresh") }),
+        );
+        expect(created.id).toBe("doc-1");
+
+        const fetched = yield* host.getDocument(collection.id, "doc-1");
+        expect((fetched.value as any).fields.title.value).toBe("Fresh");
+      }),
+    ));
+
+  it("still conflicts on a same-id create while the owning collection exists", () =>
+    runHost(
+      Effect.gen(function* () {
+        const host = yield* HostServiceTag;
+        const db = yield* host.createDatabase("voidhash", "test");
+        const paywalls = yield* host.createCollection(db.id, "paywalls", titleSchema);
+        const other = yield* host.createCollection(db.id, "other", titleSchema);
+        yield* host.createDocument(
+          paywalls.id,
+          "doc-1",
+          objectValue({ title: stringValue("Hello") }),
+        );
+
+        const sameCollection = yield* Effect.result(
+          host.createDocument(paywalls.id, "doc-1", objectValue({ title: stringValue("Nope") })),
+        );
+        expect(Result.isFailure(sameCollection)).toBe(true);
+
+        const otherCollection = yield* Effect.result(
+          host.createDocument(other.id, "doc-1", objectValue({ title: stringValue("Nope") })),
+        );
+        expect(Result.isFailure(otherCollection)).toBe(true);
+      }),
+    ));
+
+  it("applies a transaction and bumps the version", () =>
+    runHost(
+      Effect.gen(function* () {
+        const host = yield* HostServiceTag;
+        const db = yield* host.createDatabase("voidhash", "test");
+        const collection = yield* host.createCollection(db.id, "paywalls", titleSchema);
+        yield* host.createDocument(
+          collection.id,
+          "doc-1",
+          objectValue({ title: stringValue("Hello") }),
+        );
+
+        const tx: TransactionEnvelope = {
+          id: "tx-1",
+          baseVersion: 1,
+          commands: [
+            { kind: "object.set", path: [], key: "title", value: stringValue("Updated") } as any,
+          ],
+        };
+        const result = yield* host.submitTransaction(collection.id, "doc-1", tx);
+        expect(result.accepted).toBe(true);
+        expect(result.version).toBe(2);
+
+        const fetched = yield* host.getDocument(collection.id, "doc-1");
+        expect((fetched.value as any).fields.title.value).toBe("Updated");
+        expect(fetched.version).toBe(2);
+      }),
+    ));
+
+  it("rejects a transaction with a stale base version", () =>
+    runHost(
+      Effect.gen(function* () {
+        const host = yield* HostServiceTag;
+        const db = yield* host.createDatabase("voidhash", "test");
+        const collection = yield* host.createCollection(db.id, "paywalls", titleSchema);
+        yield* host.createDocument(
+          collection.id,
+          "doc-1",
+          objectValue({ title: stringValue("Hello") }),
+        );
+
+        const tx: TransactionEnvelope = {
+          id: "tx-stale",
+          baseVersion: 99,
+          commands: [
+            { kind: "object.set", path: [], key: "title", value: stringValue("Nope") } as any,
+          ],
+        };
+        const result = yield* host.submitTransaction(collection.id, "doc-1", tx);
+        expect(result.accepted).toBe(false);
+        expect(result.reason).toContain("Version conflict");
+      }),
+    ));
+
+  it("migrates a document on load via schema reconcile (no data migration source)", () =>
+    runHost(
+      Effect.gen(function* () {
+        const host = yield* HostServiceTag;
+        const db = yield* host.createDatabase("voidhash", "test");
+        const collection = yield* host.createCollection(db.id, "paywalls", titleSchema);
+        yield* host.createDocument(
+          collection.id,
+          "doc-1",
+          objectValue({ title: stringValue("Hello") }),
+        );
+
+        // Publish v2 (adds a defaulted `count`). No eager push — the document
+        // migrates itself on the next load.
+        const updated = yield* host.updateCollectionSchema(collection.id, titleCountSchema);
+        expect(updated.schemaVersion).toBe(2);
+
+        const fetched = yield* host.getDocument(collection.id, "doc-1");
+        expect((fetched.value as any).fields.title.value).toBe("Hello");
+        expect((fetched.value as any).fields.count).toEqual(numberValue(0));
+      }),
+    ));
+
+  it("migrates a document on load via a bundled data migration (Sandbox-shaped executor)", () =>
+    runHost(
+      Effect.gen(function* () {
+        const host = yield* HostServiceTag;
+        const db = yield* host.createDatabase("voidhash", "test");
+        const collection = yield* host.createCollection(db.id, "paywalls", titleSchema);
+        yield* host.createDocument(
+          collection.id,
+          "doc-1",
+          objectValue({ title: stringValue("Hello") }),
+        );
+
+        // applyMigration publishes the new schema version with a bundled data
+        // migration source; documents run it lazily on load.
+        const report = yield* host.applyMigration(db.id, 2, "add-count", "checksum-v2", [
+          {
+            type: "update",
+            collection: "paywalls",
+            schema: titleCountSchema as any,
+            dataMigrationSource: ADD_COUNT_BUNDLE,
+          },
+        ]);
+        expect(report.state).toBe("succeeded");
+
+        const fetched = yield* host.getDocument(collection.id, "doc-1");
+        expect((fetched.value as any).fields.count).toEqual(numberValue(7));
+
+        const migrations = yield* host.listMigrations(db.id);
+        expect(migrations).toHaveLength(1);
+        expect(migrations[0]!.version).toBe(2);
+      }),
+    ));
+
+  it("mints and validates a single-use document token", () =>
+    runHost(
+      Effect.gen(function* () {
+        const host = yield* HostServiceTag;
+        const db = yield* host.createDatabase("voidhash", "test");
+        const collection = yield* host.createCollection(db.id, "paywalls", titleSchema);
+        yield* host.createDocument(
+          collection.id,
+          "doc-1",
+          objectValue({ title: stringValue("Hello") }),
+        );
+
+        const { token } = yield* host.createDocumentAuthToken(collection.id, "doc-1", "write", []);
+        const auth = yield* host.authenticateDocumentToken(token, collection.id, "doc-1", null);
+        expect(auth.permission).toBe("write");
+
+        // Single-use: the second validation must fail.
+        const second = yield* Effect.result(
+          host.authenticateDocumentToken(token, collection.id, "doc-1", null),
+        );
+        expect(Result.isFailure(second)).toBe(true);
+      }),
+    ));
+});

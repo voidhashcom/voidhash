@@ -1,0 +1,119 @@
+---
+title: Alert Dialog
+description: A modal dialog that interrupts the user with important content and expects a response.
+---
+
+## Usage
+
+<Preview>
+  <AlertDialog>
+    <AlertDialogTrigger asChild>
+      <Button variant="outline">Delete Account</Button>
+    </AlertDialogTrigger>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+        <AlertDialogDescription>
+          This action cannot be undone. This will permanently delete your account and remove your
+          data from our servers.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction>Continue</AlertDialogAction>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
+</Preview>
+
+```tsx
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@voidhash/ui";
+
+<AlertDialog>
+  <AlertDialogTrigger asChild>
+    <Button variant="outline">Delete Account</Button>
+  </AlertDialogTrigger>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+      <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>Cancel</AlertDialogCancel>
+      <AlertDialogAction>Continue</AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>;
+```
+
+## Components
+
+### AlertDialog
+
+The root component that manages dialog state.
+
+### AlertDialogTrigger
+
+The element that opens the dialog.
+
+### AlertDialogContent
+
+The modal content container with overlay.
+
+### AlertDialogHeader
+
+Container for title and description.
+
+### AlertDialogTitle
+
+The title of the alert dialog.
+
+### AlertDialogDescription
+
+A description of the alert dialog's purpose.
+
+### AlertDialogFooter
+
+Container for action buttons.
+
+### AlertDialogAction
+
+The primary action button (styled as default button).
+
+### AlertDialogCancel
+
+The cancel button (styled as outline button).
+
+## Props
+
+### AlertDialog Props
+
+<TypeTable
+  type={{
+    open: {
+      description: "Controlled open state",
+      type: "boolean",
+      default: "undefined",
+    },
+    onOpenChange: {
+      description: "Callback when open state changes",
+      type: "(open: boolean) => void",
+      default: "undefined",
+    },
+    defaultOpen: {
+      description: "Initial open state for uncontrolled usage",
+      type: "boolean",
+      default: "false",
+    },
+  }}
+/>

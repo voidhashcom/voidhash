@@ -1,0 +1,102 @@
+---
+title: Dropzone
+description: A file upload zone with drag and drop support.
+---
+
+## Usage
+
+<Preview centered={false}>
+  <Dropzone className="w-full max-w-md" />
+</Preview>
+
+```tsx
+import { Dropzone } from "@voidhash/ui";
+
+<Dropzone
+  onDrop={(files) => console.log(files)}
+  accept={{ "image/*": [".png", ".jpg", ".jpeg"] }}
+/>;
+```
+
+## Examples
+
+### With Custom Content
+
+```tsx
+<Dropzone>
+  <div className="flex flex-col items-center gap-2">
+    <UploadIcon className="h-8 w-8 text-muted-foreground" />
+    <p className="text-sm text-muted-foreground">Drag and drop files here, or click to browse</p>
+  </div>
+</Dropzone>
+```
+
+### Accept Specific File Types
+
+```tsx
+<Dropzone
+  accept={{
+    "image/*": [".png", ".jpg", ".jpeg", ".gif"],
+    "application/pdf": [".pdf"],
+  }}
+/>
+```
+
+### With Max File Size
+
+```tsx
+<Dropzone
+  maxSize={5 * 1024 * 1024} // 5MB
+  onDropRejected={(files) => {
+    toast.error("File too large");
+  }}
+/>
+```
+
+### Multiple Files
+
+```tsx
+<Dropzone
+  multiple
+  onDrop={(files) => {
+    console.log("Dropped files:", files);
+  }}
+/>
+```
+
+## Props
+
+<TypeTable
+  type={{
+    onDrop: {
+      description: "Callback when files are dropped",
+      type: "(files: File[]) => void",
+      default: "undefined",
+    },
+    onDropRejected: {
+      description: "Callback when files are rejected",
+      type: "(files: FileRejection[]) => void",
+      default: "undefined",
+    },
+    accept: {
+      description: "Accepted file types",
+      type: "Accept",
+      default: "undefined",
+    },
+    maxSize: {
+      description: "Maximum file size in bytes",
+      type: "number",
+      default: "undefined",
+    },
+    multiple: {
+      description: "Allow multiple files",
+      type: "boolean",
+      default: "false",
+    },
+    disabled: {
+      description: "Disable the dropzone",
+      type: "boolean",
+      default: "false",
+    },
+  }}
+/>

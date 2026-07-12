@@ -1,0 +1,4 @@
+{
+  "version": 1,
+  "suites": ["values.json", "objects.json", "arrays.json", "trees.json", "batches.json"]
+}
