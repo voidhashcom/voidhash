@@ -30,7 +30,9 @@ export interface ReactNativeFeatureFlagsResponse {
 }
 
 export interface ReactNativeSyncTransactionRequest {
+  readonly appAccountToken?: string | undefined;
   readonly platform: "android" | "ios";
+  readonly providerProductId?: string | undefined;
   readonly productSlug: string;
   readonly purchaseDate: number;
   readonly quantity: number;
@@ -72,7 +74,8 @@ const normalizeFeatureFlagsResponse = (
   })),
 });
 
-const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
+/** Binds the generated core client to the React Native SDK request surface. */
+export const bindReactNativeSdkClient = (client: VoidhashCoreClient) => ({
   sdk: {
     /**
      * Fetch the project's schema from the server. Called once on `Provider`

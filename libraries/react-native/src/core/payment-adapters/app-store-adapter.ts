@@ -5,7 +5,7 @@ import { Effect, Layer } from "effect";
 import { Storekit } from "../../nitro";
 import type { StorekitProduct } from "../../specs/ios/StorekitProduct.nitro";
 import type { StorekitTransaction } from "../../specs/ios/StorekitTransaction.nitro";
-import { Product, type SubscriptionProduct } from "../entities/product";
+import { Product } from "../entities/product";
 import { Transaction } from "../entities/transaction";
 import type { RuntimeProductDefinition } from "../schema/runtime";
 import {
@@ -28,6 +28,7 @@ import { PaymentAdapter } from "./payment-adapter";
 export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
   acknowledgePurchase(
     transaction: Transaction,
+    _productType?: RuntimeProductDefinition["type"],
   ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never> {
     return Effect.gen(function* acknowledgePurchase() {
       if (!Storekit) {
@@ -58,8 +59,8 @@ export const AppStoreAdapter = Layer.succeed(PaymentAdapter, {
     });
   },
 
-  buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
-    product: TSubscriptionProduct,
+  buyProduct<TProduct extends Product>(
+    product: TProduct,
     quantity = 1,
     appAccountToken?: string,
   ): Effect.Effect<
@@ -399,6 +400,7 @@ function mapStorekitTransactionToTransaction(nativeTransaction: StorekitTransact
     "ios",
     {
       currency: nativeTransaction.currencyIos,
+      appAccountToken: nativeTransaction.appAccountToken ?? undefined,
       expirationDate: nativeTransaction.expirationDateIos ?? undefined,
       originalPurchaseDate: nativeTransaction.originalTransactionDateIos,
       originalTransactionId: nativeTransaction.originalTransactionIdentifierIos,

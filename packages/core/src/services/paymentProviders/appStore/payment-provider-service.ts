@@ -20,8 +20,6 @@
  *      fire-and-forget (awaited `create` + log-on-failure, never `forkDetach`),
  *      and the synchronous record path does not depend on their completion.
  */
-import { Environment } from "@voidhash/app-store-server-sdk";
-import { ProviderEnvironment } from "@voidhash/db";
 import { Effect, Layer, Option, Schema } from "effect";
 
 import {
@@ -35,6 +33,7 @@ import { AppStoreWebhookHandlerService } from "./app-store-webhook-handler-servi
 import { getActiveAppStorePaymentProviderConfiguration } from "./helpers.ts";
 import { AppStorePaymentProvider, globalConfigurationSchema } from "./payment-provider.ts";
 import { AppStorePaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
+import { AppStoreTransactionVerifier } from "./transaction-verifier.ts";
 
 /**
  * Best-effort extraction of a human-readable cause from any upstream failure
@@ -76,6 +75,7 @@ const toServiceError = (error: unknown): AppStorePaymentProviderServiceError =>
 export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentProviderService)(
   Effect.gen(function* () {
     const appStorePaymentProvider = yield* AppStorePaymentProvider;
+    const transactionVerifier = yield* AppStoreTransactionVerifier;
     const appStoreWebhookHandlerService = yield* AppStoreWebhookHandlerService;
     const queries = yield* AppStorePaymentProviderServiceQueries;
 
@@ -110,26 +110,10 @@ export const AppStorePaymentProviderServiceLive = Layer.effect(AppStorePaymentPr
           return yield* Effect.die(`Project ${input.projectId} not found`);
         }
 
-        const sdkContext =
-          yield* appStorePaymentProvider.buildSdkContextFromConfiguration(configuration);
-        const transactionInfoResult = yield* sdkContext.getTransactionInfo(input.transactionId);
-        const signedTransactionInfo = Option.getOrUndefined(
-          transactionInfoResult.transactionInfo.signedTransactionInfo,
-        );
-        if (!signedTransactionInfo) {
-          return yield* new AppStorePaymentProviderServiceError({
-            cause: "Signed transaction info is not found",
-          });
-        }
-
-        const decodedTransaction = yield* sdkContext.decodeSignedTransaction(
-          signedTransactionInfo,
-          transactionInfoResult.environment,
-        );
-        const providerEnvironment =
-          transactionInfoResult.environment === Environment.SANDBOX
-            ? ProviderEnvironment.Sandbox
-            : ProviderEnvironment.Production;
+        const { decodedTransaction, providerEnvironment } = yield* transactionVerifier.verify({
+          configuration,
+          transactionId: input.transactionId,
+        });
 
         // Decide first-seen reconciliation BEFORE `recordPurchase` writes the
         // subscription/transaction row — afterwards the existence check below is

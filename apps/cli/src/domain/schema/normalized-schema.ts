@@ -36,7 +36,7 @@ export const NormalizedProductSchema = Schema.Struct({
   perks: Schema.Array(Schema.String), // perk slugs
   providers: Schema.Array(ProductProviderConfigSchema),
   slug: Schema.String,
-  type: Schema.Literal("subscription"), // Extensible later
+  type: Schema.Literals(["subscription", "one-time", "one-time-consumable"]),
 });
 export type NormalizedProduct = typeof NormalizedProductSchema.Type;
 

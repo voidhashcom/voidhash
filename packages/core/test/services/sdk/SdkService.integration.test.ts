@@ -49,10 +49,7 @@ import {
 } from "@voidhash/core/services/paymentProviders/AppStorePaymentProviderService";
 import { GooglePlayPaymentProviderService } from "@voidhash/core/services/paymentProviders/GooglePlayPaymentProviderService";
 import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
-import {
-  AuthenticationError,
-  type PublishableKeySession,
-} from "@voidhash/core/domain/auth/Auth";
+import { AuthenticationError, type PublishableKeySession } from "@voidhash/core/domain/auth/Auth";
 import {
   SdkPersonNotFoundError,
   SdkValidationError,
@@ -846,51 +843,72 @@ describe("SdkService.submitPurchaseTransaction", () => {
 
   test(
     "submits a valid Google Play transaction and returns the resulting person snapshot",
-    withCleanup((track) =>
-      Effect.gen(function* () {
-        track.person(submitGooglePersonId);
-        track.distinctId(submitGoogleDistinctId);
-        yield* insertPerson(submitGooglePersonId, { name: "Android Buyer" });
-        yield* insertIdentity({
-          distinctId: submitGoogleDistinctId,
-          id: `person_dist_${submitGoogleDistinctId}`,
-          kind: PersonIdentityKind.Identified,
-          personId: submitGooglePersonId,
-        });
+    (() => {
+      let capturedInput:
+        | {
+            distinctId: string;
+            packageName: string;
+            productId: string;
+            projectId: string;
+            purchaseToken: string;
+          }
+        | undefined;
+      return withCleanup((track) =>
+        Effect.gen(function* () {
+          track.person(submitGooglePersonId);
+          track.distinctId(submitGoogleDistinctId);
+          yield* insertPerson(submitGooglePersonId, { name: "Android Buyer" });
+          yield* insertIdentity({
+            distinctId: submitGoogleDistinctId,
+            id: `person_dist_${submitGoogleDistinctId}`,
+            kind: PersonIdentityKind.Identified,
+            personId: submitGooglePersonId,
+          });
 
-        const sdk = yield* SdkService;
-        const snapshot = yield* sdk.submitPurchaseTransaction({
-          packageName: "com.voidhash.test",
-          providerId: "google-play",
-          purchaseToken: "token_123",
-        });
-        expect(snapshot.personId).toBe(submitGooglePersonId);
-        expect(snapshot.distinctId).toBe(submitGoogleDistinctId);
-      }),
-    ).pipe(
-      // Google Play stub resolves to the seeded person id; App Store stub must
-      // not be called on the Android path.
-      Effect.provide(
-        SdkService.layer.pipe(
-          Layer.provideMerge(
-            Layer.mergeAll(
-              PerkGrantService.layer,
-              PurchaseService.layer,
-              PersonIdentityService.layer.pipe(Layer.provide(IdentityProjectionPublisher.noop)),
-              IdentityProjectionPublisher.noop,
-              appStoreStub(() => Effect.die(new Error("App Store stub must not be called"))),
-              Layer.succeed(GooglePlayPaymentProviderService, {
-                acceptRtdnNotification: () =>
-                  Effect.die(new Error("acceptRtdnNotification not used in SdkService tests")),
-                processSdkTransaction: () => Effect.succeed({ personId: submitGooglePersonId }),
-              }),
-              CompletionWorkflowStub,
+          const sdk = yield* SdkService;
+          const snapshot = yield* sdk.submitPurchaseTransaction({
+            packageName: "com.voidhash.test",
+            productId: "yearly_sub",
+            providerId: "google-play",
+            purchaseToken: "token_123",
+          });
+          expect(snapshot.personId).toBe(submitGooglePersonId);
+          expect(snapshot.distinctId).toBe(submitGoogleDistinctId);
+          expect(capturedInput).toMatchObject({
+            distinctId: submitGoogleDistinctId,
+            packageName: "com.voidhash.test",
+            productId: "yearly_sub",
+            purchaseToken: "token_123",
+          });
+        }),
+      ).pipe(
+        // Google Play stub resolves to the seeded person id; App Store stub must
+        // not be called on the Android path.
+        Effect.provide(
+          SdkService.layer.pipe(
+            Layer.provideMerge(
+              Layer.mergeAll(
+                PerkGrantService.layer,
+                PurchaseService.layer,
+                PersonIdentityService.layer.pipe(Layer.provide(IdentityProjectionPublisher.noop)),
+                IdentityProjectionPublisher.noop,
+                appStoreStub(() => Effect.die(new Error("App Store stub must not be called"))),
+                Layer.succeed(GooglePlayPaymentProviderService, {
+                  acceptRtdnNotification: () =>
+                    Effect.die(new Error("acceptRtdnNotification not used in SdkService tests")),
+                  processSdkTransaction: (input) => {
+                    capturedInput = input;
+                    return Effect.succeed({ personId: submitGooglePersonId });
+                  },
+                }),
+                CompletionWorkflowStub,
+              ),
             ),
           ),
         ),
-      ),
-      CoreAuthSession.authenticate(sdkSession(submitGoogleDistinctId)),
-    ),
+        CoreAuthSession.authenticate(sdkSession(submitGoogleDistinctId)),
+      );
+    })(),
   );
 
   test(

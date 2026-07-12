@@ -11,18 +11,22 @@ import {
   AuditLogPort,
   AuthTokenVerifier,
   AppStorePaymentProvider,
+  AppStorePaymentProviderEngine,
   ApplePushNotificationServiceConfigLive,
   AiChatService,
   AppStorePaymentProviderConfigLive,
   AppStorePaymentProviderServiceLive,
+  AppStoreTransactionVerifier,
   ExperimentService,
   FeatureFlagService,
   FeedbackServiceLive,
   FirebaseCloudMessagingServiceConfigLive,
   FxRateService,
   GooglePlayPaymentProvider,
+  GooglePlayPaymentProviderEngine,
   GooglePlayPaymentProviderConfigLive,
   GooglePlayPaymentProviderServiceLive,
+  GooglePlayPurchaseVerifier,
   GooglePlayServerApi,
   IdentityProjectionPublisher,
   InternalFeatureFlagService,
@@ -323,6 +327,9 @@ export const BackendFeedbackServiceLive = FeedbackServiceLive({
  * services graph.
  */
 export const BackendAppStorePaymentProviderServiceLive = AppStorePaymentProviderServiceLive.pipe(
+  Layer.provide(
+    AppStoreTransactionVerifier.layer.pipe(Layer.provide(AppStorePaymentProviderEngine.layer)),
+  ),
   Layer.provide(AppStoreServerSdk.layer.pipe(Layer.provide(FetchHttpClient.layer))),
   Layer.provide(
     FxRateService.layer({
@@ -349,6 +356,9 @@ export const BackendAppStorePaymentProviderServiceLive = AppStorePaymentProvider
  */
 export const BackendGooglePlayPaymentProviderServiceLive =
   GooglePlayPaymentProviderServiceLive.pipe(
+    Layer.provide(
+      GooglePlayPurchaseVerifier.layer.pipe(Layer.provide(GooglePlayPaymentProviderEngine.layer)),
+    ),
     Layer.provide(GooglePlayServerApi.layer.pipe(Layer.provide(FetchHttpClient.layer))),
     Layer.provide(
       FxRateService.layer({

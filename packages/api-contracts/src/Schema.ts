@@ -343,6 +343,9 @@ export const SdkSyncTransactionBody = Schema.Struct({
   // so this is observability/diagnostics, never trusted for authorization.
   appAccountToken: Schema.optional(Schema.String),
   platform: Schema.Literals(["ios", "android"]),
+  // Native store identifier used for canonical verification. Kept separate
+  // from the Voidhash product slug because they are not generally equal.
+  providerProductId: Schema.optional(Schema.String),
   productSlug: Schema.String,
   purchaseDate: Schema.Number,
   purchaseToken: Schema.optional(Schema.String),
@@ -489,13 +492,7 @@ export class SchemaProduct extends Schema.Class<SchemaProduct>("SchemaProduct")(
   /** Per-provider mappings, sorted by `providerId`. */
   providers: Schema.Array(SchemaProductProvider),
   slug: Schema.String,
-  /**
-   * Today always `"subscription"` (matches the CLI's
-   * `NormalizedProductSchema`). Kept extensible at the TypeScript
-   * boundary so server-side widening doesn't immediately break clients
-   * — see the spec note in `feat/move-to-server-first`.
-   */
-  type: Schema.Literal("subscription"),
+  type: Schema.Literals(["subscription", "one-time", "one-time-consumable"]),
 }) {}
 
 /**
@@ -566,7 +563,7 @@ export class SdkSchemaProduct extends Schema.Class<SdkSchemaProduct>("SdkSchemaP
   configuration: SdkSchemaProductConfiguration,
   properties: SdkSchemaProductProperties,
   slug: Schema.String,
-  type: Schema.Literal("subscription"),
+  type: Schema.Literals(["subscription", "one-time", "one-time-consumable"]),
 }) {}
 
 export class SdkSchemaPerk extends Schema.Class<SdkSchemaPerk>("SdkSchemaPerk")({

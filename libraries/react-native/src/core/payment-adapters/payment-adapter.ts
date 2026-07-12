@@ -1,6 +1,6 @@
 import { Context, type Effect } from "effect";
 
-import type { Product, SubscriptionProduct } from "../entities/product";
+import type { Product } from "../entities/product";
 import type { Transaction } from "../entities/transaction";
 import type { RuntimeProductDefinition } from "../schema/runtime";
 import type {
@@ -38,8 +38,8 @@ export class PaymentAdapter extends Context.Service<
       productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
     ): Effect.Effect<Product[], NativeAdapterNotInitializedError | FailedToGetProductsError, never>;
 
-    buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
-      product: TSubscriptionProduct,
+    buyProduct<TProduct extends Product>(
+      product: TProduct,
       quantity?: number,
       appAccountToken?: string,
     ): Effect.Effect<
@@ -54,6 +54,7 @@ export class PaymentAdapter extends Context.Service<
 
     acknowledgePurchase(
       transaction: Transaction,
+      productType?: RuntimeProductDefinition["type"],
     ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never>;
 
     getPurchaseHistory(

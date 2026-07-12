@@ -114,6 +114,30 @@ const toSdkPerson = (snapshot: SdkPersonSnapshot) =>
     },
   });
 
+/** Maps the public SDK transaction payload to the provider-specific service input. */
+export const mapSdkTransactionSubmission = (
+  payload: {
+    readonly platform: "ios" | "android";
+    readonly providerProductId?: string;
+    readonly productSlug: string;
+    readonly purchaseToken?: string;
+    readonly transactionId: string;
+  },
+  clientBundleId: string,
+) =>
+  payload.platform === "android"
+    ? {
+        packageName: clientBundleId,
+        productId: payload.providerProductId ?? payload.productSlug,
+        providerId: "google-play" as const,
+        purchaseToken: payload.purchaseToken,
+      }
+    : {
+        bundleId: clientBundleId,
+        providerId: "apple-app-store" as const,
+        transactionId: payload.transactionId,
+      };
+
 export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers) =>
   Effect.gen(function* () {
     const sdkService = yield* SdkService;
@@ -239,25 +263,14 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
             const parsedHeaders = yield* Schema.decodeUnknownEffect(SdkHeaders)(req.headers).pipe(
               Effect.mapError((error) => new ApiSdkValidationError({ message: error.message })),
             );
-            // The Android package name equals the client bundle id; the verified
-            // product id is derived server-side from the purchase token.
+            // The Android package name equals the client bundle id.
             const clientBundleId = parsedHeaders["x-client-bundle-id"];
 
             // `submitPurchaseTransaction`'s `Effect.fn` wrapper widens the error
             // channel; cast to a concrete `Effect` so the outer `catchTags`
             // matches the underlying tags.
-            yield* (
-              payload.platform === "android"
-                ? sdkService.submitPurchaseTransaction({
-                    packageName: clientBundleId,
-                    providerId: "google-play",
-                    purchaseToken: payload.purchaseToken,
-                  })
-                : sdkService.submitPurchaseTransaction({
-                    bundleId: clientBundleId,
-                    providerId: "apple-app-store",
-                    transactionId: payload.transactionId,
-                  })
+            yield* sdkService.submitPurchaseTransaction(
+              mapSdkTransactionSubmission(payload, clientBundleId),
             ) as Effect.Effect<
               unknown,
               AuthenticationError | SdkValidationError | SdkServiceError,

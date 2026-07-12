@@ -14,6 +14,8 @@ export class Transaction {
   readonly receipt?: string;
   readonly price?: number;
   readonly currency?: string;
+  readonly appAccountToken?: string;
+  readonly purchaseState: "purchased" | "pending" | "unspecified";
 
   constructor(
     id: string,
@@ -32,6 +34,8 @@ export class Transaction {
       receipt?: string;
       price?: number;
       currency?: string;
+      appAccountToken?: string;
+      purchaseState?: "purchased" | "pending" | "unspecified";
     },
   ) {
     this.id = id;
@@ -49,5 +53,7 @@ export class Transaction {
     this.receipt = options?.receipt;
     this.price = options?.price;
     this.currency = options?.currency;
+    this.appAccountToken = options?.appAccountToken;
+    this.purchaseState = options?.purchaseState ?? "purchased";
   }
 }

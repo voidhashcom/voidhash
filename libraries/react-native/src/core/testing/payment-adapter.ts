@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect";
 
-import { Product, type SubscriptionProduct } from "../entities/product";
+import { Product } from "../entities/product";
 import { Transaction } from "../entities/transaction";
 import type {
   FailedToAcknowledgePurchaseError,
@@ -23,6 +23,7 @@ import type { RuntimeProductDefinition } from "../schema/runtime";
 export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
   acknowledgePurchase(
     transaction: Transaction,
+    _productType?: RuntimeProductDefinition["type"],
   ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never> {
     Effect.logDebug("TestPaymentAdapter: Acknowledging purchase", {
       transactionId: transaction.id,
@@ -30,8 +31,8 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
     return Effect.void;
   },
 
-  buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
-    product: TSubscriptionProduct,
+  buyProduct<TProduct extends Product>(
+    product: TProduct,
     quantity = 1,
     _appAccountToken?: string,
   ): Effect.Effect<

@@ -32,6 +32,7 @@
  *    narrowing the swapped error with `instanceof`.
  */
 import { Effect } from "effect";
+import { ProductType, type ProductTypeValue } from "@voidhash/lib";
 import { subtle } from "uncrypto";
 import { describe, expect, test as vitestTest } from "vitest";
 
@@ -163,12 +164,17 @@ const insertPerk = (track: Tracker, input: { name: string; slug: string }) =>
     return id;
   });
 
-const insertProduct = (track: Tracker, input: { name: string; slug: string }) =>
+const insertProduct = (
+  track: Tracker,
+  input: { name: string; slug: string; type?: ProductTypeValue },
+) =>
   Effect.gen(function* () {
     const db = yield* Db;
     const id = generateId("product");
     track.product(id);
-    yield* db.insert(products).values({ id, name: input.name, projectId, slug: input.slug });
+    yield* db
+      .insert(products)
+      .values({ id, name: input.name, projectId, slug: input.slug, type: input.type });
     return id;
   });
 
@@ -364,10 +370,16 @@ describe("SchemaService.getProjectSchema", () => {
 
         const perkSlug = uniqueSlug("miss-perk");
         const productSlug = uniqueSlug("miss-product");
+        const consumableSlug = uniqueSlug("miss-consumable");
         const locationSlug = uniqueSlug("miss-location");
 
         const perkId = yield* insertPerk(track, { name: "Miss Perk", slug: perkSlug });
         const productId = yield* insertProduct(track, { name: "Miss Product", slug: productSlug });
+        yield* insertProduct(track, {
+          name: "Miss Consumable",
+          slug: consumableSlug,
+          type: ProductType.OneTimeConsumable,
+        });
         yield* insertProductPerkLink(track, { productId, perkId });
         yield* insertLocation(track, {
           name: "Miss Location",
@@ -400,6 +412,9 @@ describe("SchemaService.getProjectSchema", () => {
         expect(seededProduct?.type).toBe("subscription");
         expect(seededProduct?.perks).toContain(perkSlug);
         expect(seededProduct?.providers.some((pr) => pr.providerId === "appleAppStore")).toBe(true);
+        expect(schema.products.find((product) => product.slug === consumableSlug)?.type).toBe(
+          "one-time-consumable",
+        );
         expect(
           seededProduct?.providers.find((pr) => pr.providerId === "appleAppStore")?.configuration,
         ).toEqual({ foo: "bar" });

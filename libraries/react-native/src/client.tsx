@@ -6,7 +6,7 @@ import { VoidhashEffectClient } from "./client-effect";
 import { AnalyticsService } from "./core/analytics/service";
 import { AsyncStorageCacheAdapter } from "./core/caching/async-storage-cache";
 import { CacheManager } from "./core/caching/cache-manager";
-import type { SubscriptionProduct } from "./core/entities/product";
+import type { Product } from "./core/entities/product";
 import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
 import {
   type PersonAttributes,
@@ -387,7 +387,7 @@ export class VoidhashClient {
    * Purchases a product.
    */
   async purchase(
-    product: SubscriptionProduct,
+    product: Product,
     _options: {
       method?: "native";
     },

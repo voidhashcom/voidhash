@@ -56,6 +56,7 @@ namespace margelo::nitro::voidhash {
     std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingProductDetailSpec>>>> getItemsByType(GoogleBillingProductType type, const std::vector<std::string>& skus) override;
     std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPurchaseSpec>>>> buyItemByType(const GoogleBillingBuyItemByTypeParams& params) override;
     std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingAcknowledgeResultSpec>>> acknowledgePurchase(const std::string& token) override;
+    std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingAcknowledgeResultSpec>>> consumeProduct(const std::string& token) override;
     std::shared_ptr<Promise<std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridGoogleBillingPurchaseSpec>>>> getAvailableItemsByType(GoogleBillingProductType type) override;
 
   private:
