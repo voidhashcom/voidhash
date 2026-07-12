@@ -19,7 +19,8 @@
     "test": "vp test run -c vitest.mts"
   },
   "dependencies": {
-    "@voidhash/mimic-core": "workspace:*"
+    "@voidhash/mimic-core": "workspace:*",
+    "@voidhash/mimic-server": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20",

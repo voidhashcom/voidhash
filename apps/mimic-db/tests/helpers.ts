@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 
 import type { HostService } from "../src/app/hostService.ts";
 import { getConfig } from "../src/config.ts";
@@ -10,7 +11,7 @@ import {
 import { LocalHostServiceDefault, makeLocalHostService } from "../src/core/local-host-service.ts";
 import { makeMemoryDurableEntityHost } from "../src/core/local-entity-host.ts";
 import { makeMemoryControlStore } from "../src/core/memory-store.ts";
-import { makeMigrationExecutor } from "../src/core/migration-executor.ts";
+import { EmptyMigrationRegistry, ensureMigrationRegistry } from "../src/core/migration-registry.ts";
 
 /**
  * Run a program that depends on `HostServiceTag` against a fresh in-memory
@@ -37,17 +38,40 @@ export const runHostWithControl = <A, E>(
     Effect.gen(function* () {
       const control = makeControlEngine(makeMemoryControlStore());
       const config = getConfig();
-      const executor = makeMigrationExecutor((_, oldValue) => Effect.succeed(oldValue));
       const documentStores = yield* DocumentStoreFactory;
       yield* control.ensureRootUser(config.rootUsername, config.rootPassword);
       const host = makeLocalHostService({
         control,
         entities: makeMemoryDurableEntityHost(),
-        executor,
+        migrations: EmptyMigrationRegistry,
         documentStores,
         config,
       });
       return yield* program({ control, host });
+    }).pipe(Effect.provide(MemoryDocumentStoreFactoryLive)) as Effect.Effect<A, E>,
+  );
+
+/** Runs a program against an in-memory host configured with deployed migrations. */
+export const runHostWithRegistry = <A, E>(
+  migrations: MigrationRegistry,
+  program: (host: HostService) => Effect.Effect<A, E, any>,
+): Promise<A> =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      const store = makeMemoryControlStore();
+      const control = makeControlEngine(store, migrations);
+      const config = getConfig();
+      const documentStores = yield* DocumentStoreFactory;
+      yield* ensureMigrationRegistry(store, migrations);
+      yield* control.ensureRootUser(config.rootUsername, config.rootPassword);
+      const host = makeLocalHostService({
+        control,
+        entities: makeMemoryDurableEntityHost(),
+        migrations,
+        documentStores,
+        config,
+      });
+      return yield* program(host);
     }).pipe(Effect.provide(MemoryDocumentStoreFactoryLive)) as Effect.Effect<A, E>,
   );
 

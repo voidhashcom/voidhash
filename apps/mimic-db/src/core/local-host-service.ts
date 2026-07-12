@@ -1,5 +1,6 @@
 import { DurableEntityHost, makeDurableEntityAddress } from "@voidhash/platform/DurableEntity";
 import { Effect, Layer } from "effect";
+import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 
 import { HostServiceTag, type HostService, type PresenceEntry } from "../app/hostService.ts";
 import { getConfig, type MimicConfig } from "../config.ts";
@@ -12,10 +13,10 @@ import {
 } from "./document-store-factory.ts";
 import { MemoryControlStoreLive } from "./memory-store.ts";
 import {
-  LocalMigrationExecutorLive,
-  MigrationExecutor,
-  type MigrationExecutorApi,
-} from "./migration-executor.ts";
+  EmptyMigrationRegistryLive,
+  ensureMigrationRegistry,
+  MigrationRegistryService,
+} from "./migration-registry.ts";
 import { makeControlStoreSchemaProvider } from "./schema-provider.ts";
 import { ControlStore } from "./store.ts";
 import { MemoryDurableEntityHostLive } from "./local-entity-host.ts";
@@ -27,7 +28,7 @@ const docKeyOf = (collectionId: string, documentId: string): string =>
 export interface LocalHostServiceDeps {
   readonly control: ControlEngineApi;
   readonly entities: DurableEntityHost["Service"];
-  readonly executor: MigrationExecutorApi;
+  readonly migrations: MigrationRegistry;
   readonly documentStores: DocumentStoreFactoryShape;
   readonly config: MimicConfig;
 }
@@ -38,7 +39,7 @@ export interface LocalHostServiceDeps {
  * own serialized `DocumentEngine` over a runtime-selected persistence store.
  */
 export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService => {
-  const { control, entities, executor, documentStores, config } = deps;
+  const { control, entities, migrations, documentStores, config } = deps;
   const schema = makeControlStoreSchemaProvider(control.store);
   const documents = new Map<string, DocumentEngineApi>();
   const presence = new Map<string, Map<string, PresenceEntry>>();
@@ -49,7 +50,7 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
     if (!engine) {
       engine = makeDocumentEngine({
         store: documentStores.make(collectionId, documentId),
-        executor,
+        migrations,
         schema,
         snapshotEveryCommands: config.snapshotEveryCommands,
       });
@@ -100,24 +101,7 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
     createCollection: (databaseId, name, schemaInput) =>
       runControl(() => control.createCollection(databaseId, name, schemaInput)),
     listCollections: (databaseId) => runControl(() => control.listCollections(databaseId)),
-    updateCollectionSchema: (collectionId, schemaInput) =>
-      runControl(() => control.updateCollectionSchema(collectionId, schemaInput)),
     deleteCollection: (collectionId) => runControl(() => control.deleteCollection(collectionId)),
-    listMigrations: (databaseId) => runControl(() => control.listMigrations(databaseId)),
-    applyMigration: (databaseId, version, name, checksum, changes, options) =>
-      runControl(() =>
-        control.applyMigration(databaseId, version, name, checksum, changes, "apply", options),
-      ),
-    rerunMigration: (databaseId, version, name, checksum, changes, options) =>
-      runControl(() =>
-        control.applyMigration(databaseId, version, name, checksum, changes, "rerun", options),
-      ),
-    replaceMigration: (databaseId, version, name, checksum, changes, options) =>
-      runControl(() =>
-        control.applyMigration(databaseId, version, name, checksum, changes, "replace", options),
-      ),
-    getMigrationStatus: (databaseId, version) =>
-      runControl(() => control.getMigrationStatus(databaseId, version)),
     createUser: (username, password) => runControl(() => control.createUser(username, password)),
     listUsers: () => runControl(control.listUsers),
     deleteUser: (userId) => runControl(() => control.deleteUser(userId)),
@@ -164,6 +148,7 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
               collectionId,
               prepared.value,
               prepared.schemaVersion,
+              prepared.migrationVersion,
             );
             return {
               id: prepared.documentId,
@@ -263,29 +248,31 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
 };
 
 /**
- * Builds `HostService` from a `ControlStore` + `MigrationExecutor` in context
- * and bootstraps the root user. Defaults below provide the in-memory backend.
+ * Builds `HostService` from the configured stores and migration registry.
  */
 export const LocalHostServiceLive = Layer.effect(
   HostServiceTag,
   Effect.gen(function* () {
     const controlStore = yield* ControlStore;
     const entities = yield* DurableEntityHost;
-    const executor = yield* MigrationExecutor;
+    const migrations = yield* MigrationRegistryService;
     const documentStores = yield* DocumentStoreFactory;
     const config = getConfig();
-    const control = makeControlEngine(controlStore);
+    const control = makeControlEngine(controlStore, migrations);
     yield* entities.run(makeDurableEntityAddress("mimic-control", "default"), () =>
-      control.ensureRootUser(config.rootUsername, config.rootPassword),
+      Effect.gen(function* () {
+        yield* ensureMigrationRegistry(controlStore, migrations);
+        yield* control.ensureRootUser(config.rootUsername, config.rootPassword);
+      }),
     );
-    return makeLocalHostService({ control, entities, executor, documentStores, config });
+    return makeLocalHostService({ control, entities, migrations, documentStores, config });
   }),
 );
 
 /** In-memory default composition for dev + tests. */
 export const LocalHostServiceDefault = LocalHostServiceLive.pipe(
   Layer.provide(MemoryControlStoreLive),
-  Layer.provide(LocalMigrationExecutorLive),
+  Layer.provide(EmptyMigrationRegistryLive),
   Layer.provide(MemoryDurableEntityHostLive),
   Layer.provide(MemoryDocumentStoreFactoryLive),
 );

@@ -10,8 +10,6 @@ import type {
   CollectionInfo,
   CreateUserResult,
   DatabaseInfo,
-  DatabaseMigrationChange,
-  DatabaseMigrationInfo,
   DocumentSnapshot,
   RawDocumentSnapshot,
   SetupDocumentAuthenticationOptions,
@@ -166,16 +164,6 @@ export class DatabaseHandle {
     return new CollectionHandle(this.effect.collection(id, primitive));
   }
 
-  updateCollectionSchema<TPrimitive extends Primitive.AnyPrimitive>(
-    collectionId: string,
-    primitive: TPrimitive,
-    dataMigrationSource?: string,
-  ): Promise<{ readonly id: string; readonly schemaVersion: number }> {
-    return this.effect.sdk.runtime.runPromise(
-      this.effect.updateCollectionSchema(collectionId, primitive, dataMigrationSource),
-    );
-  }
-
   // Raw helpers — for dynamic JSON consumers.
 
   listCollectionsRaw(): Promise<readonly CollectionInfo[]> {
@@ -184,37 +172,6 @@ export class DatabaseHandle {
 
   collectionRaw(collectionId: string): RawCollectionHandle {
     return new RawCollectionHandle(this.effect.collectionRaw(collectionId));
-  }
-
-  updateCollectionSchemaRaw(
-    collectionId: string,
-    schema: unknown,
-    dataMigrationSource?: string,
-  ): Promise<{ readonly id: string; readonly schemaVersion: number }> {
-    return this.effect.sdk.runtime.runPromise(
-      this.effect.updateCollectionSchemaRaw(collectionId, schema, dataMigrationSource),
-    );
-  }
-
-  listMigrations(): Promise<readonly DatabaseMigrationInfo[]> {
-    return this.effect.sdk.runtime.runPromise(this.effect.listMigrations());
-  }
-
-  applyMigration(options: {
-    readonly version: number;
-    readonly name: string;
-    readonly checksum: string;
-    readonly changes: readonly DatabaseMigrationChange[];
-    readonly mode?: "apply" | "rerun" | "replace";
-    readonly dryRun?: { readonly limit?: number; readonly samplePercent?: number };
-    readonly batchSize?: number;
-    readonly redoSucceededOnReplace?: boolean;
-  }) {
-    return this.effect.sdk.runtime.runPromise(this.effect.applyMigration(options));
-  }
-
-  getMigrationStatus(version: number) {
-    return this.effect.sdk.runtime.runPromise(this.effect.getMigrationStatus(version));
   }
 }
 

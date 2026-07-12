@@ -7,18 +7,21 @@ import {
   type Value,
 } from "@voidhash/mimic-core";
 import { MigrationFailedError, NotFoundError } from "@voidhash/mimic-server/rpc";
-import { reconcileMigrationValue } from "@voidhash/mimic-server/migrate";
+import {
+  reconcileMigrationValue,
+  runDirectMigration,
+  type MigrationRegistry,
+} from "@voidhash/mimic-server/migrate";
 import { Effect, Result } from "effect";
 
 import { sanitizeValueForSchema } from "../document/schema.ts";
 import type { SubmitTransactionResponse, TransactionEnvelope } from "../document/transaction.ts";
-import type { MigrationExecutorApi } from "./migration-executor.ts";
 import type { CollectionContext, SchemaProviderApi } from "./schema-provider.ts";
 import type { DocumentStoreApi } from "./store.ts";
 
 export interface DocumentEngineDeps {
   readonly store: DocumentStoreApi;
-  readonly executor: MigrationExecutorApi;
+  readonly migrations: MigrationRegistry;
   readonly schema: SchemaProviderApi;
   readonly snapshotEveryCommands: number;
 }
@@ -29,6 +32,7 @@ export interface LoadedDocument {
   readonly currentSeq: number;
   readonly snapshotSeq: number;
   readonly schemaVersion: number;
+  readonly migrationVersion: number | null;
   readonly collectionId: string;
 }
 
@@ -37,6 +41,7 @@ export interface DocumentEngineApi {
     collectionId: string,
     value: Value,
     schemaVersion: number,
+    migrationVersion: number | null,
   ) => Effect.Effect<void>;
   readonly load: () => Effect.Effect<LoadedDocument, NotFoundError | MigrationFailedError>;
   readonly submit: (
@@ -53,20 +58,23 @@ const migrationFailed = (message: string): MigrationFailedError =>
 
 /**
  * The logic that runs inside a single document entity. Constructed over a
- * per-document `DocumentStore`, the `MigrationExecutor`, and a `SchemaProvider`
- * (which reads collection schema chains from the control plane). The same
- * factory is used in-process for dev/test via `makeMemoryDocumentStore`.
+ * per-document `DocumentStore`, a deployed migration registry, and a
+ * `SchemaProvider`. The same factory is used in-process for tests.
  */
 export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi => {
-  const { store, executor, schema, snapshotEveryCommands } = deps;
+  const { store, migrations, schema, snapshotEveryCommands } = deps;
 
-  const create: DocumentEngineApi["create"] = (collectionId, value, schemaVersion) =>
-    store.initialize(collectionId, value, schemaVersion);
+  const create: DocumentEngineApi["create"] = (
+    collectionId,
+    value,
+    schemaVersion,
+    migrationVersion,
+  ) => store.initialize(collectionId, value, schemaVersion, migrationVersion);
 
   /**
    * Advance `value` from `fromVersion` up to the collection's latest schema by
-   * applying each intervening version's migration — bundled data migration if
-   * present, otherwise a schema reconcile against the previous version.
+   * reconciling each persisted source-free schema version. Stored executable
+   * migration source is rejected and never evaluated.
    */
   const migrateUp = (
     value: Value,
@@ -82,25 +90,25 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
             migrationFailed(`Missing schema version ${version} for collection ${ctx.collectionId}`),
           );
         }
-        if (target.dataMigrationSource) {
-          // The bundle reconciles old→new and runs the user migration itself.
-          current = yield* executor.run(target.dataMigrationSource, current);
-        } else {
-          const previous = ctx.versions.find((entry) => entry.version === version - 1);
-          const result = reconcileMigrationValue({
-            oldSchema: parseSchema(previous?.schemaJson ?? target.schemaJson),
-            newSchema: parseSchema(target.schemaJson),
-            value: current,
-          });
-          if (!result.ok || result.value === undefined) {
-            return yield* Effect.fail(
-              migrationFailed(
-                result.ok ? "Migration produced an empty value" : result.error.message,
-              ),
-            );
-          }
-          current = result.value;
+        if (target.dataMigrationSource !== null) {
+          return yield* Effect.fail(
+            migrationFailed(
+              `Legacy schema version ${version} requires executable source, which is no longer supported`,
+            ),
+          );
         }
+        const previous = ctx.versions.find((entry) => entry.version === version - 1);
+        const result = reconcileMigrationValue({
+          oldSchema: parseSchema(previous?.schemaJson ?? target.schemaJson),
+          newSchema: parseSchema(target.schemaJson),
+          value: current,
+        });
+        if (!result.ok || result.value === undefined) {
+          return yield* Effect.fail(
+            migrationFailed(result.ok ? "Migration produced an empty value" : result.error.message),
+          );
+        }
+        current = result.value;
         current = yield* sanitize(target.schemaJson, current);
       }
       return current;
@@ -134,16 +142,47 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
         );
       }
       let schemaVersion = meta.schemaVersion;
+      let migrationVersion = meta.migrationVersion;
       let snapshotSeq = meta.snapshotSeq;
+      let changed = false;
 
       const ctx = yield* schema.getCollectionContext(meta.collectionId);
       if (ctx && schemaVersion < ctx.schemaVersion) {
-        // Lazy migration: bring the document onto the latest schema on load,
-        // then durably snapshot the result so the work is done once.
         value = yield* migrateUp(value, schemaVersion, ctx);
         schemaVersion = ctx.schemaVersion;
-        yield* store.writeSnapshot(meta.currentSeq, value, schemaVersion);
-        yield* store.setMeta({ schemaVersion, snapshotSeq: meta.currentSeq });
+        changed = true;
+      }
+
+      if (ctx) {
+        const definition = migrations.find(ctx.databaseName, ctx.collectionName);
+        if (definition) {
+          const currentMigrationVersion = migrationVersion ?? 0;
+          const latestMigrationVersion = definition.migrations.length;
+          if (currentMigrationVersion > latestMigrationVersion) {
+            return yield* Effect.fail(
+              migrationFailed(
+                `Document migration version ${currentMigrationVersion} is newer than deployed version ${latestMigrationVersion}`,
+              ),
+            );
+          }
+          for (const migration of definition.migrations.slice(currentMigrationVersion)) {
+            value = yield* Effect.try({
+              try: () => runDirectMigration(migration, value),
+              catch: (error) =>
+                migrationFailed(error instanceof Error ? error.message : String(error)),
+            });
+            migrationVersion = migration.version;
+            changed = true;
+          }
+          if (migrationVersion === null) {
+            migrationVersion = 0;
+            changed = true;
+          }
+        }
+      }
+
+      if (changed) {
+        yield* store.commitMigration(meta.currentSeq, value, schemaVersion, migrationVersion);
         snapshotSeq = meta.currentSeq;
       }
 
@@ -153,6 +192,7 @@ export const makeDocumentEngine = (deps: DocumentEngineDeps): DocumentEngineApi 
         currentSeq: meta.currentSeq,
         snapshotSeq,
         schemaVersion,
+        migrationVersion,
         collectionId: meta.collectionId,
       };
     });

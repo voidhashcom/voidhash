@@ -3,27 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { HostServiceTag } from "../../src/app/hostService.ts";
 import type { TransactionEnvelope } from "../../src/document/transaction.ts";
-import {
-  numberValue,
-  objectValue,
-  runHost,
-  runHostWithControl,
-  stringValue,
-  titleCountSchema,
-  titleSchema,
-} from "../helpers.ts";
-
-// A self-contained migration bundle that adds a `count: 7` field.
-const ADD_COUNT_BUNDLE = `
-globalThis.__MIMIC_RUN_MIGRATION__ = function (input) {
-  return {
-    value: {
-      kind: "object",
-      fields: Object.assign({}, input.oldValue.fields, { count: { kind: "number", value: 7 } }),
-    },
-  };
-};
-`;
+import { objectValue, runHost, runHostWithControl, stringValue, titleSchema } from "../helpers.ts";
 
 describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
   it("bootstraps the root user and authenticates", () =>
@@ -198,62 +178,6 @@ describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
         const result = yield* host.submitTransaction(collection.id, "doc-1", tx);
         expect(result.accepted).toBe(false);
         expect(result.reason).toContain("Version conflict");
-      }),
-    ));
-
-  it("migrates a document on load via schema reconcile (no data migration source)", () =>
-    runHost(
-      Effect.gen(function* () {
-        const host = yield* HostServiceTag;
-        const db = yield* host.createDatabase("voidhash", "test");
-        const collection = yield* host.createCollection(db.id, "paywalls", titleSchema);
-        yield* host.createDocument(
-          collection.id,
-          "doc-1",
-          objectValue({ title: stringValue("Hello") }),
-        );
-
-        // Publish v2 (adds a defaulted `count`). No eager push — the document
-        // migrates itself on the next load.
-        const updated = yield* host.updateCollectionSchema(collection.id, titleCountSchema);
-        expect(updated.schemaVersion).toBe(2);
-
-        const fetched = yield* host.getDocument(collection.id, "doc-1");
-        expect((fetched.value as any).fields.title.value).toBe("Hello");
-        expect((fetched.value as any).fields.count).toEqual(numberValue(0));
-      }),
-    ));
-
-  it("migrates a document on load via a bundled data migration (Sandbox-shaped executor)", () =>
-    runHost(
-      Effect.gen(function* () {
-        const host = yield* HostServiceTag;
-        const db = yield* host.createDatabase("voidhash", "test");
-        const collection = yield* host.createCollection(db.id, "paywalls", titleSchema);
-        yield* host.createDocument(
-          collection.id,
-          "doc-1",
-          objectValue({ title: stringValue("Hello") }),
-        );
-
-        // applyMigration publishes the new schema version with a bundled data
-        // migration source; documents run it lazily on load.
-        const report = yield* host.applyMigration(db.id, 2, "add-count", "checksum-v2", [
-          {
-            type: "update",
-            collection: "paywalls",
-            schema: titleCountSchema as any,
-            dataMigrationSource: ADD_COUNT_BUNDLE,
-          },
-        ]);
-        expect(report.state).toBe("succeeded");
-
-        const fetched = yield* host.getDocument(collection.id, "doc-1");
-        expect((fetched.value as any).fields.count).toEqual(numberValue(7));
-
-        const migrations = yield* host.listMigrations(db.id);
-        expect(migrations).toHaveLength(1);
-        expect(migrations[0]!.version).toBe(2);
       }),
     ));
 

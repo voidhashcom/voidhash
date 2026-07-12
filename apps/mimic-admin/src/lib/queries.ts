@@ -23,6 +23,7 @@ interface UiCollectionInfo {
   readonly name: string;
   readonly schemaJson: unknown;
   readonly schemaVersion: number;
+  readonly migrationVersion: number | null;
 }
 
 const mapCollection = (collection: {
@@ -31,97 +32,15 @@ const mapCollection = (collection: {
   readonly name: string;
   readonly schema: unknown;
   readonly schemaVersion: number;
+  readonly migrationVersion: number | null;
 }): UiCollectionInfo => ({
   id: collection.id,
   databaseId: collection.databaseId,
   name: collection.name,
   schemaJson: collection.schema,
   schemaVersion: collection.schemaVersion,
+  migrationVersion: collection.migrationVersion,
 });
-
-export interface UiMigrationChange {
-  readonly type: "create" | "update";
-  readonly collection: string;
-  readonly schemaJson: unknown;
-  readonly oldSchemaJson?: unknown;
-  readonly skipIfExists?: boolean;
-  readonly dataMigrationSource?: string;
-}
-
-const mapMigrationChange = (change: {
-  readonly type: "create" | "update";
-  readonly collection: string;
-  readonly schema: unknown;
-  readonly oldSchema?: unknown;
-  readonly skipIfExists?: boolean;
-  readonly dataMigrationSource?: string;
-}): UiMigrationChange =>
-  change.type === "create"
-    ? {
-        type: "create",
-        collection: change.collection,
-        schemaJson: change.schema,
-        skipIfExists: change.skipIfExists,
-      }
-    : {
-        type: "update",
-        collection: change.collection,
-        schemaJson: change.schema,
-        oldSchemaJson: change.oldSchema,
-        dataMigrationSource: change.dataMigrationSource,
-      };
-
-export type MigrationRunState = "running" | "succeeded" | "failed" | "replaced" | "unknown";
-
-export interface UiDatabaseMigration {
-  readonly version: number;
-  readonly name: string;
-  readonly checksum: string;
-  readonly appliedAt?: string;
-  readonly state: MigrationRunState;
-  readonly totalDocuments: number;
-  readonly succeededDocuments: number;
-  readonly failedDocuments: number;
-  readonly changes?: ReadonlyArray<UiMigrationChange>;
-}
-
-export interface UiMigrationStatus {
-  readonly databaseId: string;
-  readonly version: number;
-  readonly state: MigrationRunState;
-  readonly checksum?: string;
-  readonly summary: {
-    readonly pending: number;
-    readonly running: number;
-    readonly succeeded: number;
-    readonly failed: number;
-    readonly skipped: number;
-  };
-  readonly failures: ReadonlyArray<{
-    readonly documentId: string;
-    readonly collectionId: string;
-    readonly attempt: number;
-    readonly errorCode?: string;
-    readonly errorMessage?: string;
-  }>;
-}
-
-export interface UiMigrationRunReport {
-  readonly databaseId: string;
-  readonly version: number;
-  readonly state: "succeeded" | "failed";
-  readonly succeeded: number;
-  readonly failed: number;
-  readonly skipped: number;
-  readonly perDocument: ReadonlyArray<{
-    readonly collectionId: string;
-    readonly documentId: string;
-    readonly status: "succeeded" | "failed" | "skipped";
-    readonly errorCode?: string;
-    readonly errorMessage?: string;
-  }>;
-  readonly dryRun: boolean;
-}
 
 export const databasesQuery = (sdk: MimicSDK) =>
   queryOptions({
@@ -138,65 +57,6 @@ export const collectionsQuery = (sdk: MimicSDK, databaseId: string) =>
         .listCollectionsRaw()
         .then((collections) => collections.map(mapCollection)),
     enabled: !!databaseId,
-  });
-
-export const databaseMigrationsQuery = (sdk: MimicSDK, databaseId: string) =>
-  queryOptions({
-    queryKey: ["database-migrations", databaseId],
-    queryFn: () =>
-      sdk
-        .database(databaseId)
-        .listMigrations()
-        .then((migrations) =>
-          migrations.map(
-            (migration): UiDatabaseMigration => ({
-              version: migration.version,
-              name: migration.name,
-              checksum: migration.checksum,
-              appliedAt: migration.appliedAt,
-              // Older server versions may not return state/counts; fall
-              // back to "succeeded" / 0 so the UI stays well-typed.
-              state: (migration.state ?? "succeeded") as MigrationRunState,
-              totalDocuments: migration.totalDocuments ?? 0,
-              succeededDocuments: migration.succeededDocuments ?? 0,
-              failedDocuments: migration.failedDocuments ?? 0,
-              changes: migration.changes?.map(mapMigrationChange),
-            }),
-          ),
-        ),
-    enabled: !!databaseId,
-  });
-
-export const migrationStatusQuery = (sdk: MimicSDK, databaseId: string, version: number | null) =>
-  queryOptions({
-    queryKey: ["migration-status", databaseId, version],
-    queryFn: () =>
-      sdk
-        .database(databaseId)
-        .getMigrationStatus(version!)
-        .then(
-          (status): UiMigrationStatus => ({
-            databaseId: status.databaseId,
-            version: status.version,
-            state: status.state as MigrationRunState,
-            checksum: status.checksum,
-            summary: {
-              pending: status.summary.pending,
-              running: status.summary.running,
-              succeeded: status.summary.succeeded,
-              failed: status.summary.failed,
-              skipped: status.summary.skipped,
-            },
-            failures: status.failures.map((failure) => ({
-              documentId: failure.documentId,
-              collectionId: failure.collectionId,
-              attempt: failure.attempt,
-              errorCode: failure.errorCode,
-              errorMessage: failure.errorMessage,
-            })),
-          }),
-        ),
-    enabled: !!databaseId && version !== null,
   });
 
 export const documentsQuery = (sdk: MimicSDK, collectionId: string) =>

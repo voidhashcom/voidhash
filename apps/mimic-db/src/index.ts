@@ -7,7 +7,7 @@ export * from "./ws/protocol.ts";
 
 export * from "./core/store.ts";
 export * from "./core/memory-store.ts";
-export * from "./core/migration-executor.ts";
+export * from "./core/migration-registry.ts";
 export * from "./core/schema-provider.ts";
 export * from "./core/control-engine.ts";
 export * from "./core/document-engine.ts";

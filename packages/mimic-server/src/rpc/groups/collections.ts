@@ -7,7 +7,6 @@ import {
   CollectionSchema,
   CreateCollectionResponseSchema,
   SchemaObjectRpcSchema,
-  UpdateCollectionSchemaResponseSchema,
 } from "../schemas.ts";
 
 export const CreateCollection = Rpc.make("CreateCollection", {
@@ -28,16 +27,6 @@ export const ListCollections = Rpc.make("ListCollections", {
   error: Schema.Union([NotFoundError, ForbiddenError]),
 });
 
-export const UpdateCollectionSchema = Rpc.make("UpdateCollectionSchema", {
-  payload: Schema.Struct({
-    collectionId: Schema.String,
-    schema: SchemaObjectRpcSchema,
-    dataMigrationSource: Schema.optional(Schema.String),
-  }),
-  success: UpdateCollectionSchemaResponseSchema,
-  error: Schema.Union([NotFoundError, InvalidSchemaError, ForbiddenError]),
-});
-
 export const DeleteCollection = Rpc.make("DeleteCollection", {
   payload: Schema.Struct({
     collectionId: Schema.String,
@@ -49,6 +38,5 @@ export const DeleteCollection = Rpc.make("DeleteCollection", {
 export const CollectionsRpcs = RpcGroup.make(
   CreateCollection,
   ListCollections,
-  UpdateCollectionSchema,
   DeleteCollection,
 ).middleware(AuthMiddleware);

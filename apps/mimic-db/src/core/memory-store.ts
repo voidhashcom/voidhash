@@ -10,7 +10,6 @@ import {
   type DocumentMeta,
   type DocumentStoreApi,
   type GrantRecord,
-  type MigrationRecord,
   type SchemaVersionRecord,
   type SnapshotRow,
   type CommandRow,
@@ -29,7 +28,6 @@ export const makeMemoryControlStore = (): ControlStoreApi => {
   const grants = new Map<string, GrantRecord>(); // key `${userId}:${databaseId}`
   const tokens = new Map<string, TokenRecord>();
   const documents = new Map<string, DocumentIndexRecord>();
-  const migrations = new Map<string, MigrationRecord>(); // key `${databaseId}:${version}`
 
   return {
     createDatabase: (record) => sync(() => void databases.set(record.id, record)),
@@ -54,10 +52,17 @@ export const makeMemoryControlStore = (): ControlStoreApi => {
           collections.set(collectionId, { ...existing, schemaJson, schemaVersion: version });
         }
       }),
+    updateCollectionMigration: (collectionId, schemaJson, migrationVersion) =>
+      sync(() => {
+        const existing = collections.get(collectionId);
+        if (existing) {
+          collections.set(collectionId, { ...existing, schemaJson, migrationVersion });
+        }
+      }),
     deleteCollection: (id) =>
       sync(() => {
         collections.delete(id);
-        for (const key of [...schemaVersions.keys()]) {
+        for (const key of schemaVersions.keys()) {
           if (key.startsWith(`${id}:`)) schemaVersions.delete(key);
         }
       }),
@@ -116,16 +121,6 @@ export const makeMemoryControlStore = (): ControlStoreApi => {
         const existing = documents.get(documentId);
         if (existing) documents.set(documentId, { ...existing, deletedAt });
       }),
-
-    upsertMigration: (record) =>
-      sync(() => void migrations.set(`${record.databaseId}:${record.version}`, record)),
-    findMigration: (databaseId, version) => sync(() => migrations.get(`${databaseId}:${version}`)),
-    listMigrations: (databaseId) =>
-      sync(() =>
-        [...migrations.values()]
-          .filter((row) => row.databaseId === databaseId)
-          .sort((a, b) => a.version - b.version),
-      ),
   };
 };
 
@@ -139,9 +134,16 @@ export const makeMemoryDocumentStore = (): DocumentStoreApi => {
 
   return {
     readMeta: () => sync(() => meta),
-    initialize: (collectionId, value, schemaVersion) =>
+    initialize: (collectionId, value, schemaVersion, migrationVersion) =>
       sync(() => {
-        meta = { collectionId, schemaVersion, currentSeq: 0, snapshotSeq: 0, deletedAt: null };
+        meta = {
+          collectionId,
+          schemaVersion,
+          migrationVersion,
+          currentSeq: 0,
+          snapshotSeq: 0,
+          deletedAt: null,
+        };
         snapshots.length = 0;
         commands.length = 0;
         snapshots.push({ seq: 0, value: cloneValue(value), schemaVersion });
@@ -162,6 +164,21 @@ export const makeMemoryDocumentStore = (): DocumentStoreApi => {
       }),
     writeSnapshot: (seq, value, schemaVersion) =>
       sync(() => void snapshots.push({ seq, value: cloneValue(value), schemaVersion })),
+    commitMigration: (seq, value, schemaVersion, migrationVersion) =>
+      sync(() => {
+        const index = snapshots.findIndex((row) => row.seq === seq);
+        const snapshot = { seq, value: cloneValue(value), schemaVersion };
+        if (index === -1) snapshots.push(snapshot);
+        else snapshots[index] = snapshot;
+        if (meta) {
+          meta = {
+            ...meta,
+            schemaVersion,
+            migrationVersion,
+            snapshotSeq: seq,
+          };
+        }
+      }),
     setMeta: (patch) =>
       sync(() => {
         if (meta) meta = { ...meta, ...patch };

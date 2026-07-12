@@ -13,7 +13,6 @@ import { Route as LoginRouteImport } from "./routes/login";
 import { Route as AppRouteRouteImport } from "./routes/_app/route";
 import { Route as AppLayoutRouteRouteImport } from "./routes/_app/_layout/route";
 import { Route as AppLayoutIndexRouteImport } from "./routes/_app/_layout/index";
-import { Route as AppLayoutMigrationsRouteImport } from "./routes/_app/_layout/migrations";
 import { Route as AppLayoutUsersRouteImport } from "./routes/_app/_layout/users";
 import { Route as AppLayoutObservabilityRouteImport } from "./routes/_app/_layout/observability";
 import { Route as AppLayoutDatabasesRouteImport } from "./routes/_app/_layout/databases";
@@ -37,11 +36,6 @@ const AppLayoutRouteRoute = AppLayoutRouteRouteImport.update({
 const AppLayoutIndexRoute = AppLayoutIndexRouteImport.update({
   id: "/",
   path: "/",
-  getParentRoute: () => AppLayoutRouteRoute,
-} as any);
-const AppLayoutMigrationsRoute = AppLayoutMigrationsRouteImport.update({
-  id: "/migrations",
-  path: "/migrations",
   getParentRoute: () => AppLayoutRouteRoute,
 } as any);
 const AppLayoutUsersRoute = AppLayoutUsersRouteImport.update({
@@ -82,7 +76,6 @@ export interface FileRoutesByFullPath {
   "/": typeof AppLayoutIndexRoute;
   "/login": typeof LoginRoute;
   "/databases": typeof AppLayoutDatabasesRoute;
-  "/migrations": typeof AppLayoutMigrationsRoute;
   "/observability": typeof AppLayoutObservabilityRoute;
   "/users": typeof AppLayoutUsersRoute;
   "/collections/$collectionId/schema": typeof AppLayoutCollectionsCollectionIdSchemaRoute;
@@ -93,7 +86,6 @@ export interface FileRoutesByTo {
   "/": typeof AppLayoutIndexRoute;
   "/login": typeof LoginRoute;
   "/databases": typeof AppLayoutDatabasesRoute;
-  "/migrations": typeof AppLayoutMigrationsRoute;
   "/observability": typeof AppLayoutObservabilityRoute;
   "/users": typeof AppLayoutUsersRoute;
   "/collections/$collectionId/schema": typeof AppLayoutCollectionsCollectionIdSchemaRoute;
@@ -106,7 +98,6 @@ export interface FileRoutesById {
   "/login": typeof LoginRoute;
   "/_app/_layout": typeof AppLayoutRouteRouteWithChildren;
   "/_app/_layout/databases": typeof AppLayoutDatabasesRoute;
-  "/_app/_layout/migrations": typeof AppLayoutMigrationsRoute;
   "/_app/_layout/observability": typeof AppLayoutObservabilityRoute;
   "/_app/_layout/users": typeof AppLayoutUsersRoute;
   "/_app/_layout/": typeof AppLayoutIndexRoute;
@@ -120,7 +111,6 @@ export interface FileRouteTypes {
     | "/"
     | "/login"
     | "/databases"
-    | "/migrations"
     | "/observability"
     | "/users"
     | "/collections/$collectionId/schema"
@@ -131,7 +121,6 @@ export interface FileRouteTypes {
     | "/"
     | "/login"
     | "/databases"
-    | "/migrations"
     | "/observability"
     | "/users"
     | "/collections/$collectionId/schema"
@@ -143,7 +132,6 @@ export interface FileRouteTypes {
     | "/login"
     | "/_app/_layout"
     | "/_app/_layout/databases"
-    | "/_app/_layout/migrations"
     | "/_app/_layout/observability"
     | "/_app/_layout/users"
     | "/_app/_layout/"
@@ -194,13 +182,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AppLayoutUsersRouteImport;
       parentRoute: typeof AppLayoutRouteRoute;
     };
-    "/_app/_layout/migrations": {
-      id: "/_app/_layout/migrations";
-      path: "/migrations";
-      fullPath: "/migrations";
-      preLoaderRoute: typeof AppLayoutMigrationsRouteImport;
-      parentRoute: typeof AppLayoutRouteRoute;
-    };
     "/_app/_layout/observability": {
       id: "/_app/_layout/observability";
       path: "/observability";
@@ -241,7 +222,6 @@ declare module "@tanstack/react-router" {
 
 interface AppLayoutRouteRouteChildren {
   AppLayoutDatabasesRoute: typeof AppLayoutDatabasesRoute;
-  AppLayoutMigrationsRoute: typeof AppLayoutMigrationsRoute;
   AppLayoutObservabilityRoute: typeof AppLayoutObservabilityRoute;
   AppLayoutUsersRoute: typeof AppLayoutUsersRoute;
   AppLayoutIndexRoute: typeof AppLayoutIndexRoute;
@@ -252,7 +232,6 @@ interface AppLayoutRouteRouteChildren {
 
 const AppLayoutRouteRouteChildren: AppLayoutRouteRouteChildren = {
   AppLayoutDatabasesRoute: AppLayoutDatabasesRoute,
-  AppLayoutMigrationsRoute: AppLayoutMigrationsRoute,
   AppLayoutObservabilityRoute: AppLayoutObservabilityRoute,
   AppLayoutUsersRoute: AppLayoutUsersRoute,
   AppLayoutIndexRoute: AppLayoutIndexRoute,

@@ -3,7 +3,6 @@ import { DatabasesRpcs } from "./groups/databases.ts";
 import { DocumentAuthRpcs } from "./groups/document-auth.ts";
 import { DocumentsRpcs } from "./groups/documents.ts";
 import { GrantsRpcs } from "./groups/grants.ts";
-import { MigrationsRpcs } from "./groups/migrations.ts";
 import { UsersRpcs } from "./groups/users.ts";
 
 /**
@@ -24,6 +23,5 @@ export const MimicRpcGroup = DatabasesRpcs.merge(
   DocumentsRpcs,
   UsersRpcs,
   GrantsRpcs,
-  MigrationsRpcs,
   DocumentAuthRpcs,
 );

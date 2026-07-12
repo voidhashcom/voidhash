@@ -3,12 +3,9 @@ import {
   DocumentStoreFactory,
   type DocumentStoreFactoryShape,
 } from "@voidhash/mimic-db/core/document-store-factory";
-import {
-  LocalHostServiceLive,
-} from "@voidhash/mimic-db/core/local-host-service";
-import {
-  LocalMigrationExecutorLive,
-} from "@voidhash/mimic-db/core/migration-executor";
+import { LocalHostServiceLive } from "@voidhash/mimic-db/core/local-host-service";
+import { MigrationRegistryService } from "@voidhash/mimic-db/core/migration-registry";
+import { PaywallMigrationRegistry } from "@voidhash/mimic-schema";
 import {
   ensureDocumentTables,
   makePgDocumentStore,
@@ -42,8 +39,7 @@ export const makeMimicNodeHostLive = (
     ensureDocumentTables(config.documents).pipe(
       Effect.as(
         DocumentStoreFactory.of({
-          make: (_collectionId, documentId) =>
-            makePgDocumentStore(config.documents, documentId),
+          make: (_collectionId, documentId) => makePgDocumentStore(config.documents, documentId),
         } satisfies DocumentStoreFactoryShape),
       ),
     ),
@@ -54,7 +50,7 @@ export const makeMimicNodeHostLive = (
     Layer.provide(PgControlStoreLive(config.database)),
     Layer.provide(entities),
     Layer.provide(documentStores),
-    Layer.provide(LocalMigrationExecutorLive),
+    Layer.provide(Layer.succeed(MigrationRegistryService, PaywallMigrationRegistry)),
   );
   return Layer.merge(host, entities);
 };

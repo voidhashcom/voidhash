@@ -7,6 +7,7 @@ export * from "./component-bindings/index.ts";
 export * from "./document.ts";
 export * from "./interactions/index.ts";
 export * from "./locales/index.ts";
+export * from "./migrations/index.ts";
 export * from "./nodes/index.ts";
 export * from "./presence.ts";
 export * from "./reconcile/index.ts";

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useMatchRoute } from "@tanstack/react-router";
-import { Database, FileText, Activity, Workflow, Users, LogOut } from "lucide-react";
+import { Activity, Database, FileText, LogOut, Users } from "lucide-react";
 
 import { useAuth } from "@/components/auth-context";
 import { useDatabase } from "@/components/database-context";
@@ -28,7 +28,6 @@ export function AppSidebar() {
 
   const navItems = [
     { to: "/databases" as const, label: "Databases", icon: Database },
-    { to: "/migrations" as const, label: "Migrations", icon: Workflow },
     { to: "/users" as const, label: "Users", icon: Users },
     { to: "/observability" as const, label: "Observability", icon: Activity },
   ];

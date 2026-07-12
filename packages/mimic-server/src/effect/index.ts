@@ -7,8 +7,6 @@ export type {
   CollectionInfo,
   CreateUserResult,
   DatabaseInfo,
-  DatabaseMigrationChange,
-  DatabaseMigrationInfo,
   DocumentAuthenticationSetup,
   DocumentSnapshot,
   RawDocumentSnapshot,

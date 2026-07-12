@@ -24,18 +24,6 @@ export const CollectionsHandlersLive = CollectionsRpcs.toLayer(
           yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "read");
           return yield* host.listCollections(databaseId);
         }),
-      UpdateCollectionSchema: ({ collectionId, schema, dataMigrationSource }) =>
-        Effect.gen(function* () {
-          const user = yield* CurrentUser;
-          const databaseId = yield* host.databaseIdForCollection(collectionId);
-          yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "admin");
-          // Note: today's host method ignores dataMigrationSource for ad-hoc
-          // schema updates — `applyMigration` is the only path that consumes
-          // bundled data-migration sources. Preserve that behavior.
-          void dataMigrationSource;
-          const updated = yield* host.updateCollectionSchema(collectionId, schema);
-          return { id: updated.id, schemaVersion: updated.schemaVersion };
-        }),
       DeleteCollection: ({ collectionId }) =>
         Effect.gen(function* () {
           const user = yield* CurrentUser;
