@@ -24,10 +24,83 @@ const optionalBooleanFromEnv = (name: string): boolean | undefined => {
 const requiredInProduction = (name: string, developmentFallback: string): string => {
   const value = process.env[name]?.trim();
   if (value) return value;
-  if (process.env.NODE_ENV === "production") {
+  if (readSelfhostMode() === "production") {
     throw new Error(`${name} is required in production`);
   }
   return developmentFallback;
+};
+
+export type SelfhostMode = "local-evaluation" | "production";
+
+const readSelfhostMode = (): SelfhostMode => {
+  const mode = process.env.SELFHOST_MODE?.trim();
+  if (mode === "local-evaluation" || mode === "production") return mode;
+  throw new Error("SELFHOST_MODE must be explicitly set to local-evaluation or production");
+};
+
+const isExampleSecret = (value: string | undefined): boolean => {
+  const normalized = value?.trim().toLowerCase();
+  return (
+    !normalized ||
+    normalized === "password" ||
+    normalized.includes("not_configured") ||
+    normalized.includes("change-me") ||
+    normalized.includes("replace-me") ||
+    normalized.startsWith("replace-with-")
+  );
+};
+
+const isHttpsUrl = (value: string | undefined): boolean => {
+  if (!value) return false;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
+/** Refuses evaluation credentials and insecure public URLs in production mode. */
+export const validateSelfhostSecurityConfig = (): SelfhostMode => {
+  const mode = readSelfhostMode();
+  if (mode === "local-evaluation") return mode;
+
+  const unsafeSettings: Array<string> = [];
+  const requiredSecrets = [
+    "DATABASE_PASSWORD",
+    "MIMIC_ROOT_PASSWORD",
+    "S3_SECRET_ACCESS_KEY",
+    "WORKOS_API_KEY",
+    "WORKOS_CLIENT_ID",
+    "WORKOS_COOKIE_PASSWORD",
+    "WORKOS_WEBHOOK_SECRET",
+  ];
+  if (process.env.CLICKHOUSE_URL?.trim()) {
+    requiredSecrets.push(
+      "CLICKHOUSE_ADMIN_PASSWORD",
+      "CLICKHOUSE_PASSWORD",
+      "CLICKHOUSE_RO_PASSWORD",
+      "CLICKHOUSE_ANALYTICS_QUERY_PASSWORD",
+    );
+  }
+  for (const name of requiredSecrets) {
+    if (isExampleSecret(process.env[name])) unsafeSettings.push(name);
+  }
+
+  for (const name of [
+    "PUBLIC_BASE_URL",
+    "PUBLIC_FILES_BASE_URL",
+    "MIMIC_PUBLIC_BASE_URL",
+    "WORKOS_REDIRECT_URI",
+  ]) {
+    if (!isHttpsUrl(process.env[name])) unsafeSettings.push(name);
+  }
+
+  if (unsafeSettings.length > 0) {
+    throw new Error(
+      `Production self-host security validation failed for: ${unsafeSettings.join(", ")}`,
+    );
+  }
+  return mode;
 };
 
 /** WorkOS credentials supplied by a Community Edition operator. */
@@ -127,8 +200,7 @@ export const getSelfhostSmtpConfig = (): SmtpMailerConfig => {
     port: positiveIntegerFromEnv("SMTP_PORT", 1025),
     requireTls: optionalBooleanFromEnv("SMTP_REQUIRE_TLS") ?? false,
     secure: optionalBooleanFromEnv("SMTP_SECURE") ?? false,
-    tlsRejectUnauthorized:
-      optionalBooleanFromEnv("SMTP_TLS_REJECT_UNAUTHORIZED") ?? true,
+    tlsRejectUnauthorized: optionalBooleanFromEnv("SMTP_TLS_REJECT_UNAUTHORIZED") ?? true,
     verifyOnStart: optionalBooleanFromEnv("SMTP_VERIFY_ON_START") ?? false,
     ...(username === undefined ? {} : { username }),
     ...(password === undefined ? {} : { password: Redacted.make(password) }),
@@ -137,6 +209,7 @@ export const getSelfhostSmtpConfig = (): SmtpMailerConfig => {
 
 /** Reads and validates the complete single-process runtime configuration. */
 export const getSelfhostRuntimeConfig = (): SelfhostRuntimeConfig => {
+  validateSelfhostSecurityConfig();
   const publicBaseUrl = process.env.PUBLIC_BASE_URL?.trim() || "http://localhost:5001";
   const endpoint = process.env.S3_ENDPOINT?.trim() || "http://127.0.0.1:9000";
   const region = process.env.S3_REGION?.trim() || "us-east-1";
@@ -158,8 +231,7 @@ export const getSelfhostRuntimeConfig = (): SelfhostRuntimeConfig => {
     },
     database: getSelfhostDatabaseConfig(),
     ...(clickhouse === undefined ? {} : { clickhouse }),
-    componentCompilerUrl:
-      process.env.COMPONENT_COMPILER_URL?.trim() || "http://127.0.0.1:5002",
+    componentCompilerUrl: process.env.COMPONENT_COMPILER_URL?.trim() || "http://127.0.0.1:5002",
     host: process.env.HOST?.trim() || "0.0.0.0",
     mailer: getSelfhostSmtpConfig(),
     port: positiveIntegerFromEnv("PORT", 5001),
@@ -177,10 +249,7 @@ export const getSelfhostRuntimeConfig = (): SelfhostRuntimeConfig => {
         "WORKOS_COOKIE_PASSWORD",
         "selfhost-development-cookie-password-change-me",
       ),
-      webhookSecret: requiredInProduction(
-        "WORKOS_WEBHOOK_SECRET",
-        "whsec_selfhost_not_configured",
-      ),
+      webhookSecret: requiredInProduction("WORKOS_WEBHOOK_SECRET", "whsec_selfhost_not_configured"),
     },
   };
 };

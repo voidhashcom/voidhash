@@ -3,13 +3,18 @@ import { runAppDatabaseMigrations } from "@voidhash/db/migrations";
 import { Effect, Layer } from "effect";
 
 import { migrateSelfhostClickhouse } from "./backend/Clickhouse.ts";
-import { getSelfhostClickhouseConfig, getSelfhostDatabaseConfig } from "./config.ts";
+import {
+  getSelfhostClickhouseConfig,
+  getSelfhostDatabaseConfig,
+  validateSelfhostSecurityConfig,
+} from "./config.ts";
 import { getMimicNodeConfig } from "./mimic/config.ts";
 import { makeMimicNodeHostLive } from "./mimic/MimicNode.ts";
 
 NodeRuntime.runMain(
   Effect.scoped(
     Effect.gen(function* () {
+      validateSelfhostSecurityConfig();
       const result = yield* runAppDatabaseMigrations(getSelfhostDatabaseConfig());
       yield* Layer.build(makeMimicNodeHostLive(getMimicNodeConfig()));
       yield* migrateSelfhostClickhouse(getSelfhostClickhouseConfig());

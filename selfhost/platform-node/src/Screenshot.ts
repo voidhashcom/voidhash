@@ -16,6 +16,8 @@ export interface ChromiumScreenshotConfig {
   readonly maxWidth?: number;
   readonly maxHeight?: number;
   readonly maxDeviceScaleFactor?: number;
+  readonly maxHtmlBytes?: number;
+  readonly maxRenderedPixels?: number;
 }
 
 const screenshotError = (operation: string, cause: unknown) =>
@@ -24,22 +26,21 @@ const screenshotError = (operation: string, cause: unknown) =>
 const positiveInteger = (value: number, maximum: number): boolean =>
   Number.isInteger(value) && value > 0 && value <= maximum;
 
-const validateOptions = (
+/** Validates screenshot memory and viewport budgets before Chromium is invoked. */
+export const validateChromiumScreenshotOptions = (
   options: ScreenshotOptions,
   config: ChromiumScreenshotConfig,
 ): Effect.Effect<void, ScreenshotError> => {
   const maxWidth = config.maxWidth ?? 4_096;
   const maxHeight = config.maxHeight ?? 4_096;
   const maxScale = config.maxDeviceScaleFactor ?? 4;
+  const maxHtmlBytes = config.maxHtmlBytes ?? 4 * 1_024 * 1_024;
+  const maxRenderedPixels = config.maxRenderedPixels ?? 16_777_216;
   if (!positiveInteger(options.width, maxWidth)) {
-    return Effect.fail(
-      screenshotError("validate", `width must be between 1 and ${maxWidth}`),
-    );
+    return Effect.fail(screenshotError("validate", `width must be between 1 and ${maxWidth}`));
   }
   if (!positiveInteger(options.height, maxHeight)) {
-    return Effect.fail(
-      screenshotError("validate", `height must be between 1 and ${maxHeight}`),
-    );
+    return Effect.fail(screenshotError("validate", `height must be between 1 and ${maxHeight}`));
   }
   if (
     !Number.isFinite(options.deviceScaleFactor) ||
@@ -47,21 +48,24 @@ const validateOptions = (
     options.deviceScaleFactor > maxScale
   ) {
     return Effect.fail(
-      screenshotError(
-        "validate",
-        `deviceScaleFactor must be between 1 and ${maxScale}`,
-      ),
+      screenshotError("validate", `deviceScaleFactor must be between 1 and ${maxScale}`),
+    );
+  }
+  if (new TextEncoder().encode(options.html).byteLength > maxHtmlBytes) {
+    return Effect.fail(screenshotError("validate", `html must be at most ${maxHtmlBytes} bytes`));
+  }
+  const renderedPixels =
+    options.width * options.height * options.deviceScaleFactor * options.deviceScaleFactor;
+  if (renderedPixels > maxRenderedPixels) {
+    return Effect.fail(
+      screenshotError("validate", `rendered image must be at most ${maxRenderedPixels} pixels`),
     );
   }
   return Effect.void;
 };
 
-const render = (
-  browser: Browser,
-  config: ChromiumScreenshotConfig,
-  options: ScreenshotOptions,
-) =>
-  validateOptions(options, config).pipe(
+const render = (browser: Browser, config: ChromiumScreenshotConfig, options: ScreenshotOptions) =>
+  validateChromiumScreenshotOptions(options, config).pipe(
     Effect.andThen(
       Effect.acquireUseRelease(
         Effect.tryPromise({
@@ -70,15 +74,16 @@ const render = (
               viewport: { width: Math.floor(options.width), height: Math.floor(options.height) },
               deviceScaleFactor: options.deviceScaleFactor,
               javaScriptEnabled: false,
+              serviceWorkers: "block",
             }),
           catch: (cause) => screenshotError("openContext", cause),
         }),
         (context) =>
           Effect.tryPromise({
             try: async () => {
+              await context.setOffline(true);
               const page = await context.newPage();
-              await page.route("http://**/*", (route) => route.abort("blockedbyclient"));
-              await page.route("https://**/*", (route) => route.abort("blockedbyclient"));
+              await page.route("**/*", (route) => route.abort("blockedbyclient"));
               await page.setContent(options.html, {
                 waitUntil: "load",
                 timeout: config.timeoutMillis ?? 15_000,
@@ -106,12 +111,8 @@ const render = (
     ),
   );
 
-const makeRenderer = (
-  browser: Browser,
-  config: ChromiumScreenshotConfig,
-): ScreenshotShape => ({
-  renderPng: (options) =>
-    PlatformRuntime.pipe(Effect.andThen(render(browser, config, options))),
+const makeRenderer = (browser: Browser, config: ChromiumScreenshotConfig): ScreenshotShape => ({
+  renderPng: (options) => PlatformRuntime.pipe(Effect.andThen(render(browser, config, options))),
 });
 
 /** Chromium-backed PNG screenshot layer with network and JavaScript disabled. */
@@ -124,13 +125,9 @@ export const ChromiumScreenshotLive = (
       Effect.tryPromise({
         try: () =>
           chromium.launch({
-            executablePath:
-              config.executablePath ?? process.env.CHROMIUM_EXECUTABLE_PATH,
+            executablePath: config.executablePath ?? process.env.CHROMIUM_EXECUTABLE_PATH,
             headless: true,
-            args: [
-              "--disable-dev-shm-usage",
-              ...(config.disableSandbox ? ["--no-sandbox"] : []),
-            ],
+            args: ["--disable-dev-shm-usage", ...(config.disableSandbox ? ["--no-sandbox"] : [])],
           }),
         catch: (cause) => screenshotError("launch", cause),
       }),

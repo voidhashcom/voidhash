@@ -21,6 +21,8 @@ import {
 import { Effect, Layer, Schema } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
+import { GooglePubSubPushVerifier } from "../../GooglePubSubPushVerifier.ts";
+
 const GooglePlayRtdnPathParamsSchema = Schema.Struct({
   paymentProviderConfigurationId: Schema.String,
 });
@@ -44,6 +46,23 @@ const registerGooglePlayRtdnNotificationRoute = Effect.gen(function* () {
 
       if (pathParamsResult._tag === "Failure") {
         return yield* invalidPayloadResponse;
+      }
+
+      const pubSubPushVerifier = yield* GooglePubSubPushVerifier;
+      const authenticationResult = yield* Effect.result(
+        pubSubPushVerifier.verify(request.headers.authorization),
+      );
+      if (authenticationResult._tag === "Failure") {
+        const error = authenticationResult.failure;
+        const status = error.kind === "misconfigured" ? 503 : 401;
+        yield* Effect.logWarning("Google Play RTDN caller authentication failed", {
+          kind: error.kind,
+          paymentProviderConfigurationId: pathParamsResult.success.paymentProviderConfigurationId,
+        });
+        return yield* HttpServerResponse.json(
+          { error: "Google Play RTDN caller authentication failed", received: false },
+          { status },
+        );
       }
 
       // The Pub/Sub envelope shape is validated inside the service (it owns the

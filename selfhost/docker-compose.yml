@@ -106,6 +106,7 @@ services:
     <<: *entry-image
     command: ["./node_modules/.bin/tsx", "src/migrate.ts"]
     environment: &database-environment
+      SELFHOST_MODE: ${SELFHOST_MODE:-local-evaluation}
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_USERNAME: ${DATABASE_USERNAME:-voidhash}
@@ -185,6 +186,8 @@ services:
       WORKOS_COOKIE_PASSWORD: ${WORKOS_COOKIE_PASSWORD:-selfhost-development-cookie-password-change-me}
       WORKOS_REDIRECT_URI: ${WORKOS_REDIRECT_URI:-http://localhost:5001/api/auth/callback}
       WORKOS_WEBHOOK_SECRET: ${WORKOS_WEBHOOK_SECRET:-whsec_selfhost_not_configured}
+      GOOGLE_PUBSUB_PUSH_AUDIENCE: ${GOOGLE_PUBSUB_PUSH_AUDIENCE:-}
+      GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL: ${GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       APNS_DELIVERY_ENABLED: ${APNS_DELIVERY_ENABLED:-false}
       EXCHANGE_RATE_API_KEY: ${EXCHANGE_RATE_API_KEY:-}

@@ -26,6 +26,14 @@ credentials, replace every example password, and run the same command with
 the placeholder defaults only keep the unauthenticated API, health checks, and
 Mimic operator path available for evaluation.
 
+The no-env quick start explicitly selects `SELFHOST_MODE=local-evaluation`
+inside Compose and is safe only on loopback. `selfhost/.env.example` selects
+`SELFHOST_MODE=production`; in that mode the migration and application refuse
+to start if database, object-store, Mimic, WorkOS, or enabled ClickHouse
+credentials are missing or still use known examples. Production mode also
+requires HTTPS public, file, Mimic, and WorkOS redirect URLs. Keep production
+mode enabled for every network-accessible deployment.
+
 To enable durable analytics, start the optional profile and tell the application
 to use its private-network HTTP endpoint:
 
@@ -52,6 +60,19 @@ profile enabled, ClickHouse HTTP is available at `http://localhost:8123`.
 When running the Node entry outside its image, set `CHROMIUM_EXECUTABLE_PATH` to
 a compatible Chromium executable to enable paywall thumbnails; the remaining
 runtime stays available when it is unset.
+
+### Google Play RTDN
+
+Google Play Real-time developer notifications must use an authenticated Pub/Sub
+push subscription. Configure its push authentication service account and token
+audience, then set `GOOGLE_PUBSUB_PUSH_SERVICE_ACCOUNT_EMAIL` and
+`GOOGLE_PUBSUB_PUSH_AUDIENCE` to those exact values in `selfhost/.env`. The push
+endpoint is
+`/api/v1/webhook-endpoints/google-play-rtdn/{paymentProviderConfigurationId}`.
+The backend verifies Google's signature, issuer, expiration, audience, verified
+email claim, and service-account identity before reading the Pub/Sub envelope;
+missing authentication is rejected and missing server configuration fails
+closed with a retryable response.
 
 ## Smoke test
 

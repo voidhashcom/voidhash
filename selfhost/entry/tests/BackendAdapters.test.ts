@@ -1,6 +1,6 @@
 import { ProjectSchemaCache } from "@voidhash/core/services";
 import { Effect, Redacted } from "effect";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { MemoryProjectSchemaCacheLive } from "../src/backend/ProjectSchemaCache.ts";
 import { getSelfhostRuntimeConfig } from "../src/config.ts";
@@ -9,6 +9,10 @@ const originalEnvironment = { ...process.env };
 
 afterEach(() => {
   process.env = { ...originalEnvironment };
+});
+
+beforeEach(() => {
+  process.env.SELFHOST_MODE = "local-evaluation";
 });
 
 describe("self-host runtime configuration", () => {
@@ -75,9 +79,10 @@ describe("self-host runtime configuration", () => {
 
   it("requires BYO WorkOS credentials in production", () => {
     process.env.NODE_ENV = "production";
+    process.env.SELFHOST_MODE = "production";
     delete process.env.WORKOS_API_KEY;
 
-    expect(() => getSelfhostRuntimeConfig()).toThrow("WORKOS_API_KEY is required in production");
+    expect(() => getSelfhostRuntimeConfig()).toThrow("WORKOS_API_KEY");
   });
 
   it("supports an explicit plaintext connection for an internal Compose database", () => {
@@ -102,7 +107,6 @@ describe("self-host runtime configuration", () => {
       readWrite: { username: "voidhash_app" },
     });
   });
-
 });
 
 describe("memory project schema cache", () => {

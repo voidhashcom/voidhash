@@ -11,8 +11,7 @@ const executablePath =
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const screenshotLayer = () =>
   Layer.merge(ChromiumScreenshotLive({ executablePath }), NodePlatformRuntimeLive);
-const describeChromium =
-  process.env.PLATFORM_NODE_CHROMIUM_TEST === "1" ? describe : describe.skip;
+const describeChromium = process.env.PLATFORM_NODE_CHROMIUM_TEST === "1" ? describe : describe.skip;
 
 const pngDimensions = (png: Uint8Array) => {
   const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
@@ -37,11 +36,11 @@ describeChromium("Chromium screenshot renderer", () => {
     expect(pngDimensions(png)).toEqual({ width: 320, height: 180 });
   });
 
-  it("rejects external requests from rendered documents", async () => {
+  it("blocks resource loads and redirecting navigation before any network access", async () => {
     let requestCount = 0;
     const server = createServer((_request, response) => {
       requestCount += 1;
-      response.writeHead(200, { "content-type": "image/png" });
+      response.writeHead(302, { location: "http://169.254.169.254/latest/meta-data/" });
       response.end();
     });
     await new Promise<void>((resolve, reject) => {
@@ -59,7 +58,12 @@ describeChromium("Chromium screenshot renderer", () => {
         Effect.gen(function* () {
           const screenshot = yield* Screenshot;
           return yield* screenshot.renderPng({
-            html: `<!doctype html><img src="${url}"><script>fetch("${url}")</script>`,
+            html: `<!doctype html>
+              <meta http-equiv="refresh" content="0;url=${url}">
+              <style>@import url("${url}");</style>
+              <img src="${url}">
+              <iframe src="${url}"></iframe>
+              <script>fetch("${url}")</script>`,
             width: 40,
             height: 30,
             deviceScaleFactor: 1,

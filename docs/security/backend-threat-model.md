@@ -1,7 +1,7 @@
 # Backend Threat Model
 
 Status: alpha review draft  
-Last updated: 2026-07-11  
+Last updated: 2026-07-12<br>
 Scope: `apps/backend`, `apps/mimic-db`, `apps/www`, `packages/core`, and
 `selfhost`
 
@@ -131,9 +131,13 @@ Current controls:
 - Integration suites exercise forbidden access across API keys, paywalls,
   locations, perks, persons, feature flags, analytics, and AI workspace tools.
 
-Residual work: produce an endpoint-to-authorization matrix and run a beta
-cross-tenant test for every management RPC and HTTP route, including nested
-resource IDs whose project is loaded only after the first lookup.
+The machine-checked `endpoint-authorization-matrix.md` inventories every HTTP
+and RPC contract operation plus raw routes and maps each group to its principal,
+stored-resource authorization boundary, and evidence. Contract drift fails a
+backend test. Database-backed suites now exercise every experiment and push-
+notification configuration/history operation, including nested foreign IDs and
+no-mutation assertions. Remaining publication work is explicit in the matrix:
+add database-backed cross-tenant negatives for the rows still marked Unit.
 
 ## Webhooks and payment verification
 
@@ -149,20 +153,23 @@ Current controls:
 - WorkOS verifies its signed raw body and timestamp, records the external event
   ID under a uniqueness constraint, and treats processed redelivery as a no-op.
 - Apple verifies signed JWS data and application identity through the App Store
-  SDK. Google Play re-fetches authoritative purchase state before applying an
-  RTDN.
+  SDK. Google Play RTDN verifies the Pub/Sub OIDC signature, issuer, lifetime,
+  configured audience, verified email claim, and configured push service
+  account before parsing the envelope, then re-fetches authoritative purchase
+  state before applying a notification.
 - Purchase-ledger and notification tables use idempotency/uniqueness keys, and
   provider engines test duplicate delivery behavior.
 - Terminal verification/business failures are acknowledged while transient
   infrastructure failures return retryable status codes.
 
-Open publication blocker:
-
-- The Google Play RTDN route currently validates the payload and authoritative
-  Play state but does not authenticate the Pub/Sub push caller. Before public
-  beta, require and verify Pub/Sub OIDC identity (or an equivalently strong
-  per-subscription secret) and add missing, malformed, wrong-audience, and
-  replay tests.
+The Google RTDN route fails closed with a retryable response when authenticated
+push settings are absent. Verifier tests cover missing/malformed authorization,
+tampered signatures, wrong issuer/audience/service account, unverified email,
+and expired tokens. Route tests prove rejected requests cannot reach payload
+processing. Existing Google payment-provider integration tests exercise
+message-level duplicate delivery against the notification/ledger uniqueness
+gates; OIDC tokens themselves are intentionally reusable during their short
+lifetime.
 
 Beta must also close the deferred Apple signed-JWS negative and replay cases
 that currently require provider fixtures or a verification seam.
@@ -225,12 +232,22 @@ Current controls:
   infrastructure adapters outside tenant application code.
 - Paywall manifests and preview trees are schema-validated before release.
 - The runtime runs as an unprivileged user in the self-host image.
+- Self-host Chromium disables JavaScript, blocks service workers, switches each
+  fresh context offline, and aborts every document/resource request before
+  setting inline HTML. The Cloudflare Browser Run request rejects every external
+  request pattern. Because no outbound navigation is permitted, redirects and
+  DNS rebinding cannot reach private or link-local services.
+- Both screenshot adapters cap HTML at 4 MiB, viewport edges at 4,096 pixels,
+  scale at 4, and the rendered output at 16,777,216 pixels. Browser operations
+  have a 15-second timeout and self-host thumbnail consumption is serialized
+  with a bounded retry count.
 
-Residual work: enumerate every URL Chromium may navigate to, deny private and
-link-local address ranges, apply navigation/time/resource budgets, and test
-redirect/DNS-rebinding cases. Chromium currently runs with its sandbox disabled
-inside the container, so container isolation and image patching are part of the
-security boundary and require independent review.
+Budget unit tests cover normal and oversized inputs. The real-Chromium test
+attempts resource loads and a meta-refresh through a local redirect to the cloud
+metadata address and verifies that the test server receives no request.
+Chromium currently runs with its sandbox disabled inside the container, so
+container isolation and image patching remain part of the security boundary and
+require independent review.
 
 ## Component compiler sandbox
 
@@ -259,7 +276,8 @@ Node runtime patched.
 ## Self-host operator boundary
 
 The sample Compose defaults are for loopback evaluation only. They include
-known passwords and placeholder WorkOS credentials. Exposing that composition
+known passwords and placeholder WorkOS credentials. Compose explicitly marks
+the no-env quick start as `local-evaluation`; exposing that composition
 unchanged would compromise all stored data.
 
 Before any non-local deployment, the operator must replace every example
@@ -267,19 +285,23 @@ password, configure HTTPS at the reverse proxy, restrict MinIO/Mailpit/
 ClickHouse host ports, configure CORS and public URLs, use real WorkOS and SMTP
 credentials, back up persistent volumes, and apply host/container updates.
 
-Open publication blocker: add a production mode that refuses known example
-credentials and insecure public URLs, while retaining an explicit opt-in local
-evaluation mode for the documented quick start.
+Production mode validates configuration before migrations or the application
+start. It refuses missing and known example database, object-store, Mimic,
+WorkOS, and enabled ClickHouse credentials, and requires HTTPS for every public,
+file, Mimic, and WorkOS redirect URL. Tests cover explicit mode selection, every
+credential class, optional ClickHouse, and every URL boundary. Independent
+review must still confirm the list remains complete as new infrastructure is
+added.
 
 ## Publication risk register
 
 | ID | Severity | Status | Required evidence |
 | --- | --- | --- | --- |
-| VH-TM-001 | High | Open | Authenticate Google Pub/Sub push and pass negative/replay tests. |
-| VH-TM-002 | High | Open | Refuse self-host example credentials outside explicit local evaluation mode. |
+| VH-TM-001 | High | Mitigated, review pending | Pub/Sub OIDC negative tests and payment-ledger duplicate-delivery tests pass; deployment settings and implementation require independent review. |
+| VH-TM-002 | High | Mitigated, review pending | Production startup refuses known example credentials and insecure public URLs; configuration coverage requires independent review. |
 | VH-TM-003 | High | Mitigated, review pending | Compiler VM budget and container/network hardening pass adversarial and independent review. |
-| VH-TM-004 | High | Open | Chromium navigation/SSRF policy and resource budgets pass redirect and private-network tests. |
-| VH-TM-005 | High | Open | Endpoint authorization matrix has complete cross-tenant negative coverage. |
+| VH-TM-004 | High | Mitigated, review pending | Cloud and self-host browsers deny outbound requests and enforce time/input/output budgets; real-browser redirect/private-network coverage requires independent review. |
+| VH-TM-005 | High | Open; inventory complete | Machine-checked endpoint matrix is complete; all rows marked Unit or Gap need database-backed cross-tenant negatives. |
 | VH-TM-006 | Process gate | Open | Real beta traffic and security-log/incident review completed. |
 | VH-TM-007 | Process gate | Open | Independent reviewer signs off and residual risks have owners/deadlines. |
 

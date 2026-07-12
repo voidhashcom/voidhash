@@ -76,10 +76,7 @@ import {
   WorkosOrgPort,
 } from "@voidhash/core/services";
 import { AnalyticsWriterService } from "@voidhash/core/services/analyticsIngest/AnalyticsWriterService";
-import {
-  createInitialPaywallDocumentInput,
-  PaywallDesignerDocument,
-} from "@voidhash/mimic-schema";
+import { createInitialPaywallDocumentInput, PaywallDesignerDocument } from "@voidhash/mimic-schema";
 import { AuthMiddleware } from "@voidhash/rpc";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -96,6 +93,7 @@ import { RpcSerialization } from "effect/unstable/rpc";
 import * as RpcServer from "effect/unstable/rpc/RpcServer";
 
 import { BackendRpcGroups as RpcGroups } from "./BackendRpcGroups.ts";
+import { GooglePubSubPushVerifierLive } from "./GooglePubSubPushVerifier.ts";
 import { BackendSnapshotHtmlRendererLive } from "./PaywallSnapshotHtmlRenderer.ts";
 
 import { AuthMiddlewareLive } from "./ApiMiddlewares.ts";
@@ -827,10 +825,7 @@ const buildBackendServiceGraph = <
   };
 };
 
-export type BackendServiceGraph<
-  RInfrastructure = never,
-  RFeatureServices = never,
-> = ReturnType<
+export type BackendServiceGraph<RInfrastructure = never, RFeatureServices = never> = ReturnType<
   typeof buildBackendServiceGraph<RInfrastructure, never, RFeatureServices>
 >;
 
@@ -847,10 +842,7 @@ export interface BackendRpcExtension<RExtensionRpcs extends Rpc.Any> {
 }
 
 /** Product feature bundle that supplies core ports, RPCs, routes, and UI capabilities. */
-export interface BackendFeatureComposition<
-  RFeatureRpcs extends Rpc.Any,
-  RFeatureServices,
-> {
+export interface BackendFeatureComposition<RFeatureRpcs extends Rpc.Any, RFeatureServices> {
   readonly group: RpcGroup.RpcGroup<RFeatureRpcs>;
   readonly runtimeCapabilities: BackendRuntimeCapabilities;
   readonly routes: <RInfrastructure>(
@@ -907,12 +899,7 @@ export const buildBackendRpcServices = <
   RExtensionRpcs extends Rpc.Any = never,
 >(
   layers: Pick<
-    BackendRuntimeLayers<
-      RInfrastructure,
-      RFeatureRpcs,
-      RFeatureServices,
-      RExtensionRpcs
-    >,
+    BackendRuntimeLayers<RInfrastructure, RFeatureRpcs, RFeatureServices, RExtensionRpcs>,
     | "auth"
     | "features"
     | "infrastructure"
@@ -931,10 +918,7 @@ export const buildBackendRpcServices = <
     FeatureServicesLayer,
     ExtensionServicesLayer,
     layers.auth,
-  ).pipe(
-    Layer.provide(DomainServicesLayer),
-    Layer.provide(SupportServicesLayer),
-  );
+  ).pipe(Layer.provide(DomainServicesLayer), Layer.provide(SupportServicesLayer));
 };
 
 /**
@@ -950,12 +934,7 @@ export const buildBackendFetch = <
   RFeatureServices = never,
   RExtensionRpcs extends Rpc.Any = never,
 >(
-  layers: BackendRuntimeLayers<
-    RInfrastructure,
-    RFeatureRpcs,
-    RFeatureServices,
-    RExtensionRpcs
-  >,
+  layers: BackendRuntimeLayers<RInfrastructure, RFeatureRpcs, RFeatureServices, RExtensionRpcs>,
 ) => {
   const graph = buildBackendServiceGraph(layers);
   const { DomainServicesLayer, RpcHandlersLayer, SupportServicesLayer } = graph;
@@ -1030,14 +1009,19 @@ export const buildBackendFetch = <
   // `HttpRouter.provideRequest` is the combinator that satisfies these
   // request-scoped requirements. The Autumn webhook handler resolves `Db` +
   // `BillingService` at request time (both part of the merged graph below);
-  // the Apple handler resolves the live public App Store service the same way.
+  // the Apple handler resolves the live public App Store service the same way;
+  // the Google handler additionally resolves its Pub/Sub OIDC verifier.
   const WebhookRoutesLayer = Layer.mergeAll(
     AppleServerToServerNotificationRouteLayer,
     GooglePlayRtdnNotificationRouteLayer,
     StripeWebhookNotificationRouteLayer,
     WorkosWebhookRouteLayer,
     layers.features.routes(graph),
-  ).pipe(HttpRouter.provideRequest(Layer.mergeAll(SupportServicesLayer, DomainServicesLayer)));
+  ).pipe(
+    HttpRouter.provideRequest(
+      Layer.mergeAll(GooglePubSubPushVerifierLive, SupportServicesLayer, DomainServicesLayer),
+    ),
+  );
 
   // Public, unauthenticated serving of code-deployed paywall artifacts
   // (deploy contract §5). A raw route like the webhooks, so its request-time

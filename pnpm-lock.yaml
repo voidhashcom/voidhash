@@ -288,6 +288,9 @@ importers:
       effect:
         specifier: 4.0.0-beta.84
         version: 4.0.0-beta.84
+      jose:
+        specifier: 'catalog:'
+        version: 6.1.3
       preact:
         specifier: ^10.25.4
         version: 10.29.2
