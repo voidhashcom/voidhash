@@ -1,10 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
 import { Badge, Card, CardHeader, CardTitle, cn } from "@voidhash/ui";
 import { ChevronRightIcon } from "lucide-react";
-import { useParams } from "next/navigation";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { Page } from "@/features/studio/shell";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
@@ -17,7 +16,7 @@ import { PaymentProvidersNewStoreDropdown } from "./payment-providers-new-store-
 import { SetupPaymentProviderButton } from "./setup-payment-provider-button";
 
 export const PaymentProvidersPage = () => {
-  const params = useParams();
+  const params = useParams({ strict: false });
   const organizationSlug = params.organizationSlug as string;
   const projectSlug = params.projectSlug as string;
 

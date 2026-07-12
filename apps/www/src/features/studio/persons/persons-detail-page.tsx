@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useParams } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@voidhash/ui";
 import { format } from "date-fns";
 import { Clock4Icon } from "lucide-react";
-import { useParams } from "next/navigation";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { getPersonByDistinctIdOptions } from "@/features/studio/lib/tanstack-query/persons";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
@@ -13,7 +13,7 @@ import { Page } from "../shell";
 import { VoidhashErrorCard } from "../shell/components/voidhash-error-card";
 
 export const PersonDetailPage = () => {
-  const { id: distinctId, organizationSlug, projectSlug } = useParams();
+  const { id: distinctId, organizationSlug, projectSlug } = useParams({ strict: false });
   const { user } = useAuth();
   const project = CurrentUser.getProjectBySlugs(
     user,

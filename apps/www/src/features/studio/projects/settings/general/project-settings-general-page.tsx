@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams } from "@tanstack/react-router";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 
@@ -9,7 +9,7 @@ import { ProjectNameForm } from "./project-name";
 import { ProjectSettingsGeneralLayout } from "./project-settings-general-layout";
 
 export function ProjectSettingsGeneralPage() {
-  const { projectSlug } = useParams();
+  const { projectSlug } = useParams({ strict: false });
   const { user } = useAuth();
 
   const project = user.projects.find((p) => p.slug === projectSlug);

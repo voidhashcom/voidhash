@@ -1,11 +1,11 @@
 "use client";
-import { useParams } from "next/navigation";
+import { useParams } from "@tanstack/react-router";
 import { Page } from "@/features/studio/shell";
 
 import { ProjectsList } from "./projects-list";
 
 export function ProjectsPage() {
-  const { organizationSlug } = useParams();
+  const { organizationSlug } = useParams({ strict: false });
   return (
     <Page>
       <div className="mx-auto max-w-4xl">

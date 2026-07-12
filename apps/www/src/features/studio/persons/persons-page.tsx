@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams } from "@tanstack/react-router";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
@@ -10,7 +10,7 @@ import { CreatePersonButton } from "./create-person-button";
 import { PersonsTable } from "./persons-table";
 
 export const PersonsPage = () => {
-  const { organizationSlug, projectSlug } = useParams();
+  const { organizationSlug, projectSlug } = useParams({ strict: false });
   const { user } = useAuth();
 
   const project = CurrentUser.getProjectBySlugs(

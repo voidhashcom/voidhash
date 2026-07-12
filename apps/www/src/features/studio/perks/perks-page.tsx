@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useParams } from "@tanstack/react-router";
 import { Card } from "@voidhash/ui";
-import { useParams } from "next/navigation";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 import { listPerksOptions } from "@/features/studio/lib/tanstack-query/perks";
@@ -14,7 +14,7 @@ import { PerksPageEmptyState } from "./perks-page-empty-state";
 import { PerksPageSkeleton } from "./perks-page-skeleton";
 
 export const PerksPage = () => {
-  const { organizationSlug, projectSlug } = useParams();
+  const { organizationSlug, projectSlug } = useParams({ strict: false });
   const { user } = useAuth();
   const project = CurrentUser.getProjectBySlugs(
     user,

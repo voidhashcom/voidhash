@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useParams } from "@tanstack/react-router";
 import { Card } from "@voidhash/ui";
-import { useParams } from "next/navigation";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { Page } from "@/features/studio/shell";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
@@ -16,7 +16,7 @@ import { ProductsPageEmptyState } from "./products-page-empty-state";
 import { ProductsPageSkeleton } from "./products-page-skeleton";
 
 export const ProductsPage = () => {
-  const { organizationSlug, projectSlug } = useParams();
+  const { organizationSlug, projectSlug } = useParams({ strict: false });
   const { user } = useAuth();
   const project = CurrentUser.getProjectBySlugs(
     user,

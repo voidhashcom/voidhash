@@ -16,7 +16,7 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "types": ["vite/client"],
+    "types": ["node", "vite/client"],
     "paths": {
       "@/*": ["./src/*"],
       "@generated/design": ["./design.generated.ts"],

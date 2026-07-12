@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams } from "@tanstack/react-router";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { Page } from "@/features/studio/shell";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
@@ -11,7 +11,7 @@ import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 import { PaymentProviderDetailRouter } from "./payment-provider-detail-router";
 
 export const PaymentProviderDetailPage = () => {
-  const params = useParams();
+  const params = useParams({ strict: false });
   const organizationSlug = params.organizationSlug as string;
   const projectSlug = params.projectSlug as string;
   const paymentProviderConfigurationId = params.paymentProviderConfigurationId as string;

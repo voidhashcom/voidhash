@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useParams } from "@tanstack/react-router";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@voidhash/ui";
-import { useParams } from "next/navigation";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { Page } from "@/features/studio/shell";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
@@ -25,7 +25,7 @@ import { ProductDetailPerkRecord } from "./product-detail-product-perk-record";
 import { ProductDetailProviderProductRecord } from "./product-detail-provider-product-record";
 
 export const ProductDetailPage = () => {
-  const params = useParams();
+  const params = useParams({ strict: false });
   const organizationSlug = params.organizationSlug as string;
   const projectSlug = params.projectSlug as string;
   const id = params.id as string;
