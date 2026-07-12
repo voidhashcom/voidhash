@@ -1,4 +1,5 @@
 import type { SchemaObject, Value } from "@voidhash/mimic-core";
+import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 import {
   ConflictError,
   ForbiddenError,
@@ -6,15 +7,13 @@ import {
   UnauthorizedError,
   type DatabasePermission,
   type DocumentPermission,
-  type MigrationRunReport,
-  type MigrationStatus,
 } from "@voidhash/mimic-server/rpc";
 import { Effect } from "effect";
 
-import type { ApplyMigrationOptions, MigrationChange } from "../app/hostService.ts";
 import { normalizeSchemaObject, sanitizeValueForSchema } from "../document/schema.ts";
 import { hashHex, randomId } from "./ids.ts";
-import type { CollectionRecord, ControlStoreApi, MigrationState } from "./store.ts";
+import { EmptyMigrationRegistry, isRegistryCollection } from "./migration-registry.ts";
+import type { CollectionRecord, ControlStoreApi } from "./store.ts";
 
 const notFound = (message: string): NotFoundError =>
   new NotFoundError({ code: "not_found", message });
@@ -34,6 +33,7 @@ interface CollectionView {
   readonly name: string;
   readonly schema: SchemaObject;
   readonly schemaVersion: number;
+  readonly migrationVersion: number | null;
 }
 
 const toCollectionView = (record: CollectionRecord): CollectionView => ({
@@ -42,6 +42,7 @@ const toCollectionView = (record: CollectionRecord): CollectionView => ({
   name: record.name,
   schema: record.schemaJson,
   schemaVersion: record.schemaVersion,
+  migrationVersion: record.migrationVersion,
 });
 
 export interface ControlEngineApi {
@@ -70,45 +71,18 @@ export interface ControlEngineApi {
   readonly listDatabases: () => Effect.Effect<
     readonly { readonly id: string; readonly name: string; readonly description: string }[]
   >;
-  readonly deleteDatabase: (databaseId: string) => Effect.Effect<void, NotFoundError>;
+  readonly deleteDatabase: (
+    databaseId: string,
+  ) => Effect.Effect<void, NotFoundError | ConflictError>;
   readonly createCollection: (
     databaseId: string,
     name: string,
     schemaInput: unknown,
   ) => Effect.Effect<CollectionView, NotFoundError | ConflictError>;
   readonly listCollections: (databaseId: string) => Effect.Effect<readonly CollectionView[]>;
-  readonly updateCollectionSchema: (
+  readonly deleteCollection: (
     collectionId: string,
-    schemaInput: unknown,
-  ) => Effect.Effect<CollectionView, NotFoundError>;
-  readonly deleteCollection: (collectionId: string) => Effect.Effect<void, NotFoundError>;
-  readonly listMigrations: (databaseId: string) => Effect.Effect<
-    readonly {
-      readonly databaseId: string;
-      readonly version: number;
-      readonly name: string;
-      readonly checksum: string;
-      readonly appliedAt: string;
-      readonly state: MigrationState;
-      readonly totalDocuments: number;
-      readonly succeededDocuments: number;
-      readonly failedDocuments: number;
-      readonly changes?: readonly MigrationChange[];
-    }[]
-  >;
-  readonly applyMigration: (
-    databaseId: string,
-    version: number,
-    name: string,
-    checksum: string,
-    changes: readonly MigrationChange[],
-    mode: "apply" | "rerun" | "replace",
-    options?: ApplyMigrationOptions,
-  ) => Effect.Effect<MigrationRunReport, NotFoundError | ConflictError>;
-  readonly getMigrationStatus: (
-    databaseId: string,
-    version: number,
-  ) => Effect.Effect<MigrationStatus>;
+  ) => Effect.Effect<void, NotFoundError | ConflictError>;
   readonly createUser: (
     username: string,
     password: string,
@@ -170,7 +144,12 @@ export interface ControlEngineApi {
     value: unknown,
     isMaterialized?: (documentId: string) => Effect.Effect<boolean>,
   ) => Effect.Effect<
-    { readonly documentId: string; readonly value: Value; readonly schemaVersion: number },
+    {
+      readonly documentId: string;
+      readonly value: Value;
+      readonly schemaVersion: number;
+      readonly migrationVersion: number | null;
+    },
     NotFoundError | ConflictError
   >;
   readonly findCollection: (collectionId: string) => Effect.Effect<CollectionRecord, NotFoundError>;
@@ -194,11 +173,12 @@ type ControlStoreThrows<A> = (
  * Control-plane logic over a `ControlStore`. Runs inside one serialized control
  * entity in production and in-process (over `makeMemoryControlStore`) for dev/test.
  *
- * Migrations follow the lazy model: `applyMigration` publishes the new schema
- * version(s) and records the migration; documents migrate themselves on load
- * (see `document-engine.ts`). There is no eager per-document "push" here.
+ * Registry-owned schemas are immutable through the public control API.
  */
-export const makeControlEngine = (store: ControlStoreApi): ControlEngineApi => {
+export const makeControlEngine = (
+  store: ControlStoreApi,
+  registry: MigrationRegistry = EmptyMigrationRegistry,
+): ControlEngineApi => {
   const findCollection: ControlEngineApi["findCollection"] = (collectionId) =>
     store
       .findCollectionById(collectionId)
@@ -209,48 +189,6 @@ export const makeControlEngine = (store: ControlStoreApi): ControlEngineApi => {
             : Effect.fail(notFound(`Collection not found: ${collectionId}`)),
         ),
       );
-
-  const findCollectionByName = (databaseId: string, name: string) =>
-    store.findCollectionByName(databaseId, name);
-
-  const applySingleChange = (databaseId: string, change: MigrationChange) =>
-    Effect.gen(function* () {
-      const schema = normalizeSchemaObject(change.schema);
-      const existing = yield* findCollectionByName(databaseId, change.collection);
-      if (change.type === "create") {
-        if (existing) {
-          if (change.skipIfExists) return;
-          return yield* Effect.fail(conflict(`Collection '${change.collection}' already exists`));
-        }
-        const id = randomId();
-        yield* store.createCollection({
-          id,
-          databaseId,
-          name: change.collection,
-          schemaJson: schema,
-          schemaVersion: 1,
-        });
-        yield* store.addSchemaVersion({
-          collectionId: id,
-          version: 1,
-          schemaJson: schema,
-          dataMigrationSource: null,
-        });
-        return;
-      }
-      // update
-      if (!existing) {
-        return yield* Effect.fail(notFound(`Collection not found: ${change.collection}`));
-      }
-      const nextVersion = existing.schemaVersion + 1;
-      yield* store.updateCollectionSchema(existing.id, schema, nextVersion);
-      yield* store.addSchemaVersion({
-        collectionId: existing.id,
-        version: nextVersion,
-        schemaJson: schema,
-        dataMigrationSource: change.dataMigrationSource ?? null,
-      });
-    });
 
   return {
     store,
@@ -318,15 +256,16 @@ export const makeControlEngine = (store: ControlStoreApi): ControlEngineApi => {
         ),
 
     deleteDatabase: (databaseId) =>
-      store
-        .findDatabaseById(databaseId)
-        .pipe(
-          Effect.flatMap((record) =>
-            record
-              ? store.deleteDatabase(databaseId)
-              : Effect.fail(notFound(`Database not found: ${databaseId}`)),
-          ),
-        ),
+      Effect.gen(function* () {
+        const record = yield* store.findDatabaseById(databaseId);
+        if (!record) return yield* Effect.fail(notFound(`Database not found: ${databaseId}`));
+        if (registry.collections.some((entry) => entry.database === record.name)) {
+          return yield* Effect.fail(
+            conflict(`Database '${record.name}' is managed by the deployed migration registry`),
+          );
+        }
+        yield* store.deleteDatabase(databaseId);
+      }),
 
     createCollection: (databaseId, name, schemaInput) =>
       Effect.gen(function* () {
@@ -342,6 +281,7 @@ export const makeControlEngine = (store: ControlStoreApi): ControlEngineApi => {
           name,
           schemaJson: schema,
           schemaVersion: 1,
+          migrationVersion: null,
         });
         yield* store.addSchemaVersion({
           collectionId: id,
@@ -349,7 +289,7 @@ export const makeControlEngine = (store: ControlStoreApi): ControlEngineApi => {
           schemaJson: schema,
           dataMigrationSource: null,
         });
-        return { id, databaseId, name, schema, schemaVersion: 1 };
+        return { id, databaseId, name, schema, schemaVersion: 1, migrationVersion: null };
       }),
 
     listCollections: (databaseId) =>
@@ -357,116 +297,19 @@ export const makeControlEngine = (store: ControlStoreApi): ControlEngineApi => {
         .listCollectionsByDatabase(databaseId)
         .pipe(Effect.map((rows) => rows.map(toCollectionView))),
 
-    updateCollectionSchema: (collectionId, schemaInput) =>
+    deleteCollection: (collectionId) =>
       Effect.gen(function* () {
         const collection = yield* findCollection(collectionId);
-        const schema = normalizeSchemaObject(schemaInput);
-        const nextVersion = collection.schemaVersion + 1;
-        yield* store.updateCollectionSchema(collectionId, schema, nextVersion);
-        yield* store.addSchemaVersion({
-          collectionId,
-          version: nextVersion,
-          schemaJson: schema,
-          dataMigrationSource: null,
-        });
-        return { ...toCollectionView(collection), schema, schemaVersion: nextVersion };
-      }),
-
-    deleteCollection: (collectionId) =>
-      findCollection(collectionId).pipe(Effect.flatMap(() => store.deleteCollection(collectionId))),
-
-    listMigrations: (databaseId) =>
-      store.listMigrations(databaseId).pipe(
-        Effect.map((rows) =>
-          rows.map((row) => ({
-            databaseId: row.databaseId,
-            version: row.version,
-            name: row.name,
-            checksum: row.checksum,
-            appliedAt: new Date(row.appliedAtMs).toISOString(),
-            state: row.state,
-            totalDocuments: row.totalDocuments,
-            succeededDocuments: row.succeededDocuments,
-            failedDocuments: row.failedDocuments,
-            changes: (row.changesJson ?? undefined) as readonly MigrationChange[] | undefined,
-          })),
-        ),
-      ),
-
-    applyMigration: (databaseId, version, name, checksum, changes, mode, options) =>
-      Effect.gen(function* () {
-        const database = yield* store.findDatabaseById(databaseId);
-        if (!database) return yield* Effect.fail(notFound(`Database not found: ${databaseId}`));
-
-        const isDryRun = options?.dryRun !== undefined && options?.dryRun !== false;
-        const existing = yield* store.findMigration(databaseId, version);
-
-        if (mode === "apply" && existing && existing.checksum === checksum) {
-          // Idempotent re-apply of an identical migration.
-          return {
-            databaseId,
-            version,
-            state: "succeeded",
-            succeeded: 0,
-            failed: 0,
-            skipped: 0,
-            perDocument: [],
-            dryRun: isDryRun,
-          };
-        }
-        if (mode === "apply" && existing && existing.checksum !== checksum) {
+        const database = yield* store.findDatabaseById(collection.databaseId);
+        if (database && isRegistryCollection(registry, database.name, collection.name)) {
           return yield* Effect.fail(
-            conflict(`Migration version ${version} already applied with a different checksum`),
+            conflict(
+              `Collection '${collection.name}' is managed by the deployed migration registry`,
+            ),
           );
         }
-
-        if (!isDryRun) {
-          for (const change of changes) {
-            yield* applySingleChange(databaseId, change);
-          }
-          yield* store.upsertMigration({
-            databaseId,
-            version,
-            name,
-            checksum,
-            appliedAtMs: Date.now(),
-            state: "succeeded",
-            totalDocuments: 0,
-            succeededDocuments: 0,
-            failedDocuments: 0,
-            changesJson: changes as readonly unknown[],
-          });
-        }
-
-        return {
-          databaseId,
-          version,
-          state: "succeeded",
-          succeeded: 0,
-          failed: 0,
-          skipped: 0,
-          perDocument: [],
-          dryRun: isDryRun,
-        };
+        yield* store.deleteCollection(collectionId);
       }),
-
-    getMigrationStatus: (databaseId, version) =>
-      store.findMigration(databaseId, version).pipe(
-        Effect.map((record) => ({
-          databaseId,
-          version,
-          state: (record?.state ?? "unknown") as MigrationStatus["state"],
-          ...(record ? { checksum: record.checksum } : {}),
-          summary: {
-            pending: 0,
-            running: 0,
-            succeeded: record?.succeededDocuments ?? 0,
-            failed: record?.failedDocuments ?? 0,
-            skipped: 0,
-          },
-          failures: [],
-        })),
-      ),
 
     createUser: (username, password) =>
       Effect.gen(function* () {
@@ -612,7 +455,12 @@ export const makeControlEngine = (store: ControlStoreApi): ControlEngineApi => {
         }
         const sanitized = sanitizeValueForSchema(collection.schemaJson, value);
         yield* store.registerDocument(documentId, collectionId);
-        return { documentId, value: sanitized, schemaVersion: collection.schemaVersion };
+        return {
+          documentId,
+          value: sanitized,
+          schemaVersion: collection.schemaVersion,
+          migrationVersion: collection.migrationVersion,
+        };
       }),
 
     findDocument: (collectionId, documentId) =>

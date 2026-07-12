@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS mimic_documents (
 	id VARCHAR(36) NOT NULL PRIMARY KEY,
 	collection_id VARCHAR(36) NOT NULL,
 	schema_version INTEGER NOT NULL DEFAULT 1,
+	migration_version INTEGER,
 	current_seq BIGINT NOT NULL DEFAULT 0,
 	snapshot_seq BIGINT NOT NULL DEFAULT 0,
 	deleted_at BIGINT

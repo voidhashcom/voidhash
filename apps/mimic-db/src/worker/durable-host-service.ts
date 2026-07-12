@@ -1,4 +1,5 @@
 import type { Value } from "@voidhash/mimic-core";
+import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 import { NotFoundError } from "@voidhash/mimic-server/rpc";
 import { Effect } from "effect";
 
@@ -18,6 +19,7 @@ export interface DocumentStub {
     collectionId: string,
     value: Value,
     schemaVersion: number,
+    migrationVersion: number | null,
   ) => Effect.Effect<void, any>;
   readonly getSnapshot: () => Effect.Effect<
     { found: true; value: Value; version: number } | { found: false; error?: string },
@@ -32,6 +34,7 @@ export interface DocumentStub {
 export interface DurableHostServiceDeps {
   /** The single control-entity stub, viewed as the control store. */
   readonly controlStore: ControlStoreApi;
+  readonly migrations: MigrationRegistry;
   /** Resolve a document-entity stub for a document. */
   readonly docStub: (collectionId: string, documentId: string) => DocumentStub;
 }
@@ -52,7 +55,7 @@ const isSubmitResponse = (
  */
 export const makeDurableHostService = (deps: DurableHostServiceDeps): HostService => {
   const { docStub } = deps;
-  const control = makeControlEngine(deps.controlStore);
+  const control = makeControlEngine(deps.controlStore, deps.migrations);
 
   return {
     authenticateBasic: control.authenticateBasic,
@@ -62,17 +65,7 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
     deleteDatabase: control.deleteDatabase,
     createCollection: control.createCollection,
     listCollections: control.listCollections,
-    updateCollectionSchema: (collectionId, schemaInput) =>
-      control.updateCollectionSchema(collectionId, schemaInput),
     deleteCollection: control.deleteCollection,
-    listMigrations: control.listMigrations,
-    applyMigration: (databaseId, version, name, checksum, changes, options) =>
-      control.applyMigration(databaseId, version, name, checksum, changes, "apply", options),
-    rerunMigration: (databaseId, version, name, checksum, changes, options) =>
-      control.applyMigration(databaseId, version, name, checksum, changes, "rerun", options),
-    replaceMigration: (databaseId, version, name, checksum, changes, options) =>
-      control.applyMigration(databaseId, version, name, checksum, changes, "replace", options),
-    getMigrationStatus: control.getMigrationStatus,
     createUser: control.createUser,
     listUsers: control.listUsers,
     deleteUser: control.deleteUser,
@@ -108,6 +101,7 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
           collectionId,
           prepared.value,
           prepared.schemaVersion,
+          prepared.migrationVersion,
         );
         return { id: prepared.documentId, collectionId, value: prepared.value, version: 1 };
       }),

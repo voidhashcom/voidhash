@@ -5,7 +5,6 @@ import type {
   DatabaseRecord,
   DocumentIndexRecord,
   GrantRecord,
-  MigrationRecord,
   SchemaVersionRecord,
   TokenRecord,
   UserRecord,
@@ -23,7 +22,6 @@ interface ControlState {
   grants: GrantRecord[];
   tokens: TokenRecord[];
   documents: DocumentIndexRecord[];
-  migrations: MigrationRecord[];
 }
 
 interface ControlStateRow {
@@ -38,7 +36,6 @@ const emptyState = (): ControlState => ({
   grants: [],
   tokens: [],
   documents: [],
-  migrations: [],
 });
 
 const decodeState = (value: unknown): ControlState => {
@@ -46,13 +43,18 @@ const decodeState = (value: unknown): ControlState => {
   const state = value as Partial<ControlState>;
   return {
     databases: Array.isArray(state.databases) ? state.databases : [],
-    collections: Array.isArray(state.collections) ? state.collections : [],
+    collections: Array.isArray(state.collections)
+      ? state.collections.map((collection) => ({
+          ...collection,
+          migrationVersion:
+            typeof collection.migrationVersion === "number" ? collection.migrationVersion : null,
+        }))
+      : [],
     schemaVersions: Array.isArray(state.schemaVersions) ? state.schemaVersions : [],
     users: Array.isArray(state.users) ? state.users : [],
     grants: Array.isArray(state.grants) ? state.grants : [],
     tokens: Array.isArray(state.tokens) ? state.tokens : [],
     documents: Array.isArray(state.documents) ? state.documents : [],
-    migrations: Array.isArray(state.migrations) ? state.migrations : [],
   };
 };
 
@@ -120,26 +122,33 @@ export const makePgControlStore = (sql: SqlClient.SqlClient): ControlStoreApi =>
     findCollectionByName: (databaseId, name) =>
       load.pipe(
         Effect.map((state) =>
-          state.collections.find(
-            (row) => row.databaseId === databaseId && row.name === name,
-          ),
+          state.collections.find((row) => row.databaseId === databaseId && row.name === name),
         ),
       ),
     listCollectionsByDatabase: (databaseId) =>
       load.pipe(
-        Effect.map((state) =>
-          state.collections.filter((row) => row.databaseId === databaseId),
-        ),
+        Effect.map((state) => state.collections.filter((row) => row.databaseId === databaseId)),
       ),
     updateCollectionSchema: (collectionId, schemaJson, version) =>
       update((state) => {
         const row = state.collections.find((candidate) => candidate.id === collectionId);
         if (row) {
-          replaceBy(
-            state.collections,
-            (candidate) => candidate.id === collectionId,
-            { ...row, schemaJson, schemaVersion: version },
-          );
+          replaceBy(state.collections, (candidate) => candidate.id === collectionId, {
+            ...row,
+            schemaJson,
+            schemaVersion: version,
+          });
+        }
+      }),
+    updateCollectionMigration: (collectionId, schemaJson, migrationVersion) =>
+      update((state) => {
+        const row = state.collections.find((candidate) => candidate.id === collectionId);
+        if (row) {
+          replaceBy(state.collections, (candidate) => candidate.id === collectionId, {
+            ...row,
+            schemaJson,
+            migrationVersion,
+          });
         }
       }),
     deleteCollection: (id) =>
@@ -199,17 +208,12 @@ export const makePgControlStore = (sql: SqlClient.SqlClient): ControlStoreApi =>
     findGrant: (userId, databaseId) =>
       load.pipe(
         Effect.map((state) =>
-          state.grants.find(
-            (row) => row.userId === userId && row.databaseId === databaseId,
-          ),
+          state.grants.find((row) => row.userId === userId && row.databaseId === databaseId),
         ),
       ),
     removeGrant: (userId, databaseId) =>
       update((state) =>
-        removeBy(
-          state.grants,
-          (row) => row.userId === userId && row.databaseId === databaseId,
-        ),
+        removeBy(state.grants, (row) => row.userId === userId && row.databaseId === databaseId),
       ),
     listGrants: () => load.pipe(Effect.map((state) => state.grants)),
     listGrantsByUser: (userId) =>
@@ -226,11 +230,11 @@ export const makePgControlStore = (sql: SqlClient.SqlClient): ControlStoreApi =>
 
     registerDocument: (documentId, collectionId) =>
       update((state) =>
-        replaceBy(
-          state.documents,
-          (row) => row.documentId === documentId,
-          { documentId, collectionId, deletedAt: null },
-        ),
+        replaceBy(state.documents, (row) => row.documentId === documentId, {
+          documentId,
+          collectionId,
+          deletedAt: null,
+        }),
       ),
     findDocumentIndex: (documentId) =>
       load.pipe(
@@ -248,45 +252,17 @@ export const makePgControlStore = (sql: SqlClient.SqlClient): ControlStoreApi =>
       update((state) => {
         const row = state.documents.find((candidate) => candidate.documentId === documentId);
         if (row) {
-          replaceBy(
-            state.documents,
-            (candidate) => candidate.documentId === documentId,
-            { ...row, deletedAt },
-          );
+          replaceBy(state.documents, (candidate) => candidate.documentId === documentId, {
+            ...row,
+            deletedAt,
+          });
         }
       }),
-
-    upsertMigration: (record) =>
-      update((state) =>
-        replaceBy(
-          state.migrations,
-          (row) => row.databaseId === record.databaseId && row.version === record.version,
-          record,
-        ),
-      ),
-    findMigration: (databaseId, version) =>
-      load.pipe(
-        Effect.map((state) =>
-          state.migrations.find(
-            (row) => row.databaseId === databaseId && row.version === version,
-          ),
-        ),
-      ),
-    listMigrations: (databaseId) =>
-      load.pipe(
-        Effect.map((state) =>
-          state.migrations
-            .filter((row) => row.databaseId === databaseId)
-            .sort((left, right) => left.version - right.version),
-        ),
-      ),
   };
 };
 
 /** Persistent Postgres control-store layer for the single-node mimic host. */
-export const PgControlStoreLive = (
-  config: PgDurableEntityConfig,
-): Layer.Layer<ControlStore> =>
+export const PgControlStoreLive = (config: PgDurableEntityConfig): Layer.Layer<ControlStore> =>
   Layer.effect(
     ControlStore,
     Effect.gen(function* () {

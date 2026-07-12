@@ -3,20 +3,16 @@ import {
   MimicHostError,
   type MimicHostShape,
 } from "@voidhash/core/services/paywalls/MimicHost";
-import {
-  HostServiceTag,
-  type HostService,
-} from "@voidhash/mimic-db/app/hostService";
+import { HostServiceTag, type HostService } from "@voidhash/mimic-db/app/hostService";
 import { decodeTransactionEnvelope } from "@voidhash/mimic-db/document/transaction";
-import { serializeSchema } from "@voidhash/mimic-core";
 import {
   createInitialPaywallDocumentInput,
+  MIMIC_DATABASE_NAME,
+  MIMIC_PAYWALLS_COLLECTION_NAME,
   PaywallDesignerDocument,
 } from "@voidhash/mimic-schema";
 import { Effect, Layer, Semaphore } from "effect";
 
-const databaseName = "voidhash";
-const collectionName = "paywalls";
 const editTokenTtlSeconds = 300;
 
 interface ProvisioningIds {
@@ -31,31 +27,12 @@ const hostError = (message: string, cause: unknown) =>
   });
 
 const errorTag = (cause: unknown): string | undefined =>
-  typeof cause === "object" && cause !== null && "_tag" in cause
-    ? String(cause._tag)
-    : undefined;
+  typeof cause === "object" && cause !== null && "_tag" in cause ? String(cause._tag) : undefined;
 
 const isNotFound = (cause: unknown): boolean => errorTag(cause) === "NotFoundError";
 const isConflict = (cause: unknown): boolean => errorTag(cause) === "ConflictError";
 
-const canonicalize = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (typeof value !== "object" || value === null) return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => [key, canonicalize(entry)]),
-  );
-};
-
-const schemaEquals = (left: unknown, right: unknown): boolean =>
-  JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right));
-
-const connectionUrl = (
-  publicBaseUrl: string,
-  ids: ProvisioningIds,
-  paywallId: string,
-): string => {
+const connectionUrl = (publicBaseUrl: string, ids: ProvisioningIds, paywallId: string): string => {
   const base = new URL(publicBaseUrl);
   base.protocol = base.protocol === "https:" ? "wss:" : "ws:";
   base.pathname = `/ws/v1/databases/${encodeURIComponent(
@@ -69,58 +46,28 @@ const connectionUrl = (
 };
 
 const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape => {
-  const schema = serializeSchema(PaywallDesignerDocument.schema);
   const provisioningLock = Semaphore.makeUnsafe(1);
   let cachedIds: ProvisioningIds | undefined;
 
   const resolveDatabase = Effect.gen(function* () {
     const listed = yield* host.listDatabases();
-    const existing = listed.find((database) => database.name === databaseName);
-    if (existing) return existing.id;
-    return yield* host.createDatabase(databaseName, "Voidhash paywall documents").pipe(
-      Effect.map((database) => database.id),
-      Effect.catch((cause) =>
-        isConflict(cause)
-          ? host.listDatabases().pipe(
-              Effect.flatMap((databases) => {
-                const database = databases.find((candidate) => candidate.name === databaseName);
-                return database
-                  ? Effect.succeed(database.id)
-                  : Effect.fail(cause);
-              }),
-            )
-          : Effect.fail(cause),
-      ),
-    );
+    const existing = listed.find((database) => database.name === MIMIC_DATABASE_NAME);
+    return existing
+      ? existing.id
+      : yield* Effect.fail(new Error(`Missing registry database ${MIMIC_DATABASE_NAME}`));
   });
 
   const resolveCollection = (databaseId: string) =>
     Effect.gen(function* () {
       const listed = yield* host.listCollections(databaseId);
-      const existing = listed.find((collection) => collection.name === collectionName);
-      if (existing) {
-        if (!schemaEquals(existing.schema, schema)) {
-          yield* host.updateCollectionSchema(existing.id, schema);
-        }
-        return existing.id;
-      }
-      return yield* host.createCollection(databaseId, collectionName, schema).pipe(
-        Effect.map((collection) => collection.id),
-        Effect.catch((cause) =>
-          isConflict(cause)
-            ? host.listCollections(databaseId).pipe(
-                Effect.flatMap((collections) => {
-                  const collection = collections.find(
-                    (candidate) => candidate.name === collectionName,
-                  );
-                  return collection
-                    ? Effect.succeed(collection.id)
-                    : Effect.fail(cause);
-                }),
-              )
-            : Effect.fail(cause),
-        ),
+      const existing = listed.find(
+        (collection) => collection.name === MIMIC_PAYWALLS_COLLECTION_NAME,
       );
+      return existing
+        ? existing.id
+        : yield* Effect.fail(
+            new Error(`Missing registry collection ${MIMIC_PAYWALLS_COLLECTION_NAME}`),
+          );
     });
 
   const provision = provisioningLock.withPermit(
@@ -152,11 +99,11 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
                     PaywallDesignerDocument.encode(createInitialPaywallDocumentInput()),
                   )
                   .pipe(
-                  Effect.asVoid,
-                  Effect.catch((createCause) =>
-                    isConflict(createCause) ? Effect.void : Effect.fail(createCause),
-                  ),
-                )
+                    Effect.asVoid,
+                    Effect.catch((createCause) =>
+                      isConflict(createCause) ? Effect.void : Effect.fail(createCause),
+                    ),
+                  )
               : Effect.fail(cause),
           ),
         ),
@@ -179,20 +126,14 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
       provision.pipe(
         Effect.flatMap((ids) =>
           host
-            .createDocumentAuthToken(
-              ids.collectionId,
-              paywallId,
-              "write",
-              [],
-              editTokenTtlSeconds,
-            )
+            .createDocumentAuthToken(ids.collectionId, paywallId, "write", [], editTokenTtlSeconds)
             .pipe(
-            Effect.map(({ token }) => ({
-              expiresAt: new Date(Date.now() + editTokenTtlSeconds * 1000),
-              token,
-              url: connectionUrl(publicBaseUrl, ids, paywallId),
-            })),
-          ),
+              Effect.map(({ token }) => ({
+                expiresAt: new Date(Date.now() + editTokenTtlSeconds * 1000),
+                token,
+                url: connectionUrl(publicBaseUrl, ids, paywallId),
+              })),
+            ),
         ),
         Effect.mapError((cause) => hostError(`Failed to mint a token for ${paywallId}`, cause)),
       ),

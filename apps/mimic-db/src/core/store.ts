@@ -18,9 +18,10 @@ export interface CollectionRecord {
   readonly name: string;
   readonly schemaJson: SchemaObject;
   readonly schemaVersion: number;
+  readonly migrationVersion: number | null;
 }
 
-/** A published schema version, with the optional bundled data-migration source. */
+/** A persisted legacy schema version retained for source-free reconciliation. */
 export interface SchemaVersionRecord {
   readonly collectionId: string;
   readonly version: number;
@@ -60,21 +61,6 @@ export interface DocumentIndexRecord {
   readonly deletedAt: number | null;
 }
 
-export type MigrationState = "running" | "succeeded" | "failed" | "replaced";
-
-export interface MigrationRecord {
-  readonly databaseId: string;
-  readonly version: number;
-  readonly name: string;
-  readonly checksum: string;
-  readonly appliedAtMs: number;
-  readonly state: MigrationState;
-  readonly totalDocuments: number;
-  readonly succeededDocuments: number;
-  readonly failedDocuments: number;
-  readonly changesJson: readonly unknown[] | null;
-}
-
 /**
  * Control-plane persistence contract. Platform adapters provide SQL or
  * in-memory implementations. Methods do not declare a typed error channel;
@@ -102,6 +88,11 @@ export interface ControlStoreApi {
     collectionId: string,
     schemaJson: SchemaObject,
     version: number,
+  ) => Effect.Effect<void>;
+  readonly updateCollectionMigration: (
+    collectionId: string,
+    schemaJson: SchemaObject,
+    migrationVersion: number,
   ) => Effect.Effect<void>;
   readonly deleteCollection: (id: string) => Effect.Effect<void>;
   // schema versions
@@ -142,13 +133,6 @@ export interface ControlStoreApi {
     collectionId: string,
   ) => Effect.Effect<readonly DocumentIndexRecord[]>;
   readonly markDocumentDeleted: (documentId: string, deletedAt: number) => Effect.Effect<void>;
-  // migrations
-  readonly upsertMigration: (record: MigrationRecord) => Effect.Effect<void>;
-  readonly findMigration: (
-    databaseId: string,
-    version: number,
-  ) => Effect.Effect<MigrationRecord | undefined>;
-  readonly listMigrations: (databaseId: string) => Effect.Effect<readonly MigrationRecord[]>;
 }
 
 export class ControlStore extends Context.Service<ControlStore, ControlStoreApi>()(
@@ -162,6 +146,7 @@ export class ControlStore extends Context.Service<ControlStore, ControlStoreApi>
 export interface DocumentMeta {
   readonly collectionId: string;
   readonly schemaVersion: number;
+  readonly migrationVersion: number | null;
   readonly currentSeq: number;
   readonly snapshotSeq: number;
   readonly deletedAt: number | null;
@@ -189,6 +174,7 @@ export interface DocumentStoreApi {
     collectionId: string,
     value: Value,
     schemaVersion: number,
+    migrationVersion: number | null,
   ) => Effect.Effect<void>;
   readonly loadLatestSnapshot: () => Effect.Effect<SnapshotRow | undefined>;
   readonly listCommandsAfter: (seq: number) => Effect.Effect<readonly CommandRow[]>;
@@ -198,6 +184,12 @@ export interface DocumentStoreApi {
     txId: string,
   ) => Effect.Effect<void>;
   readonly writeSnapshot: (seq: number, value: Value, schemaVersion: number) => Effect.Effect<void>;
+  readonly commitMigration: (
+    seq: number,
+    value: Value,
+    schemaVersion: number,
+    migrationVersion: number | null,
+  ) => Effect.Effect<void>;
   readonly setMeta: (
     patch: Partial<
       Pick<DocumentMeta, "currentSeq" | "snapshotSeq" | "schemaVersion" | "deletedAt">

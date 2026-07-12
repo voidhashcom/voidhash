@@ -4,7 +4,7 @@ import { Primitive, serializeSchema } from "@voidhash/mimic-core";
 import { CollectionHandle } from "./CollectionHandle.ts";
 import { RawCollectionHandle } from "./RawCollectionHandle.ts";
 import type { MimicSDK } from "./MimicSDK.ts";
-import type { CollectionInfo, DatabaseMigrationChange, DatabaseMigrationInfo } from "./types.ts";
+import type { CollectionInfo } from "./types.ts";
 
 /**
  * Typed handle for a database. Methods that depend on a known schema use
@@ -71,27 +71,6 @@ export class DatabaseHandle {
     return new CollectionHandle(id, this.id, primitive, this.sdk);
   }
 
-  /**
-   * Update a collection's schema by passing in a typed `Primitive`. Note:
-   * the `dataMigrationSource` parameter is preserved on the wire but the
-   * server's ad-hoc `updateCollectionSchema` path doesn't apply bundled
-   * data migrations — `applyMigration` is the only path that does. This
-   * mirrors the previous SDK behavior.
-   */
-  updateCollectionSchema<TPrimitive extends Primitive.AnyPrimitive>(
-    collectionId: string,
-    primitive: TPrimitive,
-    dataMigrationSource?: string,
-  ) {
-    return this.sdk.runEffect((client) =>
-      client.UpdateCollectionSchema({
-        collectionId,
-        schema: serializeSchema(primitive.schema),
-        dataMigrationSource,
-      }),
-    );
-  }
-
   // ---------------------------------------------------------------------
   // Raw helpers — for consumers that work with dynamic JSON values
   // (admin app, tooling). These bypass `Primitive` encode/decode.
@@ -109,67 +88,5 @@ export class DatabaseHandle {
    */
   collectionRaw(collectionId: string): RawCollectionHandle {
     return new RawCollectionHandle(collectionId, this.id, this.sdk);
-  }
-
-  /**
-   * Update a collection's schema using raw schema JSON. Identical wire shape
-   * as `updateCollectionSchema` but skips `Primitive`-based serialization.
-   */
-  updateCollectionSchemaRaw(collectionId: string, schema: unknown, dataMigrationSource?: string) {
-    return this.sdk.runEffect((client) =>
-      client.UpdateCollectionSchema({
-        collectionId,
-        schema,
-        dataMigrationSource,
-      }),
-    );
-  }
-
-  // ---------------------------------------------------------------------
-  // Migrations
-  // ---------------------------------------------------------------------
-
-  listMigrations() {
-    return this.sdk.runEffect(
-      (client) =>
-        client.ListDatabaseMigrations({ databaseId: this.id }) as Effect.Effect<
-          readonly DatabaseMigrationInfo[],
-          unknown
-        >,
-    );
-  }
-
-  applyMigration(options: {
-    readonly version: number;
-    readonly name: string;
-    readonly checksum: string;
-    readonly changes: readonly DatabaseMigrationChange[];
-    readonly mode?: "apply" | "rerun" | "replace";
-    readonly dryRun?: { readonly limit?: number; readonly samplePercent?: number };
-    readonly batchSize?: number;
-    readonly redoSucceededOnReplace?: boolean;
-  }) {
-    return this.sdk.runEffect((client) =>
-      client.ApplyDatabaseMigration({
-        databaseId: this.id,
-        version: options.version,
-        name: options.name,
-        checksum: options.checksum,
-        changes: options.changes,
-        mode: options.mode,
-        dryRun: options.dryRun,
-        batchSize: options.batchSize,
-        redoSucceededOnReplace: options.redoSucceededOnReplace,
-      }),
-    );
-  }
-
-  getMigrationStatus(version: number) {
-    return this.sdk.runEffect((client) =>
-      client.GetMigrationStatus({
-        databaseId: this.id,
-        version,
-      }),
-    );
   }
 }

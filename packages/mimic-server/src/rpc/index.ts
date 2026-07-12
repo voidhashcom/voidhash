@@ -17,24 +17,15 @@ export {
   CollectionSchema,
   CreateCollectionResponseSchema,
   CreateUserResponseSchema,
-  DatabaseMigrationSchema,
   DatabasePermissionSchema,
   DatabaseSchema,
   DocumentAuthenticationSetupSchema,
-  DocumentMigrationStateSummarySchema,
   DocumentPermissionSchema,
-  DocumentRunReportSchema,
-  DocumentRunStatusSchema,
   DocumentSnapshotResponseSchema,
   GrantSchema,
-  MigrationChangeSchema,
-  MigrationDryRunOptionsSchema,
-  MigrationRunReportSchema,
-  MigrationStatusSchema,
   SchemaObjectRpcSchema,
   SubmitTransactionResponseSchema,
   TransactionEnvelopeSchema,
-  UpdateCollectionSchemaResponseSchema,
   UserSchema,
   ValueRpcSchema,
 } from "./schemas.ts";
@@ -44,22 +35,13 @@ export type {
   CreateCollectionResponse,
   CreateUserResponse,
   Database,
-  DatabaseMigration,
   DatabasePermission,
   DocumentAuthenticationSetup,
-  DocumentMigrationStateSummary,
   DocumentPermission,
-  DocumentRunReport,
-  DocumentRunStatus,
   DocumentSnapshotResponse,
   Grant,
-  MigrationChange,
-  MigrationDryRunOptions,
-  MigrationRunReport,
-  MigrationStatus,
   SubmitTransactionResponse,
   TransactionEnvelope,
-  UpdateCollectionSchemaResponse,
   User,
 } from "./schemas.ts";
 
@@ -77,7 +59,6 @@ export {
   CreateCollection,
   DeleteCollection,
   ListCollections,
-  UpdateCollectionSchema,
 } from "./groups/collections.ts";
 
 export {
@@ -92,13 +73,6 @@ export {
 export { CreateUser, DeleteUser, ListUsers, UsersRpcs } from "./groups/users.ts";
 
 export { GrantPermission, GrantsRpcs, ListGrants, RevokePermission } from "./groups/grants.ts";
-
-export {
-  ApplyDatabaseMigration,
-  GetMigrationStatus,
-  ListDatabaseMigrations,
-  MigrationsRpcs,
-} from "./groups/migrations.ts";
 
 export { DocumentAuthRpcs, SetupDocumentAuthentication } from "./groups/document-auth.ts";
 

@@ -37,6 +37,7 @@ const decodeCommand = (input: unknown): Command =>
 interface MetaSqlRow {
   readonly collectionId: string;
   readonly schemaVersion: number;
+  readonly migrationVersion: number | null;
   readonly currentSeq: number | string;
   readonly snapshotSeq: number | string;
   readonly deletedAt: number | string | null;
@@ -54,6 +55,8 @@ interface CommandSqlRow {
 
 /** Postgres SQLSTATE for `undefined_table`. */
 const UNDEFINED_TABLE = "42P01";
+/** Postgres SQLSTATE for `undefined_column`. */
+const UNDEFINED_COLUMN = "42703";
 /** Postgres SQLSTATE for `insufficient_privilege`. */
 const INSUFFICIENT_PRIVILEGE = "42501";
 
@@ -63,6 +66,9 @@ const sqlErrorCauseProperty = (error: SqlError.SqlError, property: string): unkn
 /** Whether a `SqlError` is Postgres's `undefined_table` — the queried table is missing. */
 export const isMissingTableError = (error: SqlError.SqlError): boolean =>
   sqlErrorCauseProperty(error, "code") === UNDEFINED_TABLE;
+
+const isMissingColumnError = (error: SqlError.SqlError): boolean =>
+  sqlErrorCauseProperty(error, "code") === UNDEFINED_COLUMN;
 
 /**
  * Whether a `SqlError` is Postgres denying DDL to the connected role (SQLSTATE
@@ -129,11 +135,30 @@ export const ensureDocumentTables = (config: PgDocumentConfig): Effect.Effect<vo
           id VARCHAR(36) NOT NULL PRIMARY KEY,
           collection_id VARCHAR(36) NOT NULL,
           schema_version INTEGER NOT NULL DEFAULT 1,
+          migration_version INTEGER,
           current_seq BIGINT NOT NULL DEFAULT 0,
           snapshot_seq BIGINT NOT NULL DEFAULT 0,
           deleted_at BIGINT
         )
       `,
+    );
+    yield* sql`SELECT migration_version FROM mimic_documents LIMIT 1`.pipe(
+      Effect.asVoid,
+      Effect.catch((error) => {
+        if (!isMissingColumnError(error)) return Effect.fail(error);
+        return sql`ALTER TABLE mimic_documents ADD COLUMN migration_version INTEGER`.pipe(
+          Effect.asVoid,
+          Effect.catch((alterError) =>
+            isDdlDeniedError(alterError)
+              ? Effect.die(
+                  new Error(
+                    "mimic_documents.migration_version is missing and the database denies runtime DDL. Apply the current database migrations before serving traffic.",
+                  ),
+                )
+              : Effect.fail(alterError),
+          ),
+        );
+      }),
     );
     yield* ensure(
       "mimic_document_snapshots",
@@ -200,6 +225,7 @@ export const makePgDocumentStore = (
           const sql = yield* SqlClient.SqlClient;
           const rows = yield* sql<MetaSqlRow>`
             SELECT collection_id AS "collectionId", schema_version AS "schemaVersion",
+                   migration_version AS "migrationVersion",
                    current_seq AS "currentSeq", snapshot_seq AS "snapshotSeq", deleted_at AS "deletedAt"
             FROM mimic_documents WHERE id = ${documentId}
           `;
@@ -208,6 +234,7 @@ export const makePgDocumentStore = (
           return {
             collectionId: row.collectionId,
             schemaVersion: row.schemaVersion,
+            migrationVersion: row.migrationVersion,
             currentSeq: Number(row.currentSeq),
             snapshotSeq: Number(row.snapshotSeq),
             deletedAt: row.deletedAt === null ? null : Number(row.deletedAt),
@@ -215,7 +242,7 @@ export const makePgDocumentStore = (
         }),
       ),
 
-    initialize: (collectionId, value, schemaVersion) =>
+    initialize: (collectionId, value, schemaVersion, migrationVersion) =>
       run(
         Effect.gen(function* () {
           const sql = yield* SqlClient.SqlClient;
@@ -223,8 +250,8 @@ export const makePgDocumentStore = (
           yield* sql`DELETE FROM mimic_document_snapshots WHERE document_id = ${documentId}`;
           yield* sql`DELETE FROM mimic_documents WHERE id = ${documentId}`;
           yield* sql`
-            INSERT INTO mimic_documents (id, collection_id, schema_version, current_seq, snapshot_seq, deleted_at)
-            VALUES (${documentId}, ${collectionId}, ${schemaVersion}, 0, 0, NULL)
+            INSERT INTO mimic_documents (id, collection_id, schema_version, migration_version, current_seq, snapshot_seq, deleted_at)
+            VALUES (${documentId}, ${collectionId}, ${schemaVersion}, ${migrationVersion}, 0, 0, NULL)
           `;
           yield* sql`
             INSERT INTO mimic_document_snapshots (document_id, seq, schema_version, state_json)
@@ -301,6 +328,28 @@ export const makePgDocumentStore = (
             ON CONFLICT (document_id, seq)
             DO UPDATE SET state_json = EXCLUDED.state_json, schema_version = EXCLUDED.schema_version
           `;
+        }),
+      ),
+
+    commitMigration: (seq, value, schemaVersion, migrationVersion) =>
+      run(
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* sql.withTransaction(
+            Effect.gen(function* () {
+              yield* sql`
+                INSERT INTO mimic_document_snapshots (document_id, seq, schema_version, state_json)
+                VALUES (${documentId}, ${seq}, ${schemaVersion}, ${JSON.stringify(value)}::jsonb)
+                ON CONFLICT (document_id, seq)
+                DO UPDATE SET state_json = EXCLUDED.state_json, schema_version = EXCLUDED.schema_version
+              `;
+              yield* sql`
+                UPDATE mimic_documents
+                SET schema_version = ${schemaVersion}, migration_version = ${migrationVersion}, snapshot_seq = ${seq}
+                WHERE id = ${documentId}
+              `;
+            }),
+          );
         }),
       ),
 

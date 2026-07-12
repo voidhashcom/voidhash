@@ -1,10 +1,7 @@
 import { Primitive } from "@voidhash/mimic-core";
+import { PaywallDocumentBaseline } from "./migrations/00000_baseline.ts";
 
-import { RootNode } from "./nodes/index.ts";
-
-export const PaywallDesignerDocument = Primitive.Tree({
-  root: RootNode,
-});
+export const PaywallDesignerDocument: typeof PaywallDocumentBaseline = PaywallDocumentBaseline;
 
 /** Encode/insert input for the document tree — an explicit array of root nodes. */
 export type PaywallDesignerDocumentInput = NonNullable<

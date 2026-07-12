@@ -1,9 +1,4 @@
 import { type SchemaObject, type Value } from "@voidhash/mimic-core";
-import type {
-  MigrationDryRunOptions,
-  MigrationRunReport,
-  MigrationStatus,
-} from "@voidhash/mimic-server/rpc";
 import { Context, type Effect, Schema } from "effect";
 
 import type { DocumentSnapshotResponse } from "../document/snapshot.ts";
@@ -11,28 +6,6 @@ import type { SubmitTransactionResponse, TransactionEnvelope } from "../document
 
 export type DatabasePermission = "read" | "write" | "admin";
 export type DocumentPermission = "read" | "write";
-
-export interface MigrationChangeCreate {
-  readonly type: "create";
-  readonly collection: string;
-  readonly schema: SchemaObject;
-  readonly skipIfExists?: boolean;
-}
-
-export interface MigrationChangeUpdate {
-  readonly type: "update";
-  readonly collection: string;
-  readonly schema: SchemaObject;
-  readonly oldSchema?: SchemaObject;
-  readonly dataMigrationSource?: string;
-}
-
-export type MigrationChange = MigrationChangeCreate | MigrationChangeUpdate;
-
-export interface ApplyMigrationOptions {
-  readonly batchSize?: number;
-  readonly dryRun?: false | MigrationDryRunOptions;
-}
 
 export interface PresenceEntry {
   readonly data: Value;
@@ -61,10 +34,7 @@ export interface HostService {
     collectionId: string,
     documentId: string,
     origin: string | null,
-  ) => Effect.Effect<
-    { readonly tokenId: string; readonly permission: DocumentPermission },
-    any
-  >;
+  ) => Effect.Effect<{ readonly tokenId: string; readonly permission: DocumentPermission }, any>;
   readonly createDatabase: (
     name: string,
     description: string,
@@ -88,6 +58,7 @@ export interface HostService {
       readonly name: string;
       readonly schema: SchemaObject;
       readonly schemaVersion: number;
+      readonly migrationVersion: number | null;
     },
     any
   >;
@@ -98,67 +69,11 @@ export interface HostService {
       readonly name: string;
       readonly schema: SchemaObject;
       readonly schemaVersion: number;
+      readonly migrationVersion: number | null;
     }[],
-    any
-  >;
-  readonly updateCollectionSchema: (
-    collectionId: string,
-    schemaInput: unknown,
-    dataMigrationSource?: string,
-  ) => Effect.Effect<
-    {
-      readonly id: string;
-      readonly databaseId: string;
-      readonly name: string;
-      readonly schema: SchemaObject;
-      readonly schemaVersion: number;
-    },
     any
   >;
   readonly deleteCollection: (collectionId: string) => Effect.Effect<void, any>;
-  readonly listMigrations: (databaseId: string) => Effect.Effect<
-    readonly {
-      readonly databaseId: string;
-      readonly version: number;
-      readonly name: string;
-      readonly checksum: string;
-      readonly appliedAt: string;
-      readonly state: "running" | "succeeded" | "failed" | "replaced";
-      readonly totalDocuments: number;
-      readonly succeededDocuments: number;
-      readonly failedDocuments: number;
-      readonly changes?: readonly MigrationChange[];
-    }[],
-    any
-  >;
-  readonly applyMigration: (
-    databaseId: string,
-    version: number,
-    name: string,
-    checksum: string,
-    changes: readonly MigrationChange[],
-    options?: ApplyMigrationOptions,
-  ) => Effect.Effect<MigrationRunReport, any>;
-  readonly rerunMigration: (
-    databaseId: string,
-    version: number,
-    name: string,
-    checksum: string,
-    changes: readonly MigrationChange[],
-    options?: ApplyMigrationOptions,
-  ) => Effect.Effect<MigrationRunReport, any>;
-  readonly replaceMigration: (
-    databaseId: string,
-    version: number,
-    name: string,
-    checksum: string,
-    changes: readonly MigrationChange[],
-    options?: ApplyMigrationOptions & { readonly redoSucceeded?: boolean },
-  ) => Effect.Effect<MigrationRunReport, any>;
-  readonly getMigrationStatus: (
-    databaseId: string,
-    version: number,
-  ) => Effect.Effect<MigrationStatus, any>;
   readonly createUser: (
     username: string,
     password: string,
@@ -205,10 +120,7 @@ export interface HostService {
   readonly listDocuments: (
     collectionId: string,
   ) => Effect.Effect<readonly DocumentSnapshotResponse[], any>;
-  readonly deleteDocument: (
-    collectionId: string,
-    documentId: string,
-  ) => Effect.Effect<void, any>;
+  readonly deleteDocument: (collectionId: string, documentId: string) => Effect.Effect<void, any>;
   readonly submitTransaction: (
     collectionId: string,
     documentId: string,

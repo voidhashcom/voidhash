@@ -12,12 +12,6 @@ export interface TransactionEnvelope {
   readonly commands: readonly Command[];
   readonly submittedAt?: string;
   readonly actor?: TransactionActor;
-  /**
-   * Optional. When present, the entity records the resulting snapshot at
-   * this `schema_version`. Used by the migration runner so a per-document
-   * migration transaction advances the document onto the new schema.
-   */
-  readonly schemaVersion?: number;
 }
 
 export interface SubmitTransactionResponse {
@@ -38,7 +32,6 @@ export const TransactionEnvelopeSchema = Schema.Struct({
       connectionId: Schema.optional(Schema.String),
     }),
   ),
-  schemaVersion: Schema.optional(Schema.Number),
 });
 
 export const SubmitTransactionResponseSchema = Schema.Struct({
