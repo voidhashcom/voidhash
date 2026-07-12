@@ -46,6 +46,11 @@ const encodeTree = (roots: unknown): unknown => encodePaywallDocument(roots);
 const testLayer = (fakes: Fakes) => {
   const paywallLayer = Layer.succeed(PaywallService, {
     getPaywalls: () => Effect.succeed(fakes.paywalls ?? [paywallRow()]),
+    getPaywallById: (paywallId: string) =>
+      Effect.succeed(
+        (fakes.paywalls ?? [paywallRow()]).find((paywall) => paywall.id === paywallId) ??
+          paywallRow({ id: paywallId }),
+      ),
   } as unknown as PaywallService["Service"]);
 
   // Read cursor over `fakes.documents` (each getPaywallDocument returns the next
@@ -236,10 +241,13 @@ describe("PaywallWorkspaceService", () => {
     const captures: Array<{ paywallId: string; version: number }> = [];
     const exit = await useWs(
       (ws) =>
-        ws.moveComponentFile("proj_1", "trial", "hero.tsx", "hero-banner.tsx", ({
-          paywallId,
-          version,
-        }) => Effect.sync(() => captures.push({ paywallId, version }))),
+        ws.moveComponentFile(
+          "proj_1",
+          "trial",
+          "hero.tsx",
+          "hero-banner.tsx",
+          ({ paywallId, version }) => Effect.sync(() => captures.push({ paywallId, version })),
+        ),
       {
         paywalls: [paywallRow({ id: "pw_1", slug: "trial" })],
         // Two reads: first conflicts (version 5), retry succeeds (version 6). The
@@ -265,10 +273,13 @@ describe("PaywallWorkspaceService", () => {
     const exit = await useWs(
       (ws) =>
         // Unknown source component → the lowering rejects before any submit.
-        ws.moveComponentFile("proj_1", "trial", "ghost.tsx", "phantom.tsx", ({
-          paywallId,
-          version,
-        }) => Effect.sync(() => captures.push({ paywallId, version }))),
+        ws.moveComponentFile(
+          "proj_1",
+          "trial",
+          "ghost.tsx",
+          "phantom.tsx",
+          ({ paywallId, version }) => Effect.sync(() => captures.push({ paywallId, version })),
+        ),
       {
         paywalls: [paywallRow({ id: "pw_1", slug: "trial" })],
         documents: [{ tree: docTreeWithComponent("export const Hero = () => null;"), version: 3 }],
@@ -284,10 +295,9 @@ describe("PaywallWorkspaceService", () => {
     const captures: Array<{ paywallId: string; version: number }> = [];
     const exit = await useWs(
       (ws) =>
-        ws.moveComponentFile("proj_1", "trial", "hero.tsx", "hero.tsx", ({
-          paywallId,
-          version,
-        }) => Effect.sync(() => captures.push({ paywallId, version }))),
+        ws.moveComponentFile("proj_1", "trial", "hero.tsx", "hero.tsx", ({ paywallId, version }) =>
+          Effect.sync(() => captures.push({ paywallId, version })),
+        ),
       {
         paywalls: [paywallRow({ id: "pw_1", slug: "trial" })],
         documents: [{ tree: docTreeWithComponent("export const Hero = () => null;"), version: 4 }],
@@ -366,9 +376,9 @@ describe("PaywallWorkspaceService", () => {
   it("editDocument inserts a subtree, submits, and returns real minted ids", async () => {
     // Resolve the live screen id so the insert targets a real parent.
     const live = docTreeWithScreen();
-    const screenId = (live as { nodes: { id: string; value: { fields: { type?: { value?: string } } } }[] }).nodes.find(
-      (node) => node.value.fields.type?.value === "screen",
-    )!.id;
+    const screenId = (
+      live as { nodes: { id: string; value: { fields: { type?: { value?: string } } } }[] }
+    ).nodes.find((node) => node.value.fields.type?.value === "screen")!.id;
 
     const exit = await useWs(
       (ws) =>
@@ -395,13 +405,16 @@ describe("PaywallWorkspaceService", () => {
 
   it("editDocument no-op (commandCount 0) reports empty minted ids", async () => {
     const live = docTreeWithScreen();
-    const screenId = (live as { nodes: { id: string; value: { fields: { type?: { value?: string } } } }[] }).nodes.find(
-      (node) => node.value.fields.type?.value === "screen",
-    )!.id;
+    const screenId = (
+      live as { nodes: { id: string; value: { fields: { type?: { value?: string } } } }[] }
+    ).nodes.find((node) => node.value.fields.type?.value === "screen")!.id;
 
     const exit = await useWs(
       // Setting the screen name to its CURRENT value reconciles to zero commands.
-      (ws) => ws.editDocument("proj_1", "trial", [{ op: "update", nodeId: screenId, set: { name: "Main" } }]),
+      (ws) =>
+        ws.editDocument("proj_1", "trial", [
+          { op: "update", nodeId: screenId, set: { name: "Main" } },
+        ]),
       {
         paywalls: [paywallRow({ id: "pw_1", slug: "trial" })],
         documents: [{ tree: live, version: 4 }],
@@ -420,9 +433,9 @@ describe("PaywallWorkspaceService", () => {
 
   it("editDocument conflict-then-accept re-derives the target and reports the accepted version", async () => {
     const live = docTreeWithScreen();
-    const screenId = (live as { nodes: { id: string; value: { fields: { type?: { value?: string } } } }[] }).nodes.find(
-      (node) => node.value.fields.type?.value === "screen",
-    )!.id;
+    const screenId = (
+      live as { nodes: { id: string; value: { fields: { type?: { value?: string } } } }[] }
+    ).nodes.find((node) => node.value.fields.type?.value === "screen")!.id;
 
     const exit = await useWs(
       (ws) =>
@@ -483,7 +496,11 @@ describe("PaywallWorkspaceService", () => {
           {
             type: "library",
             children: [
-              { type: "codeComponent", path: "components/hero.tsx", source: "export const Old = 1;" },
+              {
+                type: "codeComponent",
+                path: "components/hero.tsx",
+                source: "export const Old = 1;",
+              },
             ],
           },
         ],
@@ -491,12 +508,7 @@ describe("PaywallWorkspaceService", () => {
     ]);
     const exit = await useWs(
       (ws) =>
-        ws.writeComponentSource(
-          "proj_1",
-          "trial",
-          "components/hero.tsx",
-          "export const New = 2;",
-        ),
+        ws.writeComponentSource("proj_1", "trial", "components/hero.tsx", "export const New = 2;"),
       {
         paywalls: [paywallRow({ id: "pw_1", slug: "trial" })],
         documents: [{ tree: withComponent, version: 5 }],
@@ -513,8 +525,7 @@ describe("PaywallWorkspaceService", () => {
 
   it("writeComponentSource rejects an invalid component file name", async () => {
     const exit = await useWs(
-      (ws) =>
-        ws.writeComponentSource("proj_1", "trial", "components/../evil.tsx", "x"),
+      (ws) => ws.writeComponentSource("proj_1", "trial", "components/../evil.tsx", "x"),
       {
         paywalls: [paywallRow({ id: "pw_1", slug: "trial" })],
         documents: [{ tree: docTreeWithScreen(), version: 1 }],

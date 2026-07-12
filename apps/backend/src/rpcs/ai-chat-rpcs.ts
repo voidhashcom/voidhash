@@ -118,6 +118,12 @@ export const AiChatRpcsLive = AiChatRpcsDef.toLayer(
               Effect.fail(new RpcAiChatNotFoundError({ chatId: error.chatId })),
             AiChatServiceError: (error) =>
               Effect.fail(new RpcAiChatServiceError({ message: error.message })),
+            ActionForbiddenError: (error) =>
+              Effect.fail(new RpcActionForbiddenError({ message: error.message })),
+            PaywallNotFoundError: (error) =>
+              Effect.fail(new RpcAiChatServiceError({ message: error.message })),
+            PaywallServiceError: (error) =>
+              Effect.fail(new RpcAiChatServiceError({ message: error.cause })),
             PaywallWorkspaceServiceError: (error) =>
               Effect.fail(new RpcAiChatServiceError({ message: error.message })),
             WorkspaceWriteRejectedError: (error) =>
@@ -133,7 +139,7 @@ export const AiChatRpcsLive = AiChatRpcsDef.toLayer(
        * so a later {@link RevertAiChatCheckpoint} can restore the pre-turn state.
        *
        * Scoping (anti-cross-project): `get` asserts the caller is a member of the
-       * chat's organization; `getPaywallById` asserts project permission on the
+       * chat's project; `getPaywallById` asserts project permission on the
        * paywall; and the paywall must belong to the SAME project as the chat (an
        * org member cannot checkpoint a paywall from another of the org's projects
        * into this chat). Then the live tree is read and captured first-write-wins —

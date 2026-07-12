@@ -154,7 +154,7 @@ export interface AiChatServiceShape {
   /**
    * Load the pre-images of a chat's MOST RECENT turn (the turn of its newest
    * checkpoint row), or an empty list when the chat has no checkpoints. Requires
-   * org membership on the owning chat (revert is a user-facing action).
+   * project membership on the owning chat (revert is a user-facing action).
    */
   readonly getLastTurnCheckpoints: (input: {
     readonly chatId: string;
@@ -169,11 +169,11 @@ export interface AiChatServiceShape {
  * chat id is minted client-side so an attachment can be stored under the chat
  * before its first turn is saved; `save` therefore upserts by id.
  *
- * Authorization mirrors {@link PaywallAssetService}: a plain membership check on
- * the authenticated {@link AuthSession}. Reads/deletes require org membership;
- * writes additionally require the caller to have access to the target project
- * under that org (anti-spoof, never trusting the project from the body alone).
- * `Db` and `PublicFileStore` are provided by the application root.
+ * Authorization binds every persisted chat operation to the stored project and
+ * organization. A pre-save attachment has no row yet, so it is limited to an
+ * organization the caller belongs to; once the chat exists its stored project
+ * is authoritative. `Db` and `PublicFileStore` are provided by the application
+ * root.
  */
 export class AiChatService extends Context.Service<AiChatService>()("AiChatService", {
   make: Effect.gen(function* () {
@@ -226,50 +226,97 @@ export class AiChatService extends Context.Service<AiChatService>()("AiChatServi
       messages: row.messages,
     });
 
-    /** Load a row by id or fail not-found. */
-    const findRow = (chatId: string) =>
+    /** Load a row by id when present. */
+    const findOptionalRow = (chatId: string) =>
       Effect.gen(function* () {
         const rows = yield* db
           .select()
           .from(voidhashAiChat)
           .where(eq(voidhashAiChat.id, chatId))
           .limit(1);
-        const row = rows[0];
+        return rows[0];
+      });
+
+    /** Load a row by id or fail not-found. */
+    const findRow = (chatId: string) =>
+      Effect.gen(function* () {
+        const row = yield* findOptionalRow(chatId);
         if (!row) {
           return yield* Effect.fail(new AiChatNotFoundError({ chatId }));
         }
         return row;
       });
 
+    const assertSameChatScope = (
+      row: typeof voidhashAiChat.$inferSelect,
+      input: Pick<AiChatSaveInput, "organizationId" | "projectId">,
+    ) =>
+      row.organizationId === input.organizationId && row.projectId === input.projectId
+        ? Effect.void
+        : Effect.fail(
+            new AiChatForbiddenError({
+              message: `Chat ${row.id} belongs to a different organization or project.`,
+            }),
+          );
+
     const save = Effect.fn("saveAiChat")(
       function* (input: AiChatSaveInput) {
         yield* Effect.annotateCurrentSpan("voidhash.organization.id", input.organizationId);
         yield* assertProjectMember(input.projectId, input.organizationId);
-        const userId = yield* currentUserId;
-
         const title = input.title.slice(0, 255);
         const now = new Date();
-        const inserted = yield* db
-          .insert(voidhashAiChat)
-          .values({
-            id: input.id,
-            organizationId: input.organizationId,
-            projectId: input.projectId,
-            surface: input.surface,
-            chatType: input.chatType,
-            paywallId: input.paywallId ?? null,
-            userId,
-            title,
-            messages: input.messages,
-          })
-          .onConflictDoUpdate({
-            target: voidhashAiChat.id,
-            // Only mutable fields — never reassign org/project/owner on replace.
-            set: { title, messages: input.messages, updatedAt: now },
-          })
-          .returning();
+        let existing = yield* findOptionalRow(input.id);
+        if (existing === undefined) {
+          const userId = yield* currentUserId;
+          const inserted = yield* db
+            .insert(voidhashAiChat)
+            .values({
+              id: input.id,
+              organizationId: input.organizationId,
+              projectId: input.projectId,
+              surface: input.surface,
+              chatType: input.chatType,
+              paywallId: input.paywallId ?? null,
+              userId,
+              title,
+              messages: input.messages,
+            })
+            .onConflictDoNothing({ target: voidhashAiChat.id })
+            .returning();
+          if (inserted[0] !== undefined) {
+            return rowToSummary(inserted[0]);
+          }
+          // Another request inserted this client-minted id after our read. Its
+          // persisted scope is authoritative before any update is allowed.
+          existing = yield* findOptionalRow(input.id);
+          if (existing === undefined) {
+            return yield* Effect.fail(
+              new AiChatServiceError({
+                message: `Chat ${input.id} disappeared while resolving a concurrent save.`,
+              }),
+            );
+          }
+        }
 
-        return rowToSummary(inserted[0]!);
+        yield* assertSameChatScope(existing, input);
+        yield* assertProjectMember(existing.projectId, existing.organizationId);
+        const updated = yield* db
+          .update(voidhashAiChat)
+          .set({ title, messages: input.messages, updatedAt: now })
+          .where(
+            and(
+              eq(voidhashAiChat.id, input.id),
+              eq(voidhashAiChat.organizationId, existing.organizationId),
+              eq(voidhashAiChat.projectId, existing.projectId),
+            ),
+          )
+          .returning();
+        if (updated[0] === undefined) {
+          return yield* Effect.fail(
+            new AiChatForbiddenError({ message: `Chat ${input.id} changed scope or was removed.` }),
+          );
+        }
+        return rowToSummary(updated[0]);
       },
       (effect) =>
         effect.pipe(
@@ -308,7 +355,7 @@ export class AiChatService extends Context.Service<AiChatService>()("AiChatServi
     const get = Effect.fn("getAiChat")(
       function* (input: { readonly chatId: string }) {
         const row = yield* findRow(input.chatId);
-        yield* assertOrgMember(row.organizationId);
+        yield* assertProjectMember(row.projectId, row.organizationId);
         return rowToChat(row);
       },
       (effect) =>
@@ -323,7 +370,7 @@ export class AiChatService extends Context.Service<AiChatService>()("AiChatServi
     const remove = Effect.fn("deleteAiChat")(
       function* (input: { readonly chatId: string }) {
         const row = yield* findRow(input.chatId);
-        yield* assertOrgMember(row.organizationId);
+        yield* assertProjectMember(row.projectId, row.organizationId);
         yield* db.delete(voidhashAiChat).where(eq(voidhashAiChat.id, input.chatId));
       },
       (effect) =>
@@ -338,7 +385,19 @@ export class AiChatService extends Context.Service<AiChatService>()("AiChatServi
     const uploadAttachment = Effect.fn("uploadAiChatAttachment")(
       function* (input: AiChatAttachmentUploadInput) {
         yield* Effect.annotateCurrentSpan("voidhash.organization.id", input.organizationId);
-        yield* assertOrgMember(input.organizationId);
+        const existing = yield* findOptionalRow(input.chatId);
+        if (existing !== undefined) {
+          yield* assertProjectMember(existing.projectId, existing.organizationId);
+          if (existing.organizationId !== input.organizationId) {
+            return yield* Effect.fail(
+              new AiChatForbiddenError({
+                message: `Chat ${input.chatId} belongs to a different organization.`,
+              }),
+            );
+          }
+        } else {
+          yield* assertOrgMember(input.organizationId);
+        }
 
         const { bytes, ext } = yield* validateAndDecodePaywallAsset({
           imageBase64: input.dataBase64,
@@ -361,6 +420,8 @@ export class AiChatService extends Context.Service<AiChatService>()("AiChatServi
       (effect) =>
         effect.pipe(
           Effect.catchTags({
+            EffectDrizzleQueryError: (error) =>
+              Effect.fail(new AiChatServiceError({ message: String(error.cause) })),
             PublicFileStoreError: (error) =>
               Effect.fail(new AiChatServiceError({ message: error.cause })),
             PaywallAssetValidationError: (error: PaywallAssetValidationError) =>

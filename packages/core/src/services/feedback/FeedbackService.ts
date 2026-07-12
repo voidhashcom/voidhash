@@ -103,12 +103,16 @@ const make = Effect.gen(function* () {
       const user = session.user;
       yield* Effect.annotateCurrentSpan("voidhash.user.id", user.id);
 
-      const organization = input.organizationId
-        ? (session.organizations.find((o) => o.id === input.organizationId) ?? null)
-        : null;
       const project = input.projectId
         ? (session.projects.find((p) => p.id === input.projectId) ?? null)
         : null;
+      // A project determines its organization. This prevents a user who belongs
+      // to multiple tenants from persisting a mismatched org/project snapshot.
+      const organization = project
+        ? (session.organizations.find((o) => o.id === project.organizationId) ?? null)
+        : input.organizationId
+          ? (session.organizations.find((o) => o.id === input.organizationId) ?? null)
+          : null;
 
       const id = generateId("voidhashFeedback");
       yield* db.insert(voidhashFeedback).values({

@@ -7,10 +7,7 @@
  * `ReadPaywallDocument` read seam (slug resolution + whole-document clean) is
  * exercised end to end without an HTTP transport or a live document.
  */
-import {
-  ComponentManifestCacheService,
-  PaywallWorkspaceService,
-} from "@voidhash/core/services";
+import { ComponentManifestCacheService, PaywallWorkspaceService } from "@voidhash/core/services";
 import { MimicHost } from "@voidhash/core/services/paywalls/MimicHost";
 import { PaywallService } from "@voidhash/core/services/paywalls/PaywallService";
 import { ScreenNode, TextNode } from "@voidhash/mimic-schema";
@@ -58,6 +55,7 @@ const USER_SESSION = { method: "user", user: { id: "user_1" } };
 const buildHandlerLayer = (fakes: Fakes) => {
   const paywallLayer = Layer.succeed(PaywallService, {
     getPaywalls: () => Effect.succeed([paywallRow()]),
+    getPaywallById: () => Effect.succeed(paywallRow()),
   } as unknown as PaywallService["Service"]);
 
   const mimicLayer = Layer.succeed(MimicHost, {
@@ -67,8 +65,7 @@ const buildHandlerLayer = (fakes: Fakes) => {
       Effect.sync(() => ({ tree: emptyDoc(), version: 1, root: fakes.root ?? null })),
     submitPaywallTransaction: (_id: string, input: { baseVersion: number }) =>
       Effect.succeed({ accepted: true, version: input.baseVersion + 1 }),
-    createPaywallEditToken: () =>
-      Effect.succeed({ token: "", url: "", expiresAt: new Date() }),
+    createPaywallEditToken: () => Effect.succeed({ token: "", url: "", expiresAt: new Date() }),
   } as unknown as MimicHost["Service"]);
 
   const cacheLayer = Layer.succeed(ComponentManifestCacheService, {
@@ -87,9 +84,7 @@ const buildHandlerLayer = (fakes: Fakes) => {
   );
 
   return Layer.mergeAll(
-    PaywallWorkspaceRpcsLive.pipe(
-      Layer.provide(Layer.mergeAll(workspaceLayer, cacheLayer)),
-    ),
+    PaywallWorkspaceRpcsLive.pipe(Layer.provide(Layer.mergeAll(workspaceLayer, cacheLayer))),
     authMiddlewareLayer,
   );
 };
@@ -116,7 +111,9 @@ interface WorkspaceClient {
 const dispatch = <A>(fakes: Fakes, f: (client: WorkspaceClient) => Effect.Effect<A, unknown>) =>
   Effect.runPromiseExit(
     Effect.gen(function* () {
-      const client = (yield* RpcTest.makeClient(PaywallWorkspaceRpcsDef)) as unknown as WorkspaceClient;
+      const client = (yield* RpcTest.makeClient(
+        PaywallWorkspaceRpcsDef,
+      )) as unknown as WorkspaceClient;
       return yield* f(client);
     }).pipe(Effect.provide(buildHandlerLayer(fakes)), Effect.scoped),
   );

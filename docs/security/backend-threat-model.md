@@ -171,8 +171,14 @@ message-level duplicate delivery against the notification/ledger uniqueness
 gates; OIDC tokens themselves are intentionally reusable during their short
 lifetime.
 
-Beta must also close the deferred Apple signed-JWS negative and replay cases
-that currently require provider fixtures or a verification seam.
+Apple's cryptographic negative coverage runs signed fixtures through the real
+certificate-chain and WebCrypto verification path, then rejects tampered
+signatures/payloads, wrong bundle IDs, wrong environments, malformed JWS data,
+and invalid chains (`verification.test.ts`, `jws-signature-tamper.test.ts`).
+Database integration tests prove duplicate notification UUIDs are insert-once
+and duplicate logical purchase events are ledger-idempotent. Beta still must
+observe and review real Apple sandbox delivery/retry behavior as part of the
+general real-traffic gate; it is no longer an untested automated-code gap.
 
 ## Object storage and public artifacts
 
@@ -301,7 +307,7 @@ added.
 | VH-TM-002 | High | Mitigated, review pending | Production startup refuses known example credentials and insecure public URLs; configuration coverage requires independent review. |
 | VH-TM-003 | High | Mitigated, review pending | Compiler VM budget and container/network hardening pass adversarial and independent review. |
 | VH-TM-004 | High | Mitigated, review pending | Cloud and self-host browsers deny outbound requests and enforce time/input/output budgets; real-browser redirect/private-network coverage requires independent review. |
-| VH-TM-005 | High | Open; inventory complete | Machine-checked endpoint matrix is complete; all rows marked Unit or Gap need database-backed cross-tenant negatives. |
+| VH-TM-005 | High | Mitigated, review pending | Machine-checked endpoint matrix is complete; database-backed negatives cover every tenant-selectable service group, including persisted chat-ID collisions and raw paywall IDs. |
 | VH-TM-006 | Process gate | Open | Real beta traffic and security-log/incident review completed. |
 | VH-TM-007 | Process gate | Open | Independent reviewer signs off and residual risks have owners/deadlines. |
 

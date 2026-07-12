@@ -15,7 +15,7 @@ import {
 import { PaywallNotFoundError } from "../../domain/paywall/Paywall.ts";
 import { MimicHost } from "../paywalls/MimicHost.ts";
 import { PaywallService } from "../paywalls/PaywallService.ts";
-import { ComponentManifestCacheError, ComponentManifestCacheService } from "./ComponentManifestCacheService.ts";
+import { ComponentManifestCacheError } from "./ComponentManifestCacheService.ts";
 
 /**
  * Catch-all error raised by {@link PaywallWorkspaceService} public methods —
@@ -186,15 +186,14 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
        * cleans for the model), and the optimistic-concurrency `version`, all from
        * ONE consistent read (see {@link MimicHostShape.getPaywallDocument}).
        *
-       * A thin, authorization-free read over the {@link MimicHost} port —
-       * mirroring {@link revertDocument}, the CALLER owns authorization (it
-       * resolves the `paywallId` it passes; e.g. a chat-scoped checkpoint capture,
-       * or a slug already resolved within its project). Used by the AI
-       * `CaptureAiCheckpoint` path (reads `tree`) and by {@link readDocument}
-       * (reads `root`).
+       * The stored paywall is loaded first through {@link PaywallService}, so
+       * direct callers cannot bypass project authorization by supplying a raw
+       * mimic document id. Used by the AI `CaptureAiCheckpoint` path (reads
+       * `tree`) and by {@link readDocument} (reads `root`).
        */
       const readDocumentTree = (paywallId: string) =>
         Effect.gen(function* () {
+          yield* paywallService.getPaywallById(paywallId);
           yield* mimicHost.ensurePaywallDocument(paywallId);
           const document = yield* mimicHost.getPaywallDocument(paywallId);
           return {
@@ -529,12 +528,13 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
        * the reverted state. Returns the committed `{version, commandCount}`; a
        * `commandCount` of `0` means the document already matched the checkpoint.
        *
-       * Authorization is the caller's — the caller resolves the paywall id it owns
-       * (checkpoint rows are chat-scoped, and the chat is project-scoped); this
-       * method submits against that id.
+       * The stored paywall is authorized again before the root mimic transaction,
+       * so a forged or stale checkpoint cannot turn this raw-id operation into a
+       * project-boundary bypass.
        */
       const revertDocument = (paywallId: string, capturedTree: unknown) =>
         Effect.gen(function* () {
+          yield* paywallService.getPaywallById(paywallId);
           yield* mimicHost.ensurePaywallDocument(paywallId);
           const outcome = yield* submitLoop(paywallId, (current) =>
             Effect.succeed(reconcileToTree({ current, target: capturedTree })),

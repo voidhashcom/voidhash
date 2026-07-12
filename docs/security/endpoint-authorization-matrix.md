@@ -41,7 +41,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 
 | Groups | Principal and authorization boundary | Evidence | Status |
 | --- | --- | --- | --- |
-| auth, users | User session; identity comes from the authenticated session, not request IDs. | `LocalUserSessionService.integration.test.ts`, `UserService.test.ts` | Unit |
+| auth, users | User session; identity comes from the authenticated session, not request IDs. | `LocalUserSessionService.integration.test.ts`, `UserAuthorization.integration.test.ts`, `UserService.test.ts` | Integrated |
 | api_keys | User/project session plus project permission; key IDs are reloaded and ownership checked. | `ApiKeyService.integration.test.ts` | Integrated |
 | persons | Project-scoped session; person/distinct IDs are resolved and checked against that project. | `PersonService.integration.test.ts` | Integrated |
 | notifications | Project ID is derived from a non-publishable authenticated session; downstream audience lookups stay project-scoped. | Notification authorization integration suite plus person/token service isolation tests | Integrated |
@@ -90,8 +90,8 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | Analytics, VoidQl | Project permission before query compilation/execution; compiled SQL carries a bound tenant predicate. | Analytics integration suite and VoidQL compiler/substrate tests | Integrated |
 | ApiKey, Person, Organization, PaymentProviderConfiguration, PaymentProviderProduct, PaywallDeploy, PaywallLocation, Paywall, Perk, ProductPerk, Product, Project, Webhook, FeatureFlag | Project/organization permission followed by stored ownership checks for nested IDs. | Corresponding database-backed core service integration suites | Integrated |
 | PaywallComponent | Delegates to the project-authorized deploy service. | Paywall deploy integration suite | Integrated |
-| AiChat, PaywallAsset, PaywallWorkspace | Project membership/permission and stored parent ownership are covered with controlled service tests. | AI chat, asset, workspace service and RPC tests | Unit |
-| User, Feedback | Acting user comes only from the authenticated session; no caller-selected tenant. | User and feedback service tests | Unit |
+| AiChat, PaywallAsset, PaywallWorkspace | Project membership/permission and stored parent ownership are checked before every read or mutation. Client-minted chat ID collisions are bound to the persisted scope. | `AiChatAuthorization.integration.test.ts`, `PaywallAssetAuthorization.integration.test.ts`, `PaywallWorkspaceAuthorization.integration.test.ts`, plus service and RPC unit tests | Integrated |
+| User, Feedback | Acting user comes only from the authenticated session; feedback project context derives its organization from the same session project. | `UserAuthorization.integration.test.ts`, `FeedbackAuthorization.integration.test.ts`, plus service tests | Integrated |
 | Experiment | Project permission is checked on the stored experiment before every aggregate, variant, treatment, and lifecycle mutation. | `ExperimentService.authorization.integration.test.ts` covers every management operation and verifies no mutation. | Integrated |
 | PushNotificationConfiguration, PushNotificationSend | Project permission plus stored configuration/send ownership; delivery lookup binds both project and parent send ID. | `NotificationsAuthorization.integration.test.ts` covers every configuration/history operation and a nested foreign send ID. | Integrated |
 
@@ -100,20 +100,19 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | Surface | Principal or capability | Authorization/authenticity boundary | Status |
 | --- | --- | --- | --- |
 | `/rpc` | User API key, project secret key, or WorkOS session | Shared auth middleware creates the session consumed by every RPC. | Covered by RPC smoke and service evidence above |
-| `/api/mcp` | Bearer project secret key | Key lookup creates a single-project session; workspace services re-check the requested paywall/project. | Unit; cross-project AI workspace cases covered |
-| `/api/ai/chat` | Authenticated user/session token | Token verifier and project-scoped chat/workspace services. | Unit |
+| `/api/mcp` | Bearer project secret key | Key lookup creates a single-project session; workspace services re-check the requested paywall/project. | Route/protocol tests plus integrated cross-project workspace evidence |
+| `/api/ai/chat` | Authenticated user/session token | Token verifier and project-scoped chat/workspace services. | Route/tool tests plus integrated chat/workspace evidence |
 | `/i/v1/capture`, `/i/v1/batch` | Publishable project token | Token resolves the project; processing rejects route/project mismatch and reserved events. | Integrated |
 | Stripe webhook | Provider signature over exact raw body and timestamp | Configuration lookup is tied to the route ID; ledger IDs deduplicate. | Integrated |
 | WorkOS webhook | Provider signature over exact raw body and timestamp | External event ID uniqueness and membership sync rules. | Integrated |
-| Apple webhook | Signed JWS and application identity | Provider configuration and purchase ledger. | Negative provider-fixture gap remains |
+| Apple webhook | Signed JWS and application identity | Provider configuration, full signature/certificate verification, notification UUID uniqueness, and purchase-ledger idempotency. | Integrated cryptographic fixtures and database replay/dedup evidence; independent review pending |
 | Google Play RTDN | Google OIDC signature, issuer, lifetime, audience, verified service-account email | Provider configuration, authoritative Google Play state re-fetch, notification/ledger uniqueness. | Integrated; independent review pending |
-| `/p/*`, `/c/*`, `/files/*` | Public content hash/object key | Only immutable public artifacts; traversal rejected and active HTML sandboxed. | Unit and release-smoke covered |
+| `/p/*`, `/c/*`, `/files/*` | Public content hash/object key | Only immutable public artifacts; traversal rejected and active HTML sandboxed. | Boundary tests and release smoke covered |
 | `/health`, `/api/health`, OpenAPI | Public | No tenant data or mutation. | Smoke covered |
 
-## Publication gaps
+## Publication gates
 
-The inventory is complete, but cross-tenant evidence is not. Before changing
-repository visibility, add database-backed negative suites for the rows still
-marked Unit, especially AI chat, paywall assets, and paywall workspace nested
-resource IDs. Apple provider-fixture negatives and the independent review remain
-separate gates in the threat model.
+The endpoint inventory and automated cross-tenant evidence are complete. The
+remaining publication gates are the real beta traffic/security-log review and
+independent security review recorded in the threat model. Repository visibility
+must remain private until those process gates are complete.
