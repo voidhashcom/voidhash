@@ -70,6 +70,28 @@ function corsMiddleware() {
   };
 }
 
+function tanstackClientEntryMiddleware() {
+  return {
+    name: "tanstack-client-entry-middleware",
+    configureServer(server: {
+      middlewares: {
+        use: (fn: (req: unknown, res: unknown, next: () => void) => void) => void;
+      };
+    }) {
+      server.middlewares.use((req, _res, next) => {
+        const request = req as { url?: string };
+
+        // The development HTML emits the raw virtual ID while Vite serves its canonical NUL form.
+        if (request.url?.startsWith("/@id/virtual:tanstack-start-client-entry")) {
+          request.url = request.url.replace("/@id/virtual:", "/@id/__x00__virtual:");
+        }
+
+        next();
+      });
+    },
+  };
+}
+
 function scopedMdxPlugin(plugin: PluginOption, scopeFragment: string) {
   const vitePlugin = plugin as {
     transform?: (this: unknown, code: string, id: string) => unknown;
@@ -118,6 +140,7 @@ export default defineConfig(() => ({
       }),
       "/src/features/design/content/docs/",
     ),
+    tanstackClientEntryMiddleware(),
     corsMiddleware(),
     paywallRuntimeBundlePlugin(),
     tailwindcss(),
