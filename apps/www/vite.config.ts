@@ -117,6 +117,9 @@ export default defineConfig(() => ({
     tailwindcss(),
     tanstackStart({
       srcDirectory: "src",
+      server: {
+        entry: "server.ts",
+      },
       prerender: {
         enabled: false,
       },
