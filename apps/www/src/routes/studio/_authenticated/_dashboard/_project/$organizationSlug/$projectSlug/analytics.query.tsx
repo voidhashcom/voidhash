@@ -1,7 +1,8 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Button,
+  Input,
   Page,
   PageHeader,
   PageHeaderTitle,
@@ -14,11 +15,18 @@ import {
   Textarea,
 } from "@voidhash/ui";
 import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
+import { Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { useAuth } from "@/features/studio/components/auth-context";
 import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
-import { runVoidQlQueryOptions } from "@/features/studio/lib/tanstack-query";
+import {
+  deleteVoidQlInsightOptions,
+  listVoidQlInsightsOptions,
+  queryKeys,
+  runVoidQlQueryOptions,
+  saveVoidQlInsightOptions,
+} from "@/features/studio/lib/tanstack-query";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 
@@ -57,6 +65,8 @@ function QueryPage() {
   // Gated behind an internal feature flag (unreleased) — also hides direct URL access.
   const queryEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.voidqlQuery.key);
   const [text, setText] = useState(EXAMPLE_QUERY);
+  const [name, setName] = useState("Untitled query");
+  const queryClient = useQueryClient();
 
   const project = CurrentUser.getProjectBySlugs(
     user,
@@ -65,6 +75,12 @@ function QueryPage() {
   );
 
   const runQuery = useMutation(runVoidQlQueryOptions());
+  const saveQuery = useMutation(saveVoidQlInsightOptions());
+  const deleteQuery = useMutation(deleteVoidQlInsightOptions());
+  const savedQueries = useQuery({
+    ...listVoidQlInsightsOptions({ organizationId: project?.organizationId ?? "missing-org" }),
+    enabled: project !== undefined && queryEnabled,
+  });
 
   if (!queryEnabled) {
     return (
@@ -98,6 +114,10 @@ function QueryPage() {
 
   const result = runQuery.data;
   const error = runQuery.isError ? errorMessage(runQuery.error) : null;
+  const refreshSaved = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.analytics.voidQlInsights({ organizationId: project.organizationId }),
+    });
 
   return (
     <Page className="flex h-[calc(100svh-var(--header-height))] flex-col overflow-hidden">
@@ -115,7 +135,7 @@ function QueryPage() {
             spellCheck={false}
             value={text}
           />
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button disabled={runQuery.isPending || text.trim().length === 0} onClick={onRun}>
               {runQuery.isPending ? "Running…" : "Run"}
             </Button>
@@ -124,8 +144,55 @@ function QueryPage() {
                 {result.rows.length} row{result.rows.length === 1 ? "" : "s"}
               </span>
             ) : null}
+            <Input
+              aria-label="Saved query name"
+              className="ml-auto max-w-64"
+              onChange={(event) => setName(event.target.value)}
+              value={name}
+            />
+            <Button
+              disabled={!name.trim() || !text.trim() || saveQuery.isPending}
+              onClick={() =>
+                saveQuery.mutate(
+                  { name: name.trim(), organizationId: project.organizationId, text: text.trim() },
+                  { onSuccess: () => void refreshSaved() },
+                )
+              }
+              variant="outline"
+            >
+              <Save /> {saveQuery.isPending ? "Saving…" : "Save query"}
+            </Button>
           </div>
         </div>
+
+        {savedQueries.data?.insights.length ? (
+          <div className="flex flex-wrap gap-2 rounded-md border p-3">
+            {savedQueries.data.insights.map((insight) => (
+              <div className="flex items-center rounded-md border bg-background" key={insight.id}>
+                <button
+                  className="px-3 py-2 text-left text-sm hover:bg-muted"
+                  onClick={() => {
+                    setName(insight.name);
+                    setText(insight.text);
+                  }}
+                  type="button"
+                >
+                  {insight.name}
+                </button>
+                <Button
+                  aria-label={`Delete ${insight.name}`}
+                  onClick={() =>
+                    deleteQuery.mutate({ id: insight.id }, { onSuccess: () => void refreshSaved() })
+                  }
+                  size="icon"
+                  variant="ghost"
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         {error ? (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-destructive text-sm">

@@ -1,9 +1,4 @@
-import { AnalyticsService } from "@voidhash/core/services";
-// Imported so the inferred `AnalyticsRpcsLive` layer type (whose requirements
-// include the analytics read path's `ClickhouseWebClient`) is nameable in the
-// emitted declarations — the client is re-exported as a namespace, which TS
-// cannot otherwise reference portably (TS2883).
-import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
+import { AnalyticsService, CustomAnalyticsService } from "@voidhash/core/services";
 import {
   AnalyticsRpcsDef,
   RpcActionForbiddenError,
@@ -19,6 +14,19 @@ import { Effect } from "effect";
 export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
   Effect.gen(function* AnalyticsRpcsLive() {
     const analyticsService = yield* AnalyticsService;
+    const customAnalyticsService = yield* CustomAnalyticsService;
+
+    const commonErrors = {
+      ActionForbiddenError: (error: { readonly message: string }) =>
+        Effect.fail(new RpcActionForbiddenError({ message: error.message })),
+      AnalyticsServiceError: (error: { readonly cause: string; readonly message: string }) =>
+        Effect.fail(
+          new RpcAnalyticsServiceError({
+            cause: error.cause,
+            message: error.message,
+          }),
+        ),
+    };
 
     return {
       ListRecentAnalyticsEvents: ({ projectId, limit }) =>
@@ -33,7 +41,10 @@ export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
                 Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               AnalyticsServiceError: (error) =>
                 Effect.fail(
-                  new RpcAnalyticsServiceError({ cause: error.cause, message: error.message }),
+                  new RpcAnalyticsServiceError({
+                    cause: error.cause,
+                    message: error.message,
+                  }),
                 ),
             }),
           ),
@@ -51,7 +62,10 @@ export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
                 Effect.fail(new RpcActionForbiddenError({ message: error.message })),
               AnalyticsServiceError: (error) =>
                 Effect.fail(
-                  new RpcAnalyticsServiceError({ cause: error.cause, message: error.message }),
+                  new RpcAnalyticsServiceError({
+                    cause: error.cause,
+                    message: error.message,
+                  }),
                 ),
               InvalidAnalyticsQueryError: (error) =>
                 Effect.fail(new RpcInvalidAnalyticsQueryError({ message: error.message })),
@@ -80,6 +94,58 @@ export const AnalyticsRpcsLive = AnalyticsRpcsDef.toLayer(
                 ),
             }),
           ),
+      QueryCustomAnalyticsInsight: (input) =>
+        customAnalyticsService.queryInsight(input).pipe(
+          Effect.catchTags({
+            ...commonErrors,
+            InvalidAnalyticsQueryError: (error) =>
+              Effect.fail(new RpcInvalidAnalyticsQueryError({ message: error.message })),
+            InvalidTimeRangeError: (error) =>
+              Effect.fail(new RpcInvalidTimeRangeError({ message: error.message })),
+          }),
+        ),
+      QueryCustomAnalyticsPersons: (input) =>
+        customAnalyticsService.queryPersons(input).pipe(
+          Effect.catchTags({
+            ...commonErrors,
+            InvalidAnalyticsQueryError: (error) =>
+              Effect.fail(new RpcInvalidAnalyticsQueryError({ message: error.message })),
+            InvalidTimeRangeError: (error) =>
+              Effect.fail(new RpcInvalidTimeRangeError({ message: error.message })),
+          }),
+        ),
+      ListAnalyticsInsights: (input) =>
+        customAnalyticsService.listInsights(input).pipe(Effect.catchTags(commonErrors)),
+      CreateAnalyticsInsight: (input) =>
+        customAnalyticsService.createInsight(input).pipe(Effect.catchTags(commonErrors)),
+      UpdateAnalyticsInsight: (input) =>
+        customAnalyticsService.updateInsight(input).pipe(Effect.catchTags(commonErrors)),
+      DeleteAnalyticsInsight: (input) =>
+        customAnalyticsService.deleteInsight(input).pipe(Effect.catchTags(commonErrors)),
+      ListAnalyticsCohorts: (input) =>
+        customAnalyticsService.listCohorts(input).pipe(Effect.catchTags(commonErrors)),
+      CreateAnalyticsCohort: (input) =>
+        customAnalyticsService.createCohort(input).pipe(Effect.catchTags(commonErrors)),
+      UpdateAnalyticsCohort: (input) =>
+        customAnalyticsService.updateCohort(input).pipe(Effect.catchTags(commonErrors)),
+      DeleteAnalyticsCohort: (input) =>
+        customAnalyticsService.deleteCohort(input).pipe(Effect.catchTags(commonErrors)),
+      ListAnalyticsDashboards: (input) =>
+        customAnalyticsService.listDashboards(input).pipe(Effect.catchTags(commonErrors)),
+      CreateAnalyticsDashboard: (input) =>
+        customAnalyticsService.createDashboard(input).pipe(Effect.catchTags(commonErrors)),
+      DuplicateAnalyticsDashboard: (input) =>
+        customAnalyticsService.duplicateDashboard(input).pipe(Effect.catchTags(commonErrors)),
+      UpdateAnalyticsDashboard: (input) =>
+        customAnalyticsService.updateDashboard(input).pipe(Effect.catchTags(commonErrors)),
+      DeleteAnalyticsDashboard: (input) =>
+        customAnalyticsService.deleteDashboard(input).pipe(Effect.catchTags(commonErrors)),
+      PutAnalyticsDashboardItem: (input) =>
+        customAnalyticsService.putDashboardItem(input).pipe(Effect.catchTags(commonErrors)),
+      ReorderAnalyticsDashboardItems: (input) =>
+        customAnalyticsService.reorderDashboardItems(input).pipe(Effect.catchTags(commonErrors)),
+      RemoveAnalyticsDashboardItem: (input) =>
+        customAnalyticsService.removeDashboardItem(input).pipe(Effect.catchTags(commonErrors)),
     };
   }),
 );

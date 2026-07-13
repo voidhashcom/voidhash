@@ -63,8 +63,24 @@ export function ProjectSidebar({
                 `/studio/${organizationSlug}/${projectSlug}/analytics`,
               ),
             title: "Analytics",
-            url: `/studio/${organizationSlug}/${projectSlug}/analytics/revenue`,
+            url: `/studio/${organizationSlug}/${projectSlug}/analytics/insights`,
             items: [
+              {
+                isActive: () =>
+                  pathname.startsWith(
+                    `/studio/${organizationSlug}/${projectSlug}/analytics/insights`,
+                  ),
+                title: "Insights",
+                url: `/studio/${organizationSlug}/${projectSlug}/analytics/insights`,
+              },
+              {
+                isActive: () =>
+                  pathname.startsWith(
+                    `/studio/${organizationSlug}/${projectSlug}/analytics/dashboards`,
+                  ),
+                title: "Dashboards",
+                url: `/studio/${organizationSlug}/${projectSlug}/analytics/dashboards`,
+              },
               {
                 isActive: () =>
                   `/studio/${organizationSlug}/${projectSlug}/analytics/revenue` ===

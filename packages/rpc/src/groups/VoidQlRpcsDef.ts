@@ -90,6 +90,22 @@ export const SaveVoidQlInsightRequest = Schema.Struct({
 
 export const SaveVoidQlInsightResponse = Schema.Struct({ id: Schema.String });
 
+export const SavedVoidQlInsight = Schema.Struct({
+  createdAt: Schema.Date,
+  createdBy: Schema.String,
+  id: Schema.String,
+  name: Schema.String,
+  organizationId: Schema.String,
+  schemaVersion: Schema.Number,
+  text: VoidQlQueryText,
+  updatedAt: Schema.Date,
+});
+export type SavedVoidQlInsightType = typeof SavedVoidQlInsight.Type;
+
+export const ListVoidQlInsightsResponse = Schema.Struct({
+  insights: Schema.Array(SavedVoidQlInsight),
+});
+
 /** The compile-error union shared by the run + save surfaces. */
 const COMPILE_ERRORS = [
   RpcActionForbiddenError,
@@ -122,5 +138,20 @@ export class VoidQlRpcsDef extends RpcGroup.make(
     error: Schema.Union([...COMPILE_ERRORS]),
     payload: SaveVoidQlInsightRequest,
     success: SaveVoidQlInsightResponse,
+  }),
+  Rpc.make("ListVoidQlInsights", {
+    error: Schema.Union([RpcActionForbiddenError, RpcVoidQlExecutionError]),
+    payload: Schema.Struct({ organizationId: Schema.String }),
+    success: ListVoidQlInsightsResponse,
+  }),
+  Rpc.make("RunSavedVoidQlInsight", {
+    error: Schema.Union([...COMPILE_ERRORS]),
+    payload: Schema.Struct({ id: Schema.String }),
+    success: RunVoidQlQueryResponse,
+  }),
+  Rpc.make("DeleteVoidQlInsight", {
+    error: Schema.Union([RpcActionForbiddenError, RpcVoidQlExecutionError]),
+    payload: Schema.Struct({ id: Schema.String }),
+    success: Schema.Struct({ deleted: Schema.Boolean }),
   }),
 ).middleware(AuthMiddleware) {}

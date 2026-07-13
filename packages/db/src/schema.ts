@@ -2625,6 +2625,125 @@ export const analyticsSavedQuery = pgTable(
   (table) => [index("analytics_saved_query_org_idx").on(table.organizationId)],
 );
 
+/** A project-scoped saved product-analytics insight definition. */
+export const analyticsInsights = pgTable(
+  "analytics_insight",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    organizationId: varchar("organization_id", { length: 255 }).notNull(),
+    projectId: varchar("project_id", { length: 255 }).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    kind: varchar("kind", { length: 32 }).notNull(),
+    definition: jsonb("definition").$type<unknown>().notNull(),
+    createdBy: varchar("created_by", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
+  },
+  (table) => [
+    index("analytics_insight_project_idx").on(table.projectId, table.updatedAt),
+    index("analytics_insight_organization_idx").on(table.organizationId),
+  ],
+);
+
+/** A reusable, project-scoped set of analytics people. */
+export const analyticsCohorts = pgTable(
+  "analytics_cohort",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    organizationId: varchar("organization_id", { length: 255 }).notNull(),
+    projectId: varchar("project_id", { length: 255 }).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    createdBy: varchar("created_by", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
+  },
+  (table) => [
+    index("analytics_cohort_project_idx").on(table.projectId, table.updatedAt),
+    index("analytics_cohort_organization_idx").on(table.organizationId),
+  ],
+);
+
+/** Static person membership for a reusable analytics cohort. */
+export const analyticsCohortMembers = pgTable(
+  "analytics_cohort_member",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    cohortId: varchar("cohort_id", { length: 255 }).notNull(),
+    personId: varchar("person_id", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("analytics_cohort_member_person_idx").on(table.cohortId, table.personId),
+    index("analytics_cohort_member_cohort_idx").on(table.cohortId),
+  ],
+);
+
+/** A project-scoped dashboard that arranges saved analytics insights. */
+export const analyticsDashboards = pgTable(
+  "analytics_dashboard",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    organizationId: varchar("organization_id", { length: 255 }).notNull(),
+    projectId: varchar("project_id", { length: 255 }).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    createdBy: varchar("created_by", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
+  },
+  (table) => [
+    index("analytics_dashboard_project_idx").on(table.projectId, table.updatedAt),
+    index("analytics_dashboard_organization_idx").on(table.organizationId),
+  ],
+);
+
+export interface AnalyticsDashboardItemLayout {
+  readonly height: number;
+  readonly width: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+/** A saved analytics insight or VoidQL query placement on a dashboard. */
+export const analyticsDashboardItems = pgTable(
+  "analytics_dashboard_item",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    dashboardId: varchar("dashboard_id", { length: 255 }).notNull(),
+    sourceType: varchar("source_type", { length: 32 }).notNull(),
+    sourceId: varchar("source_id", { length: 255 }).notNull(),
+    position: integer("position").notNull(),
+    layout: jsonb("layout").$type<AnalyticsDashboardItemLayout>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("analytics_dashboard_item_source_idx").on(
+      table.dashboardId,
+      table.sourceType,
+      table.sourceId,
+    ),
+    index("analytics_dashboard_item_position_idx").on(table.dashboardId, table.position),
+  ],
+);
+
 /* ──────────────────────────────────────────────────────────────────────────
  * Push notifications
  *

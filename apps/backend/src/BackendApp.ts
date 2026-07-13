@@ -53,6 +53,7 @@ import {
   PaywallWorkspaceService,
   ComponentCompiler,
   ComponentManifestCacheService,
+  CustomAnalyticsService,
   PerkGrantService,
   PerkService,
   PersonIdentityService,
@@ -745,6 +746,7 @@ const buildBackendServiceGraph = <
   const BaseDomainServicesLayer = Layer.mergeAll(
     AiChatService.layer,
     AnalyticsService.layer,
+    CustomAnalyticsService.layer,
     ApiKeyService.layer,
     BackendFeedbackServiceLive,
     BackendAppStorePaymentProviderServiceLive,

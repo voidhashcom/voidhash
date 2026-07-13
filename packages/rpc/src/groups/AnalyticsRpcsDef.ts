@@ -11,6 +11,7 @@ import {
 } from "../errors/analytics.ts";
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import { AuthMiddleware } from "../middlewares.ts";
+import { SavedVoidQlInsight } from "./VoidQlRpcsDef.ts";
 
 export const AnalyticsContext = Schema.Struct({
   organizationId: Schema.String,
@@ -118,10 +119,567 @@ export const AnalyticsFilter: AnalyticsFilterCodec = Schema.Union([
 
 export const AnalyticsBreakdown = Schema.Struct({
   field: AnalyticsFieldRef,
-  limit: Schema.optional(Schema.Number),
+  limit: Schema.optional(
+    Schema.Number.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(100)),
+  ),
   order: Schema.optional(Schema.Union([Schema.Literal("asc"), Schema.Literal("desc")])),
 });
 export type AnalyticsBreakdownType = typeof AnalyticsBreakdown.Type;
+
+export const AnalyticsActor = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("person") }),
+  Schema.Struct({
+    kind: Schema.Literal("group"),
+    property: Schema.String.check(Schema.isMaxLength(128)),
+  }),
+]);
+export type AnalyticsActorType = typeof AnalyticsActor.Type;
+
+const AnalyticsCohortIds = Schema.Array(Schema.String).check(Schema.isMaxLength(20));
+
+export const CustomAnalyticsInsightKind = Schema.Union([
+  Schema.Literal("trends"),
+  Schema.Literal("funnels"),
+  Schema.Literal("retention"),
+  Schema.Literal("paths"),
+  Schema.Literal("stickiness"),
+  Schema.Literal("lifecycle"),
+]);
+export type CustomAnalyticsInsightKindType = typeof CustomAnalyticsInsightKind.Type;
+
+export const AnalyticsEventSeries = Schema.Struct({
+  aggregation: Schema.Union([
+    Schema.Literal("total_events"),
+    Schema.Literal("unique_users"),
+    Schema.Literal("property_sum"),
+    Schema.Literal("property_average"),
+    Schema.Literal("property_minimum"),
+    Schema.Literal("property_maximum"),
+    Schema.Literal("property_median"),
+    Schema.Literal("property_p75"),
+    Schema.Literal("property_p90"),
+    Schema.Literal("property_p95"),
+    Schema.Literal("property_p99"),
+  ]),
+  eventNames: Schema.NonEmptyArray(Schema.String.check(Schema.isMaxLength(255))),
+  filters: Schema.optional(AnalyticsFilter),
+  key: Schema.String.check(Schema.isMaxLength(64)),
+  label: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
+  mathProperty: Schema.optional(Schema.String.check(Schema.isMaxLength(128))),
+});
+export type AnalyticsEventSeriesType = typeof AnalyticsEventSeries.Type;
+
+export const AnalyticsTrendsComparison = Schema.Union([
+  Schema.Literal("previous_period"),
+  Schema.Literal("previous_year"),
+]);
+export type AnalyticsTrendsComparisonType = typeof AnalyticsTrendsComparison.Type;
+
+export const AnalyticsTrendsFormula = Schema.Struct({
+  expression: Schema.String.check(Schema.isMaxLength(512)),
+  key: Schema.String.check(Schema.isMaxLength(64)),
+  label: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
+});
+export type AnalyticsTrendsFormulaType = typeof AnalyticsTrendsFormula.Type;
+
+export const TrendsInsightQuery = Schema.Struct({
+  actor: Schema.optional(AnalyticsActor),
+  breakdown: Schema.optional(AnalyticsBreakdown),
+  cohortIds: Schema.optional(AnalyticsCohortIds),
+  comparison: Schema.optional(AnalyticsTrendsComparison),
+  cumulative: Schema.optional(Schema.Boolean),
+  display: Schema.Union([
+    Schema.Literal("line"),
+    Schema.Literal("bar"),
+    Schema.Literal("area"),
+    Schema.Literal("number"),
+  ]),
+  formulas: Schema.optional(Schema.Array(AnalyticsTrendsFormula)),
+  granularity: AnalyticsGranularity,
+  kind: Schema.Literal("trends"),
+  hideWeekends: Schema.optional(Schema.Boolean),
+  series: Schema.NonEmptyArray(AnalyticsEventSeries),
+  smoothingWindow: Schema.optional(
+    Schema.Number.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(28)),
+  ),
+  timeRange: AnalyticsTimeRange,
+});
+export type TrendsInsightQueryType = typeof TrendsInsightQuery.Type;
+
+export const FunnelStep = Schema.Struct({
+  eventNames: Schema.NonEmptyArray(Schema.String.check(Schema.isMaxLength(255))),
+  filters: Schema.optional(AnalyticsFilter),
+  key: Schema.String.check(Schema.isMaxLength(64)),
+  label: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
+});
+
+export const FunnelsInsightQuery = Schema.Struct({
+  actor: Schema.optional(AnalyticsActor),
+  breakdown: Schema.optional(AnalyticsBreakdown),
+  breakdownAttributionStep: Schema.optional(
+    Schema.Number.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(20)),
+  ),
+  conversionWindowSeconds: Schema.Number.check(Schema.isGreaterThan(0)),
+  cohortIds: Schema.optional(AnalyticsCohortIds),
+  kind: Schema.Literal("funnels"),
+  order: Schema.Union([
+    Schema.Literal("sequential"),
+    Schema.Literal("strict"),
+    Schema.Literal("any"),
+  ]),
+  steps: Schema.NonEmptyArray(FunnelStep),
+  timeRange: AnalyticsTimeRange,
+});
+export type FunnelsInsightQueryType = typeof FunnelsInsightQuery.Type;
+
+export const RetentionInsightQuery = Schema.Struct({
+  actor: Schema.optional(AnalyticsActor),
+  cohortIds: Schema.optional(AnalyticsCohortIds),
+  cumulative: Schema.optional(Schema.Boolean),
+  intervals: Schema.optional(
+    Schema.Number.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(24)),
+  ),
+  kind: Schema.Literal("retention"),
+  period: Schema.Union([Schema.Literal("day"), Schema.Literal("week"), Schema.Literal("month")]),
+  reference: Schema.optional(Schema.Union([Schema.Literal("cohort"), Schema.Literal("previous")])),
+  returning: AnalyticsEventSeries,
+  retentionType: Schema.optional(
+    Schema.Union([Schema.Literal("recurring"), Schema.Literal("first_time")]),
+  ),
+  start: AnalyticsEventSeries,
+  timeRange: AnalyticsTimeRange,
+});
+export type RetentionInsightQueryType = typeof RetentionInsightQuery.Type;
+
+export const PathsInsightQuery = Schema.Struct({
+  actor: Schema.optional(AnalyticsActor),
+  collapseRepeated: Schema.optional(Schema.Boolean),
+  cohortIds: Schema.optional(AnalyticsCohortIds),
+  edgeLimit: Schema.optional(
+    Schema.Number.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(200)),
+  ),
+  endEventName: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
+  eventNames: Schema.Array(Schema.String.check(Schema.isMaxLength(255))),
+  excludeEventNames: Schema.optional(Schema.Array(Schema.String.check(Schema.isMaxLength(255)))),
+  filters: Schema.optional(AnalyticsFilter),
+  kind: Schema.Literal("paths"),
+  maxDepth: Schema.Number.check(Schema.isGreaterThanOrEqualTo(2), Schema.isLessThanOrEqualTo(20)),
+  maxEdgeCount: Schema.optional(Schema.Number.check(Schema.isGreaterThanOrEqualTo(1))),
+  minEdgeCount: Schema.optional(Schema.Number.check(Schema.isGreaterThanOrEqualTo(1))),
+  pathItem: Schema.optional(
+    Schema.Union([Schema.Literal("event_name"), Schema.Literal("screen_name")]),
+  ),
+  sessionGapSeconds: Schema.optional(
+    Schema.Number.check(Schema.isGreaterThanOrEqualTo(60), Schema.isLessThanOrEqualTo(86_400)),
+  ),
+  startEventName: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
+  timeRange: AnalyticsTimeRange,
+});
+export type PathsInsightQueryType = typeof PathsInsightQuery.Type;
+
+export const StickinessInsightQuery = Schema.Struct({
+  actor: Schema.optional(AnalyticsActor),
+  cohortIds: Schema.optional(AnalyticsCohortIds),
+  computation: Schema.optional(
+    Schema.Union([Schema.Literal("exact"), Schema.Literal("cumulative")]),
+  ),
+  display: Schema.optional(Schema.Union([Schema.Literal("line"), Schema.Literal("bar")])),
+  interval: Schema.Union([
+    Schema.Literal("hour"),
+    Schema.Literal("day"),
+    Schema.Literal("week"),
+    Schema.Literal("month"),
+  ]),
+  kind: Schema.Literal("stickiness"),
+  occurrenceCriteria: Schema.optional(
+    Schema.Struct({
+      operator: Schema.Union([
+        Schema.Literal("exact"),
+        Schema.Literal("gte"),
+        Schema.Literal("lte"),
+      ]),
+      value: Schema.Number.check(
+        Schema.isGreaterThanOrEqualTo(1),
+        Schema.isLessThanOrEqualTo(10_000),
+      ),
+    }),
+  ),
+  series: Schema.NonEmptyArray(AnalyticsEventSeries),
+  timeRange: AnalyticsTimeRange,
+});
+export type StickinessInsightQueryType = typeof StickinessInsightQuery.Type;
+
+export const LifecycleInsightQuery = Schema.Struct({
+  actor: Schema.optional(AnalyticsActor),
+  cohortIds: Schema.optional(AnalyticsCohortIds),
+  display: Schema.optional(Schema.Union([Schema.Literal("stacked_area"), Schema.Literal("line")])),
+  granularity: Schema.Union([
+    Schema.Literal("hour"),
+    Schema.Literal("day"),
+    Schema.Literal("week"),
+    Schema.Literal("month"),
+  ]),
+  kind: Schema.Literal("lifecycle"),
+  series: AnalyticsEventSeries,
+  statuses: Schema.optional(
+    Schema.NonEmptyArray(
+      Schema.Union([
+        Schema.Literal("new"),
+        Schema.Literal("returning"),
+        Schema.Literal("resurrecting"),
+        Schema.Literal("dormant"),
+      ]),
+    ),
+  ),
+  timeRange: AnalyticsTimeRange,
+  valueMode: Schema.optional(Schema.Union([Schema.Literal("count"), Schema.Literal("percentage")])),
+});
+export type LifecycleInsightQueryType = typeof LifecycleInsightQuery.Type;
+
+export const CustomAnalyticsInsightQuery = Schema.Union([
+  TrendsInsightQuery,
+  FunnelsInsightQuery,
+  RetentionInsightQuery,
+  PathsInsightQuery,
+  StickinessInsightQuery,
+  LifecycleInsightQuery,
+]);
+export type CustomAnalyticsInsightQueryType = typeof CustomAnalyticsInsightQuery.Type;
+
+export const SavedAnalyticsInsight = Schema.Struct({
+  createdAt: Schema.Date,
+  createdBy: Schema.String,
+  definition: CustomAnalyticsInsightQuery,
+  description: Schema.NullOr(Schema.String),
+  id: Schema.String,
+  kind: CustomAnalyticsInsightKind,
+  name: Schema.String,
+  organizationId: Schema.String,
+  projectId: Schema.String,
+  updatedAt: Schema.Date,
+});
+export type SavedAnalyticsInsightType = typeof SavedAnalyticsInsight.Type;
+
+export const AnalyticsTrendSeriesResult = Schema.Struct({
+  comparison: Schema.optional(
+    Schema.Union([
+      Schema.Literal("current"),
+      Schema.Literal("previous_period"),
+      Schema.Literal("previous_year"),
+    ]),
+  ),
+  key: Schema.String,
+  label: Schema.String,
+  points: Schema.Array(
+    Schema.Struct({
+      timestamp: Schema.Date,
+      value: Schema.Number,
+    }),
+  ),
+});
+
+export const QueryCustomAnalyticsInsightRequest = Schema.Struct({
+  definition: CustomAnalyticsInsightQuery,
+  projectId: Schema.String,
+});
+export type QueryCustomAnalyticsInsightRequestType = typeof QueryCustomAnalyticsInsightRequest.Type;
+
+export const QueryCustomAnalyticsPersonsRequest = Schema.Struct({
+  cohortIds: Schema.optional(AnalyticsCohortIds),
+  eventNames: Schema.NonEmptyArray(Schema.String).check(Schema.isMaxLength(20)),
+  filters: Schema.optional(AnalyticsFilter),
+  group: Schema.optional(
+    Schema.Struct({
+      property: Schema.String.check(Schema.isMaxLength(128)),
+      value: Schema.String.check(Schema.isMaxLength(512)),
+    }),
+  ),
+  limit: Schema.optional(
+    Schema.Number.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(100)),
+  ),
+  projectId: Schema.String,
+  timeRange: AnalyticsTimeRange,
+});
+export type QueryCustomAnalyticsPersonsRequestType = typeof QueryCustomAnalyticsPersonsRequest.Type;
+
+export const AnalyticsDrilldownPerson = Schema.Struct({
+  email: Schema.NullOr(Schema.String),
+  eventCount: Schema.Number,
+  lastSeenAt: Schema.Date,
+  name: Schema.NullOr(Schema.String),
+  personId: Schema.String,
+});
+
+export const QueryCustomAnalyticsPersonsResponse = Schema.Struct({
+  people: Schema.Array(AnalyticsDrilldownPerson),
+  resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
+});
+export type QueryCustomAnalyticsPersonsResponseType =
+  typeof QueryCustomAnalyticsPersonsResponse.Type;
+
+export const AnalyticsTrendsInsightResult = Schema.Struct({
+  comparisonTimeRange: Schema.optional(Schema.Struct({ end: Schema.Date, start: Schema.Date })),
+  kind: Schema.Literal("trends"),
+  resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
+  series: Schema.Array(AnalyticsTrendSeriesResult),
+});
+
+export const AnalyticsFunnelStepResult = Schema.Struct({
+  conversionRate: Schema.Number,
+  count: Schema.Number,
+  dropoffCount: Schema.Number,
+  dropoffRate: Schema.Number,
+  key: Schema.String,
+  label: Schema.String,
+  step: Schema.Number,
+});
+
+export const AnalyticsFunnelBreakdownResult = Schema.Struct({
+  breakdownValue: Schema.String,
+  steps: Schema.Array(AnalyticsFunnelStepResult),
+  totalConversionRate: Schema.Number,
+});
+
+export const AnalyticsFunnelsInsightResult = Schema.Struct({
+  breakdowns: Schema.optional(Schema.Array(AnalyticsFunnelBreakdownResult)),
+  kind: Schema.Literal("funnels"),
+  resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
+  steps: Schema.Array(AnalyticsFunnelStepResult),
+  totalConversionRate: Schema.Number,
+});
+
+export const AnalyticsRetentionCell = Schema.Struct({
+  count: Schema.Number,
+  interval: Schema.Number,
+  rate: Schema.Number,
+});
+
+export const AnalyticsRetentionCohort = Schema.Struct({
+  cells: Schema.Array(AnalyticsRetentionCell),
+  cohortSize: Schema.Number,
+  cohortStart: Schema.Date,
+});
+
+export const AnalyticsRetentionInsightResult = Schema.Struct({
+  cohorts: Schema.Array(AnalyticsRetentionCohort),
+  kind: Schema.Literal("retention"),
+  period: Schema.Union([Schema.Literal("day"), Schema.Literal("week"), Schema.Literal("month")]),
+  resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
+});
+
+export const AnalyticsStickinessBucket = Schema.Struct({
+  count: Schema.Number,
+  intervals: Schema.Number,
+});
+
+export const AnalyticsStickinessSeriesResult = Schema.Struct({
+  buckets: Schema.Array(AnalyticsStickinessBucket),
+  key: Schema.String,
+  label: Schema.String,
+});
+
+export const AnalyticsStickinessInsightResult = Schema.Struct({
+  computation: Schema.Union([Schema.Literal("exact"), Schema.Literal("cumulative")]),
+  interval: Schema.Union([
+    Schema.Literal("hour"),
+    Schema.Literal("day"),
+    Schema.Literal("week"),
+    Schema.Literal("month"),
+  ]),
+  kind: Schema.Literal("stickiness"),
+  resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
+  series: Schema.Array(AnalyticsStickinessSeriesResult),
+});
+
+export const AnalyticsPathsLink = Schema.Struct({
+  averageTransitionSeconds: Schema.Number,
+  count: Schema.Number,
+  source: Schema.String,
+  sourceStep: Schema.Number,
+  target: Schema.String,
+  targetStep: Schema.Number,
+});
+
+export const AnalyticsPathsInsightResult = Schema.Struct({
+  kind: Schema.Literal("paths"),
+  links: Schema.Array(AnalyticsPathsLink),
+  maxDepth: Schema.Number,
+  resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
+  sessionGapSeconds: Schema.Number,
+});
+
+export const AnalyticsLifecycleStatusSeries = Schema.Struct({
+  points: Schema.Array(
+    Schema.Struct({
+      count: Schema.Number,
+      timestamp: Schema.Date,
+    }),
+  ),
+  status: Schema.Union([
+    Schema.Literal("new"),
+    Schema.Literal("returning"),
+    Schema.Literal("resurrecting"),
+    Schema.Literal("dormant"),
+  ]),
+});
+
+export const AnalyticsLifecycleInsightResult = Schema.Struct({
+  granularity: Schema.Union([
+    Schema.Literal("hour"),
+    Schema.Literal("day"),
+    Schema.Literal("week"),
+    Schema.Literal("month"),
+  ]),
+  kind: Schema.Literal("lifecycle"),
+  resolvedTimeRange: Schema.Struct({ end: Schema.Date, start: Schema.Date }),
+  series: Schema.Array(AnalyticsLifecycleStatusSeries),
+});
+
+export const QueryCustomAnalyticsInsightResponse = Schema.Union([
+  AnalyticsTrendsInsightResult,
+  AnalyticsFunnelsInsightResult,
+  AnalyticsRetentionInsightResult,
+  AnalyticsPathsInsightResult,
+  AnalyticsStickinessInsightResult,
+  AnalyticsLifecycleInsightResult,
+]);
+export type QueryCustomAnalyticsInsightResponseType =
+  typeof QueryCustomAnalyticsInsightResponse.Type;
+
+export const ListAnalyticsInsightsRequest = Schema.Struct({
+  projectId: Schema.String,
+});
+export const ListAnalyticsInsightsResponse = Schema.Struct({
+  insights: Schema.Array(SavedAnalyticsInsight),
+});
+
+export const CreateAnalyticsInsightRequest = Schema.Struct({
+  definition: CustomAnalyticsInsightQuery,
+  description: Schema.optional(Schema.String.check(Schema.isMaxLength(4000))),
+  name: Schema.String.check(Schema.isMaxLength(255)),
+  projectId: Schema.String,
+});
+
+export const UpdateAnalyticsInsightRequest = Schema.Struct({
+  definition: Schema.optional(CustomAnalyticsInsightQuery),
+  description: Schema.optional(Schema.NullOr(Schema.String.check(Schema.isMaxLength(4000)))),
+  id: Schema.String,
+  name: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
+});
+
+export const AnalyticsDashboardItemLayout = Schema.Struct({
+  height: Schema.Number.check(Schema.isGreaterThan(0)),
+  width: Schema.Number.check(Schema.isGreaterThan(0)),
+  x: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
+  y: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
+});
+export type AnalyticsDashboardItemLayoutType = typeof AnalyticsDashboardItemLayout.Type;
+
+export const AnalyticsInsightDashboardItem = Schema.Struct({
+  id: Schema.String,
+  kind: Schema.Literal("insight"),
+  insight: SavedAnalyticsInsight,
+  layout: AnalyticsDashboardItemLayout,
+  position: Schema.Number,
+});
+
+export const AnalyticsVoidQlDashboardItem = Schema.Struct({
+  id: Schema.String,
+  kind: Schema.Literal("voidql"),
+  layout: AnalyticsDashboardItemLayout,
+  position: Schema.Number,
+  query: SavedVoidQlInsight,
+});
+
+export const AnalyticsDashboardItem = Schema.Union([
+  AnalyticsInsightDashboardItem,
+  AnalyticsVoidQlDashboardItem,
+]);
+
+export const AnalyticsDashboard = Schema.Struct({
+  createdAt: Schema.Date,
+  createdBy: Schema.String,
+  description: Schema.NullOr(Schema.String),
+  id: Schema.String,
+  items: Schema.Array(AnalyticsDashboardItem),
+  name: Schema.String,
+  organizationId: Schema.String,
+  projectId: Schema.String,
+  updatedAt: Schema.Date,
+});
+export type AnalyticsDashboardType = typeof AnalyticsDashboard.Type;
+
+export const ListAnalyticsDashboardsRequest = Schema.Struct({
+  projectId: Schema.String,
+});
+export const ListAnalyticsDashboardsResponse = Schema.Struct({
+  dashboards: Schema.Array(AnalyticsDashboard),
+});
+
+export const CreateAnalyticsDashboardRequest = Schema.Struct({
+  description: Schema.optional(Schema.String.check(Schema.isMaxLength(4000))),
+  name: Schema.String.check(Schema.isMaxLength(255)),
+  projectId: Schema.String,
+});
+
+export const DuplicateAnalyticsDashboardRequest = Schema.Struct({
+  id: Schema.String,
+  name: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
+});
+
+export const UpdateAnalyticsDashboardRequest = Schema.Struct({
+  description: Schema.optional(Schema.NullOr(Schema.String.check(Schema.isMaxLength(4000)))),
+  id: Schema.String,
+  name: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
+});
+
+export const PutAnalyticsDashboardItemRequest = Schema.Struct({
+  dashboardId: Schema.String,
+  layout: AnalyticsDashboardItemLayout,
+  position: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)),
+  source: Schema.Union([
+    Schema.Struct({ id: Schema.String, kind: Schema.Literal("insight") }),
+    Schema.Struct({ id: Schema.String, kind: Schema.Literal("voidql") }),
+  ]),
+});
+
+export const ReorderAnalyticsDashboardItemsRequest = Schema.Struct({
+  dashboardId: Schema.String,
+  itemIds: Schema.NonEmptyArray(Schema.String).check(Schema.isMaxLength(100)),
+});
+
+export const AnalyticsCohort = Schema.Struct({
+  createdAt: Schema.Date,
+  createdBy: Schema.String,
+  description: Schema.NullOr(Schema.String),
+  id: Schema.String,
+  memberCount: Schema.Number,
+  memberPersonIds: Schema.Array(Schema.String),
+  name: Schema.String,
+  organizationId: Schema.String,
+  projectId: Schema.String,
+  updatedAt: Schema.Date,
+});
+export type AnalyticsCohortType = typeof AnalyticsCohort.Type;
+
+export const ListAnalyticsCohortsRequest = Schema.Struct({ projectId: Schema.String });
+export const ListAnalyticsCohortsResponse = Schema.Struct({
+  cohorts: Schema.Array(AnalyticsCohort),
+});
+
+export const CreateAnalyticsCohortRequest = Schema.Struct({
+  description: Schema.optional(Schema.String.check(Schema.isMaxLength(4000))),
+  memberPersonIds: Schema.Array(Schema.String).check(Schema.isMaxLength(10_000)),
+  name: Schema.String.check(Schema.isMaxLength(255)),
+  projectId: Schema.String,
+});
+
+export const UpdateAnalyticsCohortRequest = Schema.Struct({
+  description: Schema.optional(Schema.NullOr(Schema.String.check(Schema.isMaxLength(4000)))),
+  id: Schema.String,
+  memberPersonIds: Schema.optional(Schema.Array(Schema.String).check(Schema.isMaxLength(10_000))),
+  name: Schema.optional(Schema.String.check(Schema.isMaxLength(255))),
+});
 
 export const BuiltInInsightId = Schema.Union([
   Schema.Literal("builtin/revenue"),
@@ -271,5 +829,108 @@ export class AnalyticsRpcsDef extends RpcGroup.make(
     ]),
     payload: QueryAnalyticsInsightsRequest,
     success: QueryAnalyticsInsightsResponse,
+  }),
+  Rpc.make("QueryCustomAnalyticsInsight", {
+    error: Schema.Union([
+      RpcActionForbiddenError,
+      RpcAnalyticsServiceError,
+      RpcInvalidAnalyticsQueryError,
+      RpcInvalidTimeRangeError,
+    ]),
+    payload: QueryCustomAnalyticsInsightRequest,
+    success: QueryCustomAnalyticsInsightResponse,
+  }),
+  Rpc.make("QueryCustomAnalyticsPersons", {
+    error: Schema.Union([
+      RpcActionForbiddenError,
+      RpcAnalyticsServiceError,
+      RpcInvalidAnalyticsQueryError,
+      RpcInvalidTimeRangeError,
+    ]),
+    payload: QueryCustomAnalyticsPersonsRequest,
+    success: QueryCustomAnalyticsPersonsResponse,
+  }),
+  Rpc.make("ListAnalyticsInsights", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: ListAnalyticsInsightsRequest,
+    success: ListAnalyticsInsightsResponse,
+  }),
+  Rpc.make("CreateAnalyticsInsight", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: CreateAnalyticsInsightRequest,
+    success: SavedAnalyticsInsight,
+  }),
+  Rpc.make("UpdateAnalyticsInsight", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: UpdateAnalyticsInsightRequest,
+    success: SavedAnalyticsInsight,
+  }),
+  Rpc.make("DeleteAnalyticsInsight", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: Schema.Struct({ id: Schema.String }),
+    success: Schema.Struct({ deleted: Schema.Boolean }),
+  }),
+  Rpc.make("ListAnalyticsCohorts", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: ListAnalyticsCohortsRequest,
+    success: ListAnalyticsCohortsResponse,
+  }),
+  Rpc.make("CreateAnalyticsCohort", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: CreateAnalyticsCohortRequest,
+    success: AnalyticsCohort,
+  }),
+  Rpc.make("UpdateAnalyticsCohort", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: UpdateAnalyticsCohortRequest,
+    success: AnalyticsCohort,
+  }),
+  Rpc.make("DeleteAnalyticsCohort", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: Schema.Struct({ id: Schema.String }),
+    success: Schema.Struct({ deleted: Schema.Boolean }),
+  }),
+  Rpc.make("ListAnalyticsDashboards", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: ListAnalyticsDashboardsRequest,
+    success: ListAnalyticsDashboardsResponse,
+  }),
+  Rpc.make("CreateAnalyticsDashboard", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: CreateAnalyticsDashboardRequest,
+    success: AnalyticsDashboard,
+  }),
+  Rpc.make("DuplicateAnalyticsDashboard", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: DuplicateAnalyticsDashboardRequest,
+    success: AnalyticsDashboard,
+  }),
+  Rpc.make("UpdateAnalyticsDashboard", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: UpdateAnalyticsDashboardRequest,
+    success: AnalyticsDashboard,
+  }),
+  Rpc.make("DeleteAnalyticsDashboard", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: Schema.Struct({ id: Schema.String }),
+    success: Schema.Struct({ deleted: Schema.Boolean }),
+  }),
+  Rpc.make("PutAnalyticsDashboardItem", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: PutAnalyticsDashboardItemRequest,
+    success: AnalyticsDashboard,
+  }),
+  Rpc.make("ReorderAnalyticsDashboardItems", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: ReorderAnalyticsDashboardItemsRequest,
+    success: AnalyticsDashboard,
+  }),
+  Rpc.make("RemoveAnalyticsDashboardItem", {
+    error: Schema.Union([RpcActionForbiddenError, RpcAnalyticsServiceError]),
+    payload: Schema.Struct({
+      dashboardId: Schema.String,
+      itemId: Schema.String,
+    }),
+    success: AnalyticsDashboard,
   }),
 ).middleware(AuthMiddleware) {}

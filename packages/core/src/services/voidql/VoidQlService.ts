@@ -19,7 +19,7 @@
  * remain available.
  */
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
-import { Db, analyticsSavedQuery } from "@voidhash/db";
+import { Db, analyticsDashboardItems, analyticsSavedQuery, and, desc, eq } from "@voidhash/db";
 import { Context, Effect, Layer, Option } from "effect";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
@@ -78,6 +78,19 @@ export interface SchemaDescriptor {
   }>;
   readonly functions: readonly string[];
 }
+
+type AnalyticsSavedQueryRow = typeof analyticsSavedQuery.$inferSelect;
+
+const toSavedInsight = (row: AnalyticsSavedQueryRow) => ({
+  createdAt: row.createdAt,
+  createdBy: row.createdBy,
+  id: row.id,
+  name: row.name,
+  organizationId: row.organizationId,
+  schemaVersion: row.schemaVersion,
+  text: row.voidqlText,
+  updatedAt: row.updatedAt,
+});
 
 const DIALECT_REFERENCE =
   "VoidQL is a read-only SQL subset over events|persons|revenue. " +
@@ -140,6 +153,24 @@ export class VoidQlService extends Context.Service<VoidQlService>()("VoidQlServi
     const capabilitiesFor = (principal: VoidQlPrincipal): ReadonlySet<Capability> =>
       // AI agents never get `pii` by default (§9, §14); authorized users do.
       new Set<Capability>(principal.kind === "user" ? ["pii"] : []);
+
+    const loadSavedInsight = Effect.fn("voidql.loadSavedInsight")(function* (id: string) {
+      const [insight] = yield* db
+        .select()
+        .from(analyticsSavedQuery)
+        .where(eq(analyticsSavedQuery.id, id))
+        .limit(1);
+      if (!insight) {
+        return yield* Effect.fail(
+          new VoidQlExecutionError({
+            cause: "not_found",
+            message: "The saved query was not found.",
+          }),
+        );
+      }
+      yield* buildAuthorizedScope(insight.organizationId);
+      return insight;
+    });
 
     const auditRun = (
       input: RunQueryInput,
@@ -238,9 +269,7 @@ export class VoidQlService extends Context.Service<VoidQlService>()("VoidQlServi
         ),
     );
 
-    const getSchema = Effect.fn("voidql.getSchema")(() =>
-      Effect.succeed(buildSchemaDescriptor()),
-    );
+    const getSchema = Effect.fn("voidql.getSchema")(() => Effect.succeed(buildSchemaDescriptor()));
 
     const saveInsight = Effect.fn("voidql.saveInsight")(
       function* (input: {
@@ -277,7 +306,102 @@ export class VoidQlService extends Context.Service<VoidQlService>()("VoidQlServi
         ),
     );
 
-    return { runQuery, validateQuery, getSchema, saveInsight } as const;
+    /** List saved VoidQL insights visible in an organization. */
+    const listInsights = Effect.fn("voidql.listInsights")(
+      function* (input: { readonly organizationId: string }) {
+        yield* buildAuthorizedScope(input.organizationId);
+        const rows = yield* db
+          .select()
+          .from(analyticsSavedQuery)
+          .where(eq(analyticsSavedQuery.organizationId, input.organizationId))
+          .orderBy(desc(analyticsSavedQuery.updatedAt));
+        return { insights: rows.map(toSavedInsight) };
+      },
+      (effect) =>
+        effect.pipe(
+          Effect.catchTag("EffectDrizzleQueryError", () =>
+            Effect.fail(
+              new VoidQlExecutionError({
+                cause: "database",
+                message: "The saved queries could not be listed.",
+              }),
+            ),
+          ),
+        ),
+    );
+
+    /** Recompile and execute a saved VoidQL insight under the current authorization scope. */
+    const runSavedInsight = Effect.fn("voidql.runSavedInsight")(
+      function* (input: { readonly id: string; readonly principal: VoidQlPrincipal }) {
+        const insight = yield* loadSavedInsight(input.id);
+        return yield* runQuery({
+          organizationId: insight.organizationId,
+          principal: input.principal,
+          text: insight.voidqlText,
+        });
+      },
+      (effect) =>
+        effect.pipe(
+          Effect.catchTag("EffectDrizzleQueryError", () =>
+            Effect.fail(
+              new VoidQlExecutionError({
+                cause: "database",
+                message: "The saved query could not be executed.",
+              }),
+            ),
+          ),
+        ),
+    );
+
+    /** Delete an authorized saved VoidQL insight. */
+    const deleteInsight = Effect.fn("voidql.deleteInsight")(
+      function* (input: { readonly id: string }) {
+        const insight = yield* loadSavedInsight(input.id);
+        yield* db.transaction((tx) =>
+          Effect.gen(function* () {
+            yield* tx.delete(analyticsSavedQuery).where(eq(analyticsSavedQuery.id, insight.id));
+            yield* tx
+              .delete(analyticsDashboardItems)
+              .where(
+                and(
+                  eq(analyticsDashboardItems.sourceType, "voidql"),
+                  eq(analyticsDashboardItems.sourceId, insight.id),
+                ),
+              );
+          }),
+        );
+        return { deleted: true };
+      },
+      (effect) =>
+        effect.pipe(
+          Effect.catchTags({
+            EffectDrizzleQueryError: () =>
+              Effect.fail(
+                new VoidQlExecutionError({
+                  cause: "database",
+                  message: "The saved query could not be deleted.",
+                }),
+              ),
+            SqlError: () =>
+              Effect.fail(
+                new VoidQlExecutionError({
+                  cause: "database",
+                  message: "The saved query could not be deleted.",
+                }),
+              ),
+          }),
+        ),
+    );
+
+    return {
+      deleteInsight,
+      getSchema,
+      listInsights,
+      runQuery,
+      runSavedInsight,
+      saveInsight,
+      validateQuery,
+    } as const;
   }),
 }) {
   static layer: Layer.Layer<VoidQlService, never, Db> = Layer.effect(VoidQlService)(

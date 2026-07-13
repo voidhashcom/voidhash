@@ -83,6 +83,11 @@ const prefixes = {
   voidhashFeedback: "vh_fb",
   // VoidQL analytics
   analyticsSavedQuery: "an_sq",
+  analyticsCohort: "an_cohort",
+  analyticsCohortMember: "an_cohort_member",
+  analyticsInsight: "an_ins",
+  analyticsDashboard: "an_dash",
+  analyticsDashboardItem: "an_dash_item",
   // Push notifications (push_ namespace avoids the entrenched ppn webhook domain)
   pushNotificationConfig: "push_conf",
   pushDeviceToken: "push_tok",
