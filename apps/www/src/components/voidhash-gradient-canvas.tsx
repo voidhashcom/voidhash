@@ -4,6 +4,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { LenticularRefractionPass } from "./lenticular-refraction-pass";
 import type { VoidhashGradientSettings } from "./voidhash-gradient-settings";
 
 const vertexShader = `
@@ -303,11 +304,13 @@ function AnimatedPlane({
 /** Renders the WebGL plane used by reusable Voidhash gradient backgrounds. */
 export function VoidhashGradientCanvas({
   inverted = false,
+  lenticular = false,
   onReady,
   seed,
   settings,
 }: {
   inverted?: boolean;
+  lenticular?: boolean;
   onReady?: () => void;
   seed: number;
   settings: VoidhashGradientSettings;
@@ -323,6 +326,7 @@ export function VoidhashGradientCanvas({
       }}
     >
       <AnimatedPlane inverted={inverted} onReady={onReady} seed={seed} settings={settings} />
+      {lenticular ? <LenticularRefractionPass /> : null}
     </Canvas>
   );
 }

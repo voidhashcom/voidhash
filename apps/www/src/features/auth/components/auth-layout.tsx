@@ -6,7 +6,7 @@ import { VoidhashGradientBackground } from "@/components/voidhash-gradient-backg
 
 const authGradientSettings = {
   topEnabled: false,
-  effectHeight: 70,
+  effectHeight: 100,
 } as const;
 
 export type AuthLayoutProps = {
@@ -26,6 +26,8 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         controlsQueryParam="authGradientControls"
         controlsStorageKey="voidhash:auth-gradient-controls"
         controlsTitle="Auth FX"
+        fadeToBlack={false}
+        lenticular
         settings={authGradientSettings}
         settingsStorageKey="voidhash:auth-gradient-settings"
       />

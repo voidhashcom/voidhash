@@ -33,13 +33,18 @@ function getFadeMask(settings: VoidhashGradientSettings, placement: VoidhashGrad
   return `linear-gradient(${direction}, transparent 0%, transparent ${start}%, rgba(0, 0, 0, 0.12) ${mid}%, black ${end}%, black 100%)`;
 }
 
-function getLayerStyle(settings: VoidhashGradientSettings, placement: VoidhashGradientPlacement): CSSProperties {
+function getLayerStyle(
+  settings: VoidhashGradientSettings,
+  placement: VoidhashGradientPlacement,
+  lenticular: boolean,
+  fadeToBlack: boolean,
+): CSSProperties {
   return {
     [placement]: `${placement === "top" ? settings.topOffset : settings.bottomOffset}%`,
-    filter: `blur(${settings.blur}px)`,
+    filter: lenticular ? "none" : `blur(${settings.blur}px)`,
     height: `${settings.effectHeight}%`,
-    maskImage: getFadeMask(settings, placement),
-    WebkitMaskImage: getFadeMask(settings, placement),
+    maskImage: fadeToBlack ? getFadeMask(settings, placement) : "none",
+    WebkitMaskImage: fadeToBlack ? getFadeMask(settings, placement) : "none",
   };
 }
 
@@ -56,12 +61,16 @@ function VoidhashGradientEntryVeil({ isVisible }: { isVisible: boolean }) {
 }
 
 function VoidhashGradientLayer({
+  fadeToBlack,
   isRevealed,
+  lenticular,
   onReady,
   placement,
   settings,
 }: {
+  fadeToBlack: boolean;
   isRevealed: boolean;
+  lenticular: boolean;
   onReady: (placement: VoidhashGradientPlacement) => void;
   placement: VoidhashGradientPlacement;
   settings: VoidhashGradientSettings;
@@ -69,7 +78,11 @@ function VoidhashGradientLayer({
   const [isCanvasReady, setIsCanvasReady] = useState(false);
 
   return (
-    <div aria-hidden className="absolute inset-x-[-10%] overflow-hidden" style={getLayerStyle(settings, placement)}>
+    <div
+      aria-hidden
+      className="absolute inset-x-[-10%] overflow-hidden"
+      style={getLayerStyle(settings, placement, lenticular, fadeToBlack)}
+    >
       <div
         className={cn(
           "absolute inset-0 transition-[opacity,transform] duration-1000 ease-out will-change-[opacity,transform]",
@@ -78,6 +91,7 @@ function VoidhashGradientLayer({
       >
         <VoidhashGradientCanvas
           inverted={placement === "top"}
+          lenticular={lenticular}
           onReady={() => {
             setIsCanvasReady(true);
             onReady(placement);
@@ -95,6 +109,8 @@ export type VoidhashGradientBackgroundProps = {
   controlsQueryParam?: string;
   controlsStorageKey?: string;
   controlsTitle?: string;
+  fadeToBlack?: boolean;
+  lenticular?: boolean;
   settings?: Partial<VoidhashGradientSettings>;
   settingsStorageKey?: string;
 };
@@ -105,6 +121,8 @@ export function VoidhashGradientBackground({
   controlsQueryParam = "gradientControls",
   controlsStorageKey = VOIDHASH_GRADIENT_CONTROLS_STORAGE_KEY,
   controlsTitle = "Gradient FX",
+  fadeToBlack = true,
+  lenticular = false,
   settings: settingsProp,
   settingsStorageKey = VOIDHASH_GRADIENT_STORAGE_KEY,
 }: VoidhashGradientBackgroundProps) {
@@ -188,14 +206,18 @@ export function VoidhashGradientBackground({
     <div className={rootClassName}>
       <Suspense fallback={null}>
         <VoidhashGradientLayer
+          fadeToBlack={fadeToBlack}
           isRevealed={hasRevealed}
+          lenticular={lenticular}
           onReady={handleLayerReady}
           placement="bottom"
           settings={settings}
         />
         {settings.topEnabled ? (
           <VoidhashGradientLayer
+            fadeToBlack={fadeToBlack}
             isRevealed={hasRevealed}
+            lenticular={lenticular}
             onReady={handleLayerReady}
             placement="top"
             settings={settings}

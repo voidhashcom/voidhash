@@ -33,7 +33,7 @@ const signUpSearchSchema = z.object({
 
 const signUpGradientSettings = {
   topEnabled: false,
-  effectHeight: 70,
+  effectHeight: 100,
 } as const;
 
 export const Route = createFileRoute("/auth/sign-up")({
@@ -132,6 +132,8 @@ function SignUpPage() {
         controlsQueryParam="signUpGradientControls"
         controlsStorageKey="voidhash:sign-up-gradient-controls"
         controlsTitle="Sign Up FX"
+        fadeToBlack={false}
+        lenticular
         settings={signUpGradientSettings}
         settingsStorageKey="voidhash:sign-up-gradient-settings"
       />

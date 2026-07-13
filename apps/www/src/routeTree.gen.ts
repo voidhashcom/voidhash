@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ShaderPreviewRouteImport } from './routes/shader-preview'
 import { Route as StudioRouteRouteImport } from './routes/studio/route'
 import { Route as DocsRouteRouteImport } from './routes/docs/route'
 import { Route as DesignRouteRouteImport } from './routes/design/route'
@@ -79,6 +80,11 @@ import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlug
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksEndpointIdIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks.$endpointId.index'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsWebhooksEndpointIdDeliveryIdRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/webhooks.$endpointId.$deliveryId'
 
+const ShaderPreviewRoute = ShaderPreviewRouteImport.update({
+  id: '/shader-preview',
+  path: '/shader-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudioRouteRoute = StudioRouteRouteImport.update({
   id: '/studio',
   path: '/studio',
@@ -575,6 +581,7 @@ export interface FileRoutesByFullPath {
   '/design': typeof DesignRouteRouteWithChildren
   '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
+  '/shader-preview': typeof ShaderPreviewRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -639,6 +646,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/studio': typeof StudioAuthenticatedIndexRoute
+  '/shader-preview': typeof ShaderPreviewRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -706,6 +714,7 @@ export interface FileRoutesById {
   '/design': typeof DesignRouteRouteWithChildren
   '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
+  '/shader-preview': typeof ShaderPreviewRoute
   '/studio/_authenticated': typeof StudioAuthenticatedRouteRouteWithChildren
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -779,6 +788,7 @@ export interface FileRouteTypes {
     | '/design'
     | '/docs'
     | '/studio'
+    | '/shader-preview'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/logout'
@@ -843,6 +853,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/studio'
+    | '/shader-preview'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/logout'
@@ -909,6 +920,7 @@ export interface FileRouteTypes {
     | '/design'
     | '/docs'
     | '/studio'
+    | '/shader-preview'
     | '/studio/_authenticated'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -981,6 +993,7 @@ export interface RootRouteChildren {
   DesignRouteRoute: typeof DesignRouteRouteWithChildren
   DocsRouteRoute: typeof DocsRouteRouteWithChildren
   StudioRouteRoute: typeof StudioRouteRouteWithChildren
+  ShaderPreviewRoute: typeof ShaderPreviewRoute
   ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
   ApiAuthEmailResendRoute: typeof ApiAuthEmailResendRoute
   ApiAuthEmailVerifyRoute: typeof ApiAuthEmailVerifyRoute
@@ -994,6 +1007,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/shader-preview': {
+      id: '/shader-preview'
+      path: '/shader-preview'
+      fullPath: '/shader-preview'
+      preLoaderRoute: typeof ShaderPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/studio': {
       id: '/studio'
       path: '/studio'
@@ -1732,6 +1752,7 @@ const rootRouteChildren: RootRouteChildren = {
   DesignRouteRoute: DesignRouteRouteWithChildren,
   DocsRouteRoute: DocsRouteRouteWithChildren,
   StudioRouteRoute: StudioRouteRouteWithChildren,
+  ShaderPreviewRoute: ShaderPreviewRoute,
   ApiAuthCallbackRoute: ApiAuthCallbackRoute,
   ApiAuthEmailResendRoute: ApiAuthEmailResendRoute,
   ApiAuthEmailVerifyRoute: ApiAuthEmailVerifyRoute,

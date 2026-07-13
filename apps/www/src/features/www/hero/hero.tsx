@@ -1,23 +1,16 @@
 "use client";
-// import { ChevronRight } from 'lucide-react';
-
-import { VoidhashGradientBackground } from "@/components/voidhash-gradient-background";
 
 import { Button } from "../button";
-// import { Button } from '../button';
 import { SectionContainer } from "../section/section-container";
+import { HeroShader } from "./hero-shader";
 
+/** Renders the marketing landing-page hero. */
 export function Hero() {
   return (
     <SectionContainer className="w-full">
       <section className="relative isolate flex min-h-[760px] flex-col items-center overflow-hidden pt-26 sm:min-h-[780px] lg:min-h-[820px]">
-        <div className="absolute inset-x-0 bottom-0 z-0 h-[430px] sm:h-[470px] lg:h-[520px]">
-          <VoidhashGradientBackground
-            controlsQueryParam="heroControls"
-            controlsStorageKey="voidhash:hero-three-controls"
-            controlsTitle="Hero FX"
-            settingsStorageKey="voidhash:hero-three-settings"
-          />
+        <div className="absolute inset-0 z-0">
+          <HeroShader />
         </div>
 
         <div className="relative z-10 flex flex-col items-center justify-center">
@@ -56,14 +49,6 @@ export function Hero() {
                 Join Waitlist
               </Button>
             </form>
-            {/* <Button>
-              <span>Get Started</span>
-              <ChevronRight className="size-4 opacity-50" />
-            </Button>
-            <Button variant="ghost">
-              <span>Documentation</span>
-              <ChevronRight className="size-4 opacity-50" />
-            </Button> */}
           </div>
         </div>
       </section>

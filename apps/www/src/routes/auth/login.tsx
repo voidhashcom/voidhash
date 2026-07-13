@@ -20,7 +20,7 @@ const loginSearchSchema = z.object({
 
 const loginGradientSettings = {
   topEnabled: false,
-  effectHeight: 70,
+  effectHeight: 100,
 } as const;
 
 export const Route = createFileRoute("/auth/login")({
@@ -81,6 +81,8 @@ function LoginPage() {
         controlsQueryParam="loginGradientControls"
         controlsStorageKey="voidhash:login-gradient-controls"
         controlsTitle="Login FX"
+        fadeToBlack={false}
+        lenticular
         settings={loginGradientSettings}
         settingsStorageKey="voidhash:login-gradient-settings"
       />
