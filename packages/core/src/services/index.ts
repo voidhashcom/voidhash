@@ -32,10 +32,12 @@ export * from "./paymentProviders/appStore/payment-provider-service.ts";
 export * from "./paymentProviders/appStore/app-store-reconciliation-service.ts";
 export * from "./paymentProviders/appStore/app-store-webhook-handler-service.ts";
 export * from "./paymentProviders/appStore/payment-provider-service-queries.ts";
+export * from "./paymentProviders/appStore/transaction-verifier.ts";
 export * from "./paymentProviders/GooglePlayPaymentProviderService.ts";
 export * from "./paymentProviders/googlePlay/payment-provider-service.ts";
 export * from "./paymentProviders/googlePlay/webhook-handler-service.ts";
 export * from "./paymentProviders/googlePlay/payment-provider-service-queries.ts";
+export * from "./paymentProviders/googlePlay/purchase-verifier.ts";
 export { GooglePlayServerApi } from "./paymentProviders/googlePlay/sdk-context.ts";
 export {
   type AppStoreConfigProvider,

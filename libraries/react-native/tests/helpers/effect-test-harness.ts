@@ -5,7 +5,7 @@ import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { CacheAdapter } from "../../src/core/caching/cache-adapter";
 import { CacheManager } from "../../src/core/caching/cache-manager";
-import { Product, type SubscriptionProduct } from "../../src/core/entities/product";
+import { Product } from "../../src/core/entities/product";
 import { Transaction } from "../../src/core/entities/transaction";
 import { PersonAttributeManager } from "../../src/core/identity/person-attribute-manager";
 import { PersonInfoManager } from "../../src/core/identity/person-info-manager";
@@ -20,6 +20,7 @@ import { PaymentAdapter } from "../../src/core/payment-adapters/payment-adapter"
 import type { PlatformInfo } from "../../src/core/platform/platform-provider";
 import { PlatformProvider } from "../../src/core/platform/platform-provider";
 import { ProductService } from "../../src/core/products/product-service";
+import type { RuntimeProductDefinition } from "../../src/core/schema/runtime";
 import { SchemaManager } from "../../src/core/schema/schema-manager";
 import { SdkConfiguration } from "../../src/core/sdk-configuration";
 import { TransactionService } from "../../src/core/transactions/transaction-service";
@@ -60,6 +61,7 @@ export interface ApiClientDoubleOptions {
   getSchemaShouldFail?: boolean;
   identifyResult?: SdkPerson;
   syncPersonAttributesResult?: SdkPerson;
+  syncTransactionEffect?: (request: ApiSdkCall) => Effect.Effect<{ accepted: boolean }, Error>;
   syncTransactionShouldFail?: boolean;
 }
 
@@ -133,6 +135,9 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
       },
       syncTransaction: (request: ApiSdkCall) => {
         state.syncTransactionCalls.push(request);
+        if (options.syncTransactionEffect) {
+          return options.syncTransactionEffect(request);
+        }
         if (options.syncTransactionShouldFail) {
           return Effect.fail(new Error("syncTransaction failed"));
         }
@@ -149,7 +154,12 @@ export function createApiClientDouble(options: ApiClientDoubleOptions = {}) {
 
 export interface PaymentAdapterDoubleState {
   acknowledgePurchaseCalls: Transaction[];
-  buyProductCalls: SubscriptionProduct[];
+  acknowledgePurchaseProductTypes: Array<RuntimeProductDefinition["type"] | undefined>;
+  buyProductCalls: Array<{
+    appAccountToken?: string;
+    product: Product;
+    quantity?: number;
+  }>;
   endConnectionCalls: number;
   getProductsCalls: number;
   initConnectionCalls: number;
@@ -157,6 +167,7 @@ export interface PaymentAdapterDoubleState {
 }
 
 export interface PaymentAdapterDoubleOptions {
+  acknowledgePurchaseShouldFailTimes?: number;
   buyProductTransaction?: Transaction;
   listenerTransaction?: Transaction;
   pendingTransactions?: Transaction[];
@@ -165,8 +176,10 @@ export interface PaymentAdapterDoubleOptions {
 }
 
 export function createPaymentAdapterDouble(options: PaymentAdapterDoubleOptions = {}) {
+  let remainingAcknowledgeFailures = options.acknowledgePurchaseShouldFailTimes ?? 0;
   const state: PaymentAdapterDoubleState = {
     acknowledgePurchaseCalls: [],
+    acknowledgePurchaseProductTypes: [],
     buyProductCalls: [],
     endConnectionCalls: 0,
     getProductsCalls: 0,
@@ -175,15 +188,25 @@ export function createPaymentAdapterDouble(options: PaymentAdapterDoubleOptions 
   };
 
   const paymentAdapter = {
-    acknowledgePurchase: (transaction: Transaction) => {
+    acknowledgePurchase: (
+      transaction: Transaction,
+      productType?: RuntimeProductDefinition["type"],
+    ) => {
       state.acknowledgePurchaseCalls.push(transaction);
+      state.acknowledgePurchaseProductTypes.push(productType);
+      if (remainingAcknowledgeFailures > 0) {
+        remainingAcknowledgeFailures -= 1;
+        return Effect.fail(new Error("acknowledgePurchase failed"));
+      }
       return Effect.void;
     },
-    buyProduct: (product: SubscriptionProduct) => {
-      state.buyProductCalls.push(product);
+    buyProduct: (product: Product, quantity?: number, appAccountToken?: string) => {
+      state.buyProductCalls.push({ appAccountToken, product, quantity });
       return Effect.succeed(
         options.buyProductTransaction ??
-          new Transaction("tx-id", "tx-id", product.slug, Date.now(), 1, false, "ios"),
+          new Transaction("tx-id", "tx-id", product.slug, Date.now(), 1, false, "ios", {
+            appAccountToken,
+          }),
       );
     },
     endConnection: () => {

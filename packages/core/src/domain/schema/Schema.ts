@@ -39,8 +39,7 @@ export class SchemaProductProvider extends Schema.Class<SchemaProductProvider>(
 export class SchemaProduct extends Schema.Class<SchemaProduct>("SchemaProduct")({
   slug: Schema.String,
   name: Schema.String,
-  /** Today always `"subscription"` — schema only surfaces subscription products. */
-  type: Schema.Literal("subscription"),
+  type: Schema.Literals(["subscription", "one-time", "one-time-consumable"]),
   /** Perk slugs, ascending. */
   perks: Schema.Array(Schema.String),
   /** Per-provider mappings, sorted by `providerId`. */

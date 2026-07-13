@@ -62,6 +62,9 @@
     "typecheck": "tsgo --noEmit -p tsconfig.test.json",
     "build": "expo-module build",
     "test": "vitest --config vitest.unit.mts run",
+    "test:android-purchase-coordinator": "../../node_modules/@react-native/gradle-plugin/gradlew -p android/coordinator-tests test --no-daemon",
+    "test:storekit-purchase-coordinator": "swift test --package-path .",
+    "test:storekit-simulator": "bash ios-storekit-tests/run-tests.sh",
     "clean": "rm -rf android/build node_modules/**/android/build lib",
     "lint": "biome check .",
     "lint-ci": "biome check .",
@@ -70,6 +73,7 @@
     "specs": "pnpm run typescript && nitro-codegen --logLevel=\"debug\""
   },
   "dependencies": {
+    "@noble/hashes": "^2.2.0",
     "@voidhash/generated-clients": "workspace:*"
   },
   "devDependencies": {

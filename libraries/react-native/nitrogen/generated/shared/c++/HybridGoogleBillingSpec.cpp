@@ -19,6 +19,7 @@ namespace margelo::nitro::voidhash {
       prototype.registerHybridMethod("getItemsByType", &HybridGoogleBillingSpec::getItemsByType);
       prototype.registerHybridMethod("buyItemByType", &HybridGoogleBillingSpec::buyItemByType);
       prototype.registerHybridMethod("acknowledgePurchase", &HybridGoogleBillingSpec::acknowledgePurchase);
+      prototype.registerHybridMethod("consumeProduct", &HybridGoogleBillingSpec::consumeProduct);
       prototype.registerHybridMethod("getAvailableItemsByType", &HybridGoogleBillingSpec::getAvailableItemsByType);
     });
   }

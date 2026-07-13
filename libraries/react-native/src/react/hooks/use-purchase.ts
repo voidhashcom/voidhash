@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
 import type { VoidhashClient } from "../../client";
-import type { SubscriptionProduct } from "../../core/entities/product";
+import type { Product } from "../../core/entities/product";
 
 export interface UsePurchaseOptions {
   method?: "native";
@@ -17,7 +17,7 @@ export function purchaseHookFactory(client: VoidhashClient) {
 
     const purchase = useCallback(
       (
-        product: SubscriptionProduct,
+        product: Product,
         options?: {
           method?: "native";
           onSuccess?: () => void;

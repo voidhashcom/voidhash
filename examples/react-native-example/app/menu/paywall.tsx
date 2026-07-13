@@ -1,7 +1,7 @@
 import type { UsePaywallByLocationOptions } from "@voidhash/react-native";
 import { Button } from "components/button";
-import { useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { voidhash } from "utils/voidhash/client";
 
@@ -9,8 +9,18 @@ const PAYWALL_LOCATION_SLUG = "example-paywall";
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
+  const { client } = voidhash.useVoidhash();
   const [isOpening, setIsOpening] = useState(false);
+  const [isReconciling, setIsReconciling] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  const refreshBackendEvidence = useCallback(
+    async (operation: string) => {
+      const snapshot = await client.getCurrentPerson(true);
+      setStatusMessage(`${operation}\nBackend snapshot: ${JSON.stringify(snapshot, null, 2)}`);
+    },
+    [client],
+  );
 
   const paywallOptions = useMemo<UsePaywallByLocationOptions>(
     () => ({
@@ -18,13 +28,17 @@ export default function PaywallScreen() {
         setStatusMessage(`Paywall ${context.action} failed: ${error.message}`);
       },
       onPurchase: ({ productId }) => {
-        setStatusMessage(`Purchase completed: ${productId}`);
+        void refreshBackendEvidence(`Purchase completed: ${productId}`).catch((error) => {
+          setStatusMessage(`Purchase completed, but backend refresh failed: ${String(error)}`);
+        });
       },
       onRestore: () => {
-        setStatusMessage("Restore completed");
+        void refreshBackendEvidence("Restore completed").catch((error) => {
+          setStatusMessage(`Restore completed, but backend refresh failed: ${String(error)}`);
+        });
       },
     }),
-    [],
+    [refreshBackendEvidence],
   );
 
   const { show } = voidhash.usePaywallByLocation(PAYWALL_LOCATION_SLUG, paywallOptions);
@@ -39,6 +53,30 @@ export default function PaywallScreen() {
     }
   };
 
+  const handleRestore = async () => {
+    setIsReconciling(true);
+    try {
+      await client.restorePurchases();
+      await refreshBackendEvidence("Direct restore completed");
+    } catch (error) {
+      setStatusMessage(`Direct restore failed: ${String(error)}`);
+    } finally {
+      setIsReconciling(false);
+    }
+  };
+
+  const handleInspectProducts = async () => {
+    setIsReconciling(true);
+    try {
+      const products = await client.getProducts();
+      setStatusMessage(`Native products: ${JSON.stringify(products, null, 2)}`);
+    } catch (error) {
+      setStatusMessage(`Product query failed: ${String(error)}`);
+    } finally {
+      setIsReconciling(false);
+    }
+  };
+
   const containerStyle = [
     styles.container,
     {
@@ -48,7 +86,7 @@ export default function PaywallScreen() {
   ];
 
   return (
-    <View style={containerStyle}>
+    <ScrollView contentContainerStyle={containerStyle}>
       <View>
         <Text style={styles.title}>Native Paywall</Text>
         <Text style={styles.subtitle}>
@@ -61,15 +99,31 @@ export default function PaywallScreen() {
         </Text>
 
         <Button
-          disabled={isOpening}
+          disabled={isOpening || isReconciling}
           onPress={() => {
             void handleShowPaywall();
           }}
           style={styles.actionButton}
           title={isOpening ? "Opening..." : "Open paywall"}
         />
+        <Button
+          disabled={isOpening || isReconciling}
+          onPress={() => {
+            void handleRestore();
+          }}
+          style={styles.secondaryButton}
+          title={isReconciling ? "Working..." : "Restore and verify backend"}
+        />
+        <Button
+          disabled={isOpening || isReconciling}
+          onPress={() => {
+            void handleInspectProducts();
+          }}
+          style={styles.secondaryButton}
+          title="Inspect native products"
+        />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -107,5 +161,9 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     marginTop: 16,
+  },
+  secondaryButton: {
+    backgroundColor: "#27272a",
+    marginTop: 12,
   },
 });

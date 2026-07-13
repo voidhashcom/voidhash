@@ -5,7 +5,7 @@ import { Effect, Layer } from "effect";
 import { GoogleBilling } from "../../nitro";
 import type { GoogleBillingProductDetail } from "../../specs/android/GoogleBillingProductDetail.nitro";
 import type { GoogleBillingPurchase } from "../../specs/android/GoogleBillingPurchase.nitro";
-import { Product, type SubscriptionProduct } from "../entities/product";
+import { Product } from "../entities/product";
 import { Transaction } from "../entities/transaction";
 import type { RuntimeProductDefinition } from "../schema/runtime";
 import {
@@ -26,6 +26,7 @@ import { PaymentAdapter } from "./payment-adapter";
 export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
   acknowledgePurchase(
     transaction: Transaction,
+    productType?: RuntimeProductDefinition["type"],
   ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never> {
     return Effect.gen(function* acknowledgePurchase() {
       if (!GoogleBilling) {
@@ -54,7 +55,10 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
             cause: error,
             message: "Failed to acknowledge purchase",
           }),
-        try: () => GoogleBilling!.acknowledgePurchase(transaction.purchaseToken!),
+        try: () =>
+          productType === "one-time-consumable"
+            ? GoogleBilling!.consumeProduct(transaction.purchaseToken!)
+            : GoogleBilling!.acknowledgePurchase(transaction.purchaseToken!),
       });
 
       if (result.responseCode !== 0) {
@@ -73,8 +77,8 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
     });
   },
 
-  buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
-    product: TSubscriptionProduct,
+  buyProduct<TProduct extends Product>(
+    product: TProduct,
     _quantity = 1,
     appAccountToken?: string,
   ): Effect.Effect<
@@ -98,7 +102,15 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
       Effect.logDebug("Attempting to buy product", { productId: product.id });
 
       // Determine product type based on the product's type field
-      const productType: "inapp" | "subs" = product.type === "subs" ? "subs" : "inapp";
+      const productType: "inapp" | "subs" =
+        product.type === "subs" || product.type === "subscription" ? "subs" : "inapp";
+      if (productType === "subs" && !product.googlePlayOfferToken) {
+        return yield* Effect.fail(
+          new FailedToBuyProductError({
+            message: "Google Play subscription has no configured offer token",
+          }),
+        );
+      }
 
       const nativePurchases = yield* Effect.tryPromise({
         catch: (error) => {
@@ -138,7 +150,10 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
             isOfferPersonalized: false,
             obfuscatedAccountId: appAccountToken,
             obfuscatedProfileId: undefined,
-            offerTokenArr: undefined,
+            offerTokenArr:
+              productType === "subs" && product.googlePlayOfferToken
+                ? [product.googlePlayOfferToken]
+                : undefined,
             purchaseToken: undefined,
             replacementMode: undefined,
             skuArr: [product.id],
@@ -155,6 +170,14 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
       }
 
       const transaction = mapGoogleBillingPurchaseToTransaction(nativePurchases[0]);
+      if (transaction.purchaseState === "pending") {
+        return yield* Effect.fail(new PurchasePendingError({ message: "Purchase is pending" }));
+      }
+      if (transaction.purchaseState !== "purchased") {
+        return yield* Effect.fail(
+          new FailedToBuyProductError({ message: "Google Billing returned an unknown state" }),
+        );
+      }
       Effect.logDebug("Purchase successful", {
         transactionId: transaction.id,
       });
@@ -229,12 +252,13 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
 
       const allProducts = [...inappProducts, ...subsProducts];
       return yield* Effect.succeed(
-        allProducts.map((nativeProduct) =>
-          mapGoogleBillingProductToProduct(
-            productIds.find((pair) => pair.id === nativeProduct.id)?.slug ?? "",
-            nativeProduct,
-          ),
-        ),
+        allProducts.map((nativeProduct) => {
+          const productDefinition = Object.values(productDefinitions).find(
+            (definition) =>
+              definition.configuration.providers.googlePlay?.productId === nativeProduct.id,
+          );
+          return mapGoogleBillingProductToProduct(productDefinition, nativeProduct);
+        }),
       );
     });
   },
@@ -271,16 +295,15 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
         try: () => GoogleBilling!.getAvailableItemsByType("subs"),
       });
 
-      const allPurchases = [...inappPurchases, ...subsPurchases];
-      const transactions = allPurchases.map((purchase) =>
-        mapGoogleBillingPurchaseToTransaction(purchase),
-      );
+      const inappTransactions = inappPurchases.map(mapGoogleBillingPurchaseToTransaction);
+      const subscriptionTransactions = subsPurchases.map(mapGoogleBillingPurchaseToTransaction);
+      const transactions = [...inappTransactions, ...subscriptionTransactions];
 
       if (onlyIncludeActiveItems) {
-        const activeTransactions = transactions.filter(
-          // TODO: Check if this is the correct way to do this
-          (t) => t.isAutoRenewing || t.productId.includes("inapp"),
-        );
+        const activeTransactions = [
+          ...inappTransactions,
+          ...subscriptionTransactions.filter((transaction) => transaction.isAutoRenewing),
+        ];
         Effect.logDebug("Filtered active transactions", {
           count: activeTransactions.length,
         });
@@ -329,13 +352,20 @@ export const GooglePlayAdapter = Layer.succeed(PaymentAdapter, {
 
 // Helper functions for mapping Google Billing objects to our domain objects
 function mapGoogleBillingProductToProduct(
-  slug: string,
+  productDefinition: RuntimeProductDefinition | undefined,
   nativeProduct: GoogleBillingProductDetail,
 ): Product {
+  const googlePlayConfiguration = productDefinition?.configuration.providers.googlePlay;
+  const selectedOffer = nativeProduct.subscriptionOfferDetails?.find(
+    (offer) =>
+      !googlePlayConfiguration?.basePlanId ||
+      offer.basePlanId === googlePlayConfiguration.basePlanId,
+  );
+
   return new Product(
     nativeProduct.id,
-    slug,
-    nativeProduct.title,
+    productDefinition?.slug ?? "",
+    productDefinition?.properties.name ?? nativeProduct.title,
     nativeProduct.description,
     nativeProduct.displayName,
     nativeProduct.displayPrice,
@@ -343,6 +373,7 @@ function mapGoogleBillingProductToProduct(
     nativeProduct.currency,
     nativeProduct.type,
     "android",
+    { googlePlayOfferToken: selectedOffer?.offerToken },
   );
 }
 
@@ -357,6 +388,13 @@ function mapGoogleBillingPurchaseToTransaction(nativePurchase: GoogleBillingPurc
     "android",
     {
       isAutoRenewing: nativePurchase.isAutoRenewing,
+      appAccountToken: nativePurchase.obfuscatedAccountId,
+      purchaseState:
+        nativePurchase.purchaseState === 1
+          ? "purchased"
+          : nativePurchase.purchaseState === 2
+            ? "pending"
+            : "unspecified",
       purchaseToken: nativePurchase.purchaseToken,
       receipt: nativePurchase.originalJson,
     },

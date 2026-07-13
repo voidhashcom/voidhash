@@ -4,7 +4,7 @@ import StoreKit
 import UIKit
 
 class HybridStorekit: HybridStorekitSpec {
-    private var transactions: [String: Transaction] = [:]
+    private let transactions = TransactionRetentionStore<Transaction>()
     private var productStore: ProductStore?
     private var onTransactionListener: ((any HybridStorekitTransactionSpec) -> Void)?
     private var subscriptionPollingTask: Task<Void, Error>?
@@ -62,6 +62,7 @@ class HybridStorekit: HybridStorekitSpec {
             var purchasedItems: [any HybridStorekitTransactionSpec] = []
 
             func addTransaction(transaction: Transaction) {
+                self.transactions.retain(id: String(transaction.id), value: transaction)
                 let hybridTransaction = HybridStorekitTransaction(transaction: transaction)
                 purchasedItems.append(hybridTransaction)
 
@@ -78,25 +79,25 @@ class HybridStorekit: HybridStorekitSpec {
                     let transaction = try self.checkVerified(verification)
 
                     if !onlyIncludeActiveItems {
-                        addTransaction(transaction: transaction)
+                        if transaction.productType != .consumable {
+                            addTransaction(transaction: transaction)
+                        }
                         continue
                     }
 
                     switch transaction.productType {
-                    case .nonConsumable, .autoRenewable, .consumable:
-                        if await productStore.getProduct(productID: transaction.productID) != nil {
-                            addTransaction(transaction: transaction)
-                        }
+                    case .nonConsumable, .autoRenewable:
+                        addTransaction(transaction: transaction)
+                    case .consumable:
+                        continue
                     case .nonRenewable:
-                        if await productStore.getProduct(productID: transaction.productID) != nil {
-                            let currentDate = Date()
-                            let expirationDate = Calendar(identifier: .gregorian).date(
-                                byAdding: DateComponents(year: 1),
-                                to: transaction.purchaseDate
-                            )!
-                            if currentDate < expirationDate {
-                                addTransaction(transaction: transaction)
-                            }
+                        let currentDate = Date()
+                        let expirationDate = Calendar(identifier: .gregorian).date(
+                            byAdding: DateComponents(year: 1),
+                            to: transaction.purchaseDate
+                        )!
+                        if currentDate < expirationDate {
+                            addTransaction(transaction: transaction)
                         }
                     default:
                         break
@@ -161,6 +162,7 @@ class HybridStorekit: HybridStorekitSpec {
                 switch result {
                 case .success(let verification):
                     let transaction = try self.checkVerified(verification)
+                    self.transactions.retain(id: String(transaction.id), value: transaction)
                     let hybridTransaction = HybridStorekitTransaction(transaction: transaction)
                     self.onTransactionListener?(hybridTransaction)
                     return hybridTransaction
@@ -191,19 +193,19 @@ class HybridStorekit: HybridStorekitSpec {
 
     func finishTransaction(transactionId: String) throws -> Promise<Void> {
         return Promise.async {
-            guard let transaction = self.transactions[transactionId] else {
+            guard let transaction = self.transactions.value(for: transactionId) else {
                 throw RuntimeError.error(
                     withMessage: "TRANSACTION_NOT_FOUND: Transaction not found")
             }
 
             await transaction.finish()
-            self.transactions.removeValue(forKey: transactionId)
+            self.transactions.remove(id: transactionId)
             return
         }
     }
 
     func getPendingTransactions() throws -> [any HybridStorekitTransactionSpec] {
-        return self.transactions.values.map { HybridStorekitTransaction(transaction: $0) }
+        return self.transactions.values().map { HybridStorekitTransaction(transaction: $0) }
     }
 
     func presentCodeRedemptionSheet() throws {

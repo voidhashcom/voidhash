@@ -1873,12 +1873,14 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "appAccountToken": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                   "platform": {
                     "anyOf": [
                       { "type": "string", "enum": ["ios"] },
                       { "type": "string", "enum": ["android"] }
                     ]
                   },
+                  "providerProductId": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                   "productSlug": { "type": "string" },
                   "purchaseDate": {
                     "anyOf": [
@@ -3478,7 +3480,10 @@
             "items": { "$ref": "#/components/schemas/SchemaProductProvider" }
           },
           "slug": { "type": "string" },
-          "type": { "type": "string", "enum": ["subscription"] }
+          "type": {
+            "type": "string",
+            "enum": ["subscription", "one-time", "one-time-consumable"]
+          }
         },
         "required": ["name", "perks", "providers", "slug", "type"],
         "additionalProperties": false
@@ -4057,7 +4062,10 @@
             "additionalProperties": false
           },
           "slug": { "type": "string" },
-          "type": { "type": "string", "enum": ["subscription"] }
+          "type": {
+            "type": "string",
+            "enum": ["subscription", "one-time", "one-time-consumable"]
+          }
         },
         "required": ["configuration", "properties", "slug", "type"],
         "additionalProperties": false

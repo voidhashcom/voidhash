@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 
 import type { VoidhashClient } from "../../client";
-import type { SubscriptionProduct } from "../../core/entities/product";
+import type { Product } from "../../core/entities/product";
 import type { ProductSlug } from "../../core/schema/registry";
 import type { VoidhashContext } from "../components/provider";
 import useAsyncFunction from "./use-async-function";
@@ -24,23 +24,21 @@ export function productsHookFactory(
     });
 
     const getProduct = useCallback(
-      (productSlug: ProductSlug): SubscriptionProduct | null => {
+      (productSlug: ProductSlug): Product | null => {
         if (!products) {
           return null;
         }
         // ProductSlug is `string` at runtime; the index access is safe.
-        return (
-          (products as Record<string, SubscriptionProduct | null>)[String(productSlug)] ?? null
-        );
+        return (products as Record<string, Product | null>)[String(productSlug)] ?? null;
       },
       [products],
     );
 
     const toList = useCallback(
-      (): SubscriptionProduct[] =>
+      (): Product[] =>
         products
-          ? (Object.values(products) as Array<SubscriptionProduct | null>).filter(
-              (product): product is SubscriptionProduct => product !== null,
+          ? (Object.values(products) as Array<Product | null>).filter(
+              (product): product is Product => product !== null,
             )
           : [],
       [products],
@@ -56,7 +54,7 @@ export function productsHookFactory(
     );
 
     return {
-      data: data as Record<ProductSlug, SubscriptionProduct | null> & {
+      data: data as Record<ProductSlug, Product | null> & {
         get: typeof getProduct;
         toList: typeof toList;
       },

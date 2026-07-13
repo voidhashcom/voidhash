@@ -16,6 +16,7 @@ import { GooglePlayPaymentProviderServiceError } from "./errors.ts";
 import { getActiveGooglePlayPaymentProviderConfiguration } from "./helpers.ts";
 import { GooglePlayPaymentProvider } from "./payment-provider.ts";
 import { GooglePlayPaymentProviderServiceQueries } from "./payment-provider-service-queries.ts";
+import { GooglePlayPurchaseVerifier } from "./purchase-verifier.ts";
 import { GooglePlayWebhookHandlerService } from "./webhook-handler-service.ts";
 
 /**
@@ -43,6 +44,7 @@ const toServiceError = (error: unknown): GooglePlayPaymentProviderServiceError =
 export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPaymentProviderService)(
   Effect.gen(function* () {
     const googlePlayPaymentProvider = yield* GooglePlayPaymentProvider;
+    const purchaseVerifier = yield* GooglePlayPurchaseVerifier;
     const googlePlayWebhookHandlerService = yield* GooglePlayWebhookHandlerService;
     const queries = yield* GooglePlayPaymentProviderServiceQueries;
 
@@ -83,24 +85,11 @@ export const GooglePlayPaymentProviderServiceLive = Layer.effect(GooglePlayPayme
           return yield* Effect.die(`Project ${input.projectId} not found`);
         }
 
-        const sdkContext =
-          yield* googlePlayPaymentProvider.buildSdkContextFromConfiguration(configuration);
-
-        // Try subscription first; fall back to one-time product when the token
-        // isn't a subscription.
-        const fetched = yield* googlePlayPaymentProvider
-          .fetchAndNormalizeSubscription(sdkContext, {
-            purchaseToken: input.purchaseToken,
-            subscriptionId: input.productId,
-          })
-          .pipe(
-            Effect.catchTag("GooglePlayPurchaseNotFoundError", () =>
-              googlePlayPaymentProvider.fetchAndNormalizeProduct(sdkContext, {
-                purchaseToken: input.purchaseToken,
-                sku: input.productId,
-              }),
-            ),
-          );
+        const fetched = yield* purchaseVerifier.verify({
+          configuration,
+          productId: input.productId,
+          purchaseToken: input.purchaseToken,
+        });
 
         const result = yield* googlePlayPaymentProvider.recordPurchase({
           configuration,

@@ -35,9 +35,8 @@ export interface GoogleBilling extends HybridObject<{ android: "kotlin" }> {
   ): Promise<GoogleBillingProductDetail[]>;
   buyItemByType(params: GoogleBillingBuyItemByTypeParams): Promise<GoogleBillingPurchase[]>;
   acknowledgePurchase(token: string): Promise<GoogleBillingAcknowledgeResult>;
+  consumeProduct(token: string): Promise<GoogleBillingAcknowledgeResult>;
   getAvailableItemsByType(type: GoogleBillingProductType): Promise<GoogleBillingPurchase[]>;
-  // Consume a product (for consumable items)
-  // consumeProduct(token: string): Promise<GoogleBillingConsumeResult>;
 
   // Get storefront/country code
   // getStorefront(): Promise<string>;

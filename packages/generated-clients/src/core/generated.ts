@@ -254,14 +254,14 @@ export interface SchemaPerk {
   readonly slug: string;
 }
 
-export type SchemaProductProviderProviderIdEnum = "googlePlay";
+export type SchemaProductProviderProviderIdEnum = "appleAppStore" | "googlePlay";
 
 export interface SchemaProductProvider {
   readonly configuration: Record<string, unknown>;
   readonly providerId: SchemaProductProviderProviderIdEnum | SchemaProductProviderProviderIdEnum;
 }
 
-export type SchemaProductType = "subscription";
+export type SchemaProductType = "one-time" | "one-time-consumable" | "subscription";
 
 export interface SchemaProduct {
   readonly name: string;
@@ -650,15 +650,15 @@ export type SdkSyncPersonAttributes500 =
   | ApiAuthenticationError
   | ApiNotAuthenticatedError;
 
-export type SdkSyncTransactionParamsXIsBackgrounded = "false";
+export type SdkSyncTransactionParamsXIsBackgrounded = "false" | "true";
 
-export type SdkSyncTransactionParamsXIsDebugBuildEnum = "false";
+export type SdkSyncTransactionParamsXIsDebugBuildEnum = "false" | "true";
 
-export type SdkSyncTransactionParamsXObserverModeEnum = "false";
+export type SdkSyncTransactionParamsXObserverModeEnum = "false" | "true";
 
-export type SdkSyncTransactionParamsXPlatformFlavorEnum = "browser";
+export type SdkSyncTransactionParamsXPlatformFlavorEnum = "browser" | "native";
 
-export type SdkSyncTransactionParamsXSdkEnum = "web";
+export type SdkSyncTransactionParamsXSdkEnum = "react-native" | "web";
 
 export interface SdkSyncTransactionParams {
   readonly "x-distinct-id": string;
@@ -688,14 +688,16 @@ export interface SdkSyncTransactionParams {
   readonly "x-storefront"?: string | null | undefined;
 }
 
-export type SdkSyncTransactionRequestPlatformEnum = "android";
+export type SdkSyncTransactionRequestPlatformEnum = "android" | "ios";
 
 export type SdkSyncTransactionRequestPurchaseDateEnum = "-Infinity";
 
 export type SdkSyncTransactionRequestQuantityEnum = "-Infinity";
 
 export interface SdkSyncTransactionRequest {
+  readonly appAccountToken?: string | null | undefined;
   readonly platform: SdkSyncTransactionRequestPlatformEnum | SdkSyncTransactionRequestPlatformEnum;
+  readonly providerProductId?: string | null | undefined;
   readonly productSlug: string;
   readonly purchaseDate:
     | number

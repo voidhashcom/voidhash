@@ -3,7 +3,7 @@ import type {
   PaywallRuntimeConfigProduct,
   PaywallRuntimeConfigProductPeriod,
 } from "../../internal/paywall-bridge/protocol";
-import type { SubscriptionProduct } from "../entities/product";
+import type { Product, SubscriptionProduct } from "../entities/product";
 import type { PaywallReleaseRuntime } from "./paywall-service";
 
 const PERIOD_BY_NORMALIZED_INTERVAL: Readonly<Record<string, PaywallRuntimeConfigProductPeriod>> = {
@@ -38,9 +38,7 @@ export function mapStoreIntervalToPeriod(
   return PERIOD_BY_NORMALIZED_INTERVAL[interval.trim().toLowerCase()];
 }
 
-function mapProductToRuntimeConfigProduct(
-  product: SubscriptionProduct,
-): PaywallRuntimeConfigProduct {
+function mapProductToRuntimeConfigProduct(product: Product): PaywallRuntimeConfigProduct {
   return {
     id: product.id,
     slug: product.slug,
@@ -65,7 +63,7 @@ function mapProductToRuntimeConfigProduct(
  */
 export function buildPaywallRuntimeConfig(options: {
   runtime: PaywallReleaseRuntime;
-  productsBySlug: Readonly<Record<string, SubscriptionProduct | null>>;
+  productsBySlug: Readonly<Record<string, Product | null>>;
   platform: "ios" | "android" | "unknown";
   locale: string | undefined;
   onSkippedProductSlug?: (slug: string) => void;

@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
+import type { ProductTypeValue } from "@voidhash/lib";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
@@ -27,6 +28,7 @@ import {
   computeSchemaVersion,
   mapDbProviderIdToSchemaProviderId,
 } from "./helpers.ts";
+import { dbProductTypeToLabel } from "../products/helpers.ts";
 
 export interface ProjectSchemaCacheStub {
   readonly get: () => Effect.Effect<unknown>;
@@ -256,7 +258,7 @@ export class SchemaService extends Context.Service<SchemaService>()("SchemaServi
               perks: perksForProduct,
               providers: providersForProduct,
               slug: product.slug,
-              type: "subscription" as const,
+              type: dbProductTypeToLabel(product.type as ProductTypeValue),
             };
           })
           .sort((a, b) => a.slug.localeCompare(b.slug));

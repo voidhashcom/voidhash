@@ -4,7 +4,7 @@ import { AtomRegistry } from "effect/unstable/reactivity";
 import { AUTOMATIC_EVENTS } from "./core/analytics/constants";
 import { AnalyticsService } from "./core/analytics/service";
 import type { AnalyticsIngestEvent } from "./core/analytics/types";
-import type { SubscriptionProduct } from "./core/entities/product";
+import type { Product } from "./core/entities/product";
 import type { Transaction } from "./core/entities/transaction";
 import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
 import {
@@ -292,7 +292,7 @@ const makeInitializedClient = (options: { schema: RuntimeSchema }) =>
         }),
 
       purchase: (
-        product: SubscriptionProduct,
+        product: Product,
         _options: {
           method?: "native";
         },

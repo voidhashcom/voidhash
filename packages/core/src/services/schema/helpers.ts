@@ -18,7 +18,7 @@ export interface SchemaProjection {
   readonly products: ReadonlyArray<{
     readonly slug: string;
     readonly name: string;
-    readonly type: "subscription";
+    readonly type: "subscription" | "one-time" | "one-time-consumable";
     readonly perks: ReadonlyArray<string>;
     readonly providers: ReadonlyArray<{
       readonly providerId: SchemaProviderId;

@@ -1,7 +1,7 @@
-import { Effect, Layer, Context } from "effect";
+import { Cause, Context, Deferred, Effect, Exit, Layer } from "effect";
 
 import { CacheManager } from "../caching/cache-manager";
-import type { SubscriptionProduct } from "../entities/product";
+import type { Product } from "../entities/product";
 import type { Transaction } from "../entities/transaction";
 import { PersonInfoManager } from "../identity/person-info-manager";
 import { IdentityManager } from "../identity/identity-manager";
@@ -10,8 +10,15 @@ import { PaymentAdapter } from "../payment-adapters/payment-adapter";
 import type { RuntimeProductDefinition, RuntimeSchema } from "../schema/runtime";
 import { SdkConfiguration } from "../sdk-configuration";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
+import { deriveAccountToken } from "../utils/account-token";
+import { ReconcileTransactionsError } from "./errors";
 
 const PROCESSED_TRANSACTION_TTL_MS = 1000 * 60 * 30;
+
+interface TransactionProcessingState {
+  readonly backendAccepted: boolean;
+  readonly storeFinalized: boolean;
+}
 
 const buildTransactionProcessingKey = (transaction: Transaction) =>
   `${transaction.platform}:${transaction.transactionId}:${transaction.purchaseDate}`;
@@ -39,6 +46,21 @@ const resolveTransactionProductSlug = (
   return matchedProduct?.slug ?? transaction.productId;
 };
 
+const resolveTransactionProductDefinition = (
+  transaction: Transaction,
+  productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
+) =>
+  Object.values(productDefinitions).find((productDefinition) => {
+    if (productDefinition.slug === transaction.productId) {
+      return true;
+    }
+    const provider =
+      transaction.platform === "ios"
+        ? productDefinition.configuration.providers.appleAppStore
+        : productDefinition.configuration.providers.googlePlay;
+    return provider?.productId === transaction.productId;
+  });
+
 const mapTransactionToSyncPayload = (
   transaction: Transaction,
   productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
@@ -47,7 +69,9 @@ const mapTransactionToSyncPayload = (
 
   if (transaction.platform === "ios") {
     return {
+      appAccountToken: transaction.appAccountToken,
       platform: "ios" as const,
+      providerProductId: transaction.productId,
       productSlug,
       purchaseDate: transaction.purchaseDate,
       quantity: transaction.quantity,
@@ -57,7 +81,9 @@ const mapTransactionToSyncPayload = (
   }
 
   return {
+    appAccountToken: transaction.appAccountToken,
     platform: "android" as const,
+    providerProductId: transaction.productId,
     productSlug,
     purchaseDate: transaction.purchaseDate,
     purchaseToken: transaction.purchaseToken ?? "",
@@ -85,54 +111,107 @@ export class TransactionService extends Context.Service<TransactionService>()(
       const paymentAdapter = yield* PaymentAdapter;
       const sdkConfiguration = yield* SdkConfiguration;
 
-      const inFlightKeys = new Set<string>();
+      const inFlightTransactions = new Map<string, Deferred.Deferred<void, unknown>>();
 
-      const processObservedTransaction = (transaction: Transaction, schema: RuntimeSchema) =>
-        Effect.gen(function* () {
+      const refreshPerson = Effect.gen(function* () {
+        const distinctId = yield* identityManager.getDistinctId();
+        yield* personInfoManager.getPerson(distinctId, "fetch");
+      });
+
+      const processTransaction = (transaction: Transaction, schema: RuntimeSchema) =>
+        Effect.suspend(() => {
+          if (transaction.purchaseState !== "purchased") {
+            return Effect.logDebug("Skipping transaction that is not purchased", {
+              purchaseState: transaction.purchaseState,
+              transactionId: transaction.transactionId,
+            });
+          }
+
           const transactionProcessingKey = buildTransactionProcessingKey(transaction);
-          if (inFlightKeys.has(transactionProcessingKey)) {
-            return;
+          const existing = inFlightTransactions.get(transactionProcessingKey);
+          if (existing) {
+            return Deferred.await(existing);
           }
 
-          const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
-          const cachedTransaction = yield* cacheManager.get<boolean>(processedCacheKey);
-          if (cachedTransaction && !cachedTransaction.isExpired && cachedTransaction.value) {
-            return;
-          }
+          const deferred = Deferred.makeUnsafe<void, unknown>();
+          inFlightTransactions.set(transactionProcessingKey, deferred);
 
-          if (transaction.platform === "android" && !transaction.purchaseToken) {
-            yield* Effect.logWarning(
-              "Skipping observed Android transaction without purchase token",
-              {
-                transactionId: transaction.transactionId,
-              },
+          const execution = Effect.gen(function* () {
+            const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
+            const cachedTransaction = yield* cacheManager.get<boolean | TransactionProcessingState>(
+              processedCacheKey,
             );
-            return;
-          }
+            const cachedState =
+              cachedTransaction && !cachedTransaction.isExpired
+                ? cachedTransaction.value === true
+                  ? { backendAccepted: true, storeFinalized: true }
+                  : cachedTransaction.value === false
+                    ? undefined
+                    : cachedTransaction.value
+                : undefined;
 
-          inFlightKeys.add(transactionProcessingKey);
-          try {
-            const commonHeaders = yield* getCommonSdkHeaders();
-            const distinctId = yield* identityManager.getDistinctId();
-
-            yield* apiClient.sdk.syncTransaction({
-              headers: {
-                ...commonHeaders,
-                "x-distinct-id": distinctId,
-              },
-              payload: mapTransactionToSyncPayload(transaction, schema.products),
-            });
-
-            yield* cacheManager.set(processedCacheKey, true, {
-              ttl: PROCESSED_TRANSACTION_TTL_MS,
-            });
-
-            if (!sdkConfiguration.readOnly) {
-              yield* paymentAdapter.acknowledgePurchase(transaction);
+            if (cachedState?.storeFinalized) {
+              return;
             }
-          } finally {
-            inFlightKeys.delete(transactionProcessingKey);
-          }
+
+            if (transaction.platform === "android" && !transaction.purchaseToken) {
+              yield* Effect.logWarning(
+                "Skipping observed Android transaction without purchase token",
+                {
+                  transactionId: transaction.transactionId,
+                },
+              );
+              return;
+            }
+
+            if (!cachedState?.backendAccepted) {
+              const commonHeaders = yield* getCommonSdkHeaders();
+              const distinctId = yield* identityManager.getDistinctId();
+
+              yield* apiClient.sdk.syncTransaction({
+                headers: {
+                  ...commonHeaders,
+                  "x-distinct-id": distinctId,
+                },
+                payload: mapTransactionToSyncPayload(transaction, schema.products),
+              });
+
+              yield* cacheManager.set(
+                processedCacheKey,
+                { backendAccepted: true, storeFinalized: transaction.isAcknowledged },
+                { ttl: PROCESSED_TRANSACTION_TTL_MS },
+              );
+            }
+
+            if (sdkConfiguration.readOnly) {
+              return;
+            }
+
+            if (!transaction.isAcknowledged) {
+              yield* paymentAdapter.acknowledgePurchase(
+                transaction,
+                resolveTransactionProductDefinition(transaction, schema.products)?.type,
+              );
+            }
+
+            yield* cacheManager.set(
+              processedCacheKey,
+              { backendAccepted: true, storeFinalized: true },
+              { ttl: PROCESSED_TRANSACTION_TTL_MS },
+            );
+          });
+
+          return Effect.exit(execution).pipe(
+            Effect.tap((exit) => Deferred.done(deferred, exit)),
+            Effect.flatMap((exit) =>
+              Exit.isSuccess(exit) ? Effect.succeed(exit.value) : Effect.failCause(exit.cause),
+            ),
+            Effect.ensuring(
+              Effect.sync(() => {
+                inFlightTransactions.delete(transactionProcessingKey);
+              }),
+            ),
+          );
         });
 
       const reconcileObservedTransactions = (schema: RuntimeSchema) =>
@@ -147,30 +226,60 @@ export class TransactionService extends Context.Service<TransactionService>()(
             observedTransactionsByKey.set(buildTransactionProcessingKey(transaction), transaction);
           }
 
+          const failures = [];
           for (const transaction of observedTransactionsByKey.values()) {
-            yield* processObservedTransaction(transaction, schema).pipe(
-              Effect.catch((error) =>
-                Effect.logWarning("Failed to process observed transaction", {
-                  error,
-                  transactionId: transaction.transactionId,
-                }),
-              ),
+            if (
+              resolveTransactionProductDefinition(transaction, schema.products)?.type ===
+              "one-time-consumable"
+            ) {
+              continue;
+            }
+            const exit = yield* Effect.exit(processTransaction(transaction, schema));
+            if (Exit.isFailure(exit)) {
+              const error = Cause.squash(exit.cause);
+              failures.push({ error, transactionId: transaction.transactionId });
+              yield* Effect.logWarning("Failed to process observed transaction", {
+                error,
+                transactionId: transaction.transactionId,
+              });
+            }
+          }
+
+          if (failures.length > 0) {
+            return yield* Effect.fail(
+              new ReconcileTransactionsError({
+                failures,
+                message: `Failed to restore ${failures.length} transactions`,
+              }),
             );
           }
         });
 
-      const purchase = (product: SubscriptionProduct, schema: RuntimeSchema) =>
+      const processObservedTransaction = (transaction: Transaction, schema: RuntimeSchema) =>
         Effect.gen(function* () {
-          const transaction = yield* paymentAdapter.buyProduct(product);
-          yield* processObservedTransaction(transaction, schema);
+          yield* processTransaction(transaction, schema);
+          yield* refreshPerson;
         });
 
-      const restorePurchases = (schema: RuntimeSchema) =>
+      const reconcileObservedTransactionsAndRefresh = (schema: RuntimeSchema) =>
         Effect.gen(function* () {
           yield* reconcileObservedTransactions(schema);
-          const distinctId = yield* identityManager.getDistinctId();
-          yield* personInfoManager.getPerson(distinctId, "fetch");
+          yield* refreshPerson;
         });
+
+      const purchase = (product: Product, schema: RuntimeSchema) =>
+        Effect.gen(function* () {
+          const distinctId = yield* identityManager.getDistinctId();
+          const transaction = yield* paymentAdapter.buyProduct(
+            product,
+            undefined,
+            deriveAccountToken(distinctId),
+          );
+          yield* processTransaction(transaction, schema);
+          yield* refreshPerson;
+        });
+
+      const restorePurchases = reconcileObservedTransactionsAndRefresh;
 
       const startTransactionObserver = (onPurchase?: (transaction: Transaction) => void) =>
         paymentAdapter.initConnection(onPurchase);
@@ -181,7 +290,7 @@ export class TransactionService extends Context.Service<TransactionService>()(
         endConnection,
         processObservedTransaction,
         purchase,
-        reconcileObservedTransactions,
+        reconcileObservedTransactions: reconcileObservedTransactionsAndRefresh,
         restorePurchases,
         startTransactionObserver,
       } as const;

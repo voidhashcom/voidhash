@@ -40,6 +40,18 @@ export function createTestSchema(): RuntimeSchema {
           },
         },
       },
+      coins: {
+        slug: "coins",
+        type: "one-time-consumable",
+        properties: { name: "Coins" },
+        configuration: {
+          perks: {},
+          providers: {
+            appleAppStore: { productId: "com.voidhash.coins.ios" },
+            googlePlay: { productId: "com.voidhash.coins.android" },
+          },
+        },
+      },
     },
   };
 }

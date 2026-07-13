@@ -8,6 +8,7 @@ import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingFlowParams.SubscriptionUpdateParams
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
@@ -36,6 +37,7 @@ class HybridGoogleBilling : HybridGoogleBillingSpec(), PurchasesUpdatedListener 
     private var context: Context? = null
     private var currentActivity: android.app.Activity? = null
     private var onPurchaseCallback: ((HybridGoogleBillingPurchaseSpec) -> Unit)? = null
+    private val purchaseCoordinator = PurchaseOperationCoordinator<HybridGoogleBillingPurchaseSpec>()
 
     fun setContext(ctx: Context) {
         context = ctx
@@ -60,6 +62,7 @@ class HybridGoogleBilling : HybridGoogleBillingSpec(), PurchasesUpdatedListener 
             billingClientCache = null
             skus.clear()
             onPurchaseCallback = null
+            purchaseCoordinator.fail(Error("CONNECTION_ENDED: Google Billing connection ended"))
             return@async true
         }
     }
@@ -160,18 +163,44 @@ class HybridGoogleBilling : HybridGoogleBillingSpec(), PurchasesUpdatedListener 
 
             obfuscatedAccountId?.let { builder.setObfuscatedAccountId(it) }
             obfuscatedProfileId?.let { builder.setObfuscatedProfileId(it) }
+            val expectedProductIds = skuArr.toSet()
 
-            val flowParams = builder.build()
-            val billingResult = billingClient.launchBillingFlow(currentActivity!!, flowParams)
+            return@async suspendCancellableCoroutine { continuation ->
+                val handle = try {
+                    purchaseCoordinator.begin(
+                        accepts = { purchases ->
+                            purchases
+                                .flatMap { purchase -> purchase.ids.asIterable() }
+                                .toSet()
+                                .containsAll(expectedProductIds)
+                        },
+                        complete = { result ->
+                            result.fold(
+                                onSuccess = continuation::resume,
+                                onFailure = continuation::resumeWithException,
+                            )
+                        },
+                    )
+                } catch (error: Throwable) {
+                    continuation.resumeWithException(error)
+                    return@suspendCancellableCoroutine
+                }
+                continuation.invokeOnCancellation {
+                    purchaseCoordinator.cancel(handle)
+                }
 
-            if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                val errorMessage = billingResult.debugMessage
-                throw Error("BILLING_ERROR: Google Billing operation failed - $errorMessage")
+                val billingResult = try {
+                    billingClient.launchBillingFlow(currentActivity!!, builder.build())
+                } catch (error: Throwable) {
+                    purchaseCoordinator.fail(error)
+                    return@suspendCancellableCoroutine
+                }
+                if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                    purchaseCoordinator.fail(
+                        Error("BILLING_ERROR: Google Billing operation failed - ${billingResult.debugMessage}")
+                    )
+                }
             }
-
-            // The actual purchase result will be handled in onPurchasesUpdated
-            // For now, return empty array as the purchase is pending
-            return@async emptyArray()
         }
     }
 
@@ -187,6 +216,25 @@ class HybridGoogleBilling : HybridGoogleBillingSpec(), PurchasesUpdatedListener 
 
             val result = acknowledgePurchaseAsync(billingClient, acknowledgePurchaseParams)
             
+            return@async HybridGoogleBillingAcknowledgeResult(
+                responseCode = result.responseCode.toDouble(),
+                debugMessage = result.debugMessage,
+                code = getBillingResponseCode(result.responseCode),
+                message = getBillingResponseMessage(result.responseCode)
+            )
+        }
+    }
+
+    override fun consumeProduct(token: String): Promise<HybridGoogleBillingAcknowledgeResultSpec> {
+        return Promise.async {
+            val billingClient = ensureBillingClient()
+            val consumeParams = ConsumeParams
+                .newBuilder()
+                .setPurchaseToken(token)
+                .build()
+
+            val result = consumeProductAsync(billingClient, consumeParams)
+
             return@async HybridGoogleBillingAcknowledgeResult(
                 responseCode = result.responseCode.toDouble(),
                 debugMessage = result.debugMessage,
@@ -235,13 +283,19 @@ class HybridGoogleBilling : HybridGoogleBillingSpec(), PurchasesUpdatedListener 
         val responseCode = billingResult.responseCode
         if (responseCode != BillingClient.BillingResponseCode.OK) {
             Log.e(TAG, "Purchase failed with response code: $responseCode, message: ${billingResult.debugMessage}")
+            val errorCode = when (responseCode) {
+                BillingClient.BillingResponseCode.USER_CANCELED -> "USER_CANCELLED"
+                BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> "SKU_NOT_FOUND"
+                else -> "BILLING_ERROR"
+            }
+            purchaseCoordinator.fail(
+                Error("$errorCode: ${billingResult.debugMessage}")
+            )
             return
         }
 
-        purchases?.forEach { purchase ->
+        val hybridPurchases = purchases.orEmpty().map<Purchase, HybridGoogleBillingPurchaseSpec> { purchase ->
             Log.i(TAG, "Purchase successful: ${purchase.products.firstOrNull()}")
-            
-            // Create HybridGoogleBillingPurchase object and call the callback
             val hybridPurchase = HybridGoogleBillingPurchase(
                 id = purchase.products.firstOrNull() ?: "",
                 ids = purchase.products.toTypedArray(),
@@ -258,8 +312,20 @@ class HybridGoogleBilling : HybridGoogleBillingSpec(), PurchasesUpdatedListener 
                 obfuscatedAccountId = purchase.accountIdentifiers?.obfuscatedAccountId,
                 obfuscatedProfileId = purchase.accountIdentifiers?.obfuscatedProfileId
             )
-            
-            onPurchaseCallback?.invoke(hybridPurchase)
+            try {
+                onPurchaseCallback?.invoke(hybridPurchase)
+            } catch (error: Throwable) {
+                Log.e(TAG, "Purchase observer callback failed", error)
+            }
+            hybridPurchase
+        }.toTypedArray()
+
+        if (hybridPurchases.isEmpty()) {
+            purchaseCoordinator.fail(
+                Error("PURCHASE_EMPTY: Google Billing returned no purchases")
+            )
+        } else {
+            purchaseCoordinator.succeed(hybridPurchases)
         }
     }
 
@@ -397,6 +463,17 @@ class HybridGoogleBilling : HybridGoogleBillingSpec(), PurchasesUpdatedListener 
     ): BillingResult {
         return suspendCancellableCoroutine { continuation ->
             billingClient.acknowledgePurchase(params) { billingResult: BillingResult ->
+                continuation.resume(billingResult)
+            }
+        }
+    }
+
+    private suspend fun consumeProductAsync(
+        billingClient: BillingClient,
+        params: ConsumeParams
+    ): BillingResult {
+        return suspendCancellableCoroutine { continuation ->
+            billingClient.consumeAsync(params) { billingResult: BillingResult, _: String ->
                 continuation.resume(billingResult)
             }
         }

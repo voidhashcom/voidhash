@@ -8,58 +8,35 @@
  *   1. resolve the enabled configuration for `input.bundleId` under
  *      `input.projectId` (DB read + pure key match),
  *   2. resolve the project from `input.projectId` (DB read),
- *   3. build the per-tenant Apple SDK context and call
- *      `getTransactionInfo` (live Apple HTTPS) + `decodeSignedTransaction`
- *      (JWS verification against Apple root certs),
+ *   3. verify the transaction through `AppStoreTransactionVerifier`,
  *   4. forward the decoded transaction to `AppStorePaymentProvider.recordPurchase`.
  *
- * STAGE 3 IS THE HARD WALL. Once a configuration resolves, the method calls
- * `appStorePaymentProvider.buildSdkContextFromConfiguration(configuration)`,
- * which builds a *real* `AppStoreServerSdkClient` + `SignedDataVerifier` (see
- * `appStore/sdk-context.ts`), then calls `sdkContext.getTransactionInfo(...)` —
- * a live HTTPS request to Apple's App Store Server API — and
- * `sdkContext.decodeSignedTransaction(...)` — real X.509 chain + JWS signature
- * verification against Apple's root certificates. The SDK context is built
- * *internally*; there is no override seam to inject a fake context, and the
- * testing brief defers any path that needs an Apple-signed JWS payload or an
- * external provider sandbox to `test.todo` rather than hand-rolling a double.
- * So every happy-path case and every post-configuration error case (missing
- * `signedTransactionInfo`, SDK/verification error, `recordPurchase` failure) is
- * deferred — they cannot run in-process against real infrastructure.
- *
- * STAGE 1 (configuration-not-found), HOWEVER, RUNS FULLY IN-PROCESS and is
- * implemented below as a real harness test. The live layer *can* be built
- * against harness `Db` + `AuthSession`: `AppStorePaymentProviderServiceLive`
- * provides `AppStoreWebhookHandlerService.layer` (which merges
- * `AppStorePaymentProvider.layer`), and its residual deps
- * (`PurchaseProcessingService`, `PersonIdentityService`, `FxRateService`,
- * `PaymentConfigSecretCrypto`, `AppStoreServerSdk`) all bottom out at the
- * harness `Db` once given the same leaf stubs the sibling
- * `AppStorePaymentProvider.integration.test.ts` already uses (which exercises
- * `recordPurchase` end-to-end — there is NO ambient `Cloudflare.Worker`
- * requirement on the record path; the `as unknown as` cast in the source only
- * erases the *service-shape* `R` for the public contract, it does not gate
- * layer construction). With no enabled configuration for the input `bundleId`,
- * `getActiveAppStorePaymentProviderConfiguration` fails *before* the SDK
- * boundary is reached, and `processSdkTransaction`'s `toServiceError` wrapper
- * collapses that into the public {@link AppStorePaymentProviderServiceError}.
- *
- * See the sibling suite `AppStorePaymentProvider.integration.test.ts` for the
- * record-engine layer idiom and `appStore/sdk-context.test.ts` for the SDK
- * boundary todos.
+ * The success case replaces only the external verifier and keeps configuration
+ * lookup, project lookup, product mapping, identity binding, purchase
+ * processing, and database writes live. Production supplies a verifier backed
+ * by Apple's REST client and signed-data verifier.
  */
 import { Effect, Layer } from "effect";
 import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
 import { describe, expect, test as vitestTest } from "vitest";
 
-import { AppStoreServerSdk } from "@voidhash/app-store-server-sdk";
+import {
+  AppStoreServerSdk,
+  Type as AppleTransactionType,
+  decodeJWSTransactionDecodedPayload,
+} from "@voidhash/app-store-server-sdk";
 import {
   FxRateService,
+  GooglePlayPaymentProviderService,
   IdentityProjectionPublisher,
   PerkGrantService,
   PersonIdentityService,
   PurchaseProcessingService,
+  PurchaseService,
+  SdkService,
 } from "@voidhash/core/services";
+import type { PublishableKeySession } from "@voidhash/core/domain/auth/Auth";
 import { AppStorePaymentProvider } from "@voidhash/core/services/paymentProviders/appStore/payment-provider";
 import {
   AppStorePaymentProviderService,
@@ -69,19 +46,43 @@ import {
   // `appStore/errors.ts` shares the `_tag` string but is a DISTINCT runtime
   // class, so `toBeInstanceOf` against it fails even when the tag matches.
   AppStorePaymentProviderServiceError,
+  AppStoreTransactionVerifier,
 } from "@voidhash/core/services";
 import { IdentifyDistinctIdCompletionWorkflow } from "@voidhash/core/services/personIdentity/IdentifyDistinctIdCompletionWorkflow";
 import { PaymentConfigSecretCrypto } from "@voidhash/core/utils/crypto/PaymentConfigSecretCrypto";
+import { deriveAccountToken } from "@voidhash/core/utils/crypto/account-token";
+import { generateId } from "@voidhash/core/utils";
+import { make as makeGeneratedClient } from "@voidhash/generated-clients";
+import {
+  Db,
+  ProviderEnvironment,
+  eq,
+  paymentProviderConfigurationProducts,
+  paymentProviderConfigurations,
+  personExternalIdentifiers,
+  personIdentities,
+  persons,
+  products,
+  purchaseLedger,
+  purchases,
+  transactions,
+} from "@voidhash/db";
 // The live layer has no public package subpath, so it is imported by relative
 // path into `src` (the App-Store unit-test convention used by the sibling
 // engine suite for the error classes).
 import { AppStorePaymentProviderServiceLive } from "../../../../src/services/paymentProviders/appStore/payment-provider-service.ts";
 
 import { CoreAuthSession } from "@testing/CoreAuthSession";
-import { CoreIntegrationTestHarness } from "@testing/CoreIntegrationTestHarness";
+import { PurchaseIntegrationTestHarness } from "@testing/PurchaseIntegrationTestHarness";
 import { CoreTestFixture } from "@testing/CoreTestFixture";
+import {
+  makeReactNativePurchaseHarness,
+  type RuntimeSchema,
+  Transaction as ReactNativeTransaction,
+} from "@testing/ReactNativePurchaseHarness";
+import { makePurchaseSdkHttpHandler } from "../../../../../../apps/backend/src/testing/PurchaseSdkHttpHarness.ts";
 
-const { test } = CoreIntegrationTestHarness.make();
+const { test } = PurchaseIntegrationTestHarness.make();
 
 const projectId = CoreTestFixture.projectId;
 
@@ -100,37 +101,378 @@ const CompletionWorkflowStub = Layer.succeed(IdentifyDistinctIdCompletionWorkflo
   dispatch: () => Effect.void,
 });
 
+const googlePlayStub = Layer.succeed(GooglePlayPaymentProviderService, {
+  acceptRtdnNotification: () => Effect.die("Google Play webhook must not run"),
+  processSdkTransaction: () => Effect.die("Google Play purchase must not run"),
+});
+
+const sdkSession = (distinctId: string): PublishableKeySession => ({
+  cookie: null,
+  method: "publishable-key",
+  name: "Purchase integration SDK",
+  organizations: [
+    {
+      id: CoreTestFixture.organizationId,
+      logo: null,
+      name: CoreTestFixture.organizationName,
+      permissions: ["organization:read"],
+      slug: CoreTestFixture.organizationSlug,
+      workosOrganizationId: CoreTestFixture.workosOrganizationId,
+    },
+  ],
+  person: { distinctId },
+  projects: [
+    {
+      id: projectId,
+      logo: null,
+      name: CoreTestFixture.projectName,
+      organizationId: CoreTestFixture.organizationId,
+      permissions: ["project:read"],
+      slug: CoreTestFixture.projectSlug,
+    },
+  ],
+  user: null,
+});
+
 /**
  * Full dependency graph for `AppStorePaymentProviderServiceLive`. Mirrors the
  * sibling engine suite's `AppStoreEngineLive`: every node is either a real
  * `Db`-backed service or a leaf stub with no infrastructure of its own, so the
  * only requirements that escape are the harness `Db` and the per-test
- * `AuthSession` supplied by `CoreAuthSession.authenticate`.
+ * authentication session supplied by the in-process SDK HTTP harness.
  */
-const AppStoreServiceLive = AppStorePaymentProviderServiceLive.pipe(
-  Layer.provide(
-    AppStorePaymentProvider.layer.pipe(
-      Layer.provideMerge(
-        Layer.mergeAll(
-          PurchaseProcessingService.layer,
-          PersonIdentityService.layer,
-          FxRateService.layer({ apiKey: Effect.succeed("test-fx-key") }),
-          PaymentConfigSecretCrypto.layer({ key: Effect.succeed("") }),
-          AppStoreServerSdk.layer.pipe(Layer.provide(FetchHttpClient.layer)),
-        ),
-      ),
-      Layer.provideMerge(
-        Layer.mergeAll(
-          PerkGrantService.layer,
-          IdentityProjectionPublisher.noop,
-          CompletionWorkflowStub,
-        ),
-      ),
+const AppStoreEngineLive = AppStorePaymentProvider.layer.pipe(
+  Layer.provideMerge(
+    Layer.mergeAll(
+      PurchaseProcessingService.layer,
+      PersonIdentityService.layer,
+      FxRateService.layer({ apiKey: Effect.succeed("test-fx-key") }),
+      PaymentConfigSecretCrypto.layer({ key: Effect.succeed("") }),
+      AppStoreServerSdk.layer.pipe(Layer.provide(FetchHttpClient.layer)),
+    ),
+  ),
+  Layer.provideMerge(
+    Layer.mergeAll(
+      PerkGrantService.layer,
+      IdentityProjectionPublisher.noop,
+      CompletionWorkflowStub,
     ),
   ),
 );
 
+const AppStoreServiceLive = AppStorePaymentProviderServiceLive.pipe(
+  Layer.provide(
+    Layer.succeed(AppStoreTransactionVerifier, {
+      verify: () => Effect.fail(new Error("App Store verifier must not run in this test")),
+    }),
+  ),
+  Layer.provide(AppStoreEngineLive),
+);
+
 describe("AppStorePaymentProviderService.processSdkTransaction", () => {
+  test(
+    "runs purchase, retry, restore, verification, and persistence end to end",
+    Effect.gen(function* () {
+      const db = yield* Db;
+      const distinctId = uniq("person");
+      const accountToken = yield* deriveAccountToken(distinctId);
+      const bundleId = `com.voidhash.${uniq("bundle").replaceAll("-", "")}`;
+      const providerProductKey = uniq("lifetime");
+      const productSlug = uniq("lifetime-slug");
+      const transactionId = uniq("transaction");
+      const configurationId = generateId("paymentProviderConfiguration");
+      const providerProductId = generateId("paymentProviderProduct");
+      const productId = generateId("product");
+      const purchasedAt = Date.now();
+      const receivedAt = new Date(purchasedAt);
+      const idempotencyKey = `apple:${transactionId}:purchase:${purchasedAt}`;
+      let personId: string | undefined;
+      let disposeHttp: (() => Promise<void>) | undefined;
+      const disposeReactNative: Array<() => Promise<void>> = [];
+
+      const cleanup = Effect.gen(function* () {
+        for (const dispose of disposeReactNative) {
+          yield* Effect.promise(dispose);
+        }
+        if (disposeHttp) {
+          yield* Effect.promise(disposeHttp);
+        }
+        yield* db
+          .delete(purchaseLedger)
+          .where(eq(purchaseLedger.idempotencyKey, idempotencyKey))
+          .pipe(Effect.ignore);
+        yield* db
+          .delete(transactions)
+          .where(eq(transactions.paymentProviderConfigurationProductId, providerProductId))
+          .pipe(Effect.ignore);
+        yield* db
+          .delete(purchases)
+          .where(eq(purchases.paymentProviderConfigurationProductId, providerProductId))
+          .pipe(Effect.ignore);
+        yield* db
+          .delete(paymentProviderConfigurationProducts)
+          .where(eq(paymentProviderConfigurationProducts.id, providerProductId))
+          .pipe(Effect.ignore);
+        yield* db
+          .delete(paymentProviderConfigurations)
+          .where(eq(paymentProviderConfigurations.id, configurationId))
+          .pipe(Effect.ignore);
+        yield* db.delete(products).where(eq(products.id, productId)).pipe(Effect.ignore);
+        if (personId) {
+          yield* db
+            .delete(personExternalIdentifiers)
+            .where(eq(personExternalIdentifiers.personId, personId))
+            .pipe(Effect.ignore);
+          yield* db
+            .delete(personIdentities)
+            .where(eq(personIdentities.personId, personId))
+            .pipe(Effect.ignore);
+          yield* db.delete(persons).where(eq(persons.id, personId)).pipe(Effect.ignore);
+        }
+      });
+
+      yield* Effect.gen(function* () {
+        yield* db.insert(products).values({
+          id: productId,
+          name: "Hermetic App Store lifetime",
+          projectId,
+          slug: productSlug,
+        });
+        yield* db.insert(paymentProviderConfigurations).values({
+          configuration: {
+            appAppleId: "1234567890",
+            appStoreConnectApiIssuerId: "unused",
+            appStoreConnectApiKeyId: "unused",
+            appStoreConnectApiVendorNumber: "unused",
+            appleServerNotificationForwardingUrl: "",
+            appleSmallBusinessProgramHasEndDate: false,
+            bundleId,
+            inAppPurchaseKeyId: "unused",
+            inAppPurchaseKeyIssuerId: "unused",
+            inAppPurchasePrivateKey: "unused-by-hermetic-verifier",
+            trackNewPurchasesFromAppleServerNotifications: true,
+          },
+          enabled: true,
+          id: configurationId,
+          name: "Hermetic App Store",
+          paymentProviderKey: bundleId,
+          projectId,
+          providerId: "apple-app-store",
+        });
+        yield* db.insert(paymentProviderConfigurationProducts).values({
+          configuration: { productId: providerProductKey },
+          id: providerProductId,
+          isActive: true,
+          paymentProviderConfigurationId: configurationId,
+          productId,
+          providerProductKey,
+        });
+
+        const decodedTransaction = yield* decodeJWSTransactionDecodedPayload({
+          appAccountToken: accountToken,
+          bundleId,
+          currency: "USD",
+          environment: "Sandbox",
+          originalPurchaseDate: purchasedAt,
+          originalTransactionId: transactionId,
+          price: 4990,
+          productId: providerProductKey,
+          purchaseDate: purchasedAt,
+          signedDate: purchasedAt,
+          storefront: "USA",
+          transactionId,
+          type: AppleTransactionType.NON_CONSUMABLE,
+        });
+        const verifierCalls: Array<{
+          configurationId: string;
+          transactionId: string;
+        }> = [];
+        const verifier = Layer.succeed(AppStoreTransactionVerifier, {
+          verify: (input) => {
+            verifierCalls.push({
+              configurationId: input.configuration.id,
+              transactionId: input.transactionId,
+            });
+            return Effect.succeed({
+              decodedTransaction,
+              providerEnvironment: ProviderEnvironment.Sandbox,
+            });
+          },
+        });
+        const serviceLayer = AppStorePaymentProviderServiceLive.pipe(
+          Layer.provide(verifier),
+          Layer.provide(AppStoreEngineLive),
+        );
+        const sdkLayer = SdkService.layer.pipe(
+          Layer.provideMerge(
+            Layer.mergeAll(
+              PerkGrantService.layer,
+              PurchaseService.layer,
+              PersonIdentityService.layer.pipe(Layer.provide(IdentityProjectionPublisher.noop)),
+              IdentityProjectionPublisher.noop,
+              serviceLayer,
+              googlePlayStub,
+              CompletionWorkflowStub,
+            ),
+          ),
+        );
+
+        const httpApp = makePurchaseSdkHttpHandler(
+          sdkLayer.pipe(Layer.provideMerge(Layer.succeed(Db, db))),
+          sdkSession(distinctId),
+        );
+        disposeHttp = httpApp.dispose;
+        const httpClient = HttpClient.make((request) =>
+          Effect.gen(function* () {
+            const webRequest = yield* HttpClientRequest.toWeb(request);
+            const webResponse = yield* Effect.promise(() => httpApp.handler(webRequest));
+            return HttpClientResponse.fromWeb(request, webResponse);
+          }),
+        );
+        const generatedClient = makeGeneratedClient(httpClient, {
+          transformClient: (client) =>
+            Effect.succeed(
+              client.pipe(
+                HttpClient.mapRequest((request) =>
+                  HttpClientRequest.prependUrl(request, "https://api.voidhash.test"),
+                ),
+              ),
+            ),
+        });
+        const schema = {
+          locations: {},
+          perks: {},
+          products: {
+            [productSlug]: {
+              configuration: {
+                perks: {},
+                providers: { appleAppStore: { productId: providerProductKey } },
+              },
+              properties: { name: "Hermetic App Store lifetime" },
+              slug: productSlug,
+              type: "one-time-non-consumable",
+            },
+          },
+          version: "purchase-integration",
+        } satisfies RuntimeSchema;
+        const transaction = new ReactNativeTransaction(
+          transactionId,
+          transactionId,
+          providerProductKey,
+          purchasedAt,
+          1,
+          false,
+          "ios",
+          { appAccountToken: accountToken },
+        );
+        const assertPersistedBeforeFinish = () =>
+          Effect.gen(function* () {
+            const rows = yield* db
+              .select()
+              .from(purchaseLedger)
+              .where(eq(purchaseLedger.idempotencyKey, idempotencyKey));
+            expect(rows).toHaveLength(1);
+          });
+        let remainingNativeFailures = 1;
+        const purchaseHarness = makeReactNativePurchaseHarness({
+          client: generatedClient,
+          distinctId,
+          onAcknowledge: (_transaction, productType) =>
+            Effect.gen(function* () {
+              expect(productType).toBe("one-time-non-consumable");
+              yield* assertPersistedBeforeFinish();
+              if (remainingNativeFailures > 0) {
+                remainingNativeFailures -= 1;
+                return yield* Effect.fail(new Error("Simulated StoreKit finish failure"));
+              }
+            }),
+          platform: { bundleId, platform: "ios" },
+          syncTransactionShouldFailTimes: 1,
+        });
+        disposeReactNative.push(purchaseHarness.dispose);
+        yield* Effect.promise(async () => {
+          await purchaseHarness.initialize;
+          await expect(purchaseHarness.process(transaction, schema)).rejects.toThrow(
+            "Simulated SDK transport failure",
+          );
+          expect(purchaseHarness.state.syncTransactionAttempts).toBe(1);
+          expect(purchaseHarness.acknowledgedTransactions).toHaveLength(0);
+          expect(verifierCalls).toHaveLength(0);
+
+          const finalizationAttempts = await Promise.allSettled([
+            purchaseHarness.process(transaction, schema),
+            purchaseHarness.process(transaction, schema),
+          ]);
+          expect(finalizationAttempts.map((result) => result.status)).toEqual([
+            "rejected",
+            "rejected",
+          ]);
+          expect(purchaseHarness.state.syncTransactionAttempts).toBe(2);
+          expect(purchaseHarness.acknowledgedTransactions).toHaveLength(1);
+          expect(verifierCalls).toHaveLength(1);
+
+          await purchaseHarness.process(transaction, schema);
+        });
+        expect(purchaseHarness.state.syncTransactionAttempts).toBe(2);
+        expect(purchaseHarness.state.personRefreshAttempts).toBe(1);
+        expect(purchaseHarness.acknowledgedTransactions).toHaveLength(2);
+        expect(verifierCalls).toHaveLength(1);
+
+        const restoreHarness = makeReactNativePurchaseHarness({
+          client: generatedClient,
+          distinctId,
+          onAcknowledge: (_transaction, productType) =>
+            Effect.gen(function* () {
+              expect(productType).toBe("one-time-non-consumable");
+              yield* assertPersistedBeforeFinish();
+            }),
+          platform: { bundleId, platform: "ios" },
+          purchaseHistory: [transaction],
+        });
+        disposeReactNative.push(restoreHarness.dispose);
+        yield* Effect.promise(async () => {
+          await restoreHarness.initialize;
+          await restoreHarness.restore(schema);
+        });
+        expect(restoreHarness.acknowledgedTransactions).toHaveLength(1);
+        expect(restoreHarness.state.personRefreshAttempts).toBe(1);
+        expect(verifierCalls).toEqual([
+          { configurationId, transactionId },
+          { configurationId, transactionId },
+        ]);
+
+        const purchaseRows = yield* db
+          .select()
+          .from(purchases)
+          .where(eq(purchases.paymentProviderConfigurationProductId, providerProductId));
+        const ledgerRows = yield* db
+          .select()
+          .from(purchaseLedger)
+          .where(eq(purchaseLedger.idempotencyKey, idempotencyKey));
+        const accountBinding = yield* db.query.personExternalIdentifiers.findFirst({
+          where: {
+            identifier: accountToken,
+            projectId,
+            serviceId: "voidhash-account-token",
+          },
+        });
+        const identity = yield* db.query.personIdentities.findFirst({
+          where: { distinctId, projectId },
+        });
+        personId = identity?.personId;
+
+        expect(purchaseRows).toHaveLength(1);
+        expect(personId).toBeDefined();
+        expect(purchaseRows[0]?.personId).toBe(personId);
+        expect(purchaseRows[0]?.providerEnvironment).toBe(ProviderEnvironment.Sandbox);
+        expect(ledgerRows).toHaveLength(1);
+        expect(ledgerRows[0]?.source).toBe("sdk");
+        expect(accountBinding?.personId).toBe(personId);
+        expect(identity?.personId).toBe(personId);
+      }).pipe(Effect.ensuring(cleanup));
+    }).pipe(CoreAuthSession.authenticate()),
+  );
+
   // --- Error aggregation: configuration-not-found (RUNNABLE, pre-SDK) ---------
   // The cheapest and only in-process-reachable branch: with no enabled
   // configuration for the input bundleId,
@@ -161,43 +503,6 @@ describe("AppStorePaymentProviderService.processSdkTransaction", () => {
       expect(error).toBeInstanceOf(AppStorePaymentProviderServiceError);
       expect(typeof error.cause).toBe("string");
     }).pipe(Effect.provide(AppStoreServiceLive), CoreAuthSession.authenticate()),
-  );
-
-  // --- Happy-path orchestration (needs a live Apple call + JWS) ---------------
-  // Each step below resolves a real configuration, then reaches the SDK
-  // boundary (live Apple REST `getTransactionInfo` + JWS verification against
-  // Apple root certs) which cannot run in-process. The SDK context is built
-  // internally by `buildSdkContextFromConfiguration` with no stub seam, and the
-  // testing brief disallows faking the Apple response. Implement once an
-  // in-process seam exists to inject a well-formed decoded transaction WITHOUT
-  // a live Apple call.
-
-  vitestTest.todo(
-    "resolves the enabled configuration for the input bundleId before calling the SDK — deferred: the success path continues into the SDK boundary (live Apple getTransactionInfo + JWS verification) which cannot run in-process; only the configuration-not-found short-circuit (above) is reachable",
-  );
-
-  vitestTest.todo(
-    "fetches transaction info from the per-tenant Apple SDK context (getTransactionInfo) — deferred: needs a live Apple App Store Server API call; the SDK context is built internally and has no stub seam, and faking the Apple response is disallowed",
-  );
-
-  vitestTest.todo(
-    "decodes signedTransactionInfo from the SDK response (decodeSignedTransaction) — deferred: needs a real Apple-signed JWS verified against Apple root certificates; cannot be faked per the testing brief",
-  );
-
-  vitestTest.todo(
-    "routes the decoded transaction to recordPurchase with source='sdk' and persists the purchase/subscription rows — deferred: reaching recordPurchase requires the upstream live Apple getTransactionInfo + JWS decode to succeed first, which cannot run in-process (recordPurchase itself IS exercised directly in the sibling AppStorePaymentProvider engine suite)",
-  );
-
-  vitestTest.todo(
-    "includes the input distinctId in the recordPurchase input so the purchase binds to the SDK person — deferred: blocked by the same upstream SDK getTransactionInfo + JWS decode boundary as the recordPurchase routing case",
-  );
-
-  vitestTest.todo(
-    "resolves the project from input.projectId and propagates it into recordPurchase — deferred: project is read after configuration resolution and before the unrunnable live-Apple SDK fetch, so the success path cannot be reached in-process",
-  );
-
-  vitestTest.todo(
-    "returns { personId } from recordPurchase on success — deferred: success requires a real Apple-signed transaction fetched + decoded via the live SDK boundary",
   );
 
   // --- Error aggregation to AppStorePaymentProviderServiceError (post-SDK) ----

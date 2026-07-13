@@ -2,7 +2,7 @@ import React, { useCallback, useEffect } from "react";
 import { AppState, Linking, Platform } from "react-native";
 
 import type { VoidhashClient } from "../../client";
-import type { SubscriptionProduct } from "../../core/entities/product";
+import type { Product } from "../../core/entities/product";
 import type { PaywallReleaseRuntime } from "../../core/paywalls/paywall-service";
 import type { LocationSlug } from "../../core/schema/registry";
 import { parsePaywallBridgeEnvelope } from "../../internal/paywall-bridge/parser";
@@ -91,11 +91,11 @@ function getErrorPayload(error: unknown): { code: string; message: string } {
 }
 
 function findProductByBridgeProductId(
-  products: Record<string, SubscriptionProduct | null>,
+  products: Record<string, Product | null>,
   productId: string,
-): SubscriptionProduct | null {
+): Product | null {
   const productList = Object.values(products).filter(
-    (product): product is SubscriptionProduct => product !== null,
+    (product): product is Product => product !== null,
   );
 
   const byId = productList.find((product) => product.id === productId);

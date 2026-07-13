@@ -1,7 +1,7 @@
 import { Effect, Layer, Context } from "effect";
 
 import { CacheManager } from "../caching/cache-manager";
-import type { Product, SubscriptionProduct } from "../entities/product";
+import type { Product } from "../entities/product";
 import { PaymentAdapter } from "../payment-adapters/payment-adapter";
 import type { ProductSlug } from "../schema/registry";
 import type { RuntimeProductDefinition, RuntimeSchema } from "../schema/runtime";
@@ -11,7 +11,7 @@ import type { RuntimeProductDefinition, RuntimeSchema } from "../schema/runtime"
  * when the underlying store SDK doesn't know about that product on this
  * platform).
  */
-export type ProductsBySlug = Record<ProductSlug, SubscriptionProduct | null>;
+export type ProductsBySlug = Record<ProductSlug, Product | null>;
 
 const NATIVE_PRODUCTS_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 
@@ -23,11 +23,11 @@ const mapNativeProductsToProductMap = (
   productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
   nativeProducts: Product[],
 ): ProductsBySlug => {
-  const productMap = {} as Record<string, SubscriptionProduct | null>;
+  const productMap = {} as Record<string, Product | null>;
 
   for (const slug of Object.keys(productDefinitions)) {
     const nativeProduct = nativeProducts.find((candidate) => candidate.slug === slug);
-    productMap[slug] = (nativeProduct as SubscriptionProduct | undefined) ?? null;
+    productMap[slug] = nativeProduct ?? null;
   }
 
   return productMap as ProductsBySlug;

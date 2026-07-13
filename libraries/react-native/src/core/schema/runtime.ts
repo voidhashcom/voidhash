@@ -24,7 +24,7 @@ export interface RuntimeProductProviders {
 
 export interface RuntimeProductDefinition {
   readonly slug: string;
-  readonly type: "subscription";
+  readonly type: "subscription" | "one-time" | "one-time-consumable";
   readonly properties: { readonly name: string };
   readonly configuration: {
     readonly providers: RuntimeProductProviders;
