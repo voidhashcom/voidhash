@@ -10,6 +10,7 @@ import {
 import { lazy, Suspense, useMemo } from "react";
 import { useStore } from "zustand/react";
 
+import { useAiPanelOffset } from "../ai-panel/use-ai-panel-offset";
 import { PANEL_DIMENSIONS } from "../panels/constants";
 import { usePaywallDesignerStore } from "../state/designer-store";
 import {
@@ -64,10 +65,7 @@ function definitionForTabKey(
  */
 export function CodeModeWorkspace() {
   const store = usePaywallDesignerStore();
-
-  const aiPanelOpen = useStore(store, (state) => state.ai.panelOpen);
-  const aiWidth = useStore(store, (state) => state.ai.width);
-  const aiOffset = aiPanelOpen ? aiWidth : 0;
+  const aiOffset = useAiPanelOffset();
 
   const openTabs = useStore(store, (state) => state.codeComponents.openTabs);
   const activeTabPath = useStore(store, (state) => state.codeComponents.activeTabPath);

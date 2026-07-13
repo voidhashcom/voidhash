@@ -5,6 +5,7 @@ import { useStore } from "zustand/react";
 
 import { Panel } from "@/features/studio/paywalls/designer/components/ui/panel";
 
+import { useAiPanelOffset } from "../ai-panel/use-ai-panel-offset";
 import { usePaywallDesignerStore } from "../state/designer-store";
 import { PANEL_DIMENSIONS } from "./constants";
 import { CodeFileTree } from "./left-panel/code-file-tree";
@@ -13,11 +14,10 @@ import { LayersSection } from "./left-panel/layers-section";
 export function LeftPanel() {
   const store = usePaywallDesignerStore();
   const mode = useStore(store, (state) => state.mode);
-  const aiPanelOpen = useStore(store, (state) => state.ai.panelOpen);
-  const aiWidth = useStore(store, (state) => state.ai.width);
+  const visibleAiOffset = useAiPanelOffset();
   const isPreviewMode = mode === "preview";
   const isCodeMode = mode === "code";
-  const aiOffset = aiPanelOpen && !isPreviewMode ? aiWidth : 0;
+  const aiOffset = isPreviewMode ? 0 : visibleAiOffset;
 
   return (
     <div

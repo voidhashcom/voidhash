@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useStore } from "zustand/react";
 
+import { useAiPanelOffset } from "../ai-panel/use-ai-panel-offset";
 import { useGetLocalizableProps } from "../hooks/use-localizable-props";
 import { PANEL_DIMENSIONS } from "../panels/constants";
 import { setActiveLocale } from "../state/actions";
@@ -47,10 +48,7 @@ const INITIAL_FILTER: TranslationFilterState = {
 export function TranslationModeWorkspace() {
   const store = usePaywallDesignerStore();
   const dispatch = usePaywallDesignerActions();
-
-  const aiPanelOpen = useStore(store, (state) => state.ai.panelOpen);
-  const aiWidth = useStore(store, (state) => state.ai.width);
-  const aiOffset = aiPanelOpen ? aiWidth : 0;
+  const aiOffset = useAiPanelOffset();
 
   // Draft-aware live snapshot: rows and the preview follow the document as
   // collaborators edit; a node deleted mid-edit simply drops its row.
