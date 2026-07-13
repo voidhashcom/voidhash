@@ -52,6 +52,12 @@ export const INTERNAL_FEATURE_FLAGS = {
       "The analytics → Query page: run read-only VoidQL queries against the project's analytics.",
     defaultEnabled: false,
   },
+  customAnalytics: {
+    key: "custom_analytics",
+    name: "Custom Analytics",
+    description: "Enable custom analytics insights, dashboards, and cohorts in Studio.",
+    defaultEnabled: false,
+  },
   experimentation: {
     key: "experimentation",
     name: "Experimentation",
