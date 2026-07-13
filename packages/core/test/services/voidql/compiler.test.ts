@@ -94,6 +94,13 @@ describe("VoidQL compiler — golden mapping", () => {
     expect(sql).not.toContain("999999999");
   });
 
+  it("applies one global result cap around UNION ALL arms", () => {
+    const { sql } = compile(
+      "SELECT event_id AS id FROM events UNION ALL SELECT person_id AS id FROM persons",
+    );
+    expect(sql.trimEnd().endsWith("AS voidql_union LIMIT 100000")).toBe(true);
+  });
+
   it("expands SELECT * to in-star catalog columns only (never physical *)", () => {
     const { sql, columns } = compile("SELECT * FROM persons", PII);
     expect(sql).not.toMatch(/SELECT \*/);
@@ -159,7 +166,7 @@ describe("VoidQL compiler — tenant isolation invariant", () => {
     );
   });
 
-  it("CTEs and correlated subqueries inject scope at every depth", () => {
+  it("CTEs inject scope at every depth", () => {
     const { injected, sql } = compile(
       "WITH recent AS ( SELECT event_id, distinct_id FROM events ) " +
         "SELECT count() AS n FROM recent",
@@ -196,20 +203,25 @@ describe("VoidQL compiler — forbidden + unsupported constructs", () => {
     );
   });
 
-  it("rejects UNION, DISTINCT, and DDL", () => {
+  it("rejects ambiguous set syntax and DDL", () => {
     expectTag(
-      () => compile("SELECT count() AS n FROM events UNION ALL SELECT 1"),
+      () => compile("SELECT count() AS n FROM events UNION SELECT count() FROM events"),
       "VoidQlUnsupportedError",
     );
-    expectTag(() => compile("SELECT DISTINCT event_name FROM events"), "VoidQlUnsupportedError");
     expectTag(() => compile("DROP TABLE events"), "VoidQlUnsupportedError");
   });
 
-  it("rejects subqueries in IN (use a JOIN instead)", () => {
+  it("rejects multi-column scalar and IN subqueries", () => {
+    expectTag(
+      () => compile("SELECT (SELECT event_id, person_id FROM events) AS invalid"),
+      "VoidQlUnsupportedError",
+    );
     expectTag(
       () =>
-        compile("SELECT count() AS n FROM events WHERE event_id IN (SELECT event_id FROM events)"),
-      "VoidQlSyntaxError",
+        compile(
+          "SELECT count() AS n FROM events WHERE event_id IN (SELECT event_id, person_id FROM events)",
+        ),
+      "VoidQlUnsupportedError",
     );
   });
 

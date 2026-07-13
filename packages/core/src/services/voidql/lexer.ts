@@ -7,7 +7,7 @@
  * Comments (`-- …`, `/* … *​/`) are dropped here, so the canonical re-print can
  * never carry smuggled bytes (T9).
  *
- * Reserved words — including the deferred/denied ones (`SETTINGS`, `UNION`, …) —
+ * Reserved words — including deferred/denied ones (`SETTINGS`, `ARRAY JOIN`, …) —
  * tokenise as keywords so the parser can raise a teachable error rather than
  * mis-parsing them as identifiers, and so they can never be used as aliases.
  */
@@ -28,25 +28,53 @@ export interface Token {
   readonly numType?: "Int64" | "UInt64" | "Float64";
 }
 
-/** Structural keywords that have a grammar production in v1. */
+/** Structural keywords with a grammar production in the supported query surface. */
 const ALLOWED_KEYWORDS = new Set([
   "select",
+  "distinct",
+  "all",
   "from",
+  "prewhere",
   "where",
   "group",
   "by",
+  "rollup",
+  "cube",
+  "totals",
   "having",
+  "qualify",
   "order",
   "asc",
   "desc",
+  "nulls",
+  "first",
+  "last",
   "limit",
   "offset",
+  "ties",
   "join",
   "inner",
   "left",
+  "right",
+  "full",
+  "outer",
+  "cross",
+  "using",
   "on",
   "as",
   "with",
+  "partition",
+  "over",
+  "rows",
+  "range",
+  "unbounded",
+  "preceding",
+  "following",
+  "current",
+  "row",
+  "union",
+  "intersect",
+  "except",
   "and",
   "or",
   "not",
@@ -62,10 +90,12 @@ const ALLOWED_KEYWORDS = new Set([
   "else",
   "end",
   "like",
+  "ilike",
+  "exists",
 ]);
 
 /**
- * Reserved words with **no v1 production** — deferred constructs and permanently
+ * Reserved words with **no production** — deferred constructs and permanently
  * denied statements. Tokenised so the parser fails closed with a teachable error
  * (a parse error, not a parse-then-reject — §8.1, §11, §18 gap #8).
  */
@@ -85,16 +115,7 @@ const FORBIDDEN_KEYWORDS = new Set([
   "system",
   "final",
   "sample",
-  "union",
-  "distinct",
-  "all",
-  "over",
-  "right",
-  "full",
-  "outer",
-  "cross",
-  "using",
-  "prewhere",
+  "window",
   "array",
   "arrayjoin",
   "interval",
@@ -279,7 +300,7 @@ export const lex = (text: string): readonly Token[] => {
       push({ kind: "op", text: two === "<>" ? "!=" : two, start, end: pos() });
       continue;
     }
-    if ("=<>+-*/%(),.".includes(c)) {
+    if ("=<>+-*/%(),.;".includes(c)) {
       advance();
       push({ kind: "op", text: c, start, end: pos() });
       continue;

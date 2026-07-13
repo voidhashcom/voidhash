@@ -23,6 +23,7 @@ import type {
   FnCall,
   InExpr,
   OrderItem,
+  Query,
   Select,
   SelectItem,
   TableSource,
@@ -68,6 +69,7 @@ type ResolvedRelation =
 interface Frame {
   readonly relations: ResolvedRelation[];
   readonly cteShapes: Map<string, readonly ColumnSpec[]>;
+  readonly aliases: Map<string, VoidQLType>;
   readonly parent?: Frame;
 }
 
@@ -149,7 +151,7 @@ export class Compiler {
     if (source._tag === "SubquerySource") {
       this.assertBindableAlias(source.alias);
       this.assertUniqueAlias(frame, source.alias);
-      const sub = this.printSelect(source.query, frame);
+      const sub = this.printQuery(source.query, frame);
       frame.relations.push({
         kind: "derived",
         alias: source.alias,
@@ -159,7 +161,7 @@ export class Compiler {
     }
 
     const nameLower = source.name.toLowerCase();
-    const cteShape = frame.cteShapes.get(nameLower);
+    const cteShape = this.findCteShape(frame, nameLower);
     if (cteShape) {
       const alias = source.alias ?? source.name;
       if (source.alias) this.assertBindableAlias(source.alias);
@@ -198,9 +200,20 @@ export class Compiler {
     }
   }
 
-  private findRelation(frame: Frame | undefined, aliasLower: string): ResolvedRelation | undefined {
+  private findRelation(frame: Frame, aliasLower: string): ResolvedRelation | undefined {
+    return frame.relations.find((relation) => relation.alias.toLowerCase() === aliasLower);
+  }
+
+  private findExpressionAlias(frame: Frame, aliasLower: string): VoidQLType | undefined {
+    return frame.aliases.get(aliasLower);
+  }
+
+  private findCteShape(
+    frame: Frame | undefined,
+    nameLower: string,
+  ): readonly ColumnSpec[] | undefined {
     for (let f = frame; f; f = f.parent) {
-      const match = f.relations.find((r) => r.alias.toLowerCase() === aliasLower);
+      const match = f.cteShapes.get(nameLower);
       if (match) return match;
     }
     return undefined;
@@ -342,6 +355,10 @@ export class Compiler {
         suggestion: "",
       });
     }
+    const aliasType = this.findExpressionAlias(frame, name.toLowerCase());
+    if (aliasType) {
+      return { pieces: [lit(this.id(name))], type: aliasType };
+    }
     const allCols = this.currentRelations(frame).flatMap((r) => this.relationColumnNames(r));
     if (this.findNamespaceRelation(frame, name)) {
       throw new VoidQlUnknownFieldError({
@@ -427,6 +444,23 @@ export class Compiler {
         return this.printBinary(expr, frame);
       case "InExpr":
         return this.printIn(expr, frame);
+      case "ExistsExpr": {
+        const query = this.printQuery(expr.query, frame);
+        return { pieces: [lit("EXISTS ( "), ...query.pieces, lit(" )")], type: "Bool" };
+      }
+      case "SubqueryExpr": {
+        const query = this.printQuery(expr.query, frame);
+        if (query.shape.length !== 1) {
+          throw new VoidQlUnsupportedError({
+            message: "A scalar subquery must return exactly one column.",
+            hint: "Select one expression in the scalar subquery.",
+          });
+        }
+        return {
+          pieces: [lit("( "), ...query.pieces, lit(" )")],
+          type: query.shape[0]!.type,
+        };
+      }
       case "Between": {
         const target = this.printExpr(expr.expr, frame);
         const low = this.printExpr(expr.low, frame, target.type);
@@ -455,6 +489,47 @@ export class Compiler {
         return this.printCase(expr, frame);
       case "FnCall":
         return this.printFnCall(expr, frame);
+      case "WindowExpr": {
+        const fn = this.printFnCall(expr.fn, frame, true);
+        const pieces: SqlPiece[] = [...fn.pieces, lit(" OVER (")];
+        if (expr.partitionBy.length > 0) {
+          pieces.push(lit("PARTITION BY "));
+          expr.partitionBy.forEach((partition, index) => {
+            if (index > 0) pieces.push(lit(", "));
+            pieces.push(...this.printExpr(partition, frame).pieces);
+          });
+        }
+        if (expr.orderBy.length > 0) {
+          if (expr.partitionBy.length > 0) pieces.push(lit(" "));
+          pieces.push(lit("ORDER BY "));
+          expr.orderBy.forEach((order, index) => {
+            if (index > 0) pieces.push(lit(", "));
+            pieces.push(
+              ...this.printExpr(order.expr, frame).pieces,
+              lit(order.dir === "desc" ? " DESC" : " ASC"),
+            );
+            if (order.nulls) {
+              pieces.push(lit(order.nulls === "first" ? " NULLS FIRST" : " NULLS LAST"));
+            }
+          });
+        }
+        if (expr.frame) {
+          if (expr.partitionBy.length > 0 || expr.orderBy.length > 0) pieces.push(lit(" "));
+          const bound = (value: typeof expr.frame.start): string => {
+            if (value === "unboundedPreceding") return "UNBOUNDED PRECEDING";
+            if (value === "unboundedFollowing") return "UNBOUNDED FOLLOWING";
+            return "CURRENT ROW";
+          };
+          pieces.push(lit(expr.frame.unit === "rows" ? "ROWS " : "RANGE "));
+          if (expr.frame.end) {
+            pieces.push(lit(`BETWEEN ${bound(expr.frame.start)} AND ${bound(expr.frame.end)}`));
+          } else {
+            pieces.push(lit(bound(expr.frame.start)));
+          }
+        }
+        pieces.push(lit(")"));
+        return { pieces, type: fn.type };
+      }
     }
   }
 
@@ -470,6 +545,8 @@ export class Compiler {
       gte: " >= ",
       like: " LIKE ",
       notLike: " NOT LIKE ",
+      ilike: " ILIKE ",
+      notIlike: " NOT ILIKE ",
       add: " + ",
       sub: " - ",
       mul: " * ",
@@ -485,12 +562,17 @@ export class Compiler {
     // compared to a DateTime column binds as DateTime (partition pruning, §18 #9).
     const rhsExpected = isComparison
       ? left.type
-      : expr.op === "like" || expr.op === "notLike"
+      : expr.op === "like" || expr.op === "notLike" || expr.op === "ilike" || expr.op === "notIlike"
         ? "String"
         : undefined;
     const right = this.printExpr(expr.right, frame, rhsExpected);
     const type: VoidQLType =
-      isComparison || isLogical || expr.op === "like" || expr.op === "notLike"
+      isComparison ||
+      isLogical ||
+      expr.op === "like" ||
+      expr.op === "notLike" ||
+      expr.op === "ilike" ||
+      expr.op === "notIlike"
         ? "Bool"
         : isArith
           ? "Float64"
@@ -508,10 +590,21 @@ export class Compiler {
       ...target.pieces,
       lit(expr.negated ? " NOT IN (" : " IN ("),
     ];
-    expr.list.forEach((item, i) => {
-      if (i > 0) pieces.push(lit(", "));
-      pieces.push(...this.printExpr(item, frame, target.type).pieces);
-    });
+    if (expr.query) {
+      const query = this.printQuery(expr.query, frame);
+      if (query.shape.length !== 1) {
+        throw new VoidQlUnsupportedError({
+          message: "An IN subquery must return exactly one column.",
+          hint: "Select one expression in the IN subquery.",
+        });
+      }
+      pieces.push(...query.pieces);
+    } else {
+      expr.list?.forEach((item, i) => {
+        if (i > 0) pieces.push(lit(", "));
+        pieces.push(...this.printExpr(item, frame, target.type).pieces);
+      });
+    }
     pieces.push(lit("))"));
     return { pieces, type: "Bool" };
   }
@@ -535,7 +628,7 @@ export class Compiler {
     return { pieces, type: resultType };
   }
 
-  private printFnCall(expr: FnCall, frame: Frame): PrintedExpr {
+  private printFnCall(expr: FnCall, frame: Frame, inWindow = false): PrintedExpr {
     const spec = lookupFunction(expr.name);
     if (!spec) {
       throw new VoidQlUnsupportedError({
@@ -547,6 +640,12 @@ export class Compiler {
       throw new VoidQlUnsupportedError({
         message: `Function '${expr.name}' expects ${spec.minArgs}..${spec.maxArgs} arguments, got ${expr.args.length}.`,
         hint: "",
+      });
+    }
+    if (spec.windowOnly && !inWindow) {
+      throw new VoidQlUnsupportedError({
+        message: `Function '${expr.name}' requires an OVER clause.`,
+        hint: "Add OVER (...) to make this a window expression.",
       });
     }
 
@@ -589,8 +688,42 @@ export class Compiler {
 
   // ── select ──────────────────────────────────────────────────────────────
 
+  printQuery(query: Query, parent?: Frame): CompiledSelect {
+    if (query._tag === "Select") return this.printSelect(query, parent);
+
+    const compiled = query.selects.map((select) => this.printSelect(select, parent));
+    const shape = compiled[0]!.shape;
+    for (const arm of compiled.slice(1)) {
+      const compatible =
+        arm.shape.length === shape.length &&
+        arm.shape.every((column, index) => column.type === shape[index]!.type);
+      if (!compatible) {
+        throw new VoidQlUnsupportedError({
+          message: "Set-query arms must return the same number of columns with matching types.",
+          hint: "Align each SELECT projection before combining them.",
+        });
+      }
+    }
+    const unionPieces: SqlPiece[] = [];
+    compiled.forEach((arm, index) => {
+      if (index > 0) unionPieces.push(lit(` ${query.operators[index - 1]} `));
+      unionPieces.push(...arm.pieces);
+    });
+    const pieces: SqlPiece[] = [lit("SELECT ")];
+    shape.forEach((column, index) => {
+      if (index > 0) pieces.push(lit(", "));
+      pieces.push(lit(`${this.qualified("voidql_union", column.name)} AS ${this.id(column.name)}`));
+    });
+    pieces.push(
+      lit(" FROM ( "),
+      ...unionPieces,
+      lit(` ) AS voidql_union LIMIT ${MAX_RESULT_ROWS}`),
+    );
+    return { pieces, shape, injected: [] };
+  }
+
   printSelect(select: Select, parent?: Frame): CompiledSelect {
-    const frame: Frame = { relations: [], cteShapes: new Map(), parent };
+    const frame: Frame = { relations: [], cteShapes: new Map(), aliases: new Map(), parent };
 
     const ctePieces: SqlPiece[] = [];
     select.with.forEach((cte, i) => {
@@ -605,7 +738,7 @@ export class Compiler {
       if (frame.cteShapes.has(nameLower)) {
         throw new VoidQlUnsupportedError({ message: `Duplicate CTE '${cte.name}'.`, hint: "" });
       }
-      const compiled = this.printSelect(cte.query, frame);
+      const compiled = this.printQuery(cte.query, frame);
       frame.cteShapes.set(nameLower, compiled.shape);
       ctePieces.push(
         lit(i === 0 ? "WITH " : ", "),
@@ -617,32 +750,73 @@ export class Compiler {
     if (ctePieces.length > 0) ctePieces.push(lit(" "));
 
     // FROM + JOINs build the relation frame before any expression is resolved.
-    const fromPieces = this.resolveSource(select.from, frame);
+    const fromPieces = select.from ? this.resolveSource(select.from, frame) : [];
     const joinPieces: SqlPiece[] = [];
     for (const join of select.joins) {
+      const relationCountBeforeJoin = frame.relations.length;
       const sourcePieces = this.resolveSource(join.source, frame);
-      const on = this.printExpr(join.on, frame, "Bool");
-      joinPieces.push(
-        lit(join.kind === "left" ? " LEFT JOIN " : " INNER JOIN "),
-        ...sourcePieces,
-        lit(" ON "),
-        ...on.pieces,
-      );
+      const kindSql =
+        join.kind === "left"
+          ? " LEFT JOIN "
+          : join.kind === "right"
+            ? " RIGHT JOIN "
+            : join.kind === "full"
+              ? " FULL JOIN "
+              : join.kind === "cross"
+                ? " CROSS JOIN "
+                : " INNER JOIN ";
+      joinPieces.push(lit(kindSql), ...sourcePieces);
+      if (join.on) {
+        joinPieces.push(lit(" ON "), ...this.printExpr(join.on, frame, "Bool").pieces);
+      } else if (join.using) {
+        for (const column of join.using) {
+          const leftMatches = frame.relations
+            .slice(0, relationCountBeforeJoin)
+            .filter((relation) => this.relationColumnNames(relation).includes(column));
+          const rightMatches = frame.relations
+            .slice(relationCountBeforeJoin)
+            .filter((relation) => this.relationColumnNames(relation).includes(column));
+          if (leftMatches.length === 0 || rightMatches.length === 0) {
+            throw new VoidQlUnknownFieldError({
+              field: column,
+              message: `USING column '${column}' must exist on both sides of the join.`,
+              suggestion: "",
+            });
+          }
+          [...leftMatches, ...rightMatches].forEach((relation) => this.columnOf(relation, column));
+        }
+        joinPieces.push(lit(` USING (${join.using.map((column) => this.id(column)).join(", ")})`));
+      }
     }
 
     const { columnPieces, shape } = this.printColumns(select.columns, frame);
 
     const pieces: SqlPiece[] = [
       ...ctePieces,
-      lit("SELECT "),
+      lit(select.distinct ? "SELECT DISTINCT" : "SELECT"),
+      ...(select.distinctOn.length > 0
+        ? [
+            lit(" ON ("),
+            ...select.distinctOn.flatMap((expr, index) => [
+              ...(index > 0 ? [lit(", ")] : []),
+              ...this.printExpr(expr, frame).pieces,
+            ]),
+            lit(")"),
+          ]
+        : []),
+      lit(" "),
       ...columnPieces,
-      lit(" FROM "),
-      ...fromPieces,
+      ...(select.from ? [lit(" FROM "), ...fromPieces] : []),
       ...joinPieces,
     ];
 
-    if (select.where) {
-      pieces.push(lit(" WHERE "), ...this.printExpr(select.where, frame, "Bool").pieces);
+    if (select.prewhere || select.where) {
+      pieces.push(lit(" WHERE "));
+      if (select.prewhere) {
+        pieces.push(...this.printExpr(select.prewhere, frame, "Bool").pieces);
+      }
+      if (select.prewhere && select.where) pieces.push(lit(" AND "));
+      if (select.where) pieces.push(...this.printExpr(select.where, frame, "Bool").pieces);
     }
     if (select.groupBy.length > 0) {
       pieces.push(lit(" GROUP BY "));
@@ -650,9 +824,16 @@ export class Compiler {
         if (i > 0) pieces.push(lit(", "));
         pieces.push(...this.printExpr(g, frame).pieces);
       });
+      if (select.groupByModifier) {
+        pieces.push(lit(select.groupByModifier === "rollup" ? " WITH ROLLUP" : " WITH CUBE"));
+      }
+      if (select.withTotals) pieces.push(lit(" WITH TOTALS"));
     }
     if (select.having) {
       pieces.push(lit(" HAVING "), ...this.printExpr(select.having, frame, "Bool").pieces);
+    }
+    if (select.qualify) {
+      pieces.push(lit(" QUALIFY "), ...this.printExpr(select.qualify, frame, "Bool").pieces);
     }
     if (select.orderBy.length > 0) {
       pieces.push(lit(" ORDER BY "));
@@ -662,6 +843,19 @@ export class Compiler {
           ...this.printExpr(o.expr, frame).pieces,
           lit(o.dir === "desc" ? " DESC" : " ASC"),
         );
+        if (o.nulls) pieces.push(lit(o.nulls === "first" ? " NULLS FIRST" : " NULLS LAST"));
+      });
+    }
+
+    if (select.limitBy) {
+      pieces.push(lit(` LIMIT ${select.limitBy.limit}`));
+      if (select.limitBy.offset && select.limitBy.offset > 0) {
+        pieces.push(lit(` OFFSET ${select.limitBy.offset}`));
+      }
+      pieces.push(lit(" BY "));
+      select.limitBy.by.forEach((expr, index) => {
+        if (index > 0) pieces.push(lit(", "));
+        pieces.push(...this.printExpr(expr, frame).pieces);
       });
     }
 
@@ -669,6 +863,15 @@ export class Compiler {
     const limit = Math.min(select.limit ?? MAX_RESULT_ROWS, MAX_RESULT_ROWS);
     pieces.push(lit(` LIMIT ${limit}`));
     if (select.offset && select.offset > 0) pieces.push(lit(` OFFSET ${select.offset}`));
+    if (select.withTies) {
+      if (select.orderBy.length === 0) {
+        throw new VoidQlUnsupportedError({
+          message: "LIMIT WITH TIES requires ORDER BY.",
+          hint: "Add ORDER BY before LIMIT WITH TIES.",
+        });
+      }
+      pieces.push(lit(" WITH TIES"));
+    }
 
     return { pieces, shape, injected: [] };
   }
@@ -679,6 +882,7 @@ export class Compiler {
   ): { readonly columnPieces: readonly SqlPiece[]; readonly shape: readonly ColumnSpec[] } {
     const columnPieces: SqlPiece[] = [];
     const shape: ColumnSpec[] = [];
+    const outputNames = new Set<string>();
     let emitted = 0;
 
     const emitSep = () => {
@@ -689,6 +893,13 @@ export class Compiler {
     columns.forEach((item, index) => {
       if (item.expr._tag === "StarRef") {
         this.expandStar(item.expr.qualifier, frame).forEach((entry) => {
+          if (outputNames.has(entry.col.toLowerCase())) {
+            throw new VoidQlUnsupportedError({
+              message: `Duplicate output column '${entry.col}'.`,
+              hint: "Select and alias columns explicitly when relations share names.",
+            });
+          }
+          outputNames.add(entry.col.toLowerCase());
           emitSep();
           columnPieces.push(lit(this.qualified(entry.alias, entry.col)));
           shape.push({ name: entry.col, type: entry.type });
@@ -711,8 +922,16 @@ export class Compiler {
       ) {
         throw new VoidQlUnsupportedError({ message: `Invalid column alias '${name}'.`, hint: "" });
       }
+      if (outputNames.has(name.toLowerCase())) {
+        throw new VoidQlUnsupportedError({
+          message: `Duplicate output column '${name}'.`,
+          hint: "Give every selected expression a unique alias.",
+        });
+      }
+      outputNames.add(name.toLowerCase());
       columnPieces.push(lit(` AS ${name}`));
       shape.push({ name, type: printed.type });
+      frame.aliases.set(name.toLowerCase(), printed.type);
     });
 
     return { columnPieces, shape };
@@ -759,11 +978,11 @@ export class Compiler {
  * `VoidQlPiiError`, `VoidQlUnsupportedError`).
  */
 export const compileSelect = (
-  select: Select,
+  select: Query,
   scope: AuthorizedScope,
   capabilities: ReadonlySet<Capability>,
 ): CompiledSelect => {
   const compiler = new Compiler(scope, capabilities);
-  const result = compiler.printSelect(select);
+  const result = compiler.printQuery(select);
   return { pieces: result.pieces, shape: result.shape, injected: compiler.injected };
 };

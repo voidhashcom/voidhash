@@ -9,8 +9,9 @@
  * Depth / node / join / subquery caps live **in the cursor**, checked *before*
  * recursion, so a 10⁵-deep input is a typed {@link VoidQlComplexityError}, not a
  * JS-stack blow-up (§18 gap #6). Deferred and denied constructs (`SETTINGS`,
- * `UNION`, `DISTINCT`, …) have no production at all — they are parse errors, never
- * parse-then-reject, so the highest-risk surface never has a validator to bypass.
+ * `ARRAY JOIN`, named windows, …) have no production at all — they are parse
+ * errors, never parse-then-reject, so the highest-risk surface never has a
+ * validator to bypass.
  */
 import type {
   Binary,
@@ -21,11 +22,15 @@ import type {
   Join,
   OrderItem,
   Pos,
+  Query,
   Select,
   SelectItem,
+  SetOperator,
   Span,
   Statement,
   TableSource,
+  WindowFrame,
+  WindowFrameBound,
 } from "./ast/VoidQlAst.ts";
 import { VoidQlComplexityError, VoidQlSyntaxError, VoidQlUnsupportedError } from "./errors.ts";
 import { isForbiddenKeyword, lex, type Token } from "./lexer.ts";
@@ -160,15 +165,50 @@ class Cursor {
   // ── statement ──────────────────────────────────────────────────────────────
 
   parseStatement(): Statement {
-    const select = this.parseSelect();
+    const query = this.parseQuery();
+    this.eatOp(";");
     const tail = this.peek();
     if (tail.kind !== "eof") {
       // A trailing token after a complete SELECT is almost always a denied clause
-      // (e.g. `… SETTINGS x=1`, `… UNION …`, `… FORMAT JSON`).
+      // (e.g. `… SETTINGS x=1` or `… FORMAT JSON`).
       this.guardForbidden();
       this.fail(tail, `Unexpected '${tail.text || tail.kind}' after end of query.`);
     }
-    return select;
+    return query;
+  }
+
+  private parseQuery(): Query {
+    const first = this.parseSelect();
+    const selects: Select[] = [first];
+    const operators: SetOperator[] = [];
+    while (this.isKw("union") || this.isKw("intersect") || this.isKw("except")) {
+      if (this.eatKw("union")) {
+        if (this.eatKw("all")) operators.push("UNION ALL");
+        else if (this.eatKw("distinct")) operators.push("UNION DISTINCT");
+        else {
+          throw new VoidQlUnsupportedError({
+            message: `line ${this.peek().start.line}, col ${this.peek().start.col}: UNION requires ALL or DISTINCT.`,
+            hint: "Specify UNION ALL or UNION DISTINCT explicitly.",
+          });
+        }
+      } else if (this.eatKw("intersect")) {
+        this.eatKw("distinct");
+        operators.push("INTERSECT");
+      } else {
+        this.expectKw("except");
+        this.eatKw("distinct");
+        operators.push("EXCEPT");
+      }
+      selects.push(this.parseSelect());
+    }
+    if (selects.length === 1) return first;
+    this.count();
+    return {
+      _tag: "SetQuery",
+      selects: selects as [Select, Select, ...Select[]],
+      operators: operators as [SetOperator, ...SetOperator[]],
+      span: { start: first.span.start, end: selects[selects.length - 1]!.span.end },
+    };
   }
 
   private parseSelect(): Select {
@@ -182,7 +222,7 @@ class Cursor {
         const name = this.expectIdent("a CTE name");
         this.expectKw("as");
         this.expectOp("(");
-        const query = this.parseSelect();
+        const query = this.parseQuery();
         this.expectOp(")");
         this.count();
         ctes.push({ _tag: "Cte", name, query, span: this.span(cteStart) });
@@ -191,24 +231,36 @@ class Cursor {
 
     this.guardForbidden(); // a leading denied keyword (DROP/INSERT/…) → teachable error
     this.expectKw("select");
-    this.guardForbidden(); // catches `SELECT DISTINCT …`
+    const distinct = this.eatKw("distinct");
+    const distinctOn: Expr[] = [];
+    if (distinct && this.eatKw("on")) {
+      this.expectOp("(");
+      distinctOn.push(this.parseExpr(0));
+      while (this.eatOp(",")) distinctOn.push(this.parseExpr(0));
+      this.expectOp(")");
+    } else if (!distinct) {
+      this.eatKw("all");
+    }
+    this.guardForbidden();
 
     const columns: SelectItem[] = [this.parseSelectItem()];
     while (this.eatOp(",")) columns.push(this.parseSelectItem());
 
-    this.expectKw("from");
-    const from = this.parseTableSource();
+    const from = this.eatKw("from") ? this.parseTableSource() : undefined;
 
     const joins: Join[] = [];
-    for (;;) {
-      const join = this.tryParseJoin();
-      if (!join) break;
-      if (joins.length >= LIMITS.maxJoins) {
-        throw new VoidQlComplexityError({ message: "Query has too many joins." });
+    if (from) {
+      for (;;) {
+        const join = this.tryParseJoin();
+        if (!join) break;
+        if (joins.length >= LIMITS.maxJoins) {
+          throw new VoidQlComplexityError({ message: "Query has too many joins." });
+        }
+        joins.push(join);
       }
-      joins.push(join);
     }
 
+    const prewhere = this.eatKw("prewhere") ? this.parseExpr(0) : undefined;
     const where = this.eatKw("where") ? this.parseExpr(0) : undefined;
 
     const groupBy: Expr[] = [];
@@ -217,8 +269,19 @@ class Cursor {
       groupBy.push(this.parseExpr(0));
       while (this.eatOp(",")) groupBy.push(this.parseExpr(0));
     }
+    let groupByModifier: Select["groupByModifier"];
+    let withTotals = false;
+    if (groupBy.length > 0) {
+      while (this.eatKw("with")) {
+        if (this.eatKw("rollup")) groupByModifier = "rollup";
+        else if (this.eatKw("cube")) groupByModifier = "cube";
+        else if (this.eatKw("totals")) withTotals = true;
+        else this.fail(this.peek(), "Expected ROLLUP, CUBE, or TOTALS after WITH.");
+      }
+    }
 
     const having = this.eatKw("having") ? this.parseExpr(0) : undefined;
+    const qualify = this.eatKw("qualify") ? this.parseExpr(0) : undefined;
 
     const orderBy: OrderItem[] = [];
     if (this.eatKw("order")) {
@@ -227,11 +290,44 @@ class Cursor {
       while (this.eatOp(",")) orderBy.push(this.parseOrderItem());
     }
 
+    let limitBy: Select["limitBy"];
     let limit: number | undefined;
     let offset: number | undefined;
+    let withTies = false;
     if (this.eatKw("limit")) {
-      limit = this.parseUintLiteral("a LIMIT count");
-      if (this.eatKw("offset")) offset = this.parseUintLiteral("an OFFSET count");
+      const first = this.parseUintLiteral("a LIMIT count");
+      const second = this.eatOp(",")
+        ? this.parseUintLiteral("a LIMIT count after the offset")
+        : undefined;
+      if (this.eatKw("by")) {
+        const by: Expr[] = [this.parseExpr(0)];
+        while (this.eatOp(",")) by.push(this.parseExpr(0));
+        limitBy = {
+          limit: second ?? first,
+          offset: second === undefined ? undefined : first,
+          by: by as [Expr, ...Expr[]],
+        };
+        if (this.eatKw("limit")) {
+          const finalFirst = this.parseUintLiteral("a LIMIT count");
+          if (this.eatOp(",")) {
+            offset = finalFirst;
+            limit = this.parseUintLiteral("a LIMIT count after the offset");
+          } else {
+            limit = finalFirst;
+            if (this.eatKw("offset")) offset = this.parseUintLiteral("an OFFSET count");
+          }
+        }
+      } else if (second !== undefined) {
+        offset = first;
+        limit = second;
+      } else {
+        limit = first;
+        if (this.eatKw("offset")) offset = this.parseUintLiteral("an OFFSET count");
+      }
+    }
+    if (limit !== undefined && this.eatKw("with")) {
+      this.expectKw("ties");
+      withTies = true;
     }
 
     this.count();
@@ -239,15 +335,23 @@ class Cursor {
     return {
       _tag: "Select",
       with: ctes,
+      distinct,
+      distinctOn,
       columns: columns as [SelectItem, ...SelectItem[]],
       from,
       joins,
+      prewhere,
       where,
       groupBy,
+      groupByModifier,
+      withTotals,
       having,
+      qualify,
       orderBy,
+      limitBy,
       limit,
       offset,
+      withTies,
       span: this.span(start),
     };
   }
@@ -280,12 +384,18 @@ class Cursor {
     let dir: "asc" | "desc" = "asc";
     if (this.eatKw("asc")) dir = "asc";
     else if (this.eatKw("desc")) dir = "desc";
+    let nulls: OrderItem["nulls"];
+    if (this.eatKw("nulls")) {
+      if (this.eatKw("first")) nulls = "first";
+      else if (this.eatKw("last")) nulls = "last";
+      else this.fail(this.peek(), "Expected FIRST or LAST after NULLS.");
+    }
     this.count();
-    return { _tag: "OrderItem", expr, dir, span: this.span(start) };
+    return { _tag: "OrderItem", expr, dir, nulls, span: this.span(start) };
   }
 
   private tryParseJoin(): Join | undefined {
-    let kind: "inner" | "left";
+    let kind: Join["kind"];
     if (this.isKw("inner")) {
       this.next();
       kind = "inner";
@@ -293,6 +403,21 @@ class Cursor {
     } else if (this.isKw("left")) {
       this.next();
       kind = "left";
+      this.eatKw("outer");
+      this.expectKw("join");
+    } else if (this.isKw("right")) {
+      this.next();
+      kind = "right";
+      this.eatKw("outer");
+      this.expectKw("join");
+    } else if (this.isKw("full")) {
+      this.next();
+      kind = "full";
+      this.eatKw("outer");
+      this.expectKw("join");
+    } else if (this.isKw("cross")) {
+      this.next();
+      kind = "cross";
       this.expectKw("join");
     } else if (this.isKw("join")) {
       this.next();
@@ -302,10 +427,29 @@ class Cursor {
     }
     const start = this.prev().start;
     const source = this.parseTableSource();
-    this.expectKw("on");
-    const on = this.parseExpr(0);
+    let on: Expr | undefined;
+    let using: string[] | undefined;
+    if (kind !== "cross") {
+      if (this.eatKw("on")) {
+        on = this.parseExpr(0);
+      } else if (this.eatKw("using")) {
+        const parenthesized = this.eatOp("(");
+        using = [this.expectIdent("a column name in USING")];
+        while (this.eatOp(",")) using.push(this.expectIdent("a column name in USING"));
+        if (parenthesized) this.expectOp(")");
+      } else {
+        this.fail(this.peek(), "Expected 'ON' or 'USING' after JOIN source.");
+      }
+    }
     this.count();
-    return { _tag: "Join", kind, source, on, span: this.span(start) };
+    return {
+      _tag: "Join",
+      kind,
+      source,
+      on,
+      using: using as [string, ...string[]] | undefined,
+      span: this.span(start),
+    };
   }
 
   private parseTableSource(): TableSource {
@@ -317,7 +461,7 @@ class Cursor {
       if (!this.isKw("select") && !this.isKw("with")) {
         this.fail(this.peek(), "Expected a subquery (SELECT …) after '('.");
       }
-      const query = this.parseSelect();
+      const query = this.parseQuery();
       this.expectOp(")");
       this.eatKw("as");
       const alias = this.expectIdent("an alias for the subquery (subqueries must be aliased)");
@@ -371,6 +515,10 @@ class Cursor {
         this.next();
         return this.mkBinary("like", left, this.parseExpr(3), start);
       }
+      if (t.text === "ilike") {
+        this.next();
+        return this.mkBinary("ilike", left, this.parseExpr(3), start);
+      }
       if (t.text === "is") {
         this.next();
         const negated = this.eatKw("not");
@@ -394,6 +542,11 @@ class Cursor {
           this.next();
           this.next();
           return this.mkBinary("notLike", left, this.parseExpr(3), start);
+        }
+        if (follow === "ilike") {
+          this.next();
+          this.next();
+          return this.mkBinary("notIlike", left, this.parseExpr(3), start);
         }
       }
     }
@@ -437,16 +590,22 @@ class Cursor {
   private parseInTail(left: Expr, negated: boolean, start: Pos): Expr {
     this.expectOp("(");
     if (this.isKw("select") || this.isKw("with")) {
-      this.fail(
-        this.peek(),
-        "Subqueries in IN are not supported in VoidQL v1; use a JOIN instead.",
-      );
+      const query = this.parseQuery();
+      this.expectOp(")");
+      this.count();
+      return { _tag: "InExpr", expr: left, query, negated, span: this.span(start) };
     }
     const list: Expr[] = [this.parseExpr(0)];
     while (this.eatOp(",")) list.push(this.parseExpr(0));
     this.expectOp(")");
     this.count();
-    return { _tag: "InExpr", expr: left, list, negated, span: this.span(start) };
+    return {
+      _tag: "InExpr",
+      expr: left,
+      list: list as [Expr, ...Expr[]],
+      negated,
+      span: this.span(start),
+    };
   }
 
   private parseBetweenTail(left: Expr, negated: boolean, start: Pos): Expr {
@@ -479,6 +638,17 @@ class Cursor {
           return { _tag: "NullLit", span: this.span(start) };
         case "case":
           return this.parseCase();
+        case "exists": {
+          this.next();
+          this.expectOp("(");
+          if (!this.isKw("select") && !this.isKw("with")) {
+            this.fail(this.peek(), "EXISTS requires a SELECT subquery.");
+          }
+          const query = this.parseQuery();
+          this.expectOp(")");
+          this.count();
+          return { _tag: "ExistsExpr", query, span: this.span(start) };
+        }
         default:
           this.fail(t, `Unexpected keyword '${t.text.toUpperCase()}'.`);
       }
@@ -500,7 +670,10 @@ class Cursor {
       if (t.text === "(") {
         this.next();
         if (this.isKw("select") || this.isKw("with")) {
-          this.fail(t, "Scalar subqueries are not supported in VoidQL v1.");
+          const query = this.parseQuery();
+          this.expectOp(")");
+          this.count();
+          return { _tag: "SubqueryExpr", query, span: this.span(start) };
         }
         const expr = this.parseExpr(0);
         this.expectOp(")");
@@ -554,7 +727,58 @@ class Cursor {
     }
     this.expectOp(")");
     this.count();
-    return { _tag: "FnCall", name, args, span: this.span(start) };
+    const fn = { _tag: "FnCall", name, args, span: this.span(start) } as const;
+    if (!this.eatKw("over")) return fn;
+
+    this.expectOp("(");
+    const partitionBy: Expr[] = [];
+    if (this.eatKw("partition")) {
+      this.expectKw("by");
+      partitionBy.push(this.parseExpr(0));
+      while (this.eatOp(",")) partitionBy.push(this.parseExpr(0));
+    }
+    const orderBy: OrderItem[] = [];
+    if (this.eatKw("order")) {
+      this.expectKw("by");
+      orderBy.push(this.parseOrderItem());
+      while (this.eatOp(",")) orderBy.push(this.parseOrderItem());
+    }
+    let frame: WindowFrame | undefined;
+    if (this.isKw("rows") || this.isKw("range")) {
+      const unit = this.next().text as WindowFrame["unit"];
+      if (this.eatKw("between")) {
+        const frameStart = this.parseWindowFrameBound();
+        this.expectKw("and");
+        frame = { unit, start: frameStart, end: this.parseWindowFrameBound() };
+      } else {
+        frame = { unit, start: this.parseWindowFrameBound() };
+      }
+    }
+    this.expectOp(")");
+    this.count();
+    return {
+      _tag: "WindowExpr",
+      fn,
+      partitionBy,
+      orderBy,
+      frame,
+      span: this.span(start),
+    };
+  }
+
+  private parseWindowFrameBound(): WindowFrameBound {
+    if (this.eatKw("current")) {
+      this.expectKw("row");
+      return "currentRow";
+    }
+    if (this.eatKw("unbounded")) {
+      if (this.eatKw("preceding")) return "unboundedPreceding";
+      if (this.eatKw("following")) return "unboundedFollowing";
+    }
+    throw new VoidQlUnsupportedError({
+      message: `line ${this.peek().start.line}, col ${this.peek().start.col}: Unsupported window frame bound.`,
+      hint: "Use UNBOUNDED PRECEDING, CURRENT ROW, or UNBOUNDED FOLLOWING.",
+    });
   }
 
   private parseColumnRef(): Expr {
