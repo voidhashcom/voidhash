@@ -2,12 +2,15 @@
 useDefault = true
 
 [[allowlists]]
-description = "UUID-shaped App Store SDK test tokens"
+description = "UUID-shaped App Store and React Native SDK test tokens"
 condition = "AND"
 targetRules = ["generic-api-key"]
 regexTarget = "secret"
 regexes = ['''(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$''']
-paths = ['''(?:^|/)packages/app-store-server-sdk/tests/''']
+paths = [
+  '''(?:^|/)libraries/react-native/tests/''',
+  '''(?:^|/)packages/app-store-server-sdk/tests/''',
+]
 
 [[allowlists]]
 description = "Synthetic Stripe credentials used by config-provider tests"
@@ -23,7 +26,10 @@ condition = "AND"
 targetRules = ["generic-api-key"]
 regexTarget = "secret"
 regexes = ['''^3919eb4e-3466-593c-8c1e-84554e13a0a6$''']
-paths = ['''(?:^|/)packages/core/src/utils/crypto/account-token\.ts$''']
+paths = [
+  '''(?:^|/)libraries/react-native/src/core/utils/account-token\.ts$''',
+  '''(?:^|/)packages/core/src/utils/crypto/account-token\.ts$''',
+]
 
 [[allowlists]]
 description = "Throwaway private keys used only by crypto unit tests"
