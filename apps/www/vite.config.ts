@@ -5,6 +5,7 @@ import { paywallRuntimeBundlePlugin } from "@voidhash/paywall-renderer-preact/vi
 import mdx from "fumadocs-mdx/vite";
 import { defineConfig, type PluginOption } from "vite";
 import { createRequire } from "node:module";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import * as designSourceConfig from "./src/features/design/source.config.ts";
@@ -13,7 +14,12 @@ import * as docsSourceConfig from "./src/features/docs/source.config.ts";
 const devPort = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 3000;
 const devHost = process.env.HOST ?? true;
 const appSrcPath = fileURLToPath(new URL("./src", import.meta.url));
-const tslibPath = createRequire(import.meta.url).resolve("tslib/tslib.es6.mjs");
+const workspacePath = fileURLToPath(new URL("../..", import.meta.url));
+const require = createRequire(import.meta.url);
+const tslibPath = require.resolve("tslib/tslib.es6.mjs");
+const fontSourcePaths = ["@fontsource-variable/geist", "@fontsource-variable/geist-mono"].map(
+  (packageName) => dirname(require.resolve(packageName)),
+);
 // The self-host image uses an isolated runtime tree, so its SSR output cannot
 // rely on transitive packages being hoisted beside the application.
 const bundleServerDependencies = process.env.VOIDHASH_SELFHOST_BUNDLE === "true";
@@ -139,6 +145,9 @@ export default defineConfig(() => ({
     cors: {
       credentials: true,
       origin: true,
+    },
+    fs: {
+      allow: [workspacePath, ...fontSourcePaths],
     },
     host: devHost,
     port: devPort,
