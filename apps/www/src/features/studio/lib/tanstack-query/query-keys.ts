@@ -57,7 +57,11 @@ const paymentProviderConfigurationKeys = {
 const pushNotificationConfigurationKeys = {
   all: ["pushNotificationConfigurations"] as const,
   getPushNotificationConfiguration: (options: { id: string }) =>
-    [...pushNotificationConfigurationKeys.all, "getPushNotificationConfiguration", options] as const,
+    [
+      ...pushNotificationConfigurationKeys.all,
+      "getPushNotificationConfiguration",
+      options,
+    ] as const,
   list: (options: { projectId: string }) =>
     [...pushNotificationConfigurationKeys.all, "list", options] as const,
 };
@@ -111,7 +115,6 @@ const paywallAssetKeys = {
     [...paywallAssetKeys.all, "list", options] as const,
 };
 
-
 const aiChatKeys = {
   all: ["aiChats"] as const,
   list: (options: {
@@ -151,9 +154,18 @@ const experimentKeys = {
 
 const analyticsKeys = {
   all: ["analytics"] as const,
+  cohorts: (options: { projectId: string }) => [...analyticsKeys.all, "cohorts", options] as const,
+  dashboards: (options: { projectId: string }) =>
+    [...analyticsKeys.all, "dashboards", options] as const,
+  customInsight: (options: { definition: unknown; projectId: string }) =>
+    [...analyticsKeys.all, "custom-insight", options] as const,
+  insights: (options: { projectId: string }) =>
+    [...analyticsKeys.all, "insights", options] as const,
   query: (options: unknown) => [...analyticsKeys.all, "query", options] as const,
   recentEvents: (options: { projectId: string; limit: number }) =>
     [...analyticsKeys.all, "recentEvents", options] as const,
+  voidQlInsights: (options: { organizationId: string }) =>
+    [...analyticsKeys.all, "voidql-insights", options] as const,
 };
 
 export const queryKeys = {

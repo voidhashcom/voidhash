@@ -38,6 +38,9 @@ export function ProjectSidebar({
   });
   // The VoidQL Query page is gated behind an internal feature flag (unreleased).
   const queryEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.voidqlQuery.key);
+  const customAnalyticsEnabled = useInternalFeatureFlag(
+    INTERNAL_FEATURE_FLAGS.customAnalytics.key,
+  );
   const notificationsEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.notifications.key);
 
   const experimentationEnabled = useInternalFeatureFlag(
@@ -63,8 +66,30 @@ export function ProjectSidebar({
                 `/studio/${organizationSlug}/${projectSlug}/analytics`,
               ),
             title: "Analytics",
-            url: `/studio/${organizationSlug}/${projectSlug}/analytics/revenue`,
+            url: customAnalyticsEnabled
+              ? `/studio/${organizationSlug}/${projectSlug}/analytics/insights`
+              : `/studio/${organizationSlug}/${projectSlug}/analytics/revenue`,
             items: [
+              ...(customAnalyticsEnabled
+                ? [
+                    {
+                      isActive: () =>
+                        pathname.startsWith(
+                          `/studio/${organizationSlug}/${projectSlug}/analytics/insights`,
+                        ),
+                      title: "Insights",
+                      url: `/studio/${organizationSlug}/${projectSlug}/analytics/insights`,
+                    },
+                    {
+                      isActive: () =>
+                        pathname.startsWith(
+                          `/studio/${organizationSlug}/${projectSlug}/analytics/dashboards`,
+                        ),
+                      title: "Dashboards",
+                      url: `/studio/${organizationSlug}/${projectSlug}/analytics/dashboards`,
+                    },
+                  ]
+                : []),
               {
                 isActive: () =>
                   `/studio/${organizationSlug}/${projectSlug}/analytics/revenue` ===

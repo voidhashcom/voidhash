@@ -48,6 +48,7 @@
     "./domain/analyticsIngest/AnalyticsIngest": "./src/domain/analyticsIngest/AnalyticsIngest.ts",
     "./services": "./src/services/index.ts",
     "./services/analytics/AnalyticsService": "./src/services/analytics/AnalyticsService.ts",
+    "./services/analytics/CustomAnalyticsService": "./src/services/analytics/CustomAnalyticsService.ts",
     "./services/analyticsIngest/AnalyticsDispatchService": "./src/services/analyticsIngest/AnalyticsDispatchService.ts",
     "./services/analyticsIngest/AnalyticsIngestDlqService": "./src/services/analyticsIngest/AnalyticsIngestDlqService.ts",
     "./services/analyticsIngest/AnalyticsJanitorService": "./src/services/analyticsIngest/AnalyticsJanitorService.ts",

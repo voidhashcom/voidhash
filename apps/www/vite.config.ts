@@ -5,6 +5,7 @@ import { paywallRuntimeBundlePlugin } from "@voidhash/paywall-renderer-preact/vi
 import mdx from "fumadocs-mdx/vite";
 import { defineConfig, type PluginOption } from "vite";
 import { createRequire } from "node:module";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import * as designSourceConfig from "./src/features/design/source.config.ts";
@@ -13,7 +14,12 @@ import * as docsSourceConfig from "./src/features/docs/source.config.ts";
 const devPort = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 3000;
 const devHost = process.env.HOST ?? true;
 const appSrcPath = fileURLToPath(new URL("./src", import.meta.url));
-const tslibPath = createRequire(import.meta.url).resolve("tslib/tslib.es6.mjs");
+const workspacePath = fileURLToPath(new URL("../..", import.meta.url));
+const require = createRequire(import.meta.url);
+const tslibPath = require.resolve("tslib/tslib.es6.mjs");
+const fontSourcePaths = ["@fontsource-variable/geist", "@fontsource-variable/geist-mono"].map(
+  (packageName) => dirname(require.resolve(packageName)),
+);
 // The self-host image uses an isolated runtime tree, so its SSR output cannot
 // rely on transitive packages being hoisted beside the application.
 const bundleServerDependencies = process.env.VOIDHASH_SELFHOST_BUNDLE === "true";
@@ -56,6 +62,28 @@ function corsMiddleware() {
             response.end();
             return;
           }
+        }
+
+        next();
+      });
+    },
+  };
+}
+
+function tanstackClientEntryMiddleware() {
+  return {
+    name: "tanstack-client-entry-middleware",
+    configureServer(server: {
+      middlewares: {
+        use: (fn: (req: unknown, res: unknown, next: () => void) => void) => void;
+      };
+    }) {
+      server.middlewares.use((req, _res, next) => {
+        const request = req as { url?: string };
+
+        // The development HTML emits the raw virtual ID while Vite serves its canonical NUL form.
+        if (request.url?.startsWith("/@id/virtual:tanstack-start-client-entry")) {
+          request.url = request.url.replace("/@id/virtual:", "/@id/__x00__virtual:");
         }
 
         next();
@@ -112,11 +140,15 @@ export default defineConfig(() => ({
       }),
       "/src/features/design/content/docs/",
     ),
+    tanstackClientEntryMiddleware(),
     corsMiddleware(),
     paywallRuntimeBundlePlugin(),
     tailwindcss(),
     tanstackStart({
       srcDirectory: "src",
+      server: {
+        entry: "server.ts",
+      },
       prerender: {
         enabled: false,
       },
@@ -136,6 +168,9 @@ export default defineConfig(() => ({
     cors: {
       credentials: true,
       origin: true,
+    },
+    fs: {
+      allow: [workspacePath, ...fontSourcePaths],
     },
     host: devHost,
     port: devPort,

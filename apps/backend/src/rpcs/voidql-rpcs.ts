@@ -138,6 +138,72 @@ export const VoidQlRpcsLive = VoidQlRpcsDef.toLayer(
               ),
           }),
         ),
+      ListVoidQlInsights: (input) =>
+        voidql.listInsights(input).pipe(
+          Effect.catchTags({
+            ActionForbiddenError: (error) =>
+              Effect.fail(new RpcActionForbiddenError({ message: error.message })),
+            VoidQlExecutionError: (error) =>
+              Effect.fail(
+                new RpcVoidQlExecutionError({ cause: error.cause, message: error.message }),
+              ),
+          }),
+        ),
+      RunSavedVoidQlInsight: ({ id }) =>
+        Effect.gen(function* () {
+          const session = yield* AuthSession;
+          return yield* voidql.runSavedInsight({
+            id,
+            principal: { kind: "user", id: session?.user?.id ?? "api-key" },
+          });
+        }).pipe(
+          Effect.catchTags({
+            ActionForbiddenError: (error) =>
+              Effect.fail(new RpcActionForbiddenError({ message: error.message })),
+            VoidQlSyntaxError: (error) =>
+              Effect.fail(new RpcVoidQlSyntaxError({ message: error.message, hint: error.hint })),
+            VoidQlUnsupportedError: (error) =>
+              Effect.fail(
+                new RpcVoidQlUnsupportedError({ message: error.message, hint: error.hint }),
+              ),
+            VoidQlSchemaError: (error) =>
+              Effect.fail(new RpcVoidQlSchemaError({ message: error.message })),
+            VoidQlUnknownFieldError: (error) =>
+              Effect.fail(
+                new RpcVoidQlUnknownFieldError({
+                  field: error.field,
+                  message: error.message,
+                  suggestion: error.suggestion,
+                }),
+              ),
+            VoidQlPiiError: (error) =>
+              Effect.fail(new RpcVoidQlPiiError({ message: error.message })),
+            VoidQlComplexityError: (error) =>
+              Effect.fail(new RpcVoidQlComplexityError({ message: error.message })),
+            VoidQlIsolationError: () =>
+              Effect.fail(
+                new RpcVoidQlExecutionError({
+                  cause: "internal",
+                  message: "The query could not be executed.",
+                }),
+              ),
+            VoidQlExecutionError: (error) =>
+              Effect.fail(
+                new RpcVoidQlExecutionError({ cause: error.cause, message: error.message }),
+              ),
+          }),
+        ),
+      DeleteVoidQlInsight: (input) =>
+        voidql.deleteInsight(input).pipe(
+          Effect.catchTags({
+            ActionForbiddenError: (error) =>
+              Effect.fail(new RpcActionForbiddenError({ message: error.message })),
+            VoidQlExecutionError: (error) =>
+              Effect.fail(
+                new RpcVoidQlExecutionError({ cause: error.cause, message: error.message }),
+              ),
+          }),
+        ),
     };
   }),
 );

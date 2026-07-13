@@ -1,4 +1,5 @@
 export * from "./analytics/AnalyticsService.ts";
+export * from "./analytics/CustomAnalyticsService.ts";
 export * from "./voidql/VoidQlService.ts";
 export * from "./analyticsIngest/AnalyticsDispatchService.ts";
 export * from "./analyticsIngest/AnalyticsIngestDlqService.ts";

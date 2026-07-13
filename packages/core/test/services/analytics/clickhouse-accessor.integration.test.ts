@@ -48,6 +48,14 @@ import { CoreTestFixture } from "@testing/CoreTestFixture";
 import {
   type AnalyticsQueryInput,
   analyticsAccessor,
+  getEventFunnelBreakdownCounts,
+  getEventFunnelCounts,
+  getEventLifecyclePoints,
+  getEventPathLinks,
+  getEventPersonDrilldown,
+  getEventRetentionCohorts,
+  getEventStickinessBuckets,
+  getEventTrendSeries,
 } from "../../../src/services/analytics/clickhouse-accessor.ts";
 
 const { test } = CoreIntegrationTestHarness.make();
@@ -913,7 +921,824 @@ describe("analyticsAccessor — read-side dedup by event_id (latest processed_ts
   );
 });
 
-// Deferred: the harness binds the ClickHouse *read-write* user, which is NOT
+describe("getEventTrendSeries", () => {
+  test(
+    "aggregates total events and unique users across the full range for number charts",
+    withEventCleanup((track) =>
+      Effect.gen(function* () {
+        const ns = track(uniqueNs("custom-trends-total"));
+        yield* seedEvents(ns, [
+          {
+            eventName: "screen_viewed",
+            eventTs: new Date("2021-01-15T12:00:00.000Z"),
+            distinctId: `${ns}-one`,
+            properties: { duration_ms: 10 },
+          },
+          {
+            eventName: "screen_viewed",
+            eventTs: new Date("2021-01-16T12:00:00.000Z"),
+            distinctId: `${ns}-one`,
+            properties: { duration_ms: 30 },
+          },
+          {
+            eventName: "screen_viewed",
+            eventTs: new Date("2021-01-17T12:00:00.000Z"),
+            distinctId: `${ns}-one`,
+          },
+        ]);
+        const input = {
+          aggregateOverRange: true,
+          eventNames: ["screen_viewed"],
+          filters: filtersFor(),
+          organizationId,
+          params: { endDate, granularity: "day" as const, startDate },
+        };
+
+        const totals = yield* getEventTrendSeries({ ...input, aggregation: "total_events" });
+        const uniqueUsers = yield* getEventTrendSeries({
+          ...input,
+          aggregation: "unique_users",
+        });
+        const propertySum = yield* getEventTrendSeries({
+          ...input,
+          aggregation: "property_sum",
+          mathProperty: "duration_ms",
+        });
+        const propertyAverage = yield* getEventTrendSeries({
+          ...input,
+          aggregation: "property_average",
+          mathProperty: "duration_ms",
+        });
+
+        expect(totals[0]?.points.map((point) => point.value)).toEqual([3]);
+        expect(uniqueUsers[0]?.points.map((point) => point.value)).toEqual([1]);
+        expect(propertySum[0]?.points.map((point) => point.value)).toEqual([40]);
+        expect(propertyAverage[0]?.points.map((point) => point.value)).toEqual([20]);
+      }),
+    ),
+  );
+
+  test(
+    "counts unique group actors and applies person-cohort scope before aggregation",
+    withEventCleanup((track) =>
+      Effect.gen(function* () {
+        const ns = track(uniqueNs("custom-trends-groups"));
+        yield* seedEvents(ns, [
+          {
+            eventName: "opened",
+            eventTs: new Date("2021-01-15T12:00:00.000Z"),
+            distinctId: `${ns}-one-distinct`,
+            personId: `${ns}-one`,
+            properties: { account_id: "account-a" },
+          },
+          {
+            eventName: "opened",
+            eventTs: new Date("2021-01-16T12:00:00.000Z"),
+            distinctId: `${ns}-two-distinct`,
+            personId: `${ns}-two`,
+            properties: { account_id: "account-a" },
+          },
+          {
+            eventName: "opened",
+            eventTs: new Date("2021-01-17T12:00:00.000Z"),
+            distinctId: `${ns}-three-distinct`,
+            personId: `${ns}-three`,
+            properties: { account_id: "account-b" },
+          },
+        ]);
+        const input = {
+          actor: { kind: "group" as const, property: "account_id" },
+          aggregateOverRange: true,
+          aggregation: "unique_users" as const,
+          eventNames: ["opened"],
+          filters: filtersFor(),
+          organizationId,
+          params: { endDate, granularity: "day" as const, startDate },
+        };
+
+        const allGroups = yield* getEventTrendSeries(input);
+        const cohortGroups = yield* getEventTrendSeries({
+          ...input,
+          cohortPersonIds: [`${ns}-one`, `${ns}-two`],
+        });
+
+        expect(allGroups[0]?.points[0]?.value).toBe(2);
+        expect(cohortGroups[0]?.points[0]?.value).toBe(1);
+      }),
+    ),
+  );
+});
+
+describe("getEventPersonDrilldown", () => {
+  test(
+    "returns identified people scoped by cohort membership and group property",
+    withEventCleanup((track) =>
+      Effect.gen(function* () {
+        const ns = track(uniqueNs("custom-person-drilldown"));
+        yield* seedEvents(ns, [
+          {
+            eventName: "screen_viewed",
+            eventTs: new Date("2021-01-15T12:00:00.000Z"),
+            distinctId: `${ns}-one-distinct`,
+            personId: `${ns}-one`,
+            properties: { workspace_id: "mobile" },
+          },
+          {
+            eventName: "screen_viewed",
+            eventTs: new Date("2021-01-16T12:00:00.000Z"),
+            distinctId: `${ns}-one-distinct`,
+            personId: `${ns}-one`,
+            properties: { workspace_id: "mobile" },
+          },
+          {
+            eventName: "screen_viewed",
+            eventTs: new Date("2021-01-17T12:00:00.000Z"),
+            distinctId: `${ns}-two-distinct`,
+            personId: `${ns}-two`,
+            properties: { workspace_id: "web" },
+          },
+          {
+            eventName: "screen_viewed",
+            eventTs: new Date("2021-01-18T12:00:00.000Z"),
+            distinctId: `${ns}-three-distinct`,
+            personId: `${ns}-three`,
+            properties: { workspace_id: "mobile" },
+          },
+        ]);
+
+        const people = yield* getEventPersonDrilldown({
+          cohortPersonIds: [`${ns}-one`, `${ns}-two`],
+          eventNames: ["screen_viewed"],
+          group: { property: "workspace_id", value: "mobile" },
+          limit: 50,
+          organizationId,
+          params: { endDate, startDate },
+          projectId: ns,
+        });
+
+        expect(people).toEqual([
+          {
+            eventCount: 2,
+            lastSeenAt: new Date("2021-01-16T12:00:00.000Z"),
+            personId: `${ns}-one`,
+          },
+        ]);
+      }),
+    ),
+  );
+});
+
+describe("getEventFunnelCounts", () => {
+  test(
+    "distinguishes sequential, strict-adjacency, and any-order funnels",
+    withEventCleanup((track) =>
+      Effect.gen(function* () {
+        const ns = track(uniqueNs("custom-funnel-orders"));
+        const at = (seconds: number) => new Date(baseTs.getTime() + seconds * 1000);
+        yield* seedEvents(ns, [
+          {
+            eventName: "step_a",
+            eventTs: at(1),
+            distinctId: `${ns}-sequential`,
+            properties: { platform: "ios" },
+          },
+          { eventName: "unrelated", eventTs: at(2), distinctId: `${ns}-sequential` },
+          { eventName: "step_b", eventTs: at(3), distinctId: `${ns}-sequential` },
+          {
+            eventName: "step_a",
+            eventTs: at(4),
+            distinctId: `${ns}-strict`,
+            properties: { platform: "android" },
+          },
+          { eventName: "step_b", eventTs: at(5), distinctId: `${ns}-strict` },
+          { eventName: "step_b", eventTs: at(6), distinctId: `${ns}-reverse` },
+          {
+            eventName: "step_a",
+            eventTs: at(7),
+            distinctId: `${ns}-reverse`,
+            properties: { platform: "ios" },
+          },
+        ]);
+        const input = {
+          conversionWindowSeconds: 3_600,
+          filters: filtersFor(),
+          organizationId,
+          params: { endDate, startDate },
+          steps: [
+            { eventNames: ["step_a"] as const, key: "A" },
+            { eventNames: ["step_b"] as const, key: "B" },
+          ] as const,
+        };
+
+        const sequential = yield* getEventFunnelCounts({ ...input, order: "sequential" });
+        const strict = yield* getEventFunnelCounts({ ...input, order: "strict" });
+        const any = yield* getEventFunnelCounts({ ...input, order: "any" });
+
+        expect(sequential).toEqual([3, 2]);
+        expect(strict).toEqual([3, 1]);
+        expect(any).toEqual([3, 3]);
+
+        const breakdowns = yield* getEventFunnelBreakdownCounts({
+          ...input,
+          breakdown: { field: "event.properties.platform", limit: 5 },
+          breakdownAttributionStep: 1,
+          order: "sequential",
+        });
+        expect(breakdowns).toEqual([
+          { breakdownValue: "android", counts: [1, 1] },
+          { breakdownValue: "ios", counts: [2, 1] },
+        ]);
+      }),
+    ),
+  );
+});
+
+describe("getEventRetentionCohorts", () => {
+  test(
+    "distinguishes recurring and first-time cohorts and keeps rolling counts unique",
+    withEventCleanup((track) =>
+      Effect.gen(function* () {
+        const ns = track(uniqueNs("custom-retention"));
+        const day = (offset: number, hour = 12) =>
+          new Date(
+            `2021-01-${String(15 + offset).padStart(2, "0")}T${String(hour).padStart(2, "0")}:00:00.000Z`,
+          );
+        yield* seedEvents(ns, [
+          { eventName: "activated", eventTs: day(0), distinctId: `${ns}-one` },
+          { eventName: "activated", eventTs: day(1), distinctId: `${ns}-one` },
+          { eventName: "opened", eventTs: day(1, 14), distinctId: `${ns}-one` },
+          { eventName: "opened", eventTs: day(3), distinctId: `${ns}-one` },
+          { eventName: "activated", eventTs: day(0), distinctId: `${ns}-two` },
+          { eventName: "opened", eventTs: day(2), distinctId: `${ns}-two` },
+          { eventName: "activated", eventTs: day(1), distinctId: `${ns}-three` },
+          { eventName: "opened", eventTs: day(3), distinctId: `${ns}-three` },
+        ]);
+        const input = {
+          cumulative: false,
+          filters: filtersFor(),
+          intervals: 4,
+          organizationId,
+          params: { endDate, startDate },
+          period: "day" as const,
+          returning: {
+            aggregation: "unique_users" as const,
+            eventNames: ["opened"] as const,
+            key: "returning",
+          },
+          start: {
+            aggregation: "unique_users" as const,
+            eventNames: ["activated"] as const,
+            key: "start",
+          },
+        };
+
+        const recurring = yield* getEventRetentionCohorts({
+          ...input,
+          retentionType: "recurring",
+        });
+        const firstTime = yield* getEventRetentionCohorts({
+          ...input,
+          retentionType: "first_time",
+        });
+        const rolling = yield* getEventRetentionCohorts({
+          ...input,
+          cumulative: true,
+          retentionType: "first_time",
+        });
+
+        expect(recurring.map((cohort) => [cohort.cohortSize, cohort.counts])).toEqual([
+          [2, [0, 1, 1, 1]],
+          [2, [1, 0, 2, 0]],
+        ]);
+        expect(firstTime.map((cohort) => [cohort.cohortSize, cohort.counts])).toEqual([
+          [2, [0, 1, 1, 1]],
+          [1, [0, 0, 1, 0]],
+        ]);
+        expect(rolling[0]?.counts).toEqual([0, 2, 2, 1]);
+      }),
+    ),
+  );
+});
+
+describe("getEventLifecyclePoints", () => {
+  test(
+    "classifies new, returning, resurrecting, and dormant identities by period",
+    withEventCleanup((track) =>
+      Effect.gen(function* () {
+        const ns = track(uniqueNs("custom-lifecycle"));
+        const day = (offset: number, hour = 12) =>
+          new Date(
+            `2021-01-${String(15 + offset).padStart(2, "0")}T${String(hour).padStart(2, "0")}:00:00.000Z`,
+          );
+        yield* seedEvents(ns, [
+          {
+            eventName: "opened",
+            eventTs: day(0),
+            distinctId: `${ns}-returning`,
+            personId: `${ns}-returning-person`,
+          },
+          {
+            eventName: "opened",
+            eventTs: day(1),
+            distinctId: `${ns}-returning`,
+            personId: `${ns}-returning-person`,
+          },
+          {
+            eventName: "installed",
+            eventTs: day(-2),
+            distinctId: `${ns}-existing`,
+            personId: `${ns}-existing-person`,
+          },
+          {
+            eventName: "opened",
+            eventTs: day(0),
+            distinctId: `${ns}-existing`,
+            personId: `${ns}-existing-person`,
+          },
+          {
+            eventName: "opened",
+            eventTs: day(0),
+            distinctId: `${ns}-gap`,
+            personId: `${ns}-gap-person`,
+          },
+          {
+            eventName: "opened",
+            eventTs: day(2),
+            distinctId: `${ns}-gap`,
+            personId: `${ns}-gap-person`,
+          },
+          { eventName: "opened", eventTs: day(0), distinctId: `vh:anon:${ns}` },
+        ]);
+
+        const points = yield* getEventLifecyclePoints({
+          filters: filtersFor(),
+          granularity: "day",
+          organizationId,
+          params: { endDate: day(3, 23), startDate: day(0, 0) },
+          series: {
+            aggregation: "unique_users",
+            eventNames: ["opened"],
+            key: "A",
+          },
+        });
+
+        expect(
+          points.map((point) => [
+            point.timestamp.toISOString().slice(0, 10),
+            point.status,
+            point.count,
+          ]),
+        ).toEqual([
+          ["2021-01-15", "new", 2],
+          ["2021-01-15", "resurrecting", 1],
+          ["2021-01-16", "dormant", 2],
+          ["2021-01-16", "returning", 1],
+          ["2021-01-17", "dormant", 1],
+          ["2021-01-17", "resurrecting", 1],
+          ["2021-01-18", "dormant", 1],
+        ]);
+      }),
+    ),
+  );
+});
+
+describe("getEventPathLinks", () => {
+  test(
+    "counts adjacent session transitions, collapses repeats, and maps mobile screen names",
+    withEventCleanup((track) =>
+      Effect.gen(function* () {
+        const ns = track(uniqueNs("custom-paths"));
+        const at = (minutes: number) => new Date(baseTs.getTime() + minutes * 60_000);
+        yield* seedEvents(ns, [
+          { eventName: "home", eventTs: at(0), distinctId: `${ns}-one` },
+          { eventName: "home", eventTs: at(1), distinctId: `${ns}-one` },
+          { eventName: "search", eventTs: at(2), distinctId: `${ns}-one` },
+          { eventName: "purchase", eventTs: at(3), distinctId: `${ns}-one` },
+          { eventName: "settings", eventTs: at(34), distinctId: `${ns}-one` },
+          { eventName: "home", eventTs: at(0), distinctId: `${ns}-two` },
+          { eventName: "search", eventTs: at(4), distinctId: `${ns}-two` },
+          { eventName: "purchase", eventTs: at(5), distinctId: `${ns}-two` },
+          {
+            eventName: "$screen",
+            eventTs: at(10),
+            distinctId: `${ns}-screen`,
+            properties: { $screen_name: "Welcome" },
+          },
+          {
+            eventName: "$screen",
+            eventTs: at(11),
+            distinctId: `${ns}-screen`,
+            properties: { $screen_name: "Paywall" },
+          },
+          {
+            eventName: "$screen",
+            eventTs: at(12),
+            distinctId: `${ns}-screen`,
+            properties: { $screen_name: "Done" },
+          },
+          { eventName: "long_home", eventTs: at(15), distinctId: `${ns}-long` },
+          { eventName: "long_middle_a", eventTs: at(16), distinctId: `${ns}-long` },
+          { eventName: "long_middle_b", eventTs: at(17), distinctId: `${ns}-long` },
+          { eventName: "long_purchase", eventTs: at(18), distinctId: `${ns}-long` },
+        ]);
+
+        const eventLinks = yield* getEventPathLinks({
+          definition: {
+            collapseRepeated: true,
+            eventNames: ["home", "search", "purchase", "settings"],
+            kind: "paths",
+            maxDepth: 5,
+            sessionGapSeconds: 1_800,
+            timeRange: { preset: "last_30d" },
+          },
+          filters: filtersFor(),
+          organizationId,
+          params: { endDate, startDate },
+        });
+        const screenLinks = yield* getEventPathLinks({
+          definition: {
+            eventNames: ["$screen"],
+            kind: "paths",
+            maxDepth: 5,
+            pathItem: "screen_name",
+            timeRange: { preset: "last_30d" },
+          },
+          filters: filtersFor(),
+          organizationId,
+          params: { endDate, startDate },
+        });
+        const screenLinksWithExclusion = yield* getEventPathLinks({
+          definition: {
+            eventNames: ["$screen"],
+            excludeEventNames: ["Paywall"],
+            kind: "paths",
+            maxDepth: 5,
+            pathItem: "screen_name",
+            timeRange: { preset: "last_30d" },
+          },
+          filters: filtersFor(),
+          organizationId,
+          params: { endDate, startDate },
+        });
+        const collapsedEndpointLinks = yield* getEventPathLinks({
+          definition: {
+            endEventName: "long_purchase",
+            eventNames: ["long_home", "long_middle_a", "long_middle_b", "long_purchase"],
+            kind: "paths",
+            maxDepth: 3,
+            startEventName: "long_home",
+            timeRange: { preset: "last_30d" },
+          },
+          filters: filtersFor(),
+          organizationId,
+          params: { endDate, startDate },
+        });
+
+        expect(eventLinks).toEqual([
+          {
+            averageTransitionSeconds: 180,
+            count: 2,
+            source: "home",
+            sourceStep: 1,
+            target: "search",
+            targetStep: 2,
+          },
+          {
+            averageTransitionSeconds: 60,
+            count: 2,
+            source: "search",
+            sourceStep: 2,
+            target: "purchase",
+            targetStep: 3,
+          },
+        ]);
+        expect(screenLinks).toEqual([
+          {
+            averageTransitionSeconds: 60,
+            count: 1,
+            source: "Welcome",
+            sourceStep: 1,
+            target: "Paywall",
+            targetStep: 2,
+          },
+          {
+            averageTransitionSeconds: 60,
+            count: 1,
+            source: "Paywall",
+            sourceStep: 2,
+            target: "Done",
+            targetStep: 3,
+          },
+        ]);
+        expect(screenLinksWithExclusion).toEqual([
+          {
+            averageTransitionSeconds: 120,
+            count: 1,
+            source: "Welcome",
+            sourceStep: 1,
+            target: "Done",
+            targetStep: 2,
+          },
+        ]);
+        expect(collapsedEndpointLinks.map((link) => [link.source, link.target])).toEqual([
+          ["long_home", "…"],
+          ["…", "long_purchase"],
+        ]);
+      }),
+    ),
+  );
+});
+
+describe("getEventStickinessBuckets", () => {
+  test(
+    "stitches identities and applies minimum event occurrences inside each interval",
+    withEventCleanup((track) =>
+      Effect.gen(function* () {
+        const ns = track(uniqueNs("custom-stickiness"));
+        const activeAt = (dayOffset: number, hour: number) =>
+          new Date(
+            `2021-01-${String(15 + dayOffset).padStart(2, "0")}T${String(hour).padStart(2, "0")}:00:00.000Z`,
+          );
+        yield* seedEvents(ns, [
+          { eventName: "opened", eventTs: activeAt(0, 9), distinctId: `${ns}-three-days` },
+          { eventName: "opened", eventTs: activeAt(0, 12), distinctId: `${ns}-three-days` },
+          { eventName: "opened", eventTs: activeAt(1, 9), distinctId: `${ns}-three-days` },
+          { eventName: "opened", eventTs: activeAt(2, 9), distinctId: `${ns}-three-days` },
+          { eventName: "opened", eventTs: activeAt(0, 10), distinctId: `${ns}-two-days` },
+          { eventName: "opened", eventTs: activeAt(2, 10), distinctId: `${ns}-two-days` },
+          { eventName: "opened", eventTs: activeAt(1, 11), distinctId: `${ns}-one-day` },
+          {
+            eventName: "opened",
+            eventTs: activeAt(0, 14),
+            distinctId: `${ns}-stitched-a`,
+            personId: `${ns}-stitched-person`,
+          },
+          {
+            eventName: "opened",
+            eventTs: activeAt(1, 14),
+            distinctId: `${ns}-stitched-b`,
+            personId: `${ns}-stitched-person`,
+          },
+        ]);
+        const input = {
+          filters: filtersFor(),
+          interval: "day" as const,
+          organizationId,
+          params: { endDate, startDate },
+          series: {
+            aggregation: "unique_users" as const,
+            eventNames: ["opened"] as const,
+            key: "A",
+          },
+        };
+
+        const all = yield* getEventStickinessBuckets({
+          ...input,
+          occurrenceCriteria: { operator: "gte", value: 1 },
+        });
+        const repeated = yield* getEventStickinessBuckets({
+          ...input,
+          occurrenceCriteria: { operator: "gte", value: 2 },
+        });
+
+        expect(all).toEqual([
+          { count: 1, intervals: 1 },
+          { count: 2, intervals: 2 },
+          { count: 1, intervals: 3 },
+        ]);
+        expect(repeated).toEqual([{ count: 1, intervals: 1 }]);
+      }),
+    ),
+  );
+});
+
+describe("custom insight actor scope", () => {
+  test(
+    "applies group aggregation and person-cohort membership across every behavioral engine",
+    withEventCleanup((track) =>
+      Effect.gen(function* () {
+        const ns = track(uniqueNs("custom-group-cohort-engines"));
+        const at = (dayOffset: number, minutes: number) =>
+          new Date(Date.UTC(2021, 0, 15 + dayOffset, 9, minutes));
+        const personOne = `${ns}-person-one`;
+        const personTwo = `${ns}-person-two`;
+        const personThree = `${ns}-person-three`;
+        const group = (accountId: string) => ({ account_id: accountId });
+        yield* seedEvents(ns, [
+          {
+            distinctId: `${ns}-one`,
+            eventName: "funnel_start",
+            eventTs: at(0, 0),
+            personId: personOne,
+            properties: group("account-a"),
+          },
+          {
+            distinctId: `${ns}-one`,
+            eventName: "funnel_finish",
+            eventTs: at(0, 1),
+            personId: personOne,
+            properties: group("account-a"),
+          },
+          {
+            distinctId: `${ns}-three`,
+            eventName: "funnel_start",
+            eventTs: at(0, 2),
+            personId: personThree,
+            properties: group("account-b"),
+          },
+          {
+            distinctId: `${ns}-three`,
+            eventName: "funnel_finish",
+            eventTs: at(0, 3),
+            personId: personThree,
+            properties: group("account-b"),
+          },
+          {
+            distinctId: `${ns}-one`,
+            eventName: "retention_start",
+            eventTs: at(0, 5),
+            personId: personOne,
+            properties: group("account-a"),
+          },
+          {
+            distinctId: `${ns}-two`,
+            eventName: "retention_return",
+            eventTs: at(1, 5),
+            personId: personTwo,
+            properties: group("account-a"),
+          },
+          {
+            distinctId: `${ns}-three`,
+            eventName: "retention_start",
+            eventTs: at(0, 6),
+            personId: personThree,
+            properties: group("account-b"),
+          },
+          {
+            distinctId: `${ns}-three`,
+            eventName: "retention_return",
+            eventTs: at(1, 6),
+            personId: personThree,
+            properties: group("account-b"),
+          },
+          {
+            distinctId: `${ns}-one`,
+            eventName: "path_home",
+            eventTs: at(0, 10),
+            personId: personOne,
+            properties: group("account-a"),
+          },
+          {
+            distinctId: `${ns}-two`,
+            eventName: "path_paywall",
+            eventTs: at(0, 11),
+            personId: personTwo,
+            properties: group("account-a"),
+          },
+          {
+            distinctId: `${ns}-three`,
+            eventName: "path_home",
+            eventTs: at(0, 12),
+            personId: personThree,
+            properties: group("account-b"),
+          },
+          {
+            distinctId: `${ns}-three`,
+            eventName: "path_paywall",
+            eventTs: at(0, 13),
+            personId: personThree,
+            properties: group("account-b"),
+          },
+          {
+            distinctId: `${ns}-one`,
+            eventName: "opened",
+            eventTs: at(0, 20),
+            personId: personOne,
+            properties: group("account-a"),
+          },
+          {
+            distinctId: `${ns}-two`,
+            eventName: "opened",
+            eventTs: at(1, 20),
+            personId: personTwo,
+            properties: group("account-a"),
+          },
+          {
+            distinctId: `${ns}-three`,
+            eventName: "opened",
+            eventTs: at(0, 21),
+            personId: personThree,
+            properties: group("account-b"),
+          },
+          {
+            distinctId: `${ns}-three`,
+            eventName: "opened",
+            eventTs: at(1, 21),
+            personId: personThree,
+            properties: group("account-b"),
+          },
+        ]);
+
+        const actor = { kind: "group" as const, property: "account_id" };
+        const cohortPersonIds = [personOne, personTwo];
+        const scope = {
+          actor,
+          cohortPersonIds,
+          filters: filtersFor(),
+          organizationId,
+        };
+        const funnel = yield* getEventFunnelCounts({
+          ...scope,
+          conversionWindowSeconds: 3_600,
+          order: "sequential",
+          params: { endDate, startDate },
+          steps: [
+            { eventNames: ["funnel_start"], key: "A" },
+            { eventNames: ["funnel_finish"], key: "B" },
+          ],
+        });
+        const retention = yield* getEventRetentionCohorts({
+          ...scope,
+          cumulative: false,
+          intervals: 3,
+          params: { endDate: at(2, 59), startDate: at(0, 0) },
+          period: "day",
+          retentionType: "recurring",
+          returning: {
+            aggregation: "unique_users",
+            eventNames: ["retention_return"],
+            key: "returning",
+          },
+          start: {
+            aggregation: "unique_users",
+            eventNames: ["retention_start"],
+            key: "start",
+          },
+        });
+        const paths = yield* getEventPathLinks({
+          ...scope,
+          definition: {
+            eventNames: ["path_home", "path_paywall"],
+            kind: "paths",
+            maxDepth: 3,
+            timeRange: { preset: "last_30d" },
+          },
+          params: { endDate, startDate },
+        });
+        const stickiness = yield* getEventStickinessBuckets({
+          ...scope,
+          interval: "day",
+          occurrenceCriteria: { operator: "gte", value: 1 },
+          params: { endDate, startDate },
+          series: {
+            aggregation: "unique_users",
+            eventNames: ["opened"],
+            key: "A",
+          },
+        });
+        const lifecycle = yield* getEventLifecyclePoints({
+          ...scope,
+          granularity: "day",
+          params: { endDate: at(2, 59), startDate: at(0, 0) },
+          series: {
+            aggregation: "unique_users",
+            eventNames: ["opened"],
+            key: "A",
+          },
+        });
+
+        expect(funnel).toEqual([1, 1]);
+        expect(retention.map((cohort) => [cohort.cohortSize, cohort.counts])).toEqual([
+          [1, [0, 1, 0]],
+        ]);
+        expect(paths).toEqual([
+          {
+            averageTransitionSeconds: 60,
+            count: 1,
+            source: "path_home",
+            sourceStep: 1,
+            target: "path_paywall",
+            targetStep: 2,
+          },
+        ]);
+        expect(stickiness).toEqual([{ count: 1, intervals: 2 }]);
+        expect(
+          lifecycle.map((point) => [
+            point.timestamp.toISOString().slice(0, 10),
+            point.status,
+            point.count,
+          ]),
+        ).toEqual([
+          ["2021-01-15", "new", 1],
+          ["2021-01-16", "returning", 1],
+          ["2021-01-17", "dormant", 1],
+        ]);
+      }),
+    ),
+  );
+});
+
+// Deferred: the harness binds the ClickHouse *read-write* user, which is not
 // subject to the readonly role's row policy, so the `SQL_organization_id`
 // per-query setting the accessor passes is inert in-process — a row from
 // organization A is still visible when querying as organization B. Verifying
