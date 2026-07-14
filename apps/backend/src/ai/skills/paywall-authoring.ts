@@ -570,8 +570,8 @@ All tools operate on the currently open paywall, except \`read_paywall\`.
 
 - \`get_document(nodeId?, depth?)\` — read the open paywall's document as cleaned
   JSON (subtree + depth for economy).
-- \`get_components()\` — list every placeable component (catalog + local) with
-  paths, props, actions, and preview states.
+- \`get_components()\` — list every placeable component (catalog + local +
+  builtin) with paths/slugs, props, actions, and preview states.
 - \`read_component(path)\` — read a LOCAL code component's TSX source.
 - \`read_paywall(slug)\` — read ANOTHER paywall's document JSON for reference
   (read-only).

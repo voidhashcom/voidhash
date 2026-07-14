@@ -27,6 +27,8 @@ export interface SnapshotImageRenderInput {
    * expects. Component nodes without a matching tree render as placeholders.
    */
   readonly componentTrees: Record<string, Record<string, unknown>>;
+  /** Preview trees for local components, keyed by document-relative component path. */
+  readonly localComponentTrees: Record<string, Record<string, unknown>>;
   /** Viewport width in CSS pixels. */
   readonly width: number;
   /** Viewport height in CSS pixels. */
@@ -38,8 +40,8 @@ export interface SnapshotImageRenderInput {
 export interface SnapshotImageRendererShape {
   /**
    * Renders a paywall document snapshot to PNG bytes: composes the snapshot (and
-   * its component preview trees) into a self-contained, non-hydrated HTML
-   * document, then rasterizes it in a headless browser.
+   * its deployed and local component preview trees) into a self-contained,
+   * non-hydrated HTML document, then rasterizes it in a headless browser.
    */
   readonly render: (
     input: SnapshotImageRenderInput,

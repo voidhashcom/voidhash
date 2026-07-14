@@ -47,6 +47,7 @@ import {
   PaywallArtifactStore,
   PaywallArtifactStoreError,
   PaywallDeployService,
+  PaywallEditChangeSetService,
   PaywallLocationService,
   PaywallReleaseService,
   PaywallService,
@@ -64,6 +65,8 @@ import {
   ProjectService,
   PublicFileStore,
   PublicFileStoreError,
+  SnapshotImageRenderer,
+  SnapshotImageRenderError,
   PushDeliveryDispatch,
   PushNotificationSendService,
   PurchaseProcessingService,
@@ -179,6 +182,7 @@ export type InfraServices =
   | IdentityProjectionPublisher
   | MimicHost
   | ComponentCompiler
+  | SnapshotImageRenderer
   | ProjectSchemaCache;
 
 export interface BackendRuntimeLayers<
@@ -528,16 +532,25 @@ export const BackendMimicHostStubLive = Layer.succeed(MimicHost, {
 
 /**
  * Stub {@link ComponentCompiler} for harnesses that run the backend graph
- * outside a Node/container host: it reports `unavailable`, the same posture the
- * deployed workerd worker takes. Workspace diagnostics for component files then
- * degrade to cache-only (`unknown` on a miss); composition diagnostics still
- * validate purely. A Node-hosted harness that wants real compile diagnostics
- * provides the native-esbuild adapter instead
- * (`stacks/backend/infrastructure/ComponentCompilerNode.ts`).
+ * outside a Node/container host: it reports `unavailable`. Workspace diagnostics
+ * for component files then degrade to cache-only (`unknown` on a miss), while
+ * composition diagnostics still validate purely. Callers can provide a compiler
+ * implementation when executable code checks are available.
  */
 export const BackendComponentCompilerStubLive = Layer.succeed(ComponentCompiler, {
   compileCheck: () => Effect.succeed({ status: "unavailable" as const }),
   compileAndExtract: () => Effect.succeed({ status: "unavailable" as const }),
+});
+
+/** Renderer stub for backend harnesses without a headless browser binding. */
+export const BackendSnapshotImageRendererStubLive = Layer.succeed(SnapshotImageRenderer, {
+  render: () =>
+    Effect.fail(
+      new SnapshotImageRenderError({
+        cause: "headless browser is not configured",
+        message: "Paywall preview rendering is unavailable in this runtime",
+      }),
+    ),
 });
 
 export const BackendNoopIdentityProjectionPublisherLive = IdentityProjectionPublisher.noop;
@@ -743,6 +756,11 @@ const buildBackendServiceGraph = <
     ? VoidQlService.layer.pipe(Layer.provide(layers.analyticsQueryClient))
     : VoidQlService.layer;
 
+  const PaywallWorkspaceServiceLive = PaywallWorkspaceService.layer.pipe(
+    Layer.provide(PaywallService.layer),
+    Layer.provide(ComponentManifestCacheService.layer),
+  );
+
   const BaseDomainServicesLayer = Layer.mergeAll(
     AiChatService.layer,
     AnalyticsService.layer,
@@ -775,13 +793,10 @@ const buildBackendServiceGraph = <
     ComponentManifestCacheService.layer,
     // The workspace service needs PaywallService (authz + slug resolution) and
     // the manifest cache; `mergeAll` does not cross-wire siblings, so both are
-    // provided explicitly. MimicHost and ComponentCompiler (the headless compile
-    // phase — an `unavailable` adapter in the deployed worker) come from the
+    // provided explicitly. MimicHost and ComponentCompiler come from the
     // infrastructure layer.
-    PaywallWorkspaceService.layer.pipe(
-      Layer.provide(PaywallService.layer),
-      Layer.provide(ComponentManifestCacheService.layer),
-    ),
+    PaywallWorkspaceServiceLive,
+    PaywallEditChangeSetService.layer.pipe(Layer.provide(PaywallWorkspaceServiceLive)),
     PerkGrantService.layer,
     PerkService.layer,
     PersonService.layer,

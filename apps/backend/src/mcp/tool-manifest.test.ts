@@ -13,19 +13,30 @@ describe("MCP tool manifest", () => {
     const names = mcpToolDescriptors().map((d) => d.name);
     expect(names).toEqual([
       "list_paywalls",
+      "begin_paywall_edit",
       "get_paywall",
       "get_components",
       "read_component",
       "edit_paywall",
+      "duplicate_subtree",
       "write_component",
       "rename_component",
       "delete_component",
+      "get_paywall_preview",
+      "finish_paywall_edit",
+      "revert_paywall_edit",
     ]);
   });
 
   it("no longer advertises the deleted stateless-build / bash tools", () => {
     const names = mcpToolDescriptors().map((d) => d.name);
-    for (const removed of ["bash", "read_file", "get_diagnostics", "validate_paywall", "apply_paywall"]) {
+    for (const removed of [
+      "bash",
+      "read_file",
+      "get_diagnostics",
+      "validate_paywall",
+      "apply_paywall",
+    ]) {
       expect(names).not.toContain(removed);
     }
   });
@@ -54,6 +65,7 @@ describe("MCP tool manifest", () => {
     const schema = findMcpTool("edit_paywall")!.descriptor.inputSchema;
     const required = (schema.required as string[] | undefined) ?? [];
     expect(required).toContain("slug");
+    expect(required).toContain("changeSetId");
     expect(required).toContain("edits");
     const edits = (schema.properties as Record<string, { type?: string }>).edits;
     expect(edits.type).toBe("array");
@@ -62,22 +74,37 @@ describe("MCP tool manifest", () => {
   it("write_component requires slug + path + source", () => {
     const schema = findMcpTool("write_component")!.descriptor.inputSchema;
     const required = ((schema.required as string[] | undefined) ?? []).sort();
-    expect(required).toEqual(["path", "slug", "source"]);
+    expect(required).toEqual(["changeSetId", "path", "slug", "source"]);
   });
 
   it("rename_component requires slug + fromPath + toPath", () => {
     const schema = findMcpTool("rename_component")!.descriptor.inputSchema;
     const required = ((schema.required as string[] | undefined) ?? []).sort();
-    expect(required).toEqual(["fromPath", "slug", "toPath"]);
+    expect(required).toEqual(["changeSetId", "fromPath", "slug", "toPath"]);
+  });
+
+  it("advertises the explicit preview-gated lifecycle", () => {
+    expect(findMcpTool("begin_paywall_edit")!.descriptor.inputSchema.required as string[]).toEqual([
+      "slug",
+    ]);
+    const previewRequired =
+      (findMcpTool("get_paywall_preview")!.descriptor.inputSchema.required as string[]) ?? [];
+    expect(previewRequired.sort()).toEqual(["changeSetId", "slug"]);
+    const finishRequired =
+      (findMcpTool("finish_paywall_edit")!.descriptor.inputSchema.required as string[]) ?? [];
+    expect(finishRequired).toEqual(
+      expect.arrayContaining(["slug", "changeSetId", "reviewedDocumentSignature", "verdict"]),
+    );
   });
 
   it("a validated tool folds invalid arguments into an isError result (no throw)", async () => {
     const tool = findMcpTool("edit_paywall")!;
     const result = await Effect.runPromise(
       // Missing required `edits` — the dispatcher validates and folds the failure.
-      tool.dispatch({ projectId: "proj_1" }, { slug: "trial" }) as Effect.Effect<
-        { output: string; isError: boolean }
-      >,
+      tool.dispatch({ projectId: "proj_1" }, { slug: "trial" }) as Effect.Effect<{
+        output: string;
+        isError: boolean;
+      }>,
     );
     expect(result.isError).toBe(true);
     expect(result.output).toContain("invalid arguments");

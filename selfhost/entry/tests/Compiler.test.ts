@@ -6,13 +6,13 @@ import { makeNodeComponentCompiler } from "../src/compiler/CompilerCore.ts";
 const compiler = makeNodeComponentCompiler();
 
 const validComponent = `
-  import { defineComponent } from "@voidhash/paywalls";
+  import { defineComponent, Text } from "@voidhash/paywalls";
   export default defineComponent({
     title: "Hero",
     props: (p) => ({ heading: p.string().default("Go Pro") }),
     actions: () => ({}),
     previews: { default: {} },
-    render: () => null,
+    render: ({ props }) => <Text>{props.heading}</Text>,
   });
 `;
 
@@ -23,6 +23,11 @@ describe("self-host component compiler", () => {
     expect(result.status).toBe("ready");
     if (result.status === "ready") {
       expect(result.manifest).toMatchObject({ manifestVersion: 2, title: "Hero" });
+      expect(result.previewTrees.default).toMatchObject({
+        treeVersion: 2,
+        state: "default",
+        root: { type: "text", text: "Go Pro", style: {} },
+      });
     }
   });
 
@@ -52,7 +57,9 @@ describe("self-host component compiler", () => {
       expect(loop.diagnostics[0]?.message).toContain("timed out");
     }
     if (dynamicCode.status === "error") {
-      expect(dynamicCode.diagnostics[0]?.message).toContain("Code generation from strings disallowed");
+      expect(dynamicCode.diagnostics[0]?.message).toContain(
+        "Code generation from strings disallowed",
+      );
     }
   });
 });

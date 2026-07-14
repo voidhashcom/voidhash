@@ -31,7 +31,11 @@ const run = (
 ): Promise<JsonRpcResponse | null> =>
   Effect.runPromise(handleMcpMessage(message, callTool) as Effect.Effect<JsonRpcResponse | null>);
 
-const msg = (method: string, params?: Record<string, unknown>, id: string | number = 1): JsonRpcMessage => ({
+const msg = (
+  method: string,
+  params?: Record<string, unknown>,
+  id: string | number = 1,
+): JsonRpcMessage => ({
   jsonrpc: "2.0",
   method,
   id,
@@ -67,7 +71,7 @@ describe("initialize", () => {
       expect(response && "result" in response).toBe(true);
       const result = (response as { result: Record<string, unknown> }).result;
       expect(result.protocolVersion).toBe(version);
-      expect(result.capabilities).toEqual({ tools: {} });
+      expect(result.capabilities).toEqual({ tools: {}, resources: {}, prompts: {} });
       expect((result.serverInfo as { name: string }).name).toBe("voidhash-paywall-workspace");
     }
   });
@@ -97,7 +101,7 @@ describe("tools/list", () => {
   it("returns the tool descriptors with JSON Schema inputs", async () => {
     const response = await run(msg("tools/list"));
     const result = (response as { result: { tools: Array<Record<string, unknown>> } }).result;
-    expect(result.tools.length).toBe(8);
+    expect(result.tools.length).toBe(13);
     const listPaywalls = result.tools[0];
     expect(listPaywalls.name).toBe("list_paywalls");
     expect((listPaywalls.inputSchema as { type: string }).type).toBe("object");
@@ -126,6 +130,18 @@ describe("tools/call", () => {
     expect(result.content).toEqual([{ type: "text", text: "apply_paywall rejected: bad" }]);
   });
 
+  it("preserves multimodal image content from preview tools", async () => {
+    const content = [
+      { type: "text" as const, text: '{"documentSignature":"doc-1"}' },
+      { type: "image" as const, data: "iVBORw0KGgo=", mimeType: "image/png" as const },
+    ];
+    const response = await run(
+      msg("tools/call", { name: "get_paywall_preview", arguments: {} }),
+      cannedCallTool({ output: "preview", isError: false, content }),
+    );
+    expect((response as { result: { content: unknown } }).result.content).toEqual(content);
+  });
+
   it("rejects a missing tool name with InvalidParams", async () => {
     const response = await run(msg("tools/call", { arguments: {} }));
     const error = (response as { error: { code: number } }).error;
@@ -133,12 +149,52 @@ describe("tools/call", () => {
   });
 });
 
+describe("resources", () => {
+  it("lists and reads the schema-derived authoring guide", async () => {
+    const listed = await run(msg("resources/list"));
+    const resources = (listed as { result: { resources: Array<{ uri: string }> } }).result
+      .resources;
+    expect(resources[0]?.uri).toBe("voidhash://paywall-authoring/reference");
+
+    const read = await run(
+      msg("resources/read", { uri: "voidhash://paywall-authoring/reference" }),
+    );
+    const text = (read as { result: { contents: Array<{ text: string }> } }).result.contents[0]
+      ?.text;
+    expect(text).toContain("begin_paywall_edit");
+    expect(text).toContain("Document model");
+  });
+});
+
+describe("prompts", () => {
+  it("offers a design prompt with the verified lifecycle", async () => {
+    const listed = await run(msg("prompts/list"));
+    expect(
+      (listed as { result: { prompts: Array<{ name: string }> } }).result.prompts[0]?.name,
+    ).toBe("design_paywall");
+    const response = await run(
+      msg("prompts/get", {
+        name: "design_paywall",
+        arguments: { slug: "trial", request: "Improve hierarchy" },
+      }),
+    );
+    const text = (
+      response as {
+        result: { messages: Array<{ content: { text: string } }> };
+      }
+    ).result.messages[0]?.content.text;
+    expect(text).toContain('paywall "trial"');
+    expect(text).toContain("get_paywall_preview");
+    expect(text).toContain("Improve hierarchy");
+  });
+});
+
 describe("unknown method", () => {
   it("returns method-not-found", async () => {
-    const response = await run(msg("resources/list"));
+    const response = await run(msg("completion/complete"));
     const error = (response as { error: { code: number; message: string } }).error;
     expect(error.code).toBe(JsonRpcErrorCode.MethodNotFound);
-    expect(error.message).toContain("resources/list");
+    expect(error.message).toContain("completion/complete");
   });
 
   it("accepts an unknown notification silently", async () => {

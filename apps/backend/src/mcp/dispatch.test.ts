@@ -9,8 +9,11 @@
 import {
   ComponentCompiler,
   ComponentManifestCacheService,
+  PaywallArtifactStore,
   PaywallDeployService,
+  PaywallEditChangeSetService,
   PaywallWorkspaceService,
+  SnapshotImageRenderer,
 } from "@voidhash/core/services";
 import { AuthSession } from "@voidhash/core/domain/auth/Auth";
 import { Context, Effect } from "effect";
@@ -67,6 +70,18 @@ const fakeCompiler = (over: Partial<ComponentCompiler["Service"]> = {}) =>
     ...over,
   }) as unknown as ComponentCompiler["Service"];
 
+const fakeChangeSets = () =>
+  ({
+    requireActive: () =>
+      Effect.succeed({
+        id: "pw_change_1",
+        projectId: "proj_1",
+        paywallId: "pw_1",
+        paywallSlug: "trial",
+        baselineVersion: 1,
+      }),
+  }) as unknown as PaywallEditChangeSetService["Service"];
+
 interface Fakes {
   readonly workspace?: PaywallWorkspaceService["Service"];
   readonly deploy?: PaywallDeployService["Service"];
@@ -80,14 +95,17 @@ const contextWith = (fakes: Fakes) =>
     Context.add(PaywallDeployService, fakes.deploy ?? fakeDeploy()),
     Context.add(ComponentManifestCacheService, fakes.manifestCache ?? fakeManifestCache()),
     Context.add(ComponentCompiler, fakes.compiler ?? fakeCompiler()),
+    Context.add(PaywallEditChangeSetService, fakeChangeSets()),
+    Context.add(PaywallArtifactStore, {
+      getObject: () => Effect.succeed(null),
+    } as unknown as PaywallArtifactStore["Service"]),
+    Context.add(SnapshotImageRenderer, {
+      render: () => Effect.succeed(new Uint8Array([1])),
+    } as SnapshotImageRenderer["Service"]),
     Context.add(AuthSession, {} as never),
   );
 
-const dispatchWith = (
-  fakes: Fakes,
-  name: string,
-  args: unknown,
-): Promise<WorkspaceToolResult> => {
+const dispatchWith = (fakes: Fakes, name: string, args: unknown): Promise<WorkspaceToolResult> => {
   const tool = findMcpTool(name);
   if (tool === undefined) {
     throw new Error(`tool ${name} not found`);
@@ -118,6 +136,7 @@ describe("MCP tool dispatch", () => {
   it("edit_paywall validates then applies, reporting the new version", async () => {
     const result = await dispatch("edit_paywall", {
       slug: "trial",
+      changeSetId: "pw_change_1",
       edits: [{ op: "insert", parentId: "screen1", node: { type: "view" } }],
     });
     expect(result.isError).toBe(false);
@@ -132,7 +151,11 @@ describe("MCP tool dispatch", () => {
       { workspace: fakeWorkspace({ editDocument: editDocument as never }) },
       "edit_paywall",
       // Unknown parent id → validation rejects before any submit.
-      { slug: "trial", edits: [{ op: "insert", parentId: "ghost", node: { type: "view" } }] },
+      {
+        slug: "trial",
+        changeSetId: "pw_change_1",
+        edits: [{ op: "insert", parentId: "ghost", node: { type: "view" } }],
+      },
     );
     expect(result.isError).toBe(true);
     expect(result.output).toContain("edit_paywall rejected");
@@ -156,7 +179,12 @@ describe("MCP tool dispatch", () => {
         }),
       },
       "write_component",
-      { slug: "trial", path: "components/hero.tsx", source: "export default (=> {" },
+      {
+        slug: "trial",
+        changeSetId: "pw_change_1",
+        path: "components/hero.tsx",
+        source: "export default (=> {",
+      },
     );
     expect(result.isError).toBe(true);
     expect(result.output).toContain("write_component rejected");
@@ -179,11 +207,17 @@ describe("MCP tool dispatch", () => {
           record: ((input: unknown) => Effect.sync(() => void recorded.push(input))) as never,
         }),
         compiler: fakeCompiler({
-          compileAndExtract: () => Effect.succeed({ status: "ready" as const, manifest }),
+          compileAndExtract: () =>
+            Effect.succeed({ status: "ready" as const, manifest, previewTrees: {} }),
         }),
       },
       "write_component",
-      { slug: "trial", path: "components/hero.tsx", source: "export default () => null;" },
+      {
+        slug: "trial",
+        changeSetId: "pw_change_1",
+        path: "components/hero.tsx",
+        source: "export default () => null;",
+      },
     );
     expect(result.isError).toBe(false);
     expect(result.output).toContain("version 9");
@@ -209,7 +243,11 @@ describe("MCP tool dispatch", () => {
         }),
       },
       "edit_paywall",
-      { slug: "trial", edits: [{ op: "insert", parentId: "screen1", node: { type: "view" } }] },
+      {
+        slug: "trial",
+        changeSetId: "pw_change_1",
+        edits: [{ op: "insert", parentId: "screen1", node: { type: "view" } }],
+      },
     );
     expect(result.isError).toBe(true);
     expect(result.output).toContain("edit_paywall rejected: lost the concurrency race");

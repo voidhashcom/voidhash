@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "voidhash-paywalls": {
+      "type": "http",
+      "url": "https://api.voidhash.com/api/mcp",
+      "headersHelper": "${CLAUDE_PLUGIN_ROOT}/bin/voidhash-mcp-headers"
+    }
+  }
+}

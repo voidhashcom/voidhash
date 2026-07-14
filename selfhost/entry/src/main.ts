@@ -40,6 +40,7 @@ import {
 } from "./backend/Push.ts";
 import {
   makeSelfhostPaywallThumbnailServiceLive,
+  makeSelfhostSnapshotImageRendererLive,
   runSelfhostPaywallThumbnailConsumer,
 } from "./backend/Thumbnails.ts";
 import {
@@ -81,10 +82,20 @@ NodeRuntime.runMain(
       const clickhouse = config.clickhouse
         ? makeSelfhostClickhouseLayers(config.clickhouse)
         : undefined;
+      const chromiumExecutablePath = process.env.CHROMIUM_EXECUTABLE_PATH?.trim();
+      const chromiumConfig = chromiumExecutablePath
+        ? {
+            disableSandbox: process.env.CHROMIUM_DISABLE_SANDBOX === "true",
+            executablePath: chromiumExecutablePath,
+          }
+        : undefined;
       const infrastructure = makeBackendInfrastructureLive(
         config,
         workos,
         clickhouse?.readOnly,
+        chromiumConfig === undefined
+          ? undefined
+          : makeSelfhostSnapshotImageRendererLive(chromiumConfig),
       ).pipe(
         Layer.provide(hostLayer),
       );
@@ -128,13 +139,9 @@ NodeRuntime.runMain(
           Effect.provide(runtimeContext),
         ),
       );
-      const chromiumExecutablePath = process.env.CHROMIUM_EXECUTABLE_PATH?.trim();
-      if (chromiumExecutablePath) {
+      if (chromiumConfig !== undefined) {
         const thumbnailContext = yield* Layer.build(
-          makeSelfhostPaywallThumbnailServiceLive({
-            disableSandbox: process.env.CHROMIUM_DISABLE_SANDBOX === "true",
-            executablePath: chromiumExecutablePath,
-          }),
+          makeSelfhostPaywallThumbnailServiceLive(chromiumConfig),
         ).pipe(Effect.provide(runtimeContext));
         const thumbnailService = Context.get(
           thumbnailContext,

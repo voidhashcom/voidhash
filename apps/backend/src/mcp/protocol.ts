@@ -12,14 +12,15 @@
  * error taxonomy live here so they can be unit-tested without a worker.
  *
  * Implemented methods: `initialize`, `notifications/initialized`, `tools/list`,
- * `tools/call`, `ping`. Unknown methods → JSON-RPC method-not-found. Tool errors
- * are `isError: true` content, never JSON-RPC errors (per MCP). Resources are not
- * offered this increment (tools cover the workflow).
+ * `tools/call`, `resources/list`, `resources/read`, `prompts/list`,
+ * `prompts/get`, and `ping`. Unknown methods → JSON-RPC method-not-found. Tool
+ * errors are `isError: true` content, never JSON-RPC errors (per MCP).
  */
 import { Effect } from "effect";
 
 import { mcpToolDescriptors } from "./tool-manifest.ts";
 import * as WorkspaceTools from "../ai/workspace-tools.ts";
+import { paywallAuthoringSkill } from "../ai/skills/paywall-authoring.ts";
 
 /** Protocol versions we speak, newest first (used to pick the negotiated version). */
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26"] as const;
@@ -27,6 +28,21 @@ const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
 
 /** Server identity advertised in the `initialize` result. */
 const SERVER_INFO = { name: "voidhash-paywall-workspace", version: "1.0.0" } as const;
+const AUTHORING_RESOURCE_URI = "voidhash://paywall-authoring/reference";
+const AUTHORING_RESOURCE_NAME = "paywall-authoring-reference";
+const DESIGN_PROMPT_NAME = "design_paywall";
+
+const mcpAuthoringGuide = (): string => `# MCP paywall workflow
+
+1. Discover paywalls with \`list_paywalls\`, then call \`begin_paywall_edit\`.
+2. Read structure and components before writing. Pass the returned \`changeSetId\` to every mutation.
+3. Use \`edit_paywall\` for document composition, \`duplicate_subtree\` for visual cloning, and component tools only for local TSX.
+4. Render \`get_paywall_preview\`, inspect the image, correct any visual issues, and render again.
+5. Call \`finish_paywall_edit\` with the exact latest document signature and an empty issue list, or \`revert_paywall_edit\` to restore the baseline.
+
+Tool-name mapping in the schema-derived reference below: \`get_document\` means \`get_paywall\`; \`edit_document\` means \`edit_paywall\`. MCP mutations additionally require \`slug\` and \`changeSetId\`.
+
+${paywallAuthoringSkill()}`;
 
 /** Standard JSON-RPC 2.0 error codes we emit. */
 export const JsonRpcErrorCode = {
@@ -70,7 +86,11 @@ const failure = (
   code: number,
   message: string,
   data?: unknown,
-): JsonRpcResponse => ({ jsonrpc: "2.0", id, error: data === undefined ? { code, message } : { code, message, data } });
+): JsonRpcResponse => ({
+  jsonrpc: "2.0",
+  id,
+  error: data === undefined ? { code, message } : { code, message, data },
+});
 
 /**
  * Validate an already-JSON-parsed value as a JSON-RPC 2.0 message. Returns the
@@ -115,12 +135,40 @@ const negotiateProtocolVersion = (requested: unknown): string =>
 /** The `initialize` result: negotiated version, tool capability, server identity. */
 const initializeResult = (params: Record<string, unknown> | undefined) => ({
   protocolVersion: negotiateProtocolVersion(params?.protocolVersion),
-  capabilities: { tools: {} },
+  capabilities: { tools: {}, resources: {}, prompts: {} },
   serverInfo: SERVER_INFO,
+  instructions:
+    "Begin a paywall edit change set before mutating. Review the final PNG preview and finish with its exact document signature, or revert the change set.",
 });
 
 /** The `tools/list` result: the advertised tool descriptors. */
 const toolsListResult = () => ({ tools: mcpToolDescriptors() });
+
+const resourcesListResult = () => ({
+  resources: [
+    {
+      uri: AUTHORING_RESOURCE_URI,
+      name: AUTHORING_RESOURCE_NAME,
+      title: "Voidhash paywall authoring reference",
+      description: "Schema-derived document, style, component, and MCP workflow guidance.",
+      mimeType: "text/markdown",
+    },
+  ],
+});
+
+const promptsListResult = () => ({
+  prompts: [
+    {
+      name: DESIGN_PROMPT_NAME,
+      title: "Design a paywall",
+      description: "Start a visually verified MCP paywall-authoring workflow.",
+      arguments: [
+        { name: "slug", description: "Paywall slug to edit.", required: true },
+        { name: "request", description: "What to change or create.", required: false },
+      ],
+    },
+  ],
+});
 
 /**
  * Handle a `tools/call`: read `name` + `arguments`, run the executor, and shape
@@ -144,7 +192,7 @@ const handleToolsCall = (
   return callTool(name, args).pipe(
     Effect.map((result) =>
       success(id, {
-        content: [{ type: "text", text: result.output }],
+        content: result.content ?? [{ type: "text", text: result.output }],
         isError: result.isError,
       }),
     ),
@@ -182,6 +230,67 @@ export const handleMcpMessage = (
 
     case "tools/call":
       return handleToolsCall(id, message.params, callTool);
+
+    case "resources/list":
+      return Effect.succeed(success(id, resourcesListResult()));
+
+    case "resources/read": {
+      if (message.params?.uri !== AUTHORING_RESOURCE_URI) {
+        return Effect.succeed(
+          failure(id, JsonRpcErrorCode.InvalidParams, "Unknown paywall authoring resource URI"),
+        );
+      }
+      return Effect.succeed(
+        success(id, {
+          contents: [
+            {
+              uri: AUTHORING_RESOURCE_URI,
+              mimeType: "text/markdown",
+              text: mcpAuthoringGuide(),
+            },
+          ],
+        }),
+      );
+    }
+
+    case "prompts/list":
+      return Effect.succeed(success(id, promptsListResult()));
+
+    case "prompts/get": {
+      if (message.params?.name !== DESIGN_PROMPT_NAME) {
+        return Effect.succeed(
+          failure(id, JsonRpcErrorCode.InvalidParams, "Unknown paywall authoring prompt"),
+        );
+      }
+      const args =
+        message.params.arguments !== null && typeof message.params.arguments === "object"
+          ? (message.params.arguments as Record<string, unknown>)
+          : {};
+      const slug = args.slug;
+      if (typeof slug !== "string" || slug.length === 0) {
+        return Effect.succeed(
+          failure(id, JsonRpcErrorCode.InvalidParams, 'design_paywall requires a string "slug"'),
+        );
+      }
+      const request =
+        typeof args.request === "string" && args.request.length > 0
+          ? `\nRequested outcome: ${args.request}`
+          : "";
+      return Effect.succeed(
+        success(id, {
+          description: `Design paywall ${slug} with a visually verified change set.`,
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: `Design paywall "${slug}" using the Voidhash MCP workflow.${request}\n\n${mcpAuthoringGuide()}`,
+              },
+            },
+          ],
+        }),
+      );
+    }
 
     default: {
       // Any other `notifications/*` is an id-less message we accept silently.

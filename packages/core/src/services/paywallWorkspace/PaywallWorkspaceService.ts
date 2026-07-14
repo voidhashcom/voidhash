@@ -229,8 +229,17 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
             slug: paywall.slug,
             name: paywall.name,
             paywallId: paywall.id,
+            tree: document.tree,
             root: document.root,
-          } satisfies { slug: string; name: string; paywallId: string; root: unknown };
+            version: document.version,
+          } satisfies {
+            slug: string;
+            name: string;
+            paywallId: string;
+            tree: unknown;
+            root: unknown;
+            version: number;
+          };
         });
 
       /**
