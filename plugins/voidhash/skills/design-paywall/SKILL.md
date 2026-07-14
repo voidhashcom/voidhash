@@ -5,7 +5,7 @@ description: Design, edit, preview, visually review, finish, or revert a Voidhas
 
 # Design a Voidhash paywall
 
-Use the `voidhash-paywalls` MCP server for all paywall operations.
+Use the `voidhash` MCP server for all paywall operations.
 
 Before editing:
 

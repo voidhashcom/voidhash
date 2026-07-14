@@ -1,12 +1,12 @@
 {
-  "name": "voidhash-paywalls",
+  "name": "voidhash",
   "version": "0.1.0",
-  "description": "Design and visually verify Voidhash paywalls from Claude Code.",
+  "description": "Control Voidhash with OAuth-authenticated MCP tools from Claude Code.",
   "author": {
     "name": "Voidhash"
   },
   "homepage": "https://voidhash.com",
   "repository": "https://github.com/voidhashcom/voidhash",
   "license": "MIT",
-  "keywords": ["paywalls", "design", "mcp"]
+  "keywords": ["voidhash", "mcp", "oauth", "paywalls"]
 }

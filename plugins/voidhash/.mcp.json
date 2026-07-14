@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "voidhash-paywalls": {
+    "voidhash": {
       "type": "http",
       "url": "https://api.voidhash.com/api/mcp"
     }

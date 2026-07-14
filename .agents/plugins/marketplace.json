@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "voidhash-paywalls",
+      "name": "voidhash",
       "source": {
         "source": "local",
-        "path": "./plugins/voidhash-paywalls"
+        "path": "./plugins/voidhash"
       },
       "policy": {
         "installation": "AVAILABLE",
