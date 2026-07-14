@@ -1,8 +1,4 @@
-import {
-  ALLOWED_CHILDREN_BY_NODE_TYPE,
-  NODE_TYPES,
-  type NodeType,
-} from "@voidhash/mimic-schema";
+import { ALLOWED_CHILDREN_BY_NODE_TYPE, NODE_TYPES, type NodeType } from "@voidhash/mimic-schema";
 import {
   acceptanceOf,
   nodeDefaultData,
@@ -70,9 +66,7 @@ function autoManagedAnnotation(flagField: string): string {
 /** The schema default for one style field of a node type, or `undefined` if it has none. */
 function styleFieldDefault(type: NodeType, field: string): unknown {
   const style = nodeDefaultData(type)["style"];
-  return style && typeof style === "object"
-    ? (style as Record<string, unknown>)[field]
-    : undefined;
+  return style && typeof style === "object" ? (style as Record<string, unknown>)[field] : undefined;
 }
 
 /**
@@ -259,6 +253,50 @@ Layout is flexbox, exactly like CSS / React Native:
   ids.
 - **Selection ids are directly addressable.** When the context block lists
   selected node ids, use them straight in ops (no need to re-locate them).
+- **\`duplicate_subtree\` preserves visual systems.** Prefer it over rebuilding a
+  repeated benefit, product option, card, or control from scratch. Fresh ids are
+  returned, so immediately tailor the clone's content/state with focused updates.
+- **\`get_rendered_layout\` measures reality.** Use it when declared styles are not
+  enough to judge alignment, spacing, clipping, overflow, safe-area fit, or
+  above-the-fold placement. It reports browser geometry and resolved styles.
+- **\`get_preview_screenshot\` is the visual checkpoint.** Capture the screen after
+  each meaningful visual section and after every correction pass. Inspect the
+  pixels; do not infer visual quality from the document tree alone.
+- **\`finish_design\` is the completion gate.** It accepts only the exact signature
+  of the latest screenshot while the document is unchanged and
+  \`unresolvedIssues\` is empty. Any post-review edit requires a new screenshot.
+
+## Visual design and review workflow
+
+For broad design work, decide on one coherent direction before editing: audience
+and offer, visual mood, a restrained palette, typography scale, spacing rhythm,
+content hierarchy, and CTA treatment. Build one meaningful visual group at a
+time, then review it in the live screenshot. Prefer purposeful hierarchy and
+consistent systems over adding decoration.
+
+At every screenshot checkpoint, critique the rendered paywall against this
+rubric and correct visible issues with focused edits:
+
+- **Hierarchy and story:** the value proposition reads first, supporting proof
+  and benefits scan naturally, and the primary CTA is unmistakably dominant.
+- **Offer clarity:** product options, price/period, trial or billing terms, savings,
+  and the selected state are understandable without guesswork.
+- **Composition:** margins, gaps, alignment, radii, and repeated structures follow
+  a consistent rhythm; no section feels accidentally crowded or empty.
+- **Typography and color:** the type scale has clear roles, copy wraps cleanly,
+  contrast is legible, and accents are reserved for meaningful emphasis.
+- **Viewport fit:** no unintended clipping or horizontal overflow; safe areas are
+  respected; the CTA and essential offer information are reachable and sensibly
+  placed on the 375×812 screen.
+- **Purchase affordances:** selectable options look selectable, the CTA looks
+  tappable, and close, restore, legal, and subscription-term affordances are
+  present when appropriate.
+- **Polish:** imagery, icons, borders, shadows, and states render cleanly with no
+  placeholders, awkward truncation, inconsistent styling, or accidental defaults.
+
+Do not merely describe a problem found in the screenshot. Fix it, capture a new
+screenshot, and repeat until the review has no unresolved issues. Then call
+\`finish_design\` with the final screenshot's document signature.
 
 ### Op cheatsheet
 

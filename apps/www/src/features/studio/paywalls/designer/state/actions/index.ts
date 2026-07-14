@@ -93,7 +93,12 @@ export { setShowGrid, toggleShowGrid } from "./debug-actions";
 // AI Panel Commands
 // =============================================================================
 
-export { setAiPanelWidth, toggleAiPanel } from "./ai-panel-actions";
+export {
+  finishAiCanvasOperation,
+  setAiPanelWidth,
+  startAiCanvasOperation,
+  toggleAiPanel,
+} from "./ai-panel-actions";
 
 // =============================================================================
 // Awareness Commands

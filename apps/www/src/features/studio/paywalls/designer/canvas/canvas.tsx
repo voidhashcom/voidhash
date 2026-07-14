@@ -17,6 +17,7 @@ import {
 import { usePaywallDesignerActions, usePaywallDesignerStore } from "../state/designer-store";
 import { BoundingBoxManagerProvider } from "./bounding-box-manager";
 import { NodeTreeRenderer } from "./node-tree-renderer";
+import { AgentWorkingOverlay } from "./overlay/agent-working-overlay";
 import { GradientOverlay } from "./overlay/gradient-overlay";
 import { SelectionOverlay } from "./overlay/selection-overlay";
 import { useViewport, Viewport, type ViewportTransform } from "./viewport";
@@ -239,6 +240,8 @@ export function Canvas() {
 
       {/* Gradient start/end point controls for the selected node */}
       <GradientOverlay containerRef={containerRef} />
+
+      <AgentWorkingOverlay />
     </div>
   );
 }

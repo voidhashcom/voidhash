@@ -33,6 +33,15 @@ export type AvailableTool = "cursor" | "text" | "rows" | "columns" | "scroll-vie
 
 export type DesignerMode = "design" | "preview" | "code" | "translation";
 
+/** One transient agent operation visualized over the canvas. */
+export interface AgentCanvasOperation {
+  id: string;
+  label: string;
+  nodeIds: readonly string[];
+  phase: "thinking" | "inspecting" | "editing" | "reviewing" | "finishing";
+  startedAt: number;
+}
+
 export type DevModeTab = "snapshot" | "presence" | "actions";
 
 /**
@@ -281,6 +290,8 @@ export type DesignerStoreState = {
     panelOpen: boolean;
     /** Current width of the AI chat panel in px (user-resizable). */
     width: number;
+    /** Active model/tool operations, keyed by tool-call id (browser-only). */
+    operations: Record<string, AgentCanvasOperation>;
   };
   stateOverrideSelection: StateOverrideSelection;
   /**

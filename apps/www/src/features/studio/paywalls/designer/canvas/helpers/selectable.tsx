@@ -36,15 +36,7 @@ import { useViewport } from "../viewport";
 const MOVE_DRAG_THRESHOLD = 3;
 
 export interface SelectableProps {
-  children: ({
-    onContextMenu,
-    onDoubleClick,
-    onMouseDown,
-    onMouseEnter,
-    onMouseLeave,
-    onMouseOver,
-    role,
-  }: {
+  children: (props: {
     onContextMenu: (e: React.MouseEvent) => void;
     onDoubleClick: (e: React.MouseEvent) => void;
     onMouseDown: (e: React.MouseEvent) => void;
@@ -52,6 +44,7 @@ export interface SelectableProps {
     onMouseLeave: (e: React.MouseEvent) => void;
     onMouseOver: (e: React.MouseEvent) => void;
     role: string;
+    "data-paywall-node-id": string;
   }) => React.ReactNode;
   nodeId: string;
 }
@@ -60,9 +53,7 @@ export function Selectable({ children, nodeId }: SelectableProps) {
   const store = usePaywallDesignerStore();
   const isSelected = useStore(
     store,
-    useShallow((state) =>
-      selectedNodeIdsFromPresence(state.mimic.presence?.self).includes(nodeId),
-    ),
+    useShallow((state) => selectedNodeIdsFromPresence(state.mimic.presence?.self).includes(nodeId)),
   );
   const dispatch = usePaywallDesignerActions();
   const viewport = useViewport();
@@ -296,6 +287,7 @@ export function Selectable({ children, nodeId }: SelectableProps) {
   return (
     <DesignerContextMenu nodeId={nodeId} source="canvas">
       {children({
+        "data-paywall-node-id": nodeId,
         onContextMenu: handleContextMenu,
         onDoubleClick: handleDoubleClick,
         onMouseDown: handleMouseDown,

@@ -1,19 +1,14 @@
 import {
   designerToolDescriptions,
+  designerToolOutputSchemas,
   designerToolSchemas,
   modelForTurn,
+  previewScreenshotToolResultSchema,
   type Surface,
 } from "@voidhash/ai-shared";
-import {
-  AiChatService,
-  PaywallService,
-  PaywallWorkspaceService,
-} from "@voidhash/core/services";
+import { AiChatService, PaywallService, PaywallWorkspaceService } from "@voidhash/core/services";
 import { AuthSession } from "@voidhash/core/domain/auth/Auth";
-import {
-  fileNameFromDocRelative,
-  readComponentDefinitions,
-} from "@voidhash/paywall-workspace";
+import { fileNameFromDocRelative, readComponentDefinitions } from "@voidhash/paywall-workspace";
 import { Context, Effect, Layer, Schema } from "effect";
 import {
   convertToModelMessages,
@@ -22,7 +17,9 @@ import {
   stepCountIs,
   streamText,
   tool,
+  type InferUITools,
   type ToolSet,
+  type UIDataTypes,
   type UIMessage,
   validateUIMessages,
 } from "ai";
@@ -167,47 +164,100 @@ const deriveTitle = (messages: ReadonlyArray<UIMessage>): string => {
  * `ai-shared` definitions the browser executor imports, so declaration and
  * execution stay in lockstep.
  *
- * The declaration list is exactly the shared vocabulary (`get_document`,
- * `get_components`, `read_component`, `read_paywall`, `edit_document`,
- * `write_component`, `rename_component`, `delete_component`). Each entry keys
- * straight off `designerToolSchemas`/`designerToolDescriptions`, so a rename in
- * the shared package fails this file at compile time rather than drifting. (Built
- * per-tool rather than mapped so the AI SDK infers each concrete input schema.)
+ * The declaration list is exactly the shared vocabulary, including rendered
+ * inspection/screenshot review, document/component writes, subtree duplication,
+ * and the final design gate. Each entry keys straight off
+ * `designerToolSchemas`/`designerToolDescriptions`, so a rename in the shared
+ * package fails this file at compile time rather than drifting. (Built per-tool
+ * rather than mapped so the AI SDK infers each concrete input/output schema.)
  */
-export const designerTools = (): ToolSet => ({
-  get_document: tool({
-    description: designerToolDescriptions.get_document,
-    inputSchema: designerToolSchemas.get_document,
-  }),
-  get_components: tool({
-    description: designerToolDescriptions.get_components,
-    inputSchema: designerToolSchemas.get_components,
-  }),
-  read_component: tool({
-    description: designerToolDescriptions.read_component,
-    inputSchema: designerToolSchemas.read_component,
-  }),
-  read_paywall: tool({
-    description: designerToolDescriptions.read_paywall,
-    inputSchema: designerToolSchemas.read_paywall,
-  }),
-  edit_document: tool({
-    description: designerToolDescriptions.edit_document,
-    inputSchema: designerToolSchemas.edit_document,
-  }),
-  write_component: tool({
-    description: designerToolDescriptions.write_component,
-    inputSchema: designerToolSchemas.write_component,
-  }),
-  rename_component: tool({
-    description: designerToolDescriptions.rename_component,
-    inputSchema: designerToolSchemas.rename_component,
-  }),
-  delete_component: tool({
-    description: designerToolDescriptions.delete_component,
-    inputSchema: designerToolSchemas.delete_component,
-  }),
-});
+export const designerTools = () =>
+  ({
+    get_document: tool({
+      description: designerToolDescriptions.get_document,
+      inputSchema: designerToolSchemas.get_document,
+      outputSchema: designerToolOutputSchemas.get_document,
+    }),
+    get_rendered_layout: tool({
+      description: designerToolDescriptions.get_rendered_layout,
+      inputSchema: designerToolSchemas.get_rendered_layout,
+      outputSchema: designerToolOutputSchemas.get_rendered_layout,
+    }),
+  get_preview_screenshot: tool({
+    description: designerToolDescriptions.get_preview_screenshot,
+    inputSchema: designerToolSchemas.get_preview_screenshot,
+    outputSchema: previewScreenshotToolResultSchema,
+    toModelOutput: ({ output }) =>
+      typeof output === "string"
+        ? { type: "text", value: output }
+        : {
+            type: "content",
+            value: [
+              {
+                type: "text",
+                text: `${output.message}\nDocument signature: ${output.documentSignature}\nRendered at ${output.width}×${output.height}px (${output.scale}x).`,
+              },
+              {
+                type: "file",
+                data: { type: "data", data: output.dataBase64 },
+                filename: "paywall-preview.png",
+                mediaType: output.mediaType,
+              },
+            ],
+          },
+    }),
+    get_components: tool({
+      description: designerToolDescriptions.get_components,
+      inputSchema: designerToolSchemas.get_components,
+      outputSchema: designerToolOutputSchemas.get_components,
+    }),
+    read_component: tool({
+      description: designerToolDescriptions.read_component,
+      inputSchema: designerToolSchemas.read_component,
+      outputSchema: designerToolOutputSchemas.read_component,
+    }),
+    read_paywall: tool({
+      description: designerToolDescriptions.read_paywall,
+      inputSchema: designerToolSchemas.read_paywall,
+      outputSchema: designerToolOutputSchemas.read_paywall,
+    }),
+    edit_document: tool({
+      description: designerToolDescriptions.edit_document,
+      inputSchema: designerToolSchemas.edit_document,
+      outputSchema: designerToolOutputSchemas.edit_document,
+    }),
+    duplicate_subtree: tool({
+      description: designerToolDescriptions.duplicate_subtree,
+      inputSchema: designerToolSchemas.duplicate_subtree,
+      outputSchema: designerToolOutputSchemas.duplicate_subtree,
+    }),
+    write_component: tool({
+      description: designerToolDescriptions.write_component,
+      inputSchema: designerToolSchemas.write_component,
+      outputSchema: designerToolOutputSchemas.write_component,
+    }),
+    rename_component: tool({
+      description: designerToolDescriptions.rename_component,
+      inputSchema: designerToolSchemas.rename_component,
+      outputSchema: designerToolOutputSchemas.rename_component,
+    }),
+    delete_component: tool({
+      description: designerToolDescriptions.delete_component,
+      inputSchema: designerToolSchemas.delete_component,
+      outputSchema: designerToolOutputSchemas.delete_component,
+    }),
+    finish_design: tool({
+      description: designerToolDescriptions.finish_design,
+      inputSchema: designerToolSchemas.finish_design,
+      outputSchema: designerToolOutputSchemas.finish_design,
+    }),
+  }) satisfies ToolSet;
+
+type DesignerUIMessage = UIMessage<
+  unknown,
+  UIDataTypes,
+  InferUITools<ReturnType<typeof designerTools>>
+>;
 
 /**
  * Component file names (`<basename>.tsx`) of a paywall document, read from its
@@ -299,8 +349,12 @@ const make = (handle: AiGatewayHandle): VoidhashAiServiceShape => {
             message: cause instanceof Error ? cause.message : String(cause),
           }),
         try: async (): Promise<Response> => {
-          const uiMessages = await validateUIMessages({ messages: input.messages });
-          const modelMessages = await convertToModelMessages(uiMessages);
+          const tools = designerTools();
+          const uiMessages = await validateUIMessages<DesignerUIMessage>({
+            messages: input.messages,
+            tools,
+          });
+          const modelMessages = await convertToModelMessages(uiMessages, { tools });
           const turnId = turnIdFromMessages(uiMessages);
           const designerContext = await buildDesignerContext(context, input);
 
@@ -308,7 +362,7 @@ const make = (handle: AiGatewayHandle): VoidhashAiServiceShape => {
             model: workersai(modelForTurn(input.surface, input.messages)),
             system: designerSystemPrompt(designerContext),
             messages: modelMessages,
-            tools: designerTools(),
+            tools,
             stopWhen: stepCountIs(MAX_TOOL_STEPS),
           });
 

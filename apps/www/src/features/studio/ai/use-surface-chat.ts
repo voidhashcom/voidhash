@@ -1,7 +1,7 @@
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { lastAssistantMessageIsCompleteWithToolCalls, type UIMessage } from "ai";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { queryKeys } from "@/features/studio/lib/tanstack-query";
 
@@ -122,6 +122,16 @@ export function useSurfaceChat(agent: SurfaceAgent, session: SurfaceChatSession)
     stop,
     regenerate: rawRegenerate,
   } = chat;
+
+  const onActivityChange = agent.onActivityChange;
+  useEffect(() => {
+    onActivityChange?.(
+      status === "submitted" || status === "streaming"
+        ? { kind: "thinking", label: "Thinking about the paywall" }
+        : { kind: "idle" },
+    );
+    return () => onActivityChange?.({ kind: "idle" });
+  }, [onActivityChange, status]);
 
   // Wrap `sendMessage` so a fresh USER turn resets the auto-continuation budget
   // (the cap bounds one agentic turn, not the whole chat).

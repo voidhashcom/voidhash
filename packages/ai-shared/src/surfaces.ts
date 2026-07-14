@@ -53,10 +53,7 @@ export const nodeInputSchema: z.ZodType<NodeInput> = z.lazy(() =>
         .describe(
           "Style fields as a flat `{ field: value }` object (e.g. `{ backgroundColor: 'rgba(0,0,0,1)', paddingTop: 16 }`). Allowed fields and value types depend on the node type and are validated on apply — an invalid field/value returns an error naming the allowed fields/values. Setting any background/border/shadow (or path fill/stroke) style field automatically sets the group's `*Enabled` flag to true; set it to `false` explicitly to hide the group non-destructively.",
         ),
-      children: z
-        .array(nodeInputSchema)
-        .optional()
-        .describe("Nested child nodes, in order."),
+      children: z.array(nodeInputSchema).optional().describe("Nested child nodes, in order."),
     })
     .passthrough(),
 );
@@ -104,7 +101,9 @@ export const documentEditSchema = z.discriminatedUnion("op", [
       nodeId: z.string().describe("Id of the node to move."),
       parentId: z
         .string()
-        .describe("Id of the new parent. Must legally contain the moved node type; may not be the node itself or a descendant (no cycles)."),
+        .describe(
+          "Id of the new parent. Must legally contain the moved node type; may not be the node itself or a descendant (no cycles).",
+        ),
       index: z
         .number()
         .int()
@@ -169,6 +168,27 @@ export const designerToolSchemas = {
         "Optional max depth from the root. Nodes past the limit render as stubs `{ id, type, name?, childCount }` you can expand with a follow-up get_document(nodeId).",
       ),
   }),
+  get_rendered_layout: z.object({
+    nodeIds: z
+      .array(z.string())
+      .max(100)
+      .optional()
+      .describe(
+        "Optional document node ids to inspect. Omit to inspect every rendered node in the open paywall (capped at 100). Returns actual browser geometry, resolved typography/overflow styles, and clipping signals.",
+      ),
+  }),
+  get_preview_screenshot: z.object({
+    nodeId: z
+      .string()
+      .optional()
+      .describe(
+        "Optional document node id to capture. Defaults to the paywall screen. Capture a subtree only when you need a closer review.",
+      ),
+    scale: z
+      .union([z.literal(1), z.literal(2)])
+      .optional()
+      .describe("Raster scale. Use 1 for layout review and 2 only for small text or fine details."),
+  }),
   get_components: z.object({}),
   read_component: z.object({
     path: z
@@ -193,6 +213,21 @@ export const designerToolSchemas = {
         "Ordered batch of document edits, applied ATOMICALLY (all-or-nothing). Returns minted ids for inserts, or per-edit structured errors naming the offending node/field/value.",
       ),
   }),
+  duplicate_subtree: z.object({
+    nodeId: z.string().describe("Id of the existing visual node subtree to duplicate."),
+    parentId: z
+      .string()
+      .describe("Id of the destination parent. It must legally contain the duplicated node type."),
+    index: z
+      .number()
+      .int()
+      .optional()
+      .describe("Optional 0-based destination index. Omit to append."),
+    name: z
+      .string()
+      .optional()
+      .describe("Optional display name override for the duplicated subtree root."),
+  }),
   write_component: z.object({
     path: z
       .string()
@@ -205,10 +240,32 @@ export const designerToolSchemas = {
     fromPath: z.string().describe("Existing component path (`components/<name>.tsx`)."),
     toPath: z
       .string()
-      .describe("New component path. Instances referencing the old path are re-pointed automatically."),
+      .describe(
+        "New component path. Instances referencing the old path are re-pointed automatically.",
+      ),
   }),
   delete_component: z.object({
     path: z.string().describe("Component path to delete (`components/<name>.tsx`)."),
+  }),
+  finish_design: z.object({
+    reviewedDocumentSignature: z
+      .string()
+      .describe(
+        "The exact document signature returned by the final get_preview_screenshot call. Completion is rejected if the document changed after that review.",
+      ),
+    verdict: z
+      .string()
+      .min(1)
+      .max(1000)
+      .describe(
+        "Concise visual QA verdict covering hierarchy, spacing, typography/contrast, alignment, clipping/safe areas, and purchase affordances.",
+      ),
+    unresolvedIssues: z
+      .array(z.string())
+      .max(20)
+      .describe(
+        "Issues still visible in the reviewed screenshot. This must be empty to finish; otherwise correct them and review again.",
+      ),
   }),
 } as const;
 
@@ -224,20 +281,64 @@ export type DesignerToolName = keyof typeof designerToolSchemas;
 export const designerToolDescriptions: Record<DesignerToolName, string> = {
   get_document:
     "Return the open paywall's document as cleaned JSON: a nested tree of `{ id, type, name?, ...data, children }` nodes with schema-default fields stripped. Every node has a stable `id` you address in edit_document. Pass `nodeId` to root at a subtree and `depth` to cap the tree (deeper nodes come back as stubs you can expand). `codeComponent` definitions come back with their `path` and a `sourceLength` only — the TSX source is NOT inlined; read it with read_component. Call this before editing to learn the current structure and ids.",
+  get_rendered_layout:
+    "Inspect the ACTUAL browser-rendered layout of document nodes, not just their declared style data. Returns geometry relative to the screen, resolved overflow/typography styles, scroll dimensions, and clipping signals. Call this when spacing, alignment, overflow, safe-area fit, or above-the-fold placement needs exact measurements. Omit nodeIds to inspect the rendered paywall, or pass a focused set after a screenshot identifies a problem.",
+  get_preview_screenshot:
+    "Capture the current live paywall canvas as a PNG and return it as multimodal tool content for visual review. Defaults to the screen at 1x. Call after every meaningful visual section and ALWAYS after the final edit. Evaluate hierarchy, CTA dominance, spacing, typography, contrast, alignment, clipping, safe areas, product-option states, and close/restore/legal affordances; make targeted corrections before finishing. The result includes a document signature required by finish_design.",
   get_components:
-    "List every component available to place: CATALOG components (deployed, shared), LOCAL code components (defined in this paywall), AND first-party BUILTINS that ship with the renderer. Each entry carries its path/slug, description, props schema, action list, and preview states — everything you need to insert a `component` node and bind its props/actions correctly. Insert a catalog component with its `componentSlug`; a local one with `componentPath` + `componentSource: \"local\"`; a builtin with `componentSource: \"builtin\"` + its `componentSlug` (builtins are UNPINNED — no version/hash).",
+    'List every component available to place: CATALOG components (deployed, shared), LOCAL code components (defined in this paywall), AND first-party BUILTINS that ship with the renderer. Each entry carries its path/slug, description, props schema, action list, and preview states — everything you need to insert a `component` node and bind its props/actions correctly. Insert a catalog component with its `componentSlug`; a local one with `componentPath` + `componentSource: "local"`; a builtin with `componentSource: "builtin"` + its `componentSlug` (builtins are UNPINNED — no version/hash).',
   read_component:
     "Read a LOCAL code component's TSX source by its `components/<name>.tsx` path, reflecting your in-progress edits. Use get_components first to discover paths; use read_paywall to read a DIFFERENT paywall.",
   read_paywall:
     "Read ANOTHER paywall's document JSON by slug for reference (e.g. to match its design). Read-only — you can only EDIT the currently open paywall.",
   edit_document:
     "Apply an ATOMIC batch of edits to the open paywall document (all-or-nothing). Ops: `insert` (add a subtree under a parent at an index — ids are engine-minted and RETURNED so you can address the new nodes next), `update` (partial data change; `set.style` merges per style field, other objects merge per-field, arrays/scalars replace wholesale), `move` (reparent; cycles and illegal containment are rejected), `remove` (delete a subtree), `replaceChildren` (swap a node's whole child list). Address nodes by the ids from get_document or the current selection. Invalid fields/values are rejected with per-edit errors naming the offending node, the allowed fields (with a did-you-mean), and the allowed values — read them and correct your edit.",
+  duplicate_subtree:
+    "Deep-clone an existing visual document subtree under a destination parent. The clone preserves node data, styles, interactions, and descendants while the engine mints fresh node ids, which are returned for follow-up edits. Prefer this for repeated product rows, benefits, cards, and controls so spacing and structure remain consistent. Engine-managed root/library/codeComponent nodes cannot be duplicated.",
   write_component:
     "Create-or-replace a LOCAL code component at `components/<name>.tsx` (its path is its identity). On success the component is compiled and committed and becomes placeable via a `component` node; on failure you get compile diagnostics. Use for anything that is genuinely code (custom logic/layout), not for plain composition — compose visual structure with edit_document.",
   rename_component:
     "Rename a local component from one `components/<name>.tsx` path to another. Instances referencing the old path are re-pointed automatically (rename cascade).",
   delete_component:
     "Delete a local component by path. Existing instances of it degrade to placeholders (they are not cascade-deleted), so replace or remove them afterward.",
+  finish_design:
+    "Complete the visual editing task only after a final get_preview_screenshot. Pass its exact document signature, a concise visual QA verdict, and an empty unresolvedIssues list. The call is rejected if the document changed after the screenshot or if issues remain, forcing another correction-and-review cycle instead of ending on an unverified tree.",
+};
+
+/** Multimodal output produced by `get_preview_screenshot`. */
+export const previewScreenshotToolOutputSchema = z.object({
+  kind: z.literal("preview-screenshot"),
+  mediaType: z.literal("image/png"),
+  dataBase64: z.string(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  scale: z.union([z.literal(1), z.literal(2)]),
+  documentSignature: z.string(),
+  message: z.string(),
+});
+
+export type PreviewScreenshotToolOutput = z.infer<typeof previewScreenshotToolOutputSchema>;
+
+/** Successful screenshot payload or the executor's recoverable text error. */
+export const previewScreenshotToolResultSchema = z.union([
+  previewScreenshotToolOutputSchema,
+  z.string(),
+]);
+
+/** Model/client output schema for every designer tool. */
+export const designerToolOutputSchemas: Record<DesignerToolName, z.ZodTypeAny> = {
+  get_document: z.string(),
+  get_rendered_layout: z.string(),
+  get_preview_screenshot: previewScreenshotToolResultSchema,
+  get_components: z.string(),
+  read_component: z.string(),
+  read_paywall: z.string(),
+  edit_document: z.string(),
+  duplicate_subtree: z.string(),
+  write_component: z.string(),
+  rename_component: z.string(),
+  delete_component: z.string(),
+  finish_design: z.string(),
 };
 
 /** Tool input schemas for a surface. */
@@ -282,10 +383,7 @@ export type DocumentEditErrorResult = z.infer<typeof documentEditErrorSchema>;
  * list of ids minted for the nodes that op created (parents before children,
  * pre-order), so the model can address freshly-inserted nodes in a follow-up.
  */
-export const mintedIdsSchema = z.record(
-  z.string(),
-  z.array(z.string()),
-);
+export const mintedIdsSchema = z.record(z.string(), z.array(z.string()));
 
 export type MintedIds = z.infer<typeof mintedIdsSchema>;
 

@@ -4,10 +4,7 @@ import { TextNode, ViewNode } from "@voidhash/mimic-schema";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, test } from "vite-plus/test";
 
-import {
-  createOfflineDesignerDocument,
-  seededIds,
-} from "../../state/testing/offline-document";
+import { createOfflineDesignerDocument, seededIds } from "../../state/testing/offline-document";
 import { createDesignerStore, PaywallStoreContext } from "../../state/designer-store";
 import type { PaywallDesignerStoreType } from "../../state/designer-store";
 import { Viewport } from "../viewport";
@@ -26,7 +23,14 @@ function insertAbsoluteView(store: PaywallDesignerStoreType): string {
         screenId,
       );
       const view = (
-        screen as { children: { insertLast: (v: unknown) => { id: string; as: (n: unknown) => { data: { style: { update: (s: unknown) => void } } } } } }
+        screen as {
+          children: {
+            insertLast: (v: unknown) => {
+              id: string;
+              as: (n: unknown) => { data: { style: { update: (s: unknown) => void } } };
+            };
+          };
+        }
       ).children.insertLast({ type: "view" });
       viewId = view.id;
       view.as(ViewNode).data.style.update({ position: "absolute", left: 5, top: 5 });
@@ -46,7 +50,14 @@ function insertAbsoluteText(store: PaywallDesignerStoreType): string {
         screenId,
       );
       const text = (
-        screen as { children: { insertLast: (v: unknown) => { id: string; as: (n: unknown) => { data: { style: { update: (s: unknown) => void } } } } } }
+        screen as {
+          children: {
+            insertLast: (v: unknown) => {
+              id: string;
+              as: (n: unknown) => { data: { style: { update: (s: unknown) => void } } };
+            };
+          };
+        }
       ).children.insertLast({ type: "text" });
       textId = text.id;
       text.as(TextNode).data.style.update({ position: "absolute", left: 5, top: 5 });
@@ -88,6 +99,15 @@ function renderSelectable(store: PaywallDesignerStoreType, nodeId: string) {
     </PaywallStoreContext.Provider>,
   );
 }
+
+test("Selectable exposes the document node id on its rendered element", () => {
+  const doc = createOfflineDesignerDocument();
+  const store = createDesignerStore(doc as never);
+  const viewId = insertAbsoluteView(store);
+  const view = renderSelectable(store, viewId);
+
+  expect(view.getByTestId("target").getAttribute("data-paywall-node-id")).toBe(viewId);
+});
 
 describe("Selectable — unmount mid-drag cleanup", () => {
   test("unmounting during a drag removes listeners, restores the cursor, and cancels the move", () => {
