@@ -163,6 +163,8 @@ describe("resources", () => {
       ?.text;
     expect(text).toContain("begin_paywall_edit");
     expect(text).toContain("Document model");
+    expect(text).toContain("Variables, states, and actions");
+    expect(text).toContain("selected_product");
   });
 });
 
@@ -185,6 +187,8 @@ describe("prompts", () => {
     ).result.messages[0]?.content.text;
     expect(text).toContain('paywall "trial"');
     expect(text).toContain("get_paywall_preview");
+    expect(text).toContain("dynamic behavior without code");
+    expect(text).toContain("actionBindings");
     expect(text).toContain("Improve hierarchy");
   });
 });

@@ -147,7 +147,7 @@ by their engine-minted id. The node kinds you build with:
   document). Holds the whole layout; has a background, safe-area flags, and a
   fixed default size (375×812).
 - \`view\` — a flex container / row / column. The workhorse for layout, grouping,
-  cards, buttons (a \`view\` with an \`onPress\` interaction is a tappable surface —
+  cards, buttons (a \`view\` with a click interaction is a tappable surface —
   there is no separate button/pressable node).
 - \`scrollView\` — a \`view\` that SCROLLS. Same style/children as a \`view\`; use it
   for content taller than the screen. \`horizontal: true\` scrolls sideways and lays
@@ -182,12 +182,14 @@ Style is a per-node \`style\` object of RN-named fields (NO shorthands: write
 \`borderRadius\`). Colors are \`rgba(r, g, b, a)\` strings. Each node type accepts a
 different subset; a field not listed for a node type is rejected on it.
 
-**Group flags are AUTO-MANAGED.** Setting ANY background / border / shadow (or, on
-\`path\`, fill / stroke) field automatically turns that group's \`<group>Enabled\`
-flag on — just set \`backgroundColor\` and the background renders; you never write
-\`backgroundEnabled: true\`. The \`*Enabled\` flags below exist ONLY for non-destructive
-hiding: the sole reason to write one yourself is \`false\` (e.g.
-\`{ backgroundEnabled: false }\`) to hide a group while keeping its fields for later.
+**Group flags are AUTO-MANAGED in a node's base \`style\`.** Setting ANY background /
+border / shadow (or, on \`path\`, fill / stroke) field there automatically turns
+that group's \`<group>Enabled\` flag on — just set \`backgroundColor\` and the
+background renders. Inside \`states[].overrides.style\`, explicitly include the
+matching \`*Enabled: true\` flag when the base style has not already enabled that
+group. The flags also support non-destructive hiding: explicitly set one to
+\`false\` (e.g. \`{ backgroundEnabled: false }\`) to hide a group while keeping its
+fields for later.
 
 Set a style field via \`update\` with merge semantics: \`set: { style: { paddingTop: 8 } }\`
 changes ONLY \`paddingTop\` and leaves every other style field untouched. To insert
@@ -352,57 +354,117 @@ component) and follow the shapes the tool reports — do not assume field names.
 Bind a purchase to the component's declared action via the same interaction model
 as (d): a \`purchase-product\` action on the component's action slot.
 
-### (d) Variables and interactions (what the document supports)
+### (d) Variables, states, and actions (dynamic behavior without code)
 
-Variables and press interactions ARE first-class document data (on the node
-\`localVariables\` / \`interactions\` fields), so you can wire simple behavior WITHOUT
-a code component:
+These three first-class document fields form a small no-code state machine:
 
-- **Local variables** live on \`screen\`/\`view\`/\`text\` as \`localVariables\`: an array
-  of \`{ id, name, value }\` where \`value\` is a tagged union on \`key\`:
-  \`{ key: "string", value }\` | \`{ key: "number", value }\` |
-  \`{ key: "boolean", value }\` | \`{ key: "product", value: { productId? } }\`.
-- **Interactions** live on \`view\` as \`interactions\`: an array of
-  \`{ id, trigger, action }\`. The only trigger is \`{ type: "click" }\`. Actions:
-  - \`{ type: "none" }\` — no-op.
-  - \`{ type: "close-paywall" }\` — dismiss the paywall.
-  - \`{ type: "purchase-product", payload: <productSource> }\` — start a purchase,
-    where productSource is \`{ type: "literal", productId }\` or
-    \`{ type: "variable-reference", variableId }\`.
-  - \`{ type: "set-variable", payload: { variableId, newValue: <valueSource> } }\`
-    where valueSource is \`{ type: "literal", value: <tagged value> }\` or
-    \`{ type: "variable-reference", value: { id } }\`.
+1. **Variables hold runtime state.** Put \`localVariables\` on a common ancestor so
+   the node and its descendants can read them. Supported values are
+   \`{ key: "string", value }\`, \`{ key: "number", value }\`,
+   \`{ key: "boolean", value }\`, and
+   \`{ key: "product", value: { productId? } }\`. Variables may live on
+   \`screen\`, \`view\`, \`scrollView\`, \`text\`, \`shape\`, or \`path\`; lookup is
+   lexical (own node, then nearest ancestor). Declare shared state on the nearest
+   common ancestor and reference its stable \`id\`, never its display \`name\`.
+2. **Actions change state or call the host.** A \`view\` or \`scrollView\` has an
+   \`interactions\` array of \`{ id, trigger: { type: "click" }, action }\`. The
+   action is \`none\`, \`close-paywall\`, \`set-variable\`, or \`purchase-product\`.
+   Values/products can be literals or variable references. A \`component\` exposes
+   named outputs through \`actionBindings\`; bind those names (from
+   \`get_components\`) to the same actions, optionally reading a field from the
+   component's emitted payload with \`{ type: "action-payload", ... }\`.
+3. **States react to variables.** Stateful nodes have a \`states\` array. Each state
+   has \`{ id, name, condition, overrides }\`. A condition is DNF:
+   \`{ type: "or", value: [ { type: "and", value: [predicates...] } ] }\` — any
+   OR branch may match, while every predicate in an AND branch must match.
+   Predicates are \`equals\`, \`not-equals\`, \`greater-than\`,
+   \`greater-than-or-equal\`, \`less-than\`, or \`less-than-or-equal\`; each operand
+   is a typed literal or \`{ type: "variable-reference", value: { id } }\`.
+   Matching states merge \`overrides.style\` over the base style immediately after
+   a variable changes. Later matching states win conflicting fields. On \`view\`
+   and \`scrollView\`, a state may also replace an interaction's action through
+   \`overrides.actions\`; its \`interactionId\` must be the interaction array-entry
+   id returned by \`get_document\`. State style overrides do not auto-enable gated
+   groups, so include \`backgroundEnabled\`, \`borderEnabled\`, \`shadowEnabled\`,
+   \`fillEnabled\`, or \`strokeEnabled\` when an override first turns on that group.
 
-Make a \`view\` a purchase button by giving it an \`interactions\` array with a click
-→ purchase-product action (set via \`update\`'s \`set: { interactions: [...] }\` —
-arrays replace wholesale, so send the complete list):
+This is enough for product selection, toggles, conditional emphasis/visibility,
+multi-step sections, close buttons, and a CTA that purchases the selected product
+without TSX. Build the cycle as **declare variable → click action updates variable
+→ matching state changes appearance/behavior → CTA consumes variable**.
+
+Example: declare the selected product on the screen, make a yearly option select
+it and show its selected style, then have the CTA purchase the current selection.
+Repeat the option action/state for each other product id:
 
 \`\`\`json
 { "edits": [
+  { "op": "update", "nodeId": "scr_1", "set": { "localVariables": [
+    { "id": "selected_product", "name": "Selected product",
+      "value": { "key": "product", "value": { "productId": "yearly" } } }
+  ] } },
+  { "op": "update", "nodeId": "view_yearly", "set": {
+    "interactions": [
+      { "id": "select_yearly", "trigger": { "type": "click" },
+        "action": { "type": "set-variable", "payload": {
+          "variableId": "selected_product",
+          "newValue": { "type": "literal", "value": {
+            "key": "product", "value": { "productId": "yearly" }
+          } }
+        } }
+      }
+    ],
+    "states": [
+      { "id": "yearly_selected", "name": "Selected", "condition": {
+          "type": "or", "value": [
+            { "type": "and", "value": [
+              { "type": "equals", "value": {
+                "left": { "type": "variable-reference", "value": { "id": "selected_product" } },
+                "right": { "type": "literal", "value": {
+                  "key": "product", "value": { "productId": "yearly" }
+                } }
+              } }
+            ] }
+          ]
+        }, "overrides": { "style": {
+          "backgroundEnabled": true,
+          "backgroundColor": "rgba(99,102,241,0.16)",
+          "borderEnabled": true,
+          "borderColor": "rgba(99,102,241,1)",
+          "borderTopWidth": 2, "borderRightWidth": 2,
+          "borderBottomWidth": 2, "borderLeftWidth": 2
+        } }
+      }
+    ]
+  } },
   { "op": "update", "nodeId": "view_cta", "set": { "interactions": [
-      { "id": "int_1", "trigger": { "type": "click" },
-        "action": { "type": "purchase-product",
-          "payload": { "type": "literal", "productId": "yearly" } } }
+    { "id": "purchase_selected", "trigger": { "type": "click" },
+      "action": { "type": "purchase-product", "payload": {
+        "type": "variable-reference", "variableId": "selected_product"
+      } }
+    }
   ] } }
 ] }
 \`\`\`
 
-The \`id\` fields inside \`localVariables\`/\`interactions\`/gradient stops are your
-own logical ids for those sub-records (NOT node ids) — mint stable strings.
+Arrays replace wholesale on \`update\`, so preserve every existing variable,
+interaction, state, prop binding, or action binding you still need. The \`id\`
+fields inside these arrays are stable logical ids for sub-records, not node ids.
 
 ## Doctrine: build with the document, reach for code only when you must
 
 **The document (\`edit_document\`) is ALWAYS the primary way to build a paywall.**
-Static layout, styling, literal text, local variables, and click interactions all
-belong in the document. Write a code component ONLY when the document genuinely
-cannot express what you need:
+Static layout, styling, literal text, local variables, click/component actions,
+and variable-driven style/visibility states all belong in the document. Write a
+code component ONLY when the document genuinely cannot express what you need:
 
 - **Mapping/looping** — one row per product, or any list built by iterating over
   runtime data (\`usePaywallProducts()\`).
-- **Conditional / branching rendering** — element A vs B based on selection,
-  status, a variable, or product shape.
-- **Pressed / hover / focus visual states** — a button that changes color while
-  pressed.
+- **Structural branching** — different children/content that cannot be expressed
+  by a variable-driven style state (simple conditional visibility via \`display\`
+  belongs in document states).
+- **Transient pressed / hover / focus pseudo-states** — document states are driven
+  by variables, not pointer/gesture lifecycle.
 - **Animation.**
 - **Custom formatting logic** — deriving "$5/mo billed yearly", percent savings,
   trial copy.
@@ -412,12 +474,14 @@ cannot express what you need:
 ### Decision checklist
 
 1. Static layout + literal text? → **document** (\`screen\`/\`view\`/\`text\` nodes).
-2. Text needs runtime data (price, count, formatting)? → code component for that
+2. Selection, toggle, conditional styling/visibility, close, or purchase flow? →
+   **document variables + states + actions.**
+3. Text needs runtime data (price, count, formatting)? → code component for that
    text only.
-3. A list produced by iterating products/data? → code component (map).
-4. Branches on selection/status/variable? → code component.
-5. Pressed/hover/animated visuals? → code component.
-6. Otherwise → **document.** Prefer building with nodes.
+4. A list produced by iterating products/data? → code component (map).
+5. Structural branching not expressible with state style overrides? → code component.
+6. Pressed/hover/animated visuals? → code component.
+7. Otherwise → **document.** Prefer building with nodes.
 
 When a code component IS needed, keep it **as small as possible** — one focused
 interactive widget — then place it as a \`component\` node in the document.

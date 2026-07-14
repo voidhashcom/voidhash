@@ -99,3 +99,24 @@ describe("paywallAuthoringSkill — visual review discipline", () => {
     expect(skill).toContain("Purchase affordances");
   });
 });
+
+describe("paywallAuthoringSkill — dynamic no-code behavior", () => {
+  it("explains the variables → actions → states cycle and component action bindings", () => {
+    expect(skill).toContain("Variables, states, and actions");
+    expect(skill).toContain("declare variable → click action updates variable");
+    expect(skill).toContain("`localVariables`");
+    expect(skill).toContain("`set-variable`");
+    expect(skill).toContain("`purchase-product`");
+    expect(skill).toContain("`actionBindings`");
+    expect(skill).toContain("Later matching states win conflicting fields");
+    expect(skill).toContain("State style overrides do not auto-enable");
+    expect(skill).toContain('"backgroundEnabled": true');
+    expect(skill).toContain('"selected_product"');
+  });
+
+  it("keeps variable-driven states in the document-first path", () => {
+    expect(skill).toContain("document variables + states + actions");
+    expect(skill).toContain("simple conditional visibility via `display`");
+    expect(skill).toContain("document states are driven");
+  });
+});

@@ -1,6 +1,6 @@
 {
   "name": "voidhash",
-  "version": "0.1.0+codex.20260714165709",
+  "version": "0.1.0+codex.20260714172114",
   "description": "Control Voidhash with OAuth-authenticated MCP tools.",
   "author": {
     "name": "Voidhash"

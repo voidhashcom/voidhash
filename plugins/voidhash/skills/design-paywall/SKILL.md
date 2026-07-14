@@ -19,6 +19,8 @@ While editing:
 
 - Prefer `edit_paywall` for visual composition and atomic batches.
 - Use `duplicate_subtree` when an existing section is the right starting point.
+- Build dynamic behavior without code whenever the document can express it: declare typed `localVariables` on the nearest common ancestor, use `view`/`scrollView` click interactions or component `actionBindings` to run `set-variable`, `purchase-product`, or `close-paywall`, and use conditional `states` to override styles or actions when variables match. Preserve complete arrays when updating them.
+- Use the no-code cycle `variable → action changes variable → matching state changes appearance/behavior → CTA consumes variable` for product selection, toggles, conditional visibility, multi-step sections, and purchase flows.
 - Use local component tools only when custom TSX behavior is genuinely needed. A write is not committed unless server-side compilation succeeds.
 - After meaningful sections, call `get_paywall_preview` and inspect the returned image for hierarchy, spacing, clipping, legibility, and viewport fit.
 

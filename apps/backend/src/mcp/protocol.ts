@@ -36,7 +36,7 @@ const mcpAuthoringGuide = (): string => `# MCP paywall workflow
 
 1. Discover paywalls with \`list_paywalls\`, then call \`begin_paywall_edit\`.
 2. Read structure and components before writing. Pass the returned \`changeSetId\` to every mutation.
-3. Use \`edit_paywall\` for document composition, \`duplicate_subtree\` for visual cloning, and component tools only for local TSX.
+3. Build dynamic behavior without code using document \`localVariables\`, conditional \`states\`, click \`interactions\`, and component \`actionBindings\`. Use \`edit_paywall\` for composition, \`duplicate_subtree\` for visual cloning, and component tools only when the document model cannot express the behavior.
 4. Render \`get_paywall_preview\`, inspect the image, correct any visual issues, and render again.
 5. Call \`finish_paywall_edit\` with the exact latest document signature and an empty issue list, or \`revert_paywall_edit\` to restore the baseline.
 
@@ -138,7 +138,7 @@ const initializeResult = (params: Record<string, unknown> | undefined) => ({
   capabilities: { tools: {}, resources: {}, prompts: {} },
   serverInfo: SERVER_INFO,
   instructions:
-    "Begin a paywall edit change set before mutating. Review the final PNG preview and finish with its exact document signature, or revert the change set.",
+    "Begin a paywall edit change set before mutating. Prefer document variables, conditional states, and actions for dynamic behavior without code. Review the final PNG preview and finish with its exact document signature, or revert the change set.",
 });
 
 /** The `tools/list` result: the advertised tool descriptors. */
@@ -150,7 +150,8 @@ const resourcesListResult = () => ({
       uri: AUTHORING_RESOURCE_URI,
       name: AUTHORING_RESOURCE_NAME,
       title: "Voidhash paywall authoring reference",
-      description: "Schema-derived document, style, component, and MCP workflow guidance.",
+      description:
+        "Schema-derived document, style, no-code variable/state/action, component, and MCP workflow guidance.",
       mimeType: "text/markdown",
     },
   ],
@@ -161,7 +162,8 @@ const promptsListResult = () => ({
     {
       name: DESIGN_PROMPT_NAME,
       title: "Design a paywall",
-      description: "Start a visually verified MCP paywall-authoring workflow.",
+      description:
+        "Start a visually verified MCP paywall-authoring workflow with dynamic no-code behavior.",
       arguments: [
         { name: "slug", description: "Paywall slug to edit.", required: true },
         { name: "request", description: "What to change or create.", required: false },
