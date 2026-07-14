@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  createClientDocument,
-  TransportError,
-  WebSocketTransport,
-} from "@voidhash/mimic/client";
+import { createClientDocument, TransportError, WebSocketTransport } from "@voidhash/mimic/client";
 import { mimic } from "@voidhash/mimic/zustand";
 import { useCommander } from "@voidhash/mimic/zustand-commander";
 import {
@@ -12,7 +8,6 @@ import {
   PresenceSchema,
   type PresenceInput,
 } from "@voidhash/mimic-schema";
-import type { RootSnapshotNode } from "@voidhash/paywall-renderer-web-core";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 
@@ -22,11 +17,11 @@ import { SHOW_GRID } from "../constants";
 import { PANEL_DIMENSIONS } from "../panels/constants";
 import { commander } from "./designer-commander";
 import type {
+  AgentCanvasOperation,
   CodeComponentsState,
   ComponentCatalog,
   ComponentPreviewStateSelection,
   DesignerMode,
-  DesignerStoreState,
   DevModeTab,
 } from "./designer-store-state";
 
@@ -159,6 +154,7 @@ function createDesignerLocalState() {
       activeTab: "snapshot" as DevModeTab,
     },
     ai: {
+      operations: {} as Record<string, AgentCanvasOperation>,
       panelOpen: true,
       width: PANEL_DIMENSIONS.AI_CHAT_WIDTH,
     },
@@ -176,9 +172,7 @@ export function createDesignerStore(document: PaywallDesignerDocumentInstance) {
   // The provider owns connect() so terminal auth failures surface as an
   // error state — the middleware's autoConnect would swallow the rejection.
   return create(
-    commander.middleware(
-      mimic(document, createDesignerLocalState, { autoConnect: false }),
-    ),
+    commander.middleware(mimic(document, createDesignerLocalState, { autoConnect: false })),
   );
 }
 
@@ -194,7 +188,11 @@ export type PaywallDesignerDispatch = ReturnType<typeof usePaywallDesignerAction
 // Store boundary selectors
 // ============================================================================
 
-export { documentRootFromSnapshot, selectDocumentRoot, selectRenderRoot } from "./utils/document-root";
+export {
+  documentRootFromSnapshot,
+  selectDocumentRoot,
+  selectRenderRoot,
+} from "./utils/document-root";
 
 // ============================================================================
 // React Context

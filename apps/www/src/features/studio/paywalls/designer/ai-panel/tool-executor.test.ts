@@ -1,7 +1,7 @@
 import type { PipelineResult } from "../code-mode/compile-pipeline";
 import { describe, expect, test } from "vite-plus/test";
 
-import type { SurfaceToolCall } from "@/features/studio/ai";
+import type { SurfaceToolCall, SurfaceToolResult } from "@/features/studio/ai";
 
 import type { CodeEditorHandle } from "../code-mode/code-editor-context";
 import type { PaywallCodeTarget } from "../hooks/use-paywall-code-target";
@@ -12,11 +12,7 @@ import {
   type OfflineDesignerDocument,
 } from "../state/testing/offline-document";
 import { insertCodeComponent } from "../state/utils/code-component-writes";
-import {
-  renderCompileDiagnostics,
-  runDesignerTool,
-  type DesignerToolDeps,
-} from "./tool-executor";
+import { renderCompileDiagnostics, runDesignerTool, type DesignerToolDeps } from "./tool-executor";
 
 const PAYWALL_ID = "pw-1";
 const PAYWALL_SLUG = "checkout";
@@ -110,6 +106,14 @@ function makeDeps(
       hasPanel: false,
     }),
     readPaywallDocument: async () => ({ slug: "", name: "", paywallId: "", document: null }),
+    captureNodeScreenshot: async (_nodeId, scale) => ({
+      dataBase64: "cG5n",
+      width: 375 * scale,
+      height: 812 * scale,
+      scale,
+    }),
+    inspectRenderedLayouts: () => [],
+    reviewState: {},
     captureCheckpoint: async (input) => {
       checkpoints.push(input);
       return { captured: true };
@@ -118,6 +122,14 @@ function makeDeps(
     handle,
     checkpoints,
   } as DesignerToolDeps & { handle: FakeHandle; checkpoints: CheckpointCall[] };
+}
+
+/** Narrow a string-producing tool result for JSON/prose assertions. */
+function textOutput(result: SurfaceToolResult): string {
+  if (typeof result.output !== "string") {
+    throw new Error("expected a text tool result");
+  }
+  return result.output;
 }
 
 /** A minimal snapshot node: `{ id, type, data: { style }, children }`. */
@@ -169,7 +181,7 @@ describe("runDesignerTool — get_document", () => {
 
     const result = await runDesignerTool(deps, call("get_document", { nodeId: screenId }));
     expect(result.isError).toBe(false);
-    const parsed = JSON.parse(result.output) as { id: string; type: string };
+    const parsed = JSON.parse(textOutput(result)) as { id: string; type: string };
     expect(parsed.id).toBe(screenId);
     expect(parsed.type).toBe("screen");
   });
@@ -182,6 +194,119 @@ describe("runDesignerTool — get_document", () => {
     const result = await runDesignerTool(deps, call("get_document", { nodeId: "ghost" }));
     expect(result.isError).toBe(true);
     expect(result.output).toContain("ghost");
+  });
+});
+
+describe("runDesignerTool — rendered review", () => {
+  test("returns actual browser layout measurements for requested nodes", async () => {
+    const doc = createOfflineDesignerDocument();
+    const { screenId } = seededIds(doc);
+    const { store, dispatch } = await makeStore(doc);
+    const inspected: string[][] = [];
+    const deps = makeDeps(store, dispatch, {
+      inspectRenderedLayouts: (nodeIds, inspectedScreenId, canvasScale) => {
+        inspected.push([...nodeIds]);
+        expect(inspectedScreenId).toBe(screenId);
+        expect(canvasScale).toBe(store.getState().canvas.scale);
+        return [
+          {
+            nodeId: screenId,
+            bounds: { x: 0, y: 0, width: 375, height: 812 },
+            scroll: { width: 375, height: 812 },
+            overflow: { x: "hidden", y: "hidden" },
+            typography: {
+              fontFamily: "Inter",
+              fontSize: "16px",
+              fontWeight: "400",
+              letterSpacing: "normal",
+              lineHeight: "normal",
+              color: "rgb(0, 0, 0)",
+            },
+            clipped: { x: false, y: false },
+          },
+        ];
+      },
+    });
+
+    const result = await runDesignerTool(
+      deps,
+      call("get_rendered_layout", { nodeIds: [screenId] }),
+    );
+    expect(result.isError).toBe(false);
+    expect(inspected).toEqual([[screenId]]);
+    expect(JSON.parse(textOutput(result))).toMatchObject({
+      screenId,
+      layouts: [{ nodeId: screenId, clipped: { x: false, y: false } }],
+      missingNodeIds: [],
+    });
+  });
+
+  test("returns a multimodal screenshot and only finishes the exact reviewed document", async () => {
+    const doc = createOfflineDesignerDocument();
+    const { screenId } = seededIds(doc);
+    const { store, dispatch } = await makeStore(doc);
+    const captured: Array<{ nodeId: string; scale: 1 | 2 }> = [];
+    const deps = makeDeps(store, dispatch, {
+      captureNodeScreenshot: async (nodeId, scale) => {
+        captured.push({ nodeId, scale });
+        return { dataBase64: "cG5n", width: 750, height: 1624, scale };
+      },
+    });
+
+    const screenshot = await runDesignerTool(deps, call("get_preview_screenshot", { scale: 2 }));
+    expect(screenshot.isError).toBe(false);
+    expect(captured).toEqual([{ nodeId: screenId, scale: 2 }]);
+    expect(screenshot.output).toMatchObject({
+      kind: "preview-screenshot",
+      mediaType: "image/png",
+      dataBase64: "cG5n",
+      width: 750,
+      height: 1624,
+      scale: 2,
+    });
+    if (typeof screenshot.output === "string") {
+      throw new Error("expected a screenshot tool result");
+    }
+    const signature = screenshot.output.documentSignature;
+
+    const unresolved = await runDesignerTool(
+      deps,
+      call("finish_design", {
+        reviewedDocumentSignature: signature,
+        verdict: "Hierarchy is clear, but the legal copy still clips.",
+        unresolvedIssues: ["Legal copy clips"],
+      }),
+    );
+    expect(unresolved.isError).toBe(true);
+
+    const finished = await runDesignerTool(
+      deps,
+      call("finish_design", {
+        reviewedDocumentSignature: signature,
+        verdict: "Hierarchy, spacing, contrast, fit, and purchase affordances are clear.",
+        unresolvedIssues: [],
+      }),
+    );
+    expect(finished.isError).toBe(false);
+
+    await runDesignerTool(
+      deps,
+      call(
+        "edit_document",
+        { edits: [{ op: "insert", parentId: screenId, node: { type: "view" } }] },
+        { turnId: "turn-after-review" },
+      ),
+    );
+    const stale = await runDesignerTool(
+      deps,
+      call("finish_design", {
+        reviewedDocumentSignature: signature,
+        verdict: "Previously reviewed.",
+        unresolvedIssues: [],
+      }),
+    );
+    expect(stale.isError).toBe(true);
+    expect(textOutput(stale)).toContain("changed after the final screenshot");
   });
 });
 
@@ -201,7 +326,10 @@ describe("runDesignerTool — edit_document", () => {
       ),
     );
     expect(result.isError).toBe(false);
-    const parsed = JSON.parse(result.output) as { ok: boolean; mintedIds: Record<string, string[]> };
+    const parsed = JSON.parse(textOutput(result)) as {
+      ok: boolean;
+      mintedIds: Record<string, string[]>;
+    };
     expect(parsed.ok).toBe(true);
     expect(parsed.mintedIds["0"]?.length).toBe(1);
   });
@@ -221,14 +349,22 @@ describe("runDesignerTool — edit_document", () => {
         { turnId: "turn-1" },
       ),
     );
-    const viewId = (JSON.parse(inserted.output) as { mintedIds: Record<string, string[]> })
+    const viewId = (JSON.parse(textOutput(inserted)) as { mintedIds: Record<string, string[]> })
       .mintedIds["0"]![0]!;
 
     const result = await runDesignerTool(
       deps,
       call(
         "edit_document",
-        { edits: [{ op: "update", nodeId: viewId, set: { style: { backgroundColor: "rgba(1, 2, 3, 1)" } } }] },
+        {
+          edits: [
+            {
+              op: "update",
+              nodeId: viewId,
+              set: { style: { backgroundColor: "rgba(1, 2, 3, 1)" } },
+            },
+          ],
+        },
         { turnId: "turn-2" },
       ),
     );
@@ -256,7 +392,7 @@ describe("runDesignerTool — edit_document", () => {
       ),
     );
     expect(result.isError).toBe(true);
-    const parsed = JSON.parse(result.output) as {
+    const parsed = JSON.parse(textOutput(result)) as {
       ok: boolean;
       errors: Array<{ code: string }>;
     };
@@ -306,6 +442,60 @@ describe("runDesignerTool — edit_document", () => {
       ),
     );
     expect(result.isError).toBe(false);
+  });
+
+  test("duplicate_subtree preserves a visual group and mints fresh ids", async () => {
+    const doc = createOfflineDesignerDocument();
+    const { screenId } = seededIds(doc);
+    const { store, dispatch } = await makeStore(doc);
+    const deps = makeDeps(store, dispatch);
+    const inserted = await runDesignerTool(
+      deps,
+      call(
+        "edit_document",
+        {
+          edits: [
+            {
+              op: "insert",
+              parentId: screenId,
+              node: {
+                type: "view",
+                name: "Benefit",
+                style: { gap: 8 },
+                children: [{ type: "text", text: "Unlimited access" }],
+              },
+            },
+          ],
+        },
+        { turnId: "turn-insert" },
+      ),
+    );
+    const sourceId = (
+      JSON.parse(textOutput(inserted)) as {
+        mintedIds: Record<string, string[]>;
+      }
+    ).mintedIds["0"]![0]!;
+
+    const duplicated = await runDesignerTool(
+      deps,
+      call(
+        "duplicate_subtree",
+        { nodeId: sourceId, parentId: screenId, name: "Second benefit" },
+        { turnId: "turn-duplicate" },
+      ),
+    );
+    expect(duplicated.isError).toBe(false);
+    const duplicatedIds = (
+      JSON.parse(textOutput(duplicated)) as {
+        mintedIds: Record<string, string[]>;
+      }
+    ).mintedIds["0"];
+    expect(duplicatedIds).toHaveLength(2);
+
+    const screen = await runDesignerTool(deps, call("get_document", { nodeId: screenId }));
+    const output = textOutput(screen);
+    expect(output).toContain("Second benefit");
+    expect(output.match(/Unlimited access/g)).toHaveLength(2);
   });
 });
 
@@ -392,7 +582,10 @@ describe("runDesignerTool — components", () => {
     const { store, dispatch } = await makeStore(doc);
     const deps = makeDeps(store, dispatch);
 
-    const result = await runDesignerTool(deps, call("read_component", { path: "components/widget.tsx" }));
+    const result = await runDesignerTool(
+      deps,
+      call("read_component", { path: "components/widget.tsx" }),
+    );
     expect(result).toEqual({ output: "// widget source", isError: false });
   });
 
@@ -439,7 +632,7 @@ describe("runDesignerTool — components", () => {
 
     const result = await runDesignerTool(deps, call("get_components", {}));
     expect(result.isError).toBe(false);
-    const parsed = JSON.parse(result.output) as {
+    const parsed = JSON.parse(textOutput(result)) as {
       catalog: unknown[];
       local: Array<{ path: string; note?: string }>;
     };
@@ -456,13 +649,21 @@ describe("runDesignerTool — read_paywall + guards", () => {
       readPaywallDocument: async (projectId, slug) => {
         expect(projectId).toBe("proj-1");
         expect(slug).toBe("other");
-        return { slug: "other", name: "Other", paywallId: "pw-2", document: { id: "root", type: "root" } };
+        return {
+          slug: "other",
+          name: "Other",
+          paywallId: "pw-2",
+          document: { id: "root", type: "root" },
+        };
       },
     });
 
     const result = await runDesignerTool(deps, call("read_paywall", { slug: "other" }));
     expect(result.isError).toBe(false);
-    const parsed = JSON.parse(result.output) as { slug: string; document: { type: string } };
+    const parsed = JSON.parse(textOutput(result)) as {
+      slug: string;
+      document: { type: string };
+    };
     expect(parsed.slug).toBe("other");
     expect(parsed.document.type).toBe("root");
   });

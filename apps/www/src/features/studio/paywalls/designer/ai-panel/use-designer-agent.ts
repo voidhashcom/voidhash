@@ -8,7 +8,8 @@ import { useAuth } from "@/features/studio/components/auth-context";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 
 import { useCodeEditor } from "../code-mode/code-editor-context";
-import { usePaywallDesignerStore } from "../state/designer-store";
+import { finishAiCanvasOperation, startAiCanvasOperation } from "../state/actions";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../state/designer-store";
 import { selectedNodeIdsFromPresence } from "../state/utils/presence";
 import { useDesignerToolExecutor } from "./tool-executor";
 
@@ -26,11 +27,13 @@ import { useDesignerToolExecutor } from "./tool-executor";
  * `getDynamicContext` carries the current node selection with each send (read on
  * demand, not subscribed). `beforeSend` saves the open Monaco buffers to their
  * `codeComponent` nodes so the agent reads the user's latest committed code — a
- * purely local, synchronous operation.
+ * purely local, synchronous operation. `onActivityChange` mirrors coarse model
+ * activity into the same transient canvas overlay used by individual tools.
  */
 export function useDesignerAgent(): SurfaceAgent {
   const { user } = useAuth();
   const store = usePaywallDesignerStore();
+  const dispatch = usePaywallDesignerActions();
   const { handle } = useCodeEditor();
   const executeTool = useDesignerToolExecutor();
   const { organizationSlug, projectSlug, id: paywallId } = useParams({ strict: false });
@@ -48,6 +51,23 @@ export function useDesignerAgent(): SurfaceAgent {
   const beforeSend = useCallback(() => {
     handle?.saveAll();
   }, [handle]);
+
+  const onActivityChange = useCallback<NonNullable<SurfaceAgent["onActivityChange"]>>(
+    (activity) => {
+      if (activity.kind === "thinking") {
+        dispatch(startAiCanvasOperation)({
+          id: "agent-thinking",
+          label: activity.label,
+          nodeIds: [],
+          phase: "thinking",
+          startedAt: Date.now(),
+        });
+        return;
+      }
+      dispatch(finishAiCanvasOperation)({ id: "agent-thinking" });
+    },
+    [dispatch],
+  );
 
   const organization = useMemo(
     () =>
@@ -77,10 +97,19 @@ export function useDesignerAgent(): SurfaceAgent {
       getDynamicContext,
       beforeSend,
       executeTool,
+      onActivityChange,
       // Designer chats are context-specific and resumable: scoped to the paywall
       // and listed in the panel's history dropdown.
       persistence: { chatType: "persistent" },
     }),
-    [organization?.id, projectId, paywallId, getDynamicContext, beforeSend, executeTool],
+    [
+      organization?.id,
+      projectId,
+      paywallId,
+      getDynamicContext,
+      beforeSend,
+      executeTool,
+      onActivityChange,
+    ],
   );
 }

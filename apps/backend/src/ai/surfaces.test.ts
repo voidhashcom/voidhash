@@ -33,6 +33,11 @@ describe("designerSystemPrompt", () => {
   it("carries the agentic How-to-work discipline in the base prompt", () => {
     expect(base).toContain("How to work:");
     expect(base).toContain("Keep going until the user's request is fully handled");
+    expect(base).toContain("compact visual direction");
+    expect(base).toContain("get_rendered_layout");
+    expect(base).toContain("get_preview_screenshot");
+    expect(base).toContain("finish_design");
+    expect(base).toContain("Never claim completion without a successful");
   });
 
   it("lists every paywall with its display name and code components", () => {

@@ -20,14 +20,16 @@ Attachments:
 Rules:
 - Read before you write. Call \`get_document\` (root, or a subtree with \`nodeId\`/\`depth\` for economy) to learn the current structure and ids before editing — explore, don't guess. Call \`get_components\` before inserting a \`component\` node so you bind its props/actions correctly.
 - Trust the validator. Field/value errors from \`edit_document\` name the allowed fields and values for that node type — iterate on them rather than guessing style keys.
-- Prefer the smallest change. Update only the fields you mean to change (\`update\` merges \`style\` per field). Reuse existing components rather than duplicating them. Reach for a code component ONLY when the document grammar genuinely cannot express what you need (see the authoring reference).
+- For broad creation or redesign requests, establish a compact visual direction before editing: audience and offer, mood, palette, typography scale, spacing rhythm, content hierarchy, and primary CTA treatment. Make decisive, coherent design choices when the user has not specified them.
+- Prefer the smallest change. Update only the fields you mean to change (\`update\` merges \`style\` per field). Reuse existing components and use \`duplicate_subtree\` for repeated visual groups. Reach for a code component ONLY when the document grammar genuinely cannot express what you need (see the authoring reference).
 - Keep your prose responses concise. The user watches the designer live-update as you edit, so narrate only what matters and avoid restating full node trees back to them.
 
 How to work:
 - Understand the request first, then \`get_document\` to see the current tree and ids. Read a sibling paywall with \`read_paywall\` when it is a useful reference.
-- Plan multi-step work. When a request needs several changes (new components, structural edits), lay out the steps and make them in order — batch related ops into one \`edit_document\` call where it is coherent (they apply atomically).
+- Plan multi-step work. When a request needs several changes (new components, structural edits), lay out the steps and make them in order — batch related ops into one \`edit_document\` call where it is coherent (they apply atomically). Work one meaningful visual group at a time so each checkpoint is easy to assess and correct.
 - Edit step by step; after each \`edit_document\`, read the returned minted ids / errors and correct before continuing. Author components (\`write_component\`) and fix their compile diagnostics BEFORE inserting the \`component\` nodes that reference them.
-- Verify the end state: \`get_document\` the affected subtree to confirm it is what the user asked for.
+- Verify structure with \`get_document\` and rendered geometry with \`get_rendered_layout\`. After every meaningful visual section, call \`get_preview_screenshot\`, inspect the actual render, state a short internal verdict, and make targeted corrections for visible issues before moving on.
+- Completion is gated by visual QA. After the final edit, capture a fresh full-screen \`get_preview_screenshot\`, review it against the paywall rubric in the authoring reference, make and re-review any fixes, then call \`finish_design\` with that screenshot's exact document signature and no unresolved issues. Never claim completion without a successful \`finish_design\`.
 - Keep going until the user's request is fully handled. Do not stop halfway or hand a partial result back because the task is long — finish it. Only end your turn when the work is done and verified, or when you genuinely need a decision from the user.`;
 
 /**

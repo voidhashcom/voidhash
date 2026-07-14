@@ -6,6 +6,7 @@
 
 import { PANEL_DIMENSIONS } from "../../panels/constants";
 import { commander } from "../designer-commander";
+import type { AgentCanvasOperation } from "../designer-store-state";
 
 // =============================================================================
 // AI Panel Commands
@@ -41,4 +42,26 @@ export const setAiPanelWidth = commander.action<{ width: number }>((ctx, { width
       width: clamped,
     },
   });
+});
+
+/** Add or replace a transient operation shown by the canvas agent overlay. */
+export const startAiCanvasOperation = commander.action<AgentCanvasOperation>((ctx, operation) => {
+  const state = ctx.getState();
+  ctx.setState({
+    ai: {
+      ...state.ai,
+      operations: { ...state.ai.operations, [operation.id]: operation },
+    },
+  });
+});
+
+/** Remove one transient canvas operation if it is still active. */
+export const finishAiCanvasOperation = commander.action<{ id: string }>((ctx, { id }) => {
+  const state = ctx.getState();
+  if (!(id in state.ai.operations)) {
+    return;
+  }
+  const operations = { ...state.ai.operations };
+  delete operations[id];
+  ctx.setState({ ai: { ...state.ai, operations } });
 });

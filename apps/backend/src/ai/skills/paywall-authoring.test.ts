@@ -1,7 +1,4 @@
-import {
-  ALLOWED_CHILDREN_BY_NODE_TYPE,
-  type NodeType,
-} from "@voidhash/mimic-schema";
+import { ALLOWED_CHILDREN_BY_NODE_TYPE, type NodeType } from "@voidhash/mimic-schema";
 import { nodeStyleFields } from "@voidhash/ai-shared";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -56,12 +53,8 @@ describe("paywallAuthoringSkill — generated style reference", () => {
     // The AI edit path derives these flags, so the reference tells the model it
     // only ever writes them to hide a group (explicit `false`).
     expect(skill).toContain("AUTO-MANAGED");
-    expect(skill).toContain(
-      "set to true automatically when you set any background field",
-    );
-    expect(skill).toContain(
-      "set to true automatically when you set any fill field",
-    );
+    expect(skill).toContain("set to true automatically when you set any background field");
+    expect(skill).toContain("set to true automatically when you set any fill field");
   });
 });
 
@@ -92,5 +85,17 @@ describe("paywallAuthoringSkill — generated containment reference", () => {
     expect(skill).not.toContain("`root` may contain");
     expect(skill).not.toContain("`library` may contain");
     expect(skill).not.toContain("`codeComponent` may contain");
+  });
+});
+
+describe("paywallAuthoringSkill — visual review discipline", () => {
+  it("documents rendered inspection, screenshot checkpoints, and gated completion", () => {
+    expect(skill).toContain("`get_rendered_layout` measures reality");
+    expect(skill).toContain("`get_preview_screenshot` is the visual checkpoint");
+    expect(skill).toContain("`finish_design` is the completion gate");
+    expect(skill).toContain("Hierarchy and story");
+    expect(skill).toContain("Offer clarity");
+    expect(skill).toContain("Viewport fit");
+    expect(skill).toContain("Purchase affordances");
   });
 });

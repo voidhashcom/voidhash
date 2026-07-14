@@ -1,4 +1,4 @@
-import type { Surface } from "@voidhash/ai-shared";
+import type { PreviewScreenshotToolOutput, Surface } from "@voidhash/ai-shared";
 
 /** Whether a chat is listed in the history UI, or stored-but-hidden. */
 export type AiChatType = "persistent" | "single_use";
@@ -8,8 +8,8 @@ export type AiChatType = "persistent" | "single_use";
  * seam. `input` is the model's raw argument object (the executor validates it
  * against the shared tool schema); `toolName` selects the tool. `chatId` +
  * `turnId` (the id of the current user turn — the last user message) identify the
- * chat turn the designer's `apply_changes` threads to the server for checkpoint
- * capture.
+ * chat turn the designer's first mutating tool threads to the server for
+ * checkpoint capture.
  */
 export interface SurfaceToolCall {
   toolName: string;
@@ -20,15 +20,18 @@ export interface SurfaceToolCall {
 }
 
 /**
- * The result an executor folds every tool call into — a model-facing string plus
- * whether it represents an error. Executors NEVER throw into the AI SDK: a failure
- * is folded into `{ output, isError: true }` so the model sees a readable message
- * and can recover.
+ * The result an executor folds every tool call into: model-facing text or the
+ * structured screenshot payload, plus whether it represents an error. Executors
+ * NEVER throw into the AI SDK: a failure is folded into
+ * `{ output, isError: true }` so the model sees a readable message and can recover.
  */
 export interface SurfaceToolResult {
-  output: string;
+  output: string | PreviewScreenshotToolOutput;
   isError: boolean;
 }
+
+/** Coarse chat activity exposed to a host surface for ambient progress UI. */
+export type SurfaceAgentActivity = { kind: "thinking"; label: string } | { kind: "idle" };
 
 /**
  * How a surface's chats are persisted. `persistent` chats appear in the history
@@ -47,7 +50,7 @@ export interface SurfaceChatPersistence {
  *
  * The designer surface's tools are CLIENT-EXECUTED: the backend declares them
  * schema-only, so the model calling a tool ends the SSE stream; the browser runs
- * {@link SurfaceAgent.executeTool} against the local fork and the chat
+ * {@link SurfaceAgent.executeTool} against the live local document and the chat
  * auto-continues (AI SDK v5 client-tool round-trip). A surface with no client
  * tools omits `executeTool` and remains a pure chat UI.
  */
@@ -79,6 +82,8 @@ export interface SurfaceAgent {
    * must not block the message). Omit if the surface has none.
    */
   beforeSend?: () => Promise<void> | void;
+  /** Receives coarse turn activity so the host can visualize agent progress outside chat. */
+  onActivityChange?: (activity: SurfaceAgentActivity) => void;
   /** Persistence policy for this surface's chats. Defaults to `single_use`. */
   persistence?: SurfaceChatPersistence;
 }

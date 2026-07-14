@@ -16,29 +16,41 @@ export const AI_MODEL_BY_SURFACE: Record<Surface, string> = {
   designer: DEFAULT_AI_MODEL,
 };
 
+/** Whether an arbitrary UI-message value contains an image attachment/tool result. */
+function containsImage(value: unknown, seen: Set<object>): boolean {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  if (seen.has(value)) {
+    return false;
+  }
+  seen.add(value);
+
+  if (!Array.isArray(value)) {
+    const candidate = value as { kind?: unknown; mediaType?: unknown; type?: unknown };
+    const isImageFile =
+      candidate.type === "file" &&
+      typeof candidate.mediaType === "string" &&
+      candidate.mediaType.startsWith("image/");
+    const isPreviewScreenshot =
+      candidate.kind === "preview-screenshot" && candidate.mediaType === "image/png";
+    if (isImageFile || isPreviewScreenshot) {
+      return true;
+    }
+  }
+
+  return Object.values(value).some((child) => containsImage(child, seen));
+}
+
 /**
- * Whether any message in the conversation carries an image attachment, i.e. an
- * AI SDK `file` part with an `image/*` media type. Operates on the raw JSON
- * shape (not the AI SDK types) so it can run before `validateUIMessages` and
- * without pulling the SDK into this shared package.
+ * Whether the conversation contains an image supplied by the user OR returned
+ * by a visual-review tool. The recursive walk is intentional: client tool
+ * outputs live inside an assistant tool part's `output`, not as top-level file
+ * parts. Detecting both keeps screenshot-driven continuations on the vision
+ * model while text-only turns continue using the code model.
  */
 export const messagesContainImage = (messages: ReadonlyArray<unknown>): boolean =>
-  messages.some((message) => {
-    if (message === null || typeof message !== "object") {
-      return false;
-    }
-    const parts = (message as { parts?: unknown }).parts;
-    if (!Array.isArray(parts)) {
-      return false;
-    }
-    return parts.some((part) => {
-      if (part === null || typeof part !== "object") {
-        return false;
-      }
-      const { type, mediaType } = part as { type?: unknown; mediaType?: unknown };
-      return type === "file" && typeof mediaType === "string" && mediaType.startsWith("image/");
-    });
-  });
+  containsImage(messages, new Set());
 
 /**
  * Picks the model for a chat turn: the vision model when the conversation
