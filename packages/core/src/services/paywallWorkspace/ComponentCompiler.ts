@@ -32,9 +32,9 @@ export type ComponentCompileDiagnostic = ComponentManifestDiagnostic;
  *   `ready` compile-check therefore carries no manifest.
  * - `error` — the source failed to transform; `diagnostics` carries the
  *   line/col-mapped compile errors.
- * - `unavailable` — this runtime has no usable compiler (e.g. the deployed
- *   workerd worker, where esbuild-wasm has no wasm binding). Callers treat this
- *   as "diagnostics could not be computed here", distinct from "compiled clean".
+ * - `unavailable` — this runtime has no usable compiler or its isolated compiler
+ *   transport is unavailable. Callers treat this as "diagnostics could not be
+ *   computed here", distinct from "compiled clean".
  */
 export type CompileCheckResult =
   | { readonly status: "ready" }
@@ -47,9 +47,10 @@ export type CompileCheckResult =
  * TSX, evaluate the compiled CJS, then run `extractComponentManifest` over the
  * exported {@link ComponentDefinition}.
  *
- * - `ready` — the source compiled AND a manifest was extracted. `manifest` is
- *   the raw (unvalidated) `ComponentManifest` object; callers validate it
- *   against the core `ComponentManifestSchema` before persisting.
+ * - `ready` — the source compiled, a manifest was extracted, and every declared
+ *   preview state was rendered. `manifest` is the raw (unvalidated)
+ *   `ComponentManifest` object; `previewTrees` contains the renderer-ready tree
+ *   for each preview state.
  * - `error` — the pass failed; `phase` discriminates *where*: `"compile"` is a
  *   syntax/TS transform failure (identical to {@link CompileCheckResult}'s
  *   `error`), `"runtime"` is any throw during evaluation/extraction of the user
@@ -57,10 +58,14 @@ export type CompileCheckResult =
  *   `extractComponentManifest` assertion). `diagnostics` carries the mapped
  *   messages. User-code exceptions are ALWAYS captured here — they never escape
  *   onto the error channel.
- * - `unavailable` — this runtime has no compiler (the deployed workerd worker).
+ * - `unavailable` — this runtime has no usable compiler or compiler transport.
  */
 export type CompileExtractResult =
-  | { readonly status: "ready"; readonly manifest: unknown }
+  | {
+      readonly status: "ready";
+      readonly manifest: unknown;
+      readonly previewTrees: Readonly<Record<string, unknown>>;
+    }
   | {
       readonly status: "error";
       readonly phase: "compile" | "runtime";
@@ -69,26 +74,15 @@ export type CompileExtractResult =
   | { readonly status: "unavailable" };
 
 /**
- * Provider-agnostic port for the headless component compiler (§3.4 Compile
- * Service, Increment 3). It mirrors the *compile phase* of the browser's
- * `CompilePipeline` — the esbuild `transform` that reports syntax/TS
- * diagnostics — without any user-code execution.
- *
- * **This increment is the compile phase only.** Manifest extraction
- * (`extractComponentManifest`) evaluates untrusted user code and must run inside
- * an isolation boundary (a Cloudflare Container / WFP dispatch — §3.4 item 2, §8
- * open question 2); it is intentionally NOT part of this port yet. The port is
- * shaped so a future `extractManifest(source) → { manifest, diagnostics } |
- * unavailable` method can be added WITHOUT reshaping callers: `compileCheck`
- * already returns a discriminated result with an `unavailable` arm, so an
- * `extractManifest` returning the same three-way outcome slots in beside it.
+ * Provider-agnostic port for headless component compilation. It supports a
+ * transform-only diagnostic pass and a full pass that evaluates the compiled
+ * definition, extracts its manifest, and renders its preview states.
  *
  * Adapters (wired by the application root, keeping the toolchain out of
  * `packages/core`):
- * - a **native-esbuild** adapter for Node (tests, future CLI/container reuse);
- * - an **unavailable** adapter for the deployed workerd worker, which returns
- *   `{ status: "unavailable" }` so headless diagnostics degrade cleanly until
- *   the container-isolated service lands.
+ * - a **native-esbuild** adapter for Node and self-hosted runtimes;
+ * - a container-backed adapter for the deployed worker;
+ * - an **unavailable** adapter for runtimes without either toolchain.
  *
  * The seam is identical to callers regardless of which adapter is wired: a
  * caller never learns whether the compiler ran or was absent beyond the
@@ -115,9 +109,9 @@ export interface ComponentCompilerShape {
    * source: transform (same settings as {@link compileCheck}), evaluate the
    * compiled CJS through a module shim, locate the exported
    * `ComponentDefinition` and run `extractComponentManifest` over it. Returns a
-   * {@link CompileExtractResult}: `ready` with the raw manifest on success,
-   * `error` with a `phase` (`"compile"` vs `"runtime"`) on failure, or
-   * `unavailable` when this runtime has no compiler.
+   * {@link CompileExtractResult}: `ready` with the raw manifest and rendered
+   * preview trees on success, `error` with a `phase` (`"compile"` vs
+   * `"runtime"`) on failure, or `unavailable` when this runtime has no compiler.
    *
    * Unlike {@link compileCheck}, this evaluates untrusted user code; every
    * user-code exception (module-scope throw, missing/invalid export, extraction

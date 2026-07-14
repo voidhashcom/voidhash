@@ -181,6 +181,7 @@ services:
       S3_PUBLIC_BUCKET: ${S3_PUBLIC_BUCKET:-voidhash-public}
       S3_ARTIFACT_BUCKET: ${S3_ARTIFACT_BUCKET:-voidhash-artifacts}
       WORKOS_API_KEY: ${WORKOS_API_KEY:-sk_test_selfhost_not_configured}
+      WORKOS_AUTHKIT_DOMAIN: ${WORKOS_AUTHKIT_DOMAIN:-}
       WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-client_selfhost_not_configured}
       WORKOS_COOKIE_NAME: ${WORKOS_COOKIE_NAME:-wos-session}
       WORKOS_COOKIE_PASSWORD: ${WORKOS_COOKIE_PASSWORD:-selfhost-development-cookie-password-change-me}

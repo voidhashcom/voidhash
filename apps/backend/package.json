@@ -20,6 +20,7 @@
     "@voidhash/db": "workspace:*",
     "@voidhash/google-play-server-sdk": "workspace:*",
     "@voidhash/mimic-schema": "workspace:*",
+    "@voidhash/paywall-builtins": "workspace:*",
     "@voidhash/paywall-renderer-preact": "workspace:*",
     "@voidhash/paywall-workspace": "workspace:*",
     "@voidhash/rpc": "workspace:*",

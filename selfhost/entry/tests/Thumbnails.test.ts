@@ -25,6 +25,7 @@ describe("self-host paywall thumbnail renderer", () => {
         const renderer = yield* SnapshotImageRenderer;
         return yield* renderer.render({
           componentTrees: {},
+          localComponentTrees: {},
           deviceScaleFactor: 2,
           height: 812,
           snapshot: {

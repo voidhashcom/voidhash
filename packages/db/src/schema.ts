@@ -1329,6 +1329,48 @@ export const paywalls = pgTable(
   (table) => [uniqueIndex("paywall_slug_project_id_idx").on(table.slug, table.projectId)],
 );
 
+export const PaywallEditChangeSetStatus = {
+  active: "active",
+  finished: "finished",
+  reverted: "reverted",
+} as const;
+
+export type PaywallEditChangeSetStatusValue =
+  (typeof PaywallEditChangeSetStatus)[keyof typeof PaywallEditChangeSetStatus];
+
+/**
+ * An explicit MCP authoring session for one paywall. The baseline is captured
+ * when the session starts so the complete set of edits can be reverted later.
+ */
+export const paywallEditChangeSets = pgTable(
+  "paywall_edit_change_set",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    projectId: varchar("project_id", { length: 255 }).notNull(),
+    paywallId: varchar("paywall_id", { length: 255 }).notNull(),
+    paywallSlug: varchar("paywall_slug", { length: 255 }).notNull(),
+    baselineTree: jsonb("baseline_tree").$type<unknown>().notNull(),
+    baselineVersion: integer("baseline_version").notNull(),
+    status: varchar("status", { length: 16 }).$type<PaywallEditChangeSetStatusValue>().notNull(),
+    lastPreviewSignature: varchar("last_preview_signature", { length: 80 }),
+    lastPreviewVersion: integer("last_preview_version"),
+    reviewVerdict: text("review_verdict"),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true, precision: 3 }),
+  },
+  (table) => [
+    index("paywall_edit_change_set_project_idx").on(table.projectId),
+    index("paywall_edit_change_set_paywall_idx").on(table.paywallId),
+    uniqueIndex("paywall_edit_change_set_active_idx")
+      .on(table.projectId, table.paywallId)
+      .where(sql`${table.status} = 'active'`),
+  ],
+);
+
 /**
  * Status of a cached component compile: `ready` carries a validated manifest,
  * `error` carries diagnostics (and a null manifest).

@@ -1,10 +1,12 @@
 import {
   BackendNoopIdentityProjectionPublisherLive,
   BackendPaymentProviderStubsLive,
+  BackendSnapshotImageRendererStubLive,
   type InfraServices,
 } from "@voidhash/backend/src/BackendApp.ts";
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import { Workos } from "@voidhash/core/services/auth/Workos";
+import { SnapshotImageRenderer } from "@voidhash/core/services/paywallThumbnails/SnapshotImageRenderer";
 import { PaywallAssetConfig } from "@voidhash/core/services/paywallLocations/PaywallAssetConfig";
 import { Db } from "@voidhash/db";
 import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
@@ -36,6 +38,7 @@ export const makeBackendInfrastructureLive = (
   config: SelfhostRuntimeConfig,
   workos: Layer.Layer<Workos>,
   clickhouse?: Layer.Layer<ClickhouseWebClient.ClickhouseWebClient>,
+  snapshotImageRenderer: Layer.Layer<SnapshotImageRenderer> = BackendSnapshotImageRendererStubLive,
 ): Layer.Layer<InfraServices, never, HostServiceTag> =>
   Layer.mergeAll(
     Db.layer(config.database),
@@ -55,6 +58,7 @@ export const makeBackendInfrastructureLive = (
     BackendNoopIdentityProjectionPublisherLive,
     makeBackendMimicHostLive(config.publicBaseUrl),
     makeHttpComponentCompilerLive(config.componentCompilerUrl),
+    snapshotImageRenderer,
     MemoryProjectSchemaCacheLive,
     clickhouse ?? Layer.empty,
   );

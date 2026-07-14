@@ -19,7 +19,11 @@ export const CompileCheckResponse = Schema.Union([
 ]);
 
 export const CompileExtractResponse = Schema.Union([
-  Schema.Struct({ manifest: Schema.Unknown, status: Schema.Literals(["ready"]) }),
+  Schema.Struct({
+    manifest: Schema.Unknown,
+    previewTrees: Schema.Record(Schema.String, Schema.Unknown),
+    status: Schema.Literals(["ready"]),
+  }),
   Schema.Struct({
     diagnostics: Schema.Array(Diagnostic),
     phase: Schema.Literals(["compile", "runtime"]),

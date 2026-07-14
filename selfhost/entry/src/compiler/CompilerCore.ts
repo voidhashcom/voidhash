@@ -19,7 +19,9 @@ interface EsbuildFailure {
 
 interface SandboxSurface {
   readonly modules: Readonly<Record<string, unknown>>;
-  readonly describeComponent: typeof import("@voidhash/paywalls/sandbox")["describeComponent"];
+  readonly describeComponent: (typeof import("@voidhash/paywalls/sandbox"))["describeComponent"];
+  readonly defaultHostData: (typeof import("@voidhash/paywalls/sandbox"))["defaultHostData"];
+  readonly renderComponentToTree: (typeof import("@voidhash/paywalls/sandbox"))["renderComponentToTree"];
 }
 
 const toCompileDiagnostics = (error: unknown): ComponentCompileDiagnostic[] => {
@@ -46,10 +48,7 @@ const nodeTransform = async (source: string): Promise<string> => {
   return result.code;
 };
 
-const evaluateAndExtractManifest = (
-  compiledCode: string,
-  sandbox: SandboxSurface,
-): unknown => {
+const evaluateAndExtractManifest = (compiledCode: string, sandbox: SandboxSurface) => {
   const requireShim = (specifier: string): unknown => {
     const module = sandbox.modules[specifier];
     if (module === undefined) throw new Error(`Cannot find module '${specifier}'`);
@@ -79,9 +78,11 @@ const evaluateAndExtractManifest = (
   ) {
     throw new Error("Component must export a default defineComponent({ ... })");
   }
-  return sandbox.describeComponent(
-    definition as Parameters<SandboxSurface["describeComponent"]>[0],
-  ).manifest;
+  const typedDefinition = definition as Parameters<SandboxSurface["describeComponent"]>[0];
+  return {
+    definition: typedDefinition,
+    manifest: sandbox.describeComponent(typedDefinition).manifest,
+  };
 };
 
 const compileAndExtract = async (source: string): Promise<CompileExtractResult> => {
@@ -96,8 +97,20 @@ const compileAndExtract = async (source: string): Promise<CompileExtractResult> 
 
   const sandbox = await import("@voidhash/paywalls/sandbox");
   try {
+    const { definition, manifest } = evaluateAndExtractManifest(compiledCode, sandbox);
+    const previewTrees: Record<string, unknown> = {};
+    const states = manifest.previewStates.length > 0 ? manifest.previewStates : ["default"];
+    for (const state of states) {
+      const fixture = definition.previews?.[state] ?? {};
+      previewTrees[state] = await sandbox.renderComponentToTree(definition, {
+        state,
+        props: fixture.props,
+        hostData: { ...sandbox.defaultHostData(), ...fixture.data },
+      });
+    }
     return {
-      manifest: evaluateAndExtractManifest(compiledCode, sandbox),
+      manifest,
+      previewTrees,
       status: "ready",
     };
   } catch (error) {
@@ -110,6 +123,7 @@ const compileAndExtract = async (source: string): Promise<CompileExtractResult> 
 };
 
 /** Native compiler used exclusively inside the isolated self-host sidecar. */
+/** Builds the self-hosted compiler that validates source and renders preview trees. */
 export const makeNodeComponentCompiler = (): ComponentCompilerShape => ({
   compileCheck: (source) =>
     Effect.tryPromise(async (): Promise<CompileCheckResult> => {
@@ -122,18 +136,24 @@ export const makeNodeComponentCompiler = (): ComponentCompilerShape => ({
         return { diagnostics, status: "error" };
       }
     }).pipe(
-      Effect.mapError((error) => new ComponentCompilerError({
-        message: `esbuild transform failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      })),
+      Effect.mapError(
+        (error) =>
+          new ComponentCompilerError({
+            message: `esbuild transform failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          }),
+      ),
     ),
   compileAndExtract: (source) =>
     Effect.tryPromise(() => compileAndExtract(source)).pipe(
-      Effect.mapError((error) => new ComponentCompilerError({
-        message: `component extraction failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      })),
+      Effect.mapError(
+        (error) =>
+          new ComponentCompilerError({
+            message: `component extraction failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          }),
+      ),
     ),
 });

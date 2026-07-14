@@ -274,6 +274,9 @@ importers:
       '@voidhash/mimic-schema':
         specifier: workspace:*
         version: link:../../packages/mimic-schema
+      '@voidhash/paywall-builtins':
+        specifier: workspace:*
+        version: link:../../packages/paywall-builtins
       '@voidhash/paywall-renderer-preact':
         specifier: workspace:*
         version: link:../../packages/paywall-renderer-preact
