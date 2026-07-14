@@ -20,6 +20,7 @@ import { NodeTreeRenderer } from "./node-tree-renderer";
 import { AgentWorkingOverlay } from "./overlay/agent-working-overlay";
 import { GradientOverlay } from "./overlay/gradient-overlay";
 import { SelectionOverlay } from "./overlay/selection-overlay";
+import { WorkingIndicatorOverlay } from "./overlay/working-indicator-overlay";
 import { useViewport, Viewport, type ViewportTransform } from "./viewport";
 
 // Minimum distance in pixels to consider it a drag vs click
@@ -234,6 +235,8 @@ export function Canvas() {
           </div>
         </BoundingBoxManagerProvider>
       </Viewport>
+
+      <WorkingIndicatorOverlay containerRef={containerRef} />
 
       {/* Pixi overlay for selection visualization */}
       <SelectionOverlay containerRef={containerRef} />

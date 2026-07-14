@@ -51,6 +51,8 @@ interface ChatShellProps {
   emptyState?: ReactNode;
   /** Called right before each user message is sent (e.g. to open a checkpoint window). */
   onBeforeSend?: () => void;
+  /** Reports whether the assistant is submitting or streaming. */
+  onBusyChange?: (isBusy: boolean) => void;
   className?: string;
 }
 
@@ -163,6 +165,7 @@ export function ChatShell({
   initialMessages,
   emptyState,
   onBeforeSend,
+  onBusyChange,
   className,
 }: ChatShellProps) {
   const { messages, sendMessage, status, stop } = useSurfaceChat(agent, {
@@ -302,6 +305,17 @@ export function ChatShell({
   };
 
   const isBusy = status === "submitted" || status === "streaming";
+  useEffect(() => {
+    onBusyChange?.(isBusy);
+  }, [isBusy, onBusyChange]);
+
+  useEffect(
+    () => () => {
+      onBusyChange?.(false);
+    },
+    [onBusyChange],
+  );
+
   const lastMessage = messages[messages.length - 1];
   const showThinking =
     isBusy &&

@@ -96,6 +96,7 @@ export { setShowGrid, toggleShowGrid } from "./debug-actions";
 export {
   finishAiCanvasOperation,
   setAiPanelWidth,
+  setAiWorking,
   startAiCanvasOperation,
   toggleAiPanel,
 } from "./ai-panel-actions";

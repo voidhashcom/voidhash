@@ -155,6 +155,7 @@ function createDesignerLocalState() {
     },
     ai: {
       operations: {} as Record<string, AgentCanvasOperation>,
+      isWorking: false,
       panelOpen: true,
       width: PANEL_DIMENSIONS.AI_CHAT_WIDTH,
     },
