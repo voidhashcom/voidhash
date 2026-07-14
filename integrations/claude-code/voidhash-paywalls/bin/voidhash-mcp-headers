@@ -1,8 +1,0 @@
-#!/usr/bin/env sh
-set -eu
-
-if [ -n "${CLAUDE_PLUGIN_OPTION_PROJECT:-}" ]; then
-  exec voidhash-cli auth token --project "${CLAUDE_PLUGIN_OPTION_PROJECT}"
-fi
-
-exec voidhash-cli auth token

@@ -6,12 +6,11 @@
  * `ai/workspace-tools.ts`; the authoring resource and prompt teach clients the
  * same schema-derived workflow.
  *
- * **Auth.** `Authorization: Bearer <token>` accepts either a project-scoped
- * secret key or a CLI user key. A secret key selects its project directly. A
- * user key uses `X-Voidhash-Project` (id or slug), unless the user can access
- * exactly one project. Both paths construct a normal {@link AuthSession}, so
- * `PaywallWorkspaceService` performs its ordinary membership checks and
- * MCP tools never accept a caller-controlled `projectId` argument.
+ * **Auth.** AuthKit is the OAuth authorization server. Its access token carries
+ * the WorkOS user, selected organization, and MCP resource audience. Project-
+ * scoped secret keys and CLI user keys remain accepted for backwards
+ * compatibility. Every path constructs a normal {@link AuthSession}, so
+ * workspace authorization is still enforced by the domain services.
  *
  * **Stateless transport.** Each POST is answered with a single JSON response (or
  * 202 for a notification). No SSE stream, no session ids, no server-initiated
@@ -21,7 +20,7 @@
  * or invalid bearer → 401 with a `WWW-Authenticate` header.
  *
  */
-import { ApiKeyService, LocalUserSessionService } from "@voidhash/core/services";
+import { ApiKeyService, LocalUserSessionService, Workos } from "@voidhash/core/services";
 import { AuthSession, type AnyAuthSession } from "@voidhash/core/domain/auth/Auth";
 import type { SecretKeySession } from "@voidhash/rpc";
 import { Cause, Effect, Layer, Result } from "effect";
@@ -37,9 +36,25 @@ import {
 } from "../mcp/protocol.ts";
 import { findMcpTool } from "../mcp/tool-manifest.ts";
 import type { WorkspaceToolScope } from "../ai/workspace-tools.ts";
+import { McpAuthKit } from "../McpAuthKit.ts";
 
-/** `WWW-Authenticate` challenge returned on any 401 (bearer scheme). */
-const WWW_AUTHENTICATE = 'Bearer realm="voidhash-mcp"';
+const requestOrigin = (request: HttpServerRequest.HttpServerRequest): string => {
+  try {
+    return new URL(request.originalUrl).origin;
+  } catch {
+    const host = request.headers.host ?? "localhost";
+    const protocol = request.headers["x-forwarded-proto"] ?? "http";
+    return `${protocol}://${host}`;
+  }
+};
+
+/** AuthKit discovery challenge returned by the protected MCP resource. */
+export const mcpBearerChallenge = (origin: string): string =>
+  [
+    'Bearer error="unauthorized"',
+    'error_description="Authorization needed"',
+    `resource_metadata="${origin}/.well-known/oauth-protected-resource/api/mcp"`,
+  ].join(", ");
 
 /** A bare JSON-RPC error response (used for pre-dispatch failures with a null id). */
 const jsonRpcErrorResponse = (status: number, code: number, message: string) =>
@@ -147,47 +162,62 @@ const makeCallTool =
 /** Handle a single stateless `POST /api/mcp` JSON-RPC message. */
 const handlePost = Effect.gen(function* () {
   const request = yield* HttpServerRequest.HttpServerRequest;
+  const origin = requestOrigin(request);
+  const challenge = mcpBearerChallenge(origin);
+  const resource = `${origin}/api/mcp`;
 
-  // 1. Auth: require a Bearer project or user key, validated by the shared service.
+  // 1. Auth: prefer a resource-bound OAuth access token; retain API keys for
+  // existing clients during migration.
   const token = bearerToken(request.headers);
   if (token === undefined) {
     return HttpServerResponse.setHeader(
       yield* jsonRpcErrorResponse(401, JsonRpcErrorCode.InvalidRequest, "Missing bearer token"),
       "www-authenticate",
-      WWW_AUTHENTICATE,
+      challenge,
     );
   }
 
-  const apiKeys = yield* ApiKeyService;
-  const validatedSecret = yield* Effect.result(apiKeys.validateSecretKey(token));
   let session: AnyAuthSession;
   let scope: WorkspaceToolScope;
-  if (Result.isSuccess(validatedSecret)) {
-    const record = validatedSecret.success;
-    session = secretKeySessionForProject({
-      id: record.project.id,
-      name: record.project.name,
-      organizationId: record.project.organizationId,
-      slug: record.project.slug,
-    });
-    scope = { projectId: record.project.id };
-  } else {
-    const validatedUser = yield* Effect.result(apiKeys.validateUserApiKey(token));
-    if (Result.isFailure(validatedUser)) {
+  if (token.split(".").length === 3) {
+    const authKit = yield* McpAuthKit;
+    const validatedToken = yield* Effect.result(authKit.verifyAccessToken(token, resource));
+    if (Result.isFailure(validatedToken)) {
+      const status = validatedToken.failure.kind === "misconfigured" ? 503 : 401;
       return HttpServerResponse.setHeader(
         yield* jsonRpcErrorResponse(
-          401,
+          status,
           JsonRpcErrorCode.InvalidRequest,
-          "Invalid or expired API key",
+          status === 503
+            ? "MCP OAuth is not configured"
+            : "Invalid or expired AuthKit access token",
         ),
         "www-authenticate",
-        WWW_AUTHENTICATE,
+        challenge,
       );
     }
+
+    const claims = validatedToken.success;
     const localUserSessions = yield* LocalUserSessionService;
-    const access = yield* localUserSessions.loadUserAccess(validatedUser.success.user.id);
+    const workos = yield* Workos;
+    const workosUser = yield* workos.getUser(claims.subject);
+    const localUser = yield* localUserSessions.resolveLocalUser(workosUser);
+    const access = yield* localUserSessions.loadUserAccess(localUser.id);
+    const organization = access.organizations.find(
+      (candidate) => candidate.workosOrganizationId === claims.organizationId,
+    );
+    if (organization === undefined) {
+      return yield* jsonRpcErrorResponse(
+        403,
+        JsonRpcErrorCode.InvalidRequest,
+        "The AuthKit grant no longer has access to its selected organization",
+      );
+    }
+    const organizationProjects = access.projects.filter(
+      (candidate) => candidate.organizationId === organization.id,
+    );
     const selection = selectMcpProject(
-      access.projects,
+      organizationProjects,
       headerValue(request.headers, "x-voidhash-project"),
     );
     if (!selection.ok) {
@@ -198,13 +228,60 @@ const handlePost = Effect.gen(function* () {
       );
     }
     const userSession = localUserSessions.toUserSession(
-      validatedUser.success.user,
-      access,
+      localUser,
+      { organizations: [organization], projects: [selection.project] },
       null,
-      null,
+      workosUser.id,
     );
-    session = { ...userSession, projects: [selection.project] } as unknown as AnyAuthSession;
+    session = userSession as unknown as AnyAuthSession;
     scope = { projectId: selection.project.id };
+  } else {
+    const apiKeys = yield* ApiKeyService;
+    const validatedSecret = yield* Effect.result(apiKeys.validateSecretKey(token));
+    if (Result.isSuccess(validatedSecret)) {
+      const record = validatedSecret.success;
+      session = secretKeySessionForProject({
+        id: record.project.id,
+        name: record.project.name,
+        organizationId: record.project.organizationId,
+        slug: record.project.slug,
+      });
+      scope = { projectId: record.project.id };
+    } else {
+      const validatedUser = yield* Effect.result(apiKeys.validateUserApiKey(token));
+      if (Result.isFailure(validatedUser)) {
+        return HttpServerResponse.setHeader(
+          yield* jsonRpcErrorResponse(
+            401,
+            JsonRpcErrorCode.InvalidRequest,
+            "Invalid or expired API key",
+          ),
+          "www-authenticate",
+          challenge,
+        );
+      }
+      const localUserSessions = yield* LocalUserSessionService;
+      const access = yield* localUserSessions.loadUserAccess(validatedUser.success.user.id);
+      const selection = selectMcpProject(
+        access.projects,
+        headerValue(request.headers, "x-voidhash-project"),
+      );
+      if (!selection.ok) {
+        return yield* jsonRpcErrorResponse(
+          selection.status,
+          JsonRpcErrorCode.InvalidRequest,
+          selection.message,
+        );
+      }
+      const userSession = localUserSessions.toUserSession(
+        validatedUser.success.user,
+        access,
+        null,
+        null,
+      );
+      session = { ...userSession, projects: [selection.project] } as unknown as AnyAuthSession;
+      scope = { projectId: selection.project.id };
+    }
   }
 
   // 2. Parse the JSON body → JSON-RPC message.
@@ -272,8 +349,8 @@ const registerMcpRoute = Effect.gen(function* () {
 
 /**
  * Registers `POST /api/mcp` (+ 405 on GET/DELETE). The request-scoped
- * requirements — {@link ApiKeyService}, workspace services, and `Db` (for key
- * validation) — are satisfied via `HttpRouter.provideRequest` by the caller
+ * requirements — OAuth/API-key auth, workspace services, and `Db` — are
+ * satisfied via `HttpRouter.provideRequest` by the caller
  * (`BackendApp`), mirroring the AI chat and webhook routes. `AuthSession` is
  * provided in-handler from the validated project or user key.
  */

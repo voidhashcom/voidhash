@@ -108,6 +108,8 @@ import { AuthMiddlewareLive } from "./ApiMiddlewares.ts";
 import { VoidhashAiError, VoidhashAiService } from "./ai/VoidhashAiService.ts";
 import { AiChatRouteLayer } from "./routes/ai/chat.ts";
 import { McpRouteLayer } from "./routes/mcp.ts";
+import { McpAuthKitRouteLayer } from "./routes/mcp-authkit.ts";
+import { McpAuthKit } from "./McpAuthKit.ts";
 import { withRequestId } from "./Telemetry.ts";
 import { ApiKeysGroupLive } from "./routes/v1/api-keys.ts";
 import { AuthGroupLive } from "./routes/v1/auth.ts";
@@ -773,6 +775,7 @@ const buildBackendServiceGraph = <
     ExperimentServiceLayer,
     FeatureFlagService.layer,
     InternalFeatureFlagService.layer,
+    McpAuthKit.layer,
     // Push notifications: the per-(project, provider) config CRUD consumes the
     // two delivery-provider tags (supplied by BackendPushProvidersLive below)
     // and reads PUSH_REQUIRE_ENCRYPTION so prod fails closed on plaintext secrets.
@@ -1097,6 +1100,10 @@ export const buildBackendFetch = <
     HttpRouter.provideRequest(Layer.mergeAll(DomainServicesLayer, SupportServicesLayer)),
   );
 
+  const McpAuthKitRoutesLayer = McpAuthKitRouteLayer.pipe(
+    HttpRouter.provideRequest(Layer.mergeAll(DomainServicesLayer, SupportServicesLayer)),
+  );
+
   const RoutesLayer = Layer.mergeAll(
     RpcRoutesLayer,
     V1ApiRoutes,
@@ -1105,6 +1112,7 @@ export const buildBackendFetch = <
     PublicFileServingLayer,
     AiRoutesLayer,
     McpRoutesLayer,
+    McpAuthKitRoutesLayer,
     HealthCheckRoute,
     RuntimeCapabilitiesRoute(layers.features.runtimeCapabilities),
     layers.routes ?? Layer.empty,

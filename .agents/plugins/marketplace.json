@@ -1,0 +1,20 @@
+{
+  "name": "voidhash",
+  "interface": {
+    "displayName": "Voidhash"
+  },
+  "plugins": [
+    {
+      "name": "voidhash-paywalls",
+      "source": {
+        "source": "local",
+        "path": "./plugins/voidhash-paywalls"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

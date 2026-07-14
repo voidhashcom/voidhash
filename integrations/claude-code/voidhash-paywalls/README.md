@@ -2,31 +2,20 @@
 
 This plugin connects Claude Code to the hosted Voidhash paywall MCP server and adds a visually verified authoring workflow.
 
-## Prerequisites
+Authentication uses OAuth in the browser. The plugin does not require `voidhash-cli`, an API key, or environment variables.
 
-Install `voidhash-cli` and authenticate once:
+## Test from this checkout
 
-```sh
-voidhash-cli auth login
-```
-
-If the account can access multiple projects, set the project id or slug before starting Claude Code:
+Start Claude Code with the local plugin:
 
 ```sh
-export VOIDHASH_PROJECT=my-project
+claude --plugin-dir ./integrations/claude-code/voidhash-paywalls
 ```
 
-The plugin obtains request headers from `voidhash-cli auth token` whenever the MCP connection starts. It does not require a separate API key in plugin configuration.
+Open `/mcp`, approve the `voidhash-paywalls` server if prompted, and choose **Authenticate**. You can also run `claude mcp login voidhash-paywalls`. Complete sign-in and organization selection in the browser.
 
-## Codex
+For this browser-only flow, test with an organization that contains one project. The server rejects ambiguous multi-project organizations instead of guessing which project an agent may edit.
 
-Codex can connect to the same streamable HTTP endpoint directly. Put the user API key in an environment variable, then add this to `~/.codex/config.toml` or a trusted project's `.codex/config.toml`:
+Then ask Claude:
 
-```toml
-[mcp_servers.voidhash_paywalls]
-url = "https://api.voidhash.com/api/mcp"
-bearer_token_env_var = "VOIDHASH_MCP_TOKEN"
-env_http_headers = { "X-Voidhash-Project" = "VOIDHASH_PROJECT" }
-```
-
-Set `VOIDHASH_MCP_TOKEN` to the authenticated user API key. Set `VOIDHASH_PROJECT` to a project id or slug when the account can access multiple projects; if it can access exactly one, the `env_http_headers` line may be omitted.
+> Use Voidhash Paywalls to list my paywalls, open one for editing, render a preview, and revert the edit without publishing changes.

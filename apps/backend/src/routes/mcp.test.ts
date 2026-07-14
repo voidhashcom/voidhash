@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { selectMcpProject } from "./mcp.ts";
+import { mcpBearerChallenge, selectMcpProject } from "./mcp.ts";
 
 const projects = [
   { id: "proj_1", slug: "alpha" },
@@ -26,5 +26,13 @@ describe("selectMcpProject", () => {
       project: projects[0],
     });
     expect(selectMcpProject([], undefined)).toMatchObject({ ok: false, status: 403 });
+  });
+});
+
+describe("mcpBearerChallenge", () => {
+  it("advertises RFC 9728 discovery through the AuthKit challenge", () => {
+    expect(mcpBearerChallenge("https://api.example.com")).toBe(
+      'Bearer error="unauthorized", error_description="Authorization needed", resource_metadata="https://api.example.com/.well-known/oauth-protected-resource/api/mcp"',
+    );
   });
 });
