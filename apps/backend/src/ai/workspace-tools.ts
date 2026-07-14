@@ -8,14 +8,19 @@
  * code components are managed by path:
  *
  * - `list_paywalls` — the project's paywall directories.
+ * - `begin_paywall_edit` / `finish_paywall_edit` / `revert_paywall_edit` — a
+ *   version- and preview-bound edit lifecycle.
  * - `get_paywall({ slug, nodeId?, depth? })` — cleaned document JSON.
- * - `get_components({ slug })` — catalog + local components (props/actions/etc.).
+ * - `get_components({ slug })` — catalog, local, and builtin components.
  * - `read_component({ slug, path })` — a local component's TSX source.
  * - `edit_paywall({ slug, edits })` — an ATOMIC batch of document ops against the
  *   LIVE document (schema-validated, then reconciled+submitted with retry).
+ * - `duplicate_subtree` — copy an existing visual subtree with fresh node ids.
  * - `write_component({ slug, path, source })` — server-VALIDATED (headless build)
  *   then committed; diagnostics commit nothing.
  * - `rename_component` / `delete_component` — path move / placeholder-degrade.
+ * - `get_paywall_preview` — a PNG plus the exact document version/signature it
+ *   represents, which must be supplied when finishing.
  *
  * Each tool is a function `(scope, input) → Effect<ToolResult, never, Deps>`: it
  * runs the matching workspace effect and folds the outcome into a client-facing
@@ -26,8 +31,12 @@
 import {
   ComponentCompiler,
   ComponentManifestCacheService,
+  componentServingPreviewKey,
+  PaywallArtifactStore,
   PaywallDeployService,
+  PaywallEditChangeSetService,
   PaywallWorkspaceService,
+  SnapshotImageRenderer,
   type CompileExtractResult,
 } from "@voidhash/core/services";
 import { AuthSession } from "@voidhash/core/domain/auth/Auth";
@@ -36,8 +45,10 @@ import {
   validateDocumentEdits,
   type DocumentEdit,
   type EditableDocumentNode,
+  type NodeInput,
   type SnapshotDocumentNode,
 } from "@voidhash/ai-shared";
+import { listBuiltinComponents } from "@voidhash/paywall-builtins";
 import {
   fileNameFromDocRelative,
   hashSource,
@@ -51,7 +62,14 @@ export type WorkspaceToolDeps =
   | PaywallDeployService
   | ComponentManifestCacheService
   | ComponentCompiler
+  | PaywallArtifactStore
+  | PaywallEditChangeSetService
+  | SnapshotImageRenderer
   | AuthSession;
+
+export type WorkspaceToolContent =
+  | { readonly type: "text"; readonly text: string }
+  | { readonly type: "image"; readonly data: string; readonly mimeType: "image/png" };
 
 /**
  * The result of running a workspace tool. `output` is the client-facing string
@@ -63,6 +81,7 @@ export type WorkspaceToolDeps =
 export interface WorkspaceToolResult {
   readonly output: string;
   readonly isError: boolean;
+  readonly content?: ReadonlyArray<WorkspaceToolContent>;
 }
 
 /**
@@ -73,7 +92,14 @@ export interface WorkspaceToolScope {
   readonly projectId: string;
 }
 
-const okResult = (output: string): WorkspaceToolResult => ({ output, isError: false });
+const okResult = (
+  output: string,
+  content?: ReadonlyArray<WorkspaceToolContent>,
+): WorkspaceToolResult => ({
+  output,
+  isError: false,
+  ...(content === undefined ? {} : { content }),
+});
 const errResult = (output: string): WorkspaceToolResult => ({ output, isError: true });
 
 /**
@@ -145,7 +171,11 @@ const failureMessage = (error: unknown): string => {
  */
 const runFolded = <A>(
   effect: Effect.Effect<A, unknown, WorkspaceToolDeps>,
-): Effect.Effect<{ ok: true; value: A } | { ok: false; message: string }, never, WorkspaceToolDeps> =>
+): Effect.Effect<
+  { ok: true; value: A } | { ok: false; message: string },
+  never,
+  WorkspaceToolDeps
+> =>
   effect.pipe(
     Effect.exit,
     Effect.map((exit) => {
@@ -165,6 +195,9 @@ const runFolded = <A>(
 
 /** Inputs for each workspace tool, matching the MCP tool schemas. */
 export interface ListPaywallsInput {}
+export interface BeginPaywallEditInput {
+  readonly slug: string;
+}
 export interface GetPaywallInput {
   readonly slug: string;
   readonly nodeId?: string;
@@ -179,22 +212,74 @@ export interface ReadComponentInput {
 }
 export interface EditPaywallInput {
   readonly slug: string;
+  readonly changeSetId: string;
   readonly edits: ReadonlyArray<DocumentEdit>;
+}
+export interface DuplicateSubtreeInput {
+  readonly slug: string;
+  readonly changeSetId: string;
+  readonly nodeId: string;
+  readonly parentId: string;
+  readonly index?: number;
+  readonly nextName?: string;
 }
 export interface WriteComponentInput {
   readonly slug: string;
+  readonly changeSetId: string;
   readonly path: string;
   readonly source: string;
 }
 export interface RenameComponentInput {
   readonly slug: string;
+  readonly changeSetId: string;
   readonly fromPath: string;
   readonly toPath: string;
 }
 export interface DeleteComponentInput {
   readonly slug: string;
+  readonly changeSetId: string;
   readonly path: string;
 }
+export interface GetPaywallPreviewInput {
+  readonly slug: string;
+  readonly changeSetId: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly scale?: 1 | 2;
+}
+export interface FinishPaywallEditInput {
+  readonly slug: string;
+  readonly changeSetId: string;
+  readonly reviewedDocumentSignature: string;
+  readonly verdict: string;
+  readonly unresolvedIssues: ReadonlyArray<string>;
+}
+export interface RevertPaywallEditInput {
+  readonly changeSetId: string;
+}
+
+/** `begin_paywall_edit` — capture the revert baseline and mint the write capability. */
+export const beginPaywallEdit = (
+  scope: WorkspaceToolScope,
+  input: BeginPaywallEditInput,
+): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
+  Effect.gen(function* () {
+    const result = yield* runFolded(
+      Effect.gen(function* () {
+        const changeSets = yield* PaywallEditChangeSetService;
+        return yield* changeSets.begin(scope.projectId, input.slug);
+      }),
+    );
+    return result.ok
+      ? okResult(
+          JSON.stringify({
+            changeSetId: result.value.id,
+            slug: result.value.paywallSlug,
+            baselineVersion: result.value.baselineVersion,
+          }),
+        )
+      : errResult(`begin_paywall_edit failed: ${result.message}`);
+  });
 
 /**
  * `list_paywalls` — the project's paywall directories (slug + path) as a list.
@@ -320,7 +405,9 @@ export const getComponents = (
         const catalog = yield* deploy.listComponents({ projectId: scope.projectId });
         const document = yield* ws.readDocument(scope.projectId, input.slug);
         const locals = localComponentsOf((document.root as SnapshotDocumentNode | null) ?? null);
-        const cached = yield* manifestCache.getMany(locals.map((local) => hashSource(local.source)));
+        const cached = yield* manifestCache.getMany(
+          locals.map((local) => hashSource(local.source)),
+        );
 
         return {
           catalog: catalog.map((component) => ({
@@ -337,13 +424,25 @@ export const getComponents = (
               manifest: row?.status === "ready" ? row.manifest : undefined,
             };
           }),
+          builtins: listBuiltinComponents()
+            .filter((builtin) => builtin.manifest.slot !== true)
+            .map((builtin) => ({
+              slug: builtin.slug,
+              name: builtin.name,
+              description: builtin.description,
+              props: builtin.manifest.props,
+              actions: builtin.manifest.actions,
+              previewStates: builtin.manifest.previewStates,
+              slot: builtin.manifest.slot ?? false,
+              insertAs: { componentSource: "builtin", componentSlug: builtin.slug },
+            })),
         } as const;
       }),
     );
     if (!result.ok) {
       return errResult(`get_components failed: ${result.message}`);
     }
-    const { catalog, locals } = result.value;
+    const { catalog, locals, builtins } = result.value;
     const sections: string[] = [];
     sections.push(
       catalog.length === 0
@@ -360,6 +459,11 @@ export const getComponents = (
                 : `- ${local.path}: manifest unavailable (component not yet compiled in a session — read_component to see its source).`,
             )
             .join("\n")}`,
+    );
+    sections.push(
+      builtins.length === 0
+        ? "Builtin components: none."
+        : `Builtin components (${builtins.length}):\n${JSON.stringify(builtins, null, 2)}`,
     );
     return okResult(sections.join("\n\n"));
   });
@@ -400,6 +504,20 @@ export const editPaywall = (
   input: EditPaywallInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
+    const changeSet = yield* runFolded(
+      Effect.gen(function* () {
+        const changeSets = yield* PaywallEditChangeSetService;
+        return yield* changeSets.requireActive({
+          projectId: scope.projectId,
+          changeSetId: input.changeSetId,
+          paywallSlug: input.slug,
+        });
+      }),
+    );
+    if (!changeSet.ok) {
+      return errResult(`edit_paywall rejected: ${changeSet.message}`);
+    }
+
     // Validate first (against a fresh read) so an invalid batch never opens a
     // transaction and returns the model-facing errors verbatim.
     const read = yield* readDocumentRoot(scope, input.slug);
@@ -441,6 +559,76 @@ export const editPaywall = (
     );
   });
 
+const isVisualNode = (node: SnapshotDocumentNode): boolean =>
+  node.type !== "root" && node.type !== "library" && node.type !== "codeComponent";
+
+/** Convert a visual snapshot subtree into an id-free document insert payload. */
+const cloneNodeInput = (node: SnapshotDocumentNode): NodeInput => {
+  const children = (node.children ?? []).filter(isVisualNode).map(cloneNodeInput);
+  return {
+    type: node.type,
+    ...structuredClone((node.data ?? {}) as Record<string, unknown>),
+    ...(children.length === 0 ? {} : { children }),
+  } as NodeInput;
+};
+
+const findSnapshotNode = (
+  root: SnapshotDocumentNode,
+  nodeId: string,
+): SnapshotDocumentNode | null => {
+  if (root.id === nodeId) {
+    return root;
+  }
+  for (const child of root.children ?? []) {
+    const found = findSnapshotNode(child, nodeId);
+    if (found !== null) {
+      return found;
+    }
+  }
+  return null;
+};
+
+/** `duplicate_subtree` — clone a visual subtree and insert it with fresh ids. */
+export const duplicateSubtree = (
+  scope: WorkspaceToolScope,
+  input: DuplicateSubtreeInput,
+): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
+  Effect.gen(function* () {
+    const read = yield* readDocumentRoot(scope, input.slug);
+    if (!read.ok) {
+      return errResult(`duplicate_subtree failed: ${read.message}`);
+    }
+    const root = read.value.root as SnapshotDocumentNode | null;
+    if (root === null) {
+      return errResult(`duplicate_subtree: paywall "${input.slug}" has no document.`);
+    }
+    const source = findSnapshotNode(root, input.nodeId);
+    if (source === null) {
+      return errResult(`duplicate_subtree: no node "${input.nodeId}" in the document.`);
+    }
+    if (!isVisualNode(source)) {
+      return errResult(
+        `duplicate_subtree: cannot duplicate engine-managed ${source.type} node "${input.nodeId}".`,
+      );
+    }
+    const node = cloneNodeInput(source);
+    if (input.nextName !== undefined) {
+      node.name = input.nextName;
+    }
+    return yield* editPaywall(scope, {
+      slug: input.slug,
+      changeSetId: input.changeSetId,
+      edits: [
+        {
+          op: "insert",
+          parentId: input.parentId,
+          ...(input.index === undefined ? {} : { index: input.index }),
+          node,
+        },
+      ],
+    });
+  });
+
 /** Render a compile/extract failure's diagnostics as `- ` lines. */
 const formatExtractDiagnostics = (
   result: Extract<CompileExtractResult, { status: "error" }>,
@@ -457,11 +645,11 @@ const formatExtractDiagnostics = (
 
 /**
  * `write_component` — server-VALIDATE the single component's source THEN commit:
- * run the headless {@link ComponentCompiler.compileAndExtract} (compile + static
- * manifest extract on the container/native adapter; `unavailable` on the
- * degraded workerd runtime, where the source is committed unvalidated and the
- * browser back-fills the manifest). On compile/runtime diagnostics NOTHING is
- * committed. On success the source is written to the `codeComponent` node
+ * run the headless {@link ComponentCompiler.compileAndExtract} (compile,
+ * manifest extraction, and preview-state rendering on the container/native
+ * adapter). An unavailable compiler or compile/runtime diagnostics commit
+ * NOTHING. On success the source is written
+ * to the `codeComponent` node
  * (created when the path is new) and, when a manifest was extracted, recorded in
  * the content-addressed cache so a later projection can resolve it.
  */
@@ -470,6 +658,19 @@ export const writeComponent = (
   input: WriteComponentInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
+    const active = yield* runFolded(
+      Effect.gen(function* () {
+        const changeSets = yield* PaywallEditChangeSetService;
+        return yield* changeSets.requireActive({
+          projectId: scope.projectId,
+          changeSetId: input.changeSetId,
+          paywallSlug: input.slug,
+        });
+      }),
+    );
+    if (!active.ok) {
+      return errResult(`write_component rejected: ${active.message}`);
+    }
     const nameError = validateComponentFileName(fileNameFromDocRelative(input.path));
     if (nameError !== undefined) {
       return errResult(`write_component rejected: ${nameError}`);
@@ -489,9 +690,14 @@ export const writeComponent = (
     if (build.status === "error") {
       return errResult(`write_component rejected: ${formatExtractDiagnostics(build)}`);
     }
+    if (build.status === "unavailable") {
+      return errResult(
+        "write_component rejected: headless component compilation is unavailable; no source was committed.",
+      );
+    }
 
     // Commit the source (create-or-replace the codeComponent node), then record
-    // the manifest when one was extracted (degraded workerd yields none).
+    // the manifest extracted by the required headless compile.
     const committed = yield* runFolded(
       Effect.gen(function* () {
         const ws = yield* PaywallWorkspaceService;
@@ -501,26 +707,20 @@ export const writeComponent = (
           input.path,
           input.source,
         );
-        if (build.status === "ready") {
-          const manifestCache = yield* ComponentManifestCacheService;
-          yield* manifestCache.record({
-            sourceHash: hashSource(input.source),
-            status: "ready",
-            manifest: build.manifest,
-          });
-        }
+        const manifestCache = yield* ComponentManifestCacheService;
+        yield* manifestCache.record({
+          sourceHash: hashSource(input.source),
+          status: "ready",
+          manifest: build.manifest,
+        });
         return result;
       }),
     );
     if (!committed.ok) {
       return errResult(`write_component rejected: ${committed.message}`);
     }
-    const buildNote =
-      build.status === "ready"
-        ? "compiled clean; manifest recorded"
-        : "committed (diagnostics unavailable in this runtime — the designer will validate on open)";
     return okResult(
-      `Wrote ${input.path} to "${input.slug}" at version ${committed.value.version} (${buildNote}).`,
+      `Wrote ${input.path} to "${input.slug}" at version ${committed.value.version} (compiled clean; manifest recorded).`,
     );
   });
 
@@ -534,6 +734,19 @@ export const renameComponent = (
   input: RenameComponentInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
+    const active = yield* runFolded(
+      Effect.gen(function* () {
+        const changeSets = yield* PaywallEditChangeSetService;
+        return yield* changeSets.requireActive({
+          projectId: scope.projectId,
+          changeSetId: input.changeSetId,
+          paywallSlug: input.slug,
+        });
+      }),
+    );
+    if (!active.ok) {
+      return errResult(`rename_component rejected: ${active.message}`);
+    }
     const result = yield* runFolded(
       Effect.gen(function* () {
         const ws = yield* PaywallWorkspaceService;
@@ -562,6 +775,19 @@ export const deleteComponent = (
   input: DeleteComponentInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
+    const active = yield* runFolded(
+      Effect.gen(function* () {
+        const changeSets = yield* PaywallEditChangeSetService;
+        return yield* changeSets.requireActive({
+          projectId: scope.projectId,
+          changeSetId: input.changeSetId,
+          paywallSlug: input.slug,
+        });
+      }),
+    );
+    if (!active.ok) {
+      return errResult(`delete_component rejected: ${active.message}`);
+    }
     const result = yield* runFolded(
       Effect.gen(function* () {
         const ws = yield* PaywallWorkspaceService;
@@ -577,4 +803,211 @@ export const deleteComponent = (
           `Deleted ${input.path} from "${input.slug}" at version ${result.value.version}. Any instances of it now render as placeholders — replace or remove them.`,
         )
       : errResult(`delete_component rejected: ${result.message}`);
+  });
+
+const documentSignature = (root: unknown): string => `doc-${hashSource(JSON.stringify(root))}`;
+
+const pngBase64 = (png: Uint8Array): string => {
+  const chunks: string[] = [];
+  for (let offset = 0; offset < png.length; offset += 0x8000) {
+    chunks.push(String.fromCharCode(...png.subarray(offset, offset + 0x8000)));
+  }
+  return btoa(chunks.join(""));
+};
+
+const deployedComponentPreviewStates = (
+  root: SnapshotDocumentNode | null,
+): ReadonlyMap<string, ReadonlySet<string>> => {
+  const statesByHash = new Map<string, Set<string>>();
+  const visit = (node: SnapshotDocumentNode): void => {
+    if (node.type === "component") {
+      const data = (node.data ?? {}) as Record<string, unknown>;
+      const contentHash = data.contentHash;
+      if (data.componentSource !== "local" && typeof contentHash === "string" && contentHash) {
+        const states = statesByHash.get(contentHash) ?? new Set<string>();
+        states.add("default");
+        if (typeof data.previewState === "string" && data.previewState) {
+          states.add(data.previewState);
+        }
+        statesByHash.set(contentHash, states);
+      }
+    }
+    for (const child of node.children ?? []) {
+      visit(child);
+    }
+  };
+  if (root !== null) {
+    visit(root);
+  }
+  return statesByHash;
+};
+
+const fetchPreviewComponentTrees = (root: SnapshotDocumentNode | null) =>
+  Effect.gen(function* () {
+    const store = yield* PaywallArtifactStore;
+    const trees: Record<string, Record<string, unknown>> = {};
+    for (const [contentHash, states] of deployedComponentPreviewStates(root)) {
+      for (const state of states) {
+        const object = yield* store.getObject(componentServingPreviewKey(contentHash, state));
+        if (object === null) {
+          continue;
+        }
+        const tree = yield* Effect.try({
+          try: () => JSON.parse(new TextDecoder().decode(object.body)) as unknown,
+          catch: () => null,
+        }).pipe(Effect.orElseSucceed(() => null));
+        if (tree !== null) {
+          (trees[contentHash] ??= {})[state] = tree;
+        }
+      }
+    }
+    return trees;
+  });
+
+const compileLocalPreviewTrees = (root: SnapshotDocumentNode | null) =>
+  Effect.gen(function* () {
+    const compiler = yield* ComponentCompiler;
+    const trees: Record<string, Record<string, unknown>> = {};
+    for (const local of localComponentsOf(root)) {
+      const result = yield* compiler.compileAndExtract(local.source);
+      if (result.status === "unavailable") {
+        return yield* Effect.fail(
+          new Error(
+            `Headless compilation is unavailable for local component ${local.path}; preview was not rendered.`,
+          ),
+        );
+      }
+      if (result.status === "error") {
+        return yield* Effect.fail(
+          new Error(
+            `Local component ${local.path} cannot be previewed. ${formatExtractDiagnostics(result)}`,
+          ),
+        );
+      }
+      trees[local.path] = { ...result.previewTrees };
+    }
+    return trees;
+  });
+
+/** `get_paywall_preview` — render and return a version-bound PNG review image. */
+export const getPaywallPreview = (
+  scope: WorkspaceToolScope,
+  input: GetPaywallPreviewInput,
+): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
+  Effect.gen(function* () {
+    const width = input.width ?? 375;
+    const height = input.height ?? 812;
+    const scale = input.scale ?? 1;
+    const result = yield* runFolded(
+      Effect.gen(function* () {
+        const changeSets = yield* PaywallEditChangeSetService;
+        yield* changeSets.requireActive({
+          projectId: scope.projectId,
+          changeSetId: input.changeSetId,
+          paywallSlug: input.slug,
+        });
+        const workspace = yield* PaywallWorkspaceService;
+        const before = yield* workspace.readDocument(scope.projectId, input.slug);
+        const signature = documentSignature(before.root);
+        const root = (before.root as SnapshotDocumentNode | null) ?? null;
+        const componentTrees = yield* fetchPreviewComponentTrees(root);
+        const localComponentTrees = yield* compileLocalPreviewTrees(root);
+        const renderer = yield* SnapshotImageRenderer;
+        const png = yield* renderer.render({
+          snapshot: before.root,
+          componentTrees,
+          localComponentTrees,
+          width,
+          height,
+          deviceScaleFactor: scale,
+        });
+        const after = yield* workspace.readDocument(scope.projectId, input.slug);
+        if (after.version !== before.version || documentSignature(after.root) !== signature) {
+          return yield* Effect.fail(
+            new Error(
+              "The paywall changed while its preview was rendering. Request a fresh preview.",
+            ),
+          );
+        }
+        yield* changeSets.recordPreview({
+          projectId: scope.projectId,
+          changeSetId: input.changeSetId,
+          paywallSlug: input.slug,
+          documentSignature: signature,
+          documentVersion: before.version,
+        });
+        return { png, signature, version: before.version };
+      }),
+    );
+    if (!result.ok) {
+      return errResult(`get_paywall_preview failed: ${result.message}`);
+    }
+    const data = pngBase64(result.value.png);
+    const metadata = JSON.stringify({
+      kind: "paywall-preview",
+      mediaType: "image/png",
+      width,
+      height,
+      scale,
+      documentVersion: result.value.version,
+      documentSignature: result.value.signature,
+      message: "Review this image visually before finishing the change set.",
+    });
+    return okResult(metadata, [
+      { type: "text", text: metadata },
+      { type: "image", data, mimeType: "image/png" },
+    ]);
+  });
+
+/** `finish_paywall_edit` — close a change set after reviewing its exact latest preview. */
+export const finishPaywallEdit = (
+  scope: WorkspaceToolScope,
+  input: FinishPaywallEditInput,
+): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
+  Effect.gen(function* () {
+    if (input.unresolvedIssues.length > 0) {
+      return errResult(
+        `finish_paywall_edit rejected: unresolved issues remain: ${input.unresolvedIssues.join("; ")}. Correct them and render a new preview.`,
+      );
+    }
+    const result = yield* runFolded(
+      Effect.gen(function* () {
+        const workspace = yield* PaywallWorkspaceService;
+        const document = yield* workspace.readDocument(scope.projectId, input.slug);
+        const changeSets = yield* PaywallEditChangeSetService;
+        return yield* changeSets.finish({
+          projectId: scope.projectId,
+          changeSetId: input.changeSetId,
+          paywallSlug: input.slug,
+          reviewedDocumentSignature: input.reviewedDocumentSignature,
+          currentDocumentSignature: documentSignature(document.root),
+          currentDocumentVersion: document.version,
+          verdict: input.verdict,
+        });
+      }),
+    );
+    return result.ok
+      ? okResult(
+          `Finished change set ${input.changeSetId} after visual review. Verdict: ${input.verdict}`,
+        )
+      : errResult(`finish_paywall_edit rejected: ${result.message}`);
+  });
+
+/** `revert_paywall_edit` — reconcile the live document to the captured baseline. */
+export const revertPaywallEdit = (
+  scope: WorkspaceToolScope,
+  input: RevertPaywallEditInput,
+): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
+  Effect.gen(function* () {
+    const result = yield* runFolded(
+      Effect.gen(function* () {
+        const changeSets = yield* PaywallEditChangeSetService;
+        return yield* changeSets.revert(scope.projectId, input.changeSetId);
+      }),
+    );
+    return result.ok
+      ? okResult(
+          `Reverted change set ${input.changeSetId} for "${result.value.paywallSlug}" at version ${result.value.version} (${result.value.commandCount} command${result.value.commandCount === 1 ? "" : "s"}).`,
+        )
+      : errResult(`revert_paywall_edit failed: ${result.message}`);
   });

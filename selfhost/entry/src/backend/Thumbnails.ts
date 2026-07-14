@@ -65,13 +65,24 @@ export const SelfhostSnapshotImageRendererLive = Layer.effect(
     });
 
     return {
-      render: ({ snapshot, componentTrees, width, height, deviceScaleFactor }) =>
+      render: ({
+        snapshot,
+        componentTrees,
+        localComponentTrees,
+        width,
+        height,
+        deviceScaleFactor,
+      }) =>
         Effect.gen(function* () {
           const html = yield* Effect.try({
             try: () =>
               renderPaywallToHtml(snapshot as SnapshotNode, {
                 componentArtifacts: {
                   trees: componentTrees as Record<
+                    string,
+                    Record<string, PreviewTree>
+                  >,
+                  localTrees: localComponentTrees as Record<
                     string,
                     Record<string, PreviewTree>
                   >,
@@ -101,21 +112,29 @@ export const SelfhostSnapshotImageRendererLive = Layer.effect(
   }),
 );
 
+/** Builds the Chromium-backed snapshot renderer shared by MCP previews and thumbnails. */
+export const makeSelfhostSnapshotImageRendererLive = (
+  screenshotConfig: ChromiumScreenshotConfig,
+): Layer.Layer<SnapshotImageRenderer> =>
+  SelfhostSnapshotImageRendererLive.pipe(
+    Layer.provide(
+      SelfhostHtmlScreenshotLive.pipe(
+        Layer.provide(
+          Layer.merge(
+            ChromiumScreenshotLive(screenshotConfig),
+            NodePlatformRuntimeLive,
+          ),
+        ),
+      ),
+    ),
+    Layer.orDie,
+  );
+
 /** Builds the Chromium-backed thumbnail service for the self-host runtime. */
 export const makeSelfhostPaywallThumbnailServiceLive = (
   screenshotConfig: ChromiumScreenshotConfig,
 ) => {
-  const htmlScreenshot = SelfhostHtmlScreenshotLive.pipe(
-    Layer.provide(
-      Layer.merge(
-        ChromiumScreenshotLive(screenshotConfig),
-        NodePlatformRuntimeLive,
-      ),
-    ),
-  );
-  const renderer = SelfhostSnapshotImageRendererLive.pipe(
-    Layer.provide(htmlScreenshot),
-  );
+  const renderer = makeSelfhostSnapshotImageRendererLive(screenshotConfig);
   return PaywallThumbnailService.layer.pipe(Layer.provide(renderer));
 };
 

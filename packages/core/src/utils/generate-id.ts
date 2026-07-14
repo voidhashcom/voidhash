@@ -17,6 +17,7 @@ const prefixes = {
   purchase: "pur",
   paywall: "pw",
   paywallEditToken: "pw_et",
+  paywallEditChangeSet: "pw_change",
   paywallProduct: "pw_prod",
   paywallRelease: "pw_pub",
   paymentProviderConfiguration: "pp_conf",

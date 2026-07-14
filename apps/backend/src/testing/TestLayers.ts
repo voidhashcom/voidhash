@@ -37,6 +37,7 @@ import {
   BackendPaywallArtifactStoreStubLive,
   BackendPaywallAssetConfigLive,
   BackendPublicFileStoreStubLive,
+  BackendSnapshotImageRendererStubLive,
 } from "../BackendApp.ts";
 import { smokeIdsFromEmail } from "./smoke-ids.ts";
 
@@ -537,6 +538,7 @@ export const TestBackendStubInfrastructureLive = Layer.mergeAll(
   TestWorkosOrgPortLive,
   BackendMimicHostStubLive,
   BackendComponentCompilerStubLive,
+  BackendSnapshotImageRendererStubLive,
   BackendPaywallAssetConfigLive,
   BackendPaywallArtifactStoreStubLive,
   BackendPublicFileStoreStubLive,

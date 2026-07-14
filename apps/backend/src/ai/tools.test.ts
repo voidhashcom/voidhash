@@ -1,8 +1,12 @@
 import {
   ComponentCompiler,
   ComponentManifestCacheService,
+  componentServingPreviewKey,
+  PaywallArtifactStore,
   PaywallDeployService,
+  PaywallEditChangeSetService,
   PaywallWorkspaceService,
+  SnapshotImageRenderer,
 } from "@voidhash/core/services";
 import { AuthSession } from "@voidhash/core/domain/auth/Auth";
 import { Context, Effect } from "effect";
@@ -18,6 +22,7 @@ import * as WorkspaceTools from "./workspace-tools.ts";
  */
 
 const SCOPE: WorkspaceTools.WorkspaceToolScope = { projectId: "proj_1" };
+const CHANGE_SET_ID = "pw_change_1";
 
 /** A decoded document root: root → screen → view(with a text), and a library with one component. */
 const documentRoot = {
@@ -41,7 +46,14 @@ const documentRoot = {
           pos: "a0",
           data: {},
           children: [
-            { id: "text1", type: "text", parentId: "view1", pos: "a0", data: { text: "Hi" }, children: [] },
+            {
+              id: "text1",
+              type: "text",
+              parentId: "view1",
+              pos: "a0",
+              data: { text: "Hi" },
+              children: [],
+            },
           ],
         },
       ],
@@ -70,8 +82,16 @@ const fakeWorkspace = (over: Partial<PaywallWorkspaceService["Service"]> = {}) =
   ({
     listPaywalls: () => Effect.succeed([{ slug: "trial", paywallId: "pw_1" }]),
     readDocument: (_p: string, slug: string) =>
-      Effect.succeed({ slug, name: "Trial", paywallId: "pw_1", root: documentRoot }),
-    editDocument: () => Effect.succeed({ version: 9, commandCount: 2, mintedIds: { "0": ["abc1234567"] } }),
+      Effect.succeed({
+        slug,
+        name: "Trial",
+        paywallId: "pw_1",
+        tree: { encoded: true },
+        root: documentRoot,
+        version: 8,
+      }),
+    editDocument: () =>
+      Effect.succeed({ version: 9, commandCount: 2, mintedIds: { "0": ["abc1234567"] } }),
     writeComponentSource: () => Effect.succeed({ version: 9, commandCount: 1, diagnostics: [] }),
     moveComponentFile: () => Effect.succeed({ version: 9, commandCount: 2, diagnostics: [] }),
     deleteComponentFile: () => Effect.succeed({ version: 9, commandCount: 1, diagnostics: [] }),
@@ -98,15 +118,51 @@ const fakeCompiler = (over: Partial<ComponentCompiler["Service"]> = {}) =>
     ...over,
   }) as unknown as ComponentCompiler["Service"];
 
+const fakeChangeSets = (over: Partial<PaywallEditChangeSetService["Service"]> = {}) =>
+  ({
+    begin: () =>
+      Effect.succeed({
+        id: CHANGE_SET_ID,
+        paywallId: "pw_1",
+        paywallSlug: "trial",
+        baselineVersion: 8,
+      }),
+    requireActive: () =>
+      Effect.succeed({
+        id: CHANGE_SET_ID,
+        projectId: "proj_1",
+        paywallId: "pw_1",
+        paywallSlug: "trial",
+        baselineVersion: 1,
+      }),
+    recordPreview: () => Effect.void,
+    finish: () => Effect.succeed({ id: CHANGE_SET_ID, status: "finished" as const }),
+    revert: () => Effect.succeed({ version: 9, commandCount: 2, paywallSlug: "trial" }),
+    ...over,
+  }) as unknown as PaywallEditChangeSetService["Service"];
+
+const fakeArtifactStore = () =>
+  ({ getObject: () => Effect.succeed(null) }) as unknown as PaywallArtifactStore["Service"];
+
+const fakeRenderer = () =>
+  ({ render: () => Effect.succeed(new Uint8Array([1, 2, 3])) }) as SnapshotImageRenderer["Service"];
+
 interface Fakes {
   readonly workspace?: PaywallWorkspaceService["Service"];
   readonly deploy?: PaywallDeployService["Service"];
   readonly manifestCache?: ComponentManifestCacheService["Service"];
   readonly compiler?: ComponentCompiler["Service"];
+  readonly changeSets?: PaywallEditChangeSetService["Service"];
+  readonly artifactStore?: PaywallArtifactStore["Service"];
+  readonly renderer?: SnapshotImageRenderer["Service"];
 }
 
 const run = (
-  effect: Effect.Effect<WorkspaceTools.WorkspaceToolResult, never, WorkspaceTools.WorkspaceToolDeps>,
+  effect: Effect.Effect<
+    WorkspaceTools.WorkspaceToolResult,
+    never,
+    WorkspaceTools.WorkspaceToolDeps
+  >,
   fakes: Fakes = {},
 ): Promise<WorkspaceTools.WorkspaceToolResult> =>
   Effect.runPromise(
@@ -117,6 +173,9 @@ const run = (
           Context.add(PaywallDeployService, fakes.deploy ?? fakeDeploy()),
           Context.add(ComponentManifestCacheService, fakes.manifestCache ?? fakeManifestCache()),
           Context.add(ComponentCompiler, fakes.compiler ?? fakeCompiler()),
+          Context.add(PaywallEditChangeSetService, fakes.changeSets ?? fakeChangeSets()),
+          Context.add(PaywallArtifactStore, fakes.artifactStore ?? fakeArtifactStore()),
+          Context.add(SnapshotImageRenderer, fakes.renderer ?? fakeRenderer()),
           Context.add(AuthSession, {} as never),
         ),
       ),
@@ -124,9 +183,16 @@ const run = (
   );
 
 describe("MCP workspace tools (document-first)", () => {
+  it("begin_paywall_edit returns the change-set capability and captured baseline", async () => {
+    const result = await run(WorkspaceTools.beginPaywallEdit(SCOPE, { slug: "trial" }));
+    expect(result.isError, result.output).toBe(false);
+    expect(result.output).toContain(CHANGE_SET_ID);
+    expect(JSON.parse(result.output)).toMatchObject({ baselineVersion: 8, slug: "trial" });
+  });
+
   it("list_paywalls formats the project's paywalls", async () => {
     const result = await run(WorkspaceTools.listPaywalls(SCOPE));
-    expect(result.isError).toBe(false);
+    expect(result.isError, result.output).toBe(false);
     expect(result.output).toContain("trial");
     expect(result.output).toContain("/paywalls/trial");
   });
@@ -174,6 +240,7 @@ describe("MCP workspace tools (document-first)", () => {
     expect(result.output).toContain("pricing");
     expect(result.output).toContain("components/hero.tsx");
     expect(result.output).toContain("manifest unavailable");
+    expect(result.output).toContain("Builtin components");
   });
 
   it("read_component returns the local component source", async () => {
@@ -196,6 +263,7 @@ describe("MCP workspace tools (document-first)", () => {
     const result = await run(
       WorkspaceTools.editPaywall(SCOPE, {
         slug: "trial",
+        changeSetId: CHANGE_SET_ID,
         edits: [{ op: "insert", parentId: "screen1", node: { type: "view" } }],
       }),
     );
@@ -212,7 +280,14 @@ describe("MCP workspace tools (document-first)", () => {
     const result = await run(
       WorkspaceTools.editPaywall(SCOPE, {
         slug: "trial",
-        edits: [{ op: "update", nodeId: "view1", set: { style: { backgroundColor: "rgba(1, 2, 3, 1)" } } }],
+        changeSetId: CHANGE_SET_ID,
+        edits: [
+          {
+            op: "update",
+            nodeId: "view1",
+            set: { style: { backgroundColor: "rgba(1, 2, 3, 1)" } },
+          },
+        ],
       }),
       {
         workspace: fakeWorkspace({
@@ -236,6 +311,7 @@ describe("MCP workspace tools (document-first)", () => {
     const result = await run(
       WorkspaceTools.editPaywall(SCOPE, {
         slug: "trial",
+        changeSetId: CHANGE_SET_ID,
         // view cannot be a child of text → illegalChild
         edits: [{ op: "insert", parentId: "text1", node: { type: "view" } }],
       }),
@@ -250,6 +326,7 @@ describe("MCP workspace tools (document-first)", () => {
     const result = await run(
       WorkspaceTools.editPaywall(SCOPE, {
         slug: "trial",
+        changeSetId: CHANGE_SET_ID,
         edits: [{ op: "update", nodeId: "text1", set: { text: "Bye" } }],
       }),
       {
@@ -265,6 +342,193 @@ describe("MCP workspace tools (document-first)", () => {
     expect(result.output).not.toContain("_tag");
   });
 
+  it("duplicate_subtree clones a visual subtree through an atomic edit", async () => {
+    let applied: unknown[] = [];
+    const result = await run(
+      WorkspaceTools.duplicateSubtree(SCOPE, {
+        slug: "trial",
+        changeSetId: CHANGE_SET_ID,
+        nodeId: "view1",
+        parentId: "screen1",
+        nextName: "Copied offer",
+      }),
+      {
+        workspace: fakeWorkspace({
+          editDocument: ((_projectId: string, _slug: string, edits: unknown[]) => {
+            applied = edits;
+            return Effect.succeed({ version: 10, commandCount: 1, mintedIds: {} });
+          }) as never,
+        }),
+      },
+    );
+    expect(result.isError).toBe(false);
+    expect(applied).toHaveLength(1);
+    expect(applied[0]).toMatchObject({
+      op: "insert",
+      parentId: "screen1",
+      node: { type: "view", name: "Copied offer", children: [{ type: "text", text: "Hi" }] },
+    });
+  });
+
+  it("get_paywall_preview returns image content and records its exact document version", async () => {
+    const recorded: unknown[] = [];
+    const rendered: unknown[] = [];
+    const catalogRoot = structuredClone(documentRoot);
+    const screen = catalogRoot.children[0]!;
+    (screen.children as unknown[]).push({
+      id: "component1",
+      type: "component",
+      parentId: "screen1",
+      pos: "a1",
+      data: {
+        componentSource: "catalog",
+        contentHash: "hash-1",
+        previewState: "compact",
+      },
+      children: [],
+    });
+    const artifact = (state: string) => ({
+      body: new TextEncoder().encode(JSON.stringify({ state, treeVersion: 2 })),
+      contentType: "application/json",
+    });
+    const result = await run(
+      WorkspaceTools.getPaywallPreview(SCOPE, {
+        slug: "trial",
+        changeSetId: CHANGE_SET_ID,
+        width: 375,
+        height: 812,
+        scale: 1,
+      }),
+      {
+        workspace: fakeWorkspace({
+          readDocument: (_projectId: string, slug: string) =>
+            Effect.succeed({
+              slug,
+              name: "Trial",
+              paywallId: "pw_1",
+              tree: { encoded: true },
+              root: catalogRoot,
+              version: 8,
+            }),
+        }),
+        changeSets: fakeChangeSets({
+          recordPreview: ((input: unknown) =>
+            Effect.sync(() => void recorded.push(input))) as never,
+        }),
+        compiler: fakeCompiler({
+          compileAndExtract: () =>
+            Effect.succeed({
+              status: "ready" as const,
+              manifest: {},
+              previewTrees: {
+                default: {
+                  treeVersion: 1,
+                  state: "default",
+                  root: { type: "text", text: "Hero", style: {} },
+                },
+              },
+            }),
+        }),
+        artifactStore: {
+          getObject: (key: string) =>
+            key === componentServingPreviewKey("hash-1", "default")
+              ? Effect.succeed(artifact("default") as never)
+              : key === componentServingPreviewKey("hash-1", "compact")
+                ? Effect.succeed(artifact("compact") as never)
+                : Effect.succeed(null),
+        } as unknown as PaywallArtifactStore["Service"],
+        renderer: {
+          render: (input) =>
+            Effect.sync(() => {
+              rendered.push(input);
+              return new Uint8Array([1, 2, 3]);
+            }),
+        },
+      },
+    );
+    expect(result.isError, result.output).toBe(false);
+    expect(result.content).toEqual([
+      { type: "text", text: expect.stringContaining('"documentVersion":8') },
+      { type: "image", data: "AQID", mimeType: "image/png" },
+    ]);
+    expect(recorded[0]).toMatchObject({ documentVersion: 8, paywallSlug: "trial" });
+    expect(rendered[0]).toMatchObject({
+      componentTrees: {
+        "hash-1": {
+          default: { state: "default", treeVersion: 2 },
+          compact: { state: "compact", treeVersion: 2 },
+        },
+      },
+      localComponentTrees: {
+        "components/hero.tsx": {
+          default: {
+            treeVersion: 1,
+            state: "default",
+            root: { type: "text", text: "Hero", style: {} },
+          },
+        },
+      },
+    });
+  });
+
+  it("finish_paywall_edit binds the verdict to the current document version and signature", async () => {
+    const finished: unknown[] = [];
+    const result = await run(
+      WorkspaceTools.finishPaywallEdit(SCOPE, {
+        slug: "trial",
+        changeSetId: CHANGE_SET_ID,
+        reviewedDocumentSignature: "doc-reviewed",
+        verdict: "Clear hierarchy and no clipping.",
+        unresolvedIssues: [],
+      }),
+      {
+        changeSets: fakeChangeSets({
+          finish: ((input: unknown) =>
+            Effect.sync(() => {
+              finished.push(input);
+              return { id: CHANGE_SET_ID, status: "finished" as const };
+            })) as never,
+        }),
+      },
+    );
+    expect(result.isError, result.output).toBe(false);
+    expect(finished[0]).toMatchObject({
+      currentDocumentVersion: 8,
+      reviewedDocumentSignature: "doc-reviewed",
+      verdict: "Clear hierarchy and no clipping.",
+    });
+    expect((finished[0] as { currentDocumentSignature: string }).currentDocumentSignature).toMatch(
+      /^doc-/,
+    );
+  });
+
+  it("finish_paywall_edit rejects unresolved visual issues without closing the change set", async () => {
+    const finish = () => {
+      throw new Error("must not finish with unresolved visual issues");
+    };
+    const result = await run(
+      WorkspaceTools.finishPaywallEdit(SCOPE, {
+        slug: "trial",
+        changeSetId: CHANGE_SET_ID,
+        reviewedDocumentSignature: "doc-reviewed",
+        verdict: "Needs another pass.",
+        unresolvedIssues: ["CTA is clipped"],
+      }),
+      { changeSets: fakeChangeSets({ finish: finish as never }) },
+    );
+    expect(result.isError).toBe(true);
+    expect(result.output).toContain("CTA is clipped");
+  });
+
+  it("revert_paywall_edit restores the entire captured baseline", async () => {
+    const result = await run(
+      WorkspaceTools.revertPaywallEdit(SCOPE, { changeSetId: CHANGE_SET_ID }),
+    );
+    expect(result.isError, result.output).toBe(false);
+    expect(result.output).toContain("Reverted change set");
+    expect(result.output).toContain("2 commands");
+  });
+
   it("write_component rejects a broken component with diagnostics (commits nothing)", async () => {
     const writeComponentSource = () => {
       throw new Error("must not commit on a compile error");
@@ -272,6 +536,7 @@ describe("MCP workspace tools (document-first)", () => {
     const result = await run(
       WorkspaceTools.writeComponent(SCOPE, {
         slug: "trial",
+        changeSetId: CHANGE_SET_ID,
         path: "components/broken.tsx",
         source: "export default (=> {",
       }),
@@ -296,6 +561,7 @@ describe("MCP workspace tools (document-first)", () => {
     const result = await run(
       WorkspaceTools.writeComponent(SCOPE, {
         slug: "trial",
+        changeSetId: CHANGE_SET_ID,
         path: "components/card.tsx",
         source: "export default () => null;",
       }),
@@ -315,6 +581,7 @@ describe("MCP workspace tools (document-first)", () => {
                 previewStates: ["default"],
                 hostData: [],
               },
+              previewTrees: {},
             }),
         }),
       },
@@ -324,17 +591,18 @@ describe("MCP workspace tools (document-first)", () => {
     expect(recorded).toHaveLength(1);
   });
 
-  it("write_component commits unvalidated when the compiler is unavailable (degraded workerd)", async () => {
+  it("write_component rejects when headless compilation is unavailable", async () => {
     const result = await run(
       WorkspaceTools.writeComponent(SCOPE, {
         slug: "trial",
+        changeSetId: CHANGE_SET_ID,
         path: "components/card.tsx",
         source: "export default () => null;",
       }),
       // default compiler is `unavailable`
     );
-    expect(result.isError).toBe(false);
-    expect(result.output).toContain("diagnostics unavailable");
+    expect(result.isError).toBe(true);
+    expect(result.output).toContain("headless component compilation is unavailable");
   });
 
   it("write_component rejects an invalid file name before compiling", async () => {
@@ -344,6 +612,7 @@ describe("MCP workspace tools (document-first)", () => {
     const result = await run(
       WorkspaceTools.writeComponent(SCOPE, {
         slug: "trial",
+        changeSetId: CHANGE_SET_ID,
         path: "components/../evil.tsx",
         source: "export default () => null;",
       }),
@@ -357,6 +626,7 @@ describe("MCP workspace tools (document-first)", () => {
     const result = await run(
       WorkspaceTools.renameComponent(SCOPE, {
         slug: "trial",
+        changeSetId: CHANGE_SET_ID,
         fromPath: "components/hero.tsx",
         toPath: "components/banner.tsx",
       }),
@@ -367,7 +637,11 @@ describe("MCP workspace tools (document-first)", () => {
 
   it("delete_component removes a component and warns about placeholders", async () => {
     const result = await run(
-      WorkspaceTools.deleteComponent(SCOPE, { slug: "trial", path: "components/hero.tsx" }),
+      WorkspaceTools.deleteComponent(SCOPE, {
+        slug: "trial",
+        changeSetId: CHANGE_SET_ID,
+        path: "components/hero.tsx",
+      }),
     );
     expect(result.isError).toBe(false);
     expect(result.output).toContain("placeholders");

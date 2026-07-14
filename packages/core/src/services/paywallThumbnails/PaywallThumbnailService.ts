@@ -150,6 +150,7 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
 
           const png = yield* renderer.render({
             componentTrees,
+            localComponentTrees: {},
             deviceScaleFactor: THUMBNAIL_DEVICE_SCALE_FACTOR,
             height: THUMBNAIL_HEIGHT,
             snapshot,

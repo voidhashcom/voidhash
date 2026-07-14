@@ -42,6 +42,7 @@ import {
   BackendPaywallArtifactStoreStubLive,
   BackendPaywallAssetConfigLive,
   BackendPublicFileStoreStubLive,
+  BackendSnapshotImageRendererStubLive,
   NoBackendFeatures,
   NoBackendRpcExtension,
   buildBackendFetch,
@@ -132,6 +133,7 @@ const makeRpcInfra = (tc: BackendTestConnections) =>
     TestWorkosOrgPortLive,
     BackendMimicHostStubLive,
     BackendComponentCompilerStubLive,
+    BackendSnapshotImageRendererStubLive,
     BackendPaymentProviderStubsLive,
     BackendPaywallAssetConfigLive,
     SmokePaywallArtifactStoreLive,
@@ -152,6 +154,7 @@ const makeWebhookInfra = (tc: BackendTestConnections) =>
     TestWorkosOrgPortLive,
     BackendMimicHostStubLive,
     BackendComponentCompilerStubLive,
+    BackendSnapshotImageRendererStubLive,
     BackendPaymentProviderStubsLive,
     BackendPaywallAssetConfigLive,
     BackendPaywallArtifactStoreStubLive,
@@ -367,11 +370,7 @@ const makeOrganizationMembershipCreatedEvent = (ids: ReturnType<typeof makeSmoke
  * built handler (provide the workflow-port no-ops to both the build and the
  * per-request handler).
  */
-const requestBackend = (
-  tc: BackendTestConnections,
-  path: string,
-  init: RequestInit,
-) =>
+const requestBackend = (tc: BackendTestConnections, path: string, init: RequestInit) =>
   Effect.scoped(
     Effect.gen(function* () {
       const handler = yield* buildBackendFetch({
