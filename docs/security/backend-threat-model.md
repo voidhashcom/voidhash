@@ -73,8 +73,10 @@ Current controls:
   is loaded from server-side membership state.
 - Project secret keys establish a session containing only their project.
   Publishable keys establish an SDK identity with no management permissions.
-- MCP accepts only a Bearer project secret key and constructs the same
-  project-scoped session used by the HTTP API.
+- MCP accepts a Bearer user API key or project secret key. User keys materialize
+  normal membership access; project keys construct the same single-project
+  session used by the HTTP API. Every operation still runs through the existing
+  service authorization checks.
 - Authentication failures collapse to non-authenticated or generic internal
   errors rather than returning stored credential details.
 

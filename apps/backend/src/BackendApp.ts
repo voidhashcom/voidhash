@@ -953,6 +953,7 @@ export const buildBackendFetch = <
   const FeatureServicesLayer = layers.features.services(graph);
   const ExtensionServicesLayer = layers.rpcExtension.services(graph);
   const RpcGroup = RpcGroups.merge(layers.features.group, layers.rpcExtension.group);
+  const McpRpcGroup = RpcGroups.merge(layers.features.group);
 
   const RpcRouteDependencies = Layer.mergeAll(
     RpcSerialization.layerNdjson,
@@ -1071,15 +1072,17 @@ export const buildBackendFetch = <
       )
     : Layer.empty;
 
-  // MCP endpoint (`POST /api/mcp`, stateless streamable HTTP). Its request-scoped
-  // requirements — `ApiKeyService` (secret-key auth) + `PaywallWorkspaceService`
-  // + `AiChatService` (the shared workspace tools' context) + `Db` (key
-  // validation) — are satisfied via `provideRequest` like the AI chat route.
-  // `AuthSession` is provided in-handler from the validated secret key. Unlike
-  // the AI chat route, MCP needs no JWT namespace (it authenticates with v1
-  // secret keys), so it registers unconditionally.
-  const McpRoutesLayer = McpRouteLayer.pipe(
+  // Effect MCP endpoint (`POST /api/mcp`, stateless streamable HTTP). Registration
+  // captures the complete customer RPC handler graph; request-scoped domain
+  // services remain available to focused workspace tools. The route validates a
+  // bearer user/project API key and provides the resulting `AuthSession` around
+  // every call, so the existing service authorization remains authoritative.
+  const McpRoutesLayer = McpRouteLayer(McpRpcGroup).pipe(
     HttpRouter.provideRequest(Layer.mergeAll(DomainServicesLayer, SupportServicesLayer)),
+    Layer.provide(RpcHandlersLayer),
+    Layer.provide(FeatureServicesLayer),
+    Layer.provide(DomainServicesLayer),
+    Layer.provide(SupportServicesLayer),
   );
 
   const RoutesLayer = Layer.mergeAll(

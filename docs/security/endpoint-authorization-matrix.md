@@ -100,7 +100,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | Surface | Principal or capability | Authorization/authenticity boundary | Status |
 | --- | --- | --- | --- |
 | `/rpc` | User API key, project secret key, or WorkOS session | Shared auth middleware creates the session consumed by every RPC. | Covered by RPC smoke and service evidence above |
-| `/api/mcp` | Bearer project secret key | Key lookup creates a single-project session; workspace services re-check the requested paywall/project. | Route/protocol tests plus integrated cross-project workspace evidence |
+| `/api/mcp` | Bearer user API key or project secret key | Effect MCP exposes focused authoring tools plus every composed platform RPC through the typed operation gateway. User keys materialize the user's normal access; project keys create a single-project session. The existing services re-check project/organization/entity ownership for every call. | Stateless route/protocol tests, complete RPC-catalog contract tests, and the integrated authorization evidence above |
 | `/api/ai/chat` | Authenticated user/session token | Token verifier and project-scoped chat/workspace services. | Route/tool tests plus integrated chat/workspace evidence |
 | `/i/v1/capture`, `/i/v1/batch` | Publishable project token | Token resolves the project; processing rejects route/project mismatch and reserved events. | Integrated |
 | Stripe webhook | Provider signature over exact raw body and timestamp | Configuration lookup is tied to the route ID; ledger IDs deduplicate. | Integrated |
