@@ -1,7 +1,7 @@
 # Endpoint Authorization Matrix
 
 Status: alpha coverage inventory<br>
-Last updated: 2026-07-12
+Last updated: 2026-07-14
 
 This inventory covers every Community HTTP API and RPC operation plus the raw
 routes mounted by `BackendApp`. A test compares the marked operation lists with
@@ -59,7 +59,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | Group | Operations |
 | --- | --- |
 | AiChat | `SaveAiChat`, `ListAiChats`, `GetAiChat`, `DeleteAiChat`, `UploadAiChatAttachment`, `RevertAiChatCheckpoint`, `CaptureAiCheckpoint` |
-| Analytics | `ListRecentAnalyticsEvents`, `QueryAnalyticsInsights` |
+| Analytics | `ListRecentAnalyticsEvents`, `QueryAnalyticsInsights`, `QueryCustomAnalyticsInsight`, `QueryCustomAnalyticsPersons`, `ListAnalyticsInsights`, `CreateAnalyticsInsight`, `UpdateAnalyticsInsight`, `DeleteAnalyticsInsight`, `ListAnalyticsCohorts`, `CreateAnalyticsCohort`, `UpdateAnalyticsCohort`, `DeleteAnalyticsCohort`, `ListAnalyticsDashboards`, `CreateAnalyticsDashboard`, `DuplicateAnalyticsDashboard`, `UpdateAnalyticsDashboard`, `DeleteAnalyticsDashboard`, `PutAnalyticsDashboardItem`, `ReorderAnalyticsDashboardItems`, `RemoveAnalyticsDashboardItem` |
 | ApiKey | `CreateSecretKey`, `ListApiKeys`, `GetApiKeyById`, `RotateSecretKey`, `DeleteApiKey`, `CreateUserApiKey`, `ListUserApiKeys`, `RevokeUserApiKey` |
 | Person | `CreatePerson`, `ListPersons`, `GetPersonById`, `GetPersonByDistinctId` |
 | Experiment | `ListExperiments`, `GetExperiment`, `CreateExperiment`, `UpdateExperiment`, `ReplaceExperimentVariants`, `UpsertExperimentTreatment`, `RemoveExperimentTreatment`, `StartExperiment`, `PauseExperiment`, `ConcludeExperiment`, `ArchiveExperiment`, `RestoreExperiment`, `GetExperimentResults` |
@@ -81,7 +81,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | Product | `ListProducts`, `GetProduct`, `CreateProduct`, `UpdateProduct`, `DeleteProduct` |
 | Project | `CreateProject`, `ListProjects`, `UpdateProject`, `DeleteProject`, `SetProjectAvatar`, `RemoveProjectAvatar` |
 | User | `CurrentUser`, `SetUserAvatar`, `RemoveUserAvatar` |
-| VoidQl | `RunVoidQlQuery`, `ValidateVoidQlQuery`, `GetVoidQlSchema`, `SaveVoidQlInsight` |
+| VoidQl | `RunVoidQlQuery`, `ValidateVoidQlQuery`, `GetVoidQlSchema`, `SaveVoidQlInsight`, `ListVoidQlInsights`, `RunSavedVoidQlInsight`, `DeleteVoidQlInsight` |
 | Webhook | `ListWebhookEndpoints`, `GetWebhookEndpoint`, `CreateWebhookEndpoint`, `UpdateWebhookEndpoint`, `DeleteWebhookEndpoint`, `RotateWebhookSecret`, `TestWebhookEndpoint`, `ListWebhookDeliveries`, `GetWebhookDelivery`, `RetryWebhookDelivery` |
 <!-- RPC_OPERATIONS_END -->
 
