@@ -11,7 +11,7 @@ import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeature
 
 import { Panel } from "../components/ui/panel";
 import { PANEL_DIMENSIONS } from "../panels/constants";
-import { setAiPanelWidth } from "../state/actions/ai-panel-actions";
+import { setAiPanelWidth, setAiWorking } from "../state/actions/ai-panel-actions";
 import { usePaywallDesignerActions, usePaywallDesignerStore } from "../state/designer-store";
 import { useDesignerAgent } from "./use-designer-agent";
 
@@ -73,6 +73,13 @@ export function AiPanel() {
     event.currentTarget.releasePointerCapture(event.pointerId);
   }, []);
 
+  const handleBusyChange = useCallback(
+    (isWorking: boolean) => {
+      dispatch(setAiWorking)({ isWorking });
+    },
+    [dispatch],
+  );
+
   if (!enabled) {
     return null;
   }
@@ -118,6 +125,7 @@ export function AiPanel() {
           agent={agent}
           chatId={session.chatId}
           initialMessages={session.initialMessages}
+          onBusyChange={handleBusyChange}
           className="min-h-0 flex-1"
         />
       </Panel>
