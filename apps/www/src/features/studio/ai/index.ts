@@ -1,16 +1,21 @@
 export type {
-  AiChatType,
+  AgentSurface,
+  AgentSessionPersistence,
   SurfaceAgent,
   SurfaceChatPersistence,
-  SurfaceToolCall,
-  SurfaceToolResult,
 } from "./contract";
+export type {
+  AgentUiFilePart,
+  AgentUiMessage,
+  AgentUiNoticePart,
+  AgentUiPart,
+  AgentUiToolPart,
+} from "./agent-ui";
 export { ChatShell } from "./components/chat-shell";
 export { ChatHistoryMenu } from "./components/chat-history-menu";
 export {
-  newChatId,
-  useSurfaceChat,
-  type SurfaceChat,
-  type SurfaceChatSession,
-} from "./use-surface-chat";
-export { createVoidhashAiTransport } from "./transport";
+  newAgentSessionId,
+  useAgentSession,
+  type AgentSessionChat,
+  type AgentSessionIdentity,
+} from "./use-agent-session";

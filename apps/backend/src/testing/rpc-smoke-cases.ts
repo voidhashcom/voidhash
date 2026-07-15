@@ -778,13 +778,11 @@ export const rpcSmokeCases = [
 
 /** Existing RPC smoke coverage debt; entries may only be removed as cases are added. */
 const knownMissingRpcSmokeTags = new Set([
-  "SaveAiChat",
-  "ListAiChats",
-  "GetAiChat",
-  "DeleteAiChat",
-  "UploadAiChatAttachment",
-  "RevertAiChatCheckpoint",
-  "CaptureAiCheckpoint",
+  "ListAgentSessions",
+  "GetAgentSession",
+  "DeleteAgentSession",
+  "RevertAgentSessionChangeSet",
+  "UploadAgentAttachment",
   "ListExperiments",
   "GetExperiment",
   "CreateExperiment",

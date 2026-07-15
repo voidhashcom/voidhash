@@ -84,7 +84,8 @@ export { StripePaymentProvider as StripePaymentProviderEngine } from "./paymentP
 export * from "./paymentProviders/PaymentProvider.ts";
 export { PaymentProviderConfigurationValidationError } from "../domain/paymentProvider/PaymentProviderConfiguration.ts";
 export { PaymentProviderProductValidationError } from "../domain/paymentProvider/PaymentProviderProduct.ts";
-export * from "./aiChat/AiChatService.ts";
+export * from "./agentSession/AgentAttachmentService.ts";
+export * from "./agentSession/AgentSessionIndexService.ts";
 export * from "./paymentProviders/PaymentProviderConfigurationService.ts";
 export * from "./paymentProviders/PaymentProviderProductService.ts";
 export * from "./paywallAssets/PaywallAssetService.ts";

@@ -1,6 +1,6 @@
 import { RpcGroup } from "effect/unstable/rpc";
 
-import { AiChatRpcsDef } from "./groups/AiChatRpcsDef.ts";
+import { AgentSessionRpcsDef } from "./groups/AgentSessionRpcsDef.ts";
 import { AnalyticsRpcsDef } from "./groups/AnalyticsRpcsDef.ts";
 import { ApiKeyRpcsDef } from "./groups/ApiKeyRpcsDef.ts";
 import { PersonRpcsDef } from "./groups/PersonRpcsDef.ts";
@@ -27,7 +27,7 @@ import { FeedbackRpcsDef } from "./groups/FeedbackRpcsDef.ts";
 import { ExperimentRpcsDef } from "./groups/ExperimentRpcsDef.ts";
 
 export const RpcGroups = RpcGroup.make().merge(
-  AiChatRpcsDef,
+  AgentSessionRpcsDef,
   AnalyticsRpcsDef,
   ApiKeyRpcsDef,
   PersonRpcsDef,
@@ -56,7 +56,7 @@ export const RpcGroups = RpcGroup.make().merge(
 
 export * from "./auth.ts";
 export * from "./errors/index.ts";
-export * from "./groups/AiChatRpcsDef.ts";
+export * from "./groups/AgentSessionRpcsDef.ts";
 export * from "./groups/AnalyticsRpcsDef.ts";
 export * from "./groups/ApiKeyRpcsDef.ts";
 export * from "./groups/PersonRpcsDef.ts";

@@ -188,7 +188,7 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
        *
        * The stored paywall is loaded first through {@link PaywallService}, so
        * direct callers cannot bypass project authorization by supplying a raw
-       * mimic document id. Used by the AI `CaptureAiCheckpoint` path (reads
+       * mimic document id. Used by server-side workspace inspection (reads
        * `tree`) and by {@link readDocument} (reads `root`).
        */
       const readDocumentTree = (paywallId: string) =>
@@ -215,11 +215,9 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
 
       /**
        * Resolves a paywall by slug within the project (authz: the slug must
-       * belong to `projectId`) and reads its LIVE document's decoded renderer
-       * `root` — the input the AI `read_paywall` / `ReadPaywallDocument` surface
-       * cleans (via `serializeDocument`) for the model. Returns the paywall's
-       * identity (`slug`, `name`, `paywallId`) alongside the decoded `root` so the
-       * caller need not re-resolve. Read-only.
+       * belong to `projectId`) and reads one consistent snapshot of its live
+       * document. Returns the paywall identity alongside the raw tree, decoded
+       * renderer root, and optimistic-concurrency version. Read-only.
        */
       const readDocument = (projectId: string, paywallSlug: string) =>
         Effect.gen(function* () {

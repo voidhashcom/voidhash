@@ -1339,14 +1339,16 @@ export type PaywallEditChangeSetStatusValue =
   (typeof PaywallEditChangeSetStatus)[keyof typeof PaywallEditChangeSetStatus];
 
 /**
- * An explicit MCP authoring session for one paywall. The baseline is captured
- * when the session starts so the complete set of edits can be reverted later.
+ * An explicit agentic authoring change set for one paywall. The baseline is
+ * captured when editing starts so the complete set of edits can be reverted.
  */
 export const paywallEditChangeSets = pgTable(
   "paywall_edit_change_set",
   {
     id: varchar("id", { length: 64 }).primaryKey(),
     projectId: varchar("project_id", { length: 255 }).notNull(),
+    /** Durable internal agent session that owns this change set, or null for MCP. */
+    agentSessionId: varchar("agent_session_id", { length: 64 }),
     paywallId: varchar("paywall_id", { length: 255 }).notNull(),
     paywallSlug: varchar("paywall_slug", { length: 255 }).notNull(),
     baselineTree: jsonb("baseline_tree").$type<unknown>().notNull(),
@@ -1365,6 +1367,7 @@ export const paywallEditChangeSets = pgTable(
   (table) => [
     index("paywall_edit_change_set_project_idx").on(table.projectId),
     index("paywall_edit_change_set_paywall_idx").on(table.paywallId),
+    index("paywall_edit_change_set_agent_session_idx").on(table.agentSessionId),
     uniqueIndex("paywall_edit_change_set_active_idx")
       .on(table.projectId, table.paywallId)
       .where(sql`${table.status} = 'active'`),
@@ -2372,16 +2375,7 @@ export const paywallAsset = pgTable(
   ],
 );
 
-/**
- * Persisted Voidhash AI chat. The `id` is minted client-side (so attachments
- * can be uploaded under the chat before the first turn is saved). `messages`
- * holds the AI SDK `UIMessage[]` JSON-encoded as text — it is never queried
- * into, and storing it as a string keeps NDJSON RPC serialization trivial.
- *
- * `chatType` is `"persistent"` (listed in the history UI, resumable) or
- * `"single_use"` (stored for audit/debug but never listed). `paywallId` scopes
- * a persistent designer chat to its paywall for the history dropdown.
- */
+/** Legacy pre-Pi chat rows retained while historical data ages out. */
 export const voidhashAiChat = pgTable(
   "voidhash_ai_chat",
   {
@@ -2400,7 +2394,7 @@ export const voidhashAiChat = pgTable(
     userId: varchar("user_id", { length: 64 }),
     /** Short title derived from the first user message. */
     title: varchar("title", { length: 255 }).notNull(),
-    /** JSON-encoded AI SDK UIMessage[]. */
+    /** Legacy JSON-encoded UI messages. */
     messages: text("messages").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
@@ -2421,14 +2415,7 @@ export const voidhashAiChat = pgTable(
   ],
 );
 
-/**
- * Per-turn AI checkpoint pre-images. Before the FIRST accepted write to a
- * document within one chat turn (one POST /api/ai/chat stream), the workspace
- * service captures that document's pre-write tree here — one row per (chat,
- * turn, document). Reverting "the last turn" reads these rows and reconciles
- * each captured tree back onto the live document. Rows are chat-scoped (deleted
- * with the chat) and are not authorization-bearing on their own.
- */
+/** Legacy pre-Pi turn checkpoints retained with their historical chats. */
 export const voidhashAiCheckpoint = pgTable(
   "voidhash_ai_checkpoint",
   {
@@ -2437,11 +2424,7 @@ export const voidhashAiCheckpoint = pgTable(
     chatId: varchar("chat_id", { length: 64 })
       .notNull()
       .references(() => voidhashAiChat.id, { onDelete: "cascade" }),
-    /**
-     * Turn identifier — the id of the triggering user message (or a server-minted
-     * turn id). Groups the pre-images captured within one POST /api/ai/chat stream
-     * so a revert can target "the last turn".
-     */
+    /** Groups the pre-images captured within one legacy chat turn. */
     turnId: varchar("turn_id", { length: 128 }).notNull(),
     /** The mimic document / paywall this pre-image belongs to. */
     paywallId: varchar("paywall_id", { length: 64 }).notNull(),
@@ -2460,6 +2443,40 @@ export const voidhashAiCheckpoint = pgTable(
     ),
     // Backs "last turn" discovery: a chat's turns, newest first.
     index("voidhash_ai_checkpoint_chat_idx").on(table.chatId, table.createdAt),
+  ],
+);
+
+/**
+ * Searchable metadata for durable Pi agent sessions. Conversation entries stay
+ * in durable-entity storage; this table only backs scoped history and ownership.
+ */
+export const voidhashAgentSession = pgTable(
+  "voidhash_agent_session",
+  {
+    id: varchar("id", { length: 64 }).primaryKey(),
+    organizationId: varchar("organization_id", { length: 36 })
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    projectId: varchar("project_id", { length: 36 }).notNull(),
+    surface: varchar("surface", { length: 64 }).notNull(),
+    paywallId: varchar("paywall_id", { length: 64 }),
+    userId: varchar("user_id", { length: 64 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true, precision: 3 }),
+  },
+  (table) => [
+    index("voidhash_agent_session_scope_idx").on(
+      table.projectId,
+      table.surface,
+      table.paywallId,
+      table.updatedAt,
+    ),
+    index("voidhash_agent_session_user_idx").on(table.userId, table.updatedAt),
   ],
 );
 

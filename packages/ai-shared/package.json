@@ -2,7 +2,7 @@
   "name": "@voidhash/ai-shared",
   "version": "0.0.1-alpha.1",
   "private": true,
-  "description": "Shared AI request, document-edit, and authoring contracts for Voidhash clients and services.",
+  "description": "Shared document-edit validation and authoring contracts for Voidhash services.",
   "keywords": [
     "ai",
     "paywalls",

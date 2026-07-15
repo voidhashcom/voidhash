@@ -17,7 +17,6 @@ import {
   Loader2Icon,
   PanelLeftClose,
   PanelLeftOpen,
-  SparklesIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -75,7 +74,7 @@ export function TopPanel() {
   const dispatch = usePaywallDesignerActions();
   const devModeEnabled = useStore(store, (state) => state.devMode.enabled);
   const aiPanelOpen = useStore(store, (state) => state.ai.panelOpen);
-  const aiEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.voidhashAi.key);
+  const aiEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.voidhashAiPi.key);
 
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [releaseInfo, setReleaseInfo] = useState<

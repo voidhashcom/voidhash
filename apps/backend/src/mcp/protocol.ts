@@ -20,7 +20,12 @@ import { Effect } from "effect";
 
 import { mcpToolDescriptors } from "./tool-manifest.ts";
 import * as WorkspaceTools from "../ai/workspace-tools.ts";
-import { paywallAuthoringSkill } from "../ai/skills/paywall-authoring.ts";
+import {
+  findSkill,
+  listSkills,
+  skillFromResourceUri,
+  skillResourceUri,
+} from "../ai/skills/registry.ts";
 
 /** Protocol versions we speak, newest first (used to pick the negotiated version). */
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26"] as const;
@@ -29,20 +34,9 @@ const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
 /** Server identity advertised in the `initialize` result. */
 const SERVER_INFO = { name: "voidhash-paywall-workspace", version: "1.0.0" } as const;
 const AUTHORING_RESOURCE_URI = "voidhash://paywall-authoring/reference";
-const AUTHORING_RESOURCE_NAME = "paywall-authoring-reference";
 const DESIGN_PROMPT_NAME = "design_paywall";
 
-const mcpAuthoringGuide = (): string => `# MCP paywall workflow
-
-1. Discover paywalls with \`list_paywalls\`, then call \`begin_paywall_edit\`.
-2. Read structure and components before writing. Pass the returned \`changeSetId\` to every mutation.
-3. Build dynamic behavior without code using document \`localVariables\`, conditional \`states\`, click \`interactions\`, and component \`actionBindings\`. Use \`edit_paywall\` for composition, \`duplicate_subtree\` for visual cloning, and component tools only when the document model cannot express the behavior.
-4. Render \`get_paywall_preview\`, inspect the image, correct any visual issues, and render again.
-5. Call \`finish_paywall_edit\` with the exact latest document signature and an empty issue list, or \`revert_paywall_edit\` to restore the baseline.
-
-Tool-name mapping in the schema-derived reference below: \`get_document\` means \`get_paywall\`; \`edit_document\` means \`edit_paywall\`. MCP mutations additionally require \`slug\` and \`changeSetId\`.
-
-${paywallAuthoringSkill()}`;
+const mcpAuthoringGuide = (): string => findSkill("paywall-authoring")?.body() ?? "";
 
 /** Standard JSON-RPC 2.0 error codes we emit. */
 export const JsonRpcErrorCode = {
@@ -145,16 +139,13 @@ const initializeResult = (params: Record<string, unknown> | undefined) => ({
 const toolsListResult = () => ({ tools: mcpToolDescriptors() });
 
 const resourcesListResult = () => ({
-  resources: [
-    {
-      uri: AUTHORING_RESOURCE_URI,
-      name: AUTHORING_RESOURCE_NAME,
-      title: "Voidhash paywall authoring reference",
-      description:
-        "Schema-derived document, style, no-code variable/state/action, component, and MCP workflow guidance.",
-      mimeType: "text/markdown",
-    },
-  ],
+  resources: listSkills().map((skill) => ({
+    uri: skillResourceUri(skill.name),
+    name: skill.name,
+    title: skill.name === "paywall-authoring" ? "Voidhash paywall authoring reference" : skill.name,
+    description: skill.description,
+    mimeType: "text/markdown",
+  })),
 });
 
 const promptsListResult = () => ({
@@ -237,18 +228,25 @@ export const handleMcpMessage = (
       return Effect.succeed(success(id, resourcesListResult()));
 
     case "resources/read": {
-      if (message.params?.uri !== AUTHORING_RESOURCE_URI) {
+      const requestedUri = message.params?.uri;
+      const skill =
+        requestedUri === AUTHORING_RESOURCE_URI
+          ? findSkill("paywall-authoring")
+          : typeof requestedUri === "string"
+            ? skillFromResourceUri(requestedUri)
+            : undefined;
+      if (skill === undefined || typeof requestedUri !== "string") {
         return Effect.succeed(
-          failure(id, JsonRpcErrorCode.InvalidParams, "Unknown paywall authoring resource URI"),
+          failure(id, JsonRpcErrorCode.InvalidParams, "Unknown skill resource URI"),
         );
       }
       return Effect.succeed(
         success(id, {
           contents: [
             {
-              uri: AUTHORING_RESOURCE_URI,
+              uri: requestedUri,
               mimeType: "text/markdown",
-              text: mcpAuthoringGuide(),
+              text: skill.body(),
             },
           ],
         }),

@@ -58,9 +58,9 @@ const EMPTY_INPUT_SCHEMA: JsonSchema = {
 };
 
 /**
- * MCP tool input schemas. These are MCP-specific but share the document-edit
- * vocabulary (`documentEditSchema`) with the browser designer tools in
- * `ai-shared`, so a batch validates against ONE definition on both surfaces.
+ * MCP tool input schemas. The internal Pi agent consumes this same manifest,
+ * and `documentEditSchema` remains the single validation vocabulary for every
+ * server-executed document batch.
  */
 const mcpToolSchemas = {
   begin_paywall_edit: z.object({

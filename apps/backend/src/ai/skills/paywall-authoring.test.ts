@@ -90,9 +90,8 @@ describe("paywallAuthoringSkill — generated containment reference", () => {
 
 describe("paywallAuthoringSkill — visual review discipline", () => {
   it("documents rendered inspection, screenshot checkpoints, and gated completion", () => {
-    expect(skill).toContain("`get_rendered_layout` measures reality");
-    expect(skill).toContain("`get_preview_screenshot` is the visual checkpoint");
-    expect(skill).toContain("`finish_design` is the completion gate");
+    expect(skill).toContain("`get_paywall_preview` is the visual checkpoint");
+    expect(skill).toContain("`finish_paywall_edit` is the completion gate");
     expect(skill).toContain("Hierarchy and story");
     expect(skill).toContain("Offer clarity");
     expect(skill).toContain("Viewport fit");

@@ -55,9 +55,7 @@ const authenticateSocket = (socketUrl: string, token: string): Promise<unknown[]
       messages.push(message);
       if (message.type === "snapshot") {
         const version =
-          "version" in message && typeof message.version === "number"
-            ? message.version
-            : 1;
+          "version" in message && typeof message.version === "number" ? message.version : 1;
         const value = "value" in message ? message.value : undefined;
         socket.send(
           JSON.stringify({
@@ -77,6 +75,63 @@ const authenticateSocket = (socketUrl: string, token: string): Promise<unknown[]
       }
     });
   });
+
+const smokeAgentSession = async (): Promise<void> => {
+  const token = process.env.SELFHOST_AGENT_SMOKE_BEARER_TOKEN?.trim();
+  const organizationId = process.env.SELFHOST_AGENT_SMOKE_ORGANIZATION_ID?.trim();
+  const projectId = process.env.SELFHOST_AGENT_SMOKE_PROJECT_ID?.trim();
+  if (!token && !organizationId && !projectId) return;
+  if (!token || !organizationId || !projectId) {
+    throw new Error(
+      "SELFHOST_AGENT_SMOKE_BEARER_TOKEN, SELFHOST_AGENT_SMOKE_ORGANIZATION_ID, and SELFHOST_AGENT_SMOKE_PROJECT_ID must be set together",
+    );
+  }
+  const sessionId = `agent_smoke_${crypto.randomUUID().replaceAll("-", "")}`;
+  const socketUrl = new URL(`/api/agent/sessions/${sessionId}/ws`, url.replace(/^http/, "ws"));
+  socketUrl.searchParams.set("organizationId", organizationId);
+  socketUrl.searchParams.set("projectId", projectId);
+  socketUrl.searchParams.set("surface", "designer");
+  const paywallId = process.env.SELFHOST_AGENT_SMOKE_PAYWALL_ID?.trim();
+  if (paywallId) socketUrl.searchParams.set("paywallId", paywallId);
+
+  await new Promise<void>((resolve, reject) => {
+    const socket = new WebSocket(socketUrl, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const timeout = setTimeout(() => {
+      socket.close();
+      reject(new Error("Timed out waiting for the durable agent round-trip"));
+    }, 60_000);
+    socket.once("error", reject);
+    socket.once("open", () => {
+      socket.send(
+        JSON.stringify({
+          v: 1,
+          type: "prompt",
+          requestId: "compose-agent-smoke",
+          text: "Reply with a short confirmation without modifying anything.",
+        }),
+      );
+    });
+    socket.on("message", (data) => {
+      const frame = JSON.parse(data.toString()) as {
+        readonly type?: string;
+        readonly message?: string;
+        readonly event?: { readonly type?: string };
+      };
+      if (frame.type === "error") {
+        clearTimeout(timeout);
+        socket.close();
+        reject(new Error(frame.message ?? "Agent session failed"));
+      }
+      if (frame.type === "event" && frame.event?.type === "agent_end") {
+        clearTimeout(timeout);
+        socket.close(1000, "agent smoke complete");
+        resolve();
+      }
+    });
+  });
+};
 
 await waitForHealth();
 await assertApplicationSurface();
@@ -127,10 +182,9 @@ try {
       message.type === "transaction",
   );
   if (!authenticated || !snapshot || !transaction) {
-    throw new Error(
-      "WebSocket authentication, snapshot, or transaction message was missing",
-    );
+    throw new Error("WebSocket authentication, snapshot, or transaction message was missing");
   }
+  await smokeAgentSession();
   console.log("Self-host compose smoke passed");
 } finally {
   if (collectionId) {

@@ -21,8 +21,11 @@
  *
  */
 import { ApiKeyService, LocalUserSessionService, Workos } from "@voidhash/core/services";
-import { AuthSession, type AnyAuthSession } from "@voidhash/core/domain/auth/Auth";
-import type { SecretKeySession } from "@voidhash/rpc";
+import {
+  AuthSession,
+  makeInternalProjectAuthSession,
+  type AnyAuthSession,
+} from "@voidhash/core/domain/auth/Auth";
 import { Cause, Effect, Layer, Result } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import * as HttpHeaders from "effect/unstable/http/Headers";
@@ -112,36 +115,6 @@ export const selectMcpProject = <Project extends { readonly id: string; readonly
       "The authenticated user has multiple projects. Set the X-Voidhash-Project header to a project id or slug.",
   };
 };
-
-/**
- * Construct the {@link SecretKeySession} for a validated project — byte-for-byte
- * the shape the v1 `authenticateSecretKey` middleware builds — so the workspace
- * service's project-membership authz sees a genuine single-project secret-key
- * session.
- */
-const secretKeySessionForProject = (project: {
-  id: string;
-  name: string;
-  organizationId: string;
-  slug: string;
-}): SecretKeySession => ({
-  cookie: null,
-  method: "secret-key",
-  name: `${project.name} API Key`,
-  organizations: [],
-  person: null,
-  projects: [
-    {
-      id: project.id,
-      logo: null,
-      name: project.name,
-      organizationId: project.organizationId,
-      permissions: ["project:all"],
-      slug: project.slug,
-    },
-  ],
-  user: null,
-});
 
 /**
  * The dispatcher passed to {@link handleMcpMessage}: look up the tool by name,
@@ -240,7 +213,7 @@ const handlePost = Effect.gen(function* () {
     const validatedSecret = yield* Effect.result(apiKeys.validateSecretKey(token));
     if (Result.isSuccess(validatedSecret)) {
       const record = validatedSecret.success;
-      session = secretKeySessionForProject({
+      session = makeInternalProjectAuthSession({
         id: record.project.id,
         name: record.project.name,
         organizationId: record.project.organizationId,
@@ -351,7 +324,7 @@ const registerMcpRoute = Effect.gen(function* () {
  * Registers `POST /api/mcp` (+ 405 on GET/DELETE). The request-scoped
  * requirements — OAuth/API-key auth, workspace services, and `Db` — are
  * satisfied via `HttpRouter.provideRequest` by the caller
- * (`BackendApp`), mirroring the AI chat and webhook routes. `AuthSession` is
+ * (`BackendApp`), mirroring the agent-session and webhook routes. `AuthSession` is
  * provided in-handler from the validated project or user key.
  */
 export const McpRouteLayer = Layer.effectDiscard(registerMcpRoute);

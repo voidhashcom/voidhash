@@ -1,10 +1,7 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 
-import type {
-  HostService,
-  PresenceEntry,
-} from "@voidhash/mimic-db/app/hostService";
+import type { HostService, PresenceEntry } from "@voidhash/mimic-db/app/hostService";
 import {
   AUTH_DEADLINE_MS,
   handleDocumentSocketClose,
@@ -28,6 +25,11 @@ import { makeNodeDurableEntitySession } from "@voidhash/platform-node/NodeDurabl
 import { Duration, Effect, Fiber, Semaphore } from "effect";
 import WebSocket, { WebSocketServer, type RawData } from "ws";
 
+import {
+  dispatchDurableEntityAlarms,
+  type DurableEntityAlarmHandler,
+} from "../DurableEntityAlarms.ts";
+
 interface NodeDocumentSocket {
   readonly webSocket: WebSocket;
   attachment: SessionAttachment | null;
@@ -44,10 +46,9 @@ interface NodeDocumentRuntime {
 export interface MimicNodeIdleNotificationOptions {
   readonly control: NodeDurableEntityControlShape;
   readonly debounceMs: number;
-  readonly publish: (
-    message: MimicDocumentIdleMessageType,
-  ) => Effect.Effect<void, unknown>;
+  readonly publish: (message: MimicDocumentIdleMessageType) => Effect.Effect<void, unknown>;
   readonly pollIntervalMs?: number;
+  readonly additionalAlarmHandlers?: Readonly<Record<string, DurableEntityAlarmHandler>>;
 }
 
 const mimicDocumentEntityType = "mimic-document";
@@ -56,10 +57,7 @@ const documentKey = (collectionId: string, documentId: string): string =>
   `${collectionId}\u0000${documentId}`;
 
 const documentEntityAddress = (collectionId: string, documentId: string) =>
-  makeDurableEntityAddress(
-    mimicDocumentEntityType,
-    `${collectionId}:${documentId}`,
-  );
+  makeDurableEntityAddress(mimicDocumentEntityType, `${collectionId}:${documentId}`);
 
 const parseDocumentEntityId = (
   id: string,
@@ -88,11 +86,9 @@ const makeNodeIdleNotifier = (
     publish: options.publish,
     storage: {
       get: (key) =>
-        entity.keyValue.get(key).pipe(
-          Effect.map((value) =>
-            typeof value === "number" ? value : undefined,
-          ),
-        ),
+        entity.keyValue
+          .get(key)
+          .pipe(Effect.map((value) => (typeof value === "number" ? value : undefined))),
       put: (key, value) => entity.keyValue.put(key, value),
       setAlarm: entity.alarm.set,
     },
@@ -103,41 +99,28 @@ export const dispatchMimicDocumentIdleAlarms = (
   entities: DurableEntityHost["Service"],
   options: MimicNodeIdleNotificationOptions,
   authenticatedCount: (collectionId: string, documentId: string) => number,
-): Effect.Effect<void> =>
-  Effect.gen(function* () {
-    const now = Date.now();
-    const due = yield* options.control.listDueAlarms(now, 100);
-    yield* Effect.forEach(
-      due,
-      ({ address }) => {
-        if (address.type !== mimicDocumentEntityType) return Effect.void;
-        const document = parseDocumentEntityId(address.id);
-        if (!document) {
-          return Effect.logWarning(
-            `Ignoring malformed Mimic document entity alarm ${address.id}`,
-          );
-        }
-        return entities.run(address, (entity) =>
-          Effect.gen(function* () {
-            const scheduledTime = yield* entity.alarm.get;
-            if (scheduledTime === undefined || scheduledTime > now) return;
-            yield* entity.alarm.delete;
-            yield* makeNodeIdleNotifier(
-              entity,
-              document.collectionId,
-              document.documentId,
-              () =>
-                authenticatedCount(
-                  document.collectionId,
-                  document.documentId,
-                ),
-              options,
-            ).onAlarm();
-          }),
-        );
-      },
-      { discard: true },
-    );
+): Effect.Effect<void, unknown> =>
+  dispatchDurableEntityAlarms(options.control, {
+    [mimicDocumentEntityType]: (address, now) => {
+      const document = parseDocumentEntityId(address.id);
+      if (!document) {
+        return Effect.logWarning(`Ignoring malformed Mimic document entity alarm ${address.id}`);
+      }
+      return entities.run(address, (entity) =>
+        Effect.gen(function* () {
+          const scheduledTime = yield* entity.alarm.get;
+          if (scheduledTime === undefined || scheduledTime > now) return;
+          yield* entity.alarm.delete;
+          yield* makeNodeIdleNotifier(
+            entity,
+            document.collectionId,
+            document.documentId,
+            () => authenticatedCount(document.collectionId, document.documentId),
+            options,
+          ).onAlarm();
+        }),
+      );
+    },
   });
 
 const parseDocumentAddress = (
@@ -159,11 +142,6 @@ const parseDocumentAddress = (
     collectionId: decodeURIComponent(parts[5] ?? ""),
     documentId: decodeURIComponent(parts[7] ?? ""),
   };
-};
-
-const rejectUpgrade = (socket: Duplex, status: number, reason: string): void => {
-  socket.write(`HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\n\r\n`);
-  socket.destroy();
 };
 
 const toFrame = (data: RawData, isBinary: boolean): string | Uint8Array => {
@@ -226,8 +204,7 @@ export const installMimicNodeWebSocketServer = (
       setAttachment: (socket, attachment) => void (socket.attachment = attachment),
       send: (socket, message) =>
         Effect.sync(() => void socket.webSocket.send(encodeServerMessage(message))),
-      close: (socket, code, reason) =>
-        Effect.sync(() => void socket.webSocket.close(code, reason)),
+      close: (socket, code, reason) => Effect.sync(() => void socket.webSocket.close(code, reason)),
       authenticate: (token, attachment) =>
         withoutRequirements(
           host.authenticateDocumentToken(
@@ -255,13 +232,9 @@ export const installMimicNodeWebSocketServer = (
           ),
         ),
       onAccepted: (seq) =>
-        entities.run(entityAddress, (entity) =>
-          idleNotifier(entity).recordDirty(seq),
-        ),
+        entities.run(entityAddress, (entity) => idleNotifier(entity).recordDirty(seq)),
       onLastAuthenticatedClose: () =>
-        entities.run(entityAddress, (entity) =>
-          idleNotifier(entity).onLastAuthenticatedClose(),
-        ),
+        entities.run(entityAddress, (entity) => idleNotifier(entity).onLastAuthenticatedClose()),
     };
     const runtime = {
       lock: Semaphore.makeUnsafe(1),
@@ -276,7 +249,6 @@ export const installMimicNodeWebSocketServer = (
   const onUpgrade = (request: IncomingMessage, socket: Duplex, head: Buffer): void => {
     const address = parseDocumentAddress(request);
     if (!address) {
-      rejectUpgrade(socket, 404, "Not Found");
       return;
     }
     webSockets.handleUpgrade(request, socket, head, (webSocket) => {
@@ -299,10 +271,7 @@ export const installMimicNodeWebSocketServer = (
       }
       runtime.connections.add(nodeSocket);
       runtime.context.registry.trackPending(attachment.connectionId, nodeSocket);
-      const entityAddress = documentEntityAddress(
-        address.collectionId,
-        address.documentId,
-      );
+      const entityAddress = documentEntityAddress(address.collectionId, address.documentId);
       const entitySession = makeNodeDurableEntitySession(
         attachment.connectionId,
         {
@@ -319,11 +288,7 @@ export const installMimicNodeWebSocketServer = (
           Effect.promise(() => ready).pipe(
             Effect.andThen(
               runtime.lock.withPermit(
-                handleDocumentSocketMessage(
-                  runtime.context,
-                  nodeSocket,
-                  toFrame(data, isBinary),
-                ),
+                handleDocumentSocketMessage(runtime.context, nodeSocket, toFrame(data, isBinary)),
               ),
             ),
           ),
@@ -364,22 +329,38 @@ export const installMimicNodeWebSocketServer = (
 
   const alarmFiber = Effect.runFork(
     Effect.forever(
-      dispatchMimicDocumentIdleAlarms(
-        entities,
-        idleNotifications,
-        (collectionId, documentId) =>
-          documents
-            .get(documentKey(collectionId, documentId))
-            ?.context.registry.authenticated().length ?? 0,
-      ).pipe(
+      dispatchDurableEntityAlarms(idleNotifications.control, {
+        [mimicDocumentEntityType]: (address, now) => {
+          const document = parseDocumentEntityId(address.id);
+          if (!document) {
+            return Effect.logWarning(
+              `Ignoring malformed Mimic document entity alarm ${address.id}`,
+            );
+          }
+          return entities.run(address, (entity) =>
+            Effect.gen(function* () {
+              const scheduledTime = yield* entity.alarm.get;
+              if (scheduledTime === undefined || scheduledTime > now) return;
+              yield* entity.alarm.delete;
+              yield* makeNodeIdleNotifier(
+                entity,
+                document.collectionId,
+                document.documentId,
+                () =>
+                  documents
+                    .get(documentKey(document.collectionId, document.documentId))
+                    ?.context.registry.authenticated().length ?? 0,
+                idleNotifications,
+              ).onAlarm();
+            }),
+          );
+        },
+        ...idleNotifications.additionalAlarmHandlers,
+      }).pipe(
         Effect.catchCause((cause) =>
           Effect.logError("Mimic document alarm dispatch failed", cause),
         ),
-        Effect.andThen(
-          Effect.sleep(
-            Duration.millis(idleNotifications.pollIntervalMs ?? 500),
-          ),
-        ),
+        Effect.andThen(Effect.sleep(Duration.millis(idleNotifications.pollIntervalMs ?? 500))),
       ),
     ),
   );

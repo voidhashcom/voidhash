@@ -4,7 +4,7 @@
  * raise lives here so the rpc package stays self-contained and doesn't
  * leak server-side internals to frontend consumers.
  */
-export * from "./AiChat.ts";
+export * from "./AgentSession.ts";
 export * from "./analytics.ts";
 export * from "./ApiKey.ts";
 export * from "./AuditLog.ts";

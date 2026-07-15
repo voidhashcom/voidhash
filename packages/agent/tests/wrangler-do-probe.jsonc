@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "name": "voidhash-agent-do-probe",
+  "main": "workerd-do-probe.ts",
+  "compatibility_date": "2026-03-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "PROBE_SESSION", "class_name": "ProbeSession" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ProbeSession"] }],
+}

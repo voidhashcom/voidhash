@@ -1,4 +1,4 @@
-export * from "./ai-chats";
+export * from "./agent-sessions";
 export * from "./api-keys";
 export * from "./analytics";
 export * from "./persons";

@@ -1,6 +1,7 @@
 import { and, Db, eq, PaywallEditChangeSetStatus, paywallEditChangeSets } from "@voidhash/db";
 import { Context, Effect, Layer, Schema } from "effect";
 
+import { ActionForbiddenError } from "../../domain/auth/Auth.ts";
 import { generateId } from "../../utils/generate-id.ts";
 import { PaywallWorkspaceService } from "./PaywallWorkspaceService.ts";
 
@@ -55,9 +56,17 @@ export class PaywallEditChangeSetService extends Context.Service<PaywallEditChan
         readonly projectId: string;
         readonly changeSetId: string;
         readonly paywallSlug: string;
+        readonly agentSessionId?: string;
       }) =>
         Effect.gen(function* () {
           const row = yield* requireRow(input.projectId, input.changeSetId);
+          if (input.agentSessionId !== undefined && row.agentSessionId !== input.agentSessionId) {
+            return yield* Effect.fail(
+              new ActionForbiddenError({
+                message: "This change set does not belong to the active agent session.",
+              }),
+            );
+          }
           if (row.paywallSlug !== input.paywallSlug) {
             return yield* Effect.fail(
               new PaywallEditChangeSetConflictError({
@@ -81,7 +90,7 @@ export class PaywallEditChangeSetService extends Context.Service<PaywallEditChan
           } satisfies ActivePaywallEditChangeSet;
         });
 
-      const begin = (projectId: string, paywallSlug: string) =>
+      const begin = (projectId: string, paywallSlug: string, agentSessionId?: string) =>
         Effect.gen(function* () {
           const document = yield* workspace.readDocument(projectId, paywallSlug);
           const existing = yield* db.query.paywallEditChangeSets.findFirst({
@@ -92,6 +101,14 @@ export class PaywallEditChangeSetService extends Context.Service<PaywallEditChan
             },
           });
           if (existing !== undefined) {
+            if (agentSessionId !== undefined && existing.agentSessionId === agentSessionId) {
+              return {
+                id: existing.id,
+                paywallId: existing.paywallId,
+                paywallSlug: existing.paywallSlug,
+                baselineVersion: existing.baselineVersion,
+              };
+            }
             return yield* Effect.fail(
               new PaywallEditChangeSetConflictError({
                 message: `Paywall "${paywallSlug}" already has active change set "${existing.id}". Finish or revert it before beginning another.`,
@@ -102,6 +119,7 @@ export class PaywallEditChangeSetService extends Context.Service<PaywallEditChan
           const id = generateId("paywallEditChangeSet");
           yield* db.insert(paywallEditChangeSets).values({
             id,
+            ...(agentSessionId === undefined ? {} : { agentSessionId }),
             projectId,
             paywallId: document.paywallId,
             paywallSlug: document.slug,
@@ -121,6 +139,7 @@ export class PaywallEditChangeSetService extends Context.Service<PaywallEditChan
         readonly projectId: string;
         readonly changeSetId: string;
         readonly paywallSlug: string;
+        readonly agentSessionId?: string;
         readonly documentSignature: string;
         readonly documentVersion: number;
       }) =>
@@ -145,6 +164,7 @@ export class PaywallEditChangeSetService extends Context.Service<PaywallEditChan
         readonly projectId: string;
         readonly changeSetId: string;
         readonly paywallSlug: string;
+        readonly agentSessionId?: string;
         readonly reviewedDocumentSignature: string;
         readonly currentDocumentSignature: string;
         readonly currentDocumentVersion: number;
@@ -152,6 +172,13 @@ export class PaywallEditChangeSetService extends Context.Service<PaywallEditChan
       }) =>
         Effect.gen(function* () {
           const row = yield* requireRow(input.projectId, input.changeSetId);
+          if (input.agentSessionId !== undefined && row.agentSessionId !== input.agentSessionId) {
+            return yield* Effect.fail(
+              new ActionForbiddenError({
+                message: "This change set does not belong to the active agent session.",
+              }),
+            );
+          }
           if (row.paywallSlug !== input.paywallSlug) {
             return yield* Effect.fail(
               new PaywallEditChangeSetConflictError({
@@ -201,12 +228,37 @@ export class PaywallEditChangeSetService extends Context.Service<PaywallEditChan
       const revert = (projectId: string, changeSetId: string) =>
         Effect.gen(function* () {
           const row = yield* requireRow(projectId, changeSetId);
-          if (row.status !== PaywallEditChangeSetStatus.active) {
+          if (row.status === PaywallEditChangeSetStatus.reverted) {
             return yield* Effect.fail(
               new PaywallEditChangeSetConflictError({
-                message: `Change set "${changeSetId}" is ${row.status}; only active change sets can be reverted.`,
+                message: `Change set "${changeSetId}" has already been reverted.`,
               }),
             );
+          }
+          if (row.status === PaywallEditChangeSetStatus.finished) {
+            const document = yield* workspace.readDocument(projectId, row.paywallSlug);
+            if (row.lastPreviewVersion === null || document.version !== row.lastPreviewVersion) {
+              return yield* Effect.fail(
+                new PaywallEditChangeSetConflictError({
+                  message:
+                    "The paywall changed after this change set was reviewed, so reverting it would overwrite newer work.",
+                }),
+              );
+            }
+            const active = yield* db.query.paywallEditChangeSets.findFirst({
+              where: {
+                projectId,
+                paywallId: row.paywallId,
+                status: PaywallEditChangeSetStatus.active,
+              },
+            });
+            if (active !== undefined && active.id !== row.id) {
+              return yield* Effect.fail(
+                new PaywallEditChangeSetConflictError({
+                  message: `Change set "${active.id}" is now active for this paywall. Finish or revert it first.`,
+                }),
+              );
+            }
           }
           const result = yield* workspace.revertDocument(row.paywallId, row.baselineTree);
           yield* db
@@ -216,10 +268,27 @@ export class PaywallEditChangeSetService extends Context.Service<PaywallEditChan
               and(
                 eq(paywallEditChangeSets.id, changeSetId),
                 eq(paywallEditChangeSets.projectId, projectId),
-                eq(paywallEditChangeSets.status, PaywallEditChangeSetStatus.active),
+                eq(paywallEditChangeSets.status, row.status),
               ),
             );
           return { ...result, paywallSlug: row.paywallSlug };
+        });
+
+      const revertForAgentSession = (
+        projectId: string,
+        changeSetId: string,
+        agentSessionId: string,
+      ) =>
+        Effect.gen(function* () {
+          const row = yield* requireRow(projectId, changeSetId);
+          if (row.agentSessionId !== agentSessionId) {
+            return yield* Effect.fail(
+              new ActionForbiddenError({
+                message: "This change set does not belong to the requested agent session.",
+              }),
+            );
+          }
+          return yield* revert(projectId, changeSetId);
         });
 
       return {
@@ -228,6 +297,7 @@ export class PaywallEditChangeSetService extends Context.Service<PaywallEditChan
         recordPreview,
         finish,
         revert,
+        revertForAgentSession,
       } as const;
     }),
   },

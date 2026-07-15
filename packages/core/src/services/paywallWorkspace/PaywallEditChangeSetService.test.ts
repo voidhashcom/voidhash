@@ -1,5 +1,5 @@
 import { Db, PaywallEditChangeSetStatus } from "@voidhash/db";
-import { AuthSession } from "../../domain/auth/Auth.ts";
+import { ActionForbiddenError, AuthSession } from "../../domain/auth/Auth.ts";
 import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -11,6 +11,7 @@ import { PaywallWorkspaceService } from "./PaywallWorkspaceService.ts";
 
 interface ChangeSetRow {
   id: string;
+  agentSessionId: string | null;
   projectId: string;
   paywallId: string;
   paywallSlug: string;
@@ -26,6 +27,7 @@ interface ChangeSetRow {
 const makeLayers = () => {
   const rows: ChangeSetRow[] = [];
   const reverted: unknown[] = [];
+  let currentVersion: number | undefined;
   const db = {
     query: {
       paywallEditChangeSets: {
@@ -43,12 +45,17 @@ const makeLayers = () => {
       values: (
         value: Omit<
           ChangeSetRow,
-          "lastPreviewSignature" | "lastPreviewVersion" | "reviewVerdict" | "finishedAt"
-        >,
+          | "agentSessionId"
+          | "lastPreviewSignature"
+          | "lastPreviewVersion"
+          | "reviewVerdict"
+          | "finishedAt"
+        > & { agentSessionId?: string },
       ) =>
         Effect.sync(() => {
           rows.push({
             ...value,
+            agentSessionId: value.agentSessionId ?? null,
             lastPreviewSignature: null,
             lastPreviewVersion: null,
             reviewVerdict: null,
@@ -73,7 +80,7 @@ const makeLayers = () => {
         paywallId: "pw_1",
         tree: { encoded: "baseline" },
         root: { id: "root_1", type: "root", children: [] },
-        version: 4,
+        version: currentVersion ?? rows[0]?.lastPreviewVersion ?? 4,
       }),
     revertDocument: (_paywallId: string, tree: unknown) =>
       Effect.sync(() => {
@@ -86,18 +93,29 @@ const makeLayers = () => {
     Layer.provide(Layer.succeed(PaywallWorkspaceService, workspace)),
     Layer.provideMerge(Layer.succeed(AuthSession, {} as never)),
   );
-  return { layer, rows, reverted };
+  return {
+    layer,
+    rows,
+    reverted,
+    setCurrentVersion: (version: number) => {
+      currentVersion = version;
+    },
+  };
 };
 
 describe("PaywallEditChangeSetService", () => {
-  it("captures one active baseline and rejects a second begin", async () => {
+  it("resumes its owning agent and rejects a second caller", async () => {
     const { layer, rows } = makeLayers();
     await Effect.runPromise(
       Effect.gen(function* () {
         const service = yield* PaywallEditChangeSetService;
-        const started = yield* service.begin("proj_1", "trial");
+        const started = yield* service.begin("proj_1", "trial", "agent_1");
         expect(started.baselineVersion).toBe(4);
         expect(rows[0]?.baselineTree).toEqual({ encoded: "baseline" });
+        expect(rows[0]?.agentSessionId).toBe("agent_1");
+        const resumed = yield* service.begin("proj_1", "trial", "agent_1");
+        expect(resumed.id).toBe(started.id);
+        expect(rows).toHaveLength(1);
         const conflict = yield* Effect.flip(service.begin("proj_1", "trial"));
         expect(conflict).toBeInstanceOf(PaywallEditChangeSetConflictError);
       }).pipe(Effect.provide(layer)),
@@ -140,8 +158,8 @@ describe("PaywallEditChangeSetService", () => {
         });
         expect(rows[0]?.status).toBe(PaywallEditChangeSetStatus.finished);
         expect(rows[0]?.reviewVerdict).toBe("Looks good");
-        const revertFinished = yield* Effect.flip(service.revert("proj_1", started.id));
-        expect(revertFinished).toBeInstanceOf(PaywallEditChangeSetConflictError);
+        yield* service.revert("proj_1", started.id);
+        expect(rows[0]?.status).toBe(PaywallEditChangeSetStatus.reverted);
       }).pipe(Effect.provide(layer)),
     );
   });
@@ -158,5 +176,67 @@ describe("PaywallEditChangeSetService", () => {
     );
     expect(reverted).toEqual([{ encoded: "baseline" }]);
     expect(rows[0]?.status).toBe(PaywallEditChangeSetStatus.reverted);
+  });
+
+  it("refuses to revert a finished change set after newer document edits", async () => {
+    const { layer, rows, reverted, setCurrentVersion } = makeLayers();
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const service = yield* PaywallEditChangeSetService;
+        const started = yield* service.begin("proj_1", "trial");
+        yield* service.recordPreview({
+          projectId: "proj_1",
+          changeSetId: started.id,
+          paywallSlug: "trial",
+          documentSignature: "doc-current",
+          documentVersion: 7,
+        });
+        yield* service.finish({
+          projectId: "proj_1",
+          changeSetId: started.id,
+          paywallSlug: "trial",
+          reviewedDocumentSignature: "doc-current",
+          currentDocumentSignature: "doc-current",
+          currentDocumentVersion: 7,
+          verdict: "Looks good",
+        });
+        setCurrentVersion(8);
+        const conflict = yield* Effect.flip(service.revert("proj_1", started.id));
+        expect(conflict).toBeInstanceOf(PaywallEditChangeSetConflictError);
+      }).pipe(Effect.provide(layer)),
+    );
+    expect(rows[0]?.status).toBe(PaywallEditChangeSetStatus.finished);
+    expect(reverted).toEqual([]);
+  });
+
+  it("only reverts through the durable agent session that owns the change set", async () => {
+    const { layer, reverted } = makeLayers();
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const service = yield* PaywallEditChangeSetService;
+        const started = yield* service.begin("proj_1", "trial", "agent_1");
+        const editForbidden = yield* Effect.flip(
+          service.requireActive({
+            projectId: "proj_1",
+            changeSetId: started.id,
+            paywallSlug: "trial",
+            agentSessionId: "agent_other",
+          }),
+        );
+        expect(editForbidden).toBeInstanceOf(ActionForbiddenError);
+        yield* service.requireActive({
+          projectId: "proj_1",
+          changeSetId: started.id,
+          paywallSlug: "trial",
+          agentSessionId: "agent_1",
+        });
+        const forbidden = yield* Effect.flip(
+          service.revertForAgentSession("proj_1", started.id, "agent_other"),
+        );
+        expect(forbidden).toBeInstanceOf(ActionForbiddenError);
+        yield* service.revertForAgentSession("proj_1", started.id, "agent_1");
+      }).pipe(Effect.provide(layer)),
+    );
+    expect(reverted).toEqual([{ encoded: "baseline" }]);
   });
 });

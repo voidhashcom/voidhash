@@ -132,14 +132,14 @@ let cachedSkill: string | undefined;
 export const paywallAuthoringSkill = (): string =>
   (cachedSkill ??= `# Paywall Authoring Reference
 
-This is the domain reference for building the open paywall as a mimic document
-with \`edit_document\`, plus code components for anything that needs real code.
+This is the domain reference for building a paywall as a mimic document
+with \`edit_paywall\`, plus code components for anything that needs real code.
 Read the document model and containment rules first — the style reference below is
 generated from the live schema, so it is always exact.
 
 ## Document model
 
-A paywall is a MIMIC DOCUMENT: a tree of nodes. You author it with \`edit_document\`
+A paywall is a MIMIC DOCUMENT: a tree of nodes. You author it with \`edit_paywall\`
 ops (\`insert\`, \`update\`, \`move\`, \`remove\`, \`replaceChildren\`), addressing nodes
 by their engine-minted id. The node kinds you build with:
 
@@ -164,7 +164,7 @@ by their engine-minted id. The node kinds you build with:
   \`get_components\` — builtins are UNPINNED (no version/hash) and take props like
   any component.
 
-Node ids are ADDRESSES: every node has a stable id. \`get_document\` returns the
+Node ids are ADDRESSES: every node has a stable id. \`get_paywall\` returns the
 tree with ids; the user's selection is a set of ids; inserts RETURN their minted
 ids. You never write an id yourself.
 
@@ -235,36 +235,38 @@ Layout is flexbox, exactly like CSS / React Native:
 
 ## Tool usage
 
-- **\`get_document\` first.** Learn the current tree and ids before editing. Pass
+- **Open one change set.** Discover the target with \`list_paywalls\`, then call
+  \`begin_paywall_edit({ slug })\`. Pass the returned \`changeSetId\` and the same
+  \`slug\` to every mutation and preview call. Finish it after visual QA, or
+  revert it; never abandon an active change set.
+- **\`get_paywall\` first.** Learn the current tree and ids before editing. Pass
   \`nodeId\` to root at a subtree and \`depth\` to cap the tree (deeper nodes return
   as \`{ id, type, name?, childCount }\` stubs you expand with a follow-up
-  \`get_document(nodeId)\`). Cheaper than pulling the whole document every turn.
-- **\`edit_document\` applies an ATOMIC batch.** Every op lands or none does. On
+  \`get_paywall({ slug, nodeId })\`). Cheaper than pulling the whole document every
+  turn.
+- **\`edit_paywall\` applies an ATOMIC batch.** Every op lands or none does. On
   success you get the minted ids for \`insert\`/\`replaceChildren\` ops (keyed by op
   index, parents-before-children) so you can address new nodes next. On failure
   you get per-op errors naming the node, the allowed fields (with a did-you-mean),
   and the allowed values — trust them and correct the batch. On a write conflict
   the batch is re-applied against the latest LIVE tree, so concurrent designer
-  edits MERGE rather than clobber — a follow-up \`get_document\` may show a tree
+  edits MERGE rather than clobber — a follow-up \`get_paywall\` may show a tree
   shifted by another editor's changes.
 - **Merge semantics on \`update\`.** \`set.style\` merges per style field; other
   objects merge per-field; arrays and scalars REPLACE wholesale. Send only the
   fields you want to change.
 - **Ids are minted.** Never supply an id on an inserted node. Target existing
-  nodes with ids from \`get_document\`, the selection, or a prior insert's returned
+  nodes with ids from \`get_paywall\`, the selection, or a prior insert's returned
   ids.
 - **Selection ids are directly addressable.** When the context block lists
   selected node ids, use them straight in ops (no need to re-locate them).
 - **\`duplicate_subtree\` preserves visual systems.** Prefer it over rebuilding a
   repeated benefit, product option, card, or control from scratch. Fresh ids are
   returned, so immediately tailor the clone's content/state with focused updates.
-- **\`get_rendered_layout\` measures reality.** Use it when declared styles are not
-  enough to judge alignment, spacing, clipping, overflow, safe-area fit, or
-  above-the-fold placement. It reports browser geometry and resolved styles.
-- **\`get_preview_screenshot\` is the visual checkpoint.** Capture the screen after
+- **\`get_paywall_preview\` is the visual checkpoint.** Capture the screen after
   each meaningful visual section and after every correction pass. Inspect the
   pixels; do not infer visual quality from the document tree alone.
-- **\`finish_design\` is the completion gate.** It accepts only the exact signature
+- **\`finish_paywall_edit\` is the completion gate.** It accepts only the exact signature
   of the latest screenshot while the document is unchanged and
   \`unresolvedIssues\` is empty. Any post-review edit requires a new screenshot.
 
@@ -298,7 +300,7 @@ rubric and correct visible issues with focused edits:
 
 Do not merely describe a problem found in the screenshot. Fix it, capture a new
 screenshot, and repeat until the review has no unresolved issues. Then call
-\`finish_design\` with the final screenshot's document signature.
+\`finish_paywall_edit\` with the final screenshot's document signature.
 
 ### Op cheatsheet
 
@@ -384,7 +386,7 @@ These three first-class document fields form a small no-code state machine:
    a variable changes. Later matching states win conflicting fields. On \`view\`
    and \`scrollView\`, a state may also replace an interaction's action through
    \`overrides.actions\`; its \`interactionId\` must be the interaction array-entry
-   id returned by \`get_document\`. State style overrides do not auto-enable gated
+   id returned by \`get_paywall\`. State style overrides do not auto-enable gated
    groups, so include \`backgroundEnabled\`, \`borderEnabled\`, \`shadowEnabled\`,
    \`fillEnabled\`, or \`strokeEnabled\` when an override first turns on that group.
 
@@ -453,7 +455,7 @@ fields inside these arrays are stable logical ids for sub-records, not node ids.
 
 ## Doctrine: build with the document, reach for code only when you must
 
-**The document (\`edit_document\`) is ALWAYS the primary way to build a paywall.**
+**The document (\`edit_paywall\`) is ALWAYS the primary way to build a paywall.**
 Static layout, styling, literal text, local variables, click/component actions,
 and variable-driven style/visibility states all belong in the document. Write a
 code component ONLY when the document genuinely cannot express what you need:
@@ -630,23 +632,30 @@ where \`period\` is \`"month" | "year" | "week" | "lifetime"\`.
 
 ## Tool vocabulary
 
-All tools operate on the currently open paywall, except \`read_paywall\`.
+- \`list_paywalls()\` — discover paywall slugs in the project.
+- \`begin_paywall_edit({ slug })\` — capture the revert baseline and return a
+  \`changeSetId\`.
+- \`get_paywall({ slug, nodeId?, depth? })\` — read cleaned document JSON (subtree
+  + depth for economy).
+- \`get_components({ slug })\` — list every placeable catalog, local, and builtin
+  component with its authoring contract.
+- \`read_component({ slug, path })\` — read a local code component's TSX source.
+- \`edit_paywall({ slug, changeSetId, edits })\` — apply an atomic batch of document
+  ops (returns minted ids or per-op errors).
+- \`duplicate_subtree({ slug, changeSetId, nodeId, parentId, index? })\` — clone a
+  visual subtree with fresh ids.
+- \`write_component({ slug, changeSetId, path, source })\` — create or replace a
+  compiled code component.
+- \`rename_component({ slug, changeSetId, fromPath, toPath })\` — move a component
+  and re-point its instances.
+- \`delete_component({ slug, changeSetId, path })\` — delete a component; existing
+  instances degrade to placeholders.
+- \`get_paywall_preview({ slug, changeSetId })\` — render the version-bound PNG
+  used for visual QA.
+- \`finish_paywall_edit({ slug, changeSetId, reviewedDocumentSignature, verdict,
+  unresolvedIssues: [] })\` — accept a visually verified edit.
+- \`revert_paywall_edit({ changeSetId })\` — restore the captured baseline.
 
-- \`get_document(nodeId?, depth?)\` — read the open paywall's document as cleaned
-  JSON (subtree + depth for economy).
-- \`get_components()\` — list every placeable component (catalog + local +
-  builtin) with paths/slugs, props, actions, and preview states.
-- \`read_component(path)\` — read a LOCAL code component's TSX source.
-- \`read_paywall(slug)\` — read ANOTHER paywall's document JSON for reference
-  (read-only).
-- \`edit_document(edits)\` — apply an atomic batch of document ops (returns minted
-  ids or per-op errors).
-- \`write_component(path, source)\` — create-or-replace a code component (compiles;
-  returns diagnostics on failure).
-- \`rename_component(fromPath, toPath)\` — move a component (instances re-pointed).
-- \`delete_component(path)\` — delete a component (instances degrade to
-  placeholders).
-
-Read (\`get_document\`/\`get_components\`) before you write, use the minted ids the
+Read (\`get_paywall\`/\`get_components\`) before you write, use the minted ids the
 edits return, and trust the field/value errors the validator gives you.
 `);

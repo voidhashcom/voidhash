@@ -4,6 +4,7 @@ import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { EventCaptureApi } from "@voidhash/api-contracts/event-capture";
 import {
   buildBackendFetch,
+  buildBackendAgentServices,
   NoBackendFeatures,
   NoBackendRpcExtension,
 } from "@voidhash/backend/src/BackendApp.ts";
@@ -29,10 +30,7 @@ import {
 } from "./backend/Analytics.ts";
 import { WorkosAuthTokenVerifierLive } from "./backend/AuthTokenVerifier.ts";
 import { runSelfhostCronJobs } from "./backend/Background.ts";
-import {
-  makeBackendInfrastructureLive,
-  makeSelfhostWorkosLive,
-} from "./backend/Backend.ts";
+import { makeBackendInfrastructureLive, makeSelfhostWorkosLive } from "./backend/Backend.ts";
 import { makeSelfhostClickhouseLayers } from "./backend/Clickhouse.ts";
 import {
   runSelfhostPushDeliveryConsumers,
@@ -48,14 +46,12 @@ import {
   registerSelfhostWorkflows,
 } from "./backend/WorkflowPorts.ts";
 import { getSelfhostRuntimeConfig } from "./config.ts";
+import { installAgentNodeWebSocketServer } from "./agent/AgentNodeWebSocket.ts";
 import { makeSelfhostMimicDocumentIdlePublisher } from "./mimic/MimicDocumentIdleQueue.ts";
 import { installMimicNodeWebSocketServer } from "./mimic/MimicNodeWebSocket.ts";
 import { makeMimicNodeHostLive } from "./mimic/MimicNode.ts";
 import { getMimicNodeConfig } from "./mimic/config.ts";
-import {
-  isWwwRequest,
-  loadWwwRequestHandler,
-} from "./www/Www.ts";
+import { isWwwRequest, loadWwwRequestHandler } from "./www/Www.ts";
 
 const isMimicRequest = (url: string | undefined): boolean => {
   const pathname = new URL(url ?? "/", "http://selfhost.local").pathname;
@@ -96,9 +92,7 @@ NodeRuntime.runMain(
         chromiumConfig === undefined
           ? undefined
           : makeSelfhostSnapshotImageRendererLive(chromiumConfig),
-      ).pipe(
-        Layer.provide(hostLayer),
-      );
+      ).pipe(Layer.provide(hostLayer));
       const authContext = yield* Layer.build(
         WorkosAuthTokenVerifierLive.pipe(Layer.provide(workos)),
       );
@@ -123,6 +117,16 @@ NodeRuntime.runMain(
         PushDeliveryDispatch,
         Context.get(pushDispatchContext, PushDeliveryDispatch),
       );
+      const agentServices = yield* Layer.build(
+        Layer.mergeAll(
+          buildBackendAgentServices({
+            features: NoBackendFeatures,
+            infrastructure,
+            pushDeliveryDispatch,
+          }),
+          infrastructure,
+        ),
+      );
       yield* registerSelfhostWorkflows(config).pipe(Effect.provide(runtimeContext));
       yield* Effect.forkScoped(
         runSelfhostAnalyticsConsumers(config, clickhouse?.readWrite).pipe(
@@ -130,23 +134,16 @@ NodeRuntime.runMain(
         ),
       );
       yield* Effect.forkScoped(
-        runSelfhostPushDeliveryConsumers(config).pipe(
-          Effect.provide(runtimeContext),
-        ),
+        runSelfhostPushDeliveryConsumers(config).pipe(Effect.provide(runtimeContext)),
       );
       yield* Effect.forkScoped(
-        runSelfhostCronJobs(config, clickhouse?.readWrite).pipe(
-          Effect.provide(runtimeContext),
-        ),
+        runSelfhostCronJobs(config, clickhouse?.readWrite).pipe(Effect.provide(runtimeContext)),
       );
       if (chromiumConfig !== undefined) {
         const thumbnailContext = yield* Layer.build(
           makeSelfhostPaywallThumbnailServiceLive(chromiumConfig),
         ).pipe(Effect.provide(runtimeContext));
-        const thumbnailService = Context.get(
-          thumbnailContext,
-          PaywallThumbnailService,
-        );
+        const thumbnailService = Context.get(thumbnailContext, PaywallThumbnailService);
         yield* Effect.forkScoped(
           runSelfhostPaywallThumbnailConsumer.pipe(
             Effect.provide(runtimeContext),
@@ -164,11 +161,8 @@ NodeRuntime.runMain(
         features: NoBackendFeatures,
         rpcExtension: NoBackendRpcExtension,
         infrastructure,
-        ...(clickhouse === undefined
-          ? {}
-          : { analyticsQueryClient: clickhouse.analyticsQuery }),
+        ...(clickhouse === undefined ? {} : { analyticsQueryClient: clickhouse.analyticsQuery }),
         pushDeliveryDispatch,
-        authTokenVerifier,
       }).pipe(Effect.provide(runtimeContext));
       const mimicEffect = yield* makeRoutesLive(hostLayer).pipe(
         Layer.provide(NodeHttpServer.layerHttpServices),
@@ -201,12 +195,13 @@ NodeRuntime.runMain(
           new Error("WWW_SERVER_ENTRY and WWW_CLIENT_DIRECTORY must be configured together"),
         );
       }
-      const wwwHandler = wwwServerEntry && wwwClientDirectory
-        ? yield* Effect.tryPromise({
-            try: () => loadWwwRequestHandler(wwwServerEntry, wwwClientDirectory),
-            catch: (cause) => new Error("Failed to load the WWW server bundle", { cause }),
-          })
-        : undefined;
+      const wwwHandler =
+        wwwServerEntry && wwwClientDirectory
+          ? yield* Effect.tryPromise({
+              try: () => loadWwwRequestHandler(wwwServerEntry, wwwClientDirectory),
+              catch: (cause) => new Error("Failed to load the WWW server bundle", { cause }),
+            })
+          : undefined;
       const server = createServer((request, response) => {
         if (isMimicRequest(request.url)) {
           mimicHandler(request, response);
@@ -228,16 +223,19 @@ NodeRuntime.runMain(
         }
         backendHandler(request, response);
       });
-      const closeWebSockets = installMimicNodeWebSocketServer(
+      const agentWebSockets = installAgentNodeWebSocketServer(
         server,
-        host,
         entities,
-        {
-          control: entityControl,
-          debounceMs: mimicConfig.idleNotifyDebounceMs,
-          publish: publishIdleDocument,
-        },
+        agentServices,
+        authTokenVerifier,
+        config.agent,
       );
+      const closeMimicWebSockets = installMimicNodeWebSocketServer(server, host, entities, {
+        control: entityControl,
+        debounceMs: mimicConfig.idleNotifyDebounceMs,
+        publish: publishIdleDocument,
+        additionalAlarmHandlers: agentWebSockets.alarmHandlers,
+      });
 
       yield* Effect.acquireRelease(
         Effect.callback<void, Error>((resume) => {
@@ -250,7 +248,8 @@ NodeRuntime.runMain(
         }),
         () =>
           Effect.callback<void>((resume) => {
-            closeWebSockets();
+            agentWebSockets.close();
+            closeMimicWebSockets();
             if (!server.listening) {
               resume(Effect.void);
               return;

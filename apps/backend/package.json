@@ -12,6 +12,7 @@
     "format": "vp fmt ."
   },
   "dependencies": {
+    "@voidhash/agent": "workspace:*",
     "@voidhash/ai-shared": "workspace:*",
     "@voidhash/api-contracts": "workspace:*",
     "@voidhash/app-store-server-sdk": "workspace:*",
@@ -25,11 +26,9 @@
     "@voidhash/paywall-workspace": "workspace:*",
     "@voidhash/rpc": "workspace:*",
     "@workos-inc/node": "9.2.0",
-    "ai": "^7.0.0",
     "effect": "catalog:",
     "jose": "catalog:",
     "preact": "^10.25.4",
-    "workers-ai-provider": "^3.0.0",
     "zod": "catalog:"
   },
   "devDependencies": {

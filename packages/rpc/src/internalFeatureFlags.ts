@@ -65,12 +65,12 @@ export const INTERNAL_FEATURE_FLAGS = {
       "The Experimentation suite in the studio sidebar: the Feature Flags product and A/B Tests.",
     defaultEnabled: false,
   },
-  voidhashAi: {
-    key: "voidhash_ai",
-    name: "Voidhash AI",
+  voidhashAiPi: {
+    key: "voidhash_ai_pi",
+    name: "Voidhash AI (Pi)",
     description:
-      "The Voidhash AI agent: the chat panel in the paywall designer that can edit code components and paywall composition.",
-    defaultEnabled: false,
+      "The durable Pi agent session in the paywall designer with server-executed workspace tools.",
+    defaultEnabled: true,
   },
 } as const satisfies Record<string, InternalFeatureFlagDefinition>;
 

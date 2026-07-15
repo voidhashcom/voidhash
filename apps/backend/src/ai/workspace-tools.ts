@@ -86,10 +86,12 @@ export interface WorkspaceToolResult {
 
 /**
  * The scope a workspace tool operates over. `projectId` is authoritative — the
- * MCP frontend derives it from the API key.
+ * MCP frontend derives it from the API key. Internal durable sessions also
+ * supply their identity so newly opened change sets remain session-owned.
  */
 export interface WorkspaceToolScope {
   readonly projectId: string;
+  readonly agentSessionId?: string;
 }
 
 const okResult = (
@@ -267,7 +269,7 @@ export const beginPaywallEdit = (
     const result = yield* runFolded(
       Effect.gen(function* () {
         const changeSets = yield* PaywallEditChangeSetService;
-        return yield* changeSets.begin(scope.projectId, input.slug);
+        return yield* changeSets.begin(scope.projectId, input.slug, scope.agentSessionId);
       }),
     );
     return result.ok
@@ -511,6 +513,7 @@ export const editPaywall = (
           projectId: scope.projectId,
           changeSetId: input.changeSetId,
           paywallSlug: input.slug,
+          agentSessionId: scope.agentSessionId,
         });
       }),
     );
@@ -665,6 +668,7 @@ export const writeComponent = (
           projectId: scope.projectId,
           changeSetId: input.changeSetId,
           paywallSlug: input.slug,
+          agentSessionId: scope.agentSessionId,
         });
       }),
     );
@@ -741,6 +745,7 @@ export const renameComponent = (
           projectId: scope.projectId,
           changeSetId: input.changeSetId,
           paywallSlug: input.slug,
+          agentSessionId: scope.agentSessionId,
         });
       }),
     );
@@ -782,6 +787,7 @@ export const deleteComponent = (
           projectId: scope.projectId,
           changeSetId: input.changeSetId,
           paywallSlug: input.slug,
+          agentSessionId: scope.agentSessionId,
         });
       }),
     );
@@ -905,6 +911,7 @@ export const getPaywallPreview = (
           projectId: scope.projectId,
           changeSetId: input.changeSetId,
           paywallSlug: input.slug,
+          agentSessionId: scope.agentSessionId,
         });
         const workspace = yield* PaywallWorkspaceService;
         const before = yield* workspace.readDocument(scope.projectId, input.slug);
@@ -933,6 +940,7 @@ export const getPaywallPreview = (
           projectId: scope.projectId,
           changeSetId: input.changeSetId,
           paywallSlug: input.slug,
+          agentSessionId: scope.agentSessionId,
           documentSignature: signature,
           documentVersion: before.version,
         });
@@ -979,6 +987,7 @@ export const finishPaywallEdit = (
           projectId: scope.projectId,
           changeSetId: input.changeSetId,
           paywallSlug: input.slug,
+          agentSessionId: scope.agentSessionId,
           reviewedDocumentSignature: input.reviewedDocumentSignature,
           currentDocumentSignature: documentSignature(document.root),
           currentDocumentVersion: document.version,
@@ -1002,7 +1011,13 @@ export const revertPaywallEdit = (
     const result = yield* runFolded(
       Effect.gen(function* () {
         const changeSets = yield* PaywallEditChangeSetService;
-        return yield* changeSets.revert(scope.projectId, input.changeSetId);
+        return yield* scope.agentSessionId === undefined
+          ? changeSets.revert(scope.projectId, input.changeSetId)
+          : changeSets.revertForAgentSession(
+              scope.projectId,
+              input.changeSetId,
+              scope.agentSessionId,
+            );
       }),
     );
     return result.ok

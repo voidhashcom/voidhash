@@ -15,10 +15,7 @@ import {
   nodeStyleSchema,
   type SerializedSchema,
 } from "./mimic-introspection.ts";
-import {
-  deriveEnabledFlagsForNodeInput,
-  deriveEnabledFlagsForSet,
-} from "./style-group-flags.ts";
+import { deriveEnabledFlagsForNodeInput, deriveEnabledFlagsForSet } from "./style-group-flags.ts";
 import type { DocumentEdit, NodeInput } from "./surfaces.ts";
 
 /**
@@ -99,7 +96,7 @@ export type ValidateEditsResult =
  *   else it is a dead placeholder;
  * - a `NodeInput.type` must be a real editable node type — `root` may never be
  *   inserted, and `library` / `codeComponent` are managed by the component tools,
- *   not `edit_document`;
+ *   not `edit_paywall`;
  * - every field of an `update.set` / `NodeInput` is validated against the node
  *   type's mimic schema: unknown fields yield a did-you-mean suggestion + the
  *   allowed field list, bad enum values name the allowed values, and wrong scalar
@@ -137,7 +134,7 @@ export function validateDocumentEdits(
         {
           editIndex: 0,
           code: "emptyBatch",
-          message: "edit_document was called with an empty `edits` array — provide at least one op.",
+          message: "edit_paywall was called with an empty `edits` array — provide at least one op.",
         },
       ],
     };
@@ -225,7 +222,7 @@ export function validateDocumentEdits(
 // ---------------------------------------------------------------------------
 
 /**
- * The node types `edit_document` may never structurally mutate (remove / move /
+ * The node types `edit_paywall` may never structurally mutate (remove / move /
  * replaceChildren): the singleton `root`/`library` scaffolding and `codeComponent`
  * definitions, which the component tools own. A `move` additionally cannot target
  * the root. Returns `true` when the target is mutable (the caller may continue).
@@ -251,7 +248,7 @@ function validateMutableTarget(
       editIndex,
       code: "protectedTarget",
       nodeId: node.id,
-      message: `Cannot ${op} the \`${node.type}\` node \`${node.id}\` — component definitions are managed by the component tools. Use delete_component to remove a component definition (its instances degrade to placeholders), not edit_document.`,
+      message: `Cannot ${op} the \`${node.type}\` node \`${node.id}\` — component definitions are managed by the component tools. Use delete_component to remove a component definition (its instances degrade to placeholders), not edit_paywall.`,
     });
     return false;
   }
@@ -293,7 +290,7 @@ function validateNonOverlapping(
       editIndex,
       code: "overlappingEdits",
       nodeId: target,
-      message: `Edit ${editIndex} and edit ${firstIndex} both target node \`${target}\`. Overlapping edits on one node make the atomic undo ambiguous — merge them into one edit, or split them into separate edit_document calls.`,
+      message: `Edit ${editIndex} and edit ${firstIndex} both target node \`${target}\`. Overlapping edits on one node make the atomic undo ambiguous — merge them into one edit, or split them into separate edit_paywall calls.`,
     });
   });
 
@@ -321,7 +318,7 @@ function validateNonOverlapping(
           nodeId: target,
           message: `Edit ${editIndex} targets node \`${target}\`, which is inside the subtree edit ${otherIndex} ${
             other.op === "remove" ? "removes" : "replaces"
-          } (\`${otherTarget}\`). Removal already includes descendants, so this overlap is redundant and makes undo ambiguous — drop the inner edit, or split them into separate edit_document calls.`,
+          } (\`${otherTarget}\`). Removal already includes descendants, so this overlap is redundant and makes undo ambiguous — drop the inner edit, or split them into separate edit_paywall calls.`,
         });
       }
     }
@@ -365,7 +362,7 @@ function requireNode(
     editIndex,
     code,
     nodeId: id,
-    message: `${code === "unknownParent" ? "Parent node" : "Node"} \`${id}\` does not exist in the document. Node ids come from get_document or the current selection.`,
+    message: `${code === "unknownParent" ? "Parent node" : "Node"} \`${id}\` does not exist in the document. Node ids come from get_paywall or the current selection.`,
   });
   return null;
 }
@@ -416,8 +413,16 @@ function validateChildType(
 // Node type + field validation
 // ---------------------------------------------------------------------------
 
-/** Node types the AI may create via `edit_document` (root/library/codeComponent are excluded). */
-const INSERTABLE_NODE_TYPES: readonly NodeType[] = ["screen", "view", "scrollView", "text", "shape", "path", "component"];
+/** Node types the AI may create via `edit_paywall` (root/library/codeComponent are excluded). */
+const INSERTABLE_NODE_TYPES: readonly NodeType[] = [
+  "screen",
+  "view",
+  "scrollView",
+  "text",
+  "shape",
+  "path",
+  "component",
+];
 
 /**
  * Validate a `NodeInput` (from `insert` / `replaceChildren`): its `type` must be
@@ -511,7 +516,7 @@ function validateComponentIdentity(
     code: "missingComponentIdentity",
     field: `${path}`,
     message:
-      "A `component` node must name which component to place. Provide `componentSlug` (a catalog component from get_components), OR both `componentPath` (a local `components/<name>.tsx`) and `componentSource: \"local\"`, OR `componentSource: \"builtin\"` with a builtin `componentSlug` from get_components. Without one it inserts a dead placeholder.",
+      'A `component` node must name which component to place. Provide `componentSlug` (a catalog component from get_components), OR both `componentPath` (a local `components/<name>.tsx`) and `componentSource: "local"`, OR `componentSource: "builtin"` with a builtin `componentSlug` from get_components. Without one it inserts a dead placeholder.',
   });
 }
 
@@ -762,7 +767,7 @@ function invalidNodeTypeMessage(type: string): string {
     return `Cannot insert a \`root\` node — the document root already exists and is unique.`;
   }
   if (type === "library" || type === "codeComponent") {
-    return `Node type \`${type}\` is managed by the component tools (write_component / rename_component / delete_component), not edit_document.`;
+    return `Node type \`${type}\` is managed by the component tools (write_component / rename_component / delete_component), not edit_paywall.`;
   }
   const suggestion = nearestField(type, INSERTABLE_NODE_TYPES);
   const didYouMean = suggestion ? ` Did you mean \`${suggestion}\`?` : "";
@@ -822,17 +827,13 @@ function nearestField(key: string, candidates: readonly string[]): string | unde
 function levenshtein(a: string, b: string): number {
   const rows = a.length + 1;
   const cols = b.length + 1;
-  const dist: number[] = new Array(cols);
-  for (let j = 0; j < cols; j++) dist[j] = j;
+  const dist = Array.from({ length: cols }, (_, index) => index);
   for (let i = 1; i < rows; i++) {
     let prev = dist[0]!;
     dist[0] = i;
     for (let j = 1; j < cols; j++) {
       const temp = dist[j]!;
-      dist[j] =
-        a[i - 1] === b[j - 1]
-          ? prev
-          : 1 + Math.min(prev, dist[j]!, dist[j - 1]!);
+      dist[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dist[j]!, dist[j - 1]!);
       prev = temp;
     }
   }

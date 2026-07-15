@@ -1,7 +1,7 @@
 # @voidhash/ai-shared
 
-Shared schemas and pure document-editing contracts used by Voidhash AI authoring clients and services.
+Shared document-editing schemas, validators, and pure authoring utilities.
 
 ```typescript
-import { chatRequestBodySchema } from "@voidhash/ai-shared";
+import { documentEditSchema, validateDocumentEdits } from "@voidhash/ai-shared";
 ```

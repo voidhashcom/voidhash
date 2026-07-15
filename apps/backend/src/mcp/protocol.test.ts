@@ -154,11 +154,9 @@ describe("resources", () => {
     const listed = await run(msg("resources/list"));
     const resources = (listed as { result: { resources: Array<{ uri: string }> } }).result
       .resources;
-    expect(resources[0]?.uri).toBe("voidhash://paywall-authoring/reference");
+    expect(resources[0]?.uri).toBe("voidhash://skills/paywall-authoring");
 
-    const read = await run(
-      msg("resources/read", { uri: "voidhash://paywall-authoring/reference" }),
-    );
+    const read = await run(msg("resources/read", { uri: "voidhash://skills/paywall-authoring" }));
     const text = (read as { result: { contents: Array<{ text: string }> } }).result.contents[0]
       ?.text;
     expect(text).toContain("begin_paywall_edit");

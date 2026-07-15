@@ -9,6 +9,8 @@ packages:
 ignoredBuiltDependencies:
   - "@mongodb-js/zstd"
   - node-liblzma
+patchedDependencies:
+  "@earendil-works/pi-ai@0.80.7": patches/@earendil-works__pi-ai@0.80.7.patch
 catalog:
   # Effect ecosystem (v4)
   effect: 4.0.0-beta.84

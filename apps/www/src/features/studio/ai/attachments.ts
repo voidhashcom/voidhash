@@ -1,12 +1,7 @@
-import type { FileUIPart } from "ai";
+import type { AgentUiFilePart } from "./agent-ui";
 
 /** Image types the server accepts (kept in sync with the server-side allow-list). */
-export const ACCEPTED_IMAGE_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-] as const;
+export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
 
 /** Text/code files are read client-side and inlined into the prompt; these extensions are offered. */
 const TEXT_ACCEPT = [
@@ -41,6 +36,8 @@ export interface PendingAttachment {
   status: "uploading" | "ready" | "error";
   /** Image: uploaded public URL (once ready). */
   url?: string;
+  /** Image: raw base64 payload sent to Pi for vision turns. */
+  data?: string;
   /** Image: local object URL for preview while uploading. */
   previewUrl?: string;
   /** Text: file contents inlined into the prompt (once read). */
@@ -91,27 +88,28 @@ export function formatBytes(bytes: number): string {
 
 /**
  * Builds the outgoing message payload from composer text plus ready
- * attachments: images become AI SDK `file` parts (pointing at their uploaded
- * URLs) and text/code files are inlined into the prompt as labelled fenced
- * blocks so the model sees their contents.
+ * attachments: images become durable agent image parts and text/code files are
+ * inlined into the prompt as labelled fenced blocks so the model sees their
+ * contents.
  */
 export function composeMessage(
   text: string,
   attachments: ReadonlyArray<PendingAttachment>,
-): { text: string; files: FileUIPart[] } {
-  const files: FileUIPart[] = [];
+): { text: string; files: AgentUiFilePart[] } {
+  const files: AgentUiFilePart[] = [];
   const inlined: string[] = [];
 
   for (const attachment of attachments) {
     if (attachment.status !== "ready") {
       continue;
     }
-    if (attachment.kind === "image" && attachment.url) {
+    if (attachment.kind === "image" && attachment.url && attachment.data) {
       files.push({
         type: "file",
         url: attachment.url,
         mediaType: attachment.contentType,
         filename: attachment.name,
+        data: attachment.data,
       });
     } else if (attachment.kind === "text" && attachment.text !== undefined) {
       inlined.push(`\`\`\`${attachment.name}\n${attachment.text}\n\`\`\``);

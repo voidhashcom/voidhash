@@ -152,9 +152,11 @@ describe("PaywallWorkspaceService", () => {
     }
   });
 
-  it("readDocument resolves the slug (authz) and returns identity + decoded root", async () => {
+  it("readDocument resolves the slug and returns a consistent document snapshot", async () => {
     const root = { id: "root_1", type: "root", parentId: null, pos: 0, data: {}, children: [] };
+    const tree = encodeTree([{ type: "root", name: "Paywall", children: [] }]);
     const exit = await useWs((ws) => ws.readDocument("proj_1", "trial"), {
+      documents: [{ tree, version: 7 }],
       paywalls: [paywallRow({ id: "pw_1", slug: "trial" })],
       snapshot: root,
     });
@@ -164,7 +166,9 @@ describe("PaywallWorkspaceService", () => {
         slug: "trial",
         name: "Trial",
         paywallId: "pw_1",
+        tree,
         root,
+        version: 7,
       });
     }
   });

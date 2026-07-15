@@ -2,11 +2,10 @@
 
 import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import { cn } from "@voidhash/ui";
-import type { UIMessage } from "ai";
 import { useCallback, useRef, useState } from "react";
 import { useStore } from "zustand/react";
 
-import { ChatHistoryMenu, ChatShell, newChatId } from "@/features/studio/ai";
+import { ChatHistoryMenu, ChatShell, newAgentSessionId } from "@/features/studio/ai";
 import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
 
 import { Panel } from "../components/ui/panel";
@@ -17,14 +16,13 @@ import { useDesignerAgent } from "./use-designer-agent";
 
 interface ChatSession {
   chatId: string;
-  initialMessages?: UIMessage[];
 }
 
 /**
  * Fixed overlay panel hosting the Voidhash AI chat, anchored to the left edge
  * below the top panel. Visible in design and code modes; slides out (via
  * `-translate-x-full`) when closed or while in preview mode. Gated behind the
- * `voidhash_ai` internal feature flag so the store slice stays inert when off.
+ * `voidhash_ai_pi` internal feature flag so the store slice stays inert when off.
  *
  * The panel is closed from the top bar (its Sparkles toggle), so the header
  * carries only the "new chat" and history controls; document reverting is
@@ -35,14 +33,16 @@ export function AiPanel() {
   const dispatch = usePaywallDesignerActions();
   const agent = useDesignerAgent();
 
-  const enabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.voidhashAi.key);
+  const enabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.voidhashAiPi.key);
   const panelOpen = useStore(store, (state) => state.ai.panelOpen);
   const mode = useStore(store, (state) => state.mode);
   const width = useStore(store, (state) => state.ai.width);
   const isPreviewMode = mode === "preview";
 
-  // Current chat identity; changing chatId remounts the shell (fresh useChat).
-  const [session, setSession] = useState<ChatSession>(() => ({ chatId: newChatId() }));
+  // Current session identity; changing it remounts the WebSocket-backed shell.
+  const [session, setSession] = useState<ChatSession>(() => ({
+    chatId: newAgentSessionId(),
+  }));
 
   // Drag-to-resize: capture the pointer on the right-edge handle and translate
   // horizontal movement into width updates (clamped by the setter). Held in a
@@ -116,15 +116,14 @@ export function AiPanel() {
           <ChatHistoryMenu
             agent={agent}
             currentChatId={session.chatId}
-            onNewChat={() => setSession({ chatId: newChatId() })}
-            onSelectChat={(chatId, messages) => setSession({ chatId, initialMessages: messages })}
+            onNewChat={() => setSession({ chatId: newAgentSessionId() })}
+            onSelectChat={(chatId) => setSession({ chatId })}
           />
         </div>
         <ChatShell
           key={session.chatId}
           agent={agent}
           chatId={session.chatId}
-          initialMessages={session.initialMessages}
           onBusyChange={handleBusyChange}
           className="min-h-0 flex-1"
         />
