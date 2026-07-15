@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Component Authoring"
+  short_description: "Build Voidhash components, panels, and motion"
+  default_prompt: "Use $code-component-authoring to build a custom Voidhash code component with an editor panel and motion."

@@ -16,7 +16,7 @@ import { PaywallService } from "@voidhash/core/services";
 import { buildDesignerContext } from "./DesignerContext.ts";
 import { registeredSkillSource } from "./skills/registry.ts";
 import { designerAgentSystemPrompt } from "./surfaces.ts";
-import { AgentChangeSetTracker, makeWorkspaceAgentTools } from "./WorkspaceAgentTools.ts";
+import { AgentEditSessionTracker, makeWorkspaceAgentTools } from "./WorkspaceAgentTools.ts";
 import type { WorkspaceToolDeps } from "./workspace-tools.ts";
 
 /** Services resolved by the Pi agent's in-process tools. */
@@ -93,14 +93,14 @@ export const makeWorkspaceAgentSessionFactory = <ConnectionData>(
 
   return {
     create: async (input) => {
-      const changeSets = new AgentChangeSetTracker();
-      changeSets.rehydrate(input.messages);
+      const editSessions = new AgentEditSessionTracker();
+      editSessions.rehydrate(input.messages);
       const runEffect = bindEffectRunner(options.runEffect, input.connectionData);
       const tools = [
         ...makeWorkspaceAgentTools(
           { projectId: input.owner.projectId, agentSessionId: input.sessionId },
           runEffect,
-          changeSets,
+          editSessions,
         ),
         makeReadSkillTool(registeredSkillSource()),
       ];

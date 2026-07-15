@@ -1,6 +1,6 @@
 {
   "name": "voidhash",
-  "version": "0.1.0+codex.20260714172114",
+  "version": "0.1.0+codex.20260715124658",
   "description": "Control Voidhash with OAuth-authenticated MCP tools.",
   "author": {
     "name": "Voidhash"
@@ -18,16 +18,17 @@
   "interface": {
     "displayName": "Voidhash",
     "shortDescription": "Work with Voidhash through OAuth-authenticated tools.",
-    "longDescription": "Connect Codex to Voidhash through browser-based OAuth and use platform tools, starting with visually verified paywall authoring.",
+    "longDescription": "Connect Codex to Voidhash through browser-based OAuth to author visually verified paywalls and build custom code components, editor panels, motion, and gestures.",
     "developerName": "Voidhash",
     "category": "Productivity",
     "capabilities": [
       "OAuth",
       "Platform tools",
-      "Paywall authoring"
+      "Paywall authoring",
+      "Code component authoring"
     ],
     "websiteURL": "https://voidhash.com",
-    "defaultPrompt": "Use Voidhash to design and visually verify my paywall."
+    "defaultPrompt": "Use Voidhash to design and visually verify a paywall or build a custom code component."
   },
   "mcpServers": "./.mcp.json"
 }

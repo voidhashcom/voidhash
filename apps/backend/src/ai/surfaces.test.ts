@@ -42,25 +42,31 @@ describe("designerAgentSystemPrompt", () => {
   it("lists every paywall with its display name and code components", () => {
     const prompt = designerAgentSystemPrompt({
       paywalls: [
-        { slug: "trial", name: "Trial", componentFileNames: ["hero.tsx", "cta.tsx"] },
-        { slug: "onboarding", name: "Onboarding", componentFileNames: [] },
+        {
+          paywallId: "pw_1",
+          slug: "trial",
+          name: "Trial",
+          componentFileNames: ["hero.tsx", "cta.tsx"],
+        },
+        { paywallId: "pw_2", slug: "onboarding", name: "Onboarding", componentFileNames: [] },
       ],
-      openPaywall: { slug: "trial", name: "Trial" },
+      openPaywall: { paywallId: "pw_1", slug: "trial", name: "Trial" },
       selectedNodeIds: [],
     });
     expect(prompt).toContain(
-      '- trial ("Trial"): components: components/hero.tsx, components/cta.tsx',
+      '- pw_1 ("Trial", slug "trial"): components: components/hero.tsx, components/cta.tsx',
     );
-    expect(prompt).toContain('- onboarding ("Onboarding"): no code components');
+    expect(prompt).toContain('- pw_2 ("Onboarding", slug "onboarding"): no code components');
   });
 
   it("names the open paywall and points at edit_paywall for unqualified refs", () => {
     const prompt = designerAgentSystemPrompt({
-      paywalls: [{ slug: "trial", name: "Trial", componentFileNames: [] }],
-      openPaywall: { slug: "trial", name: "Trial" },
+      paywalls: [{ paywallId: "pw_1", slug: "trial", name: "Trial", componentFileNames: [] }],
+      openPaywall: { paywallId: "pw_1", slug: "trial", name: "Trial" },
       selectedNodeIds: [],
     });
-    expect(prompt).toContain('has the "Trial" paywall (slug "trial") open');
+    expect(prompt).toContain('has the "Trial" paywall (id "pw_1", slug "trial") open');
+    expect(prompt).toContain('paywallId: "pw_1"');
     expect(prompt).toContain("edit_paywall");
     expect(prompt).toContain('"this paywall"');
     // No workspace path for the open paywall in the document-first model.
@@ -69,8 +75,8 @@ describe("designerAgentSystemPrompt", () => {
 
   it("renders the selection as directly-addressable document node ids (plural)", () => {
     const prompt = designerAgentSystemPrompt({
-      paywalls: [{ slug: "trial", name: "Trial", componentFileNames: [] }],
-      openPaywall: { slug: "trial", name: "Trial" },
+      paywalls: [{ paywallId: "pw_1", slug: "trial", name: "Trial", componentFileNames: [] }],
+      openPaywall: { paywallId: "pw_1", slug: "trial", name: "Trial" },
       selectedNodeIds: ["node_a", "node_b"],
     });
     expect(prompt).toContain("nodes with id node_a, node_b selected");
@@ -79,8 +85,8 @@ describe("designerAgentSystemPrompt", () => {
 
   it("uses the singular for a single selected node", () => {
     const prompt = designerAgentSystemPrompt({
-      paywalls: [{ slug: "trial", name: "Trial", componentFileNames: [] }],
-      openPaywall: { slug: "trial", name: "Trial" },
+      paywalls: [{ paywallId: "pw_1", slug: "trial", name: "Trial", componentFileNames: [] }],
+      openPaywall: { paywallId: "pw_1", slug: "trial", name: "Trial" },
       selectedNodeIds: ["node_a"],
     });
     expect(prompt).toContain("node with id node_a selected");
@@ -88,7 +94,7 @@ describe("designerAgentSystemPrompt", () => {
 
   it("states no paywall is open when none matches", () => {
     const prompt = designerAgentSystemPrompt({
-      paywalls: [{ slug: "trial", name: "Trial", componentFileNames: [] }],
+      paywalls: [{ paywallId: "pw_1", slug: "trial", name: "Trial", componentFileNames: [] }],
       openPaywall: undefined,
       selectedNodeIds: [],
     });

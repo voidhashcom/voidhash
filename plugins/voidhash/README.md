@@ -1,6 +1,6 @@
 # Voidhash for Codex
 
-This plugin connects Codex to the hosted Voidhash MCP server. It currently includes visually verified paywall authoring and can grow with additional platform tools. Authentication uses OAuth in the browser; no CLI login, API key, or environment variable is required.
+This plugin connects Codex to the hosted Voidhash MCP server. It includes visually verified paywall authoring plus custom code-component, editor-panel, motion, and gesture authoring. Authentication uses OAuth in the browser; no CLI login, API key, or environment variable is required.
 
 ## Install from this checkout
 
@@ -22,3 +22,7 @@ For this browser-only flow, test with an organization that contains one project.
 Start a new task and ask:
 
 > Use Voidhash to list my paywalls, open one for editing, render a preview, and revert the edit without publishing changes.
+
+To exercise the component reference, start a new task and ask:
+
+> Use $code-component-authoring to build a custom paywall component with an editor panel and motion.

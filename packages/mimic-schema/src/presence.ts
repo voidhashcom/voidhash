@@ -10,6 +10,22 @@ export const PresenceSchema = Primitive.Struct({
     y: Primitive.Number().required(),
   }),
   name: Primitive.String(),
+  participant: Primitive.Union(
+    {
+      agent: Primitive.Struct({
+        editSessionId: Primitive.String().required(),
+        kind: Primitive.Literal("agent").required(),
+        source: Primitive.Either(
+          Primitive.Literal("built_in"),
+          Primitive.Literal("mcp"),
+        ).required(),
+      }),
+      human: Primitive.Struct({
+        kind: Primitive.Literal("human").required(),
+      }),
+    },
+    { discriminator: "kind" },
+  ).required(),
   selectedNodeIds: Primitive.Array(Primitive.String()).default([]),
   user: Primitive.Struct({
     color: Primitive.String().required(),

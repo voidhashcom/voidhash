@@ -40,6 +40,7 @@ import { nodePassesSlotGate } from "../../state/utils/component-children";
 import { selectDocumentRoot } from "../../state/utils/document-root";
 import { canHaveChildren as nodeCanHaveChildren } from "../../state/utils/node-type-helpers";
 import { selectedNodeIdsFromPresence } from "../../state/utils/presence";
+import { getExpandedLayerIdsForSelection } from "./layer-expansion";
 
 // ============================================================================
 // Types
@@ -761,33 +762,6 @@ function SortableTreeItem({
 }
 
 // ============================================================================
-// Expanded Layers Logic
-// ============================================================================
-
-const getExpandedLayersBySelectedNodes = (
-  tree: SnapshotNode,
-  selectedNodeIds: string[],
-): Set<string> => {
-  const reduceExpandedNodeIdsToSet = (node: SnapshotNode, selectedIds: string[]): Set<string> => {
-    const children = node.children ?? [];
-    if (children.length === 0) {
-      if (selectedIds.includes(node.id)) {
-        return new Set([node.id]);
-      }
-      return new Set([]);
-    }
-
-    const childrenExpandedIds = children.flatMap((child) => [
-      ...reduceExpandedNodeIdsToSet(child, selectedIds),
-    ]);
-
-    return new Set([...childrenExpandedIds, ...(childrenExpandedIds.length > 0 ? [node.id] : [])]);
-  };
-
-  return tree ? reduceExpandedNodeIdsToSet(tree, selectedNodeIds) : new Set([]);
-};
-
-// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -887,7 +861,8 @@ export function LayersSection() {
 
   // Expanded layers by selected nodes (includes preview selections)
   const expandedLayersBySelectedNodes = useMemo(
-    () => (tree ? getExpandedLayersBySelectedNodes(tree, allSelectedNodeIds) : new Set<string>([])),
+    () =>
+      tree ? getExpandedLayerIdsForSelection(tree, allSelectedNodeIds) : new Set<string>([]),
     [tree, allSelectedNodeIds],
   );
 

@@ -1,74 +1,61 @@
 import { Effect } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
-import { AgentChangeSetTracker } from "./WorkspaceAgentTools.ts";
+import { AgentEditSessionTracker } from "./WorkspaceAgentTools.ts";
 
-describe("AgentChangeSetTracker", () => {
-  it("opens once and injects the change set into subsequent lifecycle calls", async () => {
-    const tracker = new AgentChangeSetTracker();
-    let begins = 0;
-    const begin = (slug: string) => {
-      begins += 1;
-      return Effect.succeed({
-        output: JSON.stringify({ changeSetId: "change-1", slug }),
-        isError: false,
-      });
-    };
-
-    await expect(
-      Effect.runPromise(tracker.prepare("edit_paywall", { slug: "trial", edits: [] }, begin)),
-    ).resolves.toMatchObject({ changeSetId: "change-1" });
-    await expect(
-      Effect.runPromise(tracker.prepare("get_paywall_preview", { slug: "trial" }, begin)),
-    ).resolves.toEqual({ slug: "trial", changeSetId: "change-1" });
-    expect(begins).toBe(1);
-  });
-
-  it("overwrites model-supplied capabilities with the session-owned change set", async () => {
-    const tracker = new AgentChangeSetTracker();
-    let begins = 0;
-    const prepared = await Effect.runPromise(
-      tracker.prepare(
-        "edit_paywall",
-        { slug: "trial", changeSetId: "change-attacker", edits: [] },
-        (slug) => {
-          begins += 1;
-          return Effect.succeed({
-            output: JSON.stringify({ changeSetId: "change-owned", slug }),
-            isError: false,
-          });
-        },
-      ),
-    );
-
-    expect(prepared).toMatchObject({ changeSetId: "change-owned" });
-    expect(tracker.get("trial")).toBe("change-owned");
-    expect(begins).toBe(1);
-  });
-
-  it("clears the capability only after a successful finish or revert", async () => {
-    const tracker = new AgentChangeSetTracker();
+describe("AgentEditSessionTracker", () => {
+  it("accepts scoped calls only after begin_paywall_edit opens the session", async () => {
+    const tracker = new AgentEditSessionTracker();
     tracker.observe(
       "begin_paywall_edit",
-      { slug: "trial" },
+      { paywallId: "pw_1" },
       {
-        output: JSON.stringify({ changeSetId: "change-1", slug: "trial" }),
+        output: JSON.stringify({ editSessionId: "edit-1", paywallId: "pw_1" }),
         isError: false,
       },
     );
 
-    tracker.observe("finish_paywall_edit", { slug: "trial" }, { output: "no", isError: true });
-    expect(tracker.get("trial")).toBe("change-1");
+    await expect(
+      Effect.runPromise(tracker.prepare("edit_paywall", { editSessionId: "edit-1", edits: [] })),
+    ).resolves.toMatchObject({ editSessionId: "edit-1" });
+  });
+
+  it("rejects model-supplied edit sessions not owned by the durable session", async () => {
+    const tracker = new AgentEditSessionTracker();
+    await expect(
+      Effect.runPromise(
+        tracker.prepare("edit_paywall", { editSessionId: "edit-attacker", edits: [] }),
+      ),
+    ).rejects.toThrow("not owned");
+  });
+
+  it("clears the capability only after a successful finish or revert", async () => {
+    const tracker = new AgentEditSessionTracker();
+    tracker.observe(
+      "begin_paywall_edit",
+      { paywallId: "pw_1" },
+      {
+        output: JSON.stringify({ editSessionId: "edit-1", paywallId: "pw_1" }),
+        isError: false,
+      },
+    );
+
+    tracker.observe(
+      "finish_paywall_edit",
+      { editSessionId: "edit-1" },
+      { output: "no", isError: true },
+    );
+    expect(tracker.get("pw_1")).toBe("edit-1");
     tracker.observe(
       "revert_paywall_edit",
-      { changeSetId: "change-1" },
+      { editSessionId: "edit-1" },
       { output: "ok", isError: false },
     );
-    expect(tracker.get("trial")).toBeUndefined();
+    expect(tracker.get("pw_1")).toBeUndefined();
   });
 
   it("rehydrates an unfinished capability from persisted Pi tool results", async () => {
-    const tracker = new AgentChangeSetTracker();
+    const tracker = new AgentEditSessionTracker();
     tracker.rehydrate([
       {
         role: "toolResult",
@@ -78,24 +65,16 @@ describe("AgentChangeSetTracker", () => {
         details: {
           toolName: "edit_paywall",
           output: "Updated",
-          changeSetId: "change-1",
-          slug: "trial",
+          editSessionId: "edit-1",
+          paywallId: "pw_1",
         },
         isError: true,
         timestamp: 1,
       },
     ]);
-    let begins = 0;
-
     await expect(
-      Effect.runPromise(
-        tracker.prepare("edit_paywall", { slug: "trial", edits: [] }, () => {
-          begins += 1;
-          return Effect.succeed({ output: "unexpected", isError: true });
-        }),
-      ),
-    ).resolves.toMatchObject({ changeSetId: "change-1" });
-    expect(begins).toBe(0);
+      Effect.runPromise(tracker.prepare("edit_paywall", { editSessionId: "edit-1", edits: [] })),
+    ).resolves.toMatchObject({ editSessionId: "edit-1" });
 
     tracker.rehydrate([
       {
@@ -106,8 +85,8 @@ describe("AgentChangeSetTracker", () => {
         details: {
           toolName: "edit_paywall",
           output: "Updated",
-          changeSetId: "change-1",
-          slug: "trial",
+          editSessionId: "edit-1",
+          paywallId: "pw_1",
         },
         isError: false,
         timestamp: 1,
@@ -120,13 +99,13 @@ describe("AgentChangeSetTracker", () => {
         details: {
           toolName: "finish_paywall_edit",
           output: "Finished",
-          changeSetId: "change-1",
-          slug: "trial",
+          editSessionId: "edit-1",
+          paywallId: "pw_1",
         },
         isError: false,
         timestamp: 2,
       },
     ]);
-    expect(tracker.get("trial")).toBeUndefined();
+    expect(tracker.get("pw_1")).toBeUndefined();
   });
 });

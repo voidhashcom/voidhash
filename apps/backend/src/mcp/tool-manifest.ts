@@ -1,14 +1,14 @@
 /**
  * The MCP tool manifest: the JSON-Schema-described tools advertised over
  * `tools/list` and dispatched over `tools/call`, plus the mapping from a tool
- * name to the stateless workspace-tool core ({@link WorkspaceTools}).
+ * name to the shared workspace-tool core ({@link WorkspaceTools}).
  *
- * MCP is STATELESS and DOCUMENT-FIRST now — there is no fork, no `paywall.tsx`,
- * no whole-target overwrite. Composition is read as cleaned document JSON and
- * edited with mimic DOCUMENT ops (`edit_paywall`); code components are read and
- * managed by their canonical `components/<name>.tsx` path. Explicit change sets
- * wrap all mutations, subtree duplication is first-class, and finishing is
- * gated on inspecting a version-bound PNG preview.
+ * MCP is document-first and stateful at the editing layer — there is no fork, no
+ * `paywall.tsx`, and no whole-target overwrite. Composition is read as cleaned
+ * document JSON and edited over a leased Mimic participant connection; code
+ * components are managed by their canonical `components/<name>.tsx` path.
+ * Explicit edit sessions wrap scoped operations, subtree duplication is
+ * first-class, and finishing is gated on inspecting a version-bound PNG preview.
  *
  * **Schema alignment**: each validated tool's `inputSchema` is derived at module
  * load from the SAME zod schema its dispatcher parses with, via `z.toJSONSchema`
@@ -35,7 +35,7 @@ export interface McpToolDescriptor {
 
 /**
  * One MCP tool: its advertised descriptor + a dispatcher that validates the raw
- * arguments with the aligned zod schema and runs the stateless workspace-tool
+ * arguments with the aligned zod schema and runs the shared workspace-tool
  * core. `dispatch` never fails (`E = never`) — the core folds workspace failures
  * into a `{ isError: true }` result; an invalid-arguments failure is likewise
  * folded into a tool result (MCP maps a bad-input tool call to `isError`, not a
@@ -49,25 +49,18 @@ export interface McpTool {
   ) => Effect.Effect<WorkspaceTools.WorkspaceToolResult, never, WorkspaceTools.WorkspaceToolDeps>;
 }
 
-/** JSON Schema for a tool with no input (`list_paywalls`). */
-const EMPTY_INPUT_SCHEMA: JsonSchema = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  type: "object",
-  properties: {},
-  additionalProperties: false,
-};
-
 /**
  * MCP tool input schemas. The internal Pi agent consumes this same manifest,
  * and `documentEditSchema` remains the single validation vocabulary for every
  * server-executed document batch.
  */
 const mcpToolSchemas = {
-  begin_paywall_edit: z.object({
-    slug: z.string().describe("Slug of the paywall to edit."),
+  list_paywalls: z.strictObject({}),
+  begin_paywall_edit: z.strictObject({
+    paywallId: z.string().describe("Stable id of the paywall to edit (from list_paywalls)."),
   }),
-  get_paywall: z.object({
-    slug: z.string().describe("Slug of the paywall to read (from list_paywalls)."),
+  get_paywall: z.strictObject({
+    editSessionId: z.string().describe("Active edit session returned by begin_paywall_edit."),
     nodeId: z
       .string()
       .optional()
@@ -82,20 +75,17 @@ const mcpToolSchemas = {
         "Optional max depth from the root. Nodes past the limit render as stubs `{ id, type, name?, childCount }` you expand with a follow-up get_paywall(nodeId).",
       ),
   }),
-  get_components: z.object({
-    slug: z.string().describe("Slug of the paywall whose placeable components to list."),
+  get_components: z.strictObject({
+    editSessionId: z.string().describe("Active edit session returned by begin_paywall_edit."),
   }),
-  read_component: z.object({
-    slug: z.string().describe("Slug of the paywall the component belongs to."),
+  read_component: z.strictObject({
+    editSessionId: z.string().describe("Active edit session returned by begin_paywall_edit."),
     path: z
       .string()
       .describe("Canonical document-relative path of a LOCAL component (`components/<name>.tsx`)."),
   }),
-  edit_paywall: z.object({
-    slug: z.string().describe("Slug of the paywall to edit."),
-    changeSetId: z
-      .string()
-      .describe("Active change-set id returned by begin_paywall_edit for this paywall."),
+  edit_paywall: z.strictObject({
+    editSessionId: z.string().describe("Active edit session returned by begin_paywall_edit."),
     edits: z
       .array(documentEditSchema)
       .min(1)
@@ -103,21 +93,15 @@ const mcpToolSchemas = {
         "Ordered batch of document edits, applied ATOMICALLY (all-or-nothing) against the LIVE document. Returns minted ids for inserts, or per-edit structured errors naming the offending node/field/value. Setting any background/border/shadow (or path fill/stroke) style field automatically sets the group's `*Enabled` flag to true; set it to `false` explicitly to hide the group non-destructively.",
       ),
   }),
-  duplicate_subtree: z.object({
-    slug: z.string().describe("Slug of the paywall to edit."),
-    changeSetId: z
-      .string()
-      .describe("Active change-set id returned by begin_paywall_edit for this paywall."),
+  duplicate_subtree: z.strictObject({
+    editSessionId: z.string().describe("Active edit session returned by begin_paywall_edit."),
     nodeId: z.string().describe("Id of the visual subtree to clone."),
     parentId: z.string().describe("Id of the destination parent."),
     index: z.number().int().optional().describe("Optional destination child index."),
     nextName: z.string().optional().describe("Optional display name for the cloned root."),
   }),
-  write_component: z.object({
-    slug: z.string().describe("Slug of the paywall to write the component into."),
-    changeSetId: z
-      .string()
-      .describe("Active change-set id returned by begin_paywall_edit for this paywall."),
+  write_component: z.strictObject({
+    editSessionId: z.string().describe("Active edit session returned by begin_paywall_edit."),
     path: z
       .string()
       .describe(
@@ -125,11 +109,8 @@ const mcpToolSchemas = {
       ),
     source: z.string().describe("Full TSX component source."),
   }),
-  rename_component: z.object({
-    slug: z.string().describe("Slug of the paywall the component belongs to."),
-    changeSetId: z
-      .string()
-      .describe("Active change-set id returned by begin_paywall_edit for this paywall."),
+  rename_component: z.strictObject({
+    editSessionId: z.string().describe("Active edit session returned by begin_paywall_edit."),
     fromPath: z.string().describe("Existing component path (`components/<name>.tsx`)."),
     toPath: z
       .string()
@@ -137,18 +118,12 @@ const mcpToolSchemas = {
         "New component path. Instances referencing the old path are re-pointed automatically.",
       ),
   }),
-  delete_component: z.object({
-    slug: z.string().describe("Slug of the paywall the component belongs to."),
-    changeSetId: z
-      .string()
-      .describe("Active change-set id returned by begin_paywall_edit for this paywall."),
+  delete_component: z.strictObject({
+    editSessionId: z.string().describe("Active edit session returned by begin_paywall_edit."),
     path: z.string().describe("Component path to delete (`components/<name>.tsx`)."),
   }),
-  get_paywall_preview: z.object({
-    slug: z.string().describe("Slug of the paywall to render."),
-    changeSetId: z
-      .string()
-      .describe("Active change-set id returned by begin_paywall_edit for this paywall."),
+  get_paywall_preview: z.strictObject({
+    editSessionId: z.string().describe("Active edit session returned by begin_paywall_edit."),
     width: z
       .number()
       .int()
@@ -168,9 +143,8 @@ const mcpToolSchemas = {
       .optional()
       .describe("Device scale; defaults to 1."),
   }),
-  finish_paywall_edit: z.object({
-    slug: z.string().describe("Slug of the paywall whose edit session should finish."),
-    changeSetId: z.string().describe("Active change-set id to finish."),
+  finish_paywall_edit: z.strictObject({
+    editSessionId: z.string().describe("Active edit session to finish."),
     reviewedDocumentSignature: z
       .string()
       .describe("Exact documentSignature from the latest get_paywall_preview result."),
@@ -180,8 +154,8 @@ const mcpToolSchemas = {
       .default([])
       .describe("Any remaining visual issues. Must be empty to finish."),
   }),
-  revert_paywall_edit: z.object({
-    changeSetId: z.string().describe("Change-set id whose complete edits should be reverted."),
+  revert_paywall_edit: z.strictObject({
+    editSessionId: z.string().describe("Edit session whose edits should be reverted."),
   }),
 } as const;
 
@@ -226,18 +200,15 @@ const validatedTool = <Input>(
  * `delete_component` for code components).
  */
 export const MCP_TOOLS: ReadonlyArray<McpTool> = [
-  {
-    descriptor: {
-      name: "list_paywalls",
-      description:
-        "List every paywall in the project as a directory (slug + workspace path). Start here to discover what to read or edit; then use get_paywall to read a paywall's document and get_components to see what you can place.",
-      inputSchema: EMPTY_INPUT_SCHEMA,
-    },
-    dispatch: (scope) => WorkspaceTools.listPaywalls(scope),
-  },
+  validatedTool(
+    "list_paywalls",
+    "List every paywall in the project with its stable paywallId, display slug, and workspace path. Pass a paywallId to begin_paywall_edit, then use its editSessionId for every scoped tool.",
+    mcpToolSchemas.list_paywalls,
+    (scope) => WorkspaceTools.listPaywalls(scope),
+  ),
   validatedTool(
     "begin_paywall_edit",
-    "Begin an explicit edit session for one paywall. This captures a revert baseline and returns the changeSetId required by every mutation. Only one active change set is allowed per paywall; finish or revert it before starting another.",
+    "Begin an explicit edit session for one paywall. This opens an independent Mimic participant connection, captures its revert baseline, and returns the editSessionId required by every scoped tool. Multiple users and agents may edit the same paywall concurrently.",
     mcpToolSchemas.begin_paywall_edit,
     WorkspaceTools.beginPaywallEdit,
   ),
@@ -297,13 +268,13 @@ export const MCP_TOOLS: ReadonlyArray<McpTool> = [
   ),
   validatedTool(
     "finish_paywall_edit",
-    "Finish an active change set only after visual QA of its latest get_paywall_preview. Pass the exact document signature, a concise verdict, and an empty unresolvedIssues list. Stale or missing previews are rejected.",
+    "Finish an active edit session only after visual QA of its latest get_paywall_preview. Pass the exact document signature, a concise verdict, and an empty unresolvedIssues list. Stale or missing previews are rejected.",
     mcpToolSchemas.finish_paywall_edit,
     WorkspaceTools.finishPaywallEdit,
   ),
   validatedTool(
     "revert_paywall_edit",
-    "Revert all edits in an active change set by reconciling the live paywall to the baseline captured by begin_paywall_edit, then mark the set reverted.",
+    "Revert an edit session by reconciling the live paywall to the baseline captured by begin_paywall_edit. Revert is refused when doing so could overwrite another participant's multiplayer edits.",
     mcpToolSchemas.revert_paywall_edit,
     WorkspaceTools.revertPaywallEdit,
   ),

@@ -1,8 +1,9 @@
 import type { SkillSource } from "@voidhash/agent/SkillSource";
 
+import { componentAuthoringSkill } from "./component-authoring.ts";
 import { paywallAuthoringSkill } from "./paywall-authoring.ts";
 
-/** One lazily materialized skill delivered through every agent channel. */
+/** A lazily materialized skill delivered through every agent channel. */
 export interface SkillDefinition {
   readonly name: string;
   readonly description: string;
@@ -15,6 +16,12 @@ const definitions: ReadonlyArray<SkillDefinition> = [
     description:
       "Design, edit, preview, visually review, finish, or revert a Voidhash paywall with the shared workspace tools.",
     body: paywallAuthoringSkill,
+  },
+  {
+    name: "code-component-authoring",
+    description:
+      "Create, edit, debug, and place Voidhash code components, including typed props and actions, preview fixtures, custom designer panels, animation, motion values, scroll-linked effects, drag gestures, and gesture-aware panel controls. Use when a paywall needs runtime data, loops, structural logic, custom formatting, pressed/focus states, animation, dragging, or a tailored component-properties panel, or when working with read_component, write_component, rename_component, or delete_component.",
+    body: componentAuthoringSkill,
   },
 ];
 

@@ -60,13 +60,13 @@ export class AgentSessionRpcsDef extends RpcGroup.make(
     payload: { sessionId: Schema.String },
     success: Schema.Void,
   }),
-  Rpc.make("RevertAgentSessionChangeSet", {
+  Rpc.make("RevertAgentEditSession", {
     error: Schema.Union([
       RpcAgentSessionServiceError,
       RpcActionForbiddenError,
       RpcAgentSessionNotFoundError,
     ]),
-    payload: { sessionId: Schema.String, changeSetId: Schema.String },
+    payload: { sessionId: Schema.String, editSessionId: Schema.String },
     success: Schema.Void,
   }),
   Rpc.make("UploadAgentAttachment", {

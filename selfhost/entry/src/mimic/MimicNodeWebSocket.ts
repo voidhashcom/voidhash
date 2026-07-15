@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 
-import type { HostService, PresenceEntry } from "@voidhash/mimic-db/app/hostService";
+import type { HostService } from "@voidhash/mimic-db/app/hostService";
 import {
   AUTH_DEADLINE_MS,
   handleDocumentSocketClose,
@@ -37,7 +37,6 @@ interface NodeDocumentSocket {
 
 interface NodeDocumentRuntime {
   readonly lock: Semaphore.Semaphore;
-  readonly presence: Map<string, PresenceEntry>;
   readonly connections: Set<NodeDocumentSocket>;
   readonly context: DocumentSessionContext<NodeDocumentSocket>;
 }
@@ -182,7 +181,6 @@ export const installMimicNodeWebSocketServer = (
     const existing = documents.get(key);
     if (existing) return existing;
 
-    const presence = new Map<string, PresenceEntry>();
     const registry = makeSessionRegistry<NodeDocumentSocket>({
       authDeadlineMs: AUTH_DEADLINE_MS,
       isAuthenticated: (socket) => socket.attachment?.authenticated === true,
@@ -199,7 +197,27 @@ export const installMimicNodeWebSocketServer = (
       );
     const context: DocumentSessionContext<NodeDocumentSocket> = {
       registry,
-      presence,
+      presence: {
+        snapshot: () =>
+          withoutRequirements(host.getPresenceSnapshot(collectionId, documentId)).pipe(
+            Effect.map(({ presences }) => presences),
+          ),
+        set: (connectionId, entry) =>
+          withoutRequirements(host.setPresence(collectionId, documentId, connectionId, entry)),
+        remove: (connectionId) =>
+          Effect.gen(function* () {
+            const { presences } = yield* withoutRequirements(
+              host.getPresenceSnapshot(collectionId, documentId),
+            );
+            const existed = connectionId in presences;
+            yield* withoutRequirements(host.removePresence(collectionId, documentId, connectionId));
+            return existed;
+          }),
+        prune: () =>
+          withoutRequirements(host.getPresenceSnapshot(collectionId, documentId)).pipe(
+            Effect.asVoid,
+          ),
+      },
       getAttachment: (socket) => socket.attachment,
       setAttachment: (socket, attachment) => void (socket.attachment = attachment),
       send: (socket, message) =>
@@ -238,7 +256,6 @@ export const installMimicNodeWebSocketServer = (
     };
     const runtime = {
       lock: Semaphore.makeUnsafe(1),
-      presence,
       connections: new Set<NodeDocumentSocket>(),
       context,
     };
@@ -303,13 +320,6 @@ export const installMimicNodeWebSocketServer = (
                   yield* handleDocumentSocketClose(runtime.context, nodeSocket);
                   const attachment = nodeSocket.attachment;
                   if (attachment) {
-                    yield* withoutRequirements(
-                      host.detachConnection(
-                        attachment.collectionId,
-                        attachment.documentId,
-                        attachment.connectionId,
-                      ),
-                    );
                     yield* entities.run(entityAddress, (entity) =>
                       entity.sessions.remove(attachment.connectionId),
                     );
@@ -337,23 +347,31 @@ export const installMimicNodeWebSocketServer = (
               `Ignoring malformed Mimic document entity alarm ${address.id}`,
             );
           }
-          return entities.run(address, (entity) =>
-            Effect.gen(function* () {
-              const scheduledTime = yield* entity.alarm.get;
-              if (scheduledTime === undefined || scheduledTime > now) return;
-              yield* entity.alarm.delete;
-              yield* makeNodeIdleNotifier(
-                entity,
-                document.collectionId,
-                document.documentId,
-                () =>
-                  documents
-                    .get(documentKey(document.collectionId, document.documentId))
-                    ?.context.registry.authenticated().length ?? 0,
-                idleNotifications,
-              ).onAlarm();
-            }),
-          );
+          return Effect.gen(function* () {
+            const due = yield* entities.run(address, (entity) =>
+              Effect.gen(function* () {
+                const scheduledTime = yield* entity.alarm.get;
+                if (scheduledTime === undefined || scheduledTime > now) return false;
+                yield* entity.alarm.delete;
+                return true;
+              }),
+            );
+            if (!due) return;
+            const { presences } = yield* withoutRequirements(
+              host.getPresenceSnapshot(document.collectionId, document.documentId),
+            );
+            yield* entities.run(address, (entity) =>
+              Effect.gen(function* () {
+                yield* makeNodeIdleNotifier(
+                  entity,
+                  document.collectionId,
+                  document.documentId,
+                  () => Object.keys(presences).length,
+                  idleNotifications,
+                ).onAlarm();
+              }),
+            );
+          });
         },
         ...idleNotifications.additionalAlarmHandlers,
       }).pipe(

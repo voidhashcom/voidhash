@@ -1,5 +1,5 @@
 /**
- * Contract test for the stateless MCP tool manifest: the advertised tool set,
+ * Contract test for the stateful MCP editing manifest: the advertised tool set,
  * each descriptor's JSON Schema shape, and that a validated tool's dispatcher
  * folds an invalid-argument call into an `isError` tool result (never a throw).
  */
@@ -53,47 +53,58 @@ describe("MCP tool manifest", () => {
     expect(tool?.descriptor.inputSchema.properties).toEqual({});
   });
 
-  it("get_paywall requires a slug and allows nodeId + depth", () => {
+  it("list_paywalls rejects unexpected input", async () => {
+    const tool = findMcpTool("list_paywalls")!;
+    const result = await Effect.runPromise(
+      tool.dispatch({ projectId: "proj_1" }, { paywallId: "pw_1" }) as Effect.Effect<{
+        output: string;
+        isError: boolean;
+      }>,
+    );
+    expect(result.isError).toBe(true);
+    expect(result.output).toContain("invalid arguments");
+  });
+
+  it("get_paywall requires an edit session and allows nodeId + depth", () => {
     const schema = findMcpTool("get_paywall")!.descriptor.inputSchema;
-    expect((schema.required as string[]).sort()).toEqual(["slug"]);
+    expect((schema.required as string[]).sort()).toEqual(["editSessionId"]);
     const props = schema.properties as Record<string, unknown>;
     expect(props).toHaveProperty("nodeId");
     expect(props).toHaveProperty("depth");
   });
 
-  it("edit_paywall requires a slug + a non-empty edits array", () => {
+  it("edit_paywall requires an edit session + a non-empty edits array", () => {
     const schema = findMcpTool("edit_paywall")!.descriptor.inputSchema;
     const required = (schema.required as string[] | undefined) ?? [];
-    expect(required).toContain("slug");
-    expect(required).toContain("changeSetId");
+    expect(required).toContain("editSessionId");
     expect(required).toContain("edits");
     const edits = (schema.properties as Record<string, { type?: string }>).edits;
     expect(edits.type).toBe("array");
   });
 
-  it("write_component requires slug + path + source", () => {
+  it("write_component requires editSessionId + path + source", () => {
     const schema = findMcpTool("write_component")!.descriptor.inputSchema;
     const required = ((schema.required as string[] | undefined) ?? []).sort();
-    expect(required).toEqual(["changeSetId", "path", "slug", "source"]);
+    expect(required).toEqual(["editSessionId", "path", "source"]);
   });
 
-  it("rename_component requires slug + fromPath + toPath", () => {
+  it("rename_component requires editSessionId + fromPath + toPath", () => {
     const schema = findMcpTool("rename_component")!.descriptor.inputSchema;
     const required = ((schema.required as string[] | undefined) ?? []).sort();
-    expect(required).toEqual(["changeSetId", "fromPath", "slug", "toPath"]);
+    expect(required).toEqual(["editSessionId", "fromPath", "toPath"]);
   });
 
   it("advertises the explicit preview-gated lifecycle", () => {
     expect(findMcpTool("begin_paywall_edit")!.descriptor.inputSchema.required as string[]).toEqual([
-      "slug",
+      "paywallId",
     ]);
     const previewRequired =
       (findMcpTool("get_paywall_preview")!.descriptor.inputSchema.required as string[]) ?? [];
-    expect(previewRequired.sort()).toEqual(["changeSetId", "slug"]);
+    expect(previewRequired.sort()).toEqual(["editSessionId"]);
     const finishRequired =
       (findMcpTool("finish_paywall_edit")!.descriptor.inputSchema.required as string[]) ?? [];
     expect(finishRequired).toEqual(
-      expect.arrayContaining(["slug", "changeSetId", "reviewedDocumentSignature", "verdict"]),
+      expect.arrayContaining(["editSessionId", "reviewedDocumentSignature", "verdict"]),
     );
   });
 
@@ -101,10 +112,22 @@ describe("MCP tool manifest", () => {
     const tool = findMcpTool("edit_paywall")!;
     const result = await Effect.runPromise(
       // Missing required `edits` — the dispatcher validates and folds the failure.
-      tool.dispatch({ projectId: "proj_1" }, { slug: "trial" }) as Effect.Effect<{
+      tool.dispatch({ projectId: "proj_1" }, { editSessionId: "pw_edit_1" }) as Effect.Effect<{
         output: string;
         isError: boolean;
       }>,
+    );
+    expect(result.isError).toBe(true);
+    expect(result.output).toContain("invalid arguments");
+  });
+
+  it("rejects redundant paywallId arguments after a session is opened", async () => {
+    const tool = findMcpTool("get_paywall")!;
+    const result = await Effect.runPromise(
+      tool.dispatch(
+        { projectId: "proj_1" },
+        { editSessionId: "pw_edit_1", paywallId: "pw_1" },
+      ) as Effect.Effect<{ output: string; isError: boolean }>,
     );
     expect(result.isError).toBe(true);
     expect(result.output).toContain("invalid arguments");

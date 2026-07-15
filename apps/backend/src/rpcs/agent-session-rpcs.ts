@@ -1,7 +1,7 @@
 import {
   AgentAttachmentService,
   AgentSessionIndexService,
-  PaywallEditChangeSetService,
+  PaywallEditSessionService,
 } from "@voidhash/core/services";
 import {
   AgentSessionRpcsDef,
@@ -44,7 +44,7 @@ export const AgentSessionRpcsLive = AgentSessionRpcsDef.toLayer(
   Effect.gen(function* AgentSessionRpcsLive() {
     const sessions = yield* AgentSessionIndexService;
     const attachments = yield* AgentAttachmentService;
-    const changeSets = yield* PaywallEditChangeSetService;
+    const editSessions = yield* PaywallEditSessionService;
     const mapSessionErrors = {
       AgentSessionForbiddenError: (error: { readonly message: string }) =>
         Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -72,10 +72,10 @@ export const AgentSessionRpcsLive = AgentSessionRpcsDef.toLayer(
               Effect.fail(new RpcAgentSessionNotFoundError({ sessionId: error.sessionId })),
           }),
         ),
-      RevertAgentSessionChangeSet: ({ sessionId, changeSetId }) =>
+      RevertAgentEditSession: ({ sessionId, editSessionId }) =>
         sessions.get({ sessionId }).pipe(
           Effect.flatMap((session) =>
-            changeSets.revertForAgentSession(session.projectId, changeSetId, session.id),
+            editSessions.revertForAgentSession(session.projectId, editSessionId, session.id),
           ),
           Effect.catch(mapRevertError),
           Effect.asVoid,

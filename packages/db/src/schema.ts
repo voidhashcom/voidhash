@@ -1329,31 +1329,33 @@ export const paywalls = pgTable(
   (table) => [uniqueIndex("paywall_slug_project_id_idx").on(table.slug, table.projectId)],
 );
 
-export const PaywallEditChangeSetStatus = {
+export const PaywallEditSessionStatus = {
   active: "active",
   finished: "finished",
   reverted: "reverted",
 } as const;
 
-export type PaywallEditChangeSetStatusValue =
-  (typeof PaywallEditChangeSetStatus)[keyof typeof PaywallEditChangeSetStatus];
+export type PaywallEditSessionStatusValue =
+  (typeof PaywallEditSessionStatus)[keyof typeof PaywallEditSessionStatus];
 
 /**
- * An explicit agentic authoring change set for one paywall. The baseline is
- * captured when editing starts so the complete set of edits can be reverted.
+ * A connected agentic authoring session for one paywall. The baseline is
+ * captured when editing starts so the session's edits can be reverted.
  */
-export const paywallEditChangeSets = pgTable(
-  "paywall_edit_change_set",
+export const paywallEditSessions = pgTable(
+  "paywall_edit_session",
   {
     id: varchar("id", { length: 64 }).primaryKey(),
     projectId: varchar("project_id", { length: 255 }).notNull(),
-    /** Durable internal agent session that owns this change set, or null for MCP. */
+    /** Durable internal agent session that owns this edit session, or null for MCP. */
     agentSessionId: varchar("agent_session_id", { length: 64 }),
     paywallId: varchar("paywall_id", { length: 255 }).notNull(),
     paywallSlug: varchar("paywall_slug", { length: 255 }).notNull(),
     baselineTree: jsonb("baseline_tree").$type<unknown>().notNull(),
     baselineVersion: integer("baseline_version").notNull(),
-    status: varchar("status", { length: 16 }).$type<PaywallEditChangeSetStatusValue>().notNull(),
+    lastAgentVersion: integer("last_agent_version").notNull(),
+    revertSafe: boolean("revert_safe").default(true).notNull(),
+    status: varchar("status", { length: 16 }).$type<PaywallEditSessionStatusValue>().notNull(),
     lastPreviewSignature: varchar("last_preview_signature", { length: 80 }),
     lastPreviewVersion: integer("last_preview_version"),
     reviewVerdict: text("review_verdict"),
@@ -1365,12 +1367,9 @@ export const paywallEditChangeSets = pgTable(
     finishedAt: timestamp("finished_at", { withTimezone: true, precision: 3 }),
   },
   (table) => [
-    index("paywall_edit_change_set_project_idx").on(table.projectId),
-    index("paywall_edit_change_set_paywall_idx").on(table.paywallId),
-    index("paywall_edit_change_set_agent_session_idx").on(table.agentSessionId),
-    uniqueIndex("paywall_edit_change_set_active_idx")
-      .on(table.projectId, table.paywallId)
-      .where(sql`${table.status} = 'active'`),
+    index("paywall_edit_session_project_idx").on(table.projectId),
+    index("paywall_edit_session_paywall_idx").on(table.paywallId),
+    index("paywall_edit_session_agent_session_idx").on(table.agentSessionId),
   ],
 );
 
@@ -1424,6 +1423,7 @@ export const paywallComponentManifests = pgTable("paywall_component_manifest", {
   sourceHash: varchar("source_hash", { length: 64 }).primaryKey(),
   status: varchar("status", { length: 16 }).notNull().$type<PaywallComponentManifestStatusValue>(),
   manifest: jsonb("manifest").$type<unknown>(),
+  previewTrees: jsonb("preview_trees").$type<Readonly<Record<string, unknown>>>(),
   diagnostics: jsonb("diagnostics").$type<ReadonlyArray<PaywallComponentManifestDiagnostic>>(),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 })

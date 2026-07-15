@@ -47,10 +47,11 @@ import {
   PaywallArtifactStore,
   PaywallArtifactStoreError,
   PaywallDeployService,
-  PaywallEditChangeSetService,
+  PaywallEditSessionService,
   PaywallLocationService,
   PaywallReleaseService,
   PaywallService,
+  PaywallThumbnailService,
   PaywallWorkspaceService,
   ComponentCompiler,
   ComponentManifestCacheService,
@@ -490,6 +491,7 @@ export const BackendPublicFileStoreStubLive = Layer.succeed(PublicFileStore, {
  * is exercised end-to-end in process.
  */
 export const BackendMimicHostStubLive = Layer.succeed(MimicHost, {
+  closePaywallConnection: () => Effect.void,
   createPaywallEditToken: () =>
     Effect.sync(() => ({
       expiresAt: new Date(Date.now() + 300_000),
@@ -508,6 +510,28 @@ export const BackendMimicHostStubLive = Layer.succeed(MimicHost, {
       new MimicHostError({
         cause: "getPaywallDocument is not available in the in-process backend harness",
         message: "mimic host document read is not stubbed",
+      }),
+    ),
+  getConnectedPaywallDocument: () =>
+    Effect.fail(
+      new MimicHostError({
+        cause: "connected document reads are not available in the in-process backend harness",
+        message: "mimic host connected document read is not stubbed",
+      }),
+    ),
+  heartbeatPaywallConnection: () => Effect.void,
+  openPaywallConnection: () =>
+    Effect.fail(
+      new MimicHostError({
+        cause: "document connections are not available in the in-process backend harness",
+        message: "mimic host document connection is not stubbed",
+      }),
+    ),
+  submitConnectedPaywallTransaction: () =>
+    Effect.fail(
+      new MimicHostError({
+        cause: "connected transaction submits are not available in the in-process backend harness",
+        message: "mimic host connected transaction submit is not stubbed",
       }),
     ),
   submitPaywallTransaction: () =>
@@ -739,6 +763,10 @@ const buildBackendServiceGraph = <
     Layer.provide(ComponentManifestCacheService.layer),
   );
 
+  const PaywallThumbnailServiceLive = PaywallThumbnailService.layer.pipe(
+    Layer.provide(ComponentManifestCacheService.layer),
+  );
+
   const AgentSessionIndexServiceLive = AgentSessionIndexService.layer;
   const BaseDomainServicesLayer = Layer.mergeAll(
     AgentSessionIndexServiceLive,
@@ -771,13 +799,14 @@ const buildBackendServiceGraph = <
     PaywallLocationService.layer.pipe(Layer.provide(ExperimentServiceLayer)),
     PaywallReleaseService.layer.pipe(Layer.provide(BackendSnapshotHtmlRendererLive)),
     PaywallService.layer,
+    PaywallThumbnailServiceLive,
     ComponentManifestCacheService.layer,
     // The workspace service needs PaywallService (authz + slug resolution) and
     // the manifest cache; `mergeAll` does not cross-wire siblings, so both are
     // provided explicitly. MimicHost and ComponentCompiler come from the
     // infrastructure layer.
     PaywallWorkspaceServiceLive,
-    PaywallEditChangeSetService.layer.pipe(Layer.provide(PaywallWorkspaceServiceLive)),
+    PaywallEditSessionService.layer.pipe(Layer.provide(PaywallWorkspaceServiceLive)),
     PerkGrantService.layer,
     PerkService.layer,
     PersonService.layer,

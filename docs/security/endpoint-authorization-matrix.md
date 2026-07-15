@@ -58,7 +58,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 <!-- RPC_OPERATIONS_START -->
 | Group | Operations |
 | --- | --- |
-| AgentSession | `ListAgentSessions`, `GetAgentSession`, `DeleteAgentSession`, `RevertAgentSessionChangeSet`, `UploadAgentAttachment` |
+| AgentSession | `ListAgentSessions`, `GetAgentSession`, `DeleteAgentSession`, `RevertAgentEditSession`, `UploadAgentAttachment` |
 | Analytics | `ListRecentAnalyticsEvents`, `QueryAnalyticsInsights`, `QueryCustomAnalyticsInsight`, `QueryCustomAnalyticsPersons`, `ListAnalyticsInsights`, `CreateAnalyticsInsight`, `UpdateAnalyticsInsight`, `DeleteAnalyticsInsight`, `ListAnalyticsCohorts`, `CreateAnalyticsCohort`, `UpdateAnalyticsCohort`, `DeleteAnalyticsCohort`, `ListAnalyticsDashboards`, `CreateAnalyticsDashboard`, `DuplicateAnalyticsDashboard`, `UpdateAnalyticsDashboard`, `DeleteAnalyticsDashboard`, `PutAnalyticsDashboardItem`, `ReorderAnalyticsDashboardItems`, `RemoveAnalyticsDashboardItem` |
 | ApiKey | `CreateSecretKey`, `ListApiKeys`, `GetApiKeyById`, `RotateSecretKey`, `DeleteApiKey`, `CreateUserApiKey`, `ListUserApiKeys`, `RevokeUserApiKey` |
 | Person | `CreatePerson`, `ListPersons`, `GetPersonById`, `GetPersonByDistinctId` |
@@ -74,7 +74,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | PaywallComponent | `ListPaywallComponents`, `GetPaywallComponentVersions` |
 | PaywallDeploy | `ListPaywallDeploys`, `SetActivePaywallRelease` |
 | PaywallLocation | `ListPaywallLocations`, `CreatePaywallLocation`, `UpdatePaywallLocation`, `ArchivePaywallLocation`, `AssignPaywallLocationShowing`, `ClearPaywallLocationShowing`, `ListPaywallLocationShowings` |
-| Paywall | `ListPaywalls`, `CreatePaywall`, `RenamePaywall`, `ArchivePaywall`, `RestorePaywall`, `DeletePaywall`, `RequestPaywallEditToken`, `CreatePaywallRelease`, `PublishPaywallRelease`, `GetPaywallDraftRelease` |
+| Paywall | `ListPaywalls`, `BackfillPaywallThumbnails`, `CreatePaywall`, `RenamePaywall`, `ArchivePaywall`, `RestorePaywall`, `DeletePaywall`, `RequestPaywallEditToken`, `CreatePaywallRelease`, `PublishPaywallRelease`, `GetPaywallDraftRelease` |
 | PaywallWorkspace | `ListWorkspacePaywalls`, `ReadPaywallDocument`, `RecordComponentManifest` |
 | Perk | `ListPerks`, `CreatePerk`, `DeletePerk` |
 | ProductPerk | `ListProductPerksByProductId`, `CreateProductPerk`, `DeleteProductPerk` |

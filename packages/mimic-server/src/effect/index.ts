@@ -2,7 +2,13 @@ export { type MimicClientConfig, makeMimicProtocolLayer } from "./RpcClient.ts";
 export { MimicSDK } from "./MimicSDK.ts";
 export { DatabaseHandle } from "./DatabaseHandle.ts";
 export { CollectionHandle } from "./CollectionHandle.ts";
-export { RawCollectionHandle } from "./RawCollectionHandle.ts";
+export {
+  RawCollectionHandle,
+  type RawConnectedTransactionInput,
+  type RawDocumentConnectionInput,
+  type RawTransactionInput,
+  type RawTransactionResult,
+} from "./RawCollectionHandle.ts";
 export type {
   CollectionInfo,
   CreateUserResult,

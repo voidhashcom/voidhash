@@ -5,34 +5,42 @@ import { fileURLToPath } from "node:url";
 import { findSkill } from "../apps/backend/src/ai/skills/registry.ts";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const targetPaths = [
-  resolve(repositoryRoot, "integrations/claude-code/voidhash/skills/design-paywall/SKILL.md"),
-  resolve(repositoryRoot, "plugins/voidhash/skills/design-paywall/SKILL.md"),
+const skills = [
+  { sourceName: "paywall-authoring", pluginName: "design-paywall" },
+  { sourceName: "code-component-authoring", pluginName: "code-component-authoring" },
 ] as const;
 
-const definition = findSkill("paywall-authoring");
-if (definition === undefined) {
-  throw new Error("The paywall-authoring skill is not registered");
-}
+const check = process.argv.includes("--check");
+const stale: string[] = [];
 
-const generated = `---
-name: design-paywall
+for (const skill of skills) {
+  const definition = findSkill(skill.sourceName);
+  if (definition === undefined) {
+    throw new Error(`The ${skill.sourceName} skill is not registered`);
+  }
+  const generated = `---
+name: ${skill.pluginName}
 description: ${definition.description}
 ---
 
 ${definition.body().trimEnd()}
 `;
+  const targetPaths = [
+    resolve(
+      repositoryRoot,
+      `integrations/claude-code/voidhash/skills/${skill.pluginName}/SKILL.md`,
+    ),
+    resolve(repositoryRoot, `plugins/voidhash/skills/${skill.pluginName}/SKILL.md`),
+  ];
 
-const check = process.argv.includes("--check");
-const stale: string[] = [];
-
-for (const targetPath of targetPaths) {
-  const current = await readFile(targetPath, "utf8").catch(() => undefined);
-  if (current === generated) continue;
-  if (check) {
-    stale.push(targetPath);
-  } else {
-    await writeFile(targetPath, generated);
+  for (const targetPath of targetPaths) {
+    const current = await readFile(targetPath, "utf8").catch(() => undefined);
+    if (current === generated) continue;
+    if (check) {
+      stale.push(targetPath);
+    } else {
+      await writeFile(targetPath, generated);
+    }
   }
 }
 

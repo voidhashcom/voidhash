@@ -155,7 +155,7 @@ function createDesignerLocalState() {
     },
     ai: {
       operations: {} as Record<string, AgentCanvasOperation>,
-      isWorking: false,
+      localIsWorking: false,
       panelOpen: true,
       width: PANEL_DIMENSIONS.AI_CHAT_WIDTH,
     },
@@ -242,6 +242,7 @@ function toError(error: unknown): Error {
 
 function createInitialPresence(): PresenceInput {
   return {
+    participant: { kind: "human" },
     selectedNodeIds: [],
     user: {
       color: `#${Math.floor(Math.random() * 16_777_215)

@@ -35,6 +35,7 @@ export interface RecordComponentManifestInput {
   readonly sourceHash: string;
   readonly status: "ready" | "error";
   readonly manifest?: unknown;
+  readonly previewTrees?: Readonly<Record<string, unknown>>;
   readonly diagnostics?: ReadonlyArray<ComponentManifestDiagnostic>;
 }
 
@@ -46,6 +47,7 @@ export interface CachedComponentManifest {
   readonly sourceHash: string;
   readonly status: "ready" | "error";
   readonly manifest: ComponentManifest | null;
+  readonly previewTrees: Readonly<Record<string, unknown>> | null;
   readonly diagnostics: ReadonlyArray<ComponentManifestDiagnostic>;
 }
 
@@ -93,20 +95,24 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
       /**
        * Content-addressed, **first-write-wins** upsert of one compile result. A
        * `ready` status validates the supplied manifest against the core schema
-       * before storing; an `error` status stores diagnostics with a null
-       * manifest.
+       * before storing it with the optional renderer-ready preview trees; an
+       * `error` status stores diagnostics with a null manifest and preview.
        *
        * A row that is already `ready` is IMMUTABLE: because the row is keyed by
        * the content hash of the source, any conflicting write carries the same
        * source and so cannot legitimately differ — the `setWhere` clause makes
        * the conflicting UPDATE a no-op, so a later (possibly adversarial) writer
-       * can never replace an existing ready manifest. An `error` row MAY be
-       * upgraded — error→ready once the source finally compiles somewhere, or
-       * error→error to refresh diagnostics.
+       * can never replace an existing ready manifest. A legacy ready row whose
+       * preview trees are still null may be filled once without replacing the
+       * manifest. An `error` row MAY be upgraded — error→ready once the source
+       * finally compiles somewhere, or error→error to refresh diagnostics.
        */
       const record = Effect.fn("componentManifestCache.record")(
         function* (input: RecordComponentManifestInput) {
-          yield* Effect.annotateCurrentSpan("voidhash.paywall.component_source_hash", input.sourceHash);
+          yield* Effect.annotateCurrentSpan(
+            "voidhash.paywall.component_source_hash",
+            input.sourceHash,
+          );
 
           let manifest: ComponentManifest | null = null;
           if (input.status === "ready") {
@@ -134,15 +140,21 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
               sourceHash: input.sourceHash,
               status: input.status,
               manifest,
+              previewTrees: input.status === "ready" ? (input.previewTrees ?? null) : null,
               diagnostics,
             })
             .onConflictDoUpdate({
               target: paywallComponentManifests.sourceHash,
-              set: { status: input.status, manifest, diagnostics, updatedAt: new Date() },
-              // First-write-wins: only overwrite an `error` row. The bare table
-              // reference in a Postgres `ON CONFLICT DO UPDATE ... WHERE` names
-              // the existing row, so a `ready` row is left untouched.
-              setWhere: sql`${paywallComponentManifests.status} = 'error'`,
+              set: {
+                status: sql`CASE WHEN ${paywallComponentManifests.status} = 'error' THEN excluded.status ELSE ${paywallComponentManifests.status} END`,
+                manifest: sql`CASE WHEN ${paywallComponentManifests.status} = 'error' THEN excluded.manifest ELSE ${paywallComponentManifests.manifest} END`,
+                previewTrees: sql`CASE WHEN ${paywallComponentManifests.status} = 'error' OR (${paywallComponentManifests.previewTrees} IS NULL AND excluded.status = 'ready') THEN excluded.preview_trees ELSE ${paywallComponentManifests.previewTrees} END`,
+                diagnostics: sql`CASE WHEN ${paywallComponentManifests.status} = 'error' THEN excluded.diagnostics ELSE ${paywallComponentManifests.diagnostics} END`,
+                updatedAt: new Date(),
+              },
+              // Keep a ready derivation immutable, except for filling the new
+              // preview-tree column on rows recorded before it existed.
+              setWhere: sql`${paywallComponentManifests.status} = 'error' OR (${paywallComponentManifests.previewTrees} IS NULL AND excluded.status = 'ready')`,
             });
         },
         (effect) =>
@@ -173,7 +185,8 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
             where: { sourceHash: { in: distinct } },
           });
           for (const row of rows) {
-            const diagnostics = (row.diagnostics ?? []) as ReadonlyArray<ComponentManifestDiagnostic>;
+            const diagnostics = (row.diagnostics ??
+              []) as ReadonlyArray<ComponentManifestDiagnostic>;
             if (row.status === "ready") {
               const manifest = yield* decodeManifest(row.manifest).pipe(
                 Effect.map((value): ComponentManifest | null => value),
@@ -186,6 +199,7 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
                 sourceHash: row.sourceHash,
                 status: "ready",
                 manifest,
+                previewTrees: row.previewTrees ?? null,
                 diagnostics,
               });
             } else {
@@ -193,6 +207,7 @@ export class ComponentManifestCacheService extends Context.Service<ComponentMani
                 sourceHash: row.sourceHash,
                 status: "error",
                 manifest: null,
+                previewTrees: null,
                 diagnostics,
               });
             }

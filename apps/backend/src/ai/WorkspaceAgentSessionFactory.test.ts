@@ -30,11 +30,12 @@ describe("makeWorkspaceAgentSessionFactory", () => {
     });
 
     expect(agent.state.systemPrompt).toContain("<name>paywall-authoring</name>");
+    expect(agent.state.systemPrompt).toContain("<name>code-component-authoring</name>");
     expect(agent.state.systemPrompt).not.toContain("Document model and authorable tree");
     expect(agent.state.tools.map((tool) => tool.name)).toContain("read_skill");
     expect(agent.state.tools.map((tool) => tool.name)).toContain("edit_paywall");
     const editPaywall = agent.state.tools.find((tool) => tool.name === "edit_paywall");
-    expect(editPaywall?.parameters.properties).not.toHaveProperty("changeSetId");
+    expect(editPaywall?.parameters.properties).toHaveProperty("editSessionId");
 
     await factory.preparePrompt?.({
       agent,

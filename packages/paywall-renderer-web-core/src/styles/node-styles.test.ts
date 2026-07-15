@@ -150,6 +150,12 @@ describe("buildShapeContainerStyles", () => {
 });
 
 describe("buildTextStyles", () => {
+  test("preserves authored line breaks and wraps long words", () => {
+    const styles = buildTextStyles(makeTextStyle());
+    expect(styles.whiteSpace).toBe("pre-wrap");
+    expect(styles.wordWrap).toBe("break-word");
+  });
+
   test("absent min/max constraints and flex stay unset; present ones emit px", () => {
     const defaults = buildTextStyles(makeTextStyle());
     expect(defaults.minWidth).toBeUndefined();

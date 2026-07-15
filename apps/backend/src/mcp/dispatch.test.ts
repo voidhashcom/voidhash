@@ -1,6 +1,6 @@
 /**
- * Tests the MCP tool DISPATCH path end-to-end through the stateless document-
- * first workspace-tool core against a mocked workspace context. Proves: a valid
+ * Tests the MCP tool dispatch path end-to-end through the stateful document-
+ * editing core against a mocked workspace context. Proves: a valid
  * call runs the core and returns its string; an invalid argument set folds to an
  * `isError` result (never a throw / JSON-RPC error); `list_paywalls` lists
  * directories; `get_paywall` cleans the document; `edit_paywall` validates then
@@ -11,7 +11,7 @@ import {
   ComponentManifestCacheService,
   PaywallArtifactStore,
   PaywallDeployService,
-  PaywallEditChangeSetService,
+  PaywallEditSessionService,
   PaywallWorkspaceService,
   SnapshotImageRenderer,
 } from "@voidhash/core/services";
@@ -43,10 +43,18 @@ const fakeWorkspace = (over: Partial<PaywallWorkspaceService["Service"]> = {}) =
       ]),
     readDocument: (_p: string, slug: string) =>
       Effect.succeed({ slug, name: "Trial", paywallId: "pw_1", root: documentRoot }),
+    readConnectedDocumentTree: () => Effect.succeed({ tree: {}, root: documentRoot, version: 8 }),
     editDocument: () => Effect.succeed({ version: 9, commandCount: 2, mintedIds: {} }),
+    editConnectedDocument: () => Effect.succeed({ version: 9, commandCount: 2, mintedIds: {} }),
     writeComponentSource: () => Effect.succeed({ version: 9, commandCount: 1, diagnostics: [] }),
+    writeConnectedComponentSource: () =>
+      Effect.succeed({ version: 9, commandCount: 1, diagnostics: [] }),
     moveComponentFile: () => Effect.succeed({ version: 9, commandCount: 1, diagnostics: [] }),
+    moveConnectedComponentFile: () =>
+      Effect.succeed({ version: 9, commandCount: 1, diagnostics: [] }),
     deleteComponentFile: () => Effect.succeed({ version: 9, commandCount: 1, diagnostics: [] }),
+    deleteConnectedComponentFile: () =>
+      Effect.succeed({ version: 9, commandCount: 1, diagnostics: [] }),
     ...over,
   }) as unknown as PaywallWorkspaceService["Service"];
 
@@ -70,23 +78,26 @@ const fakeCompiler = (over: Partial<ComponentCompiler["Service"]> = {}) =>
     ...over,
   }) as unknown as ComponentCompiler["Service"];
 
-const fakeChangeSets = () =>
+const fakeEditSessions = (over: Partial<PaywallEditSessionService["Service"]> = {}) =>
   ({
-    requireActive: () =>
+    recordMutation: () => Effect.void,
+    connectActive: () =>
       Effect.succeed({
-        id: "pw_change_1",
+        editSessionId: "pw_edit_1",
         projectId: "proj_1",
         paywallId: "pw_1",
         paywallSlug: "trial",
         baselineVersion: 1,
       }),
-  }) as unknown as PaywallEditChangeSetService["Service"];
+    ...over,
+  }) as unknown as PaywallEditSessionService["Service"];
 
 interface Fakes {
   readonly workspace?: PaywallWorkspaceService["Service"];
   readonly deploy?: PaywallDeployService["Service"];
   readonly manifestCache?: ComponentManifestCacheService["Service"];
   readonly compiler?: ComponentCompiler["Service"];
+  readonly editSessions?: PaywallEditSessionService["Service"];
 }
 
 const contextWith = (fakes: Fakes) =>
@@ -95,7 +106,7 @@ const contextWith = (fakes: Fakes) =>
     Context.add(PaywallDeployService, fakes.deploy ?? fakeDeploy()),
     Context.add(ComponentManifestCacheService, fakes.manifestCache ?? fakeManifestCache()),
     Context.add(ComponentCompiler, fakes.compiler ?? fakeCompiler()),
-    Context.add(PaywallEditChangeSetService, fakeChangeSets()),
+    Context.add(PaywallEditSessionService, fakes.editSessions ?? fakeEditSessions()),
     Context.add(PaywallArtifactStore, {
       getObject: () => Effect.succeed(null),
     } as unknown as PaywallArtifactStore["Service"]),
@@ -122,12 +133,12 @@ describe("MCP tool dispatch", () => {
   it("list_paywalls lists the project directories (no input)", async () => {
     const result = await dispatch("list_paywalls", {});
     expect(result.isError).toBe(false);
-    expect(result.output).toContain("trial (/paywalls/trial)");
-    expect(result.output).toContain("onboarding (/paywalls/onboarding)");
+    expect(result.output).toContain("pw_1: slug trial (/paywalls/trial)");
+    expect(result.output).toContain("pw_2: slug onboarding (/paywalls/onboarding)");
   });
 
   it("get_paywall returns the cleaned document JSON with node ids", async () => {
-    const result = await dispatch("get_paywall", { slug: "trial" });
+    const result = await dispatch("get_paywall", { editSessionId: "pw_edit_1" });
     expect(result.isError).toBe(false);
     expect(result.output).toContain('"id": "root1"');
     expect(result.output).toContain('"type": "screen"');
@@ -135,8 +146,7 @@ describe("MCP tool dispatch", () => {
 
   it("edit_paywall validates then applies, reporting the new version", async () => {
     const result = await dispatch("edit_paywall", {
-      slug: "trial",
-      changeSetId: "pw_change_1",
+      editSessionId: "pw_edit_1",
       edits: [{ op: "insert", parentId: "screen1", node: { type: "view" } }],
     });
     expect(result.isError).toBe(false);
@@ -144,16 +154,15 @@ describe("MCP tool dispatch", () => {
   });
 
   it("edit_paywall returns structured validation errors verbatim (no apply)", async () => {
-    const editDocument = () => {
-      throw new Error("editDocument must not be called on a validation failure");
+    const editConnectedDocument = () => {
+      throw new Error("editConnectedDocument must not be called on a validation failure");
     };
     const result = await dispatchWith(
-      { workspace: fakeWorkspace({ editDocument: editDocument as never }) },
+      { workspace: fakeWorkspace({ editConnectedDocument: editConnectedDocument as never }) },
       "edit_paywall",
       // Unknown parent id → validation rejects before any submit.
       {
-        slug: "trial",
-        changeSetId: "pw_change_1",
+        editSessionId: "pw_edit_1",
         edits: [{ op: "insert", parentId: "ghost", node: { type: "view" } }],
       },
     );
@@ -163,12 +172,14 @@ describe("MCP tool dispatch", () => {
   });
 
   it("write_component rejects broken source with diagnostics (commits nothing)", async () => {
-    const writeComponentSource = () => {
-      throw new Error("writeComponentSource must not be called on a compile error");
+    const writeConnectedComponentSource = () => {
+      throw new Error("writeConnectedComponentSource must not be called on a compile error");
     };
     const result = await dispatchWith(
       {
-        workspace: fakeWorkspace({ writeComponentSource: writeComponentSource as never }),
+        workspace: fakeWorkspace({
+          writeConnectedComponentSource: writeConnectedComponentSource as never,
+        }),
         compiler: fakeCompiler({
           compileAndExtract: () =>
             Effect.succeed({
@@ -180,8 +191,7 @@ describe("MCP tool dispatch", () => {
       },
       "write_component",
       {
-        slug: "trial",
-        changeSetId: "pw_change_1",
+        editSessionId: "pw_edit_1",
         path: "components/hero.tsx",
         source: "export default (=> {",
       },
@@ -213,8 +223,7 @@ describe("MCP tool dispatch", () => {
       },
       "write_component",
       {
-        slug: "trial",
-        changeSetId: "pw_change_1",
+        editSessionId: "pw_edit_1",
         path: "components/hero.tsx",
         source: "export default () => null;",
       },
@@ -235,7 +244,7 @@ describe("MCP tool dispatch", () => {
     const result = await dispatchWith(
       {
         workspace: fakeWorkspace({
-          editDocument: () =>
+          editConnectedDocument: () =>
             Effect.fail({
               _tag: "WorkspaceWriteConflictError",
               message: "lost the concurrency race",
@@ -244,8 +253,7 @@ describe("MCP tool dispatch", () => {
       },
       "edit_paywall",
       {
-        slug: "trial",
-        changeSetId: "pw_change_1",
+        editSessionId: "pw_edit_1",
         edits: [{ op: "insert", parentId: "screen1", node: { type: "view" } }],
       },
     );

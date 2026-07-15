@@ -557,6 +557,12 @@ export const rpcSmokeCases = [
   },
   {
     expected: success,
+    payload: ({ ids }) => ({ projectId: ids.projectId }),
+    role: "admin",
+    tag: "BackfillPaywallThumbnails",
+  },
+  {
+    expected: success,
     payload: ({ ids }) => ({ includeArchived: true, projectId: ids.projectId }),
     role: "admin",
     tag: "ListPaywallLocations",
@@ -781,7 +787,7 @@ const knownMissingRpcSmokeTags = new Set([
   "ListAgentSessions",
   "GetAgentSession",
   "DeleteAgentSession",
-  "RevertAgentSessionChangeSet",
+  "RevertAgentEditSession",
   "UploadAgentAttachment",
   "ListExperiments",
   "GetExperiment",

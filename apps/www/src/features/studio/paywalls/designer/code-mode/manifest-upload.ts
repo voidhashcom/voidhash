@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import { managedRuntime, VoidhashRpc } from "@/features/studio/lib/effect-query";
 
 import type { CompileDiagnostic } from "../state/designer-store-state";
@@ -30,7 +28,12 @@ export function uploadComponentManifest(sourceHash: string, result: PipelineResu
   uploadedHashes.add(sourceHash);
 
   const payload = result.ok
-    ? { sourceHash, status: "ready" as const, manifest: result.manifest }
+    ? {
+        sourceHash,
+        status: "ready" as const,
+        manifest: result.manifest,
+        previewTrees: result.previewTrees,
+      }
     : {
         sourceHash,
         status: "error" as const,

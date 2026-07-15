@@ -72,6 +72,7 @@ export class PaywallWorkspaceRpcsDef extends RpcGroup.make(
       // Validated server-side against the ComponentManifest schema; `undefined`
       // for `error` uploads.
       manifest: Schema.optional(Schema.Unknown),
+      previewTrees: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
       diagnostics: Schema.optional(Schema.Array(ComponentManifestDiagnostic)),
     }),
     success: Schema.Void,

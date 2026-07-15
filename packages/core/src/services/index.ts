@@ -102,7 +102,7 @@ export * from "./paywalls/MimicHost.ts";
 export * from "./paywalls/PaywallService.ts";
 export * from "./paywallWorkspace/ComponentCompiler.ts";
 export * from "./paywallWorkspace/ComponentManifestCacheService.ts";
-export * from "./paywallWorkspace/PaywallEditChangeSetService.ts";
+export * from "./paywallWorkspace/PaywallEditSessionService.ts";
 export * from "./paywallWorkspace/PaywallWorkspaceService.ts";
 export * from "./perkGrants/PerkGrantService.ts";
 export * from "./perks/PerkService.ts";

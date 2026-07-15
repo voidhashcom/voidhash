@@ -59,32 +59,42 @@ const testLayer = (fakes: Fakes) => {
   let submitAttempts = 0;
   const documents = fakes.documents ?? [];
 
+  const readDocument = () =>
+    Effect.sync(() => {
+      const doc = documents[Math.min(docReads, documents.length - 1)] ?? {
+        tree: encodeTree([{ type: "root", name: "Paywall", children: [{ type: "screen" }] }]),
+        version: 1,
+      };
+      docReads += 1;
+      return { ...doc, root: fakes.snapshot ?? null };
+    });
+
+  const submitTransaction = (input: {
+    readonly baseVersion: number;
+    readonly commands: ReadonlyArray<unknown>;
+  }) =>
+    Effect.sync(() => {
+      const attempt = submitAttempts;
+      submitAttempts += 1;
+      return (
+        fakes.submit?.({ ...input, attempt }) ?? {
+          accepted: true,
+          version: input.baseVersion + 1,
+        }
+      );
+    });
+
   const mimicLayer = Layer.succeed(MimicHost, {
     ensurePaywallDocument: () => Effect.void,
     getPaywallSnapshot: () => Effect.succeed(fakes.snapshot ?? null),
-    getPaywallDocument: () =>
-      Effect.sync(() => {
-        const doc = documents[Math.min(docReads, documents.length - 1)] ?? {
-          tree: encodeTree([{ type: "root", name: "Paywall", children: [{ type: "screen" }] }]),
-          version: 1,
-        };
-        docReads += 1;
-        // `PaywallDocument` now carries the decoded `root` (same read as version);
-        // this service's write path uses only `tree`/`version`, so default the
-        // root to the shared snapshot for the shape.
-        return { ...doc, root: fakes.snapshot ?? null };
-      }),
-    submitPaywallTransaction: (_paywallId, input) =>
-      Effect.sync(() => {
-        const attempt = submitAttempts;
-        submitAttempts += 1;
-        return (
-          fakes.submit?.({ ...input, attempt }) ?? {
-            accepted: true,
-            version: input.baseVersion + 1,
-          }
-        );
-      }),
+    getPaywallDocument: readDocument,
+    submitPaywallTransaction: (_paywallId, input) => submitTransaction(input),
+    openPaywallConnection: () => readDocument(),
+    getConnectedPaywallDocument: () => readDocument(),
+    heartbeatPaywallConnection: () => Effect.void,
+    closePaywallConnection: () => Effect.void,
+    submitConnectedPaywallTransaction: (_paywallId, _connectionId, input) =>
+      submitTransaction(input),
     createPaywallEditToken: () => Effect.succeed({ token: "", url: "", expiresAt: new Date() }),
   });
 

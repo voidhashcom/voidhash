@@ -49,6 +49,13 @@ export interface PaywallDocument {
   readonly root: unknown;
 }
 
+/** Presence identity published for a connected AI editing participant. */
+export interface AgentPaywallPresence {
+  readonly editSessionId: string;
+  readonly source: "built_in" | "mcp";
+  readonly name: string;
+}
+
 /**
  * The result of submitting a granular transaction: whether the document DO
  * accepted it (optimistic-concurrency check on `baseVersion` passed and the
@@ -104,6 +111,31 @@ export interface MimicHostShape {
     paywallId: string,
   ) => Effect.Effect<PaywallDocument, MimicHostError>;
 
+  /** Opens a leased agent participant connection and publishes its presence. */
+  readonly openPaywallConnection: (input: {
+    readonly paywallId: string;
+    readonly connectionId: string;
+    readonly presence: AgentPaywallPresence;
+  }) => Effect.Effect<PaywallDocument, MimicHostError>;
+
+  /** Reads through an active agent connection and renews its lease. */
+  readonly getConnectedPaywallDocument: (input: {
+    readonly paywallId: string;
+    readonly connectionId: string;
+  }) => Effect.Effect<PaywallDocument, MimicHostError>;
+
+  /** Renews an active agent connection without reading the document. */
+  readonly heartbeatPaywallConnection: (input: {
+    readonly paywallId: string;
+    readonly connectionId: string;
+  }) => Effect.Effect<void, MimicHostError>;
+
+  /** Closes an agent connection and removes its presence from the document. */
+  readonly closePaywallConnection: (input: {
+    readonly paywallId: string;
+    readonly connectionId: string;
+  }) => Effect.Effect<void, MimicHostError>;
+
   /**
    * Submits a granular transaction (a plain mimic `Command[]` batch at
    * `baseVersion`) to the paywall's document DO, which linearizes it against
@@ -119,6 +151,16 @@ export interface MimicHostShape {
    */
   readonly submitPaywallTransaction: (
     paywallId: string,
+    input: {
+      readonly baseVersion: number;
+      readonly commands: ReadonlyArray<unknown>;
+    },
+  ) => Effect.Effect<SubmitPaywallTransactionResult, MimicHostError>;
+
+  /** Submits a granular transaction through an active agent connection. */
+  readonly submitConnectedPaywallTransaction: (
+    paywallId: string,
+    connectionId: string,
     input: {
       readonly baseVersion: number;
       readonly commands: ReadonlyArray<unknown>;

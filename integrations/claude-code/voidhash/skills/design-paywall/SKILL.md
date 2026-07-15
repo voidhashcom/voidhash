@@ -303,14 +303,15 @@ Layout is flexbox, exactly like CSS / React Native:
 
 ## Tool usage
 
-- **Open one change set.** Discover the target with `list_paywalls`, then call
-  `begin_paywall_edit({ slug })`. Pass the returned `changeSetId` and the same
-  `slug` to every mutation and preview call. Finish it after visual QA, or
-  revert it; never abandon an active change set.
+- **Open your edit session.** Discover the target with `list_paywalls`, then call
+  `begin_paywall_edit({ paywallId })`. Pass only the returned `editSessionId` to every
+  scoped call. Every participant gets an independent Mimic connection, so multiple users
+  and agents may edit the same paywall concurrently. Finish yours after visual QA, or
+  revert it; never abandon an active session.
 - **`get_paywall` first.** Learn the current tree and ids before editing. Pass
   `nodeId` to root at a subtree and `depth` to cap the tree (deeper nodes return
   as `{ id, type, name?, childCount }` stubs you expand with a follow-up
-  `get_paywall({ slug, nodeId })`). Cheaper than pulling the whole document every
+  `get_paywall({ editSessionId, nodeId })`). Cheaper than pulling the whole document every
   turn.
 - **`edit_paywall` applies an ATOMIC batch.** Every op lands or none does. On
   success you get the minted ids for `insert`/`replaceChildren` ops (keyed by op
@@ -700,29 +701,31 @@ where `period` is `"month" | "year" | "week" | "lifetime"`.
 
 ## Tool vocabulary
 
-- `list_paywalls()` — discover paywall slugs in the project.
-- `begin_paywall_edit({ slug })` — capture the revert baseline and return a
-  `changeSetId`.
-- `get_paywall({ slug, nodeId?, depth? })` — read cleaned document JSON (subtree
+- `list_paywalls()` — discover stable paywall ids (plus display slugs) in the project.
+- `begin_paywall_edit({ paywallId })` — capture the revert baseline and return a
+  `editSessionId`.
+- `get_paywall({ editSessionId, nodeId?, depth? })` — read cleaned document JSON (subtree
   + depth for economy).
-- `get_components({ slug })` — list every placeable catalog, local, and builtin
+- `get_components({ editSessionId })` — list every placeable catalog, local, and builtin
   component with its authoring contract.
-- `read_component({ slug, path })` — read a local code component's TSX source.
-- `edit_paywall({ slug, changeSetId, edits })` — apply an atomic batch of document
+- `read_component({ editSessionId, path })` — read a local code component's TSX source.
+- `edit_paywall({ editSessionId, edits })` — apply an atomic batch of document
   ops (returns minted ids or per-op errors).
-- `duplicate_subtree({ slug, changeSetId, nodeId, parentId, index? })` — clone a
+- `duplicate_subtree({ editSessionId, nodeId, parentId, index? })` — clone a
   visual subtree with fresh ids.
-- `write_component({ slug, changeSetId, path, source })` — create or replace a
+- `write_component({ editSessionId, path, source })` — create or replace a
   compiled code component.
-- `rename_component({ slug, changeSetId, fromPath, toPath })` — move a component
+- `rename_component({ editSessionId, fromPath, toPath })` — move a component
   and re-point its instances.
-- `delete_component({ slug, changeSetId, path })` — delete a component; existing
+- `delete_component({ editSessionId, path })` — delete a component; existing
   instances degrade to placeholders.
-- `get_paywall_preview({ slug, changeSetId })` — render the version-bound PNG
+- `get_paywall_preview({ editSessionId })` — render the version-bound PNG
   used for visual QA.
-- `finish_paywall_edit({ slug, changeSetId, reviewedDocumentSignature, verdict,
+- `finish_paywall_edit({ editSessionId, reviewedDocumentSignature, verdict,
   unresolvedIssues: [] })` — accept a visually verified edit.
-- `revert_paywall_edit({ changeSetId })` — restore the captured baseline.
+- `revert_paywall_edit({ editSessionId })` — restore the captured baseline when that can
+  be done without overwriting interleaved participant work. A mutation-free session closes
+  without changing the document.
 
 Read (`get_paywall`/`get_components`) before you write, use the minted ids the
 edits return, and trust the field/value errors the validator gives you.

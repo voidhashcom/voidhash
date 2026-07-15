@@ -156,6 +156,50 @@ describe("mimic-db host flow (durable-entity engine, in-memory)", () => {
       }),
     ));
 
+  it("opens, edits through, and closes a headless document connection", () =>
+    runHost(
+      Effect.gen(function* () {
+        const host = yield* HostServiceTag;
+        const db = yield* host.createDatabase("voidhash", "test");
+        const collection = yield* host.createCollection(db.id, "paywalls", titleSchema);
+        yield* host.createDocument(
+          collection.id,
+          "doc-1",
+          objectValue({ title: stringValue("Hello") }),
+        );
+
+        const opened = yield* host.attachConnection(
+          collection.id,
+          "doc-1",
+          "edit-1",
+          "write",
+          "agent-1",
+          objectValue({ name: stringValue("Agent") }),
+        );
+        expect(opened.version).toBe(1);
+        expect(opened.presences["edit-1"]?.userId).toBe("agent-1");
+
+        const result = yield* host.submitConnectionTransaction(collection.id, "doc-1", "edit-1", {
+          id: "tx-connected",
+          baseVersion: 1,
+          commands: [
+            { kind: "object.set", path: [], key: "title", value: stringValue("Updated") } as any,
+          ],
+        });
+        expect(result).toMatchObject({ accepted: true, version: 2 });
+
+        const connected = yield* host.getConnectionDocument(collection.id, "doc-1", "edit-1");
+        expect((connected.value as any).fields.title.value).toBe("Updated");
+
+        yield* host.detachConnection(collection.id, "doc-1", "edit-1");
+        expect((yield* host.getPresenceSnapshot(collection.id, "doc-1")).presences).toEqual({});
+        const afterClose = yield* Effect.result(
+          host.getConnectionDocument(collection.id, "doc-1", "edit-1"),
+        );
+        expect(Result.isFailure(afterClose)).toBe(true);
+      }),
+    ));
+
   it("rejects a transaction with a stale base version", () =>
     runHost(
       Effect.gen(function* () {

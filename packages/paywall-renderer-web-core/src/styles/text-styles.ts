@@ -19,6 +19,8 @@ export function buildTextStyles(style: TextNodeData["data"]["style"]): Propertie
     overflow: style.overflow,
     position: style.position ?? "relative",
     textAlign: style.textAlign,
+    whiteSpace: "pre-wrap",
+    wordWrap: "break-word",
   };
 
   // Min/max constraints — absent means unconstrained

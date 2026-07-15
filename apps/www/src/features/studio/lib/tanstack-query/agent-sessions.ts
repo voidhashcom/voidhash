@@ -24,12 +24,12 @@ export const deleteAgentSessionOptions = () =>
     mutationKey: ["deleteAgentSession"],
   });
 
-/** Reverts the latest reviewed paywall change set owned by a durable session. */
-export const revertAgentSessionChangeSetOptions = () =>
+/** Reverts the latest reviewed paywall edit session owned by a durable agent session. */
+export const revertAgentEditSessionOptions = () =>
   eq.mutationOptions({
-    mutationFn: (variables: { sessionId: string; changeSetId: string }) =>
-      VoidhashRpc.request((rpc) => rpc.RevertAgentSessionChangeSet(variables)),
-    mutationKey: ["revertAgentSessionChangeSet"],
+    mutationFn: (variables: { sessionId: string; editSessionId: string }) =>
+      VoidhashRpc.request((rpc) => rpc.RevertAgentEditSession(variables)),
+    mutationKey: ["revertAgentEditSession"],
   });
 
 /** Uploads one image for a session prompt and returns its public URL. */

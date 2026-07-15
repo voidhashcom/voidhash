@@ -1,7 +1,7 @@
 import {
   AgentAttachmentService,
   AgentSessionIndexService,
-  PaywallEditChangeSetService,
+  PaywallEditSessionService,
 } from "@voidhash/core/services";
 import { AgentSessionRpcsDef, AuthMiddleware, AuthSession } from "@voidhash/rpc";
 import { Effect, Layer } from "effect";
@@ -22,8 +22,7 @@ const summary = {
   updatedAt: new Date(1),
 };
 
-const reverted: Array<{ changeSetId: string; sessionId: string }> = [];
-
+const reverted: Array<{ editSessionId: string; sessionId: string }> = [];
 const handlers = Layer.mergeAll(
   AgentSessionRpcsLive.pipe(
     Layer.provide(
@@ -45,13 +44,13 @@ const handlers = Layer.mergeAll(
       } as AgentAttachmentService["Service"]),
     ),
     Layer.provide(
-      Layer.succeed(PaywallEditChangeSetService, {
-        revertForAgentSession: (_projectId: string, changeSetId: string, sessionId: string) =>
+      Layer.succeed(PaywallEditSessionService, {
+        revertForAgentSession: (_projectId: string, editSessionId: string, sessionId: string) =>
           Effect.sync(() => {
-            reverted.push({ changeSetId, sessionId });
+            reverted.push({ editSessionId, sessionId });
             return { version: 2, commandCount: 1, paywallSlug: "trial" };
           }),
-      } as unknown as PaywallEditChangeSetService["Service"]),
+      } as unknown as PaywallEditSessionService["Service"]),
     ),
   ),
   Layer.succeed(
@@ -96,17 +95,17 @@ describe("AgentSessionRpcs", () => {
     });
   });
 
-  it("reverts a change set through its owning session scope", async () => {
+  it("reverts an edit session through its owning agent-session scope", async () => {
     reverted.length = 0;
     await Effect.runPromise(
       Effect.gen(function* () {
         const client = yield* RpcTest.makeClient(AgentSessionRpcsDef);
-        yield* client.RevertAgentSessionChangeSet({
+        yield* client.RevertAgentEditSession({
           sessionId: "agent_1",
-          changeSetId: "change_1",
+          editSessionId: "change_1",
         });
       }).pipe(Effect.provide(handlers), Effect.scoped),
     );
-    expect(reverted).toEqual([{ changeSetId: "change_1", sessionId: "agent_1" }]);
+    expect(reverted).toEqual([{ editSessionId: "change_1", sessionId: "agent_1" }]);
   });
 });

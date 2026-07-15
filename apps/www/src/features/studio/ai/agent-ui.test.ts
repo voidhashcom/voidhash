@@ -60,7 +60,7 @@ describe("agent UI event fold", () => {
           toolCallId: "call-1",
           toolName: "edit_paywall",
           content: [{ type: "text", text: "Updated" }],
-          details: { changeSetId: "change-1" },
+          details: { editSessionId: "change-1" },
           isError: false,
           timestamp: 21,
         },
@@ -75,7 +75,7 @@ describe("agent UI event fold", () => {
         toolName: "edit_paywall",
         state: "output-available",
         output: "Updated",
-        details: { changeSetId: "change-1" },
+        details: { editSessionId: "change-1" },
       }),
     );
   });
@@ -146,7 +146,7 @@ describe("agent UI event fold", () => {
     ]);
   });
 
-  it("preserves change-set details when a workspace tool reports an expected error", () => {
+  it("preserves edit-session details when a workspace tool reports an expected error", () => {
     const assistant = {
       role: "assistant" as const,
       content: [
@@ -183,7 +183,7 @@ describe("agent UI event fold", () => {
           toolName: "edit_paywall",
           result: {
             content: [{ type: "text", text: "The edit conflicted." }],
-            details: { changeSetId: "change-1" },
+            details: { editSessionId: "change-1" },
           },
           isError: true,
         },
@@ -196,7 +196,7 @@ describe("agent UI event fold", () => {
         type: "tool",
         state: "output-error",
         errorText: "The edit conflicted.",
-        details: { changeSetId: "change-1" },
+        details: { editSessionId: "change-1" },
       }),
     );
   });

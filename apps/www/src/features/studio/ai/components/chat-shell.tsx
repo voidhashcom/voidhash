@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 
 import {
-  revertAgentSessionChangeSetOptions,
+  revertAgentEditSessionOptions,
   uploadAgentAttachmentOptions,
 } from "@/features/studio/lib/tanstack-query";
 
@@ -77,16 +77,16 @@ function ImageAttachment({ url, name }: { url: string; name: string }) {
 }
 
 /** Render the parts of one assistant message: text via Streamdown, tool calls via ToolCallView. */
-const toolChangeSetId = (part: AgentUiToolPart): string | undefined => {
+const toolEditSessionId = (part: AgentUiToolPart): string | undefined => {
   if (
     (part.state !== "output-available" && part.state !== "output-error") ||
     typeof part.details !== "object" ||
     part.details === null ||
-    !("changeSetId" in part.details)
+    !("editSessionId" in part.details)
   ) {
     return undefined;
   }
-  return typeof part.details.changeSetId === "string" ? part.details.changeSetId : undefined;
+  return typeof part.details.editSessionId === "string" ? part.details.editSessionId : undefined;
 };
 
 function AssistantMessage({
@@ -97,7 +97,7 @@ function AssistantMessage({
   reverted,
 }: {
   message: AgentUiMessage;
-  onRevert: (changeSetId: string) => void;
+  onRevert: (editSessionId: string) => void;
   revertAnchors: ReadonlyMap<string, string>;
   reverting: boolean;
   reverted: ReadonlySet<string>;
@@ -115,21 +115,21 @@ function AssistantMessage({
             );
           }
           if (part.type === "tool") {
-            const changeSetId = toolChangeSetId(part);
+            const editSessionId = toolEditSessionId(part);
             const isRevertAnchor =
-              changeSetId !== undefined && revertAnchors.get(changeSetId) === key;
+              editSessionId !== undefined && revertAnchors.get(editSessionId) === key;
             return (
               <div key={key} className="flex flex-wrap items-center gap-2">
                 <ToolCallView part={part} />
-                {changeSetId === undefined || !isRevertAnchor ? null : (
+                {editSessionId === undefined || !isRevertAnchor ? null : (
                   <Button
-                    disabled={reverting || reverted.has(changeSetId)}
-                    onClick={() => onRevert(changeSetId)}
+                    disabled={reverting || reverted.has(editSessionId)}
+                    onClick={() => onRevert(editSessionId)}
                     size="sm"
                     variant="outline"
                   >
                     <RotateCcw className="size-3.5" />
-                    {reverted.has(changeSetId) ? "Reverted" : "Revert changes"}
+                    {reverted.has(editSessionId) ? "Reverted" : "Revert changes"}
                   </Button>
                 )}
               </div>
@@ -214,25 +214,25 @@ export function ChatShell({ agent, chatId, emptyState, onBusyChange, className }
   });
 
   const uploadAttachment = useMutation(uploadAgentAttachmentOptions());
-  const revertChangeSet = useMutation(revertAgentSessionChangeSetOptions());
+  const revertEditSession = useMutation(revertAgentEditSessionOptions());
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
-  const [revertedChangeSets, setRevertedChangeSets] = useState<ReadonlySet<string>>(
+  const [revertedEditSessions, setRevertedEditSessions] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
 
   const handleRevert = useCallback(
-    (changeSetId: string) => {
-      void revertChangeSet
-        .mutateAsync({ sessionId: chatId, changeSetId })
+    (editSessionId: string) => {
+      void revertEditSession
+        .mutateAsync({ sessionId: chatId, editSessionId })
         .then(() => {
-          setRevertedChangeSets((current) => new Set(current).add(changeSetId));
+          setRevertedEditSessions((current) => new Set(current).add(editSessionId));
           toast.success("Agent changes reverted.");
         })
         .catch((cause: unknown) => {
           toast.error(cause instanceof Error ? cause.message : "Could not revert agent changes.");
         });
     },
-    [chatId, revertChangeSet],
+    [chatId, revertEditSession],
   );
 
   const patch = useCallback((id: string, next: Partial<PendingAttachment>) => {
@@ -382,9 +382,9 @@ export function ChatShell({ agent, chatId, emptyState, onBusyChange, className }
     if (message.role !== "assistant") continue;
     message.parts.forEach((part, index) => {
       if (part.type !== "tool") return;
-      const changeSetId = toolChangeSetId(part);
-      if (changeSetId !== undefined) {
-        revertAnchors.set(changeSetId, `${message.id}-${index}`);
+      const editSessionId = toolEditSessionId(part);
+      if (editSessionId !== undefined) {
+        revertAnchors.set(editSessionId, `${message.id}-${index}`);
       }
     });
   }
@@ -410,8 +410,8 @@ export function ChatShell({ agent, chatId, emptyState, onBusyChange, className }
                       message={message}
                       onRevert={handleRevert}
                       revertAnchors={revertAnchors}
-                      reverted={revertedChangeSets}
-                      reverting={isBusy || revertChangeSet.isPending}
+                      reverted={revertedEditSessions}
+                      reverting={isBusy || revertEditSession.isPending}
                     />
                   )}
                 </MessageScrollerItem>

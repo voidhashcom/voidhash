@@ -1,7 +1,7 @@
 import {
   ComponentManifestCacheService,
   PaywallDeployService,
-  PaywallEditChangeSetService,
+  PaywallEditSessionService,
   PaywallService,
   PaywallWorkspaceService,
 } from "@voidhash/core/services";
@@ -19,5 +19,5 @@ export const WorkspaceAgentServicesLive = Layer.mergeAll(
   ComponentManifestCacheServiceLive,
   PaywallDeployService.layer,
   PaywallWorkspaceServiceLive,
-  PaywallEditChangeSetService.layer.pipe(Layer.provide(PaywallWorkspaceServiceLive)),
+  PaywallEditSessionService.layer.pipe(Layer.provide(PaywallWorkspaceServiceLive)),
 );

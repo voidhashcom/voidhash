@@ -1,22 +1,24 @@
 /**
- * Stateless MCP tool core: ONE implementation of each MCP `tools/call` handler,
+ * Stateful document-editing tool core: ONE implementation of each MCP
+ * `tools/call` handler,
  * consumed by the MCP JSON-RPC frontend (`routes/mcp.ts`).
  *
- * MCP is stateless and server-executed (external agents like Claude Code hitting
- * `/api/mcp`): there is no fork, no `paywall.tsx`, no whole-target overwrite. The
- * surface is document-first — composition is edited as mimic DOCUMENT ops and
- * code components are managed by path:
+ * Individual MCP HTTP requests are server-executed, while `editSessionId` keeps
+ * a leased Mimic participant connection alive across them. There is no fork, no
+ * `paywall.tsx`, and no whole-target overwrite. The surface is document-first —
+ * composition is edited as Mimic document ops and code components are managed by
+ * path:
  *
- * - `list_paywalls` — the project's paywall directories.
+ * - `list_paywalls` — the project's paywall ids, slugs, and directories.
  * - `begin_paywall_edit` / `finish_paywall_edit` / `revert_paywall_edit` — a
  *   version- and preview-bound edit lifecycle.
- * - `get_paywall({ slug, nodeId?, depth? })` — cleaned document JSON.
- * - `get_components({ slug })` — catalog, local, and builtin components.
- * - `read_component({ slug, path })` — a local component's TSX source.
- * - `edit_paywall({ slug, edits })` — an ATOMIC batch of document ops against the
- *   LIVE document (schema-validated, then reconciled+submitted with retry).
+ * - `get_paywall({ editSessionId, nodeId?, depth? })` — cleaned document JSON.
+ * - `get_components({ editSessionId })` — catalog, local, and builtin components.
+ * - `read_component({ editSessionId, path })` — a local component's TSX source.
+ * - `edit_paywall({ editSessionId, edits })` — an ATOMIC batch of document ops against
+ *   the LIVE document (schema-validated, then reconciled+submitted with retry).
  * - `duplicate_subtree` — copy an existing visual subtree with fresh node ids.
- * - `write_component({ slug, path, source })` — server-VALIDATED (headless build)
+ * - `write_component({ editSessionId, path, source })` — server-VALIDATED (headless build)
  *   then committed; diagnostics commit nothing.
  * - `rename_component` / `delete_component` — path move / placeholder-degrade.
  * - `get_paywall_preview` — a PNG plus the exact document version/signature it
@@ -34,7 +36,7 @@ import {
   componentServingPreviewKey,
   PaywallArtifactStore,
   PaywallDeployService,
-  PaywallEditChangeSetService,
+  PaywallEditSessionService,
   PaywallWorkspaceService,
   SnapshotImageRenderer,
   type CompileExtractResult,
@@ -63,7 +65,7 @@ export type WorkspaceToolDeps =
   | ComponentManifestCacheService
   | ComponentCompiler
   | PaywallArtifactStore
-  | PaywallEditChangeSetService
+  | PaywallEditSessionService
   | SnapshotImageRenderer
   | AuthSession;
 
@@ -87,7 +89,7 @@ export interface WorkspaceToolResult {
 /**
  * The scope a workspace tool operates over. `projectId` is authoritative — the
  * MCP frontend derives it from the API key. Internal durable sessions also
- * supply their identity so newly opened change sets remain session-owned.
+ * supply their identity so newly opened edit sessions remain agent-session-owned.
  */
 export interface WorkspaceToolScope {
   readonly projectId: string;
@@ -197,68 +199,119 @@ const runFolded = <A>(
 
 /** Inputs for each workspace tool, matching the MCP tool schemas. */
 export interface ListPaywallsInput {}
-export interface BeginPaywallEditInput {
-  readonly slug: string;
+
+/** Stable paywall target shared by every paywall-scoped tool. */
+export interface PaywallTargetInput {
+  readonly paywallId: string;
 }
-export interface GetPaywallInput {
-  readonly slug: string;
+
+export interface BeginPaywallEditInput extends PaywallTargetInput {}
+export interface EditSessionInput {
+  readonly editSessionId: string;
+}
+export interface GetPaywallInput extends EditSessionInput {
   readonly nodeId?: string;
   readonly depth?: number;
 }
-export interface GetComponentsInput {
-  readonly slug: string;
-}
-export interface ReadComponentInput {
-  readonly slug: string;
+export interface GetComponentsInput extends EditSessionInput {}
+export interface ReadComponentInput extends EditSessionInput {
   readonly path: string;
 }
-export interface EditPaywallInput {
-  readonly slug: string;
-  readonly changeSetId: string;
+export interface EditPaywallInput extends EditSessionInput {
   readonly edits: ReadonlyArray<DocumentEdit>;
 }
-export interface DuplicateSubtreeInput {
-  readonly slug: string;
-  readonly changeSetId: string;
+export interface DuplicateSubtreeInput extends EditSessionInput {
   readonly nodeId: string;
   readonly parentId: string;
   readonly index?: number;
   readonly nextName?: string;
 }
-export interface WriteComponentInput {
-  readonly slug: string;
-  readonly changeSetId: string;
+export interface WriteComponentInput extends EditSessionInput {
   readonly path: string;
   readonly source: string;
 }
-export interface RenameComponentInput {
-  readonly slug: string;
-  readonly changeSetId: string;
+export interface RenameComponentInput extends EditSessionInput {
   readonly fromPath: string;
   readonly toPath: string;
 }
-export interface DeleteComponentInput {
-  readonly slug: string;
-  readonly changeSetId: string;
+export interface DeleteComponentInput extends EditSessionInput {
   readonly path: string;
 }
-export interface GetPaywallPreviewInput {
-  readonly slug: string;
-  readonly changeSetId: string;
+export interface GetPaywallPreviewInput extends EditSessionInput {
   readonly width?: number;
   readonly height?: number;
   readonly scale?: 1 | 2;
 }
-export interface FinishPaywallEditInput {
-  readonly slug: string;
-  readonly changeSetId: string;
+export interface FinishPaywallEditInput extends EditSessionInput {
   readonly reviewedDocumentSignature: string;
   readonly verdict: string;
   readonly unresolvedIssues: ReadonlyArray<string>;
 }
 export interface RevertPaywallEditInput {
-  readonly changeSetId: string;
+  readonly editSessionId: string;
 }
+
+interface ResolvedPaywallTarget {
+  readonly paywallId: string;
+  readonly slug: string;
+}
+
+interface ResolvedEditSession extends ResolvedPaywallTarget {
+  readonly editSessionId: string;
+}
+
+/** Resolve a stable paywall id within the scoped project. */
+const resolvePaywallTarget = (
+  scope: WorkspaceToolScope,
+  input: PaywallTargetInput,
+): Effect.Effect<ResolvedPaywallTarget, Error, WorkspaceToolDeps> =>
+  Effect.gen(function* () {
+    const ws = yield* PaywallWorkspaceService;
+    const paywalls = yield* ws.listPaywalls(scope.projectId);
+    const target = paywalls.find((candidate) => candidate.paywallId === input.paywallId);
+    if (target === undefined) {
+      return yield* Effect.fail(
+        new Error(`No paywall with id "${input.paywallId}" exists in this project.`),
+      );
+    }
+    return target;
+  });
+
+/** Resolves and authorizes the Mimic connection represented by an edit session. */
+const resolveEditSession = (
+  scope: WorkspaceToolScope,
+  input: EditSessionInput,
+): Effect.Effect<ResolvedEditSession, unknown, WorkspaceToolDeps> =>
+  Effect.gen(function* () {
+    const editSessions = yield* PaywallEditSessionService;
+    const session = yield* editSessions.connectActive({
+      projectId: scope.projectId,
+      editSessionId: input.editSessionId,
+      agentSessionId: scope.agentSessionId,
+    });
+    return {
+      editSessionId: session.editSessionId,
+      paywallId: session.paywallId,
+      slug: session.paywallSlug,
+    };
+  });
+
+const recordSessionMutation = (
+  scope: WorkspaceToolScope,
+  target: ResolvedEditSession,
+  result: { readonly version: number; readonly commandCount: number },
+) =>
+  result.commandCount === 0
+    ? Effect.void
+    : Effect.gen(function* () {
+        const editSessions = yield* PaywallEditSessionService;
+        yield* editSessions.recordMutation({
+          projectId: scope.projectId,
+          editSessionId: target.editSessionId,
+          agentSessionId: scope.agentSessionId,
+          documentVersion: result.version,
+        });
+      }).pipe(Effect.ignore);
 
 /** `begin_paywall_edit` — capture the revert baseline and mint the write capability. */
 export const beginPaywallEdit = (
@@ -268,15 +321,27 @@ export const beginPaywallEdit = (
   Effect.gen(function* () {
     const result = yield* runFolded(
       Effect.gen(function* () {
-        const changeSets = yield* PaywallEditChangeSetService;
-        return yield* changeSets.begin(scope.projectId, input.slug, scope.agentSessionId);
+        const target = yield* resolvePaywallTarget(scope, input);
+        const editSessions = yield* PaywallEditSessionService;
+        return yield* scope.agentSessionId === undefined
+          ? editSessions.begin({
+              projectId: scope.projectId,
+              paywallId: target.paywallId,
+              source: "mcp",
+            })
+          : editSessions.begin({
+              projectId: scope.projectId,
+              paywallId: target.paywallId,
+              source: "built_in",
+              agentSessionId: scope.agentSessionId,
+            });
       }),
     );
     return result.ok
       ? okResult(
           JSON.stringify({
-            changeSetId: result.value.id,
-            slug: result.value.paywallSlug,
+            editSessionId: result.value.editSessionId,
+            paywallId: result.value.paywallId,
             baselineVersion: result.value.baselineVersion,
           }),
         )
@@ -284,7 +349,7 @@ export const beginPaywallEdit = (
   });
 
 /**
- * `list_paywalls` — the project's paywall directories (slug + path) as a list.
+ * `list_paywalls` — the project's paywalls (stable id + slug + path) as a list.
  * MCP has no system prompt to embed the paywall set into, so it is a first-class
  * tool here.
  */
@@ -304,7 +369,9 @@ export const listPaywalls = (
     if (result.value.length === 0) {
       return okResult("No paywalls in this project.");
     }
-    const lines = result.value.map((dir) => `- ${dir.slug} (/paywalls/${dir.slug})`);
+    const lines = result.value.map(
+      (dir) => `- ${dir.paywallId}: slug ${dir.slug} (/paywalls/${dir.slug})`,
+    );
     return okResult(`${result.value.length} paywall(s):\n${lines.join("\n")}`);
   });
 
@@ -320,12 +387,17 @@ const toEditableNode = (node: SnapshotDocumentNode): EditableDocumentNode => ({
   children: (node.children ?? []).map(toEditableNode),
 });
 
-/** Read the decoded document root for a slug, or a readable failure message. */
-const readDocumentRoot = (scope: WorkspaceToolScope, slug: string) =>
+/** Resolve the target and read its decoded document root. */
+const readDocumentRoot = (scope: WorkspaceToolScope, input: EditSessionInput) =>
   runFolded(
     Effect.gen(function* () {
+      const target = yield* resolveEditSession(scope, input);
       const ws = yield* PaywallWorkspaceService;
-      return yield* ws.readDocument(scope.projectId, slug);
+      const document = yield* ws.readConnectedDocumentTree(scope.projectId, {
+        paywallId: target.paywallId,
+        connectionId: target.editSessionId,
+      });
+      return { target, document };
     }),
   );
 
@@ -340,20 +412,24 @@ export const getPaywall = (
   input: GetPaywallInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
-    const result = yield* readDocumentRoot(scope, input.slug);
+    const result = yield* readDocumentRoot(scope, input);
     if (!result.ok) {
       return errResult(`get_paywall failed: ${result.message}`);
     }
-    const roots = result.value.root != null ? [result.value.root as SnapshotDocumentNode] : [];
+    const roots =
+      result.value.document.root != null
+        ? [result.value.document.root as SnapshotDocumentNode]
+        : [];
     const cleaned = serializeDocument(roots, {
       ...(input.nodeId !== undefined ? { nodeId: input.nodeId } : {}),
       ...(input.depth !== undefined ? { depth: input.depth } : {}),
     });
     if (cleaned === null) {
+      const label = `${result.value.target.paywallId} (${result.value.target.slug})`;
       return errResult(
         input.nodeId !== undefined
-          ? `get_paywall: no node "${input.nodeId}" in paywall "${input.slug}".`
-          : `get_paywall: paywall "${input.slug}" has no document.`,
+          ? `get_paywall: no node "${input.nodeId}" in paywall ${label}.`
+          : `get_paywall: paywall ${label} has no document.`,
       );
     }
     return okResult(JSON.stringify(cleaned, null, 2));
@@ -403,9 +479,13 @@ export const getComponents = (
         const deploy = yield* PaywallDeployService;
         const ws = yield* PaywallWorkspaceService;
         const manifestCache = yield* ComponentManifestCacheService;
+        const target = yield* resolveEditSession(scope, input);
 
         const catalog = yield* deploy.listComponents({ projectId: scope.projectId });
-        const document = yield* ws.readDocument(scope.projectId, input.slug);
+        const document = yield* ws.readConnectedDocumentTree(scope.projectId, {
+          paywallId: target.paywallId,
+          connectionId: target.editSessionId,
+        });
         const locals = localComponentsOf((document.root as SnapshotDocumentNode | null) ?? null);
         const cached = yield* manifestCache.getMany(
           locals.map((local) => hashSource(local.source)),
@@ -476,16 +556,18 @@ export const readComponent = (
   input: ReadComponentInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
-    const result = yield* readDocumentRoot(scope, input.slug);
+    const result = yield* readDocumentRoot(scope, input);
     if (!result.ok) {
       return errResult(`read_component failed: ${result.message}`);
     }
-    const locals = localComponentsOf((result.value.root as SnapshotDocumentNode | null) ?? null);
+    const locals = localComponentsOf(
+      (result.value.document.root as SnapshotDocumentNode | null) ?? null,
+    );
     const component = locals.find((local) => local.path === input.path);
     if (component === undefined) {
       const available = locals.map((local) => local.path);
       return errResult(
-        `read_component: no local component at "${input.path}" in paywall "${input.slug}".${
+        `read_component: no local component at "${input.path}" in paywall ${result.value.target.paywallId} (${result.value.target.slug}).${
           available.length > 0 ? ` Available: [${available.join(", ")}].` : ""
         }`,
       );
@@ -506,30 +588,22 @@ export const editPaywall = (
   input: EditPaywallInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
-    const changeSet = yield* runFolded(
-      Effect.gen(function* () {
-        const changeSets = yield* PaywallEditChangeSetService;
-        return yield* changeSets.requireActive({
-          projectId: scope.projectId,
-          changeSetId: input.changeSetId,
-          paywallSlug: input.slug,
-          agentSessionId: scope.agentSessionId,
-        });
-      }),
-    );
-    if (!changeSet.ok) {
-      return errResult(`edit_paywall rejected: ${changeSet.message}`);
+    const resolved = yield* runFolded(resolveEditSession(scope, input));
+    if (!resolved.ok) {
+      return errResult(`edit_paywall failed: ${resolved.message}`);
     }
-
+    const target = resolved.value;
     // Validate first (against a fresh read) so an invalid batch never opens a
     // transaction and returns the model-facing errors verbatim.
-    const read = yield* readDocumentRoot(scope, input.slug);
+    const read = yield* readDocumentRoot(scope, input);
     if (!read.ok) {
       return errResult(`edit_paywall failed: ${read.message}`);
     }
-    const root = read.value.root as SnapshotDocumentNode | null;
+    const root = read.value.document.root as SnapshotDocumentNode | null;
     if (root === null) {
-      return errResult(`edit_paywall: paywall "${input.slug}" has no document to edit.`);
+      return errResult(
+        `edit_paywall: paywall ${target.paywallId} (${target.slug}) has no document to edit.`,
+      );
     }
     const validation = validateDocumentEdits(input.edits, toEditableNode(root));
     if (!validation.ok) {
@@ -543,7 +617,13 @@ export const editPaywall = (
     const applied = yield* runFolded(
       Effect.gen(function* () {
         const ws = yield* PaywallWorkspaceService;
-        return yield* ws.editDocument(scope.projectId, input.slug, validation.edits);
+        const result = yield* ws.editConnectedDocument(
+          scope.projectId,
+          { paywallId: target.paywallId, connectionId: target.editSessionId },
+          validation.edits,
+        );
+        yield* recordSessionMutation(scope, target, result);
+        return result;
       }),
     );
     if (!applied.ok) {
@@ -558,7 +638,7 @@ export const editPaywall = (
             .join("; ")}`
         : "";
     return okResult(
-      `Applied ${validation.edits.length} edit(s) to "${input.slug}" at version ${version} (${commandCount} command${commandCount === 1 ? "" : "s"}).${mintedNote}`,
+      `Applied ${validation.edits.length} edit(s) to ${target.paywallId} (${target.slug}) at version ${version} (${commandCount} command${commandCount === 1 ? "" : "s"}).${mintedNote}`,
     );
   });
 
@@ -597,13 +677,16 @@ export const duplicateSubtree = (
   input: DuplicateSubtreeInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
-    const read = yield* readDocumentRoot(scope, input.slug);
+    const read = yield* readDocumentRoot(scope, input);
     if (!read.ok) {
       return errResult(`duplicate_subtree failed: ${read.message}`);
     }
-    const root = read.value.root as SnapshotDocumentNode | null;
+    const { target, document } = read.value;
+    const root = document.root as SnapshotDocumentNode | null;
     if (root === null) {
-      return errResult(`duplicate_subtree: paywall "${input.slug}" has no document.`);
+      return errResult(
+        `duplicate_subtree: paywall ${target.paywallId} (${target.slug}) has no document.`,
+      );
     }
     const source = findSnapshotNode(root, input.nodeId);
     if (source === null) {
@@ -619,8 +702,7 @@ export const duplicateSubtree = (
       node.name = input.nextName;
     }
     return yield* editPaywall(scope, {
-      slug: input.slug,
-      changeSetId: input.changeSetId,
+      editSessionId: input.editSessionId,
       edits: [
         {
           op: "insert",
@@ -661,20 +743,11 @@ export const writeComponent = (
   input: WriteComponentInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
-    const active = yield* runFolded(
-      Effect.gen(function* () {
-        const changeSets = yield* PaywallEditChangeSetService;
-        return yield* changeSets.requireActive({
-          projectId: scope.projectId,
-          changeSetId: input.changeSetId,
-          paywallSlug: input.slug,
-          agentSessionId: scope.agentSessionId,
-        });
-      }),
-    );
-    if (!active.ok) {
-      return errResult(`write_component rejected: ${active.message}`);
+    const resolved = yield* runFolded(resolveEditSession(scope, input));
+    if (!resolved.ok) {
+      return errResult(`write_component failed: ${resolved.message}`);
     }
+    const target = resolved.value;
     const nameError = validateComponentFileName(fileNameFromDocRelative(input.path));
     if (nameError !== undefined) {
       return errResult(`write_component rejected: ${nameError}`);
@@ -705,12 +778,13 @@ export const writeComponent = (
     const committed = yield* runFolded(
       Effect.gen(function* () {
         const ws = yield* PaywallWorkspaceService;
-        const result = yield* ws.writeComponentSource(
+        const result = yield* ws.writeConnectedComponentSource(
           scope.projectId,
-          input.slug,
+          { paywallId: target.paywallId, connectionId: target.editSessionId },
           input.path,
           input.source,
         );
+        yield* recordSessionMutation(scope, target, result);
         const manifestCache = yield* ComponentManifestCacheService;
         yield* manifestCache.record({
           sourceHash: hashSource(input.source),
@@ -724,7 +798,7 @@ export const writeComponent = (
       return errResult(`write_component rejected: ${committed.message}`);
     }
     return okResult(
-      `Wrote ${input.path} to "${input.slug}" at version ${committed.value.version} (compiled clean; manifest recorded).`,
+      `Wrote ${input.path} to ${target.paywallId} (${target.slug}) at version ${committed.value.version} (compiled clean; manifest recorded).`,
     );
   });
 
@@ -738,34 +812,27 @@ export const renameComponent = (
   input: RenameComponentInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
-    const active = yield* runFolded(
-      Effect.gen(function* () {
-        const changeSets = yield* PaywallEditChangeSetService;
-        return yield* changeSets.requireActive({
-          projectId: scope.projectId,
-          changeSetId: input.changeSetId,
-          paywallSlug: input.slug,
-          agentSessionId: scope.agentSessionId,
-        });
-      }),
-    );
-    if (!active.ok) {
-      return errResult(`rename_component rejected: ${active.message}`);
+    const resolved = yield* runFolded(resolveEditSession(scope, input));
+    if (!resolved.ok) {
+      return errResult(`rename_component failed: ${resolved.message}`);
     }
+    const target = resolved.value;
     const result = yield* runFolded(
       Effect.gen(function* () {
         const ws = yield* PaywallWorkspaceService;
-        return yield* ws.moveComponentFile(
+        const result = yield* ws.moveConnectedComponentFile(
           scope.projectId,
-          input.slug,
+          { paywallId: target.paywallId, connectionId: target.editSessionId },
           fileNameFromDocRelative(input.fromPath),
           fileNameFromDocRelative(input.toPath),
         );
+        yield* recordSessionMutation(scope, target, result);
+        return result;
       }),
     );
     return result.ok
       ? okResult(
-          `Renamed ${input.fromPath} → ${input.toPath} in "${input.slug}" at version ${result.value.version}.`,
+          `Renamed ${input.fromPath} → ${input.toPath} in ${target.paywallId} (${target.slug}) at version ${result.value.version}.`,
         )
       : errResult(`rename_component rejected: ${result.message}`);
   });
@@ -780,33 +847,26 @@ export const deleteComponent = (
   input: DeleteComponentInput,
 ): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
   Effect.gen(function* () {
-    const active = yield* runFolded(
-      Effect.gen(function* () {
-        const changeSets = yield* PaywallEditChangeSetService;
-        return yield* changeSets.requireActive({
-          projectId: scope.projectId,
-          changeSetId: input.changeSetId,
-          paywallSlug: input.slug,
-          agentSessionId: scope.agentSessionId,
-        });
-      }),
-    );
-    if (!active.ok) {
-      return errResult(`delete_component rejected: ${active.message}`);
+    const resolved = yield* runFolded(resolveEditSession(scope, input));
+    if (!resolved.ok) {
+      return errResult(`delete_component failed: ${resolved.message}`);
     }
+    const target = resolved.value;
     const result = yield* runFolded(
       Effect.gen(function* () {
         const ws = yield* PaywallWorkspaceService;
-        return yield* ws.deleteComponentFile(
+        const result = yield* ws.deleteConnectedComponentFile(
           scope.projectId,
-          input.slug,
+          { paywallId: target.paywallId, connectionId: target.editSessionId },
           fileNameFromDocRelative(input.path),
         );
+        yield* recordSessionMutation(scope, target, result);
+        return result;
       }),
     );
     return result.ok
       ? okResult(
-          `Deleted ${input.path} from "${input.slug}" at version ${result.value.version}. Any instances of it now render as placeholders — replace or remove them.`,
+          `Deleted ${input.path} from ${target.paywallId} (${target.slug}) at version ${result.value.version}. Any instances of it now render as placeholders — replace or remove them.`,
         )
       : errResult(`delete_component rejected: ${result.message}`);
   });
@@ -906,15 +966,14 @@ export const getPaywallPreview = (
     const scale = input.scale ?? 1;
     const result = yield* runFolded(
       Effect.gen(function* () {
-        const changeSets = yield* PaywallEditChangeSetService;
-        yield* changeSets.requireActive({
-          projectId: scope.projectId,
-          changeSetId: input.changeSetId,
-          paywallSlug: input.slug,
-          agentSessionId: scope.agentSessionId,
-        });
+        const target = yield* resolveEditSession(scope, input);
+        const editSessions = yield* PaywallEditSessionService;
         const workspace = yield* PaywallWorkspaceService;
-        const before = yield* workspace.readDocument(scope.projectId, input.slug);
+        const connection = {
+          paywallId: target.paywallId,
+          connectionId: target.editSessionId,
+        };
+        const before = yield* workspace.readConnectedDocumentTree(scope.projectId, connection);
         const signature = documentSignature(before.root);
         const root = (before.root as SnapshotDocumentNode | null) ?? null;
         const componentTrees = yield* fetchPreviewComponentTrees(root);
@@ -928,7 +987,7 @@ export const getPaywallPreview = (
           height,
           deviceScaleFactor: scale,
         });
-        const after = yield* workspace.readDocument(scope.projectId, input.slug);
+        const after = yield* workspace.readConnectedDocumentTree(scope.projectId, connection);
         if (after.version !== before.version || documentSignature(after.root) !== signature) {
           return yield* Effect.fail(
             new Error(
@@ -936,10 +995,9 @@ export const getPaywallPreview = (
             ),
           );
         }
-        yield* changeSets.recordPreview({
+        yield* editSessions.recordPreview({
           projectId: scope.projectId,
-          changeSetId: input.changeSetId,
-          paywallSlug: input.slug,
+          editSessionId: input.editSessionId,
           agentSessionId: scope.agentSessionId,
           documentSignature: signature,
           documentVersion: before.version,
@@ -959,7 +1017,7 @@ export const getPaywallPreview = (
       scale,
       documentVersion: result.value.version,
       documentSignature: result.value.signature,
-      message: "Review this image visually before finishing the change set.",
+      message: "Review this image visually before finishing the edit session.",
     });
     return okResult(metadata, [
       { type: "text", text: metadata },
@@ -967,7 +1025,7 @@ export const getPaywallPreview = (
     ]);
   });
 
-/** `finish_paywall_edit` — close a change set after reviewing its exact latest preview. */
+/** `finish_paywall_edit` — close an edit session after reviewing its exact latest preview. */
 export const finishPaywallEdit = (
   scope: WorkspaceToolScope,
   input: FinishPaywallEditInput,
@@ -980,13 +1038,16 @@ export const finishPaywallEdit = (
     }
     const result = yield* runFolded(
       Effect.gen(function* () {
+        const target = yield* resolveEditSession(scope, input);
         const workspace = yield* PaywallWorkspaceService;
-        const document = yield* workspace.readDocument(scope.projectId, input.slug);
-        const changeSets = yield* PaywallEditChangeSetService;
-        return yield* changeSets.finish({
+        const document = yield* workspace.readConnectedDocumentTree(scope.projectId, {
+          paywallId: target.paywallId,
+          connectionId: target.editSessionId,
+        });
+        const editSessions = yield* PaywallEditSessionService;
+        return yield* editSessions.finish({
           projectId: scope.projectId,
-          changeSetId: input.changeSetId,
-          paywallSlug: input.slug,
+          editSessionId: input.editSessionId,
           agentSessionId: scope.agentSessionId,
           reviewedDocumentSignature: input.reviewedDocumentSignature,
           currentDocumentSignature: documentSignature(document.root),
@@ -997,7 +1058,7 @@ export const finishPaywallEdit = (
     );
     return result.ok
       ? okResult(
-          `Finished change set ${input.changeSetId} after visual review. Verdict: ${input.verdict}`,
+          `Finished edit session ${input.editSessionId} after visual review. Verdict: ${input.verdict}`,
         )
       : errResult(`finish_paywall_edit rejected: ${result.message}`);
   });
@@ -1010,19 +1071,19 @@ export const revertPaywallEdit = (
   Effect.gen(function* () {
     const result = yield* runFolded(
       Effect.gen(function* () {
-        const changeSets = yield* PaywallEditChangeSetService;
+        const editSessions = yield* PaywallEditSessionService;
         return yield* scope.agentSessionId === undefined
-          ? changeSets.revert(scope.projectId, input.changeSetId)
-          : changeSets.revertForAgentSession(
+          ? editSessions.revert(scope.projectId, input.editSessionId)
+          : editSessions.revertForAgentSession(
               scope.projectId,
-              input.changeSetId,
+              input.editSessionId,
               scope.agentSessionId,
             );
       }),
     );
     return result.ok
       ? okResult(
-          `Reverted change set ${input.changeSetId} for "${result.value.paywallSlug}" at version ${result.value.version} (${result.value.commandCount} command${result.value.commandCount === 1 ? "" : "s"}).`,
+          `Reverted edit session ${input.editSessionId} for "${result.value.paywallSlug}" at version ${result.value.version} (${result.value.commandCount} command${result.value.commandCount === 1 ? "" : "s"}).`,
         )
       : errResult(`revert_paywall_edit failed: ${result.message}`);
   });

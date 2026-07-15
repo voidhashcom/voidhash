@@ -6,6 +6,7 @@ describe("MimicRpcGroup", () => {
   it("exposes the expected procedure tags", () => {
     const tags = [...MimicRpcGroup.requests.keys()].sort();
     expect(tags).toEqual([
+      "CloseDocumentConnection",
       "CreateCollection",
       "CreateDatabase",
       "CreateDocument",
@@ -14,15 +15,19 @@ describe("MimicRpcGroup", () => {
       "DeleteDatabase",
       "DeleteDocument",
       "DeleteUser",
+      "GetConnectedDocument",
       "GetDocument",
       "GrantPermission",
+      "HeartbeatDocumentConnection",
       "ListCollections",
       "ListDatabases",
       "ListDocuments",
       "ListGrants",
       "ListUsers",
+      "OpenDocumentConnection",
       "RevokePermission",
       "SetupDocumentAuthentication",
+      "SubmitConnectedTransaction",
       "SubmitTransaction",
     ]);
   });
