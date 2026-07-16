@@ -2,6 +2,7 @@
 
 import { docRelativeComponentPath } from "@voidhash/paywall-workspace";
 import {
+  cn,
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
@@ -66,6 +67,9 @@ function definitionForTabKey(
 export function CodeModeWorkspace() {
   const store = usePaywallDesignerStore();
   const aiOffset = useAiPanelOffset();
+  const leftPanelWidth = useStore(store, (state) => state.viewport.panels.left.width);
+  const resizeActive = useStore(store, (state) => state.viewport.panelResizeActive);
+  const leftOffset = aiOffset + leftPanelWidth;
 
   const openTabs = useStore(store, (state) => state.codeComponents.openTabs);
   const activeTabPath = useStore(store, (state) => state.codeComponents.activeTabPath);
@@ -98,7 +102,7 @@ export function CodeModeWorkspace() {
 
   if (buffers.length === 0) {
     return (
-      <Region aiOffset={aiOffset}>
+      <Region left={leftOffset} resizeActive={resizeActive}>
         <CenteredMessage>Select or create a code component to start editing.</CenteredMessage>
       </Region>
     );
@@ -110,7 +114,7 @@ export function CodeModeWorkspace() {
   const activeDefinitionId = buffers.find((buffer) => buffer.key === activeKey)?.definitionId;
 
   return (
-    <Region aiOffset={aiOffset}>
+    <Region left={leftOffset} resizeActive={resizeActive}>
       <ResizablePanelGroup direction="horizontal">
         <ResizablePanel defaultSize={55} minSize={25}>
           <div className="flex h-full flex-col">
@@ -136,12 +140,25 @@ export function CodeModeWorkspace() {
 }
 
 /** Fixed positioning shell for the code-mode region (right of left panel, below top panel). */
-function Region({ aiOffset, children }: { aiOffset: number; children: React.ReactNode }) {
+function Region({
+  left,
+  resizeActive,
+  children,
+}: {
+  left: number;
+  resizeActive: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <div
-      className="absolute inset-0 bg-background transition-[left] duration-300 ease-in-out"
+      className={cn(
+        "absolute inset-0 bg-background",
+        // Suspended while a panel resize handle is dragged so the region
+        // tracks the live panel widths instead of easing behind them.
+        !resizeActive && "transition-[left] duration-300 ease-in-out",
+      )}
       style={{
-        left: aiOffset + PANEL_DIMENSIONS.LEFT_WIDTH,
+        left,
         top: PANEL_DIMENSIONS.TOP_HEIGHT,
       }}
     >

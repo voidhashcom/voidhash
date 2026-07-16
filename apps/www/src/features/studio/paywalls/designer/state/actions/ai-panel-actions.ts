@@ -4,7 +4,7 @@
  * These commands manage the Voidhash AI chat panel (browser-only state).
  */
 
-import { PANEL_DIMENSIONS } from "../../panels/constants";
+import { clampAiPanelWidth } from "../../panels/constants";
 import { commander } from "../designer-commander";
 import type { AgentCanvasOperation } from "../designer-store-state";
 
@@ -32,14 +32,10 @@ export const toggleAiPanel = commander.action((ctx) => {
  */
 export const setAiPanelWidth = commander.action<{ width: number }>((ctx, { width }) => {
   const state = ctx.getState();
-  const clamped = Math.max(
-    PANEL_DIMENSIONS.AI_CHAT_MIN_WIDTH,
-    Math.min(PANEL_DIMENSIONS.AI_CHAT_MAX_WIDTH, width),
-  );
   ctx.setState({
     ai: {
       ...state.ai,
-      width: clamped,
+      width: clampAiPanelWidth(width),
     },
   });
 });

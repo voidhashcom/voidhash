@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@voidhash/ui";
 import { useMemo, useState } from "react";
 import { useStore } from "zustand/react";
 
@@ -49,6 +50,7 @@ export function TranslationModeWorkspace() {
   const store = usePaywallDesignerStore();
   const dispatch = usePaywallDesignerActions();
   const aiOffset = useAiPanelOffset();
+  const resizeActive = useStore(store, (state) => state.viewport.panelResizeActive);
 
   // Draft-aware live snapshot: rows and the preview follow the document as
   // collaborators edit; a node deleted mid-edit simply drops its row.
@@ -98,7 +100,12 @@ export function TranslationModeWorkspace() {
 
   return (
     <div
-      className="absolute inset-0 flex bg-background transition-[left] duration-300 ease-in-out"
+      className={cn(
+        "absolute inset-0 flex bg-background",
+        // Suspended while the AI panel is being resized so the workspace
+        // tracks its live width instead of easing behind it.
+        !resizeActive && "transition-[left] duration-300 ease-in-out",
+      )}
       style={{ left: aiOffset, top: PANEL_DIMENSIONS.TOP_HEIGHT }}
     >
       <LocaleRail

@@ -4,6 +4,7 @@
  * These commands manage viewport panel dimensions (browser-only state).
  */
 
+import { clampLeftPanelWidth, clampRightPanelWidth } from "../../panels/constants";
 import { commander } from "../designer-commander";
 import type { DesignerStoreState } from "../designer-store-state";
 
@@ -44,7 +45,9 @@ export const setBottomPanelHeight = commander.action<{ height: number }>((ctx, p
 });
 
 /**
- * Set the width of the left panel.
+ * Set the left (layers) panel width (px), clamped to the panel's min/max
+ * bounds. Browser-only local state — high-frequency writes during a drag are
+ * fine as they never touch the mimic document's undo history.
  */
 export const setLeftPanelWidth = commander.action<{ width: number }>((ctx, params) => {
   const state = ctx.getState();
@@ -53,14 +56,15 @@ export const setLeftPanelWidth = commander.action<{ width: number }>((ctx, param
       ...state.viewport,
       panels: {
         ...state.viewport.panels,
-        left: { width: params.width },
+        left: { width: clampLeftPanelWidth(params.width) },
       },
     },
   });
 });
 
 /**
- * Set the width of the right panel.
+ * Set the right (properties) panel width (px), clamped to the panel's min/max
+ * bounds. Browser-only local state, like {@link setLeftPanelWidth}.
  */
 export const setRightPanelWidth = commander.action<{ width: number }>((ctx, params) => {
   const state = ctx.getState();
@@ -69,8 +73,25 @@ export const setRightPanelWidth = commander.action<{ width: number }>((ctx, para
       ...state.viewport,
       panels: {
         ...state.viewport.panels,
-        right: { width: params.width },
+        right: { width: clampRightPanelWidth(params.width) },
       },
+    },
+  });
+});
+
+/**
+ * Mark a panel resize drag as active/inactive so panels positioned off another
+ * panel's width can suspend their CSS position transitions for the drag.
+ */
+export const setPanelResizeActive = commander.action<{ active: boolean }>((ctx, { active }) => {
+  const state = ctx.getState();
+  if (state.viewport.panelResizeActive === active) {
+    return;
+  }
+  ctx.setState({
+    viewport: {
+      ...state.viewport,
+      panelResizeActive: active,
     },
   });
 });

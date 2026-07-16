@@ -2,7 +2,7 @@
 
 import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import { cn } from "@voidhash/ui";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useStore } from "zustand/react";
 
 import { ChatHistoryMenu, ChatShell, newAgentSessionId } from "@/features/studio/ai";
@@ -10,7 +10,10 @@ import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeature
 
 import { Panel } from "../components/ui/panel";
 import { PANEL_DIMENSIONS } from "../panels/constants";
+import { PanelResizeHandle } from "../panels/panel-resize-handle";
+import { persistPanelWidths } from "../panels/panel-width-storage";
 import { setAiPanelWidth, setAiWorking } from "../state/actions/ai-panel-actions";
+import { setPanelResizeActive } from "../state/actions/panel-actions";
 import { usePaywallDesignerActions, usePaywallDesignerStore } from "../state/designer-store";
 import { useDesignerAgent } from "./use-designer-agent";
 
@@ -44,34 +47,23 @@ export function AiPanel() {
     chatId: newAgentSessionId(),
   }));
 
-  // Drag-to-resize: capture the pointer on the right-edge handle and translate
-  // horizontal movement into width updates (clamped by the setter). Held in a
-  // ref so the move handler reads the drag origin without re-subscribing.
-  const dragOrigin = useRef<{ startX: number; startWidth: number } | null>(null);
+  const handleResizeStart = useCallback(() => {
+    dispatch(setPanelResizeActive)({ active: true });
+  }, [dispatch]);
 
-  const handleResizeStart = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      dragOrigin.current = { startX: event.clientX, startWidth: store.getState().ai.width };
-      event.currentTarget.setPointerCapture(event.pointerId);
-    },
-    [store],
-  );
-
-  const handleResizeMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const origin = dragOrigin.current;
-      if (!origin) return;
-      dispatch(setAiPanelWidth)({ width: origin.startWidth + (event.clientX - origin.startX) });
+  const handleResizeChange = useCallback(
+    (nextWidth: number) => {
+      dispatch(setAiPanelWidth)({ width: nextWidth });
     },
     [dispatch],
   );
 
-  const handleResizeEnd = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragOrigin.current) return;
-    dragOrigin.current = null;
-    event.currentTarget.releasePointerCapture(event.pointerId);
-  }, []);
+  const handleResizeEnd = useCallback(() => {
+    dispatch(setPanelResizeActive)({ active: false });
+    persistPanelWidths(store.getState());
+  }, [dispatch, store]);
+
+  const getWidth = useCallback(() => store.getState().ai.width, [store]);
 
   const handleBusyChange = useCallback(
     (isWorking: boolean) => {
@@ -98,18 +90,14 @@ export function AiPanel() {
         width,
       }}
     >
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize AI panel"
-        onPointerDown={handleResizeStart}
-        onPointerMove={handleResizeMove}
-        onPointerUp={handleResizeEnd}
-        onPointerCancel={handleResizeEnd}
-        className="group absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize touch-none"
-      >
-        <div className="mx-auto h-full w-px bg-transparent transition-colors group-hover:bg-primary" />
-      </div>
+      <PanelResizeHandle
+        edge="right"
+        label="Resize AI panel"
+        getWidth={getWidth}
+        onWidthChange={handleResizeChange}
+        onDragStart={handleResizeStart}
+        onDragEnd={handleResizeEnd}
+      />
       <Panel className="overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2">
           <span className="font-medium text-sm">Voidhash AI</span>

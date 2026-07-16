@@ -2,15 +2,18 @@
 
 import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 import { cn, ScrollArea } from "@voidhash/ui";
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useStore } from "zustand/react";
 
 import { Panel } from "@/features/studio/paywalls/designer/components/ui/panel";
 
-import { usePaywallDesignerStore } from "../state/designer-store";
+import { setPanelResizeActive, setRightPanelWidth } from "../state/actions/panel-actions";
+import { usePaywallDesignerActions, usePaywallDesignerStore } from "../state/designer-store";
 import { getNodeById } from "../state/utils/nodes";
 import { selectedNodeIdsFromPresence } from "../state/utils/presence";
 import { PANEL_DIMENSIONS } from "./constants";
+import { PanelResizeHandle } from "./panel-resize-handle";
+import { persistPanelWidths } from "./panel-width-storage";
 import { PanelStack } from "./right-panel/panel-stack";
 
 /**
@@ -45,8 +48,28 @@ function useSelectedNodes(): SnapshotNode[] {
 
 export function RightPanel() {
   const store = usePaywallDesignerStore();
+  const dispatch = usePaywallDesignerActions();
   const isPreviewMode = useStore(store, (state) => state.mode === "preview");
+  const width = useStore(store, (state) => state.viewport.panels.right.width);
   const nodes = useSelectedNodes();
+
+  const handleResizeStart = useCallback(() => {
+    dispatch(setPanelResizeActive)({ active: true });
+  }, [dispatch]);
+
+  const handleResizeChange = useCallback(
+    (nextWidth: number) => {
+      dispatch(setRightPanelWidth)({ width: nextWidth });
+    },
+    [dispatch],
+  );
+
+  const handleResizeEnd = useCallback(() => {
+    dispatch(setPanelResizeActive)({ active: false });
+    persistPanelWidths(store.getState());
+  }, [dispatch, store]);
+
+  const getWidth = useCallback(() => store.getState().viewport.panels.right.width, [store]);
 
   return (
     <div
@@ -57,9 +80,17 @@ export function RightPanel() {
       )}
       style={{
         top: PANEL_DIMENSIONS.TOP_HEIGHT,
-        width: PANEL_DIMENSIONS.RIGHT_WIDTH,
+        width,
       }}
     >
+      <PanelResizeHandle
+        edge="left"
+        label="Resize properties panel"
+        getWidth={getWidth}
+        onWidthChange={handleResizeChange}
+        onDragStart={handleResizeStart}
+        onDragEnd={handleResizeEnd}
+      />
       <Panel className="relative overflow-hidden">
         <div className="absolute inset-0">
           <ScrollArea className="h-full">

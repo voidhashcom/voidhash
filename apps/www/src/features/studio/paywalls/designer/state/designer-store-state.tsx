@@ -281,6 +281,12 @@ export type DesignerStoreState = {
       left: { width: number };
       right: { width: number };
     };
+    /**
+     * True while a panel resize handle is being dragged. Panels whose position
+     * depends on another panel's width suspend their CSS position transitions
+     * during the drag so they track the pointer instead of easing behind it.
+     */
+    panelResizeActive: boolean;
   };
   devMode: {
     enabled: boolean;

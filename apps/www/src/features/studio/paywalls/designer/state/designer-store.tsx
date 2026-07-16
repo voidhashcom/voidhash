@@ -14,7 +14,13 @@ import { create } from "zustand";
 import { managedRuntime, VoidhashRpc } from "@/features/studio/lib/effect-query";
 
 import { SHOW_GRID } from "../constants";
-import { PANEL_DIMENSIONS } from "../panels/constants";
+import {
+  clampAiPanelWidth,
+  clampLeftPanelWidth,
+  clampRightPanelWidth,
+  PANEL_DIMENSIONS,
+} from "../panels/constants";
+import { loadPanelWidths } from "../panels/panel-width-storage";
 import { commander } from "./designer-commander";
 import type {
   AgentCanvasOperation,
@@ -96,6 +102,7 @@ export type PaywallDesignerDocumentInstance = ReturnType<typeof createPaywallDes
  * panel-definition test harness reuses it via {@link createDesignerStore}).
  */
 function createDesignerLocalState() {
+  const storedWidths = loadPanelWidths();
   return {
     // Local browser state
     canvas: {
@@ -144,10 +151,11 @@ function createDesignerLocalState() {
     viewport: {
       panels: {
         bottom: { height: 0 },
-        left: { width: 0 },
-        right: { width: 0 },
+        left: { width: clampLeftPanelWidth(storedWidths.left ?? PANEL_DIMENSIONS.LEFT_WIDTH) },
+        right: { width: clampRightPanelWidth(storedWidths.right ?? PANEL_DIMENSIONS.RIGHT_WIDTH) },
         top: { height: 0 },
       },
+      panelResizeActive: false,
     },
     devMode: {
       enabled: false,
@@ -157,7 +165,7 @@ function createDesignerLocalState() {
       operations: {} as Record<string, AgentCanvasOperation>,
       localIsWorking: false,
       panelOpen: true,
-      width: PANEL_DIMENSIONS.AI_CHAT_WIDTH,
+      width: clampAiPanelWidth(storedWidths.ai ?? PANEL_DIMENSIONS.AI_CHAT_WIDTH),
     },
   };
 }
