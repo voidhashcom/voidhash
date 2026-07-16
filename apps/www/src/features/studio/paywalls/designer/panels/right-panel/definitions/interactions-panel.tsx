@@ -1,9 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the `Interactions` section — the wire-tree
- * replica of {@link ../sections/interactions-section.InteractionsSection} (+ its
- * `InteractionRow`).
+ * Built-in panel definition for node interactions and action editing.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Interactions" → `Panel.Section title="Interactions"`,

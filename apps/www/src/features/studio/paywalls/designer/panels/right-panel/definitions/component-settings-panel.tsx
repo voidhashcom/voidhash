@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the `Component settings` section — the wire-tree
- * replica of {@link ../sections/component-section.ComponentSection}.
+ * Built-in panel definition for component identity, version, and preview state.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Component" → `Panel.Section title="Component"`.

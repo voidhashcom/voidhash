@@ -14,13 +14,13 @@
  * decode) on construction and after every {@link PanelHarness.dispatch}, so a
  * definition that drifts from the wire contract fails the test automatically.
  *
- * Later section migrations reuse this verbatim — seed nodes/selection with
- * {@link seedNodes}, mount the definition, then assert structure via the finders
- * and behavior via `dispatch` + the store/draft/undo/action helpers.
+ * Tests seed nodes and selection with {@link seedNodes}, mount the definition,
+ * then assert structure via the finders and behavior via `dispatch` plus the
+ * store, draft, undo, and action helpers.
  */
 import type { ComponentManifest } from "@voidhash/core/services/paywallDeploys/PaywallDeployManifest";
 import type { ComponentBoundAction } from "@voidhash/mimic-schema";
-import type { PanelContext, PanelSessionInputs } from "@voidhash/paywalls/panel";
+import type { PanelSessionInputs } from "@voidhash/paywalls/panel";
 import type { Command as CommandObject } from "@voidhash/mimic/zustand-commander";
 
 import { createInProcessTransport } from "../../../../panel-runtime/in-process-transport";

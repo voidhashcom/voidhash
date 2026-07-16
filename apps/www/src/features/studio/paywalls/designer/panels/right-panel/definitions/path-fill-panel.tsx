@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the path `Fill` section — the wire-tree
- * replica of {@link ../sections/path-fill-section.PathFillSection}.
+ * Built-in panel definition for path fill color and fill rule.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Fill" → `Panel.Section title="Fill"`.

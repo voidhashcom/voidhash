@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the `Fill` section — the wire-tree replica of
- * {@link ../sections/fill-section.FillSection}.
+ * Built-in panel definition for solid, gradient, and image fills.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Fill" → `Panel.Section title="Fill"`.

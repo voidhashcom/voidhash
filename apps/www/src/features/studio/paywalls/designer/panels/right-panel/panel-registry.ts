@@ -1,5 +1,5 @@
-import type { PanelRender, PanelWrap } from "../../panel-runtime/in-process-transport";
-import type { EditableNodeType, SectionId } from "../types";
+import type { PanelRender } from "../../panel-runtime/in-process-transport";
+import type { EditableNodeType } from "../types";
 import { BorderPanel } from "./definitions/border-panel";
 import { BorderRadiusPanel } from "./definitions/border-radius-panel";
 import { ComponentActionsPanel } from "./definitions/component-actions-panel";
@@ -18,31 +18,42 @@ import { TypographyPanel } from "./definitions/typography-panel";
 import { VariablesPanel } from "./definitions/variables-panel";
 
 /**
- * The engine + payload that backs one registered panel. A `builtin` panel runs a
- * trusted definition in-process; its `definition` is OPTIONAL now (Phase 2 fills
- * one per migrated section — until then the entry falls back to the old section
- * component). A `component-panel` panel is authored as a code component and runs
- * in the Phase 3 sandbox.
+ * The engine and payload backing a registered panel. Built-in panels run trusted
+ * definitions in process; component panels run authored code in the sandbox.
  */
 export type PanelSourceSpec =
   | {
       readonly kind: "builtin";
-      /** The panel definition `(ctx) => ReactNode` (filled per section in Phase 2). */
-      readonly definition?: PanelRender;
-      /** Optional provider re-wrap inside the reconciler root (rarely per-section). */
-      readonly wrap?: PanelWrap;
+      /** The panel definition `(ctx) => ReactNode`. */
+      readonly definition: PanelRender;
     }
   | { readonly kind: "component-panel" };
 
+/** Stable identifiers for panels in the right-panel registry. */
+export type PanelId =
+  | "variables"
+  | "states"
+  | "position"
+  | "flexLayout"
+  | "shapeLayout"
+  | "borderRadius"
+  | "fill"
+  | "border"
+  | "interactions"
+  | "scrollViewSettings"
+  | "typography"
+  | "textFill"
+  | "pathFill"
+  | "pathStroke"
+  | "componentSettings"
+  | "componentProps"
+  | "componentActions";
+
 /**
- * A registered right-panel entry. Mirrors {@link SectionRegistryEntry} 1:1
- * (id/supportedNodeTypes/order/multiSelectable — same applicability semantics)
- * and adds the {@link PanelSourceSpec} that decides how the panel is rendered
- * behind the v2 flag. When the flag is off, {@link ../dynamic-panel.DynamicPanel}
- * renders the legacy section instead and this registry is unused.
+ * A registered right-panel entry and its applicability and rendering source.
  */
 export interface PanelRegistryEntry {
-  readonly id: SectionId;
+  readonly id: PanelId;
   readonly supportedNodeTypes: EditableNodeType[];
   readonly order: number;
   readonly multiSelectable: boolean;
@@ -50,11 +61,8 @@ export interface PanelRegistryEntry {
 }
 
 /**
- * The right-panel registry. Entries are copied VERBATIM from
- * `section-registry.ts` (ids/order/supportedNodeTypes/multiSelectable) so
- * applicability is byte-identical; only the `source` field is new. Every entry
- * is `builtin` (with an as-yet-empty `definition`) except `componentProps`,
- * which is a `component-panel` (its editor is authored as a code component).
+ * The right-panel registry. Every entry uses a built-in definition except
+ * `componentProps`, whose editor is authored as a code component.
  */
 export const PANEL_REGISTRY: PanelRegistryEntry[] = [
   {
@@ -166,8 +174,7 @@ export const PANEL_REGISTRY: PanelRegistryEntry[] = [
     id: "componentProps",
     supportedNodeTypes: ["component"],
     order: 13,
-    // Phase 3b: the component-panel slot batch-edits a homogeneous multi-selection
-    // of the same component (same identity key), so it participates in multi-select.
+    // The component panel batch-edits homogeneous selections sharing an identity.
     multiSelectable: true,
     source: { kind: "component-panel" },
   },
@@ -181,35 +188,8 @@ export const PANEL_REGISTRY: PanelRegistryEntry[] = [
 ];
 
 /**
- * The set of sections whose built-in `definition` is ready to render through the
- * v2 host. Phase 2 is COMPLETE: this holds every built-in section (all but
- * `componentProps`, the Phase 3 component-panel slot). When the flag is on, the
- * stack renders each through {@link ../builtin-panel-host.BuiltinPanelHost}
- * instead of the legacy section.
- */
-export const MIGRATED: ReadonlySet<SectionId> = new Set<SectionId>([
-  "borderRadius",
-  "border",
-  "typography",
-  "pathFill",
-  "pathStroke",
-  "textFill",
-  "position",
-  "flexLayout",
-  "shapeLayout",
-  "fill",
-  "states",
-  "variables",
-  "interactions",
-  "scrollViewSettings",
-  "componentSettings",
-  "componentActions",
-]);
-
-/**
- * Returns the registered panels applicable to the given node types, mirroring
- * `getSharedSections` exactly: a panel is included only when ALL node types are
- * in its `supportedNodeTypes` ("every", not "any"); when `isMulti`, panels with
+ * Returns registered panels applicable to the given node types. A panel is
+ * included only when all node types are supported; when `isMulti`, panels with
  * `multiSelectable: false` are excluded. Results are sorted by `order`.
  */
 export function getSharedPanels(

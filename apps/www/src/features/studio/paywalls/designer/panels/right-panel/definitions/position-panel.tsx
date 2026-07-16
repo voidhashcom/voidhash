@@ -1,9 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the dedicated `Position` section — the wire-tree
- * replica of {@link ../sections/position-section.PositionSection} (view + text
- * nodes, multi-selectable).
+ * Built-in panel definition for relative and absolute positioning.
  *
  * Structure (JSX → wire nodes):
  * - `PanelSection` "Position" → `Panel.Section title="Position"`.

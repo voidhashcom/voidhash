@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The `componentProps` slot of the v2 right-panel stack (Phase 3b). It edits the
+ * The `componentProps` slot of the right-panel stack. It edits the
  * props of the selected component node(s) either through a HOST-rendered default
  * panel (a {@link PropFieldRow} per manifest prop, wired to the batched
  * multi-node prop actions) or, when the component declares a custom `panel`, a
@@ -57,7 +57,6 @@ import {
   componentPropBindingFromRaw,
   findComponentPropEntry,
   manifestDefaultPropValue,
-  type ComponentPropBindingPlain,
   type ComponentPropValuePlain,
 } from "../../state/utils/component-prop-values";
 import { selectDocumentRoot } from "../../state/utils/document-root";

@@ -5,17 +5,9 @@
  * edits from the store. It bridges the two host seams a definition reads —
  * {@link useDefinitionSelection} (the reactive selected node ids) and
  * {@link usePaywallDesignerStore} (the live document) — into a single
- * `{ nodes, style, targets, mixedKeys }` result, so a definition never touches
- * the render root, draft plumbing, or style-target resolution directly.
- *
- * It is the draft-aware analogue of the legacy sections' `useStyleTargets(nodes)`
- * with the `nodes` argument replaced by the selection channel: nodes are
- * resolved from `selectRenderRoot` (draft-staged snapshot preferred, so an
- * in-progress panel drag renders live), then run through the SAME
- * `getStyleTargetsForNodes` core the legacy sections use, keeping behavior
- * byte-identical. Subscribing to `selectRenderRoot` also re-renders the panel on
- * every draft edit; subscribing to the selection store re-renders it on every
- * selection change.
+ * `{ nodes, style, targets, mixedKeys }` result. Nodes resolve from the
+ * draft-aware render root and flow through the shared style-target core, while
+ * subscriptions keep the panel current with draft edits and selection changes.
  */
 import type { SnapshotNode } from "@voidhash/paywall-renderer-web-core";
 import { useStore } from "zustand/react";
@@ -23,14 +15,13 @@ import { useStore } from "zustand/react";
 import { usePaywallDesignerStore } from "../../../state/designer-store";
 import { selectRenderRoot } from "../../../state/utils/document-root";
 import { findNodeById } from "../../../state/utils/tree";
-import { getStyleTargetsForNodes, type StyleTargetsResult } from "../utils/get-style-targets";
+import { getStyleTargetsForNodes, type StyleTargetsResult } from "../utils/style-targets-core";
 import { useDefinitionSelection } from "./definition-selection";
 
 /**
  * The resolved editing target for a definition: the selected snapshot nodes plus
  * the style-target result (effective `style`, write `targets`, and `mixedKeys`
- * across a multi-selection). `style` is `null` when the first node is styleless
- * — a definition returns `null` in that case, exactly like the legacy sections.
+ * across a multi-selection). `style` is `null` when the first node is styleless.
  */
 export interface DefinitionNodes extends StyleTargetsResult {
   /** The selected snapshot nodes, resolved draft-aware from the render root. */
@@ -53,14 +44,7 @@ export function useDefinitionNodes(): DefinitionNodes {
   // committed snapshot. Subscribing here also re-renders the panel per draft
   // edit.
   const renderRoot = useStore(store, selectRenderRoot);
-  // Resolve each selected id from the render root, DROPPING any that no longer
-  // resolve. The legacy `useStyleTargets(nodes)` fell back to the passed-in
-  // snapshot node (`findNodeById(...) ?? node`), but there the caller already
-  // held a resolved node object; here only the id crosses the selection seam.
-  // In the live flow the ids come straight from the current render nodes
-  // (`panel-stack` maps `nodes.map(n => n.id)`), so they always resolve and the
-  // two paths are identical — the drop only guards a transient stale id, where
-  // rendering nothing is safer than rendering stale style data.
+  // Drop transient stale ids rather than rendering controls for stale style data.
   const nodes = nodeIds.flatMap((id) => {
     const node = findNodeById<SnapshotNode>(renderRoot, id);
     return node ? [node] : [];
