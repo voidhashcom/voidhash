@@ -27,7 +27,7 @@ export const extractAuthorizedProjectId = (authSession: AnyAuthSession) =>
  * Whether the session is a member of `organizationId`. Any org that appears in
  * the session is one the caller belongs to — the least-privileged check (no
  * specific permission required), for org-scoped features every member may use
- * (e.g. the asset library and AI chats). Pure over the session, so it is
+ * (e.g. the asset library and agent attachments). Pure over the session, so it is
  * unit-testable without a live session.
  */
 export const isSessionOrganizationMember = (

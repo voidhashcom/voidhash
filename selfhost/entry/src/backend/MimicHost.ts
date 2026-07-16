@@ -10,10 +10,12 @@ import {
   MIMIC_DATABASE_NAME,
   MIMIC_PAYWALLS_COLLECTION_NAME,
   PaywallDesignerDocument,
+  PresenceSchema,
 } from "@voidhash/mimic-schema";
 import { Effect, Layer, Semaphore } from "effect";
 
 const editTokenTtlSeconds = 300;
+const agentConnectionLeaseMs = 5 * 60 * 1000;
 
 interface ProvisioningIds {
   readonly collectionId: string;
@@ -121,6 +123,15 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
       Effect.mapError((cause) => hostError(`Failed to read paywall document ${paywallId}`, cause)),
     );
 
+  const toPaywallDocument = (document: { readonly value: unknown; readonly version: number }) => {
+    const roots = PaywallDesignerDocument.decode(document.value as never);
+    return {
+      root: roots?.[0],
+      tree: document.value,
+      version: document.version,
+    };
+  };
+
   return {
     createPaywallEditToken: ({ paywallId }) =>
       provision.pipe(
@@ -138,17 +149,7 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
         Effect.mapError((cause) => hostError(`Failed to mint a token for ${paywallId}`, cause)),
       ),
     ensurePaywallDocument,
-    getPaywallDocument: (paywallId) =>
-      getDocument(paywallId).pipe(
-        Effect.map((document) => {
-          const roots = PaywallDesignerDocument.decode(document.value);
-          return {
-            root: roots?.[0],
-            tree: document.value,
-            version: document.version,
-          };
-        }),
-      ),
+    getPaywallDocument: (paywallId) => getDocument(paywallId).pipe(Effect.map(toPaywallDocument)),
     getPaywallSnapshot: (paywallId) =>
       getDocument(paywallId).pipe(
         Effect.map((document) => PaywallDesignerDocument.decode(document.value)?.[0]),
@@ -175,6 +176,90 @@ const makeMimicHost = (host: HostService, publicBaseUrl: string): MimicHostShape
           cause instanceof MimicHostError
             ? cause
             : hostError(`Failed to update paywall document ${paywallId}`, cause),
+        ),
+      ),
+    openPaywallConnection: ({ paywallId, connectionId, presence }) =>
+      provision.pipe(
+        Effect.flatMap(({ collectionId }) =>
+          host.attachConnection(
+            collectionId,
+            paywallId,
+            connectionId,
+            "write",
+            undefined,
+            PresenceSchema.encode({
+              participant: {
+                editSessionId: presence.editSessionId,
+                kind: "agent",
+                source: presence.source,
+              },
+              selectedNodeIds: [],
+              user: { color: "#7c3aed", name: presence.name },
+            }),
+            agentConnectionLeaseMs,
+          ),
+        ),
+        Effect.map(toPaywallDocument),
+        Effect.mapError((cause) =>
+          hostError(`Failed to open a connection for paywall ${paywallId}`, cause),
+        ),
+      ),
+    getConnectedPaywallDocument: ({ paywallId, connectionId }) =>
+      provision.pipe(
+        Effect.flatMap(({ collectionId }) =>
+          host.getConnectionDocument(collectionId, paywallId, connectionId, agentConnectionLeaseMs),
+        ),
+        Effect.map(toPaywallDocument),
+        Effect.mapError((cause) =>
+          hostError(`Failed to read connected paywall ${paywallId}`, cause),
+        ),
+      ),
+    heartbeatPaywallConnection: ({ paywallId, connectionId }) =>
+      provision.pipe(
+        Effect.flatMap(({ collectionId }) =>
+          host.heartbeatConnection(collectionId, paywallId, connectionId, agentConnectionLeaseMs),
+        ),
+        Effect.mapError((cause) =>
+          hostError(`Failed to renew the connection for paywall ${paywallId}`, cause),
+        ),
+      ),
+    closePaywallConnection: ({ paywallId, connectionId }) =>
+      provision.pipe(
+        Effect.flatMap(({ collectionId }) =>
+          host.detachConnection(collectionId, paywallId, connectionId),
+        ),
+        Effect.mapError((cause) =>
+          hostError(`Failed to close the connection for paywall ${paywallId}`, cause),
+        ),
+      ),
+    submitConnectedPaywallTransaction: (paywallId, connectionId, input) =>
+      provision.pipe(
+        Effect.flatMap(({ collectionId }) =>
+          Effect.try({
+            try: () =>
+              decodeTransactionEnvelope({
+                baseVersion: input.baseVersion,
+                commands: input.commands,
+                id: crypto.randomUUID(),
+              }),
+            catch: (cause) => hostError("Invalid mimic transaction", cause),
+          }).pipe(
+            Effect.flatMap((transaction) =>
+              host.submitConnectionTransaction(
+                collectionId,
+                paywallId,
+                connectionId,
+                transaction,
+                agentConnectionLeaseMs,
+              ),
+            ),
+          ),
+        ),
+        Effect.map((result) => ({ accepted: result.accepted, version: result.version })),
+        Effect.mapError((cause) =>
+          cause instanceof MimicHostError
+            ? cause
+            : hostError(`Failed to update connected paywall ${paywallId}`, cause),
         ),
       ),
   };

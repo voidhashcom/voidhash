@@ -18,7 +18,7 @@ import { useRef, useState } from "react";
 import { ATTACHMENT_ACCEPT, formatBytes, type PendingAttachment } from "../attachments";
 
 interface PromptInputProps {
-  /** Whether the assistant is currently generating (disables send, shows stop). */
+  /** Whether the assistant is currently generating (shows stop; sends become steering). */
   isStreaming: boolean;
   /** Submit the trimmed prompt text (attachments are composed in by the host). */
   onSubmit: (text: string) => void;
@@ -39,7 +39,8 @@ const attachmentState = (status: PendingAttachment["status"]) =>
 /**
  * Bottom composer for the chat shell: queued-attachment chips, an autosizing-ish
  * textarea, an attach button, and a send button. Enter submits; Shift+Enter
- * inserts a newline. While streaming the send button becomes a stop button.
+ * inserts a newline. While streaming, stop and send remain available so a new
+ * message can steer the active Pi run.
  * Send is disabled until every attachment has finished uploading, and requires
  * either some text or at least one ready attachment.
  */
@@ -58,7 +59,7 @@ export function PromptInput({
   const trimmed = value.trim();
   const isUploading = attachments.some((attachment) => attachment.status === "uploading");
   const hasReadyAttachment = attachments.some((attachment) => attachment.status === "ready");
-  const canSend = !isStreaming && !isUploading && (trimmed.length > 0 || hasReadyAttachment);
+  const canSend = !isUploading && (trimmed.length > 0 || hasReadyAttachment);
 
   const submit = () => {
     if (!canSend) {
@@ -76,10 +77,7 @@ export function PromptInput({
 
   return (
     <form
-      className={cn(
-        "flex flex-col gap-2 rounded-xl border border-border bg-card p-2",
-        className,
-      )}
+      className={cn("flex flex-col gap-2 rounded-xl border border-border bg-card p-2", className)}
       onSubmit={(event) => {
         event.preventDefault();
         submit();
@@ -170,17 +168,16 @@ export function PromptInput({
           >
             <Square className="size-3.5" />
           </Button>
-        ) : (
-          <Button
-            aria-label="Send"
-            className="ml-auto"
-            disabled={!canSend}
-            size="icon-sm"
-            type="submit"
-          >
-            <ArrowUp className="size-4" />
-          </Button>
-        )}
+        ) : null}
+        <Button
+          aria-label={isStreaming ? "Steer" : "Send"}
+          className={isStreaming ? undefined : "ml-auto"}
+          disabled={!canSend}
+          size="icon-sm"
+          type="submit"
+        >
+          <ArrowUp className="size-4" />
+        </Button>
       </div>
     </form>
   );

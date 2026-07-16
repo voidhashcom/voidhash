@@ -118,7 +118,6 @@ export { moveNode, moveNodeBefore, moveNodeAfter } from "./layer-actions";
 // =============================================================================
 
 export { deleteNodes, copyNodes, cutNodes, pasteNodes } from "./node-actions";
-export { applyDocumentEdits, type ApplyDocumentEditsResult } from "./document-edit-actions";
 
 // =============================================================================
 // View Node Commands

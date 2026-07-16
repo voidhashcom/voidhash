@@ -63,10 +63,15 @@ export {
 
 export {
   CreateDocument,
+  CloseDocumentConnection,
   DeleteDocument,
   DocumentsRpcs,
   GetDocument,
+  GetConnectedDocument,
+  HeartbeatDocumentConnection,
   ListDocuments,
+  OpenDocumentConnection,
+  SubmitConnectedTransaction,
   SubmitTransaction,
 } from "./groups/documents.ts";
 

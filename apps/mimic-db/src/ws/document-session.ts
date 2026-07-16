@@ -47,13 +47,21 @@ export interface LoadedDocumentSnapshot {
   readonly version: number;
 }
 
+/** Presence storage shared by WebSocket and headless document participants. */
+export interface DocumentPresenceStore {
+  readonly snapshot: () => Effect.Effect<Record<string, PresenceEntry>, unknown>;
+  readonly set: (connectionId: string, entry: PresenceEntry) => Effect.Effect<void, unknown>;
+  readonly remove: (connectionId: string) => Effect.Effect<boolean, unknown>;
+  readonly prune: () => Effect.Effect<void, unknown>;
+}
+
 /**
  * Everything the WebSocket message/close handlers need from their host, so the
  * session protocol can be exercised independently of a platform runtime.
  */
 export interface DocumentSessionContext<TSocket> {
   readonly registry: SessionRegistry<TSocket>;
-  readonly presence: Map<string, PresenceEntry>;
+  readonly presence: DocumentPresenceStore;
   readonly getAttachment: (socket: TSocket) => SessionAttachment | null;
   readonly setAttachment: (socket: TSocket, attachment: SessionAttachment) => void;
   readonly send: (socket: TSocket, message: ServerMessage) => Effect.Effect<void>;
@@ -120,6 +128,7 @@ export const handleDocumentSocketMessage = <TSocket>(
   raw: string | Uint8Array,
 ): Effect.Effect<void> =>
   Effect.gen(function* () {
+    yield* ctx.presence.prune();
     const attachment = ctx.getAttachment(socket);
     if (!attachment) return;
     const message = yield* parseClientMessage(raw);
@@ -158,7 +167,7 @@ export const handleDocumentSocketMessage = <TSocket>(
         yield* ctx.send(socket, snapshotMessage(loaded.success.value, loaded.success.version));
         yield* ctx.send(
           socket,
-          presenceSnapshotMessage(next.connectionId, Object.fromEntries(ctx.presence)),
+          presenceSnapshotMessage(next.connectionId, yield* ctx.presence.snapshot()),
         );
         return;
       }
@@ -175,7 +184,7 @@ export const handleDocumentSocketMessage = <TSocket>(
       }
       case "presence_set": {
         if (!attachment.authenticated || attachment.permission !== "write") return;
-        ctx.presence.set(attachment.connectionId, {
+        yield* ctx.presence.set(attachment.connectionId, {
           data: message.data,
           userId: attachment.tokenId,
         });
@@ -187,7 +196,7 @@ export const handleDocumentSocketMessage = <TSocket>(
       }
       case "presence_clear": {
         if (!attachment.authenticated) return;
-        ctx.presence.delete(attachment.connectionId);
+        yield* ctx.presence.remove(attachment.connectionId);
         yield* broadcastToAuthenticated(ctx, presenceRemoveMessage(attachment.connectionId));
         return;
       }
@@ -233,12 +242,12 @@ export const handleDocumentSocketMessage = <TSocket>(
 export const handleDocumentSocketClose = <TSocket>(
   ctx: DocumentSessionContext<TSocket>,
   socket: TSocket,
-): Effect.Effect<void> =>
+): Effect.Effect<void, unknown> =>
   Effect.gen(function* () {
     const attachment = ctx.getAttachment(socket);
     if (!attachment) return;
     ctx.registry.remove(attachment.connectionId);
-    const hadPresence = ctx.presence.delete(attachment.connectionId);
+    const hadPresence = yield* ctx.presence.remove(attachment.connectionId);
     if (hadPresence) {
       yield* broadcastToAuthenticated(ctx, presenceRemoveMessage(attachment.connectionId));
     }

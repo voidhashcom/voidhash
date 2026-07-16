@@ -7,6 +7,7 @@ const validProductionEnvironment = {
   DATABASE_PASSWORD: "database-secret",
   MIMIC_PUBLIC_BASE_URL: "https://mimic.example.test",
   MIMIC_ROOT_PASSWORD: "mimic-secret",
+  OPENAI_API_KEY: "configured-openai-key",
   PUBLIC_BASE_URL: "https://app.example.test",
   PUBLIC_FILES_BASE_URL: "https://files.example.test",
   S3_SECRET_ACCESS_KEY: "object-store-secret",

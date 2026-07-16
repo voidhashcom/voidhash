@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 
 import { selectRenderRoot, usePaywallDesignerStore } from "../../state/designer-store";
 import type { DesignerStoreState } from "../../state/designer-store-state";
+import { selectAiWorking } from "../../state/utils/ai-working";
 import {
   advanceWorkingIndicator,
   createWorkingIndicatorAnimation,
@@ -84,7 +85,8 @@ export function WorkingIndicatorOverlay({ containerRef }: WorkingIndicatorOverla
           y: viewport.y,
         });
         syncWorkingIndicatorScreens(animation, readScreens(state));
-        setWorkingIndicatorActive(animation, state.ai.isWorking, now);
+        const isWorking = selectAiWorking(state);
+        setWorkingIndicatorActive(animation, isWorking, now);
         advanceWorkingIndicator(animation, now, ticker.deltaMS);
 
         graphics.clear();
@@ -105,7 +107,7 @@ export function WorkingIndicatorOverlay({ containerRef }: WorkingIndicatorOverla
           }
         });
 
-        if (animation.phase === "idle" && !state.ai.isWorking) {
+        if (animation.phase === "idle" && !isWorking) {
           app.stop();
           app.render();
         }
@@ -113,12 +115,12 @@ export function WorkingIndicatorOverlay({ containerRef }: WorkingIndicatorOverla
 
       app.ticker.add(tick);
       unsubscribe = store.subscribe((state, previousState) => {
-        if (state.ai.isWorking !== previousState.ai.isWorking) {
+        if (selectAiWorking(state) !== selectAiWorking(previousState)) {
           app.start();
         }
       });
 
-      if (store.getState().ai.isWorking) {
+      if (selectAiWorking(store.getState() as DesignerStoreState)) {
         app.start();
       } else {
         app.stop();

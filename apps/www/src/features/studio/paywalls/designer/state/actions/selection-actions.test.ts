@@ -5,6 +5,7 @@ import { clearSelection, selectNode, unselectNode } from "./selection-actions";
 interface PresenceSnapshotFixture {
   cursor?: { x: number; y: number };
   name?: string;
+  participant: { kind: "human" };
   selectedNodeIds: { id: string; pos: string; value: string }[];
   user: { color: string; name: string };
 }
@@ -12,6 +13,7 @@ interface PresenceSnapshotFixture {
 interface PresenceInputFixture {
   cursor?: { x: number; y: number };
   name?: string;
+  participant: { kind: "human" };
   selectedNodeIds?: readonly string[];
   user: { color: string; name: string };
 }
@@ -36,6 +38,7 @@ type SelectionState = {
 
 function presenceSnapshot(selectedNodeIds: string[]): PresenceSnapshotFixture {
   return {
+    participant: { kind: "human" },
     selectedNodeIds: selectedNodeIds.map((value, index) => ({
       id: `entry-${index}`,
       pos: `a${index}`,
@@ -50,15 +53,19 @@ function createSelectionCtx(initial: {
   stateOverrideSelection: Record<string, string | null>;
 }) {
   let presence = presenceSnapshot(initial.selectedNodeIds);
+  const setPresence = vi.fn((value: PresenceInputFixture) => {
+    presence = {
+      ...presenceSnapshot([...(value.selectedNodeIds ?? [])]),
+      participant: value.participant,
+    };
+  });
   let state: SelectionState = {
     highlightedNodeId: null,
     mimic: {
       document: {
         presence: {
           self: () => presence,
-          set: (value) => {
-            presence = presenceSnapshot([...(value.selectedNodeIds ?? [])]);
-          },
+          set: setPresence,
         },
       },
       snapshot: [
@@ -88,6 +95,7 @@ function createSelectionCtx(initial: {
     ctx,
     getSelectedNodeIds: () => presence.selectedNodeIds.map((entry) => entry.value),
     getState: () => state,
+    setPresence,
   };
 }
 
@@ -104,6 +112,19 @@ describe("selection actions", () => {
     expect(getSelectedNodeIds()).toEqual(["node-2"]);
     expect(getState().stateOverrideSelection).toEqual(initialSelection);
     expect(ctx.dispatch).not.toHaveBeenCalled();
+  });
+
+  test("selection updates preserve the participant identity", () => {
+    const { ctx, setPresence } = createSelectionCtx({
+      selectedNodeIds: [],
+      stateOverrideSelection: {},
+    });
+
+    selectNode.fn(ctx as never, { id: "node-1", many: false });
+
+    expect(setPresence).toHaveBeenCalledWith(
+      expect.objectContaining({ participant: { kind: "human" } }),
+    );
   });
 
   test("multi-select does not reset per-node state selections", () => {

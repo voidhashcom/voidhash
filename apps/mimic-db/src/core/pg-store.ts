@@ -14,6 +14,20 @@ export interface PgDocumentConfig {
   readonly password: Redacted.Redacted<string>;
 }
 
+/** Plain connection input accepted at package boundaries before secret redaction. */
+export interface PgDocumentConfigInput extends Omit<PgDocumentConfig, "password"> {
+  readonly password: string;
+}
+
+/**
+ * Builds document-store configuration while redacting the password in the same
+ * Effect module instance that later consumes it.
+ */
+export const makePgDocumentConfig = (config: PgDocumentConfigInput): PgDocumentConfig => ({
+  ...config,
+  password: Redacted.make(config.password),
+});
+
 const clientLayer = (config: PgDocumentConfig) =>
   PgClient.layer({
     host: config.host,

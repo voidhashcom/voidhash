@@ -44,6 +44,62 @@ export const DocumentsHandlersLive = DocumentsRpcs.toLayer(
             transaction as TransactionEnvelope,
           );
         }),
+      OpenDocumentConnection: ({ collectionId, documentId, connectionId, presence, leaseMs }) =>
+        Effect.gen(function* () {
+          const user = yield* CurrentUser;
+          const databaseId = yield* host.databaseIdForCollection(collectionId);
+          yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "write");
+          const snapshot = yield* host.attachConnection(
+            collectionId,
+            documentId,
+            connectionId,
+            "write",
+            user.userId,
+            presence as never,
+            leaseMs,
+          );
+          return { id: documentId, collectionId, value: snapshot.value, version: snapshot.version };
+        }),
+      GetConnectedDocument: ({ collectionId, documentId, connectionId, leaseMs }) =>
+        Effect.gen(function* () {
+          const user = yield* CurrentUser;
+          const databaseId = yield* host.databaseIdForCollection(collectionId);
+          yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "write");
+          return yield* host.getConnectionDocument(collectionId, documentId, connectionId, leaseMs);
+        }),
+      HeartbeatDocumentConnection: ({ collectionId, documentId, connectionId, leaseMs }) =>
+        Effect.gen(function* () {
+          const user = yield* CurrentUser;
+          const databaseId = yield* host.databaseIdForCollection(collectionId);
+          yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "write");
+          yield* host.heartbeatConnection(collectionId, documentId, connectionId, leaseMs);
+        }),
+      CloseDocumentConnection: ({ collectionId, documentId, connectionId }) =>
+        Effect.gen(function* () {
+          const user = yield* CurrentUser;
+          const databaseId = yield* host.databaseIdForCollection(collectionId);
+          yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "write");
+          yield* host.detachConnection(collectionId, documentId, connectionId);
+        }),
+      SubmitConnectedTransaction: ({
+        collectionId,
+        documentId,
+        connectionId,
+        transaction,
+        leaseMs,
+      }) =>
+        Effect.gen(function* () {
+          const user = yield* CurrentUser;
+          const databaseId = yield* host.databaseIdForCollection(collectionId);
+          yield* host.ensureDatabasePermission(user.userId, user.isSuperuser, databaseId, "write");
+          return yield* host.submitConnectionTransaction(
+            collectionId,
+            documentId,
+            connectionId,
+            transaction as TransactionEnvelope,
+            leaseMs,
+          );
+        }),
       DeleteDocument: ({ collectionId, documentId }) =>
         Effect.gen(function* () {
           const user = yield* CurrentUser;

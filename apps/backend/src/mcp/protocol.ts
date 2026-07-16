@@ -1,8 +1,9 @@
 /**
  * Minimal, hand-rolled MCP JSON-RPC 2.0 handler for the STATELESS streamable-HTTP
- * transport. No SDK dependency: a stateless server answers each `POST /api/mcp`
- * with a single JSON response (or 202 for a notification), which is spec-compliant
- * and exactly what Claude Code's streamable-HTTP client accepts.
+ * transport. Editing state lives behind `editSessionId`; the transport itself
+ * answers each `POST /api/mcp` with a single JSON response (or 202 for a
+ * notification), which is spec-compliant and exactly what Claude Code's
+ * streamable-HTTP client accepts.
  *
  * This module is transport- and auth-free: {@link handleMcpMessage} takes an
  * already-parsed JSON-RPC message plus a `callTool` executor (the route supplies
@@ -20,7 +21,12 @@ import { Effect } from "effect";
 
 import { mcpToolDescriptors } from "./tool-manifest.ts";
 import * as WorkspaceTools from "../ai/workspace-tools.ts";
-import { paywallAuthoringSkill } from "../ai/skills/paywall-authoring.ts";
+import {
+  findSkill,
+  listSkills,
+  skillFromResourceUri,
+  skillResourceUri,
+} from "../ai/skills/registry.ts";
 
 /** Protocol versions we speak, newest first (used to pick the negotiated version). */
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26"] as const;
@@ -29,20 +35,9 @@ const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
 /** Server identity advertised in the `initialize` result. */
 const SERVER_INFO = { name: "voidhash-paywall-workspace", version: "1.0.0" } as const;
 const AUTHORING_RESOURCE_URI = "voidhash://paywall-authoring/reference";
-const AUTHORING_RESOURCE_NAME = "paywall-authoring-reference";
 const DESIGN_PROMPT_NAME = "design_paywall";
 
-const mcpAuthoringGuide = (): string => `# MCP paywall workflow
-
-1. Discover paywalls with \`list_paywalls\`, then call \`begin_paywall_edit\`.
-2. Read structure and components before writing. Pass the returned \`changeSetId\` to every mutation.
-3. Build dynamic behavior without code using document \`localVariables\`, conditional \`states\`, click \`interactions\`, and component \`actionBindings\`. Use \`edit_paywall\` for composition, \`duplicate_subtree\` for visual cloning, and component tools only when the document model cannot express the behavior.
-4. Render \`get_paywall_preview\`, inspect the image, correct any visual issues, and render again.
-5. Call \`finish_paywall_edit\` with the exact latest document signature and an empty issue list, or \`revert_paywall_edit\` to restore the baseline.
-
-Tool-name mapping in the schema-derived reference below: \`get_document\` means \`get_paywall\`; \`edit_document\` means \`edit_paywall\`. MCP mutations additionally require \`slug\` and \`changeSetId\`.
-
-${paywallAuthoringSkill()}`;
+const mcpAuthoringGuide = (): string => findSkill("paywall-authoring")?.body() ?? "";
 
 /** Standard JSON-RPC 2.0 error codes we emit. */
 export const JsonRpcErrorCode = {
@@ -138,23 +133,20 @@ const initializeResult = (params: Record<string, unknown> | undefined) => ({
   capabilities: { tools: {}, resources: {}, prompts: {} },
   serverInfo: SERVER_INFO,
   instructions:
-    "Begin a paywall edit change set before mutating. Prefer document variables, conditional states, and actions for dynamic behavior without code. Review the final PNG preview and finish with its exact document signature, or revert the change set.",
+    "Begin a paywall edit session before using scoped tools. The returned editSessionId is the connection handle. Prefer document variables, conditional states, and actions for dynamic behavior without code. Review the final PNG preview and finish with its exact document signature, or revert the session.",
 });
 
 /** The `tools/list` result: the advertised tool descriptors. */
 const toolsListResult = () => ({ tools: mcpToolDescriptors() });
 
 const resourcesListResult = () => ({
-  resources: [
-    {
-      uri: AUTHORING_RESOURCE_URI,
-      name: AUTHORING_RESOURCE_NAME,
-      title: "Voidhash paywall authoring reference",
-      description:
-        "Schema-derived document, style, no-code variable/state/action, component, and MCP workflow guidance.",
-      mimeType: "text/markdown",
-    },
-  ],
+  resources: listSkills().map((skill) => ({
+    uri: skillResourceUri(skill.name),
+    name: skill.name,
+    title: skill.name === "paywall-authoring" ? "Voidhash paywall authoring reference" : skill.name,
+    description: skill.description,
+    mimeType: "text/markdown",
+  })),
 });
 
 const promptsListResult = () => ({
@@ -165,7 +157,7 @@ const promptsListResult = () => ({
       description:
         "Start a visually verified MCP paywall-authoring workflow with dynamic no-code behavior.",
       arguments: [
-        { name: "slug", description: "Paywall slug to edit.", required: true },
+        { name: "paywallId", description: "Stable paywall id to edit.", required: true },
         { name: "request", description: "What to change or create.", required: false },
       ],
     },
@@ -237,18 +229,25 @@ export const handleMcpMessage = (
       return Effect.succeed(success(id, resourcesListResult()));
 
     case "resources/read": {
-      if (message.params?.uri !== AUTHORING_RESOURCE_URI) {
+      const requestedUri = message.params?.uri;
+      const skill =
+        requestedUri === AUTHORING_RESOURCE_URI
+          ? findSkill("paywall-authoring")
+          : typeof requestedUri === "string"
+            ? skillFromResourceUri(requestedUri)
+            : undefined;
+      if (skill === undefined || typeof requestedUri !== "string") {
         return Effect.succeed(
-          failure(id, JsonRpcErrorCode.InvalidParams, "Unknown paywall authoring resource URI"),
+          failure(id, JsonRpcErrorCode.InvalidParams, "Unknown skill resource URI"),
         );
       }
       return Effect.succeed(
         success(id, {
           contents: [
             {
-              uri: AUTHORING_RESOURCE_URI,
+              uri: requestedUri,
               mimeType: "text/markdown",
-              text: mcpAuthoringGuide(),
+              text: skill.body(),
             },
           ],
         }),
@@ -268,10 +267,14 @@ export const handleMcpMessage = (
         message.params.arguments !== null && typeof message.params.arguments === "object"
           ? (message.params.arguments as Record<string, unknown>)
           : {};
-      const slug = args.slug;
-      if (typeof slug !== "string" || slug.length === 0) {
+      const paywallId = args.paywallId;
+      if (typeof paywallId !== "string" || paywallId.length === 0) {
         return Effect.succeed(
-          failure(id, JsonRpcErrorCode.InvalidParams, 'design_paywall requires a string "slug"'),
+          failure(
+            id,
+            JsonRpcErrorCode.InvalidParams,
+            'design_paywall requires a string "paywallId"',
+          ),
         );
       }
       const request =
@@ -280,13 +283,13 @@ export const handleMcpMessage = (
           : "";
       return Effect.succeed(
         success(id, {
-          description: `Design paywall ${slug} with a visually verified change set.`,
+          description: `Design paywall ${paywallId} with a visually verified edit session.`,
           messages: [
             {
               role: "user",
               content: {
                 type: "text",
-                text: `Design paywall "${slug}" using the Voidhash MCP workflow.${request}\n\n${mcpAuthoringGuide()}`,
+                text: `Design paywall "${paywallId}" using the Voidhash MCP workflow.${request}\n\n${mcpAuthoringGuide()}`,
               },
             },
           ],

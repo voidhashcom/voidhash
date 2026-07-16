@@ -8,6 +8,7 @@ import type { DocumentSnapshotResponse } from "../document/snapshot.ts";
 import type { SubmitTransactionResponse, TransactionEnvelope } from "../document/transaction.ts";
 import { makeControlEngine } from "../core/control-engine.ts";
 import type { ControlStoreApi } from "../core/store.ts";
+import { getConfig } from "../config.ts";
 
 /**
  * The subset of a document-entity stub the HTTP entry point calls. Remote
@@ -28,6 +29,33 @@ export interface DocumentStub {
   readonly submitRpc: (
     envelope: TransactionEnvelope,
   ) => Effect.Effect<SubmitTransactionResponse | { notFound: true }, any>;
+  readonly openConnection: (
+    connectionId: string,
+    entry: { readonly data: Value; readonly userId?: string },
+    leaseMs: number,
+  ) => Effect.Effect<
+    | { readonly found: true; readonly value: Value; readonly version: number }
+    | { readonly notFound: true },
+    any
+  >;
+  readonly getConnectionSnapshot: (
+    connectionId: string,
+    leaseMs: number,
+  ) => Effect.Effect<
+    | { readonly found: true; readonly value: Value; readonly version: number }
+    | { readonly notFound: true },
+    any
+  >;
+  readonly heartbeatConnection: (
+    connectionId: string,
+    leaseMs: number,
+  ) => Effect.Effect<boolean, any>;
+  readonly closeConnection: (connectionId: string) => Effect.Effect<boolean, any>;
+  readonly submitConnection: (
+    connectionId: string,
+    leaseMs: number,
+    envelope: TransactionEnvelope,
+  ) => Effect.Effect<SubmitTransactionResponse | { readonly notFound: true }, any>;
   readonly remove: () => Effect.Effect<void, any>;
 }
 
@@ -50,12 +78,15 @@ const isSubmitResponse = (
  * `HostService` over remote durable entity stubs. Control-plane logic runs in the
  * entry point over a control-entity stub; document operations are delegated to
  * per-document entity stubs, which serialize them and migrate on load. The
- * WebSocket realtime path lives in the document entity, so the presence and
- * connection methods here are no-ops on the RPC surface.
+ * WebSocket realtime path and leased headless connections both live in the
+ * document entity, so accepted transactions and presence changes share one
+ * serialized broadcast boundary.
  */
 export const makeDurableHostService = (deps: DurableHostServiceDeps): HostService => {
   const { docStub } = deps;
   const control = makeControlEngine(deps.controlStore, deps.migrations);
+
+  const connectionLeaseMs = (leaseMs?: number) => leaseMs ?? getConfig().presenceTtlMs;
 
   return {
     authenticateBasic: control.authenticateBasic,
@@ -162,19 +193,66 @@ export const makeDurableHostService = (deps: DurableHostServiceDeps): HostServic
         return result;
       }),
 
-    attachConnection: (collectionId, documentId) =>
+    attachConnection: (
+      collectionId,
+      documentId,
+      connectionId,
+      _permission,
+      userId,
+      presence,
+      leaseMs,
+    ) =>
       Effect.gen(function* () {
         yield* control.findDocument(collectionId, documentId);
-        const snapshot = yield* docStub(collectionId, documentId).getSnapshot();
-        if (!snapshot.found) {
+        if (presence === undefined) {
+          return yield* Effect.fail(notFound("Headless connections require presence data"));
+        }
+        const snapshot = yield* docStub(collectionId, documentId).openConnection(
+          connectionId,
+          { data: presence, ...(userId === undefined ? {} : { userId }) },
+          connectionLeaseMs(leaseMs),
+        );
+        if (!("found" in snapshot)) {
           return yield* Effect.fail(notFound(`Document not found: ${documentId}`));
         }
         return { value: snapshot.value, version: snapshot.version, presences: {} };
       }),
-
-    // Realtime presence and heartbeat live on the document entity's WebSocket path.
-    heartbeatConnection: () => Effect.void,
-    detachConnection: () => Effect.void,
+    heartbeatConnection: (collectionId, documentId, connectionId, leaseMs) =>
+      docStub(collectionId, documentId)
+        .heartbeatConnection(connectionId, connectionLeaseMs(leaseMs))
+        .pipe(
+          Effect.flatMap((found) =>
+            found ? Effect.void : Effect.fail(notFound(`Connection not found: ${connectionId}`)),
+          ),
+        ),
+    getConnectionDocument: (collectionId, documentId, connectionId, leaseMs) =>
+      docStub(collectionId, documentId)
+        .getConnectionSnapshot(connectionId, connectionLeaseMs(leaseMs))
+        .pipe(
+          Effect.flatMap((snapshot) =>
+            "found" in snapshot
+              ? Effect.succeed({
+                  id: documentId,
+                  collectionId,
+                  value: snapshot.value,
+                  version: snapshot.version,
+                })
+              : Effect.fail(notFound(`Connection not found: ${connectionId}`)),
+          ),
+        ),
+    submitConnectionTransaction: (collectionId, documentId, connectionId, transaction, leaseMs) =>
+      docStub(collectionId, documentId)
+        .submitConnection(connectionId, connectionLeaseMs(leaseMs), transaction)
+        .pipe(
+          Effect.flatMap((result) =>
+            "notFound" in result
+              ? Effect.fail(notFound(`Connection not found: ${connectionId}`))
+              : Effect.succeed(result),
+          ),
+        ),
+    detachConnection: (collectionId, documentId, connectionId) =>
+      docStub(collectionId, documentId).closeConnection(connectionId).pipe(Effect.asVoid),
+    // Browser WebSocket presence is held directly by the document object.
     getPresenceSnapshot: () => Effect.succeed({ presences: {} }),
     setPresence: () => Effect.void,
     removePresence: () => Effect.void,

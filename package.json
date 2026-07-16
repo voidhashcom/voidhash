@@ -47,6 +47,8 @@
     "openapi:generate:prod": "pnpm openapi:generate -- api.voidhash.com",
     "db:generate": "node ./scripts/db-generate.mjs",
     "db:migrate": "node ./scripts/db-migrate-local.mjs",
+    "sync:plugins": "tsx ./scripts/sync-plugins.ts",
+    "sync:plugins:check": "tsx ./scripts/sync-plugins.ts --check",
     "check:publication": "node ./scripts/check-publication-boundary.mjs",
     "selfhost:smoke": "tsx selfhost/smoke.mts",
     "selfhost:release-smoke": "tsx selfhost/release-smoke.mts",

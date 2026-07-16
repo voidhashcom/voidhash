@@ -5,12 +5,16 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const tracked = execFileSync("git", ["ls-files", "-z"], {
-  cwd: repoRoot,
-  encoding: "utf8",
-})
+const tracked = execFileSync(
+  "git",
+  ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+  {
+    cwd: repoRoot,
+    encoding: "utf8",
+  },
+)
   .split("\0")
-  .filter(Boolean);
+  .filter((path) => path.length > 0 && existsSync(join(repoRoot, path)));
 const trackedSet = new Set(tracked);
 const failures = [];
 
@@ -48,10 +52,7 @@ for (const path of tracked) {
   if (privateRoots.some((prefix) => path.startsWith(prefix))) {
     failures.push(`private-only path is tracked in the OSS repository: ${path}`);
   }
-  if (
-    path.split("/").some((part) => part.startsWith(".env")) &&
-    !path.endsWith(".env.example")
-  ) {
+  if (path.split("/").some((part) => part.startsWith(".env")) && !path.endsWith(".env.example")) {
     failures.push(`non-example environment file is tracked: ${path}`);
   }
 }
@@ -143,7 +144,6 @@ if (failures.length > 0) {
 
 process.stdout.write(
   `Publication boundary OK — ${tracked.length} tracked files and ${
-    tracked.filter((path) => path === "package.json" || path.endsWith("/package.json"))
-      .length - 1
+    tracked.filter((path) => path === "package.json" || path.endsWith("/package.json")).length - 1
   } workspace packages checked.\n`,
 );

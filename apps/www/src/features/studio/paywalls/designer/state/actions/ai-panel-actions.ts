@@ -66,16 +66,16 @@ export const finishAiCanvasOperation = commander.action<{ id: string }>((ctx, { 
   ctx.setState({ ai: { ...state.ai, operations } });
 });
 
-/** Sets whether the designer agent is actively processing a turn. */
+/** Sets whether this browser's built-in designer agent is processing a turn. */
 export const setAiWorking = commander.action<{ isWorking: boolean }>((ctx, { isWorking }) => {
   const state = ctx.getState();
-  if (state.ai.isWorking === isWorking) {
+  if (state.ai.localIsWorking === isWorking) {
     return;
   }
   ctx.setState({
     ai: {
       ...state.ai,
-      isWorking,
+      localIsWorking: isWorking,
     },
   });
 });

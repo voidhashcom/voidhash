@@ -22,10 +22,6 @@ The backend, dashboard, service packages, and self-hosting code that declare
 licensed under the GNU Affero General Public License, version 3 only. The full
 license is in [LICENSES/AGPL-3.0-only.txt](LICENSES/AGPL-3.0-only.txt).
 
-Repository visibility does not change these license grants. The complete code
-is being validated privately before the repository's publication gate, but the
-MIT and AGPL terms identified here already apply to their respective zones.
-
 ## Enterprise code
 
 Enterprise code is not included in this repository and remains in Voidhash's

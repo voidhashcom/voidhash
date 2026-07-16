@@ -29,6 +29,7 @@ describePg("self-host thumbnail queue", () => {
                 Effect.sync(() => {
                   handled.push(input);
                 }),
+              renderCurrent: () => Effect.void,
             });
             yield* Effect.forkScoped(
               runSelfhostPaywallThumbnailConsumer.pipe(

@@ -1,9 +1,23 @@
-import { DurableEntityHost, makeDurableEntityAddress } from "@voidhash/platform/DurableEntity";
+import {
+  type DurableEntityContext,
+  DurableEntityHost,
+  makeDurableEntityAddress,
+} from "@voidhash/platform/DurableEntity";
 import { Effect, Layer } from "effect";
 import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
+import { NotFoundError } from "@voidhash/mimic-server/rpc";
 
 import { HostServiceTag, type HostService, type PresenceEntry } from "../app/hostService.ts";
 import { getConfig, type MimicConfig } from "../config.ts";
+import type { TransactionEnvelope } from "../document/transaction.ts";
+import type { SessionAttachment } from "../ws/document-session.ts";
+import { IDLE_DIRTY_SEQ_KEY } from "../ws/idle-notify.ts";
+import {
+  presenceRemoveMessage,
+  presenceUpdateMessage,
+  transactionMessage,
+} from "../ws/messages.ts";
+import { encodeServerMessage, type ServerMessage } from "../ws/protocol.ts";
 import { makeControlEngine, type ControlEngineApi } from "./control-engine.ts";
 import { makeDocumentEngine, type DocumentEngineApi } from "./document-engine.ts";
 import {
@@ -25,6 +39,11 @@ import { randomId } from "./ids.ts";
 const docKeyOf = (collectionId: string, documentId: string): string =>
   `${collectionId}:${documentId}`;
 
+interface StoredPresence {
+  readonly entry: PresenceEntry;
+  readonly expiresAt?: number;
+}
+
 export interface LocalHostServiceDeps {
   readonly control: ControlEngineApi;
   readonly entities: DurableEntityHost["Service"];
@@ -42,7 +61,7 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
   const { control, entities, migrations, documentStores, config } = deps;
   const schema = makeControlStoreSchemaProvider(control.store);
   const documents = new Map<string, DocumentEngineApi>();
-  const presence = new Map<string, Map<string, PresenceEntry>>();
+  const presence = new Map<string, Map<string, StoredPresence>>();
 
   const getDoc = (collectionId: string, documentId: string): DocumentEngineApi => {
     const key = docKeyOf(collectionId, documentId);
@@ -59,7 +78,7 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
     return engine;
   };
 
-  const presenceOf = (collectionId: string, documentId: string): Map<string, PresenceEntry> => {
+  const presenceOf = (collectionId: string, documentId: string): Map<string, StoredPresence> => {
     const key = docKeyOf(collectionId, documentId);
     let entries = presence.get(key);
     if (!entries) {
@@ -72,7 +91,13 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
   const presenceSnapshot = (
     collectionId: string,
     documentId: string,
-  ): Record<string, PresenceEntry> => Object.fromEntries(presenceOf(collectionId, documentId));
+  ): Record<string, PresenceEntry> =>
+    Object.fromEntries(
+      [...presenceOf(collectionId, documentId)].map(([connectionId, stored]) => [
+        connectionId,
+        stored.entry,
+      ]),
+    );
 
   const runControl = <A, E, R>(operation: () => Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
     entities.run(makeDurableEntityAddress("mimic-control", "default"), () =>
@@ -82,12 +107,86 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
   const runDocument = <A, E, R>(
     collectionId: string,
     documentId: string,
-    operation: () => Effect.Effect<A, E, R>,
+    operation: (entity: DurableEntityContext) => Effect.Effect<A, E, R>,
   ): Effect.Effect<A, E, R> =>
     entities.run(
       makeDurableEntityAddress("mimic-document", docKeyOf(collectionId, documentId)),
-      () => Effect.suspend(operation),
+      (entity) => Effect.suspend(() => operation(entity)),
     );
+
+  const connectionNotFound = (connectionId: string) =>
+    new NotFoundError({ code: "not_found", message: `Connection not found: ${connectionId}` });
+
+  const broadcast = (entity: DurableEntityContext, message: ServerMessage): Effect.Effect<void> =>
+    Effect.gen(function* () {
+      const sessions = yield* entity.sessions.list;
+      yield* Effect.forEach(
+        sessions,
+        (session) =>
+          Effect.gen(function* () {
+            const attachment = (yield* session.getAttachment) as SessionAttachment | undefined;
+            if (attachment?.authenticated !== true) return;
+            yield* session.send(encodeServerMessage(message));
+          }),
+        { discard: true },
+      );
+    });
+
+  const scheduleAlarmAt = (entity: DurableEntityContext, scheduledTime: number) =>
+    Effect.gen(function* () {
+      const current = yield* entity.alarm.get;
+      if (current === undefined || scheduledTime < current) {
+        yield* entity.alarm.set(scheduledTime);
+      }
+    });
+
+  const scheduleNextPresenceExpiry = (
+    entries: Map<string, StoredPresence>,
+    entity: DurableEntityContext,
+  ) => {
+    const expirations = [...entries.values()].flatMap(({ expiresAt }) =>
+      expiresAt === undefined ? [] : [expiresAt],
+    );
+    return expirations.length === 0
+      ? Effect.void
+      : scheduleAlarmAt(entity, Math.min(...expirations));
+  };
+
+  const prunePresence = (
+    collectionId: string,
+    documentId: string,
+    entity: DurableEntityContext,
+  ): Effect.Effect<void> =>
+    Effect.gen(function* () {
+      const entries = presenceOf(collectionId, documentId);
+      const now = Date.now();
+      for (const [connectionId, stored] of entries) {
+        if (stored.expiresAt === undefined || stored.expiresAt > now) continue;
+        entries.delete(connectionId);
+        yield* broadcast(entity, presenceRemoveMessage(connectionId));
+      }
+      yield* scheduleNextPresenceExpiry(entries, entity);
+    });
+
+  const requireHeadlessConnection = (
+    collectionId: string,
+    documentId: string,
+    connectionId: string,
+    leaseMs: number,
+    entity: DurableEntityContext,
+  ): Effect.Effect<StoredPresence, NotFoundError> =>
+    Effect.gen(function* () {
+      yield* prunePresence(collectionId, documentId, entity);
+      const entries = presenceOf(collectionId, documentId);
+      const current = entries.get(connectionId);
+      if (current?.expiresAt === undefined) {
+        return yield* Effect.fail(connectionNotFound(connectionId));
+      }
+      const next = { ...current, expiresAt: Date.now() + leaseMs };
+      entries.set(connectionId, next);
+      yield* scheduleAlarmAt(entity, next.expiresAt);
+      return next;
+    });
 
   return {
     authenticateBasic: (username, password) =>
@@ -212,11 +311,39 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
         }),
       ),
 
-    attachConnection: (collectionId, documentId) =>
-      runDocument(collectionId, documentId, () =>
+    attachConnection: (
+      collectionId,
+      documentId,
+      connectionId,
+      _permission,
+      userId,
+      connectionPresence,
+      leaseMs = config.presenceTtlMs,
+    ) =>
+      runDocument(collectionId, documentId, (entity) =>
         Effect.gen(function* () {
           yield* runControl(() => control.findDocument(collectionId, documentId));
+          if (connectionPresence === undefined) {
+            return yield* Effect.fail(
+              new NotFoundError({
+                code: "not_found",
+                message: "Headless connections require presence data",
+              }),
+            );
+          }
+          yield* prunePresence(collectionId, documentId, entity);
           const loaded = yield* getDoc(collectionId, documentId).load();
+          const entry: PresenceEntry = {
+            data: connectionPresence,
+            ...(userId === undefined ? {} : { userId }),
+          };
+          const stored = {
+            entry,
+            expiresAt: Date.now() + leaseMs,
+          };
+          presenceOf(collectionId, documentId).set(connectionId, stored);
+          yield* scheduleAlarmAt(entity, stored.expiresAt);
+          yield* broadcast(entity, presenceUpdateMessage(connectionId, entry.data, entry.userId));
           return {
             value: loaded.value,
             version: loaded.version,
@@ -225,20 +352,77 @@ export const makeLocalHostService = (deps: LocalHostServiceDeps): HostService =>
         }),
       ),
 
-    heartbeatConnection: (collectionId, documentId) =>
-      runDocument(collectionId, documentId, () => Effect.void),
+    heartbeatConnection: (collectionId, documentId, connectionId, leaseMs = config.presenceTtlMs) =>
+      runDocument(collectionId, documentId, (entity) =>
+        requireHeadlessConnection(collectionId, documentId, connectionId, leaseMs, entity).pipe(
+          Effect.asVoid,
+        ),
+      ),
+    getConnectionDocument: (
+      collectionId,
+      documentId,
+      connectionId,
+      leaseMs = config.presenceTtlMs,
+    ) =>
+      runDocument(collectionId, documentId, (entity) =>
+        Effect.gen(function* () {
+          yield* requireHeadlessConnection(collectionId, documentId, connectionId, leaseMs, entity);
+          const loaded = yield* getDoc(collectionId, documentId).load();
+          return { id: documentId, collectionId, value: loaded.value, version: loaded.version };
+        }),
+      ),
+    submitConnectionTransaction: (
+      collectionId,
+      documentId,
+      connectionId,
+      transaction,
+      leaseMs = config.presenceTtlMs,
+    ) =>
+      runDocument(collectionId, documentId, (entity) =>
+        Effect.gen(function* () {
+          const connection = yield* requireHeadlessConnection(
+            collectionId,
+            documentId,
+            connectionId,
+            leaseMs,
+            entity,
+          );
+          const envelope: TransactionEnvelope = {
+            ...transaction,
+            actor: {
+              connectionId,
+              ...(connection.entry.userId === undefined ? {} : { userId: connection.entry.userId }),
+            },
+          };
+          const result = yield* getDoc(collectionId, documentId).submit(envelope);
+          if (result.accepted) {
+            yield* entity.keyValue.put(IDLE_DIRTY_SEQ_KEY, result.version - 1);
+            yield* broadcast(entity, transactionMessage(envelope, result.version));
+          }
+          return result;
+        }),
+      ),
     detachConnection: (collectionId, documentId, connectionId) =>
-      runDocument(collectionId, documentId, () =>
-        Effect.sync(() => void presenceOf(collectionId, documentId).delete(connectionId)),
+      runDocument(collectionId, documentId, (entity) =>
+        Effect.gen(function* () {
+          const removed = presenceOf(collectionId, documentId).delete(connectionId);
+          if (removed) yield* broadcast(entity, presenceRemoveMessage(connectionId));
+          if (removed && presenceOf(collectionId, documentId).size === 0) {
+            yield* scheduleAlarmAt(entity, Date.now() + config.idleNotifyDebounceMs);
+          }
+        }),
       ),
 
     getPresenceSnapshot: (collectionId, documentId) =>
-      runDocument(collectionId, documentId, () =>
-        Effect.sync(() => ({ presences: presenceSnapshot(collectionId, documentId) })),
+      runDocument(collectionId, documentId, (entity) =>
+        Effect.gen(function* () {
+          yield* prunePresence(collectionId, documentId, entity);
+          return { presences: presenceSnapshot(collectionId, documentId) };
+        }),
       ),
     setPresence: (collectionId, documentId, connectionId, entry) =>
       runDocument(collectionId, documentId, () =>
-        Effect.sync(() => void presenceOf(collectionId, documentId).set(connectionId, entry)),
+        Effect.sync(() => void presenceOf(collectionId, documentId).set(connectionId, { entry })),
       ),
     removePresence: (collectionId, documentId, connectionId) =>
       runDocument(collectionId, documentId, () =>

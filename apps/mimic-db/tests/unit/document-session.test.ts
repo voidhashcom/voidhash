@@ -64,7 +64,12 @@ const makeHarness = (options?: {
   const presence = new Map<string, PresenceEntry>();
   const ctx: DocumentSessionContext<FakeSocket> = {
     registry,
-    presence,
+    presence: {
+      snapshot: () => Effect.sync(() => Object.fromEntries(presence)),
+      set: (connectionId, entry) => Effect.sync(() => void presence.set(connectionId, entry)),
+      remove: (connectionId) => Effect.sync(() => presence.delete(connectionId)),
+      prune: () => Effect.void,
+    },
     getAttachment: (socket) => socket.attachment,
     setAttachment: (socket, attachment) => {
       socket.attachment = attachment;
@@ -278,7 +283,10 @@ describe("document session protocol", () => {
     const dyingCtx: DocumentSessionContext<FakeSocket> = {
       ...harness.ctx,
       onLastAuthenticatedClose: () =>
-        isolateSessionHook(Effect.die(new Error("storage unavailable")), "onLastAuthenticatedClose"),
+        isolateSessionHook(
+          Effect.die(new Error("storage unavailable")),
+          "onLastAuthenticatedClose",
+        ),
     };
     const leaver = await harness.authenticateSocket("leaver");
     await Effect.runPromise(

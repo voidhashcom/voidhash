@@ -18,8 +18,10 @@ beforeEach(() => {
 describe("self-host runtime configuration", () => {
   it("uses local development defaults", () => {
     delete process.env.NODE_ENV;
+    delete process.env.ANTHROPIC_API_KEY;
     delete process.env.CLICKHOUSE_URL;
     delete process.env.PUBLIC_BASE_URL;
+    delete process.env.OPENAI_API_KEY;
     delete process.env.S3_ENDPOINT;
     delete process.env.SMTP_FROM_ADDRESS;
     delete process.env.SMTP_FROM_NAME;
@@ -39,6 +41,12 @@ describe("self-host runtime configuration", () => {
     const config = getSelfhostRuntimeConfig();
 
     expect(config.clickhouse).toBeUndefined();
+    expect(config.agent).toMatchObject({
+      modelId: "claude-sonnet-4-6",
+      provider: "anthropic",
+      visionModelId: "claude-sonnet-4-6",
+      visionProvider: "anthropic",
+    });
     expect(config.publicBaseUrl).toBe("http://localhost:5001");
     expect(config.publicObjectStore.endpoint).toBe("http://127.0.0.1:9000");
     expect(config.mailer).toMatchObject({
@@ -48,6 +56,26 @@ describe("self-host runtime configuration", () => {
       verifyOnStart: false,
     });
     expect(config.workos.clientId).toBe("client_selfhost_not_configured");
+  });
+
+  it("reads BYO agent provider and model settings", () => {
+    process.env.OPENAI_API_KEY = "configured-openai-key";
+    process.env.OPENAI_BASE_URL = "https://models.example.test/v1";
+    process.env.VOIDHASH_AGENT_MODEL_PROVIDER = "openai";
+    process.env.VOIDHASH_AGENT_MODEL_ID = "gpt-5.4";
+    process.env.VOIDHASH_AGENT_VISION_MODEL_PROVIDER = "openai";
+    process.env.VOIDHASH_AGENT_VISION_MODEL_ID = "gpt-5.4";
+
+    const agent = getSelfhostRuntimeConfig().agent;
+
+    expect(agent).toMatchObject({
+      modelId: "gpt-5.4",
+      openaiBaseUrl: "https://models.example.test/v1",
+      provider: "openai",
+      visionModelId: "gpt-5.4",
+      visionProvider: "openai",
+    });
+    expect(Redacted.value(agent.openaiApiKey!)).toBe("configured-openai-key");
   });
 
   it("reads authenticated TLS SMTP settings", () => {

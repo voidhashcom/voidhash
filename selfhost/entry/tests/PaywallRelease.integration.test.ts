@@ -61,10 +61,15 @@ describePg("self-host paywall releases", () => {
       database,
       AuditLogPort.noop,
       Layer.succeed(MimicHost, {
+        closePaywallConnection: () => Effect.die("unused"),
         createPaywallEditToken: () => Effect.die("unused"),
         ensurePaywallDocument: () => Effect.void,
+        getConnectedPaywallDocument: () => Effect.die("unused"),
         getPaywallDocument: () => Effect.die("unused"),
         getPaywallSnapshot: () => Effect.succeed({ id: "root", type: "root" }),
+        heartbeatPaywallConnection: () => Effect.die("unused"),
+        openPaywallConnection: () => Effect.die("unused"),
+        submitConnectedPaywallTransaction: () => Effect.die("unused"),
         submitPaywallTransaction: () => Effect.die("unused"),
       }),
       Layer.succeed(PaywallArtifactStore, {

@@ -292,8 +292,8 @@ export type DesignerStoreState = {
     width: number;
     /** Active model/tool operations, keyed by tool-call id (browser-only). */
     operations: Record<string, AgentCanvasOperation>;
-    /** Whether the designer agent is submitting or streaming a turn. */
-    isWorking: boolean;
+    /** Whether this browser's built-in designer agent is processing a turn. */
+    localIsWorking: boolean;
   };
   stateOverrideSelection: StateOverrideSelection;
   /**

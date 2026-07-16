@@ -150,21 +150,29 @@ describe("tools/call", () => {
 });
 
 describe("resources", () => {
-  it("lists and reads the schema-derived authoring guide", async () => {
+  it("lists and reads both authoring skills", async () => {
     const listed = await run(msg("resources/list"));
     const resources = (listed as { result: { resources: Array<{ uri: string }> } }).result
       .resources;
-    expect(resources[0]?.uri).toBe("voidhash://paywall-authoring/reference");
+    expect(resources[0]?.uri).toBe("voidhash://skills/paywall-authoring");
+    expect(resources[1]?.uri).toBe("voidhash://skills/code-component-authoring");
 
-    const read = await run(
-      msg("resources/read", { uri: "voidhash://paywall-authoring/reference" }),
-    );
+    const read = await run(msg("resources/read", { uri: "voidhash://skills/paywall-authoring" }));
     const text = (read as { result: { contents: Array<{ text: string }> } }).result.contents[0]
       ?.text;
     expect(text).toContain("begin_paywall_edit");
     expect(text).toContain("Document model");
     expect(text).toContain("Variables, states, and actions");
     expect(text).toContain("selected_product");
+
+    const componentRead = await run(
+      msg("resources/read", { uri: "voidhash://skills/code-component-authoring" }),
+    );
+    const componentText = (componentRead as { result: { contents: Array<{ text: string }> } })
+      .result.contents[0]?.text;
+    expect(componentText).toContain("Custom designer panels");
+    expect(componentText).toContain("Runtime animation and gestures");
+    expect(componentText).toContain("useMotionValue");
   });
 });
 
@@ -177,7 +185,7 @@ describe("prompts", () => {
     const response = await run(
       msg("prompts/get", {
         name: "design_paywall",
-        arguments: { slug: "trial", request: "Improve hierarchy" },
+        arguments: { paywallId: "pw_1", request: "Improve hierarchy" },
       }),
     );
     const text = (
@@ -185,7 +193,7 @@ describe("prompts", () => {
         result: { messages: Array<{ content: { text: string } }> };
       }
     ).result.messages[0]?.content.text;
-    expect(text).toContain('paywall "trial"');
+    expect(text).toContain('paywall "pw_1"');
     expect(text).toContain("get_paywall_preview");
     expect(text).toContain("dynamic behavior without code");
     expect(text).toContain("actionBindings");

@@ -13,6 +13,7 @@ import * as docsSourceConfig from "./src/features/docs/source.config.ts";
 
 const devPort = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 3000;
 const devHost = process.env.HOST ?? true;
+const appRootPath = fileURLToPath(new URL(".", import.meta.url));
 const appSrcPath = fileURLToPath(new URL("./src", import.meta.url));
 const workspacePath = fileURLToPath(new URL("../..", import.meta.url));
 const require = createRequire(import.meta.url);
@@ -115,6 +116,7 @@ function scopedMdxPlugin(plugin: PluginOption, scopeFragment: string) {
 }
 
 export default defineConfig(() => ({
+  root: appRootPath,
   build: {
     minify: "esbuild",
   },
@@ -162,6 +164,8 @@ export default defineConfig(() => ({
       "@generated/docs": fileURLToPath(new URL("./docs.generated.ts", import.meta.url)),
       tslib: tslibPath,
     },
+    // TanStack's server-function compiler must transform WorkOS-owned createServerFn calls.
+    noExternal: ["@workos/authkit-tanstack-react-start"],
     tsconfigPaths: true,
   },
   server: {

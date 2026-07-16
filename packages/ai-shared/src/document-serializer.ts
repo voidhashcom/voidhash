@@ -56,7 +56,7 @@ export interface SerializeOptions {
  * `{id, pos, value}` array envelopes recursively, and strips every data field
  * whose value equals that node type's schema default (so the model sees only what
  * was actually authored). It keeps `id` (the model addresses nodes by id in
- * `edit_document`), `type`, `name`, and the remaining data.
+ * `edit_paywall`), `type`, `name`, and the remaining data.
  *
  * A `codeComponent` node is emitted WITHOUT its `source` (the full TSX would blow
  * up a whole-document read): only its `path` and a `sourceLength` stub ship — the
@@ -79,10 +79,7 @@ export function serializeDocument(
 }
 
 /** Depth-first search for a node by id across a decoded forest. */
-function findNode(
-  nodes: readonly SnapshotDocumentNode[],
-  id: string,
-): SnapshotDocumentNode | null {
+function findNode(nodes: readonly SnapshotDocumentNode[], id: string): SnapshotDocumentNode | null {
   for (const node of nodes) {
     if (node.id === id) return node;
     const found = findNode(node.children ?? [], id);

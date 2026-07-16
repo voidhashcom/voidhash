@@ -1,4 +1,3 @@
-import { Effect } from "effect";
 import { queryKeys } from "@/features/studio/lib/tanstack-query";
 
 import { VoidhashRpc, eq } from "../effect-query";
@@ -7,6 +6,13 @@ export const listPaywallsOptions = (options: { projectId: string; includeArchive
   eq.queryOptions({
     queryFn: () => VoidhashRpc.request((rpc) => rpc.ListPaywalls(options)),
     queryKey: queryKeys.paywall.list(options),
+  });
+
+export const backfillPaywallThumbnailsOptions = () =>
+  eq.mutationOptions({
+    mutationFn: (variables: { projectId: string }) =>
+      VoidhashRpc.request((rpc) => rpc.BackfillPaywallThumbnails(variables)),
+    mutationKey: ["backfillPaywallThumbnails"],
   });
 
 export const createPaywallOptions = () =>

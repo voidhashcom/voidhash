@@ -1,4 +1,4 @@
-import type { PgDocumentConfig } from "@voidhash/mimic-db/core/pg-store";
+import { makePgDocumentConfig } from "@voidhash/mimic-db/core/pg-store";
 import type { PgDurableEntityConfig } from "@voidhash/platform-node/DurableEntity";
 import { Redacted } from "effect";
 
@@ -29,12 +29,12 @@ export const getMimicNodeConfig = (): MimicNodeConfig => {
     username,
     password,
   };
-  const documents: PgDocumentConfig = {
+  const documents = makePgDocumentConfig({
     host,
     port,
     database,
     username,
-    password,
-  };
+    password: passwordValue,
+  });
   return { database: databaseConfig, documents };
 };

@@ -1,16 +1,22 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button, Page, PageHeader, PageHeaderTitle } from "@voidhash/ui";
 import { ArchiveIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/features/studio/components/auth-context";
 
 import { CreatePaywallButton } from "@/features/studio/paywalls/create-paywall-button";
 import { PaywallCard } from "@/features/studio/paywalls/paywall-card";
 import { PaywallCardSkeleton } from "@/features/studio/paywalls/paywall-card-skeleton";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
-import { listPaywallsOptions } from "@/features/studio/lib/tanstack-query/paywalls";
+import {
+  backfillPaywallThumbnailsOptions,
+  listPaywallsOptions,
+} from "@/features/studio/lib/tanstack-query/paywalls";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
+
+const THUMBNAIL_REFRESH_INTERVAL_MS = 2_000;
+const THUMBNAIL_REFRESH_WINDOW_MS = 45_000;
 
 export const Route = createFileRoute(
   "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/",
@@ -61,12 +67,41 @@ function PaywallsPage() {
   }
 
   const [showArchived, setShowArchived] = useState(false);
+  const thumbnailRefreshDeadline = useRef(Date.now() + THUMBNAIL_REFRESH_WINDOW_MS);
+  const thumbnailBackfillProjectId = useRef<string | null>(null);
+  const queryClient = useQueryClient();
+  const paywallsQueryOptions = listPaywallsOptions({
+    includeArchived: true,
+    projectId: project.id,
+  });
+  const { mutate: backfillThumbnails } = useMutation({
+    ...backfillPaywallThumbnailsOptions(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: paywallsQueryOptions.queryKey }),
+  });
 
   // Fetch archived paywalls alongside active ones so toggling visibility is a
   // client-side filter — no refetch (and no skeleton flash) when flipping it.
-  const { data: allPaywalls } = useSuspenseQuery(
-    listPaywallsOptions({ includeArchived: true, projectId: project.id }),
-  );
+  const { data: allPaywalls } = useSuspenseQuery({
+    ...paywallsQueryOptions,
+    // Thumbnail generation starts after the designer connection becomes idle,
+    // so the first list response commonly arrives before thumbnailUrl is set.
+    refetchInterval: (query) =>
+      Date.now() < thumbnailRefreshDeadline.current &&
+      query.state.data?.some((paywall) => paywall.thumbnailUrl === null)
+        ? THUMBNAIL_REFRESH_INTERVAL_MS
+        : false,
+  });
+
+  useEffect(() => {
+    if (
+      thumbnailBackfillProjectId.current === project.id ||
+      !allPaywalls.some((paywall) => paywall.thumbnailUrl === null)
+    ) {
+      return;
+    }
+    thumbnailBackfillProjectId.current = project.id;
+    backfillThumbnails({ projectId: project.id });
+  }, [allPaywalls, backfillThumbnails, project.id]);
 
   const archivedCount = allPaywalls.filter((paywall) => paywall.archivedAt != null).length;
   const paywalls = showArchived
@@ -79,11 +114,7 @@ function PaywallsPage() {
         rightActions={
           <div className="flex items-center gap-2">
             {archivedCount > 0 && (
-              <Button
-                onClick={() => setShowArchived((value) => !value)}
-                size="sm"
-                variant="ghost"
-              >
+              <Button onClick={() => setShowArchived((value) => !value)} size="sm" variant="ghost">
                 <ArchiveIcon />
                 {showArchived ? "Hide archived" : `Show archived (${archivedCount})`}
               </Button>

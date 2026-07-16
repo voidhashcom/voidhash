@@ -85,6 +85,9 @@ export const validateSelfhostSecurityConfig = (): SelfhostMode => {
   for (const name of requiredSecrets) {
     if (isExampleSecret(process.env[name])) unsafeSettings.push(name);
   }
+  if (!process.env.OPENAI_API_KEY?.trim() && !process.env.ANTHROPIC_API_KEY?.trim()) {
+    unsafeSettings.push("OPENAI_API_KEY or ANTHROPIC_API_KEY");
+  }
 
   for (const name of [
     "PUBLIC_BASE_URL",
@@ -128,8 +131,20 @@ export interface SelfhostClickhouseConfig {
   readonly readWrite: SelfhostClickhouseConnection;
 }
 
+/** BYO-provider configuration for durable self-hosted agent sessions. */
+export interface SelfhostAgentConfig {
+  readonly provider: string;
+  readonly modelId: string;
+  readonly visionProvider: string;
+  readonly visionModelId: string;
+  readonly openaiApiKey?: Redacted.Redacted<string>;
+  readonly anthropicApiKey?: Redacted.Redacted<string>;
+  readonly openaiBaseUrl?: string;
+}
+
 /** Configuration for the single-process self-host runtime. */
 export interface SelfhostRuntimeConfig {
+  readonly agent: SelfhostAgentConfig;
   readonly clickhouse?: SelfhostClickhouseConfig;
   readonly componentCompilerUrl: string;
   readonly database: DbConfig;
@@ -223,8 +238,23 @@ export const getSelfhostRuntimeConfig = (): SelfhostRuntimeConfig => {
     secretAccessKey,
   };
   const clickhouse = getSelfhostClickhouseConfig();
+  const openaiApiKey = process.env.OPENAI_API_KEY?.trim();
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const defaultProvider = openaiApiKey ? "openai" : "anthropic";
+  const defaultModelId = openaiApiKey ? "gpt-5.4" : "claude-sonnet-4-6";
 
   return {
+    agent: {
+      provider: process.env.VOIDHASH_AGENT_MODEL_PROVIDER?.trim() || defaultProvider,
+      modelId: process.env.VOIDHASH_AGENT_MODEL_ID?.trim() || defaultModelId,
+      visionProvider: process.env.VOIDHASH_AGENT_VISION_MODEL_PROVIDER?.trim() || defaultProvider,
+      visionModelId: process.env.VOIDHASH_AGENT_VISION_MODEL_ID?.trim() || defaultModelId,
+      ...(openaiApiKey === undefined ? {} : { openaiApiKey: Redacted.make(openaiApiKey) }),
+      ...(anthropicApiKey === undefined ? {} : { anthropicApiKey: Redacted.make(anthropicApiKey) }),
+      ...(process.env.OPENAI_BASE_URL?.trim()
+        ? { openaiBaseUrl: process.env.OPENAI_BASE_URL.trim() }
+        : {}),
+    },
     artifactObjectStore: {
       ...objectStore,
       bucketName: process.env.S3_ARTIFACT_BUCKET?.trim() || "voidhash-artifacts",

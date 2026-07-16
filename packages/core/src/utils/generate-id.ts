@@ -17,7 +17,7 @@ const prefixes = {
   purchase: "pur",
   paywall: "pw",
   paywallEditToken: "pw_et",
-  paywallEditChangeSet: "pw_change",
+  paywallEditSession: "pw_edit",
   paywallProduct: "pw_prod",
   paywallRelease: "pw_pub",
   paymentProviderConfiguration: "pp_conf",
@@ -73,12 +73,7 @@ const prefixes = {
   internalFeatureFlagOverride: "iff_ovr",
   // Organization-scoped paywall image asset library
   paywallAsset: "pw_asset",
-  // Voidhash AI chat persistence (the chat id is minted client-side; this
-  // prefix is used for server-side fallbacks and stored attachment objects)
-  aiChat: "ai_chat",
-  aiChatAttachment: "ai_att",
-  // Per-turn AI checkpoint pre-image row (server-minted).
-  aiCheckpoint: "ai_ckpt",
+  agentAttachment: "agent_att",
   // Internal voidhash product feedback (distinct from any future customer-facing
   // feedback-collection product, which could own the plain `fb` prefix)
   voidhashFeedback: "vh_fb",

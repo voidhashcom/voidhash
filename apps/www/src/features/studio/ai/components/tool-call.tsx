@@ -1,20 +1,7 @@
-import type { DynamicToolUIPart, ToolUIPart } from "ai";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-  cn,
-  Spinner,
-} from "@voidhash/ui";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, cn, Spinner } from "@voidhash/ui";
 import { AlertCircle, ChevronRight, CheckCircle2, Wrench } from "lucide-react";
 
-/** Any tool invocation part — statically-typed or the dynamic (server-declared) shape. */
-type AnyToolPart = ToolUIPart | DynamicToolUIPart;
-
-/** Human-facing tool name for both dynamic and static tool parts. */
-function toolNameOf(part: AnyToolPart): string {
-  return part.type === "dynamic-tool" ? part.toolName : part.type.slice("tool-".length);
-}
+import type { AgentUiToolPart } from "../agent-ui";
 
 /** Stringify tool input/output for display; strings pass through, objects pretty-print. */
 function formatValue(value: unknown): string {
@@ -31,8 +18,40 @@ function formatValue(value: unknown): string {
   }
 }
 
+interface ToolOutputImage {
+  readonly type: "image";
+  readonly data: string;
+  readonly mimeType: string;
+}
+
+const isToolOutputImage = (value: unknown): value is ToolOutputImage =>
+  typeof value === "object" &&
+  value !== null &&
+  "type" in value &&
+  value.type === "image" &&
+  "data" in value &&
+  typeof value.data === "string" &&
+  "mimeType" in value &&
+  typeof value.mimeType === "string";
+
+const toolOutputText = (value: unknown): string => {
+  if (!Array.isArray(value) || !value.some(isToolOutputImage)) return formatValue(value);
+  return value
+    .filter(
+      (item): item is { readonly type: "text"; readonly text: string } =>
+        typeof item === "object" &&
+        item !== null &&
+        "type" in item &&
+        item.type === "text" &&
+        "text" in item &&
+        typeof item.text === "string",
+    )
+    .map((item) => item.text)
+    .join("\n");
+};
+
 /** Status icon for the tool's current lifecycle state. */
-function StatusIcon({ state }: { state: AnyToolPart["state"] }) {
+function StatusIcon({ state }: { state: AgentUiToolPart["state"] }) {
   if (state === "output-error") {
     return <AlertCircle className="size-3.5 text-destructive" />;
   }
@@ -48,14 +67,15 @@ function StatusIcon({ state }: { state: AnyToolPart["state"] }) {
  * tool name and a status icon; expanding reveals the pretty-printed input and,
  * when available, the tool output (or the error text). Closed by default.
  */
-export function ToolCallView({ part }: { part: AnyToolPart }) {
-  const name = toolNameOf(part);
+export function ToolCallView({ part }: { part: AgentUiToolPart }) {
+  const name = part.toolName;
   const input = formatValue(part.input);
+  const images = Array.isArray(part.output) ? part.output.filter(isToolOutputImage) : [];
   const output =
     part.state === "output-error"
       ? part.errorText
       : part.state === "output-available"
-        ? formatValue(part.output)
+        ? toolOutputText(part.output)
         : "";
 
   return (
@@ -95,6 +115,23 @@ export function ToolCallView({ part }: { part: AnyToolPart }) {
               </pre>
             </div>
           )}
+          {images.length > 0 ? (
+            <div className="grid max-w-xl grid-cols-2 gap-2">
+              {images.map((item, index) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={`${part.toolCallId}-image-${index}`}
+                  alt={`${name} output ${index + 1}`}
+                  className="max-h-72 w-full rounded border border-border object-contain"
+                  src={
+                    item.data.startsWith("data:")
+                      ? item.data
+                      : `data:${item.mimeType};base64,${item.data}`
+                  }
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
       </CollapsibleContent>
     </Collapsible>

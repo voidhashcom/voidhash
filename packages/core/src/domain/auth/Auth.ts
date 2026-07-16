@@ -1,10 +1,11 @@
 import { Schema } from "effect";
+import { AuthSession } from "@voidhash/rpc";
 // Single canonical AuthSession service tag — the rpc package owns the
 // definition and middleware that provides it; re-exporting here keeps domain
 // callers using the same class instance, so per-request middleware provisions
 // satisfy every consumer (including ones that imported AuthSession from this
 // domain module before the migration).
-export { AuthSession } from "@voidhash/rpc";
+export { AuthSession };
 
 /** Action is forbidden due to insufficient permissions */
 export class ActionForbiddenError extends Schema.TaggedErrorClass<ActionForbiddenError>(
@@ -99,3 +100,78 @@ export type SecretKeySession = typeof SecretKeySessionSchema.Type;
 export type PublishableKeySession = typeof PublishableKeySessionSchema.Type;
 
 export type AnyAuthSession = UserSession | SecretKeySession | PublishableKeySession;
+
+/** Project fields required to construct a trusted internal service session. */
+export interface InternalProjectSessionProject {
+  readonly id: string;
+  readonly name: string;
+  readonly organizationId: string;
+  readonly slug: string;
+}
+
+/**
+ * Constructs the single-project session used by trusted server-side adapters.
+ * The returned session still passes through the normal service authorization
+ * checks and grants no access outside the supplied project.
+ */
+export const makeInternalProjectAuthSession = (
+  project: InternalProjectSessionProject,
+  name = `${project.name} API Key`,
+): AuthSession["Service"] => ({
+  cookie: null,
+  method: "secret-key",
+  name,
+  organizations: [],
+  person: null,
+  projects: [
+    {
+      id: project.id,
+      logo: null,
+      name: project.name,
+      organizationId: project.organizationId,
+      permissions: ["project:all"],
+      slug: project.slug,
+    },
+  ],
+  user: null,
+});
+
+/**
+ * Constructs a trusted single-project user session while preserving the
+ * authenticated user's identity across an internal runtime boundary.
+ */
+export const makeInternalProjectUserAuthSession = (
+  project: InternalProjectSessionProject,
+  userId: string,
+  name = "Internal user session",
+): AuthSession["Service"] => {
+  const timestamp = new Date(0);
+  return {
+    cookie: null,
+    method: "user",
+    name,
+    organizations: [],
+    person: null,
+    projects: [
+      {
+        id: project.id,
+        logo: null,
+        name: project.name,
+        organizationId: project.organizationId,
+        permissions: ["project:all"],
+        slug: project.slug,
+      },
+    ],
+    user: {
+      createdAt: timestamp,
+      email: "",
+      emailVerified: false,
+      id: userId,
+      image: null,
+      name,
+      role: null,
+      updatedAt: timestamp,
+      workosUserId: null,
+    },
+  };
+};

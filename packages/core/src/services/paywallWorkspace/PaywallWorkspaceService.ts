@@ -13,7 +13,7 @@ import {
 } from "@voidhash/paywall-workspace";
 
 import { PaywallNotFoundError } from "../../domain/paywall/Paywall.ts";
-import { MimicHost } from "../paywalls/MimicHost.ts";
+import { MimicHost, type AgentPaywallPresence } from "../paywalls/MimicHost.ts";
 import { PaywallService } from "../paywalls/PaywallService.ts";
 import { ComponentManifestCacheError } from "./ComponentManifestCacheService.ts";
 
@@ -83,6 +83,12 @@ export interface WorkspaceMutationResult {
 export interface WorkspacePaywallDir {
   readonly slug: string;
   readonly paywallId: string;
+}
+
+/** A live Mimic participant connection scoped to one paywall document. */
+export interface WorkspaceDocumentConnection {
+  readonly paywallId: string;
+  readonly connectionId: string;
 }
 
 /**
@@ -178,6 +184,20 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
           return paywall;
         });
 
+      const resolvePaywallById = (projectId: string, paywallId: string) =>
+        Effect.gen(function* () {
+          const paywalls = yield* paywallService.getPaywalls(projectId);
+          const paywall = paywalls.find((candidate) => candidate.id === paywallId);
+          if (paywall === undefined) {
+            return yield* Effect.fail(
+              new PaywallNotFoundError({
+                message: `No paywall with id "${paywallId}" in project ${projectId}`,
+              }),
+            );
+          }
+          return paywall;
+        });
+
       /**
        * Reads the current LIVE document for `paywallId` (by id, not slug):
        * ensures the mimic document exists and returns its RAW encoded `tree` (the
@@ -188,7 +208,7 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
        *
        * The stored paywall is loaded first through {@link PaywallService}, so
        * direct callers cannot bypass project authorization by supplying a raw
-       * mimic document id. Used by the AI `CaptureAiCheckpoint` path (reads
+       * mimic document id. Used by server-side workspace inspection (reads
        * `tree`) and by {@link readDocument} (reads `root`).
        */
       const readDocumentTree = (paywallId: string) =>
@@ -215,11 +235,9 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
 
       /**
        * Resolves a paywall by slug within the project (authz: the slug must
-       * belong to `projectId`) and reads its LIVE document's decoded renderer
-       * `root` — the input the AI `read_paywall` / `ReadPaywallDocument` surface
-       * cleans (via `serializeDocument`) for the model. Returns the paywall's
-       * identity (`slug`, `name`, `paywallId`) alongside the decoded `root` so the
-       * caller need not re-resolve. Read-only.
+       * belong to `projectId`) and reads one consistent snapshot of its live
+       * document. Returns the paywall identity alongside the raw tree, decoded
+       * renderer root, and optimistic-concurrency version. Read-only.
        */
       const readDocument = (projectId: string, paywallSlug: string) =>
         Effect.gen(function* () {
@@ -241,6 +259,82 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
             version: number;
           };
         });
+
+      const openDocumentConnection = (
+        projectId: string,
+        paywallId: string,
+        connectionId: string,
+        presence: AgentPaywallPresence,
+      ) =>
+        Effect.gen(function* () {
+          const paywall = yield* resolvePaywallById(projectId, paywallId);
+          yield* mimicHost.ensurePaywallDocument(paywall.id);
+          const document = yield* mimicHost.openPaywallConnection({
+            paywallId: paywall.id,
+            connectionId,
+            presence,
+          });
+          return {
+            slug: paywall.slug,
+            name: paywall.name,
+            paywallId: paywall.id,
+            tree: document.tree,
+            root: document.root,
+            version: document.version,
+          };
+        }).pipe(
+          Effect.catchTags({
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+          }),
+        );
+
+      const readConnectedDocumentTree = (
+        projectId: string,
+        connection: WorkspaceDocumentConnection,
+      ) =>
+        Effect.gen(function* () {
+          yield* resolvePaywallById(projectId, connection.paywallId);
+          const document = yield* mimicHost.getConnectedPaywallDocument(connection);
+          return {
+            tree: document.tree,
+            root: document.root,
+            version: document.version,
+          };
+        }).pipe(
+          Effect.catchTags({
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+          }),
+        );
+
+      const heartbeatDocumentConnection = (
+        projectId: string,
+        connection: WorkspaceDocumentConnection,
+      ) =>
+        Effect.gen(function* () {
+          yield* resolvePaywallById(projectId, connection.paywallId);
+          yield* mimicHost.heartbeatPaywallConnection(connection);
+        }).pipe(
+          Effect.catchTags({
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+          }),
+        );
+
+      const closeDocumentConnection = (
+        projectId: string,
+        connection: WorkspaceDocumentConnection,
+      ) =>
+        Effect.gen(function* () {
+          yield* resolvePaywallById(projectId, connection.paywallId);
+          yield* mimicHost.closePaywallConnection(connection);
+        }).pipe(
+          Effect.catchTags({
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+          }),
+        );
 
       /**
        * A workspace mutation, expressed as a pure lowering of the live raw
@@ -269,9 +363,11 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
        * post-accept checkpoint. Returns done+result (accepted or a committed
        * no-op) or `done: false` to retry on conflict.
        */
-      const attemptTransaction = (paywallId: string, lower: Lowering) =>
+      const attemptTransaction = (paywallId: string, lower: Lowering, connectionId?: string) =>
         Effect.gen(function* () {
-          const document = yield* mimicHost.getPaywallDocument(paywallId);
+          const document = yield* connectionId === undefined
+            ? mimicHost.getPaywallDocument(paywallId)
+            : mimicHost.getConnectedPaywallDocument({ paywallId, connectionId });
           const preImage = { tree: document.tree, version: document.version };
           const lowered = yield* lower(document.tree);
 
@@ -301,10 +397,15 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
             };
           }
 
-          const submitted = yield* mimicHost.submitPaywallTransaction(paywallId, {
-            baseVersion: document.version,
-            commands: lowered.commands,
-          });
+          const submitted = yield* connectionId === undefined
+            ? mimicHost.submitPaywallTransaction(paywallId, {
+                baseVersion: document.version,
+                commands: lowered.commands,
+              })
+            : mimicHost.submitConnectedPaywallTransaction(paywallId, connectionId, {
+                baseVersion: document.version,
+                commands: lowered.commands,
+              });
 
           if (submitted.accepted) {
             return {
@@ -339,11 +440,16 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
        * newer base a retried attempt read. A rejected-only or no-op turn never
        * captures.
        */
-      const submitLoop = (paywallId: string, lower: Lowering, onFirstRead?: OnFirstRead) =>
+      const submitLoop = (
+        paywallId: string,
+        lower: Lowering,
+        onFirstRead?: OnFirstRead,
+        connectionId?: string,
+      ) =>
         Effect.gen(function* () {
           let preTurnImage: { readonly tree: unknown; readonly version: number } | undefined;
           for (let attempt = 0; attempt < WRITE_MAX_ATTEMPTS; attempt += 1) {
-            const outcome = yield* attemptTransaction(paywallId, lower);
+            const outcome = yield* attemptTransaction(paywallId, lower, connectionId);
             // Hold the attempt-0 (pre-turn) image; later retries read a newer
             // base, but the checkpoint must always be the pre-turn tree.
             if (attempt === 0) {
@@ -560,14 +666,162 @@ export class PaywallWorkspaceService extends Context.Service<PaywallWorkspaceSer
           }),
         );
 
+      /** Applies validated document edits through an active Mimic connection. */
+      const editConnectedDocument = (
+        projectId: string,
+        connection: WorkspaceDocumentConnection,
+        edits: readonly DocumentEdit[],
+      ) =>
+        Effect.gen(function* () {
+          yield* resolvePaywallById(projectId, connection.paywallId);
+          let mintedIds: MintedIds = {};
+          const outcome = yield* submitLoop(
+            connection.paywallId,
+            (tree) =>
+              Effect.sync(() => {
+                const applied = applyDocumentEditsToTree({ tree, edits });
+                mintedIds = applied.mintedIds;
+                return applied.result;
+              }),
+            undefined,
+            connection.connectionId,
+          );
+          return {
+            ...outcome.result,
+            mintedIds: outcome.result.commandCount === 0 ? {} : mintedIds,
+          } satisfies EditDocumentResult;
+        }).pipe(
+          Effect.catchTags({
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+            ComponentManifestCacheError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+          }),
+        );
+
+      /** Creates or replaces a component source through an active connection. */
+      const writeConnectedComponentSource = (
+        projectId: string,
+        connection: WorkspaceDocumentConnection,
+        path: string,
+        source: string,
+      ) =>
+        Effect.gen(function* () {
+          yield* resolvePaywallById(projectId, connection.paywallId);
+          const outcome = yield* submitLoop(
+            connection.paywallId,
+            (tree) => Effect.succeed(writeComponentSourceToTree({ tree, path, source })),
+            undefined,
+            connection.connectionId,
+          );
+          return {
+            ...outcome.result,
+            diagnostics: outcome.loweringDiagnostics,
+          } satisfies WorkspaceMutationResult;
+        }).pipe(
+          Effect.catchTags({
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+            ComponentManifestCacheError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+          }),
+        );
+
+      /** Moves a component file through an active connection. */
+      const moveConnectedComponentFile = (
+        projectId: string,
+        connection: WorkspaceDocumentConnection,
+        fromFileName: string,
+        toFileName: string,
+      ) =>
+        Effect.gen(function* () {
+          yield* resolvePaywallById(projectId, connection.paywallId);
+          const fromPath = docRelativeFromFileName(fromFileName);
+          const toPath = docRelativeFromFileName(toFileName);
+          const outcome = yield* submitLoop(
+            connection.paywallId,
+            (tree) => Effect.succeed(applyWorkspaceMove({ fromPath, toPath, tree })),
+            undefined,
+            connection.connectionId,
+          );
+          return {
+            ...outcome.result,
+            diagnostics: outcome.loweringDiagnostics,
+          } satisfies WorkspaceMutationResult;
+        }).pipe(
+          Effect.catchTags({
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+          }),
+        );
+
+      /** Deletes a component file through an active connection. */
+      const deleteConnectedComponentFile = (
+        projectId: string,
+        connection: WorkspaceDocumentConnection,
+        fileName: string,
+      ) =>
+        Effect.gen(function* () {
+          yield* resolvePaywallById(projectId, connection.paywallId);
+          const path = docRelativeFromFileName(fileName);
+          const outcome = yield* submitLoop(
+            connection.paywallId,
+            (tree) => Effect.succeed(applyWorkspaceDelete({ path, tree })),
+            undefined,
+            connection.connectionId,
+          );
+          return {
+            ...outcome.result,
+            diagnostics: outcome.loweringDiagnostics,
+          } satisfies WorkspaceMutationResult;
+        }).pipe(
+          Effect.catchTags({
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+          }),
+        );
+
+      /** Reconciles to a captured tree through an active connection. */
+      const revertConnectedDocument = (
+        projectId: string,
+        connection: WorkspaceDocumentConnection,
+        capturedTree: unknown,
+      ) =>
+        Effect.gen(function* () {
+          yield* resolvePaywallById(projectId, connection.paywallId);
+          const outcome = yield* submitLoop(
+            connection.paywallId,
+            (current) => Effect.succeed(reconcileToTree({ current, target: capturedTree })),
+            undefined,
+            connection.connectionId,
+          );
+          return outcome.result satisfies { version: number; commandCount: number };
+        }).pipe(
+          Effect.catchTags({
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+            ComponentManifestCacheError: (error) =>
+              Effect.fail(new PaywallWorkspaceServiceError({ message: error.message })),
+          }),
+        );
+
       return {
+        closeDocumentConnection,
+        deleteConnectedComponentFile,
         listPaywalls,
+        heartbeatDocumentConnection,
+        openDocumentConnection,
+        readConnectedDocumentTree,
         readDocumentTree,
         readDocument,
+        editConnectedDocument,
         editDocument,
+        moveConnectedComponentFile,
         writeComponentSource,
+        writeConnectedComponentSource,
         moveComponentFile,
         deleteComponentFile,
+        revertConnectedDocument,
         revertDocument,
       } as const;
     }),

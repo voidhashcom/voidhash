@@ -1,25 +1,25 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { designerSystemPrompt, systemPromptForSurface } from "./surfaces.ts";
+import { designerAgentSystemPrompt } from "./surfaces.ts";
 
 /**
  * Cover the dynamic designer context block appended to the system prompt: the
  * base prompt without context, the paywall listing (slug + name + code
  * components), the open-paywall block + selection (document node ids), and the
  * no-paywall-open degradation. The vocabulary is document-first — edits are live
- * `edit_document` ops, not a `paywall.tsx` fork/apply.
+ * `edit_paywall` ops, not a `paywall.tsx` fork/apply.
  */
-describe("designerSystemPrompt", () => {
-  const base = designerSystemPrompt();
+describe("designerAgentSystemPrompt", () => {
+  const base = designerAgentSystemPrompt();
 
   it("returns the base prompt unchanged when no context is supplied", () => {
     expect(base).toContain("You are Voidhash AI");
     expect(base).not.toContain("Current context:");
-    expect(systemPromptForSurface("designer")).toBe(base);
+    expect(base).not.toContain("Document model and authorable tree");
   });
 
   it("frames editing as live, undoable document transactions (no fork/apply)", () => {
-    expect(base).toContain("edit_document");
+    expect(base).toContain("edit_paywall");
     expect(base).toContain("live paywall");
     expect(base).toContain("UNDOABLE");
     // The old composition-as-a-file model is gone (no `paywall.tsx` grammar).
@@ -34,62 +34,67 @@ describe("designerSystemPrompt", () => {
     expect(base).toContain("How to work:");
     expect(base).toContain("Keep going until the user's request is fully handled");
     expect(base).toContain("compact visual direction");
-    expect(base).toContain("get_rendered_layout");
-    expect(base).toContain("get_preview_screenshot");
-    expect(base).toContain("finish_design");
+    expect(base).toContain("get_paywall_preview");
+    expect(base).toContain("finish_paywall_edit");
     expect(base).toContain("Never claim completion without a successful");
   });
 
   it("lists every paywall with its display name and code components", () => {
-    const prompt = designerSystemPrompt({
+    const prompt = designerAgentSystemPrompt({
       paywalls: [
-        { slug: "trial", name: "Trial", componentFileNames: ["hero.tsx", "cta.tsx"] },
-        { slug: "onboarding", name: "Onboarding", componentFileNames: [] },
+        {
+          paywallId: "pw_1",
+          slug: "trial",
+          name: "Trial",
+          componentFileNames: ["hero.tsx", "cta.tsx"],
+        },
+        { paywallId: "pw_2", slug: "onboarding", name: "Onboarding", componentFileNames: [] },
       ],
-      openPaywall: { slug: "trial", name: "Trial" },
+      openPaywall: { paywallId: "pw_1", slug: "trial", name: "Trial" },
       selectedNodeIds: [],
     });
     expect(prompt).toContain(
-      '- trial ("Trial"): components: components/hero.tsx, components/cta.tsx',
+      '- pw_1 ("Trial", slug "trial"): components: components/hero.tsx, components/cta.tsx',
     );
-    expect(prompt).toContain('- onboarding ("Onboarding"): no code components');
+    expect(prompt).toContain('- pw_2 ("Onboarding", slug "onboarding"): no code components');
   });
 
-  it("names the open paywall and points at edit_document for unqualified refs", () => {
-    const prompt = designerSystemPrompt({
-      paywalls: [{ slug: "trial", name: "Trial", componentFileNames: [] }],
-      openPaywall: { slug: "trial", name: "Trial" },
+  it("names the open paywall and points at edit_paywall for unqualified refs", () => {
+    const prompt = designerAgentSystemPrompt({
+      paywalls: [{ paywallId: "pw_1", slug: "trial", name: "Trial", componentFileNames: [] }],
+      openPaywall: { paywallId: "pw_1", slug: "trial", name: "Trial" },
       selectedNodeIds: [],
     });
-    expect(prompt).toContain('has the "Trial" paywall (slug "trial") open');
-    expect(prompt).toContain("edit_document");
+    expect(prompt).toContain('has the "Trial" paywall (id "pw_1", slug "trial") open');
+    expect(prompt).toContain('paywallId: "pw_1"');
+    expect(prompt).toContain("edit_paywall");
     expect(prompt).toContain('"this paywall"');
     // No workspace path for the open paywall in the document-first model.
     expect(prompt).not.toContain("/paywalls/trial/paywall.tsx");
   });
 
   it("renders the selection as directly-addressable document node ids (plural)", () => {
-    const prompt = designerSystemPrompt({
-      paywalls: [{ slug: "trial", name: "Trial", componentFileNames: [] }],
-      openPaywall: { slug: "trial", name: "Trial" },
+    const prompt = designerAgentSystemPrompt({
+      paywalls: [{ paywallId: "pw_1", slug: "trial", name: "Trial", componentFileNames: [] }],
+      openPaywall: { paywallId: "pw_1", slug: "trial", name: "Trial" },
       selectedNodeIds: ["node_a", "node_b"],
     });
     expect(prompt).toContain("nodes with id node_a, node_b selected");
-    expect(prompt).toContain("edit_document");
+    expect(prompt).toContain("edit_paywall");
   });
 
   it("uses the singular for a single selected node", () => {
-    const prompt = designerSystemPrompt({
-      paywalls: [{ slug: "trial", name: "Trial", componentFileNames: [] }],
-      openPaywall: { slug: "trial", name: "Trial" },
+    const prompt = designerAgentSystemPrompt({
+      paywalls: [{ paywallId: "pw_1", slug: "trial", name: "Trial", componentFileNames: [] }],
+      openPaywall: { paywallId: "pw_1", slug: "trial", name: "Trial" },
       selectedNodeIds: ["node_a"],
     });
     expect(prompt).toContain("node with id node_a selected");
   });
 
   it("states no paywall is open when none matches", () => {
-    const prompt = designerSystemPrompt({
-      paywalls: [{ slug: "trial", name: "Trial", componentFileNames: [] }],
+    const prompt = designerAgentSystemPrompt({
+      paywalls: [{ paywallId: "pw_1", slug: "trial", name: "Trial", componentFileNames: [] }],
       openPaywall: undefined,
       selectedNodeIds: [],
     });

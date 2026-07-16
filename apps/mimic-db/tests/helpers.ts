@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import type { Value } from "@voidhash/mimic-core";
 import type { MigrationRegistry } from "@voidhash/mimic-server/migrate";
 
 import type { HostService } from "../src/app/hostService.ts";
@@ -90,6 +91,9 @@ export const titleCountSchema = {
   },
 };
 
-export const objectValue = (fields: Record<string, unknown>) => ({ kind: "object", fields });
-export const stringValue = (value: string) => ({ kind: "string", value });
-export const numberValue = (value: number) => ({ kind: "number", value });
+export const objectValue = (fields: Record<string, Value>) => ({
+  kind: "object" as const,
+  fields,
+});
+export const stringValue = (value: string) => ({ kind: "string" as const, value });
+export const numberValue = (value: number) => ({ kind: "number" as const, value });

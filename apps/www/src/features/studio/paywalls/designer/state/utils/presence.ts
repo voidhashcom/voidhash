@@ -26,6 +26,7 @@ export function presenceInputFromSnapshot(snapshot: PresenceSnapshot): DesignerP
   return {
     cursor: snapshot.cursor,
     name: snapshot.name,
+    participant: snapshot.participant,
     selectedNodeIds: selectedNodeIdsFromPresence(snapshot),
     user: snapshot.user,
   };

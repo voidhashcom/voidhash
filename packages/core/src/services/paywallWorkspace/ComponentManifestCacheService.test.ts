@@ -11,6 +11,7 @@ interface Row {
   sourceHash: string;
   status: string;
   manifest: unknown;
+  previewTrees?: unknown;
   diagnostics: unknown;
 }
 
@@ -29,8 +30,9 @@ const readyManifest = {
  * `query.paywallComponentManifests.findMany({ where: { sourceHash: { in } } })`.
  *
  * The `onConflictDoUpdate` fake mirrors the real first-write-wins semantics: a
- * fresh key inserts; on conflict, the row is replaced ONLY when the existing row
- * has `status === "error"` (the `setWhere` gate). A `ready` row is immutable.
+ * fresh key inserts; on conflict, an error row is replaced and a legacy ready
+ * row may fill its missing preview trees. An existing ready derivation remains
+ * otherwise immutable.
  */
 const makeDbLayer = (seed: ReadonlyArray<Row> = []) => {
   const rows = new Map<string, Row>(seed.map((row) => [row.sourceHash, row]));
@@ -42,6 +44,12 @@ const makeDbLayer = (seed: ReadonlyArray<Row> = []) => {
           const existing = rows.get(value.sourceHash);
           if (existing === undefined || existing.status === "error") {
             rows.set(value.sourceHash, value);
+          } else if (
+            existing.status === "ready" &&
+            existing.previewTrees == null &&
+            value.status === "ready"
+          ) {
+            rows.set(value.sourceHash, { ...existing, previewTrees: value.previewTrees });
           }
         }),
     }),
@@ -52,7 +60,9 @@ const makeDbLayer = (seed: ReadonlyArray<Row> = []) => {
     query: {
       paywallComponentManifests: {
         findMany: (args: { where: { sourceHash: { in: string[] } } }) =>
-          Effect.sync(() => args.where.sourceHash.in.flatMap((h) => (rows.has(h) ? [rows.get(h)!] : []))),
+          Effect.sync(() =>
+            args.where.sourceHash.in.flatMap((h) => (rows.has(h) ? [rows.get(h)!] : [])),
+          ),
       },
     },
     __rows: rows,
@@ -78,10 +88,12 @@ describe("ComponentManifestCacheService.record", () => {
       sourceHash: "abc",
       status: "ready",
       manifest: readyManifest,
+      previewTrees: { default: { type: "view" } },
     });
     expect(Exit.isSuccess(await exit)).toBe(true);
     expect(rows.get("abc")?.status).toBe("ready");
     expect(rows.get("abc")?.manifest).toEqual(readyManifest);
+    expect(rows.get("abc")?.previewTrees).toEqual({ default: { type: "view" } });
   });
 
   it("stores diagnostics with a null manifest for an error compile", async () => {
@@ -140,6 +152,30 @@ describe("ComponentManifestCacheService.record", () => {
     expect(rows.get("h")?.manifest).toEqual(readyManifest);
   });
 
+  it("fills preview trees on a legacy ready row without replacing its manifest", async () => {
+    const { layer, rows } = makeDbLayer([
+      { sourceHash: "h", status: "ready", manifest: readyManifest, diagnostics: [] },
+    ]);
+    const conflicting = {
+      ...readyManifest,
+      title: "Other",
+    };
+    const exit = await Effect.runPromiseExit(
+      Effect.gen(function* () {
+        const cache = yield* ComponentManifestCacheService;
+        yield* cache.record({
+          sourceHash: "h",
+          status: "ready",
+          manifest: conflicting,
+          previewTrees: { default: { type: "text" } },
+        });
+      }).pipe(Effect.provide(ComponentManifestCacheService.layer.pipe(Layer.provide(layer)))),
+    );
+    expect(Exit.isSuccess(exit)).toBe(true);
+    expect(rows.get("h")?.manifest).toEqual(readyManifest);
+    expect(rows.get("h")?.previewTrees).toEqual({ default: { type: "text" } });
+  });
+
   it("upgrades an error row to ready", async () => {
     const { layer, rows } = makeDbLayer([
       { sourceHash: "h", status: "error", manifest: null, diagnostics: [{ message: "boom" }] },
@@ -193,6 +229,7 @@ describe("ComponentManifestCacheService.getMany", () => {
       }).pipe(Effect.provide(ComponentManifestCacheService.layer.pipe(Layer.provide(layer)))),
     );
     expect(result.get("ready1")?.manifest).toEqual(readyManifest);
+    expect(result.get("ready1")?.previewTrees).toBeNull();
     expect(result.get("err1")?.status).toBe("error");
     expect(result.get("err1")?.manifest).toBeNull();
     expect(result.has("missing")).toBe(false);

@@ -51,6 +51,16 @@ export class PaywallRpcsDef extends RpcGroup.make(
     }),
     success: Schema.Array(Paywall),
   }),
+  Rpc.make("BackfillPaywallThumbnails", {
+    error: Schema.Union([RpcActionForbiddenError, RpcPaywallServiceError]),
+    payload: Schema.Struct({
+      projectId: Schema.String,
+    }),
+    success: Schema.Struct({
+      attempted: Schema.Number,
+      rendered: Schema.Number,
+    }),
+  }),
   Rpc.make("CreatePaywall", {
     error: Schema.Union([
       RpcActionForbiddenError,

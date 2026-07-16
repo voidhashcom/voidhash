@@ -132,6 +132,8 @@ export interface HostService {
     connectionId: string,
     permission: DocumentPermission,
     userId?: string,
+    presence?: Value,
+    leaseMs?: number,
   ) => Effect.Effect<
     {
       readonly value: Value;
@@ -144,7 +146,21 @@ export interface HostService {
     collectionId: string,
     documentId: string,
     connectionId: string,
+    leaseMs?: number,
   ) => Effect.Effect<void, any>;
+  readonly getConnectionDocument: (
+    collectionId: string,
+    documentId: string,
+    connectionId: string,
+    leaseMs?: number,
+  ) => Effect.Effect<DocumentSnapshotResponse, any>;
+  readonly submitConnectionTransaction: (
+    collectionId: string,
+    documentId: string,
+    connectionId: string,
+    transaction: TransactionEnvelope,
+    leaseMs?: number,
+  ) => Effect.Effect<SubmitTransactionResponse, any>;
   readonly detachConnection: (
     collectionId: string,
     documentId: string,

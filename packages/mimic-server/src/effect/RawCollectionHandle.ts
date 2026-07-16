@@ -28,6 +28,17 @@ export interface RawTransactionResult {
   readonly reason?: string;
 }
 
+export interface RawDocumentConnectionInput {
+  readonly connectionId: string;
+  readonly presence: unknown;
+  readonly leaseMs?: number;
+}
+
+export interface RawConnectedTransactionInput extends RawTransactionInput {
+  readonly connectionId: string;
+  readonly leaseMs?: number;
+}
+
 /**
  * "Raw" collection handle for callers that work with dynamic schemas at
  * runtime (admin UI, tooling). Does not encode/decode through a `Primitive`;
@@ -170,6 +181,95 @@ export class RawCollectionHandle {
         },
       }) as Effect.Effect<RawTransactionResult, unknown>;
     });
+  }
+
+  /** Opens a leased headless participant connection to a document. */
+  openDocumentConnection(
+    documentId: string,
+    input: RawDocumentConnectionInput,
+  ): Effect.Effect<RawDocumentSnapshot, unknown> {
+    return this.sdk.runEffect(
+      (client) =>
+        client.OpenDocumentConnection({
+          collectionId: this.id,
+          documentId,
+          connectionId: input.connectionId,
+          presence: input.presence,
+          leaseMs: input.leaseMs,
+        }) as Effect.Effect<RawDocumentSnapshot, unknown>,
+    );
+  }
+
+  /** Reads a document through an active headless connection and renews its lease. */
+  getConnectedDocument(
+    documentId: string,
+    connectionId: string,
+    leaseMs?: number,
+  ): Effect.Effect<RawDocumentSnapshot, unknown> {
+    return this.sdk.runEffect(
+      (client) =>
+        client.GetConnectedDocument({
+          collectionId: this.id,
+          documentId,
+          connectionId,
+          leaseMs,
+        }) as Effect.Effect<RawDocumentSnapshot, unknown>,
+    );
+  }
+
+  /** Renews the lease for an active headless document connection. */
+  heartbeatDocumentConnection(
+    documentId: string,
+    connectionId: string,
+    leaseMs?: number,
+  ): Effect.Effect<void, unknown> {
+    return this.sdk.runEffect(
+      (client) =>
+        client.HeartbeatDocumentConnection({
+          collectionId: this.id,
+          documentId,
+          connectionId,
+          leaseMs,
+        }) as Effect.Effect<void, unknown>,
+    );
+  }
+
+  /** Closes a headless document connection and removes its presence. */
+  closeDocumentConnection(documentId: string, connectionId: string): Effect.Effect<void, unknown> {
+    return this.sdk.runEffect(
+      (client) =>
+        client.CloseDocumentConnection({
+          collectionId: this.id,
+          documentId,
+          connectionId,
+        }) as Effect.Effect<void, unknown>,
+    );
+  }
+
+  /** Submits a granular transaction through an active headless connection. */
+  submitConnectedTransaction(
+    documentId: string,
+    input: RawConnectedTransactionInput,
+  ): Effect.Effect<RawTransactionResult, unknown> {
+    const transactionId =
+      input.id ??
+      (typeof globalThis.crypto?.randomUUID === "function"
+        ? globalThis.crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    return this.sdk.runEffect(
+      (client) =>
+        client.SubmitConnectedTransaction({
+          collectionId: this.id,
+          documentId,
+          connectionId: input.connectionId,
+          leaseMs: input.leaseMs,
+          transaction: {
+            id: transactionId,
+            baseVersion: input.baseVersion,
+            commands: input.commands as never,
+          },
+        }) as Effect.Effect<RawTransactionResult, unknown>,
+    );
   }
 
   setupDocumentAuthentication(

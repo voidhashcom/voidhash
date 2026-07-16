@@ -14,6 +14,7 @@ const paywallSlug = `workspace-auth-${suffix}`;
 const mimicCalls: string[] = [];
 
 const MimicHostTest = Layer.succeed(MimicHost, {
+  closePaywallConnection: () => Effect.void,
   ensurePaywallDocument: (id: string) =>
     Effect.sync(() => {
       mimicCalls.push(`ensure:${id}`);
@@ -29,6 +30,22 @@ const MimicHostTest = Layer.succeed(MimicHost, {
     Effect.sync(() => {
       mimicCalls.push(`document:${id}`);
       return { root: null, tree: { kind: "tree", nodes: [] }, version: 1 };
+    }),
+  getConnectedPaywallDocument: (input) =>
+    Effect.sync(() => {
+      mimicCalls.push(`connected-document:${input.paywallId}`);
+      return { root: null, tree: { kind: "tree", nodes: [] }, version: 1 };
+    }),
+  heartbeatPaywallConnection: () => Effect.void,
+  openPaywallConnection: (input) =>
+    Effect.sync(() => {
+      mimicCalls.push(`open:${input.paywallId}`);
+      return { root: null, tree: { kind: "tree", nodes: [] }, version: 1 };
+    }),
+  submitConnectedPaywallTransaction: (id: string) =>
+    Effect.sync(() => {
+      mimicCalls.push(`connected-submit:${id}`);
+      return { accepted: true, version: 2 };
     }),
   submitPaywallTransaction: (id: string) =>
     Effect.sync(() => {

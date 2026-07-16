@@ -9,11 +9,11 @@ import {
   AnalyticsService,
   ApiKeyService,
   AuditLogPort,
-  AuthTokenVerifier,
   AppStorePaymentProvider,
   AppStorePaymentProviderEngine,
   ApplePushNotificationServiceConfigLive,
-  AiChatService,
+  AgentSessionIndexService,
+  AgentAttachmentService,
   AppStorePaymentProviderConfigLive,
   AppStorePaymentProviderServiceLive,
   AppStoreTransactionVerifier,
@@ -47,10 +47,11 @@ import {
   PaywallArtifactStore,
   PaywallArtifactStoreError,
   PaywallDeployService,
-  PaywallEditChangeSetService,
+  PaywallEditSessionService,
   PaywallLocationService,
   PaywallReleaseService,
   PaywallService,
+  PaywallThumbnailService,
   PaywallWorkspaceService,
   ComponentCompiler,
   ComponentManifestCacheService,
@@ -105,8 +106,6 @@ import { GooglePubSubPushVerifierLive } from "./GooglePubSubPushVerifier.ts";
 import { BackendSnapshotHtmlRendererLive } from "./PaywallSnapshotHtmlRenderer.ts";
 
 import { AuthMiddlewareLive } from "./ApiMiddlewares.ts";
-import { VoidhashAiError, VoidhashAiService } from "./ai/VoidhashAiService.ts";
-import { AiChatRouteLayer } from "./routes/ai/chat.ts";
 import { McpRouteLayer } from "./routes/mcp.ts";
 import { McpAuthKitRouteLayer } from "./routes/mcp-authkit.ts";
 import { McpAuthKit } from "./McpAuthKit.ts";
@@ -144,7 +143,7 @@ import { PaymentProviderConfigurationRpcsLive } from "./rpcs/payment-provider-co
 import { PaymentProviderProductRpcsLive } from "./rpcs/payment-provider-product-rpcs.ts";
 import { PushNotificationConfigurationRpcsLive } from "./rpcs/push-notification-configuration-rpcs.ts";
 import { PushNotificationSendRpcsLive } from "./rpcs/push-notification-send-rpcs.ts";
-import { AiChatRpcsLive } from "./rpcs/ai-chat-rpcs.ts";
+import { AgentSessionRpcsLive } from "./rpcs/agent-session-rpcs.ts";
 import { PaywallAssetRpcsLive } from "./rpcs/paywall-asset-rpcs.ts";
 import { PaywallComponentRpcsLive } from "./rpcs/paywall-component-rpcs.ts";
 import { PaywallDeployRpcsLive } from "./rpcs/paywall-deploy-rpcs.ts";
@@ -213,17 +212,6 @@ export interface BackendRuntimeLayers<
    * overrides it with the `PushDeliveryQueue` producer bound at init.
    */
   readonly pushDeliveryDispatch?: Layer.Layer<PushDeliveryDispatch>;
-  /**
-   * Runtime AI service implementation. Optional so the RPC smoke / dev harness
-   * can omit it; platform entry points supply their provider-specific adapter.
-   */
-  readonly aiService?: Layer.Layer<VoidhashAiService>;
-  /**
-   * Token verifier used by the AI chat route (`POST /api/ai/chat`). Optional so
-   * harnesses that omit the route can skip it; production entry points adapt
-   * their runtime-specific token store to this port.
-   */
-  readonly authTokenVerifier?: AuthTokenVerifier["Service"];
   readonly rpcExtension: BackendRpcExtension<RExtensionRpcs>;
 }
 
@@ -503,6 +491,7 @@ export const BackendPublicFileStoreStubLive = Layer.succeed(PublicFileStore, {
  * is exercised end-to-end in process.
  */
 export const BackendMimicHostStubLive = Layer.succeed(MimicHost, {
+  closePaywallConnection: () => Effect.void,
   createPaywallEditToken: () =>
     Effect.sync(() => ({
       expiresAt: new Date(Date.now() + 300_000),
@@ -521,6 +510,28 @@ export const BackendMimicHostStubLive = Layer.succeed(MimicHost, {
       new MimicHostError({
         cause: "getPaywallDocument is not available in the in-process backend harness",
         message: "mimic host document read is not stubbed",
+      }),
+    ),
+  getConnectedPaywallDocument: () =>
+    Effect.fail(
+      new MimicHostError({
+        cause: "connected document reads are not available in the in-process backend harness",
+        message: "mimic host connected document read is not stubbed",
+      }),
+    ),
+  heartbeatPaywallConnection: () => Effect.void,
+  openPaywallConnection: () =>
+    Effect.fail(
+      new MimicHostError({
+        cause: "document connections are not available in the in-process backend harness",
+        message: "mimic host document connection is not stubbed",
+      }),
+    ),
+  submitConnectedPaywallTransaction: () =>
+    Effect.fail(
+      new MimicHostError({
+        cause: "connected transaction submits are not available in the in-process backend harness",
+        message: "mimic host connected transaction submit is not stubbed",
       }),
     ),
   submitPaywallTransaction: () =>
@@ -556,17 +567,6 @@ export const BackendSnapshotImageRendererStubLive = Layer.succeed(SnapshotImageR
 });
 
 export const BackendNoopIdentityProjectionPublisherLive = IdentityProjectionPublisher.noop;
-
-/**
- * Stub {@link VoidhashAiService} for harnesses (and dev/smoke stages) that run
- * the backend graph without an AI Gateway binding. Every `chat` call fails with
- * a stable {@link VoidhashAiError} so the route graph still builds and the
- * endpoint responds with a clear error instead of dying. Platform entry points
- * can supply a live {@link VoidhashAiService} layer.
- */
-export const BackendVoidhashAiStubLive = Layer.succeed(VoidhashAiService, {
-  chat: () => Effect.fail(new VoidhashAiError({ message: "AI gateway not configured" })),
-});
 
 const isAllowedCorsOrigin = (origin: string): boolean => {
   try {
@@ -700,7 +700,7 @@ const buildBackendServiceGraph = <
   >,
 ) => {
   const RpcHandlersLayer = Layer.mergeAll(
-    AiChatRpcsLive,
+    AgentSessionRpcsLive,
     AnalyticsRpcsLive,
     ApiKeyRpcsLive,
     ExperimentRpcsLive,
@@ -763,8 +763,14 @@ const buildBackendServiceGraph = <
     Layer.provide(ComponentManifestCacheService.layer),
   );
 
+  const PaywallThumbnailServiceLive = PaywallThumbnailService.layer.pipe(
+    Layer.provide(ComponentManifestCacheService.layer),
+  );
+
+  const AgentSessionIndexServiceLive = AgentSessionIndexService.layer;
   const BaseDomainServicesLayer = Layer.mergeAll(
-    AiChatService.layer,
+    AgentSessionIndexServiceLive,
+    AgentAttachmentService.layer.pipe(Layer.provide(AgentSessionIndexServiceLive)),
     AnalyticsService.layer,
     CustomAnalyticsService.layer,
     ApiKeyService.layer,
@@ -793,13 +799,14 @@ const buildBackendServiceGraph = <
     PaywallLocationService.layer.pipe(Layer.provide(ExperimentServiceLayer)),
     PaywallReleaseService.layer.pipe(Layer.provide(BackendSnapshotHtmlRendererLive)),
     PaywallService.layer,
+    PaywallThumbnailServiceLive,
     ComponentManifestCacheService.layer,
     // The workspace service needs PaywallService (authz + slug resolution) and
     // the manifest cache; `mergeAll` does not cross-wire siblings, so both are
     // provided explicitly. MimicHost and ComponentCompiler come from the
     // infrastructure layer.
     PaywallWorkspaceServiceLive,
-    PaywallEditChangeSetService.layer.pipe(Layer.provide(PaywallWorkspaceServiceLive)),
+    PaywallEditSessionService.layer.pipe(Layer.provide(PaywallWorkspaceServiceLive)),
     PerkGrantService.layer,
     PerkService.layer,
     PersonService.layer,
@@ -858,6 +865,29 @@ const buildBackendServiceGraph = <
 export type BackendServiceGraph<RInfrastructure = never, RFeatureServices = never> = ReturnType<
   typeof buildBackendServiceGraph<RInfrastructure, never, RFeatureServices>
 >;
+
+/**
+ * Builds the support and domain services needed by long-lived agent hosts.
+ * Unlike the HTTP composition this returns the service context itself, allowing
+ * WebSocket runtimes to capture it once and execute workspace tools in-process.
+ */
+export const buildBackendAgentServices = <
+  RInfrastructure = never,
+  RFeatureRpcs extends Rpc.Any = never,
+  RFeatureServices = never,
+>(
+  layers: Pick<
+    BackendRuntimeLayers<RInfrastructure, RFeatureRpcs, RFeatureServices>,
+    | "features"
+    | "infrastructure"
+    | "webhookManager"
+    | "analyticsQueryClient"
+    | "pushDeliveryDispatch"
+  >,
+) => {
+  const graph = buildBackendServiceGraph(layers);
+  return graph.DomainServicesLayer.pipe(Layer.provideMerge(graph.SupportServicesLayer));
+};
 
 /** Private or enterprise RPC surface mounted by an application composition root. */
 export interface BackendRpcExtension<RExtensionRpcs extends Rpc.Any> {
@@ -1069,32 +1099,11 @@ export const buildBackendFetch = <
     HttpRouter.provideRequest(SupportServicesLayer),
   );
 
-  // Voidhash AI streaming chat route (`POST /api/ai/chat`). Registered only when
-  // a token verifier is available; the request-scoped requirements —
-  // `VoidhashAiService` (live when supplied, else the
-  // failing stub) plus `Db` / `Workos` / `LocalUserSessionService` from the
-  // domain graph for session resolution — are satisfied via `provideRequest`,
-  // like the webhook routes.
-  const VoidhashAiServiceLayer = layers.aiService ?? BackendVoidhashAiStubLive;
-
-  const AiRoutesLayer = layers.authTokenVerifier
-    ? AiChatRouteLayer(layers.authTokenVerifier).pipe(
-        // The server-executed agent tools reach the workspace/chat services via
-        // `VoidhashAiService.chat`; those (plus `Db`/`Workos`/session-resolution
-        // support) must be request-scoped. `AuthSession` is provided in-handler
-        // from the resolved session, so the domain graph here is session-free.
-        HttpRouter.provideRequest(
-          Layer.mergeAll(VoidhashAiServiceLayer, DomainServicesLayer, SupportServicesLayer),
-        ),
-      )
-    : Layer.empty;
-
   // MCP endpoint (`POST /api/mcp`, stateless streamable HTTP). Its request-scoped
   // requirements — `ApiKeyService` (secret-key auth) + `PaywallWorkspaceService`
-  // + `AiChatService` (the shared workspace tools' context) + `Db` (key
-  // validation) — are satisfied via `provideRequest` like the AI chat route.
+  // + `Db` (key validation) — are satisfied via `provideRequest`.
   // `AuthSession` is provided in-handler from the validated secret key. Unlike
-  // the AI chat route, MCP needs no JWT namespace (it authenticates with v1
+  // the agent-session route, MCP needs no JWT namespace (it authenticates with v1
   // secret keys), so it registers unconditionally.
   const McpRoutesLayer = McpRouteLayer.pipe(
     HttpRouter.provideRequest(Layer.mergeAll(DomainServicesLayer, SupportServicesLayer)),
@@ -1110,7 +1119,6 @@ export const buildBackendFetch = <
     WebhookRoutesLayer,
     PaywallServingLayer,
     PublicFileServingLayer,
-    AiRoutesLayer,
     McpRoutesLayer,
     McpAuthKitRoutesLayer,
     HealthCheckRoute,

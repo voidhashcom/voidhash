@@ -1,6 +1,6 @@
 # Voidhash for Claude Code
 
-This plugin connects Claude Code to the hosted Voidhash MCP server. It currently includes visually verified paywall authoring and can grow with additional platform tools.
+This plugin connects Claude Code to the hosted Voidhash MCP server. It includes visually verified paywall authoring plus custom code-component, editor-panel, motion, and gesture authoring.
 
 Authentication uses OAuth in the browser. The plugin does not require `voidhash-cli`, an API key, or environment variables.
 
@@ -19,3 +19,7 @@ For this browser-only flow, test with an organization that contains one project.
 Then ask Claude:
 
 > Use Voidhash to list my paywalls, open one for editing, render a preview, and revert the edit without publishing changes.
+
+To exercise the component reference, start a new conversation and ask:
+
+> Use the code-component-authoring skill to build a custom paywall component with an editor panel and motion.

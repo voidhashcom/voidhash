@@ -61,6 +61,17 @@ When running the Node entry outside its image, set `CHROMIUM_EXECUTABLE_PATH` to
 a compatible Chromium executable to enable paywall thumbnails; the remaining
 runtime stays available when it is unset.
 
+### Agent models
+
+Durable designer-agent sessions use your own OpenAI or Anthropic credentials.
+Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in `selfhost/.env`; OpenAI is selected
+when both are present. The default models are `gpt-5.4` and
+`claude-sonnet-4-6`, respectively. Override text and vision routing with
+`VOIDHASH_AGENT_MODEL_PROVIDER`, `VOIDHASH_AGENT_MODEL_ID`,
+`VOIDHASH_AGENT_VISION_MODEL_PROVIDER`, and
+`VOIDHASH_AGENT_VISION_MODEL_ID`. An OpenAI-compatible deployment can also set
+`OPENAI_BASE_URL` while keeping the provider id `openai`.
+
 ### Google Play RTDN
 
 Google Play Real-time developer notifications must use an authenticated Pub/Sub
@@ -88,6 +99,13 @@ snapshot, submits a transaction, and removes its fixtures. It also verifies the
 shared dashboard, the Community capability response, and app health, proving that
 the backend route graph and durable workflow runner boot without ClickHouse, which
 remains an optional profile.
+
+To include an authenticated model-backed agent round-trip, set
+`SELFHOST_AGENT_SMOKE_BEARER_TOKEN`, `SELFHOST_AGENT_SMOKE_ORGANIZATION_ID`, and
+`SELFHOST_AGENT_SMOKE_PROJECT_ID` before running the smoke test. Optionally set
+`SELFHOST_AGENT_SMOKE_PAYWALL_ID` to exercise a designer-scoped session. The
+credentials must identify a user with access to that project, and the runtime
+must have one of the agent provider keys configured.
 
 The release-grade smoke additionally requires the analytics profile and Docker
 access from the checkout:

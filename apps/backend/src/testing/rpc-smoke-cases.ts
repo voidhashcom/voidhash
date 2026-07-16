@@ -557,6 +557,12 @@ export const rpcSmokeCases = [
   },
   {
     expected: success,
+    payload: ({ ids }) => ({ projectId: ids.projectId }),
+    role: "admin",
+    tag: "BackfillPaywallThumbnails",
+  },
+  {
+    expected: success,
     payload: ({ ids }) => ({ includeArchived: true, projectId: ids.projectId }),
     role: "admin",
     tag: "ListPaywallLocations",
@@ -778,13 +784,11 @@ export const rpcSmokeCases = [
 
 /** Existing RPC smoke coverage debt; entries may only be removed as cases are added. */
 const knownMissingRpcSmokeTags = new Set([
-  "SaveAiChat",
-  "ListAiChats",
-  "GetAiChat",
-  "DeleteAiChat",
-  "UploadAiChatAttachment",
-  "RevertAiChatCheckpoint",
-  "CaptureAiCheckpoint",
+  "ListAgentSessions",
+  "GetAgentSession",
+  "DeleteAgentSession",
+  "RevertAgentEditSession",
+  "UploadAgentAttachment",
   "ListExperiments",
   "GetExperiment",
   "CreateExperiment",

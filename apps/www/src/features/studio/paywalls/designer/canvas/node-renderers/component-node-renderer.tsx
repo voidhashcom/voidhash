@@ -12,6 +12,7 @@ import { usePaywallDesignerStore } from "../../state/designer-store";
 import type { LocalComponentArtifact } from "../../state/designer-store-state";
 import { definitionForComponentPath } from "../../state/utils/code-components";
 import { Selectable } from "../helpers/selectable";
+import { componentWrapperStyle } from "./component-wrapper-style";
 
 /**
  * Resolves the preview state to render from the spec §6 fallback chain: each
@@ -69,17 +70,12 @@ function ComponentPreviewContent({
  * path exactly.
  */
 function LocalComponentPreviewContent({
-  artifact,
-  candidates,
+  tree,
   renderSlot,
 }: {
-  artifact: LocalComponentArtifact;
-  candidates: ReadonlyArray<string | undefined>;
+  tree: LocalComponentArtifact["previewTrees"][string] | undefined;
   renderSlot: () => ReactNode;
 }) {
-  const states = Object.keys(artifact.previewTrees);
-  const state = resolvePreviewState(states, candidates);
-  const tree = state !== undefined ? artifact.previewTrees[state] : undefined;
   if (tree === undefined) {
     return <PlaceholderChip label="Component has no preview state" />;
   }
@@ -171,19 +167,28 @@ export function ComponentNodeRenderer({
       : undefined;
 
   const stateCandidates = [localPreviewState, node.data.previewState, "default"];
+  const localTree = (() => {
+    if (localArtifact === undefined) return undefined;
+    const state = resolvePreviewState(Object.keys(localArtifact.previewTrees), stateCandidates);
+    return state === undefined ? undefined : localArtifact.previewTrees[state];
+  })();
 
   return (
     <Selectable nodeId={node.id}>
       {(selectableProps) => (
-        <div className="relative" ref={ref} {...selectableProps}>
+        <div
+          className="relative flex min-h-0 min-w-0 flex-col"
+          ref={ref}
+          style={componentWrapperStyle(localTree?.root)}
+          {...selectableProps}
+        >
           {isBuiltin ? (
             <BuiltinComponentContent node={node} />
           ) : isLocal ? (
             localArtifact !== undefined ? (
               <LocalComponentPreviewContent
-                artifact={localArtifact}
-                candidates={stateCandidates}
                 renderSlot={() => children}
+                tree={localTree}
               />
             ) : !localDefinitionExists ? (
               <PlaceholderChip label={`Missing component file — ${node.data.componentPath}`} />

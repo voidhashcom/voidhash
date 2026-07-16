@@ -5,6 +5,11 @@ import { CollectionHandle as EffectCollectionHandle } from "../effect/Collection
 import { DatabaseHandle as EffectDatabaseHandle } from "../effect/DatabaseHandle.ts";
 import { MimicSDK as EffectMimicSDK } from "../effect/MimicSDK.ts";
 import { RawCollectionHandle as EffectRawCollectionHandle } from "../effect/RawCollectionHandle.ts";
+import type {
+  RawConnectedTransactionInput,
+  RawDocumentConnectionInput,
+  RawTransactionResult,
+} from "../effect/RawCollectionHandle.ts";
 import type { MimicClientConfig } from "../effect/RpcClient.ts";
 import type {
   CollectionInfo,
@@ -257,6 +262,55 @@ export class RawCollectionHandle {
     value: unknown,
   ): Promise<{ readonly id: string; readonly version: number }> {
     return this.effect.sdk.runtime.runPromise(this.effect.setDocumentRaw(documentId, value));
+  }
+
+  /** Opens a leased headless participant connection to a document. */
+  openDocumentConnection(
+    documentId: string,
+    input: RawDocumentConnectionInput,
+  ): Promise<RawDocumentSnapshot> {
+    return this.effect.sdk.runtime.runPromise(
+      this.effect.openDocumentConnection(documentId, input),
+    );
+  }
+
+  /** Reads a document through an active headless connection. */
+  getConnectedDocument(
+    documentId: string,
+    connectionId: string,
+    leaseMs?: number,
+  ): Promise<RawDocumentSnapshot> {
+    return this.effect.sdk.runtime.runPromise(
+      this.effect.getConnectedDocument(documentId, connectionId, leaseMs),
+    );
+  }
+
+  /** Renews an active headless connection lease. */
+  heartbeatDocumentConnection(
+    documentId: string,
+    connectionId: string,
+    leaseMs?: number,
+  ): Promise<void> {
+    return this.effect.sdk.runtime.runPromise(
+      this.effect.heartbeatDocumentConnection(documentId, connectionId, leaseMs),
+    );
+  }
+
+  /** Closes a headless connection and removes its presence. */
+  closeDocumentConnection(documentId: string, connectionId: string): Promise<void> {
+    return this.effect.sdk.runtime.runPromise(
+      this.effect.closeDocumentConnection(documentId, connectionId),
+    );
+  }
+
+  /** Submits a granular transaction through an active headless connection. */
+  submitConnectedTransaction(
+    documentId: string,
+    input: RawConnectedTransactionInput,
+  ): Promise<RawTransactionResult> {
+    return this.effect.sdk.runtime.runPromise(
+      this.effect.submitConnectedTransaction(documentId, input),
+    );
   }
 
   setupDocumentAuthentication(

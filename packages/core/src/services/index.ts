@@ -84,7 +84,8 @@ export { StripePaymentProvider as StripePaymentProviderEngine } from "./paymentP
 export * from "./paymentProviders/PaymentProvider.ts";
 export { PaymentProviderConfigurationValidationError } from "../domain/paymentProvider/PaymentProviderConfiguration.ts";
 export { PaymentProviderProductValidationError } from "../domain/paymentProvider/PaymentProviderProduct.ts";
-export * from "./aiChat/AiChatService.ts";
+export * from "./agentSession/AgentAttachmentService.ts";
+export * from "./agentSession/AgentSessionIndexService.ts";
 export * from "./paymentProviders/PaymentProviderConfigurationService.ts";
 export * from "./paymentProviders/PaymentProviderProductService.ts";
 export * from "./paywallAssets/PaywallAssetService.ts";
@@ -101,7 +102,7 @@ export * from "./paywalls/MimicHost.ts";
 export * from "./paywalls/PaywallService.ts";
 export * from "./paywallWorkspace/ComponentCompiler.ts";
 export * from "./paywallWorkspace/ComponentManifestCacheService.ts";
-export * from "./paywallWorkspace/PaywallEditChangeSetService.ts";
+export * from "./paywallWorkspace/PaywallEditSessionService.ts";
 export * from "./paywallWorkspace/PaywallWorkspaceService.ts";
 export * from "./perkGrants/PerkGrantService.ts";
 export * from "./perks/PerkService.ts";

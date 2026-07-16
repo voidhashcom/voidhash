@@ -115,15 +115,14 @@ const paywallAssetKeys = {
     [...paywallAssetKeys.all, "list", options] as const,
 };
 
-const aiChatKeys = {
-  all: ["aiChats"] as const,
+const agentSessionKeys = {
+  all: ["agentSessions"] as const,
   list: (options: {
     organizationId: string;
     projectId: string;
     surface: string;
     paywallId?: string;
-  }) => [...aiChatKeys.all, "list", options] as const,
-  get: (chatId: string) => [...aiChatKeys.all, "get", { chatId }] as const,
+  }) => [...agentSessionKeys.all, "list", options] as const,
 };
 
 const webhookKeys = {
@@ -169,10 +168,10 @@ const analyticsKeys = {
 };
 
 export const queryKeys = {
+  agentSession: agentSessionKeys,
   analytics: analyticsKeys,
   apiKey: apiKeyKeys,
   person: personKeys,
-  aiChat: aiChatKeys,
   experiment: experimentKeys,
   featureFlag: featureFlagKeys,
   invalidateAll: () => [],

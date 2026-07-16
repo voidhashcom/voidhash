@@ -53,6 +53,62 @@ export const SubmitTransaction = Rpc.make("SubmitTransaction", {
   error: Schema.Union([NotFoundError, InvalidValueError, VersionConflictError, ForbiddenError]),
 });
 
+export const OpenDocumentConnection = Rpc.make("OpenDocumentConnection", {
+  payload: Schema.Struct({
+    collectionId: Schema.String,
+    documentId: Schema.String,
+    connectionId: Schema.String,
+    presence: ValueRpcSchema,
+    leaseMs: Schema.optional(Schema.Number),
+  }),
+  success: DocumentSnapshotResponseSchema,
+  error: Schema.Union([NotFoundError, ForbiddenError]),
+});
+
+export const GetConnectedDocument = Rpc.make("GetConnectedDocument", {
+  payload: Schema.Struct({
+    collectionId: Schema.String,
+    documentId: Schema.String,
+    connectionId: Schema.String,
+    leaseMs: Schema.optional(Schema.Number),
+  }),
+  success: DocumentSnapshotResponseSchema,
+  error: Schema.Union([NotFoundError, ForbiddenError]),
+});
+
+export const HeartbeatDocumentConnection = Rpc.make("HeartbeatDocumentConnection", {
+  payload: Schema.Struct({
+    collectionId: Schema.String,
+    documentId: Schema.String,
+    connectionId: Schema.String,
+    leaseMs: Schema.optional(Schema.Number),
+  }),
+  success: Schema.Void,
+  error: Schema.Union([NotFoundError, ForbiddenError]),
+});
+
+export const CloseDocumentConnection = Rpc.make("CloseDocumentConnection", {
+  payload: Schema.Struct({
+    collectionId: Schema.String,
+    documentId: Schema.String,
+    connectionId: Schema.String,
+  }),
+  success: Schema.Void,
+  error: Schema.Union([NotFoundError, ForbiddenError]),
+});
+
+export const SubmitConnectedTransaction = Rpc.make("SubmitConnectedTransaction", {
+  payload: Schema.Struct({
+    collectionId: Schema.String,
+    documentId: Schema.String,
+    connectionId: Schema.String,
+    leaseMs: Schema.optional(Schema.Number),
+    transaction: TransactionEnvelopeSchema,
+  }),
+  success: SubmitTransactionResponseSchema,
+  error: Schema.Union([NotFoundError, InvalidValueError, VersionConflictError, ForbiddenError]),
+});
+
 export const DeleteDocument = Rpc.make("DeleteDocument", {
   payload: Schema.Struct({
     collectionId: Schema.String,
@@ -67,5 +123,10 @@ export const DocumentsRpcs = RpcGroup.make(
   GetDocument,
   ListDocuments,
   SubmitTransaction,
+  OpenDocumentConnection,
+  GetConnectedDocument,
+  HeartbeatDocumentConnection,
+  CloseDocumentConnection,
+  SubmitConnectedTransaction,
   DeleteDocument,
 ).middleware(AuthMiddleware);
