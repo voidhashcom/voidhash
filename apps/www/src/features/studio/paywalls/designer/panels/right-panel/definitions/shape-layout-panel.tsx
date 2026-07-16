@@ -1,9 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the shape `Layout` section — the wire-tree
- * replica of {@link ../sections/shape-layout-section.ShapeLayoutSection}
- * (single `shape` node; NO override-reset affordances).
+ * Built-in layout panel definition for shape dimensions.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` "Layout" → `Panel.Section title="Layout"`.

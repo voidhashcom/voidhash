@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the scrollView `Scroll` settings section — the
- * wire-tree replica of {@link ../sections/scroll-view-settings-section.ScrollViewSettingsSection}.
+ * Built-in panel definition for scroll view axis and indicator settings.
  * Exposes the two scrollView-only data flags as boolean switches:
  * - `horizontal` — scroll axis (off = vertical).
  * - `showsScrollIndicator` — whether the native scrollbar is shown.

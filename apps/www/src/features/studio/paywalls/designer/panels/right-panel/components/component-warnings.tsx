@@ -33,7 +33,7 @@ export interface ComponentWarningsBlockProps {
 
 /**
  * Validation summary for the selected component node, rendered above the
- * right-panel sections (spec §7.4): amber rows for warnings, muted rows for
+ * right-panel panels (spec §7.4): amber rows for warnings, muted rows for
  * info. When the instance references a component file that no longer exists
  * (`component-unresolved`), a primary "Pair to a component file…" action opens a
  * picker to re-point it at an existing file.
