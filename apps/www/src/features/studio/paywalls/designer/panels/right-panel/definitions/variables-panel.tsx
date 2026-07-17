@@ -1,9 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the `Variables` section — the wire-tree replica
- * of {@link ../sections/variables-section.VariablesSection} (+ its `VariableRow`
- * and `PendingVariableRow`).
+ * Built-in panel definition for local variable creation and editing.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Variables" → `Panel.Section title="Variables"`.

@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the `Border` section — the wire-tree replica of
- * {@link ../sections/border-section.BorderSection}.
+ * Built-in panel definition for border width, color, enablement, and resets.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Border" → `Panel.Section title="Border"`.
@@ -52,9 +51,7 @@ interface BorderStyle {
 }
 
 /**
- * Whether the four side widths diverge — the seed for the expanded view.
- * Replicated verbatim from the legacy section (kept private to preserve the
- * flag-off byte-identity).
+ * Whether the four side widths diverge, seeding the expanded view.
  */
 function shouldShowIndividualBorder(node: BorderStyle): boolean {
   return (

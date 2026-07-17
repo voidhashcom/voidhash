@@ -1,9 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the `Component actions` section — the wire-tree
- * replica of {@link ../sections/component-actions-section.ComponentActionsSection}
- * (+ its `ComponentActionRow`).
+ * Built-in panel definition for component action bindings.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Actions" → `Panel.Section title="Actions"`.

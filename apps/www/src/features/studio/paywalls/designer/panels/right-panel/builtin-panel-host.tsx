@@ -1,20 +1,17 @@
 "use client";
 
 /**
- * Mounts ONE in-process built-in panel session for a section and renders its
- * tree with the host kit. The session is keyed by `sectionId` ONLY (by the
- * PanelStack's `key={section.id}`), so a selection change NEVER remounts it —
- * the definition's `useState` survives across selections exactly like today's
- * `key={section.id}` sections (inventory §A / anomaly 4). Selection and nodes
- * flow into the definition as INPUTS via `transport.update`, not as a remount.
+ * Mounts one in-process built-in panel session and renders its tree with the
+ * host kit. The stack keys each host by panel id, so selection changes update
+ * the session inputs without remounting it and preserve definition state.
  *
  * `wrap` re-wraps providers INSIDE the reconciler root: the SAME designer zustand
- * store (via {@link PaywallStoreContext}, so `useStore`-based section hooks work
+ * store (via {@link PaywallStoreContext}, so `useStore`-based hooks work
  * unchanged inside the reconciler) plus the {@link PanelHostServicesProvider}
  * host-services surface. The portalled host chrome (State Manager sheet, confirm
  * dialog) lives in the main tree inside {@link PanelHostServicesHost}.
  */
-import type { PanelContext, PanelSessionInputs } from "@voidhash/paywalls/panel";
+import type { PanelSessionInputs } from "@voidhash/paywalls/panel";
 import { useEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 
@@ -44,8 +41,6 @@ export interface BuiltinPanelSelection {
 }
 
 export interface BuiltinPanelHostProps {
-  /** The section this host renders (used only for diagnostics; identity is the mount key). */
-  readonly sectionId: string;
   /** The built-in panel definition to run in-process. */
   readonly definition: PanelRender;
   /** The current selection (flows to the definition via `update`, never remounts). */
@@ -125,9 +120,8 @@ function BuiltinPanelSessionView({
 }
 
 /**
- * Mounts a built-in panel host for `sectionId`. Renders the portalled host
- * chrome via {@link PanelHostServicesHost} and, inside it, the session view. The
- * PanelStack keys this component by `sectionId` so it persists across selections.
+ * Mounts a built-in panel host. The parent stack supplies the panel identity as
+ * the React key so this host persists across selection changes.
  */
 export function BuiltinPanelHost({ definition, selection }: BuiltinPanelHostProps): ReactNode {
   const store = usePaywallDesignerStore();

@@ -1,9 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the `Layout` (flex) section — the wire-tree
- * replica of {@link ../sections/flex-layout-section.FlexLayoutSection}
- * (screen/view nodes, multi-selectable).
+ * Built-in layout panel definition for screen and view selections.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` "Layout" → `Panel.Section title="Layout"`.
@@ -16,10 +14,9 @@
  * - PADDING subsection: uniform (2 fields) OR expanded (4 per-side fields) + an
  *   expand/collapse button → `Panel.Subsection title="Padding"` > `Panel.Row`.
  *
- * Applicability nuance (verbatim from the old `DynamicPanel`): the section renders
- * ONLY when the first node has a truthy `parentId`; the definition returns an
- * empty `<Panel/>` otherwise (renders nothing). Dimension inputs are disabled for
- * a `screen` node (`editableDimensions = firstNode.type !== "screen"`).
+ * The panel renders only when the first node has a parent; otherwise the
+ * definition returns an empty `<Panel/>`. Dimension inputs are disabled for a
+ * `screen` node (`editableDimensions = firstNode.type !== "screen"`).
  *
  * Behavior (identical to the old section):
  * - direction + alignment are DIRECT writes (one undo); gap + padding + dimension
@@ -165,8 +162,7 @@ export function FlexLayoutPanel(_ctx: PanelContext) {
     });
   }, [node, handleChange]);
 
-  // Renders NOTHING when the first node has no parent (the old DynamicPanel gated
-  // the whole section on `firstNode.parentId`), matching the flag-off path.
+  // Parentless selections have no flex-layout relationship to edit.
   if (!node || !parentId) return <Panel />;
 
   const parentDirection = getFlexDirection(parent, "row");

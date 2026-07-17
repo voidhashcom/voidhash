@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the `Border Radius` section — the wire-tree
- * replica of {@link ../sections/border-radius-section.BorderRadiusSection}.
+ * Built-in panel definition for uniform and per-corner border radii.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Border Radius" → `Panel.Section title="Border Radius"`.
@@ -51,9 +50,7 @@ interface BorderRadiusStyle {
 }
 
 /**
- * Whether the four corners diverge (any pair differs) — the seed for the
- * expanded/individual view. Replicated verbatim from the legacy section (a
- * module-local helper there, kept private to preserve the flag-off byte-identity).
+ * Whether the four corners diverge, seeding the expanded view.
  */
 function shouldShowIndividualBorderRadius(node: BorderRadiusStyle): boolean {
   return (

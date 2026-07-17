@@ -28,6 +28,7 @@
     "@workos-inc/node": "9.2.0",
     "effect": "catalog:",
     "jose": "catalog:",
+    "just-bash": "3.1.0",
     "preact": "^10.25.4",
     "zod": "catalog:"
   },

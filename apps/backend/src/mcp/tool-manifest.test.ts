@@ -13,6 +13,7 @@ describe("MCP tool manifest", () => {
     const names = mcpToolDescriptors().map((d) => d.name);
     expect(names).toEqual([
       "list_paywalls",
+      "bash",
       "begin_paywall_edit",
       "get_paywall",
       "get_components",
@@ -28,10 +29,9 @@ describe("MCP tool manifest", () => {
     ]);
   });
 
-  it("no longer advertises the deleted stateless-build / bash tools", () => {
+  it("no longer advertises the deleted stateless-build tools", () => {
     const names = mcpToolDescriptors().map((d) => d.name);
     for (const removed of [
-      "bash",
       "read_file",
       "get_diagnostics",
       "validate_paywall",
@@ -39,6 +39,19 @@ describe("MCP tool manifest", () => {
     ]) {
       expect(names).not.toContain(removed);
     }
+  });
+
+  it("bash requires a non-empty command", async () => {
+    const tool = findMcpTool("bash")!;
+    expect(tool.descriptor.inputSchema.required).toEqual(["command"]);
+    const result = await Effect.runPromise(
+      tool.dispatch({ projectId: "proj_1" }, { command: "" }) as Effect.Effect<{
+        output: string;
+        isError: boolean;
+      }>,
+    );
+    expect(result.isError).toBe(true);
+    expect(result.output).toContain("invalid arguments");
   });
 
   it("every descriptor has an object JSON Schema with a description", () => {
