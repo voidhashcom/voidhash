@@ -30,6 +30,31 @@ export type PaywallVariables = Readonly<Record<string, string | number | boolean
 /** Platform the paywall is being presented on. */
 export type PaywallPlatform = "ios" | "android" | "web";
 
+/** Safe-area insets in logical/CSS pixels. */
+export interface PaywallSafeAreaInsets {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
+
+/** A screen-space rectangle in logical/CSS pixels. */
+export interface PaywallDimensions {
+  readonly width: number;
+  readonly height: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+/** Rectangle exposed by {@link useDimensions}. */
+export type PaywallDimensionTarget = "screen" | "window";
+
+/** Screen and window rectangles available to a paywall. */
+export interface PaywallDimensionsByTarget {
+  readonly screen: PaywallDimensions;
+  readonly window: PaywallDimensions;
+}
+
 /**
  * Everything a paywall needs at runtime beyond its own React tree (contract
  * §7.1). The native host injects it as `window.__VOIDHASH_PAYWALL__` when it
@@ -41,6 +66,8 @@ export interface PaywallRuntimeConfig {
   readonly variables: PaywallVariables;
   readonly locale?: string;
   readonly platform?: PaywallPlatform;
+  readonly safeAreaInsets?: PaywallSafeAreaInsets;
+  readonly dimensions?: PaywallDimensionsByTarget;
   /** Product selected when the paywall first renders. Defaults to the first. */
   readonly defaultSelectedProductId?: string;
 }
@@ -71,6 +98,8 @@ export const normalizeRuntimeConfig = (
   variables: input?.variables ?? {},
   locale: input?.locale,
   platform: input?.platform,
+  safeAreaInsets: input?.safeAreaInsets,
+  dimensions: input?.dimensions,
   defaultSelectedProductId: input?.defaultSelectedProductId,
 });
 

@@ -149,6 +149,7 @@
     "@types/react-dom": "catalog:",
     "@voidhash/tsconfig": "workspace:*",
     "esbuild": "^0.25.10",
+    "jsdom": "^26.1.0",
     "react": "catalog:",
     "react-dom": "catalog:",
     "tsup": "^8.5.1",

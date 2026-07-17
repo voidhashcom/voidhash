@@ -61,6 +61,8 @@ const toRuntimeConfig = (hostData: SandboxHostData): PaywallRuntimeConfig => ({
   variables: hostData.variables ?? {},
   locale: hostData.locale,
   platform: hostData.platform,
+  safeAreaInsets: hostData.safeAreaInsets,
+  dimensions: hostData.dimensions,
   ...(hostData.selectedProductId != null
     ? { defaultSelectedProductId: hostData.selectedProductId }
     : {}),

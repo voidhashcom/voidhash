@@ -1135,6 +1135,9 @@ importers:
       esbuild:
         specifier: ^0.25.10
         version: 0.25.12
+      jsdom:
+        specifier: ^26.1.0
+        version: 26.1.0
       react:
         specifier: 'catalog:'
         version: 19.1.0

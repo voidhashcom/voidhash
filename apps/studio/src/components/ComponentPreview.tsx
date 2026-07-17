@@ -12,7 +12,8 @@ import {
 import { createElement, type ReactNode } from "react";
 
 import type { AnyComponentDefinition } from "../voidhash/paywalls";
-import { DEFAULT_PREVIEW_CONFIG, SILENT_BRIDGE } from "../voidhash/preview-runtime";
+import { previewConfigForDevice, type PreviewDeviceProfile } from "../voidhash/preview-devices";
+import { SILENT_BRIDGE } from "../voidhash/preview-runtime";
 import { PreviewErrorBoundary } from "./PreviewErrorBoundary";
 
 const PLACEHOLDER_IMAGE = `data:image/svg+xml,${encodeURIComponent(
@@ -54,11 +55,18 @@ const defaultPreviewState = (
 /** Mock runtime config, overridden by the preview state's declared data. */
 const previewConfig = (
   state: ComponentPreviewState<PropMap> | undefined,
-): PaywallRuntimeConfig => ({
-  ...DEFAULT_PREVIEW_CONFIG,
-  products: state?.data?.products ?? DEFAULT_PREVIEW_CONFIG.products,
-  variables: state?.data?.variables ?? DEFAULT_PREVIEW_CONFIG.variables,
-});
+  profile: PreviewDeviceProfile,
+): PaywallRuntimeConfig => {
+  const defaults = previewConfigForDevice(profile);
+  return {
+    ...defaults,
+    products: state?.data?.products ?? defaults.products,
+    variables: state?.data?.variables ?? defaults.variables,
+    platform: state?.data?.platform ?? profile.platform,
+    safeAreaInsets: state?.data?.safeAreaInsets ?? profile.safeAreaInsets,
+    dimensions: state?.data?.dimensions ?? profile.dimensions,
+  };
+};
 
 /**
  * Resolves the props to mount a component preview with: declared preview-state
@@ -89,6 +97,7 @@ const buildPreviewProps = (
 
 export interface ComponentPreviewProps {
   definition: AnyComponentDefinition;
+  profile: PreviewDeviceProfile;
 }
 
 /**
@@ -97,9 +106,9 @@ export interface ComponentPreviewProps {
  * renderer + runtime providers a real paywall renders under, against the mock
  * Studio config (envelopes go to a silent bridge).
  */
-export const ComponentPreview = ({ definition }: ComponentPreviewProps): ReactNode => {
+export const ComponentPreview = ({ definition, profile }: ComponentPreviewProps): ReactNode => {
   const state = defaultPreviewState(definition);
-  const config = previewConfig(state);
+  const config = previewConfig(state, profile);
   const props = buildPreviewProps(definition, state, config.products);
 
   return (

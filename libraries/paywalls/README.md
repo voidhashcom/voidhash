@@ -17,7 +17,13 @@ component manifest, preview node tree) are specified in
 `.voidhash/paywalls/*.tsx`
 
 ```tsx
-import { createPaywall, View, Text, Pressable, usePaywallActions } from "@voidhash/paywalls";
+import {
+  createPaywall,
+  View,
+  Text,
+  Pressable,
+  usePaywallActions,
+} from "@voidhash/paywalls";
 
 function Body() {
   const { purchase } = usePaywallActions();
@@ -81,14 +87,15 @@ export const definition = defineComponent({
   previews: {
     default: {
       data: {
-        products: [
-          /* fixture products */
-        ],
+        products: [/* fixture products */],
       },
     },
   },
   render: ({ props, actions }) => (
-    <Pressable onPress={actions.onSelect} style={{ borderColor: props.accentColor }}>
+    <Pressable
+      onPress={actions.onSelect}
+      style={{ borderColor: props.accentColor }}
+    >
       <Text>{props.product.displayName}</Text>
       <Slot /> {/* children passed by the consumer render here */}
     </Pressable>
@@ -109,6 +116,10 @@ Declared actions become typed callbacks in the template (`actions.onSelect`)
 that forward to the consumer prop of the same name. `extractComponentManifest(definition)`
 emits the §2 manifest JSON (props, actions, slot usage, preview states,
 host data).
+
+Preview-state `data` may provide `products`, `variables`, `platform`,
+`safeAreaInsets`, and `dimensions`. The sandbox supplies deterministic
+iPhone-style environment values when those fields are omitted.
 
 ## Custom editor panels
 
@@ -136,7 +147,9 @@ export const definition = defineComponent({
           <Panel.TextField
             kind="text"
             value={ctx.props.title.value ?? ""}
-            onCommit={(value) => ctx.props.title.set(value, { gesture: "commit" })}
+            onCommit={(value) =>
+              ctx.props.title.set(value, { gesture: "commit" })
+            }
           />
         </Panel.Field>
         <Panel.PropField name="subtitle" />
@@ -173,7 +186,7 @@ through to `DefaultProps`). Omitting `panel` entirely yields the default panel:
 one host-rendered row per manifest prop.
 
 **Security.** A panel never runs in the editor's context. Its compiled module is
-evaluated in a locked-down sandbox and it emits only serializable *intents* — a
+evaluated in a locked-down sandbox and it emits only serializable _intents_ — a
 panel function and its React tree never cross the boundary. Only validated data
 crosses: prop values in, `set-prop`/`reset-prop` intents out (each re-validated
 against the manifest by the host). Events are addressed purely by
@@ -193,11 +206,25 @@ Hooks read the runtime config the host supplies (injected
 
 - `usePaywallProducts()` — products to display.
 - `usePaywallVariables()` — dashboard/experiment overrides.
+- `usePlatform(): "ios" | "android" | "web"` — the current platform.
+- `useSafeAreaInsets(): { top, right, bottom, left }` — safe-area insets.
+- `useDimensions("screen" | "window"): { width, height, x, y }` — screen or
+  window geometry.
 - `useSelectedProduct()` — selected product + setter.
 - `usePaywallActions()` — `purchase`, `restore`, `close`, `openUrl`, `track`,
   `selectProduct`.
 - `usePaywallStatus()` — transaction lifecycle (idle/purchasing/purchased/…).
 - `usePaywallConfig()` — the full config (locale, platform, …).
+
+Environment values use logical/CSS pixels. `x` and `y` are screen-space
+rectangle origins, not safe-area offsets. Explicit runtime configuration takes
+precedence and late `configure` messages update consumers. Without explicit
+values, browsers measure `window.screen`, the browser window, and CSS
+`safe-area-inset-*`; resize, orientation, and visual-viewport events refresh
+the hooks. The platform defaults to `web`, unsupported safe-area values default
+to zero, and SSR or unavailable measurement uses zero rectangles. Configured
+native platforms currently use the measured screen rectangle for both targets
+when dimensions are not supplied.
 
 Actions are sent to the native SDK as version-1 envelopes over the WebView
 bridge; the envelope format mirrors
