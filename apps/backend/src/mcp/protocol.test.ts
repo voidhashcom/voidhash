@@ -101,7 +101,7 @@ describe("tools/list", () => {
   it("returns the tool descriptors with JSON Schema inputs", async () => {
     const response = await run(msg("tools/list"));
     const result = (response as { result: { tools: Array<Record<string, unknown>> } }).result;
-    expect(result.tools.length).toBe(13);
+    expect(result.tools.length).toBe(14);
     const listPaywalls = result.tools[0];
     expect(listPaywalls.name).toBe("list_paywalls");
     expect((listPaywalls.inputSchema as { type: string }).type).toBe("object");

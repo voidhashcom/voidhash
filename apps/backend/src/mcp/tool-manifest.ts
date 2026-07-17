@@ -56,6 +56,14 @@ export interface McpTool {
  */
 const mcpToolSchemas = {
   list_paywalls: z.strictObject({}),
+  bash: z.strictObject({
+    command: z
+      .string()
+      .min(1)
+      .describe(
+        "Bash command line. Pipes, &&, and redirects into /tmp are allowed; each call is a fresh shell (no state across calls).",
+      ),
+  }),
   begin_paywall_edit: z.strictObject({
     paywallId: z.string().describe("Stable id of the paywall to edit (from list_paywalls)."),
   }),
@@ -194,10 +202,11 @@ const validatedTool = <Input>(
 });
 
 /**
- * The MCP tools, in advertised order: discovery (`list_paywalls`), read
- * (`get_paywall` / `get_components` / `read_component`), then the write surface
- * (`edit_paywall` for composition, `write_component` / `rename_component` /
- * `delete_component` for code components).
+ * The MCP tools, in advertised order: discovery (`list_paywalls`), research
+ * (`bash` over the read-only workspace VFS), read (`get_paywall` /
+ * `get_components` / `read_component`), then the write surface (`edit_paywall`
+ * for composition, `write_component` / `rename_component` / `delete_component`
+ * for code components).
  */
 export const MCP_TOOLS: ReadonlyArray<McpTool> = [
   validatedTool(
@@ -205,6 +214,12 @@ export const MCP_TOOLS: ReadonlyArray<McpTool> = [
     "List every paywall in the project with its stable paywallId, display slug, and workspace path. Pass a paywallId to begin_paywall_edit, then use its editSessionId for every scoped tool.",
     mcpToolSchemas.list_paywalls,
     (scope) => WorkspaceTools.listPaywalls(scope),
+  ),
+  validatedTool(
+    "bash",
+    "Run a read-only bash command over a virtual filesystem projecting this project's paywall workspace — use it to RESEARCH, not edit. Standard tools work: ls, cat, grep, rg, find, head, tail, sed, awk, jq, wc, sort, diff, tree. Layout: /README.md (this map), /paywalls/<paywallId>/document.json (cleaned document JSON, same shape as get_paywall), /paywalls/<paywallId>/components/<name>.tsx (local component TSX sources). Directory names are paywall ids — pass them directly to begin_paywall_edit. Everything except /tmp is READ-ONLY (writes fail with EROFS); /tmp lives only within this single call, so chain steps with && and pipes. Custom command: `voidhash` (help), `voidhash paywalls` (paywallId + slug listing). No network, no state across calls; stdout is capped at ~40KB — prefer targeted greps over dumping whole trees (grep -r /paywalls loads every paywall document; fine occasionally, not per query). To modify anything, use begin_paywall_edit + edit_paywall/write_component.",
+    mcpToolSchemas.bash,
+    WorkspaceTools.runBash,
   ),
   validatedTool(
     "begin_paywall_edit",
