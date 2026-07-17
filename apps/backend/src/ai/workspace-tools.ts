@@ -58,6 +58,9 @@ import {
 } from "@voidhash/paywall-workspace";
 import { Cause, Effect, Exit, Option } from "effect";
 
+import { runWorkspaceBash, truncateBashOutput } from "./vfs/bash-tool.ts";
+import { paywallVfsFiles, type WorkspaceVfsSources } from "./vfs/workspace-vfs.ts";
+
 /** The context (services) every workspace tool closes over when it runs. */
 export type WorkspaceToolDeps =
   | PaywallWorkspaceService
@@ -199,6 +202,10 @@ const runFolded = <A>(
 
 /** Inputs for each workspace tool, matching the MCP tool schemas. */
 export interface ListPaywallsInput {}
+
+export interface RunBashInput {
+  readonly command: string;
+}
 
 /** Stable paywall target shared by every paywall-scoped tool. */
 export interface PaywallTargetInput {
@@ -373,6 +380,71 @@ export const listPaywalls = (
       (dir) => `- ${dir.paywallId}: slug ${dir.slug} (/paywalls/${dir.slug})`,
     );
     return okResult(`${result.value.length} paywall(s):\n${lines.join("\n")}`);
+  });
+
+/**
+ * `bash` — one read-only research command over the workspace VFS
+ * (`/paywalls/<paywallId>/…`), executed in a fresh just-bash shell. A completed
+ * exec is a success even on a non-zero exit code (`grep` exiting 1 on no match
+ * is a valid answer) — the exit code and stderr are reported in the output;
+ * only infrastructure failures (service errors, the 30s timeout) fold to
+ * `isError`.
+ */
+export const runBash = (
+  scope: WorkspaceToolScope,
+  input: RunBashInput,
+): Effect.Effect<WorkspaceToolResult, never, WorkspaceToolDeps> =>
+  Effect.gen(function* () {
+    const ws = yield* PaywallWorkspaceService;
+    const context = yield* Effect.context<WorkspaceToolDeps>();
+    const runEffect = Effect.runPromiseWith(context);
+    // A rejected VFS read gets re-rendered by the shell (e.g. `ls` prints a
+    // generic not-found), so the first service failure is recorded here and
+    // wins over whatever the shell made of it.
+    let serviceFailure: string | undefined;
+    const runSource = <A>(effect: Effect.Effect<A, unknown, WorkspaceToolDeps>): Promise<A> =>
+      runEffect(runFolded(effect)).then((folded) => {
+        if (folded.ok) {
+          return folded.value;
+        }
+        serviceFailure ??= folded.message;
+        throw new Error(folded.message);
+      });
+    const sources: WorkspaceVfsSources = {
+      listPaywalls: () => runSource(ws.listPaywalls(scope.projectId)),
+      readPaywall: (paywallId) =>
+        runSource(
+          ws.readDocumentTree(paywallId).pipe(
+            Effect.map((document) =>
+              paywallVfsFiles((document.root as SnapshotDocumentNode | null) ?? null),
+            ),
+            Effect.catchTag("PaywallNotFoundError", () => Effect.succeed(null)),
+          ),
+        ),
+    };
+    const result = yield* runFolded(
+      Effect.tryPromise((signal) => runWorkspaceBash(sources, input.command, { signal })).pipe(
+        Effect.timeout("30 seconds"),
+      ),
+    );
+    if (serviceFailure !== undefined) {
+      return errResult(`bash failed: ${serviceFailure}`);
+    }
+    if (!result.ok) {
+      return errResult(`bash failed: ${result.message}`);
+    }
+    const { stdout, stderr } = truncateBashOutput(result.value);
+    const sections: string[] = [];
+    if (stdout.length > 0) {
+      sections.push(stdout);
+    }
+    if (stderr.length > 0) {
+      sections.push(`[stderr]\n${stderr}`);
+    }
+    if (result.value.exitCode !== 0) {
+      sections.push(`[exit code ${result.value.exitCode}]`);
+    }
+    return okResult(sections.length > 0 ? sections.join("\n") : "(no output)");
   });
 
 /**
