@@ -82,6 +82,7 @@
     "pino": "^9.7.0",
     "pixi-viewport": "^6.0.3",
     "pixi.js": "^8.2.6",
+    "qrcode.react": "^4.2.0",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-easy-crop": "^6.0.2",
