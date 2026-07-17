@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "../lib/cn";
 import type { ComponentEntry, InvalidEntry, PaywallEntry } from "../voidhash/paywalls";
+import type { PreviewDeviceProfile } from "../voidhash/preview-devices";
 import type { PreviewEvent } from "../voidhash/preview-runtime";
 import { ComponentPreview } from "./ComponentPreview";
 
@@ -44,6 +45,7 @@ export interface SidebarProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onClearEvents: () => void;
+  profile: PreviewDeviceProfile;
 }
 
 /**
@@ -60,6 +62,7 @@ export const Sidebar = ({
   selectedId,
   onSelect,
   onClearEvents,
+  profile,
 }: SidebarProps): ReactNode => (
   <aside className="flex h-full w-80 flex-col border-neutral-800 border-l bg-neutral-950">
     <div className="flex items-center justify-between px-4 pt-4 pb-2">
@@ -129,7 +132,7 @@ export const Sidebar = ({
                 </div>
                 {c.definition ? (
                   <div className="px-2 pb-2">
-                    <ComponentPreview definition={c.definition} />
+                    <ComponentPreview definition={c.definition} profile={profile} />
                   </div>
                 ) : (
                   <p className="px-2.5 pb-2 text-[11px] text-neutral-600">

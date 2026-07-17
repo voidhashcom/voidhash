@@ -10,8 +10,11 @@ import {
   Pressable,
   Slot,
   Text,
+  useDimensions,
   usePaywallProducts,
   usePaywallVariables,
+  usePlatform,
+  useSafeAreaInsets,
   View,
 } from "../src/index";
 
@@ -20,7 +23,14 @@ const Card = defineComponent({
     title: p.string().label("Title").default("Untitled"),
   }),
   render: ({ props }) => (
-    <View style={{ paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16 }}>
+    <View
+      style={{
+        paddingTop: 16,
+        paddingRight: 16,
+        paddingBottom: 16,
+        paddingLeft: 16,
+      }}
+    >
       <Text>Card {props.title}</Text>
       <Slot />
     </View>
@@ -109,6 +119,76 @@ describe("DOM paywall rendering", () => {
       />,
     );
     expect(html).toContain("Yearly|#16a34a");
+  });
+
+  it("exposes explicitly configured platform, safe area, screen and window metrics", () => {
+    const Body = () => (
+      <Text>
+        {JSON.stringify({
+          platform: usePlatform(),
+          safeAreaInsets: useSafeAreaInsets(),
+          screen: useDimensions("screen"),
+          window: useDimensions("window"),
+        })}
+      </Text>
+    );
+    const paywall = createPaywall({
+      title: "Environment hooks",
+      render: () => <Body />,
+    });
+    const html = renderToStaticMarkup(
+      <PaywallRenderer
+        config={{
+          products: [],
+          variables: {},
+          platform: "ios",
+          safeAreaInsets: { top: 59, right: 0, bottom: 34, left: 0 },
+          dimensions: {
+            screen: { width: 393, height: 852, x: 0, y: 0 },
+            window: { width: 390, height: 760, x: 1, y: 59 },
+          },
+        }}
+        paywall={paywall}
+      />,
+    );
+
+    expect(html).toContain("&quot;platform&quot;:&quot;ios&quot;");
+    expect(html).toContain("&quot;top&quot;:59");
+    expect(html).toContain("&quot;width&quot;:393");
+    expect(html).toContain("&quot;width&quot;:390");
+    expect(html).toContain("&quot;y&quot;:59");
+  });
+
+  it("uses stable web and zero environment fallbacks during SSR", () => {
+    const Body = () => (
+      <Text>
+        {usePlatform()}|{JSON.stringify(useSafeAreaInsets())}|
+        {JSON.stringify(useDimensions("screen"))}|{JSON.stringify(useDimensions("window"))}
+      </Text>
+    );
+    const paywall = createPaywall({
+      title: "SSR environment",
+      render: () => <Body />,
+    });
+    const html = renderToStaticMarkup(<PaywallRenderer paywall={paywall} />);
+
+    expect(html).toContain("web|");
+    expect(html).toContain(
+      "{&quot;top&quot;:0,&quot;right&quot;:0,&quot;bottom&quot;:0,&quot;left&quot;:0}",
+    );
+    expect(html.match(/&quot;width&quot;:0/g)).toHaveLength(2);
+  });
+
+  it("rejects an invalid dimension target with a descriptive error", () => {
+    const Body = () => <Text>{useDimensions("viewport" as "window").width}</Text>;
+    const paywall = createPaywall({
+      title: "Invalid dimensions",
+      render: () => <Body />,
+    });
+
+    expect(() => renderToStaticMarkup(<PaywallRenderer paywall={paywall} />)).toThrow(
+      'useDimensions expected "screen" or "window", received "viewport".',
+    );
   });
 
   it("carries paywall metadata under __voidhash", () => {

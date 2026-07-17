@@ -10,11 +10,20 @@ import {
 
 import { createDefaultBridge, type PaywallBridge } from "./bridge";
 import {
+  type PaywallDimensions,
+  type PaywallDimensionTarget,
+  type PaywallPlatform,
   type PaywallProduct,
   type PaywallRuntimeConfig,
+  type PaywallSafeAreaInsets,
   type PaywallVariables,
   readInjectedConfig,
 } from "./config";
+import {
+  type ResolvedPaywallEnvironment,
+  resolvePaywallEnvironment,
+  useBrowserEnvironment,
+} from "./environment";
 import {
   createCloseEnvelope,
   createEventEnvelope,
@@ -52,6 +61,7 @@ export interface PaywallStatusSnapshot {
 
 interface PaywallRuntimeValue {
   readonly config: PaywallRuntimeConfig;
+  readonly environment: ResolvedPaywallEnvironment;
   readonly products: ReadonlyArray<PaywallProduct>;
   readonly variables: PaywallVariables;
   readonly selectedProductId: string | undefined;
@@ -124,6 +134,14 @@ export const PaywallRuntimeProvider = ({
       setConfig(configProp);
     }
   }, [configProp]);
+
+  const browserEnvironment = useBrowserEnvironment(
+    config.safeAreaInsets === undefined || config.dimensions === undefined,
+  );
+  const environment = useMemo(
+    () => resolvePaywallEnvironment(config, browserEnvironment),
+    [config, browserEnvironment],
+  );
 
   const [explicitSelection, setExplicitSelection] = useState<string | undefined>(undefined);
   // An explicit user selection survives reconfiguration as long as the product
@@ -203,13 +221,14 @@ export const PaywallRuntimeProvider = ({
     () => ({
       actions,
       config,
+      environment,
       products: config.products,
       selectedProduct: config.products.find((product) => product.id === selectedProductId),
       selectedProductId,
       status,
       variables: config.variables,
     }),
-    [actions, config, selectedProductId, status],
+    [actions, config, environment, selectedProductId, status],
   );
 
   return <PaywallRuntimeContext.Provider value={value}>{children}</PaywallRuntimeContext.Provider>;
@@ -223,11 +242,30 @@ export const usePaywallProducts = (): ReadonlyArray<PaywallProduct> =>
 export const usePaywallVariables = (): PaywallVariables =>
   useRuntimeOrThrow("usePaywallVariables").variables;
 
+/** The current runtime platform. Defaults to `web` when the host does not supply one. */
+export const usePlatform = (): PaywallPlatform =>
+  useRuntimeOrThrow("usePlatform").environment.platform;
+
+/** Safe-area insets in logical/CSS pixels. */
+export const useSafeAreaInsets = (): PaywallSafeAreaInsets =>
+  useRuntimeOrThrow("useSafeAreaInsets").environment.safeAreaInsets;
+
+/** Screen or window dimensions in logical/CSS pixels. */
+export const useDimensions = (target: PaywallDimensionTarget): PaywallDimensions => {
+  const runtime = useRuntimeOrThrow("useDimensions");
+  if (target !== "screen" && target !== "window") {
+    throw new Error(
+      `useDimensions expected "screen" or "window", received ${JSON.stringify(target)}.`,
+    );
+  }
+  return runtime.environment.dimensions[target];
+};
+
 /** Host-backed actions: purchase, restore, close, openUrl, track, select. */
 export const usePaywallActions = (): PaywallActions =>
   useRuntimeOrThrow("usePaywallActions").actions;
 
-/** The full runtime config (products, variables, locale, platform). */
+/** The full runtime config supplied by the host or preview environment. */
 export const usePaywallConfig = (): PaywallRuntimeConfig =>
   useRuntimeOrThrow("usePaywallConfig").config;
 

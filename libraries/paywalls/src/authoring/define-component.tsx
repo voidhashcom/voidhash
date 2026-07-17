@@ -8,7 +8,13 @@ import type {
   PanelRefPropHandle,
 } from "../panel/context";
 import { SlotProvider } from "../primitives/slot";
-import type { PaywallProduct, PaywallVariables } from "../runtime/config";
+import type {
+  PaywallDimensionsByTarget,
+  PaywallPlatform,
+  PaywallProduct,
+  PaywallSafeAreaInsets,
+  PaywallVariables,
+} from "../runtime/config";
 import {
   type ActionFactory,
   type ActionHandlerProps,
@@ -37,6 +43,9 @@ export interface ComponentPreviewState<M extends PropMap> {
   readonly data?: {
     readonly products?: ReadonlyArray<PaywallProduct>;
     readonly variables?: PaywallVariables;
+    readonly platform?: PaywallPlatform;
+    readonly safeAreaInsets?: PaywallSafeAreaInsets;
+    readonly dimensions?: PaywallDimensionsByTarget;
   };
 }
 

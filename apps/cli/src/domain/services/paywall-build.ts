@@ -183,6 +183,9 @@ interface UserTreeLib {
       readonly config?: {
         readonly products?: ReadonlyArray<unknown>;
         readonly variables?: Record<string, unknown>;
+        readonly platform?: "ios" | "android" | "web";
+        readonly safeAreaInsets?: ComponentPreviewSafeAreaInsets;
+        readonly dimensions?: ComponentPreviewDimensions;
       };
       readonly state?: string;
     },
@@ -198,6 +201,31 @@ interface ComponentPreviewStateLike {
   readonly data?: {
     readonly products?: ReadonlyArray<unknown>;
     readonly variables?: Record<string, unknown>;
+    readonly platform?: "ios" | "android" | "web";
+    readonly safeAreaInsets?: ComponentPreviewSafeAreaInsets;
+    readonly dimensions?: ComponentPreviewDimensions;
+  };
+}
+
+interface ComponentPreviewSafeAreaInsets {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
+
+interface ComponentPreviewDimensions {
+  readonly screen: {
+    readonly width: number;
+    readonly height: number;
+    readonly x: number;
+    readonly y: number;
+  };
+  readonly window: {
+    readonly width: number;
+    readonly height: number;
+    readonly x: number;
+    readonly y: number;
   };
 }
 
@@ -407,6 +435,12 @@ const htmlShell = (jsFileName: string): string =>
     />
     <title>Voidhash Paywall</title>
     <style>
+      :root {
+        --voidhash-safe-area-top: env(safe-area-inset-top, 0px);
+        --voidhash-safe-area-right: env(safe-area-inset-right, 0px);
+        --voidhash-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+        --voidhash-safe-area-left: env(safe-area-inset-left, 0px);
+      }
       html, body, #root { height: 100%; margin: 0; }
       body { overscroll-behavior: none; -webkit-user-select: none; user-select: none; }
     </style>
@@ -896,6 +930,9 @@ export const buildPaywalls = ({
                   config: {
                     products: preview.data?.products ?? [],
                     variables: preview.data?.variables ?? {},
+                    platform: preview.data?.platform,
+                    safeAreaInsets: preview.data?.safeAreaInsets,
+                    dimensions: preview.data?.dimensions,
                   },
                   state,
                 },

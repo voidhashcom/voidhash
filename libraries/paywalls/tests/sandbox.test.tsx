@@ -1,7 +1,17 @@
 import { useEffect, useState } from "react";
 import { describe, expect, it } from "vitest";
 
-import { defineComponent, Pressable, Slot, Text, usePaywallVariables, View } from "../src/index";
+import {
+  defineComponent,
+  Pressable,
+  Slot,
+  Text,
+  useDimensions,
+  usePaywallVariables,
+  usePlatform,
+  useSafeAreaInsets,
+  View,
+} from "../src/index";
 import { Panel } from "../src/panel/index";
 import { parseComponentManifest, parsePreviewTree } from "../src/schema/validate";
 import {
@@ -60,8 +70,14 @@ const definition = defineComponent({
 describe("sandbox renderComponentToTree", () => {
   it("renders a deterministic, byte-identical tree across two runs", async () => {
     const hostData = defaultHostData();
-    const first = await renderComponentToTree(definition, { hostData, state: "default" });
-    const second = await renderComponentToTree(definition, { hostData, state: "default" });
+    const first = await renderComponentToTree(definition, {
+      hostData,
+      state: "default",
+    });
+    const second = await renderComponentToTree(definition, {
+      hostData,
+      state: "default",
+    });
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));
   });
 
@@ -90,7 +106,9 @@ describe("sandbox renderComponentToTree", () => {
         </Pressable>
       ),
     });
-    const tree = await renderComponentToTree(inlineDefinition, { state: "default" });
+    const tree = await renderComponentToTree(inlineDefinition, {
+      state: "default",
+    });
     if (tree.root.type !== "pressable") {
       throw new Error("expected a pressable root");
     }
@@ -98,7 +116,9 @@ describe("sandbox renderComponentToTree", () => {
     expect(tree.root.action).toBe("onSelect");
 
     // The probe must not perturb the committed tree — still byte-stable.
-    const again = await renderComponentToTree(inlineDefinition, { state: "default" });
+    const again = await renderComponentToTree(inlineDefinition, {
+      state: "default",
+    });
     expect(JSON.stringify(tree)).toBe(JSON.stringify(again));
   });
 
@@ -139,12 +159,66 @@ describe("sandbox renderComponentToTree", () => {
         return <Text>{String(variables.headline ?? "NONE")}</Text>;
       },
     });
-    const hostData = { ...defaultHostData(), variables: { headline: "FromFixture" } };
-    const tree = await renderComponentToTree(withVars, { hostData, state: "default" });
+    const hostData = {
+      ...defaultHostData(),
+      variables: { headline: "FromFixture" },
+    };
+    const tree = await renderComponentToTree(withVars, {
+      hostData,
+      state: "default",
+    });
     if (tree.root.type !== "text") {
       throw new Error("expected a text root");
     }
     expect(tree.root.text).toBe("FromFixture");
+  });
+
+  it("uses deterministic default device metrics and per-state environment overrides", async () => {
+    const withEnvironment = defineComponent({
+      previews: {
+        iphone: {
+          data: {
+            platform: "ios",
+            safeAreaInsets: { top: 59, right: 0, bottom: 34, left: 0 },
+            dimensions: {
+              screen: { width: 393, height: 852, x: 0, y: 0 },
+              window: { width: 393, height: 852, x: 0, y: 0 },
+            },
+          },
+        },
+        pixel: {
+          data: {
+            platform: "android",
+            safeAreaInsets: { top: 24, right: 0, bottom: 24, left: 0 },
+            dimensions: {
+              screen: { width: 412, height: 915, x: 0, y: 0 },
+              window: { width: 412, height: 915, x: 0, y: 0 },
+            },
+          },
+        },
+      },
+      render: () => (
+        <Text>
+          {usePlatform()}:{useDimensions("window").width}:{useSafeAreaInsets().top}
+        </Text>
+      ),
+    });
+    const defaults = defaultHostData();
+    const iphone = await renderComponentToTree(withEnvironment, {
+      state: "iphone",
+      hostData: { ...defaults, ...withEnvironment.previews.iphone?.data },
+    });
+    const pixel = await renderComponentToTree(withEnvironment, {
+      state: "pixel",
+      hostData: { ...defaults, ...withEnvironment.previews.pixel?.data },
+    });
+
+    if (iphone.root.type !== "text" || pixel.root.type !== "text") {
+      throw new Error("expected text roots");
+    }
+    expect(iphone.root.text).toBe("ios:393:59");
+    expect(pixel.root.text).toBe("android:412:24");
+    expect(iphone).not.toEqual(pixel);
   });
 
   it("extracts a manifest matching the definition", () => {
@@ -169,7 +243,9 @@ describe("sandbox renderComponentToTree", () => {
 
   it("reports hasPanel=true when the definition declares a panel", () => {
     const withPanel = defineComponent({
-      props: (p) => ({ accentColor: p.string().editor("color").default("#000") }),
+      props: (p) => ({
+        accentColor: p.string().editor("color").default("#000"),
+      }),
       panel: (ctx) => (
         <Panel>
           <Panel.Section title="Style">
