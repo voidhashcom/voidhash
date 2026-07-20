@@ -3,13 +3,12 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { paywallRuntimeBundlePlugin } from "@voidhash/paywall-renderer-preact/vite-plugin";
 import mdx from "fumadocs-mdx/vite";
-import { defineConfig, type PluginOption } from "vite";
+import { defineConfig } from "vite";
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import * as designSourceConfig from "./src/features/design/source.config.ts";
-import * as docsSourceConfig from "./src/features/docs/source.config.ts";
+import * as sourceConfig from "./src/features/source.config.ts";
 
 const devPort = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 3000;
 const devHost = process.env.HOST ?? true;
@@ -93,28 +92,6 @@ function tanstackClientEntryMiddleware() {
   };
 }
 
-function scopedMdxPlugin(plugin: PluginOption, scopeFragment: string) {
-  const vitePlugin = plugin as {
-    transform?: (this: unknown, code: string, id: string) => unknown;
-  };
-
-  if (!vitePlugin.transform) {
-    return plugin;
-  }
-
-  return {
-    ...vitePlugin,
-    async transform(this: unknown, code: string, id: string) {
-      const [file] = id.split("?");
-      if (!file.includes(scopeFragment)) {
-        return null;
-      }
-
-      return vitePlugin.transform?.call(this, code, id);
-    },
-  };
-}
-
 export default defineConfig(() => ({
   root: appRootPath,
   build: {
@@ -124,24 +101,9 @@ export default defineConfig(() => ({
     setupFiles: ["./src/test-setup.ts"],
   },
   plugins: [
-    scopedMdxPlugin(
-      mdx(docsSourceConfig, {
-        configPath: "src/features/docs/source.config.ts",
-        generateIndexFile: {
-          out: "docs.generated.ts",
-        },
-      }),
-      "/src/features/docs/content/docs/",
-    ),
-    scopedMdxPlugin(
-      mdx(designSourceConfig, {
-        configPath: "src/features/design/source.config.ts",
-        generateIndexFile: {
-          out: "design.generated.ts",
-        },
-      }),
-      "/src/features/design/content/docs/",
-    ),
+    ...mdx(sourceConfig, {
+      configPath: "src/features/source.config.ts",
+    }),
     tanstackClientEntryMiddleware(),
     corsMiddleware(),
     paywallRuntimeBundlePlugin(),
@@ -160,8 +122,8 @@ export default defineConfig(() => ({
   resolve: {
     alias: {
       "@": appSrcPath,
-      "@generated/design": fileURLToPath(new URL("./design.generated.ts", import.meta.url)),
-      "@generated/docs": fileURLToPath(new URL("./docs.generated.ts", import.meta.url)),
+      "@generated/browser": fileURLToPath(new URL("./.source/browser.ts", import.meta.url)),
+      "@generated/server": fileURLToPath(new URL("./.source/server.ts", import.meta.url)),
       tslib: tslibPath,
     },
     // TanStack's server-function compiler must transform WorkOS-owned createServerFn calls.

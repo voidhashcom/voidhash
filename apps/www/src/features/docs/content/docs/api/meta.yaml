@@ -1,0 +1,10 @@
+title: API Reference
+icon: Code
+pages:
+  - "---Overview---"
+  - overview
+  - authentication
+  - "---Reference---"
+  - reference
+  - "---Event Capture---"
+  - event-capture

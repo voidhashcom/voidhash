@@ -1,0 +1,87 @@
+---
+title: API Overview
+description: Base URLs, API surfaces, OpenAPI documents, and error conventions for the Voidhash HTTP API.
+---
+
+Voidhash exposes a public HTTP API for everything the CLI, the dashboard, and the device SDKs do: managing your catalog, persons, webhooks, paywall deploys, and capturing analytics events. If you prefer a typed client, the [React Native SDK](/docs/react-native/overview) and the [CLI](/docs/cli/overview) cover most use cases — the HTTP API is for server-to-server integrations and custom tooling.
+
+## Base URLs
+
+| Environment | Base URL |
+| --- | --- |
+| Production | `https://api.voidhash.com` |
+| Preview | `https://api.preview.voidhash.com` |
+| Local development | `http://localhost:1337` |
+
+All paths in the API reference are relative to these base URLs.
+
+## API surfaces
+
+The API has two distinct surfaces, served from the same host but with different authentication models:
+
+### Management & device SDK API — `/api/v1`
+
+The main API. Covers management endpoints (API keys, organizations, projects, persons, catalog, schema, webhooks, notifications, paywall deploys) and the device SDK endpoints under `/api/v1/sdk` that the React Native SDK talks to.
+
+Every endpoint authenticates via request headers — an API key, a project secret key, a publishable key, or a dashboard session. See [Authentication](/docs/api/authentication) for the full model.
+
+```bash
+curl https://api.voidhash.com/api/v1/auth/session \
+  -H "x-secret-key: vh_sk_..."
+```
+
+### Event capture API — `/i/v1`
+
+A separate, high-throughput surface for analytics event ingestion (`POST /i/v1/capture` and `POST /i/v1/batch`). It does not use header authentication — instead, requests carry a publishable project `token` in the request body, and the token resolves the project. Responses include an `x-request-id` header, and rate-limited responses (`429`) include `retry-after`. See [Event Capture](/docs/api/event-capture).
+
+## OpenAPI documents
+
+Both surfaces publish machine-readable OpenAPI documents you can use to generate clients or explore the API:
+
+| Surface | OpenAPI document |
+| --- | --- |
+| Management & device SDK API | `GET /api/docs/openapi.json` |
+| Event capture API | `GET /i/docs/openapi.json` |
+
+## Error conventions
+
+Errors on the `/api/v1` surface are tagged: every error body carries a `_tag` of the form `Api/XxxError` plus error-specific fields (typically `message`, or `cause` and `message` for service errors).
+
+```json
+{
+  "_tag": "Api/NotAuthenticatedError",
+  "message": "No valid credentials provided"
+}
+```
+
+The `_tag` is stable and machine-matchable — branch on it rather than parsing messages. HTTP status codes follow a consistent mapping:
+
+| Status | Error family | Meaning |
+| --- | --- | --- |
+| `400` | `Api/*ValidationError` | Invalid request payload or parameters |
+| `401` | `Api/NotAuthenticatedError` | Missing or invalid credentials |
+| `403` | `Api/ActionForbiddenError` | Authenticated, but not permitted for this project or action |
+| `404` | `Api/*NotFoundError` | Resource does not exist |
+| `409` | `Api/*AlreadyExists*` and other conflicts | Request conflicts with current resource state |
+| `422` | Paywall deploy validation errors | Deploy manifest or blob failed validation |
+| `500` | `Api/*ServiceError` | Internal service failure |
+
+<Callout type="info" title="Event capture errors are shaped differently">
+  The `/i/v1` surface returns `{ "error": string, "code": string }` bodies with codes like
+  `invalid_request` (400), `unauthorized` (401), `payload_too_large` (413), `rate_limited` (429),
+  `dependency_unavailable` (503), and `internal_error` (500).
+</Callout>
+
+## API reference
+
+- [Authentication](/docs/api/authentication) — credential types, auth headers, and session introspection
+- [API Keys](/docs/api/api-keys) — create, list, rotate, and delete secret keys
+- [Organizations & Projects](/docs/api/organizations-and-projects) — organizations, projects, and the current user
+- [Persons](/docs/api/persons) — create and look up persons by ID or distinct ID
+- [Catalog](/docs/api/catalog) — products, perks, paywall locations, and payment provider configuration
+- [Schema](/docs/api/schema) — the consolidated project schema and its version probe
+- [Webhooks](/docs/api/webhooks) — endpoints, deliveries, retries, and secret rotation
+- [Notifications](/docs/api/notifications) — server-to-server push notification dispatch
+- [SDK](/docs/api/sdk) — the device-facing surface: identify, sync, flags, paywall resolution, push devices
+- [Paywall Deploys](/docs/api/paywall-deploys) — the code-deploy contract used by `voidhash-cli deploy`
+- [Event Capture](/docs/api/event-capture) — analytics event ingestion on `/i/v1`

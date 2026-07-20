@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
-import { docs } from "@generated/design";
-import { createClientLoader } from "fumadocs-mdx/runtime/vite";
-import type { PageTree } from "fumadocs-core/server";
+import browserCollections from "@generated/browser";
+import type * as PageTree from "fumadocs-core/page-tree";
 import {
   Accordion as DocsAccordion,
   Accordions as DocsAccordions,
@@ -97,7 +96,7 @@ const serverLoader = createServerFn({ method: "GET" })
     };
   });
 
-const clientLoader = createClientLoader(docs.doc, {
+const clientLoader = browserCollections.design.createClientLoader({
   component({ default: MDX, frontmatter }) {
     return (
       <DocsPage>

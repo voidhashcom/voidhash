@@ -1,0 +1,230 @@
+---
+title: Paywall Deploys
+description: The code-deploy contract behind voidhash-cli deploy — create a deploy from a manifest, upload content-addressed blobs, and finalize to release paywalls.
+---
+
+Paywall deploys are how code-built paywalls and components get onto Voidhash. The contract is a
+three-step, content-addressed flow: `POST` a deploy manifest, `PUT` each blob the server does not
+already have, then `POST` finalize to commit the deploy and release the paywalls. Every file is
+identified by its SHA-256 hash, so unchanged files are never uploaded twice.
+
+<Callout type="info" title="You probably want voidhash-cli deploy">
+  These endpoints exist for the CLI. Running [`voidhash-cli deploy`](/docs/cli/deploy) builds your
+  `.voidhash/` sources, assembles the manifest, and drives this exact flow for you — including
+  re-uploading missing blobs and retrying finalize. Call the endpoints directly only if you are
+  building custom deploy tooling.
+</Callout>
+
+## Authentication
+
+All three endpoints go through the standard auth middleware: send a user API key (what
+`voidhash-cli auth login` stores) as `x-api-key`, or a project secret key (`vh_sk_...`) as
+`x-secret-key`. The
+authenticated session must include a project whose slug matches the manifest's `project` field,
+inside an organization whose slug matches its `team` field — otherwise the request fails with
+`403`. See [Authentication](/docs/api/authentication).
+
+## Create a Deploy
+
+`POST /api/v1/paywall-deploys`
+
+Creates (or resumes) a deploy from a deploy manifest. The request body is the manifest JSON
+produced by the CLI build (`.voidhash/.build/manifest.json`, `schemaVersion: 2`): it declares
+every paywall, component, source file, artifact, and asset in the deploy, each as
+`{ path, bytes, sha256 }` (artifacts additionally carry `contentType`).
+
+```bash
+curl -X POST https://api.voidhash.com/api/v1/paywall-deploys \
+  -H "x-api-key: <your-api-key>" \
+  -H "Content-Type: application/json" \
+  --data-binary @.voidhash/.build/manifest.json
+```
+
+### Response
+
+Returns `201` with the deploy id and the subset of manifest file hashes the server does not
+already have stored for this project:
+
+```json
+{
+  "deployId": "pw_dep_...",
+  "missing": [
+    "5b00934c90ee...",
+    "ab93f1d24c07..."
+  ]
+}
+```
+
+Upload exactly the blobs listed in `missing`, then finalize. An empty `missing` array means every
+file is already on the server and you can finalize immediately.
+
+Creating a deploy is idempotent: re-`POST`ing a manifest whose canonical hash matches an existing
+deploy of the same project returns that deploy — whatever its status. A pending match resumes
+uploading via the returned `missing` list; an already-released match returns `missing: []`.
+
+<Callout type="warn" title="Unknown schemaVersion means your CLI is outdated">
+  The server validates `schemaVersion` before anything else. A version it does not understand is
+  rejected with a dedicated `400` — `Api/PaywallDeployUpgradeRequiredError` — whose `message`
+  tells you to upgrade `voidhash-cli`. Upgrade the CLI and rebuild rather than editing the
+  manifest by hand.
+</Callout>
+
+### Errors
+
+| Status | `_tag` | When |
+| --- | --- | --- |
+| `400` | `Api/PaywallDeployUpgradeRequiredError` | The manifest declares a `schemaVersion` this server does not understand. Upgrade the CLI. |
+| `401` | `Api/NotAuthenticatedError` | Missing or invalid credentials. |
+| `403` | `Api/ActionForbiddenError` | The session does not cover the manifest's `team`/`project`. |
+| `422` | `Api/PaywallDeployValidationError` | The manifest failed schema validation; `violations` lists the per-item details. |
+| `500` | `Api/PaywallDeployServiceError` | The deploy could not be created. |
+
+## Upload a Blob
+
+`PUT /api/v1/paywall-deploys/:deployId/blobs/:sha256`
+
+Uploads one file from the manifest as raw bytes. The `:sha256` path parameter is the lowercase
+hex SHA-256 of the body, exactly as declared in the manifest. The body is
+`application/octet-stream` — no JSON wrapper, no encoding.
+
+```bash
+curl -X PUT https://api.voidhash.com/api/v1/paywall-deploys/pw_dep_.../blobs/<sha256> \
+  -H "x-api-key: <your-api-key>" \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary @.voidhash/.build/paywalls/onboarding/bundle.js
+```
+
+### Response
+
+Returns `200` with an empty object:
+
+```json
+{}
+```
+
+Blobs are content-addressed, so uploads are safe to repeat: re-uploading a blob the server
+already has is a no-op `200`. The server verifies that the body actually hashes to `:sha256` and
+that the hash is declared by the deploy's manifest, and enforces the per-role size caps on the
+actual uploaded bytes (a body whose length differs from the declared `bytes` or exceeds its
+role's cap is rejected).
+
+### Errors
+
+| Status | `_tag` | When |
+| --- | --- | --- |
+| `401` | `Api/NotAuthenticatedError` | Missing or invalid credentials. |
+| `403` | `Api/ActionForbiddenError` | The session does not cover the deploy's project. |
+| `404` | `Api/PaywallDeployNotFoundError` | No such deploy for this project. |
+| `404` | `Api/DeployBlobNotDeclaredError` | `:sha256` is not declared by the deploy's manifest; the body carries the offending `sha256`. |
+| `409` | `Api/PaywallDeployNotPendingError` | The deploy is no longer pending (already finalized) — blobs cannot be added. |
+| `422` | `Api/DeployBlobHashMismatchError` | The body does not hash to `:sha256`; the body carries `expectedSha256` and `actualSha256`. |
+| `422` | `Api/PaywallDeployValidationError` | The uploaded bytes violate a size constraint. |
+| `500` | `Api/PaywallDeployServiceError` | The blob could not be stored. |
+
+## Finalize a Deploy
+
+`POST /api/v1/paywall-deploys/:deployId/finalize`
+
+The immutable commit point. The server trusts nothing from the upload phase: it checks that every
+referenced blob is present, recomputes every SHA-256 and every `contentHash`, schema-validates
+the stored component manifests and preview trees, and re-verifies the size and content-type
+constraints — all from the stored blobs. On success it releases the paywalls and components and
+copies their artifacts into the public serving layout.
+
+```bash
+curl -X POST https://api.voidhash.com/api/v1/paywall-deploys/pw_dep_.../finalize \
+  -H "x-api-key: <your-api-key>"
+```
+
+### Response
+
+Returns the released paywalls (with their public URLs and versions) and components:
+
+```json
+{
+  "deployId": "pw_dep_...",
+  "status": "ready",
+  "paywalls": [
+    {
+      "id": "onboarding",
+      "paywallId": "pw_...",
+      "releaseId": "pw_pub_...",
+      "version": 3,
+      "contentHash": "5b00934c90ee...",
+      "url": "https://api.voidhash.com/p/5b00934c90ee.../index.html"
+    }
+  ],
+  "components": [
+    {
+      "id": "product-option",
+      "componentId": "pw_cmp_...",
+      "version": 2,
+      "contentHash": "ab93f1d24c07..."
+    }
+  ]
+}
+```
+
+### Paywall fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | The paywall's slug from the manifest (derived from its filename). |
+| `paywallId` | `string` | The paywall record id (`pw_...`), upserted by slug. |
+| `releaseId` | `string` | The release id (`pw_pub_...`) now active for the paywall. |
+| `version` | `number` | The release version. Unchanged content reuses the existing release instead of bumping. |
+| `contentHash` | `string` | The content-addressed identity of the released bundle. |
+| `url` | `string` | The public URL of the released `index.html`. |
+
+### Component fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | The component's slug from the manifest. |
+| `componentId` | `string` | The component record id (`pw_cmp_...`). |
+| `version` | `number` | The component version; skipped when the latest version has the same `contentHash`. |
+| `contentHash` | `string` | The content-addressed identity of the component's artifacts. |
+
+Finalizing an already-released deploy is a fully re-validated no-op that returns the current
+release and component summaries.
+
+<Callout type="info" title="Recovering from a 409">
+  A `409` — `Api/IncompleteDeployError` — means referenced blobs are still missing server-side;
+  its body carries the `missing` hash list. The deploy stays pending: upload exactly those blobs
+  and finalize again. This is what the CLI does automatically (it retries once).
+</Callout>
+
+### Errors
+
+| Status | `_tag` | When |
+| --- | --- | --- |
+| `401` | `Api/NotAuthenticatedError` | Missing or invalid credentials. |
+| `403` | `Api/ActionForbiddenError` | The session does not cover the deploy's project. |
+| `404` | `Api/PaywallDeployNotFoundError` | No such deploy for this project. |
+| `409` | `Api/IncompleteDeployError` | Referenced blobs are missing; the body carries the `missing` hash list. |
+| `422` | `Api/PaywallDeployValidationError` | A stored blob failed re-validation; `violations` lists the details. |
+| `500` | `Api/PaywallDeployServiceError` | The deploy could not be finalized. |
+
+## Serving Finalized Artifacts
+
+Finalized paywall artifacts are served publicly — unauthenticated, immutable, and
+content-addressed:
+
+```
+GET /p/:contentHash/index.html
+GET /p/:contentHash/bundle.js
+GET /p/:contentHash/assets/<name>
+```
+
+Responses carry long-lived immutable caching (`Cache-Control: public, max-age=31536000,
+immutable`) and permissive CORS. Component artifacts are served the same way under
+`/c/:contentHash/`. Never construct these URLs yourself: use the `url` from the finalize
+response, or the `htmlUrl` that [`POST /api/v1/sdk/resolve-paywall`](/docs/api/sdk) hands the
+device SDK at display time.
+
+## Related
+
+- [voidhash-cli deploy](/docs/cli/deploy) — the command that drives this flow end to end.
+- [Authentication](/docs/api/authentication) — credential types and which endpoints accept them.
+- [SDK](/docs/api/sdk) — how released paywalls reach devices via `resolve-paywall`.
+- [API Overview](/docs/api/overview) — base URLs, error format, and OpenAPI documents.

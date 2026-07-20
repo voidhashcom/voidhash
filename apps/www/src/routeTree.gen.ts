@@ -30,6 +30,7 @@ import { Route as StudioAuthenticatedRouteRouteImport } from './routes/studio/_a
 import { Route as StudioAuthenticatedIndexRouteImport } from './routes/studio/_authenticated/index'
 import { Route as AuthDevicesIndexRouteImport } from './routes/auth/devices/index'
 import { Route as DocsApiSearchRouteImport } from './routes/docs/api/search'
+import { Route as DocsApiProxyRouteImport } from './routes/docs/api/proxy'
 import { Route as DesignApiSearchRouteImport } from './routes/design/api/search'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
 import { Route as StudioAuthenticatedDashboardRouteRouteImport } from './routes/studio/_authenticated/_dashboard/route'
@@ -184,6 +185,11 @@ const AuthDevicesIndexRoute = AuthDevicesIndexRouteImport.update({
 const DocsApiSearchRoute = DocsApiSearchRouteImport.update({
   id: '/api/search',
   path: '/api/search',
+  getParentRoute: () => DocsRouteRoute,
+} as any)
+const DocsApiProxyRoute = DocsApiProxyRouteImport.update({
+  id: '/api/proxy',
+  path: '/api/proxy',
   getParentRoute: () => DocsRouteRoute,
 } as any)
 const DesignApiSearchRoute = DesignApiSearchRouteImport.update({
@@ -608,6 +614,7 @@ export interface FileRoutesByFullPath {
   '/docs/': typeof DocsIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/design/api/search': typeof DesignApiSearchRoute
+  '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
   '/auth/devices/': typeof AuthDevicesIndexRoute
   '/studio/': typeof StudioAuthenticatedIndexRoute
@@ -675,6 +682,7 @@ export interface FileRoutesByTo {
   '/docs': typeof DocsIndexRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/design/api/search': typeof DesignApiSearchRoute
+  '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
   '/auth/devices': typeof AuthDevicesIndexRoute
   '/api/auth/email/resend': typeof ApiAuthEmailResendRoute
@@ -746,6 +754,7 @@ export interface FileRoutesById {
   '/studio/_authenticated/_dashboard': typeof StudioAuthenticatedDashboardRouteRouteWithChildren
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/design/api/search': typeof DesignApiSearchRoute
+  '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
   '/auth/devices/': typeof AuthDevicesIndexRoute
   '/studio/_authenticated/': typeof StudioAuthenticatedIndexRoute
@@ -818,6 +827,7 @@ export interface FileRouteTypes {
     | '/docs/'
     | '/api/auth/callback'
     | '/design/api/search'
+    | '/docs/api/proxy'
     | '/docs/api/search'
     | '/auth/devices/'
     | '/studio/'
@@ -885,6 +895,7 @@ export interface FileRouteTypes {
     | '/docs'
     | '/api/auth/callback'
     | '/design/api/search'
+    | '/docs/api/proxy'
     | '/docs/api/search'
     | '/auth/devices'
     | '/api/auth/email/resend'
@@ -955,6 +966,7 @@ export interface FileRouteTypes {
     | '/studio/_authenticated/_dashboard'
     | '/api/auth/callback'
     | '/design/api/search'
+    | '/docs/api/proxy'
     | '/docs/api/search'
     | '/auth/devices/'
     | '/studio/_authenticated/'
@@ -1171,6 +1183,13 @@ declare module '@tanstack/react-router' {
       path: '/api/search'
       fullPath: '/docs/api/search'
       preLoaderRoute: typeof DocsApiSearchRouteImport
+      parentRoute: typeof DocsRouteRoute
+    }
+    '/docs/api/proxy': {
+      id: '/docs/api/proxy'
+      path: '/api/proxy'
+      fullPath: '/docs/api/proxy'
+      preLoaderRoute: typeof DocsApiProxyRouteImport
       parentRoute: typeof DocsRouteRoute
     }
     '/design/api/search': {
@@ -1583,12 +1602,14 @@ const DesignRouteRouteWithChildren = DesignRouteRoute._addFileChildren(
 interface DocsRouteRouteChildren {
   DocsSplatRoute: typeof DocsSplatRoute
   DocsIndexRoute: typeof DocsIndexRoute
+  DocsApiProxyRoute: typeof DocsApiProxyRoute
   DocsApiSearchRoute: typeof DocsApiSearchRoute
 }
 
 const DocsRouteRouteChildren: DocsRouteRouteChildren = {
   DocsSplatRoute: DocsSplatRoute,
   DocsIndexRoute: DocsIndexRoute,
+  DocsApiProxyRoute: DocsApiProxyRoute,
   DocsApiSearchRoute: DocsApiSearchRoute,
 }
 

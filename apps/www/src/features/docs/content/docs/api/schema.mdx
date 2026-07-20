@@ -1,0 +1,141 @@
+---
+title: Project Schema
+description: Read the consolidated project schema and use its content-hashed version as a cheap change probe.
+---
+
+The schema endpoints expose a consolidated, read-only projection of your project's catalog configuration: enabled payment providers, paywall locations, perks, and products with their per-provider mappings. It is the single surface that type generation and the device SDKs are built on — instead of stitching together the individual [catalog endpoints](/docs/api/catalog), clients fetch one document and get a content hash (`version`) that changes if and only if any of it changes.
+
+Both endpoints authenticate with any project-scoped credential (`x-api-key` or `x-secret-key`) — see [Authentication](/docs/api/authentication).
+
+## Get the schema
+
+```bash
+curl https://api.voidhash.com/api/v1/schema \
+  -H "x-secret-key: vh_sk_..."
+```
+
+`GET /api/v1/schema` returns a `ProjectSchemaResponse`:
+
+```json
+{
+  "enabledProviders": ["appleAppStore", "googlePlay"],
+  "locations": [
+    {
+      "name": "Onboarding",
+      "slug": "onboarding",
+      "description": "Shown at the end of the welcome flow"
+    }
+  ],
+  "perks": [{ "name": "All Access", "slug": "all-access" }],
+  "products": [
+    {
+      "name": "Pro Monthly",
+      "slug": "pro-monthly",
+      "type": "subscription",
+      "perks": ["all-access"],
+      "providers": [
+        {
+          "providerId": "appleAppStore",
+          "configuration": { "productId": "com.yourcompany.yourapp.pro.monthly" }
+        },
+        {
+          "providerId": "googlePlay",
+          "configuration": { "productId": "pro_monthly", "basePlanId": "monthly" }
+        }
+      ]
+    }
+  ],
+  "version": "sha256:9f2a41c07d3e8b16..."
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `enabledProviders` | `("appleAppStore" \| "googlePlay")[]` | Payment providers with an enabled configuration in this project |
+| `locations` | `{ name, slug, description \| null }[]` | Paywall locations |
+| `perks` | `{ name, slug }[]` | Perks |
+| `products` | `SchemaProduct[]` | Products with their perk and provider mappings (see below) |
+| `version` | `string` | `sha256:<hex>` content hash of the normalized schema |
+
+Each product in `products`:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Human-readable product name |
+| `slug` | `string` | Unique product identifier within the project |
+| `type` | `"subscription" \| "one-time" \| "one-time-consumable"` | Product type |
+| `perks` | `string[]` | Perk **slugs** (not IDs) granted by this product, sorted ascending |
+| `providers` | `{ providerId, configuration }[]` | Per-provider store mappings, sorted by `providerId` |
+
+The `configuration` blob on each provider entry is a free-form `Record<string, unknown>` — opaque to the schema itself. The CLI round-trips it as-is, and the SDK reads provider-specific keys (`productId`, `basePlanId`, …) out of it at the native store boundary. The sorted `perks` and `providers` arrays are part of the deterministic normalization that feeds the `version` hash, so identical configuration always produces an identical hash.
+
+## Get the schema version
+
+```bash
+curl https://api.voidhash.com/api/v1/schema/version \
+  -H "x-secret-key: vh_sk_..."
+```
+
+```json
+{ "version": "sha256:9f2a41c07d3e8b16..." }
+```
+
+`GET /api/v1/schema/version` returns only the hash — the same value the full schema response carries. It is the cheap change probe: poll it, and re-fetch the full schema only when the hash differs from the one you last saw.
+
+## The version hash as ETag
+
+The `version` doubles as the HTTP `ETag` on both endpoints. Responses carry:
+
+```
+etag: "sha256:9f2a41c07d3e8b16..."
+cache-control: no-cache, must-revalidate
+```
+
+Send the hash back in `If-None-Match` and the server answers `304 Not Modified` (empty body) when the schema is unchanged:
+
+```bash
+curl -i https://api.voidhash.com/api/v1/schema \
+  -H "x-secret-key: vh_sk_..." \
+  -H 'If-None-Match: "sha256:9f2a41c07d3e8b16..."'
+```
+
+<Callout type="info" title="One hash, three surfaces">
+  The same `sha256:<hex>` value appears in `GET /api/v1/schema`, `GET /api/v1/schema/version`, and
+  the SDK-facing `GET /api/v1/sdk/schema` — and it is embedded in the generated
+  `voidhash.gen.d.ts`. Comparing hashes is how every consumer detects drift, regardless of which
+  projection it reads.
+</Callout>
+
+## How the CLI uses it
+
+[`voidhash-cli types generate`](/docs/cli/types) fetches `GET /api/v1/schema` and emits your `voidhash.gen.d.ts` declaration file with the schema `version` embedded in a `@voidhash:version` header:
+
+```package-install
+npx voidhash-cli types generate
+```
+
+With `--watch`, the CLI polls `GET /api/v1/schema/version` (default every 5000 ms, configurable via `--poll-interval-ms`) and regenerates the declaration file whenever the hash changes — so types stay in sync while you edit products, perks, or locations in the dashboard:
+
+```package-install
+npx voidhash-cli types generate --watch --poll-interval-ms 2000
+```
+
+`voidhash-cli types check` is the CI gate built on the same hash: it compares the `@voidhash:version` header in your committed declaration file against the server's current version and fails with a non-zero exit when they differ, so a stale committed file can't pass PR CI:
+
+```package-install
+npx voidhash-cli types check
+```
+
+## How the React Native SDK uses it
+
+The [React Native SDK](/docs/react-native/schema-and-types) consumes the same schema through `GET /api/v1/sdk/schema` — a runtime-oriented projection of the same data, keyed by slug (`Record<slug, ...>` instead of arrays, and without `enabledProviders`) so the SDK can look products, perks, and locations up by slug at runtime. It carries the identical `version` hash.
+
+The SDK fetches it when the provider mounts and caches it per app version with a stale-while-revalidate policy: a warm cache is served immediately and refreshed in the background, while a cold cache forces a synchronous fetch. See the [SDK API reference](/docs/api/sdk) for the endpoint details.
+
+## Errors
+
+| Status | Error | Meaning |
+| --- | --- | --- |
+| `401` | `Api/NotAuthenticatedError` | Missing or invalid credentials |
+| `403` | `Api/ActionForbiddenError` | Credential is not authorized for this project |
+| `500` | `Api/SchemaServiceError` | Internal failure while computing the schema |

@@ -1,0 +1,168 @@
+---
+title: deploy
+description: Build the paywalls and components in .voidhash and deploy them to Voidhash.
+---
+
+`voidhash-cli deploy` compiles everything in your project's `.voidhash` folder into deployable
+artifacts and ships them to Voidhash in one command:
+
+```package-install
+npx voidhash-cli deploy
+```
+
+The command requires a `voidhash.config.ts` (created by [init](/docs/cli/init)) — the deploy
+targets the `team` and `project` configured there. The upload step calls the Voidhash API, so you
+must be logged in via [auth login](/docs/cli/auth).
+
+## Flags
+
+- `--dry-run` — build the deploy payload without uploading it. The command stops after printing
+  the build report.
+- `--profile <name>` — shared flag; run the deploy against a named
+  [config profile](/docs/cli/config) (works before or after the subcommand:
+  `npx voidhash-cli deploy --profile dev`).
+- `--debug` / `-d` — shared flag; print full error traces on failure.
+
+## What the build does
+
+The build scans two directories under your project root:
+
+- `.voidhash/paywalls` — each source file (`.tsx`, `.jsx`, `.ts`, `.js`) default-exporting
+  `createPaywall({ … })` becomes one paywall.
+- `.voidhash/components` — each source file default-exporting `defineComponent({ … })` becomes
+  one reusable component.
+
+The file name is the id: `.voidhash/paywalls/onboarding.tsx` deploys as the paywall `onboarding`.
+Ids must match `^[a-z0-9][a-z0-9-]{0,63}$` and be unique; a component's `id` in
+`defineComponent` must match its file name.
+
+The pipeline then:
+
+1. **Typechecks** all discovered sources — a type error fails the deploy before anything is
+   bundled.
+2. **Compiles paywalls** — each paywall is bundled with its dependencies into a WebView-ready
+   `index.html` + minified `bundle.js`, plus any imported image/font assets. This is the exact
+   bundle the React Native SDK renders in a WebView at runtime.
+3. **Compiles components** — each component is compiled to a `manifest.json` (its props, actions,
+   and preview states), one rendered preview tree per declared preview state (a `default` state is
+   always emitted), a `runtime.js` bundle, and a `panel.js` bundle when the component declares a
+   custom editor panel.
+4. **Assembles the manifest** — every file is hashed with SHA-256 and recorded in a
+   content-addressed `schemaVersion: 2` deploy manifest. Each paywall and component gets a
+   `contentHash` derived from its artifact hashes — that hash is its deployable identity (storage
+   prefix, cache key, dedupe key).
+
+Build output lands in `.voidhash/.build` (the directory is cleaned on every build):
+
+```
+.voidhash/.build/
+├── manifest.json
+├── paywalls/
+│   └── onboarding/
+│       ├── index.html
+│       ├── bundle.js
+│       └── assets/hero-AB12CD.png
+└── components/
+    └── product-option/
+        ├── manifest.json
+        ├── previews/default.json
+        └── runtime.js
+```
+
+<Callout type="info" title="Modules resolve from your project">
+  `@voidhash/paywalls` and React are resolved from your project's `node_modules`, not from the
+  CLI — the bundle, the preview renderer, and your app share one runtime instance. Make sure
+  `@voidhash/paywalls` is installed in the project you deploy from.
+</Callout>
+
+Paywall bundles may only import from `@voidhash/paywalls`, React's runtime entries, and relative
+paths within `.voidhash` — other imports are rejected at build time. Paywall `variables` values
+must be strings, numbers, or booleans. The server enforces size caps at upload: JS bundles up to
+5 MB, individual assets up to 10 MB.
+
+## What the deploy does
+
+The non-dry-run path uploads the build in three steps against the
+[Paywall Deploys API](/docs/api/paywall-deploys):
+
+1. **Create** — the manifest is posted to the server, which answers with a deploy id and the list
+   of file hashes it does not already have for this project.
+2. **Upload** — only the missing blobs are uploaded. Everything the server has seen before (in
+   any previous deploy of this project) is reused, so repeat deploys only transfer what actually
+   changed.
+3. **Finalize** — the deploy is committed immutably. The server validates the contents and
+   releases a new version of every paywall and component in the manifest.
+
+On success the command prints the released versions and public URLs:
+
+```
+Deploying…
+  Uploading 3 blob(s) (6 already on the server)…
+
+Deploy <deployId> is ready (3 blob(s) uploaded, 6 reused).
+
+Paywalls:
+  • onboarding  v4
+      https://api.voidhash.com/p/<contentHash>/index.html
+
+Components:
+  • product-option  v2
+```
+
+Finalized artifacts are served publicly and immutably by content hash — the printed URL is the
+exact bundle the SDK loads when [resolving a paywall](/docs/react-native/displaying-paywalls).
+
+<Callout type="info" title="Deploys are cheap to retry">
+  Uploads are content-addressed, so re-running a failed or interrupted deploy only transfers the
+  blobs the server is still missing. If finalize reports missing blobs, the CLI re-uploads exactly
+  those and retries once automatically.
+</Callout>
+
+## Dry run
+
+Use `--dry-run` to validate and inspect a deploy without releasing anything:
+
+```package-install
+npx voidhash-cli deploy --dry-run
+```
+
+The build report lists every paywall and component with its content hash, bundle size, and asset
+or preview counts:
+
+```
+Building paywalls…
+
+Built 1 paywall(s) and 1 component(s) for acme/my-app:
+
+  • Onboarding (onboarding)
+      hash    5b00934c90ee
+      bundle  198.4 KB, 1 asset(s)
+  • Product Option (product-option, component)
+      hash     ab93f1c2d4e5
+      runtime  5.9 KB, 2 preview(s)
+
+  1 asset(s)
+  Output:   /path/to/my-app/.voidhash/.build
+  Manifest: /path/to/my-app/.voidhash/.build/manifest.json
+
+Dry run — nothing uploaded.
+```
+
+A dry run performs the full build — typecheck, bundling, and manifest validation — so it doubles
+as a CI gate for paywall sources.
+
+## Troubleshooting
+
+- **`voidhash.config.ts not found`** — run [`voidhash-cli init`](/docs/cli/init) in the project
+  root first.
+- **`You must be logged in to deploy`** — run [`voidhash-cli auth login`](/docs/cli/auth).
+- **`No paywalls or components found`** — the build needs at least one source file in
+  `.voidhash/paywalls` or `.voidhash/components`. Use [studio](/docs/cli/studio) to preview
+  paywalls locally while you author them.
+- **A 400 on create** — the server no longer accepts your manifest's `schemaVersion`; upgrade
+  `voidhash-cli`.
+- **A 403 on create** — check that `team` and `project` in `voidhash.config.ts` match a project
+  your account can access.
+
+For the raw HTTP endpoints behind the upload flow, see
+[Paywall Deploys](/docs/api/paywall-deploys).

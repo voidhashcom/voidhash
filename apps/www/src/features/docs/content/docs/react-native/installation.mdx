@@ -1,0 +1,129 @@
+---
+title: Installation
+description: Add the Voidhash React Native SDK and its native dependencies to your Expo or React Native project.
+---
+
+The Voidhash React Native SDK (`@voidhash/react-native`) ships native modules built with [Nitro Modules](https://nitro.margelo.com) — StoreKit 2 on iOS and Play Billing on Android — so installing it involves a native build step, not just a JavaScript dependency.
+
+<Callout type="info" title="Starting from scratch?">
+  If you're setting up a brand-new project, [`voidhash-cli init`](/cli/init) bootstraps the SDK,
+  configuration, and type generation for you in one command. The steps below cover adding the SDK
+  to an existing app by hand.
+</Callout>
+
+<Steps>
+
+<Step>
+### Install the Package
+
+Install the SDK together with its peer dependencies:
+
+```package-install
+npm i @voidhash/react-native react-native-nitro-modules@0.26.4 @react-native-async-storage/async-storage effect expo-constants expo-linking
+```
+
+What each peer dependency is for:
+
+- `react-native-nitro-modules` — the native module system the SDK is built on. It must be **pinned to exactly `0.26.4`**; other versions are not binary-compatible with the shipped native code.
+- `@react-native-async-storage/async-storage` — backs the SDK's on-device cache (identity, person snapshot, schema, feature flags).
+- `effect` — the SDK's internal runtime.
+- `expo-constants` and `expo-linking` — used to read your app's deep-link scheme and handle purchase callback links.
+
+</Step>
+
+<Step>
+### Configure for iOS
+
+Install the native pods after adding the npm package:
+
+```package-install
+npx pod-install
+```
+
+If you're on Expo, you can skip this — `npx expo prebuild` (or an EAS build) runs pod installation for you.
+
+</Step>
+
+<Step>
+### Configure for Android
+
+No additional setup necessary. The native library is linked automatically.
+
+</Step>
+
+<Step>
+### Create a development build (Expo)
+
+<Callout type="warn" title="Expo Go is not supported">
+  A development build with `expo-dev-client` is **required**. Expo Go cannot load the Nitro native
+  modules the SDK depends on, so the app will fail at startup. After installing the SDK (or
+  changing native dependencies), rebuild your development client — hot reload alone won't pick up
+  native changes.
+</Callout>
+
+```package-install
+npx expo install expo-dev-client
+```
+
+Then build and run the development client:
+
+```package-install
+npx expo run:ios
+```
+
+See the [Expo documentation](https://docs.expo.dev/develop/development-builds/create-a-build/) for building on a device or via EAS.
+
+</Step>
+
+<Step>
+### Set a deep-link scheme
+
+The SDK uses deep links (`yourscheme://voidhash/callback/success` and `.../error`) to hand control back to your app after purchase flows. It resolves the scheme from your Expo config automatically:
+
+```json title="app.json"
+{
+  "expo": {
+    "scheme": "myapp"
+  }
+}
+```
+
+If your app config has no `scheme` (for example in a bare React Native project), pass it explicitly via the `scheme` client option:
+
+```ts
+import { createVoidhashClient } from "@voidhash/react-native";
+
+export const voidhash = createVoidhashClient("vh_pk_...", {
+  scheme: "myapp",
+});
+```
+
+If neither is set, `createVoidhashClient` throws a `SchemeNotSetError` at startup.
+
+</Step>
+
+<Step>
+### Filter callback links in Expo Router
+
+If you use Expo Router, the callback deep links from the previous step would otherwise be treated as routes and open a "not found" screen. The SDK ships a helper that filters them out — add it to your [`+native-intent`](https://docs.expo.dev/router/advanced/native-intent/) file:
+
+```tsx title="app/+native-intent.tsx"
+import { expoRouterWithVoidhashCallback } from "@voidhash/react-native";
+
+export function redirectSystemPath(options: { path: string; initial: boolean }) {
+  return expoRouterWithVoidhashCallback(options);
+}
+```
+
+The helper returns `null` for `voidhash/callback` paths (so the router ignores them) and passes every other path through unchanged.
+
+</Step>
+
+<Step>
+### Thats it! 🎉
+
+The SDK is installed. Continue to the [Quickstart](/react-native/quickstart) to create a client and wrap your app in the Provider, or see [Configuration](/react-native/configuration) for the full list of client options.
+
+</Step>
+
+</Steps>

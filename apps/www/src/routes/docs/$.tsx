@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
-import { docs } from "@generated/docs";
-import { createClientLoader } from "fumadocs-mdx/runtime/vite";
-import type { PageTree } from "fumadocs-core/server";
+import browserCollections from "@generated/browser";
+import type * as PageTree from "fumadocs-core/page-tree";
 import { Suspense, useMemo } from "react";
 
 import { DocsLayout } from "@/features/docs/components/layout/docs";
@@ -97,7 +96,8 @@ const serverLoader = createServerFn({ method: "GET" })
     };
   });
 
-const clientLoader = createClientLoader(docs.doc, {
+const clientLoader = browserCollections.docs.createClientLoader({
+  id: "docs",
   component({ default: MDX, frontmatter, toc }) {
     return (
       <DocsPage toc={toc}>
@@ -109,7 +109,6 @@ const clientLoader = createClientLoader(docs.doc, {
       </DocsPage>
     );
   },
-  id: "docs",
 });
 
 function PageContent({ path }: { path: string }) {

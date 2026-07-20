@@ -1,0 +1,15 @@
+{
+  "title": "Webhooks",
+  "pages": [
+    "webhooks.listWebhookEndpoints",
+    "webhooks.createWebhookEndpoint",
+    "webhooks.getWebhookEndpoint",
+    "webhooks.updateWebhookEndpoint",
+    "webhooks.deleteWebhookEndpoint",
+    "webhooks.rotateWebhookSecret",
+    "webhooks.testWebhookEndpoint",
+    "webhooks.listWebhookDeliveries",
+    "webhooks.getWebhookDelivery",
+    "webhooks.retryWebhookDelivery"
+  ]
+}

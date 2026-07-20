@@ -1,5 +1,5 @@
 "use client";
-import { type PageTree } from "fumadocs-core/server";
+import type * as PageTree from "fumadocs-core/page-tree";
 
 import { Card, CardContent, CardDescription, CardTitle } from "@voidhash/ui";
 import { Link, usePathname } from "fumadocs-core/framework";

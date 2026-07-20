@@ -1,0 +1,9 @@
+{
+  "title": "Persons",
+  "pages": [
+    "persons.listPersons",
+    "persons.createPerson",
+    "persons.getPersonById",
+    "persons.getPersonByDistinctId"
+  ]
+}
