@@ -27,6 +27,7 @@
     "*.podspec",
     "app.plugin.js",
     "build",
+    "plugin/build",
     "nitrogen",
     "react-native.config.js",
     "README.md",
@@ -41,6 +42,9 @@
     "ios/**/*.mm",
     "ios/**/*.swift"
   ],
+  "bin": {
+    "voidhash-doctor": "plugin/build/doctor-cli.js"
+  },
   "main": "build/index",
   "module": "build/index",
   "types": "build/index.d.ts",

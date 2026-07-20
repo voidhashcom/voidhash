@@ -85,7 +85,7 @@ public class HybridStorekitProductSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -109,49 +109,49 @@ public class HybridStorekitProductSpec_cxx {
       }()
     }
   }
-  
+
   public final var description: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.description)
     }
   }
-  
+
   public final var displayName: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.displayName)
     }
   }
-  
+
   public final var displayPrice: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.displayPrice)
     }
   }
-  
+
   public final var id: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.id)
     }
   }
-  
+
   public final var isFamilyShareable: Bool {
     @inline(__always)
     get {
       return self.__implementation.isFamilyShareable
     }
   }
-  
+
   public final var price: Double {
     @inline(__always)
     get {
       return self.__implementation.price
     }
   }
-  
+
   public final var subscription: bridge.std__optional_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec__ {
     @inline(__always)
     get {
@@ -167,14 +167,14 @@ public class HybridStorekitProductSpec_cxx {
       }()
     }
   }
-  
+
   public final var type: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.type)
     }
   }
-  
+
   public final var currency: std.string {
     @inline(__always)
     get {
@@ -183,5 +183,5 @@ public class HybridStorekitProductSpec_cxx {
   }
 
   // Methods
-  
+
 }

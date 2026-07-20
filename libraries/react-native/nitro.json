@@ -26,6 +26,14 @@
     "PaywallPresenter": {
       "swift": "HybridPaywallPresenter",
       "kotlin": "HybridPaywallPresenter"
+    },
+    "Measurement": {
+      "swift": "HybridMeasurement",
+      "kotlin": "HybridMeasurement"
+    },
+    "Notifications": {
+      "swift": "HybridNotifications",
+      "kotlin": "HybridNotifications"
     }
   },
   "ignorePaths": ["**/node_modules"]

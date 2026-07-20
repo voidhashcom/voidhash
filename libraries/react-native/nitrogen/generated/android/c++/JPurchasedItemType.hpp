@@ -43,7 +43,7 @@ namespace margelo::nitro::voidhash {
       static const auto clazz = javaClassStatic();
       static const auto fieldSUBSCRIPTION = clazz->getStaticField<JPurchasedItemType>("SUBSCRIPTION");
       static const auto fieldINAPP = clazz->getStaticField<JPurchasedItemType>("INAPP");
-      
+
       switch (value) {
         case PurchasedItemType::SUBSCRIPTION:
           return clazz->getStaticFieldValue(fieldSUBSCRIPTION);

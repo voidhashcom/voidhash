@@ -42,6 +42,10 @@
 #include "JHybridGoogleBillingPricingPhaseSpec.hpp"
 #include "JHybridGoogleBillingPricingPhasesSpec.hpp"
 #include "JHybridGoogleBillingSubscriptionOfferDetailsSpec.hpp"
+#include "JHybridMeasurementSpec.hpp"
+#include "JFunc_void_MeasurementBridgeEvent.hpp"
+#include "JHybridNotificationsSpec.hpp"
+#include "JFunc_void_NativeNotificationEvent.hpp"
 #include <NitroModules/JNISharedPtr.hpp>
 #include <NitroModules/DefaultConstructableObject.hpp>
 
@@ -81,6 +85,10 @@ int initialize(JavaVM* vm) {
     margelo::nitro::voidhash::JHybridGoogleBillingPricingPhaseSpec::registerNatives();
     margelo::nitro::voidhash::JHybridGoogleBillingPricingPhasesSpec::registerNatives();
     margelo::nitro::voidhash::JHybridGoogleBillingSubscriptionOfferDetailsSpec::registerNatives();
+    margelo::nitro::voidhash::JHybridMeasurementSpec::registerNatives();
+    margelo::nitro::voidhash::JFunc_void_MeasurementBridgeEvent_cxx::registerNatives();
+    margelo::nitro::voidhash::JHybridNotificationsSpec::registerNatives();
+    margelo::nitro::voidhash::JFunc_void_NativeNotificationEvent_cxx::registerNatives();
 
     // Register Nitro Hybrid Objects
     HybridObjectRegistry::registerHybridObjectConstructor(
@@ -117,6 +125,24 @@ int initialize(JavaVM* vm) {
         auto instance = object.create();
         auto globalRef = jni::make_global(instance);
         return JNISharedPtr::make_shared_from_jni<JHybridPaywallPresenterSpec>(globalRef);
+      }
+    );
+    HybridObjectRegistry::registerHybridObjectConstructor(
+      "Measurement",
+      []() -> std::shared_ptr<HybridObject> {
+        static DefaultConstructableObject<JHybridMeasurementSpec::javaobject> object("com/margelo/nitro/voidhash/HybridMeasurement");
+        auto instance = object.create();
+        auto globalRef = jni::make_global(instance);
+        return JNISharedPtr::make_shared_from_jni<JHybridMeasurementSpec>(globalRef);
+      }
+    );
+    HybridObjectRegistry::registerHybridObjectConstructor(
+      "Notifications",
+      []() -> std::shared_ptr<HybridObject> {
+        static DefaultConstructableObject<JHybridNotificationsSpec::javaobject> object("com/margelo/nitro/voidhash/HybridNotifications");
+        auto instance = object.create();
+        auto globalRef = jni::make_global(instance);
+        return JNISharedPtr::make_shared_from_jni<JHybridNotificationsSpec>(globalRef);
       }
     );
   });

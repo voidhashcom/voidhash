@@ -85,7 +85,7 @@ public class HybridStorekitTransactionSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -103,7 +103,7 @@ public class HybridStorekitTransactionSpec_cxx {
       return std.string(self.__implementation.id)
     }
   }
-  
+
   public final var ids: bridge.std__vector_std__string_ {
     @inline(__always)
     get {
@@ -116,49 +116,49 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var transactionId: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.transactionId)
     }
   }
-  
+
   public final var transactionDate: Double {
     @inline(__always)
     get {
       return self.__implementation.transactionDate
     }
   }
-  
+
   public final var transactionReceipt: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.transactionReceipt)
     }
   }
-  
+
   public final var quantityIos: Double {
     @inline(__always)
     get {
       return self.__implementation.quantityIos
     }
   }
-  
+
   public final var originalTransactionDateIos: Double {
     @inline(__always)
     get {
       return self.__implementation.originalTransactionDateIos
     }
   }
-  
+
   public final var originalTransactionIdentifierIos: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.originalTransactionIdentifierIos)
     }
   }
-  
+
   public final var appAccountToken: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -171,21 +171,21 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var appBundleIdIos: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.appBundleIdIos)
     }
   }
-  
+
   public final var productTypeIos: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.productTypeIos)
     }
   }
-  
+
   public final var subscriptionGroupIdIos: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -198,7 +198,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var webOrderLineItemIdIos: bridge.std__optional_double_ {
     @inline(__always)
     get {
@@ -211,7 +211,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var expirationDateIos: bridge.std__optional_double_ {
     @inline(__always)
     get {
@@ -224,7 +224,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var isUpgradedIos: bridge.std__optional_bool_ {
     @inline(__always)
     get {
@@ -237,14 +237,14 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var ownershipTypeIos: std.string {
     @inline(__always)
     get {
       return std.string(self.__implementation.ownershipTypeIos)
     }
   }
-  
+
   public final var revocationDateIos: bridge.std__optional_double_ {
     @inline(__always)
     get {
@@ -257,7 +257,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var revocationReasonIos: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -270,7 +270,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var transactionReasonIos: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -283,7 +283,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var jwsRepresentationIos: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -296,7 +296,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var environmentIos: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -309,7 +309,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var storefrontCountryCodeIos: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -322,7 +322,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var reasonIos: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -335,7 +335,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var offerIos: bridge.std__optional_StorekitProductPurchaseOffer_ {
     @inline(__always)
     get {
@@ -348,7 +348,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var priceIos: bridge.std__optional_double_ {
     @inline(__always)
     get {
@@ -361,7 +361,7 @@ public class HybridStorekitTransactionSpec_cxx {
       }()
     }
   }
-  
+
   public final var currencyIos: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -376,5 +376,5 @@ public class HybridStorekitTransactionSpec_cxx {
   }
 
   // Methods
-  
+
 }

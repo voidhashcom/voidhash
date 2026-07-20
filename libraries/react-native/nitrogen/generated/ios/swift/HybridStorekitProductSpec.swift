@@ -23,7 +23,7 @@ public protocol HybridStorekitProductSpec_protocol: HybridObject {
   var currency: String { get }
 
   // Methods
-  
+
 }
 
 /// See ``HybridStorekitProductSpec``

@@ -37,7 +37,7 @@ abstract class HybridVoidhashSpec: HybridObject() {
   }
 
   // Properties
-  
+
 
   // Methods
   @DoNotStrip

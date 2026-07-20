@@ -129,7 +129,7 @@ const captureEvent = (
 ): typeof CaptureEvent.Type => ({
   uuid: uniqueId("evt"),
   event: "page_view",
-  context: {},
+  context: { schemaVersion: 1 },
   properties: {},
   distinct_id: "user-1",
   ...overrides,
@@ -258,8 +258,8 @@ describe("EventCaptureService.captureEvents", () => {
 
           const result = yield* service.captureEvents(captureRequest(token, [eventA, eventB]));
 
-          expect(result.accepted).toBe(2);
-          expect(result.rejected).toBe(0);
+          expect(result.accepted).toHaveLength(2);
+          expect(result.rejected).toHaveLength(0);
 
           const events = publishedEvents(ingress.batches);
           expect(events.length).toBe(2);
@@ -291,7 +291,7 @@ describe("EventCaptureService.captureEvents", () => {
             captureRequest(`  ${token}\n`, [captureEvent()]),
           );
 
-          expect(result.accepted).toBe(1);
+          expect(result.accepted).toHaveLength(1);
           expect(publishedEvents(ingress.batches).length).toBe(1);
         }),
       ).pipe(provideService({ ingress: ingress.layer }));
@@ -408,8 +408,12 @@ describe("EventCaptureService.captureEvents", () => {
 
           const result = yield* service.captureEvents(captureRequest(token, [reserved, allowed]));
 
-          expect(result.rejected).toBe(1);
-          expect(result.accepted).toBe(1);
+          expect(result.rejected).toHaveLength(1);
+          expect(result.accepted).toHaveLength(1);
+          expect(result.accepted).toEqual([allowed.uuid]);
+          expect(result.rejected).toEqual([
+            { recordId: reserved.uuid, reason: "reserved_event" },
+          ]);
 
           const events = publishedEvents(ingress.batches);
           expect(events.length).toBe(1);
@@ -418,6 +422,38 @@ describe("EventCaptureService.captureEvents", () => {
           expect(events.some((entry) => entry.envelope.event === "$purchase.completed")).toBe(
             false,
           );
+        }),
+      ).pipe(provideService({ ingress: ingress.layer }));
+    })(),
+  );
+
+  test(
+    "acknowledges valid records while classifying invalid context versions and oversized records",
+    (() => {
+      const ingress = makeIngressSpy();
+      return withCaptureCleanup((trackKey) =>
+        Effect.gen(function* () {
+          const service = yield* EventCaptureService;
+          const token = uniqueToken("mixed-ack");
+          trackKey(yield* insertPublicApiKey(token));
+
+          const valid = captureEvent({ event: "valid" });
+          const unsupported = captureEvent({ context: { schemaVersion: 2 } });
+          const invalidContext = captureEvent({ context: {} });
+          const oversized = captureEvent({ properties: { payload: "x".repeat(257 * 1024) } });
+          const result = yield* service.captureEvents(
+            captureRequest(token, [valid, unsupported, invalidContext, oversized]),
+          );
+
+          expect(result.accepted).toEqual([valid.uuid]);
+          expect(result.rejected).toEqual([
+            { reason: "unsupported_schema_version", recordId: unsupported.uuid },
+            { reason: "invalid_context", recordId: invalidContext.uuid },
+            { reason: "payload_too_large", recordId: oversized.uuid },
+          ]);
+          expect(publishedEvents(ingress.batches).map((entry) => entry.envelope.eventId)).toEqual([
+            valid.uuid,
+          ]);
         }),
       ).pipe(provideService({ ingress: ingress.layer }));
     })(),
@@ -438,8 +474,8 @@ describe("EventCaptureService.captureEvents", () => {
           // Quota check denies → selectRoute falls back to the overflow lane.
           const result = yield* service.captureEvents(captureRequest(token, [captureEvent()]));
 
-          expect(result.accepted).toBe(1);
-          expect(result.rejected).toBe(0);
+          expect(result.accepted).toHaveLength(1);
+          expect(result.rejected).toHaveLength(0);
 
           const events = publishedEvents(ingress.batches);
           expect(events.length).toBe(1);
@@ -464,7 +500,7 @@ describe("EventCaptureService.captureEvents", () => {
 
           const result = yield* service.captureEvents(captureRequest(token, [captureEvent()]));
 
-          expect(result.accepted).toBe(1);
+          expect(result.accepted).toHaveLength(1);
           const events = publishedEvents(ingress.batches);
           expect(events.length).toBe(1);
           expect(events[0]?.routeClass).toBe<RouteClass>("historical");
@@ -502,8 +538,9 @@ describe("EventCaptureService.captureEvents", () => {
             captureRequest(token, [captureEvent(), captureEvent()]),
           );
 
-          expect(result.rejected).toBe(1);
-          expect(result.accepted).toBe(1);
+          expect(result.rejected).toHaveLength(1);
+          expect(result.accepted).toHaveLength(1);
+          expect(result.rejected[0]?.reason).toBe("policy_rejected");
           expect(publishedEvents(ingress.batches).length).toBe(1);
         }),
       ).pipe(provideService({ ingress: ingress.layer, policyStore }));

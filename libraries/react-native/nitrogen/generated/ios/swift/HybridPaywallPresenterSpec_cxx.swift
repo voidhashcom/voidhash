@@ -85,7 +85,7 @@ public class HybridPaywallPresenterSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -97,7 +97,7 @@ public class HybridPaywallPresenterSpec_cxx {
   }
 
   // Properties
-  
+
 
   // Methods
   @inline(__always)
@@ -118,7 +118,7 @@ public class HybridPaywallPresenterSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_bool___(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func show(locationSlug: std.string, htmlUrl: std.string, onBridgeEvent: bridge.std__optional_std__function_void_const_std__string_____rawEvent______, onDismiss: bridge.std__optional_std__function_void____) -> bridge.Result_std__shared_ptr_Promise_bool___ {
     do {
@@ -159,7 +159,7 @@ public class HybridPaywallPresenterSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_bool___(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func dismiss() -> bridge.Result_std__shared_ptr_Promise_void___ {
     do {
@@ -178,7 +178,7 @@ public class HybridPaywallPresenterSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_void___(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func release(locationSlug: std.string) -> bridge.Result_void_ {
     do {
@@ -189,7 +189,7 @@ public class HybridPaywallPresenterSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func postMessage(locationSlug: std.string, data: std.string) -> bridge.Result_void_ {
     do {

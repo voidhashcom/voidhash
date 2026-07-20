@@ -40,25 +40,25 @@ abstract class HybridGoogleBillingConsumeResultSpec: HybridObject() {
   @get:DoNotStrip
   @get:Keep
   abstract val responseCode: Double
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val debugMessage: String?
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val code: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val message: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val purchaseTokenAndroid: String?
 
   // Methods
-  
+
 
   private external fun initHybrid(): HybridData
 

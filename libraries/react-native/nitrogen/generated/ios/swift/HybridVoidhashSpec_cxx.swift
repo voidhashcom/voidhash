@@ -85,7 +85,7 @@ public class HybridVoidhashSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -97,7 +97,7 @@ public class HybridVoidhashSpec_cxx {
   }
 
   // Properties
-  
+
 
   // Methods
   @inline(__always)

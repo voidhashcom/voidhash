@@ -85,7 +85,7 @@ public class HybridStorekitSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -97,7 +97,7 @@ public class HybridStorekitSpec_cxx {
   }
 
   // Properties
-  
+
 
   // Methods
   @inline(__always)
@@ -132,7 +132,7 @@ public class HybridStorekitSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_bool___(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func endConnection() -> bridge.Result_std__shared_ptr_Promise_bool___ {
     do {
@@ -151,7 +151,7 @@ public class HybridStorekitSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_bool___(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func getPurchasedItems(onlyIncludeActiveItems: Bool) -> bridge.Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_____ {
     do {
@@ -179,7 +179,7 @@ public class HybridStorekitSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_____(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func getItems(skus: bridge.std__vector_std__string_) -> bridge.Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_____ {
     do {
@@ -207,7 +207,7 @@ public class HybridStorekitSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_____(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func buyProduct(sku: std.string, appAccountToken: std.string, quantity: Double) -> bridge.Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____ {
     do {
@@ -229,7 +229,7 @@ public class HybridStorekitSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec____(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func finishTransaction(transactionId: std.string) -> bridge.Result_std__shared_ptr_Promise_void___ {
     do {
@@ -248,7 +248,7 @@ public class HybridStorekitSpec_cxx {
       return bridge.create_Result_std__shared_ptr_Promise_void___(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func getPendingTransactions() -> bridge.Result_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___ {
     do {
@@ -269,7 +269,7 @@ public class HybridStorekitSpec_cxx {
       return bridge.create_Result_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec___(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func presentCodeRedemptionSheet() -> bridge.Result_void_ {
     do {
@@ -280,7 +280,7 @@ public class HybridStorekitSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func showManageSubscriptions() -> bridge.Result_std__shared_ptr_Promise_void___ {
     do {

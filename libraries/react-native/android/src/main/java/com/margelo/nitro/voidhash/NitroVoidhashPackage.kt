@@ -6,6 +6,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.module.model.ReactModuleInfoProvider
 import com.facebook.react.uimanager.ViewManager
 import com.margelo.nitro.voidhash.views.HybridPaywallWebViewManager
+import com.margelo.nitro.voidhash.measurement.VoidhashLinkCollector
 
 class NitroVoidhashPackage : BaseReactPackage() {
     override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? {
@@ -17,6 +18,7 @@ class NitroVoidhashPackage : BaseReactPackage() {
     }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {
+        VoidhashLinkCollector.install(reactContext)
         val viewManagers = ArrayList<ViewManager<*, *>>()
         viewManagers.add(HybridPaywallWebViewManager())
         return viewManagers

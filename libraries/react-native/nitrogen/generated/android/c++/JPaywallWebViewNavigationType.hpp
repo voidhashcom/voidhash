@@ -47,7 +47,7 @@ namespace margelo::nitro::voidhash {
       static const auto fieldRELOAD = clazz->getStaticField<JPaywallWebViewNavigationType>("RELOAD");
       static const auto fieldFORMRESUBMIT = clazz->getStaticField<JPaywallWebViewNavigationType>("FORMRESUBMIT");
       static const auto fieldOTHER = clazz->getStaticField<JPaywallWebViewNavigationType>("OTHER");
-      
+
       switch (value) {
         case PaywallWebViewNavigationType::CLICK:
           return clazz->getStaticFieldValue(fieldCLICK);

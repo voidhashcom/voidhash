@@ -85,7 +85,7 @@ public class HybridPaywallWebViewSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -119,7 +119,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var javaScriptEnabled: Bool {
     @inline(__always)
     get {
@@ -130,7 +130,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.javaScriptEnabled = newValue
     }
   }
-  
+
   public final var cacheEnabled: Bool {
     @inline(__always)
     get {
@@ -141,7 +141,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.cacheEnabled = newValue
     }
   }
-  
+
   public final var incognito: Bool {
     @inline(__always)
     get {
@@ -152,7 +152,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.incognito = newValue
     }
   }
-  
+
   public final var userAgent: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -175,7 +175,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var applicationNameForUserAgent: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -198,7 +198,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var injectedJavaScript: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -221,7 +221,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var injectedJavaScriptBeforeContentLoaded: bridge.std__optional_std__string_ {
     @inline(__always)
     get {
@@ -244,7 +244,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var injectedJavaScriptForMainFrameOnly: Bool {
     @inline(__always)
     get {
@@ -255,7 +255,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.injectedJavaScriptForMainFrameOnly = newValue
     }
   }
-  
+
   public final var injectedJavaScriptBeforeContentLoadedForMainFrameOnly: Bool {
     @inline(__always)
     get {
@@ -266,7 +266,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.injectedJavaScriptBeforeContentLoadedForMainFrameOnly = newValue
     }
   }
-  
+
   public final var mediaPlaybackRequiresUserAction: Bool {
     @inline(__always)
     get {
@@ -277,7 +277,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.mediaPlaybackRequiresUserAction = newValue
     }
   }
-  
+
   public final var allowsInlineMediaPlayback: Bool {
     @inline(__always)
     get {
@@ -288,7 +288,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.allowsInlineMediaPlayback = newValue
     }
   }
-  
+
   public final var allowsPictureInPictureMediaPlayback: Bool {
     @inline(__always)
     get {
@@ -299,7 +299,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.allowsPictureInPictureMediaPlayback = newValue
     }
   }
-  
+
   public final var allowsAirPlayForMediaPlayback: Bool {
     @inline(__always)
     get {
@@ -310,7 +310,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.allowsAirPlayForMediaPlayback = newValue
     }
   }
-  
+
   public final var allowsFullscreenVideo: Bool {
     @inline(__always)
     get {
@@ -321,7 +321,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.allowsFullscreenVideo = newValue
     }
   }
-  
+
   public final var setSupportMultipleWindows: Bool {
     @inline(__always)
     get {
@@ -332,7 +332,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.setSupportMultipleWindows = newValue
     }
   }
-  
+
   public final var setBuiltInZoomControls: Bool {
     @inline(__always)
     get {
@@ -343,7 +343,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.setBuiltInZoomControls = newValue
     }
   }
-  
+
   public final var setDisplayZoomControls: Bool {
     @inline(__always)
     get {
@@ -354,7 +354,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.setDisplayZoomControls = newValue
     }
   }
-  
+
   public final var scalesPageToFit: Bool {
     @inline(__always)
     get {
@@ -365,7 +365,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.scalesPageToFit = newValue
     }
   }
-  
+
   public final var thirdPartyCookiesEnabled: Bool {
     @inline(__always)
     get {
@@ -376,7 +376,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.thirdPartyCookiesEnabled = newValue
     }
   }
-  
+
   public final var sharedCookiesEnabled: Bool {
     @inline(__always)
     get {
@@ -387,7 +387,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.sharedCookiesEnabled = newValue
     }
   }
-  
+
   public final var allowFileAccess: Bool {
     @inline(__always)
     get {
@@ -398,7 +398,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.allowFileAccess = newValue
     }
   }
-  
+
   public final var allowFileAccessFromFileURLs: Bool {
     @inline(__always)
     get {
@@ -409,7 +409,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.allowFileAccessFromFileURLs = newValue
     }
   }
-  
+
   public final var allowUniversalAccessFromFileURLs: Bool {
     @inline(__always)
     get {
@@ -420,7 +420,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.allowUniversalAccessFromFileURLs = newValue
     }
   }
-  
+
   public final var textZoom: Double {
     @inline(__always)
     get {
@@ -431,7 +431,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.textZoom = newValue
     }
   }
-  
+
   public final var overScrollMode: Int32 {
     @inline(__always)
     get {
@@ -442,7 +442,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.overScrollMode = margelo.nitro.voidhash.PaywallWebViewOverScrollModeType(rawValue: newValue)!
     }
   }
-  
+
   public final var cacheMode: Int32 {
     @inline(__always)
     get {
@@ -453,7 +453,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.cacheMode = margelo.nitro.voidhash.PaywallWebViewCacheMode(rawValue: newValue)!
     }
   }
-  
+
   public final var mixedContentMode: Int32 {
     @inline(__always)
     get {
@@ -464,7 +464,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.mixedContentMode = margelo.nitro.voidhash.PaywallWebViewMixedContentMode(rawValue: newValue)!
     }
   }
-  
+
   public final var androidLayerType: Int32 {
     @inline(__always)
     get {
@@ -475,7 +475,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.androidLayerType = margelo.nitro.voidhash.PaywallWebViewAndroidLayerType(rawValue: newValue)!
     }
   }
-  
+
   public final var geolocationEnabled: Bool {
     @inline(__always)
     get {
@@ -486,7 +486,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.geolocationEnabled = newValue
     }
   }
-  
+
   public final var pullToRefreshEnabled: Bool {
     @inline(__always)
     get {
@@ -497,7 +497,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.pullToRefreshEnabled = newValue
     }
   }
-  
+
   public final var nestedScrollEnabled: Bool {
     @inline(__always)
     get {
@@ -508,7 +508,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.nestedScrollEnabled = newValue
     }
   }
-  
+
   public final var bounces: Bool {
     @inline(__always)
     get {
@@ -519,7 +519,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.bounces = newValue
     }
   }
-  
+
   public final var dataDetectorTypes: bridge.std__vector_PaywallWebViewDataDetectorType_ {
     @inline(__always)
     get {
@@ -536,7 +536,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.dataDetectorTypes = newValue.map({ __item in __item })
     }
   }
-  
+
   public final var originWhitelist: bridge.std__vector_std__string_ {
     @inline(__always)
     get {
@@ -553,7 +553,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.originWhitelist = newValue.map({ __item in String(__item) })
     }
   }
-  
+
   public final var messagingEnabled: Bool {
     @inline(__always)
     get {
@@ -564,7 +564,7 @@ public class HybridPaywallWebViewSpec_cxx {
       self.__implementation.messagingEnabled = newValue
     }
   }
-  
+
   public final var onLoadingStart: bridge.std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______ {
     @inline(__always)
     get {
@@ -595,7 +595,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var onLoadingProgress: bridge.std__optional_std__function_void_const_PaywallWebViewProgressEvent_____event______ {
     @inline(__always)
     get {
@@ -626,7 +626,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var onLoadingFinish: bridge.std__optional_std__function_void_const_PaywallWebViewNavigationEvent_____event______ {
     @inline(__always)
     get {
@@ -657,7 +657,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var onLoadingError: bridge.std__optional_std__function_void_const_PaywallWebViewErrorEvent_____event______ {
     @inline(__always)
     get {
@@ -688,7 +688,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var onHttpError: bridge.std__optional_std__function_void_const_PaywallWebViewHttpErrorEvent_____event______ {
     @inline(__always)
     get {
@@ -719,7 +719,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var onMessage: bridge.std__optional_std__function_void_const_PaywallWebViewMessageEvent_____event______ {
     @inline(__always)
     get {
@@ -750,7 +750,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var onOpenWindow: bridge.std__optional_std__function_void_const_PaywallWebViewOpenWindowEvent_____event______ {
     @inline(__always)
     get {
@@ -781,7 +781,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var onFileDownload: bridge.std__optional_std__function_void_const_PaywallWebViewFileDownloadEvent_____event______ {
     @inline(__always)
     get {
@@ -812,7 +812,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var onRenderProcessGone: bridge.std__optional_std__function_void_const_PaywallWebViewRenderProcessGoneEvent_____event______ {
     @inline(__always)
     get {
@@ -843,7 +843,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var onContentProcessDidTerminate: bridge.std__optional_std__function_void_const_PaywallWebViewBaseEvent_____event______ {
     @inline(__always)
     get {
@@ -874,7 +874,7 @@ public class HybridPaywallWebViewSpec_cxx {
       }()
     }
   }
-  
+
   public final var onShouldStartLoadWithRequest: bridge.std__optional_std__function_bool_const_PaywallWebViewShouldStartLoadRequest_____event______ {
     @inline(__always)
     get {
@@ -918,7 +918,7 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func goForward() -> bridge.Result_void_ {
     do {
@@ -929,7 +929,7 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func reload() -> bridge.Result_void_ {
     do {
@@ -940,7 +940,7 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func stopLoading() -> bridge.Result_void_ {
     do {
@@ -951,7 +951,7 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func requestFocus() -> bridge.Result_void_ {
     do {
@@ -962,7 +962,7 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func postMessage(data: std.string) -> bridge.Result_void_ {
     do {
@@ -973,7 +973,7 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func injectJavaScript(javascript: std.string) -> bridge.Result_void_ {
     do {
@@ -984,7 +984,7 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func loadUrl(url: std.string) -> bridge.Result_void_ {
     do {
@@ -995,7 +995,7 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func clearFormData() -> bridge.Result_void_ {
     do {
@@ -1006,7 +1006,7 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func clearHistory() -> bridge.Result_void_ {
     do {
@@ -1017,7 +1017,7 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   @inline(__always)
   public final func clearCache(includeDiskFiles: Bool) -> bridge.Result_void_ {
     do {
@@ -1028,15 +1028,15 @@ public class HybridPaywallWebViewSpec_cxx {
       return bridge.create_Result_void_(__exceptionPtr)
     }
   }
-  
+
   public final func getView() -> UnsafeMutableRawPointer {
     return Unmanaged.passRetained(__implementation.view).toOpaque()
   }
-  
+
   public final func beforeUpdate() {
     __implementation.beforeUpdate()
   }
-  
+
   public final func afterUpdate() {
     __implementation.afterUpdate()
   }

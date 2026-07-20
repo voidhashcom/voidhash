@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { EventCaptureApi } from "@voidhash/api-contracts/event-capture";
+import { LinksApi } from "@voidhash/api-contracts/links";
 import {
   buildBackendFetch,
   buildBackendAgentServices,
@@ -11,6 +12,7 @@ import {
 import { RpcAuthLive } from "@voidhash/backend/src/RpcMiddlewares.ts";
 import { AuthTokenVerifier } from "@voidhash/core/services/auth/AuthTokenVerifier";
 import { EventCaptureService } from "@voidhash/core/services/analyticsIngest/EventCaptureService";
+import { LinkRedirectService } from "@voidhash/core/services/measurement/LinkRedirectService";
 import { PushDeliveryDispatch } from "@voidhash/core/services/notifications/PushDeliveryDispatch";
 import { PaywallThumbnailService } from "@voidhash/core/services/paywallThumbnails/PaywallThumbnailService";
 import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
@@ -24,6 +26,7 @@ import { HttpRouter } from "effect/unstable/http";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { EventCaptureGroupLive } from "@voidhash/backend/src/routes/event-capture.ts";
+import { LinksGroupLive } from "@voidhash/backend/src/routes/links.ts";
 import {
   makeSelfhostAnalyticsRuntimeLive,
   runSelfhostAnalyticsConsumers,
@@ -61,6 +64,19 @@ const isMimicRequest = (url: string | undefined): boolean => {
 const isCaptureRequest = (url: string | undefined): boolean => {
   const pathname = new URL(url ?? "/", "http://selfhost.local").pathname;
   return pathname === "/i" || pathname.startsWith("/i/");
+};
+
+const isLinksRequest = (url: string | undefined): boolean => {
+  const pathname = new URL(url ?? "/", "http://selfhost.local").pathname;
+  return pathname === "/l" || pathname.startsWith("/l/");
+};
+
+const linkClick = (url: string | undefined): { readonly linkId: string; readonly token: string } | undefined => {
+  const parsed = new URL(url ?? "/", "http://selfhost.local");
+  const matched = /^\/l\/([^/]+)$/.exec(parsed.pathname);
+  const token = parsed.searchParams.get("token");
+  if (!matched?.[1] || !token) return undefined;
+  return { linkId: decodeURIComponent(matched[1]), token };
 };
 
 NodeRuntime.runMain(
@@ -177,6 +193,15 @@ NodeRuntime.runMain(
         Layer.provide(NodeHttpServer.layerHttpServices),
         HttpRouter.toHttpEffect,
       );
+      const linkService = Context.get(runtimeContext, LinkRedirectService);
+      const linksEffect = yield* HttpApiBuilder.layer(LinksApi, {
+        openapiPath: "/l/docs/openapi.json",
+      }).pipe(
+        Layer.provide(LinksGroupLive),
+        Layer.provide(Layer.succeed(LinkRedirectService, linkService)),
+        Layer.provide(NodeHttpServer.layerHttpServices),
+        HttpRouter.toHttpEffect,
+      );
 
       const scope = yield* Effect.scope;
       const backendHandler = yield* NodeHttpServer.makeHandler(
@@ -188,6 +213,7 @@ NodeRuntime.runMain(
         captureEffect.pipe(Effect.provide(runtimeContext)),
         { scope },
       );
+      const linksHandler = yield* NodeHttpServer.makeHandler(linksEffect, { scope });
       const wwwServerEntry = process.env.WWW_SERVER_ENTRY?.trim();
       const wwwClientDirectory = process.env.WWW_CLIENT_DIRECTORY?.trim();
       if ((wwwServerEntry === undefined) !== (wwwClientDirectory === undefined)) {
@@ -209,6 +235,39 @@ NodeRuntime.runMain(
         }
         if (isCaptureRequest(request.url)) {
           captureHandler(request, response);
+          return;
+        }
+        const click = linkClick(request.url);
+        if (click) {
+          const header = (name: string): string => {
+            const value = request.headers[name];
+            return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+          };
+          Effect.runPromise(linkService.click({
+            clickId: `click_${crypto.randomUUID()}`,
+            linkId: click.linkId,
+            referer: header("referer") || undefined,
+            token: click.token,
+            userAgent: header("user-agent"),
+          })).then((result) => {
+            response.setHeader("Cache-Control", "no-store");
+            response.setHeader("Referrer-Policy", "no-referrer");
+            if (!result) {
+              response.statusCode = 404;
+              response.end("Link not found");
+              return;
+            }
+            response.statusCode = 302;
+            response.setHeader("Location", result.destination);
+            response.end();
+          }).catch(() => {
+            response.statusCode = 503;
+            response.end("Link service unavailable");
+          });
+          return;
+        }
+        if (isLinksRequest(request.url)) {
+          linksHandler(request, response);
           return;
         }
         if (wwwHandler !== undefined && isWwwRequest(request.url)) {

@@ -15,7 +15,7 @@ public protocol HybridPurchasedItemSpec_protocol: HybridObject {
   var sku: String { get set }
 
   // Methods
-  
+
 }
 
 /// See ``HybridPurchasedItemSpec``

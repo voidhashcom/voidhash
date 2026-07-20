@@ -85,7 +85,7 @@ public class HybridPurchasedItemSpec_cxx {
     }
   }
 
-  
+
 
   /**
    * Get the memory size of the Swift class (plus size of any other allocations)
@@ -107,7 +107,7 @@ public class HybridPurchasedItemSpec_cxx {
       self.__implementation.type = margelo.nitro.voidhash.PurchasedItemType(rawValue: newValue)!
     }
   }
-  
+
   public final var sku: std.string {
     @inline(__always)
     get {
@@ -120,5 +120,5 @@ public class HybridPurchasedItemSpec_cxx {
   }
 
   // Methods
-  
+
 }

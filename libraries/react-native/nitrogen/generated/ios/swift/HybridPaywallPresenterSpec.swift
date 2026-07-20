@@ -11,7 +11,7 @@ import NitroModules
 /// See ``HybridPaywallPresenterSpec``
 public protocol HybridPaywallPresenterSpec_protocol: HybridObject {
   // Properties
-  
+
 
   // Methods
   func preload(locationSlug: String, htmlUrl: String) throws -> Promise<Bool>

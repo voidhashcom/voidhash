@@ -8,6 +8,8 @@
 #include "NitroVoidhash-Swift-Cxx-Bridge.hpp"
 
 // Include C++ implementation defined types
+#include "HybridMeasurementSpecSwift.hpp"
+#include "HybridNotificationsSpecSwift.hpp"
 #include "HybridPaywallPresenterSpecSwift.hpp"
 #include "HybridPaywallWebViewSpecSwift.hpp"
 #include "HybridPurchasedItemSpecSwift.hpp"
@@ -29,7 +31,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(result);
     };
   }
-  
+
   // pragma MARK: std::function<void(const std::exception_ptr& /* error */)>
   Func_void_std__exception_ptr create_Func_void_std__exception_ptr(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_std__exception_ptr::fromUnsafe(swiftClosureWrapper);
@@ -37,7 +39,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(error);
     };
   }
-  
+
   // pragma MARK: std::function<void(const std::string& /* rawEvent */)>
   Func_void_std__string create_Func_void_std__string(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_std__string::fromUnsafe(swiftClosureWrapper);
@@ -45,7 +47,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(rawEvent);
     };
   }
-  
+
   // pragma MARK: std::function<void()>
   Func_void create_Func_void(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void::fromUnsafe(swiftClosureWrapper);
@@ -53,7 +55,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call();
     };
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec>
   std::shared_ptr<margelo::nitro::voidhash::HybridPaywallPresenterSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridPaywallPresenterSpec_(void* _Nonnull swiftUnsafePointer) {
     NitroVoidhash::HybridPaywallPresenterSpec_cxx swiftPart = NitroVoidhash::HybridPaywallPresenterSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -69,7 +71,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
     NitroVoidhash::HybridPaywallPresenterSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
-  
+
   // pragma MARK: std::function<void(const PaywallWebViewNavigationEvent& /* event */)>
   Func_void_PaywallWebViewNavigationEvent create_Func_void_PaywallWebViewNavigationEvent(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_PaywallWebViewNavigationEvent::fromUnsafe(swiftClosureWrapper);
@@ -77,7 +79,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(event);
     };
   }
-  
+
   // pragma MARK: std::function<void(const PaywallWebViewProgressEvent& /* event */)>
   Func_void_PaywallWebViewProgressEvent create_Func_void_PaywallWebViewProgressEvent(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_PaywallWebViewProgressEvent::fromUnsafe(swiftClosureWrapper);
@@ -85,7 +87,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(event);
     };
   }
-  
+
   // pragma MARK: std::function<void(const PaywallWebViewErrorEvent& /* event */)>
   Func_void_PaywallWebViewErrorEvent create_Func_void_PaywallWebViewErrorEvent(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_PaywallWebViewErrorEvent::fromUnsafe(swiftClosureWrapper);
@@ -93,7 +95,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(event);
     };
   }
-  
+
   // pragma MARK: std::function<void(const PaywallWebViewHttpErrorEvent& /* event */)>
   Func_void_PaywallWebViewHttpErrorEvent create_Func_void_PaywallWebViewHttpErrorEvent(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_PaywallWebViewHttpErrorEvent::fromUnsafe(swiftClosureWrapper);
@@ -101,7 +103,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(event);
     };
   }
-  
+
   // pragma MARK: std::function<void(const PaywallWebViewMessageEvent& /* event */)>
   Func_void_PaywallWebViewMessageEvent create_Func_void_PaywallWebViewMessageEvent(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_PaywallWebViewMessageEvent::fromUnsafe(swiftClosureWrapper);
@@ -109,7 +111,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(event);
     };
   }
-  
+
   // pragma MARK: std::function<void(const PaywallWebViewOpenWindowEvent& /* event */)>
   Func_void_PaywallWebViewOpenWindowEvent create_Func_void_PaywallWebViewOpenWindowEvent(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_PaywallWebViewOpenWindowEvent::fromUnsafe(swiftClosureWrapper);
@@ -117,7 +119,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(event);
     };
   }
-  
+
   // pragma MARK: std::function<void(const PaywallWebViewFileDownloadEvent& /* event */)>
   Func_void_PaywallWebViewFileDownloadEvent create_Func_void_PaywallWebViewFileDownloadEvent(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_PaywallWebViewFileDownloadEvent::fromUnsafe(swiftClosureWrapper);
@@ -125,7 +127,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(event);
     };
   }
-  
+
   // pragma MARK: std::function<void(const PaywallWebViewRenderProcessGoneEvent& /* event */)>
   Func_void_PaywallWebViewRenderProcessGoneEvent create_Func_void_PaywallWebViewRenderProcessGoneEvent(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_PaywallWebViewRenderProcessGoneEvent::fromUnsafe(swiftClosureWrapper);
@@ -133,7 +135,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(event);
     };
   }
-  
+
   // pragma MARK: std::function<void(const PaywallWebViewBaseEvent& /* event */)>
   Func_void_PaywallWebViewBaseEvent create_Func_void_PaywallWebViewBaseEvent(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_PaywallWebViewBaseEvent::fromUnsafe(swiftClosureWrapper);
@@ -141,7 +143,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(event);
     };
   }
-  
+
   // pragma MARK: std::function<bool(const PaywallWebViewShouldStartLoadRequest& /* event */)>
   Func_bool_PaywallWebViewShouldStartLoadRequest create_Func_bool_PaywallWebViewShouldStartLoadRequest(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_bool_PaywallWebViewShouldStartLoadRequest::fromUnsafe(swiftClosureWrapper);
@@ -150,7 +152,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       return __result;
     };
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec>
   std::shared_ptr<margelo::nitro::voidhash::HybridPaywallWebViewSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridPaywallWebViewSpec_(void* _Nonnull swiftUnsafePointer) {
     NitroVoidhash::HybridPaywallWebViewSpec_cxx swiftPart = NitroVoidhash::HybridPaywallWebViewSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -166,7 +168,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
     NitroVoidhash::HybridPaywallWebViewSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>
   std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_(void* _Nonnull swiftUnsafePointer) {
     NitroVoidhash::HybridPurchasedItemSpec_cxx swiftPart = NitroVoidhash::HybridPurchasedItemSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -182,7 +184,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
     NitroVoidhash::HybridPurchasedItemSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
-  
+
   // pragma MARK: std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>& /* result */)>
   Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_ create_Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridPurchasedItemSpec_::fromUnsafe(swiftClosureWrapper);
@@ -190,7 +192,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(result);
     };
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridVoidhashSpec>
   std::shared_ptr<margelo::nitro::voidhash::HybridVoidhashSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridVoidhashSpec_(void* _Nonnull swiftUnsafePointer) {
     NitroVoidhash::HybridVoidhashSpec_cxx swiftPart = NitroVoidhash::HybridVoidhashSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -206,7 +208,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
     NitroVoidhash::HybridVoidhashSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>
   std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_(void* _Nonnull swiftUnsafePointer) {
     NitroVoidhash::HybridStorekitTransactionSpec_cxx swiftPart = NitroVoidhash::HybridStorekitTransactionSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -222,7 +224,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
     NitroVoidhash::HybridStorekitTransactionSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
-  
+
   // pragma MARK: std::function<void(const std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>& /* transaction */)>
   Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_ create_Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec_::fromUnsafe(swiftClosureWrapper);
@@ -230,7 +232,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(transaction);
     };
   }
-  
+
   // pragma MARK: std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitTransactionSpec>>& /* result */)>
   Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__ create_Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitTransactionSpec__::fromUnsafe(swiftClosureWrapper);
@@ -238,7 +240,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(result);
     };
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>
   std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec_(void* _Nonnull swiftUnsafePointer) {
     NitroVoidhash::HybridStorekitProductSpec_cxx swiftPart = NitroVoidhash::HybridStorekitProductSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -254,7 +256,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
     NitroVoidhash::HybridStorekitProductSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
-  
+
   // pragma MARK: std::function<void(const std::vector<std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSpec>>& /* result */)>
   Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__ create_Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__(void* _Nonnull swiftClosureWrapper) {
     auto swiftClosure = NitroVoidhash::Func_void_std__vector_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSpec__::fromUnsafe(swiftClosureWrapper);
@@ -262,7 +264,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
       swiftClosure.call(result);
     };
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitSpec>
   std::shared_ptr<margelo::nitro::voidhash::HybridStorekitSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitSpec_(void* _Nonnull swiftUnsafePointer) {
     NitroVoidhash::HybridStorekitSpec_cxx swiftPart = NitroVoidhash::HybridStorekitSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -278,7 +280,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
     NitroVoidhash::HybridStorekitSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec>
   std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionSpec_(void* _Nonnull swiftUnsafePointer) {
     NitroVoidhash::HybridStorekitProductSubscriptionSpec_cxx swiftPart = NitroVoidhash::HybridStorekitProductSubscriptionSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -294,7 +296,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
     NitroVoidhash::HybridStorekitProductSubscriptionSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec>
   std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductSubscriptionPeriodSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductSubscriptionPeriodSpec_(void* _Nonnull swiftUnsafePointer) {
     NitroVoidhash::HybridStorekitProductSubscriptionPeriodSpec_cxx swiftPart = NitroVoidhash::HybridStorekitProductSubscriptionPeriodSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -310,7 +312,7 @@ namespace margelo::nitro::voidhash::bridge::swift {
     NitroVoidhash::HybridStorekitProductSubscriptionPeriodSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
-  
+
   // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec>
   std::shared_ptr<margelo::nitro::voidhash::HybridStorekitProductOfferSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridStorekitProductOfferSpec_(void* _Nonnull swiftUnsafePointer) {
     NitroVoidhash::HybridStorekitProductOfferSpec_cxx swiftPart = NitroVoidhash::HybridStorekitProductOfferSpec_cxx::fromUnsafe(swiftUnsafePointer);
@@ -324,6 +326,110 @@ namespace margelo::nitro::voidhash::bridge::swift {
     }
   #endif
     NitroVoidhash::HybridStorekitProductOfferSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
+    return swiftPart.toUnsafe();
+  }
+
+  // pragma MARK: std::function<void(const MeasurementStateBridge& /* result */)>
+  Func_void_MeasurementStateBridge create_Func_void_MeasurementStateBridge(void* _Nonnull swiftClosureWrapper) {
+    auto swiftClosure = NitroVoidhash::Func_void_MeasurementStateBridge::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const MeasurementStateBridge& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+
+  // pragma MARK: std::function<void(const MeasurementCommandResult& /* result */)>
+  Func_void_MeasurementCommandResult create_Func_void_MeasurementCommandResult(void* _Nonnull swiftClosureWrapper) {
+    auto swiftClosure = NitroVoidhash::Func_void_MeasurementCommandResult::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const MeasurementCommandResult& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+
+  // pragma MARK: std::function<void(const MeasurementFlushBridgeResult& /* result */)>
+  Func_void_MeasurementFlushBridgeResult create_Func_void_MeasurementFlushBridgeResult(void* _Nonnull swiftClosureWrapper) {
+    auto swiftClosure = NitroVoidhash::Func_void_MeasurementFlushBridgeResult::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const MeasurementFlushBridgeResult& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+
+  // pragma MARK: std::function<void(const MeasurementBridgeEvent& /* event */)>
+  Func_void_MeasurementBridgeEvent create_Func_void_MeasurementBridgeEvent(void* _Nonnull swiftClosureWrapper) {
+    auto swiftClosure = NitroVoidhash::Func_void_MeasurementBridgeEvent::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const MeasurementBridgeEvent& event) mutable -> void {
+      swiftClosure.call(event);
+    };
+  }
+
+  // pragma MARK: std::function<void(const std::vector<MeasurementInboxEntry>& /* result */)>
+  Func_void_std__vector_MeasurementInboxEntry_ create_Func_void_std__vector_MeasurementInboxEntry_(void* _Nonnull swiftClosureWrapper) {
+    auto swiftClosure = NitroVoidhash::Func_void_std__vector_MeasurementInboxEntry_::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const std::vector<MeasurementInboxEntry>& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+
+  // pragma MARK: std::function<void(const std::shared_ptr<ArrayBuffer>& /* result */)>
+  Func_void_std__shared_ptr_ArrayBuffer_ create_Func_void_std__shared_ptr_ArrayBuffer_(void* _Nonnull swiftClosureWrapper) {
+    auto swiftClosure = NitroVoidhash::Func_void_std__shared_ptr_ArrayBuffer_::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const std::shared_ptr<ArrayBuffer>& result) mutable -> void {
+      swiftClosure.call(ArrayBufferHolder(result));
+    };
+  }
+
+  // pragma MARK: std::function<void(const MeasurementConfigurationStateBridge& /* result */)>
+  Func_void_MeasurementConfigurationStateBridge create_Func_void_MeasurementConfigurationStateBridge(void* _Nonnull swiftClosureWrapper) {
+    auto swiftClosure = NitroVoidhash::Func_void_MeasurementConfigurationStateBridge::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const MeasurementConfigurationStateBridge& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridMeasurementSpec>
+  std::shared_ptr<margelo::nitro::voidhash::HybridMeasurementSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridMeasurementSpec_(void* _Nonnull swiftUnsafePointer) {
+    NitroVoidhash::HybridMeasurementSpec_cxx swiftPart = NitroVoidhash::HybridMeasurementSpec_cxx::fromUnsafe(swiftUnsafePointer);
+    return std::make_shared<margelo::nitro::voidhash::HybridMeasurementSpecSwift>(swiftPart);
+  }
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridMeasurementSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridMeasurementSpec_ cppType) {
+    std::shared_ptr<margelo::nitro::voidhash::HybridMeasurementSpecSwift> swiftWrapper = std::dynamic_pointer_cast<margelo::nitro::voidhash::HybridMeasurementSpecSwift>(cppType);
+  #ifdef NITRO_DEBUG
+    if (swiftWrapper == nullptr) [[unlikely]] {
+      throw std::runtime_error("Class \"HybridMeasurementSpec\" is not implemented in Swift!");
+    }
+  #endif
+    NitroVoidhash::HybridMeasurementSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
+    return swiftPart.toUnsafe();
+  }
+
+  // pragma MARK: std::function<void(const NativePushToken& /* result */)>
+  Func_void_NativePushToken create_Func_void_NativePushToken(void* _Nonnull swiftClosureWrapper) {
+    auto swiftClosure = NitroVoidhash::Func_void_NativePushToken::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const NativePushToken& result) mutable -> void {
+      swiftClosure.call(result);
+    };
+  }
+
+  // pragma MARK: std::function<void(const NativeNotificationEvent& /* event */)>
+  Func_void_NativeNotificationEvent create_Func_void_NativeNotificationEvent(void* _Nonnull swiftClosureWrapper) {
+    auto swiftClosure = NitroVoidhash::Func_void_NativeNotificationEvent::fromUnsafe(swiftClosureWrapper);
+    return [swiftClosure = std::move(swiftClosure)](const NativeNotificationEvent& event) mutable -> void {
+      swiftClosure.call(event);
+    };
+  }
+
+  // pragma MARK: std::shared_ptr<margelo::nitro::voidhash::HybridNotificationsSpec>
+  std::shared_ptr<margelo::nitro::voidhash::HybridNotificationsSpec> create_std__shared_ptr_margelo__nitro__voidhash__HybridNotificationsSpec_(void* _Nonnull swiftUnsafePointer) {
+    NitroVoidhash::HybridNotificationsSpec_cxx swiftPart = NitroVoidhash::HybridNotificationsSpec_cxx::fromUnsafe(swiftUnsafePointer);
+    return std::make_shared<margelo::nitro::voidhash::HybridNotificationsSpecSwift>(swiftPart);
+  }
+  void* _Nonnull get_std__shared_ptr_margelo__nitro__voidhash__HybridNotificationsSpec_(std__shared_ptr_margelo__nitro__voidhash__HybridNotificationsSpec_ cppType) {
+    std::shared_ptr<margelo::nitro::voidhash::HybridNotificationsSpecSwift> swiftWrapper = std::dynamic_pointer_cast<margelo::nitro::voidhash::HybridNotificationsSpecSwift>(cppType);
+  #ifdef NITRO_DEBUG
+    if (swiftWrapper == nullptr) [[unlikely]] {
+      throw std::runtime_error("Class \"HybridNotificationsSpec\" is not implemented in Swift!");
+    }
+  #endif
+    NitroVoidhash::HybridNotificationsSpec_cxx& swiftPart = swiftWrapper->getSwiftPart();
     return swiftPart.toUnsafe();
   }
 

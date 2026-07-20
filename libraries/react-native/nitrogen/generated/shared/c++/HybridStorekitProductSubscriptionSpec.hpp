@@ -59,7 +59,7 @@ namespace margelo::nitro::voidhash {
 
     public:
       // Methods
-      
+
 
     protected:
       // Hybrid Setup

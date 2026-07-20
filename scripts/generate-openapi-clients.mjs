@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
@@ -13,14 +13,15 @@ const generatedClientsRoot = path.join(repoRoot, "packages/generated-clients");
 const nodeGeneratedRoot = path.join(repoRoot, "libraries/node/src/generated");
 const openapiRoot = path.join(generatedClientsRoot, "openapi");
 
+const contractMode = process.argv.includes("--contracts");
 const rawHost = process.argv
   .slice(2)
-  .find((arg) => arg !== "--")
+  .find((arg) => arg !== "--" && arg !== "--contracts")
   ?.trim();
 
-if (!rawHost) {
+if (!rawHost && !contractMode) {
   console.error(
-    "Usage: node ./scripts/generate-openapi-clients.mjs <host>\nExample: node ./scripts/generate-openapi-clients.mjs localhost:8787",
+    "Usage: node ./scripts/generate-openapi-clients.mjs <host>|--contracts\nExample: node ./scripts/generate-openapi-clients.mjs localhost:8787",
   );
   process.exit(1);
 }
@@ -36,11 +37,12 @@ const normalizeHost = (host) => {
   return new URL(`${protocol}${host}`).toString();
 };
 
-const baseUrl = normalizeHost(rawHost);
-const coreSpecUrl = new URL("/api/docs/openapi.json", baseUrl).toString();
-const eventCaptureSpecUrl = new URL("/i/docs/openapi.json", baseUrl).toString();
+const baseUrl = rawHost ? normalizeHost(rawHost) : undefined;
+const coreSpecUrl = baseUrl && new URL("/api/docs/openapi.json", baseUrl).toString();
+const eventCaptureSpecUrl = baseUrl && new URL("/i/docs/openapi.json", baseUrl).toString();
 const coreSpecPath = path.join(openapiRoot, "core.json");
 const eventCaptureSpecPath = path.join(openapiRoot, "event-capture.json");
+const linksSpecPath = path.join(openapiRoot, "links.json");
 
 const fetchJson = async (url) => {
   const response = await fetch(url);
@@ -84,19 +86,25 @@ const run = (command, args) => {
   return result.stdout;
 };
 
+const normalizeGeneratedText = (value) => `${value.trimEnd().replace(/[ \t]+$/gm, "")}\n`;
+
 const main = async () => {
   mkdirSync(openapiRoot, { recursive: true });
 
-  const [coreSpecText, eventCaptureSpecText] = await Promise.all([
-    fetchJson(coreSpecUrl),
-    fetchJson(eventCaptureSpecUrl),
-  ]);
+  if (contractMode) {
+    run("pnpm", ["exec", "tsx", "./scripts/generate-openapi-from-contracts.ts"]);
+  }
+
+  const [coreSpecText, eventCaptureSpecText, linksSpecText] = contractMode
+    ? [readFileSync(coreSpecPath, "utf8"), readFileSync(eventCaptureSpecPath, "utf8"), readFileSync(linksSpecPath, "utf8")]
+    : [...await Promise.all([fetchJson(coreSpecUrl), fetchJson(eventCaptureSpecUrl)]), readFileSync(linksSpecPath, "utf8")];
 
   assertCoreSpec(JSON.parse(coreSpecText));
   assertEventCaptureSpec(JSON.parse(eventCaptureSpecText));
 
-  writeFileSync(coreSpecPath, `${coreSpecText}\n`, "utf8");
-  writeFileSync(eventCaptureSpecPath, `${eventCaptureSpecText}\n`, "utf8");
+  writeFileSync(coreSpecPath, normalizeGeneratedText(coreSpecText), "utf8");
+  writeFileSync(eventCaptureSpecPath, normalizeGeneratedText(eventCaptureSpecText), "utf8");
+  writeFileSync(linksSpecPath, normalizeGeneratedText(linksSpecText), "utf8");
 
   const coreOutput = run("pnpm", [
     "dlx",
@@ -106,7 +114,25 @@ const main = async () => {
     "--name",
     "VoidhashCoreClient",
   ]);
-  writeFileSync(path.join(generatedClientsRoot, "src/core/generated.ts"), coreOutput, "utf8");
+  writeFileSync(
+    path.join(generatedClientsRoot, "src/core/generated.ts"),
+    normalizeGeneratedText(coreOutput),
+    "utf8",
+  );
+
+  const linksOutput = run("pnpm", [
+    "dlx",
+    "@tim-smart/openapi-gen@1.0.3",
+    "--spec",
+    linksSpecPath,
+    "--name",
+    "VoidhashLinksClient",
+  ]);
+  writeFileSync(
+    path.join(generatedClientsRoot, "src/links/generated.ts"),
+    normalizeGeneratedText(linksOutput),
+    "utf8",
+  );
 
   const eventCaptureOutput = run("pnpm", [
     "dlx",
@@ -118,7 +144,7 @@ const main = async () => {
   ]);
   writeFileSync(
     path.join(generatedClientsRoot, "src/event-capture/generated.ts"),
-    eventCaptureOutput,
+    normalizeGeneratedText(eventCaptureOutput),
     "utf8",
   );
 

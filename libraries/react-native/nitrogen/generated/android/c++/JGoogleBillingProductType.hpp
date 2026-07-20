@@ -43,7 +43,7 @@ namespace margelo::nitro::voidhash {
       static const auto clazz = javaClassStatic();
       static const auto fieldINAPP = clazz->getStaticField<JGoogleBillingProductType>("INAPP");
       static const auto fieldSUBS = clazz->getStaticField<JGoogleBillingProductType>("SUBS");
-      
+
       switch (value) {
         case GoogleBillingProductType::INAPP:
           return clazz->getStaticFieldValue(fieldINAPP);

@@ -1,6 +1,5 @@
 import { Cause, Context, Deferred, Effect, Exit, Layer } from "effect";
 
-import { CacheManager } from "../caching/cache-manager";
 import type { Product } from "../entities/product";
 import type { Transaction } from "../entities/transaction";
 import { PersonInfoManager } from "../identity/person-info-manager";
@@ -13,18 +12,8 @@ import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
 import { deriveAccountToken } from "../utils/account-token";
 import { ReconcileTransactionsError } from "./errors";
 
-const PROCESSED_TRANSACTION_TTL_MS = 1000 * 60 * 30;
-
-interface TransactionProcessingState {
-  readonly backendAccepted: boolean;
-  readonly storeFinalized: boolean;
-}
-
 const buildTransactionProcessingKey = (transaction: Transaction) =>
   `${transaction.platform}:${transaction.transactionId}:${transaction.purchaseDate}`;
-
-const getProcessedTransactionCacheKey = (transactionProcessingKey: string) =>
-  `processed-transaction:${transactionProcessingKey}`;
 
 const resolveTransactionProductSlug = (
   transaction: Transaction,
@@ -96,16 +85,14 @@ const mapTransactionToSyncPayload = (
 /**
  * Owns the transaction lifecycle: deduplicated server-side sync, observation
  * reconciliation, purchase orchestration, restore-purchases, and the native
- * transaction observer. Holds an in-memory `inFlightKeys` set per runtime to
- * coalesce concurrent sync attempts for the same transaction (the cache TTL
- * catches duplicate attempts across runtime restarts).
+ * transaction observer. Concurrent work is coalesced per runtime while the
+ * native measurement store remains the durable deduplication authority.
  */
 export class TransactionService extends Context.Service<TransactionService>()(
   "rn-voidhash/TransactionService",
   {
     make: Effect.gen(function* () {
       const apiClient = yield* ApiClient;
-      const cacheManager = yield* CacheManager;
       const personInfoManager = yield* PersonInfoManager;
       const identityManager = yield* IdentityManager;
       const paymentAdapter = yield* PaymentAdapter;
@@ -137,20 +124,13 @@ export class TransactionService extends Context.Service<TransactionService>()(
           inFlightTransactions.set(transactionProcessingKey, deferred);
 
           const execution = Effect.gen(function* () {
-            const processedCacheKey = getProcessedTransactionCacheKey(transactionProcessingKey);
-            const cachedTransaction = yield* cacheManager.get<boolean | TransactionProcessingState>(
-              processedCacheKey,
+            const finalized = yield* Effect.promise(() =>
+              sdkConfiguration.measurementRuntime.hasDurableDedupe(
+                "transaction-finalized",
+                transactionProcessingKey,
+              ),
             );
-            const cachedState =
-              cachedTransaction && !cachedTransaction.isExpired
-                ? cachedTransaction.value === true
-                  ? { backendAccepted: true, storeFinalized: true }
-                  : cachedTransaction.value === false
-                    ? undefined
-                    : cachedTransaction.value
-                : undefined;
-
-            if (cachedState?.storeFinalized) {
+            if (finalized) {
               return;
             }
 
@@ -164,7 +144,17 @@ export class TransactionService extends Context.Service<TransactionService>()(
               return;
             }
 
-            if (!cachedState?.backendAccepted) {
+            yield* Effect.promise(() =>
+              sdkConfiguration.measurementRuntime.recordObservedPurchase(transaction),
+            );
+
+            const backendAccepted = yield* Effect.promise(() =>
+              sdkConfiguration.measurementRuntime.hasDurableDedupe(
+                "transaction-backend-accepted",
+                transactionProcessingKey,
+              ),
+            );
+            if (!backendAccepted) {
               const commonHeaders = yield* getCommonSdkHeaders();
               const distinctId = yield* identityManager.getDistinctId();
 
@@ -176,14 +166,21 @@ export class TransactionService extends Context.Service<TransactionService>()(
                 payload: mapTransactionToSyncPayload(transaction, schema.products),
               });
 
-              yield* cacheManager.set(
-                processedCacheKey,
-                { backendAccepted: true, storeFinalized: transaction.isAcknowledged },
-                { ttl: PROCESSED_TRANSACTION_TTL_MS },
+              yield* Effect.promise(() =>
+                sdkConfiguration.measurementRuntime.checkAndSetDurableDedupe(
+                  "transaction-backend-accepted",
+                  transactionProcessingKey,
+                ),
               );
             }
 
             if (sdkConfiguration.readOnly) {
+              yield* Effect.promise(() =>
+                sdkConfiguration.measurementRuntime.checkAndSetDurableDedupe(
+                  "transaction-finalized",
+                  transactionProcessingKey,
+                ),
+              );
               return;
             }
 
@@ -194,10 +191,11 @@ export class TransactionService extends Context.Service<TransactionService>()(
               );
             }
 
-            yield* cacheManager.set(
-              processedCacheKey,
-              { backendAccepted: true, storeFinalized: true },
-              { ttl: PROCESSED_TRANSACTION_TTL_MS },
+            yield* Effect.promise(() =>
+              sdkConfiguration.measurementRuntime.checkAndSetDurableDedupe(
+                "transaction-finalized",
+                transactionProcessingKey,
+              ),
             );
           });
 

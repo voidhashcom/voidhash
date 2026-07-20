@@ -8,6 +8,12 @@
 #pragma once
 
 // Forward declarations of C++ defined types
+// Forward declaration of `ArrayBuffer` to properly resolve imports.
+namespace NitroModules { class ArrayBuffer; }
+// Forward declaration of `HybridMeasurementSpec` to properly resolve imports.
+namespace margelo::nitro::voidhash { class HybridMeasurementSpec; }
+// Forward declaration of `HybridNotificationsSpec` to properly resolve imports.
+namespace margelo::nitro::voidhash { class HybridNotificationsSpec; }
 // Forward declaration of `HybridPaywallPresenterSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridPaywallPresenterSpec; }
 // Forward declaration of `HybridPaywallWebViewSpec` to properly resolve imports.
@@ -28,6 +34,54 @@ namespace margelo::nitro::voidhash { class HybridStorekitSpec; }
 namespace margelo::nitro::voidhash { class HybridStorekitTransactionSpec; }
 // Forward declaration of `HybridVoidhashSpec` to properly resolve imports.
 namespace margelo::nitro::voidhash { class HybridVoidhashSpec; }
+// Forward declaration of `MeasurementBridgeError` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementBridgeError; }
+// Forward declaration of `MeasurementBridgeEvent` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementBridgeEvent; }
+// Forward declaration of `MeasurementBridgeSource` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class MeasurementBridgeSource; }
+// Forward declaration of `MeasurementCommandKind` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class MeasurementCommandKind; }
+// Forward declaration of `MeasurementCommandResult` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementCommandResult; }
+// Forward declaration of `MeasurementCommand` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementCommand; }
+// Forward declaration of `MeasurementConfigurationStateBridge` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementConfigurationStateBridge; }
+// Forward declaration of `MeasurementConsentSnapshot` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementConsentSnapshot; }
+// Forward declaration of `MeasurementFlushBridgeResult` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementFlushBridgeResult; }
+// Forward declaration of `MeasurementIdentitySnapshot` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementIdentitySnapshot; }
+// Forward declaration of `MeasurementInboxEntry` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementInboxEntry; }
+// Forward declaration of `MeasurementInitializeConfiguration` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementInitializeConfiguration; }
+// Forward declaration of `MeasurementProtectedEvidenceInput` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementProtectedEvidenceInput; }
+// Forward declaration of `MeasurementProtectedPurpose` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class MeasurementProtectedPurpose; }
+// Forward declaration of `MeasurementProtectedRetention` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class MeasurementProtectedRetention; }
+// Forward declaration of `MeasurementRecordPriority` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class MeasurementRecordPriority; }
+// Forward declaration of `MeasurementRecordSource` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class MeasurementRecordSource; }
+// Forward declaration of `MeasurementSessionSnapshot` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementSessionSnapshot; }
+// Forward declaration of `MeasurementStateBridge` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct MeasurementStateBridge; }
+// Forward declaration of `NativeNotificationEventKind` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class NativeNotificationEventKind; }
+// Forward declaration of `NativeNotificationEvent` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct NativeNotificationEvent; }
+// Forward declaration of `NativePushEnvironment` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class NativePushEnvironment; }
+// Forward declaration of `NativePushProvider` to properly resolve imports.
+namespace margelo::nitro::voidhash { enum class NativePushProvider; }
+// Forward declaration of `NativePushToken` to properly resolve imports.
+namespace margelo::nitro::voidhash { struct NativePushToken; }
 // Forward declaration of `PaywallWebViewAndroidLayerType` to properly resolve imports.
 namespace margelo::nitro::voidhash { enum class PaywallWebViewAndroidLayerType; }
 // Forward declaration of `PaywallWebViewBaseEvent` to properly resolve imports.
@@ -72,6 +126,8 @@ namespace margelo::nitro::voidhash { struct StorekitProductPurchaseOffer; }
 namespace margelo::nitro::voidhash { enum class StorekitProductSubscriptionPeriodUnit; }
 
 // Include C++ defined types
+#include "HybridMeasurementSpec.hpp"
+#include "HybridNotificationsSpec.hpp"
 #include "HybridPaywallPresenterSpec.hpp"
 #include "HybridPaywallWebViewSpec.hpp"
 #include "HybridPurchasedItemSpec.hpp"
@@ -82,6 +138,30 @@ namespace margelo::nitro::voidhash { enum class StorekitProductSubscriptionPerio
 #include "HybridStorekitSpec.hpp"
 #include "HybridStorekitTransactionSpec.hpp"
 #include "HybridVoidhashSpec.hpp"
+#include "MeasurementBridgeError.hpp"
+#include "MeasurementBridgeEvent.hpp"
+#include "MeasurementBridgeSource.hpp"
+#include "MeasurementCommand.hpp"
+#include "MeasurementCommandKind.hpp"
+#include "MeasurementCommandResult.hpp"
+#include "MeasurementConfigurationStateBridge.hpp"
+#include "MeasurementConsentSnapshot.hpp"
+#include "MeasurementFlushBridgeResult.hpp"
+#include "MeasurementIdentitySnapshot.hpp"
+#include "MeasurementInboxEntry.hpp"
+#include "MeasurementInitializeConfiguration.hpp"
+#include "MeasurementProtectedEvidenceInput.hpp"
+#include "MeasurementProtectedPurpose.hpp"
+#include "MeasurementProtectedRetention.hpp"
+#include "MeasurementRecordPriority.hpp"
+#include "MeasurementRecordSource.hpp"
+#include "MeasurementSessionSnapshot.hpp"
+#include "MeasurementStateBridge.hpp"
+#include "NativeNotificationEvent.hpp"
+#include "NativeNotificationEventKind.hpp"
+#include "NativePushEnvironment.hpp"
+#include "NativePushProvider.hpp"
+#include "NativePushToken.hpp"
 #include "PaywallWebViewAndroidLayerType.hpp"
 #include "PaywallWebViewBaseEvent.hpp"
 #include "PaywallWebViewCacheMode.hpp"
@@ -103,6 +183,7 @@ namespace margelo::nitro::voidhash { enum class StorekitProductSubscriptionPerio
 #include "PurchasedItemType.hpp"
 #include "StorekitProductPurchaseOffer.hpp"
 #include "StorekitProductSubscriptionPeriodUnit.hpp"
+#include <NitroModules/ArrayBuffer.hpp>
 #include <NitroModules/Promise.hpp>
 #include <NitroModules/Result.hpp>
 #include <exception>
@@ -122,6 +203,10 @@ namespace margelo::nitro::voidhash { enum class StorekitProductSubscriptionPerio
 #include <NitroModules/DateToChronoDate.hpp>
 
 // Forward declarations of Swift defined types
+// Forward declaration of `HybridMeasurementSpec_cxx` to properly resolve imports.
+namespace NitroVoidhash { class HybridMeasurementSpec_cxx; }
+// Forward declaration of `HybridNotificationsSpec_cxx` to properly resolve imports.
+namespace NitroVoidhash { class HybridNotificationsSpec_cxx; }
 // Forward declaration of `HybridPaywallPresenterSpec_cxx` to properly resolve imports.
 namespace NitroVoidhash { class HybridPaywallPresenterSpec_cxx; }
 // Forward declaration of `HybridPaywallWebViewSpec_cxx` to properly resolve imports.

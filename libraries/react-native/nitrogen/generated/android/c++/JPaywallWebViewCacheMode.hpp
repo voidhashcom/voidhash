@@ -45,7 +45,7 @@ namespace margelo::nitro::voidhash {
       static const auto fieldLOAD_CACHE_ONLY = clazz->getStaticField<JPaywallWebViewCacheMode>("LOAD_CACHE_ONLY");
       static const auto fieldLOAD_CACHE_ELSE_NETWORK = clazz->getStaticField<JPaywallWebViewCacheMode>("LOAD_CACHE_ELSE_NETWORK");
       static const auto fieldLOAD_NO_CACHE = clazz->getStaticField<JPaywallWebViewCacheMode>("LOAD_NO_CACHE");
-      
+
       switch (value) {
         case PaywallWebViewCacheMode::LOAD_DEFAULT:
           return clazz->getStaticFieldValue(fieldLOAD_DEFAULT);

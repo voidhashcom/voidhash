@@ -40,61 +40,61 @@ abstract class HybridGoogleBillingPurchaseSpec: HybridObject() {
   @get:DoNotStrip
   @get:Keep
   abstract val id: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val ids: Array<String>
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val orderId: String?
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val purchaseTime: Double
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val originalJson: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val purchaseToken: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val signature: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val isAutoRenewing: Boolean?
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val isAcknowledged: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val purchaseState: Double
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val packageName: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val developerPayload: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val obfuscatedAccountId: String?
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val obfuscatedProfileId: String?
 
   // Methods
-  
+
 
   private external fun initHybrid(): HybridData
 

@@ -14,6 +14,13 @@ import {
 } from "@voidhash/core/services/analyticsIngest/CaptureIngress";
 import { DlqProducer } from "@voidhash/core/services/analyticsIngest/DlqProducer";
 import { EventCaptureService } from "@voidhash/core/services/analyticsIngest/EventCaptureService";
+import {
+  makeMeasurementConfigSignerLayer,
+  MeasurementConfigurationService,
+} from "@voidhash/core/services/measurement/MeasurementConfigurationService";
+import { MeasurementDeletionService } from "@voidhash/core/services/measurement/MeasurementDeletionService";
+import { LinkRedirectService } from "@voidhash/core/services/measurement/LinkRedirectService";
+import { ProtectedEvidenceService } from "@voidhash/core/services/measurement/ProtectedEvidenceService";
 import { EventProcessorService } from "@voidhash/core/services/analyticsIngest/EventProcessorService";
 import {
   PolicyCounterStore,
@@ -168,8 +175,38 @@ export const makeSelfhostAnalyticsRuntimeLive = (config: SelfhostRuntimeConfig) 
     Layer.provide(ingress),
     Layer.provide(database),
   );
+  const protectedEvidence = ProtectedEvidenceService.layer.pipe(Layer.provide(database));
+  const measurementDeletion = MeasurementDeletionService.layer.pipe(Layer.provide(database));
+  const measurementConfiguration = MeasurementConfigurationService.layer.pipe(
+    Layer.provide(database),
+    Layer.provide(
+      makeMeasurementConfigSignerLayer(
+        process.env.MEASUREMENT_CONFIG_KEY_ID?.trim() || "selfhost-development",
+        process.env.MEASUREMENT_CONFIG_PRIVATE_KEY_PKCS8?.trim() || undefined,
+        Number(process.env.MEASUREMENT_CONFIG_VERSION?.trim() || "1"),
+      ),
+    ),
+  );
+  const links = LinkRedirectService.layer.pipe(
+    Layer.provide(database),
+    Layer.provide(
+      makeMeasurementConfigSignerLayer(
+        process.env.MEASUREMENT_CONFIG_KEY_ID?.trim() || "selfhost-development",
+        process.env.MEASUREMENT_CONFIG_PRIVATE_KEY_PKCS8?.trim() || undefined,
+        Number(process.env.MEASUREMENT_CONFIG_VERSION?.trim() || "1"),
+      ),
+    ),
+  );
   const dispatch = AnalyticsDispatchService.layer.pipe(Layer.provide(ingress));
-  return Layer.mergeAll(platform, capture, dispatch);
+  return Layer.mergeAll(
+    platform,
+    capture,
+    protectedEvidence,
+    measurementDeletion,
+    measurementConfiguration,
+    links,
+    dispatch,
+  );
 };
 
 /** Runs the analytics ingest and dead-letter consumers until their scope closes. */

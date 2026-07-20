@@ -73,6 +73,9 @@ export const validateSelfhostSecurityConfig = (): SelfhostMode => {
     "WORKOS_CLIENT_ID",
     "WORKOS_COOKIE_PASSWORD",
     "WORKOS_WEBHOOK_SECRET",
+    "MEASUREMENT_CONFIG_KEY_ID",
+    "MEASUREMENT_CONFIG_PRIVATE_KEY_PKCS8",
+    "MEASUREMENT_CONFIG_VERSION",
   ];
   if (process.env.CLICKHOUSE_URL?.trim()) {
     requiredSecrets.push(
@@ -84,6 +87,11 @@ export const validateSelfhostSecurityConfig = (): SelfhostMode => {
   }
   for (const name of requiredSecrets) {
     if (isExampleSecret(process.env[name])) unsafeSettings.push(name);
+  }
+  try {
+    positiveIntegerFromEnv("MEASUREMENT_CONFIG_VERSION", 1);
+  } catch {
+    unsafeSettings.push("MEASUREMENT_CONFIG_VERSION");
   }
   if (!process.env.OPENAI_API_KEY?.trim() && !process.env.ANTHROPIC_API_KEY?.trim()) {
     unsafeSettings.push("OPENAI_API_KEY or ANTHROPIC_API_KEY");

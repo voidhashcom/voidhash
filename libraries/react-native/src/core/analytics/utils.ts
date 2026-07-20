@@ -7,6 +7,11 @@ import { PlatformProvider } from "../platform/platform-provider";
 export const createQueuedAnalyticsEvent = (
   eventName: string,
   properties: Record<string, unknown>,
+  snapshot: {
+    readonly context: Record<string, unknown>;
+    readonly distinctId: string;
+    readonly sessionId?: string;
+  },
 ): QueuedAnalyticsEvent => ({
   attempts: 0,
   availableAt: Date.now(),
@@ -14,6 +19,9 @@ export const createQueuedAnalyticsEvent = (
   eventTimestamp: new Date().toISOString(),
   id: getNonce(),
   properties,
+  context: snapshot.context,
+  distinctId: snapshot.distinctId,
+  sessionId: snapshot.sessionId,
 });
 
 export const getAnalyticsStandardizedProperties = () => {
@@ -62,16 +70,12 @@ export const getAnalyticsStandardizedProperties = () => {
 
 export const mapQueuedAnalyticsEventToIngestEvent = (
   event: QueuedAnalyticsEvent,
-  standardizedProperties: Record<string, unknown>,
-  sessionId: string,
 ) => ({
-  context: {},
+  context: event.context,
+  distinct_id: event.distinctId,
   event_id: event.id,
   event_name: event.eventName,
   event_ts: event.eventTimestamp,
-  properties: {
-    ...event.properties,
-    ...standardizedProperties,
-  },
-  session_id: sessionId,
+  properties: event.properties,
+  session_id: event.sessionId,
 });

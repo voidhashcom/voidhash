@@ -43,219 +43,219 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
   @set:DoNotStrip
   @set:Keep
   abstract var source: PaywallWebViewSource?
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var javaScriptEnabled: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var cacheEnabled: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var incognito: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var userAgent: String?
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var applicationNameForUserAgent: String?
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var injectedJavaScript: String?
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var injectedJavaScriptBeforeContentLoaded: String?
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var injectedJavaScriptForMainFrameOnly: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var injectedJavaScriptBeforeContentLoadedForMainFrameOnly: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var mediaPlaybackRequiresUserAction: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var allowsInlineMediaPlayback: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var allowsPictureInPictureMediaPlayback: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var allowsAirPlayForMediaPlayback: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var allowsFullscreenVideo: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var setSupportMultipleWindows: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var setBuiltInZoomControls: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var setDisplayZoomControls: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var scalesPageToFit: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var thirdPartyCookiesEnabled: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var sharedCookiesEnabled: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var allowFileAccess: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var allowFileAccessFromFileURLs: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var allowUniversalAccessFromFileURLs: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var textZoom: Double
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var overScrollMode: PaywallWebViewOverScrollModeType
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var cacheMode: PaywallWebViewCacheMode
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var mixedContentMode: PaywallWebViewMixedContentMode
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var androidLayerType: PaywallWebViewAndroidLayerType
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var geolocationEnabled: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var pullToRefreshEnabled: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var nestedScrollEnabled: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var bounces: Boolean
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var dataDetectorTypes: Array<PaywallWebViewDataDetectorType>
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var originWhitelist: Array<String>
-  
+
   @get:DoNotStrip
   @get:Keep
   @set:DoNotStrip
   @set:Keep
   abstract var messagingEnabled: Boolean
-  
+
   abstract var onLoadingStart: ((event: PaywallWebViewNavigationEvent) -> Unit)?
-  
+
   private var onLoadingStart_cxx: Func_void_PaywallWebViewNavigationEvent?
     @Keep
     @DoNotStrip
@@ -267,9 +267,9 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
     set(value) {
       onLoadingStart = value?.let { it }
     }
-  
+
   abstract var onLoadingProgress: ((event: PaywallWebViewProgressEvent) -> Unit)?
-  
+
   private var onLoadingProgress_cxx: Func_void_PaywallWebViewProgressEvent?
     @Keep
     @DoNotStrip
@@ -281,9 +281,9 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
     set(value) {
       onLoadingProgress = value?.let { it }
     }
-  
+
   abstract var onLoadingFinish: ((event: PaywallWebViewNavigationEvent) -> Unit)?
-  
+
   private var onLoadingFinish_cxx: Func_void_PaywallWebViewNavigationEvent?
     @Keep
     @DoNotStrip
@@ -295,9 +295,9 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
     set(value) {
       onLoadingFinish = value?.let { it }
     }
-  
+
   abstract var onLoadingError: ((event: PaywallWebViewErrorEvent) -> Unit)?
-  
+
   private var onLoadingError_cxx: Func_void_PaywallWebViewErrorEvent?
     @Keep
     @DoNotStrip
@@ -309,9 +309,9 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
     set(value) {
       onLoadingError = value?.let { it }
     }
-  
+
   abstract var onHttpError: ((event: PaywallWebViewHttpErrorEvent) -> Unit)?
-  
+
   private var onHttpError_cxx: Func_void_PaywallWebViewHttpErrorEvent?
     @Keep
     @DoNotStrip
@@ -323,9 +323,9 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
     set(value) {
       onHttpError = value?.let { it }
     }
-  
+
   abstract var onMessage: ((event: PaywallWebViewMessageEvent) -> Unit)?
-  
+
   private var onMessage_cxx: Func_void_PaywallWebViewMessageEvent?
     @Keep
     @DoNotStrip
@@ -337,9 +337,9 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
     set(value) {
       onMessage = value?.let { it }
     }
-  
+
   abstract var onOpenWindow: ((event: PaywallWebViewOpenWindowEvent) -> Unit)?
-  
+
   private var onOpenWindow_cxx: Func_void_PaywallWebViewOpenWindowEvent?
     @Keep
     @DoNotStrip
@@ -351,9 +351,9 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
     set(value) {
       onOpenWindow = value?.let { it }
     }
-  
+
   abstract var onFileDownload: ((event: PaywallWebViewFileDownloadEvent) -> Unit)?
-  
+
   private var onFileDownload_cxx: Func_void_PaywallWebViewFileDownloadEvent?
     @Keep
     @DoNotStrip
@@ -365,9 +365,9 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
     set(value) {
       onFileDownload = value?.let { it }
     }
-  
+
   abstract var onRenderProcessGone: ((event: PaywallWebViewRenderProcessGoneEvent) -> Unit)?
-  
+
   private var onRenderProcessGone_cxx: Func_void_PaywallWebViewRenderProcessGoneEvent?
     @Keep
     @DoNotStrip
@@ -379,9 +379,9 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
     set(value) {
       onRenderProcessGone = value?.let { it }
     }
-  
+
   abstract var onContentProcessDidTerminate: ((event: PaywallWebViewBaseEvent) -> Unit)?
-  
+
   private var onContentProcessDidTerminate_cxx: Func_void_PaywallWebViewBaseEvent?
     @Keep
     @DoNotStrip
@@ -393,9 +393,9 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
     set(value) {
       onContentProcessDidTerminate = value?.let { it }
     }
-  
+
   abstract var onShouldStartLoadWithRequest: ((event: PaywallWebViewShouldStartLoadRequest) -> Boolean)?
-  
+
   private var onShouldStartLoadWithRequest_cxx: Func_bool_PaywallWebViewShouldStartLoadRequest?
     @Keep
     @DoNotStrip
@@ -412,43 +412,43 @@ abstract class HybridPaywallWebViewSpec: HybridView() {
   @DoNotStrip
   @Keep
   abstract fun goBack(): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun goForward(): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun reload(): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun stopLoading(): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun requestFocus(): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun postMessage(data: String): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun injectJavaScript(javascript: String): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun loadUrl(url: String): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun clearFormData(): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun clearHistory(): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun clearCache(includeDiskFiles: Boolean): Unit

@@ -12,7 +12,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./errors": "./src/errors/index.ts",
-    "./event-capture": "./src/EventCapture.ts"
+    "./event-capture": "./src/EventCapture.ts",
+    "./links": "./src/Links.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

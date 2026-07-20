@@ -36,7 +36,7 @@ namespace margelo::nitro::voidhash {
   }
 
   // Properties
-  
+
 
   // Methods
   std::shared_ptr<Promise<std::shared_ptr<margelo::nitro::voidhash::HybridPurchasedItemSpec>>> JHybridVoidhashSpec::purchase(const std::string& sku) {

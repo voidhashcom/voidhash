@@ -38,7 +38,7 @@ public extension PaywallWebViewShouldStartLoadRequest {
       self.__isTopFrame = newValue
     }
   }
-  
+
   var navigationType: PaywallWebViewNavigationType {
     @inline(__always)
     get {
@@ -49,7 +49,7 @@ public extension PaywallWebViewShouldStartLoadRequest {
       self.__navigationType = newValue
     }
   }
-  
+
   var mainDocumentURL: String? {
     @inline(__always)
     get {
@@ -72,7 +72,7 @@ public extension PaywallWebViewShouldStartLoadRequest {
       }()
     }
   }
-  
+
   var url: String {
     @inline(__always)
     get {
@@ -83,7 +83,7 @@ public extension PaywallWebViewShouldStartLoadRequest {
       self.__url = std.string(newValue)
     }
   }
-  
+
   var loading: Bool {
     @inline(__always)
     get {
@@ -94,7 +94,7 @@ public extension PaywallWebViewShouldStartLoadRequest {
       self.__loading = newValue
     }
   }
-  
+
   var title: String {
     @inline(__always)
     get {
@@ -105,7 +105,7 @@ public extension PaywallWebViewShouldStartLoadRequest {
       self.__title = std.string(newValue)
     }
   }
-  
+
   var canGoBack: Bool {
     @inline(__always)
     get {
@@ -116,7 +116,7 @@ public extension PaywallWebViewShouldStartLoadRequest {
       self.__canGoBack = newValue
     }
   }
-  
+
   var canGoForward: Bool {
     @inline(__always)
     get {
@@ -127,7 +127,7 @@ public extension PaywallWebViewShouldStartLoadRequest {
       self.__canGoForward = newValue
     }
   }
-  
+
   var lockIdentifier: Double {
     @inline(__always)
     get {

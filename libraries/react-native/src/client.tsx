@@ -28,6 +28,22 @@ import type { RuntimeSchema } from "./core/schema/runtime";
 import { SchemaManager } from "./core/schema/schema-manager";
 import { SdkConfiguration } from "./core/sdk-configuration";
 import { TransactionService } from "./core/transactions/transaction-service";
+import {
+  type ConsentClient,
+  type ConsentSnapshot,
+  type LinkConfiguration,
+  type LinksClient,
+  type MeasurementClient,
+  type MeasurementConfiguration,
+  type NotificationsClient,
+  type NotificationsConfiguration,
+  UnifiedMeasurementRuntime,
+  type MeasurementRuntimeAdapter,
+  type MeasurementEndpointOverrides,
+  type ResolvedMeasurementEndpoints,
+  type ProtectedIdentityTraits,
+  type ProtectedIdentityUpdateResult,
+} from "./core/measurement";
 import { ReadOnlyModePurchaseNotAllowedError, VoidhashError } from "./errors";
 
 export interface VoidhashClientOptions {
@@ -35,6 +51,16 @@ export interface VoidhashClientOptions {
   debug?: boolean;
   distinctId?: string;
   ingestUrl?: string;
+  /** Self-host endpoint and signed-configuration trust overrides. */
+  endpoints?: MeasurementEndpointOverrides;
+  /** Initial revisioned consent state loaded before optional collectors run. */
+  consent?: ConsentSnapshot;
+  /** Unified measurement and collection configuration. */
+  measurement?: MeasurementConfiguration;
+  /** Deep-link normalization, allowlisting, and payload configuration. */
+  links?: LinkConfiguration;
+  /** Push permission and registration behavior. */
+  notifications?: NotificationsConfiguration;
   readOnly?: boolean;
   scheme?: string;
   unstable_swallowErrors?: boolean;
@@ -54,6 +80,7 @@ const CreateEffectRuntime = (
   publishableKey: string,
   readOnly: boolean,
   atomRegistry: AtomRegistry.AtomRegistry,
+  measurementRuntime: UnifiedMeasurementRuntime,
 ) =>
   ManagedRuntime.make(
     pipe(
@@ -82,6 +109,7 @@ const CreateEffectRuntime = (
           ingestUrl,
           publishableKey,
           readOnly,
+          measurementRuntime,
         }),
       ),
     ),
@@ -102,6 +130,15 @@ type InitializedEffectClient = Effect.Success<
 >;
 
 export class VoidhashClient {
+  /** Measurement lifecycle, evidence, revenue, validation, and diagnostics. */
+  readonly measurement: MeasurementClient;
+  /** The single deep-link handling and result stream. */
+  readonly links: LinksClient;
+  /** The single revisioned consent input shared by every namespace. */
+  readonly consent: ConsentClient;
+  /** Push permission, registration, badge, and notification streams. */
+  readonly notifications: NotificationsClient;
+
   private _isInitialized = false;
   private analyticsFlushInFlight: Promise<void> | null = null;
   private appLifecycleSubscription: { remove: () => void } | null = null;
@@ -120,6 +157,7 @@ export class VoidhashClient {
 
   private unitializedClient: UninitializedEffectClient;
   private initializedClient?: InitializedEffectClient;
+  private readonly measurementRuntime: UnifiedMeasurementRuntime;
 
   constructor(
     initialDistinctId: string | null,
@@ -133,6 +171,11 @@ export class VoidhashClient {
     platform: Exclude<PlatformInfo["platform"], "unknown">,
     debug = false,
     internalSchema?: RuntimeSchema,
+    unifiedOptions: Pick<
+      VoidhashClientOptions,
+      "consent" | "measurement" | "links" | "notifications" | "endpoints"
+    > & { readonly nativeAdapter?: MeasurementRuntimeAdapter } = {},
+    resolvedEndpoints?: ResolvedMeasurementEndpoints,
   ) {
     this.initialDistinctId = initialDistinctId;
     this.readOnly = readOnly;
@@ -140,6 +183,25 @@ export class VoidhashClient {
     this.internalSchema = internalSchema;
     this.unstableSwallowErrors = unstableSwallowErrors;
     this.atomRegistry = atomRegistry;
+    this.measurementRuntime = new UnifiedMeasurementRuntime({
+      publishableKey,
+      baseUrl,
+      ingestUrl,
+      platform,
+      distinctId: initialDistinctId ?? undefined,
+      consent: unifiedOptions.consent,
+      measurement: unifiedOptions.measurement,
+      links: unifiedOptions.links,
+      notifications: unifiedOptions.notifications,
+      adapter: unifiedOptions.nativeAdapter,
+      linksUrl: resolvedEndpoints?.links,
+      trustedConfigKeyIds: resolvedEndpoints?.trustedConfigKeyIds,
+      trustedConfigKeys: unifiedOptions.endpoints?.trustedConfigKeys?.map((key) => ({
+        keyId: key.keyId,
+        publicKeySpki: key.publicKey,
+      })),
+      configurationProjectId: unifiedOptions.endpoints?.configurationProjectId,
+    });
     this.effectRuntime = CreateEffectRuntime(
       platform,
       baseUrl,
@@ -148,13 +210,18 @@ export class VoidhashClient {
       publishableKey,
       readOnly,
       atomRegistry,
+      this.measurementRuntime,
     );
     this.unitializedClient = VoidhashEffectClient.makeUnitializedClient();
+    this.measurement = this.measurementRuntime.measurement;
+    this.links = this.measurementRuntime.links;
+    this.consent = this.measurementRuntime.consent;
+    this.notifications = this.measurementRuntime.notifications;
   }
 
-  private async runSideEffect(operation: string, effect: () => Promise<void>) {
+  private async runSideEffect<T>(operation: string, effect: () => Promise<T>): Promise<T | undefined> {
     try {
-      await effect();
+      return await effect();
     } catch (error) {
       if (!this.unstableSwallowErrors) {
         throw error;
@@ -162,6 +229,7 @@ export class VoidhashClient {
 
       // biome-ignore lint/suspicious/noConsole: This warning is intentionally surfaced in all environments.
       console.warn(`[voidhash] swallowed error in ${operation}`, error);
+      return undefined;
     }
   }
 
@@ -193,6 +261,12 @@ export class VoidhashClient {
 
       this.initializedClient = initializedClient;
       this._isInitialized = true;
+      const initializedDistinctId = await this.runEffect(
+        initializedClient.getDistinctId(),
+        "FAILED_TO_GET_DISTINCT_ID",
+      );
+      this.measurementRuntime.internalHydrateIdentity(initializedDistinctId);
+      await this.measurementRuntime.initialize();
 
       // Set up analytics flush callback and transfer pre-init buffer
       initializedClient.setAnalyticsFlushCallback(() => {
@@ -303,14 +377,28 @@ export class VoidhashClient {
     options: {
       email?: string;
       name?: string;
-    },
-  ) {
-    await this.runSideEffect("identify", async () => {
+      emails?: ProtectedIdentityTraits["emails"];
+      phones?: ProtectedIdentityTraits["phones"];
+      clearEmails?: boolean;
+      clearPhones?: boolean;
+    } = {},
+  ): Promise<ProtectedIdentityUpdateResult | undefined> {
+    return this.runSideEffect("identify", async () => {
       this.ensureInitialized();
       await this.runEffect(
         this.initializedClient!.identify(externalUserId, options),
         "FAILED_TO_IDENTIFY",
       );
+      this.measurementRuntime.setIdentity(externalUserId);
+      if (options.emails || options.phones || options.clearEmails || options.clearPhones) {
+        return this.measurementRuntime.setProtectedIdentityTraits({
+          emails: options.emails,
+          phones: options.phones,
+          clearEmails: options.clearEmails,
+          clearPhones: options.clearPhones,
+        });
+      }
+      return undefined;
     });
   }
 
@@ -321,6 +409,11 @@ export class VoidhashClient {
     await this.runSideEffect("reset", async () => {
       this.ensureInitialized();
       await this.runEffect(this.initializedClient!.reset(), "FAILED_TO_RESET");
+      const distinctId = await this.runEffect(
+        this.initializedClient!.getDistinctId(),
+        "FAILED_TO_GET_DISTINCT_ID",
+      );
+      this.measurementRuntime.setIdentity(distinctId);
     });
   }
 
@@ -333,6 +426,11 @@ export class VoidhashClient {
     await this.runSideEffect("signOut", async () => {
       this.ensureInitialized();
       await this.runEffect(this.initializedClient!.signOut(), "FAILED_TO_SIGN_OUT");
+      const distinctId = await this.runEffect(
+        this.initializedClient!.getDistinctId(),
+        "FAILED_TO_GET_DISTINCT_ID",
+      );
+      this.measurementRuntime.setIdentity(distinctId);
     });
   }
 
@@ -419,6 +517,7 @@ export class VoidhashClient {
    * Events are batched and delivered on size/time thresholds.
    */
   capture(eventName: string, properties: Record<string, unknown> = {}) {
+    this.measurementRuntime.capture(eventName, properties);
     if (!this.initializedClient) {
       const normalized = eventName.trim();
       if (normalized) {
@@ -450,6 +549,7 @@ export class VoidhashClient {
       });
 
       await this.analyticsFlushInFlight;
+      await this.measurementRuntime.flush();
     });
   }
 

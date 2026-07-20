@@ -154,7 +154,14 @@ async function sendConfigureMessage(options: {
         createPaywallBridgeConfigureMessage(
           {
             products: [],
-            variables: runtime.variables ?? {},
+            variables: Object.fromEntries(
+              Object.entries(runtime.variables ?? {}).filter(
+                (entry): entry is [string, string | number | boolean] =>
+                  typeof entry[1] === "string" ||
+                  typeof entry[1] === "number" ||
+                  typeof entry[1] === "boolean",
+              ),
+            ),
             platform: getBridgePlatform(),
           },
           requestId,

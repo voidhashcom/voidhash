@@ -41,26 +41,26 @@ abstract class HybridGoogleBillingSpec: HybridObject() {
 
   // Methods
   abstract fun initConnection(onPurchase: ((purchase: HybridGoogleBillingPurchaseSpec) -> Unit)?): Promise<Boolean>
-  
+
   @DoNotStrip
   @Keep
   private fun initConnection_cxx(onPurchase: Func_void_std__shared_ptr_margelo__nitro__voidhash__HybridGoogleBillingPurchaseSpec_?): Promise<Boolean> {
     val __result = initConnection(onPurchase?.let { it })
     return __result
   }
-  
+
   @DoNotStrip
   @Keep
   abstract fun endConnection(): Promise<Boolean>
-  
+
   @DoNotStrip
   @Keep
   abstract fun getItemsByType(type: GoogleBillingProductType, skus: Array<String>): Promise<Array<HybridGoogleBillingProductDetailSpec>>
-  
+
   @DoNotStrip
   @Keep
   abstract fun buyItemByType(params: GoogleBillingBuyItemByTypeParams): Promise<Array<HybridGoogleBillingPurchaseSpec>>
-  
+
   @DoNotStrip
   @Keep
   abstract fun acknowledgePurchase(token: String): Promise<HybridGoogleBillingAcknowledgeResultSpec>

@@ -37,30 +37,30 @@ abstract class HybridPaywallPresenterSpec: HybridObject() {
   }
 
   // Properties
-  
+
 
   // Methods
   @DoNotStrip
   @Keep
   abstract fun preload(locationSlug: String, htmlUrl: String): Promise<Boolean>
-  
+
   abstract fun show(locationSlug: String, htmlUrl: String, onBridgeEvent: ((rawEvent: String) -> Unit)?, onDismiss: (() -> Unit)?): Promise<Boolean>
-  
+
   @DoNotStrip
   @Keep
   private fun show_cxx(locationSlug: String, htmlUrl: String, onBridgeEvent: Func_void_std__string?, onDismiss: Func_void?): Promise<Boolean> {
     val __result = show(locationSlug, htmlUrl, onBridgeEvent?.let { it }, onDismiss?.let { it })
     return __result
   }
-  
+
   @DoNotStrip
   @Keep
   abstract fun dismiss(): Promise<Unit>
-  
+
   @DoNotStrip
   @Keep
   abstract fun release(locationSlug: String): Unit
-  
+
   @DoNotStrip
   @Keep
   abstract fun postMessage(locationSlug: String, data: String): Unit

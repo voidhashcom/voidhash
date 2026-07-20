@@ -64,7 +64,7 @@ namespace margelo::nitro::voidhash {
 
   public:
     // Methods
-    
+
 
   private:
     friend HybridBase;

@@ -40,17 +40,17 @@ abstract class HybridGoogleBillingOneTimePurchaseOfferDetailsSpec: HybridObject(
   @get:DoNotStrip
   @get:Keep
   abstract val priceCurrencyCode: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val formattedPrice: String
-  
+
   @get:DoNotStrip
   @get:Keep
   abstract val priceAmountMicros: String
 
   // Methods
-  
+
 
   private external fun initHybrid(): HybridData
 

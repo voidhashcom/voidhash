@@ -19,9 +19,15 @@ import {
   CaptureDependencyUnavailableError,
   CaptureInternalServerError,
   CaptureRateLimitedError,
+  CaptureRejectedRecord,
   EventCaptureApi,
+  MeasurementDeletionAcceptedResponse,
+  ProtectedEvidenceAcceptedResponse,
 } from "@voidhash/api-contracts/event-capture";
 import { EventCaptureService } from "@voidhash/core/services/analyticsIngest/EventCaptureService";
+import { MeasurementConfigurationService } from "@voidhash/core/services/measurement/MeasurementConfigurationService";
+import { MeasurementDeletionService } from "@voidhash/core/services/measurement/MeasurementDeletionService";
+import { ProtectedEvidenceService } from "@voidhash/core/services/measurement/ProtectedEvidenceService";
 import { Effect } from "effect";
 import * as HttpEffect from "effect/unstable/http/HttpEffect";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
@@ -60,6 +66,9 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
   (handlers) =>
     Effect.gen(function* () {
       const captureService = yield* EventCaptureService;
+      const configurationService = yield* MeasurementConfigurationService;
+      const deletionService = yield* MeasurementDeletionService;
+      const protectedEvidenceService = yield* ProtectedEvidenceService;
       return handlers
         .handle("capture", ({ request, payload }) =>
           Effect.gen(function* () {
@@ -113,7 +122,9 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
 
             return new CaptureAcceptedResponse({
               accepted: result.accepted,
-              rejected: result.rejected,
+              rejected: result.rejected.map((record) =>
+                new CaptureRejectedRecord(record),
+              ),
             });
           }),
         )
@@ -169,9 +180,103 @@ export const EventCaptureGroupLive = HttpApiBuilder.group(
 
             return new CaptureAcceptedResponse({
               accepted: result.accepted,
-              rejected: result.rejected,
+              rejected: result.rejected.map((record) =>
+                new CaptureRejectedRecord(record),
+              ),
             });
           }),
+        )
+        .handle("protected", ({ payload }) =>
+          protectedEvidenceService.put(payload).pipe(
+            Effect.map(
+              (result) =>
+                new ProtectedEvidenceAcceptedResponse({
+                  accepted: true,
+                  blobId: result.blobId,
+                }),
+            ),
+            Effect.catchTag("EffectDrizzleQueryError", () =>
+              Effect.fail(
+                new CaptureDependencyUnavailableError({
+                  code: "dependency_unavailable",
+                  error: "protected evidence dependency is unavailable",
+                }),
+              ),
+            ),
+            Effect.catchDefect(() =>
+              Effect.fail(
+                new CaptureInternalServerError({
+                  code: "internal_error",
+                  error: "internal server error",
+                }),
+              ),
+            ),
+          ),
+        )
+        .handle("deleteMeasurementData", ({ payload }) =>
+          deletionService.request(payload).pipe(
+            Effect.map(
+              (result) =>
+                new MeasurementDeletionAcceptedResponse({
+                  accepted: true,
+                  deletedProtectedEvidence: result.deletedProtectedEvidence,
+                  requestId: result.requestId,
+                  status: "completed",
+                }),
+            ),
+            Effect.catchTag("EffectDrizzleQueryError", () =>
+              Effect.fail(
+                new CaptureDependencyUnavailableError({
+                  code: "dependency_unavailable",
+                  error: "measurement deletion dependency is unavailable",
+                }),
+              ),
+            ),
+            Effect.catchTag("SqlError", () =>
+              Effect.fail(
+                new CaptureDependencyUnavailableError({
+                  code: "dependency_unavailable",
+                  error: "measurement deletion dependency is unavailable",
+                }),
+              ),
+            ),
+            Effect.catchDefect(() =>
+              Effect.fail(
+                new CaptureInternalServerError({
+                  code: "internal_error",
+                  error: "internal server error",
+                }),
+              ),
+            ),
+          ),
+        )
+        .handle("getMeasurementConfiguration", ({ headers }) =>
+          configurationService.get(headers["x-publishable-key"]).pipe(
+            Effect.catchTag("MeasurementConfigSigningError", () =>
+              Effect.fail(
+                new CaptureDependencyUnavailableError({
+                  code: "dependency_unavailable",
+                  error: "measurement configuration signing is unavailable",
+                }),
+              ),
+            ),
+            Effect.catchTag("EffectDrizzleQueryError", () =>
+              Effect.fail(
+                new CaptureDependencyUnavailableError({
+                  code: "dependency_unavailable",
+                  error: "measurement configuration dependency is unavailable",
+                }),
+              ),
+            ),
+            Effect.catchDefect(() =>
+              Effect.fail(
+                new CaptureInternalServerError({
+                  code: "internal_error",
+                  error: "internal server error",
+                }),
+              ),
+            ),
+          ),
         );
     }),
 );

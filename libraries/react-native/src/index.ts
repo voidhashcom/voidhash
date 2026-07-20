@@ -2,6 +2,7 @@ export * from "./client";
 export * from "./client-react-native";
 export * from "./core/schema";
 export * from "./core/types";
+export * from "./core/measurement";
 export * from "./core/utils";
 export * from "./react/components/provider";
 export * from "./react/hooks/use-paywall-by-location";

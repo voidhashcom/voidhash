@@ -13,6 +13,7 @@ import {
   CaptureRateLimitedError,
   CaptureUnauthorizedError,
   type CaptureEvent,
+  type CaptureRecordRejectionReason,
 } from "@voidhash/api-contracts/event-capture";
 import { ANONYMOUS_USER_ID_PREFIX } from "@voidhash/lib";
 import { Context, Effect, Layer, Schema } from "effect";
@@ -53,8 +54,11 @@ export interface CaptureRequest {
 }
 
 export interface CaptureResult {
-  readonly accepted: number;
-  readonly rejected: number;
+  readonly accepted: ReadonlyArray<string>;
+  readonly rejected: ReadonlyArray<{
+    readonly recordId: string;
+    readonly reason: CaptureRecordRejectionReason;
+  }>;
 }
 
 interface ResolvedCaptureProject {
@@ -343,12 +347,30 @@ export class EventCaptureService extends Context.Service<EventCaptureService>()(
             envelope: ReturnType<typeof makeEnvelope>;
             routeClass: RouteClass;
           }> = [];
-          let accepted = 0;
-          let rejected = 0;
+          const accepted: Array<string> = [];
+          const rejected: Array<{
+            recordId: string;
+            reason: CaptureRecordRejectionReason;
+          }> = [];
 
           for (const event of input.events) {
+            const schemaVersion = event.context.schemaVersion;
+            if (schemaVersion !== 1) {
+              rejected.push({
+                recordId: event.uuid,
+                reason:
+                  typeof schemaVersion === "number"
+                    ? "unsupported_schema_version"
+                    : "invalid_context",
+              });
+              continue;
+            }
+            if (new TextEncoder().encode(JSON.stringify(event)).byteLength > 256 * 1024) {
+              rejected.push({ recordId: event.uuid, reason: "payload_too_large" });
+              continue;
+            }
             if (isReservedRevenueEventName(event.event)) {
-              rejected += 1;
+              rejected.push({ recordId: event.uuid, reason: "reserved_event" });
               yield* Effect.logWarning(
                 "rejected reserved revenue event from publishable-key capture",
                 {
@@ -400,21 +422,21 @@ export class EventCaptureService extends Context.Service<EventCaptureService>()(
             );
 
             if (outcome._tag === "Failure") {
-              rejected += 1;
+              rejected.push({ recordId: event.uuid, reason: "policy_rejected" });
               continue;
             }
 
             publishableEvents.push(outcome.success);
-            accepted += 1;
+            accepted.push(event.uuid);
           }
 
           yield* ingress.enqueueBatch(publishableEvents);
-          yield* Effect.annotateCurrentSpan("voidhash.capture.accepted_count", accepted);
-          yield* Effect.annotateCurrentSpan("voidhash.capture.rejected_count", rejected);
+          yield* Effect.annotateCurrentSpan("voidhash.capture.accepted_count", accepted.length);
+          yield* Effect.annotateCurrentSpan("voidhash.capture.rejected_count", rejected.length);
           yield* Effect.logInfo("capture request processed", {
-            accepted,
+            accepted: accepted.length,
             projectId: project.projectId,
-            rejected,
+            rejected: rejected.length,
             requestId: input.request.requestId,
             tokenSuffix: tokenSuffix(token),
           });

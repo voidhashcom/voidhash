@@ -50,7 +50,7 @@ namespace margelo::nitro::voidhash {
       static const auto fieldFLIGHTNUMBER = clazz->getStaticField<JPaywallWebViewDataDetectorType>("FLIGHTNUMBER");
       static const auto fieldLOOKUPSUGGESTION = clazz->getStaticField<JPaywallWebViewDataDetectorType>("LOOKUPSUGGESTION");
       static const auto fieldALL = clazz->getStaticField<JPaywallWebViewDataDetectorType>("ALL");
-      
+
       switch (value) {
         case PaywallWebViewDataDetectorType::NONE:
           return clazz->getStaticFieldValue(fieldNONE);
