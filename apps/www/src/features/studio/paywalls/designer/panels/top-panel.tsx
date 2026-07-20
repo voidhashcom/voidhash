@@ -81,6 +81,7 @@ export function TopPanel() {
     | {
         releaseId: string;
         version: number;
+        draftUrl: string;
       }
     | undefined
   >();
@@ -89,7 +90,11 @@ export function TopPanel() {
   const { mutate: createRelease, isPending: isCreatingRelease } = useMutation({
     ...createPaywallReleaseOptions(),
     onSuccess: (data) => {
-      setReleaseInfo({ releaseId: data.releaseId, version: data.version });
+      setReleaseInfo({
+        releaseId: data.releaseId,
+        version: data.version,
+        draftUrl: data.draftUrl,
+      });
       setShowPublishDialog(true);
     },
     onError: () => {
@@ -222,6 +227,7 @@ export function TopPanel() {
         onConfirm={handleConfirmPublish}
         isPublishing={isPublishing}
         draftVersion={releaseInfo?.version}
+        draftUrl={releaseInfo?.draftUrl}
         publishedUrl={publishedUrl}
       />
     </>

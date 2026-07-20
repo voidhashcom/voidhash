@@ -636,6 +636,8 @@ There is **NO `id`** — a component is identified by its FILE PATH
 - `render: ({ props, actions }) => ReactNode` — the template. `props` has
   defaults filled and `.optional()` props typed `T | undefined`; `actions` are
   typed callbacks.
+- Preview-state `data` accepts `products`, `variables`, `platform`,
+  `safeAreaInsets`, and `dimensions` for deterministic runtime-hook branches.
 - The file MUST default-export the `defineComponent({ … })` definition itself —
   `export default defineComponent({ … })`. Do NOT export a `.component` property or
   any other shape — only the `defineComponent(...)` result is valid.
@@ -680,11 +682,19 @@ document (plus text-only `textTransform`/`textDecorationLine`/`fontStyle`/`fontF
   (map over these to render a list).
 - `useSelectedProduct(): { selectedProduct, selectedProductId, selectProduct }`.
 - `usePaywallVariables(): Record<string, string | number | boolean>`.
+- `usePlatform(): "ios" | "android" | "web"`.
+- `useSafeAreaInsets(): { top, right, bottom, left }` in logical pixels.
+- `useDimensions("screen" | "window"): { width, height, x, y }` in logical pixels;
+  `x` and `y` are screen-space origins.
 - `usePaywallActions(): { purchase, restore, close, openUrl, track, selectProduct }`.
 - `usePaywallStatus(): { status, productId?, error? }` —
   `idle`/`purchasing`/`purchased`/`restoring`/`restored`/`failed`.
 - `usePaywallConfig(): PaywallRuntimeConfig` (products, variables, locale,
-  platform).
+  platform, safe-area insets, and dimensions).
+
+Explicit runtime or preview environment values take precedence and late configuration updates
+consumers. Browser measurements react to resize, orientation, and visual-viewport events.
+Missing platform defaults to `web`; unavailable safe-area and SSR measurements use zero.
 
 `PaywallProduct`:
 `{ id, slug, displayName, description?, price?, priceString, currencyCode?, period?, trialPeriod? }`

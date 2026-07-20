@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the text `Fill` section — the wire-tree replica
- * of {@link ../sections/text-fill-section.TextFillSection}.
+ * Built-in panel definition for text fill color and override resets.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Fill" → `Panel.Section title="Fill"`.

@@ -7,6 +7,11 @@
  * simpler shape than the full runtime {@link PaywallRuntimeConfig} — the
  * sandbox maps it into a runtime config before rendering.
  */
+import type {
+  PaywallDimensionsByTarget,
+  PaywallPlatform,
+  PaywallSafeAreaInsets,
+} from "../runtime/config";
 
 /**
  * A resolved product as delivered to components in the studio preview. On a
@@ -33,15 +38,27 @@ export interface SandboxHostData {
   /** Author variables (`usePaywallVariables`), overridable per preview state. */
   readonly variables: SandboxVariables;
   readonly locale: string;
-  readonly platform: "ios" | "android" | "web";
+  readonly platform: PaywallPlatform;
+  readonly safeAreaInsets: PaywallSafeAreaInsets;
+  readonly dimensions: PaywallDimensionsByTarget;
 }
 
 /** Default mock host data used when a preview fixture supplies none. */
 export const defaultHostData = (): SandboxHostData => ({
   locale: "en-US",
   platform: "ios",
+  safeAreaInsets: { top: 59, right: 0, bottom: 34, left: 0 },
+  dimensions: {
+    screen: { width: 393, height: 852, x: 0, y: 0 },
+    window: { width: 393, height: 852, x: 0, y: 0 },
+  },
   products: [
-    { displayName: "Yearly", id: "yearly", priceString: "$39.99", trialPeriod: "7 days" },
+    {
+      displayName: "Yearly",
+      id: "yearly",
+      priceString: "$39.99",
+      trialPeriod: "7 days",
+    },
     { displayName: "Monthly", id: "monthly", priceString: "$4.99" },
   ],
   selectedProductId: "yearly",

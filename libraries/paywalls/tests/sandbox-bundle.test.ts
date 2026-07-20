@@ -16,7 +16,7 @@ const dtsModule = path.join(distDir, "sandbox-dts.mjs");
 const built = existsSync(bundleModule) && existsSync(dtsModule);
 const describeBuilt = built ? describe : describe.skip;
 
-const SOURCE = `import { defineComponent, View, Text, Pressable, Slot, usePaywallProducts, useState, useEffect } from "@voidhash/paywalls";
+const SOURCE = `import { defineComponent, View, Text, Pressable, Slot, usePaywallProducts, usePlatform, useSafeAreaInsets, useDimensions, useState, useEffect } from "@voidhash/paywalls";
 
 export default defineComponent({
   props: (p) => ({
@@ -26,13 +26,16 @@ export default defineComponent({
   previews: { default: {}, trial: {} },
   render: ({ props, actions }) => {
     const products = usePaywallProducts();
+    const platform = usePlatform();
+    const insets = useSafeAreaInsets();
+    const windowDimensions = useDimensions("window");
     const product = products[0];
     const [n, setN] = useState(0);
     useEffect(() => { setN(1); }, []);
     return (
       <Pressable onPress={actions.onSelect} style={{ paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16, backgroundColor: props.accentColor }}>
         <View style={{ gap: 4 }}>
-          <Text style={{ color: "white" }}>{product.displayName} {n}</Text>
+          <Text style={{ color: "white" }}>{product.displayName} {n} {platform} {windowDimensions.width} {insets.top}</Text>
         </View>
         <Slot />
       </Pressable>
@@ -46,7 +49,11 @@ interface SandboxSurface {
   extractComponentManifest: (definition: unknown) => unknown;
   renderComponentToTree: (
     definition: unknown,
-    inputs: { state: string; props?: Record<string, unknown>; hostData?: unknown },
+    inputs: {
+      state: string;
+      props?: Record<string, unknown>;
+      hostData?: unknown;
+    },
   ) => Promise<unknown>;
   defaultHostData: () => unknown;
 }
@@ -97,11 +104,14 @@ describeBuilt("sandbox IIFE (node integration, mirrors the studio sandbox path)"
     expect(parseComponentManifest(manifest).ok).toBe(true);
 
     const hostData = sandbox.defaultHostData();
-    const tree = await sandbox.renderComponentToTree(definition, { hostData, state: "default" });
+    const tree = await sandbox.renderComponentToTree(definition, {
+      hostData,
+      state: "default",
+    });
     const parsed = parsePreviewTree(tree);
     expect(parsed.ok).toBe(true);
     // Products + settled effect both flowed through the real reconciler.
-    expect(JSON.stringify(tree)).toContain("Yearly 1");
+    expect(JSON.stringify(tree)).toContain("Yearly 1 ios 393 59");
   });
 });
 
@@ -117,6 +127,12 @@ describeBuilt("generated Monaco dts", () => {
       "definePaywall",
       "Screen",
       "variable",
+      "usePlatform",
+      "useSafeAreaInsets",
+      "useDimensions",
+      "PaywallSafeAreaInsets",
+      "PaywallDimensions",
+      "PaywallDimensionTarget",
       "useState",
       "View",
       "Slot",

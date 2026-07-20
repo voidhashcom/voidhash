@@ -1,7 +1,9 @@
 "use client";
 
-import { docs } from "@generated/docs";
+import browserCollections from "@generated/browser";
 import { lazy, Suspense, useMemo } from "react";
+
+const docMap = browserCollections.docs.raw;
 
 import { DocsBody } from "@/features/docs/components/layout/page";
 import { docsMdxComponents } from "@/features/docs/lib/mdx-components";
@@ -11,7 +13,7 @@ const normalizeKey = (key: string): string =>
   key.replace(/^\.\//, "").replace(/\.mdx?$/, "");
 
 const guideKeyBySlug = new Map<string, string>(
-  Object.keys(docs.doc).map((key) => [normalizeKey(key), key]),
+  Object.keys(docMap).map((key) => [normalizeKey(key), key]),
 );
 
 /**
@@ -45,7 +47,7 @@ export function GuideBody({ slug }: { slug: string }) {
       return undefined;
     }
 
-    const loader = docs.doc[key];
+    const loader = docMap[key];
     return loader ? lazy(loader) : undefined;
   }, [key]);
 

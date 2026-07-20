@@ -16,7 +16,7 @@ import {
   SidebarProvider,
 } from "@voidhash/ui";
 import { Link as FrameworkLink, usePathname } from "fumadocs-core/framework";
-import type { PageTree } from "fumadocs-core/server";
+import type * as PageTree from "fumadocs-core/page-tree";
 import { TreeContextProvider, useTreeContext } from "fumadocs-ui/contexts/tree";
 import { ChevronRight } from "lucide-react";
 import { CirclePlay } from "lucide-static";
@@ -118,9 +118,7 @@ function DocsSidebar() {
         icon: CirclePlay as unknown as ReactElement,
         index: {
           $id: "index.mdx",
-          $ref: {
-            file: "index.mdx",
-          },
+          $ref: "index.mdx",
           name: "Index",
           type: "page",
           url: "/design",
@@ -146,7 +144,7 @@ function DocsSidebar() {
   );
 }
 
-function SidebarLink(props: ComponentProps<"a">) {
+function SidebarLink(props: ComponentProps<typeof FrameworkLink>) {
   const href = props.href ?? "#";
   return <FrameworkLink {...props} href={href} />;
 }

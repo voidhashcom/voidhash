@@ -1,0 +1,177 @@
+---
+title: Voidhash MCP
+description: Connect Claude Code, Cursor, Codex, and other MCP clients to your Voidhash project.
+icon: Bot
+---
+
+Voidhash exposes your paywall workspace as a Model Context Protocol server at
+`https://api.voidhash.com/api/mcp` (streamable HTTP, stateless). Point your agent at it and it can
+list and edit paywalls, write code components, and render live previews of the result — the same
+document the designer edits, over `list_paywalls`, `edit_paywall`, `write_component`,
+`get_paywall_preview`, and friends.
+
+Every request authenticates with a bearer token: either a **project secret key** (`vh_sk_...`,
+already scoped to one project) or a **user API key** from your CLI login. User keys can span
+multiple projects, so they also need an `X-Voidhash-Project` header with a project id or slug. The
+easiest way to get both headers is the CLI — log in with [`voidhash-cli auth`](/cli/auth), then:
+
+```package-install
+npx voidhash-cli auth token --project your-project
+```
+
+This prints the exact headers as JSON, for example
+`{"Authorization":"Bearer vh_...","X-Voidhash-Project":"your-project"}`, without ever exposing the
+key as a command argument. Prefer a project secret key for shared or long-lived setups — create one
+under [API keys](/api/api-keys) and omit the `X-Voidhash-Project` header.
+
+Pick your client below and copy the snippet into its config. Verify any of them by asking your
+agent: "What paywalls do I have in Voidhash?" — it should call the `list_paywalls` tool.
+
+## Claude Code
+
+Add the server with the `claude mcp` command.
+
+Run `npx voidhash-cli auth token --project your-project` to get your headers, then register the
+server:
+
+```bash
+claude mcp add --transport http voidhash https://api.voidhash.com/api/mcp \
+  --header "Authorization: Bearer vh_sk_..."
+```
+
+**Verify:** Ask Claude Code: "What paywalls do I have in Voidhash?" — it should call the
+`list_paywalls` tool.
+
+## Cursor
+
+Add a server entry to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global).
+
+Create or edit the file:
+
+```json title=".cursor/mcp.json"
+{
+  "mcpServers": {
+    "voidhash": {
+      "type": "http",
+      "url": "https://api.voidhash.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer vh_sk_..."
+      }
+    }
+  }
+}
+```
+
+Reload Cursor (Cmd/Ctrl-Shift-P → Cursor: Reload) so the new server is picked up.
+
+**Verify:** In Cursor agent mode, ask: "What paywalls do I have in Voidhash?" — it should call
+`list_paywalls`.
+
+## Codex
+
+Add a custom server from the Codex settings UI.
+
+Open Codex Settings → MCP Servers → Add custom server and switch to the Streamable HTTP tab. Set
+the name to `voidhash`, the URL to `https://api.voidhash.com/api/mcp`, and add an `Authorization`
+header with the value `Bearer vh_sk_...`. Save.
+
+**Verify:** Ask Codex: "What paywalls do I have in Voidhash?" — it should call `list_paywalls`.
+
+## VS Code / GitHub Copilot
+
+Drop a `.vscode/mcp.json` into the workspace. Note the top-level key is `servers`, not
+`mcpServers`.
+
+Create or edit the file:
+
+```json title=".vscode/mcp.json"
+{
+  "servers": {
+    "voidhash": {
+      "type": "http",
+      "url": "https://api.voidhash.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer vh_sk_..."
+      }
+    }
+  }
+}
+```
+
+Restart VS Code so Copilot Chat picks up the new server.
+
+**Verify:** In Copilot Chat (agent mode), ask: "What paywalls do I have in Voidhash?" — it should
+call `list_paywalls`.
+
+## Windsurf
+
+Add a server entry to Windsurf's global MCP config. Windsurf uses `serverUrl` and no `type` field.
+
+Create or edit the file:
+
+```json title="~/.codeium/windsurf/mcp_config.json"
+{
+  "mcpServers": {
+    "voidhash": {
+      "serverUrl": "https://api.voidhash.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer vh_sk_..."
+      }
+    }
+  }
+}
+```
+
+**Verify:** In Cascade, ask: "What paywalls do I have in Voidhash?" — it should call
+`list_paywalls`.
+
+## OpenCode
+
+Add a `mcp` entry to `opencode.json` (project) or `~/.config/opencode/opencode.json` (global).
+
+Create or edit the file:
+
+```json title="opencode.json"
+{
+  "mcp": {
+    "voidhash": {
+      "type": "remote",
+      "url": "https://api.voidhash.com/api/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer vh_sk_..."
+      }
+    }
+  }
+}
+```
+
+**Verify:** Ask OpenCode: "What paywalls do I have in Voidhash?" — it should call `list_paywalls`.
+
+## Antigravity
+
+Add a server entry to Antigravity's MCP config — same shape as Windsurf.
+
+Create or edit the file:
+
+```json title="~/.codeium/antigravity/mcp_config.json"
+{
+  "mcpServers": {
+    "voidhash": {
+      "serverUrl": "https://api.voidhash.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer vh_sk_..."
+      }
+    }
+  }
+}
+```
+
+**Verify:** Ask the Antigravity agent: "What paywalls do I have in Voidhash?" — it should call
+`list_paywalls`.
+
+---
+
+The MCP server ships as part of the open-source backend in
+[voidhashcom/voidhash](https://github.com/voidhashcom/voidhash). File an issue there if your client
+is missing or a snippet breaks.

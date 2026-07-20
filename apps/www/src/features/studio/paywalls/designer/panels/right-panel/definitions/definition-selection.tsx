@@ -16,8 +16,8 @@
  * change does — without a source-identity change.
  *
  * This carries no serializable form and never crosses the sandbox boundary; a
- * code-component panel (Phase 3) learns its selection through the wire
- * `selection` input, not this context.
+ * code-component panel learns its selection through the wire `selection` input,
+ * not this context.
  */
 import { createContext, useContext, useSyncExternalStore } from "react";
 

@@ -1,0 +1,177 @@
+---
+title: Authentication
+description: The four credential types the Voidhash API accepts, the session each one resolves to, and which endpoints expect which credential.
+---
+
+Every endpoint under `/api/v1` goes through a single shared authentication middleware. It accepts
+four credential types, resolves each to a session that carries the organizations and projects the
+credential can access, and rejects everything else with a `401`.
+
+| Credential | Header(s) | Typical caller |
+| --- | --- | --- |
+| User API key | `x-api-key` | CLI, scripts acting as a dashboard user |
+| Project secret key | `x-secret-key` | Your backend (server-to-server) |
+| Publishable key | `x-publishable-key` + `x-distinct-id` | Device SDKs (React Native, web) |
+| Dashboard session cookie | `Cookie: wos-session=...` | The Voidhash dashboard itself |
+
+The middleware checks credentials in a fixed order: `x-api-key` first, then the session cookie,
+then `x-secret-key`, then `x-publishable-key`. If a request carries several, the first match wins.
+
+## User API key (`x-api-key`)
+
+A user API key authenticates as a specific dashboard user. The resulting session has
+`method: "user"` and includes the full `user` object plus every organization and project that user
+belongs to, each with its own `permissions` array.
+
+```bash
+curl https://api.voidhash.com/api/v1/auth/session \
+  -H "x-api-key: $VOIDHASH_API_KEY"
+```
+
+Use this for tooling that acts on your behalf across projects — the [CLI](/docs/cli/auth)
+authenticates this way. See [API Keys](/docs/api/api-keys) for creating and rotating keys.
+
+## Project secret key (`x-secret-key`)
+
+A secret key authenticates as a single project with full project access. The resulting session has
+`method: "secret-key"`, an empty `organizations` array, no `user`, and exactly one entry in
+`projects` carrying the `project:all` permission.
+
+```bash
+curl https://api.voidhash.com/api/v1/persons \
+  -H "x-secret-key: $VOIDHASH_SECRET_KEY"
+```
+
+<Callout type="warn" title="Never ship a secret key in a client">
+A secret key grants full access to its project — persons, catalog, webhooks, notifications, all of
+it. Keep it on your server only. Never embed it in a mobile app, web bundle, or anything else you
+distribute; use the publishable key for device-side calls instead. If a secret key leaks, rotate it
+immediately via the [API Keys](/docs/api/api-keys) endpoints.
+</Callout>
+
+## Publishable key + distinct ID (device SDKs)
+
+The publishable key is safe to embed in clients. It must be paired with an `x-distinct-id` header
+identifying the current person; sending `x-publishable-key` without `x-distinct-id` fails with
+`Api/AuthenticationError` ("Missing distinct-id header").
+
+```bash
+curl https://api.voidhash.com/api/v1/sdk/schema \
+  -H "x-publishable-key: $VOIDHASH_PUBLISHABLE_KEY" \
+  -H "x-distinct-id: device-8f2c1a"
+```
+
+The resulting session has `method: "publishable-key"`, a single project entry with an **empty**
+`permissions` array, and a `person` object carrying the `distinctId`. It only unlocks the
+[SDK endpoint group](/docs/api/sdk), which additionally requires a set of client telemetry headers
+(`x-sdk`, `x-platform`, `x-client-bundle-id`, ...) documented on that page. The
+[React Native SDK](/docs/react-native/overview) sends all of this for you.
+
+## Dashboard session cookie
+
+Requests carrying a WorkOS session cookie (`wos-session=`) authenticate as the logged-in dashboard
+user. This is what the Voidhash dashboard uses; it resolves to the same `method: "user"` session
+shape as an API key. You will normally never construct this yourself — use an API key for
+programmatic access.
+
+## Session shapes
+
+Whatever the credential, the middleware provides a session with a common core:
+
+```ts
+type Session = {
+  method: "user" | "secret-key" | "publishable-key";
+  name: string;
+  organizations: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    logo: string | null;
+    workosOrganizationId: string | null;
+    permissions: string[];
+  }>;
+  projects: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    logo: string | null;
+    organizationId: string;
+    permissions: string[];
+  }>;
+  user: User | null; // only on method: "user"
+  person: { distinctId: string } | null; // only on method: "publishable-key"
+};
+```
+
+- **User sessions** list every organization and project the user can access; `permissions` on each
+  entry reflects the user's role there.
+- **Secret-key sessions** contain exactly one project with `permissions: ["project:all"]` and no
+  organizations.
+- **Publishable-key sessions** contain exactly one project with no permissions, plus the `person`
+  identity from `x-distinct-id`.
+
+Per-endpoint authorization is enforced against these `permissions` arrays — a valid credential that
+lacks the required project permission gets a `403 Api/ActionForbiddenError`.
+
+## Inspecting your credential
+
+`GET /api/v1/auth/session` echoes back what the API resolved your credential to. It is the quickest
+way to verify a key works and to discover the project and organization IDs it can see.
+
+```bash
+curl https://api.voidhash.com/api/v1/auth/session \
+  -H "x-secret-key: $VOIDHASH_SECRET_KEY"
+```
+
+```json
+{
+  "method": "secret-key",
+  "name": "My App API Key",
+  "organizations": [],
+  "projects": [
+    {
+      "id": "proj_123",
+      "name": "My App",
+      "organizationId": "org_123",
+      "slug": "my-app"
+    }
+  ]
+}
+```
+
+The `method` field is one of `"api-key"`, `"secret-key"`, or `"publishable-key"` — user sessions
+(API key or dashboard cookie) both report `"api-key"` here.
+
+## Authentication errors
+
+Errors are tagged JSON objects; the `_tag` identifies the error type.
+
+| Status | `_tag` | Body | When |
+| --- | --- | --- | --- |
+| 401 | `Api/NotAuthenticatedError` | `{ message }` | No credential sent, or the API key / cookie is invalid |
+| 500 | `Api/AuthenticationError` | `{ cause, message }` | Invalid or expired secret / publishable key, missing `x-distinct-id`, or an internal failure while authenticating |
+
+```json
+{
+  "_tag": "Api/NotAuthenticatedError",
+  "message": "You are not authenticated"
+}
+```
+
+Both can occur on any `/api/v1` endpoint since they come from the shared middleware, not the
+endpoint itself.
+
+## Which credential each endpoint group expects
+
+Any project-scoped endpoint accepts any session that covers the target project with the required
+permission, but the groups have clear intents:
+
+| Endpoint group | Expected credential |
+| --- | --- |
+| [`/sdk`](/docs/api/sdk) | Publishable key + distinct ID only |
+| [`/notifications`](/docs/api/notifications) | Secret key only (server-to-server) |
+| `/auth`, `/users`, [`/organizations`, `/projects`](/docs/api/organizations-and-projects) | User session (API key or dashboard cookie) |
+| Everything else — [persons](/docs/api/persons), [catalog](/docs/api/catalog), [schema](/docs/api/schema), [webhooks](/docs/api/webhooks), [paywall deploys](/docs/api/paywall-deploys), [API keys](/docs/api/api-keys) | User session or secret key with the required project permission |
+
+The [event capture surface](/docs/api/event-capture) at `/i/v1` is separate: it authenticates with
+a publishable project token in the request body, not through this middleware.

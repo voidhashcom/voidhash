@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the path `Stroke` section — the wire-tree
- * replica of {@link ../sections/path-stroke-section.PathStrokeSection}.
+ * Built-in panel definition for path stroke width and color.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Stroke" → `Panel.Section title="Stroke"`.

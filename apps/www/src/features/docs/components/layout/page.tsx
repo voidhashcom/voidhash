@@ -1,7 +1,8 @@
 "use client";
 import { Card, CardContent, CardDescription, CardTitle } from "@voidhash/ui";
 import { Link, usePathname } from "fumadocs-core/framework";
-import type { PageTree, TableOfContents, TOCItemType } from "fumadocs-core/server";
+import type * as PageTree from "fumadocs-core/page-tree";
+import type { TableOfContents, TOCItemType } from "fumadocs-core/toc";
 import { AnchorProvider, useActiveAnchors } from "fumadocs-core/toc";
 import { useTreeContext } from "fumadocs-ui/contexts/tree";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";

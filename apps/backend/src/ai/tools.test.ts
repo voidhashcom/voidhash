@@ -9,6 +9,7 @@ import {
   SnapshotImageRenderer,
 } from "@voidhash/core/services";
 import { AuthSession } from "@voidhash/core/domain/auth/Auth";
+import { PaywallNotFoundError } from "@voidhash/core/domain/paywall/Paywall";
 import { Context, Effect } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
@@ -90,6 +91,12 @@ const fakeWorkspace = (over: Partial<PaywallWorkspaceService["Service"]> = {}) =
         root: documentRoot,
         version: 8,
       }),
+    readDocumentTree: (paywallId: string) =>
+      paywallId === "pw_1"
+        ? Effect.succeed({ tree: { encoded: true }, root: documentRoot, version: 8 })
+        : Effect.fail(
+            new PaywallNotFoundError({ message: `No paywall with id "${paywallId}"` }),
+          ),
     readConnectedDocumentTree: () =>
       Effect.succeed({ tree: { encoded: true }, root: documentRoot, version: 8 }),
     editDocument: () =>
@@ -205,6 +212,40 @@ describe("MCP workspace tools (document-first)", () => {
     expect(result.isError, result.output).toBe(false);
     expect(result.output).toContain("trial");
     expect(result.output).toContain("/paywalls/trial");
+  });
+
+  it("bash reads projected documents and component sources over the VFS", async () => {
+    const result = await run(
+      WorkspaceTools.runBash(SCOPE, {
+        command: "ls /paywalls && cat /paywalls/pw_1/components/hero.tsx",
+      }),
+    );
+    expect(result.isError, result.output).toBe(false);
+    expect(result.output).toContain("pw_1");
+    expect(result.output).toContain("export const Hero");
+  });
+
+  it("bash reports a non-zero exit code as a successful result", async () => {
+    const result = await run(
+      WorkspaceTools.runBash(SCOPE, {
+        command: "grep no-such-token /paywalls/pw_1/document.json",
+      }),
+    );
+    expect(result.isError, result.output).toBe(false);
+    expect(result.output).toContain("[exit code 1]");
+  });
+
+  it("bash surfaces a workspace service failure as isError", async () => {
+    const result = await run(
+      WorkspaceTools.runBash(SCOPE, { command: "ls /paywalls" }),
+      {
+        workspace: fakeWorkspace({
+          listPaywalls: () => Effect.fail(new Error("db down")) as never,
+        }),
+      },
+    );
+    expect(result.isError).toBe(true);
+    expect(result.output).toContain("db down");
   });
 
   it("get_paywall returns cleaned document JSON with node ids", async () => {

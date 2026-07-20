@@ -1,0 +1,147 @@
+---
+title: Analytics
+description: Capture product analytics events with the built-in batching queue, automatic lifecycle events, and person traits.
+---
+
+Voidhash ships product analytics with the SDK — no separate analytics package to install. Events
+you capture are attributed to the current person, batched in memory, and delivered to the Voidhash
+ingest endpoint in the background. The SDK also captures a set of lifecycle events automatically,
+and person trait updates ride the same queue.
+
+## Capturing Events
+
+Call `client.capture(eventName, properties?)` anywhere in your app:
+
+```tsx
+import { voidhash } from "utils/voidhash/client";
+
+voidhash.client.capture("cta_button_clicked", {
+  button_name: "Get Started",
+  page: "home",
+});
+```
+
+`capture` is **synchronous** and never blocks — it appends the event to an in-memory queue and
+returns immediately. Delivery happens in the background (see below), so it is safe to call from
+render paths, gesture handlers, and hot loops.
+
+Event names with only whitespace are dropped. Avoid the `$` prefix for your own event names — it
+marks Voidhash's built-in events and properties.
+
+<Callout type="info" title="Pre-init buffering">
+  Unlike every other client method, `capture` works before the Provider has finished initializing.
+  Events captured early are buffered in memory and transferred to the delivery queue once
+  `init()` completes, so you never lose the first events of a session.
+</Callout>
+
+## Batching and Delivery
+
+Queued events are sent in batches with these defaults:
+
+- **Batch size**: `20` events — reaching it triggers an immediate flush
+- **Flush window**: every `5000ms` a background flush drains whatever is queued
+- **Retries**: up to `3` attempts per batch with exponential backoff
+
+Batches that keep failing with a retryable status (or a network error) are re-queued with a capped
+backoff and picked up by a later flush; rate-limit responses honor the server's `Retry-After`.
+Non-retryable responses drop the batch and log a warning instead of blocking the queue.
+
+### Forcing Delivery
+
+Call `flush()` to drain the queue immediately — for example right before a moment where the app
+might be killed:
+
+```tsx
+await voidhash.client.flush();
+```
+
+Concurrent `flush()` calls are deduplicated: if a flush is already in flight, subsequent callers
+await that same flush instead of starting another one. The periodic background flush goes through
+the same guard. A failed flush rejects with a `VoidhashError` carrying the
+`FAILED_TO_FLUSH_ANALYTICS` code (see [Error Handling](/react-native/error-handling)).
+
+### Shutdown
+
+`client.end()` performs a final awaited `flush()` before closing the store connection, so events
+captured late in the session still make it out.
+
+## Automatic Events
+
+The SDK captures these events on your behalf — the `$` prefix marks them as built-in:
+
+| Event | When it fires |
+| --- | --- |
+| `$app_installed` | First launch the SDK has seen on this install (no previously cached release) |
+| `$app_updated` | Launch where the app build or version differs from the last seen one |
+| `$app_opened` | Every SDK startup, after install/update has been resolved |
+| `$app_backgrounded` | The app moved to the background |
+| `$app_became_active` | The app returned to the foreground from a non-active state |
+| `$sign_out` | `client.signOut()` was called |
+
+Install/update detection compares the current app build and version against the last release the
+SDK cached on the device, then records the current one for next launch.
+
+### Paywall Events
+
+Analytics events emitted by a displayed paywall (via the paywall bridge) are routed into the same
+capture queue, stamped with a `paywall_location` property carrying the location slug the paywall
+was shown for. See [Displaying Paywalls](/react-native/displaying-paywalls).
+
+## Standardized Properties
+
+Every delivered event is enriched with standardized device and app context, alongside the
+properties you pass: `$app_build`, `$app_name`, `$app_version`, `$bundle_id`, `$device_brand`,
+`$device_name`, `$locale`, `$platform`, `$platform_version`, `$sdk` (`"react-native"`), and
+`$sdk_version`. Events also carry a stable per-session id and a unique event id, so retries never
+produce duplicates on the server.
+
+## Person Traits
+
+`client.setPersonAttributes(attributes)` updates the current person's traits by riding the
+analytics queue as a `$set` event — it is fire-and-forget and delivered with the queue's normal
+batching:
+
+```tsx
+voidhash.client.setPersonAttributes({
+  email: "ada@example.com",
+  name: "Ada Lovelace",
+  favorite_color: "green",
+});
+```
+
+The reserved `email` and `name` keys map to the person's dedicated server fields; every other key
+becomes a custom trait. Because the update is queued, call `flush()` if you need it delivered
+immediately — or use `setPersonAttributesSync` for a network round-trip that returns the updated
+person. See [Identifying Users](/react-native/identifying-users) for the full comparison.
+
+## Analytics and Identity
+
+Events are attributed to the distinct id that was active when delivery happens, so the SDK flushes
+at identity boundaries to keep attribution correct:
+
+- `client.identify(...)` drains the queue **first**, so events captured before the switch
+  attribute to the pre-switch (usually anonymous) identity.
+- `client.signOut()` captures `$sign_out` and flushes it under the signing-out identity before
+  resetting to a fresh anonymous id.
+
+## Ingest URL
+
+Analytics batches are posted to the same origin as your API `baseUrl`, under the `/i/v1/` path
+prefix — with the default `baseUrl` that means `https://api.voidhash.com/i/v1/batch`. No
+configuration is needed in production.
+
+For local development where the ingest service runs on a different host or port, pass the
+`ingestUrl` option to override the origin analytics requests are sent to:
+
+```ts title="utils/voidhash/client.ts"
+import { createVoidhashClient } from "@voidhash/react-native";
+
+export const voidhash = createVoidhashClient("vh_pk_...", {
+  baseUrl: "http://localhost:5001",
+  ingestUrl: "http://localhost:8083",
+  scheme: "myapp",
+});
+```
+
+See [Configuration](/react-native/configuration) for all client options and
+[Event Capture](/api/event-capture) for the ingest API itself.

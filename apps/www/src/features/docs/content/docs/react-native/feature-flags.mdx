@@ -1,0 +1,168 @@
+---
+title: Feature Flags
+description: Evaluate feature flags for the current person and gate features with isEnabled and getVariant.
+---
+
+Voidhash evaluates feature flags on the server for the current person and exposes the results
+through the `useFeatureFlags` hook (or `client.getFeatureFlags()` outside of React). Use flags to
+gate features behind a boolean, roll out variants, or ship remote configuration via flag payloads.
+
+## Evaluating Flags
+
+Call `useFeatureFlags` from your client object. Without arguments it evaluates all flags; pass an
+array of flag keys to evaluate only the flags you need:
+
+```tsx
+import { voidhash } from "utils/voidhash/client";
+
+const { data, isEnabled, getVariant, isLoading, error, refetch } = voidhash.useFeatureFlags([
+  "new-onboarding",
+  "paywall-experiment",
+]);
+```
+
+The hook returns:
+
+- `data.flags` — the evaluated flags (empty array while nothing is loaded yet)
+- `isEnabled(key)` — `true` if the flag exists and is enabled, `false` otherwise
+- `getVariant(key)` — `{ enabled, variantKey, payload }` for the flag, or `null` if it wasn't evaluated
+- `isLoading` — `true` while the evaluation request is in flight
+- `error` — a `VoidhashError` if evaluation failed (see [Error Handling](/react-native/error-handling))
+- `refetch()` — re-runs the evaluation (still subject to the cache, see below)
+
+<Callout type="info" title="Keep the flagKeys array stable">
+  The hook re-fetches whenever the `flagKeys` array identity changes. Define the array outside your
+  component (or memoize it with `useMemo`) instead of passing a fresh inline literal on every
+  render.
+</Callout>
+
+## Flag Shape
+
+Each entry in `data.flags` has the following shape:
+
+```ts
+{
+  key: string;
+  enabled: boolean;
+  variantKey: string | null;
+  payload: unknown | null;
+}
+```
+
+- `key` — the flag key you defined in Voidhash
+- `enabled` — whether the flag is on for the current person
+- `variantKey` — the assigned variant for multivariate flags, `null` for plain boolean flags
+- `payload` — an optional JSON payload attached to the flag or variant, `null` if none
+
+## Boolean Gating with isEnabled
+
+The most common case: show or hide a feature based on a flag. `isEnabled` returns `false` for
+flags that are disabled, not evaluated, or still loading — so the gated feature stays hidden until
+the flag comes back enabled:
+
+```tsx title="app/home.tsx"
+import { Text, View } from "react-native";
+import { voidhash } from "utils/voidhash/client";
+
+const FLAG_KEYS = ["new-onboarding"];
+
+export default function HomeScreen() {
+  const { isEnabled, isLoading } = voidhash.useFeatureFlags(FLAG_KEYS);
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <View>
+      {isEnabled("new-onboarding") ? <NewOnboarding /> : <ClassicOnboarding />}
+      <Text>Welcome back!</Text>
+    </View>
+  );
+}
+```
+
+## Variants and Payloads with getVariant
+
+For multivariate flags, use `getVariant` to branch on the assigned variant and read its payload.
+`getVariant` returns `null` when the flag hasn't been evaluated, so handle that case explicitly:
+
+```tsx title="app/paywall-entry.tsx"
+import { voidhash } from "utils/voidhash/client";
+
+const FLAG_KEYS = ["paywall-experiment"];
+
+export default function PaywallEntry() {
+  const { getVariant, isLoading } = voidhash.useFeatureFlags(FLAG_KEYS);
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  const variant = getVariant("paywall-experiment");
+
+  if (!variant?.enabled) {
+    return <DefaultPaywall />;
+  }
+
+  switch (variant.variantKey) {
+    case "discount": {
+      // Payloads are untyped JSON — validate before use.
+      const payload = variant.payload as { discountPercent: number } | null;
+      return <DiscountPaywall discountPercent={payload?.discountPercent ?? 10} />;
+    }
+    case "trial-focus":
+      return <TrialFocusPaywall />;
+    default:
+      return <DefaultPaywall />;
+  }
+}
+```
+
+## Fetching Flags Imperatively
+
+Outside of React — or when you need flag values inside an event handler — call
+`client.getFeatureFlags()` directly. It resolves to the same `{ flags }` result:
+
+```tsx
+import { voidhash } from "utils/voidhash/client";
+
+const handleCheckout = async () => {
+  const { flags } = await voidhash.client.getFeatureFlags(["express-checkout"]);
+  const expressCheckout = flags.find((flag) => flag.key === "express-checkout");
+
+  if (expressCheckout?.enabled) {
+    startExpressCheckout();
+  } else {
+    startClassicCheckout();
+  }
+};
+```
+
+Like all client methods, `getFeatureFlags` requires an initialized client (it throws
+`VOIDHASH_CLIENT_NOT_INITIALIZED` before the Provider has finished initializing) and rejects with
+a `VoidhashError` carrying the `FAILED_TO_GET_FEATURE_FLAGS` code if evaluation fails.
+
+## Caching
+
+Flag evaluations are cached for **5 minutes** per requested key set. Repeated calls with the same
+keys — including `refetch()` and re-mounts of the hook — return the cached result until it
+expires, then hit the server again. Two hooks requesting the same keys (in any order) share the
+same underlying state, so they update together.
+
+If you need a flag change to apply mid-session, call `refetch()` after the cache window has
+passed, or design the feature so a fresh evaluation on the next app open is acceptable.
+
+## Flags and Identity
+
+Flag evaluations are scoped to the current person, so the SDK clears flag state whenever the
+identity changes:
+
+- `client.identify(...)` — the previous person's flag state is cleared
+- `client.reset()` / `client.signOut()` — flag state and the evaluation cache are cleared along
+  with the rest of the client cache
+
+After an identity change, `data.flags` is empty, `isEnabled` returns `false`, and `getVariant`
+returns `null` until the next evaluation completes — features gated behind flags default to off
+rather than leaking the previous person's flag state. See
+[Identifying Users](/react-native/identifying-users) for the full identity lifecycle.

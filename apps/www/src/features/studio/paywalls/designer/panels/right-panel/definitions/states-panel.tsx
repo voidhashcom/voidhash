@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the `States` section — the wire-tree replica of
- * {@link ../sections/states-section.StatesSection}.
+ * Built-in panel definition for state selection and state-manager access.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "States" → `Panel.Section title="States"`.

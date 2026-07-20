@@ -4,10 +4,10 @@ import { PaywallPreview } from "./components/PaywallPreview";
 import { Sidebar } from "./components/Sidebar";
 import { loadProjectContent } from "./voidhash/paywalls";
 import {
-  createStudioBridge,
-  DEFAULT_PREVIEW_CONFIG,
-  type PreviewEvent,
-} from "./voidhash/preview-runtime";
+  DEFAULT_PREVIEW_DEVICE_PROFILE,
+  previewConfigForDevice,
+} from "./voidhash/preview-devices";
+import { createStudioBridge, type PreviewEvent } from "./voidhash/preview-runtime";
 
 const projectName = (root: string): string => root.replace(/\/+$/, "").split("/").pop() || root;
 
@@ -16,6 +16,8 @@ export const App = (): ReactNode => {
   const content = loadProjectContent();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [events, setEvents] = useState<ReadonlyArray<PreviewEvent>>([]);
+  const previewProfile = DEFAULT_PREVIEW_DEVICE_PROFILE;
+  const previewConfig = useMemo(() => previewConfigForDevice(previewProfile), [previewProfile]);
 
   const bridge = useMemo(
     () => createStudioBridge((event) => setEvents((prev) => [...prev, event])),
@@ -42,7 +44,7 @@ export const App = (): ReactNode => {
           <div className="flex items-center gap-3 text-neutral-400 text-xs">
             <span>{selected.title}</span>
             <span className="rounded bg-neutral-800 px-2 py-0.5 uppercase">
-              {DEFAULT_PREVIEW_CONFIG.platform}
+              {previewProfile.platform}
             </span>
           </div>
         )}
@@ -51,7 +53,12 @@ export const App = (): ReactNode => {
       <div className="flex min-h-0 flex-1">
         <main className="min-w-0 flex-1">
           {selected ? (
-            <PaywallPreview bridge={bridge} config={DEFAULT_PREVIEW_CONFIG} entry={selected} />
+            <PaywallPreview
+              bridge={bridge}
+              config={previewConfig}
+              entry={selected}
+              profile={previewProfile}
+            />
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-center text-neutral-500 text-sm">
               Create a paywall in{" "}
@@ -68,6 +75,7 @@ export const App = (): ReactNode => {
           onClearEvents={() => setEvents([])}
           onSelect={handleSelect}
           paywalls={content.paywalls}
+          profile={previewProfile}
           selectedId={selected?.id ?? null}
         />
       </div>

@@ -133,7 +133,7 @@ const initializeResult = (params: Record<string, unknown> | undefined) => ({
   capabilities: { tools: {}, resources: {}, prompts: {} },
   serverInfo: SERVER_INFO,
   instructions:
-    "Begin a paywall edit session before using scoped tools. The returned editSessionId is the connection handle. Prefer document variables, conditional states, and actions for dynamic behavior without code. Review the final PNG preview and finish with its exact document signature, or revert the session.",
+    "Begin a paywall edit session before using scoped tools. The returned editSessionId is the connection handle. Prefer document variables, conditional states, and actions for dynamic behavior without code. Review the final PNG preview and finish with its exact document signature, or revert the session. Use the bash tool to research paywalls read-only before editing (`cat /README.md` for the layout).",
 });
 
 /** The `tools/list` result: the advertised tool descriptors. */

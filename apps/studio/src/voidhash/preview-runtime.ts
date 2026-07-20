@@ -1,8 +1,6 @@
-import type {
-  PaywallBridge,
-  PaywallOutboundEnvelope,
-  PaywallRuntimeConfig,
-} from "@voidhash/paywalls";
+import type { PaywallBridge, PaywallOutboundEnvelope } from "@voidhash/paywalls";
+
+import { DEFAULT_PREVIEW_DEVICE_PROFILE, previewConfigForDevice } from "./preview-devices";
 
 /**
  * Mock products + variables injected into previewed paywalls (contract §7.1).
@@ -10,46 +8,7 @@ import type {
  * subscription group so product-driven layouts render with realistic data.
  * `id` mirrors a store product identifier, `slug` the Voidhash product slug.
  */
-export const DEFAULT_PREVIEW_CONFIG: PaywallRuntimeConfig = {
-  defaultSelectedProductId: "com.example.app.yearly",
-  locale: "en-US",
-  platform: "ios",
-  products: [
-    {
-      currencyCode: "USD",
-      displayName: "Yearly",
-      id: "com.example.app.yearly",
-      period: "year",
-      price: 59.99,
-      priceString: "$59.99",
-      slug: "yearly",
-      trialPeriod: "7d",
-    },
-    {
-      currencyCode: "USD",
-      displayName: "Monthly",
-      id: "com.example.app.monthly",
-      period: "month",
-      price: 9.99,
-      priceString: "$9.99",
-      slug: "monthly",
-    },
-    {
-      currencyCode: "USD",
-      displayName: "Lifetime",
-      id: "com.example.app.lifetime",
-      period: "lifetime",
-      price: 199.99,
-      priceString: "$199.99",
-      slug: "lifetime",
-    },
-  ],
-  variables: {
-    accentColor: "#16a34a",
-    ctaLabel: "Continue",
-    showTrialBadge: true,
-  },
-};
+export const DEFAULT_PREVIEW_CONFIG = previewConfigForDevice(DEFAULT_PREVIEW_DEVICE_PROFILE);
 
 /** A captured outbound envelope with a monotonically increasing id + timestamp. */
 export interface PreviewEvent {

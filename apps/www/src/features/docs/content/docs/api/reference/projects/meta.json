@@ -1,0 +1,7 @@
+{
+  "title": "Projects",
+  "pages": [
+    "projects.createProject",
+    "projects.listProjects"
+  ]
+}

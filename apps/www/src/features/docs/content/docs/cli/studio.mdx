@@ -1,0 +1,70 @@
+---
+title: studio
+description: Launch the paywall preview Studio for the current project.
+---
+
+`voidhash-cli studio` launches the Studio — a local preview app bundled with the CLI — so you can
+build and iterate on your paywalls without deploying anything. It runs entirely against the
+`.voidhash` folder in your current directory, so run it from your project root:
+
+```package-install
+npx voidhash-cli studio
+```
+
+The command prints the project path and preview URL, then keeps running until you stop it with
+`Ctrl+C`:
+
+```
+  Voidhash Studio
+  Project:  /path/to/your-app
+  Preview:  http://localhost:4830
+```
+
+By default, Studio opens in your browser shortly after the server starts.
+
+## Flags
+
+### `--port`, `-p`
+
+Port for the Studio dev server. Defaults to `4830`. The port is strict — if it is already in use,
+Studio fails instead of silently picking a different one, so the printed preview URL is always the
+one Studio is actually serving on.
+
+```package-install
+npx voidhash-cli studio --port 5000
+```
+
+### `--open`
+
+Open Studio in your browser once it starts. Defaults to `true`; pass `--no-open` to disable it,
+for example when Studio runs inside a script or a remote shell:
+
+```package-install
+npx voidhash-cli studio --no-open
+```
+
+## How it works
+
+Studio is a Vite app shipped inside the CLI. The command resolves the bundled app, starts its dev
+server, and points it at your project via the `VOIDHASH_PROJECT_ROOT` environment variable. Your
+project's `.voidhash` folder is the source of truth — the paywalls Studio previews are the same
+files that [deploy](/cli/deploy) builds and uploads.
+
+If the current directory has no `.voidhash` folder, the command warns but still starts:
+
+```
+No .voidhash folder found in /path/to/your-app.
+Studio will start, but there are no paywalls to preview yet.
+Create .voidhash/paywalls/<name>.tsx to get started.
+```
+
+<Callout type="info" title="Run it from the project root">
+  Studio resolves the project from the directory you run the command in. If you see the warning
+  above in a project that does have paywalls, you are likely running the command from a
+  subdirectory.
+</Callout>
+
+## Next steps
+
+- Happy with the preview? Ship it with [`voidhash-cli deploy`](/cli/deploy).
+- New project without a `.voidhash` folder yet? Start with [`voidhash-cli init`](/cli/init).

@@ -54,6 +54,18 @@ type FumadocsConfig = {
       };
     };
     valueToExport?: string[];
+    /**
+     * Options forwarded to fumadocs' `rehypeCode` (Shiki) plugin. Only `themes`
+     * is overridden here; the plugin merges the rest of its defaults (notation
+     * transformers, meta parsing). Theme values may be a bundled Shiki theme
+     * name or a full TextMate theme object.
+     */
+    rehypeCodeOptions?: {
+      themes?: {
+        light?: string | Record<string, unknown>;
+        dark?: string | Record<string, unknown>;
+      };
+    };
   };
 };
 

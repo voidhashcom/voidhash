@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Built-in panel DEFINITION for the `Typography` section — the wire-tree replica
- * of {@link ../sections/typography-section.TypographySection}.
+ * Built-in panel definition for typography and alignment controls.
  *
  * Structure (old JSX → wire nodes):
  * - `PanelSection` + header "Typography" → `Panel.Section title="Typography"`.

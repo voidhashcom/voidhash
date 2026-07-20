@@ -174,6 +174,11 @@ describe("parseInboundEnvelope", () => {
           ],
           variables: { accentColor: "#16a34a" },
           platform: "ios",
+          safeAreaInsets: { top: 59, right: 0, bottom: 34, left: 0 },
+          dimensions: {
+            screen: { width: 393, height: 852, x: 0, y: 0 },
+            window: { width: 390, height: 760, x: 1, y: 59 },
+          },
         },
       }),
     );
@@ -193,6 +198,11 @@ describe("parseInboundEnvelope", () => {
         variables: { accentColor: "#16a34a" },
         locale: undefined,
         platform: "ios",
+        safeAreaInsets: { top: 59, right: 0, bottom: 34, left: 0 },
+        dimensions: {
+          screen: { width: 393, height: 852, x: 0, y: 0 },
+          window: { width: 390, height: 760, x: 1, y: 59 },
+        },
         defaultSelectedProductId: undefined,
       },
     });
