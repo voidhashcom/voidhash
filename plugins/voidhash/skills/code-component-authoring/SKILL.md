@@ -223,7 +223,8 @@ fields to literals, variables, or action-payload fields and may perform `set-var
 
 Preview names must match `[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}`. With no declarations, an
 implicit `default` preview is rendered. `props` override declared defaults. `data` accepts
-`products` and `variables`; product refs fall back to the first fixture product when unset.
+`products`, `variables`, `platform`, `safeAreaInsets`, and `dimensions`; product refs
+fall back to the first fixture product when unset. Insets and dimensions use logical pixels.
 Exercise meaningful visual branches with named previews and keep fixture data complete.
 
 Use at most one `<Slot />`. It renders document children supplied to the component
@@ -291,13 +292,21 @@ Runtime hooks:
 - `useSelectedProduct()` returns `selectedProduct`, `selectedProductId`, and
   `selectProduct(productId)`.
 - `usePaywallVariables()` returns `Record<string, string | number | boolean>`.
+- `usePlatform()` returns `ios | android | web`.
+- `useSafeAreaInsets()` returns `{ top, right, bottom, left }` in logical pixels.
+- `useDimensions("screen" | "window")` returns `{ width, height, x, y }` in logical
+  pixels; `x` and `y` are screen-space origins.
 - `usePaywallActions()` returns `purchase(productId?)`, `restore()`, `close(reason?)`,
   `openUrl(url)`, `track(name, properties?)`, and `selectProduct(productId)`.
 - `usePaywallStatus()` returns status `idle`, `purchasing`, `purchased`, `restoring`,
   `restored`, `cancelled`, or `failed`, plus optional `productId` and an optional error
   containing `code` and `message`.
-- `usePaywallConfig()` returns products, variables, locale, platform, and optional default
-  selected product id. Platform is `ios | android | web`.
+- `usePaywallConfig()` returns products, variables, locale, platform, optional safe-area
+  insets and dimensions, and the optional default selected product id.
+
+Explicit host or preview environment values take precedence. Browser measurements update on
+resize, orientation, and visual-viewport events. Missing platform defaults to `web`; missing
+or unavailable safe-area and SSR measurements fall back to zero.
 
 The selected product defaults to `defaultSelectedProductId`, then the first product.
 `purchase()` uses that selection when no id is passed and warns/no-ops if no product exists.
