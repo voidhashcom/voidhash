@@ -1,0 +1,222 @@
+---
+title: Persons
+description: Create and look up the persons in a project — the server-side view of the users your app identifies through the SDK.
+---
+
+A **person** is Voidhash's record of an end user of your app: who they are, which distinct ids
+point at them, and (through other endpoints) what they own. Every purchase, subscription,
+entitlement, and analytics event in a project hangs off a person. The endpoints on this page are
+the server-side management surface — create a person ahead of time, enumerate them, or look one up
+by id.
+
+<Callout type="info" title="Project-scoped endpoints">
+  Persons belong to a project, so these endpoints require a project-scoped credential — a secret
+  key (`x-secret-key`) for server-to-server calls, or a user API key (`x-api-key`) with access to
+  the project. See [Authentication](/docs/api/authentication).
+</Callout>
+
+## Persons and distinct ids
+
+A person is addressed two ways:
+
+- `personId` — the canonical id Voidhash assigns (`person_...`). Stable, opaque, and the id you
+  should store on your side.
+- `distinctId` — the identifier *you* (or the SDK) use to refer to the user. A person can
+  accumulate several distinct ids over time; the API resolves any of them to the same person.
+
+Distinct ids come from two places:
+
+1. **The React Native SDK mints anonymous ids.** Before a user signs in, the SDK generates an
+   anonymous distinct id in the reserved `vh:anon:` namespace and uses it for every device call.
+2. **You supply identified ids.** When the user signs in, the SDK's identify call
+   (`POST /api/v1/sdk/identify` — see [Device SDK Endpoints](/docs/api/sdk)) links the device's
+   anonymous id to your own user id, merging the anonymous history into the identified person.
+
+Because of that merge model, reads on this page always resolve to the **canonical** person: if a
+person was merged into another, fetching the old `personId` returns the surviving profile.
+
+## The Person object
+
+```json
+{
+  "personId": "person_...",
+  "distinctId": "u_8f3c2a1b-9d4e-4f6a-b7c8-0d1e2f3a4b5c",
+  "email": "ada@example.com",
+  "name": "Ada Lovelace"
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `personId` | `string` | Canonical person id assigned by Voidhash. |
+| `distinctId` | `string` | The person's primary distinct id. |
+| `email` | `string \| null` | Email address, if known. |
+| `name` | `string \| null` | Display name, if known. |
+
+This is the management-surface shape. The device SDK's `GET /api/v1/sdk/person` returns a richer
+`SdkPerson` that adds entitlements, subscriptions, and purchase history — see
+[Device SDK Endpoints](/docs/api/sdk).
+
+## Create a Person
+
+`POST /api/v1/persons`
+
+Creates a person for the given distinct id in the authenticated project. If the distinct id
+already resolves to a person, the existing canonical profile is returned instead of a duplicate —
+the call is safe to repeat.
+
+```bash
+curl -X POST https://api.voidhash.com/api/v1/persons \
+  -H "x-secret-key: <your-secret-key>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "distinctId": "u_8f3c2a1b-9d4e-4f6a-b7c8-0d1e2f3a4b5c",
+    "email": "ada@example.com",
+    "name": "Ada Lovelace"
+  }'
+```
+
+### Request body
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `distinctId` | `string` | Yes | The identifier for the user. Use a unique, hard-to-guess value (like a UUID), the same one you later pass to the SDK's identify call. |
+| `email` | `string` | No | Email address to store on the person. |
+| `name` | `string` | No | Display name to store on the person. |
+
+Do not hand-craft distinct ids in the `vh:anon:` namespace — it is reserved for anonymous ids
+minted by the SDK.
+
+### Response
+
+Returns the created (or existing) `Person`:
+
+```json
+{
+  "personId": "person_...",
+  "distinctId": "u_8f3c2a1b-9d4e-4f6a-b7c8-0d1e2f3a4b5c",
+  "email": "ada@example.com",
+  "name": "Ada Lovelace"
+}
+```
+
+### Errors
+
+| Status | `_tag` | When |
+| --- | --- | --- |
+| `400` | `Api/PersonInvalidAnonymousIdError` | The `distinctId` is an invalid anonymous id. The body carries the rejected id as `id`. |
+| `401` | `Api/NotAuthenticatedError` | Missing or invalid credentials. |
+| `403` | `Api/ActionForbiddenError` | The credential has no access to the project. |
+| `500` | `Api/PersonServiceError` | The person could not be created. |
+
+<Callout type="info" title="You usually don't need to pre-create persons">
+  The SDK's identify call creates the person automatically the first time a distinct id is seen.
+  Use this endpoint when you want the person to exist server-side before the user ever opens the
+  app — for example to attach entitlements or send a push notification ahead of first launch.
+</Callout>
+
+## List Persons
+
+`GET /api/v1/persons`
+
+Lists the persons in the authenticated project.
+
+```bash
+curl https://api.voidhash.com/api/v1/persons \
+  -H "x-secret-key: <your-secret-key>"
+```
+
+### Response
+
+Returns an array of `Person` objects:
+
+```json
+[
+  {
+    "personId": "person_...",
+    "distinctId": "u_8f3c2a1b-9d4e-4f6a-b7c8-0d1e2f3a4b5c",
+    "email": "ada@example.com",
+    "name": "Ada Lovelace"
+  },
+  {
+    "personId": "person_...",
+    "distinctId": "vh:anon:1c9d0e2f-3a4b-5c6d-7e8f-9a0b1c2d3e4f",
+    "email": null,
+    "name": null
+  }
+]
+```
+
+Persons that have never been identified show their anonymous `vh:anon:` distinct id and `null`
+profile fields.
+
+### Errors
+
+| Status | `_tag` | When |
+| --- | --- | --- |
+| `401` | `Api/NotAuthenticatedError` | Missing or invalid credentials. |
+| `403` | `Api/ActionForbiddenError` | The credential has no access to the project. |
+| `500` | `Api/PersonServiceError` | Persons could not be loaded. |
+
+## Get a Person by Id
+
+`GET /api/v1/persons/:personId`
+
+Fetches a single person by their canonical `personId`. If the person was merged into another, the
+surviving canonical profile is returned.
+
+```bash
+curl https://api.voidhash.com/api/v1/persons/person_... \
+  -H "x-secret-key: <your-secret-key>"
+```
+
+### Response
+
+Returns the `Person`.
+
+### Errors
+
+| Status | `_tag` | When |
+| --- | --- | --- |
+| `401` | `Api/NotAuthenticatedError` | Missing or invalid credentials. |
+| `403` | `Api/ActionForbiddenError` | The credential has no access to the project. |
+| `404` | `Api/PersonNotFoundError` | No person with that id. The body carries the id as `id`. |
+| `500` | `Api/PersonServiceError` | The person could not be loaded. |
+
+## Get a Person by Distinct Id
+
+`GET /api/v1/persons/by-distinct-id/:distinctId`
+
+Fetches a person by any of their distinct ids — the identified id you supplied or an anonymous
+`vh:anon:` id minted by the SDK. This is the lookup to use when all you have is your own user id.
+
+```bash
+curl https://api.voidhash.com/api/v1/persons/by-distinct-id/u_8f3c2a1b-9d4e-4f6a-b7c8-0d1e2f3a4b5c \
+  -H "x-secret-key: <your-secret-key>"
+```
+
+Remember to URL-encode the distinct id if it contains characters like `:` — anonymous ids do.
+
+### Response
+
+Returns the `Person`.
+
+### Errors
+
+| Status | `_tag` | When |
+| --- | --- | --- |
+| `401` | `Api/NotAuthenticatedError` | Missing or invalid credentials. |
+| `403` | `Api/ActionForbiddenError` | The credential has no access to the project. |
+| `404` | `Api/PersonNotFoundError` | No person has that distinct id. |
+| `500` | `Api/PersonServiceError` | The person could not be loaded. |
+
+## Related
+
+- [Device SDK Endpoints](/docs/api/sdk) — the identify call that links anonymous ids to your user
+  ids, and the entitlement-rich `SdkPerson` shape.
+- [Identifying Users](/docs/react-native/identifying-users) — how to identify users from the
+  React Native SDK.
+- [Notifications](/docs/api/notifications) — target persons by `personIds` or `distinctIds`.
+- [Webhooks](/docs/api/webhooks) — subscribe to `person.created`, `person.updated`, and
+  `person.deleted` events.
+- [Authentication](/docs/api/authentication) — credential types and which endpoints accept them.

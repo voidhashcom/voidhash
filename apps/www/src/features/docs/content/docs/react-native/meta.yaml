@@ -1,0 +1,21 @@
+title: React Native SDK
+icon: Smartphone
+pages:
+  - "---Getting started---"
+  - overview
+  - installation
+  - quickstart
+  - configuration
+  - schema-and-types
+  - "---Paywalls & purchases---"
+  - displaying-paywalls
+  - displaying-products
+  - purchases
+  - subscription-status
+  - "---Users & data---"
+  - identifying-users
+  - feature-flags
+  - analytics
+  - "---Advanced---"
+  - observer-mode
+  - error-handling

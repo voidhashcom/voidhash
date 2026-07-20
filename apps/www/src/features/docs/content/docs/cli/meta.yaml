@@ -1,0 +1,10 @@
+title: CLI
+icon: SquareTerminal
+pages:
+  - overview
+  - init
+  - auth
+  - types
+  - studio
+  - deploy
+  - config

@@ -1,0 +1,6 @@
+{
+  "title": "Payment_provider_products",
+  "pages": [
+    "payment_provider_products.listPaymentProviderProducts"
+  ]
+}

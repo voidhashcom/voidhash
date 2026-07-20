@@ -46,8 +46,12 @@ catalog:
   "@trpc/tanstack-react-query": ^11.1.0
 
   # React 19 & types
-  react: 19.1.0
-  react-dom: 19.1.0
+  # Runtime bumped to 19.2 (required by fumadocs 16); @types stay on the 19.1
+  # line to avoid a duplicate-@types/react skew with packages pinned to 19.1
+  # (mimic-admin, react-native). fumadocs peers `@types/react: *`, so 19.1 types
+  # against the 19.2 runtime are fine.
+  react: 19.2.7
+  react-dom: 19.2.7
   "@types/react": ^19.1.0
   "@types/react-dom": ^19.1.0
 
@@ -174,3 +178,4 @@ allowBuilds:
   simple-git-hooks: true
   unrs-resolver: true
   workerd: true
+  vue-demi: set this to true or false

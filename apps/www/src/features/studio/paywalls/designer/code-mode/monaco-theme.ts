@@ -1,13 +1,19 @@
 import type * as monaco from "monaco-editor";
 
+import {
+  CODE_PALETTE as P,
+  darkSyntaxRoles,
+  lightSyntaxRoles,
+  type SyntaxRoles,
+} from "@/lib/code-theme";
+
 /**
  * Voidhash-branded Monaco themes for the paywall code editor.
  *
- * Colors are the sRGB resolutions of the OKLCH brand palette in
- * `packages/ui/styles/brand-theme.css`. Syntax hues follow a fixed role→family
- * mapping (violet keywords, green strings, amber numbers, blue types, fuchsia
- * regex/escapes, red invalids) so the light and dark variants read as the same
- * theme at different lightness.
+ * The palette and per-role syntax mapping live in `@/lib/code-theme` so the
+ * documentation site's Shiki highlighting stays in visual lockstep with this
+ * editor. This module maps those roles onto Monaco's Monarch token names and
+ * adds the editor-chrome colors (widgets, gutters, scrollbars) Monaco needs.
  *
  * Scope note: monaco-editor's bundled TypeScript mode ships only the Monarch
  * grammar and registers no document-semantic-tokens provider, so identifiers
@@ -19,69 +25,8 @@ import type * as monaco from "monaco-editor";
  * `modifiers = value & 255`); the stock worker proxy does not expose it.
  */
 
-/** Brand palette (subset used by the themes), stored with a leading `#`. */
-const P = {
-  white: "#ffffff",
-  zinc50: "#fafafa",
-  zinc100: "#f4f4f4",
-  zinc200: "#e4e4e4",
-  zinc300: "#d4d4d4",
-  zinc400: "#a0a0a0",
-  zinc500: "#727272",
-  zinc600: "#535353",
-  zinc700: "#404040",
-  zinc800: "#272727",
-  zinc900: "#181818",
-  zinc950: "#101010",
-  blue50: "#edf8ff",
-  blue300: "#83d1ff",
-  blue400: "#48b7ff",
-  blue500: "#1e93ff",
-  blue600: "#0673ff",
-  blue700: "#005eff",
-  blue950: "#0e285d",
-  violet300: "#c0a6ff",
-  violet400: "#a373ff",
-  violet700: "#7000f0",
-  fuchsia300: "#f49cff",
-  fuchsia400: "#ef61ff",
-  fuchsia700: "#ab00cb",
-  red400: "#ff5d78",
-  red500: "#ff244f",
-  red600: "#f00040",
-  orange400: "#ff9d32",
-  orange700: "#cc4902",
-  amber400: "#ffdf1b",
-  amber500: "#ffbf00",
-  amber700: "#bb6802",
-  amber800: "#985008",
-  amber300: "#ffed46",
-  pistachio300: "#dffe58",
-  pistachio400: "#ccf526",
-  pistachio600: "#91bd00",
-  pistachio700: "#658506",
-  pistachio800: "#51690b",
-} as const;
-
 export const VOIDHASH_DARK_THEME = "voidhash-dark";
 export const VOIDHASH_LIGHT_THEME = "voidhash-light";
-
-/**
- * Per-role syntax colors. Only roles that the Monarch TypeScript grammar
- * actually emits are represented. Shades differ per variant; roles do not.
- */
-interface SyntaxRoles {
-  comment: string;
-  keyword: string;
-  string: string;
-  escape: string;
-  number: string;
-  regexp: string;
-  type: string;
-  punctuation: string;
-  variable: string;
-  invalid: string;
-}
 
 /** Monaco token rules expect `RRGGBB` (no leading `#`). */
 const bare = (hex: string): string => hex.replace("#", "");
@@ -128,38 +73,10 @@ function tokenRules(r: SyntaxRoles): monaco.editor.ITokenThemeRule[] {
   ];
 }
 
-const darkRoles: SyntaxRoles = {
-  comment: P.zinc500,
-  keyword: P.violet300,
-  string: P.pistachio300,
-  escape: P.fuchsia400,
-  number: P.amber300,
-  regexp: P.fuchsia300,
-  type: P.blue300,
-  punctuation: P.zinc400,
-  variable: P.zinc100,
-  invalid: P.red400,
-};
-
-const lightRoles: SyntaxRoles = {
-  comment: P.zinc500,
-  keyword: P.violet700,
-  string: P.pistachio800,
-  escape: P.fuchsia700,
-  number: P.amber800,
-  regexp: P.fuchsia700,
-  type: P.blue700,
-  // Distinct from `comment` (also a gray) so delimiters and trailing comments
-  // never collapse to one hue in light mode.
-  punctuation: P.zinc600,
-  variable: P.zinc900,
-  invalid: P.red600,
-};
-
 const darkTheme: monaco.editor.IStandaloneThemeData = {
   base: "vs-dark",
   inherit: true,
-  rules: tokenRules(darkRoles),
+  rules: tokenRules(darkSyntaxRoles),
   colors: {
     "editor.background": P.zinc950,
     "editor.foreground": P.zinc200,
@@ -224,7 +141,7 @@ const darkTheme: monaco.editor.IStandaloneThemeData = {
 const lightTheme: monaco.editor.IStandaloneThemeData = {
   base: "vs",
   inherit: true,
-  rules: tokenRules(lightRoles),
+  rules: tokenRules(lightSyntaxRoles),
   colors: {
     "editor.background": P.white,
     "editor.foreground": P.zinc900,

@@ -1,0 +1,10 @@
+{
+  "title": "Api_keys",
+  "pages": [
+    "api_keys.listApiKeys",
+    "api_keys.createSecretKey",
+    "api_keys.getApiKeyById",
+    "api_keys.deleteApiKey",
+    "api_keys.rotateSecretKey"
+  ]
+}
