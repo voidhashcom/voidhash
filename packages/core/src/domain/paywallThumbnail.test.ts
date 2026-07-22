@@ -7,9 +7,9 @@ import {
 } from "./paywallThumbnail.ts";
 
 describe("derivePaywallThumbnailKey", () => {
-  it("is project- and paywall-scoped and seq-addressed", () => {
-    expect(derivePaywallThumbnailKey("proj_1", "pw_1", 7)).toBe(
-      "paywall-thumbnails/proj_1/pw_1/7.png",
+  it("is a stable project- and paywall-scoped key", () => {
+    expect(derivePaywallThumbnailKey("proj_1", "pw_1")).toBe(
+      "paywall-thumbnails/proj_1/pw_1/thumbnail.png",
     );
   });
 });
@@ -46,9 +46,9 @@ describe("thumbnail ownership guards", () => {
   });
 
   it("extracts the key only for own, project+paywall-scoped URLs", () => {
-    const owned = `${base}/files/paywall-thumbnails/proj_1/pw_1/3.png`;
+    const owned = `${base}/files/paywall-thumbnails/proj_1/pw_1/thumbnail.png?v=3`;
     expect(paywallThumbnailKeyFromUrl(owned, "proj_1", "pw_1", base)).toBe(
-      "paywall-thumbnails/proj_1/pw_1/3.png",
+      "paywall-thumbnails/proj_1/pw_1/thumbnail.png",
     );
     expect(paywallThumbnailKeyFromUrl(owned, "proj_1", "pw_2", base)).toBe(null);
     expect(paywallThumbnailKeyFromUrl(owned, "proj_2", "pw_1", base)).toBe(null);

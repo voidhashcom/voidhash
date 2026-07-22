@@ -102,25 +102,39 @@ export function PaywallCard({ paywall, organizationSlug, projectSlug }: PaywallC
         to="/studio/$organizationSlug/$projectSlug/design/$id"
       >
         {/* Preview Area */}
-        <div className="relative flex aspect-3/4 items-center justify-center bg-muted/50">
-          {paywall.thumbnailUrl ? (
+        <div className="relative flex aspect-[246/278] items-center justify-center overflow-hidden bg-linear-150 from-blue-ribbon-950 to-electric-violet-950">
+          {paywall.thumbnailUrl && (
             <img
-              alt={paywall.name}
-              className="absolute inset-0 size-full object-cover"
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 size-full scale-125 object-cover blur-[32px]"
               loading="lazy"
               src={paywall.thumbnailUrl}
             />
-          ) : (
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <Smartphone className="h-12 w-12 opacity-30" />
-            </div>
           )}
+
+          <div className="relative z-10 aspect-[532/1119] h-[86.34%] overflow-hidden rounded-[12px] bg-zinc-950 shadow-[inset_0_0_4px_rgb(255_255_255/0.13)] ring-1 ring-inset ring-zinc-800">
+            <div className="absolute inset-x-[2.26%] inset-y-[1.16%] flex items-center justify-center overflow-hidden rounded-[10px] bg-zinc-950">
+              {paywall.thumbnailUrl ? (
+                <img
+                  alt={paywall.name}
+                  className="size-full object-cover object-top"
+                  loading="lazy"
+                  src={paywall.thumbnailUrl}
+                />
+              ) : (
+                <Smartphone className="h-10 w-10 text-zinc-400 opacity-30" />
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Info Area */}
-        <div className="border-t p-4">
-          <h3 className="truncate font-medium">{paywall.name}</h3>
-          <p className="mt-0.5 truncate text-muted-foreground text-sm">{paywall.slug}</p>
+        <div className="px-4 py-3.5">
+          <h3 className="truncate font-medium text-sm">{paywall.name}</h3>
+          <p className="mt-1 truncate text-muted-foreground text-xs">
+            {paywall.slug}
+          </p>
         </div>
       </Link>
 

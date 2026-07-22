@@ -1,11 +1,10 @@
-import { Cause, Context, Effect, Layer, Predicate, Schema } from "effect";
+import { Context, Effect, Layer, Predicate, Schema } from "effect";
 
-import { Db, and, eq, isNull, lt, or, paywalls, type Paywall } from "@voidhash/db";
+import { Db, eq, paywalls, type Paywall } from "@voidhash/db";
 import { hashSource } from "@voidhash/paywall-workspace";
 
 import {
   derivePaywallThumbnailKey,
-  isOwnedPaywallThumbnailUrl,
   paywallThumbnailKeyFromUrl,
 } from "../../domain/paywallThumbnail.ts";
 import { componentServingPreviewKey } from "../paywallDeploys/PaywallDeployManifest.ts";
@@ -94,8 +93,10 @@ export const collectLocalComponentSources = (
 
 /**
  * `PaywallThumbnailService` owns the render vertical of the paywall-thumbnail
- * feature: it renders a mimic document snapshot to a PNG and publishes it,
- * gated by a monotonic `seq` guard so a late render never clobbers a newer one.
+ * feature: it renders a mimic document snapshot to a PNG, overwrites the
+ * paywall's stable object key, and versions the public URL with the document
+ * `seq`. A row lock and monotonic guard keep a late render from clobbering a
+ * newer one.
  * Queue consumers call `handleDocumentIdle`; list-page backfills call
  * `renderCurrent` so paywalls created before idle notifications were available
  * (or whose best-effort queue message was exhausted) can recover.
@@ -226,71 +227,56 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
           width: THUMBNAIL_WIDTH,
         });
 
-        const key = derivePaywallThumbnailKey(paywall.projectId, paywall.id, seq);
-        yield* publicFileStore.putObject({ body: png, contentType: "image/png", key });
-        const url = publicFileStore.publicUrl(key);
+        const key = derivePaywallThumbnailKey(paywall.projectId, paywall.id);
+        const stored = yield* db.transaction((tx) =>
+          Effect.gen(function* () {
+            // Serialize only the final overwrite. Rendering happens before this
+            // transaction, while the lock prevents an older completed render
+            // from replacing a newer thumbnail at the shared object key.
+            const [current] = yield* tx
+              .select()
+              .from(paywalls)
+              .where(eq(paywalls.id, paywall.id))
+              .for("update");
 
-        // Race-guarded write: only advance if no newer render beat us to the
-        // row. A concurrent render for a higher seq wins; we delete the object
-        // we just wrote and stop.
-        const updated = yield* db
-          .update(paywalls)
-          .set({ thumbnailSeq: seq, thumbnailUrl: url })
-          .where(
-            and(
-              eq(paywalls.id, paywall.id),
-              or(
-                isNull(paywalls.thumbnailSeq),
-                lt(paywalls.thumbnailSeq, seq),
-                and(eq(paywalls.thumbnailSeq, seq), isNull(paywalls.thumbnailUrl)),
-              ),
-            ),
-          )
-          .returning({ id: paywalls.id });
+            if (
+              current === undefined ||
+              (current.thumbnailSeq !== null &&
+                (current.thumbnailSeq > seq ||
+                  (current.thumbnailSeq === seq && current.thumbnailUrl !== null)))
+            ) {
+              return false;
+            }
 
-        if (updated.length === 0) {
+            const previousKey =
+              current.thumbnailUrl === null
+                ? null
+                : paywallThumbnailKeyFromUrl(
+                    current.thumbnailUrl,
+                    paywall.projectId,
+                    paywall.id,
+                    publicFileStore.publicBaseUrl,
+                  );
+            if (previousKey !== null && previousKey !== key) {
+              yield* publicFileStore.deleteObject(previousKey);
+            }
+
+            yield* publicFileStore.putObject({ body: png, contentType: "image/png", key });
+            const url = `${publicFileStore.publicUrl(key)}?v=${seq}`;
+            yield* tx
+              .update(paywalls)
+              .set({ thumbnailSeq: seq, thumbnailUrl: url })
+              .where(eq(paywalls.id, paywall.id));
+
+            return true;
+          }),
+        );
+
+        if (!stored) {
           yield* Effect.logDebug(
             `Paywall ${paywall.id} thumbnail seq ${seq} lost the write race; discarding`,
           );
-          yield* publicFileStore
-            .deleteObject(key)
-            .pipe(
-              Effect.catchCause((cause) =>
-                Effect.logWarning(
-                  `Failed to delete superseded thumbnail object ${key}: ${Cause.pretty(cause)}`,
-                ),
-              ),
-            );
           return;
-        }
-
-        // Best-effort cleanup of the PREVIOUS thumbnail object, scoped to keys
-        // we own for this project + paywall.
-        if (
-          isOwnedPaywallThumbnailUrl(
-            paywall.thumbnailUrl,
-            paywall.projectId,
-            paywall.id,
-            publicFileStore.publicBaseUrl,
-          )
-        ) {
-          const previousKey = paywallThumbnailKeyFromUrl(
-            paywall.thumbnailUrl!,
-            paywall.projectId,
-            paywall.id,
-            publicFileStore.publicBaseUrl,
-          );
-          if (previousKey !== null && previousKey !== key) {
-            yield* publicFileStore
-              .deleteObject(previousKey)
-              .pipe(
-                Effect.catchCause((cause) =>
-                  Effect.logWarning(
-                    `Failed to delete previous thumbnail object ${previousKey}: ${Cause.pretty(cause)}`,
-                  ),
-                ),
-              );
-          }
         }
 
         yield* Effect.log(`Rendered thumbnail for paywall ${paywall.id} at seq ${seq}`);

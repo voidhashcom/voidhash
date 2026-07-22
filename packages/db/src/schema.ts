@@ -1316,9 +1316,9 @@ export const paywalls = pgTable(
     projectId: varchar("project_id", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull(),
     source: smallint("source").notNull().default(PaywallSource.editor),
-    // Public URL of the most recently rendered paywall thumbnail (null until the
-    // first idle render lands). `thumbnailSeq` is the mimic document `seq` that
-    // thumbnail was rendered from — the monotonic guard that keeps a late idle
+    // Public URL of the most recently rendered paywall thumbnail, including its
+    // cache-busting `seq` query (null until the first idle render lands).
+    // `thumbnailSeq` also provides the monotonic guard that keeps a late idle
     // render from overwriting a newer one (see PaywallThumbnailService).
     thumbnailUrl: text("thumbnail_url"),
     thumbnailSeq: bigint("thumbnail_seq", { mode: "number" }),

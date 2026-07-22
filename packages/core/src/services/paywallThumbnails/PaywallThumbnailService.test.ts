@@ -151,11 +151,20 @@ describe("PaywallThumbnailService local components", () => {
     const paywall = {
       id: paywallId,
       projectId,
-      thumbnailSeq: null,
-      thumbnailUrl: null,
+      thumbnailSeq: 11,
+      thumbnailUrl: "https://files.test/files/paywall-thumbnails/proj_local/pw_local/11.png",
     };
     let rendererInput: unknown;
     let compileCalls = 0;
+    let storedObject:
+      | {
+          readonly body: Uint8Array;
+          readonly contentType: string | undefined;
+          readonly key: string;
+        }
+      | undefined;
+    let thumbnailUpdate: unknown;
+    const storageOperations: string[] = [];
 
     const db = {
       query: {
@@ -163,13 +172,22 @@ describe("PaywallThumbnailService local components", () => {
           findFirst: () => Effect.succeed(paywall),
         },
       },
-      update: () => ({
-        set: () => ({
-          where: () => ({
-            returning: () => Effect.succeed([{ id: paywallId }]),
+      transaction: (run: (tx: unknown) => unknown) =>
+        run({
+          select: () => ({
+            from: () => ({
+              where: () => ({
+                for: () => Effect.succeed([paywall]),
+              }),
+            }),
+          }),
+          update: () => ({
+            set: (value: unknown) => {
+              thumbnailUpdate = value;
+              return { where: () => Effect.void };
+            },
           }),
         }),
-      }),
     };
     const dependencies = Layer.mergeAll(
       Layer.succeed(Db, db as never),
@@ -211,9 +229,16 @@ describe("PaywallThumbnailService local components", () => {
       Layer.succeed(PublicFileStore, {
         publicBaseUrl: "https://files.test",
         publicUrl: (key) => `https://files.test/files/${key}`,
-        putObject: () => Effect.void,
+        putObject: (input) =>
+          Effect.sync(() => {
+            storedObject = input;
+            storageOperations.push(`put:${input.key}`);
+          }),
         getObject: () => Effect.succeed(null),
-        deleteObject: () => Effect.void,
+        deleteObject: (key) =>
+          Effect.sync(() => {
+            storageOperations.push(`delete:${key}`);
+          }),
       }),
       Layer.succeed(SnapshotImageRenderer, {
         render: (input) =>
@@ -237,5 +262,18 @@ describe("PaywallThumbnailService local components", () => {
       localComponentTrees: { [componentPath]: previewTrees },
       snapshot,
     });
+    expect(storedObject).toMatchObject({
+      contentType: "image/png",
+      key: "paywall-thumbnails/proj_local/pw_local/thumbnail.png",
+    });
+    expect(thumbnailUpdate).toEqual({
+      thumbnailSeq: 12,
+      thumbnailUrl:
+        "https://files.test/files/paywall-thumbnails/proj_local/pw_local/thumbnail.png?v=12",
+    });
+    expect(storageOperations).toEqual([
+      "delete:paywall-thumbnails/proj_local/pw_local/11.png",
+      "put:paywall-thumbnails/proj_local/pw_local/thumbnail.png",
+    ]);
   });
 });

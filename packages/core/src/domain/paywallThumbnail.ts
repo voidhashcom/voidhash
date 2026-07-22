@@ -2,22 +2,16 @@
  * Public URL + object-key helpers for paywall thumbnails, mirroring the
  * ownership guards in {@link file://./paywallAssetImage.ts}. Thumbnails live in
  * the same public file store as paywall assets, under a distinct
- * `paywall-thumbnails/<projectId>/<paywallId>/<seq>.png` layout, and are served
- * at `${publicBaseUrl}/files/<key>` like every other public object.
+ * `paywall-thumbnails/<projectId>/<paywallId>/thumbnail.png` layout, and are
+ * served at `${publicBaseUrl}/files/<key>` like every other public object.
  */
 
 /**
- * Content-addressed-by-seq object key for one rendered thumbnail:
- * `paywall-thumbnails/<projectId>/<paywallId>/<seq>.png`. The `seq` in the key
- * makes each render immutable, so a newer render never overwrites an older
- * object in place — the previous object is deleted best-effort after the row
- * flips to the new URL.
+ * Stable object key for a paywall's rendered thumbnail. New renders overwrite
+ * this object so each paywall owns at most one current thumbnail.
  */
-export const derivePaywallThumbnailKey = (
-  projectId: string,
-  paywallId: string,
-  seq: number,
-): string => `paywall-thumbnails/${projectId}/${paywallId}/${seq}.png`;
+export const derivePaywallThumbnailKey = (projectId: string, paywallId: string): string =>
+  `paywall-thumbnails/${projectId}/${paywallId}/thumbnail.png`;
 
 /**
  * Whether a stored thumbnail URL points at an object owned by the given
@@ -48,6 +42,6 @@ export const paywallThumbnailKeyFromUrl = (
   if (!url.startsWith(prefix)) {
     return null;
   }
-  const key = url.slice(prefix.length);
-  return key.startsWith(`paywall-thumbnails/${projectId}/${paywallId}/`) ? key : null;
+  const key = url.slice(prefix.length).split(/[?#]/, 1)[0];
+  return key?.startsWith(`paywall-thumbnails/${projectId}/${paywallId}/`) ? key : null;
 };
