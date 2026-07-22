@@ -1,8 +1,11 @@
 "use client";
 
 import { Button, Tabs, TabsList, TabsTrigger } from "@voidhash/ui";
+import { useParams } from "@tanstack/react-router";
 import { XIcon } from "lucide-react";
 import { useStore } from "zustand/react";
+
+import { PaywallThumbnailAdminSlot } from "@/features/studio/paywalls/designer/dev-mode/paywall-thumbnail-admin-slot";
 
 import { usePaywallDesignerActions, usePaywallDesignerStore } from "../state/designer-store";
 import type { DevModeTab } from "../state/designer-store-state";
@@ -19,6 +22,7 @@ const DEV_MODE_TABS: { value: DevModeTab; label: string }[] = [
 ];
 
 export function DevModeView() {
+  const { id: paywallId } = useParams({ strict: false });
   const store = usePaywallDesignerStore();
   const dispatch = usePaywallDesignerActions();
   const activeTab = useStore(store, (state) => state.devMode.activeTab);
@@ -46,9 +50,12 @@ export function DevModeView() {
             ))}
           </TabsList>
         </Tabs>
-        <Button variant="ghost" size="icon" onClick={handleClose}>
-          <XIcon className="size-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <PaywallThumbnailAdminSlot paywallId={paywallId} />
+          <Button variant="ghost" size="icon" onClick={handleClose}>
+            <XIcon className="size-4" />
+          </Button>
+        </div>
       </div>
       <div className="flex-1 overflow-hidden">
         {activeTab === "snapshot" && <SnapshotInspector />}

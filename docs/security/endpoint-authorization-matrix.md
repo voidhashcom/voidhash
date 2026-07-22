@@ -74,7 +74,7 @@ database-backed cross-tenant case. “Gap” is a publication blocker.
 | PaywallComponent | `ListPaywallComponents`, `GetPaywallComponentVersions` |
 | PaywallDeploy | `ListPaywallDeploys`, `SetActivePaywallRelease` |
 | PaywallLocation | `ListPaywallLocations`, `CreatePaywallLocation`, `UpdatePaywallLocation`, `ArchivePaywallLocation`, `AssignPaywallLocationShowing`, `ClearPaywallLocationShowing`, `ListPaywallLocationShowings` |
-| Paywall | `ListPaywalls`, `BackfillPaywallThumbnails`, `CreatePaywall`, `RenamePaywall`, `ArchivePaywall`, `RestorePaywall`, `DeletePaywall`, `RequestPaywallEditToken`, `CreatePaywallRelease`, `PublishPaywallRelease`, `GetPaywallDraftRelease` |
+| Paywall | `ListPaywalls`, `CreatePaywall`, `RenamePaywall`, `ArchivePaywall`, `RestorePaywall`, `DeletePaywall`, `RequestPaywallEditToken`, `CreatePaywallRelease`, `PublishPaywallRelease`, `GetPaywallDraftRelease` |
 | PaywallWorkspace | `ListWorkspacePaywalls`, `ReadPaywallDocument`, `RecordComponentManifest` |
 | Perk | `ListPerks`, `CreatePerk`, `DeletePerk` |
 | ProductPerk | `ListProductPerksByProductId`, `CreateProductPerk`, `DeleteProductPerk` |

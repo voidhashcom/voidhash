@@ -97,9 +97,9 @@ export const collectLocalComponentSources = (
  * paywall's stable object key, and versions the public URL with the document
  * `seq`. A row lock and monotonic guard keep a late render from clobbering a
  * newer one.
- * Queue consumers call `handleDocumentIdle`; list-page backfills call
- * `renderCurrent` so paywalls created before idle notifications were available
- * (or whose best-effort queue message was exhausted) can recover.
+ * Queue consumers call `handleDocumentIdle` for standard renders. Administrative
+ * repair tools call `forceRenderCurrent` to explicitly replace the current
+ * document's thumbnail.
  *
  * The queue is generic — non-paywall documents may arrive — so a missing
  * paywall row is a silent no-op. `Db`, `MimicHost`, `PaywallArtifactStore`,
@@ -196,14 +196,16 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
         });
 
       const renderPaywall = Effect.fn("renderPaywallThumbnail")(function* (input: {
+        readonly force?: boolean;
         readonly paywall: Paywall;
         readonly seq: number;
         readonly snapshot: unknown;
       }) {
-        const { paywall, seq, snapshot } = input;
+        const { force = false, paywall, seq, snapshot } = input;
 
         // Idempotency guard: a render at or beyond this seq already landed.
         if (
+          !force &&
           paywall.thumbnailSeq !== null &&
           (paywall.thumbnailSeq > seq ||
             (paywall.thumbnailSeq === seq && paywall.thumbnailUrl !== null))
@@ -211,7 +213,7 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
           yield* Effect.logDebug(
             `Paywall ${paywall.id} thumbnail already at seq ${paywall.thumbnailSeq} >= ${seq}; skipping`,
           );
-          return;
+          return false;
         }
 
         const contentHashes = collectDeployedComponentContentHashes(snapshot);
@@ -243,7 +245,7 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
               current === undefined ||
               (current.thumbnailSeq !== null &&
                 (current.thumbnailSeq > seq ||
-                  (current.thumbnailSeq === seq && current.thumbnailUrl !== null)))
+                  (!force && current.thumbnailSeq === seq && current.thumbnailUrl !== null)))
             ) {
               return false;
             }
@@ -262,7 +264,8 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
             }
 
             yield* publicFileStore.putObject({ body: png, contentType: "image/png", key });
-            const url = `${publicFileStore.publicUrl(key)}?v=${seq}`;
+            const cacheVersion = force ? `${seq}&r=${crypto.randomUUID()}` : String(seq);
+            const url = `${publicFileStore.publicUrl(key)}?v=${cacheVersion}`;
             yield* tx
               .update(paywalls)
               .set({ thumbnailSeq: seq, thumbnailUrl: url })
@@ -276,10 +279,11 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
           yield* Effect.logDebug(
             `Paywall ${paywall.id} thumbnail seq ${seq} lost the write race; discarding`,
           );
-          return;
+          return false;
         }
 
         yield* Effect.log(`Rendered thumbnail for paywall ${paywall.id} at seq ${seq}`);
+        return true;
       });
 
       const handleDocumentIdle = Effect.fn("handleDocumentIdle")(
@@ -325,58 +329,72 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
                     message: `${error.message}: ${error.cause}`,
                   }),
                 ),
+              SqlError: (error) =>
+                Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
               SnapshotImageRenderError: (error) =>
                 Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
             }),
           ),
       );
 
-      const renderCurrent = Effect.fn("renderCurrentPaywallThumbnail")(
-        function* (paywallId: string) {
+      const renderCurrentPaywall = (paywallId: string, force: boolean) =>
+        Effect.gen(function* () {
           yield* Effect.annotateCurrentSpan("voidhash.paywall.id", paywallId);
           const paywall = yield* db.query.paywalls.findFirst({ where: { id: paywallId } });
           if (!paywall) {
-            return;
+            return false;
           }
           yield* Effect.annotateCurrentSpan("voidhash.project.id", paywall.projectId);
 
           yield* mimicHost.ensurePaywallDocument(paywall.id);
           const document = yield* mimicHost.getPaywallDocument(paywall.id);
           yield* Effect.annotateCurrentSpan("voidhash.paywall_thumbnail.seq", document.version);
-          yield* renderPaywall({ paywall, seq: document.version, snapshot: document.root });
-        },
-        (effect) =>
-          effect.pipe(
-            Effect.catchTags({
-              EffectDrizzleQueryError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
-              ComponentCompilerError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-              ComponentManifestCacheError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-              ComponentManifestInvalidError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-              MimicHostError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-              PaywallArtifactStoreError: (error) =>
-                Effect.fail(
-                  new PaywallThumbnailServiceError({
-                    message: `${error.message}: ${error.cause}`,
-                  }),
-                ),
-              PublicFileStoreError: (error) =>
-                Effect.fail(
-                  new PaywallThumbnailServiceError({
-                    message: `${error.message}: ${error.cause}`,
-                  }),
-                ),
-              SnapshotImageRenderError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-            }),
-          ),
+          return yield* renderPaywall({
+            force,
+            paywall,
+            seq: document.version,
+            snapshot: document.root,
+          });
+        }).pipe(
+          Effect.catchTags({
+            EffectDrizzleQueryError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
+            ComponentCompilerError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+            ComponentManifestCacheError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+            ComponentManifestInvalidError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+            PaywallArtifactStoreError: (error) =>
+              Effect.fail(
+                new PaywallThumbnailServiceError({
+                  message: `${error.message}: ${error.cause}`,
+                }),
+              ),
+            PublicFileStoreError: (error) =>
+              Effect.fail(
+                new PaywallThumbnailServiceError({
+                  message: `${error.message}: ${error.cause}`,
+                }),
+              ),
+            SqlError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
+            SnapshotImageRenderError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+          }),
+        );
+
+      const renderCurrent = Effect.fn("renderCurrentPaywallThumbnail")((paywallId: string) =>
+        renderCurrentPaywall(paywallId, false),
       );
 
-      return { handleDocumentIdle, renderCurrent } as const;
+      const forceRenderCurrent = Effect.fn("forceRenderCurrentPaywallThumbnail")(
+        (paywallId: string) => renderCurrentPaywall(paywallId, true),
+      );
+
+      return { forceRenderCurrent, handleDocumentIdle, renderCurrent } as const;
     }),
   },
 ) {
