@@ -27,6 +27,7 @@ pages:
   - label
   - menubar
   - navigation-menu
+  - page-bar
   - pagination
   - popover
   - progress

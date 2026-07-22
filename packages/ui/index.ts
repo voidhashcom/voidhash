@@ -10,6 +10,7 @@ export * from "./components/theme-provider";
 export * from "./components/theme-provider-tanstack";
 export * from "./components/theme-toggle";
 export * from "./components/page";
+export * from "./components/page-bar";
 export * from "./components/ui/accordion";
 export * from "./components/ui/alert";
 export * from "./components/ui/alert-dialog";

@@ -241,11 +241,16 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
               .where(eq(paywalls.id, paywall.id))
               .for("update");
 
+            // A forced render bypasses the monotonic guard entirely: the operator
+            // explicitly replaces whatever is stored with the document state read
+            // above. If a newer queue render raced ahead, the lower stored seq
+            // self-heals on the next idle notification.
             if (
               current === undefined ||
-              (current.thumbnailSeq !== null &&
+              (!force &&
+                current.thumbnailSeq !== null &&
                 (current.thumbnailSeq > seq ||
-                  (!force && current.thumbnailSeq === seq && current.thumbnailUrl !== null)))
+                  (current.thumbnailSeq === seq && current.thumbnailUrl !== null)))
             ) {
               return false;
             }
@@ -348,11 +353,18 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
 
           yield* mimicHost.ensurePaywallDocument(paywall.id);
           const document = yield* mimicHost.getPaywallDocument(paywall.id);
-          yield* Effect.annotateCurrentSpan("voidhash.paywall_thumbnail.seq", document.version);
+          // The idle queue publishes in seq-space — `version - 1` (see mimic-db's
+          // document-session, where the accepted-transaction hook records
+          // `result.version - 1`). Convert here so current-document renders share
+          // the same monotonic axis as queue-driven renders; passing the raw
+          // version would mark the row one step ahead and silently skip the next
+          // idle render.
+          const seq = Math.max(0, document.version - 1);
+          yield* Effect.annotateCurrentSpan("voidhash.paywall_thumbnail.seq", seq);
           return yield* renderPaywall({
             force,
             paywall,
-            seq: document.version,
+            seq,
             snapshot: document.root,
           });
         }).pipe(

@@ -70,7 +70,8 @@
     "./copy-text": "./components/copy-text.tsx",
     "./error-card": "./components/error-card.tsx",
     "./theme-toggle": "./components/theme-toggle.tsx",
-    "./page": "./components/page.tsx"
+    "./page": "./components/page.tsx",
+    "./page-bar": "./components/page-bar.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

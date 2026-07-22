@@ -1,5 +1,6 @@
 import { HtmlScreenshot } from "@voidhash/core/services/paywallThumbnails/HtmlScreenshot";
 import { SnapshotImageRenderer } from "@voidhash/core/services/paywallThumbnails/SnapshotImageRenderer";
+import { PublicFileStore } from "@voidhash/core/services/storage/PublicFileStore";
 import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 
@@ -42,6 +43,15 @@ describe("self-host paywall thumbnail renderer", () => {
         Effect.provide(
           SelfhostSnapshotImageRendererLive.pipe(
             Layer.provide(screenshot),
+            Layer.provide(
+              Layer.succeed(PublicFileStore, {
+                publicBaseUrl: "https://files.test",
+                publicUrl: (key) => `https://files.test/files/${key}`,
+                putObject: () => Effect.void,
+                getObject: () => Effect.succeed(null),
+                deleteObject: () => Effect.void,
+              }),
+            ),
           ),
         ),
       ),

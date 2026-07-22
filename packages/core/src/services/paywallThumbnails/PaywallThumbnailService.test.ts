@@ -318,7 +318,9 @@ describe("PaywallThumbnailService forced renders", () => {
       Layer.succeed(Db, db as never),
       Layer.succeed(MimicHost, {
         ensurePaywallDocument: () => Effect.void,
-        getPaywallDocument: () => Effect.succeed({ root: snapshot, version: 7 }),
+        // Version-space is one ahead of the queue's seq-space: version 8 is the
+        // same document state a queue render would have stored as seq 7.
+        getPaywallDocument: () => Effect.succeed({ root: snapshot, version: 8 }),
       } as never),
       Layer.succeed(PaywallArtifactStore, {
         bucketName: "test",
@@ -366,5 +368,85 @@ describe("PaywallThumbnailService forced renders", () => {
     expect(thumbnailUpdate?.thumbnailUrl).toMatch(
       /^https:\/\/files\.test\/files\/paywall-thumbnails\/proj_force\/pw_force\/thumbnail\.png\?v=7&r=[0-9a-f-]+$/,
     );
+  });
+
+  it("bypasses a stored thumbnailSeq ahead of the current document (repairs poisoned rows)", async () => {
+    // A row written with a version-space seq (the pre-fix force path) sits one
+    // ahead of anything the queue will ever publish; force must still replace it.
+    const paywall = {
+      id: "pw_repair",
+      projectId: "proj_repair",
+      thumbnailSeq: 8,
+      thumbnailUrl:
+        "https://files.test/files/paywall-thumbnails/proj_repair/pw_repair/thumbnail.png?v=8",
+    };
+    const snapshot = { children: [], type: "root" };
+    let thumbnailUpdate: { thumbnailSeq: number; thumbnailUrl: string } | undefined;
+
+    const db = {
+      query: {
+        paywalls: {
+          findFirst: () => Effect.succeed(paywall),
+        },
+      },
+      transaction: (run: (tx: unknown) => unknown) =>
+        run({
+          select: () => ({
+            from: () => ({
+              where: () => ({
+                for: () => Effect.succeed([paywall]),
+              }),
+            }),
+          }),
+          update: () => ({
+            set: (value: typeof thumbnailUpdate) => {
+              thumbnailUpdate = value;
+              return { where: () => Effect.void };
+            },
+          }),
+        }),
+    };
+    const dependencies = Layer.mergeAll(
+      Layer.succeed(Db, db as never),
+      Layer.succeed(MimicHost, {
+        ensurePaywallDocument: () => Effect.void,
+        getPaywallDocument: () => Effect.succeed({ root: snapshot, version: 8 }),
+      } as never),
+      Layer.succeed(PaywallArtifactStore, {
+        bucketName: "test",
+        getObject: () => Effect.succeed(null),
+        head: () => Effect.succeed(null),
+        putObject: () => Effect.void,
+      }),
+      Layer.succeed(ComponentCompiler, {
+        compileAndExtract: () => Effect.succeed({ status: "unavailable" as const }),
+        compileCheck: () => Effect.succeed({ status: "unavailable" as const }),
+      }),
+      Layer.succeed(ComponentManifestCacheService, {
+        getMany: () => Effect.succeed(new Map()),
+        record: () => Effect.succeed(undefined),
+      }),
+      Layer.succeed(PublicFileStore, {
+        deleteObject: () => Effect.void,
+        getObject: () => Effect.succeed(null),
+        publicBaseUrl: "https://files.test",
+        publicUrl: (key) => `https://files.test/files/${key}`,
+        putObject: () => Effect.void,
+      }),
+      Layer.succeed(SnapshotImageRenderer, {
+        render: () => Effect.succeed(new Uint8Array([1, 2, 3])),
+      }),
+    );
+    const layer = PaywallThumbnailService.layer.pipe(Layer.provide(dependencies));
+
+    const forced = await Effect.runPromise(
+      Effect.gen(function* () {
+        const service = yield* PaywallThumbnailService;
+        return yield* service.forceRenderCurrent(paywall.id);
+      }).pipe(Effect.provide(layer)),
+    );
+
+    expect(forced).toBe(true);
+    expect(thumbnailUpdate).toMatchObject({ thumbnailSeq: 7 });
   });
 });

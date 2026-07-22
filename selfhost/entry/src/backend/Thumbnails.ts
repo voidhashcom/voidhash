@@ -3,12 +3,14 @@ import {
   HtmlScreenshot,
   HtmlScreenshotError,
 } from "@voidhash/core/services/paywallThumbnails/HtmlScreenshot";
+import { inlinePublicFileImages } from "@voidhash/core/services/paywallThumbnails/inlinePublicFileImages";
 import { PaywallThumbnailService } from "@voidhash/core/services/paywallThumbnails/PaywallThumbnailService";
 import {
   SnapshotImageRenderer,
   SnapshotImageRenderError,
   type SnapshotImageRendererShape,
 } from "@voidhash/core/services/paywallThumbnails/SnapshotImageRenderer";
+import { PublicFileStore } from "@voidhash/core/services/storage/PublicFileStore";
 import type {
   PreviewTree,
   SnapshotNode,
@@ -47,11 +49,17 @@ export const SelfhostHtmlScreenshotLive = Layer.effect(
   }),
 );
 
-/** Renders a Mimic paywall snapshot to static HTML, then to PNG bytes. */
+/**
+ * Renders a Mimic paywall snapshot to static HTML, then to PNG bytes.
+ * Public-file-store asset URLs are inlined as `data:` URIs first so the
+ * screenshot browser never depends on the serving origin being reachable
+ * (e.g. a container that cannot hairpin back to its own public domain).
+ */
 export const SelfhostSnapshotImageRendererLive = Layer.effect(
   SnapshotImageRenderer,
   Effect.gen(function* () {
     const htmlScreenshot = yield* HtmlScreenshot;
+    const publicFileStore = yield* PublicFileStore;
     const { renderPaywallToHtml } = yield* Effect.promise(async () => {
       const preact = await import("preact");
       const runtimeGlobals = globalThis as unknown as {
@@ -96,8 +104,18 @@ export const SelfhostSnapshotImageRendererLive = Layer.effect(
               }),
           });
 
+          const inlined = yield* inlinePublicFileImages(html, publicFileStore).pipe(
+            Effect.mapError(
+              (error) =>
+                new SnapshotImageRenderError({
+                  cause: error.cause,
+                  message: error.message,
+                }),
+            ),
+          );
+
           return yield* htmlScreenshot
-            .screenshot({ deviceScaleFactor, height, html, width })
+            .screenshot({ deviceScaleFactor, height, html: inlined, width })
             .pipe(
               Effect.mapError(
                 (error) =>
@@ -115,7 +133,7 @@ export const SelfhostSnapshotImageRendererLive = Layer.effect(
 /** Builds the Chromium-backed snapshot renderer shared by MCP previews and thumbnails. */
 export const makeSelfhostSnapshotImageRendererLive = (
   screenshotConfig: ChromiumScreenshotConfig,
-): Layer.Layer<SnapshotImageRenderer> =>
+): Layer.Layer<SnapshotImageRenderer, never, PublicFileStore> =>
   SelfhostSnapshotImageRendererLive.pipe(
     Layer.provide(
       SelfhostHtmlScreenshotLive.pipe(
