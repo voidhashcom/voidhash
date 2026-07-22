@@ -26,6 +26,7 @@ import {
   MoreHorizontalIcon,
   PencilIcon,
   Smartphone,
+  SquarePenIcon,
   Trash2Icon,
 } from "lucide-react";
 import { useState } from "react";
@@ -46,9 +47,10 @@ interface PaywallCardProps {
 }
 
 /**
- * A single paywall tile in the dashboard grid: a link into the designer plus a
- * kebab menu with Rename / Archive (or Restore) / Delete. Archived paywalls are
- * dimmed and badged, and expose Restore in place of Archive.
+ * A single paywall tile in the dashboard grid: a link to the paywall detail
+ * page plus a kebab menu with Edit (straight into the designer) / Rename /
+ * Archive (or Restore) / Delete. Archived paywalls are dimmed and badged, and
+ * expose Restore in place of Archive.
  */
 export function PaywallCard({ paywall, organizationSlug, projectSlug }: PaywallCardProps) {
   const queryClient = useQueryClient();
@@ -99,7 +101,7 @@ export function PaywallCard({ paywall, organizationSlug, projectSlug }: PaywallC
           isArchived ? "opacity-60" : ""
         }`}
         params={{ id: paywall.id, organizationSlug, projectSlug }}
-        to="/studio/$organizationSlug/$projectSlug/design/$id"
+        to="/studio/$organizationSlug/$projectSlug/paywalls/$id"
       >
         {/* Preview Area */}
         <div className="relative flex aspect-[246/278] items-center justify-center overflow-hidden bg-linear-150 from-blue-ribbon-950 to-electric-violet-950">
@@ -158,6 +160,15 @@ export function PaywallCard({ paywall, organizationSlug, projectSlug }: PaywallC
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link
+                params={{ id: paywall.id, organizationSlug, projectSlug }}
+                to="/studio/$organizationSlug/$projectSlug/design/$id"
+              >
+                <SquarePenIcon />
+                Edit
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setRenameOpen(true)}>
               <PencilIcon />
               Rename

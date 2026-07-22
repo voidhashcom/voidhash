@@ -49,14 +49,12 @@ import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlug
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/index'
 import { Route as StudioAuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRouteImport } from './routes/studio/_authenticated/_designer/$organizationSlug.$projectSlug.design.$id'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview'
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/deploys'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/index'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products.index'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons.index'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls.index'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags.index'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments.index'
-import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/assets.index'
 import { Route as StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsIndexRouteImport } from './routes/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings.index'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations'
@@ -64,6 +62,7 @@ import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlug
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIdRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products.$id'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsIdRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons.$id'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIdRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags.$id'
+import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls.$id'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIdRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments.$id'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsTrialsRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.trials'
 import { Route as StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsSubscribersRouteImport } from './routes/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics.subscribers'
@@ -306,15 +305,6 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRout
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
   )
-const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRouteImport.update(
-    {
-      id: '/deploys',
-      path: '/deploys',
-      getParentRoute: () =>
-        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-    } as any,
-  )
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRoute =
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsIndexRouteImport.update(
     {
@@ -365,15 +355,6 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsI
     {
       id: '/experiments/',
       path: '/experiments/',
-      getParentRoute: () =>
-        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
-    } as any,
-  )
-const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRoute =
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRouteImport.update(
-    {
-      id: '/assets/',
-      path: '/assets/',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
@@ -446,6 +427,15 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsI
     {
       id: '/experiments/$id',
       path: '/experiments/$id',
+      getParentRoute: () =>
+        StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
+    } as any,
+  )
+const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRoute =
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRouteImport.update(
+    {
+      id: '/paywalls/$id',
+      path: '/paywalls/$id',
       getParentRoute: () =>
         StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute,
     } as any,
@@ -630,7 +620,6 @@ export interface FileRoutesByFullPath {
   '/studio/$organizationSlug': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren
   '/studio/$organizationSlug/$projectSlug': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren
   '/studio/$organizationSlug/': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
-  '/studio/$organizationSlug/$projectSlug/deploys': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRoute
   '/studio/$organizationSlug/$projectSlug/overview': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute
   '/studio/$organizationSlug/$projectSlug/design/$id': typeof StudioAuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRoute
   '/studio/$organizationSlug/$projectSlug/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
@@ -644,6 +633,7 @@ export interface FileRoutesByFullPath {
   '/studio/$organizationSlug/$projectSlug/analytics/subscribers': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsSubscribersRoute
   '/studio/$organizationSlug/$projectSlug/analytics/trials': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsTrialsRoute
   '/studio/$organizationSlug/$projectSlug/experiments/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIdRoute
+  '/studio/$organizationSlug/$projectSlug/paywalls/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRoute
   '/studio/$organizationSlug/$projectSlug/flags/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIdRoute
   '/studio/$organizationSlug/$projectSlug/persons/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsIdRoute
   '/studio/$organizationSlug/$projectSlug/products/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIdRoute
@@ -651,7 +641,6 @@ export interface FileRoutesByFullPath {
   '/studio/$organizationSlug/$projectSlug/settings/paywall-locations': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsRoute
   '/studio/$organizationSlug/$projectSlug/settings/perks': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
   '/studio/$organizationSlug/~/settings/': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsIndexRoute
-  '/studio/$organizationSlug/$projectSlug/assets/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRoute
   '/studio/$organizationSlug/$projectSlug/experiments/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIndexRoute
   '/studio/$organizationSlug/$projectSlug/flags/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIndexRoute
   '/studio/$organizationSlug/$projectSlug/paywalls/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute
@@ -695,7 +684,6 @@ export interface FileRoutesByTo {
   '/api/auth/password/sign-up': typeof ApiAuthPasswordSignUpRoute
   '/studio/create-organization': typeof StudioAuthenticatedCreateOrganizationIndexRoute
   '/studio/$organizationSlug': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
-  '/studio/$organizationSlug/$projectSlug/deploys': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRoute
   '/studio/$organizationSlug/$projectSlug/overview': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute
   '/studio/$organizationSlug/$projectSlug/design/$id': typeof StudioAuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRoute
   '/studio/$organizationSlug/$projectSlug': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
@@ -709,6 +697,7 @@ export interface FileRoutesByTo {
   '/studio/$organizationSlug/$projectSlug/analytics/subscribers': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsSubscribersRoute
   '/studio/$organizationSlug/$projectSlug/analytics/trials': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsTrialsRoute
   '/studio/$organizationSlug/$projectSlug/experiments/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIdRoute
+  '/studio/$organizationSlug/$projectSlug/paywalls/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRoute
   '/studio/$organizationSlug/$projectSlug/flags/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIdRoute
   '/studio/$organizationSlug/$projectSlug/persons/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsIdRoute
   '/studio/$organizationSlug/$projectSlug/products/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIdRoute
@@ -716,7 +705,6 @@ export interface FileRoutesByTo {
   '/studio/$organizationSlug/$projectSlug/settings/paywall-locations': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsRoute
   '/studio/$organizationSlug/$projectSlug/settings/perks': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
   '/studio/$organizationSlug/~/settings': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsIndexRoute
-  '/studio/$organizationSlug/$projectSlug/assets': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRoute
   '/studio/$organizationSlug/$projectSlug/experiments': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIndexRoute
   '/studio/$organizationSlug/$projectSlug/flags': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIndexRoute
   '/studio/$organizationSlug/$projectSlug/paywalls': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute
@@ -770,7 +758,6 @@ export interface FileRoutesById {
   '/studio/_authenticated/_dashboard/_organization/$organizationSlug': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChildren
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteWithChildren
   '/studio/_authenticated/_dashboard/_organization/$organizationSlug/': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugIndexRoute
-  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/deploys': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute
   '/studio/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id': typeof StudioAuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
@@ -784,6 +771,7 @@ export interface FileRoutesById {
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsSubscribersRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsTrialsRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIdRoute
+  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIdRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsIdRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIdRoute
@@ -791,7 +779,6 @@ export interface FileRoutesById {
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
   '/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/': typeof StudioAuthenticatedDashboardOrganizationOrganizationSlugChar126SettingsIndexRoute
-  '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/assets/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIndexRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIndexRoute
   '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/': typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute
@@ -843,7 +830,6 @@ export interface FileRouteTypes {
     | '/studio/$organizationSlug'
     | '/studio/$organizationSlug/$projectSlug'
     | '/studio/$organizationSlug/'
-    | '/studio/$organizationSlug/$projectSlug/deploys'
     | '/studio/$organizationSlug/$projectSlug/overview'
     | '/studio/$organizationSlug/$projectSlug/design/$id'
     | '/studio/$organizationSlug/$projectSlug/'
@@ -857,6 +843,7 @@ export interface FileRouteTypes {
     | '/studio/$organizationSlug/$projectSlug/analytics/subscribers'
     | '/studio/$organizationSlug/$projectSlug/analytics/trials'
     | '/studio/$organizationSlug/$projectSlug/experiments/$id'
+    | '/studio/$organizationSlug/$projectSlug/paywalls/$id'
     | '/studio/$organizationSlug/$projectSlug/flags/$id'
     | '/studio/$organizationSlug/$projectSlug/persons/$id'
     | '/studio/$organizationSlug/$projectSlug/products/$id'
@@ -864,7 +851,6 @@ export interface FileRouteTypes {
     | '/studio/$organizationSlug/$projectSlug/settings/paywall-locations'
     | '/studio/$organizationSlug/$projectSlug/settings/perks'
     | '/studio/$organizationSlug/~/settings/'
-    | '/studio/$organizationSlug/$projectSlug/assets/'
     | '/studio/$organizationSlug/$projectSlug/experiments/'
     | '/studio/$organizationSlug/$projectSlug/flags/'
     | '/studio/$organizationSlug/$projectSlug/paywalls/'
@@ -908,7 +894,6 @@ export interface FileRouteTypes {
     | '/api/auth/password/sign-up'
     | '/studio/create-organization'
     | '/studio/$organizationSlug'
-    | '/studio/$organizationSlug/$projectSlug/deploys'
     | '/studio/$organizationSlug/$projectSlug/overview'
     | '/studio/$organizationSlug/$projectSlug/design/$id'
     | '/studio/$organizationSlug/$projectSlug'
@@ -922,6 +907,7 @@ export interface FileRouteTypes {
     | '/studio/$organizationSlug/$projectSlug/analytics/subscribers'
     | '/studio/$organizationSlug/$projectSlug/analytics/trials'
     | '/studio/$organizationSlug/$projectSlug/experiments/$id'
+    | '/studio/$organizationSlug/$projectSlug/paywalls/$id'
     | '/studio/$organizationSlug/$projectSlug/flags/$id'
     | '/studio/$organizationSlug/$projectSlug/persons/$id'
     | '/studio/$organizationSlug/$projectSlug/products/$id'
@@ -929,7 +915,6 @@ export interface FileRouteTypes {
     | '/studio/$organizationSlug/$projectSlug/settings/paywall-locations'
     | '/studio/$organizationSlug/$projectSlug/settings/perks'
     | '/studio/$organizationSlug/~/settings'
-    | '/studio/$organizationSlug/$projectSlug/assets'
     | '/studio/$organizationSlug/$projectSlug/experiments'
     | '/studio/$organizationSlug/$projectSlug/flags'
     | '/studio/$organizationSlug/$projectSlug/paywalls'
@@ -982,7 +967,6 @@ export interface FileRouteTypes {
     | '/studio/_authenticated/_dashboard/_organization/$organizationSlug'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug'
     | '/studio/_authenticated/_dashboard/_organization/$organizationSlug/'
-    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/deploys'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/overview'
     | '/studio/_authenticated/_designer/$organizationSlug/$projectSlug/design/$id'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/'
@@ -996,6 +980,7 @@ export interface FileRouteTypes {
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/subscribers'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id'
+    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/$id'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/persons/$id'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/products/$id'
@@ -1003,7 +988,6 @@ export interface FileRouteTypes {
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/paywall-locations'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/perks'
     | '/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/'
-    | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/assets/'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/flags/'
     | '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/'
@@ -1318,13 +1302,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRouteImport
       parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
     }
-    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/deploys': {
-      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/deploys'
-      path: '/deploys'
-      fullPath: '/studio/$organizationSlug/$projectSlug/deploys'
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRouteImport
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
-    }
     '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/': {
       id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/settings/'
       path: '/settings'
@@ -1365,13 +1342,6 @@ declare module '@tanstack/react-router' {
       path: '/experiments'
       fullPath: '/studio/$organizationSlug/$projectSlug/experiments/'
       preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIndexRouteImport
-      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
-    }
-    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/assets/': {
-      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/assets/'
-      path: '/assets'
-      fullPath: '/studio/$organizationSlug/$projectSlug/assets/'
-      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRouteImport
       parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
     }
     '/studio/_authenticated/_dashboard/_organization/$organizationSlug/~/settings/': {
@@ -1428,6 +1398,13 @@ declare module '@tanstack/react-router' {
       path: '/experiments/$id'
       fullPath: '/studio/$organizationSlug/$projectSlug/experiments/$id'
       preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIdRouteImport
+      parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
+    }
+    '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id': {
+      id: '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id'
+      path: '/paywalls/$id'
+      fullPath: '/studio/$organizationSlug/$projectSlug/paywalls/$id'
+      preLoaderRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRouteImport
       parentRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRoute
     }
     '/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/analytics/trials': {
@@ -1636,7 +1613,6 @@ const StudioAuthenticatedDashboardOrganizationOrganizationSlugRouteRouteWithChil
   )
 
 interface StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteChildren {
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityEventsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugActivityEventsRoute
@@ -1649,13 +1625,13 @@ interface StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRou
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsSubscribersRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsSubscribersRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsTrialsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsTrialsRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIdRoute
+  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIdRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsIdRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIdRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugProductsIdRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsApiKeysRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute
-  StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIndexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIndexRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIndexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIndexRoute
   StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute: typeof StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIndexRoute
@@ -1673,8 +1649,6 @@ interface StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRou
 
 const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteChildren: StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteChildren =
   {
-    StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRoute:
-      StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugDeploysRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugOverviewRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugIndexRoute:
@@ -1699,6 +1673,8 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteCh
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAnalyticsTrialsRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIdRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIdRoute,
+    StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRoute:
+      StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPaywallsIdRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIdRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIdRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugPersonsIdRoute:
@@ -1711,8 +1687,6 @@ const StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugRouteRouteCh
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPaywallLocationsRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugSettingsPerksRoute,
-    StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRoute:
-      StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugAssetsIndexRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIndexRoute:
       StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugExperimentsIndexRoute,
     StudioAuthenticatedDashboardProjectOrganizationSlugProjectSlugFlagsIndexRoute:
