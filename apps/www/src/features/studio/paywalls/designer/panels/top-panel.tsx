@@ -128,7 +128,7 @@ export function TopPanel() {
         organizationSlug: organizationSlug ?? "",
         projectSlug: projectSlug ?? "",
       },
-      to: "/studio/$organizationSlug/$projectSlug",
+      to: "/studio/$organizationSlug/$projectSlug/paywalls",
     });
   };
 
