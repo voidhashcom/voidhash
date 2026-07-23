@@ -1,44 +1,11 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { Paywall } from "@voidhash/rpc";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  Badge,
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@voidhash/ui";
-import {
-  ArchiveIcon,
-  ArchiveRestoreIcon,
-  MoreHorizontalIcon,
-  PencilIcon,
-  Smartphone,
-  SquarePenIcon,
-  Trash2Icon,
-} from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-import {
-  archivePaywallOptions,
-  deletePaywallOptions,
-  queryKeys,
-  restorePaywallOptions,
-} from "@/features/studio/lib/tanstack-query";
+import { Badge } from "@voidhash/ui";
+import { Smartphone } from "lucide-react";
 
-import { RenamePaywallDialog } from "./rename-paywall-dialog";
+import { PaywallActionsMenu } from "./paywall-actions-menu";
 
 interface PaywallCardProps {
   paywall: typeof Paywall.Type;
@@ -49,50 +16,10 @@ interface PaywallCardProps {
 /**
  * A single paywall tile in the dashboard grid: a link to the paywall detail
  * page plus a kebab menu with Edit (straight into the designer) / Rename /
- * Archive (or Restore) / Delete. Archived paywalls are dimmed and badged, and
- * expose Restore in place of Archive.
+ * Archive (or Restore) / Delete. Archived paywalls are dimmed and badged.
  */
 export function PaywallCard({ paywall, organizationSlug, projectSlug }: PaywallCardProps) {
-  const queryClient = useQueryClient();
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const isArchived = paywall.archivedAt != null;
-
-  const invalidate = () =>
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.paywall.list({ projectId: paywall.projectId }),
-    });
-
-  const { mutate: archive, status: archiveStatus } = useMutation({
-    ...archivePaywallOptions(),
-    onError: () => toast.error("Failed to archive paywall"),
-    onSuccess: async () => {
-      toast.success("Paywall archived");
-      await invalidate();
-    },
-  });
-
-  const { mutate: restore, status: restoreStatus } = useMutation({
-    ...restorePaywallOptions(),
-    onError: () => toast.error("Failed to restore paywall"),
-    onSuccess: async () => {
-      toast.success("Paywall restored");
-      await invalidate();
-    },
-  });
-
-  const { mutate: remove, status: deleteStatus } = useMutation({
-    ...deletePaywallOptions(),
-    onError: () => toast.error("Failed to delete paywall"),
-    onSuccess: async () => {
-      toast.success("Paywall deleted");
-      await invalidate();
-      setDeleteOpen(false);
-    },
-  });
-
-  const isDeleting = deleteStatus === "pending";
-  const isMutating = archiveStatus === "pending" || restoreStatus === "pending";
 
   return (
     <div className="group relative">
@@ -147,82 +74,14 @@ export function PaywallCard({ paywall, organizationSlug, projectSlug }: PaywallC
       )}
 
       <div className="absolute top-2 right-2 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              aria-label="Paywall actions"
-              className="size-7 bg-background/80 backdrop-blur-sm"
-              disabled={isMutating}
-              size="icon-sm"
-              variant="secondary"
-            >
-              <MoreHorizontalIcon />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link
-                params={{ id: paywall.id, organizationSlug, projectSlug }}
-                to="/studio/$organizationSlug/$projectSlug/design/$id"
-              >
-                <SquarePenIcon />
-                Edit
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setRenameOpen(true)}>
-              <PencilIcon />
-              Rename
-            </DropdownMenuItem>
-            {isArchived ? (
-              <DropdownMenuItem onSelect={() => restore({ paywallId: paywall.id })}>
-                <ArchiveRestoreIcon />
-                Restore
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onSelect={() => archive({ paywallId: paywall.id })}>
-                <ArchiveIcon />
-                Archive
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => setDeleteOpen(true)} variant="destructive">
-              <Trash2Icon />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <PaywallActionsMenu
+          organizationSlug={organizationSlug}
+          paywall={paywall}
+          projectSlug={projectSlug}
+          triggerClassName="size-7 bg-background/80 backdrop-blur-sm"
+          triggerVariant="secondary"
+        />
       </div>
-
-      <RenamePaywallDialog
-        onOpenChange={setRenameOpen}
-        open={renameOpen}
-        paywall={paywall}
-        projectId={paywall.projectId}
-      />
-
-      <AlertDialog onOpenChange={setDeleteOpen} open={deleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete paywall</AlertDialogTitle>
-            <AlertDialogDescription>
-              Permanently delete <span className="font-medium">{paywall.name}</span>? This cannot be
-              undone. If this paywall might still be shown to users, archive it instead.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isDeleting}
-              onClick={(event) => {
-                event.preventDefault();
-                remove({ paywallId: paywall.id });
-              }}
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

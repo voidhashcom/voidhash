@@ -11,12 +11,18 @@ import { cn } from "../../lib/cn";
 
 export interface DocsPageProps {
   children: ReactNode;
+  full?: boolean;
 }
 
-export function DocsPage({ ...props }: DocsPageProps) {
+export function DocsPage({ full = false, ...props }: DocsPageProps) {
   return (
     <main className="flex w-full min-w-0 flex-col">
-      <article className="flex w-full max-w-[860px] flex-1 flex-col gap-6 px-4 py-8 md:mx-auto md:px-6">
+      <article
+        className={cn(
+          "flex w-full flex-1 flex-col gap-6 px-4 py-8 md:mx-auto md:px-6",
+          full ? "max-w-none" : "max-w-[860px]",
+        )}
+      >
         {props.children}
         <Footer />
       </article>

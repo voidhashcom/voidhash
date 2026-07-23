@@ -2,6 +2,7 @@
 
 // Re-export all UI components from @voidhash/ui for use in MDX
 export * from "@voidhash/ui";
+export { ComponentOverview } from "./component-overview";
 
 // Export common icons used in examples
 export {

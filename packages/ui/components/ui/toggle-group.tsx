@@ -13,75 +13,31 @@ const ToggleGroupContext = React.createContext<
   }
 >({
   size: "default",
-  spacing: 0,
+  spacing: 2,
   variant: "default",
 });
 
+/**
+ * Group of toggles that share a variant and size.
+ *
+ * @param spacing - Gap between items in Tailwind spacing units. Pass `0` to
+ * join the items into a single segmented bar with merged corners and borders.
+ */
 function ToggleGroup({
   className,
-  indicatorClassName,
   variant,
   size,
-  spacing = 0,
+  spacing = 2,
   children,
   ...props
 }: React.ComponentProps<typeof ToggleGroupPrimitive.Root> &
   VariantProps<typeof toggleVariants> & {
     spacing?: number;
-    /**
-     * Classes merged into the sliding active indicator — e.g. `bg-primary` to
-     * recolor it or `duration-150` to retime its slide animation.
-     */
-    indicatorClassName?: string;
   }) {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [indicator, setIndicator] = React.useState<{
-    left: number;
-    width: number;
-  } | null>(null);
-
-  const updateIndicator = React.useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const activeItem = container.querySelector<HTMLElement>('[data-state="on"]');
-    if (!activeItem) {
-      setIndicator(null);
-      return;
-    }
-
-    const containerRect = container.getBoundingClientRect();
-    const itemRect = activeItem.getBoundingClientRect();
-    const borderWidth = parseFloat(getComputedStyle(container).borderLeftWidth) || 0;
-
-    setIndicator({
-      left: itemRect.left - containerRect.left - borderWidth,
-      width: itemRect.width,
-    });
-  }, []);
-
-  React.useEffect(() => {
-    updateIndicator();
-
-    const container = containerRef.current;
-    if (!container) return;
-
-    const observer = new MutationObserver(updateIndicator);
-    observer.observe(container, {
-      attributes: true,
-      attributeFilter: ["data-state"],
-      subtree: true,
-    });
-
-    return () => observer.disconnect();
-  }, [updateIndicator]);
-
   return (
     <ToggleGroupPrimitive.Root
-      ref={containerRef}
       className={cn(
-        "group/toggle-group relative flex w-fit items-center gap-[--spacing(var(--gap))] rounded-lg",
-        variant === "outline" && "border-input dark:bg-input/30 border bg-transparent shadow-xs",
+        "group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))] rounded-lg data-[size=sm]:rounded-[min(var(--radius-md),10px)]",
         className,
       )}
       data-size={size}
@@ -91,19 +47,6 @@ function ToggleGroup({
       style={{ "--gap": spacing } as React.CSSProperties}
       {...props}
     >
-      {indicator && (
-        <div
-          className={cn(
-            "bg-accent absolute top-0 rounded-[calc(var(--radius-lg)-1px)] transition-all duration-200 ease-out",
-            indicatorClassName,
-          )}
-          style={{
-            height: "100%",
-            left: indicator.left,
-            width: indicator.width,
-          }}
-        />
-      )}
       <ToggleGroupContext.Provider value={{ size, spacing, variant }}>
         {children}
       </ToggleGroupContext.Provider>
@@ -114,8 +57,8 @@ function ToggleGroup({
 function ToggleGroupItem({
   className,
   children,
-  variant,
-  size,
+  variant = "default",
+  size = "default",
   ...props
 }: React.ComponentProps<typeof ToggleGroupPrimitive.Item> & VariantProps<typeof toggleVariants>) {
   const context = React.useContext(ToggleGroupContext);
@@ -123,11 +66,11 @@ function ToggleGroupItem({
   return (
     <ToggleGroupPrimitive.Item
       className={cn(
+        "shrink-0 focus:z-10 focus-visible:z-10 group-data-[spacing=0]/toggle-group:rounded-none group-data-[spacing=0]/toggle-group:px-2 data-[spacing=0]:first:rounded-l-lg data-[spacing=0]:last:rounded-r-lg data-[spacing=0]:data-[variant=outline]:border-l-0 data-[spacing=0]:data-[variant=outline]:first:border-l",
         toggleVariants({
           size: context.size || size,
           variant: context.variant || variant,
         }),
-        "relative z-10 w-auto min-w-0 shrink-0 rounded-[calc(var(--radius-lg)-1px)] border-none bg-transparent px-3 shadow-none hover:bg-accent dark:hover:bg-input/50 focus:z-20 focus-visible:z-20 data-[state=on]:bg-transparent data-[state=on]:text-accent-foreground",
         className,
       )}
       data-size={context.size || size}

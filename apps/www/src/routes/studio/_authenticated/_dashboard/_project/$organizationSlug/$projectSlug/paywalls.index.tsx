@@ -15,6 +15,13 @@ import { useAuth } from "@/features/studio/components/auth-context";
 import { CreatePaywallButton } from "@/features/studio/paywalls/create-paywall-button";
 import { PaywallCard } from "@/features/studio/paywalls/paywall-card";
 import { PaywallCardSkeleton } from "@/features/studio/paywalls/paywall-card-skeleton";
+import { PaywallTable } from "@/features/studio/paywalls/paywall-table";
+import {
+  loadPaywallView,
+  type PaywallView,
+  PaywallViewSettings,
+  persistPaywallView,
+} from "@/features/studio/paywalls/paywall-view-settings";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 import { listPaywallsOptions } from "@/features/studio/lib/tanstack-query/paywalls";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
@@ -104,6 +111,11 @@ function PaywallsPage() {
   }
 
   const [tab, setTab] = useState<PaywallTab>("active");
+  const [view, setView] = useState<PaywallView>(loadPaywallView);
+  const changeView = (next: PaywallView) => {
+    setView(next);
+    persistPaywallView(next);
+  };
   const thumbnailRefreshDeadline = useRef(Date.now() + THUMBNAIL_REFRESH_WINDOW_MS);
   const paywallsQueryOptions = listPaywallsOptions({
     includeArchived: true,
@@ -148,7 +160,7 @@ function PaywallsPage() {
         <PageHeaderTitle>Paywalls</PageHeaderTitle>
       </PageHeader>
       <PageTabs onValueChange={(value) => setTab(value as PaywallTab)} value={tab}>
-        <PageBar>
+        <PageBar rightActions={<PaywallViewSettings onViewChange={changeView} view={view} />}>
           <PageBarTabs>
             {PAYWALL_TABS.map((item) => (
               <PageBarTab key={item.value} value={item.value}>
@@ -162,6 +174,12 @@ function PaywallsPage() {
             <div className="py-20 text-center text-muted-foreground text-sm">
               {emptyStateMessage(tab)}
             </div>
+          ) : view === "table" ? (
+            <PaywallTable
+              organizationSlug={organizationSlug as string}
+              paywalls={paywalls}
+              projectSlug={projectSlug as string}
+            />
           ) : (
             <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {paywalls.map((paywall) => (

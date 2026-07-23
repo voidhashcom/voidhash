@@ -42,9 +42,9 @@ export function ActionPanel() {
         ) : (
           <>
             <ToggleGroup
-              indicatorClassName="bg-primary duration-150"
               onValueChange={(value) => dispatch(setActiveTool)({ tool: value as AvailableTool })}
               size="sm"
+              spacing={0}
               type="single"
               value={activeTool}
               variant="outline"
@@ -52,7 +52,7 @@ export function ActionPanel() {
               {TOOL_ITEMS.map(({ icon: Icon, label, value }) => (
                 <IconButtonTooltip key={value} label={label}>
                   <ToggleGroupItem
-                    className="min-w-7 px-2 text-muted-foreground hover:text-foreground data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-transparent dark:data-[state=on]:hover:bg-transparent"
+                    className="min-w-7 px-2 text-muted-foreground hover:text-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground"
                     size="sm"
                     value={value}
                   >

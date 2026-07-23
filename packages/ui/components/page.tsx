@@ -28,7 +28,9 @@ export type PageTitleProps = {
   className?: string;
 };
 export function PageHeaderTitle({ children, className }: PageTitleProps) {
-  return <h1 className={cn("text-sm font-medium text-foreground py-2", className)}>{children}</h1>;
+  return (
+    <h1 className={cn("text-[0.8rem] font-medium text-foreground py-2", className)}>{children}</h1>
+  );
 }
 
 export function PageSection() {}

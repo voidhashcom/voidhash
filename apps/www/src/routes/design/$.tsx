@@ -99,7 +99,7 @@ const serverLoader = createServerFn({ method: "GET" })
 const clientLoader = browserCollections.design.createClientLoader({
   component({ default: MDX, frontmatter }) {
     return (
-      <DocsPage>
+      <DocsPage full={frontmatter.full === true}>
         <DocsTitle>{frontmatter.title}</DocsTitle>
         <DocsDescription>{frontmatter.description}</DocsDescription>
         <DocsBody>

@@ -1,6 +1,7 @@
 icon: Component
 title: Components
 pages:
+  - overview
   - accordion
   - alert
   - alert-dialog

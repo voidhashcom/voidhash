@@ -23,13 +23,13 @@ export function ModeToggle() {
 
   return (
     <ToggleGroup
-      indicatorClassName="duration-150"
       onValueChange={(value) => {
         if (value) {
           dispatch(setMode)({ mode: value as DesignerMode });
         }
       }}
       size="sm"
+      spacing={0}
       type="single"
       value={mode}
       variant="outline"
