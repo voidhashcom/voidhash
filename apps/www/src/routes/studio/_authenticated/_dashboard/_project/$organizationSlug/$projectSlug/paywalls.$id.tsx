@@ -15,6 +15,7 @@ import {
 import { ExternalLinkIcon } from "lucide-react";
 import { useAuth } from "@/features/studio/components/auth-context";
 
+import { PaywallDetailPlacements } from "@/features/studio/paywalls/detail/paywall-detail-placements";
 import { PaywallDetailProperties } from "@/features/studio/paywalls/detail/paywall-detail-properties";
 import { PaywallDetailStats } from "@/features/studio/paywalls/detail/paywall-detail-stats";
 import { PaywallPhonePreview } from "@/features/studio/paywalls/detail/paywall-phone-preview";
@@ -134,11 +135,17 @@ function PaywallDetailPage() {
                 createdAt={paywall.createdAt}
                 draftVersion={draftRelease?.version ?? null}
                 isArchived={isArchived}
-                liveLocations={liveLocations}
+                isLive={liveLocations.length > 0}
                 liveRelease={liveRelease}
                 slug={paywall.slug}
               />
             </div>
+
+            <PaywallDetailPlacements
+              locations={locations}
+              paywallId={paywall.id}
+              projectId={project.id}
+            />
 
             <PaywallDetailStats
               locationSlugs={liveLocations.map((location) => location.slug)}

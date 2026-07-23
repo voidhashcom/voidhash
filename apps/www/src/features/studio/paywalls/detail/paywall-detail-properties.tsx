@@ -4,17 +4,11 @@ import { cn } from "@voidhash/ui";
 import { ExternalLinkIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-export interface PaywallDetailLocation {
-  id: string;
-  name: string;
-  slug: string;
-}
-
 interface PaywallDetailPropertiesProps {
   createdAt: Date | null;
   draftVersion: number | null;
   isArchived: boolean;
-  liveLocations: readonly PaywallDetailLocation[];
+  isLive: boolean;
   liveRelease: { htmlUrl: string; version: number } | null;
   slug: string;
 }
@@ -55,22 +49,18 @@ function PropertyRow({ children, label }: { children: ReactNode; label: string }
 }
 
 /**
- * Linear-style property list for the paywall detail screen — status, where the
- * paywall is live, which versions are live and drafted, and its identifiers.
+ * Linear-style property list for the paywall detail screen — status, which
+ * versions are live and drafted, and its identifiers.
  */
 export function PaywallDetailProperties({
   createdAt,
   draftVersion,
   isArchived,
-  liveLocations,
+  isLive,
   liveRelease,
   slug,
 }: PaywallDetailPropertiesProps) {
-  const status = resolveStatus({
-    draftVersion,
-    isArchived,
-    isLive: liveLocations.length > 0,
-  });
+  const status = resolveStatus({ draftVersion, isArchived, isLive });
   const { dotClassName, label } = STATUS_PRESENTATION[status];
 
   return (
@@ -80,24 +70,6 @@ export function PaywallDetailProperties({
           <span aria-hidden="true" className={cn("size-2 rounded-full", dotClassName)} />
           {label}
         </span>
-      </PropertyRow>
-
-      <PropertyRow label="Locations">
-        {liveLocations.length > 0 ? (
-          <span className="flex flex-wrap gap-x-2 gap-y-1">
-            {liveLocations.map((location) => (
-              <span
-                className="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-0.5"
-                key={location.id}
-              >
-                {location.name}
-                <span className="font-mono text-muted-foreground text-xs">{location.slug}</span>
-              </span>
-            ))}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">Not assigned</span>
-        )}
       </PropertyRow>
 
       <PropertyRow label="Live version">

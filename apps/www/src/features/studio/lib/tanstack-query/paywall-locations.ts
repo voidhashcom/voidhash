@@ -43,6 +43,8 @@ export const archivePaywallLocationOptions = () =>
     mutationKey: ["archivePaywallLocation"],
   });
 
+// `VoidhashRpc.use` (not `.request`) keeps the rpc's typed error union, so
+// consumers can match on the namespaced `Rpc/*` failure tags.
 export const assignPaywallLocationShowingOptions = () =>
   eq.mutationOptions({
     mutationFn: (variables: {
@@ -50,7 +52,7 @@ export const assignPaywallLocationShowingOptions = () =>
       locationId: string;
       paywallId?: string;
       type: "feature_flag" | "paywall_release";
-    }) => VoidhashRpc.request((rpc) => rpc.AssignPaywallLocationShowing(variables)),
+    }) => VoidhashRpc.use((rpc) => rpc.AssignPaywallLocationShowing(variables)),
     mutationKey: ["assignPaywallLocationShowing"],
   });
 
