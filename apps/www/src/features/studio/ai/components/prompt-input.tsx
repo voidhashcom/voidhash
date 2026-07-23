@@ -164,7 +164,7 @@ export function PromptInput({
             onClick={onStop}
             size="icon-sm"
             type="button"
-            variant="secondary"
+            variant="outline"
           >
             <Square className="size-3.5" />
           </Button>

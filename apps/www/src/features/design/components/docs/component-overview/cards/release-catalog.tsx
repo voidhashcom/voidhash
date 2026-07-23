@@ -59,7 +59,7 @@ export function ReleaseCatalog() {
             </InputGroupAddon>
             <InputGroupInput placeholder="Search holdings or tickers..." />
           </InputGroup>
-          <ToggleGroup type="single" defaultValue="etfs" variant="outline" spacing={1}>
+          <ToggleGroup type="single" defaultValue="etfs" spacing={1}>
             <ToggleGroupItem value="stocks">Stocks</ToggleGroupItem>
             <ToggleGroupItem value="etfs">ETFs</ToggleGroupItem>
             <ToggleGroupItem value="reits">REITs</ToggleGroupItem>

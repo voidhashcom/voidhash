@@ -32,7 +32,7 @@ export function CoverArt() {
         <input id="cover-art" type="file" accept="image/jpeg,image/png" className="sr-only" />
       </CardContent>
       <CardFooter className="flex-col gap-2">
-        <Button variant="secondary" className="w-full" asChild>
+        <Button variant="outline" className="w-full" asChild>
           <label htmlFor="cover-art" className="cursor-pointer">
             Upload Artwork
           </label>

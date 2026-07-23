@@ -35,6 +35,7 @@ const DateFromNumber = Schema.Number.pipe(
 
 export const Paywall = Schema.Struct({
   archivedAt: Schema.NullOr(DateFromNumber),
+  createdAt: Schema.NullOr(DateFromNumber),
   id: Schema.String,
   name: Schema.String,
   projectId: Schema.String,

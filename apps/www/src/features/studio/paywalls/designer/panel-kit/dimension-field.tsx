@@ -246,7 +246,7 @@ export function DimensionField({
               <Button
                 className="bg-transparent pr-3 dark:bg-transparent"
                 size="sm"
-                variant="secondary"
+                variant="ghost"
               >
                 {state === "custom" && <ChevronDownIcon className="size-3.5" />}
                 {state === "hug" && <div className="font-bold text-xs">Hug</div>}
@@ -341,7 +341,7 @@ export function DimensionFieldView({
               <Button
                 className="bg-transparent pr-3 dark:bg-transparent"
                 size="sm"
-                variant="secondary"
+                variant="ghost"
               >
                 {mode === "custom" && <ChevronDownIcon className="size-3.5" />}
                 {mode === "hug" && <div className="font-bold text-xs">Hug</div>}

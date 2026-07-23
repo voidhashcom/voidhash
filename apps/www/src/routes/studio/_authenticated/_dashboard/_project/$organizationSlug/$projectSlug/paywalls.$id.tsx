@@ -9,17 +9,15 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Page,
   PageHeader,
 } from "@voidhash/ui";
+import { ExternalLinkIcon } from "lucide-react";
 import { useAuth } from "@/features/studio/components/auth-context";
 
+import { PaywallDetailProperties } from "@/features/studio/paywalls/detail/paywall-detail-properties";
 import { PaywallDetailStats } from "@/features/studio/paywalls/detail/paywall-detail-stats";
-import { PaywallPreviewCard } from "@/features/studio/paywalls/detail/paywall-preview-card";
+import { PaywallPhonePreview } from "@/features/studio/paywalls/detail/paywall-phone-preview";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 import { listPaywallLocationsOptions } from "@/features/studio/lib/tanstack-query/paywall-locations";
 import {
@@ -96,19 +94,7 @@ function PaywallDetailPage() {
 
   return (
     <Page>
-      <PageHeader
-        className="px-2"
-        rightActions={
-          <Button asChild className="mr-2">
-            <Link
-              params={{ id: paywall.id, organizationSlug, projectSlug }}
-              to="/studio/$organizationSlug/$projectSlug/design/$id"
-            >
-              Edit paywall
-            </Link>
-          </Button>
-        }
-      >
+      <PageHeader className="px-2">
         <div className="flex items-center gap-2">
           <Breadcrumb>
             <BreadcrumbList>
@@ -132,52 +118,53 @@ function PaywallDetailPage() {
         </div>
       </PageHeader>
 
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-8 space-y-6">
+      <div className="mx-auto max-w-6xl px-8 py-12">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
+          <div className="space-y-10 lg:col-span-7 xl:col-span-8">
+            <div className="space-y-6">
+              <div>
+                <h1 className="font-semibold text-3xl tracking-tight">{paywall.name}</h1>
+                <p className="mt-1 text-muted-foreground text-sm">
+                  {liveLocations.length > 0
+                    ? `Live at ${liveLocations.length} location${liveLocations.length === 1 ? "" : "s"}`
+                    : "Not assigned to a location"}
+                </p>
+              </div>
+              <PaywallDetailProperties
+                createdAt={paywall.createdAt}
+                draftVersion={draftRelease?.version ?? null}
+                isArchived={isArchived}
+                liveLocations={liveLocations}
+                liveRelease={liveRelease}
+                slug={paywall.slug}
+              />
+            </div>
+
             <PaywallDetailStats
               locationSlugs={liveLocations.map((location) => location.slug)}
               projectId={project.id}
             />
           </div>
-          <div className="col-span-4 space-y-6">
-            <PaywallPreviewCard liveRelease={liveRelease} paywall={paywall} />
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Slug</p>
-                  <p className="font-mono text-xs">{paywall.slug}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Live version</p>
-                  <p>{liveRelease ? `v${liveRelease.version}` : "Not live"}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Latest draft</p>
-                  <p>{draftRelease ? `v${draftRelease.version}` : "—"}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Locations</p>
-                  {liveLocations.length > 0 ? (
-                    <ul className="mt-1 space-y-1">
-                      {liveLocations.map((location) => (
-                        <li key={location.id}>
-                          {location.name}{" "}
-                          <span className="font-mono text-muted-foreground text-xs">
-                            {location.slug}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>None</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+
+          <div className="lg:col-span-5 xl:col-span-4">
+            <div className="mx-auto w-full max-w-[300px] space-y-6 lg:sticky lg:top-24">
+              <PaywallPhonePreview
+                organizationSlug={organizationSlug}
+                paywall={paywall}
+                projectSlug={projectSlug}
+              />
+              <Button asChild className="w-full" variant="outline" size="lg">
+                <Link
+                  params={{ id: paywall.id, organizationSlug, projectSlug }}
+                  rel="noreferrer"
+                  target="_blank"
+                  to="/studio/$organizationSlug/$projectSlug/design/$id"
+                >
+                  Edit paywall
+                  <ExternalLinkIcon />
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </div>

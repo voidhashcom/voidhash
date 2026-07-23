@@ -23,6 +23,7 @@
     "./field": "./components/ui/field.tsx",
     "./label": "./components/ui/label.tsx",
     "./logo": "./components/logo.tsx",
+    "./phone": "./components/phone.tsx",
     "./sonner": "./components/ui/sonner.tsx",
     "./accordion": "./components/ui/accordion.tsx",
     "./alert-dialog": "./components/ui/alert-dialog.tsx",

@@ -37,7 +37,7 @@ export function ProjectActions() {
               remixicon="RiFilter3Line"
             />
           </Button>
-          <Button variant="secondary" size="sm">
+          <Button variant="outline" size="sm">
             <IconPlaceholder
               lucide="PlusIcon"
               tabler="IconPlus"
@@ -55,7 +55,7 @@ export function ProjectActions() {
           <Button variant="outline" size="sm">
             Preview
           </Button>
-          <Button variant="secondary" size="sm">
+          <Button variant="outline" size="sm">
             Copy
           </Button>
           <Button size="sm">Publish</Button>

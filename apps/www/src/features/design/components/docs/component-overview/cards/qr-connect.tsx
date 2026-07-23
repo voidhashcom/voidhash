@@ -27,7 +27,7 @@ export function QrConnect() {
         </CardDescription>
       </CardHeader>
       <CardFooter>
-        <Button variant="secondary" className="w-full">
+        <Button variant="outline" className="w-full">
           Got it
         </Button>
       </CardFooter>

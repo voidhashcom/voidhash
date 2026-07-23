@@ -1,0 +1,116 @@
+---
+title: Colors
+description: The Voidhash color system — semantic tokens, what each one means, and the brand scales behind them.
+full: true
+---
+
+Colors are exposed as CSS custom properties on `:root`, remapped under `.dark`, and re-exported to Tailwind through `@theme inline` in [`@voidhash/ui/styles/brand-theme.css`](https://github.com/voidhashcom/voidhash/blob/main/packages/ui/styles/brand-theme.css). Every token below therefore exists in three forms:
+
+<DocsTabs items={["CSS variable", "Tailwind utility", "Inline style"]}>
+  <DocsTab value="CSS variable">
+    ```css
+    .thing {
+      background: var(--card);
+      color: var(--card-foreground);
+      border-color: var(--border);
+    }
+    ```
+  </DocsTab>
+  <DocsTab value="Tailwind utility">
+    ```tsx
+    <div className="border bg-card text-card-foreground" />
+    ```
+  </DocsTab>
+  <DocsTab value="Inline style">
+    ```tsx
+    <div style={{ background: "var(--card)" }} />
+    ```
+  </DocsTab>
+</DocsTabs>
+
+There are two layers. **Semantic tokens** (`--primary`, `--muted-foreground`, `--border`) describe a role and swap value between light and dark. **Brand scales** (`--blue-ribbon-600`, `--zinc-200`) are the fixed ramps those roles point at. Product UI uses the semantic layer; the scales exist to build tokens from, and for the rare case where a specific step is genuinely the right answer.
+
+<Callout type="warn">
+  Reaching for a scale step directly in product UI is how dark mode breaks — `bg-zinc-100` stays
+  near-white when the theme flips. If nothing in the semantic layer fits, that is usually a missing
+  token, not a reason to skip it.
+</Callout>
+
+## Semantic tokens
+
+Click any variable or value to copy it. Each card shows the light value on the left and the dark value on the right, with `Aa` rendered in the token's paired foreground so you can see the contrast the pairing produces.
+
+<SemanticColorTokens />
+
+## Brand scales
+
+These are theme-independent — the same value in light and dark. Steps run 50 (lightest) to 950 (darkest); the 500–600 range is where the hue is at full strength and where most semantic tokens land.
+
+Two literals sit outside the ramps: `--white` (`oklch(100% 0 0)`) and `--black` (`oklch(0% 0 0)`). They back the canvas in light mode and the sidebar in dark mode — reference the semantic token rather than the literal, or the surface will not flip with the theme.
+
+<BrandColorScales />
+
+## Choosing a color
+
+<Steps>
+
+<Step>
+
+### Start from the role, not the hue
+
+Ask what the element _is_ — a raised surface, secondary text, a danger action — and take the token for that role. `--destructive` says "this deletes something" in a way `--radical-red-600` does not, and it keeps the meaning if the palette is retuned later.
+
+</Step>
+
+<Step>
+
+### Take the paired foreground
+
+Backgrounds with a `-foreground` partner (`--primary`/`--primary-foreground`, `--card`/`--card-foreground`) are contrast-checked as pairs. Mixing across pairs — `--foreground` on a `--primary` fill — is where contrast quietly fails, usually only in one theme.
+
+</Step>
+
+<Step>
+
+### Step down for emphasis, don't fade out
+
+Quieter text is `--muted-foreground`, not `--foreground` at 60% opacity. Opacity compounds against whatever surface it lands on, so the result is unpredictable across the surface stack; the muted token is tuned per theme.
+
+</Step>
+
+<Step>
+
+### Check both themes
+
+Dark mode is not a filter — `--card` goes _lighter_ than the canvas while `--sidebar` goes to pure black. Anything hardcoded, or built out of opacity over a hardcoded color, will look wrong in exactly one of the two.
+
+</Step>
+
+</Steps>
+
+## Gaps worth knowing
+
+- **No `--warning` token.** Use `--amber-500` (dark surfaces) or `--amber-600` (light surfaces) for caution states, and keep `--destructive` for genuine danger.
+- **No info token.** Informational states use `--primary` or the muted surface stack.
+- **`--blaze-orange-*` is unmapped.** It ships in the theme but no semantic token points at it yet.
+- **Charts don't use the semantic layer.** `--chart-1` through `--chart-5` are assigned in order so a given series index keeps its color across every chart in the product.
+
+## Adding a token
+
+Semantic tokens are added in three places in `brand-theme.css`, and all three are required — a token missing from `@theme inline` exists in CSS but has no Tailwind utility:
+
+```css
+:root {
+  --warning: var(--amber-600);
+}
+
+.dark {
+  --warning: var(--amber-500);
+}
+
+@theme inline {
+  --color-warning: var(--warning);
+}
+```
+
+Point new tokens at a scale step rather than a literal color, so the ramp stays the single source of truth. This page reads the stylesheet directly, so a new token shows up here as soon as it is added to `SEMANTIC_GROUPS` with its meaning.

@@ -170,7 +170,7 @@ export const ProductDetailPage = () => {
                   <ProductDetailAddPerkButton
                     perks={perksWithoutProductPerks}
                     productId={product.id}
-                    variant="secondary"
+                    variant="outline"
                   />
                 </CardFooter>
               </Card>
@@ -254,7 +254,7 @@ export const ProductDetailPage = () => {
                       productId={product.id}
                       providerId={paymentProviderWithConfiguration.paymentProvider.id}
                       title={paymentProviderWithConfiguration.paymentProvider.title}
-                      variant="secondary"
+                      variant="outline"
                     />
                   </CardFooter>
                 )}

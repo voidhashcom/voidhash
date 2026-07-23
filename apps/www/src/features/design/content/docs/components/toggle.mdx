@@ -29,11 +29,6 @@ import { BoldIcon } from "lucide-react";
     </Toggle>
   </Preview>
   <Preview className="p-4">
-    <Toggle variant="outline" aria-label="Outline">
-      <ItalicIcon />
-    </Toggle>
-  </Preview>
-  <Preview className="p-4">
     <Toggle variant="primary" aria-label="Primary">
       <UnderlineIcon />
     </Toggle>
@@ -42,7 +37,6 @@ import { BoldIcon } from "lucide-react";
 
 ```tsx
 <Toggle variant="default">...</Toggle>
-<Toggle variant="outline">...</Toggle>
 <Toggle variant="primary">...</Toggle>
 ```
 
@@ -120,7 +114,7 @@ import { BoldIcon } from "lucide-react";
   type={{
     variant: {
       description: "The visual style of the toggle",
-      type: "'default' | 'outline' | 'primary'",
+      type: "'default' | 'primary'",
       default: "'default'",
     },
     size: {

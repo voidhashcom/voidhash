@@ -32,7 +32,6 @@ export function ModeToggle() {
       spacing={0}
       type="single"
       value={mode}
-      variant="outline"
     >
       {MODES.map(({ icon: Icon, label, value }) => (
         <ToggleGroupItem

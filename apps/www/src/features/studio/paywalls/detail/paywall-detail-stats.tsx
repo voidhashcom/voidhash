@@ -3,11 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { AnalyticsFilterType, CustomAnalyticsInsightQueryType } from "@voidhash/rpc";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   type ChartConfig,
   ChartContainer,
   ChartTooltip,
@@ -141,12 +136,12 @@ interface StatTileProps {
 
 function StatTile({ label, loading, value }: StatTileProps) {
   return (
-    <div className="rounded-xl border bg-muted/20 p-5">
-      <p className="truncate text-muted-foreground text-sm">{label}</p>
+    <div className="sm:border-border/60 sm:border-l sm:pl-4 sm:first:border-l-0 sm:first:pl-0">
+      <p className="truncate text-muted-foreground text-xs">{label}</p>
       {loading ? (
-        <Skeleton className="mt-2 h-8 w-20" />
+        <Skeleton className="mt-2 h-7 w-16" />
       ) : (
-        <p className="mt-2 font-semibold text-3xl tabular-nums tracking-tight">{value}</p>
+        <p className="mt-1 font-semibold text-2xl tabular-nums tracking-tight">{value}</p>
       )}
     </div>
   );
@@ -226,9 +221,14 @@ export function PaywallDetailStats({ locationSlugs, projectId }: PaywallDetailSt
   } satisfies ChartConfig;
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="font-medium text-lg">Performance</h2>
+    <section className="space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-medium text-sm">Performance</h2>
+          <p className="mt-0.5 text-muted-foreground text-xs">
+            Events captured at locations currently showing this paywall.
+          </p>
+        </div>
         <ToggleGroup
           onValueChange={(value: string) => {
             if (value && isStatsRange(value)) {
@@ -237,7 +237,6 @@ export function PaywallDetailStats({ locationSlugs, projectId }: PaywallDetailSt
           }}
           type="single"
           value={range}
-          variant="outline"
         >
           {RANGE_OPTIONS.map((option) => (
             <ToggleGroupItem className="cursor-pointer" key={option.value} value={option.value}>
@@ -249,7 +248,7 @@ export function PaywallDetailStats({ locationSlugs, projectId }: PaywallDetailSt
 
       {isLive ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 border-border/60 border-y py-5 sm:grid-cols-4 sm:gap-x-0">
             <StatTile
               label="Views"
               loading={totalsQuery.isPending}
@@ -272,75 +271,80 @@ export function PaywallDetailStats({ locationSlugs, projectId }: PaywallDetailSt
             />
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Views &amp; purchases</CardTitle>
-              <CardDescription>
-                Events captured at locations currently showing this paywall.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {timeseriesQuery.isPending ? (
-                <Skeleton className="h-[280px] w-full" />
-              ) : chartRows.length > 0 ? (
-                <ChartContainer className="h-[280px] w-full" config={chartConfig}>
-                  <AreaChart accessibilityLayer data={chartRows} margin={{ left: 8, right: 20 }}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      axisLine={false}
-                      dataKey="date"
-                      tickFormatter={(value: string) =>
-                        new Date(value).toLocaleDateString(undefined, {
-                          day: "numeric",
-                          month: "short",
-                        })
-                      }
-                      tickLine={false}
-                      tickMargin={10}
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
+              <p className="font-medium text-sm">Views &amp; purchases</p>
+              <div className="flex items-center gap-3 text-muted-foreground text-xs">
+                {(["views", "purchases"] as const).map((key) => (
+                  <span className="inline-flex items-center gap-1.5" key={key}>
+                    <span
+                      aria-hidden="true"
+                      className="size-2 rounded-[2px]"
+                      style={{ backgroundColor: chartConfig[key].color }}
                     />
-                    <YAxis axisLine={false} tickLine={false} width={42} />
-                    <ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
-                    <Area
-                      dataKey="views"
-                      fill="var(--chart-1)"
-                      fillOpacity={0.18}
-                      stroke="var(--chart-1)"
-                      strokeWidth={2}
-                      type="monotone"
-                    />
-                    <Area
-                      dataKey="purchases"
-                      fill="var(--chart-2)"
-                      fillOpacity={0.18}
-                      stroke="var(--chart-2)"
-                      strokeWidth={2}
-                      type="monotone"
-                    />
-                  </AreaChart>
-                </ChartContainer>
-              ) : (
-                <div className="flex h-[280px] items-center justify-center rounded-xl border border-dashed bg-muted/20 text-center">
-                  <div>
-                    <ChartSplineIcon className="mx-auto text-muted-foreground" />
-                    <p className="mt-3 text-sm">No events in this period yet</p>
-                  </div>
+                    {chartConfig[key].label}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {timeseriesQuery.isPending ? (
+              <Skeleton className="h-[240px] w-full" />
+            ) : chartRows.length > 0 ? (
+              <ChartContainer className="h-[240px] w-full" config={chartConfig}>
+                <AreaChart accessibilityLayer data={chartRows} margin={{ left: 8, right: 20 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    axisLine={false}
+                    dataKey="date"
+                    tickFormatter={(value: string) =>
+                      new Date(value).toLocaleDateString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                      })
+                    }
+                    tickLine={false}
+                    tickMargin={10}
+                  />
+                  <YAxis axisLine={false} tickLine={false} width={42} />
+                  <ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
+                  <Area
+                    dataKey="views"
+                    fill="var(--chart-1)"
+                    fillOpacity={0.18}
+                    stroke="var(--chart-1)"
+                    strokeWidth={2}
+                    type="monotone"
+                  />
+                  <Area
+                    dataKey="purchases"
+                    fill="var(--chart-2)"
+                    fillOpacity={0.18}
+                    stroke="var(--chart-2)"
+                    strokeWidth={2}
+                    type="monotone"
+                  />
+                </AreaChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex h-[240px] items-center justify-center rounded-xl border border-dashed bg-muted/20 text-center">
+                <div>
+                  <ChartSplineIcon className="mx-auto text-muted-foreground" />
+                  <p className="mt-3 text-sm">No events in this period yet</p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </div>
         </>
       ) : (
-        <Card>
-          <CardContent className="flex h-[280px] items-center justify-center">
-            <div className="text-center">
-              <MapPinOffIcon className="mx-auto text-muted-foreground" />
-              <p className="mt-3 font-medium text-sm">Not live yet</p>
-              <p className="mt-1 text-muted-foreground text-sm">
-                Assign this paywall to a location to start collecting stats.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex h-[240px] items-center justify-center rounded-xl border border-dashed bg-muted/20">
+          <div className="text-center">
+            <MapPinOffIcon className="mx-auto text-muted-foreground" />
+            <p className="mt-3 font-medium text-sm">Not live yet</p>
+            <p className="mt-1 text-muted-foreground text-sm">
+              Assign this paywall to a location to start collecting stats.
+            </p>
+          </div>
+        </div>
       )}
     </section>
   );

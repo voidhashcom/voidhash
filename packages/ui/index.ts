@@ -4,6 +4,7 @@ export * from "./components/error-card";
 export * from "./components/gradient-avatar";
 export * from "./components/info-tooltip";
 export * from "./components/logo";
+export * from "./components/phone";
 export * from "./components/settings-card-skeleton";
 export * from "./components/spinner";
 export * from "./components/theme-provider";

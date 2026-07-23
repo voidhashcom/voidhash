@@ -30,6 +30,7 @@ pages:
   - navigation-menu
   - page-bar
   - pagination
+  - phone
   - popover
   - progress
   - radio-group

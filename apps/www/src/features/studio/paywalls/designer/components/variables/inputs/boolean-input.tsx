@@ -16,7 +16,6 @@ export function BooleanInput({ value, onChange, className }: BooleanInputProps) 
       size="sm"
       type="single"
       value={value ? "true" : "false"}
-      variant="outline"
     >
       <ToggleGroupItem className="h-7 px-2 text-xs flex-1" size="sm" value="true">
         True

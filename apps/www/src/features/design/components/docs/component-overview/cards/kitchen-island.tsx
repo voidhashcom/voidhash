@@ -57,7 +57,6 @@ export function KitchenIsland() {
             type="single"
             value={scene}
             onValueChange={handleSceneChange}
-            variant="outline"
             spacing={1}
             className="flex-wrap"
           >

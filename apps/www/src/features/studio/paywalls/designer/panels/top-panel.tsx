@@ -206,7 +206,7 @@ export function TopPanel() {
               Dev
             </Button>
           )}
-          <Button size="sm" variant="secondary">
+          <Button size="sm" variant="outline">
             Share
           </Button>
           <Button size="sm" onClick={handlePublishClick} disabled={isCreatingRelease || !paywallId}>

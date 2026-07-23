@@ -251,7 +251,7 @@ function VariableRow({
     <Panel.Row align="center">
       <Panel.Popover open={isOpen} onOpenChange={onOpenChange}>
         <Panel.PopoverTrigger>
-          {/* No `variant` → the host defaults to the `secondary` trigger look. */}
+          {/* No `variant` → the host defaults to the outlined trigger look. */}
           <Panel.Button label={`${name || "Unnamed"}  ${valueDisplay(value)}`} size="sm" />
         </Panel.PopoverTrigger>
         <Panel.PopoverContent align="start" side="left">

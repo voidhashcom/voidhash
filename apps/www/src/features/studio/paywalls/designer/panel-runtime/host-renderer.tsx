@@ -422,7 +422,7 @@ const renderNode = (
             trailingMenu && onTrailingSelect ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="secondary">
+                  <Button size="sm" variant="ghost">
                     {renderPanelIcon("chevronDown", "size-3.5")}
                   </Button>
                 </DropdownMenuTrigger>
@@ -481,7 +481,6 @@ const renderNode = (
           size="sm"
           type="single"
           value={mixed ? "" : (asString(props.value) ?? "")}
-          variant="outline"
         >
           {/* Items stretch to equal width (`flex-1`), matching every designer
               toggle group's segmented-control layout. */}
@@ -512,7 +511,7 @@ const renderNode = (
           disabled={asBool(props.disabled)}
           onClick={onClick ? () => onClick() : undefined}
           size={(asString(props.size) as never) ?? "sm"}
-          variant={(asString(props.variant) as never) ?? "secondary"}
+          variant={(asString(props.variant) as never) ?? "outline"}
         >
           {props.icon ? renderPanelIcon(asIcon(props.icon)!, "size-3.5") : null}
           {asString(props.label)}
@@ -1103,7 +1102,7 @@ function PanelErrorChrome({
     <div className="flex flex-col gap-2 border-border border-b px-4 py-3">
       <p className="text-destructive text-xs">{message}</p>
       {restartable && (
-        <Button className="self-start" onClick={onRestart} size="sm" variant="secondary">
+        <Button className="self-start" onClick={onRestart} size="sm" variant="outline">
           <RotateCwIcon className="size-3.5" />
           Restart
         </Button>

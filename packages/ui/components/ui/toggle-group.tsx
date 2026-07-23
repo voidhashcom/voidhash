@@ -66,7 +66,7 @@ function ToggleGroupItem({
   return (
     <ToggleGroupPrimitive.Item
       className={cn(
-        "shrink-0 focus:z-10 focus-visible:z-10 group-data-[spacing=0]/toggle-group:rounded-none group-data-[spacing=0]/toggle-group:px-2 data-[spacing=0]:first:rounded-l-lg data-[spacing=0]:last:rounded-r-lg data-[spacing=0]:data-[variant=outline]:border-l-0 data-[spacing=0]:data-[variant=outline]:first:border-l",
+        "shrink-0 focus:z-10 focus-visible:z-10 group-data-[spacing=0]/toggle-group:rounded-none group-data-[spacing=0]/toggle-group:px-2 data-[spacing=0]:border-l-0 data-[spacing=0]:first:rounded-l-lg data-[spacing=0]:first:border-l data-[spacing=0]:last:rounded-r-lg",
         toggleVariants({
           size: context.size || size,
           variant: context.variant || variant,

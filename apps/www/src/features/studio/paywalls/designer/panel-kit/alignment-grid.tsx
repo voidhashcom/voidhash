@@ -312,7 +312,7 @@ export function FlexAlignmentInput({
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="icon-sm" variant="secondary">
+          <Button size="icon-sm" variant="ghost">
             <Settings2Icon className="size-3.5" />
           </Button>
         </DropdownMenuTrigger>

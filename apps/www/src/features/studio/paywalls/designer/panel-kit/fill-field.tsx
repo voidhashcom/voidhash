@@ -352,7 +352,6 @@ function FillEditorPopoverContent({
         size="sm"
         type="single"
         value={isTypeMixed ? "" : backgroundType}
-        variant="outline"
       >
         <ToggleGroupItem className="flex-1" size="sm" value="solid">
           Solid
@@ -393,7 +392,7 @@ function FillEditorPopoverContent({
               aria-label="Flip gradient direction"
               onClick={handleFlip}
               size="icon-sm"
-              variant="secondary"
+              variant="outline"
             >
               <FlipHorizontalIcon />
             </Button>
@@ -401,7 +400,7 @@ function FillEditorPopoverContent({
               aria-label="Rotate gradient 90 degrees"
               onClick={handleRotate}
               size="icon-sm"
-              variant="secondary"
+              variant="outline"
             >
               <RotateCwIcon />
             </Button>

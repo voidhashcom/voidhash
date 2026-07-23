@@ -2,7 +2,7 @@
 
 import { Link } from "@tanstack/react-router";
 import type { Paywall } from "@voidhash/rpc";
-import { Badge } from "@voidhash/ui";
+import { Badge, Phone } from "@voidhash/ui";
 import { Smartphone } from "lucide-react";
 
 import { PaywallActionsMenu } from "./paywall-actions-menu";
@@ -42,20 +42,22 @@ export function PaywallCard({ paywall, organizationSlug, projectSlug }: PaywallC
             />
           )}
 
-          <div className="relative z-10 aspect-[532/1119] h-[86.34%] overflow-hidden rounded-[12px] bg-zinc-950 shadow-[inset_0_0_4px_rgb(255_255_255/0.13)] ring-1 ring-inset ring-zinc-800">
-            <div className="absolute inset-x-[2.26%] inset-y-[1.16%] flex items-center justify-center overflow-hidden rounded-[10px] bg-zinc-950">
-              {paywall.thumbnailUrl ? (
-                <img
-                  alt={paywall.name}
-                  className="size-full object-cover object-top"
-                  loading="lazy"
-                  src={paywall.thumbnailUrl}
-                />
-              ) : (
-                <Smartphone className="h-10 w-10 text-zinc-400 opacity-30" />
-              )}
-            </div>
-          </div>
+          <Phone
+            className="relative z-10 h-[86.34%]"
+            fitHeight
+            screenClassName="flex items-center justify-center bg-zinc-950"
+          >
+            {paywall.thumbnailUrl ? (
+              <img
+                alt={paywall.name}
+                className="size-full object-cover object-top"
+                loading="lazy"
+                src={paywall.thumbnailUrl}
+              />
+            ) : (
+              <Smartphone className="size-10 text-zinc-400 opacity-30" />
+            )}
+          </Phone>
         </div>
 
         {/* Info Area */}
@@ -79,7 +81,7 @@ export function PaywallCard({ paywall, organizationSlug, projectSlug }: PaywallC
           paywall={paywall}
           projectSlug={projectSlug}
           triggerClassName="size-7 bg-background/80 backdrop-blur-sm"
-          triggerVariant="secondary"
+          triggerVariant="ghost"
         />
       </div>
     </div>

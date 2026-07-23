@@ -27,7 +27,6 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         outline:
           "border bg-card shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-border dark:bg-input/30 dark:hover:bg-input/80",
-        secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
         success:
           "bg-success text-success-foreground shadow-xs hover:bg-success/90 focus-visible:ring-success/20 dark:focus-visible:ring-success/40 ",
       },

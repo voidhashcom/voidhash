@@ -36,12 +36,12 @@ export default function HomeScreen() {
           <View style={styles.actions}>
             <Button
               onPress={() => client.iosPresentCodeRedemptionSheet()}
-              style={styles.secondaryButton}
+              style={styles.outlineButton}
               title="Present code redemption sheet"
             />
             <Button
               onPress={() => client.iosShowManageSubscriptions()}
-              style={styles.secondaryButton}
+              style={styles.outlineButton}
               title="Show manage subscriptions"
             />
           </View>
@@ -71,7 +71,9 @@ const styles = StyleSheet.create({
     gap: 16,
     marginTop: 16,
   },
-  secondaryButton: {
-    backgroundColor: "#27272a",
+  outlineButton: {
+    backgroundColor: "transparent",
+    borderColor: "#3f3f46",
+    borderWidth: 1,
   },
 });

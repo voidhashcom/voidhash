@@ -47,7 +47,6 @@ export function ActionPanel() {
               spacing={0}
               type="single"
               value={activeTool}
-              variant="outline"
             >
               {TOOL_ITEMS.map(({ icon: Icon, label, value }) => (
                 <IconButtonTooltip key={value} label={label}>

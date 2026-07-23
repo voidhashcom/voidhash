@@ -50,7 +50,6 @@ export function RollerShades() {
             if (value === "half") setPosition([50]);
             if (value === "closed") setPosition([100]);
           }}
-          variant="outline"
           spacing={1}
           className="w-full"
         >
