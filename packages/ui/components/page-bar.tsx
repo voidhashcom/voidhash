@@ -19,7 +19,7 @@ export function PageBar({ children, rightActions, className }: PageBarProps) {
   return (
     <div
       className={cn(
-        "flex min-h-11 items-center justify-between gap-4 border-b border-border/60 bg-background px-4",
+        "flex min-h-11 items-center justify-between gap-4 border-border/60 bg-background px-4",
         className,
       )}
     >

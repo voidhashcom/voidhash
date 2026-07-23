@@ -107,7 +107,7 @@ export function FeedbackButton() {
   return (
     <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger asChild>
-        <Button variant="outline">Feedback</Button>
+        <Button variant="ghost">Feedback</Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-96 overflow-hidden p-0">
         <form
@@ -117,10 +117,7 @@ export function FeedbackButton() {
           }}
         >
           <div className="flex flex-col gap-2 p-2">
-            <Select
-              onValueChange={(value) => setTopic(value as FeedbackTopicValue)}
-              value={topic}
-            >
+            <Select onValueChange={(value) => setTopic(value as FeedbackTopicValue)} value={topic}>
               <SelectTrigger className="w-full" id="feedback-topic">
                 <SelectValue placeholder="Select a topic…" />
               </SelectTrigger>

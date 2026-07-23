@@ -1,13 +1,13 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  cn,
   Page,
   PageBar,
-  PageBarTab,
-  PageBarTabs,
   PageHeader,
   PageHeaderTitle,
-  PageTabs,
+  ToggleGroup,
+  ToggleGroupItem,
 } from "@voidhash/ui";
 import { useRef, useState } from "react";
 import { useAuth } from "@/features/studio/components/auth-context";
@@ -16,6 +16,7 @@ import { CreatePaywallButton } from "@/features/studio/paywalls/create-paywall-b
 import { PaywallCard } from "@/features/studio/paywalls/paywall-card";
 import { PaywallCardSkeleton } from "@/features/studio/paywalls/paywall-card-skeleton";
 import { PaywallTable } from "@/features/studio/paywalls/paywall-table";
+import { PaywallsPageEmptyState } from "@/features/studio/paywalls/paywalls-page-empty-state";
 import {
   loadPaywallView,
   type PaywallView,
@@ -80,23 +81,6 @@ function PaywallsPageSkeleton() {
   );
 }
 
-function emptyStateMessage(tab: PaywallTab): string {
-  switch (tab) {
-    case "all":
-      return "No paywalls yet. Create one to get started.";
-    case "active":
-      return "No active paywalls. Create one to get started.";
-    case "inactive":
-      return "No inactive paywalls.";
-    case "archived":
-      return "No archived paywalls.";
-    default: {
-      const _exhaustive: never = tab;
-      return _exhaustive;
-    }
-  }
-}
-
 function PaywallsPage() {
   const { organizationSlug, projectSlug } = Route.useParams();
   const { user } = useAuth();
@@ -154,46 +138,60 @@ function PaywallsPage() {
     }
   });
 
+  const isEmpty = paywalls.length === 0;
+
   return (
-    <Page>
-      <PageHeader rightActions={<CreatePaywallButton projectId={project.id} />}>
+    // The empty state stretches to fill the inset so it can center vertically;
+    // the populated list keeps the default top-aligned block flow.
+    <Page className={cn(isEmpty && "flex flex-col")}>
+      <PageHeader
+        className="shrink-0"
+        rightActions={<CreatePaywallButton projectId={project.id} />}
+      >
         <PageHeaderTitle>Paywalls</PageHeaderTitle>
       </PageHeader>
-      <PageTabs onValueChange={(value) => setTab(value as PaywallTab)} value={tab}>
-        <PageBar rightActions={<PaywallViewSettings onViewChange={changeView} view={view} />}>
-          <PageBarTabs>
-            {PAYWALL_TABS.map((item) => (
-              <PageBarTab key={item.value} value={item.value}>
-                {item.label}
-              </PageBarTab>
+      <PageBar
+        className="shrink-0 pl-2"
+        rightActions={<PaywallViewSettings onViewChange={changeView} view={view} />}
+      >
+        <ToggleGroup
+          onValueChange={(value: string) => {
+            if (value) {
+              setTab(value as PaywallTab);
+            }
+          }}
+          type="single"
+          value={tab}
+        >
+          {PAYWALL_TABS.map((item) => (
+            <ToggleGroupItem key={item.value} value={item.value}>
+              {item.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </PageBar>
+      <div className={cn("w-full px-4 pt-4", isEmpty && "flex flex-1 flex-col pb-4")}>
+        {isEmpty ? (
+          <PaywallsPageEmptyState projectId={project.id} tab={tab} />
+        ) : view === "table" ? (
+          <PaywallTable
+            organizationSlug={organizationSlug as string}
+            paywalls={paywalls}
+            projectSlug={projectSlug as string}
+          />
+        ) : (
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {paywalls.map((paywall) => (
+              <PaywallCard
+                key={paywall.id}
+                organizationSlug={organizationSlug as string}
+                paywall={paywall}
+                projectSlug={projectSlug as string}
+              />
             ))}
-          </PageBarTabs>
-        </PageBar>
-        <div className="w-full px-4 pt-4">
-          {paywalls.length === 0 ? (
-            <div className="py-20 text-center text-muted-foreground text-sm">
-              {emptyStateMessage(tab)}
-            </div>
-          ) : view === "table" ? (
-            <PaywallTable
-              organizationSlug={organizationSlug as string}
-              paywalls={paywalls}
-              projectSlug={projectSlug as string}
-            />
-          ) : (
-            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {paywalls.map((paywall) => (
-                <PaywallCard
-                  key={paywall.id}
-                  organizationSlug={organizationSlug as string}
-                  paywall={paywall}
-                  projectSlug={projectSlug as string}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </PageTabs>
+          </div>
+        )}
+      </div>
     </Page>
   );
 }

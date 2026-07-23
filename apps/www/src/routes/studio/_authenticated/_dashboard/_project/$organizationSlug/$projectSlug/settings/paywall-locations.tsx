@@ -1,9 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Card, Page, PageHeader, PageHeaderTitle } from "@voidhash/ui";
+import { Card, cn, Page, PageHeader, PageHeaderTitle } from "@voidhash/ui";
 import { useAuth } from "@/features/studio/components/auth-context";
 
 import { CreatePaywallLocationModalButton } from "@/features/studio/paywall-locations/create-paywall-location-modal-button";
+import { PaywallLocationsPageEmptyState } from "@/features/studio/paywall-locations/paywall-locations-page-empty-state";
 import { PaywallLocationRow } from "@/features/studio/paywall-locations/paywall-location-row";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 import {
@@ -66,18 +67,26 @@ function ProjectPaywallLocationsPage() {
   );
   const { data: paywalls } = useSuspenseQuery(listPaywallsOptions({ projectId: project.id }));
 
+  const isEmpty = locations.length === 0;
+
   return (
-    <Page>
-      <PageHeader rightActions={<CreatePaywallLocationModalButton projectId={project.id} />}>
+    // The empty state stretches to fill the inset so it can center vertically;
+    // the populated list keeps the default top-aligned block flow.
+    <Page className={cn(isEmpty && "flex flex-col")}>
+      <PageHeader
+        className="shrink-0"
+        rightActions={<CreatePaywallLocationModalButton projectId={project.id} />}
+      >
         <PageHeaderTitle>Paywall Locations</PageHeaderTitle>
       </PageHeader>
-      <div className="mx-auto w-full max-w-4xl px-4 pt-4">
-        {locations.length === 0 ? (
-          <Card className="p-0">
-            <div className="px-5 py-10 text-center text-[13px] text-muted-foreground">
-              No paywall locations yet. Create one to start assigning paywalls.
-            </div>
-          </Card>
+      <div
+        className={cn(
+          "mx-auto w-full max-w-4xl px-4 pt-4",
+          isEmpty && "flex flex-1 flex-col pb-4",
+        )}
+      >
+        {isEmpty ? (
+          <PaywallLocationsPageEmptyState projectId={project.id} />
         ) : (
           <Card className="grid gap-0 divide-y p-0">
             {locations.map((location) => (
