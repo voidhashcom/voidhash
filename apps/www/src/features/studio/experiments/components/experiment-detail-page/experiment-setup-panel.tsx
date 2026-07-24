@@ -154,7 +154,7 @@ export function ExperimentSetupPanel({
           <Alert className="mb-4">
             <Info className="h-4 w-4" />
             <AlertDescription>
-              Variants and weights are locked while the experiment is running. Pause it to make
+              Variants and weights are locked while the A/B test is running. Pause it to make
               changes.
             </AlertDescription>
           </Alert>

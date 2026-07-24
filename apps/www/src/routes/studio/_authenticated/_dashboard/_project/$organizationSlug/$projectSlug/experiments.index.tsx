@@ -8,11 +8,6 @@ import {
   PageBar,
   PageHeader,
   PageHeaderTitle,
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
   ToggleGroup,
   ToggleGroupItem,
 } from "@voidhash/ui";
@@ -20,13 +15,22 @@ import { z } from "zod";
 import { useAuth } from "@/features/studio/components/auth-context";
 
 import { CreateExperimentButton } from "@/features/studio/experiments/components/experiments-page/create-experiment-button";
-import { ExperimentRecord } from "@/features/studio/experiments/components/experiments-page/experiment-record";
 import { ExperimentsPageEmptyState } from "@/features/studio/experiments/components/experiments-page/experiments-page-empty-state";
 import { ExperimentsPageSkeleton } from "@/features/studio/experiments/components/experiments-page/experiments-page-skeleton";
+import { ExperimentsTable } from "@/features/studio/experiments/components/experiments-page/experiments-table";
+import { useExperimentMetrics } from "@/features/studio/experiments/lib/experiment-metrics";
 import { EXPERIMENT_STATUS } from "@/features/studio/experiments/lib/experiment-status";
-import { listExperimentsOptions } from "@/features/studio/lib/tanstack-query";
+import {
+  listExperimentsOptions,
+  listPaywallLocationsOptions,
+} from "@/features/studio/lib/tanstack-query";
 import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
+import {
+  isMetricRange,
+  METRIC_RANGE_OPTIONS,
+  type MetricRange,
+} from "@/features/studio/paywall-locations/lib/paywall-location-metrics";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 
 const EXPERIMENT_TABS = [
@@ -41,11 +45,19 @@ const EXPERIMENT_TABS = [
 type ExperimentTab = (typeof EXPERIMENT_TABS)[number]["value"];
 
 const DEFAULT_EXPERIMENT_TAB: ExperimentTab = "all";
+const DEFAULT_METRIC_RANGE: MetricRange = "last_30d";
 
 const isExperimentTab = (value: string): value is ExperimentTab =>
   EXPERIMENT_TABS.some((item) => item.value === value);
 
+// Both filters live in the URL so a view can be linked, bookmarked and survive
+// a reload. `.catch` keeps stale or hand-edited params from failing validation
+// and dropping the page into its error boundary.
 const experimentsSearchSchema = z.object({
+  range: z
+    .enum(METRIC_RANGE_OPTIONS.map((option) => option.value))
+    .default(DEFAULT_METRIC_RANGE)
+    .catch(DEFAULT_METRIC_RANGE),
   tab: z
     .enum(EXPERIMENT_TABS.map((item) => item.value))
     .default(DEFAULT_EXPERIMENT_TAB)
@@ -101,11 +113,31 @@ function ExperimentsIndexPage() {
     throw new Error("Project not found");
   }
 
-  const { tab } = Route.useSearch();
+  const { range, tab } = Route.useSearch();
   const navigate = Route.useNavigate();
+  // Filter changes replace the current entry so browsing tabs doesn't bury the
+  // page the user arrived from under a stack of history entries.
+  const changeSearch = (next: Partial<{ range: MetricRange; tab: ExperimentTab }>) => {
+    void navigate({ replace: true, search: (prev) => ({ ...prev, ...next }) });
+  };
+
+  // Archived tests come down with the rest so tab switches are a client-side
+  // filter — no refetch (and no skeleton flash) when changing tabs.
   const { data: allExperiments } = useSuspenseQuery(
     listExperimentsOptions({ includeArchived: true, projectId: project.id }),
   );
+  // Treatments name locations by id, but analytics events carry their slug, so
+  // the table needs the mapping to scope a test's metrics. Archived locations
+  // are included because a concluded test can still reference one.
+  const { data: locations } = useSuspenseQuery(
+    listPaywallLocationsOptions({ includeArchived: true, projectId: project.id }),
+  );
+  const { isPending: isMetricsPending, metricsFor } = useExperimentMetrics({
+    projectId: project.id,
+    range,
+  });
+
+  const locationSlugsById = new Map(locations.map((location) => [location.id, location.slug]));
 
   const experiments = allExperiments.filter((experiment) => {
     const isArchived = experiment.archivedAt != null;
@@ -132,18 +164,45 @@ function ExperimentsIndexPage() {
   const isEmpty = experiments.length === 0;
 
   return (
+    // The empty state stretches to fill the inset so it can center vertically;
+    // the populated table keeps the default top-aligned block flow.
     <Page className={cn(isEmpty && "flex flex-col")}>
       <PageHeader
         className="shrink-0"
-        rightActions={<CreateExperimentButton projectId={project.id} />}
+        rightActions={
+          <CreateExperimentButton
+            organizationSlug={organizationSlug as string}
+            projectId={project.id}
+            projectSlug={projectSlug as string}
+          />
+        }
       >
         <PageHeaderTitle>A/B Tests</PageHeaderTitle>
       </PageHeader>
-      <PageBar className="shrink-0 pl-2">
+      <PageBar
+        className="shrink-0 pl-2"
+        rightActions={
+          <ToggleGroup
+            onValueChange={(value: string) => {
+              if (isMetricRange(value)) {
+                changeSearch({ range: value });
+              }
+            }}
+            type="single"
+            value={range}
+          >
+            {METRIC_RANGE_OPTIONS.map((option) => (
+              <ToggleGroupItem className="cursor-pointer" key={option.value} value={option.value}>
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        }
+      >
         <ToggleGroup
           onValueChange={(value: string) => {
             if (isExperimentTab(value)) {
-              void navigate({ replace: true, search: (prev) => ({ ...prev, tab: value }) });
+              changeSearch({ tab: value });
             }
           }}
           type="single"
@@ -158,30 +217,21 @@ function ExperimentsIndexPage() {
       </PageBar>
       <div className={cn("w-full px-4 pt-4", isEmpty && "flex flex-1 flex-col pb-4")}>
         {isEmpty ? (
-          <ExperimentsPageEmptyState projectId={project.id} tab={tab} />
+          <ExperimentsPageEmptyState
+            organizationSlug={organizationSlug as string}
+            projectId={project.id}
+            projectSlug={projectSlug as string}
+            tab={tab}
+          />
         ) : (
-          <Table containerClassName="overflow-x-auto">
-            <TableHeader>
-              <TableRow>
-                <TableHead>A/B test</TableHead>
-                <TableHead>Key</TableHead>
-                <TableHead>Primary metric</TableHead>
-                <TableHead>Variants</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {experiments.map((experiment) => (
-                <ExperimentRecord
-                  experiment={experiment}
-                  key={experiment.id}
-                  organizationSlug={organizationSlug as string}
-                  projectSlug={projectSlug as string}
-                />
-              ))}
-            </TableBody>
-          </Table>
+          <ExperimentsTable
+            experiments={experiments}
+            isMetricsPending={isMetricsPending}
+            locationSlugsById={locationSlugsById}
+            metricsFor={metricsFor}
+            organizationSlug={organizationSlug as string}
+            projectSlug={projectSlug as string}
+          />
         )}
       </div>
     </Page>

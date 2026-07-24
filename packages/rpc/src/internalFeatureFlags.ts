@@ -60,9 +60,9 @@ export const INTERNAL_FEATURE_FLAGS = {
   },
   experimentation: {
     key: "experimentation",
-    name: "Experimentation",
+    name: "A/B Testing",
     description:
-      "The Experimentation suite in the studio sidebar: the Feature Flags product and A/B Tests.",
+      "The A/B Testing suite in the studio sidebar: the Feature Flags product and A/B Tests.",
     defaultEnabled: false,
   },
   voidhashAiPi: {

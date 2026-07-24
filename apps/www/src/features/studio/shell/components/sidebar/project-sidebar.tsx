@@ -207,7 +207,7 @@ export function ProjectSidebar({
               },
             ],
           },
-          // The Experimentation suite (Feature Flags + A/B Tests) is gated behind
+          // The A/B Testing suite (Feature Flags + A/B Tests) is gated behind
           // the `experimentation` internal feature flag so it can be rolled out
           // to a subset of testers from overwatch before a public launch.
           ...(experimentationEnabled
@@ -221,7 +221,7 @@ export function ProjectSidebar({
                     pathname.startsWith(
                       `/studio/${organizationSlug}/${projectSlug}/experiments`,
                     ),
-                  title: "Experimentation",
+                  title: "A/B Testing",
                   url: `/studio/${organizationSlug}/${projectSlug}/flags`,
                   items: [
                     {

@@ -16,7 +16,9 @@ import { CreateExperimentModal } from "./create-experiment-modal";
 type ExperimentEmptyTab = "all" | "draft" | "running" | "paused" | "concluded" | "archived";
 
 interface ExperimentsPageEmptyStateProps {
+  organizationSlug: string;
   projectId: string;
+  projectSlug: string;
   tab: ExperimentEmptyTab;
 }
 
@@ -60,7 +62,12 @@ const EMPTY_TAB_CONTENT = {
 >;
 
 /** Empty state for the A/B test list, tailored to the selected lifecycle status. */
-export function ExperimentsPageEmptyState({ projectId, tab }: ExperimentsPageEmptyStateProps) {
+export function ExperimentsPageEmptyState({
+  organizationSlug,
+  projectId,
+  projectSlug,
+  tab,
+}: ExperimentsPageEmptyStateProps) {
   const { description, icon: Icon, title } = EMPTY_TAB_CONTENT[tab];
   const showCreateAction = tab === "all" || tab === "draft";
 
@@ -75,7 +82,12 @@ export function ExperimentsPageEmptyState({ projectId, tab }: ExperimentsPageEmp
       </EmptyHeader>
       {showCreateAction ? (
         <EmptyContent>
-          <CreateExperimentModal projectId={projectId} trigger={<Button>Create A/B test</Button>} />
+          <CreateExperimentModal
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            projectSlug={projectSlug}
+            trigger={<Button>Create A/B test</Button>}
+          />
         </EmptyContent>
       ) : null}
     </Empty>

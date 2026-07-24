@@ -60,7 +60,7 @@ function ConcludeExperimentDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Conclude Experiment</DialogTitle>
+          <DialogTitle>Conclude A/B test</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <p className="text-muted-foreground text-sm">

@@ -20,7 +20,7 @@ type ExperimentData = {
   hypothesis: string | null;
   id: string;
   name: string;
-  primaryMetricEventName: string;
+  primaryMetricEventName: string | null;
   secondaryMetricEventNames: readonly string[] | null;
 };
 
@@ -46,7 +46,7 @@ export function ExperimentSettingsForm({
   const [description, setDescription] = useState(experiment.description ?? "");
   const [hypothesis, setHypothesis] = useState(experiment.hypothesis ?? "");
   const [primaryMetricEventName, setPrimaryMetricEventName] = useState(
-    experiment.primaryMetricEventName,
+    experiment.primaryMetricEventName ?? "",
   );
   const [secondaryMetricEventNames, setSecondaryMetricEventNames] = useState(initialSecondary);
   const queryClient = useQueryClient();
@@ -67,14 +67,14 @@ export function ExperimentSettingsForm({
     name !== experiment.name ||
     description !== (experiment.description ?? "") ||
     hypothesis !== (experiment.hypothesis ?? "") ||
-    primaryMetricEventName !== experiment.primaryMetricEventName ||
+    primaryMetricEventName !== (experiment.primaryMetricEventName ?? "") ||
     secondaryMetricEventNames !== initialSecondary;
 
   const reset = () => {
     setName(experiment.name);
     setDescription(experiment.description ?? "");
     setHypothesis(experiment.hypothesis ?? "");
-    setPrimaryMetricEventName(experiment.primaryMetricEventName);
+    setPrimaryMetricEventName(experiment.primaryMetricEventName ?? "");
     setSecondaryMetricEventNames(initialSecondary);
   };
 
@@ -142,7 +142,7 @@ export function ExperimentSettingsForm({
             Reset
           </Button>
           <Button
-            disabled={!name || !primaryMetricEventName || updateExperiment.isPending}
+            disabled={!name || updateExperiment.isPending}
             onClick={() => {
               const secondary = parseEventNames(secondaryMetricEventNames);
               updateExperiment.mutate({
@@ -150,7 +150,7 @@ export function ExperimentSettingsForm({
                 hypothesis: hypothesis || null,
                 id: experiment.id,
                 name,
-                primaryMetricEventName,
+                primaryMetricEventName: primaryMetricEventName || null,
                 secondaryMetricEventNames: secondary.length > 0 ? secondary : null,
               });
             }}

@@ -12,11 +12,6 @@ export class ExperimentNotFoundError extends Schema.TaggedErrorClass<ExperimentN
   "ExperimentNotFoundError",
 )("ExperimentNotFoundError", { experimentId: Schema.String }) {}
 
-/** Experiment key uniqueness invariant violated within a project. */
-export class ExperimentKeyAlreadyExistsError extends Schema.TaggedErrorClass<ExperimentKeyAlreadyExistsError>(
-  "ExperimentKeyAlreadyExistsError",
-)("ExperimentKeyAlreadyExistsError", { key: Schema.String }) {}
-
 /** Experiment variant row not found. */
 export class ExperimentVariantNotFoundError extends Schema.TaggedErrorClass<ExperimentVariantNotFoundError>(
   "ExperimentVariantNotFoundError",

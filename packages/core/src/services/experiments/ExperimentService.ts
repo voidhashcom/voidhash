@@ -25,7 +25,6 @@ import {
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
-  ExperimentKeyAlreadyExistsError,
   ExperimentNotFoundError,
   ExperimentTreatmentNotFoundError,
   ExperimentValidationError,
@@ -176,32 +175,21 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
       return [...ids];
     };
 
+    /**
+     * Create a draft experiment. Deliberately takes nothing but a name: a draft
+     * assigns no traffic, so variants, treatments and the metric definition are
+     * all authored afterwards on the detail page.
+     */
     const createExperiment = Effect.fn("createExperiment")(
-      function* (input: {
-        readonly projectId: string;
-        readonly key: string;
-        readonly name: string;
-        readonly description?: string;
-        readonly hypothesis?: string;
-        readonly primaryMetricEventName: string;
-        readonly secondaryMetricEventNames?: ReadonlyArray<string>;
-      }) {
+      function* (input: { readonly projectId: string; readonly name: string }) {
         const session = yield* AuthSession;
         yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
-        yield* Effect.annotateCurrentSpan("voidhash.experiment.key", input.key);
 
         yield* checkProjectPermission(
           input.projectId,
           "project:all",
           `User ${session?.user?.id} is not authorized to create experiments for project ${input.projectId}`,
         );
-
-        const existing = yield* db.query.experiments.findFirst({
-          where: { key: input.key, projectId: input.projectId, archivedAt: { isNull: true } },
-        });
-        if (existing) {
-          return yield* Effect.fail(new ExperimentKeyAlreadyExistsError({ key: input.key }));
-        }
 
         const experimentId = generateId("experiment");
         yield* Effect.annotateCurrentSpan("voidhash.experiment.id", experimentId);
@@ -212,7 +200,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           .createInternalFlag({
             projectId: input.projectId,
             key: `__exp_${experimentId}`,
-            name: `Experiment: ${input.name}`,
+            name: `A/B Test: ${input.name}`,
             ownerType: EXPERIMENT_FLAG_OWNER_TYPE,
             ownerId: experimentId,
           })
@@ -222,15 +210,12 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           id: experimentId,
           projectId: input.projectId,
           featureFlagId,
-          key: input.key,
           name: input.name,
-          description: input.description ?? null,
-          hypothesis: input.hypothesis ?? null,
+          description: null,
+          hypothesis: null,
           status: ExperimentStatus.draft,
-          primaryMetricEventName: input.primaryMetricEventName,
-          secondaryMetricEventNames: input.secondaryMetricEventNames
-            ? [...input.secondaryMetricEventNames]
-            : null,
+          primaryMetricEventName: null,
+          secondaryMetricEventNames: null,
           createdByUserId: session?.user?.id ?? null,
           updatedByUserId: session?.user?.id ?? null,
           version: 1,
@@ -298,6 +283,11 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
       (effect) => effect.pipe(Effect.catchTags({ EffectDrizzleQueryError: toServiceError })),
     );
 
+    /**
+     * List a project's experiments with the two facts the index table needs
+     * beyond the scalars: how many arms each has, and which paywall locations
+     * it targets (which is what scopes its engagement metrics).
+     */
     const listExperiments = Effect.fn("listExperiments")(
       function* (input: { readonly projectId: string; readonly includeArchived?: boolean }) {
         yield* checkProjectPermission(
@@ -310,11 +300,18 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
             projectId: input.projectId,
             ...(input.includeArchived ? {} : { archivedAt: { isNull: true } }),
           },
-          with: { variants: { where: { archivedAt: { isNull: true } } } },
+          with: {
+            treatments: { where: { archivedAt: { isNull: true } } },
+            variants: { where: { archivedAt: { isNull: true } } },
+          },
         });
         return rows.map((r) => {
-          const { variants, ...rest } = r;
-          return { ...rest, variantCount: variants.length };
+          const { treatments, variants, ...rest } = r;
+          return {
+            ...rest,
+            paywallLocationIds: targetLocationIds(treatments),
+            variantCount: variants.length,
+          };
         });
       },
       (effect) => effect.pipe(Effect.catchTags({ EffectDrizzleQueryError: toServiceError })),
@@ -326,7 +323,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         readonly name?: string;
         readonly description?: string | null;
         readonly hypothesis?: string | null;
-        readonly primaryMetricEventName?: string;
+        readonly primaryMetricEventName?: string | null;
         readonly secondaryMetricEventNames?: ReadonlyArray<string> | null;
       }) {
         const session = yield* AuthSession;
@@ -943,7 +940,6 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
       function* (input: {
         readonly projectId: string;
         readonly experimentId?: string;
-        readonly experimentKey?: string;
         readonly featureFlagId?: string;
         readonly personId?: string;
         readonly distinctId?: string;
@@ -953,7 +949,6 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
             projectId: input.projectId,
             archivedAt: { isNull: true },
             ...(input.experimentId ? { id: input.experimentId } : {}),
-            ...(input.experimentKey ? { key: input.experimentKey } : {}),
             ...(input.featureFlagId ? { featureFlagId: input.featureFlagId } : {}),
           },
           with: {
@@ -984,7 +979,6 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         const result = results[0];
         return {
           experimentId: experiment.id,
-          experimentKey: experiment.key,
           assigned: result?.enabled ?? false,
           variantKey: result?.variantKey ?? null,
           payload: result?.payload ?? null,

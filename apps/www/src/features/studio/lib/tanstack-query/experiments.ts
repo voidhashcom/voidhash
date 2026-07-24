@@ -20,17 +20,11 @@ export const getExperimentOptions = (options: { id: string }) =>
   });
 
 // Mutations
+/** Creates a draft A/B test; everything but the name is authored afterwards. */
 export const createExperimentOptions = () =>
   eq.mutationOptions({
-    mutationFn: (variables: {
-      projectId: string;
-      key: string;
-      name: string;
-      description?: string;
-      hypothesis?: string;
-      primaryMetricEventName: string;
-      secondaryMetricEventNames?: string[];
-    }) => VoidhashRpc.request((rpc) => rpc.CreateExperiment(variables)),
+    mutationFn: (variables: { projectId: string; name: string }) =>
+      VoidhashRpc.request((rpc) => rpc.CreateExperiment(variables)),
     mutationKey: ["createExperiment"],
   });
 
@@ -41,7 +35,7 @@ export const updateExperimentOptions = () =>
       name?: string;
       description?: string | null;
       hypothesis?: string | null;
-      primaryMetricEventName?: string;
+      primaryMetricEventName?: string | null;
       secondaryMetricEventNames?: string[] | null;
     }) => VoidhashRpc.request((rpc) => rpc.UpdateExperiment(variables)),
     mutationKey: ["updateExperiment"],

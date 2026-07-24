@@ -3,7 +3,6 @@ import { Schema } from "effect";
 
 import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
-  RpcExperimentKeyAlreadyExistsError,
   RpcExperimentNotFoundError,
   RpcExperimentServiceError,
   RpcExperimentTreatmentNotFoundError,
@@ -52,9 +51,8 @@ const experimentScalarFields = {
   featureFlagId: Schema.String,
   hypothesis: Schema.NullOr(Schema.String),
   id: Schema.String,
-  key: Schema.String,
   name: Schema.String,
-  primaryMetricEventName: Schema.String,
+  primaryMetricEventName: Schema.NullOr(Schema.String),
   projectId: Schema.String,
   secondaryMetricEventNames: Schema.NullOr(Schema.Array(Schema.String)),
   startedAt: Schema.NullOr(Schema.Date),
@@ -74,6 +72,12 @@ export const RpcExperiment = Schema.Struct({
 
 export const RpcExperimentListItem = Schema.Struct({
   ...experimentScalarFields,
+  /**
+   * Distinct paywall locations targeted by any of the test's treatments. The
+   * index table scopes its engagement metrics to these, since that is the
+   * traffic the test actually splits.
+   */
+  paywallLocationIds: Schema.Array(Schema.String),
   variantCount: Schema.Number,
 });
 
@@ -124,20 +128,13 @@ export class ExperimentRpcsDef extends RpcGroup.make(
     payload: { id: Schema.String },
     success: RpcExperiment,
   }),
+  // Creation asks for a name and nothing else: the test lands in `draft`, and
+  // variants, treatments and metrics are all authored on the detail page.
   Rpc.make("CreateExperiment", {
-    error: Schema.Union([
-      RpcExperimentServiceError,
-      RpcExperimentKeyAlreadyExistsError,
-      RpcActionForbiddenError,
-    ]),
+    error: commonError,
     payload: {
-      description: Schema.optional(Schema.String),
-      hypothesis: Schema.optional(Schema.String),
-      key: Schema.String,
       name: Schema.String,
-      primaryMetricEventName: Schema.String,
       projectId: Schema.String,
-      secondaryMetricEventNames: Schema.optional(Schema.Array(Schema.String)),
     },
     success: Schema.Struct({ id: Schema.String }),
   }),
@@ -153,7 +150,7 @@ export class ExperimentRpcsDef extends RpcGroup.make(
       hypothesis: Schema.optional(Schema.NullOr(Schema.String)),
       id: Schema.String,
       name: Schema.optional(Schema.String),
-      primaryMetricEventName: Schema.optional(Schema.String),
+      primaryMetricEventName: Schema.optional(Schema.NullOr(Schema.String)),
       secondaryMetricEventNames: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
     },
     success: RpcExperiment,

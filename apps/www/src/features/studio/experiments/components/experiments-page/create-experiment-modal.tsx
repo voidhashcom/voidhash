@@ -1,166 +1,125 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { Button } from "@voidhash/ui/button";
 import {
-  Button,
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  Input,
-  Label,
-  Textarea,
-} from "@voidhash/ui";
+} from "@voidhash/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@voidhash/ui/form";
+import { Input } from "@voidhash/ui/input";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod/v3";
 
 import { createExperimentOptions, queryKeys } from "@/features/studio/lib/tanstack-query";
 
-/**
- * Parse a comma / newline separated string of event names into a de-duplicated
- * list, dropping blanks. Mirrors how the treatments/metrics fields accept free
- * text but persist a clean array.
- */
-const parseEventNames = (value: string): string[] =>
-  Array.from(
-    new Set(
-      value
-        .split(/[\n,]/)
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0),
-    ),
-  );
+const createExperimentSchema = z.object({
+  name: z
+    .string()
+    .min(3, "Name must be at least 3 characters long")
+    .max(64, "Name must be less than 64 characters"),
+});
+
+type CreateExperimentForm = z.infer<typeof createExperimentSchema>;
 
 interface CreateExperimentModalProps {
+  organizationSlug: string;
   projectId: string;
-  trigger?: React.ReactNode;
+  projectSlug: string;
+  trigger: React.ReactNode;
 }
 
-/** Dialog for creating an A/B test in the current project. */
-export function CreateExperimentModal({ projectId, trigger }: CreateExperimentModalProps) {
+/**
+ * Dialog for creating an A/B test. A test starts as an empty draft that assigns
+ * no traffic, so the only thing worth asking for up front is a name — variants,
+ * treatments and metrics are authored on the detail page we land on.
+ */
+export function CreateExperimentModal({
+  organizationSlug,
+  projectId,
+  projectSlug,
+  trigger,
+}: CreateExperimentModalProps) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [key, setKey] = useState("");
-  const [description, setDescription] = useState("");
-  const [hypothesis, setHypothesis] = useState("");
-  const [primaryMetricEventName, setPrimaryMetricEventName] = useState("");
-  const [secondaryMetricEventNames, setSecondaryMetricEventNames] = useState("");
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const form = useForm<CreateExperimentForm>({
+    defaultValues: { name: "" },
+    resolver: zodResolver(createExperimentSchema),
+  });
 
-  const createExperiment = useMutation({
+  const { mutate: createExperiment, status: createExperimentStatus } = useMutation({
     ...createExperimentOptions(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.experiment.list({ projectId }),
+    onError: () => {
+      toast.error("Failed to create A/B test");
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.experiment.all });
+      handleOpenChange(false);
+      void navigate({
+        params: { id: data.id, organizationSlug, projectSlug },
+        to: "/studio/$organizationSlug/$projectSlug/experiments/$id",
       });
-      setOpen(false);
-      setName("");
-      setKey("");
-      setDescription("");
-      setHypothesis("");
-      setPrimaryMetricEventName("");
-      setSecondaryMetricEventNames("");
     },
   });
 
-  const handleNameChange = (value: string) => {
-    setName(value);
-    setKey(
-      value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, ""),
-    );
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      form.reset();
+    }
   };
 
   return (
-    <Dialog onOpenChange={setOpen} open={open}>
-      <DialogTrigger asChild>{trigger ?? <Button>Create Experiment</Button>}</DialogTrigger>
-      <DialogContent>
+    <Dialog onOpenChange={handleOpenChange} open={open}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-w-sm" hideCloseButton>
         <DialogHeader>
-          <DialogTitle>Create Experiment</DialogTitle>
+          <DialogTitle>Create A/B test</DialogTitle>
         </DialogHeader>
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const secondary = parseEventNames(secondaryMetricEventNames);
-            createExperiment.mutate({
-              description: description || undefined,
-              hypothesis: hypothesis || undefined,
-              key,
-              name,
-              primaryMetricEventName,
-              projectId,
-              secondaryMetricEventNames: secondary.length > 0 ? secondary : undefined,
-            });
-          }}
-        >
-          <div className="space-y-2">
-            <Label htmlFor="experiment-name">Name</Label>
-            <Input
-              id="experiment-name"
-              onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="My Experiment"
-              value={name}
+        <Form {...form}>
+          <form
+            className="space-y-4 pt-4"
+            onSubmit={form.handleSubmit((data) => createExperiment({ name: data.name, projectId }))}
+          >
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem className="space-y-1">
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Onboarding paywall pricing" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="experiment-key">Key</Label>
-            <Input
-              id="experiment-key"
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="my-experiment"
-              value={key}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="experiment-primary-metric">Primary metric event</Label>
-            <Input
-              id="experiment-primary-metric"
-              onChange={(e) => setPrimaryMetricEventName(e.target.value)}
-              placeholder="purchase_completed"
-              value={primaryMetricEventName}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="experiment-secondary-metrics">Secondary metrics (optional)</Label>
-            <Input
-              id="experiment-secondary-metrics"
-              onChange={(e) => setSecondaryMetricEventNames(e.target.value)}
-              placeholder="trial_started, paywall_viewed"
-              value={secondaryMetricEventNames}
-            />
-            <p className="text-muted-foreground text-xs">Comma separated event names.</p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="experiment-hypothesis">Hypothesis (optional)</Label>
-            <Textarea
-              id="experiment-hypothesis"
-              onChange={(e) => setHypothesis(e.target.value)}
-              placeholder="What do you expect to happen and why?"
-              value={hypothesis}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="experiment-description">Description (optional)</Label>
-            <Textarea
-              id="experiment-description"
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this experiment change?"
-              value={description}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button onClick={() => setOpen(false)} type="button" variant="outline">
-              Cancel
-            </Button>
-            <Button
-              disabled={!name || !key || !primaryMetricEventName || createExperiment.isPending}
-              type="submit"
-            >
-              {createExperiment.isPending ? "Creating..." : "Create"}
-            </Button>
-          </div>
-        </form>
+
+            <DialogFooter className="flex gap-2 sm:justify-between">
+              <Button
+                className="hidden md:block"
+                disabled={createExperimentStatus === "pending"}
+                onClick={() => handleOpenChange(false)}
+                type="button"
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button disabled={createExperimentStatus === "pending"} type="submit">
+                {createExperimentStatus === "pending" ? "Creating..." : "Create A/B test"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

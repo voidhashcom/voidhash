@@ -22,7 +22,7 @@ const suffix = `${Date.now()}-${crypto.randomUUID()}`;
 const experimentId = `it_experiment_auth_${suffix}`;
 const controlId = `it_experiment_variant_control_${suffix}`;
 const treatmentId = `it_experiment_treatment_${suffix}`;
-const unauthorizedCreateKey = `it-experiment-create-forbidden-${suffix}`;
+const unauthorizedCreateName = `it experiment create forbidden ${suffix}`;
 
 const sessionWithoutProjectAccess = (): UserSession => ({
   cookie: null,
@@ -56,7 +56,6 @@ test(
     yield* db.insert(experiments).values({
       featureFlagId: `it_feature_flag_auth_${suffix}`,
       id: experimentId,
-      key: `it-experiment-auth-${suffix}`,
       name: "Original experiment",
       primaryMetricEventName: "purchase",
       projectId: CoreTestFixture.projectId,
@@ -101,9 +100,7 @@ test(
 
     yield* expectForbidden(
       service.createExperiment({
-        key: unauthorizedCreateKey,
-        name: "Forbidden create",
-        primaryMetricEventName: "purchase",
+        name: unauthorizedCreateName,
         projectId: CoreTestFixture.projectId,
       }),
     );
@@ -141,7 +138,7 @@ test(
       where: { id: treatmentId },
     });
     const forbiddenCreate = yield* db.query.experiments.findFirst({
-      where: { key: unauthorizedCreateKey, projectId: CoreTestFixture.projectId },
+      where: { name: unauthorizedCreateName, projectId: CoreTestFixture.projectId },
     });
     expect(experiment).toMatchObject({
       archivedAt: null,

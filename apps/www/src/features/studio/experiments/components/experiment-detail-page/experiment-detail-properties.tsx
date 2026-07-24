@@ -9,8 +9,7 @@ interface ExperimentDetailPropertiesProps {
   archivedAt: Date | null;
   createdAt: Date | null;
   endedAt: Date | null;
-  keyValue: string;
-  primaryMetricEventName: string;
+  primaryMetricEventName: string | null;
   startedAt: Date | null;
   status: number;
   variantCount: number;
@@ -37,7 +36,6 @@ export function ExperimentDetailProperties({
   archivedAt,
   createdAt,
   endedAt,
-  keyValue,
   primaryMetricEventName,
   startedAt,
   status,
@@ -65,7 +63,11 @@ export function ExperimentDetailProperties({
       </PropertyRow>
 
       <PropertyRow label="Primary metric">
-        <span className="font-mono text-xs">{primaryMetricEventName}</span>
+        {primaryMetricEventName ? (
+          <span className="font-mono text-xs">{primaryMetricEventName}</span>
+        ) : (
+          <span className="text-muted-foreground">Not set</span>
+        )}
       </PropertyRow>
 
       <PropertyRow label="Variants">
@@ -82,10 +84,6 @@ export function ExperimentDetailProperties({
 
       <PropertyRow label="Created">
         {createdAt ? formatDate(createdAt) : <span className="text-muted-foreground">Unknown</span>}
-      </PropertyRow>
-
-      <PropertyRow label="Key">
-        <span className="font-mono text-xs">{keyValue}</span>
       </PropertyRow>
 
       <PropertyRow label="Version">v{version}</PropertyRow>

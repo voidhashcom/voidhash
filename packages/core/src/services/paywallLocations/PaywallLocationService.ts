@@ -717,7 +717,6 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
               releaseId && enrolled
                 ? {
                     experimentId: assignment.experimentId,
-                    experimentKey: assignment.experimentKey,
                     variantKey: assignment.variantKey as string,
                     personId: input.personId ?? null,
                     distinctId: input.distinctId ?? null,

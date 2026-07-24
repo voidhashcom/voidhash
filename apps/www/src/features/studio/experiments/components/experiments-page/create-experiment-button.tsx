@@ -7,11 +7,21 @@ import { Plus } from "lucide-react";
 import { CreateExperimentModal } from "./create-experiment-modal";
 
 /** Compact page-header action for creating an A/B test. */
-export function CreateExperimentButton({ projectId }: { projectId: string }) {
+export function CreateExperimentButton({
+  organizationSlug,
+  projectId,
+  projectSlug,
+}: {
+  organizationSlug: string;
+  projectId: string;
+  projectSlug: string;
+}) {
   return (
     <Tooltip>
       <CreateExperimentModal
+        organizationSlug={organizationSlug}
         projectId={projectId}
+        projectSlug={projectSlug}
         trigger={
           <TooltipTrigger
             render={

@@ -39,7 +39,7 @@ export const Route = createFileRoute(
 });
 
 /**
- * Gate the experiment detail page behind the `experimentation` internal feature
+ * Gate the A/B test detail page behind the `experimentation` internal feature
  * flag, matching the A/B Tests list route.
  */
 function ExperimentDetailRoute() {
@@ -59,7 +59,7 @@ function ExperimentDetailPageError() {
     <VoidhashErrorCard
       error={{
         code: "INTERNAL_SERVER_ERROR",
-        message: "An error occurred loading the experiment",
+        message: "An error occurred loading the A/B test",
       }}
     />
   );
@@ -139,14 +139,15 @@ function ExperimentDetailPage() {
                 <h1 className="font-semibold text-3xl tracking-tight">{experiment.name}</h1>
                 <p className="mt-1 text-muted-foreground text-sm">
                   {experiment.description ||
-                    `Measure ${experiment.primaryMetricEventName} across ${experiment.variants.length} variants.`}
+                    (experiment.primaryMetricEventName
+                      ? `Measure ${experiment.primaryMetricEventName} across ${experiment.variants.length} variants.`
+                      : `Compare ${experiment.variants.length} variants against each other.`)}
                 </p>
               </div>
               <ExperimentDetailProperties
                 archivedAt={experiment.archivedAt}
                 createdAt={experiment.createdAt}
                 endedAt={experiment.endedAt}
-                keyValue={experiment.key}
                 primaryMetricEventName={experiment.primaryMetricEventName}
                 startedAt={experiment.startedAt}
                 status={experiment.status}
