@@ -2,7 +2,6 @@
 
 import {
   Button,
-  cn,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -14,7 +13,17 @@ import {
   Slider,
 } from "@voidhash/ui";
 import { CheckIcon } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
+
+import {
+  formatPropertyDate,
+  PROPERTY_VALUE_CLASS_NAME,
+  PropertyEmpty,
+  PropertyList,
+  PropertyRow,
+  PropertyStatusDot,
+  PropertyValue,
+} from "@/features/studio/components/property-list";
 
 import type { FlagType } from "../../lib/flag-type";
 import { FlagTypeIndicator } from "../shared/flag-type-indicator";
@@ -34,41 +43,7 @@ const STATUS_PRESENTATION = {
   enabled: { dotClassName: "bg-emerald-500", label: "Enabled" },
 } as const;
 
-const formatDate = (date: Date) =>
-  date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-
 const formatRollout = (rolloutBps: number) => `${(rolloutBps / 100).toFixed(0)}%`;
-
-/**
- * The box every value sits in, static or interactive, so the whole column
- * shares one height, type scale, weight and inset. The negative margin cancels
- * the horizontal padding a trigger needs for its hover state, which keeps the
- * text on the same axis whether or not the row is clickable.
- */
-const VALUE_CLASS_NAME =
-  "-ml-2.5 flex h-7 items-center gap-2 px-2.5 font-normal text-foreground text-sm";
-
-function PropertyRow({ children, label }: { children: ReactNode; label: string }) {
-  return (
-    <div className="flex min-h-8 items-center gap-3">
-      <dt className="w-24 shrink-0 text-muted-foreground text-sm">{label}</dt>
-      <dd className="min-w-0 flex-1">{children}</dd>
-    </div>
-  );
-}
-
-/**
- * Static counterpart to a trigger — same box, no interaction. Dimmed a step
- * below the editable rows so what can be changed reads as the brighter text,
- * while staying clear of the still-dimmer property labels.
- */
-function PropertyValue({ children }: { children: ReactNode }) {
-  return <span className={cn(VALUE_CLASS_NAME, "text-foreground/80")}>{children}</span>;
-}
-
-function StatusDot({ className }: { className: string }) {
-  return <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", className)} />;
-}
 
 function RolloutEditor({
   disabled,
@@ -86,7 +61,7 @@ function RolloutEditor({
       <PopoverTrigger asChild>
         <Button
           aria-label="Change rollout"
-          className={VALUE_CLASS_NAME}
+          className={PROPERTY_VALUE_CLASS_NAME}
           disabled={disabled}
           size="sm"
           variant="ghost"
@@ -159,93 +134,77 @@ export function FlagDetailProperties({
   const isEditable = !readOnly && !isSaving;
 
   return (
-    <section className="space-y-3">
-      <h2 className="font-medium text-sm">Properties</h2>
-
-      <dl>
-        <PropertyRow label="Status">
-          {readOnly ? (
-            <PropertyValue>
-              <StatusDot className={status.dotClassName} />
-              {status.label}
-            </PropertyValue>
-          ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  aria-label="Change status"
-                  className={VALUE_CLASS_NAME}
-                  disabled={!isEditable}
-                  size="sm"
-                  variant="ghost"
-                >
-                  <StatusDot className={status.dotClassName} />
-                  {status.label}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-44">
-                {([true, false] as const).map((value) => (
-                  <DropdownMenuItem key={String(value)} onSelect={() => setEnabled(value)}>
-                    <StatusDot
-                      className={
-                        value
-                          ? STATUS_PRESENTATION.enabled.dotClassName
-                          : STATUS_PRESENTATION.disabled.dotClassName
-                      }
-                    />
-                    {value ? STATUS_PRESENTATION.enabled.label : STATUS_PRESENTATION.disabled.label}
-                    {value === enabled && <CheckIcon className="ml-auto" />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </PropertyRow>
-
-        <PropertyRow label="Allocation">
-          {flagType !== "boolean" ? (
-            <PropertyValue>{`${variants.length} variant${variants.length === 1 ? "" : "s"}`}</PropertyValue>
-          ) : readOnly ? (
-            <PropertyValue>{`${formatRollout(rolloutBps)} of users`}</PropertyValue>
-          ) : (
-            <RolloutEditor
-              disabled={!isEditable}
-              onChange={setRolloutBps}
-              rolloutBps={rolloutBps}
-            />
-          )}
-        </PropertyRow>
-
-        <PropertyRow label="Type">
+    <PropertyList>
+      <PropertyRow label="Status">
+        {readOnly ? (
           <PropertyValue>
-            <FlagTypeIndicator flagType={flagType} />
+            <PropertyStatusDot className={status.dotClassName} />
+            {status.label}
           </PropertyValue>
-        </PropertyRow>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                aria-label="Change status"
+                className={PROPERTY_VALUE_CLASS_NAME}
+                disabled={!isEditable}
+                size="sm"
+                variant="ghost"
+              >
+                <PropertyStatusDot className={status.dotClassName} />
+                {status.label}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44">
+              {([true, false] as const).map((value) => (
+                <DropdownMenuItem key={String(value)} onSelect={() => setEnabled(value)}>
+                  <PropertyStatusDot
+                    className={
+                      value
+                        ? STATUS_PRESENTATION.enabled.dotClassName
+                        : STATUS_PRESENTATION.disabled.dotClassName
+                    }
+                  />
+                  {value ? STATUS_PRESENTATION.enabled.label : STATUS_PRESENTATION.disabled.label}
+                  {value === enabled && <CheckIcon className="ml-auto" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </PropertyRow>
 
-        <PropertyRow label="Created">
-          <PropertyValue>
-            {createdAt ? (
-              formatDate(createdAt)
-            ) : (
-              <span className="text-muted-foreground">Unknown</span>
-            )}
-          </PropertyValue>
-        </PropertyRow>
+      <PropertyRow label="Allocation">
+        {flagType !== "boolean" ? (
+          <PropertyValue>{`${variants.length} variant${variants.length === 1 ? "" : "s"}`}</PropertyValue>
+        ) : readOnly ? (
+          <PropertyValue>{`${formatRollout(rolloutBps)} of users`}</PropertyValue>
+        ) : (
+          <RolloutEditor disabled={!isEditable} onChange={setRolloutBps} rolloutBps={rolloutBps} />
+        )}
+      </PropertyRow>
 
-        <PropertyRow label="Updated">
-          <PropertyValue>
-            {updatedAt ? (
-              formatDate(updatedAt)
-            ) : (
-              <span className="text-muted-foreground">Unknown</span>
-            )}
-          </PropertyValue>
-        </PropertyRow>
+      <PropertyRow label="Type">
+        <PropertyValue>
+          <FlagTypeIndicator flagType={flagType} />
+        </PropertyValue>
+      </PropertyRow>
 
-        <PropertyRow label="Version">
-          <PropertyValue>v{version}</PropertyValue>
-        </PropertyRow>
-      </dl>
-    </section>
+      <PropertyRow label="Created">
+        <PropertyValue>
+          {createdAt ? formatPropertyDate(createdAt) : <PropertyEmpty>Unknown</PropertyEmpty>}
+        </PropertyValue>
+      </PropertyRow>
+
+      <PropertyRow label="Updated">
+        <PropertyValue>
+          {updatedAt ? formatPropertyDate(updatedAt) : <PropertyEmpty>Unknown</PropertyEmpty>}
+        </PropertyValue>
+      </PropertyRow>
+
+      <PropertyRow label="Version">
+        <PropertyValue>v{version}</PropertyValue>
+      </PropertyRow>
+    </PropertyList>
   );
 }

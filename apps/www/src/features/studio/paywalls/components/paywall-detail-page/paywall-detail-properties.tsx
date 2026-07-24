@@ -1,8 +1,17 @@
 "use client";
 
-import { cn } from "@voidhash/ui";
 import { ExternalLinkIcon } from "lucide-react";
-import type { ReactNode } from "react";
+
+import {
+  formatPropertyDate,
+  PropertyCopyValue,
+  PropertyEmpty,
+  PropertyLink,
+  PropertyList,
+  PropertyRow,
+  PropertyStatusDot,
+  PropertyValue,
+} from "@/features/studio/components/property-list";
 
 interface PaywallDetailPropertiesProps {
   createdAt: Date | null;
@@ -36,21 +45,9 @@ const resolveStatus = (input: {
   return input.draftVersion == null ? "not-live" : "draft";
 };
 
-const formatDate = (date: Date) =>
-  date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-
-function PropertyRow({ children, label }: { children: ReactNode; label: string }) {
-  return (
-    <div className="flex items-baseline gap-4 py-1.5">
-      <dt className="w-28 shrink-0 text-muted-foreground text-sm">{label}</dt>
-      <dd className="min-w-0 flex-1 text-sm">{children}</dd>
-    </div>
-  );
-}
-
 /**
- * Linear-style property list for the paywall detail screen — status, which
- * versions are live and drafted, and its identifiers.
+ * Property list for the paywall detail screen — status, which versions are
+ * live and drafted, and its identifiers.
  */
 export function PaywallDetailProperties({
   createdAt,
@@ -64,45 +61,42 @@ export function PaywallDetailProperties({
   const { dotClassName, label } = STATUS_PRESENTATION[status];
 
   return (
-    <dl className="-my-1.5">
+    <PropertyList>
       <PropertyRow label="Status">
-        <span className="inline-flex items-center gap-2">
-          <span aria-hidden="true" className={cn("size-2 rounded-full", dotClassName)} />
+        <PropertyValue>
+          <PropertyStatusDot className={dotClassName} />
           {label}
-        </span>
+        </PropertyValue>
       </PropertyRow>
 
       <PropertyRow label="Live version">
         {liveRelease ? (
-          <a
-            className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline"
-            href={liveRelease.htmlUrl}
-            rel="noreferrer"
-            target="_blank"
-          >
+          <PropertyLink href={liveRelease.htmlUrl}>
             v{liveRelease.version}
             <ExternalLinkIcon className="size-3.5 text-muted-foreground" />
-          </a>
+          </PropertyLink>
         ) : (
-          <span className="text-muted-foreground">None</span>
+          <PropertyValue>
+            <PropertyEmpty>None</PropertyEmpty>
+          </PropertyValue>
         )}
       </PropertyRow>
 
       <PropertyRow label="Latest draft">
-        {draftVersion == null ? (
-          <span className="text-muted-foreground">None</span>
-        ) : (
-          `v${draftVersion}`
-        )}
+        <PropertyValue>
+          {draftVersion == null ? <PropertyEmpty>None</PropertyEmpty> : `v${draftVersion}`}
+        </PropertyValue>
       </PropertyRow>
 
       <PropertyRow label="Created">
-        {createdAt ? formatDate(createdAt) : <span className="text-muted-foreground">Unknown</span>}
+        <PropertyValue>
+          {createdAt ? formatPropertyDate(createdAt) : <PropertyEmpty>Unknown</PropertyEmpty>}
+        </PropertyValue>
       </PropertyRow>
 
       <PropertyRow label="Slug">
-        <span className="font-mono text-xs">{slug}</span>
+        <PropertyCopyValue label="Slug" value={slug} />
       </PropertyRow>
-    </dl>
+    </PropertyList>
   );
 }

@@ -9,11 +9,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
   Button,
-  cn,
   Page,
   PageHeader,
 } from "@voidhash/ui";
-import { PlusIcon, RepeatIcon } from "lucide-react";
+import { RepeatIcon } from "lucide-react";
 import { useAuth } from "@/features/studio/components/auth-context";
 import { listPaywallLocationsOptions } from "@/features/studio/lib/tanstack-query/paywall-locations";
 import { listPaywallsOptions } from "@/features/studio/lib/tanstack-query/paywalls";
@@ -120,33 +119,8 @@ function PaywallLocationDetailPage() {
               </div>
               <PaywallLocationProperties
                 location={location}
-                paywallCombobox={
-                  isArchived ? undefined : (
-                    <PaywallCombobox
-                      currentPaywallId={showingPaywallId}
-                      locationId={location.id}
-                      projectId={project.id}
-                      // `-ml-2.5` cancels the button's own padding so its label
-                      // lines up with the plain-text values in the rows above.
-                      trigger={
-                        <Button
-                          className={cn("-ml-2.5 max-w-full", showingPaywall && "text-foreground")}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          {showingPaywall ? (
-                            <span className="truncate">{showingPaywall.name}</span>
-                          ) : (
-                            <>
-                              <PlusIcon />
-                              Select a paywall...
-                            </>
-                          )}
-                        </Button>
-                      }
-                    />
-                  )
-                }
+                projectId={project.id}
+                readOnly={isArchived}
               />
             </div>
 
