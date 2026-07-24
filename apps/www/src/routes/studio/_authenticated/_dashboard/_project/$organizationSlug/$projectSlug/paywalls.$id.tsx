@@ -15,9 +15,9 @@ import {
 import { ExternalLinkIcon } from "lucide-react";
 import { useAuth } from "@/features/studio/components/auth-context";
 
+import { PaywallLocationStats } from "@/features/studio/paywall-locations/analytics/paywall-location-stats";
 import { PaywallDetailPlacements } from "@/features/studio/paywalls/detail/paywall-detail-placements";
 import { PaywallDetailProperties } from "@/features/studio/paywalls/detail/paywall-detail-properties";
-import { PaywallDetailStats } from "@/features/studio/paywalls/detail/paywall-detail-stats";
 import { PaywallPhonePreview } from "@/features/studio/paywalls/detail/paywall-phone-preview";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 import { listPaywallLocationsOptions } from "@/features/studio/lib/tanstack-query/paywall-locations";
@@ -147,7 +147,10 @@ function PaywallDetailPage() {
               projectId={project.id}
             />
 
-            <PaywallDetailStats
+            <PaywallLocationStats
+              description="Events captured at locations currently showing this paywall."
+              emptyDescription="Assign this paywall to a location to start collecting stats."
+              emptyTitle="Not live yet"
               locationSlugs={liveLocations.map((location) => location.slug)}
               projectId={project.id}
             />

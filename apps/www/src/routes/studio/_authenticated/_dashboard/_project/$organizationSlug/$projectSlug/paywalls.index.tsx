@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { zodValidator } from "@tanstack/zod-adapter";
 import {
   cn,
   Page,
@@ -10,6 +11,7 @@ import {
   ToggleGroupItem,
 } from "@voidhash/ui";
 import { useRef, useState } from "react";
+import { z } from "zod";
 import { useAuth } from "@/features/studio/components/auth-context";
 
 import { CreatePaywallButton } from "@/features/studio/paywalls/create-paywall-button";
@@ -39,12 +41,28 @@ const PAYWALL_TABS = [
 
 type PaywallTab = (typeof PAYWALL_TABS)[number]["value"];
 
+const DEFAULT_PAYWALL_TAB: PaywallTab = "active";
+
+const isPaywallTab = (value: string): value is PaywallTab =>
+  PAYWALL_TABS.some((item) => item.value === value);
+
+// The status filter lives in the URL so a view can be linked, bookmarked and
+// survive a reload. `.catch` keeps a stale or hand-edited `?tab=` from failing
+// validation and dropping the page into its error boundary.
+const paywallsSearchSchema = z.object({
+  tab: z
+    .enum(PAYWALL_TABS.map((item) => item.value))
+    .default(DEFAULT_PAYWALL_TAB)
+    .catch(DEFAULT_PAYWALL_TAB),
+});
+
 export const Route = createFileRoute(
   "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/",
 )({
   component: PaywallsPage,
   errorComponent: PaywallsPageError,
   pendingComponent: PaywallsPageSkeleton,
+  validateSearch: zodValidator(paywallsSearchSchema),
 });
 
 function PaywallsPageError() {
@@ -94,7 +112,13 @@ function PaywallsPage() {
     throw new Error("Project not found");
   }
 
-  const [tab, setTab] = useState<PaywallTab>("active");
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  // Filter changes replace the current entry so browsing tabs doesn't bury the
+  // page the user arrived from under a stack of history entries.
+  const changeTab = (next: PaywallTab) => {
+    void navigate({ replace: true, search: (prev) => ({ ...prev, tab: next }) });
+  };
   const [view, setView] = useState<PaywallView>(loadPaywallView);
   const changeView = (next: PaywallView) => {
     setView(next);
@@ -156,8 +180,8 @@ function PaywallsPage() {
       >
         <ToggleGroup
           onValueChange={(value: string) => {
-            if (value) {
-              setTab(value as PaywallTab);
+            if (isPaywallTab(value)) {
+              changeTab(value);
             }
           }}
           type="single"

@@ -14,7 +14,15 @@ function ComboboxValue({ ...props }: ComboboxPrimitive.Value.Props) {
   return <ComboboxPrimitive.Value data-slot="combobox-value" {...props} />;
 }
 
-function ComboboxTrigger({ className, children, ...props }: ComboboxPrimitive.Trigger.Props) {
+function ComboboxTrigger({
+  className,
+  children,
+  showChevron = true,
+  ...props
+}: ComboboxPrimitive.Trigger.Props & {
+  /** Set false when the trigger carries its own affordance (an icon button, a property row). */
+  showChevron?: boolean;
+}) {
   return (
     <ComboboxPrimitive.Trigger
       data-slot="combobox-trigger"
@@ -22,7 +30,9 @@ function ComboboxTrigger({ className, children, ...props }: ComboboxPrimitive.Tr
       {...props}
     >
       {children}
-      <ChevronDownIcon className="text-muted-foreground size-4 pointer-events-none" />
+      {showChevron && (
+        <ChevronDownIcon className="text-muted-foreground size-4 pointer-events-none" />
+      )}
     </ComboboxPrimitive.Trigger>
   );
 }

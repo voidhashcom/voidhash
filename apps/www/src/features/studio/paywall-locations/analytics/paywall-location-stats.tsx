@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { AnalyticsFilterType, CustomAnalyticsInsightQueryType } from "@voidhash/rpc";
 import {
   type ChartConfig,
   ChartContainer,
@@ -16,117 +15,14 @@ import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { customAnalyticsInsightQueryOptions } from "@/features/studio/lib/tanstack-query/analytics";
 
-// Conventional event names emitted by paywall compositions through the SDK
-// bridge. Every bridge event is stamped with the `paywall_location` property
-// of the location that served the paywall, which is what scopes these queries
-// to a single paywall.
-const PAYWALL_VIEWED_EVENT = "paywall_viewed";
-const PURCHASE_COMPLETED_EVENT = "purchase_completed";
-
-const CONVERSION_WINDOW_SECONDS = 7 * 86_400;
-
-const RANGE_OPTIONS = [
-  { label: "7D", value: "last_7d" },
-  { label: "30D", value: "last_30d" },
-  { label: "90D", value: "last_90d" },
-] as const;
-
-type StatsRange = (typeof RANGE_OPTIONS)[number]["value"];
-
-const isStatsRange = (value: string): value is StatsRange =>
-  RANGE_OPTIONS.some((option) => option.value === value);
-
-const locationFilter = (locationSlugs: string[]): AnalyticsFilterType => ({
-  field: "event.properties.paywall_location",
-  op: "in",
-  type: "predicate",
-  value: locationSlugs,
-});
-
-const buildTotalsDefinition = (
-  range: StatsRange,
-  locationSlugs: string[],
-): CustomAnalyticsInsightQueryType => ({
-  display: "number",
-  granularity: "day",
-  kind: "trends",
-  series: [
-    {
-      aggregation: "total_events",
-      eventNames: [PAYWALL_VIEWED_EVENT],
-      filters: locationFilter(locationSlugs),
-      key: "views",
-      label: "Views",
-    },
-    {
-      aggregation: "unique_users",
-      eventNames: [PAYWALL_VIEWED_EVENT],
-      filters: locationFilter(locationSlugs),
-      key: "viewers",
-      label: "Unique viewers",
-    },
-    {
-      aggregation: "total_events",
-      eventNames: [PURCHASE_COMPLETED_EVENT],
-      filters: locationFilter(locationSlugs),
-      key: "purchases",
-      label: "Purchases",
-    },
-  ],
-  timeRange: { preset: range },
-});
-
-const buildTimeseriesDefinition = (
-  range: StatsRange,
-  locationSlugs: string[],
-): CustomAnalyticsInsightQueryType => ({
-  display: "area",
-  granularity: "day",
-  kind: "trends",
-  series: [
-    {
-      aggregation: "total_events",
-      eventNames: [PAYWALL_VIEWED_EVENT],
-      filters: locationFilter(locationSlugs),
-      key: "views",
-      label: "Views",
-    },
-    {
-      aggregation: "total_events",
-      eventNames: [PURCHASE_COMPLETED_EVENT],
-      filters: locationFilter(locationSlugs),
-      key: "purchases",
-      label: "Purchases",
-    },
-  ],
-  timeRange: { preset: range },
-});
-
-// The purchase step is intentionally unfiltered: the funnel is sequential per
-// user, so it measures "viewed this paywall, then purchased" even when the
-// purchase event isn't stamped with the paywall location.
-const buildFunnelDefinition = (
-  range: StatsRange,
-  locationSlugs: string[],
-): CustomAnalyticsInsightQueryType => ({
-  conversionWindowSeconds: CONVERSION_WINDOW_SECONDS,
-  kind: "funnels",
-  order: "sequential",
-  steps: [
-    {
-      eventNames: [PAYWALL_VIEWED_EVENT],
-      filters: locationFilter(locationSlugs),
-      key: "viewed",
-      label: "Viewed paywall",
-    },
-    {
-      eventNames: [PURCHASE_COMPLETED_EVENT],
-      key: "purchased",
-      label: "Purchased",
-    },
-  ],
-  timeRange: { preset: range },
-});
+import {
+  buildLocationFunnelDefinition,
+  buildLocationTimeseriesDefinition,
+  buildLocationTotalsDefinition,
+  isMetricRange,
+  METRIC_RANGE_OPTIONS,
+  type MetricRange,
+} from "./paywall-location-metrics";
 
 interface StatTileProps {
   label: string;
@@ -147,40 +43,50 @@ function StatTile({ label, loading, value }: StatTileProps) {
   );
 }
 
-interface PaywallDetailStatsProps {
+export interface PaywallLocationStatsProps {
+  description: string;
+  emptyDescription: string;
+  emptyTitle: string;
   locationSlugs: string[];
   projectId: string;
 }
 
 /**
- * Performance section of the paywall detail page: KPI tiles (views, unique
- * viewers, purchases, view→purchase conversion) plus a views/purchases area
- * chart, scoped to the locations currently showing the paywall.
+ * Performance section shared by the paywall and paywall-location detail
+ * screens: KPI tiles (views, unique viewers, purchases, view→purchase
+ * conversion) plus a views/purchases area chart, scoped to a set of paywall
+ * locations. With no locations to scope to it renders the caller's empty state.
  */
-export function PaywallDetailStats({ locationSlugs, projectId }: PaywallDetailStatsProps) {
-  const [range, setRange] = useState<StatsRange>("last_30d");
-  const isLive = locationSlugs.length > 0;
+export function PaywallLocationStats({
+  description,
+  emptyDescription,
+  emptyTitle,
+  locationSlugs,
+  projectId,
+}: PaywallLocationStatsProps) {
+  const [range, setRange] = useState<MetricRange>("last_30d");
+  const hasScope = locationSlugs.length > 0;
 
   const totalsQuery = useQuery({
     ...customAnalyticsInsightQueryOptions({
-      definition: buildTotalsDefinition(range, locationSlugs),
+      definition: buildLocationTotalsDefinition(range, locationSlugs),
       projectId,
     }),
-    enabled: isLive,
+    enabled: hasScope,
   });
   const timeseriesQuery = useQuery({
     ...customAnalyticsInsightQueryOptions({
-      definition: buildTimeseriesDefinition(range, locationSlugs),
+      definition: buildLocationTimeseriesDefinition(range, locationSlugs),
       projectId,
     }),
-    enabled: isLive,
+    enabled: hasScope,
   });
   const funnelQuery = useQuery({
     ...customAnalyticsInsightQueryOptions({
-      definition: buildFunnelDefinition(range, locationSlugs),
+      definition: buildLocationFunnelDefinition(range, locationSlugs),
       projectId,
     }),
-    enabled: isLive,
+    enabled: hasScope,
   });
 
   const totals = totalsQuery.data?.kind === "trends" ? totalsQuery.data : undefined;
@@ -225,20 +131,18 @@ export function PaywallDetailStats({ locationSlugs, projectId }: PaywallDetailSt
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-medium text-sm">Performance</h2>
-          <p className="mt-0.5 text-muted-foreground text-xs">
-            Events captured at locations currently showing this paywall.
-          </p>
+          <p className="mt-0.5 text-muted-foreground text-xs">{description}</p>
         </div>
         <ToggleGroup
           onValueChange={(value: string) => {
-            if (value && isStatsRange(value)) {
+            if (value && isMetricRange(value)) {
               setRange(value);
             }
           }}
           type="single"
           value={range}
         >
-          {RANGE_OPTIONS.map((option) => (
+          {METRIC_RANGE_OPTIONS.map((option) => (
             <ToggleGroupItem className="cursor-pointer" key={option.value} value={option.value}>
               {option.label}
             </ToggleGroupItem>
@@ -246,7 +150,7 @@ export function PaywallDetailStats({ locationSlugs, projectId }: PaywallDetailSt
         </ToggleGroup>
       </div>
 
-      {isLive ? (
+      {hasScope ? (
         <>
           <div className="grid grid-cols-2 gap-x-6 gap-y-5 border-border/60 border-y py-5 sm:grid-cols-4 sm:gap-x-0">
             <StatTile
@@ -339,10 +243,8 @@ export function PaywallDetailStats({ locationSlugs, projectId }: PaywallDetailSt
         <div className="flex h-[240px] items-center justify-center rounded-xl border border-dashed bg-muted/20">
           <div className="text-center">
             <MapPinOffIcon className="mx-auto text-muted-foreground" />
-            <p className="mt-3 font-medium text-sm">Not live yet</p>
-            <p className="mt-1 text-muted-foreground text-sm">
-              Assign this paywall to a location to start collecting stats.
-            </p>
+            <p className="mt-3 font-medium text-sm">{emptyTitle}</p>
+            <p className="mt-1 text-muted-foreground text-sm">{emptyDescription}</p>
           </div>
         </div>
       )}

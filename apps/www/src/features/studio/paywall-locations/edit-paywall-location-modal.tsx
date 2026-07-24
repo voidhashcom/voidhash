@@ -43,7 +43,8 @@ interface EditPaywallLocationModalProps {
   onClose: () => void;
   open: boolean;
   projectId: string;
-  trigger: React.ReactNode;
+  /** Optional inline trigger; omit when the dialog is opened from elsewhere. */
+  trigger?: React.ReactNode;
 }
 
 export function EditPaywallLocationModal({
@@ -105,7 +106,7 @@ export function EditPaywallLocationModal({
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="max-w-sm" hideCloseButton>
         <DialogHeader>
           <DialogTitle>Edit Paywall Location</DialogTitle>

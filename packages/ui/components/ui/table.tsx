@@ -2,10 +2,22 @@ import type * as React from "react";
 
 import { cn } from "../../lib/utils";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/**
+ * `containerClassName` styles the scroll container wrapping the table — pass
+ * `overflow-x-auto` to let a wide table scroll horizontally instead of being
+ * clipped by the container's default `overflow-hidden`.
+ */
+function Table({
+  className,
+  containerClassName,
+  ...props
+}: React.ComponentProps<"table"> & { containerClassName?: string }) {
   return (
     <div
-      className="ring-border bg-card relative w-full overflow-hidden rounded-lg ring-1"
+      className={cn(
+        "ring-border bg-card relative w-full overflow-hidden rounded-lg ring-1",
+        containerClassName,
+      )}
       data-slot="table-container"
     >
       <table

@@ -3,9 +3,8 @@
 import type { RpcPaywallLocation } from "@voidhash/rpc";
 import { Button } from "@voidhash/ui";
 import { MapPinIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
 
-import { PaywallPlacementPickerDialog } from "./paywall-placement-picker-dialog";
+import { PaywallLocationCombobox } from "./paywall-location-combobox";
 
 export interface PaywallDetailPlacementsProps {
   locations: readonly (typeof RpcPaywallLocation.Type)[];
@@ -24,7 +23,6 @@ export function PaywallDetailPlacements({
   paywallId,
   projectId,
 }: PaywallDetailPlacementsProps) {
-  const [pickerOpen, setPickerOpen] = useState(false);
   const placements = locations.filter(
     (location) => location.activeShowing?.paywallId === paywallId,
   );
@@ -32,26 +30,31 @@ export function PaywallDetailPlacements({
   return (
     <section className="space-y-3">
       {placements.length === 0 ? (
-        <Button
-          className="-ml-2.5 text-muted-foreground"
-          onClick={() => setPickerOpen(true)}
-          variant="ghost"
-        >
-          <PlusIcon />
-          Place at a paywall location
-        </Button>
+        <PaywallLocationCombobox
+          locations={locations}
+          paywallId={paywallId}
+          projectId={projectId}
+          trigger={
+            <Button className="-ml-2.5 text-muted-foreground" variant="ghost">
+              <PlusIcon />
+              Place at a paywall location
+            </Button>
+          }
+        />
       ) : (
         <>
           <div className="flex items-center justify-between gap-4">
             <h2 className="font-medium text-sm">Placements</h2>
-            <Button
-              aria-label="Add placement"
-              onClick={() => setPickerOpen(true)}
-              size="icon-sm"
-              variant="ghost"
-            >
-              <PlusIcon />
-            </Button>
+            <PaywallLocationCombobox
+              locations={locations}
+              paywallId={paywallId}
+              projectId={projectId}
+              trigger={
+                <Button aria-label="Add placement" size="icon-sm" variant="ghost">
+                  <PlusIcon />
+                </Button>
+              }
+            />
           </div>
 
           <ul className="divide-y divide-border/60 border-border/60 border-y">
@@ -74,14 +77,6 @@ export function PaywallDetailPlacements({
           </ul>
         </>
       )}
-
-      <PaywallPlacementPickerDialog
-        locations={locations}
-        onOpenChange={setPickerOpen}
-        open={pickerOpen}
-        paywallId={paywallId}
-        projectId={projectId}
-      />
     </section>
   );
 }
