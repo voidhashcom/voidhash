@@ -14,18 +14,17 @@ import {
 } from "@voidhash/ui";
 import { ExternalLinkIcon } from "lucide-react";
 import { useAuth } from "@/features/studio/components/auth-context";
-
-import { PaywallLocationStats } from "@/features/studio/paywall-locations/analytics/paywall-location-stats";
-import { PaywallDetailPlacements } from "@/features/studio/paywalls/detail/paywall-detail-placements";
-import { PaywallDetailProperties } from "@/features/studio/paywalls/detail/paywall-detail-properties";
-import { PaywallPhonePreview } from "@/features/studio/paywalls/detail/paywall-phone-preview";
-import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 import { listPaywallLocationsOptions } from "@/features/studio/lib/tanstack-query/paywall-locations";
 import {
   getPaywallDraftReleaseOptions,
   listPaywallsOptions,
 } from "@/features/studio/lib/tanstack-query/paywalls";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
+import { PaywallLocationStats } from "@/features/studio/paywall-locations/components/shared/paywall-location-stats";
+import { PaywallDetailPlacements } from "@/features/studio/paywalls/components/paywall-detail-page/paywall-detail-placements";
+import { PaywallDetailProperties } from "@/features/studio/paywalls/components/paywall-detail-page/paywall-detail-properties";
+import { PaywallPhonePreview } from "@/features/studio/paywalls/components/paywall-detail-page/paywall-phone-preview";
+import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 
 export const Route = createFileRoute(
   "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/paywalls/$id",

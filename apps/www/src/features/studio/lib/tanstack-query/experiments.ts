@@ -3,13 +3,14 @@ import { queryKeys } from "@/features/studio/lib/tanstack-query";
 import { VoidhashRpc, eq } from "../effect-query";
 
 // Queries
-export const listExperimentsOptions = (options: {
-  projectId: string;
-  includeArchived?: boolean;
-}) =>
+/** Query options for a project's A/B tests, with archived records opt-in. */
+export const listExperimentsOptions = (options: { projectId: string; includeArchived?: boolean }) =>
   eq.queryOptions({
     queryFn: () => VoidhashRpc.request((rpc) => rpc.ListExperiments(options)),
-    queryKey: queryKeys.experiment.list({ projectId: options.projectId }),
+    queryKey: queryKeys.experiment.list({
+      includeArchived: options.includeArchived ?? false,
+      projectId: options.projectId,
+    }),
   });
 
 export const getExperimentOptions = (options: { id: string }) =>

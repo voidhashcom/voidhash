@@ -2199,6 +2199,15 @@ export const FeatureFlagIdentityType = {
 export type FeatureFlagIdentityTypeValue =
   (typeof FeatureFlagIdentityType)[keyof typeof FeatureFlagIdentityType];
 
+export const FeatureFlagType = {
+  Boolean: "boolean",
+  Json: "json",
+  Number: "number",
+  String: "string",
+} as const;
+
+export type FeatureFlagTypeValue = (typeof FeatureFlagType)[keyof typeof FeatureFlagType];
+
 export const featureFlags = pgTable(
   "feature_flag",
   {
@@ -2207,6 +2216,10 @@ export const featureFlags = pgTable(
     key: varchar("key", { length: 255 }).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     description: varchar("description", { length: 1000 }),
+    type: varchar("type", { length: 20 })
+      .$type<FeatureFlagTypeValue>()
+      .notNull()
+      .default(FeatureFlagType.Boolean),
     enabled: boolean("enabled").notNull().default(false),
     rolloutBps: integer("rollout_bps").notNull().default(10000),
     salt: varchar("salt", { length: 255 }).notNull(),

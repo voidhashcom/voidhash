@@ -13,22 +13,21 @@ import {
 } from "@voidhash/ui";
 import { z } from "zod";
 import { useAuth } from "@/features/studio/components/auth-context";
-
-import {
-  isMetricRange,
-  METRIC_RANGE_OPTIONS,
-  type MetricRange,
-  usePaywallLocationMetrics,
-} from "@/features/studio/paywall-locations/analytics/paywall-location-metrics";
-import { CreatePaywallLocationModalButton } from "@/features/studio/paywall-locations/create-paywall-location-modal-button";
-import { PaywallLocationsPageEmptyState } from "@/features/studio/paywall-locations/paywall-locations-page-empty-state";
-import { PaywallLocationsTable } from "@/features/studio/paywall-locations/paywall-locations-table";
-import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 import {
   listPaywallLocationsOptions,
   listPaywallsOptions,
 } from "@/features/studio/lib/tanstack-query";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
+import {
+  isMetricRange,
+  METRIC_RANGE_OPTIONS,
+  type MetricRange,
+  usePaywallLocationMetrics,
+} from "@/features/studio/paywall-locations/lib/paywall-location-metrics";
+import { CreatePaywallLocationModalButton } from "@/features/studio/paywall-locations/components/paywall-locations-page/create-paywall-location-modal-button";
+import { PaywallLocationsPageEmptyState } from "@/features/studio/paywall-locations/components/paywall-locations-page/paywall-locations-page-empty-state";
+import { PaywallLocationsTable } from "@/features/studio/paywall-locations/components/paywall-locations-page/paywall-locations-table";
+import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 
 const LOCATION_TABS = [
   { value: "all", label: "All" },

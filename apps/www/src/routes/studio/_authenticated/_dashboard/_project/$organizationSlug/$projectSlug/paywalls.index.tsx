@@ -13,21 +13,20 @@ import {
 import { useRef, useState } from "react";
 import { z } from "zod";
 import { useAuth } from "@/features/studio/components/auth-context";
-
-import { CreatePaywallButton } from "@/features/studio/paywalls/create-paywall-button";
-import { PaywallCard } from "@/features/studio/paywalls/paywall-card";
-import { PaywallCardSkeleton } from "@/features/studio/paywalls/paywall-card-skeleton";
-import { PaywallTable } from "@/features/studio/paywalls/paywall-table";
-import { PaywallsPageEmptyState } from "@/features/studio/paywalls/paywalls-page-empty-state";
+import { listPaywallsOptions } from "@/features/studio/lib/tanstack-query/paywalls";
+import { CurrentUser } from "@/features/studio/lib/utils/current-user";
+import { CreatePaywallButton } from "@/features/studio/paywalls/components/paywalls-page/create-paywall-button";
+import { PaywallCard } from "@/features/studio/paywalls/components/paywalls-page/paywall-card";
+import { PaywallCardSkeleton } from "@/features/studio/paywalls/components/paywalls-page/paywall-card-skeleton";
+import { PaywallTable } from "@/features/studio/paywalls/components/paywalls-page/paywall-table";
 import {
   loadPaywallView,
   type PaywallView,
   PaywallViewSettings,
   persistPaywallView,
-} from "@/features/studio/paywalls/paywall-view-settings";
+} from "@/features/studio/paywalls/components/paywalls-page/paywall-view-settings";
+import { PaywallsPageEmptyState } from "@/features/studio/paywalls/components/paywalls-page/paywalls-page-empty-state";
 import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
-import { listPaywallsOptions } from "@/features/studio/lib/tanstack-query/paywalls";
-import { CurrentUser } from "@/features/studio/lib/utils/current-user";
 
 const THUMBNAIL_REFRESH_INTERVAL_MS = 2_000;
 const THUMBNAIL_REFRESH_WINDOW_MS = 45_000;

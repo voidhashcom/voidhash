@@ -1,4 +1,10 @@
 import { FeatureFlagService } from "@voidhash/core/services";
+import type {
+  FeatureFlag,
+  FeatureFlagOverride,
+  FeatureFlagTarget,
+  FeatureFlagVariant,
+} from "@voidhash/db";
 import {
   FeatureFlagRpcsDef,
   RpcActionForbiddenError,
@@ -10,6 +16,41 @@ import {
   RpcFeatureFlagTargetNotFoundError,
 } from "@voidhash/rpc";
 import { Effect } from "effect";
+
+const toRpcFeatureFlagVariant = (variant: FeatureFlagVariant) => ({
+  archivedAt: variant.archivedAt,
+  createdAt: variant.createdAt,
+  featureFlagId: variant.featureFlagId,
+  id: variant.id,
+  label: variant.name || null,
+  updatedAt: variant.updatedAt,
+  value: variant.payload,
+});
+
+const toRpcFeatureFlag = (
+  flag: FeatureFlag & {
+    readonly overrides: ReadonlyArray<FeatureFlagOverride>;
+    readonly targets: ReadonlyArray<FeatureFlagTarget>;
+    readonly variants: ReadonlyArray<FeatureFlagVariant>;
+  },
+) => {
+  const { key, name: _name, variants, ...rest } = flag;
+  return {
+    ...rest,
+    slug: key,
+    variants: variants.map(toRpcFeatureFlagVariant),
+  };
+};
+
+const toRpcFeatureFlagListItem = (
+  flag: FeatureFlag & { readonly variantCount: number; readonly variants?: undefined },
+) => {
+  const { key, name: _name, variants: _variants, ...rest } = flag;
+  return {
+    ...rest,
+    slug: key,
+  };
+};
 
 export const FeatureFlagRpcsLive = FeatureFlagRpcsDef.toLayer(
   Effect.gen(function* FeatureFlagRpcsLive() {
@@ -54,8 +95,8 @@ export const FeatureFlagRpcsLive = FeatureFlagRpcsDef.toLayer(
               Effect.fail(new RpcFeatureFlagTargetNotFoundError({ message: error.message })),
           }),
         ),
-      CreateFeatureFlag: (input) =>
-        service.createFlag(input).pipe(
+      CreateFeatureFlag: ({ slug, ...input }) =>
+        service.createFlag({ ...input, key: slug }).pipe(
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -69,6 +110,7 @@ export const FeatureFlagRpcsLive = FeatureFlagRpcsDef.toLayer(
         ),
       GetFeatureFlag: ({ id }) =>
         service.getFlagById({ id }).pipe(
+          Effect.map(toRpcFeatureFlag),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -100,6 +142,7 @@ export const FeatureFlagRpcsLive = FeatureFlagRpcsDef.toLayer(
         ),
       ListFeatureFlags: (input) =>
         service.listFlags(input).pipe(
+          Effect.map((flags) => flags.map(toRpcFeatureFlagListItem)),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -120,8 +163,9 @@ export const FeatureFlagRpcsLive = FeatureFlagRpcsDef.toLayer(
               Effect.fail(new RpcFeatureFlagServiceError({ cause: error.cause })),
           }),
         ),
-      UpdateFeatureFlag: (input) =>
-        service.updateFlag(input).pipe(
+      UpdateFeatureFlag: ({ slug, ...input }) =>
+        service.updateFlag({ ...input, key: slug }).pipe(
+          Effect.map(toRpcFeatureFlag),
           Effect.catchTags({
             ActionForbiddenError: (error) =>
               Effect.fail(new RpcActionForbiddenError({ message: error.message })),
@@ -137,7 +181,7 @@ export const FeatureFlagRpcsLive = FeatureFlagRpcsDef.toLayer(
         ),
       UpdateFeatureFlagVariants: (input) =>
         service
-          .updateFlagVariants({
+          .updateCustomerFlagVariants({
             ...input,
             variants: [...input.variants],
           })

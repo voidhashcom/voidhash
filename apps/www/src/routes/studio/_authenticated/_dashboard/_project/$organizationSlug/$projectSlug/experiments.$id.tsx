@@ -1,30 +1,35 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Tabs,
+  Badge,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  Page,
+  PageBar,
+  PageBarTab,
+  PageBarTabs,
+  PageHeader,
+  PageTabs,
   TabsContent,
-  TabsList,
-  TabsTrigger,
 } from "@voidhash/ui";
 import { useAuth } from "@/features/studio/components/auth-context";
 
 import { EnterpriseAuditLogSlot } from "@/features/studio/enterprise/enterprise-audit-log-slot";
-import { ExperimentLifecycleControls } from "@/features/studio/experiments/experiment-lifecycle-controls";
-import { ExperimentSettingsForm } from "@/features/studio/experiments/experiment-settings-form";
-import { ExperimentSetupPanel } from "@/features/studio/experiments/experiment-setup-panel";
-import { EXPERIMENT_STATUS } from "@/features/studio/experiments/experiment-status";
-import { ExperimentStatusBadge } from "@/features/studio/experiments/experiment-status-badge";
-import { ExperimentTreatmentsPanel } from "@/features/studio/experiments/experiment-treatments-panel";
-import { Page } from "@/features/studio/shell";
-import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
-import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
+import { ExperimentDetailProperties } from "@/features/studio/experiments/components/experiment-detail-page/experiment-detail-properties";
+import { ExperimentLifecycleControls } from "@/features/studio/experiments/components/experiment-detail-page/experiment-lifecycle-controls";
+import { ExperimentSettingsForm } from "@/features/studio/experiments/components/experiment-detail-page/experiment-settings-form";
+import { ExperimentSetupPanel } from "@/features/studio/experiments/components/experiment-detail-page/experiment-setup-panel";
+import { ExperimentTreatmentsPanel } from "@/features/studio/experiments/components/experiment-detail-page/experiment-treatments-panel";
+import { EXPERIMENT_STATUS } from "@/features/studio/experiments/lib/experiment-status";
 import { getExperimentOptions } from "@/features/studio/lib/tanstack-query";
+import { useInternalFeatureFlag } from "@/features/studio/lib/useInternalFeatureFlag";
 import { CurrentUser } from "@/features/studio/lib/utils/current-user";
+import { VoidhashErrorCard } from "@/features/studio/shell/components/voidhash-error-card";
 
 export const Route = createFileRoute(
   "/studio/_authenticated/_dashboard/_project/$organizationSlug/$projectSlug/experiments/$id",
@@ -38,9 +43,7 @@ export const Route = createFileRoute(
  * flag, matching the A/B Tests list route.
  */
 function ExperimentDetailRoute() {
-  const experimentationEnabled = useInternalFeatureFlag(
-    INTERNAL_FEATURE_FLAGS.experimentation.key,
-  );
+  const experimentationEnabled = useInternalFeatureFlag(INTERNAL_FEATURE_FLAGS.experimentation.key);
 
   if (!experimentationEnabled) {
     return (
@@ -77,109 +80,106 @@ function ExperimentDetailPage() {
 
   const { data: experiment } = useSuspenseQuery(getExperimentOptions({ id: id as string }));
 
+  const isArchived = experiment.archivedAt !== null;
   const isRunning = experiment.status === EXPERIMENT_STATUS.running;
   const isConcluded = experiment.status === EXPERIMENT_STATUS.concluded;
-  // Variants and weights are frozen while the experiment is actively assigning
-  // (running) or already concluded.
-  const setupLocked = isRunning || isConcluded;
+  // Variants and weights are frozen once archived, while actively assigning,
+  // or after the experiment has concluded.
+  const setupLocked = isArchived || isRunning || isConcluded;
 
   return (
-    <Page
-      breadcrumbs={[
-        {
-          title: "A/B Tests",
-          url: `/${organizationSlug}/${projectSlug}/experiments`,
-        },
-        {
-          title: experiment.name,
-          url: `/${organizationSlug}/${projectSlug}/experiments/${id}`,
-        },
-      ]}
-      className="p-0 py-8"
-    >
-      <div className="mx-auto max-w-5xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-normal text-3xl tracking-right">{experiment.name}</h1>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="font-mono text-muted-foreground text-sm">{experiment.key}</span>
-              <ExperimentStatusBadge status={experiment.status} />
+    <Page>
+      <PageTabs defaultValue="setup">
+        <PageHeader
+          className="px-2"
+          rightActions={
+            <ExperimentLifecycleControls
+              archivedAt={experiment.archivedAt}
+              experimentId={experiment.id}
+              status={experiment.status}
+              variants={experiment.variants}
+            />
+          }
+        >
+          <div className="flex items-center gap-2">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link
+                      params={{ organizationSlug, projectSlug }}
+                      to="/studio/$organizationSlug/$projectSlug/experiments"
+                    >
+                      A/B Tests
+                    </Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{experiment.name}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            {experiment.archivedAt && <Badge variant="secondary">Archived</Badge>}
+          </div>
+        </PageHeader>
+
+        <PageBar className="border-b pl-4">
+          <PageBarTabs>
+            <PageBarTab value="setup">Setup</PageBarTab>
+            <PageBarTab value="treatments">Treatments</PageBarTab>
+            <PageBarTab value="settings">Settings</PageBarTab>
+          </PageBarTabs>
+        </PageBar>
+
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8 sm:py-12">
+          <div className="max-w-4xl space-y-10">
+            <div className="space-y-6">
+              <div>
+                <h1 className="font-semibold text-3xl tracking-tight">{experiment.name}</h1>
+                <p className="mt-1 text-muted-foreground text-sm">
+                  {experiment.description ||
+                    `Measure ${experiment.primaryMetricEventName} across ${experiment.variants.length} variants.`}
+                </p>
+              </div>
+              <ExperimentDetailProperties
+                archivedAt={experiment.archivedAt}
+                createdAt={experiment.createdAt}
+                endedAt={experiment.endedAt}
+                keyValue={experiment.key}
+                primaryMetricEventName={experiment.primaryMetricEventName}
+                startedAt={experiment.startedAt}
+                status={experiment.status}
+                variantCount={experiment.variants.length}
+                version={experiment.version}
+              />
             </div>
-          </div>
-          <ExperimentLifecycleControls
-            archivedAt={experiment.archivedAt}
-            experimentId={experiment.id}
-            status={experiment.status}
-            variants={experiment.variants}
-          />
-        </div>
 
-        <div className="mt-8 grid grid-cols-12 gap-6">
-          <div className="col-span-9 space-y-6">
-            <Tabs defaultValue="setup">
-              <TabsList>
-                <TabsTrigger value="setup">Setup</TabsTrigger>
-                <TabsTrigger value="treatments">Treatments</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-              </TabsList>
+            <TabsContent value="setup">
+              <ExperimentSetupPanel
+                experimentId={experiment.id}
+                readOnly={setupLocked}
+                variants={[...experiment.variants]}
+              />
+            </TabsContent>
 
-              <TabsContent value="setup">
-                <ExperimentSetupPanel
-                  experimentId={experiment.id}
-                  readOnly={setupLocked}
-                  variants={[...experiment.variants]}
-                />
-              </TabsContent>
+            <TabsContent value="treatments">
+              <ExperimentTreatmentsPanel
+                experimentId={experiment.id}
+                projectId={project.id}
+                readOnly={isArchived || isConcluded}
+                treatments={experiment.treatments}
+                variants={experiment.variants}
+              />
+            </TabsContent>
 
-              <TabsContent value="treatments">
-                <ExperimentTreatmentsPanel
-                  experimentId={experiment.id}
-                  projectId={project.id}
-                  readOnly={isConcluded}
-                  treatments={experiment.treatments}
-                  variants={experiment.variants}
-                />
-              </TabsContent>
+            <TabsContent value="settings">
+              <ExperimentSettingsForm
+                experiment={experiment}
+                readOnly={isArchived || isConcluded}
+              />
+            </TabsContent>
 
-              <TabsContent value="settings">
-                <ExperimentSettingsForm experiment={experiment} readOnly={isConcluded} />
-              </TabsContent>
-            </Tabs>
-          </div>
-          <div className="col-span-3 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Primary metric</p>
-                  <p className="font-mono text-xs">{experiment.primaryMetricEventName}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Version</p>
-                  <p>{experiment.version}</p>
-                </div>
-                {experiment.startedAt && (
-                  <div>
-                    <p className="text-muted-foreground">Started</p>
-                    <p>{new Date(experiment.startedAt).toLocaleDateString()}</p>
-                  </div>
-                )}
-                {experiment.endedAt && (
-                  <div>
-                    <p className="text-muted-foreground">Ended</p>
-                    <p>{new Date(experiment.endedAt).toLocaleDateString()}</p>
-                  </div>
-                )}
-                {experiment.createdAt && (
-                  <div>
-                    <p className="text-muted-foreground">Created</p>
-                    <p>{new Date(experiment.createdAt).toLocaleDateString()}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
             <EnterpriseAuditLogSlot
               entityId={experiment.id}
               entityType="experiment"
@@ -187,7 +187,7 @@ function ExperimentDetailPage() {
             />
           </div>
         </div>
-      </div>
+      </PageTabs>
     </Page>
   );
 }
