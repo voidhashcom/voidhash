@@ -673,6 +673,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
           const results = yield* db.query.featureFlags.findMany({
             where: {
               projectId: input.projectId,
+              internal: false,
               ...(includeArchived ? {} : { archivedAt: { isNull: true } }),
             },
             with: {

@@ -932,6 +932,32 @@ describe("FeatureFlagService.listFlags", () => {
   );
 
   test(
+    "excludes internal flags, which back A/B tests rather than the flags product",
+    withFlagCleanup((track) =>
+      Effect.gen(function* () {
+        const svc = yield* FeatureFlagService;
+        const customerKey = uniqueKey("list-customer");
+        const internalKey = uniqueKey("list-internal");
+
+        const customer = yield* svc.createFlag({ projectId, key: customerKey, name: "Customer" });
+        track(customer.id);
+        const internal = yield* svc.createInternalFlag({
+          projectId,
+          key: internalKey,
+          name: "Internal",
+          ownerType: "experiment",
+          ownerId: `it_experiment_${internalKey}`,
+        });
+        track(internal.id);
+
+        const list = yield* svc.listFlags({ projectId, includeArchived: true });
+        expect(list.some((f) => f.key === customerKey)).toBe(true);
+        expect(list.some((f) => f.key === internalKey)).toBe(false);
+      }),
+    ).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
     "returns each flag with a variantCount of its unarchived variants",
     withFlagCleanup((track) =>
       Effect.gen(function* () {
