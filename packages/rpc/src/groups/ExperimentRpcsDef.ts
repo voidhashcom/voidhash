@@ -5,7 +5,6 @@ import { RpcActionForbiddenError } from "../errors/common.ts";
 import {
   RpcExperimentNotFoundError,
   RpcExperimentServiceError,
-  RpcExperimentTreatmentNotFoundError,
   RpcExperimentValidationError,
   RpcExperimentVariantNotFoundError,
 } from "../errors/Experiment.ts";
@@ -17,7 +16,6 @@ export const RpcExperimentVariant = Schema.Struct({
   experimentId: Schema.String,
   id: Schema.String,
   isControl: Schema.Boolean,
-  key: Schema.String,
   name: Schema.String,
   updatedAt: Schema.NullOr(Schema.Date),
   weightBps: Schema.Number,
@@ -93,10 +91,26 @@ export const RpcExperimentResults = Schema.Struct({
   variants: Schema.Array(RpcExperimentVariantResult),
 });
 
-const RpcVariantInput = Schema.Struct({
+/**
+ * One paywall-location treatment for a variant: what to show where. Only the
+ * paywall is named — the serve path always follows its active published
+ * version.
+ */
+const RpcVariantTreatmentInput = Schema.Struct({
+  paywallId: Schema.String,
+  paywallLocationId: Schema.String,
+});
+
+/**
+ * A variant as edited in the setup matrix. `id` is present for variants that
+ * already exist (so they keep their identity — and their share of bucketed
+ * traffic — across saves) and absent for newly added ones.
+ */
+const RpcSaveVariantInput = Schema.Struct({
+  id: Schema.optional(Schema.String),
   isControl: Schema.Boolean,
-  key: Schema.String,
   name: Schema.String,
+  treatments: Schema.Array(RpcVariantTreatmentInput),
   weightBps: Schema.Number,
 });
 
@@ -138,13 +152,11 @@ export class ExperimentRpcsDef extends RpcGroup.make(
     },
     success: Schema.Struct({ id: Schema.String }),
   }),
-  Rpc.make("UpdateExperiment", {
-    error: Schema.Union([
-      RpcExperimentServiceError,
-      RpcExperimentNotFoundError,
-      RpcExperimentValidationError,
-      RpcActionForbiddenError,
-    ]),
+  // The one write behind the detail page's Save Changes bar: scalars, variants
+  // and their placements land together, so a half-edited matrix can never be
+  // persisted. Omitted sections are left untouched.
+  Rpc.make("SaveExperimentSetup", {
+    error: editError,
     payload: {
       description: Schema.optional(Schema.NullOr(Schema.String)),
       hypothesis: Schema.optional(Schema.NullOr(Schema.String)),
@@ -152,37 +164,9 @@ export class ExperimentRpcsDef extends RpcGroup.make(
       name: Schema.optional(Schema.String),
       primaryMetricEventName: Schema.optional(Schema.NullOr(Schema.String)),
       secondaryMetricEventNames: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+      variants: Schema.optional(Schema.Array(RpcSaveVariantInput)),
     },
     success: RpcExperiment,
-  }),
-  Rpc.make("ReplaceExperimentVariants", {
-    error: editError,
-    payload: {
-      experimentId: Schema.String,
-      variants: Schema.Array(RpcVariantInput),
-    },
-    success: Schema.Void,
-  }),
-  Rpc.make("UpsertExperimentTreatment", {
-    error: editError,
-    payload: {
-      config: Schema.Unknown,
-      experimentId: Schema.String,
-      treatmentType: Schema.String,
-      variantId: Schema.String,
-    },
-    success: Schema.Struct({ id: Schema.String }),
-  }),
-  Rpc.make("RemoveExperimentTreatment", {
-    error: Schema.Union([
-      RpcExperimentServiceError,
-      RpcExperimentTreatmentNotFoundError,
-      RpcExperimentValidationError,
-      RpcExperimentNotFoundError,
-      RpcActionForbiddenError,
-    ]),
-    payload: { id: Schema.String },
-    success: Schema.Void,
   }),
   Rpc.make("StartExperiment", {
     error: Schema.Union([

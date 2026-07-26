@@ -28,7 +28,12 @@ export const createExperimentOptions = () =>
     mutationKey: ["createExperiment"],
   });
 
-export const updateExperimentOptions = () =>
+/**
+ * Saves everything the detail page stages — scalars, variants, and each
+ * variant's paywall placements — in one request. Sections left `undefined`
+ * are untouched.
+ */
+export const saveExperimentSetupOptions = () =>
   eq.mutationOptions({
     mutationFn: (variables: {
       id: string;
@@ -37,40 +42,18 @@ export const updateExperimentOptions = () =>
       hypothesis?: string | null;
       primaryMetricEventName?: string | null;
       secondaryMetricEventNames?: string[] | null;
-    }) => VoidhashRpc.request((rpc) => rpc.UpdateExperiment(variables)),
-    mutationKey: ["updateExperiment"],
-  });
-
-export const replaceExperimentVariantsOptions = () =>
-  eq.mutationOptions({
-    mutationFn: (variables: {
-      experimentId: string;
-      variants: Array<{
-        key: string;
+      variants?: Array<{
+        id?: string;
         name: string;
         isControl: boolean;
         weightBps: number;
+        treatments: Array<{
+          paywallLocationId: string;
+          paywallId: string;
+        }>;
       }>;
-    }) => VoidhashRpc.request((rpc) => rpc.ReplaceExperimentVariants(variables)),
-    mutationKey: ["replaceExperimentVariants"],
-  });
-
-export const upsertExperimentTreatmentOptions = () =>
-  eq.mutationOptions({
-    mutationFn: (variables: {
-      experimentId: string;
-      variantId: string;
-      treatmentType: string;
-      config: unknown;
-    }) => VoidhashRpc.request((rpc) => rpc.UpsertExperimentTreatment(variables)),
-    mutationKey: ["upsertExperimentTreatment"],
-  });
-
-export const removeExperimentTreatmentOptions = () =>
-  eq.mutationOptions({
-    mutationFn: (variables: { id: string }) =>
-      VoidhashRpc.request((rpc) => rpc.RemoveExperimentTreatment(variables)),
-    mutationKey: ["removeExperimentTreatment"],
+    }) => VoidhashRpc.request((rpc) => rpc.SaveExperimentSetup(variables)),
+    mutationKey: ["saveExperimentSetup"],
   });
 
 export const startExperimentOptions = () =>

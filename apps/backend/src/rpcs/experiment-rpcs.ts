@@ -9,7 +9,6 @@ import {
   RpcActionForbiddenError,
   RpcExperimentNotFoundError,
   RpcExperimentServiceError,
-  RpcExperimentTreatmentNotFoundError,
   RpcExperimentValidationError,
   RpcExperimentVariantNotFoundError,
 } from "@voidhash/rpc";
@@ -41,7 +40,6 @@ const toRpcExperiment = (e: {
     readonly experimentId: string;
     readonly id: string;
     readonly isControl: boolean;
-    readonly key: string;
     readonly name: string;
     readonly updatedAt: Date | null;
     readonly weightBps: number;
@@ -113,12 +111,6 @@ export const ExperimentRpcsLive = ExperimentRpcsDef.toLayer(
       Effect.fail(
         new RpcExperimentVariantNotFoundError({ message: `Variant not found: ${error.variantId}` }),
       );
-    const treatmentNotFound = (error: { readonly treatmentId: string }) =>
-      Effect.fail(
-        new RpcExperimentTreatmentNotFoundError({
-          message: `Treatment not found: ${error.treatmentId}`,
-        }),
-      );
 
     return {
       ArchiveExperiment: (input) =>
@@ -178,25 +170,6 @@ export const ExperimentRpcsLive = ExperimentRpcsDef.toLayer(
             ExperimentValidationError: validation,
           }),
         ),
-      RemoveExperimentTreatment: (input) =>
-        service.removeTreatment(input).pipe(
-          Effect.catchTags({
-            ActionForbiddenError: forbidden,
-            ExperimentNotFoundError: notFound,
-            ExperimentServiceError: serviceError,
-            ExperimentTreatmentNotFoundError: treatmentNotFound,
-            ExperimentValidationError: validation,
-          }),
-        ),
-      ReplaceExperimentVariants: (input) =>
-        service.replaceVariants({ ...input, variants: [...input.variants] }).pipe(
-          Effect.catchTags({
-            ActionForbiddenError: forbidden,
-            ExperimentNotFoundError: notFound,
-            ExperimentServiceError: serviceError,
-            ExperimentValidationError: validation,
-          }),
-        ),
       RestoreExperiment: (input) =>
         service.restoreExperiment(input).pipe(
           Effect.catchTags({
@@ -214,28 +187,9 @@ export const ExperimentRpcsLive = ExperimentRpcsDef.toLayer(
             ExperimentValidationError: validation,
           }),
         ),
-      UpdateExperiment: (input) =>
-        service
-          .updateExperiment({
-            ...input,
-            secondaryMetricEventNames:
-              input.secondaryMetricEventNames === undefined
-                ? undefined
-                : input.secondaryMetricEventNames
-                  ? [...input.secondaryMetricEventNames]
-                  : null,
-          })
-          .pipe(
-            Effect.map(toRpcExperiment),
-            Effect.catchTags({
-              ActionForbiddenError: forbidden,
-              ExperimentNotFoundError: notFound,
-              ExperimentServiceError: serviceError,
-              ExperimentValidationError: validation,
-            }),
-          ),
-      UpsertExperimentTreatment: (input) =>
-        service.upsertTreatment(input).pipe(
+      SaveExperimentSetup: (input) =>
+        service.saveSetup(input).pipe(
+          Effect.map(toRpcExperiment),
           Effect.catchTags({
             ActionForbiddenError: forbidden,
             ExperimentNotFoundError: notFound,

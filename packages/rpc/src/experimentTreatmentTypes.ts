@@ -20,24 +20,33 @@ import { Schema } from "effect";
 /** Platform surfaces an experiment treatment can bind to. Grows over time. */
 export type ExperimentSurface = "paywall_location" | "notification_flow" | "automation";
 
-/** Config for a `paywall_location` treatment: which paywall release to serve at
- * a given location for the owning variant. */
+/**
+ * Config for a `paywall_location` treatment: which paywall to serve at a given
+ * location for the owning variant. Deliberately names the paywall, not a
+ * release — the treatment follows the paywall's active published version, so
+ * shipping a new version updates the running test like it updates every other
+ * placement.
+ */
 export const PaywallLocationTreatmentConfigSchema = Schema.Struct({
   paywallLocationId: Schema.String,
   paywallId: Schema.String,
-  paywallReleaseId: Schema.String,
 });
 export type PaywallLocationTreatmentConfig = typeof PaywallLocationTreatmentConfigSchema.Type;
 
 /**
  * The runtime payload compiled onto a backing feature-flag variant and returned
  * verbatim by `evaluateFlagsBatch`. Keyed by location so ONE variant assignment
- * can serve a different paywall release per location (cross-location
- * consistency for a multi-location experiment). Future surfaces add sibling
- * keys (e.g. `notificationFlowId`).
+ * can serve a different paywall per location (cross-location consistency for a
+ * multi-location experiment). Future surfaces add sibling keys (e.g.
+ * `notificationFlowId`). `paywallReleaseId` only appears in payloads compiled
+ * before treatments switched to tracking the active release — the serve path
+ * still honours it there.
  */
 export interface ExperimentVariantPayload {
-  readonly byLocation?: Record<string, { readonly paywallReleaseId: string }>;
+  readonly byLocation?: Record<
+    string,
+    { readonly paywallId?: string; readonly paywallReleaseId?: string }
+  >;
 }
 
 const paywallLocationTreatment = {
@@ -49,7 +58,7 @@ const paywallLocationTreatment = {
     configs: readonly PaywallLocationTreatmentConfig[],
   ): Partial<ExperimentVariantPayload> => ({
     byLocation: Object.fromEntries(
-      configs.map((c) => [c.paywallLocationId, { paywallReleaseId: c.paywallReleaseId }]),
+      configs.map((c) => [c.paywallLocationId, { paywallId: c.paywallId }]),
     ),
   }),
 } as const;

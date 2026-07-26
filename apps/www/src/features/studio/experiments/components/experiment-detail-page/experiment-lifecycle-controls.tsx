@@ -75,7 +75,7 @@ function ConcludeExperimentDialog({
               <SelectContent>
                 {variants.map((variant) => (
                   <SelectItem key={variant.id} value={variant.id}>
-                    {variant.name || variant.key}
+                    {variant.name}
                     {variant.isControl ? " (control)" : ""}
                   </SelectItem>
                 ))}

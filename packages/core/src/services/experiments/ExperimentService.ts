@@ -2,6 +2,7 @@ import { Context, Effect, Layer, Schema } from "effect";
 
 import {
   type InsertExperiment,
+  type PaywallLocationTreatmentConfig,
   AuditLogAction,
   AuditLogEntityType,
   Db,
@@ -14,19 +15,13 @@ import {
   isNull,
   paywallLocationShowings,
   PaywallLocationShowingType,
+  ReleaseStatus,
 } from "@voidhash/db";
-import {
-  type PaywallLocationTreatmentConfig,
-  type TreatmentType,
-  compileVariantPayload,
-  decodeTreatmentConfig,
-  isTreatmentType,
-} from "@voidhash/rpc";
+import { compileVariantPayload } from "@voidhash/rpc";
 
 import { AuthSession } from "../../domain/auth/Auth.ts";
 import {
   ExperimentNotFoundError,
-  ExperimentTreatmentNotFoundError,
   ExperimentValidationError,
   ExperimentVariantNotFoundError,
 } from "../../domain/experiment/Experiment.ts";
@@ -47,12 +42,17 @@ export class ExperimentServiceError extends Schema.TaggedErrorClass<ExperimentSe
   "ExperimentServiceError",
 )("ExperimentServiceError", { cause: Schema.String }) {}
 
-/** A variant as supplied to `replaceVariants` (the arms + their weights). */
-interface VariantInput {
-  readonly key: string;
+/**
+ * A variant as supplied to `saveSetup`: the arm, its weight, and the paywall
+ * placements it serves. `id` is present for variants that already exist and
+ * absent for newly added ones.
+ */
+interface SaveVariantInput {
+  readonly id?: string;
   readonly name: string;
   readonly isControl: boolean;
   readonly weightBps: number;
+  readonly treatments: ReadonlyArray<PaywallLocationTreatmentConfig>;
 }
 
 const paywallLocationConfig = (config: unknown): PaywallLocationTreatmentConfig =>
@@ -117,8 +117,11 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           arr.push({ treatmentType: t.treatmentType, config: t.config });
           treatmentsByVariant.set(t.variantId, arr);
         }
+        // Flag variants are keyed by the experiment variant's id — the one
+        // identifier that is stable across renames, so bucketed subjects stay
+        // in their arm no matter how the arm is relabelled.
         const variants = experiment.variants.map((v) => ({
-          key: v.key,
+          key: v.id,
           name: v.name,
           weightBps: v.weightBps,
           payload: compileVariantPayload(treatmentsByVariant.get(v.id) ?? []),
@@ -229,16 +232,14 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
               {
                 id: generateId("experimentVariant"),
                 experimentId,
-                key: "control",
-                name: "Control",
+                name: "Variant A",
                 isControl: true,
                 weightBps: 5000,
               },
               {
                 id: generateId("experimentVariant"),
                 experimentId,
-                key: "treatment",
-                name: "Treatment",
+                name: "Variant B",
                 isControl: false,
                 weightBps: 5000,
               },
@@ -317,7 +318,15 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
       (effect) => effect.pipe(Effect.catchTags({ EffectDrizzleQueryError: toServiceError })),
     );
 
-    const updateExperiment = Effect.fn("updateExperiment")(
+    /**
+     * The single write behind the detail page's Save Changes bar. Applies the
+     * staged scalar edits and — when `variants` is provided — replaces the
+     * whole setup matrix (arms, weights, and each arm's paywall placements) in
+     * one transaction, so a half-edited matrix can never be persisted.
+     * Omitted sections are left untouched. Field-level locks: metrics only
+     * change while the test is a draft; variants are frozen while it runs.
+     */
+    const saveSetup = Effect.fn("saveExperimentSetup")(
       function* (input: {
         readonly id: string;
         readonly name?: string;
@@ -325,6 +334,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         readonly hypothesis?: string | null;
         readonly primaryMetricEventName?: string | null;
         readonly secondaryMetricEventNames?: ReadonlyArray<string> | null;
+        readonly variants?: ReadonlyArray<SaveVariantInput>;
       }) {
         const session = yield* AuthSession;
         const experiment = yield* loadExperiment(input.id);
@@ -342,9 +352,50 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         if (changingMetrics && experiment.status !== ExperimentStatus.draft) {
           return yield* Effect.fail(
             new ExperimentValidationError({
-              message: "Metric definition can only be changed while the experiment is a draft",
+              message: "Metrics can only be changed while the A/B test is a draft",
             }),
           );
+        }
+        if (input.variants && experiment.status === ExperimentStatus.running) {
+          return yield* Effect.fail(
+            new ExperimentValidationError({
+              message: "Variants and placements are locked while the A/B test is running",
+            }),
+          );
+        }
+        if (input.variants) {
+          const controls = input.variants.filter((v) => v.isControl);
+          if (controls.length !== 1) {
+            return yield* Effect.fail(
+              new ExperimentValidationError({ message: "Exactly one variant must be the control" }),
+            );
+          }
+          const totalWeight = input.variants.reduce((sum, v) => sum + v.weightBps, 0);
+          if (totalWeight !== 10000) {
+            return yield* Effect.fail(
+              new ExperimentValidationError({
+                message: `Variant weights must sum to 10000, got ${totalWeight}`,
+              }),
+            );
+          }
+          for (const v of input.variants) {
+            if (v.name.trim().length === 0) {
+              return yield* Effect.fail(
+                new ExperimentValidationError({ message: "Every variant needs a name" }),
+              );
+            }
+            const locationIds = new Set<string>();
+            for (const t of v.treatments) {
+              if (locationIds.has(t.paywallLocationId)) {
+                return yield* Effect.fail(
+                  new ExperimentValidationError({
+                    message: `Variant '${v.name}' has two paywalls for the same location`,
+                  }),
+                );
+              }
+              locationIds.add(t.paywallLocationId);
+            }
+          }
         }
 
         const updates: Record<string, unknown> = { updatedByUserId: session?.user?.id ?? null };
@@ -358,7 +409,73 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
             ? [...input.secondaryMetricEventNames]
             : null;
 
-        yield* db.update(experiments).set(updates).where(eq(experiments.id, input.id));
+        yield* db.transaction((tx) =>
+          Effect.gen(function* () {
+            yield* tx.update(experiments).set(updates).where(eq(experiments.id, input.id));
+
+            if (!input.variants) {
+              return;
+            }
+            const existing = yield* tx.query.experimentVariants.findMany({
+              where: { experimentId: input.id, archivedAt: { isNull: true } },
+            });
+            const existingIds = new Set(existing.map((v) => v.id));
+            for (const v of input.variants) {
+              if (v.id && !existingIds.has(v.id)) {
+                return yield* Effect.fail(new ExperimentVariantNotFoundError({ variantId: v.id }));
+              }
+            }
+
+            // Upsert by id so surviving variants keep their identity (and the
+            // traffic already bucketed into them); removed variants disappear
+            // together with their placements.
+            const keptIds = new Set(
+              input.variants.flatMap((v) => (v.id !== undefined ? [v.id] : [])),
+            );
+            for (const ex of existing) {
+              if (!keptIds.has(ex.id)) {
+                yield* tx.delete(experimentVariants).where(eq(experimentVariants.id, ex.id));
+              }
+            }
+            // Placements are replaced wholesale — the matrix is the full
+            // picture, so diffing row-by-row buys nothing.
+            yield* tx
+              .delete(experimentTreatments)
+              .where(eq(experimentTreatments.experimentId, input.id));
+
+            for (const v of input.variants) {
+              let variantId = v.id;
+              if (variantId) {
+                yield* tx
+                  .update(experimentVariants)
+                  .set({ name: v.name, isControl: v.isControl, weightBps: v.weightBps })
+                  .where(eq(experimentVariants.id, variantId));
+              } else {
+                variantId = generateId("experimentVariant");
+                yield* tx.insert(experimentVariants).values({
+                  id: variantId,
+                  experimentId: input.id,
+                  name: v.name,
+                  isControl: v.isControl,
+                  weightBps: v.weightBps,
+                });
+              }
+              for (const treatment of v.treatments) {
+                yield* tx.insert(experimentTreatments).values({
+                  id: generateId("experimentTreatment"),
+                  experimentId: input.id,
+                  variantId,
+                  treatmentType: "paywall_location",
+                  config: { ...treatment },
+                });
+              }
+            }
+          }),
+        );
+
+        if (input.variants) {
+          yield* syncVariantsToFlag(input.id);
+        }
 
         yield* auditLog
           .append({
@@ -372,105 +489,6 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
 
         return yield* loadExperimentWithRelations(input.id);
       },
-      (effect) => effect.pipe(Effect.catchTags({ EffectDrizzleQueryError: toServiceError })),
-    );
-
-    const replaceVariants = Effect.fn("replaceVariants")(
-      function* (input: {
-        readonly experimentId: string;
-        readonly variants: ReadonlyArray<VariantInput>;
-      }) {
-        const experiment = yield* loadExperiment(input.experimentId);
-        yield* checkProjectPermission(
-          experiment.projectId,
-          "project:all",
-          `Not authorized to edit experiment ${input.experimentId}`,
-        );
-        if (experiment.status === ExperimentStatus.running) {
-          return yield* Effect.fail(
-            new ExperimentValidationError({
-              message: "Variants and weights are locked while an experiment is running",
-            }),
-          );
-        }
-
-        const controls = input.variants.filter((v) => v.isControl);
-        if (controls.length !== 1) {
-          return yield* Effect.fail(
-            new ExperimentValidationError({ message: "Exactly one variant must be the control" }),
-          );
-        }
-        const totalWeight = input.variants.reduce((sum, v) => sum + v.weightBps, 0);
-        if (totalWeight !== 10000) {
-          return yield* Effect.fail(
-            new ExperimentValidationError({
-              message: `Variant weights must sum to 10000, got ${totalWeight}`,
-            }),
-          );
-        }
-        const keys = new Set<string>();
-        for (const v of input.variants) {
-          if (keys.has(v.key)) {
-            return yield* Effect.fail(
-              new ExperimentValidationError({ message: `Duplicate variant key '${v.key}'` }),
-            );
-          }
-          keys.add(v.key);
-        }
-
-        // Upsert by key so surviving variants keep their id (and their
-        // treatments' variantId FK stays valid); removed variants drop their
-        // treatments too.
-        yield* db.transaction((tx) =>
-          Effect.gen(function* () {
-            const existing = yield* tx.query.experimentVariants.findMany({
-              where: { experimentId: input.experimentId, archivedAt: { isNull: true } },
-            });
-            const byKey = new Map(existing.map((v) => [v.key, v]));
-            const inputKeys = new Set(input.variants.map((v) => v.key));
-
-            for (const ex of existing) {
-              if (!inputKeys.has(ex.key)) {
-                yield* tx
-                  .delete(experimentTreatments)
-                  .where(eq(experimentTreatments.variantId, ex.id));
-                yield* tx.delete(experimentVariants).where(eq(experimentVariants.id, ex.id));
-              }
-            }
-            for (const v of input.variants) {
-              const ex = byKey.get(v.key);
-              if (ex) {
-                yield* tx
-                  .update(experimentVariants)
-                  .set({ name: v.name, isControl: v.isControl, weightBps: v.weightBps })
-                  .where(eq(experimentVariants.id, ex.id));
-              } else {
-                yield* tx.insert(experimentVariants).values({
-                  id: generateId("experimentVariant"),
-                  experimentId: input.experimentId,
-                  key: v.key,
-                  name: v.name,
-                  isControl: v.isControl,
-                  weightBps: v.weightBps,
-                });
-              }
-            }
-          }),
-        );
-
-        yield* syncVariantsToFlag(input.experimentId);
-
-        yield* auditLog
-          .append({
-            projectId: experiment.projectId,
-            entityType: AuditLogEntityType.ExperimentVariant,
-            entityId: input.experimentId,
-            parentEntityId: input.experimentId,
-            action: AuditLogAction.Updated,
-            changes: { snapshot: { variants: input.variants } },
-          })
-          .pipe(Effect.ignore);
-      },
       (effect) =>
         effect.pipe(
           Effect.catchTags({
@@ -478,146 +496,6 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
             SqlError: toServiceError,
           }),
         ),
-    );
-
-    const upsertTreatment = Effect.fn("upsertTreatment")(
-      function* (input: {
-        readonly experimentId: string;
-        readonly variantId: string;
-        readonly treatmentType: string;
-        readonly config: unknown;
-      }) {
-        const experiment = yield* loadExperiment(input.experimentId);
-        yield* checkProjectPermission(
-          experiment.projectId,
-          "project:all",
-          `Not authorized to edit experiment ${input.experimentId}`,
-        );
-        if (experiment.status === ExperimentStatus.running) {
-          return yield* Effect.fail(
-            new ExperimentValidationError({
-              message: "Treatments are locked while an experiment is running",
-            }),
-          );
-        }
-        if (!isTreatmentType(input.treatmentType)) {
-          return yield* Effect.fail(
-            new ExperimentValidationError({
-              message: `Unknown treatment type '${input.treatmentType}'`,
-            }),
-          );
-        }
-        const variant = yield* db.query.experimentVariants.findFirst({
-          where: { id: input.variantId, experimentId: input.experimentId },
-        });
-        if (!variant) {
-          return yield* Effect.fail(
-            new ExperimentVariantNotFoundError({ variantId: input.variantId }),
-          );
-        }
-
-        const treatmentType: TreatmentType = input.treatmentType;
-        const decoded = yield* decodeTreatmentConfig(treatmentType, input.config).pipe(
-          Effect.mapError(
-            (e) => new ExperimentValidationError({ message: `Invalid treatment config: ${e}` }),
-          ),
-        );
-
-        // One treatment of each (variant, type, target) — for paywall_location
-        // the target is the location. Enforced here since the target lives in
-        // the jsonb config.
-        const targetKey =
-          treatmentType === "paywall_location"
-            ? paywallLocationConfig(decoded).paywallLocationId
-            : null;
-
-        const existingTreatments = yield* db.query.experimentTreatments.findMany({
-          where: {
-            experimentId: input.experimentId,
-            variantId: input.variantId,
-            treatmentType,
-            archivedAt: { isNull: true },
-          },
-        });
-        const match = existingTreatments.find(
-          (t) =>
-            targetKey === null || paywallLocationConfig(t.config).paywallLocationId === targetKey,
-        );
-
-        let treatmentId: string;
-        if (match) {
-          treatmentId = match.id;
-          yield* db
-            .update(experimentTreatments)
-            .set({ config: decoded })
-            .where(eq(experimentTreatments.id, match.id));
-        } else {
-          treatmentId = generateId("experimentTreatment");
-          yield* db.insert(experimentTreatments).values({
-            id: treatmentId,
-            experimentId: input.experimentId,
-            variantId: input.variantId,
-            treatmentType,
-            config: decoded,
-          });
-        }
-
-        yield* syncVariantsToFlag(input.experimentId);
-
-        yield* auditLog
-          .append({
-            projectId: experiment.projectId,
-            entityType: AuditLogEntityType.ExperimentTreatment,
-            entityId: treatmentId,
-            parentEntityId: input.experimentId,
-            action: AuditLogAction.Updated,
-            changes: { snapshot: { treatmentType, config: decoded } },
-          })
-          .pipe(Effect.ignore);
-
-        return { id: treatmentId };
-      },
-      (effect) => effect.pipe(Effect.catchTags({ EffectDrizzleQueryError: toServiceError })),
-    );
-
-    const removeTreatment = Effect.fn("removeTreatment")(
-      function* (input: { readonly id: string }) {
-        const treatment = yield* db.query.experimentTreatments.findFirst({
-          where: { id: input.id },
-        });
-        if (!treatment) {
-          return yield* Effect.fail(
-            new ExperimentTreatmentNotFoundError({ treatmentId: input.id }),
-          );
-        }
-        const experiment = yield* loadExperiment(treatment.experimentId);
-        yield* checkProjectPermission(
-          experiment.projectId,
-          "project:all",
-          `Not authorized to edit experiment ${treatment.experimentId}`,
-        );
-        if (experiment.status === ExperimentStatus.running) {
-          return yield* Effect.fail(
-            new ExperimentValidationError({
-              message: "Treatments are locked while an experiment is running",
-            }),
-          );
-        }
-
-        yield* db.delete(experimentTreatments).where(eq(experimentTreatments.id, input.id));
-        yield* syncVariantsToFlag(treatment.experimentId);
-
-        yield* auditLog
-          .append({
-            projectId: experiment.projectId,
-            entityType: AuditLogEntityType.ExperimentTreatment,
-            entityId: input.id,
-            parentEntityId: treatment.experimentId,
-            action: AuditLogAction.Archived,
-          })
-          .pipe(Effect.ignore);
-      },
-      (effect) => effect.pipe(Effect.catchTags({ EffectDrizzleQueryError: toServiceError })),
     );
 
     const startExperiment = Effect.fn("startExperiment")(
@@ -638,6 +516,29 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         }
 
         const locationIds = targetLocationIds(experiment.treatments);
+
+        // Treatments follow a paywall's active published release, so a paywall
+        // that was never published would leave its cell dark — refuse to start
+        // until everything placed in the matrix is actually servable.
+        const paywallIds = new Set<string>();
+        for (const treatment of experiment.treatments) {
+          if (treatment.treatmentType === "paywall_location") {
+            paywallIds.add(paywallLocationConfig(treatment.config).paywallId);
+          }
+        }
+        for (const paywallId of paywallIds) {
+          const release = yield* db.query.paywallReleases.findFirst({
+            where: { paywallId, isActive: true, status: ReleaseStatus.released },
+          });
+          if (!release) {
+            const paywall = yield* db.query.paywalls.findFirst({ where: { id: paywallId } });
+            return yield* Effect.fail(
+              new ExperimentValidationError({
+                message: `Paywall "${paywall?.name ?? paywallId}" has no published version yet`,
+              }),
+            );
+          }
+        }
 
         // Mutual exclusion: refuse to start if any target location is already
         // running a DIFFERENT experiment. A plain paywall_release showing is
@@ -789,7 +690,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
         // replace the experiment's featureFlag showing with a normal
         // paywall_release showing so no location is ever left dangling.
         const locationIds = targetLocationIds(experiment.treatments);
-        const releaseForLocation = (locationId: string) => {
+        const configForLocation = (locationId: string) => {
           const pick = (variantId: string | undefined) =>
             experiment.treatments.find(
               (t) =>
@@ -824,18 +725,33 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
                     isNull(paywallLocationShowings.endedAt),
                   ),
                 );
-              const release = releaseForLocation(locationId);
-              if (release) {
-                yield* tx.insert(paywallLocationShowings).values({
-                  id: generateId("paywallLocationShowing"),
-                  projectId: experiment.projectId,
-                  paywallLocationId: locationId,
-                  type: PaywallLocationShowingType.paywallRelease,
-                  paywallId: release.paywallId,
-                  paywallReleaseId: release.paywallReleaseId,
-                  featureFlagId: null,
-                  startedAt: now,
-                });
+              const config = configForLocation(locationId);
+              if (config) {
+                // Treatments name a paywall, not a release (legacy rows still
+                // pin one) — promote whatever its active published version is
+                // right now, or leave the location empty rather than pin
+                // something unpublished.
+                const releaseId =
+                  config.paywallReleaseId ??
+                  (yield* tx.query.paywallReleases.findFirst({
+                    where: {
+                      paywallId: config.paywallId,
+                      isActive: true,
+                      status: ReleaseStatus.released,
+                    },
+                  }))?.id;
+                if (releaseId) {
+                  yield* tx.insert(paywallLocationShowings).values({
+                    id: generateId("paywallLocationShowing"),
+                    projectId: experiment.projectId,
+                    paywallLocationId: locationId,
+                    type: PaywallLocationShowingType.paywallRelease,
+                    paywallId: config.paywallId,
+                    paywallReleaseId: releaseId,
+                    featureFlagId: null,
+                    startedAt: now,
+                  });
+                }
               }
             }
             yield* tx
@@ -982,7 +898,7 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
           assigned: result?.enabled ?? false,
           variantKey: result?.variantKey ?? null,
           payload: result?.payload ?? null,
-          controlVariantKey: control?.key ?? null,
+          controlVariantKey: control?.id ?? null,
           controlPayload,
         };
       },
@@ -997,12 +913,9 @@ export class ExperimentService extends Context.Service<ExperimentService>()("Exp
       getExperiment,
       listExperiments,
       pauseExperiment,
-      removeTreatment,
-      replaceVariants,
       restoreExperiment,
+      saveSetup,
       startExperiment,
-      updateExperiment,
-      upsertTreatment,
     } as const;
   }),
 }) {

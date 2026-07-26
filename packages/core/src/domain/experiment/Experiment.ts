@@ -17,11 +17,6 @@ export class ExperimentVariantNotFoundError extends Schema.TaggedErrorClass<Expe
   "ExperimentVariantNotFoundError",
 )("ExperimentVariantNotFoundError", { variantId: Schema.String }) {}
 
-/** Experiment treatment row not found. */
-export class ExperimentTreatmentNotFoundError extends Schema.TaggedErrorClass<ExperimentTreatmentNotFoundError>(
-  "ExperimentTreatmentNotFoundError",
-)("ExperimentTreatmentNotFoundError", { treatmentId: Schema.String }) {}
-
 /**
  * A domain invariant was violated — bad variant weights, editing a locked
  * running experiment, a target-location conflict with another experiment, an

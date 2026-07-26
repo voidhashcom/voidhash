@@ -2553,15 +2553,15 @@ export const experiments = pgTable(
 
 /**
  * The arms of an experiment. This is the source of truth for variant identity
- * and weights; it is synced 1:1 (by `key`) into `feature_flag_variant` rows on
- * the backing flag so the existing deterministic bucketing engine assigns them.
+ * and weights; it is synced into `feature_flag_variant` rows on the backing
+ * flag (keyed by this row's id) so the existing deterministic bucketing engine
+ * assigns them.
  */
 export const experimentVariants = pgTable(
   "experiment_variant",
   {
     id: varchar("id", { length: 255 }).primaryKey(),
     experimentId: varchar("experiment_id", { length: 255 }).notNull(),
-    key: varchar("key", { length: 255 }).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     isControl: boolean("is_control").notNull().default(false),
     weightBps: integer("weight_bps").notNull().default(0),
@@ -2571,18 +2571,18 @@ export const experimentVariants = pgTable(
       () => new Date(),
     ),
   },
-  (table) => [
-    uniqueIndex("experiment_variant_experiment_key_idx").on(table.experimentId, table.key),
-    index("experiment_variant_experiment_id_idx").on(table.experimentId),
-  ],
+  (table) => [index("experiment_variant_experiment_id_idx").on(table.experimentId)],
 );
 
-/** Config for a `paywall_location` treatment: which paywall release to serve at
- * a given location for the owning variant. */
+/** Config for a `paywall_location` treatment: which paywall to serve at a
+ * given location for the owning variant. The paywall's active published
+ * version is resolved at serve time — a treatment is never pinned to one
+ * release. `paywallReleaseId` survives only on rows written before that
+ * change. */
 export interface PaywallLocationTreatmentConfig {
   readonly paywallLocationId: string;
   readonly paywallId: string;
-  readonly paywallReleaseId: string;
+  readonly paywallReleaseId?: string;
 }
 
 /**

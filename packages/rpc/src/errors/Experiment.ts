@@ -16,11 +16,6 @@ export class RpcExperimentVariantNotFoundError extends Schema.TaggedErrorClass<R
   "RpcExperimentVariantNotFoundError",
 )("Rpc/ExperimentVariantNotFoundError", { message: Schema.String }) {}
 
-/** Experiment treatment row not found. */
-export class RpcExperimentTreatmentNotFoundError extends Schema.TaggedErrorClass<RpcExperimentTreatmentNotFoundError>(
-  "RpcExperimentTreatmentNotFoundError",
-)("Rpc/ExperimentTreatmentNotFoundError", { message: Schema.String }) {}
-
 /** A domain invariant was violated (weights, locked running experiment, target conflict, …). */
 export class RpcExperimentValidationError extends Schema.TaggedErrorClass<RpcExperimentValidationError>(
   "RpcExperimentValidationError",
