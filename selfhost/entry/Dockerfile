@@ -12,7 +12,7 @@ COPY . .
 RUN corepack pnpm@11.1.3 install --frozen-lockfile --filter @voidhash/selfhost-entry... --filter @voidhash/www... --ignore-scripts
 RUN VITE_APP_API_URL= VITE_APP_ENV=production VOIDHASH_SELFHOST_BUNDLE=true corepack pnpm@11.1.3 exec turbo build --filter @voidhash/www
 RUN rm -rf /out && corepack pnpm@11.1.3 --config.ignore-scripts=true --config.node-linker=isolated --filter @voidhash/selfhost-entry deploy --prod --legacy /out
-RUN rm -rf /www && corepack pnpm@11.1.3 --config.ignore-scripts=true --config.node-linker=hoisted --filter @voidhash/www deploy --prod --legacy /www
+RUN rm -rf /www && corepack pnpm@11.1.3 --config.ignore-scripts=true --config.node-linker=hoisted --config.allow-unused-patches=true --filter @voidhash/www deploy --prod --legacy /www
 
 FROM node:22-bookworm-slim AS runtime
 

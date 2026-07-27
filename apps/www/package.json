@@ -37,6 +37,7 @@
     "@react-three/fiber": "^9.1.2",
     "@react-three/postprocessing": "^3.0.4",
     "@scalar/api-client-react": "^2.0.36",
+    "@scalar/openapi-upgrader": "0.2.11",
     "@t3-oss/env-core": "^0.13.8",
     "@tanstack/query-core": "5.100.11",
     "@tanstack/react-query": "catalog:",

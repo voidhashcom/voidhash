@@ -8,20 +8,27 @@ export type DurableEntityAlarmHandler = (
   now: number,
 ) => Effect.Effect<void, unknown>;
 
-/** Dispatches one bounded page of due alarms through the registered type handlers. */
+/**
+ * Dispatches one bounded page of due alarms through the registered type handlers.
+ * When `now` is omitted, the clock is sampled each time the returned effect runs.
+ */
 export const dispatchDurableEntityAlarms = (
   control: NodeDurableEntityControlShape,
   handlers: Readonly<Record<string, DurableEntityAlarmHandler>>,
-  now = Date.now(),
+  now?: number,
 ): Effect.Effect<void, unknown> =>
-  control
-    .listDueAlarms(now, 100)
-    .pipe(
-      Effect.flatMap((due) =>
-        Effect.forEach(
-          due,
-          ({ address }) => handlers[address.type]?.(address, now) ?? Effect.void,
-          { discard: true },
+  Effect.suspend(() => {
+    const dispatchTime = now ?? Date.now();
+    return control
+      .listDueAlarms(dispatchTime, 100)
+      .pipe(
+        Effect.flatMap((due) =>
+          Effect.forEach(
+            due,
+            ({ address }) =>
+              handlers[address.type]?.(address, dispatchTime) ?? Effect.void,
+            { discard: true },
+          ),
         ),
-      ),
-    );
+      );
+  });

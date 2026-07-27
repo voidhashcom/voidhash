@@ -1,12 +1,43 @@
+import { PaywallArtifactStore } from "@voidhash/core/services/paywallDeploys/PaywallArtifactStore";
+import { MimicHost } from "@voidhash/core/services/paywalls/MimicHost";
 import { HtmlScreenshot } from "@voidhash/core/services/paywallThumbnails/HtmlScreenshot";
+import { PaywallThumbnailService } from "@voidhash/core/services/paywallThumbnails/PaywallThumbnailService";
 import { SnapshotImageRenderer } from "@voidhash/core/services/paywallThumbnails/SnapshotImageRenderer";
 import { PublicFileStore } from "@voidhash/core/services/storage/PublicFileStore";
-import { Effect, Layer } from "effect";
+import { ComponentCompiler } from "@voidhash/core/services/paywallWorkspace/ComponentCompiler";
+import { Db } from "@voidhash/db";
+import { Context, Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 
-import { SelfhostSnapshotImageRendererLive } from "../src/backend/Thumbnails.ts";
+import {
+  makeSelfhostPaywallThumbnailServiceLive,
+  SelfhostSnapshotImageRendererLive,
+} from "../src/backend/Thumbnails.ts";
 
 describe("self-host paywall thumbnail renderer", () => {
+  it("provides the manifest cache required by the thumbnail service", async () => {
+    const renderer = Layer.succeed(SnapshotImageRenderer, {
+      render: () => Effect.succeed(new Uint8Array()),
+    });
+    const dependencies = Layer.mergeAll(
+      Layer.succeed(Db, {} as never),
+      Layer.succeed(MimicHost, {} as never),
+      Layer.succeed(PaywallArtifactStore, {} as never),
+      Layer.succeed(ComponentCompiler, {} as never),
+      Layer.succeed(PublicFileStore, {} as never),
+    );
+
+    const context = await Effect.runPromise(
+      Effect.scoped(
+        Layer.build(makeSelfhostPaywallThumbnailServiceLive({}, renderer)).pipe(
+          Effect.provide(dependencies),
+        ),
+      ),
+    );
+
+    expect(Context.get(context, PaywallThumbnailService)).toBeDefined();
+  });
+
   it("renders static paywall HTML through the screenshot port", async () => {
     const screenshots: string[] = [];
     const png = new Uint8Array([137, 80, 78, 71]);

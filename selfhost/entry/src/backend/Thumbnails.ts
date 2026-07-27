@@ -11,6 +11,7 @@ import {
   type SnapshotImageRendererShape,
 } from "@voidhash/core/services/paywallThumbnails/SnapshotImageRenderer";
 import { PublicFileStore } from "@voidhash/core/services/storage/PublicFileStore";
+import { ComponentManifestCacheService } from "@voidhash/core/services/paywallWorkspace/ComponentManifestCacheService";
 import type {
   PreviewTree,
   SnapshotNode,
@@ -151,9 +152,13 @@ export const makeSelfhostSnapshotImageRendererLive = (
 /** Builds the Chromium-backed thumbnail service for the self-host runtime. */
 export const makeSelfhostPaywallThumbnailServiceLive = (
   screenshotConfig: ChromiumScreenshotConfig,
+  renderer: Layer.Layer<SnapshotImageRenderer, never, PublicFileStore> =
+    makeSelfhostSnapshotImageRendererLive(screenshotConfig),
 ) => {
-  const renderer = makeSelfhostSnapshotImageRendererLive(screenshotConfig);
-  return PaywallThumbnailService.layer.pipe(Layer.provide(renderer));
+  return PaywallThumbnailService.layer.pipe(
+    Layer.provide(renderer),
+    Layer.provide(ComponentManifestCacheService.layer),
+  );
 };
 
 /** Runs the best-effort paywall-thumbnail queue consumer until interrupted. */
