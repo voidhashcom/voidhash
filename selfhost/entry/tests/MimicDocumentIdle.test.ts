@@ -7,7 +7,7 @@ import { makeDurableEntityAddress } from "@voidhash/platform/DurableEntity";
 import type { NodeDurableEntityControlShape } from "@voidhash/platform-node/DurableEntity";
 import { makeMemoryDurableEntityHost } from "@voidhash/platform-node/MemoryDurableEntity";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { dispatchMimicDocumentIdleAlarms } from "../src/mimic/MimicNodeWebSocket.ts";
 
@@ -21,6 +21,36 @@ const control: NodeDurableEntityControlShape = {
 };
 
 describe("Mimic Node idle alarm dispatch", () => {
+  it("samples the current time whenever a reused dispatch effect runs", async () => {
+    const observed: number[] = [];
+    const clock = vi.spyOn(Date, "now").mockReturnValue(100);
+    const dispatch = dispatchMimicDocumentIdleAlarms(
+      makeMemoryDurableEntityHost(),
+      {
+        control: {
+          listDueAlarms: (now) =>
+            Effect.sync(() => {
+              observed.push(now);
+              return [];
+            }),
+        },
+        debounceMs: 1,
+        publish: () => Effect.void,
+      },
+      () => 0,
+    );
+
+    try {
+      await Effect.runPromise(dispatch);
+      clock.mockReturnValue(200);
+      await Effect.runPromise(dispatch);
+    } finally {
+      clock.mockRestore();
+    }
+
+    expect(observed).toEqual([100, 200]);
+  });
+
   it("publishes and records a persisted dirty revision", async () => {
     const entities = makeMemoryDurableEntityHost();
     const published: MimicDocumentIdleMessageType[] = [];
