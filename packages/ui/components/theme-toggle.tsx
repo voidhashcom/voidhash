@@ -16,28 +16,17 @@ export function ThemeToggle({
     <ToggleGroup
       className={cn("divide-x overflow-hidden rounded-full border border-border", className)}
       onValueChange={(value) => setTheme(value)}
+      spacing={0}
       type="single"
       value={theme}
     >
-      <ToggleGroupItem
-        aria-label="Toggle system"
-        className={cn("h-6 p-0 px-2", theme === "system" && "bg-muted")}
-        value="system"
-      >
+      <ToggleGroupItem aria-label="Toggle system" className="h-6 p-0 px-2" value="system">
         <Monitor className="size-4" />
       </ToggleGroupItem>
-      <ToggleGroupItem
-        aria-label="Toggle light"
-        className={cn("h-6 p-0 px-2", theme === "light" && "bg-muted")}
-        value="light"
-      >
+      <ToggleGroupItem aria-label="Toggle light" className="h-6 p-0 px-2" value="light">
         <Sun className="size-4" />
       </ToggleGroupItem>
-      <ToggleGroupItem
-        aria-label="Toggle strikethrough"
-        className={cn("h-6 p-0 px-2", theme === "dark" && "bg-muted")}
-        value="dark"
-      >
+      <ToggleGroupItem aria-label="Toggle strikethrough" className="h-6 p-0 px-2" value="dark">
         <Moon className="size-4" />
       </ToggleGroupItem>
     </ToggleGroup>

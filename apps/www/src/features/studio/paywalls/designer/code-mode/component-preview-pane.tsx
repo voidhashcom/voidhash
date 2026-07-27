@@ -60,7 +60,6 @@ export function ComponentPreviewPane({ definitionId }: { definitionId: string })
               size="sm"
               type="single"
               value={activeState}
-              variant="outline"
             >
               {states.map((state) => (
                 <ToggleGroupItem className="text-xs" key={state} size="sm" value={state}>

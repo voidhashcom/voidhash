@@ -75,6 +75,7 @@
     "./services/paywallThumbnails/HtmlScreenshot": "./src/services/paywallThumbnails/HtmlScreenshot.ts",
     "./services/paywallThumbnails/PaywallThumbnailService": "./src/services/paywallThumbnails/PaywallThumbnailService.ts",
     "./services/paywallThumbnails/SnapshotImageRenderer": "./src/services/paywallThumbnails/SnapshotImageRenderer.ts",
+    "./services/paywallThumbnails/inlinePublicFileImages": "./src/services/paywallThumbnails/inlinePublicFileImages.ts",
     "./services/paymentProviders/AppStorePaymentProviderService": "./src/services/paymentProviders/AppStorePaymentProviderService.ts",
     "./services/paymentProviders/GooglePlayPaymentProviderService": "./src/services/paymentProviders/GooglePlayPaymentProviderService.ts",
     "./services/paymentProviders/StripePaymentProviderService": "./src/services/paymentProviders/StripePaymentProviderService.ts",

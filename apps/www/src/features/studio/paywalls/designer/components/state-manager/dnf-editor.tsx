@@ -62,7 +62,7 @@ export function DNFEditor({
 
       {/* Add OR group button */}
       <div className="flex items-center justify-center">
-        <Button size="sm" variant="secondary" onClick={() => onAddConjunction(variables)}>
+        <Button size="sm" variant="outline" onClick={() => onAddConjunction(variables)}>
           <PlusIcon />
           OR
         </Button>

@@ -13,11 +13,13 @@ import {
   type InsertFeatureFlagOverride,
   type InsertFeatureFlagTarget,
   type InsertFeatureFlagVariant,
+  type FeatureFlagTypeValue,
   AuditLogAction,
   AuditLogEntityType,
   Db,
   FeatureFlagIdentityType,
   FeatureFlagTargetListType,
+  FeatureFlagType,
   and,
   eq,
   featureFlagOverrides,
@@ -51,6 +53,78 @@ interface EvaluationResult {
   readonly reason: string;
   readonly variantKey: string | null;
 }
+
+interface CustomerFeatureFlagVariantInput {
+  readonly id?: string;
+  readonly label?: string;
+  readonly value: unknown;
+  readonly weightBps?: number;
+}
+
+const isJsonValue = (value: unknown, seen = new WeakSet<object>()): boolean => {
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    (typeof value === "number" && Number.isFinite(value))
+  ) {
+    return true;
+  }
+  if (typeof value !== "object") {
+    return false;
+  }
+  if (seen.has(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null && !Array.isArray(value)) {
+    return false;
+  }
+  seen.add(value);
+  const valid = Array.isArray(value)
+    ? value.every((item) => isJsonValue(item, seen))
+    : Object.values(value).every((item) => isJsonValue(item, seen));
+  seen.delete(value);
+  return valid;
+};
+
+const validateCustomerVariants = (
+  type: FeatureFlagTypeValue,
+  variants: ReadonlyArray<CustomerFeatureFlagVariantInput>,
+): string | undefined => {
+  if (type === FeatureFlagType.Boolean && variants.length > 0) {
+    return "Boolean feature flags cannot have variants";
+  }
+
+  for (const variant of variants) {
+    if (type === FeatureFlagType.String && typeof variant.value !== "string") {
+      return "String feature flag variants must have string values";
+    }
+    if (
+      type === FeatureFlagType.Number &&
+      (typeof variant.value !== "number" || !Number.isFinite(variant.value))
+    ) {
+      return "Number feature flag variants must have finite number values";
+    }
+    if (type === FeatureFlagType.Json && !isJsonValue(variant.value)) {
+      return "JSON feature flag variants must contain valid JSON values";
+    }
+    if (type === FeatureFlagType.Json && variant.label !== undefined) {
+      return "JSON feature flag variants cannot have labels";
+    }
+  }
+
+  return undefined;
+};
+
+const distributeVariantWeights = (count: number): number[] => {
+  if (count === 0) {
+    return [];
+  }
+  const baseWeight = Math.floor(10000 / count);
+  const remainder = 10000 - baseWeight * count;
+  return Array.from({ length: count }, (_, index) => baseWeight + (index < remainder ? 1 : 0));
+};
 
 /**
  * `owner_type` stamped on the internal feature flag that backs an experiment.
@@ -110,10 +184,14 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
         function* (input: {
           readonly projectId: string;
           readonly key: string;
-          readonly name: string;
+          readonly name?: string;
           readonly description?: string;
+          readonly type?: FeatureFlagTypeValue;
+          readonly variants?: ReadonlyArray<CustomerFeatureFlagVariantInput>;
         }) {
           const session = yield* AuthSession;
+          const type = input.type ?? FeatureFlagType.Boolean;
+          const variants = input.variants ?? [];
 
           yield* Effect.annotateCurrentSpan("voidhash.project.id", input.projectId);
           yield* Effect.annotateCurrentSpan("voidhash.feature_flag.key", input.key);
@@ -126,6 +204,26 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             `User ${session?.user?.id} is not authorized to create feature flags for project ${input.projectId}`,
           );
 
+          const validationError = validateCustomerVariants(type, variants);
+          if (validationError) {
+            return yield* Effect.fail(new FeatureFlagServiceError({ cause: validationError }));
+          }
+
+          const requestedWeights = variants.map((variant) => variant.weightBps);
+          const weights = requestedWeights.every((weight): weight is number => weight !== undefined)
+            ? requestedWeights
+            : distributeVariantWeights(variants.length);
+          if (weights.length > 0 && weights.reduce((sum, weight) => sum + weight, 0) !== 10000) {
+            return yield* Effect.fail(
+              new FeatureFlagServiceError({
+                cause: `Variant weights must sum to 10000, got ${weights.reduce(
+                  (sum, weight) => sum + weight,
+                  0,
+                )}`,
+              }),
+            );
+          }
+
           const flagId = generateId("featureFlag");
           const salt = createId();
 
@@ -135,8 +233,9 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             id: flagId,
             projectId: input.projectId,
             key: input.key,
-            name: input.name,
+            name: input.name ?? input.key,
             description: input.description ?? null,
+            type,
             enabled: false,
             rolloutBps: 0,
             salt,
@@ -158,6 +257,17 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
                 return yield* Effect.fail(new FeatureFlagKeyAlreadyExistsError({ key: input.key }));
               }
               yield* tx.insert(featureFlags).values(newFlag);
+              for (const [index, variant] of variants.entries()) {
+                const id = generateId("featureFlagVariant");
+                yield* tx.insert(featureFlagVariants).values({
+                  id,
+                  featureFlagId: flagId,
+                  key: id,
+                  name: variant.label ?? "",
+                  payload: variant.value,
+                  weightBps: weights[index]!,
+                });
+              }
             }),
           );
 
@@ -215,6 +325,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
             key: input.key,
             name: input.name,
             description: input.description ?? null,
+            type: FeatureFlagType.Json,
             enabled: false,
             rolloutBps: 10000,
             salt,
@@ -562,6 +673,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
           const results = yield* db.query.featureFlags.findMany({
             where: {
               projectId: input.projectId,
+              internal: false,
               ...(includeArchived ? {} : { archivedAt: { isNull: true } }),
             },
             with: {
@@ -584,6 +696,128 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
           effect.pipe(
             Effect.catchTags({
               EffectDrizzleQueryError: (error) =>
+                Effect.fail(new FeatureFlagServiceError({ cause: String(error.cause) })),
+            }),
+          ),
+      );
+
+      const updateCustomerFlagVariants = Effect.fn("updateCustomerFlagVariants")(
+        function* (input: {
+          readonly featureFlagId: string;
+          readonly variants: ReadonlyArray<CustomerFeatureFlagVariantInput>;
+        }) {
+          const session = yield* AuthSession;
+
+          yield* Effect.annotateCurrentSpan("voidhash.feature_flag.id", input.featureFlagId);
+          if (session?.user?.id)
+            yield* Effect.annotateCurrentSpan("voidhash.user.id", session.user.id);
+
+          const existingFlag = yield* db.query.featureFlags.findFirst({
+            where: { id: input.featureFlagId },
+            with: {
+              variants: { where: { archivedAt: { isNull: true } } },
+            },
+          });
+          if (!existingFlag) {
+            return yield* Effect.fail(
+              new FeatureFlagNotFoundError({ featureFlagId: input.featureFlagId }),
+            );
+          }
+          if (existingFlag.internal) {
+            return yield* Effect.fail(
+              new FeatureFlagServiceError({
+                cause: `Feature flag ${input.featureFlagId} is managed internally and cannot be edited directly`,
+              }),
+            );
+          }
+
+          yield* Effect.annotateCurrentSpan("voidhash.project.id", existingFlag.projectId);
+          yield* Effect.annotateCurrentSpan("voidhash.feature_flag.key", existingFlag.key);
+          yield* checkProjectPermission(
+            existingFlag.projectId,
+            "project:all",
+            `User ${session?.user?.id} is not authorized to update variants for feature flag ${input.featureFlagId}`,
+          );
+
+          const validationError = validateCustomerVariants(existingFlag.type, input.variants);
+          if (validationError) {
+            return yield* Effect.fail(new FeatureFlagServiceError({ cause: validationError }));
+          }
+
+          const existingById = new Map(
+            existingFlag.variants.map((variant) => [variant.id, variant] as const),
+          );
+          const seenIds = new Set<string>();
+          for (const variant of input.variants) {
+            if (!variant.id) {
+              continue;
+            }
+            if (seenIds.has(variant.id)) {
+              return yield* Effect.fail(
+                new FeatureFlagServiceError({
+                  cause: `Duplicate variant id '${variant.id}' for flag ${input.featureFlagId}`,
+                }),
+              );
+            }
+            if (!existingById.has(variant.id)) {
+              return yield* Effect.fail(
+                new FeatureFlagServiceError({
+                  cause: `Variant '${variant.id}' does not belong to flag ${input.featureFlagId}`,
+                }),
+              );
+            }
+            seenIds.add(variant.id);
+          }
+
+          const weights = distributeVariantWeights(input.variants.length);
+          yield* db.transaction((tx) =>
+            Effect.gen(function* () {
+              yield* tx
+                .delete(featureFlagVariants)
+                .where(eq(featureFlagVariants.featureFlagId, input.featureFlagId));
+
+              for (const [index, variant] of input.variants.entries()) {
+                const existingVariant = variant.id ? existingById.get(variant.id) : undefined;
+                const id = existingVariant?.id ?? generateId("featureFlagVariant");
+                yield* tx.insert(featureFlagVariants).values({
+                  id,
+                  featureFlagId: input.featureFlagId,
+                  key: existingVariant?.key ?? id,
+                  name: variant.label ?? "",
+                  payload: variant.value,
+                  weightBps: weights[index]!,
+                });
+              }
+
+              yield* tx
+                .update(featureFlags)
+                .set({
+                  updatedByUserId: session?.user?.id ?? null,
+                  version: sql`${featureFlags.version} + 1`,
+                })
+                .where(eq(featureFlags.id, input.featureFlagId));
+            }),
+          );
+
+          yield* auditLog.append({
+            projectId: existingFlag.projectId,
+            entityType: AuditLogEntityType.FeatureFlagVariant,
+            entityId: input.featureFlagId,
+            parentEntityId: input.featureFlagId,
+            action: AuditLogAction.Updated,
+            changes: { snapshot: { variants: input.variants } },
+          });
+
+          yield* Effect.log(
+            `Updated ${input.variants.length} variants for feature flag ${input.featureFlagId}`,
+          );
+        },
+        (effect) =>
+          effect.pipe(
+            Effect.catchTags({
+              EffectDrizzleQueryError: (error) =>
+                Effect.fail(new FeatureFlagServiceError({ cause: String(error.cause) })),
+              SqlError: (error) =>
                 Effect.fail(new FeatureFlagServiceError({ cause: String(error.cause) })),
             }),
           ),
@@ -1404,6 +1638,7 @@ export class FeatureFlagService extends Context.Service<FeatureFlagService>()(
         listOverridesByPerson,
         restoreFlag,
         setInternalFlagState,
+        updateCustomerFlagVariants,
         updateFlag,
         updateFlagVariants,
         upsertOverride,

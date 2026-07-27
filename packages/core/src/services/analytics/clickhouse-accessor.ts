@@ -1615,7 +1615,7 @@ export interface ExperimentVariantResultRow {
 export const getExperimentResults = (input: {
   readonly organizationId: string;
   readonly projectId: string;
-  readonly experimentKey: string;
+  readonly experimentId: string;
   readonly primaryMetricEventNames: readonly string[];
   readonly revenueEventNames: readonly string[];
   readonly startDate: Date;
@@ -1637,7 +1637,7 @@ export const getExperimentResults = (input: {
           AND event_ts >= ${ch.param("DateTime", startTs)}
           AND event_ts <= ${ch.param("DateTime", endTs)}
           AND event_name = ${ch.param("String", "$experiment.exposed")}
-          AND JSONExtractString(event_properties, 'experimentKey') = ${ch.param("String", input.experimentKey)}`,
+          AND JSONExtractString(event_properties, 'experimentId') = ${ch.param("String", input.experimentId)}`,
     );
     const conversionsFrom = resolvedEventsFrom(
       ch,

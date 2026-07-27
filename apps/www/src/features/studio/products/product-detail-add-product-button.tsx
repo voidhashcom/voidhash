@@ -16,7 +16,7 @@ export function ProductDetailAddProductButton({
   paymentProviderConfigurationId: string;
   providerId: string;
   title: string;
-  variant?: "default" | "secondary";
+  variant?: "default" | "outline";
 }) {
   const [open, setOpen] = useState(false);
   return (

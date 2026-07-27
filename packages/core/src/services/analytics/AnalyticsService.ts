@@ -43,6 +43,13 @@ import {
 import { buildSeriesResolver } from "./series-resolver.ts";
 
 const DEFAULT_LIMIT = 100;
+
+/**
+ * Conversion event assumed for an experiment that has not picked a primary
+ * metric — the conventional purchase event the paywall SDK bridge emits, which
+ * is the metric virtually every paywall test is measuring anyway.
+ */
+const DEFAULT_PRIMARY_METRIC_EVENT_NAME = "purchase_completed";
 const MAX_LIMIT = 500;
 
 /**
@@ -347,7 +354,8 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()("Analy
      * metric fired after first exposure), conversion rate, and post-exposure
      * revenue. Delegates the ClickHouse funnel to the accessor
      * ({@link getExperimentResultsQuery}); resolves the experiment's project +
-     * organization (for the row policy) and its metric names here. Reads
+     * organization (for the row policy) and its metric names here, falling back
+     * to {@link DEFAULT_PRIMARY_METRIC_EVENT_NAME} when none was chosen. Reads
      * server-emitted `$experiment.exposed` events — returns zeroed variants until
      * exposure emission is live.
      */
@@ -392,8 +400,10 @@ export class AnalyticsService extends Context.Service<AnalyticsService>()("Analy
         const rows = yield* getExperimentResultsQuery({
           organizationId: project.organizationId,
           projectId: experiment.projectId,
-          experimentKey: experiment.key,
-          primaryMetricEventNames: [experiment.primaryMetricEventName],
+          experimentId: experiment.id,
+          primaryMetricEventNames: [
+            experiment.primaryMetricEventName ?? DEFAULT_PRIMARY_METRIC_EVENT_NAME,
+          ],
           revenueEventNames: [...RESERVED_REVENUE_EVENT_NAMES],
           startDate,
           endDate,

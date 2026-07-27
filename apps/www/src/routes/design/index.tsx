@@ -4,7 +4,7 @@ export const Route = createFileRoute("/design/")({
   beforeLoad: () => {
     throw redirect({
       params: {
-        _splat: "introduction",
+        _splat: "components/overview",
       },
       to: "/design/$",
     });

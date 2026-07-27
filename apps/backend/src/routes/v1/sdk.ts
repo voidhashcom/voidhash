@@ -321,7 +321,7 @@ export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers
               return null;
             }
 
-            // `resolved.exposure` (when non-null) carries { experimentKey,
+            // `resolved.exposure` (when non-null) carries { experimentId,
             // variantKey, personId, distinctId } for the assigned subject.
             // Server-side `$experiment.exposed` emission is wired here once the
             // analytics dispatch producer (`AnalyticsDispatchService` over the

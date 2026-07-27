@@ -109,7 +109,6 @@ export interface ResolvedLocationShowingForSdk {
  */
 export interface ExperimentExposureContext {
   readonly experimentId: string;
-  readonly experimentKey: string;
   readonly variantKey: string;
   readonly personId: string | null;
   readonly distinctId: string | null;

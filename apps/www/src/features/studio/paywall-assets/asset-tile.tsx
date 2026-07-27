@@ -104,7 +104,7 @@ export function AssetTile({ organizationId, asset, selectable, onSelect }: Asset
                 aria-label="Image actions"
                 className="size-6 bg-background/80 backdrop-blur-sm"
                 size="icon-sm"
-                variant="secondary"
+                variant="ghost"
               >
                 <MoreHorizontalIcon />
               </Button>

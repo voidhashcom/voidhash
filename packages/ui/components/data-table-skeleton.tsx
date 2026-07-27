@@ -1,18 +1,22 @@
 import { Skeleton } from "./ui/skeleton";
-import { Table, TableCell, TableRow } from "./ui/table";
+import { Table, TableBody, TableCell, TableRow } from "./ui/table";
 
 export function DataTableSkeleton() {
   return (
     <div className="rounded-md border">
       <Table>
-        {Array.from({ length: 10 }).map((_, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
-          <TableRow key={index}>
-            <TableCell>
-              <Skeleton className="h-4 w-full" />
-            </TableCell>
-          </TableRow>
-        ))}
+        {/* Rows must sit inside a <tbody>; the browser injects one otherwise,
+            which desyncs SSR markup from the client tree and breaks hydration. */}
+        <TableBody>
+          {Array.from({ length: 10 }).map((_, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
+            <TableRow key={index}>
+              <TableCell>
+                <Skeleton className="h-4 w-full" />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
       </Table>
     </div>
   );

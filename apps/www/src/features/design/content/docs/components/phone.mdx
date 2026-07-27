@@ -1,0 +1,57 @@
+---
+title: Phone
+description: A phone mockup that frames arbitrary screen content and scales to any width.
+---
+
+## Usage
+
+`Phone` renders a black device body with a 9:19.5 screen, dynamic island, home indicator and side buttons. Every dimension is expressed in container-query units against the device's own width, so the same component reads correctly from a dashboard thumbnail up to a full-size preview. Children are clipped to the rounded screen — give them `size-full` to fill it.
+
+<Preview>
+  <Phone className="w-[220px]" screenClassName="bg-linear-150 from-blue-ribbon-700 to-electric-violet-800" />
+</Preview>
+
+```tsx
+import { Phone } from "@voidhash/ui";
+
+<Phone className="w-[220px]">
+  <img alt="" className="size-full object-cover object-top" src={thumbnailUrl} />
+</Phone>;
+```
+
+## Sizing from height
+
+By default the device fills the available width. Pass `fitHeight` to derive the width from the available height instead — pair it with `h-full` or `max-h-*` on `className`.
+
+<Preview className="h-[320px]">
+  <Phone className="h-full" fitHeight screenClassName="bg-zinc-800" />
+</Preview>
+
+```tsx
+<Phone className="h-full max-h-[832px]" fitHeight>
+  <iframe className="size-full" srcDoc={html} title="Preview" />
+</Phone>
+```
+
+## Browser toolbar
+
+Passing `url` floats a Safari-style toolbar over the bottom of the screen, together with a scrim that keeps it legible against light content.
+
+<Preview>
+  <Phone className="w-[220px]" screenClassName="bg-zinc-700" url="voidha.sh" />
+</Preview>
+
+```tsx
+<Phone url="voidha.sh">{content}</Phone>
+```
+
+## Props
+
+| Prop              | Type        | Default | Description                                                             |
+| ----------------- | ----------- | ------- | ----------------------------------------------------------------------- |
+| `children`        | `ReactNode` | —       | Screen content, clipped to the rounded display.                          |
+| `fitHeight`       | `boolean`   | `false` | Derive the device size from the available height instead of the width.   |
+| `screenClassName` | `string`    | —       | Extra classes for the screen surface, e.g. its background colour.        |
+| `url`             | `string`    | —       | Renders the floating browser toolbar showing this URL.                   |
+
+`PHONE_ASPECT_RATIO` is exported alongside the component for layouts that need to reserve the device's footprint themselves.

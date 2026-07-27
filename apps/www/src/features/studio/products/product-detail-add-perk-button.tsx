@@ -27,7 +27,7 @@ export function ProductDetailAddPerkButton({
 }: {
   productId: string;
   perks: (typeof Perk.Type)[];
-  variant?: "default" | "secondary";
+  variant?: "default" | "outline";
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");

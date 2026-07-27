@@ -62,6 +62,7 @@ export class PaywallService extends Context.Service<PaywallService>()("PaywallSe
             projectId,
             ...(includeArchived ? {} : { archivedAt: { isNull: true } }),
           },
+          orderBy: { createdAt: "desc" },
         });
       },
       (effect) =>

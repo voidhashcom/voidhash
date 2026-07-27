@@ -35,6 +35,7 @@ const DateFromNumber = Schema.Number.pipe(
 
 export const Paywall = Schema.Struct({
   archivedAt: Schema.NullOr(DateFromNumber),
+  createdAt: Schema.NullOr(DateFromNumber),
   id: Schema.String,
   name: Schema.String,
   projectId: Schema.String,
@@ -50,16 +51,6 @@ export class PaywallRpcsDef extends RpcGroup.make(
       projectId: Schema.String,
     }),
     success: Schema.Array(Paywall),
-  }),
-  Rpc.make("BackfillPaywallThumbnails", {
-    error: Schema.Union([RpcActionForbiddenError, RpcPaywallServiceError]),
-    payload: Schema.Struct({
-      projectId: Schema.String,
-    }),
-    success: Schema.Struct({
-      attempted: Schema.Number,
-      rendered: Schema.Number,
-    }),
   }),
   Rpc.make("CreatePaywall", {
     error: Schema.Union([

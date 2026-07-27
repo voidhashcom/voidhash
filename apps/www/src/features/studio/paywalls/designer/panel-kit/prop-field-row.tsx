@@ -358,7 +358,7 @@ function ArrayPropRow({
               <RotateCcwIcon />
             </Button>
           )}
-          <Button onClick={handleAdd} size="icon-sm" variant="secondary">
+          <Button onClick={handleAdd} size="icon-sm" variant="outline">
             <PlusIcon />
           </Button>
         </div>

@@ -12,6 +12,8 @@ import {
 } from "../errors/FeatureFlag.ts";
 import { AuthMiddleware } from "../middlewares.ts";
 
+export const RpcFeatureFlagType = Schema.Literals(["boolean", "string", "number", "json"]);
+
 export const RpcFeatureFlagTarget = Schema.Struct({
   archivedAt: Schema.NullOr(Schema.Date),
   createdAt: Schema.NullOr(Schema.Date),
@@ -42,11 +44,9 @@ export const RpcFeatureFlagVariant = Schema.Struct({
   createdAt: Schema.NullOr(Schema.Date),
   featureFlagId: Schema.String,
   id: Schema.String,
-  key: Schema.String,
-  name: Schema.String,
-  payload: Schema.NullOr(Schema.Unknown),
+  label: Schema.NullOr(Schema.String),
   updatedAt: Schema.NullOr(Schema.Date),
-  weightBps: Schema.Number,
+  value: Schema.Unknown,
 });
 
 export const RpcFeatureFlag = Schema.Struct({
@@ -57,14 +57,14 @@ export const RpcFeatureFlag = Schema.Struct({
   enabled: Schema.Boolean,
   id: Schema.String,
   internal: Schema.Boolean,
-  key: Schema.String,
-  name: Schema.String,
   overrides: Schema.Array(RpcFeatureFlagOverride),
   ownerId: Schema.NullOr(Schema.String),
   ownerType: Schema.NullOr(Schema.String),
   projectId: Schema.String,
   rolloutBps: Schema.Number,
+  slug: Schema.String,
   targets: Schema.Array(RpcFeatureFlagTarget),
+  type: RpcFeatureFlagType,
   updatedAt: Schema.NullOr(Schema.Date),
   updatedByUserId: Schema.NullOr(Schema.String),
   variants: Schema.Array(RpcFeatureFlagVariant),
@@ -78,12 +78,12 @@ export const RpcFeatureFlagListItem = Schema.Struct({
   enabled: Schema.Boolean,
   id: Schema.String,
   internal: Schema.Boolean,
-  key: Schema.String,
-  name: Schema.String,
   ownerId: Schema.NullOr(Schema.String),
   ownerType: Schema.NullOr(Schema.String),
   projectId: Schema.String,
   rolloutBps: Schema.Number,
+  slug: Schema.String,
+  type: RpcFeatureFlagType,
   updatedAt: Schema.NullOr(Schema.Date),
   variantCount: Schema.Number,
   version: Schema.Number,
@@ -126,9 +126,15 @@ export class FeatureFlagRpcsDef extends RpcGroup.make(
     ]),
     payload: {
       description: Schema.optional(Schema.String),
-      key: Schema.String,
-      name: Schema.String,
       projectId: Schema.String,
+      slug: Schema.String,
+      type: RpcFeatureFlagType,
+      variants: Schema.Array(
+        Schema.Struct({
+          label: Schema.optional(Schema.String),
+          value: Schema.Unknown,
+        }),
+      ),
     },
     success: Schema.Struct({ id: Schema.String }),
   }),
@@ -144,9 +150,8 @@ export class FeatureFlagRpcsDef extends RpcGroup.make(
       description: Schema.optional(Schema.NullOr(Schema.String)),
       enabled: Schema.optional(Schema.Boolean),
       id: Schema.String,
-      key: Schema.optional(Schema.String),
-      name: Schema.optional(Schema.String),
       rolloutBps: Schema.optional(Schema.Number),
+      slug: Schema.optional(Schema.String),
     },
     success: RpcFeatureFlag,
   }),
@@ -246,10 +251,9 @@ export class FeatureFlagRpcsDef extends RpcGroup.make(
       featureFlagId: Schema.String,
       variants: Schema.Array(
         Schema.Struct({
-          key: Schema.String,
-          name: Schema.String,
-          payload: Schema.optional(Schema.Unknown),
-          weightBps: Schema.Number,
+          id: Schema.optional(Schema.String),
+          label: Schema.optional(Schema.String),
+          value: Schema.Unknown,
         }),
       ),
     },

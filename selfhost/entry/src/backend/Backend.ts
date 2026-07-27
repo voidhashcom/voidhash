@@ -7,6 +7,7 @@ import {
 import { ClickhouseWebClient } from "@voidhash/clickhouse-db/clickhouse-client-web";
 import { Workos } from "@voidhash/core/services/auth/Workos";
 import { SnapshotImageRenderer } from "@voidhash/core/services/paywallThumbnails/SnapshotImageRenderer";
+import type { PublicFileStore } from "@voidhash/core/services/storage/PublicFileStore";
 import { PaywallAssetConfig } from "@voidhash/core/services/paywallLocations/PaywallAssetConfig";
 import { Db } from "@voidhash/db";
 import { HostServiceTag } from "@voidhash/mimic-db/app/hostService";
@@ -38,9 +39,18 @@ export const makeBackendInfrastructureLive = (
   config: SelfhostRuntimeConfig,
   workos: Layer.Layer<Workos>,
   clickhouse?: Layer.Layer<ClickhouseWebClient.ClickhouseWebClient>,
-  snapshotImageRenderer: Layer.Layer<SnapshotImageRenderer> = BackendSnapshotImageRendererStubLive,
-): Layer.Layer<InfraServices, never, HostServiceTag> =>
-  Layer.mergeAll(
+  snapshotImageRenderer: Layer.Layer<
+    SnapshotImageRenderer,
+    never,
+    PublicFileStore
+  > = BackendSnapshotImageRendererStubLive,
+): Layer.Layer<InfraServices, never, HostServiceTag> => {
+  const publicFileStore = makePublicFileStoreLive(
+    config.publicObjectStore,
+    config.publicFilesBaseUrl,
+  ).pipe(Layer.provide(NodePlatformRuntimeLive));
+
+  return Layer.mergeAll(
     Db.layer(config.database),
     workos,
     WorkosOrgPortLive.pipe(Layer.provide(workos)),
@@ -51,14 +61,15 @@ export const makeBackendInfrastructureLive = (
     makePaywallArtifactStoreLive(config.artifactObjectStore).pipe(
       Layer.provide(NodePlatformRuntimeLive),
     ),
-    makePublicFileStoreLive(config.publicObjectStore, config.publicFilesBaseUrl).pipe(
-      Layer.provide(NodePlatformRuntimeLive),
-    ),
+    publicFileStore,
     BackendPaymentProviderStubsLive,
     BackendNoopIdentityProjectionPublisherLive,
     makeBackendMimicHostLive(config.publicBaseUrl),
     makeHttpComponentCompilerLive(config.componentCompilerUrl),
-    snapshotImageRenderer,
+    // `mergeAll` does not cross-wire siblings; the renderer's asset inlining
+    // reads the same store instance merged above (memoized by reference).
+    snapshotImageRenderer.pipe(Layer.provide(publicFileStore)),
     MemoryProjectSchemaCacheLive,
     clickhouse ?? Layer.empty,
   );
+};

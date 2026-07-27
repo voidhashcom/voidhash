@@ -1,6 +1,7 @@
 icon: Component
 title: Components
 pages:
+  - overview
   - accordion
   - alert
   - alert-dialog
@@ -27,7 +28,9 @@ pages:
   - label
   - menubar
   - navigation-menu
+  - page-bar
   - pagination
+  - phone
   - popover
   - progress
   - radio-group

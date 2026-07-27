@@ -104,7 +104,7 @@ export function ProductDetailBody({
                 <ProductDetailAddPerkButton
                   perks={perksWithoutProductPerks}
                   productId={productId}
-                  variant="secondary"
+                  variant="outline"
                 />
               </CardFooter>
             </Card>
@@ -180,7 +180,7 @@ export function ProductDetailBody({
                       productId={productId}
                       providerId={paymentProviderWithConfiguration.paymentProvider.id}
                       title={paymentProviderWithConfiguration.paymentProvider.title}
-                      variant="secondary"
+                      variant="outline"
                     />
                   </CardFooter>
                 )}

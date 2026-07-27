@@ -46,6 +46,7 @@ import {
   Db,
   FeatureFlagIdentityType,
   FeatureFlagTargetListType,
+  FeatureFlagType,
   and,
   auditLogs,
   eq,
@@ -427,6 +428,50 @@ describe("FeatureFlagService.createFlag", () => {
         expect(yield* countFlagsWithKey(key, projectId)).toBe(1);
       }),
     ).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
+    "persists the immutable type and initial typed variants atomically",
+    withFlagCleanup((track) =>
+      Effect.gen(function* () {
+        const svc = yield* FeatureFlagService;
+        const created = yield* svc.createFlag({
+          projectId,
+          key: uniqueKey("typed-create"),
+          type: FeatureFlagType.String,
+          variants: [{ label: "Control", value: "control" }, { value: "treatment" }],
+        });
+        track(created.id);
+
+        const row = yield* findFlagRow(created.id);
+        expect(row?.type).toBe(FeatureFlagType.String);
+
+        const variants = yield* findVariantRows(created.id);
+        expect(variants).toHaveLength(2);
+        expect(variants.map((variant) => variant.payload).sort()).toEqual(["control", "treatment"]);
+        expect(variants.reduce((sum, variant) => sum + variant.weightBps, 0)).toBe(10000);
+        expect(variants.some((variant) => variant.name === "Control")).toBe(true);
+      }),
+    ).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
+    "rejects variants for a boolean flag without writing the flag",
+    Effect.gen(function* () {
+      const svc = yield* FeatureFlagService;
+      const key = uniqueKey("boolean-variant");
+      const error = yield* Effect.flip(
+        svc.createFlag({
+          projectId,
+          key,
+          type: FeatureFlagType.Boolean,
+          variants: [{ value: true }],
+        }),
+      );
+
+      expect(error).toBeInstanceOf(FeatureFlagServiceError);
+      expect(yield* countFlagsWithKey(key, projectId)).toBe(0);
+    }).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
   );
 
   test(
@@ -887,6 +932,32 @@ describe("FeatureFlagService.listFlags", () => {
   );
 
   test(
+    "excludes internal flags, which back A/B tests rather than the flags product",
+    withFlagCleanup((track) =>
+      Effect.gen(function* () {
+        const svc = yield* FeatureFlagService;
+        const customerKey = uniqueKey("list-customer");
+        const internalKey = uniqueKey("list-internal");
+
+        const customer = yield* svc.createFlag({ projectId, key: customerKey, name: "Customer" });
+        track(customer.id);
+        const internal = yield* svc.createInternalFlag({
+          projectId,
+          key: internalKey,
+          name: "Internal",
+          ownerType: "experiment",
+          ownerId: `it_experiment_${internalKey}`,
+        });
+        track(internal.id);
+
+        const list = yield* svc.listFlags({ projectId, includeArchived: true });
+        expect(list.some((f) => f.key === customerKey)).toBe(true);
+        expect(list.some((f) => f.key === internalKey)).toBe(false);
+      }),
+    ).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
     "returns each flag with a variantCount of its unarchived variants",
     withFlagCleanup((track) =>
       Effect.gen(function* () {
@@ -918,6 +989,81 @@ describe("FeatureFlagService.listFlags", () => {
       const error = yield* Effect.flip(asUnauthorized(svc.listFlags({ projectId })));
       expect(error).toBeInstanceOf(ActionForbiddenError);
     }).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
+  );
+});
+
+// ===========================================================================
+// updateCustomerFlagVariants
+// ===========================================================================
+
+describe("FeatureFlagService.updateCustomerFlagVariants", () => {
+  test(
+    "replaces typed values, preserves existing technical keys, and distributes weights evenly",
+    withFlagCleanup((track) =>
+      Effect.gen(function* () {
+        const svc = yield* FeatureFlagService;
+        const created = yield* svc.createFlag({
+          projectId,
+          key: uniqueKey("typed-variants-update"),
+          type: FeatureFlagType.Number,
+          variants: [
+            { label: "Small", value: 1 },
+            { label: "Large", value: 2 },
+          ],
+        });
+        track(created.id);
+
+        const before = yield* findVariantRows(created.id);
+        const preserved = before.find((variant) => variant.payload === 1)!;
+        yield* svc.updateCustomerFlagVariants({
+          featureFlagId: created.id,
+          variants: [
+            { id: preserved.id, label: "One", value: 1 },
+            { label: "Two", value: 2 },
+            { value: 3 },
+          ],
+        });
+
+        const after = yield* findVariantRows(created.id);
+        expect(after).toHaveLength(3);
+        expect(after.find((variant) => variant.id === preserved.id)?.key).toBe(preserved.key);
+        expect(after.find((variant) => variant.payload === 1)?.name).toBe("One");
+        expect(after.reduce((sum, variant) => sum + variant.weightBps, 0)).toBe(10000);
+        expect(Math.max(...after.map((variant) => variant.weightBps))).toBe(3334);
+
+        const flag = yield* findFlagRow(created.id);
+        expect(flag?.type).toBe(FeatureFlagType.Number);
+        expect(flag?.version).toBe(2);
+      }),
+    ).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
+  );
+
+  test(
+    "rejects labels for JSON variants and leaves existing values unchanged",
+    withFlagCleanup((track) =>
+      Effect.gen(function* () {
+        const svc = yield* FeatureFlagService;
+        const created = yield* svc.createFlag({
+          projectId,
+          key: uniqueKey("json-label"),
+          type: FeatureFlagType.Json,
+          variants: [{ value: { color: "blue" } }],
+        });
+        track(created.id);
+
+        const error = yield* Effect.flip(
+          svc.updateCustomerFlagVariants({
+            featureFlagId: created.id,
+            variants: [{ label: "Blue", value: { color: "blue" } }],
+          }),
+        );
+        expect(error).toBeInstanceOf(FeatureFlagServiceError);
+
+        const variants = yield* findVariantRows(created.id);
+        expect(variants).toHaveLength(1);
+        expect(variants[0]?.payload).toEqual({ color: "blue" });
+      }),
+    ).pipe(Effect.provide(FeatureFlagService.layer), CoreAuthSession.authenticate()),
   );
 });
 

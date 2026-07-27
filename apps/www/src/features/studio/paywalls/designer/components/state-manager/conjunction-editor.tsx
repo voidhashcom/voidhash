@@ -43,7 +43,7 @@ export function ConjunctionEditor({
             onClick={onAddPredicate}
             size="icon-sm"
             title="Add condition"
-            variant="secondary"
+            variant="outline"
           >
             <PlusIcon />
           </Button>

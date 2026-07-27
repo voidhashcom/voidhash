@@ -22,7 +22,7 @@ const suffix = `${Date.now()}-${crypto.randomUUID()}`;
 const experimentId = `it_experiment_auth_${suffix}`;
 const controlId = `it_experiment_variant_control_${suffix}`;
 const treatmentId = `it_experiment_treatment_${suffix}`;
-const unauthorizedCreateKey = `it-experiment-create-forbidden-${suffix}`;
+const unauthorizedCreateName = `it experiment create forbidden ${suffix}`;
 
 const sessionWithoutProjectAccess = (): UserSession => ({
   cookie: null,
@@ -56,7 +56,6 @@ test(
     yield* db.insert(experiments).values({
       featureFlagId: `it_feature_flag_auth_${suffix}`,
       id: experimentId,
-      key: `it-experiment-auth-${suffix}`,
       name: "Original experiment",
       primaryMetricEventName: "purchase",
       projectId: CoreTestFixture.projectId,
@@ -68,16 +67,14 @@ test(
         experimentId,
         id: controlId,
         isControl: true,
-        key: "control",
-        name: "Control",
+        name: "Variant A",
         weightBps: 5_000,
       },
       {
         experimentId,
         id: `it_experiment_variant_treatment_${suffix}`,
         isControl: false,
-        key: "treatment",
-        name: "Treatment",
+        name: "Variant B",
         weightBps: 5_000,
       },
     ]);
@@ -101,34 +98,31 @@ test(
 
     yield* expectForbidden(
       service.createExperiment({
-        key: unauthorizedCreateKey,
-        name: "Forbidden create",
-        primaryMetricEventName: "purchase",
+        name: unauthorizedCreateName,
         projectId: CoreTestFixture.projectId,
       }),
     );
     yield* expectForbidden(service.listExperiments({ projectId: CoreTestFixture.projectId }));
     yield* expectForbidden(service.getExperiment({ id: experimentId }));
-    yield* expectForbidden(service.updateExperiment({ id: experimentId, name: "Compromised" }));
+    yield* expectForbidden(service.saveSetup({ id: experimentId, name: "Compromised" }));
     yield* expectForbidden(
-      service.replaceVariants({
-        experimentId,
-        variants: [{ isControl: true, key: "control", name: "Control", weightBps: 10_000 }],
+      service.saveSetup({
+        id: experimentId,
+        variants: [
+          {
+            isControl: true,
+            name: "Variant A",
+            treatments: [
+              {
+                paywallId: "attacker-paywall",
+                paywallLocationId: "attacker-location",
+              },
+            ],
+            weightBps: 10_000,
+          },
+        ],
       }),
     );
-    yield* expectForbidden(
-      service.upsertTreatment({
-        config: {
-          paywallId: "attacker-paywall",
-          paywallLocationId: "attacker-location",
-          paywallReleaseId: "attacker-release",
-        },
-        experimentId,
-        treatmentType: "paywall_location",
-        variantId: controlId,
-      }),
-    );
-    yield* expectForbidden(service.removeTreatment({ id: treatmentId }));
     yield* expectForbidden(service.startExperiment({ id: experimentId }));
     yield* expectForbidden(service.pauseExperiment({ id: experimentId }));
     yield* expectForbidden(service.concludeExperiment({ id: experimentId }));
@@ -141,7 +135,7 @@ test(
       where: { id: treatmentId },
     });
     const forbiddenCreate = yield* db.query.experiments.findFirst({
-      where: { key: unauthorizedCreateKey, projectId: CoreTestFixture.projectId },
+      where: { name: unauthorizedCreateName, projectId: CoreTestFixture.projectId },
     });
     expect(experiment).toMatchObject({
       archivedAt: null,

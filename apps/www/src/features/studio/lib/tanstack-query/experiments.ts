@@ -3,13 +3,14 @@ import { queryKeys } from "@/features/studio/lib/tanstack-query";
 import { VoidhashRpc, eq } from "../effect-query";
 
 // Queries
-export const listExperimentsOptions = (options: {
-  projectId: string;
-  includeArchived?: boolean;
-}) =>
+/** Query options for a project's A/B tests, with archived records opt-in. */
+export const listExperimentsOptions = (options: { projectId: string; includeArchived?: boolean }) =>
   eq.queryOptions({
     queryFn: () => VoidhashRpc.request((rpc) => rpc.ListExperiments(options)),
-    queryKey: queryKeys.experiment.list({ projectId: options.projectId }),
+    queryKey: queryKeys.experiment.list({
+      includeArchived: options.includeArchived ?? false,
+      projectId: options.projectId,
+    }),
   });
 
 export const getExperimentOptions = (options: { id: string }) =>
@@ -19,63 +20,40 @@ export const getExperimentOptions = (options: { id: string }) =>
   });
 
 // Mutations
+/** Creates a draft A/B test; everything but the name is authored afterwards. */
 export const createExperimentOptions = () =>
   eq.mutationOptions({
-    mutationFn: (variables: {
-      projectId: string;
-      key: string;
-      name: string;
-      description?: string;
-      hypothesis?: string;
-      primaryMetricEventName: string;
-      secondaryMetricEventNames?: string[];
-    }) => VoidhashRpc.request((rpc) => rpc.CreateExperiment(variables)),
+    mutationFn: (variables: { projectId: string; name: string }) =>
+      VoidhashRpc.request((rpc) => rpc.CreateExperiment(variables)),
     mutationKey: ["createExperiment"],
   });
 
-export const updateExperimentOptions = () =>
+/**
+ * Saves everything the detail page stages — scalars, variants, and each
+ * variant's paywall placements — in one request. Sections left `undefined`
+ * are untouched.
+ */
+export const saveExperimentSetupOptions = () =>
   eq.mutationOptions({
     mutationFn: (variables: {
       id: string;
       name?: string;
       description?: string | null;
       hypothesis?: string | null;
-      primaryMetricEventName?: string;
+      primaryMetricEventName?: string | null;
       secondaryMetricEventNames?: string[] | null;
-    }) => VoidhashRpc.request((rpc) => rpc.UpdateExperiment(variables)),
-    mutationKey: ["updateExperiment"],
-  });
-
-export const replaceExperimentVariantsOptions = () =>
-  eq.mutationOptions({
-    mutationFn: (variables: {
-      experimentId: string;
-      variants: Array<{
-        key: string;
+      variants?: Array<{
+        id?: string;
         name: string;
         isControl: boolean;
         weightBps: number;
+        treatments: Array<{
+          paywallLocationId: string;
+          paywallId: string;
+        }>;
       }>;
-    }) => VoidhashRpc.request((rpc) => rpc.ReplaceExperimentVariants(variables)),
-    mutationKey: ["replaceExperimentVariants"],
-  });
-
-export const upsertExperimentTreatmentOptions = () =>
-  eq.mutationOptions({
-    mutationFn: (variables: {
-      experimentId: string;
-      variantId: string;
-      treatmentType: string;
-      config: unknown;
-    }) => VoidhashRpc.request((rpc) => rpc.UpsertExperimentTreatment(variables)),
-    mutationKey: ["upsertExperimentTreatment"],
-  });
-
-export const removeExperimentTreatmentOptions = () =>
-  eq.mutationOptions({
-    mutationFn: (variables: { id: string }) =>
-      VoidhashRpc.request((rpc) => rpc.RemoveExperimentTreatment(variables)),
-    mutationKey: ["removeExperimentTreatment"],
+    }) => VoidhashRpc.request((rpc) => rpc.SaveExperimentSetup(variables)),
+    mutationKey: ["saveExperimentSetup"],
   });
 
 export const startExperimentOptions = () =>

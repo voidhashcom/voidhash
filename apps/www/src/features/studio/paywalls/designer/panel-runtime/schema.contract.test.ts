@@ -285,7 +285,7 @@ const fullTree = () => {
                     {
                       type: "button",
                       id: id(),
-                      props: { label: "Edit fill", icon: "paintbrush", variant: "secondary" },
+                      props: { label: "Edit fill", icon: "paintbrush", variant: "outline" },
                       events: ["onClick"],
                     },
                   ],

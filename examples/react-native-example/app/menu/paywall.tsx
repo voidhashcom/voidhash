@@ -111,7 +111,7 @@ export default function PaywallScreen() {
           onPress={() => {
             void handleRestore();
           }}
-          style={styles.secondaryButton}
+          style={styles.outlineButton}
           title={isReconciling ? "Working..." : "Restore and verify backend"}
         />
         <Button
@@ -119,7 +119,7 @@ export default function PaywallScreen() {
           onPress={() => {
             void handleInspectProducts();
           }}
-          style={styles.secondaryButton}
+          style={styles.outlineButton}
           title="Inspect native products"
         />
       </View>
@@ -162,8 +162,10 @@ const styles = StyleSheet.create({
   actionButton: {
     marginTop: 16,
   },
-  secondaryButton: {
-    backgroundColor: "#27272a",
+  outlineButton: {
+    backgroundColor: "transparent",
+    borderColor: "#3f3f46",
+    borderWidth: 1,
     marginTop: 12,
   },
 });

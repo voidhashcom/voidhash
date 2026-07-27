@@ -8,6 +8,7 @@ import { Spinner } from "@voidhash/ui";
 import { AuthProvider } from "@/features/studio/components/auth-context";
 import { DefaultCatchBoundary } from "@/features/studio/components/default-cache-boundary";
 import { DashboardShellSkeleton } from "@/features/studio/shell/components/skeleton";
+import { WaitlistGate } from "@/features/studio/waitlist/waitlist-gate";
 import { queryKeys } from "@/features/studio/lib/tanstack-query";
 import { getCurrentUser } from "@/features/studio/lib/tanstack-query/users";
 
@@ -143,7 +144,9 @@ function RouteComponent() {
 
   return (
     <AuthProvider user={userQuery.data}>
-      <Outlet />
+      <WaitlistGate>
+        <Outlet />
+      </WaitlistGate>
     </AuthProvider>
   );
 }

@@ -6,6 +6,7 @@ import {
   type ComponentArtifacts,
 } from "@voidhash/paywall-renderer-preact";
 import type { PreviewTree, SnapshotNode } from "@voidhash/paywall-renderer-web-core";
+import { Phone } from "@voidhash/ui";
 import { useCallback, useMemo } from "react";
 import { useStore } from "zustand/react";
 
@@ -200,28 +201,27 @@ export function PreviewCanvas() {
     >
       {/* Phone mockup container - maintains aspect ratio and scales to fit */}
       <div className="relative flex h-full w-full items-center justify-center p-8">
-        <div
-          className="relative h-full max-h-[812px] w-full max-w-[375px]"
+        {/* 832px of device height renders the screen at exactly 375x812 */}
+        <Phone
+          className="max-h-[832px] drop-shadow-2xl"
+          fitHeight
+          screenClassName="bg-white"
           style={{
-            aspectRatio: "375 / 812",
             transform: `scale(${previewScale})`,
             transformOrigin: "center center",
           }}
         >
-          {/* Phone frame */}
-          <div className="h-full w-full overflow-hidden rounded-[40px] border-8 border-zinc-800 bg-zinc-800 shadow-2xl">
-            {/* sandbox without allow-same-origin keeps the srcdoc document on an
-                opaque origin: the hydration runtime only reads its embedded JSON
-                and posts paywall:* messages to the parent, both of which
-                allow-scripts permits. */}
-            <iframe
-              className="h-full w-full bg-white"
-              sandbox="allow-scripts"
-              srcDoc={html}
-              title="Paywall Preview"
-            />
-          </div>
-        </div>
+          {/* sandbox without allow-same-origin keeps the srcdoc document on an
+              opaque origin: the hydration runtime only reads its embedded JSON
+              and posts paywall:* messages to the parent, both of which
+              allow-scripts permits. */}
+          <iframe
+            className="size-full bg-white"
+            sandbox="allow-scripts"
+            srcDoc={html}
+            title="Paywall Preview"
+          />
+        </Phone>
       </div>
     </div>
   );

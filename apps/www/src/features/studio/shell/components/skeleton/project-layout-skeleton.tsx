@@ -22,7 +22,6 @@ import {
   type LucideIcon,
   MapPin,
   Package2,
-  Rocket,
   Settings,
   Smartphone,
   Users,
@@ -121,8 +120,7 @@ export function ProjectLayoutSkeleton({
       icon: Smartphone,
       isActive: () =>
         pathname.startsWith(`${base}/paywalls`) ||
-        pathname.startsWith(`${base}/settings/paywall-locations`) ||
-        pathname.startsWith(`${base}/deploys`),
+        pathname.startsWith(`${base}/settings/paywall-locations`),
       title: "Paywalls",
       url: `${base}/paywalls`,
       items: [
@@ -138,12 +136,6 @@ export function ProjectLayoutSkeleton({
             pathname.startsWith(`${base}/settings/paywall-locations`),
           title: "Paywall Locations",
           url: `${base}/settings/paywall-locations`,
-        },
-        {
-          icon: Rocket,
-          isActive: () => pathname.startsWith(`${base}/deploys`),
-          title: "Deploys",
-          url: `${base}/deploys`,
         },
       ],
     },

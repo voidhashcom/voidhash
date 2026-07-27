@@ -137,7 +137,8 @@ const webhookKeys = {
 const featureFlagKeys = {
   all: ["featureFlags"] as const,
   getFlag: (id: string) => [...featureFlagKeys.all, "getFlag", { id }] as const,
-  list: (options: { projectId: string }) => [...featureFlagKeys.all, "list", options] as const,
+  list: (options: { includeArchived?: boolean; projectId: string }) =>
+    [...featureFlagKeys.all, "list", options] as const,
   overridesByPerson: (options: {
     projectId: string;
     identityType: number;
@@ -148,7 +149,8 @@ const featureFlagKeys = {
 const experimentKeys = {
   all: ["experiments"] as const,
   getExperiment: (id: string) => [...experimentKeys.all, "getExperiment", { id }] as const,
-  list: (options: { projectId: string }) => [...experimentKeys.all, "list", options] as const,
+  list: (options: { includeArchived?: boolean; projectId: string }) =>
+    [...experimentKeys.all, "list", options] as const,
 };
 
 const analyticsKeys = {

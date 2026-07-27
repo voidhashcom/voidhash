@@ -1,0 +1,57 @@
+---
+title: Page Bar
+description: A full-width secondary bar below the page header with tabs and actions on either side.
+---
+
+## Usage
+
+`PageBar` shares the horizontal spacing and bottom border of `PageHeader`, so its underline runs edge to edge. Both sides accept tabs and buttons: the left side via `children`, the right side via `rightActions`.
+
+<Preview centered={false} className="overflow-hidden p-0">
+  <PageTabs defaultValue="all">
+    <PageHeader rightActions={<Button size="sm"><PlusIcon data-icon="inline-start" />New paywall</Button>}>
+      <PageHeaderTitle>Paywalls</PageHeaderTitle>
+    </PageHeader>
+    <PageBar rightActions={<Button size="sm" variant="ghost">Filter</Button>}>
+      <PageBarTabs>
+        <PageBarTab value="all">All</PageBarTab>
+        <PageBarTab value="active">Active</PageBarTab>
+        <PageBarTab value="inactive">Inactive</PageBarTab>
+        <PageBarTab value="archived">Archived</PageBarTab>
+      </PageBarTabs>
+    </PageBar>
+    <div className="p-4 text-muted-foreground text-sm">Page content</div>
+  </PageTabs>
+</Preview>
+
+```tsx
+import { PageBar, PageBarTab, PageBarTabs, PageTabs } from "@voidhash/ui";
+
+<PageTabs defaultValue="all">
+  <PageBar rightActions={<Button size="sm">Action</Button>}>
+    <PageBarTabs>
+      <PageBarTab value="all">All</PageBarTab>
+      <PageBarTab value="archived">Archived</PageBarTab>
+    </PageBarTabs>
+  </PageBar>
+  {/* tab content rendered anywhere below the bar */}
+</PageTabs>;
+```
+
+## Components
+
+### PageTabs
+
+Unstyled tabs root. Wrap it around the `PageBar` and the tab content so `PageBarTab` triggers can control content rendered anywhere below the bar. Omit it when the bar holds no tabs.
+
+### PageBar
+
+The bar itself. `children` render on the left, `rightActions` on the right; both sides vertically center buttons while tabs stretch to the full bar height.
+
+### PageBarTabs
+
+Tab strip for use inside a `PageBar`. The active underline sits on the bar's bottom border.
+
+### PageBarTab
+
+A single tab trigger inside `PageBarTabs`.

@@ -2,34 +2,22 @@ import { Link } from "@tanstack/react-router";
 import { Logo } from "@voidhash/ui";
 import type { ReactNode } from "react";
 
-import { VoidhashGradientBackground } from "@/components/voidhash-gradient-background";
-
-const authGradientSettings = {
-  topEnabled: false,
-  effectHeight: 70,
-} as const;
+import { AuthLenticularBackground } from "./auth-lenticular-background";
 
 export type AuthLayoutProps = {
   children: ReactNode;
 };
 
 /**
- * Shared shell for the auth surfaces. Renders the blurred Voidhash gradient
+ * Shared shell for the auth surfaces. Renders the lenticular Voidhash gradient
  * behind a backdrop-blurred form column with the logo (linking home), matching
  * the sign-in / sign-up layout. Page content is centred in a `max-w-sm` column.
  */
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <div className="relative grid min-h-svh overflow-hidden bg-background lg:grid-cols-12">
-      <VoidhashGradientBackground
-        className="absolute inset-0"
-        controlsQueryParam="authGradientControls"
-        controlsStorageKey="voidhash:auth-gradient-controls"
-        controlsTitle="Auth FX"
-        settings={authGradientSettings}
-        settingsStorageKey="voidhash:auth-gradient-settings"
-      />
-      <div className="relative z-10 col-span-6 flex flex-col gap-4 bg-background/95 p-6 backdrop-blur-xl md:p-10 lg:border-r lg:border-border/50">
+      <AuthLenticularBackground className="absolute inset-0" />
+      <div className="relative z-10 col-span-8 flex flex-col gap-4 p-6 md:p-10 bg-linear-to-r from-background to-transparent">
         <div className="flex justify-center gap-2 md:justify-start">
           <Link className="flex gap-2 font-medium" to="/">
             <Logo />

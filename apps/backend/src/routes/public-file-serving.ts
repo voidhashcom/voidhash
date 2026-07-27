@@ -1,12 +1,12 @@
 /**
  * Public asset serving — `GET /files/*`.
  *
- * Stored public files (avatars today, written by the org/project avatar RPCs to
- * `avatars/<entity>/<id>/<sha256>.<ext>`) are content-addressed, immutable, and
- * unauthenticated: the key's sha256 is the capability. These are images served
- * cross-origin as `<img src>`, so — unlike the paywall HTML routes — there is
- * NO CSP sandbox; just the stored `Content-Type`, an immutable cache policy,
- * permissive CORS, and `nosniff`.
+ * Stored public files are unauthenticated images served cross-origin as
+ * `<img src>`. Most use immutable content-addressed keys; mutable paywall
+ * thumbnails append their document sequence to the public URL as a cache
+ * buster. Unlike the paywall HTML routes, there is NO CSP sandbox; just the
+ * stored `Content-Type`, an immutable cache policy, permissive CORS, and
+ * `nosniff`.
  */
 import { PublicFileStore } from "@voidhash/core/services";
 import { Cause, Effect, Layer } from "effect";

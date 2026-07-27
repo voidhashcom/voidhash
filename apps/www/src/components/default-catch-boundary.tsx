@@ -17,7 +17,7 @@ export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
           onClick={() => {
             router.invalidate();
           }}
-          variant="secondary"
+          variant="outline"
         >
           Try Again
         </Button>

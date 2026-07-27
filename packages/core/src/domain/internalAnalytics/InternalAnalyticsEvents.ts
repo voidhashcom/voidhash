@@ -469,7 +469,7 @@ export const ExperimentExposedSchema = Schema.Struct({
   personId: Schema.NullOr(Schema.String),
   projectId: Schema.String,
   properties: Schema.Struct({
-    experimentKey: Schema.String,
+    experimentId: Schema.String,
     variantKey: Schema.String,
   }),
   token: Schema.String,

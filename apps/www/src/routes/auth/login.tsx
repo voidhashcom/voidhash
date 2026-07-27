@@ -6,9 +6,10 @@ import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { z } from "zod";
 
-import { VoidhashGradientBackground } from "@/components/voidhash-gradient-background";
+import { AuthLenticularBackground } from "@/features/auth/components/auth-lenticular-background";
 import { signInWithPassword } from "@/features/auth/lib/auth-api";
 import { saveEmailVerificationState } from "@/features/auth/lib/email-verification-storage";
+import { signUpCtaLabel } from "@/lib/waitlist";
 
 const loginSearchSchema = z.object({
   email: z.string().default(""),
@@ -17,11 +18,6 @@ const loginSearchSchema = z.object({
   reset: z.string().optional(),
   signup: z.boolean().default(false),
 });
-
-const loginGradientSettings = {
-  topEnabled: false,
-  effectHeight: 70,
-} as const;
 
 export const Route = createFileRoute("/auth/login")({
   component: LoginPage,
@@ -76,15 +72,8 @@ function LoginPage() {
 
   return (
     <div className="relative grid min-h-svh overflow-hidden bg-background lg:grid-cols-12">
-      <VoidhashGradientBackground
-        className="absolute inset-0"
-        controlsQueryParam="loginGradientControls"
-        controlsStorageKey="voidhash:login-gradient-controls"
-        controlsTitle="Login FX"
-        settings={loginGradientSettings}
-        settingsStorageKey="voidhash:login-gradient-settings"
-      />
-      <div className="relative z-10 col-span-6 flex flex-col gap-4 bg-background/95 p-6 backdrop-blur-xl md:p-10 lg:border-r lg:border-border/50">
+      <AuthLenticularBackground className="absolute inset-0" />
+      <div className="relative z-10 col-span-8 flex flex-col gap-4 p-6 md:p-10 bg-linear-to-r from-background to-transparent">
         <div className="flex justify-center gap-2 md:justify-start">
           <Link className="flex gap-2 font-medium" to="/">
             <Logo />
@@ -213,7 +202,7 @@ function LoginPage() {
                 search={{ next: searchParams.next }}
                 to="/auth/sign-up"
               >
-                Sign up
+                {signUpCtaLabel("Sign up")}
               </Link>
             </div>
 

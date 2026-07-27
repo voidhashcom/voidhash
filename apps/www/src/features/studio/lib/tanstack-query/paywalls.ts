@@ -8,13 +8,6 @@ export const listPaywallsOptions = (options: { projectId: string; includeArchive
     queryKey: queryKeys.paywall.list(options),
   });
 
-export const backfillPaywallThumbnailsOptions = () =>
-  eq.mutationOptions({
-    mutationFn: (variables: { projectId: string }) =>
-      VoidhashRpc.request((rpc) => rpc.BackfillPaywallThumbnails(variables)),
-    mutationKey: ["backfillPaywallThumbnails"],
-  });
-
 export const createPaywallOptions = () =>
   eq.mutationOptions({
     mutationFn: (variables: { projectId: string; name: string; slug: string }) =>

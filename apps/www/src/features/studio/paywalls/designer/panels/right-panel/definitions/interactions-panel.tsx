@@ -173,7 +173,7 @@ export function InteractionsPanel(_ctx: PanelContext) {
                     }
                   >
                     <Panel.PopoverTrigger>
-                      {/* No `variant` → the host defaults to the `secondary` trigger look. */}
+                      {/* No `variant` → the host defaults to the outlined trigger look. */}
                       <Panel.Button
                         label={`${TRIGGER_LABELS[interaction.value.trigger.type]}  ${ACTION_TYPE_LABELS[effectiveAction.type]}`}
                         size="sm"

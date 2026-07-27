@@ -53,7 +53,6 @@ export const DateRangeFilter = ({
       }}
       type="single"
       value={dateRange}
-      variant="outline"
     >
       {DATE_RANGE_OPTIONS.map((option) => (
         <ToggleGroupItem key={option.value} value={option.value} className="cursor-pointer">

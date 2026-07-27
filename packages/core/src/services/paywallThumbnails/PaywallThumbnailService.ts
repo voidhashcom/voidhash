@@ -1,11 +1,10 @@
-import { Cause, Context, Effect, Layer, Predicate, Schema } from "effect";
+import { Context, Effect, Layer, Predicate, Schema } from "effect";
 
-import { Db, and, eq, isNull, lt, or, paywalls, type Paywall } from "@voidhash/db";
+import { Db, eq, paywalls, type Paywall } from "@voidhash/db";
 import { hashSource } from "@voidhash/paywall-workspace";
 
 import {
   derivePaywallThumbnailKey,
-  isOwnedPaywallThumbnailUrl,
   paywallThumbnailKeyFromUrl,
 } from "../../domain/paywallThumbnail.ts";
 import { componentServingPreviewKey } from "../paywallDeploys/PaywallDeployManifest.ts";
@@ -94,11 +93,13 @@ export const collectLocalComponentSources = (
 
 /**
  * `PaywallThumbnailService` owns the render vertical of the paywall-thumbnail
- * feature: it renders a mimic document snapshot to a PNG and publishes it,
- * gated by a monotonic `seq` guard so a late render never clobbers a newer one.
- * Queue consumers call `handleDocumentIdle`; list-page backfills call
- * `renderCurrent` so paywalls created before idle notifications were available
- * (or whose best-effort queue message was exhausted) can recover.
+ * feature: it renders a mimic document snapshot to a PNG, overwrites the
+ * paywall's stable object key, and versions the public URL with the document
+ * `seq`. A row lock and monotonic guard keep a late render from clobbering a
+ * newer one.
+ * Queue consumers call `handleDocumentIdle` for standard renders. Administrative
+ * repair tools call `forceRenderCurrent` to explicitly replace the current
+ * document's thumbnail.
  *
  * The queue is generic — non-paywall documents may arrive — so a missing
  * paywall row is a silent no-op. `Db`, `MimicHost`, `PaywallArtifactStore`,
@@ -195,14 +196,16 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
         });
 
       const renderPaywall = Effect.fn("renderPaywallThumbnail")(function* (input: {
+        readonly force?: boolean;
         readonly paywall: Paywall;
         readonly seq: number;
         readonly snapshot: unknown;
       }) {
-        const { paywall, seq, snapshot } = input;
+        const { force = false, paywall, seq, snapshot } = input;
 
         // Idempotency guard: a render at or beyond this seq already landed.
         if (
+          !force &&
           paywall.thumbnailSeq !== null &&
           (paywall.thumbnailSeq > seq ||
             (paywall.thumbnailSeq === seq && paywall.thumbnailUrl !== null))
@@ -210,7 +213,7 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
           yield* Effect.logDebug(
             `Paywall ${paywall.id} thumbnail already at seq ${paywall.thumbnailSeq} >= ${seq}; skipping`,
           );
-          return;
+          return false;
         }
 
         const contentHashes = collectDeployedComponentContentHashes(snapshot);
@@ -226,74 +229,66 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
           width: THUMBNAIL_WIDTH,
         });
 
-        const key = derivePaywallThumbnailKey(paywall.projectId, paywall.id, seq);
-        yield* publicFileStore.putObject({ body: png, contentType: "image/png", key });
-        const url = publicFileStore.publicUrl(key);
+        const key = derivePaywallThumbnailKey(paywall.projectId, paywall.id);
+        const stored = yield* db.transaction((tx) =>
+          Effect.gen(function* () {
+            // Serialize only the final overwrite. Rendering happens before this
+            // transaction, while the lock prevents an older completed render
+            // from replacing a newer thumbnail at the shared object key.
+            const [current] = yield* tx
+              .select()
+              .from(paywalls)
+              .where(eq(paywalls.id, paywall.id))
+              .for("update");
 
-        // Race-guarded write: only advance if no newer render beat us to the
-        // row. A concurrent render for a higher seq wins; we delete the object
-        // we just wrote and stop.
-        const updated = yield* db
-          .update(paywalls)
-          .set({ thumbnailSeq: seq, thumbnailUrl: url })
-          .where(
-            and(
-              eq(paywalls.id, paywall.id),
-              or(
-                isNull(paywalls.thumbnailSeq),
-                lt(paywalls.thumbnailSeq, seq),
-                and(eq(paywalls.thumbnailSeq, seq), isNull(paywalls.thumbnailUrl)),
-              ),
-            ),
-          )
-          .returning({ id: paywalls.id });
+            // A forced render bypasses the monotonic guard entirely: the operator
+            // explicitly replaces whatever is stored with the document state read
+            // above. If a newer queue render raced ahead, the lower stored seq
+            // self-heals on the next idle notification.
+            if (
+              current === undefined ||
+              (!force &&
+                current.thumbnailSeq !== null &&
+                (current.thumbnailSeq > seq ||
+                  (current.thumbnailSeq === seq && current.thumbnailUrl !== null)))
+            ) {
+              return false;
+            }
 
-        if (updated.length === 0) {
+            const previousKey =
+              current.thumbnailUrl === null
+                ? null
+                : paywallThumbnailKeyFromUrl(
+                    current.thumbnailUrl,
+                    paywall.projectId,
+                    paywall.id,
+                    publicFileStore.publicBaseUrl,
+                  );
+            if (previousKey !== null && previousKey !== key) {
+              yield* publicFileStore.deleteObject(previousKey);
+            }
+
+            yield* publicFileStore.putObject({ body: png, contentType: "image/png", key });
+            const cacheVersion = force ? `${seq}&r=${crypto.randomUUID()}` : String(seq);
+            const url = `${publicFileStore.publicUrl(key)}?v=${cacheVersion}`;
+            yield* tx
+              .update(paywalls)
+              .set({ thumbnailSeq: seq, thumbnailUrl: url })
+              .where(eq(paywalls.id, paywall.id));
+
+            return true;
+          }),
+        );
+
+        if (!stored) {
           yield* Effect.logDebug(
             `Paywall ${paywall.id} thumbnail seq ${seq} lost the write race; discarding`,
           );
-          yield* publicFileStore
-            .deleteObject(key)
-            .pipe(
-              Effect.catchCause((cause) =>
-                Effect.logWarning(
-                  `Failed to delete superseded thumbnail object ${key}: ${Cause.pretty(cause)}`,
-                ),
-              ),
-            );
-          return;
-        }
-
-        // Best-effort cleanup of the PREVIOUS thumbnail object, scoped to keys
-        // we own for this project + paywall.
-        if (
-          isOwnedPaywallThumbnailUrl(
-            paywall.thumbnailUrl,
-            paywall.projectId,
-            paywall.id,
-            publicFileStore.publicBaseUrl,
-          )
-        ) {
-          const previousKey = paywallThumbnailKeyFromUrl(
-            paywall.thumbnailUrl!,
-            paywall.projectId,
-            paywall.id,
-            publicFileStore.publicBaseUrl,
-          );
-          if (previousKey !== null && previousKey !== key) {
-            yield* publicFileStore
-              .deleteObject(previousKey)
-              .pipe(
-                Effect.catchCause((cause) =>
-                  Effect.logWarning(
-                    `Failed to delete previous thumbnail object ${previousKey}: ${Cause.pretty(cause)}`,
-                  ),
-                ),
-              );
-          }
+          return false;
         }
 
         yield* Effect.log(`Rendered thumbnail for paywall ${paywall.id} at seq ${seq}`);
+        return true;
       });
 
       const handleDocumentIdle = Effect.fn("handleDocumentIdle")(
@@ -339,58 +334,79 @@ export class PaywallThumbnailService extends Context.Service<PaywallThumbnailSer
                     message: `${error.message}: ${error.cause}`,
                   }),
                 ),
+              SqlError: (error) =>
+                Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
               SnapshotImageRenderError: (error) =>
                 Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
             }),
           ),
       );
 
-      const renderCurrent = Effect.fn("renderCurrentPaywallThumbnail")(
-        function* (paywallId: string) {
+      const renderCurrentPaywall = (paywallId: string, force: boolean) =>
+        Effect.gen(function* () {
           yield* Effect.annotateCurrentSpan("voidhash.paywall.id", paywallId);
           const paywall = yield* db.query.paywalls.findFirst({ where: { id: paywallId } });
           if (!paywall) {
-            return;
+            return false;
           }
           yield* Effect.annotateCurrentSpan("voidhash.project.id", paywall.projectId);
 
           yield* mimicHost.ensurePaywallDocument(paywall.id);
           const document = yield* mimicHost.getPaywallDocument(paywall.id);
-          yield* Effect.annotateCurrentSpan("voidhash.paywall_thumbnail.seq", document.version);
-          yield* renderPaywall({ paywall, seq: document.version, snapshot: document.root });
-        },
-        (effect) =>
-          effect.pipe(
-            Effect.catchTags({
-              EffectDrizzleQueryError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
-              ComponentCompilerError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-              ComponentManifestCacheError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-              ComponentManifestInvalidError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-              MimicHostError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-              PaywallArtifactStoreError: (error) =>
-                Effect.fail(
-                  new PaywallThumbnailServiceError({
-                    message: `${error.message}: ${error.cause}`,
-                  }),
-                ),
-              PublicFileStoreError: (error) =>
-                Effect.fail(
-                  new PaywallThumbnailServiceError({
-                    message: `${error.message}: ${error.cause}`,
-                  }),
-                ),
-              SnapshotImageRenderError: (error) =>
-                Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
-            }),
-          ),
+          // The idle queue publishes in seq-space — `version - 1` (see mimic-db's
+          // document-session, where the accepted-transaction hook records
+          // `result.version - 1`). Convert here so current-document renders share
+          // the same monotonic axis as queue-driven renders; passing the raw
+          // version would mark the row one step ahead and silently skip the next
+          // idle render.
+          const seq = Math.max(0, document.version - 1);
+          yield* Effect.annotateCurrentSpan("voidhash.paywall_thumbnail.seq", seq);
+          return yield* renderPaywall({
+            force,
+            paywall,
+            seq,
+            snapshot: document.root,
+          });
+        }).pipe(
+          Effect.catchTags({
+            EffectDrizzleQueryError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
+            ComponentCompilerError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+            ComponentManifestCacheError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+            ComponentManifestInvalidError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+            MimicHostError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+            PaywallArtifactStoreError: (error) =>
+              Effect.fail(
+                new PaywallThumbnailServiceError({
+                  message: `${error.message}: ${error.cause}`,
+                }),
+              ),
+            PublicFileStoreError: (error) =>
+              Effect.fail(
+                new PaywallThumbnailServiceError({
+                  message: `${error.message}: ${error.cause}`,
+                }),
+              ),
+            SqlError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: String(error.cause) })),
+            SnapshotImageRenderError: (error) =>
+              Effect.fail(new PaywallThumbnailServiceError({ message: error.message })),
+          }),
+        );
+
+      const renderCurrent = Effect.fn("renderCurrentPaywallThumbnail")((paywallId: string) =>
+        renderCurrentPaywall(paywallId, false),
       );
 
-      return { handleDocumentIdle, renderCurrent } as const;
+      const forceRenderCurrent = Effect.fn("forceRenderCurrentPaywallThumbnail")(
+        (paywallId: string) => renderCurrentPaywall(paywallId, true),
+      );
+
+      return { forceRenderCurrent, handleDocumentIdle, renderCurrent } as const;
     }),
   },
 ) {

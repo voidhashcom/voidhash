@@ -21,20 +21,16 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod/v3";
 
-import { VoidhashGradientBackground } from "@/components/voidhash-gradient-background";
+import { AuthLenticularBackground } from "@/features/auth/components/auth-lenticular-background";
 import { signUpWithPassword } from "@/features/auth/lib/auth-api";
 import { saveEmailVerificationState } from "@/features/auth/lib/email-verification-storage";
 import { provisionCurrentUser } from "@/features/auth/lib/provision-user";
+import { WAITLIST_MODE } from "@/lib/waitlist";
 
 const signUpSearchSchema = z.object({
   email: z.string().optional(),
   next: z.string().optional(),
 });
-
-const signUpGradientSettings = {
-  topEnabled: false,
-  effectHeight: 70,
-} as const;
 
 export const Route = createFileRoute("/auth/sign-up")({
   component: SignUpPage,
@@ -127,15 +123,8 @@ function SignUpPage() {
 
   return (
     <div className="relative grid min-h-svh overflow-hidden bg-background lg:grid-cols-12">
-      <VoidhashGradientBackground
-        className="absolute inset-0"
-        controlsQueryParam="signUpGradientControls"
-        controlsStorageKey="voidhash:sign-up-gradient-controls"
-        controlsTitle="Sign Up FX"
-        settings={signUpGradientSettings}
-        settingsStorageKey="voidhash:sign-up-gradient-settings"
-      />
-      <div className="relative z-10 col-span-6 flex flex-col gap-4 bg-background/95 p-6 backdrop-blur-xl  md:p-10 lg:border-r lg:border-border/50">
+      <AuthLenticularBackground className="absolute inset-0" />
+      <div className="relative z-10 col-span-8 flex flex-col gap-4 p-6 md:p-10 bg-linear-to-r from-background to-transparent">
         <div className="flex justify-center gap-2 md:justify-start">
           <Link className="flex gap-2 font-medium" to="/">
             <Logo />
@@ -144,7 +133,15 @@ function SignUpPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-sm">
             <div className="flex flex-col items-start gap-2 text-left">
-              <h1 className=" text-3xl">Create your account</h1>
+              <h1 className=" text-3xl">
+                {WAITLIST_MODE ? "Join the waitlist" : "Create your account"}
+              </h1>
+              {WAITLIST_MODE && (
+                <p className="text-muted-foreground">
+                  Create your account to claim your spot. We're onboarding new teams in batches and
+                  will email you as soon as it's your turn.
+                </p>
+              )}
             </div>
             <Form {...form}>
               <form className="flex flex-col gap-6 mt-10" onSubmit={form.handleSubmit(onSubmit)}>

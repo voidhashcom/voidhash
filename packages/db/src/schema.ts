@@ -1316,9 +1316,9 @@ export const paywalls = pgTable(
     projectId: varchar("project_id", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull(),
     source: smallint("source").notNull().default(PaywallSource.editor),
-    // Public URL of the most recently rendered paywall thumbnail (null until the
-    // first idle render lands). `thumbnailSeq` is the mimic document `seq` that
-    // thumbnail was rendered from — the monotonic guard that keeps a late idle
+    // Public URL of the most recently rendered paywall thumbnail, including its
+    // cache-busting `seq` query (null until the first idle render lands).
+    // `thumbnailSeq` also provides the monotonic guard that keeps a late idle
     // render from overwriting a newer one (see PaywallThumbnailService).
     thumbnailUrl: text("thumbnail_url"),
     thumbnailSeq: bigint("thumbnail_seq", { mode: "number" }),
@@ -2199,6 +2199,15 @@ export const FeatureFlagIdentityType = {
 export type FeatureFlagIdentityTypeValue =
   (typeof FeatureFlagIdentityType)[keyof typeof FeatureFlagIdentityType];
 
+export const FeatureFlagType = {
+  Boolean: "boolean",
+  Json: "json",
+  Number: "number",
+  String: "string",
+} as const;
+
+export type FeatureFlagTypeValue = (typeof FeatureFlagType)[keyof typeof FeatureFlagType];
+
 export const featureFlags = pgTable(
   "feature_flag",
   {
@@ -2207,6 +2216,10 @@ export const featureFlags = pgTable(
     key: varchar("key", { length: 255 }).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     description: varchar("description", { length: 1000 }),
+    type: varchar("type", { length: 20 })
+      .$type<FeatureFlagTypeValue>()
+      .notNull()
+      .default(FeatureFlagType.Boolean),
     enabled: boolean("enabled").notNull().default(false),
     rolloutBps: integer("rollout_bps").notNull().default(10000),
     salt: varchar("salt", { length: 255 }).notNull(),
@@ -2494,12 +2507,17 @@ export const ExperimentStatus = {
 export type ExperimentStatusValue = (typeof ExperimentStatus)[keyof typeof ExperimentStatus];
 
 /**
- * An experiment is an authoring + analysis layer that compiles down to a
- * backing customer feature flag (the runtime assignment artifact). The backing
- * flag is linked both ways: `experiment.featureFlagId` here, and, on the flag,
- * `feature_flag.ownerType='experiment'` / `ownerId=<experimentId>` /
- * `internal=true` (which hides it from the customer Feature Flags list and
- * blocks direct customer edits).
+ * An experiment ("A/B test" in the UI) is an authoring + analysis layer that
+ * compiles down to a backing customer feature flag (the runtime assignment
+ * artifact). The backing flag is linked both ways: `experiment.featureFlagId`
+ * here, and, on the flag, `feature_flag.ownerType='experiment'` /
+ * `ownerId=<experimentId>` / `internal=true` (which hides it from the customer
+ * Feature Flags list and blocks direct customer edits).
+ *
+ * An experiment is identified only by its (globally unique) `id` — there is no
+ * customer-authored key. Everything that used to join on one (the backing flag
+ * key, exposure events) is keyed by `id` instead, which is what lets creation
+ * ask for nothing but a name.
  */
 export const experiments = pgTable(
   "experiment",
@@ -2507,12 +2525,12 @@ export const experiments = pgTable(
     id: varchar("id", { length: 255 }).primaryKey(),
     projectId: varchar("project_id", { length: 255 }).notNull(),
     featureFlagId: varchar("feature_flag_id", { length: 255 }).notNull(),
-    key: varchar("key", { length: 255 }).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     description: varchar("description", { length: 1000 }),
     hypothesis: varchar("hypothesis", { length: 2000 }),
     status: smallint("status").notNull().default(ExperimentStatus.draft),
-    primaryMetricEventName: varchar("primary_metric_event_name", { length: 255 }).notNull(),
+    // Chosen after creation, on the detail page — a draft has no metric yet.
+    primaryMetricEventName: varchar("primary_metric_event_name", { length: 255 }),
     secondaryMetricEventNames: jsonb("secondary_metric_event_names").$type<string[]>(),
     startedAt: timestamp("started_at", { withTimezone: true, precision: 3 }),
     endedAt: timestamp("ended_at", { withTimezone: true, precision: 3 }),
@@ -2527,7 +2545,6 @@ export const experiments = pgTable(
     version: integer("version").notNull().default(1),
   },
   (table) => [
-    uniqueIndex("experiment_key_project_id_idx").on(table.key, table.projectId),
     // 1:1 backing flag.
     uniqueIndex("experiment_feature_flag_id_idx").on(table.featureFlagId),
     index("experiment_project_id_idx").on(table.projectId),
@@ -2536,15 +2553,15 @@ export const experiments = pgTable(
 
 /**
  * The arms of an experiment. This is the source of truth for variant identity
- * and weights; it is synced 1:1 (by `key`) into `feature_flag_variant` rows on
- * the backing flag so the existing deterministic bucketing engine assigns them.
+ * and weights; it is synced into `feature_flag_variant` rows on the backing
+ * flag (keyed by this row's id) so the existing deterministic bucketing engine
+ * assigns them.
  */
 export const experimentVariants = pgTable(
   "experiment_variant",
   {
     id: varchar("id", { length: 255 }).primaryKey(),
     experimentId: varchar("experiment_id", { length: 255 }).notNull(),
-    key: varchar("key", { length: 255 }).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
     isControl: boolean("is_control").notNull().default(false),
     weightBps: integer("weight_bps").notNull().default(0),
@@ -2554,18 +2571,18 @@ export const experimentVariants = pgTable(
       () => new Date(),
     ),
   },
-  (table) => [
-    uniqueIndex("experiment_variant_experiment_key_idx").on(table.experimentId, table.key),
-    index("experiment_variant_experiment_id_idx").on(table.experimentId),
-  ],
+  (table) => [index("experiment_variant_experiment_id_idx").on(table.experimentId)],
 );
 
-/** Config for a `paywall_location` treatment: which paywall release to serve at
- * a given location for the owning variant. */
+/** Config for a `paywall_location` treatment: which paywall to serve at a
+ * given location for the owning variant. The paywall's active published
+ * version is resolved at serve time — a treatment is never pinned to one
+ * release. `paywallReleaseId` survives only on rows written before that
+ * change. */
 export interface PaywallLocationTreatmentConfig {
   readonly paywallLocationId: string;
   readonly paywallId: string;
-  readonly paywallReleaseId: string;
+  readonly paywallReleaseId?: string;
 }
 
 /**

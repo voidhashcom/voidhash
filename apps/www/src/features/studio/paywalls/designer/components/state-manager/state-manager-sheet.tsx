@@ -204,7 +204,7 @@ export function StateManagerSheet({
                 <PanelSectionHeader>
                   <PanelSectionTitle>States</PanelSectionTitle>
                   <PanelSectionHeaderActions>
-                    <Button onClick={startAdding} size="icon-sm" variant="secondary">
+                    <Button onClick={startAdding} size="icon-sm" variant="outline">
                       <PlusIcon />
                     </Button>
                   </PanelSectionHeaderActions>
@@ -282,7 +282,7 @@ export function StateManagerSheet({
                                 startEditing(selectedState.id, selectedState.value.name)
                               }
                               size="icon-sm"
-                              variant="secondary"
+                              variant="ghost"
                             >
                               <PencilIcon />
                             </Button>
@@ -291,7 +291,7 @@ export function StateManagerSheet({
                                 handleDeleteState(selectedState.id, selectedState.value.name)
                               }
                               size="icon-sm"
-                              variant="secondary"
+                              variant="ghost"
                             >
                               <Trash2Icon />
                             </Button>

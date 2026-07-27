@@ -1,9 +1,4 @@
-import {
-  MimicHost,
-  PaywallReleaseService,
-  PaywallService,
-  PaywallThumbnailService,
-} from "@voidhash/core/services";
+import { MimicHost, PaywallReleaseService, PaywallService } from "@voidhash/core/services";
 import {
   PaywallRpcsDef,
   RpcActionForbiddenError,
@@ -19,40 +14,9 @@ export const PaywallRpcsLive = PaywallRpcsDef.toLayer(
   Effect.gen(function* () {
     const paywallService = yield* PaywallService;
     const releaseService = yield* PaywallReleaseService;
-    const thumbnailService = yield* PaywallThumbnailService;
     const mimicHost = yield* MimicHost;
 
     return {
-      BackfillPaywallThumbnails: ({ projectId }) =>
-        Effect.gen(function* () {
-          const projectPaywalls = yield* paywallService.getPaywalls(projectId, true);
-          const missing = projectPaywalls.filter((paywall) => paywall.thumbnailUrl === null);
-          const results = yield* Effect.forEach(
-            missing,
-            (paywall) =>
-              thumbnailService.renderCurrent(paywall.id).pipe(
-                Effect.as(true),
-                Effect.catchTag("PaywallThumbnailServiceError", (error) =>
-                  Effect.logError("Paywall thumbnail backfill failed", {
-                    paywallId: paywall.id,
-                    message: error.message,
-                  }).pipe(Effect.as(false)),
-                ),
-              ),
-            { concurrency: 1 },
-          );
-          return {
-            attempted: missing.length,
-            rendered: results.filter(Boolean).length,
-          };
-        }).pipe(
-          Effect.catchTags({
-            ActionForbiddenError: (error) =>
-              Effect.fail(new RpcActionForbiddenError({ message: error.message })),
-            PaywallServiceError: (error) =>
-              Effect.fail(new RpcPaywallServiceError({ cause: error.cause })),
-          }),
-        ),
       CreatePaywall: (input) =>
         paywallService.createPaywall(input).pipe(
           Effect.catchTags({

@@ -8,11 +8,9 @@ import {
   FlaskConical,
   GaugeIcon,
   Gift,
-  ImagesIcon,
   Logs,
   MapPin,
   Package2,
-  Rocket,
   Settings,
   Smartphone,
   ToggleLeft,
@@ -185,12 +183,6 @@ export function ProjectSidebar({
               ) ||
               pathname.startsWith(
                 `/studio/${organizationSlug}/${projectSlug}/settings/paywall-locations`,
-              ) ||
-              pathname.startsWith(
-                `/studio/${organizationSlug}/${projectSlug}/assets`,
-              ) ||
-              pathname.startsWith(
-                `/studio/${organizationSlug}/${projectSlug}/deploys`,
               ),
             title: "Paywalls",
             url: `/studio/${organizationSlug}/${projectSlug}/paywalls`,
@@ -205,15 +197,6 @@ export function ProjectSidebar({
                 url: `/studio/${organizationSlug}/${projectSlug}/paywalls`,
               },
               {
-                icon: ImagesIcon,
-                isActive: () =>
-                  pathname.startsWith(
-                    `/studio/${organizationSlug}/${projectSlug}/assets`,
-                  ),
-                title: "Assets",
-                url: `/studio/${organizationSlug}/${projectSlug}/assets`,
-              },
-              {
                 icon: MapPin,
                 isActive: () =>
                   pathname.startsWith(
@@ -222,18 +205,9 @@ export function ProjectSidebar({
                 title: "Paywall Locations",
                 url: `/studio/${organizationSlug}/${projectSlug}/settings/paywall-locations`,
               },
-              {
-                icon: Rocket,
-                isActive: () =>
-                  pathname.startsWith(
-                    `/studio/${organizationSlug}/${projectSlug}/deploys`,
-                  ),
-                title: "Deploys",
-                url: `/studio/${organizationSlug}/${projectSlug}/deploys`,
-              },
             ],
           },
-          // The Experimentation suite (Feature Flags + A/B Tests) is gated behind
+          // The A/B Testing suite (Feature Flags + A/B Tests) is gated behind
           // the `experimentation` internal feature flag so it can be rolled out
           // to a subset of testers from overwatch before a public launch.
           ...(experimentationEnabled
@@ -247,7 +221,7 @@ export function ProjectSidebar({
                     pathname.startsWith(
                       `/studio/${organizationSlug}/${projectSlug}/experiments`,
                     ),
-                  title: "Experimentation",
+                  title: "A/B Testing",
                   url: `/studio/${organizationSlug}/${projectSlug}/flags`,
                   items: [
                     {

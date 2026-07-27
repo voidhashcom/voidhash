@@ -699,41 +699,62 @@ export class PaywallLocationService extends Context.Service<PaywallLocationServi
             if (!assignment) {
               return null;
             }
-            const releaseIdFrom = (payload: unknown): string | undefined => {
+            const entryFrom = (
+              payload: unknown,
+            ): { readonly paywallId?: string; readonly paywallReleaseId?: string } | undefined => {
               const byLocation = (
                 payload as
-                  | { readonly byLocation?: Record<string, { readonly paywallReleaseId?: string }> }
+                  | {
+                      readonly byLocation?: Record<
+                        string,
+                        { readonly paywallId?: string; readonly paywallReleaseId?: string }
+                      >;
+                    }
                   | null
                   | undefined
               )?.byLocation;
-              return byLocation?.[location.id]?.paywallReleaseId;
+              return byLocation?.[location.id];
             };
 
             const enrolled = assignment.assigned && assignment.variantKey !== null;
-            let releaseId = enrolled ? releaseIdFrom(assignment.payload) : undefined;
+            let entry = enrolled ? entryFrom(assignment.payload) : undefined;
             // Only count a real assignment (control or treatment) as an exposure;
             // an unenrolled subject served the control fallback is NOT exposed.
             const exposure =
-              releaseId && enrolled
+              entry && enrolled
                 ? {
                     experimentId: assignment.experimentId,
-                    experimentKey: assignment.experimentKey,
                     variantKey: assignment.variantKey as string,
                     personId: input.personId ?? null,
                     distinctId: input.distinctId ?? null,
                   }
                 : null;
-            if (!releaseId) {
-              releaseId = releaseIdFrom(assignment.controlPayload);
+            if (!entry) {
+              entry = entryFrom(assignment.controlPayload);
             }
-            if (!releaseId) {
+            if (!entry) {
               return null;
             }
 
-            const release = yield* db.query.paywallReleases.findFirst({
-              where: { id: releaseId },
-              with: { paywall: true },
-            });
+            // Treatments name a paywall and the serve path follows its active
+            // published release, so shipping a new version updates a running
+            // test too. `paywallReleaseId` appears only in payloads compiled
+            // before that change and stays pinned.
+            const release = entry.paywallReleaseId
+              ? yield* db.query.paywallReleases.findFirst({
+                  where: { id: entry.paywallReleaseId },
+                  with: { paywall: true },
+                })
+              : entry.paywallId
+                ? yield* db.query.paywallReleases.findFirst({
+                    where: {
+                      paywallId: entry.paywallId,
+                      isActive: true,
+                      status: ReleaseStatus.released,
+                    },
+                    with: { paywall: true },
+                  })
+                : undefined;
             if (!release || !release.paywall || release.paywall.projectId !== input.projectId) {
               return null;
             }

@@ -1,8 +1,8 @@
 /**
  * Experiment (A/B testing) errors — typed errors returned by experiment RPCs
- * (experiment / variant / treatment not found, key conflicts, domain-invariant
- * violations) plus the catch-all service error. Class names and `_tag` values
- * are namespaced with `Rpc` / `Rpc/`.
+ * (experiment / variant / treatment not found, domain-invariant violations)
+ * plus the catch-all service error. Class names and `_tag` values are
+ * namespaced with `Rpc` / `Rpc/`.
  */
 import { Schema } from "effect";
 
@@ -11,20 +11,10 @@ export class RpcExperimentNotFoundError extends Schema.TaggedErrorClass<RpcExper
   "RpcExperimentNotFoundError",
 )("Rpc/ExperimentNotFoundError", { message: Schema.String }) {}
 
-/** Experiment key uniqueness invariant violated within a project. */
-export class RpcExperimentKeyAlreadyExistsError extends Schema.TaggedErrorClass<RpcExperimentKeyAlreadyExistsError>(
-  "RpcExperimentKeyAlreadyExistsError",
-)("Rpc/ExperimentKeyAlreadyExistsError", { key: Schema.String }) {}
-
 /** Experiment variant row not found. */
 export class RpcExperimentVariantNotFoundError extends Schema.TaggedErrorClass<RpcExperimentVariantNotFoundError>(
   "RpcExperimentVariantNotFoundError",
 )("Rpc/ExperimentVariantNotFoundError", { message: Schema.String }) {}
-
-/** Experiment treatment row not found. */
-export class RpcExperimentTreatmentNotFoundError extends Schema.TaggedErrorClass<RpcExperimentTreatmentNotFoundError>(
-  "RpcExperimentTreatmentNotFoundError",
-)("Rpc/ExperimentTreatmentNotFoundError", { message: Schema.String }) {}
 
 /** A domain invariant was violated (weights, locked running experiment, target conflict, …). */
 export class RpcExperimentValidationError extends Schema.TaggedErrorClass<RpcExperimentValidationError>(

@@ -24,9 +24,6 @@ The Button component supports the following visual variants:
     <Button variant="default">Default</Button>
   </Preview>
   <Preview className="p-4">
-    <Button variant="secondary">Secondary</Button>
-  </Preview>
-  <Preview className="p-4">
     <Button variant="destructive">Destructive</Button>
   </Preview>
   <Preview className="p-4">
@@ -45,7 +42,6 @@ The Button component supports the following visual variants:
 
 ```tsx
 <Button variant="default">Default</Button>
-<Button variant="secondary">Secondary</Button>
 <Button variant="destructive">Destructive</Button>
 <Button variant="success">Success</Button>
 <Button variant="outline">Outline</Button>
@@ -122,7 +118,7 @@ Use the `loading` prop to show a spinner and disable the button:
     <Button loading>Saving...</Button>
   </Preview>
   <Preview className="p-4">
-    <Button variant="secondary" loading>
+    <Button variant="ghost" loading>
       Processing
     </Button>
   </Preview>
@@ -135,7 +131,7 @@ Use the `loading` prop to show a spinner and disable the button:
 
 ```tsx
 <Button loading>Saving...</Button>
-<Button variant="secondary" loading>Processing</Button>
+<Button variant="ghost" loading>Processing</Button>
 <Button variant="outline" loading>Loading</Button>
 ```
 
@@ -161,7 +157,7 @@ Use the `asChild` prop to render the button as a child element, like a link:
   type={{
     variant: {
       description: "The visual style of the button",
-      type: "'default' | 'destructive' | 'success' | 'outline' | 'secondary' | 'ghost' | 'link'",
+      type: "'default' | 'destructive' | 'success' | 'outline' | 'ghost' | 'link'",
       default: "'default'",
     },
     size: {

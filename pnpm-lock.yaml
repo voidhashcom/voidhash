@@ -808,7 +808,7 @@ importers:
         version: 8.19.0
       qrcode.react:
         specifier: ^4.2.0
-        version: 4.2.0(react@19.1.0)
+        version: 4.2.0(react@19.2.7)
       react:
         specifier: 'catalog:'
         version: 19.2.7
@@ -821,6 +821,9 @@ importers:
       react-hook-form:
         specifier: 'catalog:'
         version: 7.81.0(react@19.2.7)
+      react-qr-code:
+        specifier: ^2.2.0
+        version: 2.2.0(react@19.2.7)
       recharts:
         specifier: ^2.15.0
         version: 2.15.4(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1090,7 +1093,7 @@ importers:
         version: 8.50.0(eslint@9.39.2(jiti@2.7.0))(typescript@5.9.3)
       babel-preset-expo:
         specifier: ^54.0.10
-        version: 54.0.10(@babel/core@7.29.6)(@babel/runtime@7.28.4)(expo@54.0.33)(react-refresh@0.18.0)
+        version: 54.0.10(@babel/core@7.29.6)(@babel/runtime@7.29.7)(expo@54.0.33)(react-refresh@0.18.0)
       eslint:
         specifier: ^9.25.1
         version: 9.39.2(jiti@2.7.0)
@@ -1216,7 +1219,7 @@ importers:
         version: 8.0.11(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-module-scripts:
         specifier: ^5.0.8
-        version: 5.0.8(@babel/core@7.29.6)(@babel/runtime@7.29.7)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.6))(esbuild@0.28.1)(eslint@9.39.2(jiti@2.7.0))(expo@54.0.33)(jest@29.7.0(@types/node@24.10.4))(prettier@3.9.5)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react-refresh@0.18.0)(react-test-renderer@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 5.0.8(@babel/core@7.29.6)(@babel/runtime@7.28.4)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.6))(esbuild@0.28.1)(eslint@9.39.2(jiti@2.7.0))(expo@54.0.33)(jest@29.7.0(@types/node@24.10.4))(prettier@3.9.5)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react-refresh@0.18.0)(react-test-renderer@19.1.0(react@19.1.0))(react@19.1.0)
       nitro-codegen:
         specifier: 0.26.4
         version: 0.26.4(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -13568,6 +13571,9 @@ packages:
     resolution: {integrity: sha512-KTqnxsgGiQ6ZAzZCVlJH5eOjSnvlyEgx1m8bkRJfOhmGRqfo5KLvmAlACQkrjEtOQ4B7wF9TdSLIs9O90MX9xA==}
     engines: {node: '>=16.0.0'}
 
+  qrcode-generator@2.0.4:
+    resolution: {integrity: sha512-mZSiP6RnbHl4xL2Ap5HfkjLnmxfKcPWpWe/c+5XxCuetEenqmNFf1FH/ftXPCtFG5/TDobjsjz6sSNL0Sr8Z9g==}
+
   qrcode-terminal@0.11.0:
     resolution: {integrity: sha512-Uu7ii+FQy4Qf82G4xu7ShHhjhGahEpCWc3x8UavY3CTcWV+ufmmCtwkr7ZKsX42jdL0kr1B5FKUeqJvAn51jzQ==}
     hasBin: true
@@ -13760,6 +13766,11 @@ packages:
 
   react-promise-suspense@0.3.4:
     resolution: {integrity: sha512-I42jl7L3Ze6kZaq+7zXWSunBa3b1on5yfvUW6Eo/3fFOj6dZ5Bqmcd264nJbTK/gn1HjjILAjSwnZbV4RpSaNQ==}
+
+  react-qr-code@2.2.0:
+    resolution: {integrity: sha512-e5nS0UUN22K3Nf8KBRUzemfdJ6OmnN5w+kbnj1lvJaol9RyVRFeGl05bCkxSN2ZegbLxjjYjX1+mmAoX9+fAhw==}
+    peerDependencies:
+      react: '*'
 
   react-reconciler@0.31.0:
     resolution: {integrity: sha512-7Ob7Z+URmesIsIVRjnLoDGwBEG/tVitidU0nMsqX/eeJaLY89RISO/10ERe0MqmzuKUUB1rmY+h1itMbUHg9BQ==}
@@ -25217,7 +25228,7 @@ snapshots:
       resolve-from: 5.0.0
     optionalDependencies:
       '@babel/runtime': 7.28.4
-      expo: 54.0.33(@babel/core@7.29.6)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.2.7))(react@19.2.7)
+      expo: 54.0.33(@babel/core@7.29.6)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
     transitivePeerDependencies:
       - '@babel/core'
       - supports-color
@@ -25249,7 +25260,7 @@ snapshots:
       resolve-from: 5.0.0
     optionalDependencies:
       '@babel/runtime': 7.29.7
-      expo: 54.0.33(@babel/core@7.29.6)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      expo: 54.0.33(@babel/core@7.29.6)(@expo/metro-runtime@6.1.2)(expo-router@6.0.23)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.2.7))(react@19.2.7)
     transitivePeerDependencies:
       - '@babel/core'
       - supports-color
@@ -27175,7 +27186,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  expo-module-scripts@5.0.8(@babel/core@7.29.6)(@babel/runtime@7.29.7)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.6))(esbuild@0.28.1)(eslint@9.39.2(jiti@2.7.0))(expo@54.0.33)(jest@29.7.0(@types/node@24.10.4))(prettier@3.9.5)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react-refresh@0.18.0)(react-test-renderer@19.1.0(react@19.1.0))(react@19.1.0):
+  expo-module-scripts@5.0.8(@babel/core@7.29.6)(@babel/runtime@7.28.4)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.6))(esbuild@0.28.1)(eslint@9.39.2(jiti@2.7.0))(expo@54.0.33)(jest@29.7.0(@types/node@24.10.4))(prettier@3.9.5)(react-native@0.81.5(@babel/core@7.29.6)(@types/react@19.1.17)(react@19.1.0))(react-refresh@0.18.0)(react-test-renderer@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
       '@babel/cli': 7.28.3(@babel/core@7.29.6)
       '@babel/plugin-transform-export-namespace-from': 7.27.1(@babel/core@7.29.6)
@@ -27186,7 +27197,7 @@ snapshots:
       '@tsconfig/node18': 18.2.6
       '@types/jest': 29.5.14
       babel-plugin-dynamic-import-node: 2.3.3
-      babel-preset-expo: 54.0.10(@babel/core@7.29.6)(@babel/runtime@7.29.7)(expo@54.0.33)(react-refresh@0.18.0)
+      babel-preset-expo: 54.0.10(@babel/core@7.29.6)(@babel/runtime@7.28.4)(expo@54.0.33)(react-refresh@0.18.0)
       commander: 12.1.0
       eslint-config-universe: 15.0.3(eslint@9.39.2(jiti@2.7.0))(prettier@3.9.5)(typescript@5.9.3)
       glob: 13.0.0
@@ -31670,11 +31681,13 @@ snapshots:
 
   pvutils@1.1.5: {}
 
+  qrcode-generator@2.0.4: {}
+
   qrcode-terminal@0.11.0: {}
 
-  qrcode.react@4.2.0(react@19.1.0):
+  qrcode.react@4.2.0(react@19.2.7):
     dependencies:
-      react: 19.1.0
+      react: 19.2.7
 
   qs@6.15.3:
     dependencies:
@@ -32116,6 +32129,12 @@ snapshots:
   react-promise-suspense@0.3.4:
     dependencies:
       fast-deep-equal: 2.0.1
+
+  react-qr-code@2.2.0(react@19.2.7):
+    dependencies:
+      prop-types: 15.8.1
+      qrcode-generator: 2.0.4
+      react: 19.2.7
 
   react-reconciler@0.31.0(react@19.2.7):
     dependencies:

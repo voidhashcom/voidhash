@@ -1,18 +1,6 @@
 "use client";
 
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  Logo,
-} from "@voidhash/ui";
+import { Sheet, SheetContent, SheetTitle, cn } from "@voidhash/ui";
 import { Link as FrameworkLink, usePathname } from "fumadocs-core/framework";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { TreeContextProvider, useTreeContext } from "fumadocs-ui/contexts/tree";
@@ -26,7 +14,9 @@ import {
   useState,
 } from "react";
 
-import { activeTabForPathname, tabNodes } from "../../lib/tabs";
+import { STUDIO_PATH } from "@/lib/paths";
+
+import { DOCS_TABS, activeTabForPathname, tabNodes } from "../../lib/tabs";
 import { NavBar } from "../nav-bar";
 import { DocsThemeToggle } from "../theme-toggle";
 
@@ -35,22 +25,75 @@ export interface DocsLayoutProps {
   children: ReactNode;
 }
 
+/**
+ * The public documentation shell: a hairline-ruled header over a fixed
+ * navigation column, themed from the marketing palette rather than the app's
+ * (see `features/docs/styles/globals.css` for the `.docs-shell` theme).
+ */
 export function DocsLayout({ tree, children }: DocsLayoutProps) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   return (
-    <div className="flex flex-col [--header-height:calc(theme(spacing.12))]">
-      <SidebarProvider className="flex flex-col">
-        <TreeContextProvider tree={tree}>
-          <NavBar />
+    <div className="docs-shell min-h-screen bg-background text-foreground [--docs-header-height:3.5rem] [--docs-sidebar-width:16.5rem]">
+      <TreeContextProvider tree={tree}>
+        <NavBar onOpenNav={() => setMobileNavOpen(true)} />
 
-          <div className="flex min-h-0 flex-1 pt-[var(--header-height)]">
-            <DocsSidebar />
+        <aside className="fixed inset-y-0 top-(--docs-header-height) left-0 z-30 hidden w-(--docs-sidebar-width) overflow-y-auto border-border border-r px-3 pt-6 pb-16 lg:block">
+          <DocsNav />
+        </aside>
 
-            <SidebarInset className="mt-0! transition-all duration-75">
-              <div className="flex w-full">{children}</div>
-            </SidebarInset>
-          </div>
-        </TreeContextProvider>
-      </SidebarProvider>
+        <Sheet onOpenChange={setMobileNavOpen} open={mobileNavOpen}>
+          <SheetContent
+            className="w-[19rem] border-border bg-background p-0 lg:hidden"
+            side="left"
+          >
+            <SheetTitle className="sr-only">Documentation navigation</SheetTitle>
+            <div className="flex h-full flex-col overflow-y-auto px-3 pt-14 pb-6">
+              <MobileTabs onNavigate={() => setMobileNavOpen(false)} />
+              <DocsNav onNavigate={() => setMobileNavOpen(false)} />
+              <div className="mt-8 flex items-center justify-between gap-3 px-3">
+                <DocsThemeToggle className="flex" />
+                <a
+                  className="text-muted-foreground text-sm tracking-[-0.01em] transition-colors hover:text-foreground"
+                  href={STUDIO_PATH}
+                >
+                  Dashboard
+                </a>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        <div className="flex w-full pt-(--docs-header-height) lg:pl-(--docs-sidebar-width)">
+          {children}
+        </div>
+      </TreeContextProvider>
+    </div>
+  );
+}
+
+/** The header's tab row, folded into the drawer where the header can't show it. */
+function MobileTabs({ onNavigate }: { onNavigate: () => void }) {
+  const pathname = usePathname();
+  const active = activeTabForPathname(pathname);
+
+  return (
+    <div className="mb-5 flex flex-col gap-1 border-border border-b pb-5">
+      {DOCS_TABS.map((tab) => (
+        <FrameworkLink
+          className={cn(
+            "rounded-md px-3 py-1.5 text-[13.5px] tracking-[-0.01em] transition-colors",
+            tab.id === active.id
+              ? "bg-accent font-medium text-foreground"
+              : "text-foreground/65 hover:text-foreground",
+          )}
+          href={tab.home}
+          key={tab.id}
+          onClick={onNavigate}
+        >
+          {tab.label}
+        </FrameworkLink>
+      ))}
     </div>
   );
 }
@@ -171,7 +214,7 @@ function useDocsNav(): { groups: DocsNavGroup[]; items: DocsNavItem[] } {
   }, [root, pathname]);
 }
 
-function DocsSidebar() {
+function DocsNav({ onNavigate }: { onNavigate?: () => void }) {
   const { groups, items } = useDocsNav();
 
   const activeParent = items.find((item) => item.isActive && item.subGroups?.length);
@@ -186,103 +229,125 @@ function DocsSidebar() {
   const showSubmenu = submenuOpen && !!activeParent;
 
   return (
-    <Sidebar className="transition-all duration-75" collapsible="offcanvas" variant="inset">
-      <SidebarContent className="gap-0">
-        <div className="flex h-[var(--header-height)] w-full shrink-0 items-center px-3 py-2">
-          <a className="flex items-center gap-2" href="https://voidhash.com">
-            <Logo className="h-5" color="mono" variant="default" />
-            <span className="rounded-md bg-muted p-1 px-2 font-semibold text-foreground text-xs uppercase">
-              Docs
-            </span>
-          </a>
-        </div>
+    <div className="relative">
+      {/* Main menu — titled section groups; folders open the slide-in submenu */}
+      <div
+        className={cn(
+          "flex flex-col gap-5 transition-all duration-150",
+          showSubmenu
+            ? "-translate-x-3 pointer-events-none opacity-0"
+            : "translate-x-0 opacity-100",
+        )}
+      >
+        {groups.map((group, groupIndex) => (
+          <NavGroup
+            group={group}
+            key={group.title ?? `group-${groupIndex}`}
+            onNavigate={onNavigate}
+            onOpenSubmenu={() => setSubmenuOpen(true)}
+          />
+        ))}
+      </div>
 
-        <SidebarGroup className="pt-0">
-          <div className="relative">
-            {/* Main Menu — titled section groups; folders open the slide-in submenu */}
-            <div
-              className={`flex flex-col gap-4 transition-all duration-150 ${showSubmenu ? "-translate-x-3 pointer-events-none opacity-0" : "translate-x-0 opacity-100"}`}
+      {/* Sub menu — the opened folder's titled section groups */}
+      <div
+        className={cn(
+          "absolute inset-0 flex flex-col gap-5 transition-all duration-150",
+          showSubmenu
+            ? "translate-x-0 opacity-100"
+            : "pointer-events-none translate-x-10 opacity-0",
+        )}
+      >
+        {activeParent ? (
+          <div className="flex flex-col gap-5">
+            <button
+              className="flex items-center gap-2 rounded-md px-3 py-1.5 font-medium text-[13.5px] text-foreground tracking-[-0.01em] transition-colors hover:bg-accent"
+              onClick={() => setSubmenuOpen(false)}
+              type="button"
             >
-              {groups.map((group, groupIndex) => (
-                <div key={group.title ?? `group-${groupIndex}`}>
-                  {group.title ? <SidebarGroupLabel>{group.title}</SidebarGroupLabel> : null}
-                  <SidebarMenu>
-                    {group.items.map((item) => (
-                      <SidebarMenuItem key={item.url}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={!item.subGroups?.length && item.isActive}
-                        >
-                          <SidebarLink
-                            href={item.url}
-                            onClick={() => {
-                              if (item.subGroups?.length) {
-                                setSubmenuOpen(true);
-                              }
-                            }}
-                          >
-                            <NodeIcon icon={item.icon} />
-                            <span>{item.title}</span>
-                          </SidebarLink>
-                        </SidebarMenuButton>
-                        {item.subGroups?.length ? (
-                          <SidebarMenuAction onClick={() => setSubmenuOpen(true)}>
-                            <ChevronRight />
-                            <span className="sr-only">Toggle</span>
-                          </SidebarMenuAction>
-                        ) : null}
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </div>
-              ))}
-            </div>
-
-            {/* Sub Menu — the opened folder's titled section groups */}
-            <div
-              className={`absolute inset-0 flex flex-col gap-4 transition-all duration-150 ${showSubmenu ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-10 opacity-0"}`}
-            >
-              {activeParent && (
-                <>
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        className="relative cursor-pointer"
-                        onClick={() => setSubmenuOpen(false)}
-                      >
-                        <ChevronLeft />
-                        <span className="-translate-x-[50%] absolute left-[50%] transform text-center">
-                          {activeParent.title}
-                        </span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                  {activeParent.subGroups?.map((group, groupIndex) => (
-                    <div key={group.title ?? `subgroup-${groupIndex}`}>
-                      {group.title ? <SidebarGroupLabel>{group.title}</SidebarGroupLabel> : null}
-                      <SidebarMenu>
-                        {group.items.map((subItem) => (
-                          <SidebarMenuItem key={subItem.url}>
-                            <SidebarMenuButton asChild isActive={subItem.isActive}>
-                              <SidebarLink href={subItem.url}>
-                                <NodeIcon icon={subItem.icon} />
-                                <span>{subItem.title}</span>
-                              </SidebarLink>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        ))}
-                      </SidebarMenu>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
+              <ChevronLeft className="size-3.5 text-muted-foreground" />
+              <span>{activeParent.title}</span>
+            </button>
+            {activeParent.subGroups?.map((group, groupIndex) => (
+              <NavGroup
+                group={group}
+                key={group.title ?? `subgroup-${groupIndex}`}
+                onNavigate={onNavigate}
+              />
+            ))}
           </div>
-        </SidebarGroup>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
-        <DocsThemeToggle className="mt-auto mb-2 ml-4 block md:hidden" />
-      </SidebarContent>
-    </Sidebar>
+function NavGroup({
+  group,
+  onNavigate,
+  onOpenSubmenu,
+}: {
+  group: DocsNavGroup;
+  onNavigate?: () => void;
+  onOpenSubmenu?: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      {group.title ? (
+        <div className="px-3 pb-1 font-medium text-[12.5px] text-muted-foreground/70 tracking-[-0.005em]">
+          {group.title}
+        </div>
+      ) : null}
+      {group.items.map((item) => (
+        <NavItem item={item} key={item.url} onNavigate={onNavigate} onOpenSubmenu={onOpenSubmenu} />
+      ))}
+    </div>
+  );
+}
+
+function NavItem({
+  item,
+  onNavigate,
+  onOpenSubmenu,
+}: {
+  item: DocsNavItem;
+  onNavigate?: () => void;
+  onOpenSubmenu?: () => void;
+}) {
+  const isFolder = !!item.subGroups?.length;
+
+  return (
+    <div className="relative flex items-center">
+      <NavLink
+        className={cn(
+          "flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-1.5 text-[13.5px] tracking-[-0.01em] transition-colors",
+          !isFolder && item.isActive
+            ? "bg-accent font-medium text-foreground"
+            : "text-foreground/65 hover:bg-accent/60 hover:text-foreground",
+          isFolder && "pr-9",
+        )}
+        href={item.url}
+        onClick={() => {
+          if (isFolder) {
+            onOpenSubmenu?.();
+          }
+          onNavigate?.();
+        }}
+      >
+        <NodeIcon icon={item.icon} />
+        <span className="truncate">{item.title}</span>
+      </NavLink>
+      {isFolder ? (
+        <button
+          aria-label={`Open ${item.title}`}
+          className="absolute right-1 flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+          onClick={onOpenSubmenu}
+          type="button"
+        >
+          <ChevronRight className="size-3.5" />
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -298,7 +363,7 @@ function NodeIcon({ icon }: { icon?: ReactElement }) {
   if (typeof icon === "string") {
     return (
       <span
-        className="*:size-4 text-muted-foreground"
+        className="*:size-4 shrink-0 text-muted-foreground"
         // biome-ignore lint/security/noDangerouslySetInnerHtml: It is safe - static icon markup
         dangerouslySetInnerHTML={{ __html: icon }}
       />
@@ -308,7 +373,7 @@ function NodeIcon({ icon }: { icon?: ReactElement }) {
   return icon;
 }
 
-function SidebarLink(props: ComponentProps<typeof FrameworkLink>) {
+function NavLink(props: ComponentProps<typeof FrameworkLink>) {
   const href = props.href ?? "#";
   return <FrameworkLink {...props} href={href} />;
 }
