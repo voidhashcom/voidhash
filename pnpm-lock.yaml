@@ -201,6 +201,7 @@ pnpmfileChecksum: sha256-FmQ3RWUsIKZQg8qJsKhZOw8G3ylUwk93HvwW4x5Nr5A=
 patchedDependencies:
   '@earendil-works/pi-ai@0.80.7': 3fbb9897213abf111acd834b26232ea390b59077e07751ef66a6e45bd00a4bd3
   brace-expansion@5.0.8: ca2c07b933974ca774e3e37039d8c563bb28f04710ba4c7162a31a96faff77b9
+  fumadocs-openapi@11.2.2: c83454a6fabd7750546f414aed1bf257afa0bee4b25e2e9dc6c858e1dda4fa29
 
 importers:
 
@@ -665,6 +666,9 @@ importers:
       '@scalar/api-client-react':
         specifier: ^2.0.36
         version: 2.0.36(react@19.2.7)(tailwindcss@4.3.2)(typescript@6.0.3)
+      '@scalar/openapi-upgrader':
+        specifier: 0.2.11
+        version: 0.2.11
       '@t3-oss/env-core':
         specifier: ^0.13.8
         version: 0.13.11(typescript@6.0.3)(valibot@1.4.2(typescript@6.0.3))(zod@4.3.6)
@@ -775,7 +779,7 @@ importers:
         version: 15.2.0(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react@19.1.17)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(react@19.2.7)(rolldown@1.0.1)(vite@7.3.5(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.3))
       fumadocs-openapi:
         specifier: ^11.2.2
-        version: 11.2.2(@scalar/api-client-react@2.0.36(react@19.2.7)(tailwindcss@4.3.2)(typescript@6.0.3))(@types/react@19.1.17)(date-fns@4.4.0)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(fumadocs-ui@16.11.5(@types/mdx@2.0.14)(@types/react-dom@19.1.9(@types/react@19.1.17))(@types/react@19.1.17)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.2))(json-schema-typed@8.0.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 11.2.2(patch_hash=c83454a6fabd7750546f414aed1bf257afa0bee4b25e2e9dc6c858e1dda4fa29)(@scalar/api-client-react@2.0.36(react@19.2.7)(tailwindcss@4.3.2)(typescript@6.0.3))(@types/react@19.1.17)(date-fns@4.4.0)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(fumadocs-ui@16.11.5(@types/mdx@2.0.14)(@types/react-dom@19.1.9(@types/react@19.1.17))(@types/react@19.1.17)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.2))(json-schema-typed@8.0.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       fumadocs-ui:
         specifier: 16.11.5
         version: 16.11.5(@types/mdx@2.0.14)(@types/react-dom@19.1.9(@types/react@19.1.17))(@types/react@19.1.17)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.2)
@@ -27594,8 +27598,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  fumadocs-openapi@11.2.2(@scalar/api-client-react@2.0.36(react@19.2.7)(tailwindcss@4.3.2)(typescript@6.0.3))(@types/react@19.1.17)(date-fns@4.4.0)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(fumadocs-ui@16.11.5(@types/mdx@2.0.14)(@types/react-dom@19.1.9(@types/react@19.1.17))(@types/react@19.1.17)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.2))(json-schema-typed@8.0.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
-    dependencies:
+  ? fumadocs-openapi@11.2.2(patch_hash=c83454a6fabd7750546f414aed1bf257afa0bee4b25e2e9dc6c858e1dda4fa29)(@scalar/api-client-react@2.0.36(react@19.2.7)(tailwindcss@4.3.2)(typescript@6.0.3))(@types/react@19.1.17)(date-fns@4.4.0)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(fumadocs-ui@16.11.5(@types/mdx@2.0.14)(@types/react-dom@19.1.9(@types/react@19.1.17))(@types/react@19.1.17)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.2))(json-schema-typed@8.0.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+  : dependencies:
       '@fuma-translate/react': 1.0.2(@types/react@19.1.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@fumadocs/api-docs': 0.2.1(@types/react@19.1.17)(date-fns@4.4.0)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(fumadocs-ui@16.11.5(@types/mdx@2.0.14)(@types/react-dom@19.1.9(@types/react@19.1.17))(@types/react@19.1.17)(fumadocs-core@16.11.5(@mdx-js/mdx@3.1.1)(@tanstack/react-router@1.170.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/react@19.1.17)(lucide-react@0.555.0(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.3.6))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.2))(json-schema-typed@8.0.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@fumari/json-schema-ts': 1.0.2(json-schema-typed@8.0.2)
