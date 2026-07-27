@@ -46,19 +46,34 @@ export function LandingAsteroids() {
       return;
     }
 
+    // Geometry is cached outside the scroll handler: reading offsets on every scroll event can
+    // force a reflow mid-scroll, janking the very scrub the handler drives.
+    let runway = 0;
+    let sectionTop = 0;
+
     const update = () => {
-      const runway = section.offsetHeight - window.innerHeight;
-      const raw = runway > 0 ? (window.scrollY - section.offsetTop) / runway : 1;
+      const raw = runway > 0 ? (window.scrollY - sectionTop) / runway : 1;
       scrollProgress.set(Math.min(1, Math.max(0, raw)));
     };
 
-    update();
+    const measure = () => {
+      runway = section.offsetHeight - window.innerHeight;
+      sectionTop = section.offsetTop;
+      update();
+    };
+
+    measure();
+    // The section sits at the very bottom of the page, so anything above it resizing (images
+    // loading, fonts swapping) moves its offset.
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(document.body);
     window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    window.addEventListener("resize", measure);
 
     return () => {
+      resizeObserver.disconnect();
       window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      window.removeEventListener("resize", measure);
     };
   }, [scrollProgress, stage]);
 

@@ -33,9 +33,9 @@ export function LandingDevelopers() {
     <LandingSection id="developers">
       <div className="flex flex-col items-start justify-center gap-12 px-6 py-16 md:gap-23 md:px-12 md:py-24 xl:p-32">
         <SectionHeader
-          description="One install and one provider. Paywalls, experiments, entitlements and analytics all arrive wired together — no bridge code, no event plumbing."
+          description="Connect your app in minutes, then build it yourself or ask your AI coding agent to create, preview and publish it for you."
           eyebrow="Developers"
-          title="Install the SDK before your coffee gets cold."
+          title="Your first paywall is one command away."
         />
         <div className="w-full max-w-[1400px] flex flex-col items-start gap-5">
           <div className="self-stretch min-w-0 flex gap-12">

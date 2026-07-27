@@ -19,6 +19,8 @@ const KEY_ACTIONS: Record<string, AsteroidsAction> = {
   Space: "fire",
 };
 
+const ALL_ACTIONS = ["left", "right", "thrust", "fire"] as const;
+
 const BEST_SCORE_KEY = "voidhash.asteroids.best";
 
 function readBestScore(): number {
@@ -74,6 +76,12 @@ function HudStat({
   );
 }
 
+/**
+ * One button of the on-screen pad, held for as long as the finger stays down.
+ *
+ * Pointer capture keeps the hold alive when the thumb drifts off the circle, which it always does
+ * during a long burn.
+ */
 function TouchButton({
   className,
   label,
@@ -89,15 +97,24 @@ function TouchButton({
     <button
       aria-label={label}
       className={cn(
-        "flex size-14 items-center justify-center rounded-full border border-zinc-700 bg-black/50 font-mono text-zinc-300 active:border-zinc-400 active:text-white",
+        // `touch-none` is what makes the pad playable rather than merely present: without it a
+        // thumb that drifts while held pans the page, and panning scrolls the board out of view,
+        // which pauses the run mid-press.
+        "flex size-16 touch-none select-none items-center justify-center rounded-full border border-zinc-700 bg-black/40 text-[15px] text-zinc-300 backdrop-blur-sm transition-colors active:border-zinc-300 active:bg-zinc-300/15 active:text-white",
         className,
       )}
       onContextMenu={(event) => event.preventDefault()}
       onPointerCancel={() => onHold(false)}
       onPointerDown={(event) => {
         event.preventDefault();
-        event.currentTarget.setPointerCapture(event.pointerId);
         onHold(true);
+        // Capture is an optimisation for the drifting thumb, not a precondition for the press:
+        // it throws NotFoundError when the pointer is already gone, which must not cost the hold.
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {
+          // Without capture the button still gets its own pointerup; only drift stops working.
+        }
       }}
       onPointerUp={() => onHold(false)}
       type="button"
@@ -118,26 +135,50 @@ function TouchButton({
  */
 export function AsteroidsGame({ autoStart = false }: { autoStart?: boolean }) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<AsteroidsEngine | null>(null);
   const prefersReducedMotion = useReducedMotion();
 
   const [status, setStatus] = useState<AsteroidsStatus>("idle");
   const [hud, setHud] = useState({ lives: 3, score: 0, wave: 1 });
   const [bestScore, setBestScore] = useState(0);
-  const [showTouchControls, setShowTouchControls] = useState(false);
+  const [isTouch, setIsTouch] = useState(false);
 
   useEffect(() => {
     setBestScore(readBestScore());
-    setShowTouchControls(window.matchMedia("(pointer: coarse)").matches);
+    setIsTouch(window.matchMedia("(pointer: coarse)").matches);
   }, []);
+
+  // Hybrids (touch laptops, tablets with a trackpad) report a fine pointer until a finger actually
+  // lands, so the first touch anywhere on the page arms the pad as well.
+  useEffect(() => {
+    if (isTouch) {
+      return;
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === "touch") {
+        setIsTouch(true);
+      }
+    };
+
+    window.addEventListener("pointerdown", onPointerDown, { passive: true });
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [isTouch]);
 
   useEffect(() => {
     const frame = frameRef.current;
-    const canvas = canvasRef.current;
-    if (!(frame && canvas)) {
+    if (!frame) {
       return;
     }
+
+    // The visible canvas is created per effect run rather than rendered once and held in a ref: a
+    // canvas keeps its context type for life, so a board that reruns this effect (reduced-motion
+    // resolving after mount, a remount in dev) would hand a canvas whose WebGL context the previous
+    // compositor already lost to a fresh compositor that cannot use it — and then to the engine,
+    // whose `getContext("2d")` on a WebGL canvas returns null. A new element sidesteps all of it.
+    const canvas = document.createElement("canvas");
+    canvas.className = "block size-full";
+    frame.prepend(canvas);
 
     // With the CRT pass the visible canvas is WebGL and the engine draws into an offscreen scene;
     // without it the engine draws straight onto the visible canvas.
@@ -197,6 +238,7 @@ export function AsteroidsGame({ autoStart = false }: { autoStart?: boolean }) {
       window.removeEventListener("blur", onBlur);
       engine.destroy();
       compositor?.destroy();
+      canvas.remove();
       engineRef.current = null;
     };
   }, [autoStart, prefersReducedMotion]);
@@ -243,10 +285,19 @@ export function AsteroidsGame({ autoStart = false }: { autoStart?: boolean }) {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
-      for (const action of ["left", "right", "thrust", "fire"] as const) {
-        engineRef.current?.setInput(action, false);
-      }
     };
+  }, [status]);
+
+  // A pad button that unmounts mid-press — a scroll pauses the run while thrust is held — never
+  // sees its own pointerup, so without this the action stays latched into the resumed run. Same
+  // for a key still down when the window blurs.
+  useEffect(() => {
+    if (status === "playing") {
+      return;
+    }
+    for (const action of ALL_ACTIONS) {
+      engineRef.current?.setInput(action, false);
+    }
   }, [status]);
 
   // Space/Enter starts or resumes a run, but only while the board fills the view — half a screen
@@ -301,9 +352,11 @@ export function AsteroidsGame({ autoStart = false }: { autoStart?: boolean }) {
     }
   }, [status]);
 
+  const showPad = isTouch && status === "playing";
+
   return (
     <div className={cn(ASTEROIDS_STAGE_CLASS, "select-none font-mono")} ref={frameRef}>
-      <canvas className="block size-full" ref={canvasRef} />
+      {/* The board's canvas is prepended here by the engine effect above. */}
 
       {/* The landing navbar stays sticky over the stage, so the HUD starts below it. */}
       <div className="pointer-events-none absolute inset-x-0 top-20 flex items-start justify-between px-6 md:px-10">
@@ -322,34 +375,41 @@ export function AsteroidsGame({ autoStart = false }: { autoStart?: boolean }) {
         </HudStat>
       </div>
 
-      <div className="pointer-events-none absolute bottom-5 left-6 text-[11px]/3.5 text-zinc-700 tracking-[0.06em] md:left-10">
-        HI {pad(Math.max(bestScore, hud.score), 6)}
-      </div>
-
-      {showTouchControls && status === "playing" ? (
-        <>
-          <div className="absolute bottom-8 left-6 flex gap-3">
-            <TouchButton label="Rotate left" onHold={(down) => hold("left", down)}>
-              <span aria-hidden="true">◀</span>
-            </TouchButton>
-            <TouchButton label="Rotate right" onHold={(down) => hold("right", down)}>
-              <span aria-hidden="true">▶</span>
-            </TouchButton>
+      {/* One bar, so the pad, the high score and the home indicator never fight for the same
+          corner. Each pointer captures its own button, so steering while thrusting and firing is
+          just three fingers. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] md:px-10">
+        {/* High score above the steering pad, so both clusters still bottom-align on the bar. */}
+        <div className="flex flex-col items-start gap-4">
+          <div className="text-[11px]/3.5 text-zinc-700 tracking-[0.06em]">
+            HI {pad(Math.max(bestScore, hud.score), 6)}
           </div>
-          <div className="absolute right-6 bottom-8 flex gap-3">
+          {showPad ? (
+            <div className="pointer-events-auto flex gap-3">
+              <TouchButton label="Rotate left" onHold={(down) => hold("left", down)}>
+                <span aria-hidden="true">◀</span>
+              </TouchButton>
+              <TouchButton label="Rotate right" onHold={(down) => hold("right", down)}>
+                <span aria-hidden="true">▶</span>
+              </TouchButton>
+            </div>
+          ) : null}
+        </div>
+        {showPad ? (
+          <div className="pointer-events-auto flex gap-3">
             <TouchButton label="Thrust" onHold={(down) => hold("thrust", down)}>
               <span aria-hidden="true">▲</span>
             </TouchButton>
             <TouchButton
-              className="border-blue-ribbon-600/70 text-blue-ribbon-400"
+              className="border-blue-ribbon-600/70 text-blue-ribbon-400 active:border-blue-ribbon-400 active:bg-blue-ribbon-500/20 active:text-blue-ribbon-200"
               label="Fire"
               onHold={(down) => hold("fire", down)}
             >
               <span aria-hidden="true">●</span>
             </TouchButton>
           </div>
-        </>
-      ) : null}
+        ) : null}
+      </div>
 
       {/* No idle overlay: with autoStart the run begins before a frame of idle is ever visible. */}
       {status === "paused" || status === "over" ? (
@@ -372,7 +432,7 @@ export function AsteroidsGame({ autoStart = false }: { autoStart?: boolean }) {
           >
             {status === "paused" ? "RESUME" : "PLAY AGAIN"}
           </button>
-          {showTouchControls ? null : (
+          {isTouch ? null : (
             <div className="animate-pulse text-[12px] text-zinc-500 tracking-[0.25em]">
               {status === "paused" ? "PRESS SPACE TO RESUME" : "PRESS SPACE TO PLAY AGAIN"}
             </div>

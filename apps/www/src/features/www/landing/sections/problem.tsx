@@ -2,7 +2,7 @@ import { ScrollBrightenText } from "../motion";
 import { LandingSection } from "../shared";
 
 const PROBLEM_COPY =
-  "Building apps is easy now. Growing them has never been harder. Voidhash brings all the tools you need to build, test, iterate and grow quickly.";
+  "Building apps is easier than ever. Growing them has never been harder. Voidhash helps you test what works, understand your customers and turn more users into paying customers.";
 
 /** Renders the landing page positioning statement. */
 export function LandingProblem() {

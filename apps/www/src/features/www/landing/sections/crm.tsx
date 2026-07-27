@@ -6,9 +6,9 @@ export function LandingCrm() {
     <LandingSection id="crm">
       <div className="flex flex-col items-start justify-center gap-12 px-6 py-16 md:gap-23 md:px-12 md:py-24 xl:p-32">
         <SectionHeader
-          description="Every install, purchase, trial and refund resolves to one person — across devices, stores and anonymous sessions."
+          description="See each customer's journey in one place, from their first visit to purchases, renewals and refunds, even when they switch devices."
           eyebrow="CRM"
-          title="See the actual people behind the numbers."
+          title="Know the people behind your growth."
         />
         <ScaledMock designWidth={1400}>
           <div className="w-350 h-125 mt-6 shrink-0 relative">

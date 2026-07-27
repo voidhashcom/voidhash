@@ -7,9 +7,9 @@ export function LandingAnalytics() {
     <LandingSection id="analytics">
       <div className="flex flex-col items-start justify-center gap-12 px-6 py-16 md:gap-23 md:px-12 md:py-24 xl:p-32">
         <SectionHeader
-          description="Installs, trials, conversion, retention and MRR — computed from the same subscription state that powers your app. No SDK gymnastics, no nightly exports."
+          description="See how people move from download to trial to paying customer. Find what is working, where people drop off and where your next opportunity is."
           eyebrow="Analytics"
-          title="Know exactly where your revenue comes from, and where it leaks."
+          title="Understand what drives your revenue."
         />
         <div className="flex flex-col items-start gap-10 self-stretch xl:flex-row xl:gap-14">
           <Illustration className="flex flex-col w-full max-w-98 shrink-0 rounded-xl overflow-clip bg-origin-border border border-solid border-[#FFFFFF12]" style={{ backgroundImage: 'radial-gradient(ellipse 156.12% 100% at 100% -0.8599999999999941% in oklab, var(--color-zinc-900) 0%, var(--color-zinc-950) 100%)' }}>

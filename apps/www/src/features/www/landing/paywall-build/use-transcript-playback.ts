@@ -43,7 +43,8 @@ const FINISHED: TranscriptPlayback = {
 /**
  * Loops the scripted agent session once `active` turns true: the prompt types out, each
  * Voidhash MCP call goes out, hangs for its `runningMs`, and returns; the finished paywall
- * is held for a beat, then the whole session starts over.
+ * is held for a beat, then the whole session starts over. Turning `active` off rewinds to
+ * the blank state, so a paused illustration schedules no timers and drives no animation.
  *
  * Under `prefers-reduced-motion` the session is presented already finished and never loops,
  * so the transcript and the paywall still read as a complete story without any movement.
@@ -57,6 +58,9 @@ export function useTranscriptPlayback(active: boolean): TranscriptPlayback {
 
   useEffect(() => {
     if (!active) {
+      setCursor((current) =>
+        current.phase === "idle" ? current : { index: -1, phase: "idle" },
+      );
       return;
     }
 

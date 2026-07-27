@@ -1,7 +1,77 @@
-import { Button, Switch } from "@voidhash/ui";
+"use client";
+
+import { Button, cn, Switch } from "@voidhash/ui";
+import { useState } from "react";
 
 import { CountUp, GrowBar, Illustration } from "../motion";
 import { LandingSection, ScaledMock, SectionHeader } from "../shared";
+
+const FEATURE_FLAGS = [
+  {
+    name: "new_onboarding_flow",
+    enabledDetail: "iOS · 25% rollout",
+    disabledDetail: "iOS · off",
+    defaultEnabled: true,
+  },
+  {
+    name: "annual_price_test",
+    enabledDetail: "Backing flag · experiment · 100%",
+    disabledDetail: "Backing flag · experiment paused",
+    defaultEnabled: true,
+  },
+  {
+    name: "winback_offer_v2",
+    enabledDetail: "Churned subscribers · 50% rollout",
+    disabledDetail: "Churned subscribers · off",
+    defaultEnabled: true,
+  },
+  {
+    name: "family_sharing",
+    enabledDetail: "Internal testers only · on",
+    disabledDetail: "Internal testers only · off",
+    defaultEnabled: false,
+  },
+  {
+    name: "paywall_v4_layout",
+    enabledDetail: "All platforms · live",
+    disabledDetail: "All platforms · draft",
+    defaultEnabled: false,
+  },
+];
+
+function FlagRow({
+  flag,
+  withBorder,
+}: {
+  flag: (typeof FEATURE_FLAGS)[number];
+  withBorder: boolean;
+}) {
+  const [enabled, setEnabled] = useState(flag.defaultEnabled);
+
+  return (
+    <div
+      className={cn(
+        "self-stretch flex items-center py-4.5 px-6 gap-4",
+        withBorder && "border-b border-b-solid border-b-zinc-900",
+      )}
+    >
+      <div className="grow basis-[0%] flex flex-col gap-1">
+        <div
+          className={cn(
+            "font-mono font-medium text-[13px]/4 transition-colors duration-300",
+            enabled ? "text-white" : "text-zinc-400",
+          )}
+        >
+          {flag.name}
+        </div>
+        <div className="tracking-[-0.01em] font-sans text-zinc-400 text-xs/4">
+          {enabled ? flag.enabledDetail : flag.disabledDetail}
+        </div>
+      </div>
+      <Switch checked={enabled} onCheckedChange={setEnabled} />
+    </div>
+  );
+}
 
 /** Renders the experimentation product section. */
 export function LandingExperimentation() {
@@ -9,9 +79,9 @@ export function LandingExperimentation() {
     <LandingSection id="experimentation">
       <div className="flex flex-col items-start justify-center gap-12 px-6 py-16 md:gap-23 md:px-12 md:py-24 xl:p-32">
         <SectionHeader
-          description="Paywall A/B tests and feature flags share one targeting engine — so an experiment is just a flag with results attached."
+          description="Try different paywalls, prices and product experiences with real customers. Compare the results, choose the winner and launch it with confidence."
           eyebrow="Experimentation"
-          title="Test every price, every screen, every rollout."
+          title="Learn what works before you roll it out."
         />
         <div className="flex flex-col items-start gap-6 self-stretch xl:flex-row">
           <ScaledMock className="min-w-0 flex-1" designWidth={944}>
@@ -19,7 +89,7 @@ export function LandingExperimentation() {
               <div className="self-stretch flex items-center justify-between py-5 px-6">
                 <div className="flex flex-col gap-2">
                   <div className="tracking-[-0.02em] font-sans font-medium text-white text-[15px]/4.5">
-                    Onboarding paywall — annual price
+                    Onboarding paywall: annual price
                   </div>
                   <div className="font-sans text-zinc-400 text-xs/4">
                     Running · 14 days · 48,204 exposures
@@ -60,7 +130,7 @@ export function LandingExperimentation() {
                     <CountUp value="$1.62" />
                   </div>
                   <div className="w-21 shrink-0 text-right font-sans font-medium flex justify-end flex-wrap text-zinc-500 text-sm/4.5">
-                    —
+                    0%
                   </div>
                 </div>
                 <div className="flex items-center gap-5 self-stretch">
@@ -136,61 +206,13 @@ export function LandingExperimentation() {
                   Production
                 </div>
               </div>
-              <div className="self-stretch flex items-center py-4.5 px-6 gap-4 border-b border-b-solid border-b-zinc-900">
-                <div className="grow basis-[0%] flex flex-col gap-1">
-                  <div className="font-mono font-medium text-white text-[13px]/4">
-                    new_onboarding_flow
-                  </div>
-                  <div className="tracking-[-0.01em] font-sans text-zinc-400 text-xs/4">
-                    iOS · 25% rollout
-                  </div>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="self-stretch flex items-center py-4.5 px-6 gap-4 border-b border-b-solid border-b-zinc-900">
-                <div className="grow basis-[0%] flex flex-col gap-1">
-                  <div className="font-mono font-medium text-white text-[13px]/4">
-                    annual_price_test
-                  </div>
-                  <div className="tracking-[-0.01em] font-sans text-zinc-400 text-xs/4">
-                    Backing flag · experiment · 100%
-                  </div>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="self-stretch flex items-center py-4.5 px-6 gap-4 border-b border-b-solid border-b-zinc-900">
-                <div className="grow basis-[0%] flex flex-col gap-1">
-                  <div className="font-mono font-medium text-white text-[13px]/4">
-                    winback_offer_v2
-                  </div>
-                  <div className="tracking-[-0.01em] font-sans text-zinc-400 text-xs/4">
-                    Churned subscribers · 50% rollout
-                  </div>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="self-stretch flex items-center py-4.5 px-6 gap-4 border-b border-b-solid border-b-zinc-900">
-                <div className="grow basis-[0%] flex flex-col gap-1">
-                  <div className="font-mono font-medium text-zinc-400 text-[13px]/4">
-                    family_sharing
-                  </div>
-                  <div className="tracking-[-0.01em] font-sans text-zinc-400 text-xs/4">
-                    Internal testers only · off
-                  </div>
-                </div>
-                <Switch />
-              </div>
-              <div className="self-stretch flex items-center py-4.5 px-6 gap-4">
-                <div className="grow basis-[0%] flex flex-col gap-1">
-                  <div className="font-mono font-medium text-zinc-400 text-[13px]/4">
-                    paywall_v4_layout
-                  </div>
-                  <div className="tracking-[-0.01em] font-sans text-zinc-400 text-xs/4">
-                    All platforms · draft
-                  </div>
-                </div>
-                <Switch />
-              </div>
+              {FEATURE_FLAGS.map((flag, index) => (
+                <FlagRow
+                  flag={flag}
+                  key={flag.name}
+                  withBorder={index < FEATURE_FLAGS.length - 1}
+                />
+              ))}
             </div>
         </div>
       </div>

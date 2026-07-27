@@ -61,10 +61,11 @@ export function LandingGetStarted() {
         <div className="relative flex flex-col items-center gap-8 md:gap-11">
           <div className="flex flex-col items-center gap-6">
             <h2 className="text-balance text-center font-medium font-sans text-[36px] text-white leading-[110%] tracking-[-0.03em] md:text-[48px] xl:text-[56px]">
-              Get started today
+              Start selling in an afternoon
             </h2>
             <p className="max-w-[500px] text-center font-sans text-zinc-400 text-base/6.5 tracking-[-0.03em] md:text-xl/8">
-              Create a project, drop in the SDK, ship your first paywall. All in an afternoon.
+              Connect your app, publish your first paywall and start turning your product into a
+              business.
             </p>
           </div>
           <div className="flex flex-col items-center gap-3 pt-1 sm:flex-row">

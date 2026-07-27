@@ -2,7 +2,7 @@
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 const SVG_WIDTH = 1654;
@@ -243,16 +243,19 @@ export type LenticularShaderSettings = {
 
 function HeroShaderPlane({
   animateIdle,
+  onRevealed,
   settings,
   usePerlinSource,
 }: {
   animateIdle: boolean;
+  onRevealed: () => void;
   settings: Required<LenticularShaderSettings>;
   usePerlinSource: boolean;
 }) {
   const { gl, size } = useThree();
   const materialRef = useRef<THREE.ShaderMaterial>(null);
   const elapsedRef = useRef(0);
+  const revealedRef = useRef(false);
 
   // Seed values only. R3F clones the `uniforms` prop onto the material, so writing back to this
   // object would be a no-op for scalars — every runtime update below goes through the material.
@@ -306,9 +309,14 @@ function HeroShaderPlane({
     if (!material) {
       return;
     }
-    elapsedRef.current += delta;
+    // Clamped so resuming a paused frameloop (or a long first frame) can't jump the drift.
+    elapsedRef.current += Math.min(delta, 1 / 30);
     const progress = Math.min(1, elapsedRef.current / REVEAL_SECONDS);
     material.uniforms.uReveal.value = 1 - (1 - progress) ** 3;
+    if (progress >= 1 && !revealedRef.current) {
+      revealedRef.current = true;
+      onRevealed();
+    }
     if (animateIdle) {
       material.uniforms.uTime.value = elapsedRef.current;
     }
@@ -338,6 +346,9 @@ export function HeroShader({
   source?: HeroShaderSource;
 }) {
   const prefersReducedMotion = useReducedMotion();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(true);
+  const [revealed, setRevealed] = useState(false);
   const resolvedSettings = {
     angleDegrees: settings.angleDegrees ?? DEFAULT_ANGLE_DEGREES,
     centerX: settings.centerX ?? DEFAULT_CENTER_X,
@@ -346,12 +357,35 @@ export function HeroShader({
     strength: settings.strength ?? DEFAULT_STRENGTH,
   };
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), {
+      rootMargin: "160px",
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div aria-hidden className="pointer-events-none h-full w-full overflow-hidden bg-zinc-950">
+    <div
+      aria-hidden
+      className="pointer-events-none h-full w-full overflow-hidden bg-zinc-950"
+      ref={containerRef}
+    >
       <Canvas
         className="h-full w-full"
         dpr={[1, 2]}
-        gl={{ alpha: false, antialias: true, powerPreference: "high-performance" }}
+        // The drift is invisible while the canvas is offscreen, so the render loop only runs in
+        // view — pages with two of these shaders would otherwise pay for both on every frame of
+        // the whole scroll. The reveal still runs to completion so a paused canvas never resumes
+        // mid-fade. Antialiasing is off because the scene is a single full-viewport quad — MSAA
+        // only touches geometry edges and there are none to smooth.
+        frameloop={visible || !revealed ? "always" : "never"}
+        gl={{ alpha: false, antialias: false, powerPreference: "high-performance" }}
         onCreated={({ gl }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.setClearColor(BACKGROUND_HEX, 1);
@@ -359,6 +393,7 @@ export function HeroShader({
       >
         <HeroShaderPlane
           animateIdle={!prefersReducedMotion}
+          onRevealed={() => setRevealed(true)}
           settings={resolvedSettings}
           usePerlinSource={source === "perlin"}
         />

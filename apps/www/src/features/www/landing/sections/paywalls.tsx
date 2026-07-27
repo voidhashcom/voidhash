@@ -1,5 +1,6 @@
 import { PaywallBuild } from "../paywall-build/paywall-build";
 import { LandingSection, ScaledMock, SectionHeader } from "../shared";
+import { LandingAgentCompatibility } from "./agent-compatibility";
 
 /** Renders the paywalls product section. */
 export function LandingPaywalls() {
@@ -7,7 +8,7 @@ export function LandingPaywalls() {
     <LandingSection id="paywalls">
       <div className="flex flex-col items-start justify-center gap-12 px-6 pt-16 pb-10 md:gap-23 md:px-12 md:pt-24 md:pb-14 xl:px-32 xl:pt-32 xl:pb-16">
         <SectionHeader
-          description="Maximize your revenue by quickly testing your paywall designs and pricing with familiar no-code paywall builder."
+          description="Maximize your revenue by quickly testing your paywall designs and pricing with a familiar no-code paywall builder."
           eyebrow="Paywalls"
           title="Ship paywalls in minutes with our no-code designer and full AI integration."
         />
@@ -571,7 +572,7 @@ export function LandingPaywalls() {
           </div>
         </ScaledMock>
       </div>
-      <div className="h-20 border-zinc-800 border-t md:h-35.25" />
+      <LandingAgentCompatibility />
     </LandingSection>
   );
 }

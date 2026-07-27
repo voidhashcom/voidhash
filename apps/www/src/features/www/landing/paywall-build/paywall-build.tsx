@@ -20,8 +20,12 @@ const PAYWALL_SCALE = 0.6015;
  */
 export function PaywallBuild() {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { amount: 0.35, once: true });
-  const playback = useTranscriptPlayback(inView);
+  const started = useInView(ref, { amount: 0.35, once: true });
+  // The session would otherwise loop (timers, typing interval, pixi ticker) for the rest of the
+  // page's life once seen — pausing offscreen costs nothing visually because the loop replays
+  // from the prompt anyway.
+  const visible = useInView(ref);
+  const playback = useTranscriptPlayback(started && visible);
 
   return (
     <div className="absolute inset-0" ref={ref}>

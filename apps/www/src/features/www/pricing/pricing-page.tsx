@@ -1,5 +1,6 @@
 "use client";
 
+import { LandingAsteroids } from "@/features/www/landing/sections/asteroids";
 import { LandingDivider } from "@/features/www/landing/sections/divider";
 import { LandingFooter } from "@/features/www/landing/sections/footer";
 import { LandingGetStarted } from "@/features/www/landing/sections/get-started";
@@ -29,6 +30,7 @@ export function PricingPage() {
         <LandingGetStarted />
         <LandingDivider />
         <LandingFooter />
+        <LandingAsteroids />
       </div>
     </div>
   );

@@ -51,19 +51,19 @@ const PRODUCT_LINKS: NavLink[] = [
   {
     label: "Analytics",
     href: "/#analytics",
-    description: "Revenue, trials and retention from live subscription state.",
+    description: "See what drives conversion and revenue.",
     icon: ChartColumnIcon,
   },
   {
     label: "Experimentation",
     href: "/#experimentation",
-    description: "A/B tests and feature flags on one targeting engine.",
+    description: "Try ideas, compare results and launch what works.",
     icon: FlaskConicalIcon,
   },
   {
     label: "CRM",
     href: "/#crm",
-    description: "Every purchase, trial and session resolved to one person.",
+    description: "See the full journey behind every customer.",
     icon: UsersIcon,
   },
 ];

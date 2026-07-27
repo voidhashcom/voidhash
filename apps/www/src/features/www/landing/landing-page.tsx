@@ -36,7 +36,6 @@ export function LandingPage() {
         <LandingGetStarted />
         <LandingDivider />
         <LandingFooter />
-        <LandingDivider />
         <LandingAsteroids />
       </div>
     </div>
