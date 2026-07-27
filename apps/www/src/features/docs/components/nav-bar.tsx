@@ -1,15 +1,17 @@
 "use client";
 
-import { Button, CommandShortcut, Logo, cn, useSidebar } from "@voidhash/ui";
+import { Button, CommandShortcut, Logo, cn } from "@voidhash/ui";
 import { Link as FrameworkLink, usePathname } from "fumadocs-core/framework";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { MenuIcon, SearchIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 
+import { STUDIO_PATH } from "@/lib/paths";
+
 import { DOCS_TABS, activeTabForPathname } from "../lib/tabs";
 import { DocsThemeToggle } from "./theme-toggle";
 
-function SearchToggle(props: ComponentProps<"button">) {
+function SearchToggle({ className, ...props }: ComponentProps<"button">) {
   const { enabled, setOpenSearch } = useSearchContext();
   if (!enabled) {
     return;
@@ -18,41 +20,44 @@ function SearchToggle(props: ComponentProps<"button">) {
   return (
     <button
       {...props}
-      className={cn("flex items-center gap-2 bg-transparent text-sm md:bg-muted ", props.className)}
+      className={cn(
+        "flex cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground md:rounded-lg md:border md:border-border md:px-2.5 md:py-1.5 md:hover:bg-accent",
+        className,
+      )}
       onClick={() => setOpenSearch(true)}
+      type="button"
     >
-      <SearchIcon className="size-4 cursor-pointer text-muted-foreground " />
-      <span className="mr-4 hidden flex-1 text-left text-muted-foreground md:block">
-        Search documentation...
-      </span>
+      <SearchIcon className="size-4" />
+      <span className="hidden flex-1 text-left tracking-[-0.01em] md:block">Search docs</span>
       <CommandShortcut className="hidden md:block">⌘K</CommandShortcut>
     </button>
   );
 }
 
-/** The Documentation / Guides / API Reference tabs shown in the docs header. */
+/**
+ * The Documentation / Guides / API Reference tabs. They run the full height of
+ * the header so the active tab's underline sits on the header's own hairline.
+ */
 function DocsTabs() {
   const pathname = usePathname();
   const active = activeTabForPathname(pathname);
 
   return (
-    <nav className="hidden items-center gap-1 md:flex">
+    <nav className="hidden h-full items-center gap-6 md:flex">
       {DOCS_TABS.map((tab) => {
-        const Icon = tab.icon;
         const isActive = tab.id === active.id;
         return (
           <FrameworkLink
             className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-1.5 font-medium text-sm transition-colors",
+              "-mb-px flex h-full items-center border-transparent border-b text-sm tracking-[-0.01em] transition-colors",
               isActive
-                ? "bg-muted text-foreground"
+                ? "border-foreground text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
             href={tab.home}
             key={tab.id}
           >
-            <Icon className="size-4" />
-            <span>{tab.label}</span>
+            {tab.label}
           </FrameworkLink>
         );
       })}
@@ -60,42 +65,34 @@ function DocsTabs() {
   );
 }
 
-export function NavBar() {
+export function NavBar({ onOpenNav }: { onOpenNav: () => void }) {
   return (
-    <div className="fixed z-50 flex h-[var(--header-height)] w-full items-center justify-between gap-4 bg-sidebar px-4 transition-all duration-75 md:left-[var(--sidebar-width)] md:w-[calc(100vw-var(--sidebar-width))]">
-      <div className="flex items-center gap-1">
-        <a className="flex items-center gap-2 md:hidden" href="https://voidhash.com">
-          <Logo className="h-5" color="mono" variant="default" />
-          <span className="rounded-md bg-muted p-1 px-2 font-semibold text-foreground text-xs uppercase">
-            Docs
-          </span>
+    <header className="fixed inset-x-0 top-0 z-40 flex h-(--docs-header-height) items-center border-border border-b bg-background/85 backdrop-blur-md">
+      <div className="flex h-full w-(--docs-sidebar-width) shrink-0 items-center gap-2.5 border-border px-3 lg:border-r">
+        <button
+          aria-label="Open navigation"
+          className="-ml-1 flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:hidden"
+          onClick={onOpenNav}
+          type="button"
+        >
+          <MenuIcon className="size-4" />
+        </button>
+        <a className="flex items-center gap-2.5" href="/">
+          <Logo className="h-4 w-auto" color="mono" variant="default" />
+          <span className="text-muted-foreground text-sm tracking-[-0.01em]">Docs</span>
         </a>
+      </div>
+
+      <div className="flex h-full min-w-0 flex-1 items-center justify-between gap-4 px-4 md:px-6">
         <DocsTabs />
-      </div>
-
-      <div className="flex items-center gap-2">
-        <SearchToggle className="hidden cursor-pointer rounded-lg bg-muted p-1.5 px-3 hover:bg-accent md:flex" />
-        <SearchToggle className="md:hidden" />
-        <DocsThemeToggle />
-        <SidebarToggle />
-        <a className="hidden md:block" href="https://app.voidhash.com">
-          <Button size="sm" variant="outline">
-            Dashboard
+        <div className="ml-auto flex items-center gap-3">
+          <SearchToggle className="md:min-w-56" />
+          <DocsThemeToggle />
+          <Button asChild className="hidden md:inline-flex" size="sm" variant="outline">
+            <a href={STUDIO_PATH}>Dashboard</a>
           </Button>
-        </a>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function SidebarToggle() {
-  const { openMobile, setOpenMobile } = useSidebar();
-  const handleToggle = () => {
-    setOpenMobile(!openMobile);
-  };
-  return (
-    <Button className={cn("md:hidden")} onClick={handleToggle} variant="ghost">
-      <MenuIcon className="size-4" />
-    </Button>
+    </header>
   );
 }

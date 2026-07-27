@@ -39,7 +39,9 @@ function withHighlight(html: string, nodeId: string | null): string {
   }
   const selector = `[data-node-id="${id}"]`;
   const injection =
-    `<style>${selector}{outline:2px solid #3b82f6;outline-offset:2px;border-radius:2px;}</style>` +
+    // blue-ribbon-600 as a literal: this style is injected into the preview
+    // document, which does not inherit the studio's custom properties.
+    `<style>${selector}{outline:2px solid #0673ff;outline-offset:2px;border-radius:2px;}</style>` +
     `<script>document.querySelector('${selector}')` +
     `?.scrollIntoView({block:"center",inline:"center"});</script>`;
   return html.includes("</body>") ? html.replace("</body>", `${injection}</body>`) : html + injection;

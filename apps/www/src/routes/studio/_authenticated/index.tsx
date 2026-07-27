@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Spinner } from "@voidhash/ui";
 import { useEffect } from "react";
 import { useAuth } from "@/features/studio/components/auth-context";
+import { isOrganizationWaitlisted } from "@/lib/waitlist";
 
 export const Route = createFileRoute("/studio/_authenticated/")({
   ssr: false,
@@ -13,7 +14,12 @@ function RouteComponent() {
   const navigate = Route.useNavigate();
 
   useEffect(() => {
-    const organizationToGoTo = user.organizations[0];
+    // Skip waitlisted organizations so the user lands directly in one they can
+    // actually use. When every organization is waitlisted the surrounding
+    // `WaitlistGate` renders the waitlist screen instead of this route.
+    const organizationToGoTo = user.organizations.find(
+      (organization) => !isOrganizationWaitlisted(organization),
+    );
 
     if (!organizationToGoTo) {
       void navigate({

@@ -28,7 +28,7 @@ export function Navigation() {
         )}
       >
         <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4">
-          <a href="https://voidhash.com">
+          <a href="/">
             <Logo className="h-6" />
           </a>
           <div className="flex-1" />

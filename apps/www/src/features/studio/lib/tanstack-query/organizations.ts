@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import type { User } from "@voidhash/rpc";
+import { INTERNAL_FEATURE_FLAG_LIST, type User } from "@voidhash/rpc";
 
 import { VoidhashRpc, eq } from "../effect-query";
 import { queryKeys } from "./query-keys";
@@ -9,6 +9,17 @@ interface CreatedOrganization {
   readonly name: string;
   readonly slug: string;
 }
+
+/**
+ * The flags a brand-new organization resolves to: it has no overrides yet, so
+ * the server will report exactly the flags whose code default is on. Seeding
+ * these keeps the optimistic entry honest for gates that must not be bypassed
+ * — notably the waitlist, which would otherwise let a new organization into
+ * Studio until the next `CurrentUser` refetch.
+ */
+const DEFAULT_ENABLED_INTERNAL_FEATURE_FLAGS = INTERNAL_FEATURE_FLAG_LIST.filter(
+  (flag) => flag.defaultEnabled,
+).map((flag) => flag.key);
 
 /** Adds a newly created organization to the cached current-user session. */
 export const addCreatedOrganizationToCurrentUserCache = (
@@ -40,9 +51,7 @@ export const addCreatedOrganizationToCurrentUserCache = (
           name: createdOrganization.name,
           slug: createdOrganization.slug,
           workosOrganizationId: null,
-          // Optimistic entry; the real resolved flags arrive on the next
-          // CurrentUser refetch.
-          internalFeatureFlags: [],
+          internalFeatureFlags: DEFAULT_ENABLED_INTERNAL_FEATURE_FLAGS,
         },
       ],
     };

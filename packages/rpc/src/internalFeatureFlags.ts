@@ -72,6 +72,18 @@ export const INTERNAL_FEATURE_FLAGS = {
       "The durable Pi agent session in the paywall designer with server-executed workspace tools.",
     defaultEnabled: true,
   },
+  // Inverted polarity: enabled means *blocked*. Defaults to on so every newly
+  // created organization lands on the waitlist; overwatch grants access by
+  // setting the override to `false`. Existing organizations were grandfathered
+  // in by the `20260727120000_grandfather_waitlist_organizations` migration.
+  // Flip `defaultEnabled` to `false` to open signups to everyone.
+  waitlist: {
+    key: "waitlist",
+    name: "Waitlist",
+    description:
+      "Hold this organization on the waitlist: members can sign up and create the org but land on the waitlist screen instead of Studio. Turn OFF to grant access.",
+    defaultEnabled: true,
+  },
 } as const satisfies Record<string, InternalFeatureFlagDefinition>;
 
 /** All internal feature flag definitions as a list (e.g. for admin listings). */

@@ -7,7 +7,7 @@ export function DocsThemeToggle({ className }: { className?: string }) {
 
   return (
     <ThemeToggle
-      className={cn("hidden md:block", className)}
+      className={cn("hidden md:flex", className)}
       setTheme={setTheme}
       theme={theme ?? "system"}
     />

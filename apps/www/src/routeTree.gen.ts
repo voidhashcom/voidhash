@@ -26,9 +26,11 @@ import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-passw
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
+import { Route as MarketingPricingRouteImport } from './routes/_marketing/pricing'
 import { Route as StudioAuthenticatedRouteRouteImport } from './routes/studio/_authenticated/route'
 import { Route as StudioAuthenticatedIndexRouteImport } from './routes/studio/_authenticated/index'
 import { Route as AuthDevicesIndexRouteImport } from './routes/auth/devices/index'
+import { Route as StudioAuthenticatedWaitlistRouteImport } from './routes/studio/_authenticated/waitlist'
 import { Route as DocsApiSearchRouteImport } from './routes/docs/api/search'
 import { Route as DocsApiProxyRouteImport } from './routes/docs/api/proxy'
 import { Route as DesignApiSearchRouteImport } from './routes/design/api/search'
@@ -166,6 +168,11 @@ const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => AuthRouteRoute,
 } as any)
+const MarketingPricingRoute = MarketingPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => MarketingRouteRoute,
+} as any)
 const StudioAuthenticatedRouteRoute =
   StudioAuthenticatedRouteRouteImport.update({
     id: '/_authenticated',
@@ -182,6 +189,12 @@ const AuthDevicesIndexRoute = AuthDevicesIndexRouteImport.update({
   path: '/devices/',
   getParentRoute: () => AuthRouteRoute,
 } as any)
+const StudioAuthenticatedWaitlistRoute =
+  StudioAuthenticatedWaitlistRouteImport.update({
+    id: '/waitlist',
+    path: '/waitlist',
+    getParentRoute: () => StudioAuthenticatedRouteRoute,
+  } as any)
 const DocsApiSearchRoute = DocsApiSearchRouteImport.update({
   id: '/api/search',
   path: '/api/search',
@@ -601,6 +614,7 @@ export interface FileRoutesByFullPath {
   '/design': typeof DesignRouteRouteWithChildren
   '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
+  '/pricing': typeof MarketingPricingRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -616,6 +630,7 @@ export interface FileRoutesByFullPath {
   '/design/api/search': typeof DesignApiSearchRoute
   '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
+  '/studio/waitlist': typeof StudioAuthenticatedWaitlistRoute
   '/auth/devices/': typeof AuthDevicesIndexRoute
   '/studio/': typeof StudioAuthenticatedIndexRoute
   '/api/auth/email/resend': typeof ApiAuthEmailResendRoute
@@ -668,6 +683,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/studio': typeof StudioAuthenticatedIndexRoute
+  '/pricing': typeof MarketingPricingRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -684,6 +700,7 @@ export interface FileRoutesByTo {
   '/design/api/search': typeof DesignApiSearchRoute
   '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
+  '/studio/waitlist': typeof StudioAuthenticatedWaitlistRoute
   '/auth/devices': typeof AuthDevicesIndexRoute
   '/api/auth/email/resend': typeof ApiAuthEmailResendRoute
   '/api/auth/email/verify': typeof ApiAuthEmailVerifyRoute
@@ -739,6 +756,7 @@ export interface FileRoutesById {
   '/docs': typeof DocsRouteRouteWithChildren
   '/studio': typeof StudioRouteRouteWithChildren
   '/studio/_authenticated': typeof StudioAuthenticatedRouteRouteWithChildren
+  '/_marketing/pricing': typeof MarketingPricingRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -756,6 +774,7 @@ export interface FileRoutesById {
   '/design/api/search': typeof DesignApiSearchRoute
   '/docs/api/proxy': typeof DocsApiProxyRoute
   '/docs/api/search': typeof DocsApiSearchRoute
+  '/studio/_authenticated/waitlist': typeof StudioAuthenticatedWaitlistRoute
   '/auth/devices/': typeof AuthDevicesIndexRoute
   '/studio/_authenticated/': typeof StudioAuthenticatedIndexRoute
   '/api/auth/email/resend': typeof ApiAuthEmailResendRoute
@@ -814,6 +833,7 @@ export interface FileRouteTypes {
     | '/design'
     | '/docs'
     | '/studio'
+    | '/pricing'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/logout'
@@ -829,6 +849,7 @@ export interface FileRouteTypes {
     | '/design/api/search'
     | '/docs/api/proxy'
     | '/docs/api/search'
+    | '/studio/waitlist'
     | '/auth/devices/'
     | '/studio/'
     | '/api/auth/email/resend'
@@ -881,6 +902,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/studio'
+    | '/pricing'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/logout'
@@ -897,6 +919,7 @@ export interface FileRouteTypes {
     | '/design/api/search'
     | '/docs/api/proxy'
     | '/docs/api/search'
+    | '/studio/waitlist'
     | '/auth/devices'
     | '/api/auth/email/resend'
     | '/api/auth/email/verify'
@@ -951,6 +974,7 @@ export interface FileRouteTypes {
     | '/docs'
     | '/studio'
     | '/studio/_authenticated'
+    | '/_marketing/pricing'
     | '/auth/forgot-password'
     | '/auth/login'
     | '/auth/logout'
@@ -968,6 +992,7 @@ export interface FileRouteTypes {
     | '/design/api/search'
     | '/docs/api/proxy'
     | '/docs/api/search'
+    | '/studio/_authenticated/waitlist'
     | '/auth/devices/'
     | '/studio/_authenticated/'
     | '/api/auth/email/resend'
@@ -1157,6 +1182,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthForgotPasswordRouteImport
       parentRoute: typeof AuthRouteRoute
     }
+    '/_marketing/pricing': {
+      id: '/_marketing/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof MarketingPricingRouteImport
+      parentRoute: typeof MarketingRouteRoute
+    }
     '/studio/_authenticated': {
       id: '/studio/_authenticated'
       path: ''
@@ -1177,6 +1209,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/devices/'
       preLoaderRoute: typeof AuthDevicesIndexRouteImport
       parentRoute: typeof AuthRouteRoute
+    }
+    '/studio/_authenticated/waitlist': {
+      id: '/studio/_authenticated/waitlist'
+      path: '/waitlist'
+      fullPath: '/studio/waitlist'
+      preLoaderRoute: typeof StudioAuthenticatedWaitlistRouteImport
+      parentRoute: typeof StudioAuthenticatedRouteRoute
     }
     '/docs/api/search': {
       id: '/docs/api/search'
@@ -1546,10 +1585,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface MarketingRouteRouteChildren {
+  MarketingPricingRoute: typeof MarketingPricingRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
 }
 
 const MarketingRouteRouteChildren: MarketingRouteRouteChildren = {
+  MarketingPricingRoute: MarketingPricingRoute,
   MarketingIndexRoute: MarketingIndexRoute,
 }
 
@@ -1766,6 +1807,7 @@ const StudioAuthenticatedDashboardRouteRouteWithChildren =
 
 interface StudioAuthenticatedRouteRouteChildren {
   StudioAuthenticatedDashboardRouteRoute: typeof StudioAuthenticatedDashboardRouteRouteWithChildren
+  StudioAuthenticatedWaitlistRoute: typeof StudioAuthenticatedWaitlistRoute
   StudioAuthenticatedIndexRoute: typeof StudioAuthenticatedIndexRoute
   StudioAuthenticatedCreateOrganizationIndexRoute: typeof StudioAuthenticatedCreateOrganizationIndexRoute
   StudioAuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRoute: typeof StudioAuthenticatedDesignerOrganizationSlugProjectSlugDesignIdRoute
@@ -1775,6 +1817,7 @@ const StudioAuthenticatedRouteRouteChildren: StudioAuthenticatedRouteRouteChildr
   {
     StudioAuthenticatedDashboardRouteRoute:
       StudioAuthenticatedDashboardRouteRouteWithChildren,
+    StudioAuthenticatedWaitlistRoute: StudioAuthenticatedWaitlistRoute,
     StudioAuthenticatedIndexRoute: StudioAuthenticatedIndexRoute,
     StudioAuthenticatedCreateOrganizationIndexRoute:
       StudioAuthenticatedCreateOrganizationIndexRoute,

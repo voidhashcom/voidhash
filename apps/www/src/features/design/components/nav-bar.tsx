@@ -34,7 +34,7 @@ export function NavBar() {
     <div className="fixed z-10 flex h-[var(--header-height)] w-full flex-row items-center justify-between border-border border-b bg-background transition-all duration-75">
       <div className="flex flex-1 items-center justify-between px-4 py-2">
         <div className="mr-7 flex items-center">
-          <a className="flex items-center gap-3" href="https://voidhash.com">
+          <a className="flex items-center gap-3" href="/">
             <Logo className="ml-2 h-4" color="mono" variant="symbol" />
             <span className="rounded-md border-border bg-muted p-1 px-2 font-semibold text-foreground text-xs uppercase">
               Design System
