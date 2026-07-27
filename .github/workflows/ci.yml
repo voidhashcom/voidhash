@@ -2,7 +2,7 @@ name: Repository CI
 
 on:
   push:
-    branches: [main, preview]
+    branches: [main]
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:

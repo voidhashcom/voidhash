@@ -13,7 +13,7 @@ on:
       - selfhost/**/package.json
       - .github/workflows/osv-scanner.yml
   push:
-    branches: [main, preview]
+    branches: [main]
     paths:
       - package.json
       - pnpm-lock.yaml
@@ -38,7 +38,7 @@ concurrency:
 jobs:
   scan:
     name: Production lockfile
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4

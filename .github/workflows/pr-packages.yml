@@ -4,7 +4,7 @@
 #
 #   pnpm add @voidhash/node@https://pkg.voidha.sh/node/<short-sha>
 #
-# - push to main/preview → tarballs tagged with sha + branch name
+# - push to main         → tarballs tagged with sha + branch name
 # - pull_request         → tarballs tagged with sha + branch + `pr-<n>` (1 week
 #                          TTL), plus a sticky install-instructions comment on
 #                          the PR
@@ -19,7 +19,7 @@ name: PR Packages
 
 on:
   push:
-    branches: [main, preview]
+    branches: [main]
     paths:
       - packages/generated-clients/**
       - packages/shared/**
