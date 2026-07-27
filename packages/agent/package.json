@@ -40,6 +40,6 @@
     "@voidhash/tsconfig": "workspace:*",
     "typescript": "catalog:",
     "vite-plus": "catalog:",
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.114.0"
   }
 }
