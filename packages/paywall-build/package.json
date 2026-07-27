@@ -1,0 +1,47 @@
+{
+  "name": "@voidhash/paywall-build",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "description": "Deterministic compilation, validation, and manifest extraction for Voidhash paywall code.",
+  "keywords": [
+    "build",
+    "paywalls",
+    "typescript",
+    "voidhash"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "AGPL-3.0-only",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "packages/paywall-build"
+  },
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node-fs.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vp test run -c vitest.mts",
+    "generate:libs": "tsx scripts/generate-libs.ts"
+  },
+  "dependencies": {
+    "@voidhash/paywalls": "workspace:*",
+    "typescript": "6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@voidhash/tsconfig": "workspace:*",
+    "esbuild": "^0.25.10",
+    "tsx": "^4.19.2",
+    "vite-plus": "catalog:",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.7"
+  }
+}

@@ -1,10 +1,7 @@
 import { useCallback, useState } from "react";
 
 import type { VoidhashClient } from "../../client";
-import type {
-  InferGetProductResponseFromSchema,
-  VoidhashSchema,
-} from "../../core/schema";
+import type { Product } from "../../core/entities/product";
 
 export interface UsePurchaseOptions {
   method?: "native";
@@ -13,25 +10,20 @@ export interface UsePurchaseOptions {
   onSettled?: () => void;
 }
 
-export function purchaseHookFactory<TSchema extends VoidhashSchema>(
-  client: VoidhashClient<TSchema>
-) {
+export function purchaseHookFactory(client: VoidhashClient) {
   function usePurchase(hookOptions?: UsePurchaseOptions) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 
     const purchase = useCallback(
       (
-        product: Exclude<
-          InferGetProductResponseFromSchema<TSchema>[keyof InferGetProductResponseFromSchema<TSchema>],
-          null
-        >,
+        product: Product,
         options?: {
           method?: "native";
           onSuccess?: () => void;
           onError?: (error: Error) => void;
           onSettled?: () => void;
-        }
+        },
       ) => {
         setIsLoading(true);
         setError(null);
@@ -57,7 +49,7 @@ export function purchaseHookFactory<TSchema extends VoidhashSchema>(
             hookOptions?.onSettled?.();
           });
       },
-      [hookOptions]
+      [hookOptions],
     );
 
     return {

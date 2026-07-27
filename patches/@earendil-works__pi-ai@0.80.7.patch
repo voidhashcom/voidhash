@@ -1,0 +1,20 @@
+diff --git a/dist/api/google-generative-ai.lazy.js b/dist/api/google-generative-ai.lazy.js
+index 9dcc0e2..0b6232a 100644
+--- a/dist/api/google-generative-ai.lazy.js
++++ b/dist/api/google-generative-ai.lazy.js
+@@ -1,3 +1,4 @@
+ import { lazyApi } from "./lazy.js";
+-export const googleGenerativeAIApi = () => lazyApi(() => import("./google-generative-ai.js"));
++const unavailable = () => Promise.reject(new Error("Google Generative AI support is not installed"));
++export const googleGenerativeAIApi = () => lazyApi(unavailable);
+ //# sourceMappingURL=google-generative-ai.lazy.js.map
+diff --git a/dist/api/google-vertex.lazy.js b/dist/api/google-vertex.lazy.js
+index f43a254..05d09cd 100644
+--- a/dist/api/google-vertex.lazy.js
++++ b/dist/api/google-vertex.lazy.js
+@@ -1,3 +1,4 @@
+ import { lazyApi } from "./lazy.js";
+-export const googleVertexApi = () => lazyApi(() => import("./google-vertex.js"));
++const unavailable = () => Promise.reject(new Error("Google Vertex support is not installed"));
++export const googleVertexApi = () => lazyApi(unavailable);
+ //# sourceMappingURL=google-vertex.lazy.js.map

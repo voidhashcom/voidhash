@@ -1,12 +1,10 @@
+import { apiKeyClient } from "@better-auth/api-key/client";
 import { createAuthClient } from "better-auth/client";
-import { apiKeyClient } from "better-auth/client/plugins";
-import { Data, Effect, Layer, ServiceMap } from "effect";
+import { Context, Data, Effect, Layer } from "effect";
 
 import { CliConfig } from "../../../domain/services/cli-config";
 
-export class BetterAuthClientError extends Data.TaggedError(
-  "BetterAuthClientError"
-)<{
+export class BetterAuthClientError extends Data.TaggedError("BetterAuthClientError")<{
   readonly cause?: unknown;
   readonly message: string;
 }> {}
@@ -23,8 +21,8 @@ const make = Effect.gen(function* effect() {
   return {
     use: <D, E>(
       fn: (
-        client: typeof authClient
-      ) => Promise<{ error: E; data?: null } | { error?: null; data: D }>
+        client: typeof authClient,
+      ) => Promise<{ error: E; data?: null } | { error?: null; data: D }>,
     ) =>
       Effect.tryPromise({
         catch: (error) =>
@@ -45,8 +43,8 @@ const make = Effect.gen(function* effect() {
 
 type BetterAuthClientShape = Effect.Success<typeof make>;
 
-export class BetterAuthClient extends ServiceMap.Service<BetterAuthClient, BetterAuthClientShape>()(
-  "app/BetterAuthClient"
+export class BetterAuthClient extends Context.Service<BetterAuthClient, BetterAuthClientShape>()(
+  "app/BetterAuthClient",
 ) {
-  static Default = Layer.effect(BetterAuthClient, make)
+  static Default = Layer.effect(BetterAuthClient, make);
 }

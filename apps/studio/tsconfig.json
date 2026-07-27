@@ -1,0 +1,11 @@
+{
+  "extends": "../../packages/tsconfig/react-library.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "node"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "rootDir": "."
+  },
+  "include": ["src", "vite.config.ts"]
+}

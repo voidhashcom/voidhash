@@ -2,9 +2,7 @@
 
 import { Data, Effect } from "effect";
 
-export class FailedToLoadJsFileError extends Data.TaggedError(
-  "FailedToLoadJsFileError"
-)<{
+export class FailedToLoadJsFileError extends Data.TaggedError("FailedToLoadJsFileError")<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
@@ -18,7 +16,7 @@ const assertES5 = ({ unregister }: { unregister: () => void }) =>
       if ("errors" in e && Array.isArray(e.errors) && e.errors.length > 0) {
         // biome-ignore lint/suspicious/noExplicitAny: yolo
         const es5Error = (e.errors as any[]).some((it) =>
-          it.text?.includes(`("es5") is not supported yet`)
+          it.text?.includes(`("es5") is not supported yet`),
         );
         if (es5Error) {
           return new FailedToLoadJsFileError({
@@ -61,8 +59,8 @@ export const safeRegister = () =>
         Effect.succeed({
           // biome-ignore lint/suspicious/noEmptyBlockStatements: it is on purpose an empty function. It is here instead of try-catch due to tsx.
           unregister(): void {},
-        })
-      )
+        }),
+      ),
     );
 
     yield* assertES5(res);

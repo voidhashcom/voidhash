@@ -1,8 +1,8 @@
 import { Schema } from "effect";
 
 // ChangesetDeploymentServiceError has been moved to:
-// - @voidhash/api-spec/errors (API layer)
-// - @voidhash-internal/core/domain/errors (domain layer)
+// - @voidhash/generated-clients (API layer)
+// - @voidhash/core/domain/errors (domain layer)
 
 // Paywall Locations
 export const PaywallLocationCreateChangeSchema = Schema.Struct({
@@ -178,7 +178,7 @@ export function sortChangeset(changeset: typeof ChangesetSchema.Type) {
   const sortedChangeset = [...changeset.changes].sort(
     (a, b) =>
       sortedChangeTypesByPriority.indexOf(a.changeType) -
-      sortedChangeTypesByPriority.indexOf(b.changeType)
+      sortedChangeTypesByPriority.indexOf(b.changeType),
   );
 
   return sortedChangeset;

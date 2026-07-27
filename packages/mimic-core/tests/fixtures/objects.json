@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "suite": "objects",
+  "cases": [
+    {
+      "name": "set new field on root object",
+      "initial": {
+        "kind": "object",
+        "fields": {}
+      },
+      "commands": [
+        {
+          "kind": "object.set",
+          "path": [],
+          "key": "title",
+          "value": { "kind": "string", "value": "Hello" }
+        }
+      ],
+      "expect": {
+        "kind": "object",
+        "fields": {
+          "title": { "kind": "string", "value": "Hello" }
+        }
+      }
+    },
+    {
+      "name": "replace existing field on nested object",
+      "initial": {
+        "kind": "object",
+        "fields": {
+          "profile": {
+            "kind": "object",
+            "fields": {
+              "active": { "kind": "boolean", "value": false }
+            }
+          }
+        }
+      },
+      "commands": [
+        {
+          "kind": "object.set",
+          "path": [{ "kind": "field", "key": "profile" }],
+          "key": "active",
+          "value": { "kind": "boolean", "value": true }
+        }
+      ],
+      "expect": {
+        "kind": "object",
+        "fields": {
+          "profile": {
+            "kind": "object",
+            "fields": {
+              "active": { "kind": "boolean", "value": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "delete existing field from object",
+      "initial": {
+        "kind": "object",
+        "fields": {
+          "title": { "kind": "string", "value": "Hello" },
+          "count": { "kind": "number", "value": 1 }
+        }
+      },
+      "commands": [
+        {
+          "kind": "object.delete",
+          "path": [],
+          "key": "title"
+        }
+      ],
+      "expect": {
+        "kind": "object",
+        "fields": {
+          "count": { "kind": "number", "value": 1 }
+        }
+      }
+    },
+    {
+      "name": "set deep field inside array item object",
+      "initial": {
+        "kind": "array",
+        "items": [
+          {
+            "id": "i1",
+            "pos": "a0",
+            "value": {
+              "kind": "object",
+              "fields": {
+                "title": { "kind": "string", "value": "old" }
+              }
+            }
+          }
+        ]
+      },
+      "commands": [
+        {
+          "kind": "object.set",
+          "path": [{ "kind": "item", "id": "i1" }],
+          "key": "title",
+          "value": { "kind": "string", "value": "new" }
+        }
+      ],
+      "expect": {
+        "kind": "array",
+        "items": [
+          {
+            "id": "i1",
+            "pos": "a0",
+            "value": {
+              "kind": "object",
+              "fields": {
+                "title": { "kind": "string", "value": "new" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "reject object command on scalar target",
+      "initial": { "kind": "string", "value": "x" },
+      "commands": [
+        {
+          "kind": "object.set",
+          "path": [],
+          "key": "title",
+          "value": { "kind": "string", "value": "Hello" }
+        }
+      ],
+      "error": { "code": "type_mismatch" }
+    },
+    {
+      "name": "reject object.delete when field is missing",
+      "initial": {
+        "kind": "object",
+        "fields": {}
+      },
+      "commands": [
+        {
+          "kind": "object.delete",
+          "path": [],
+          "key": "missing"
+        }
+      ],
+      "error": { "code": "missing_field" }
+    }
+  ]
+}

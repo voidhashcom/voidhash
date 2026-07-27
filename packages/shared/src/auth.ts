@@ -1,4 +1,4 @@
-import { Schema, ServiceMap } from "effect";
+import { Schema, Context } from "effect";
 
 export const SessionOrganizationSchema = Schema.Struct({
   id: Schema.String,
@@ -19,7 +19,7 @@ const SessionOrganizationsSchema = Schema.Array(SessionOrganizationSchema);
 const SessionProjectsSchema = Schema.Array(SessionProjectSchema);
 
 export const SessionCustomerSchema = Schema.Struct({
-  appUserId: Schema.String,
+  distinctId: Schema.String,
 });
 
 export const SessionUserSchema = Schema.Struct({
@@ -118,15 +118,15 @@ export type PublishableKeySession = typeof PublishableKeySessionSchema.Type;
 //   readonly method: 'publishable-key';
 //   readonly name: string;
 //   readonly customer: {
-//     readonly appUserId: string;
+//     readonly distinctId: string;
 //   };
 //   readonly user: null;
 //   readonly cookie: null;
 // };
 
-export type AnyAuthSession =
-  | UserSession
-  | SecretKeySession
-  | PublishableKeySession;
+export type AnyAuthSession = UserSession | SecretKeySession | PublishableKeySession;
 
-export class AuthSession extends ServiceMap.Service<AuthSession, UserSession | SecretKeySession | PublishableKeySession>()("shared/auth/AuthSession") {}
+export class AuthSession extends Context.Service<
+  AuthSession,
+  UserSession | SecretKeySession | PublishableKeySession
+>()("shared/auth/AuthSession") {}

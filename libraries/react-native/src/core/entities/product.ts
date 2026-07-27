@@ -9,6 +9,7 @@ export class Product {
   readonly currency: string;
   readonly type: string;
   readonly platform: "ios" | "android";
+  readonly googlePlayOfferToken?: string;
 
   constructor(
     id: string,
@@ -20,7 +21,8 @@ export class Product {
     price: number,
     currency: string,
     type: string,
-    platform: "ios" | "android"
+    platform: "ios" | "android",
+    options?: { googlePlayOfferToken?: string },
   ) {
     this.id = id;
     this.slug = slug;
@@ -32,6 +34,7 @@ export class Product {
     this.currency = currency;
     this.type = type;
     this.platform = platform;
+    this.googlePlayOfferToken = options?.googlePlayOfferToken;
   }
 }
 
@@ -49,7 +52,8 @@ export class SubscriptionProduct extends Product {
     currency: string,
     type: string,
     platform: "ios" | "android",
-    interval: string
+    interval: string,
+    options?: { googlePlayOfferToken?: string },
   ) {
     super(
       id,
@@ -61,7 +65,8 @@ export class SubscriptionProduct extends Product {
       price,
       currency,
       type,
-      platform
+      platform,
+      options,
     );
     this.interval = interval;
   }

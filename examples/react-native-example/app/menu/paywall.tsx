@@ -1,16 +1,26 @@
 import type { UsePaywallByLocationOptions } from "@voidhash/react-native";
 import { Button } from "components/button";
-import { useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { voidhash } from "utils/voidhash/local.client";
+import { voidhash } from "utils/voidhash/client";
 
 const PAYWALL_LOCATION_SLUG = "example-paywall";
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
+  const { client } = voidhash.useVoidhash();
   const [isOpening, setIsOpening] = useState(false);
+  const [isReconciling, setIsReconciling] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  const refreshBackendEvidence = useCallback(
+    async (operation: string) => {
+      const snapshot = await client.getCurrentPerson(true);
+      setStatusMessage(`${operation}\nBackend snapshot: ${JSON.stringify(snapshot, null, 2)}`);
+    },
+    [client],
+  );
 
   const paywallOptions = useMemo<UsePaywallByLocationOptions>(
     () => ({
@@ -18,21 +28,21 @@ export default function PaywallScreen() {
         setStatusMessage(`Paywall ${context.action} failed: ${error.message}`);
       },
       onPurchase: ({ productId }) => {
-        setStatusMessage(`Purchase completed: ${productId}`);
+        void refreshBackendEvidence(`Purchase completed: ${productId}`).catch((error) => {
+          setStatusMessage(`Purchase completed, but backend refresh failed: ${String(error)}`);
+        });
       },
       onRestore: () => {
-        setStatusMessage("Restore completed");
+        void refreshBackendEvidence("Restore completed").catch((error) => {
+          setStatusMessage(`Restore completed, but backend refresh failed: ${String(error)}`);
+        });
       },
     }),
-    []
+    [refreshBackendEvidence],
   );
 
-  const { show } = voidhash.usePaywallByLocation(
-    PAYWALL_LOCATION_SLUG,
-    paywallOptions
-  );
-  const { data: customer, isLoading: isCustomerLoading } =
-    voidhash.useCurrentCustomer();
+  const { show } = voidhash.usePaywallByLocation(PAYWALL_LOCATION_SLUG, paywallOptions);
+  const { data: person, isLoading: isPersonLoading } = voidhash.useCurrentPerson();
 
   const handleShowPaywall = async () => {
     setIsOpening(true);
@@ -40,6 +50,30 @@ export default function PaywallScreen() {
       await show();
     } finally {
       setIsOpening(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setIsReconciling(true);
+    try {
+      await client.restorePurchases();
+      await refreshBackendEvidence("Direct restore completed");
+    } catch (error) {
+      setStatusMessage(`Direct restore failed: ${String(error)}`);
+    } finally {
+      setIsReconciling(false);
+    }
+  };
+
+  const handleInspectProducts = async () => {
+    setIsReconciling(true);
+    try {
+      const products = await client.getProducts();
+      setStatusMessage(`Native products: ${JSON.stringify(products, null, 2)}`);
+    } catch (error) {
+      setStatusMessage(`Product query failed: ${String(error)}`);
+    } finally {
+      setIsReconciling(false);
     }
   };
 
@@ -52,32 +86,44 @@ export default function PaywallScreen() {
   ];
 
   return (
-    <View style={containerStyle}>
+    <ScrollView contentContainerStyle={containerStyle}>
       <View>
         <Text style={styles.title}>Native Paywall</Text>
         <Text style={styles.subtitle}>
           Opens a preloaded full-screen paywall rendered by Swift/Kotlin.
         </Text>
         <Text style={styles.location}>Location: {PAYWALL_LOCATION_SLUG}</Text>
-        {statusMessage && (
-          <Text style={styles.statusMessage}>{statusMessage}</Text>
-        )}
-        <Text style={styles.customerState}>
-          {isCustomerLoading
-            ? "Loading customer..."
-            : `Customer: ${JSON.stringify(customer)}`}
+        {statusMessage && <Text style={styles.statusMessage}>{statusMessage}</Text>}
+        <Text style={styles.personState}>
+          {isPersonLoading ? "Loading person..." : `Person: ${JSON.stringify(person)}`}
         </Text>
 
         <Button
-          disabled={isOpening}
+          disabled={isOpening || isReconciling}
           onPress={() => {
             void handleShowPaywall();
           }}
           style={styles.actionButton}
           title={isOpening ? "Opening..." : "Open paywall"}
         />
+        <Button
+          disabled={isOpening || isReconciling}
+          onPress={() => {
+            void handleRestore();
+          }}
+          style={styles.outlineButton}
+          title={isReconciling ? "Working..." : "Restore and verify backend"}
+        />
+        <Button
+          disabled={isOpening || isReconciling}
+          onPress={() => {
+            void handleInspectProducts();
+          }}
+          style={styles.outlineButton}
+          title="Inspect native products"
+        />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -109,11 +155,17 @@ const styles = StyleSheet.create({
     marginTop: 16,
     padding: 12,
   },
-  customerState: {
+  personState: {
     color: "#a1a1aa",
     marginTop: 16,
   },
   actionButton: {
     marginTop: 16,
+  },
+  outlineButton: {
+    backgroundColor: "transparent",
+    borderColor: "#3f3f46",
+    borderWidth: 1,
+    marginTop: 12,
   },
 });

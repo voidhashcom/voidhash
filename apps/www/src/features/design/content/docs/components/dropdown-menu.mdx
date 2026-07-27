@@ -1,0 +1,195 @@
+---
+title: Dropdown Menu
+description: A menu with a set of actions triggered by a button.
+---
+
+## Usage
+
+<Preview>
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="outline">Open Menu</Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent>
+      <DropdownMenuLabel>My Account</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem>
+        <UserIcon /> Profile
+      </DropdownMenuItem>
+      <DropdownMenuItem>
+        <SettingsIcon /> Settings
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem variant="destructive">
+        <TrashIcon /> Delete
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</Preview>
+
+```tsx
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@voidhash/ui";
+
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="outline">Open Menu</Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent>
+    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem>Profile</DropdownMenuItem>
+    <DropdownMenuItem>Settings</DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>;
+```
+
+## Components
+
+### DropdownMenu
+
+The root component managing menu state.
+
+### DropdownMenuTrigger
+
+The element that opens the menu.
+
+### DropdownMenuContent
+
+The popup content container.
+
+### DropdownMenuItem
+
+A clickable menu item.
+
+### DropdownMenuLabel
+
+A non-interactive label.
+
+### DropdownMenuSeparator
+
+A visual divider between items.
+
+### DropdownMenuCheckboxItem
+
+A menu item with a checkbox.
+
+### DropdownMenuRadioGroup / DropdownMenuRadioItem
+
+Radio button items for single selection.
+
+### DropdownMenuShortcut
+
+Displays keyboard shortcut text.
+
+### DropdownMenuSub / DropdownMenuSubTrigger / DropdownMenuSubContent
+
+Nested submenu components.
+
+## Examples
+
+### With Checkbox Items
+
+<Preview>
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="outline">View Options</Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent>
+      <DropdownMenuLabel>Appearance</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuCheckboxItem checked>Show Toolbar</DropdownMenuCheckboxItem>
+      <DropdownMenuCheckboxItem>Show Sidebar</DropdownMenuCheckboxItem>
+      <DropdownMenuCheckboxItem>Show Status Bar</DropdownMenuCheckboxItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</Preview>
+
+```tsx
+<DropdownMenuCheckboxItem checked>Show Toolbar</DropdownMenuCheckboxItem>
+```
+
+### With Keyboard Shortcuts
+
+<Preview>
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="outline">Edit</Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent className="w-56">
+      <DropdownMenuItem>
+        Cut
+        <DropdownMenuShortcut>⌘X</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      <DropdownMenuItem>
+        Copy
+        <DropdownMenuShortcut>⌘C</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      <DropdownMenuItem>
+        Paste
+        <DropdownMenuShortcut>⌘V</DropdownMenuShortcut>
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</Preview>
+
+```tsx
+<DropdownMenuItem>
+  Cut
+  <DropdownMenuShortcut>⌘X</DropdownMenuShortcut>
+</DropdownMenuItem>
+```
+
+### Destructive Item
+
+<Preview>
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <Button variant="outline">Actions</Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent>
+      <DropdownMenuItem>Edit</DropdownMenuItem>
+      <DropdownMenuItem>Duplicate</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem variant="destructive">
+        <TrashIcon /> Delete
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</Preview>
+
+```tsx
+<DropdownMenuItem variant="destructive">
+  <TrashIcon /> Delete
+</DropdownMenuItem>
+```
+
+## Props
+
+### DropdownMenuItem Props
+
+<TypeTable
+  type={{
+    variant: {
+      description: "Visual variant",
+      type: "'default' | 'destructive'",
+      default: "'default'",
+    },
+    inset: {
+      description: "Add left padding for alignment",
+      type: "boolean",
+      default: "false",
+    },
+    disabled: {
+      description: "Disable the item",
+      type: "boolean",
+      default: "false",
+    },
+  }}
+/>

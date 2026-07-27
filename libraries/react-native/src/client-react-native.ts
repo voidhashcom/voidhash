@@ -1,30 +1,34 @@
 import Constants from "expo-constants";
+import { AtomRegistry } from "effect/unstable/reactivity";
 import { Platform as RNPlatform } from "react-native";
 
 import { VoidhashClient, type VoidhashClientOptions } from "./client";
-import { EventBus } from "./core/event-bus";
-import type { VoidhashSchema } from "./core/schema";
 import { SchemeNotSetError } from "./errors";
 import { voidhashProviderFactory } from "./react/components/provider";
 import { useRetrieveAppStoreProduct } from "./react/hooks/app-store/use-retrieve-app-store-product";
 import { useRetrieveAppStoreProducts } from "./react/hooks/app-store/use-retrieve-app-store-products";
 import { useRetrieveGooglePlayProduct } from "./react/hooks/google-play/use-retrieve-google-play-product";
 import { useRetrieveGooglePlayProducts } from "./react/hooks/google-play/use-retrieve-google-play-products";
-import { currentCustomerHookFactory } from "./react/hooks/use-customer";
+import { currentPersonHookFactory } from "./react/hooks/use-person";
 import { featureFlagsHookFactory } from "./react/hooks/use-feature-flags";
 import { paywallByLocationHookFactory } from "./react/hooks/use-paywall-by-location";
 import { productsHookFactory } from "./react/hooks/use-products";
 import { purchaseHookFactory } from "./react/hooks/use-purchase";
 
-export function createVoidhashClient<TSchema extends VoidhashSchema>(
-  publishableKey: string,
-  schema: VoidhashClientOptions<TSchema>["schema"],
-  options: Omit<VoidhashClientOptions<TSchema>, "schema">
-) {
+/**
+ * Bootstrap the Voidhash React Native SDK for a project.
+ *
+ * After the server-first redesign:
+ * - There is no schema argument. The schema lives on the server and is
+ *   fetched on `Provider` mount.
+ * - Type safety for product / location / perk slugs comes from the generated
+ *   `voidhash.gen.d.ts` (run `voidhash-cli types generate`).
+ */
+export function createVoidhashClient(publishableKey: string, options: VoidhashClientOptions = {}) {
   const baseUrl = options.baseUrl || "https://api.voidhash.com";
   const debug = options.debug ?? false;
+  const distinctId = options.distinctId ?? null;
   const ingestUrl = options.ingestUrl;
-  const initialAppUserId = options.userId ?? null;
   const readOnly = options.readOnly ?? false;
   const unstableSwallowErrors = options.unstable_swallowErrors ?? false;
   const scheme =
@@ -37,21 +41,21 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
     throw new SchemeNotSetError();
   }
 
-  const eventBus = new EventBus();
+  const atomRegistry = AtomRegistry.make();
   const platform = RNPlatform.OS === "ios" ? "ios" : "android";
 
-  const client = new VoidhashClient<TSchema>(
-    initialAppUserId,
+  const client = new VoidhashClient(
+    distinctId,
     scheme,
-    schema,
     baseUrl,
     ingestUrl,
     publishableKey,
     readOnly,
     unstableSwallowErrors,
-    eventBus,
+    atomRegistry,
     platform,
-    debug
+    debug,
+    options.unstable_internalSchema,
   );
 
   const { provider, context, useVoidhash } = voidhashProviderFactory(client);
@@ -67,7 +71,7 @@ export function createVoidhashClient<TSchema extends VoidhashSchema>(
       useRetrieveProduct: useRetrieveGooglePlayProduct,
       useRetrieveProducts: useRetrieveGooglePlayProducts,
     },
-    useCurrentCustomer: currentCustomerHookFactory(client, context),
+    useCurrentPerson: currentPersonHookFactory(client, context),
     useFeatureFlags: featureFlagsHookFactory(client, context),
     usePaywallByLocation: paywallByLocationHookFactory(client, context),
     useProducts: productsHookFactory(client, context),

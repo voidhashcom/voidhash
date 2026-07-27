@@ -1,0 +1,8 @@
+{
+  "extends": "@voidhash/tsconfig/internal-package-typescript-6.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "scripts"],
+  "exclude": ["**/node_modules/**", "src/lib/**"]
+}

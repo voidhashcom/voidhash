@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect";
 
-import { Product, type SubscriptionProduct } from "../entities/product";
+import { Product } from "../entities/product";
 import { Transaction } from "../entities/transaction";
 import type {
   FailedToAcknowledgePurchaseError,
@@ -18,14 +18,12 @@ import type {
   UserCancelledError,
 } from "../payment-adapters/errors";
 import { PaymentAdapter } from "../payment-adapters/payment-adapter";
-import type {
-  ExtractSchemaProductDefinitions,
-  VoidhashSchema,
-} from "../schema";
+import type { RuntimeProductDefinition } from "../schema/runtime";
 
 export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
   acknowledgePurchase(
-    transaction: Transaction
+    transaction: Transaction,
+    _productType?: RuntimeProductDefinition["type"],
   ): Effect.Effect<void, FailedToAcknowledgePurchaseError, never> {
     Effect.logDebug("TestPaymentAdapter: Acknowledging purchase", {
       transactionId: transaction.id,
@@ -33,10 +31,10 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
     return Effect.void;
   },
 
-  buyProduct<TSubscriptionProduct extends SubscriptionProduct>(
-    product: TSubscriptionProduct,
+  buyProduct<TProduct extends Product>(
+    product: TProduct,
     quantity = 1,
-    _appAccountToken?: string
+    _appAccountToken?: string,
   ): Effect.Effect<
     Transaction,
     | UserCancelledError
@@ -60,8 +58,8 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
         quantity,
         false,
         "ios",
-        {}
-      )
+        {},
+      ),
     );
   },
 
@@ -70,28 +68,15 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
     return Effect.void;
   },
 
-  getPendingTransactions(): Effect.Effect<
-    Transaction[],
-    GetPendingTransactionsError,
-    never
-  > {
+  getPendingTransactions(): Effect.Effect<Transaction[], GetPendingTransactionsError, never> {
     Effect.logDebug("TestPaymentAdapter: Getting pending transactions");
     return Effect.succeed([]);
   },
 
-  getProducts<
-    TSchema extends VoidhashSchema,
-    TDefinedProducts extends ExtractSchemaProductDefinitions<TSchema>,
-  >(
-    productDefinitions: TDefinedProducts
-  ): Effect.Effect<
-    Product[],
-    NativeAdapterNotInitializedError | FailedToGetProductsError,
-    never
-  > {
-    const productDefinitionsArray = Object.values(
-      productDefinitions
-    ) as TDefinedProducts[keyof TDefinedProducts][];
+  getProducts(
+    productDefinitions: Readonly<Record<string, RuntimeProductDefinition>>,
+  ): Effect.Effect<Product[], NativeAdapterNotInitializedError | FailedToGetProductsError, never> {
+    const productDefinitionsArray = Object.values(productDefinitions);
 
     Effect.logDebug("TestPaymentAdapter: Getting products", {
       count: productDefinitionsArray.length,
@@ -110,21 +95,21 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
             100,
             "USD",
             "subscription",
-            "ios"
-          )
-      )
+            "ios",
+          ),
+      ),
     );
   },
 
   getPurchaseHistory(
-    _onlyIncludeActiveItems = false
+    _onlyIncludeActiveItems = false,
   ): Effect.Effect<Transaction[], GetPurchaseHistoryError, never> {
     Effect.logDebug("TestPaymentAdapter: Getting purchase history");
     return Effect.succeed([]);
   },
 
   initConnection(
-    _onPurchase?: (transaction: Transaction) => void
+    _onPurchase?: (transaction: Transaction) => void,
   ): Effect.Effect<void, FailedToInitializeNativeAdapterError, never> {
     Effect.logDebug("TestPaymentAdapter: Initializing connection");
     return Effect.void;
@@ -139,11 +124,7 @@ export const TestPaymentAdapter = Layer.succeed(PaymentAdapter, {
     return Effect.void;
   },
 
-  showManageSubscriptions(): Effect.Effect<
-    void,
-    FailedToShowManageSubscriptionsError,
-    never
-  > {
+  showManageSubscriptions(): Effect.Effect<void, FailedToShowManageSubscriptionsError, never> {
     Effect.logDebug("TestPaymentAdapter: Showing manage subscriptions");
     return Effect.void;
   },

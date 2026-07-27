@@ -21,13 +21,12 @@ interface ProviderWithConfig extends ProviderBaseProps {
 }
 
 export interface VoidhashReactContextValue {
-  readonly appUserId: string | null;
   readonly client: VoidhashWebClient;
+  readonly distinctId: string | null;
   readonly isInitialized: boolean;
 }
 
-export const VoidhashReactContext =
-  createContext<VoidhashReactContextValue | null>(null);
+export const VoidhashReactContext = createContext<VoidhashReactContextValue | null>(null);
 
 export function VoidhashProvider(props: ProviderWithClient | ProviderWithConfig) {
   const clientRef = useRef<VoidhashWebClient | null>(null);
@@ -43,27 +42,27 @@ export function VoidhashProvider(props: ProviderWithClient | ProviderWithConfig)
     throw new Error("VoidhashProvider failed to create a client instance.");
   }
   const [isInitialized, setIsInitialized] = useState(false);
-  const [appUserId, setAppUserId] = useState<string | null>(null);
+  const [distinctId, setDistinctId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    const removeInitialized = client.on("initialized", ({ appUserId }) => {
+    const removeInitialized = client.on("initialized", ({ distinctId }) => {
       if (!isMounted) {
         return;
       }
       setIsInitialized(true);
-      setAppUserId(appUserId);
+      setDistinctId(distinctId);
     });
-    const removeIdentityChanged = client.on("identity-changed", ({ appUserId }) => {
+    const removeIdentityChanged = client.on("identity-changed", ({ distinctId }) => {
       if (isMounted) {
-        setAppUserId(appUserId);
+        setDistinctId(distinctId);
       }
     });
 
     void client.initialize().then(() => {
       if (isMounted) {
         setIsInitialized(true);
-        setAppUserId(client.getAppUserId());
+        setDistinctId(client.getDistinctId());
       }
     });
 
@@ -77,16 +76,14 @@ export function VoidhashProvider(props: ProviderWithClient | ProviderWithConfig)
 
   const value = useMemo(
     () => ({
-      appUserId,
       client,
+      distinctId,
       isInitialized,
     }),
-    [appUserId, client, isInitialized]
+    [client, distinctId, isInitialized],
   );
 
   return (
-    <VoidhashReactContext.Provider value={value}>
-      {props.children}
-    </VoidhashReactContext.Provider>
+    <VoidhashReactContext.Provider value={value}>{props.children}</VoidhashReactContext.Provider>
   );
 }

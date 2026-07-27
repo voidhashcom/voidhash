@@ -1,4 +1,3 @@
-import type { SdkHeaders } from "@voidhash/api-spec";
 import { Effect } from "effect";
 
 import { SDK_VERSION } from "../constants";
@@ -14,8 +13,30 @@ const getNonce = () => {
   return cryptoObject?.randomUUID?.() ?? generateFallbackNonce();
 };
 
+interface ReactNativeSdkHeaders {
+  readonly "x-client-bundle-id": string;
+  readonly "x-client-locale"?: string | undefined;
+  readonly "x-client-version"?: string | undefined;
+  readonly "x-distinct-id": string;
+  readonly "x-is-backgrounded": "false" | "true";
+  readonly "x-is-debug-build": "false" | "true";
+  readonly "x-nonce": string;
+  readonly "x-observer-mode": "false" | "true";
+  readonly "x-platform": string;
+  readonly "x-platform-brand"?: string | undefined;
+  readonly "x-platform-device"?: string | undefined;
+  readonly "x-platform-flavor": "browser" | "native";
+  readonly "x-platform-flavor-version"?: string | undefined;
+  readonly "x-platform-version"?: string | undefined;
+  readonly "x-preferred-locales"?: string | undefined;
+  readonly "x-publishable-key": string;
+  readonly "x-sdk": "web" | "react-native";
+  readonly "x-sdk-version": string;
+  readonly "x-storefront"?: string | undefined;
+}
+
 export const getCommonSdkHeaders = (): Effect.Effect<
-  Omit<typeof SdkHeaders.Type, "x-app-user-id">,
+  Omit<ReactNativeSdkHeaders, "x-distinct-id">,
   never,
   PlatformProvider | SdkConfiguration | IdentityManager
 > =>
@@ -28,9 +49,7 @@ export const getCommonSdkHeaders = (): Effect.Effect<
 
     const { locales } = platformProvider;
     const preferredLocales =
-      locales.length > 0
-        ? locales.map((locale) => locale.languageTag).join(",")
-        : undefined;
+      locales.length > 0 ? locales.map((locale) => locale.languageTag).join(",") : undefined;
     const clientLocale = locales[0]?.languageTag ?? undefined;
 
     return {

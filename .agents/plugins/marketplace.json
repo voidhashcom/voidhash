@@ -1,0 +1,20 @@
+{
+  "name": "voidhash",
+  "interface": {
+    "displayName": "Voidhash"
+  },
+  "plugins": [
+    {
+      "name": "voidhash",
+      "source": {
+        "source": "local",
+        "path": "./plugins/voidhash"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

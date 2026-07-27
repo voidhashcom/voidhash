@@ -1,0 +1,43 @@
+---
+title: Find your App Bundle ID
+description: Locate the Bundle ID for your app in App Store Connect or Xcode so it matches your Voidhash configuration.
+---
+
+Your **App Bundle ID** is the reverse-domain identifier for your app, for example
+`com.yourcompany.yourapp`. It must match the bundle identifier in your Xcode project and the
+App ID registered in your Apple Developer account.
+
+<Steps>
+
+<Step>
+### Open App Store Connect
+
+Go to [App Store Connect](https://appstoreconnect.apple.com), sign in, open **Apps**, and
+select your app.
+</Step>
+
+<Step>
+### Open App Information
+
+In the sidebar choose **General → App Information**, then locate the **Bundle ID** field. It
+shows the reverse-domain value, not the numeric **Apple ID** listed on the same page.
+</Step>
+
+<Step>
+### Copy the identifier
+
+Copy the value (e.g. `com.yourcompany.yourapp`) and paste it into the **App Bundle ID** field
+in Voidhash.
+
+<Callout type="info" title="Prefer Xcode?">
+You can also find it in Xcode: select your app under **TARGETS**, then read the **Bundle
+Identifier** in the **General** tab under **Identity** (it also appears in **Signing &
+Capabilities**). The two must be identical.
+</Callout>
+</Step>
+
+</Steps>
+
+{/* To add a screenshot, drop an image at
+apps/www/public/docs/guides/payment-providers/apple-app-store/bundle-id.png and reference it:
+![App Information showing the Bundle ID](/docs/guides/payment-providers/apple-app-store/bundle-id.png) */}

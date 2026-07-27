@@ -27,38 +27,27 @@ export const createProject = (input: { organizationId: string }) =>
     // If the config file is not found or the api key is not set, we consider the user to be signed out
     const apiKey = config.api_key;
     if (!apiKey) {
-      yield* Effect.logInfo(
-        "Api key is not set, considering the user to be signed out"
-      );
-      return yield* Effect.fail(
-        new NoSignedInUserError({ message: "No signed in user" })
-      );
+      yield* Effect.logInfo("Api key is not set, considering the user to be signed out");
+      return yield* Effect.fail(new NoSignedInUserError({ message: "No signed in user" }));
     }
 
-    const attemptToCreateProject = Effect.gen(
-      function* attemptToCreateProject() {
-        const name = yield* Prompt.run(
-          Prompt.text({
-            message: "Enter a name for the project",
-            validate: (value) => validateProjectName(value),
-          })
-        );
+    const attemptToCreateProject = Effect.gen(function* attemptToCreateProject() {
+      const name = yield* Prompt.run(
+        Prompt.text({
+          message: "Enter a name for the project",
+          validate: (value) => validateProjectName(value),
+        }),
+      );
 
-        const project = yield* client.projects.createProject({
-          // headers: {
-          //   'x-api-key': apiKey
-          // },
-          payload: {
-            name,
-            organizationId: input.organizationId,
-          },
-        });
+      const project = yield* client.projectsCreateProject({
+        name,
+        organizationId: input.organizationId,
+      });
 
-        yield* Console.log(`Successfully created project ${project.name}`);
+      yield* Console.log(`Successfully created project ${project.name}`);
 
-        return project;
-      }
-    );
+      return project;
+    });
 
     return yield* attemptToCreateProject;
   });

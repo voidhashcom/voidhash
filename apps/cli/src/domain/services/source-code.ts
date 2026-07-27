@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Layer, Path, Schema, ServiceMap } from "effect";
+import { Effect, FileSystem, Layer, Path, Schema, Context } from "effect";
 
 import { safeRegister } from "../../utils/js-loading/js-file-loading";
 import { relativePathPrefixFromDepth } from "../../utils/source-code";
@@ -54,15 +54,11 @@ const make = Effect.gen(function* effect() {
           const pathPrefix = relativePathPrefixFromDepth(depth);
 
           // Check for monorepo indicators
-          const isPnpmWorkspace = yield* fs.exists(
-            path.resolve(pathPrefix, "pnpm-workspace.yaml")
-          );
+          const isPnpmWorkspace = yield* fs.exists(path.resolve(pathPrefix, "pnpm-workspace.yaml"));
           const isYarnWorkspaces = yield* fs.exists(
-            path.resolve(pathPrefix, "yarn.workspaces.json")
+            path.resolve(pathPrefix, "yarn.workspaces.json"),
           );
-          const isTurboRoot = yield* fs.exists(
-            path.resolve(pathPrefix, "turbo.json")
-          );
+          const isTurboRoot = yield* fs.exists(path.resolve(pathPrefix, "turbo.json"));
 
           // Check for package.json with workspaces field
           const packageJsonPath = path.resolve(pathPrefix, "package.json");
@@ -72,18 +68,11 @@ const make = Effect.gen(function* effect() {
           if (packageJsonExists) {
             const packageJson = yield* loadPackageJson(pathPrefix);
             hasWorkspacesField =
-              (packageJson.workspaces !== undefined &&
-                Array.isArray(packageJson.workspaces)) ||
-              (packageJson.workspaces !== undefined &&
-                typeof packageJson.workspaces === "object");
+              (packageJson.workspaces !== undefined && Array.isArray(packageJson.workspaces)) ||
+              (packageJson.workspaces !== undefined && typeof packageJson.workspaces === "object");
           }
 
-          return (
-            isPnpmWorkspace ||
-            isYarnWorkspaces ||
-            isTurboRoot ||
-            hasWorkspacesField
-          );
+          return isPnpmWorkspace || isYarnWorkspaces || isTurboRoot || hasWorkspacesField;
         });
 
       // Check current directory and traverse up
@@ -115,22 +104,20 @@ const make = Effect.gen(function* effect() {
         return yield* Effect.fail(
           new PackageJsonNotFoundError({
             message: "Package JSON not found in this directory.",
-          })
+          }),
         );
       }
 
       const packageJson = yield* fs.readFileString(packageJsonPath);
-      return yield* Schema.decodeUnknownEffect(PackageJsonSchema)(
-        JSON.parse(packageJson)
-      ).pipe(
+      return yield* Schema.decodeUnknownEffect(PackageJsonSchema)(JSON.parse(packageJson)).pipe(
         Effect.catchTag("SchemaError", (e) =>
           Effect.fail(
             new InvalidPackageJsonError({
               cause: e,
               message: "Invalid package JSON",
-            })
-          )
-        )
+            }),
+          ),
+        ),
       );
     }).pipe(
       Effect.catchTag("PlatformError", (e) =>
@@ -138,9 +125,9 @@ const make = Effect.gen(function* effect() {
           new FailedToLoadPackageJsonError({
             cause: e,
             message: "Failed to load package JSON",
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 
   // ===================================
@@ -185,7 +172,7 @@ const make = Effect.gen(function* effect() {
       return yield* Effect.fail(
         new NoPackageManagerFoundError({
           message: "No package manager found in this directory.",
-        })
+        }),
       );
     }).pipe(
       Effect.catchTag("PlatformError", (e) =>
@@ -193,9 +180,9 @@ const make = Effect.gen(function* effect() {
           new FailedToDetectPackageManagerError({
             cause: e,
             message: "Failed to detect package manager",
-          })
-        )
-      )
+          }),
+        ),
+      ),
     );
 
   // ===================================
@@ -239,11 +226,11 @@ const make = Effect.gen(function* effect() {
           Effect.gen(function* existingPaths() {
             const exists = yield* fs.exists(path);
             return { exists, path };
-          })
+          }),
         ),
         {
           concurrency: "unbounded",
-        }
+        },
       );
 
       const existingPath = existingPaths.find((path) => path.exists)?.path;
@@ -251,7 +238,7 @@ const make = Effect.gen(function* effect() {
         return yield* Effect.fail(
           new VoidhashConfigNotFoundError({
             message: "Voidhash config not found",
-          })
+          }),
         );
       }
 
@@ -267,25 +254,24 @@ const make = Effect.gen(function* effect() {
           Effect.fail(
             new FailedToLoadVoidhashConfigError({
               cause: e,
-              message:
-                "There has been an error while trying to load the voidhash config.",
-            })
+              message: "There has been an error while trying to load the voidhash config.",
+            }),
           ),
         PlatformError: (e) =>
           Effect.fail(
             new FailedToLoadVoidhashConfigError({
               cause: e,
               message: "Failed to load voidhash config",
-            })
+            }),
           ),
         SchemaError: () =>
           Effect.fail(
             new InvalidVoidhashConfigError({
               message:
                 "Could not parse voidhash config. Please check your voidhash.config.(ts|js|cjs|mjs) file is valid.",
-            })
+            }),
           ),
-      })
+      }),
     );
 
   const deleteVoidhashConfig = () =>
@@ -307,8 +293,8 @@ const make = Effect.gen(function* effect() {
 
 type SourceCodeShape = Effect.Success<typeof make>;
 
-export class SourceCode extends ServiceMap.Service<SourceCode, SourceCodeShape>()(
-  "voidhash-cli/SourceCode"
+export class SourceCode extends Context.Service<SourceCode, SourceCodeShape>()(
+  "voidhash-cli/SourceCode",
 ) {
-  static Default = Layer.effect(SourceCode, make)
+  static Default = Layer.effect(SourceCode, make);
 }

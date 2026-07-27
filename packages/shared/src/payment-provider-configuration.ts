@@ -1,3 +1,3 @@
 // Errors have been moved to:
-// - @voidhash/api-spec/errors (API layer)
-// - @voidhash-internal/core/domain/errors (domain layer)
+// - @voidhash/generated-clients (API layer)
+// - @voidhash/core/domain/errors (domain layer)

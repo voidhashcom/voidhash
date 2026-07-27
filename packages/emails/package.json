@@ -1,0 +1,29 @@
+{
+  "name": "@voidhash/emails",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "./index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "dev": "email dev --dir . --port 3010",
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@react-email/components": "1.0.12"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.5",
+    "@types/react-dom": "^19.1.5",
+    "react-email": "6.7.0",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

@@ -1,0 +1,113 @@
+---
+title: Input
+description: A basic text input field for user data entry.
+---
+
+## Usage
+
+<Preview>
+  <Input placeholder="Enter text..." />
+</Preview>
+
+```tsx
+import { Input } from "@voidhash/ui";
+
+<Input placeholder="Enter text..." />;
+```
+
+## Examples
+
+### With Label
+
+<Preview centered={false}>
+  <div className="grid gap-2 w-full max-w-sm">
+    <Label htmlFor="email">Email</Label>
+    <Input id="email" type="email" placeholder="email@example.com" />
+  </div>
+</Preview>
+
+```tsx
+<div className="grid gap-2">
+  <Label htmlFor="email">Email</Label>
+  <Input id="email" type="email" placeholder="email@example.com" />
+</div>
+```
+
+### Input Types
+
+<Preview centered={false}>
+  <div className="grid gap-4 w-full max-w-sm">
+    <Input type="text" placeholder="Text input" />
+    <Input type="email" placeholder="Email input" />
+    <Input type="password" placeholder="Password input" />
+    <Input type="number" placeholder="Number input" />
+    <Input type="search" placeholder="Search input" />
+  </div>
+</Preview>
+
+```tsx
+<Input type="text" placeholder="Text input" />
+<Input type="email" placeholder="Email input" />
+<Input type="password" placeholder="Password input" />
+<Input type="number" placeholder="Number input" />
+<Input type="search" placeholder="Search input" />
+```
+
+### Disabled
+
+<Preview>
+  <Input disabled placeholder="Disabled input" />
+</Preview>
+
+```tsx
+<Input disabled placeholder="Disabled input" />
+```
+
+### With Error State
+
+<Preview>
+  <Input aria-invalid placeholder="Invalid input" />
+</Preview>
+
+```tsx
+<Input aria-invalid placeholder="Invalid input" />
+```
+
+### File Input
+
+<Preview>
+  <Input type="file" />
+</Preview>
+
+```tsx
+<Input type="file" />
+```
+
+## Props
+
+The Input component accepts all standard HTML input attributes.
+
+<TypeTable
+  type={{
+    type: {
+      description: "The input type",
+      type: "string",
+      default: "'text'",
+    },
+    placeholder: {
+      description: "Placeholder text",
+      type: "string",
+      default: "undefined",
+    },
+    disabled: {
+      description: "Whether the input is disabled",
+      type: "boolean",
+      default: "false",
+    },
+    "aria-invalid": {
+      description: "Indicates an error state",
+      type: "boolean",
+      default: "false",
+    },
+  }}
+/>

@@ -1,0 +1,30 @@
+{
+  "name": "@voidhash/clickhouse-db",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "./index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./clickhouse-client-web": "./src/clickhouse-client-web/index.ts",
+    "./analytics/schema": "./src/analytics/schema.ts",
+    "./analytics/migration": "./src/analytics/migration.ts",
+    "./analytics/resolved-events-sql": "./src/analytics/resolved-events-sql.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck-go": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@clickhouse/client-web": "^1.12.0",
+    "@effect/platform-bun": "catalog:"
+  },
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

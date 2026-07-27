@@ -1,0 +1,6 @@
+{
+  "title": "Payment_provider_configurations",
+  "pages": [
+    "payment_provider_configurations.listPaymentProviderConfigurations"
+  ]
+}

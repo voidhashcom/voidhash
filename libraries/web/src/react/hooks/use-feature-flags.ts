@@ -7,19 +7,19 @@ const serializeKeys = (keys?: ReadonlyArray<string>) =>
   keys && keys.length > 0 ? [...keys].sort().join(",") : "all";
 
 export const useFeatureFlags = (keys?: string[]) => {
-  const { appUserId, client, isInitialized } = useVoidhash();
+  const { client, distinctId, isInitialized } = useVoidhash();
   const [data, setData] = React.useState<FeatureFlagsResult>({ flags: [] });
   const [error, setError] = React.useState<Error | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const serializedKeys = React.useMemo(() => serializeKeys(keys), [keys]);
   const resolvedKeys = React.useMemo(
     () => (serializedKeys === "all" ? undefined : serializedKeys.split(",")),
-    [serializedKeys]
+    [serializedKeys],
   );
 
   const updateData = React.useCallback((nextData: FeatureFlagsResult) => {
     setData((previous) =>
-      JSON.stringify(previous) === JSON.stringify(nextData) ? previous : nextData
+      JSON.stringify(previous) === JSON.stringify(nextData) ? previous : nextData,
     );
   }, []);
 
@@ -31,8 +31,7 @@ export const useFeatureFlags = (keys?: string[]) => {
       updateData(nextData);
       return nextData;
     } catch (cause) {
-      const nextError =
-        cause instanceof Error ? cause : new Error("Failed to refresh flags.");
+      const nextError = cause instanceof Error ? cause : new Error("Failed to refresh flags.");
       setError(nextError);
       throw nextError;
     } finally {
@@ -58,9 +57,7 @@ export const useFeatureFlags = (keys?: string[]) => {
       })
       .catch((cause) => {
         if (isMounted) {
-          setError(
-            cause instanceof Error ? cause : new Error("Failed to load flags.")
-          );
+          setError(cause instanceof Error ? cause : new Error("Failed to load flags."));
         }
       })
       .finally(() => {
@@ -72,7 +69,7 @@ export const useFeatureFlags = (keys?: string[]) => {
     return () => {
       isMounted = false;
     };
-  }, [appUserId, client, isInitialized, resolvedKeys, updateData]);
+  }, [client, distinctId, isInitialized, resolvedKeys, updateData]);
 
   React.useEffect(() => {
     return client.on("feature-flags-updated", (event) => {
@@ -84,12 +81,12 @@ export const useFeatureFlags = (keys?: string[]) => {
 
   const isEnabled = React.useCallback(
     (key: string) => data.flags.find((flag) => flag.key === key)?.enabled ?? false,
-    [data.flags]
+    [data.flags],
   );
 
   const getVariant = React.useCallback(
     (key: string) => data.flags.find((flag) => flag.key === key) ?? null,
-    [data.flags]
+    [data.flags],
   );
 
   return {

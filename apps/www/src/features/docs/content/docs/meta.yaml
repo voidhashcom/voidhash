@@ -1,0 +1,15 @@
+title: Documentation
+root: true
+pages:
+  - "---Get started---"
+  - introduction
+  - installation
+  - basic-usage
+  - sdks-and-apis
+  - "---Learn---"
+  - concepts
+  - react-native
+  - cli
+  - mcp
+  - guides
+  - api

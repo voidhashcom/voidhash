@@ -1,0 +1,55 @@
+---
+title: Create an In-App Purchase key
+description: Generate the In-App Purchase key (Issuer ID, Key ID, and .p8 file) Voidhash uses to verify StoreKit transactions.
+---
+
+The **In-App Purchase key** lets Voidhash securely verify StoreKit 2 transactions and look up
+purchase data through the App Store Server API. You'll collect three values: the **Issuer ID**
+(a team-wide UUID), the **Key ID** (a 10-character identifier), and the downloadable **`.p8`**
+private key file.
+
+<Steps>
+
+<Step>
+### Open the Integrations keys
+
+In [App Store Connect](https://appstoreconnect.apple.com) go to **Users and Access**, open the
+**Integrations** tab, and select **In-App Purchase** under **Keys**. You'll need the **Account
+Holder** or **Admin** role to generate keys.
+</Step>
+
+<Step>
+### Generate a key
+
+Click **Generate In-App Purchase Key** (or the **+** icon if you already have one), give it a
+name such as `Voidhash`, and create it. The name is for your reference only and can't be edited
+afterwards.
+</Step>
+
+<Step>
+### Copy the Issuer ID and Key ID
+
+- The **Key ID** is the 10-character identifier shown in the key's row under **Active** — copy
+  it into the **Key ID** field in Voidhash.
+- The **Issuer ID** is shown at the top of the keys page — copy it into the **Issuer ID** field.
+
+<Callout type="info" title="No Issuer ID shown?">
+If the Issuer ID is missing, generate any **App Store Connect API** key once (under
+**Integrations → App Store Connect API**; the name and access level don't matter). The Issuer
+ID is a single team-wide value and will then appear on both tabs.
+</Callout>
+</Step>
+
+<Step>
+### Download the .p8 file
+
+Click **Download Key** to save the `.p8` private key, then upload that file to the **P8 key
+file** field in Voidhash.
+
+<Callout type="warn" title="You can only download it once">
+Apple lets you download each private key a single time. Store it somewhere safe — if you lose
+it you'll need to revoke the key and generate a new one.
+</Callout>
+</Step>
+
+</Steps>

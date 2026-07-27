@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createVoidhashClient } from "../src/index";
-import { createJsonResponse } from "./helpers";
+import { createJsonResponse, installFetchMock } from "./helpers";
 
 describe("analytics delivery", () => {
   beforeEach(() => {
@@ -13,27 +13,33 @@ describe("analytics delivery", () => {
   });
 
   it("retries a retryable analytics failure on the next flush", async () => {
+    vi.useFakeTimers();
+
     let analyticsAttempts = 0;
-    vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
-      const url = input.toString();
-      if (url.endsWith("/v1/events")) {
+    installFetchMock((call) => {
+      if (call.url.endsWith("/batch")) {
         analyticsAttempts += 1;
         if (analyticsAttempts === 1) {
-          return createJsonResponse({ error: "try again" }, 503);
+          return createJsonResponse(
+            {
+              code: "dependency_unavailable",
+              error: "try again",
+            },
+            503,
+          );
         }
 
         return createJsonResponse(
           {
             accepted: 1,
             rejected: 0,
-            request_id: "req_retry",
           },
-          202
+          202,
         );
       }
 
       return createJsonResponse({});
-    }));
+    });
     const client = createVoidhashClient({
       analytics: {
         flushIntervalMs: 60_000,
@@ -44,38 +50,47 @@ describe("analytics delivery", () => {
     await client.initialize();
     await client.track("purchase_started");
 
-    expect(await client.flushAnalytics()).toBeNull();
-    expect(await client.flushAnalytics()).toEqual({
-      accepted: 1,
-      rejected: 0,
-      requestId: "req_retry",
-    });
+    try {
+      expect(await client.flushAnalytics()).toBeNull();
+      expect(await client.flushAnalytics()).toBeNull();
 
-    await client.destroy();
+      vi.advanceTimersByTime(1_000);
+      expect(await client.flushAnalytics()).toEqual({
+        accepted: 1,
+        rejected: 0,
+      });
+    } finally {
+      vi.useRealTimers();
+      await client.destroy();
+    }
   });
 
   it("splits batches when the ingest service returns 413", async () => {
     let analyticsAttempts = 0;
-    vi.stubGlobal("fetch", vi.fn(async (input: URL | RequestInfo) => {
-      const url = input.toString();
-      if (url.endsWith("/v1/events")) {
+    installFetchMock((call) => {
+      if (call.url.endsWith("/batch")) {
         analyticsAttempts += 1;
         if (analyticsAttempts === 1) {
-          return createJsonResponse({ error: "payload too large" }, 413);
+          return createJsonResponse(
+            {
+              code: "payload_too_large",
+              error: "payload too large",
+            },
+            413,
+          );
         }
 
         return createJsonResponse(
           {
             accepted: 1,
             rejected: 0,
-            request_id: `req_${analyticsAttempts}`,
           },
-          202
+          202,
         );
       }
 
       return createJsonResponse({});
-    }));
+    });
     const client = createVoidhashClient({
       analytics: {
         flushIntervalMs: 60_000,
@@ -92,10 +107,67 @@ describe("analytics delivery", () => {
     expect(await client.flushAnalytics()).toEqual({
       accepted: 2,
       rejected: 0,
-      requestId: "req_3",
     });
     expect(analyticsAttempts).toBe(3);
 
     await client.destroy();
+  });
+
+  it("honors Retry-After before retrying a rate-limited batch", async () => {
+    vi.useFakeTimers();
+
+    let analyticsAttempts = 0;
+    installFetchMock((call) => {
+      if (call.url.endsWith("/batch")) {
+        analyticsAttempts += 1;
+        if (analyticsAttempts === 1) {
+          return createJsonResponse(
+            {
+              code: "rate_limited",
+              error: "request rate limit exceeded",
+              retry_after_ms: 2_000,
+            },
+            429,
+            {
+              "retry-after": "2",
+            },
+          );
+        }
+
+        return createJsonResponse(
+          {
+            accepted: 1,
+            rejected: 0,
+          },
+          202,
+        );
+      }
+
+      return createJsonResponse({});
+    });
+    const client = createVoidhashClient({
+      analytics: {
+        flushIntervalMs: 60_000,
+      },
+      publishableKey: "vh_pk_test",
+    });
+
+    try {
+      await client.initialize();
+      await client.track("purchase_started");
+
+      expect(await client.flushAnalytics()).toBeNull();
+      expect(await client.flushAnalytics()).toBeNull();
+
+      vi.advanceTimersByTime(2_000);
+      expect(await client.flushAnalytics()).toEqual({
+        accepted: 1,
+        rejected: 0,
+      });
+      expect(analyticsAttempts).toBe(2);
+    } finally {
+      vi.useRealTimers();
+      await client.destroy();
+    }
   });
 });

@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "studio",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@voidhash/studio", "dev", "--port", "4830"],
+      "port": 4830
+    },
+    {
+      "name": "deployed",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4831",
+        "--directory",
+        "examples/react-native-example/.voidhash/.build"
+      ],
+      "port": 4831
+    }
+  ]
+}

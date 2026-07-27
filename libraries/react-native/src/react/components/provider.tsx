@@ -1,21 +1,18 @@
 import React, { type ReactNode, createContext } from "react";
 
 import type { VoidhashClient } from "../../client";
-import type { VoidhashSchema } from "../../core/schema";
 
 export interface VoidhashProviderBaseProps {
   children: ReactNode;
 }
 
-export interface VoidhashContext<TSchema extends VoidhashSchema> {
+export interface VoidhashContext {
   isInitialized: boolean;
-  client: VoidhashClient<TSchema>;
+  client: VoidhashClient;
 }
 
-export function voidhashProviderFactory<TSchema extends VoidhashSchema>(
-  initialClient: VoidhashClient<TSchema>
-) {
-  const VoidhashContext = createContext<VoidhashContext<TSchema> | null>(null);
+export function voidhashProviderFactory(initialClient: VoidhashClient) {
+  const VoidhashContext = createContext<VoidhashContext | null>(null);
   function VoidhashProvider({ children }: VoidhashProviderBaseProps) {
     const client = React.useRef(initialClient);
 
@@ -48,25 +45,4 @@ export function voidhashProviderFactory<TSchema extends VoidhashSchema>(
   }
 
   return { context: VoidhashContext, provider: VoidhashProvider, useVoidhash };
-
-  // React.useEffect(() => {
-  //   const listener = Linking.addEventListener("url", (event) => {
-  //     if (
-  //       event.url.startsWith(
-  //         client.current.internal_getSuccessCallbackBaseUrl()
-  //       )
-  //     ) {
-  //       client.current.internal_onWebCheckoutSuccess(event.url);
-  //     } else if (
-  //       event.url.startsWith(
-  //         client.current.internal_getErrorCallbackBaseUrl()
-  //       )
-  //     ) {
-  //       client.current.internal_onWebCheckoutError(event.url);
-  //     }
-  //   });
-  //   return () => {
-  //     listener.remove();
-  //   };
-  // }, []);
 }

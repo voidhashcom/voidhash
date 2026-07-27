@@ -1,23 +1,27 @@
+import { Cause, Effect, Exit, Layer, ManagedRuntime, pipe } from "effect";
+import { FetchHttpClient, HttpClient } from "effect/unstable/http";
+
+import type { SdkPerson } from "@voidhash/generated-clients";
+
 import { VoidhashConfigurationError } from "./errors";
 import type {
   AnalyticsFlushResult,
   ResolvedVoidhashConfig,
   VoidhashClientOptions,
+  VoidhashPersonAttributes,
   VoidhashTrackOptions,
   VoidhashTraits,
 } from "./types";
-import { createAnalyticsEvent } from "./core/analytics/analytics-context";
-import { AnalyticsDispatcher } from "./core/analytics/analytics-dispatcher";
-import { AnalyticsQueue } from "./core/analytics/analytics-queue";
+import { AnalyticsService } from "./core/analytics/analytics-service";
 import { CacheManager } from "./core/caching/cache-manager";
-import { LocalStorageCacheAdapter } from "./core/caching/adapters/local-storage-cache";
-import { MemoryCacheAdapter } from "./core/caching/adapters/memory-cache";
-import { EventBus } from "./core/event-bus";
+import { createBrowserCacheAdapterLayer } from "./core/caching/adapters/browser-cache-adapter";
+import { type EventBus, EventBusProvider } from "./core/event-bus";
 import { FeatureFlagService } from "./core/feature-flags/feature-flag-service";
-import { AnalyticsHttpClient } from "./core/http/analytics-client";
-import { SdkApiClient } from "./core/http/sdk-api-client";
 import { IdentityManager } from "./core/identity/identity-manager";
-import { BrowserPlatformProvider } from "./core/platform/browser-platform-provider";
+import { ApiClient } from "./core/networking/api-client";
+import { EventCaptureApiClient } from "./core/networking/event-capture-api-client";
+import { BrowserPlatformProviderLayer } from "./core/platform/platform-provider";
+import { SdkConfiguration } from "./core/sdk-configuration";
 
 const DEFAULT_BASE_URL = "https://api.voidhash.com";
 
@@ -40,14 +44,9 @@ const deriveAnalyticsBaseUrl = (baseUrl: string, override?: string) => {
   return url.toString();
 };
 
-export const resolveVoidhashConfig = (
-  options: VoidhashClientOptions
-): ResolvedVoidhashConfig => {
+export const resolveVoidhashConfig = (options: VoidhashClientOptions): ResolvedVoidhashConfig => {
   const baseUrl = new URL(options.baseUrl ?? DEFAULT_BASE_URL).toString();
-  const analyticsBaseUrl = deriveAnalyticsBaseUrl(
-    baseUrl,
-    options.analytics?.baseUrl
-  );
+  const analyticsBaseUrl = deriveAnalyticsBaseUrl(baseUrl, options.analytics?.baseUrl);
   const maxBatchSize = options.analytics?.maxBatchSize ?? 20;
   const maxBatchBytes = options.analytics?.maxBatchBytes ?? 262_144;
   const maxQueueSize = options.analytics?.maxQueueSize ?? 1_000;
@@ -81,240 +80,172 @@ export const resolveVoidhashConfig = (
       refreshOnVisibility: options.featureFlags?.refreshOnVisibility ?? true,
       ttlMs,
     },
-    initialAppUserId: options.initialAppUserId,
+    distinctId: options.distinctId,
     observerMode: options.observerMode ?? false,
     publishableKey: options.publishableKey,
   };
 };
 
-export class VoidhashClientEffect {
-  private readonly analyticsDispatcher: AnalyticsDispatcher;
-  private readonly analyticsHttpClient: AnalyticsHttpClient;
-  private readonly analyticsQueue: AnalyticsQueue;
-  private readonly cache: CacheManager;
-  private readonly eventBus: EventBus;
-  private readonly featureFlags: FeatureFlagService;
-  private readonly identityManager: IdentityManager;
-  private listeners: Array<() => void> = [];
-  private readonly platform: BrowserPlatformProvider;
-  private readonly sdkApiClient: SdkApiClient;
+export const CreateEffectRuntime = (config: ResolvedVoidhashConfig, eventBus: EventBus) =>
+  ManagedRuntime.make(
+    Layer.fresh(
+      pipe(
+        AnalyticsService.Default,
+        Layer.provideMerge(FeatureFlagService.Default),
+        Layer.provideMerge(IdentityManager.Default),
+        Layer.provideMerge(CacheManager.Default),
+        Layer.provideMerge(ApiClient.Default),
+        Layer.provideMerge(EventCaptureApiClient.Default),
+        Layer.provideMerge(
+          Layer.effect(
+            FetchHttpClient.Fetch,
+            Effect.sync(() => globalThis.fetch),
+          ).pipe(Layer.provideMerge(FetchHttpClient.layer)),
+        ),
+        Layer.provideMerge(createBrowserCacheAdapterLayer()),
+        Layer.provideMerge(BrowserPlatformProviderLayer),
+        Layer.provideMerge(Layer.succeed(EventBusProvider, eventBus)),
+        Layer.provideMerge(Layer.succeed(SdkConfiguration, config)),
+      ),
+    ),
+  );
 
-  constructor(private readonly config: ResolvedVoidhashConfig) {
-    this.platform = new BrowserPlatformProvider();
-    this.eventBus = new EventBus();
-    this.cache = new CacheManager(
-      `@voidhash/web:${this.config.publishableKey}:${this.config.baseUrl}`,
-      new MemoryCacheAdapter(),
-      LocalStorageCacheAdapter.create()
-    );
-    this.sdkApiClient = new SdkApiClient(
-      this.config.baseUrl,
-      this.config.publishableKey,
-      this.config.observerMode,
-      this.platform
-    );
-    this.analyticsHttpClient = new AnalyticsHttpClient(
-      this.config.analytics.baseUrl,
-      this.config.publishableKey
-    );
-    this.identityManager = new IdentityManager(
-      this.cache,
-      this.sdkApiClient,
-      this.eventBus,
-      this.platform
-    );
-    this.featureFlags = new FeatureFlagService(
-      this.cache,
-      this.sdkApiClient,
-      this.eventBus,
-      this.config.featureFlags.ttlMs,
-      async () => this.identityManager.getAppUserId()
-    );
-    this.analyticsQueue = new AnalyticsQueue(
-      this.cache,
-      this.config.analytics.maxQueueSize
-    );
-    this.analyticsDispatcher = new AnalyticsDispatcher(
-      this.analyticsQueue,
-      this.analyticsHttpClient,
-      {
-        flushIntervalMs: this.config.analytics.flushIntervalMs,
-        maxBatchBytes: this.config.analytics.maxBatchBytes,
-        maxBatchSize: this.config.analytics.maxBatchSize,
-      },
-      this.eventBus
-    );
-  }
+// Effects that run against the runtime
+export const initializeEffect = (initialDistinctId?: string) =>
+  Effect.gen(function* initialize() {
+    const identityManager = yield* IdentityManager;
+    return yield* identityManager.initialize(initialDistinctId);
+  });
 
-  async destroy() {
-    this.detachBrowserListeners();
-    const flushResult = this.config.analytics.enabled
-      ? await this.analyticsDispatcher.flush({ force: true }).catch(() => null)
-      : null;
-    this.analyticsDispatcher.stop();
-    await this.sdkApiClient.destroy();
-    return flushResult;
-  }
+// Drain the analytics queue so any pending events are attributed to the
+// current distinct id before it is switched out by identify/reset.
+const flushAnalyticsForIdentitySwitch = Effect.gen(function* flushForIdentitySwitch() {
+  const analyticsService = yield* AnalyticsService;
+  yield* analyticsService.flush();
+});
 
-  getAppUserId() {
-    return this.identityManager.getAppUserId();
-  }
+export const identifyEffect = (distinctId: string, traits?: VoidhashTraits) =>
+  Effect.gen(function* identify() {
+    const identityManager = yield* IdentityManager;
+    const featureFlags = yield* FeatureFlagService;
+    yield* flushAnalyticsForIdentitySwitch;
+    yield* identityManager.identify(distinctId, traits);
+    yield* featureFlags.clearCachedFlags();
+    yield* featureFlags.refreshTrackedKeySets();
+  });
 
-  getEventBus() {
-    return this.eventBus;
-  }
+export const resetEffect = () =>
+  Effect.gen(function* reset() {
+    const identityManager = yield* IdentityManager;
+    const featureFlags = yield* FeatureFlagService;
+    yield* flushAnalyticsForIdentitySwitch;
+    yield* identityManager.reset();
+    yield* featureFlags.clearCachedFlags();
+    yield* featureFlags.refreshTrackedKeySets();
+  });
 
-  getFeatureVariant(key: string) {
-    return this.featureFlags.getVariant(key);
-  }
-
-  isFeatureEnabled(key: string) {
-    return this.featureFlags.isEnabled(key);
-  }
-
-  async flushAnalytics(): Promise<AnalyticsFlushResult | null> {
-    if (!this.config.analytics.enabled) {
-      return null;
+/**
+ * Splits person attributes into the reserved `email`/`name` fields and the
+ * remaining free-form traits.
+ */
+const splitPersonAttributes = (attributes: VoidhashPersonAttributes) => {
+  const { email, name, ...rest } = attributes;
+  const traits: VoidhashTraits = {};
+  for (const [key, value] of Object.entries(rest)) {
+    if (value !== undefined) {
+      traits[key] = value;
     }
-
-    return this.analyticsDispatcher.flush({ force: true });
   }
+  return { email, name, traits };
+};
 
-  async getFeatureFlags(keys?: string[]) {
-    return this.featureFlags.getFeatureFlags(keys);
-  }
-
-  async identify(appUserId: string, traits?: VoidhashTraits) {
-    await this.identityManager.identify(appUserId, traits);
-    await this.featureFlags.clearCachedFlags();
-    await this.featureFlags.refreshTrackedKeySets();
-  }
-
-  async initialize() {
-    const appUserId = await this.identityManager.initialize(
-      this.config.initialAppUserId
-    );
-
-    if (this.config.analytics.enabled) {
-      this.analyticsDispatcher.start();
-    }
-
-    this.attachBrowserListeners();
-
-    if (this.config.featureFlags.prefetchOnInit) {
-      await this.featureFlags.getFeatureFlags();
-    }
-
-    this.eventBus.emit("initialized", { appUserId });
-  }
-
-  async page(
-    pageName?: string,
-    properties?: Record<string, unknown>,
-    options?: VoidhashTrackOptions
-  ) {
-    const pageProperties = pageName
-      ? {
-          ...properties,
-          page_name: pageName,
-        }
-      : properties;
-
-    await this.track("page", pageProperties, options);
-  }
-
-  async refreshFeatureFlags(keys?: string[]) {
-    return this.featureFlags.refreshFeatureFlags(keys);
-  }
-
-  async resetIdentity() {
-    await this.identityManager.resetIdentity();
-    await this.featureFlags.clearCachedFlags();
-    await this.featureFlags.refreshTrackedKeySets();
-  }
-
-  async track(
-    eventName: string,
-    properties?: Record<string, unknown>,
-    options?: VoidhashTrackOptions
-  ) {
-    if (!this.config.analytics.enabled) {
-      return;
-    }
-
-    const appUserId = await this.identityManager.getAppUserId();
-    if (!appUserId) {
-      return;
-    }
-
-    const event = createAnalyticsEvent(
-      this.platform,
-      eventName,
-      properties,
-      options
-    );
-    const droppedCount = await this.analyticsQueue.enqueue({
-      appUserId,
-      id: event.event_id,
-      payload: event,
+/**
+ * Enqueues a `$set` analytics event that updates the current person profile.
+ * Fire-and-forget: the event is queued and flushed by the normal pipeline.
+ */
+export const setPersonAttributesEffect = (attributes: VoidhashPersonAttributes) =>
+  Effect.gen(function* setPersonAttributes() {
+    const analyticsService = yield* AnalyticsService;
+    const { email, name, traits } = splitPersonAttributes(attributes);
+    const $set = {
+      ...traits,
+      ...(email !== undefined ? { email } : {}),
+      ...(name !== undefined ? { name } : {}),
+    };
+    yield* analyticsService.enqueue("$set", {
+      $set,
+      $process_person_profile: true,
     });
+  });
 
-    if (droppedCount > 0) {
-      this.eventBus.emit("error", {
-        message: `Dropped ${droppedCount} analytics event(s) because the queue is full.`,
-        source: "analytics",
-      });
+/**
+ * Synchronously persists person attributes to the server and returns the
+ * resulting person snapshot.
+ */
+export const setPersonAttributesSyncEffect = (
+  attributes: VoidhashPersonAttributes,
+): Effect.Effect<SdkPerson, unknown, IdentityManager> =>
+  Effect.gen(function* setPersonAttributesSync() {
+    const identityManager = yield* IdentityManager;
+    const { email, name, traits } = splitPersonAttributes(attributes);
+    return yield* identityManager.setPersonAttributesSync({
+      email,
+      name,
+      traits: Object.keys(traits).length > 0 ? traits : undefined,
+    });
+  });
+
+export const trackEffect = (
+  eventName: string,
+  properties?: Record<string, unknown>,
+  options?: VoidhashTrackOptions,
+) =>
+  Effect.gen(function* track() {
+    const analyticsService = yield* AnalyticsService;
+    const queueLength = yield* analyticsService.enqueue(eventName, properties, options);
+    if (queueLength !== undefined && queueLength >= 20) {
+      yield* analyticsService.flush();
     }
+  });
 
-    const queueSize = await this.analyticsQueue.size();
-    if (queueSize >= this.config.analytics.maxBatchSize) {
-      await this.analyticsDispatcher.flush();
-    }
-  }
+export const getFeatureFlagsEffect = (keys?: string[]) =>
+  Effect.gen(function* getFeatureFlags() {
+    const featureFlags = yield* FeatureFlagService;
+    return yield* featureFlags.getFeatureFlags(keys);
+  });
 
-  private attachBrowserListeners() {
-    if (typeof window === "undefined") {
-      return;
-    }
+export const refreshFeatureFlagsEffect = (keys?: string[]) =>
+  Effect.gen(function* refreshFeatureFlags() {
+    const featureFlags = yield* FeatureFlagService;
+    return yield* featureFlags.refreshFeatureFlags(keys);
+  });
 
-    const onlineHandler = () => {
-      if (this.config.featureFlags.refreshOnOnline) {
-        void this.featureFlags.refreshTrackedKeySets();
-      }
-    };
-    const pageHideHandler = () => {
-      if (this.config.analytics.enabled) {
-        void this.analyticsDispatcher.flush({ force: true, keepalive: true });
-      }
-    };
-    const visibilityHandler = () => {
-      if (
-        this.config.featureFlags.refreshOnVisibility &&
-        typeof document !== "undefined" &&
-        document.visibilityState === "visible"
-      ) {
-        void this.featureFlags.refreshTrackedKeySets();
-      }
-    };
+export const refreshTrackedKeySetsEffect = () =>
+  Effect.gen(function* refreshTrackedKeySets() {
+    const featureFlags = yield* FeatureFlagService;
+    yield* featureFlags.refreshTrackedKeySets();
+  });
 
-    window.addEventListener("online", onlineHandler);
-    window.addEventListener("pagehide", pageHideHandler);
-    if (typeof document !== "undefined") {
-      document.addEventListener("visibilitychange", visibilityHandler);
-    }
+export const flushAnalyticsEffect = () =>
+  Effect.gen(function* flushAnalytics() {
+    const analyticsService = yield* AnalyticsService;
+    return yield* analyticsService.flush();
+  });
 
-    this.listeners.push(() => window.removeEventListener("online", onlineHandler));
-    this.listeners.push(() => window.removeEventListener("pagehide", pageHideHandler));
-    if (typeof document !== "undefined") {
-      this.listeners.push(() =>
-        document.removeEventListener("visibilitychange", visibilityHandler)
-      );
-    }
-  }
+export const startAnalyticsEffect = () =>
+  Effect.gen(function* startAnalytics() {
+    const analyticsService = yield* AnalyticsService;
+    analyticsService.start();
+  });
 
-  private detachBrowserListeners() {
-    for (const cleanup of this.listeners.splice(0)) {
-      cleanup();
-    }
-  }
-}
+export const stopAnalyticsEffect = () =>
+  Effect.gen(function* stopAnalytics() {
+    const analyticsService = yield* AnalyticsService;
+    analyticsService.stop();
+  });
+
+export const flushAnalyticsKeepaliveEffect = () =>
+  Effect.gen(function* flushKeepalive() {
+    const analyticsService = yield* AnalyticsService;
+    return yield* analyticsService.flush({ keepalive: true });
+  });

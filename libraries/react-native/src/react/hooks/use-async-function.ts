@@ -24,7 +24,7 @@ type UseAsyncFunctionReturn<T> = State<T> & {
 
 function useAsyncFunction<T = unknown>(
   asyncFn: () => Promise<T>,
-  options?: UseAsyncFunctionOptions
+  options?: UseAsyncFunctionOptions,
 ): UseAsyncFunctionReturn<T> {
   // Used to prevent state update if the component is unmounted
   const cancelRequest = useRef<boolean>(false);
@@ -78,7 +78,7 @@ function useAsyncFunction<T = unknown>(
 
       dispatch({
         payload: new UnknownVoidhashError(
-          error instanceof Error ? error : new Error(error as string)
+          error instanceof Error ? error : new Error(error as string),
         ),
         type: "error",
       });

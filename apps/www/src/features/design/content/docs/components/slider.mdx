@@ -1,0 +1,105 @@
+---
+title: Slider
+description: An input component for selecting a value from a range.
+---
+
+## Usage
+
+<Preview centered={false}>
+  <Slider defaultValue={[50]} max={100} step={1} className="w-full max-w-md" />
+</Preview>
+
+```tsx
+import { Slider } from "@voidhash/ui";
+
+<Slider defaultValue={[50]} max={100} step={1} />;
+```
+
+## Examples
+
+### Range Slider
+
+<Preview centered={false}>
+  <Slider defaultValue={[25, 75]} max={100} step={1} className="w-full max-w-md" />
+</Preview>
+
+```tsx
+<Slider defaultValue={[25, 75]} max={100} step={1} />
+```
+
+### With Step
+
+<Preview centered={false}>
+  <Slider defaultValue={[50]} max={100} step={10} className="w-full max-w-md" />
+</Preview>
+
+```tsx
+<Slider defaultValue={[50]} max={100} step={10} />
+```
+
+### Disabled
+
+<Preview centered={false}>
+  <Slider defaultValue={[50]} max={100} disabled className="w-full max-w-md" />
+</Preview>
+
+```tsx
+<Slider disabled defaultValue={[50]} />
+```
+
+### Vertical Orientation
+
+<Preview>
+  <Slider defaultValue={[50]} max={100} orientation="vertical" className="h-44" />
+</Preview>
+
+```tsx
+<Slider defaultValue={[50]} orientation="vertical" className="h-44" />
+```
+
+## Props
+
+<TypeTable
+  type={{
+    value: {
+      description: "Controlled value(s)",
+      type: "number[]",
+      default: "undefined",
+    },
+    defaultValue: {
+      description: "Initial value(s)",
+      type: "number[]",
+      default: "[min, max]",
+    },
+    onValueChange: {
+      description: "Callback when value changes",
+      type: "(value: number[]) => void",
+      default: "undefined",
+    },
+    min: {
+      description: "Minimum value",
+      type: "number",
+      default: "0",
+    },
+    max: {
+      description: "Maximum value",
+      type: "number",
+      default: "100",
+    },
+    step: {
+      description: "Step increment",
+      type: "number",
+      default: "1",
+    },
+    orientation: {
+      description: "Slider orientation",
+      type: "'horizontal' | 'vertical'",
+      default: "'horizontal'",
+    },
+    disabled: {
+      description: "Whether the slider is disabled",
+      type: "boolean",
+      default: "false",
+    },
+  }}
+/>

@@ -1,0 +1,42 @@
+name: Feature request
+description: Propose an improvement to the Community product or self-hosting experience.
+title: "feature: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: External pull-request intake is currently closed, but well-scoped product proposals are welcome.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Explain the user problem or operational limitation without prescribing an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+      description: Describe the observable behavior and who benefits.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Intended edition
+      options:
+        - Community
+        - Cloud operations
+        - Enterprise
+        - Unsure
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context

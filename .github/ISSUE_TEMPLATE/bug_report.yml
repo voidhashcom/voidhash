@@ -1,0 +1,75 @@
+name: Bug report
+description: Report a reproducible Community product or self-hosting defect.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security vulnerabilities here. Follow SECURITY.md and use the private reporting channel.
+        Voidhash is currently in private alpha; older commits and unpublished artifacts are unsupported.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Self-host runtime
+        - Backend API
+        - Dashboard or designer
+        - React Native SDK
+        - Web or Node SDK
+        - CLI or Studio
+        - Mimic
+        - Documentation
+        - Other Community package
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest reproducible sequence, project, or repository.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Voidhash revision or package version
+      placeholder: Commit SHA or exact package version
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Node, pnpm, Docker, SDK platform, and relevant provider versions.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or diagnostics
+      description: Remove credentials, personal data, API keys, and customer content.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I reproduced this on the latest preview revision.
+          required: true
+        - label: This report does not contain a vulnerability or sensitive data.
+          required: true

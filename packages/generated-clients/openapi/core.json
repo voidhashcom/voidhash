@@ -1,0 +1,4522 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Api", "version": "0.0.1" },
+  "paths": {
+    "/api/v1/auth/session": {
+      "get": {
+        "tags": ["auth"],
+        "operationId": "auth.session",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "method": {
+                      "anyOf": [
+                        { "type": "string", "enum": ["api-key"] },
+                        { "type": "string", "enum": ["publishable-key"] },
+                        { "type": "string", "enum": ["secret-key"] }
+                      ]
+                    },
+                    "name": { "type": "string" },
+                    "organizations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "slug": { "type": "string" }
+                        },
+                        "required": ["id", "name", "slug"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "projects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "organizationId": { "type": "string" },
+                          "slug": { "type": "string" }
+                        },
+                        "required": ["id", "name", "organizationId", "slug"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["method", "name", "organizations", "projects"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                    { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/api-keys": {
+      "post": {
+        "tags": ["api_keys"],
+        "operationId": "api_keys.createSecretKey",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "ApiKeyWithRawKey",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiKeyWithRawKey" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/ApiKeyServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_ApiKeyServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateSecretKeyBody" } }
+          },
+          "required": true
+        }
+      },
+      "get": {
+        "tags": ["api_keys"],
+        "operationId": "api_keys.listApiKeys",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ApiKey" } }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/ApiKeyServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_ApiKeyServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/api-keys/{apiKeyId}": {
+      "get": {
+        "tags": ["api_keys"],
+        "operationId": "api_keys.getApiKeyById",
+        "parameters": [
+          { "name": "apiKeyId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "ApiKey",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiKey" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/ApiKeyNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ApiKeyNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/ApiKeyServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_ApiKeyServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["api_keys"],
+        "operationId": "api_keys.deleteApiKey",
+        "parameters": [
+          { "name": "apiKeyId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "204": { "description": "<No Content>" },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/ApiKeyNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ApiKeyNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/ApiKeyServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_ApiKeyServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/api-keys/{apiKeyId}/rotate": {
+      "post": {
+        "tags": ["api_keys"],
+        "operationId": "api_keys.rotateSecretKey",
+        "parameters": [
+          { "name": "apiKeyId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "ApiKeyWithRawKey",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiKeyWithRawKey" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/ApiKeyNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ApiKeyNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/ApiKeyServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_ApiKeyServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/persons": {
+      "post": {
+        "tags": ["persons"],
+        "operationId": "persons.createPerson",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Person",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Person" } }
+            }
+          },
+          "400": {
+            "description": "Api/PersonInvalidAnonymousIdError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_PersonInvalidAnonymousIdError" },
+                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PersonServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_PersonServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreatePersonBody" } }
+          },
+          "required": true
+        }
+      },
+      "get": {
+        "tags": ["persons"],
+        "operationId": "persons.listPersons",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Person" } }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PersonServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_PersonServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/persons/{personId}": {
+      "get": {
+        "tags": ["persons"],
+        "operationId": "persons.getPersonById",
+        "parameters": [
+          { "name": "personId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Person",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Person" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/PersonNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_PersonNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PersonServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_PersonServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/persons/by-distinct-id/{distinctId}": {
+      "get": {
+        "tags": ["persons"],
+        "operationId": "persons.getPersonByDistinctId",
+        "parameters": [
+          { "name": "distinctId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Person",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Person" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/PersonNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_PersonNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PersonServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_PersonServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations": {
+      "post": {
+        "tags": ["organizations"],
+        "operationId": "organizations.createOrganization",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Organization",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Organization" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/OrganizationServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_OrganizationServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateOrganizationBody" }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/perks": {
+      "get": {
+        "tags": ["perks"],
+        "operationId": "perks.listPerks",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Perk" } }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PerkServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_PerkServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/paywall-locations": {
+      "get": {
+        "tags": ["paywall_locations"],
+        "operationId": "paywall_locations.listPaywallLocations",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PaywallLocation" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PaywallLocationServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_PaywallLocationServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schema": {
+      "get": {
+        "tags": ["schema"],
+        "operationId": "schema.getSchema",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "ProjectSchemaResponse",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectSchemaResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/SchemaServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_SchemaServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/schema/version": {
+      "get": {
+        "tags": ["schema"],
+        "operationId": "schema.getSchemaVersion",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "SchemaVersion",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SchemaVersion" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/SchemaServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_SchemaServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects": {
+      "post": {
+        "tags": ["projects"],
+        "operationId": "projects.createProject",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Project",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Project" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/AuthenticationError | Api/ProjectServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                    { "$ref": "#/components/schemas/Api_ProjectServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateProjectBody" } }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/projects/{organizationId}": {
+      "get": {
+        "tags": ["projects"],
+        "operationId": "projects.listProjects",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "schema": { "type": "string" },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Project" } }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/ProjectServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_ProjectServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "tags": ["products"],
+        "operationId": "products.listProducts",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/ProductServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_ProductServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-perks/by-product-id/{productId}": {
+      "get": {
+        "tags": ["product_perks"],
+        "operationId": "product_perks.listProductPerksByProductId",
+        "parameters": [
+          { "name": "productId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/ProductPerk" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Api/ProductPerkValidationError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_ProductPerkValidationError" },
+                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/ProductPerkServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_ProductPerkServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sdk/person": {
+      "get": {
+        "tags": ["sdk"],
+        "operationId": "sdk.getPerson",
+        "parameters": [
+          {
+            "name": "x-distinct-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-publishable-key",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-bundle-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-locale",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-client-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-is-backgrounded",
+            "in": "header",
+            "schema": { "type": "string", "enum": ["false"] },
+            "required": true
+          },
+          {
+            "name": "x-is-debug-build",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-nonce",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-observer-mode",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-platform-brand",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-device",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-flavor",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["native"] },
+                { "type": "string", "enum": ["browser"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform-flavor-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-preferred-locales",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-sdk",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["react-native"] },
+                { "type": "string", "enum": ["web"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-sdk-version",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-storefront",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "SdkPerson",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SdkPerson" } }
+            }
+          },
+          "400": {
+            "description": "Api/SdkValidationError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_SdkValidationError" },
+                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/SdkPersonNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_SdkPersonNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/AuthenticationError | Api/SdkServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                    { "$ref": "#/components/schemas/Api_SdkServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sdk/identify": {
+      "post": {
+        "tags": ["sdk"],
+        "operationId": "sdk.identifyPerson",
+        "parameters": [
+          {
+            "name": "x-distinct-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-publishable-key",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-bundle-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-locale",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-client-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-is-backgrounded",
+            "in": "header",
+            "schema": { "type": "string", "enum": ["false"] },
+            "required": true
+          },
+          {
+            "name": "x-is-debug-build",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-nonce",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-observer-mode",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-platform-brand",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-device",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-flavor",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["native"] },
+                { "type": "string", "enum": ["browser"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform-flavor-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-preferred-locales",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-sdk",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["react-native"] },
+                { "type": "string", "enum": ["web"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-sdk-version",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-storefront",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "SdkPerson",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SdkPerson" } }
+            }
+          },
+          "400": {
+            "description": "Api/SdkValidationError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_SdkValidationError" },
+                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/SdkPersonNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_SdkPersonNotFoundError" }
+              }
+            }
+          },
+          "409": {
+            "description": "Api/SdkPersonAlreadyIdentifiedError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_SdkPersonAlreadyIdentifiedError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/AuthenticationError | Api/SdkServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                    { "$ref": "#/components/schemas/Api_SdkServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/SdkIdentifyBody" } }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/sdk/person/traits": {
+      "post": {
+        "tags": ["sdk"],
+        "operationId": "sdk.syncPersonAttributes",
+        "parameters": [
+          {
+            "name": "x-distinct-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-publishable-key",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-bundle-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-locale",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-client-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-is-backgrounded",
+            "in": "header",
+            "schema": { "type": "string", "enum": ["false"] },
+            "required": true
+          },
+          {
+            "name": "x-is-debug-build",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-nonce",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-observer-mode",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-platform-brand",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-device",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-flavor",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["native"] },
+                { "type": "string", "enum": ["browser"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform-flavor-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-preferred-locales",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-sdk",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["react-native"] },
+                { "type": "string", "enum": ["web"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-sdk-version",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-storefront",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "SdkPerson",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SdkPerson" } }
+            }
+          },
+          "400": {
+            "description": "Api/SdkValidationError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_SdkValidationError" },
+                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/SdkPersonNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_SdkPersonNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/AuthenticationError | Api/SdkServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                    { "$ref": "#/components/schemas/Api_SdkServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SdkSyncPersonAttributesBody" }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/sdk/sync-transaction": {
+      "post": {
+        "tags": ["sdk"],
+        "operationId": "sdk.syncTransaction",
+        "parameters": [
+          {
+            "name": "x-distinct-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-publishable-key",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-bundle-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-locale",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-client-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-is-backgrounded",
+            "in": "header",
+            "schema": { "type": "string", "enum": ["false"] },
+            "required": true
+          },
+          {
+            "name": "x-is-debug-build",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-nonce",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-observer-mode",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-platform-brand",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-device",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-flavor",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["native"] },
+                { "type": "string", "enum": ["browser"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform-flavor-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-preferred-locales",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-sdk",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["react-native"] },
+                { "type": "string", "enum": ["web"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-sdk-version",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-storefront",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "SdkSyncTransactionResponse",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SdkSyncTransactionResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Api/SdkValidationError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_SdkValidationError" },
+                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/AuthenticationError | Api/SdkServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                    { "$ref": "#/components/schemas/Api_SdkServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appAccountToken": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+                  "platform": {
+                    "anyOf": [
+                      { "type": "string", "enum": ["ios"] },
+                      { "type": "string", "enum": ["android"] }
+                    ]
+                  },
+                  "providerProductId": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+                  "productSlug": { "type": "string" },
+                  "purchaseDate": {
+                    "anyOf": [
+                      { "type": "number" },
+                      { "type": "string", "enum": ["NaN"] },
+                      { "type": "string", "enum": ["Infinity"] },
+                      { "type": "string", "enum": ["-Infinity"] }
+                    ]
+                  },
+                  "purchaseToken": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+                  "quantity": {
+                    "anyOf": [
+                      { "type": "number" },
+                      { "type": "string", "enum": ["NaN"] },
+                      { "type": "string", "enum": ["Infinity"] },
+                      { "type": "string", "enum": ["-Infinity"] }
+                    ]
+                  },
+                  "receipt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+                  "transactionId": { "type": "string" }
+                },
+                "required": [
+                  "platform",
+                  "productSlug",
+                  "purchaseDate",
+                  "quantity",
+                  "transactionId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/sdk/evaluate-flags": {
+      "post": {
+        "tags": ["sdk"],
+        "operationId": "sdk.evaluateFeatureFlags",
+        "parameters": [
+          {
+            "name": "x-distinct-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-publishable-key",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-bundle-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-locale",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-client-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-is-backgrounded",
+            "in": "header",
+            "schema": { "type": "string", "enum": ["false"] },
+            "required": true
+          },
+          {
+            "name": "x-is-debug-build",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-nonce",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-observer-mode",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-platform-brand",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-device",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-flavor",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["native"] },
+                { "type": "string", "enum": ["browser"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform-flavor-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-preferred-locales",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-sdk",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["react-native"] },
+                { "type": "string", "enum": ["web"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-sdk-version",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-storefront",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "SdkFeatureFlagsResponse",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SdkFeatureFlagsResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/AuthenticationError | Api/SdkServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                    { "$ref": "#/components/schemas/Api_SdkServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/EvaluateFeatureFlagsBody" }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/sdk/resolve-paywall": {
+      "post": {
+        "tags": ["sdk"],
+        "operationId": "sdk.resolvePaywall",
+        "parameters": [
+          {
+            "name": "x-distinct-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-publishable-key",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-bundle-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-locale",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-client-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-is-backgrounded",
+            "in": "header",
+            "schema": { "type": "string", "enum": ["false"] },
+            "required": true
+          },
+          {
+            "name": "x-is-debug-build",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-nonce",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-observer-mode",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-platform-brand",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-device",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-flavor",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["native"] },
+                { "type": "string", "enum": ["browser"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform-flavor-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-preferred-locales",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-sdk",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["react-native"] },
+                { "type": "string", "enum": ["web"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-sdk-version",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-storefront",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/SdkResolvedPaywall" },
+                    { "type": "null" }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Api/SdkValidationError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_SdkValidationError" },
+                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/AuthenticationError | Api/SdkServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                    { "$ref": "#/components/schemas/Api_SdkServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SdkResolvePaywallBody" }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/sdk/schema": {
+      "get": {
+        "tags": ["sdk"],
+        "operationId": "sdk.getSchema",
+        "parameters": [
+          {
+            "name": "x-distinct-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-publishable-key",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-bundle-id",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-client-locale",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-client-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-is-backgrounded",
+            "in": "header",
+            "schema": { "type": "string", "enum": ["false"] },
+            "required": true
+          },
+          {
+            "name": "x-is-debug-build",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-nonce",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-observer-mode",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["true"] },
+                { "type": "string", "enum": ["false"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-platform-brand",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-device",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-flavor",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["native"] },
+                { "type": "string", "enum": ["browser"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-platform-flavor-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-platform-version",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-preferred-locales",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          },
+          {
+            "name": "x-sdk",
+            "in": "header",
+            "schema": {
+              "anyOf": [
+                { "type": "string", "enum": ["react-native"] },
+                { "type": "string", "enum": ["web"] }
+              ]
+            },
+            "required": true
+          },
+          {
+            "name": "x-sdk-version",
+            "in": "header",
+            "schema": { "type": "string" },
+            "required": true
+          },
+          {
+            "name": "x-storefront",
+            "in": "header",
+            "schema": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "required": false
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "SdkSchema",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/SdkSchema" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/AuthenticationError | Api/SchemaServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                    { "$ref": "#/components/schemas/Api_SchemaServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/current": {
+      "get": {
+        "tags": ["users"],
+        "operationId": "users.getUser",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "User",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/AuthenticationError | Api/UserServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                    { "$ref": "#/components/schemas/Api_UserServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payment-provider-configurations": {
+      "get": {
+        "tags": ["payment_provider_configurations"],
+        "operationId": "payment_provider_configurations.listPaymentProviderConfigurations",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PaymentProviderConfiguration" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PaymentProviderConfigurationServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_PaymentProviderConfigurationServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payment-provider-products": {
+      "get": {
+        "tags": ["payment_provider_products"],
+        "operationId": "payment_provider_products.listPaymentProviderProducts",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PaymentProviderProduct" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/PaymentProviderProductServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_PaymentProviderProductServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/endpoints": {
+      "post": {
+        "tags": ["webhooks"],
+        "operationId": "webhooks.createWebhookEndpoint",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "WebhookEndpoint",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WebhookEndpoint" } }
+            }
+          },
+          "400": {
+            "description": "Api/WebhookValidationError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookValidationError" },
+                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/WebhookServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateWebhookEndpointBody" }
+            }
+          },
+          "required": true
+        }
+      },
+      "get": {
+        "tags": ["webhooks"],
+        "operationId": "webhooks.listWebhookEndpoints",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/WebhookEndpoint" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/WebhookServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/endpoints/{endpointId}": {
+      "get": {
+        "tags": ["webhooks"],
+        "operationId": "webhooks.getWebhookEndpoint",
+        "parameters": [
+          { "name": "endpointId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "WebhookEndpoint",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WebhookEndpoint" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/WebhookEndpointNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_WebhookEndpointNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/WebhookServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["webhooks"],
+        "operationId": "webhooks.updateWebhookEndpoint",
+        "parameters": [
+          { "name": "endpointId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "WebhookEndpoint",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WebhookEndpoint" } }
+            }
+          },
+          "400": {
+            "description": "Api/WebhookValidationError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookValidationError" },
+                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/WebhookEndpointNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_WebhookEndpointNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/WebhookServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateWebhookEndpointBody" }
+            }
+          },
+          "required": true
+        }
+      },
+      "delete": {
+        "tags": ["webhooks"],
+        "operationId": "webhooks.deleteWebhookEndpoint",
+        "parameters": [
+          { "name": "endpointId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "204": { "description": "<No Content>" },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/WebhookEndpointNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_WebhookEndpointNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/WebhookServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/endpoints/{endpointId}/rotate-secret": {
+      "post": {
+        "tags": ["webhooks"],
+        "operationId": "webhooks.rotateWebhookSecret",
+        "parameters": [
+          { "name": "endpointId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "WebhookEndpoint",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WebhookEndpoint" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/WebhookEndpointNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_WebhookEndpointNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/WebhookServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/endpoints/{endpointId}/test": {
+      "post": {
+        "tags": ["webhooks"],
+        "operationId": "webhooks.testWebhookEndpoint",
+        "parameters": [
+          { "name": "endpointId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "WebhookDelivery",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WebhookDelivery" } }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/WebhookEndpointNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_WebhookEndpointNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/WebhookServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/deliveries": {
+      "get": {
+        "tags": ["webhooks"],
+        "operationId": "webhooks.listWebhookDeliveries",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/WebhookDelivery" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/WebhookServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/deliveries/{deliveryId}": {
+      "get": {
+        "tags": ["webhooks"],
+        "operationId": "webhooks.getWebhookDelivery",
+        "parameters": [
+          { "name": "deliveryId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "WebhookDeliveryWithAttempts",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WebhookDeliveryWithAttempts" }
+              }
+            }
+          },
+          "400": {
+            "description": "The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/WebhookDeliveryNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_WebhookDeliveryNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/WebhookServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/deliveries/{deliveryId}/retry": {
+      "post": {
+        "tags": ["webhooks"],
+        "operationId": "webhooks.retryWebhookDelivery",
+        "parameters": [
+          { "name": "deliveryId", "in": "path", "schema": { "type": "string" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "WebhookDelivery",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/WebhookDelivery" } }
+            }
+          },
+          "400": {
+            "description": "Api/WebhookValidationError | The request or response did not match the expected schema",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookValidationError" },
+                    { "$ref": "#/components/schemas/effect_HttpApiSchemaError" }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Api/ActionForbiddenError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_ActionForbiddenError" }
+              }
+            }
+          },
+          "404": {
+            "description": "Api/WebhookDeliveryNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Api_WebhookDeliveryNotFoundError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Api/WebhookServiceError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/Api_WebhookServiceError" },
+                    {
+                      "anyOf": [
+                        { "$ref": "#/components/schemas/Api_AuthenticationError" },
+                        { "$ref": "#/components/schemas/Api_NotAuthenticatedError" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Api_ActionForbiddenError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/ActionForbiddenError"] },
+          "message": { "type": "string" }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "Api_AuthenticationError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/AuthenticationError"] },
+          "cause": { "type": "string" },
+          "message": { "type": "string" }
+        },
+        "required": ["_tag", "cause", "message"],
+        "additionalProperties": false
+      },
+      "Api_NotAuthenticatedError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/NotAuthenticatedError"] },
+          "message": { "type": "string" }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "effect_HttpApiSchemaError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["HttpApiSchemaError"] },
+          "message": { "type": "string" }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "CreateSecretKeyBody": {
+        "type": "object",
+        "properties": { "name": { "type": "string" }, "projectId": { "type": "string" } },
+        "required": ["name", "projectId"],
+        "additionalProperties": false
+      },
+      "ApiKeyWithRawKey": {
+        "type": "object",
+        "properties": {
+          "end": { "type": "string" },
+          "id": { "type": "string" },
+          "isPublic": { "type": "boolean" },
+          "name": { "type": "string" },
+          "prefix": { "type": "string" },
+          "projectId": { "type": "string" },
+          "rawKey": { "type": "string" }
+        },
+        "required": ["end", "id", "isPublic", "name", "prefix", "projectId", "rawKey"],
+        "additionalProperties": false
+      },
+      "Api_ApiKeyServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/ApiKeyServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "ApiKey": {
+        "type": "object",
+        "properties": {
+          "end": { "type": "string" },
+          "id": { "type": "string" },
+          "isPublic": { "type": "boolean" },
+          "name": { "type": "string" },
+          "prefix": { "type": "string" },
+          "projectId": { "type": "string" },
+          "rawKey": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+        },
+        "required": ["end", "id", "isPublic", "name", "prefix", "projectId"],
+        "additionalProperties": false
+      },
+      "Api_ApiKeyNotFoundError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/ApiKeyNotFoundError"] },
+          "message": { "type": "string" }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "CreatePersonBody": {
+        "type": "object",
+        "properties": {
+          "distinctId": { "type": "string" },
+          "email": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "name": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+        },
+        "required": ["distinctId"],
+        "additionalProperties": false
+      },
+      "Person": {
+        "type": "object",
+        "properties": {
+          "personId": { "type": "string" },
+          "distinctId": { "type": "string" },
+          "email": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "name": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+        },
+        "required": ["personId", "distinctId", "email", "name"],
+        "additionalProperties": false
+      },
+      "Api_PersonInvalidAnonymousIdError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/PersonInvalidAnonymousIdError"] },
+          "id": { "type": "string", "allOf": [{ "minLength": 1 }] }
+        },
+        "required": ["_tag", "id"],
+        "additionalProperties": false
+      },
+      "Api_PersonServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/PersonServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "Api_PersonNotFoundError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/PersonNotFoundError"] },
+          "id": { "type": "string", "allOf": [{ "minLength": 1 }] }
+        },
+        "required": ["_tag", "id"],
+        "additionalProperties": false
+      },
+      "CreateOrganizationBody": {
+        "type": "object",
+        "properties": { "name": { "type": "string" } },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "Organization": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "slug": { "type": "string" }
+        },
+        "required": ["id", "name", "slug"],
+        "additionalProperties": false
+      },
+      "Api_OrganizationServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/OrganizationServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "Perk": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "projectId": { "type": "string" },
+          "slug": { "type": "string" }
+        },
+        "required": ["id", "name", "projectId", "slug"],
+        "additionalProperties": false
+      },
+      "Api_PerkServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/PerkServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "PaywallLocation": {
+        "type": "object",
+        "properties": {
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "projectId": { "type": "string" },
+          "slug": { "type": "string" }
+        },
+        "required": ["description", "id", "name", "projectId", "slug"],
+        "additionalProperties": false
+      },
+      "Api_PaywallLocationServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/PaywallLocationServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "SchemaLocation": {
+        "type": "object",
+        "properties": {
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "name": { "type": "string" },
+          "slug": { "type": "string" }
+        },
+        "required": ["description", "name", "slug"],
+        "additionalProperties": false
+      },
+      "SchemaPerk": {
+        "type": "object",
+        "properties": { "name": { "type": "string" }, "slug": { "type": "string" } },
+        "required": ["name", "slug"],
+        "additionalProperties": false
+      },
+      "SchemaProductProvider": {
+        "type": "object",
+        "properties": {
+          "configuration": { "type": "object", "additionalProperties": { "type": "null" } },
+          "providerId": {
+            "anyOf": [
+              { "type": "string", "enum": ["appleAppStore"] },
+              { "type": "string", "enum": ["googlePlay"] }
+            ]
+          }
+        },
+        "required": ["configuration", "providerId"],
+        "additionalProperties": false
+      },
+      "SchemaProduct": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "perks": { "type": "array", "items": { "type": "string" } },
+          "providers": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SchemaProductProvider" }
+          },
+          "slug": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["subscription", "one-time", "one-time-consumable"]
+          }
+        },
+        "required": ["name", "perks", "providers", "slug", "type"],
+        "additionalProperties": false
+      },
+      "ProjectSchemaResponse": {
+        "type": "object",
+        "properties": {
+          "enabledProviders": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                { "type": "string", "enum": ["appleAppStore"] },
+                { "type": "string", "enum": ["googlePlay"] }
+              ]
+            }
+          },
+          "locations": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SchemaLocation" }
+          },
+          "perks": { "type": "array", "items": { "$ref": "#/components/schemas/SchemaPerk" } },
+          "products": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SchemaProduct" }
+          },
+          "version": { "type": "string" }
+        },
+        "required": ["enabledProviders", "locations", "perks", "products", "version"],
+        "additionalProperties": false
+      },
+      "Api_SchemaServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/SchemaServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "SchemaVersion": {
+        "type": "object",
+        "properties": { "version": { "type": "string" } },
+        "required": ["version"],
+        "additionalProperties": false
+      },
+      "CreateProjectBody": {
+        "type": "object",
+        "properties": { "name": { "type": "string" }, "organizationId": { "type": "string" } },
+        "required": ["name", "organizationId"],
+        "additionalProperties": false
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "slug": { "type": "string" }
+        },
+        "required": ["id", "name", "slug"],
+        "additionalProperties": false
+      },
+      "Api_ProjectServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/ProjectServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "projectId": { "type": "string" },
+          "slug": { "type": "string" },
+          "type": {
+            "anyOf": [
+              { "type": "string", "enum": ["subscription"] },
+              { "type": "string", "enum": ["one-time"] },
+              { "type": "string", "enum": ["one-time-consumable"] }
+            ]
+          }
+        },
+        "required": ["id", "name", "projectId", "slug", "type"],
+        "additionalProperties": false
+      },
+      "Api_ProductServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/ProductServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "ProductPerk": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "perkId": { "type": "string" },
+          "productId": { "type": "string" }
+        },
+        "required": ["id", "perkId", "productId"],
+        "additionalProperties": false
+      },
+      "Api_ProductPerkServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/ProductPerkServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "Api_ProductPerkValidationError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/ProductPerkValidationError"] },
+          "message": { "type": "string" }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "SdkEntitlementGrant": {
+        "type": "object",
+        "properties": {
+          "expiresAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "perkId": { "type": "string" },
+          "source": {
+            "anyOf": [
+              { "type": "string", "enum": ["subscription"] },
+              { "type": "string", "enum": ["purchase"] },
+              { "type": "string", "enum": ["manual"] }
+            ]
+          },
+          "sourceId": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "sourcePersonId": { "type": "string" },
+          "status": {
+            "anyOf": [
+              { "type": "string", "enum": ["active"] },
+              { "type": "string", "enum": ["expired"] }
+            ]
+          }
+        },
+        "required": ["expiresAt", "perkId", "source", "sourceId", "sourcePersonId", "status"],
+        "additionalProperties": false
+      },
+      "SdkPurchaseHistoryEntry": {
+        "type": "object",
+        "properties": {
+          "createdAt": { "type": "string" },
+          "productId": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "providerKey": { "type": "string" },
+          "purchaseId": { "type": "string" },
+          "sourcePersonId": { "type": "string" },
+          "type": {
+            "anyOf": [
+              { "type": "string", "enum": ["one_time"] },
+              { "type": "string", "enum": ["subscription"] }
+            ]
+          }
+        },
+        "required": [
+          "createdAt",
+          "productId",
+          "providerKey",
+          "purchaseId",
+          "sourcePersonId",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "SdkCurrentSubscription": {
+        "type": "object",
+        "properties": {
+          "expiresAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "productId": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "status": {
+            "anyOf": [
+              { "type": "string", "enum": ["none"] },
+              { "type": "string", "enum": ["active"] },
+              { "type": "string", "enum": ["canceled"] },
+              { "type": "string", "enum": ["past_due"] },
+              { "type": "string", "enum": ["trialing"] }
+            ]
+          },
+          "subscriptionId": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+        },
+        "required": ["expiresAt", "productId", "status", "subscriptionId"],
+        "additionalProperties": false
+      },
+      "SdkSubscriptionHistoryEntry": {
+        "type": "object",
+        "properties": {
+          "canceledAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "expiresAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "isTrial": { "type": "boolean" },
+          "productId": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "sourcePersonId": { "type": "string" },
+          "startsAt": { "type": "string" },
+          "status": {
+            "anyOf": [
+              { "type": "string", "enum": ["active"] },
+              { "type": "string", "enum": ["canceled"] },
+              { "type": "string", "enum": ["expired"] },
+              { "type": "string", "enum": ["trialing"] },
+              { "type": "string", "enum": ["past_due"] }
+            ]
+          },
+          "subscriptionId": { "type": "string" }
+        },
+        "required": [
+          "canceledAt",
+          "expiresAt",
+          "isTrial",
+          "productId",
+          "sourcePersonId",
+          "startsAt",
+          "status",
+          "subscriptionId"
+        ],
+        "additionalProperties": false
+      },
+      "SdkPerson": {
+        "type": "object",
+        "properties": {
+          "distinctId": { "type": "string" },
+          "email": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "entitlements": {
+            "type": "object",
+            "properties": {
+              "grants": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/SdkEntitlementGrant" }
+              }
+            },
+            "required": ["grants"],
+            "additionalProperties": false
+          },
+          "name": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "personId": { "type": "string" },
+          "purchases": {
+            "type": "object",
+            "properties": {
+              "history": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/SdkPurchaseHistoryEntry" }
+              }
+            },
+            "required": ["history"],
+            "additionalProperties": false
+          },
+          "snapshotContext": {
+            "type": "object",
+            "properties": {
+              "includedPersonIds": { "type": "array", "items": { "type": "string" } },
+              "migrationJobId": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+              "mode": {
+                "anyOf": [
+                  { "type": "string", "enum": ["persisted"] },
+                  { "type": "string", "enum": ["temporary_pending_transfer"] }
+                ]
+              }
+            },
+            "required": ["includedPersonIds", "migrationJobId", "mode"],
+            "additionalProperties": false
+          },
+          "subscriptions": {
+            "type": "object",
+            "properties": {
+              "current": {
+                "anyOf": [
+                  { "$ref": "#/components/schemas/SdkCurrentSubscription" },
+                  { "type": "null" }
+                ]
+              },
+              "history": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/SdkSubscriptionHistoryEntry" }
+              }
+            },
+            "required": ["current", "history"],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "distinctId",
+          "email",
+          "entitlements",
+          "name",
+          "personId",
+          "purchases",
+          "snapshotContext",
+          "subscriptions"
+        ],
+        "additionalProperties": false
+      },
+      "Api_SdkServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/SdkServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "Api_SdkPersonNotFoundError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/SdkPersonNotFoundError"] },
+          "message": { "type": "string" }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "Api_SdkValidationError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/SdkValidationError"] },
+          "message": { "type": "string" }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "SdkIdentifyBody": {
+        "type": "object",
+        "properties": {
+          "distinctId": { "type": "string" },
+          "email": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "name": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "traits": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    { "type": "string" },
+                    {
+                      "anyOf": [
+                        { "type": "number" },
+                        { "type": "string", "enum": ["NaN"] },
+                        { "type": "string", "enum": ["Infinity"] },
+                        { "type": "string", "enum": ["-Infinity"] }
+                      ]
+                    },
+                    { "type": "boolean" },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              { "type": "null" }
+            ]
+          }
+        },
+        "required": ["distinctId"],
+        "additionalProperties": false
+      },
+      "Api_SdkPersonAlreadyIdentifiedError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/SdkPersonAlreadyIdentifiedError"] },
+          "distinctId": { "type": "string" }
+        },
+        "required": ["_tag", "distinctId"],
+        "additionalProperties": false
+      },
+      "SdkSyncPersonAttributesBody": {
+        "type": "object",
+        "properties": {
+          "email": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "name": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "traits": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    { "type": "string" },
+                    {
+                      "anyOf": [
+                        { "type": "number" },
+                        { "type": "string", "enum": ["NaN"] },
+                        { "type": "string", "enum": ["Infinity"] },
+                        { "type": "string", "enum": ["-Infinity"] }
+                      ]
+                    },
+                    { "type": "boolean" },
+                    { "type": "null" }
+                  ]
+                }
+              },
+              { "type": "null" }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "SdkSyncTransactionResponse": {
+        "type": "object",
+        "properties": { "accepted": { "type": "boolean" } },
+        "required": ["accepted"],
+        "additionalProperties": false
+      },
+      "EvaluateFeatureFlagsBody": {
+        "type": "object",
+        "properties": {
+          "flagKeys": {
+            "anyOf": [{ "type": "array", "items": { "type": "string" } }, { "type": "null" }]
+          }
+        },
+        "additionalProperties": false
+      },
+      "SdkFeatureFlagResult": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "key": { "type": "string" },
+          "payload": { "anyOf": [{ "type": "null" }, { "type": "null" }] },
+          "variantKey": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+        },
+        "required": ["enabled", "key", "payload", "variantKey"],
+        "additionalProperties": false
+      },
+      "SdkFeatureFlagsResponse": {
+        "type": "object",
+        "properties": {
+          "flags": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SdkFeatureFlagResult" }
+          }
+        },
+        "required": ["flags"],
+        "additionalProperties": false
+      },
+      "SdkResolvePaywallBody": {
+        "type": "object",
+        "properties": { "locationSlug": { "type": "string" } },
+        "required": ["locationSlug"],
+        "additionalProperties": false
+      },
+      "SdkResolvedPaywallShowing": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "paywall": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "name": { "type": "string" },
+                  "slug": { "type": "string" }
+                },
+                "required": ["id", "name", "slug"],
+                "additionalProperties": false
+              },
+              { "type": "null" }
+            ]
+          },
+          "paywallId": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "paywallRelease": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "htmlUrl": { "type": "string" },
+                  "publishedAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+                  "releaseId": { "type": "string" },
+                  "version": {
+                    "anyOf": [
+                      { "type": "number" },
+                      { "type": "string", "enum": ["NaN"] },
+                      { "type": "string", "enum": ["Infinity"] },
+                      { "type": "string", "enum": ["-Infinity"] }
+                    ]
+                  }
+                },
+                "required": ["htmlUrl", "publishedAt", "releaseId", "version"],
+                "additionalProperties": false
+              },
+              { "type": "null" }
+            ]
+          },
+          "paywallReleaseId": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "startedAt": { "type": "string" },
+          "type": {
+            "anyOf": [
+              { "type": "string", "enum": ["paywall_release"] },
+              { "type": "string", "enum": ["feature_flag"] }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "paywall",
+          "paywallId",
+          "paywallRelease",
+          "paywallReleaseId",
+          "startedAt",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "SdkResolvedPaywall": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "slug": { "type": "string" }
+            },
+            "required": ["id", "name", "slug"],
+            "additionalProperties": false
+          },
+          "showing": { "$ref": "#/components/schemas/SdkResolvedPaywallShowing" }
+        },
+        "required": ["location", "showing"],
+        "additionalProperties": false
+      },
+      "SdkSchemaLocation": {
+        "type": "object",
+        "properties": {
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "name": { "type": "string" },
+          "slug": { "type": "string" }
+        },
+        "required": ["description", "name", "slug"],
+        "additionalProperties": false
+      },
+      "SdkSchemaPerk": {
+        "type": "object",
+        "properties": { "name": { "type": "string" }, "slug": { "type": "string" } },
+        "required": ["name", "slug"],
+        "additionalProperties": false
+      },
+      "SdkSchemaProduct": {
+        "type": "object",
+        "properties": {
+          "configuration": {
+            "type": "object",
+            "properties": {
+              "perks": {
+                "type": "object",
+                "additionalProperties": { "type": "boolean", "enum": [true] }
+              },
+              "providers": {
+                "type": "object",
+                "properties": {
+                  "appleAppStore": {
+                    "anyOf": [
+                      { "type": "object", "additionalProperties": { "type": "null" } },
+                      { "type": "null" }
+                    ]
+                  },
+                  "googlePlay": {
+                    "anyOf": [
+                      { "type": "object", "additionalProperties": { "type": "null" } },
+                      { "type": "null" }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": ["perks", "providers"],
+            "additionalProperties": false
+          },
+          "properties": {
+            "type": "object",
+            "properties": { "name": { "type": "string" } },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          "slug": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["subscription", "one-time", "one-time-consumable"]
+          }
+        },
+        "required": ["configuration", "properties", "slug", "type"],
+        "additionalProperties": false
+      },
+      "SdkSchema": {
+        "type": "object",
+        "properties": {
+          "locations": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/SdkSchemaLocation" }
+          },
+          "perks": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/SdkSchemaPerk" }
+          },
+          "products": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/SdkSchemaProduct" }
+          },
+          "version": { "type": "string" }
+        },
+        "required": ["locations", "perks", "products", "version"],
+        "additionalProperties": false
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "createdAt": { "type": "string" },
+          "email": { "type": "string" },
+          "emailVerified": { "type": "boolean" },
+          "id": { "type": "string" },
+          "image": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "name": { "type": "string" },
+          "organizations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "logo": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+                "name": { "type": "string" },
+                "slug": { "type": "string" }
+              },
+              "required": ["id", "logo", "name", "slug"],
+              "additionalProperties": false
+            }
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "logo": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+                "name": { "type": "string" },
+                "organizationId": { "type": "string" },
+                "slug": { "type": "string" }
+              },
+              "required": ["id", "logo", "name", "organizationId", "slug"],
+              "additionalProperties": false
+            }
+          },
+          "updatedAt": { "type": "string" }
+        },
+        "required": [
+          "createdAt",
+          "email",
+          "emailVerified",
+          "id",
+          "image",
+          "name",
+          "organizations",
+          "projects",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "Api_UserServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/UserServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "PaymentProviderConfiguration": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "projectId": { "type": "string" },
+          "providerId": { "type": "string" }
+        },
+        "required": ["enabled", "id", "name", "projectId", "providerId"],
+        "additionalProperties": false
+      },
+      "Api_PaymentProviderConfigurationServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/PaymentProviderConfigurationServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "PaymentProviderProduct": {
+        "type": "object",
+        "properties": {
+          "configuration": { "type": "object", "additionalProperties": { "type": "null" } },
+          "id": { "type": "string" },
+          "paymentProviderConfigurationId": { "type": "string" },
+          "productId": { "type": "string" },
+          "providerId": { "type": "string" }
+        },
+        "required": [
+          "configuration",
+          "id",
+          "paymentProviderConfigurationId",
+          "productId",
+          "providerId"
+        ],
+        "additionalProperties": false
+      },
+      "Api_PaymentProviderProductServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/PaymentProviderProductServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "CreateWebhookEndpointBody": {
+        "type": "object",
+        "properties": {
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "events": { "type": "array", "items": { "type": "string" } },
+          "name": { "type": "string" },
+          "url": { "type": "string" }
+        },
+        "required": ["events", "name", "url"],
+        "additionalProperties": false
+      },
+      "WebhookEndpoint": {
+        "type": "object",
+        "properties": {
+          "consecutiveFailures": {
+            "anyOf": [
+              { "type": "number" },
+              { "type": "string", "enum": ["NaN"] },
+              { "type": "string", "enum": ["Infinity"] },
+              { "type": "string", "enum": ["-Infinity"] }
+            ]
+          },
+          "createdAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "events": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                { "type": "string", "enum": ["person.created"] },
+                { "type": "string", "enum": ["person.updated"] },
+                { "type": "string", "enum": ["person.deleted"] },
+                { "type": "string", "enum": ["subscription.created"] },
+                { "type": "string", "enum": ["subscription.renewed"] },
+                { "type": "string", "enum": ["subscription.cancelled"] },
+                { "type": "string", "enum": ["subscription.expired"] },
+                { "type": "string", "enum": ["purchase.completed"] },
+                { "type": "string", "enum": ["purchase.refunded"] }
+              ]
+            }
+          },
+          "id": { "type": "string" },
+          "lastSuccessAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "name": { "type": "string" },
+          "projectId": { "type": "string" },
+          "secret": { "type": "string" },
+          "status": {
+            "anyOf": [
+              { "type": "string", "enum": ["active"] },
+              { "type": "string", "enum": ["disabled"] },
+              { "type": "string", "enum": ["failed"] }
+            ]
+          },
+          "url": { "type": "string" }
+        },
+        "required": [
+          "consecutiveFailures",
+          "createdAt",
+          "description",
+          "events",
+          "id",
+          "lastSuccessAt",
+          "name",
+          "projectId",
+          "secret",
+          "status",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "Api_WebhookValidationError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/WebhookValidationError"] },
+          "message": { "type": "string" }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "Api_WebhookServiceError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/WebhookServiceError"] },
+          "cause": { "type": "string" }
+        },
+        "required": ["_tag", "cause"],
+        "additionalProperties": false
+      },
+      "Api_WebhookEndpointNotFoundError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/WebhookEndpointNotFoundError"] },
+          "endpointId": { "type": "string" }
+        },
+        "required": ["_tag", "endpointId"],
+        "additionalProperties": false
+      },
+      "UpdateWebhookEndpointBody": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "anyOf": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }, { "type": "null" }]
+          },
+          "events": {
+            "anyOf": [{ "type": "array", "items": { "type": "string" } }, { "type": "null" }]
+          },
+          "name": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "status": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  { "type": "string", "enum": ["active"] },
+                  { "type": "string", "enum": ["disabled"] }
+                ]
+              },
+              { "type": "null" }
+            ]
+          },
+          "url": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+        },
+        "additionalProperties": false
+      },
+      "WebhookDelivery": {
+        "type": "object",
+        "properties": {
+          "attemptCount": {
+            "anyOf": [
+              { "type": "number" },
+              { "type": "string", "enum": ["NaN"] },
+              { "type": "string", "enum": ["Infinity"] },
+              { "type": "string", "enum": ["-Infinity"] }
+            ]
+          },
+          "completedAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "createdAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "eventOccurredAt": { "type": "string" },
+          "eventType": { "type": "string" },
+          "id": { "type": "string" },
+          "maxAttempts": {
+            "anyOf": [
+              { "type": "number" },
+              { "type": "string", "enum": ["NaN"] },
+              { "type": "string", "enum": ["Infinity"] },
+              { "type": "string", "enum": ["-Infinity"] }
+            ]
+          },
+          "nextAttemptAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "payload": { "type": "null" },
+          "projectId": { "type": "string" },
+          "status": {
+            "anyOf": [
+              { "type": "string", "enum": ["pending"] },
+              { "type": "string", "enum": ["in_progress"] },
+              { "type": "string", "enum": ["succeeded"] },
+              { "type": "string", "enum": ["failed"] },
+              { "type": "string", "enum": ["exhausted"] }
+            ]
+          },
+          "webhookEndpointId": { "type": "string" }
+        },
+        "required": [
+          "attemptCount",
+          "completedAt",
+          "createdAt",
+          "eventOccurredAt",
+          "eventType",
+          "id",
+          "maxAttempts",
+          "nextAttemptAt",
+          "payload",
+          "projectId",
+          "status",
+          "webhookEndpointId"
+        ],
+        "additionalProperties": false
+      },
+      "WebhookDeliveryAttempt": {
+        "type": "object",
+        "properties": {
+          "attemptNumber": {
+            "anyOf": [
+              { "type": "number" },
+              { "type": "string", "enum": ["NaN"] },
+              { "type": "string", "enum": ["Infinity"] },
+              { "type": "string", "enum": ["-Infinity"] }
+            ]
+          },
+          "createdAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "durationMs": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  { "type": "number" },
+                  { "type": "string", "enum": ["NaN"] },
+                  { "type": "string", "enum": ["Infinity"] },
+                  { "type": "string", "enum": ["-Infinity"] }
+                ]
+              },
+              { "type": "null" }
+            ]
+          },
+          "errorMessage": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "id": { "type": "string" },
+          "responseBody": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "statusCode": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  { "type": "number" },
+                  { "type": "string", "enum": ["NaN"] },
+                  { "type": "string", "enum": ["Infinity"] },
+                  { "type": "string", "enum": ["-Infinity"] }
+                ]
+              },
+              { "type": "null" }
+            ]
+          },
+          "succeeded": { "type": "boolean" }
+        },
+        "required": [
+          "attemptNumber",
+          "createdAt",
+          "durationMs",
+          "errorMessage",
+          "id",
+          "responseBody",
+          "statusCode",
+          "succeeded"
+        ],
+        "additionalProperties": false
+      },
+      "WebhookDeliveryWithAttempts": {
+        "type": "object",
+        "properties": {
+          "attemptCount": {
+            "anyOf": [
+              { "type": "number" },
+              { "type": "string", "enum": ["NaN"] },
+              { "type": "string", "enum": ["Infinity"] },
+              { "type": "string", "enum": ["-Infinity"] }
+            ]
+          },
+          "attempts": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WebhookDeliveryAttempt" }
+          },
+          "completedAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "createdAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "eventOccurredAt": { "type": "string" },
+          "eventType": { "type": "string" },
+          "id": { "type": "string" },
+          "maxAttempts": {
+            "anyOf": [
+              { "type": "number" },
+              { "type": "string", "enum": ["NaN"] },
+              { "type": "string", "enum": ["Infinity"] },
+              { "type": "string", "enum": ["-Infinity"] }
+            ]
+          },
+          "nextAttemptAt": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "payload": { "type": "null" },
+          "projectId": { "type": "string" },
+          "status": {
+            "anyOf": [
+              { "type": "string", "enum": ["pending"] },
+              { "type": "string", "enum": ["in_progress"] },
+              { "type": "string", "enum": ["succeeded"] },
+              { "type": "string", "enum": ["failed"] },
+              { "type": "string", "enum": ["exhausted"] }
+            ]
+          },
+          "webhookEndpointId": { "type": "string" }
+        },
+        "required": [
+          "attemptCount",
+          "attempts",
+          "completedAt",
+          "createdAt",
+          "eventOccurredAt",
+          "eventType",
+          "id",
+          "maxAttempts",
+          "nextAttemptAt",
+          "payload",
+          "projectId",
+          "status",
+          "webhookEndpointId"
+        ],
+        "additionalProperties": false
+      },
+      "Api_WebhookDeliveryNotFoundError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["Api/WebhookDeliveryNotFoundError"] },
+          "deliveryId": { "type": "string" }
+        },
+        "required": ["_tag", "deliveryId"],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {}
+  },
+  "security": [],
+  "tags": [
+    { "name": "auth" },
+    { "name": "api_keys" },
+    { "name": "persons" },
+    { "name": "organizations" },
+    { "name": "perks" },
+    { "name": "paywall_locations" },
+    { "name": "schema" },
+    { "name": "projects" },
+    { "name": "products" },
+    { "name": "product_perks" },
+    { "name": "sdk" },
+    { "name": "users" },
+    { "name": "payment_provider_configurations" },
+    { "name": "payment_provider_products" },
+    { "name": "webhooks" }
+  ]
+}

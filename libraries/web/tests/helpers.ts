@@ -9,11 +9,13 @@ export interface FetchCall {
 
 export const createJsonResponse = (
   body: Record<string, unknown>,
-  status = 200
+  status = 200,
+  headers?: Record<string, string>,
 ) =>
   new Response(JSON.stringify(body), {
     headers: {
       "content-type": "application/json",
+      ...headers,
     },
     status,
   });
@@ -24,22 +26,41 @@ export const flushMicrotasks = async (times = 4) => {
   }
 };
 
-export const installFetchMock = (
-  handler: (call: FetchCall) => Promise<Response> | Response
-) => {
+export const installFetchMock = (handler: (call: FetchCall) => Promise<Response> | Response) => {
   const calls: FetchCall[] = [];
   const fetchMock = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
-    const headers = new Headers(init?.headers);
+    let url: string;
+    let method: string;
+    let headers: Headers;
+    let bodyStr: string | undefined;
+
+    if (input instanceof Request) {
+      url = input.url;
+      method = input.method;
+      headers = new Headers(input.headers);
+      try {
+        bodyStr = await input.clone().text();
+      } catch {
+        bodyStr = undefined;
+      }
+    } else {
+      url = input.toString();
+      method = init?.method ?? "GET";
+      headers = new Headers(init?.headers);
+      if (typeof init?.body === "string") {
+        bodyStr = init.body;
+      } else if (init?.body && ArrayBuffer.isView(init.body)) {
+        bodyStr = new TextDecoder().decode(init.body);
+      } else {
+        bodyStr = undefined;
+      }
+    }
+
     const call: FetchCall = {
-      body:
-        typeof init?.body === "string"
-          ? init.body
-          : init?.body instanceof Uint8Array
-            ? new TextDecoder().decode(init.body)
-            : undefined,
+      body: bodyStr,
       headers: Object.fromEntries(headers.entries()),
-      method: init?.method ?? "GET",
-      url: input.toString(),
+      method,
+      url,
     };
 
     calls.push(call);

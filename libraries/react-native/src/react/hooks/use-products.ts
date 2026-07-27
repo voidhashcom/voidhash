@@ -1,19 +1,14 @@
 import React, { useCallback, useMemo } from "react";
 
 import type { VoidhashClient } from "../../client";
-import type { SubscriptionProduct } from "../../core/entities/product";
-import type {
-  ExtractSchemaProductDefinitions,
-  InferGetProductResponseFromSchema,
-  SubscriptionProductDefinition,
-  VoidhashSchema,
-} from "../../core/schema";
+import type { Product } from "../../core/entities/product";
+import type { ProductSlug } from "../../core/schema/registry";
 import type { VoidhashContext } from "../components/provider";
 import useAsyncFunction from "./use-async-function";
 
-export function productsHookFactory<TSchema extends VoidhashSchema>(
-  client: VoidhashClient<TSchema>,
-  vhContext: React.Context<VoidhashContext<TSchema> | null>
+export function productsHookFactory(
+  client: VoidhashClient,
+  vhContext: React.Context<VoidhashContext | null>,
 ) {
   function useProducts() {
     const voidhashContext = React.useContext(vhContext);
@@ -29,50 +24,37 @@ export function productsHookFactory<TSchema extends VoidhashSchema>(
     });
 
     const getProduct = useCallback(
-      (
-        productDefinition: ExtractSchemaProductDefinitions<TSchema>[keyof ExtractSchemaProductDefinitions<TSchema>]
-      ) => {
+      (productSlug: ProductSlug): Product | null => {
         if (!products) {
           return null;
         }
-
-        const product = Object.values(products).find(
-          (product) =>
-            (product as SubscriptionProduct).slug ===
-            // biome-ignore lint/suspicious/noExplicitAny: any is ok in this case
-            (productDefinition as SubscriptionProductDefinition<any, any, any>)
-              .slug
-        ) as SubscriptionProduct | null;
-
-        return product;
+        // ProductSlug is `string` at runtime; the index access is safe.
+        return (products as Record<string, Product | null>)[String(productSlug)] ?? null;
       },
-      [products]
+      [products],
     );
 
     const toList = useCallback(
-      () =>
+      (): Product[] =>
         products
-          ? (
-              Object.values(products) as Exclude<
-                Exclude<typeof products, null>[keyof typeof products],
-                null
-              >[]
-            ).filter((product) => product !== null)
+          ? (Object.values(products) as Array<Product | null>).filter(
+              (product): product is Product => product !== null,
+            )
           : [],
-      [products]
+      [products],
     );
 
     const data = useMemo(
       () => ({
-        ...products,
+        ...(products ?? {}),
         get: getProduct,
         toList,
       }),
-      [products, getProduct, toList]
+      [products, getProduct, toList],
     );
 
     return {
-      data: data as InferGetProductResponseFromSchema<TSchema> & {
+      data: data as Record<ProductSlug, Product | null> & {
         get: typeof getProduct;
         toList: typeof toList;
       },

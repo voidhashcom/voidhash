@@ -1,0 +1,164 @@
+{
+  "name": "@voidhash/paywalls",
+  "version": "0.0.1-alpha.1",
+  "private": false,
+  "description": "Code-driven paywall authoring runtime and renderer for Voidhash.",
+  "keywords": [
+    "paywalls",
+    "react",
+    "renderer",
+    "subscriptions",
+    "voidhash"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "MIT",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "libraries/paywalls"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./dom": {
+      "import": {
+        "types": "./dist/dom.d.ts",
+        "default": "./dist/dom.mjs"
+      },
+      "require": {
+        "types": "./dist/dom.d.ts",
+        "default": "./dist/dom.cjs"
+      }
+    },
+    "./tree": {
+      "import": {
+        "types": "./dist/tree.d.ts",
+        "default": "./dist/tree.mjs"
+      },
+      "require": {
+        "types": "./dist/tree.d.ts",
+        "default": "./dist/tree.cjs"
+      }
+    },
+    "./panel": {
+      "import": {
+        "types": "./dist/panel.d.ts",
+        "default": "./dist/panel.mjs"
+      },
+      "require": {
+        "types": "./dist/panel.d.ts",
+        "default": "./dist/panel.cjs"
+      }
+    },
+    "./schema": {
+      "import": {
+        "types": "./dist/schema.d.ts",
+        "default": "./dist/schema.mjs"
+      },
+      "require": {
+        "types": "./dist/schema.d.ts",
+        "default": "./dist/schema.cjs"
+      }
+    },
+    "./jsx-runtime": {
+      "import": {
+        "types": "./dist/jsx-runtime.d.ts",
+        "default": "./dist/jsx-runtime.mjs"
+      },
+      "require": {
+        "types": "./dist/jsx-runtime.d.ts",
+        "default": "./dist/jsx-runtime.cjs"
+      }
+    },
+    "./jsx-dev-runtime": {
+      "import": {
+        "types": "./dist/jsx-dev-runtime.d.ts",
+        "default": "./dist/jsx-dev-runtime.mjs"
+      },
+      "require": {
+        "types": "./dist/jsx-dev-runtime.d.ts",
+        "default": "./dist/jsx-dev-runtime.cjs"
+      }
+    },
+    "./sandbox": {
+      "import": {
+        "types": "./dist/sandbox.d.ts",
+        "default": "./dist/sandbox.mjs"
+      },
+      "require": {
+        "types": "./dist/sandbox.d.ts",
+        "default": "./dist/sandbox.cjs"
+      }
+    },
+    "./sandbox-bundle": {
+      "import": {
+        "types": "./dist/sandbox-bundle.d.ts",
+        "default": "./dist/sandbox-bundle.mjs"
+      },
+      "require": {
+        "types": "./dist/sandbox-bundle.d.ts",
+        "default": "./dist/sandbox-bundle.cjs"
+      }
+    },
+    "./sandbox-dts": {
+      "import": {
+        "types": "./dist/sandbox-dts.d.ts",
+        "default": "./dist/sandbox-dts.mjs"
+      },
+      "require": {
+        "types": "./dist/sandbox-dts.d.ts",
+        "default": "./dist/sandbox-dts.cjs"
+      }
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "rm -rf ./dist && tsx build.ts",
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run -c vitest.unit.mts",
+    "test:watch": "vitest -c vitest.unit.mts"
+  },
+  "dependencies": {
+    "react-reconciler": "^0.32.0"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@voidhash/tsconfig": "workspace:*",
+    "esbuild": "^0.25.10",
+    "jsdom": "^26.1.0",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.3",
+    "typescript": "5.6.3",
+    "vitest": "^3.2.7"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "name": "@voidhash/node",
+  "version": "0.0.1-alpha.1",
+  "private": false,
+  "description": "Fetch-compatible Voidhash Node SDK.",
+  "keywords": [
+    "node",
+    "payments",
+    "sdk",
+    "server",
+    "voidhash"
+  ],
+  "homepage": "https://voidhash.com/docs",
+  "bugs": {
+    "url": "https://github.com/voidhashcom/voidhash/issues"
+  },
+  "license": "MIT",
+  "author": "Voidhash (https://voidhash.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voidhashcom/voidhash",
+    "directory": "libraries/node"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./effect": {
+      "import": {
+        "types": "./dist/effect.d.ts",
+        "default": "./dist/effect.mjs"
+      },
+      "require": {
+        "types": "./dist/effect.d.ts",
+        "default": "./dist/effect.js"
+      }
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "rm -rf ./dist && tsx build.ts",
+    "typecheck": "tsgo --noEmit",
+    "test": "vitest run -c vitest.unit.mts",
+    "test:watch": "vitest -c vitest.unit.mts"
+  },
+  "dependencies": {
+    "@voidhash/generated-clients": "workspace:*"
+  },
+  "devDependencies": {
+    "@voidhash/tsconfig": "workspace:*",
+    "effect": "catalog:",
+    "tsup": "^8.5.1",
+    "tsx": "^4.19.3",
+    "typescript": "5.6.3",
+    "vite-tsconfig-paths": "catalog:",
+    "vitest": "^3.2.7"
+  },
+  "peerDependencies": {
+    "effect": "catalog:"
+  }
+}

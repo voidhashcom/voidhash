@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "custom_image_url" text;

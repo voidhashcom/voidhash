@@ -1,16 +1,16 @@
 import { Command } from "effect/unstable/cli";
 import { Effect } from "effect";
 
-import { debugOption } from "../shared-options";
 import { loginCommand } from "./auth-login";
 import { logoutCommand } from "./auth-logout";
 import { authStatusCommand } from "./auth-status";
+import { authTokenCommand } from "./auth-token";
 
-export const authCommand = Command.make("auth", { debug: debugOption }, () =>
+export const authCommand = Command.make("auth", {}, () =>
   Effect.gen(function* authCommand() {
     // TODO: Show sucommands documentation
-  })
+  }),
 ).pipe(
   Command.withDescription("Manage the Voidhash authentication."),
-  Command.withSubcommands([loginCommand, logoutCommand, authStatusCommand])
+  Command.withSubcommands([loginCommand, logoutCommand, authStatusCommand, authTokenCommand]),
 );

@@ -1,0 +1,110 @@
+---
+title: Displaying Paywalls
+description: Present remotely published paywalls with usePaywallByLocation and react to purchase, restore, and error outcomes.
+---
+
+Paywalls in Voidhash are published to **locations** — named spots in your app like `onboarding` or `settings-upsell`. The `usePaywallByLocation` hook resolves which paywall is currently assigned to a location, preloads it, and presents it in a native full-screen presenter. Purchases, restores, and dismissal are handled for you; your code decides *when* to show the paywall and reacts to the outcome.
+
+## Showing a Paywall
+
+Call the hook with a location slug and invoke `show()` when you want to present the paywall:
+
+```tsx title="app/onboarding.tsx"
+import { voidhash } from "utils/voidhash/client";
+
+export default function OnboardingScreen() {
+  const { show } = voidhash.usePaywallByLocation("onboarding");
+
+  const handleContinue = async () => {
+    const didShow = await show();
+
+    if (!didShow) {
+      // No published paywall is assigned to this location —
+      // continue the flow without one.
+      router.push("/home");
+    }
+  };
+
+  return <Button onPress={handleContinue} title="Continue" />;
+}
+```
+
+`show()` returns a `Promise<boolean>`:
+
+- `true` — a paywall was presented full-screen on top of your app.
+- `false` — no published paywall is assigned to this location (or the client is not initialized yet). Treat this as "continue without a paywall", not as an error.
+
+<Callout type="info" title="Type-safe location slugs">
+  Location slugs are defined on the server. Run `voidhash-cli types generate` to get a
+  `voidhash.gen.d.ts` file that narrows the `locationSlug` argument to your project's actual
+  locations. Without generated types the argument degrades to `string`. See
+  [Schema and Types](/docs/react-native/schema-and-types).
+</Callout>
+
+## Reacting to Purchases and Restores
+
+Purchase and restore buttons inside the paywall are wired up automatically — the SDK runs the native store flow and dismisses the paywall on success. Pass callbacks as the second argument when you need to react, for example to navigate away or refresh local state:
+
+```tsx
+const { show } = voidhash.usePaywallByLocation("onboarding", {
+  onPurchase: ({ productId, requestId }) => {
+    // Fires after a purchase started inside the paywall succeeds.
+    router.push("/home");
+  },
+  onRestore: ({ requestId }) => {
+    // Fires after a restore started inside the paywall succeeds.
+    router.push("/home");
+  },
+  onError: (error, { action, requestId }) => {
+    // `action` is "purchase" or "restore".
+    console.error(`Paywall ${action} failed`, error.message);
+  },
+});
+```
+
+- `onPurchase` receives the `productId` of the purchased product.
+- `onError` fires when a purchase or restore initiated inside the paywall fails — including a cancelled store dialog, an unknown product id, or a second action started while one is still running (only one purchase or restore runs per location at a time; concurrent attempts are rejected).
+- `requestId` correlates the callback with the specific button press inside the paywall; it is present when the paywall bundle supplied one.
+
+The callbacks are optional. Entitlements update on the person regardless — see [Subscription Status](/docs/react-native/subscription-status) for reading them.
+
+## What Happens Automatically
+
+`usePaywallByLocation` does a lot behind the scenes. Knowing the exact behavior helps you reason about performance and lifecycle:
+
+- **Native full-screen presentation.** The paywall renders in a dedicated native presenter (Swift on iOS, Kotlin on Android) hosting a WebView — it is *not* a React Native `Modal` and never enters your component tree.
+- **Preloading.** The assigned paywall is resolved and its WebView preloaded when the hook mounts, and again every time the app returns to the foreground — so `show()` presents instantly. If nothing is preloaded yet, `show()` resolves and loads on demand.
+- **Warm WebViews.** Preloaded WebViews stay warm as long as at least one hook instance for that location is mounted. When the last hook instance for a location unmounts, its WebView is released.
+- **Purchases and restores.** Handled by the SDK's native purchase flow (StoreKit 2 / Play Billing) and synced to the Voidhash backend — the same flow as [Purchases](/docs/react-native/purchases). On success the paywall is dismissed automatically.
+- **Analytics.** Custom events emitted by the paywall are captured through the SDK's analytics queue, stamped with a `paywall_location` property so you can attribute them to the location. See [Analytics](/docs/react-native/analytics).
+- **External links.** Links the paywall opens externally (terms, privacy policy) go through `Linking.openURL`.
+- **Dismissal.** The paywall's close button dismisses the presenter; no wiring needed on your side.
+
+## Resolving a Paywall Imperatively
+
+When you need the resolution result without presenting anything — for example to decide whether to render an upsell entry point at all — use `client.getPaywallForLocation()`:
+
+```tsx
+import { voidhash } from "utils/voidhash/client";
+
+const resolved = await voidhash.client.getPaywallForLocation("onboarding");
+
+const hasPublishedPaywall = Boolean(resolved?.showing.paywallRelease?.htmlUrl);
+```
+
+The result is `null` when nothing resolves for the location. Otherwise it describes the location, the assigned paywall, and the active release (`showing.paywallRelease`) including its `htmlUrl` and version. `usePaywallByLocation` uses this same call internally, so resolving imperatively and then showing via the hook does not cost an extra round-trip once the hook has preloaded.
+
+## Code Releases vs Visual-Editor Releases
+
+A location can be showing one of two kinds of paywall release:
+
+- **Visual-editor releases** are built in the Voidhash paywall editor. They are self-contained: everything they display is baked in at publish time.
+- **Code releases** are custom paywalls deployed with [`voidhash-cli deploy`](/docs/cli/deploy). After the paywall signals it is ready, the SDK sends it a runtime configuration: the release's products enriched with live store data (locale-formatted price strings, billing period, trial info from StoreKit / Play Billing), the author-configured variables, and the current platform.
+
+From the hook's perspective the two are identical — `show()`, the callbacks, and the automatic behaviors above work the same for both. The distinction only matters when you author code paywalls yourself; see [Paywall Deploys](/docs/api/paywall-deploys) for the deploy contract.
+
+## Next Steps
+
+- [Purchases](/docs/react-native/purchases) — the purchase flow the paywall triggers under the hood.
+- [Displaying Products](/docs/react-native/displaying-products) — build a fully custom in-app paywall with `useProducts`.
+- [Error Handling](/docs/react-native/error-handling) — error types and codes surfaced by the SDK.

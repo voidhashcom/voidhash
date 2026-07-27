@@ -1,0 +1,12 @@
+{
+  "title": "Sdk",
+  "pages": [
+    "sdk.getPerson",
+    "sdk.identifyPerson",
+    "sdk.syncPersonAttributes",
+    "sdk.syncTransaction",
+    "sdk.evaluateFeatureFlags",
+    "sdk.resolvePaywall",
+    "sdk.getSchema"
+  ]
+}

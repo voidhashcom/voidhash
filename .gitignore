@@ -13,6 +13,10 @@ lerna-debug.log*
 # Caches
 
 .cache
+.build/
+.gradle/
+.kotlin/
+.swiftpm/
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 
@@ -105,6 +109,8 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+.env.prod
+.env.preview
 
 # parcel-bundler cache (https://parceljs.org/)
 
@@ -143,6 +149,7 @@ dist
 # Serverless directories
 
 .serverless/
+.alchemy/
 
 # FuseBox cache
 
@@ -294,4 +301,4 @@ yalc.lock
 # Typescript
 **/tsconfig.tsbuildinfo
 
-# resources/
+resources/

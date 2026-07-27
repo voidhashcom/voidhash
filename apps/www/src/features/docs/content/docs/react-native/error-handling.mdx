@@ -1,0 +1,260 @@
+---
+title: Error Handling
+description: Understand the errors the Voidhash SDK throws and how to handle them in your app.
+---
+
+Every async method on the Voidhash client rejects with a `VoidhashError` — a plain `Error`
+subclass whose message follows one stable convention:
+
+```
+CODE: original message
+```
+
+The `CODE` prefix tells you *which operation* failed (for example `FAILED_TO_PURCHASE`), and the
+rest of the message tells you *why*. The original error is preserved on `error.cause`, so nothing
+is lost when the SDK wraps a native StoreKit or Play Billing failure.
+
+<Callout type="info" title="Match on the message, not the class">
+  The SDK's error classes are internal and not exported from the package root, so `instanceof`
+  checks against specific subclasses won't work in your app. Matching on the stable `CODE` prefix
+  and message strings is the supported approach. For purchase failures, the wrapped `error.cause`
+  additionally carries a stable `_tag` (for example `UserCancelledError`) you can branch on — see
+  [Purchases](/docs/react-native/purchases).
+</Callout>
+
+## Enable Debug Logging First
+
+Before digging into any error, turn on `debug` in your client options. It logs every HTTP request
+and response the SDK makes (with sensitive headers redacted), which almost always reveals the real
+cause faster than parsing error messages:
+
+```ts title="utils/voidhash/client.ts"
+import { createVoidhashClient } from "@voidhash/react-native";
+
+export const voidhash = createVoidhashClient("vh_pk_...", {
+  debug: __DEV__,
+});
+```
+
+See [Configuration](/docs/react-native/configuration) for the full list of client options.
+
+## Error Codes
+
+Each client method wraps failures with its own code:
+
+| Code | Thrown by |
+| --- | --- |
+| `FAILED_TO_INITIALIZE_VOIDHASH_CLIENT` | `init()` (called by the Provider on mount) |
+| `FAILED_TO_END_VOIDHASH_CLIENT` | `end()` |
+| `FAILED_TO_GET_CURRENT_PERSON` | `getCurrentPerson()` |
+| `FAILED_TO_SET_PERSON_ATTRIBUTES` | `setPersonAttributes()` |
+| `FAILED_TO_SET_PERSON_ATTRIBUTES_SYNC` | `setPersonAttributesSync()` |
+| `FAILED_TO_GET_DISTINCT_ID` | `getDistinctId()` |
+| `FAILED_TO_IDENTIFY` | `identify()` |
+| `FAILED_TO_RESET` | `reset()` |
+| `FAILED_TO_SIGN_OUT` | `signOut()` |
+| `FAILED_TO_GET_FEATURE_FLAGS` | `getFeatureFlags()` |
+| `FAILED_TO_GET_PAYWALL_FOR_LOCATION` | `getPaywallForLocation()` |
+| `FAILED_TO_GET_PRODUCTS` | `getProducts()` |
+| `FAILED_TO_PURCHASE` | `purchase()` |
+| `FAILED_TO_RESTORE_PURCHASES` | `restorePurchases()` |
+| `FAILED_TO_FLUSH_ANALYTICS` | `flush()` |
+| `FAILED_TO_PRESENT_CODE_REDEMPTION_SHEET` | `iosPresentCodeRedemptionSheet()` |
+| `FAILED_TO_SHOW_MANAGE_SUBSCRIPTIONS` | `iosShowManageSubscriptions()` |
+| `VOIDHASH_CLIENT_NOT_INITIALIZED` | Any client method called before initialization completed |
+
+`VOIDHASH_CLIENT_NOT_INITIALIZED` is the one you'll hit most often while wiring things up: it means
+a method ran before the Provider finished `init()`. The built-in hooks gate on initialization
+automatically — if you call `voidhash.client` methods directly, check `isInitialized` first:
+
+```tsx
+const { client, isInitialized } = voidhash.useVoidhash();
+
+if (isInitialized) {
+  await client.restorePurchases();
+}
+```
+
+## Handling Purchase Errors
+
+Purchases are where error handling actually matters for UX: a cancelled purchase is not a failure,
+and a pending purchase is not a success. All three outcomes reject with `FAILED_TO_PURCHASE`, so
+distinguish them by the rest of the message:
+
+| Outcome | Message contains | What to do |
+| --- | --- | --- |
+| User cancelled | `User cancelled` | Nothing — the user changed their mind. Don't show an error. |
+| Purchase pending | `pending` | Payment is deferred (e.g. Ask to Buy / parental approval). Tell the user access unlocks once it's approved. |
+| Product not found | `Product not found` | The store SDK doesn't know the product — check your store configuration and product identifiers. |
+| Anything else | — | Show a generic failure message and offer retry. |
+
+A small helper keeps this out of your components:
+
+```ts title="utils/voidhash/purchase-outcome.ts"
+export type PurchaseFailure = "cancelled" | "pending" | "not-found" | "failed";
+
+/** Classifies a rejected purchase by its stable message parts. */
+export function getPurchaseFailure(error: unknown): PurchaseFailure {
+  if (!(error instanceof Error)) return "failed";
+  if (error.message.includes("User cancelled")) return "cancelled";
+  if (error.message.includes("pending")) return "pending";
+  if (error.message.includes("Product not found")) return "not-found";
+  return "failed";
+}
+```
+
+### With the `usePurchase` Hook
+
+The hook surfaces failures through `onError` and its `error` state:
+
+```tsx title="app/paywall.tsx"
+import { Alert } from "react-native";
+import { voidhash } from "utils/voidhash/client";
+import { getPurchaseFailure } from "utils/voidhash/purchase-outcome";
+
+const { purchase, isLoading } = voidhash.usePurchase({
+  onSuccess: () => {
+    // Entitlements are refreshed automatically — dismiss the paywall
+  },
+  onError: (error) => {
+    switch (getPurchaseFailure(error)) {
+      case "cancelled":
+        return;
+      case "pending":
+        Alert.alert("Almost there", "Your purchase is awaiting approval.");
+        return;
+      default:
+        Alert.alert("Purchase failed", "Please try again.");
+    }
+  },
+});
+```
+
+### With try/catch
+
+Calling the client directly works the same way:
+
+```tsx
+try {
+  await voidhash.client.purchase(product, {});
+} catch (error) {
+  if (getPurchaseFailure(error) === "cancelled") {
+    return;
+  }
+  console.error(error);
+}
+```
+
+<Callout type="info" title="Pending purchases resolve themselves">
+  When a purchase is pending, the SDK's transaction observer picks the transaction up in the
+  background once the store completes it — you don't need to retry. The person's entitlements
+  update on the next sync. See [Purchases](/docs/react-native/purchases).
+</Callout>
+
+If you present paywalls with `usePaywallByLocation`, purchase and restore failures triggered from
+inside the paywall arrive through its `onError(error, { action })` callback instead, where
+`action` is `"purchase"` or `"restore"` — see
+[Displaying Paywalls](/docs/react-native/displaying-paywalls).
+
+## Errors Thrown Outside the Code Convention
+
+A few errors are thrown directly instead of being wrapped with an operation code:
+
+### Scheme Not Set
+
+`createVoidhashClient` throws synchronously — before your app even renders — with the message
+`Scheme is not set in expo.config.ts.` when no deep-link scheme is available. Set `scheme` in your
+Expo app config, or pass the `scheme` option explicitly. See
+[Configuration](/docs/react-native/configuration).
+
+### Read-Only Mode
+
+With `readOnly: true` (observer mode), `purchase()` and `setPersonAttributesSync()` throw
+immediately with:
+
+```
+Read-only mode is enabled. Purchasing is disabled for observer-only operation.
+```
+
+This is by design — in observer mode Voidhash watches transactions made by another billing SDK and
+must never initiate or acknowledge purchases itself. See
+[Observer Mode](/docs/react-native/observer-mode).
+
+### Schema Fetch Failure
+
+On a cold start with no cached schema and an unreachable server, `init()` fails and surfaces as
+`FAILED_TO_INITIALIZE_VOIDHASH_CLIENT` with the schema fetch failure as its cause. Once a schema
+has been fetched successfully, it is cached and revalidated in the background, so this only happens
+on the very first launch without connectivity.
+
+### Unsupported Platform
+
+The iOS-only methods (`iosPresentCodeRedemptionSheet()`, `iosShowManageSubscriptions()`) fail on
+Android with an `Unsupported platform: android` message under their respective codes. Gate them
+behind `Platform.OS === "ios"`.
+
+## Native Error Codes
+
+Failures that originate in the native StoreKit (Swift) or Play Billing (Kotlin) layer carry their
+own `ERROR_CODE: message` convention. The SDK translates the common ones (`USER_CANCELLED`,
+`PURCHASE_PENDING`, product-lookup failures) into the friendly messages shown above; the rest pass
+through on the error's `cause` chain, so you'll mostly see these codes in logs.
+
+iOS (StoreKit):
+
+| Code | Meaning |
+| --- | --- |
+| `STOREKIT_NOT_INITIALIZED` | StoreKit connection not initialized |
+| `USER_CANCELLED` | User cancelled the purchase |
+| `PURCHASE_PENDING` | The payment was deferred |
+| `PURCHASE_FAILED` | Purchase operation failed |
+| `PURCHASE_UNKNOWN_RESULT` | Unknown purchase result |
+| `INVALID_PRODUCT_ID` | Product not found in the store |
+| `TRANSACTION_NOT_FOUND` | Transaction not found |
+| `TRANSACTION_VERIFICATION_FAILED` | Transaction verification failed |
+| `WINDOW_SCENE_NOT_FOUND` | No window scene available for UI presentation |
+| `METHOD_NOT_AVAILABLE_TVOS` | Method is not available on tvOS |
+
+Android (Play Billing):
+
+| Code | Meaning |
+| --- | --- |
+| `GOOGLE_BILLING_NOT_INITIALIZED` | Google Billing connection not initialized |
+| `BILLING_ERROR` | Google Billing operation failed |
+| `SKU_NOT_FOUND` | SKU not found — fetch products first |
+| `SKU_OFFER_MISMATCH` | SKU count doesn't match offer tokens for subscriptions |
+| `EMPTY_SKU_LIST` | No SKUs provided for the product query |
+| `CURRENT_ACTIVITY_NULL` | No current activity to present from |
+
+Both platforms surface `PAYWALL_PRESENTER_NOT_AVAILABLE` when the native paywall presenter can't
+be reached.
+
+To dig a native code out of a wrapped error, walk the `cause` chain:
+
+```ts
+/** Returns the deepest `CODE: message` code found on the error's cause chain. */
+export function getDeepErrorCode(error: unknown): string | null {
+  let code: string | null = null;
+  let current: unknown = error;
+  while (current instanceof Error) {
+    const match = current.message.match(/^([A-Z][A-Z0-9_]+):/);
+    if (match) code = match[1];
+    current = current.cause;
+  }
+  return code;
+}
+```
+
+## Swallowing Side-Effect Errors
+
+If you'd rather not wrap every fire-and-forget call in try/catch during early development, the
+`unstable_swallowErrors` client option converts rejections from side-effect methods (`init`, `end`,
+`identify`, `reset`, `signOut`, `restorePurchases`, `flush`, `setPersonAttributes`, and the
+iOS-only sheet methods) into `console.warn` output instead. Methods that return data your app
+depends on — `getCurrentPerson`, `getProducts`, `getFeatureFlags`, `getPaywallForLocation`,
+`purchase`, `setPersonAttributesSync` — still reject normally.
+
+<Callout type="warn" title="Alpha option">
+  As the `unstable_` prefix suggests, this option's behavior may change between releases. Prefer
+  explicit error handling for production builds.
+</Callout>

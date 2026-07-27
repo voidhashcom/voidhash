@@ -9,7 +9,7 @@ export interface PaywallPresenter extends HybridObject<{
     locationSlug: string,
     htmlUrl: string,
     onBridgeEvent?: (rawEvent: string) => void,
-    onDismiss?: () => void
+    onDismiss?: () => void,
   ): Promise<boolean>;
   dismiss(): Promise<void>;
   release(locationSlug: string): void;

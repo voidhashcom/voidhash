@@ -2,6 +2,17 @@ export type VoidhashTraitValue = string | number | boolean | null;
 
 export type VoidhashTraits = Record<string, VoidhashTraitValue>;
 
+/**
+ * Person attributes accepted by `setPersonAttributes` /
+ * `setPersonAttributesSync`. `email` and `name` are reserved fields; every
+ * other key is treated as a free-form person trait.
+ */
+export type VoidhashPersonAttributes = {
+  readonly email?: string;
+  readonly name?: string;
+  readonly [key: string]: VoidhashTraitValue | undefined;
+};
+
 export interface FeatureFlagEntry {
   readonly enabled: boolean;
   readonly key: string;
@@ -33,8 +44,8 @@ export interface VoidhashAnalyticsOptions {
 export interface VoidhashClientOptions {
   readonly analytics?: VoidhashAnalyticsOptions;
   readonly baseUrl?: string;
+  readonly distinctId?: string;
   readonly featureFlags?: VoidhashFeatureFlagsOptions;
-  readonly initialAppUserId?: string;
   readonly observerMode?: boolean;
   readonly publishableKey: string;
 }
@@ -52,12 +63,12 @@ export interface AnalyticsFlushResult {
 }
 
 export interface InitializedEvent {
-  readonly appUserId: string;
+  readonly distinctId: string;
 }
 
 export interface IdentityChangedEvent {
-  readonly appUserId: string;
-  readonly previousAppUserId: string | null;
+  readonly distinctId: string;
+  readonly previousDistinctId: string | null;
 }
 
 export interface FeatureFlagsUpdatedEvent {
@@ -72,15 +83,11 @@ export interface AnalyticsPartialRejectionEvent extends AnalyticsFlushResult {}
 export interface VoidhashErrorEvent {
   readonly error?: unknown;
   readonly message: string;
-  readonly source:
-    | "analytics"
-    | "client"
-    | "feature-flags"
-    | "identity"
-    | "storage";
+  readonly source: "analytics" | "client" | "feature-flags" | "identity" | "storage";
 }
 
 export interface VoidhashEventMap {
+  readonly "analytics-flush-needed": undefined;
   readonly "analytics-flushed": AnalyticsFlushedEvent;
   readonly "analytics-partial-rejection": AnalyticsPartialRejectionEvent;
   readonly error: VoidhashErrorEvent;
@@ -108,7 +115,7 @@ export interface ResolvedVoidhashConfig {
     readonly refreshOnVisibility: boolean;
     readonly ttlMs: number;
   };
-  readonly initialAppUserId?: string;
+  readonly distinctId?: string;
   readonly observerMode: boolean;
   readonly publishableKey: string;
 }

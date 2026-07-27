@@ -1,115 +1,105 @@
-import { Effect, Layer, ServiceMap } from "effect";
+import { Effect, Layer, Context } from "effect";
+import { AtomRegistry } from "effect/unstable/reactivity";
 
-import { ANONYMOUS_USER_ID_PREFIX } from "../../constants";
+import { ANONYMOUS_DISTINCT_ID_PREFIX } from "../../constants";
 import { CacheManager } from "../caching/cache-manager";
-import { EventBusProvider } from "../event-bus";
 import { ApiClient } from "../networking/api-client";
+import { currentPersonAtom, featureFlagsByKeyAtom } from "../reactivity/client-state";
 import { getCommonSdkHeaders } from "../utils/get-common-sdk-headers";
-import { CustomerAttributeManager } from "./customer-attribute-manager";
-import { CustomerInfoManager } from "./customer-info-manager";
+import { PersonInfoManager } from "./person-info-manager";
 
-const CACHE_KEY = "appUserId";
+const CACHE_KEY = "distinctId";
 
 const make = Effect.gen(function* effect() {
   const cacheManager = yield* CacheManager;
-  const customerAttributeManager = yield* CustomerAttributeManager;
-  const customerInfoManager = yield* CustomerInfoManager;
-  const eventBus = yield* EventBusProvider;
+  const personInfoManager = yield* PersonInfoManager;
+  const atomRegistry = yield* AtomRegistry.AtomRegistry;
   const apiClient = yield* ApiClient;
 
   /**
-   * Returns the app user id. If no app user id is cached, a new anonymous user id is generated and cached.
-   * @returns The app user id.
+   * Returns the current distinct id. If none is cached, a new anonymous distinct id is generated and cached.
    */
-  const getAppUserId = () =>
-    Effect.gen(function* getAppUserId() {
-      const appUserId = yield* getAppUserIdFromCache();
-      if (appUserId) {
-        yield* Effect.logDebug(`Using cached app user id: ${appUserId}`);
-        return appUserId;
+  const getDistinctId = () =>
+    Effect.gen(function* getDistinctId() {
+      const distinctId = yield* getDistinctIdFromCache();
+      if (distinctId) {
+        yield* Effect.logDebug(`Using cached distinct id: ${distinctId}`);
+        return distinctId;
       }
 
-      const anonymousUserId = generateAnonymousUserId();
-      yield* setAppUserIdInCache(anonymousUserId);
-      return anonymousUserId;
+      const anonymousDistinctId = generateAnonymousDistinctId();
+      yield* setDistinctIdInCache(anonymousDistinctId);
+      return anonymousDistinctId;
     });
 
   /**
-   * Identifies the customer. It makes a request to the server to identify the customer and caches the app user id.
-   * @param appUserId - The app user id.
+   * Identifies the person by switching the current distinct id.
    * @param options - The options.
    */
   const identify = (
-    appUserId: string,
+    distinctId: string,
     options: {
       email?: string;
       name?: string;
-    }
+    },
   ) =>
     Effect.gen(function* identify() {
-      const currentAppUserId = yield* getAppUserId();
-      yield* customerAttributeManager.syncCustomerAttributes(
-        currentAppUserId
-      );
+      const currentDistinctId = yield* getDistinctId();
       const commonHeaders = yield* getCommonSdkHeaders();
       const identifyRequest = yield* apiClient.sdk.identify({
         headers: {
           ...commonHeaders,
-          "x-app-user-id": currentAppUserId,
+          "x-distinct-id": currentDistinctId,
         },
         payload: {
-          appUserId,
+          distinctId,
           email: options.email,
           name: options.name,
         },
       });
 
       yield* Effect.all([
-        setAppUserIdInCache(appUserId),
-        customerInfoManager.cache(appUserId, identifyRequest),
+        setDistinctIdInCache(distinctId),
+        personInfoManager.cache(distinctId, identifyRequest),
       ]);
 
-      eventBus.emit("customer-identified");
-      eventBus.emit("customer-fetched", {
+      // Identity has changed: surface the new person and clear stale
+      // feature flag state, since flag evaluations are identity-scoped.
+      atomRegistry.set(currentPersonAtom, {
         ...identifyRequest,
-        appUserId,
+        distinctId,
       });
+      atomRegistry.set(featureFlagsByKeyAtom, {});
     });
 
-  const signOut = () =>
-    Effect.gen(function* signOut() {
-      const currentAppUserId = yield* getAppUserId();
-      yield* customerAttributeManager.syncCustomerAttributes(
-        currentAppUserId
-      );
+  const reset = () =>
+    Effect.gen(function* reset() {
       yield* cacheManager.clear();
-      eventBus.emit("customer-signed-out");
+      atomRegistry.set(currentPersonAtom, null);
+      atomRegistry.set(featureFlagsByKeyAtom, {});
     });
 
   // Helpers
-  const generateAnonymousUserId = () =>
-    `${ANONYMOUS_USER_ID_PREFIX}${Math.random().toString(36).slice(2, 15)}`;
-  const getAppUserIdFromCache = () =>
-    cacheManager
-      .get<string>(CACHE_KEY)
-      .pipe(Effect.map((appUserId) => appUserId?.value ?? null));
-  const setAppUserIdInCache = (appUserId: string) =>
-    cacheManager.set(CACHE_KEY, appUserId);
+  const generateAnonymousDistinctId = () =>
+    `${ANONYMOUS_DISTINCT_ID_PREFIX}${Math.random().toString(36).slice(2, 15)}`;
+  const getDistinctIdFromCache = () =>
+    cacheManager.get<string>(CACHE_KEY).pipe(Effect.map((distinctId) => distinctId?.value ?? null));
+  const setDistinctIdInCache = (distinctId: string) => cacheManager.set(CACHE_KEY, distinctId);
 
   return {
-    getAppUserId,
-    getAppUserIdFromCache,
+    getDistinctId,
+    getDistinctIdFromCache,
     identify,
-    signOut,
+    reset,
+    signOut: reset,
   } as const;
 });
 
-export class IdentityManager extends ServiceMap.Service<IdentityManager, Effect.Success<typeof make>>()("rn-voidhash/IdentityManager") {
+export class IdentityManager extends Context.Service<
+  IdentityManager,
+  Effect.Success<typeof make>
+>()("rn-voidhash/IdentityManager") {
   static Default = Layer.effect(IdentityManager, make).pipe(
-    Layer.provide(Layer.mergeAll(
-      CacheManager.Default,
-      CustomerAttributeManager.Default,
-      CustomerInfoManager.Default,
-    ))
-  )
+    Layer.provide(Layer.mergeAll(CacheManager.Default, PersonInfoManager.Default)),
+  );
 }

@@ -1,0 +1,650 @@
+import {
+  RegisterDeviceResponse,
+  SdkCurrentSubscription,
+  SdkEntitlementGrant,
+  SdkFeatureFlagResult,
+  SdkFeatureFlagsResponse,
+  SdkHeaders,
+  SdkPerson,
+  SdkPurchaseHistoryEntry,
+  SdkResolvedPaywall,
+  SdkResolvedPaywallShowing,
+  SdkSchema,
+  SdkSchemaLocation,
+  SdkSchemaPerk,
+  SdkSchemaProduct,
+  SdkSubscriptionHistoryEntry,
+  SdkSyncTransactionResponse,
+  VoidhashV1Api,
+} from "@voidhash/api-contracts";
+import {
+  ApiActionForbiddenError,
+  ApiAuthenticationError,
+  ApiPushDeviceNotFoundError,
+  ApiPushDeviceServiceError,
+  ApiPushDeviceValidationError,
+  ApiSchemaServiceError,
+  ApiSdkPersonAlreadyIdentifiedError,
+  ApiSdkPersonNotFoundError,
+  ApiSdkServiceError,
+  ApiSdkValidationError,
+} from "@voidhash/api-contracts/errors";
+import type { AuthenticationError } from "@voidhash/core/domain/auth/Auth";
+import type { SdkPersonSnapshot } from "@voidhash/core/domain/sdkPerson/SdkPerson";
+import { SdkValidationError } from "@voidhash/core/domain/sdkPerson/SdkPerson";
+import {
+  FeatureFlagService,
+  InternalFeatureFlagService,
+  NotificationTokenService,
+  PaywallLocationService,
+  PersonIdentityService,
+  SchemaService,
+  SdkService,
+  type SdkServiceError,
+} from "@voidhash/core/services";
+import { Db } from "@voidhash/db";
+import { AuthSession, INTERNAL_FEATURE_FLAGS } from "@voidhash/rpc";
+import { Effect, Option, Schema } from "effect";
+import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import * as HttpHeaders from "effect/unstable/http/Headers";
+import { HttpApiBuilder } from "effect/unstable/httpapi";
+
+import { bridgeAuthSession, getPersonMetadataFromSdkHeaders } from "../../ApiMiddlewares.ts";
+import { schemaNotModifiedResponse, schemaResponseHeaders } from "./schema.ts";
+
+const toSdkPerson = (snapshot: SdkPersonSnapshot) =>
+  new SdkPerson({
+    distinctId: snapshot.distinctId,
+    email: snapshot.email,
+    entitlements: {
+      grants: snapshot.entitlements.grants.map(
+        (grant) =>
+          new SdkEntitlementGrant({
+            expiresAt: grant.expiresAt,
+            perkId: grant.perkId,
+            source: grant.source,
+            sourceId: grant.sourceId,
+            sourcePersonId: grant.sourcePersonId,
+            status: grant.status,
+          }),
+      ),
+    },
+    name: snapshot.name,
+    personId: snapshot.personId,
+    purchases: {
+      history: snapshot.purchases.history.map(
+        (purchase) =>
+          new SdkPurchaseHistoryEntry({
+            createdAt: purchase.createdAt,
+            productId: purchase.productId,
+            providerKey: purchase.providerKey,
+            purchaseId: purchase.purchaseId,
+            sourcePersonId: purchase.sourcePersonId,
+            type: purchase.type,
+          }),
+      ),
+    },
+    snapshotContext: {
+      includedPersonIds: snapshot.snapshotContext.includedPersonIds,
+      migrationJobId: snapshot.snapshotContext.migrationJobId,
+      mode: snapshot.snapshotContext.mode,
+    },
+    subscriptions: {
+      current: snapshot.subscriptions.current
+        ? new SdkCurrentSubscription({
+            expiresAt: snapshot.subscriptions.current.expiresAt,
+            productId: snapshot.subscriptions.current.productId,
+            status: snapshot.subscriptions.current.status,
+            subscriptionId: snapshot.subscriptions.current.subscriptionId,
+          })
+        : null,
+      history: snapshot.subscriptions.history.map(
+        (entry) =>
+          new SdkSubscriptionHistoryEntry({
+            canceledAt: entry.canceledAt,
+            expiresAt: entry.expiresAt,
+            isTrial: entry.isTrial,
+            productId: entry.productId,
+            sourcePersonId: entry.sourcePersonId,
+            startsAt: entry.startsAt,
+            status: entry.status,
+            subscriptionId: entry.subscriptionId,
+          }),
+      ),
+    },
+  });
+
+/** Maps the public SDK transaction payload to the provider-specific service input. */
+export const mapSdkTransactionSubmission = (
+  payload: {
+    readonly platform: "ios" | "android";
+    readonly providerProductId?: string;
+    readonly productSlug: string;
+    readonly purchaseToken?: string;
+    readonly transactionId: string;
+  },
+  clientBundleId: string,
+) =>
+  payload.platform === "android"
+    ? {
+        packageName: clientBundleId,
+        productId: payload.providerProductId ?? payload.productSlug,
+        providerId: "google-play" as const,
+        purchaseToken: payload.purchaseToken,
+      }
+    : {
+        bundleId: clientBundleId,
+        providerId: "apple-app-store" as const,
+        transactionId: payload.transactionId,
+      };
+
+export const SdkGroupLive = HttpApiBuilder.group(VoidhashV1Api, "sdk", (handlers) =>
+  Effect.gen(function* () {
+    const sdkService = yield* SdkService;
+    const featureFlagService = yield* FeatureFlagService;
+    const paywallLocationService = yield* PaywallLocationService;
+    const schemaService = yield* SchemaService;
+    const dbService = yield* Db;
+    const personIdentityService = yield* PersonIdentityService;
+    const notificationTokenService = yield* NotificationTokenService;
+    const internalFeatureFlagService = yield* InternalFeatureFlagService;
+
+    const requireNotificationsEnabled = (organizationId: string) =>
+      internalFeatureFlagService
+        .isEnabled(organizationId, INTERNAL_FEATURE_FLAGS.notifications.key)
+        .pipe(
+          Effect.catchTag("InternalFeatureFlagServiceError", (error) =>
+            Effect.fail(new ApiPushDeviceServiceError({ cause: error.message })),
+          ),
+          Effect.filterOrFail(
+            (enabled) => enabled,
+            () =>
+              new ApiActionForbiddenError({
+                message: "Notifications are not enabled for this organization",
+              }),
+          ),
+        );
+
+    return handlers
+      .handle("getPerson", () =>
+        bridgeAuthSession(sdkService.getPerson().pipe(Effect.map(toSdkPerson))).pipe(
+          Effect.catchTags({
+            AuthenticationError: (e) =>
+              Effect.fail(new ApiAuthenticationError({ cause: e.cause, message: e.message })),
+            SdkPersonNotFoundError: (e) =>
+              Effect.fail(new ApiSdkPersonNotFoundError({ message: e.message })),
+            SdkServiceError: (e) => Effect.fail(new ApiSdkServiceError({ cause: e.cause })),
+            SdkValidationError: (e) =>
+              Effect.fail(new ApiSdkValidationError({ message: e.message })),
+          }),
+        ),
+      )
+      .handle("identifyPerson", ({ payload }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
+            const project = session?.projects[0];
+            if (!project) {
+              return yield* Effect.fail(
+                new ApiAuthenticationError({
+                  cause: "No project associated with this SDK authentication session",
+                  message: "No project associated with this SDK authentication session",
+                }),
+              );
+            }
+
+            if (!session?.person?.distinctId) {
+              return yield* Effect.fail(
+                new ApiAuthenticationError({
+                  cause: "No SDK person identity found in this authentication session",
+                  message: "No SDK person identity found in this authentication session",
+                }),
+              );
+            }
+
+            const snapshot = yield* sdkService.identifyPerson({
+              distinctId: payload.distinctId,
+              email: payload.email ?? null,
+              name: payload.name ?? null,
+              traits: payload.traits ? { ...payload.traits } : undefined,
+            });
+
+            return toSdkPerson(snapshot);
+          }),
+        ).pipe(
+          Effect.catchTags({
+            AuthenticationError: (e) =>
+              Effect.fail(new ApiAuthenticationError({ cause: e.cause, message: e.message })),
+            SdkPersonAlreadyIdentifiedError: (e) =>
+              Effect.fail(new ApiSdkPersonAlreadyIdentifiedError({ distinctId: e.distinctId })),
+            SdkPersonNotFoundError: (e) =>
+              Effect.fail(new ApiSdkPersonNotFoundError({ message: e.message })),
+            SdkValidationError: (e) =>
+              Effect.fail(new ApiSdkValidationError({ message: e.message })),
+            SdkServiceError: (e) => Effect.fail(new ApiSdkServiceError({ cause: e.cause })),
+          }),
+        ),
+      )
+      .handle("syncPersonAttributes", ({ payload }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            const req = yield* HttpServerRequest.HttpServerRequest;
+            const parsedHeaders = yield* Schema.decodeUnknownEffect(SdkHeaders)(req.headers).pipe(
+              Effect.mapError((error) => new ApiSdkValidationError({ message: error.message })),
+            );
+            const personMetadata = getPersonMetadataFromSdkHeaders(parsedHeaders);
+
+            const result = yield* sdkService.syncPersonAttributes({
+              personMetadata,
+              email: payload.email,
+              name: payload.name,
+              traits: payload.traits ? { ...payload.traits } : undefined,
+              setOnce: payload.setOnce ? { ...payload.setOnce } : undefined,
+              ...(payload.clientEventId ? { clientEventId: payload.clientEventId } : {}),
+            });
+            return toSdkPerson(result.snapshot);
+          }),
+        ).pipe(
+          Effect.catchTags({
+            AuthenticationError: (e) =>
+              Effect.fail(new ApiAuthenticationError({ cause: e.cause, message: e.message })),
+            SdkPersonNotFoundError: (e) =>
+              Effect.fail(new ApiSdkPersonNotFoundError({ message: e.message })),
+            SdkServiceError: (e) => Effect.fail(new ApiSdkServiceError({ cause: e.cause })),
+            SdkValidationError: (e) =>
+              Effect.fail(new ApiSdkValidationError({ message: e.message })),
+          }),
+        ),
+      )
+      .handle("syncTransaction", ({ payload }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            const req = yield* HttpServerRequest.HttpServerRequest;
+            const parsedHeaders = yield* Schema.decodeUnknownEffect(SdkHeaders)(req.headers).pipe(
+              Effect.mapError((error) => new ApiSdkValidationError({ message: error.message })),
+            );
+            // The Android package name equals the client bundle id.
+            const clientBundleId = parsedHeaders["x-client-bundle-id"];
+
+            // `submitPurchaseTransaction`'s `Effect.fn` wrapper widens the error
+            // channel; cast to a concrete `Effect` so the outer `catchTags`
+            // matches the underlying tags.
+            yield* sdkService.submitPurchaseTransaction(
+              mapSdkTransactionSubmission(payload, clientBundleId),
+            ) as Effect.Effect<
+              unknown,
+              AuthenticationError | SdkValidationError | SdkServiceError,
+              never
+            >;
+
+            return new SdkSyncTransactionResponse({ accepted: true });
+          }),
+        ).pipe(
+          Effect.catchTags({
+            AuthenticationError: (e) =>
+              Effect.fail(new ApiAuthenticationError({ cause: e.cause, message: e.message })),
+            SdkServiceError: (e) => Effect.fail(new ApiSdkServiceError({ cause: e.cause })),
+            SdkValidationError: (e) =>
+              Effect.fail(new ApiSdkValidationError({ message: e.message })),
+          }),
+        ),
+      )
+      .handle("resolvePaywall", ({ payload }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
+            const projectId = session?.projects[0]?.id;
+            if (!projectId) {
+              return yield* Effect.fail(
+                new ApiSdkServiceError({ cause: "No project associated with this key" }),
+              );
+            }
+
+            // Resolve the subject the same way `evaluateFeatureFlags` does so an
+            // experiment-backed location buckets on a stable identity.
+            const distinctId = session?.person?.distinctId ?? undefined;
+            let personId: string | undefined;
+            if (distinctId) {
+              const mapping = yield* dbService.query.personIdentities.findFirst({
+                where: { distinctId, projectId },
+              });
+              personId = mapping?.personId;
+            }
+
+            const resolved = yield* paywallLocationService.resolveLocationShowingForSdk({
+              locationSlug: payload.locationSlug,
+              projectId,
+              personId,
+              distinctId,
+            });
+            if (resolved === null) {
+              return null;
+            }
+
+            // `resolved.exposure` (when non-null) carries { experimentId,
+            // variantKey, personId, distinctId } for the assigned subject.
+            // Server-side `$experiment.exposed` emission is wired here once the
+            // analytics dispatch producer (`AnalyticsDispatchService` over the
+            // worker's `CaptureIngressLive`) + `RuntimeContext` are threaded into
+            // the SDK route runtime — see `EXPERIMENT_TRUSTED_SOURCE_TOPIC` /
+            // `makeCapturedEventFromInternalAnalyticsEvent`. Assignment + serving
+            // (below) are fully live; emission is the remaining infra step.
+
+            return new SdkResolvedPaywall({
+              location: resolved.location,
+              showing: new SdkResolvedPaywallShowing(resolved.showing),
+            });
+          }),
+        ).pipe(
+          Effect.catchTags({
+            EffectDrizzleQueryError: (e) =>
+              Effect.fail(new ApiSdkServiceError({ cause: String(e.message) })),
+            PaywallLocationServiceError: (e) =>
+              Effect.fail(new ApiSdkServiceError({ cause: e.cause })),
+          }),
+        ),
+      )
+      .handle("getSchema", () =>
+        Effect.gen(function* () {
+          const req = yield* HttpServerRequest.HttpServerRequest;
+          const ifNoneMatch = HttpHeaders.get(req.headers, "if-none-match");
+
+          return yield* bridgeAuthSession(
+            Effect.gen(function* () {
+              const session = yield* AuthSession;
+              const projectId = session?.projects[0]?.id;
+              if (!projectId) {
+                return yield* Effect.fail(
+                  new ApiAuthenticationError({
+                    cause: "No project associated with this publishable key",
+                    message: "No project associated with this publishable key",
+                  }),
+                );
+              }
+
+              const schema = yield* schemaService.getProjectSchemaForSdk(projectId);
+
+              const notModified = schemaNotModifiedResponse(
+                Option.getOrUndefined(ifNoneMatch),
+                schema.version,
+              );
+              if (notModified) {
+                return notModified;
+              }
+
+              const perks: Record<string, SdkSchemaPerk> = {};
+              for (const perk of schema.perks) {
+                perks[perk.slug] = new SdkSchemaPerk(perk);
+              }
+
+              const locations: Record<string, SdkSchemaLocation> = {};
+              for (const location of schema.locations) {
+                locations[location.slug] = new SdkSchemaLocation(location);
+              }
+
+              const products: Record<string, SdkSchemaProduct> = {};
+              for (const product of schema.products) {
+                const perksRecord: Record<string, true> = {};
+                for (const perkSlug of product.perks) {
+                  perksRecord[perkSlug] = true;
+                }
+                const providers: {
+                  appleAppStore?: Record<string, unknown>;
+                  googlePlay?: Record<string, unknown>;
+                } = {};
+                for (const provider of product.providers) {
+                  providers[provider.providerId] = provider.configuration;
+                }
+                products[product.slug] = new SdkSchemaProduct({
+                  configuration: { perks: perksRecord, providers },
+                  properties: { name: product.name },
+                  slug: product.slug,
+                  type: product.type,
+                });
+              }
+
+              return yield* HttpServerResponse.schemaJson(SdkSchema)(
+                new SdkSchema({ locations, perks, products, version: schema.version }),
+                { headers: schemaResponseHeaders(schema.version) },
+              ).pipe(Effect.orDie);
+            }),
+          );
+        }).pipe(
+          Effect.catchTags({
+            SchemaServiceError: (e) => Effect.fail(new ApiSchemaServiceError({ cause: e.cause })),
+          }),
+        ),
+      )
+      .handle("evaluateFeatureFlags", ({ payload }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
+            const projectId = session?.projects[0]?.id;
+            if (!projectId) {
+              return yield* Effect.fail(
+                new ApiSdkServiceError({ cause: "No project associated with this key" }),
+              );
+            }
+
+            const distinctId = session?.person?.distinctId ?? undefined;
+
+            let personId: string | undefined;
+            if (distinctId) {
+              const mapping = yield* dbService.query.personIdentities.findFirst({
+                where: { distinctId, projectId },
+              });
+              personId = mapping?.personId;
+            }
+
+            const results = yield* featureFlagService.evaluateFlagsBatch({
+              personId,
+              distinctId,
+              keys: payload.flagKeys ? [...payload.flagKeys] : undefined,
+              projectId,
+            });
+
+            return new SdkFeatureFlagsResponse({
+              flags: results.map(
+                (r) =>
+                  new SdkFeatureFlagResult({
+                    enabled: r.enabled,
+                    key: r.key,
+                    payload: r.payload,
+                    variantKey: r.variantKey,
+                  }),
+              ),
+            });
+          }),
+        ).pipe(
+          Effect.catchTags({
+            FeatureFlagServiceError: (e) => Effect.fail(new ApiSdkServiceError({ cause: e.cause })),
+            EffectDrizzleQueryError: (e) =>
+              Effect.fail(new ApiSdkServiceError({ cause: String(e.message) })),
+          }),
+        ),
+      )
+      .handle("registerDevice", ({ payload }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
+            const project = session?.projects[0];
+            if (!project) {
+              return yield* Effect.fail(
+                new ApiAuthenticationError({
+                  cause: "No project associated with this SDK authentication session",
+                  message: "No project associated with this SDK authentication session",
+                }),
+              );
+            }
+            yield* requireNotificationsEnabled(project.organizationId);
+            const projectId = project.id;
+            const distinctId = session?.person?.distinctId;
+            if (!distinctId) {
+              return yield* Effect.fail(
+                new ApiAuthenticationError({
+                  cause: "No SDK person identity found in this authentication session",
+                  message: "No SDK person identity found in this authentication session",
+                }),
+              );
+            }
+
+            // Resolve the CANONICAL caller person from the (spoofable) distinct
+            // id, creating an anonymous person if needed — ownership is bound
+            // here server-side, never trusted from the raw header downstream.
+            const resolution = yield* personIdentityService.resolveDistinctId({
+              projectId,
+              distinctId,
+              shouldCreatePerson: true,
+              eventTimestamp: new Date(),
+              setAttributes: {},
+              setOnceAttributes: {},
+            });
+            const callerPersonId = resolution.identity.personId;
+            if (!callerPersonId) {
+              return yield* Effect.fail(
+                new ApiPushDeviceServiceError({ cause: "could not resolve caller person" }),
+              );
+            }
+
+            const { pushDeviceTokenId } = yield* notificationTokenService.register({
+              projectId,
+              callerPersonId,
+              platform: payload.platform,
+              provider: payload.provider,
+              platformToken: payload.platformToken,
+              bundleId: payload.bundleId,
+              environment: payload.environment,
+              previousPushDeviceTokenId: payload.previousPushDeviceTokenId,
+            });
+            return new RegisterDeviceResponse({ pushDeviceTokenId });
+          }),
+        ).pipe(
+          Effect.catchTags({
+            PersonServiceError: (e) =>
+              Effect.fail(new ApiPushDeviceServiceError({ cause: String(e.cause) })),
+            NotificationTokenServiceError: (e) =>
+              Effect.fail(new ApiPushDeviceServiceError({ cause: e.cause })),
+            InvalidPushMessageError: (e) =>
+              Effect.fail(new ApiPushDeviceValidationError({ message: e.message })),
+          }),
+        ),
+      )
+      .handle("refreshDevice", ({ payload }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
+            const project = session?.projects[0];
+            if (!project) {
+              return yield* Effect.fail(
+                new ApiAuthenticationError({
+                  cause: "No project associated with this SDK authentication session",
+                  message: "No project associated with this SDK authentication session",
+                }),
+              );
+            }
+            yield* requireNotificationsEnabled(project.organizationId);
+            const projectId = project.id;
+            const distinctId = session?.person?.distinctId;
+            if (!distinctId) {
+              return yield* Effect.fail(
+                new ApiAuthenticationError({
+                  cause: "No SDK person identity found in this authentication session",
+                  message: "No SDK person identity found in this authentication session",
+                }),
+              );
+            }
+
+            // Do NOT create a person here: a non-existent person cannot own the
+            // device, so an unresolved caller maps to the UNIFORM NotFound.
+            const resolution = yield* personIdentityService.resolveDistinctId({
+              projectId,
+              distinctId,
+              shouldCreatePerson: false,
+              eventTimestamp: new Date(),
+              setAttributes: {},
+              setOnceAttributes: {},
+            });
+            const callerPersonId = resolution.identity.personId;
+            if (!callerPersonId) {
+              return yield* Effect.fail(
+                new ApiPushDeviceNotFoundError({ message: "device token not found" }),
+              );
+            }
+
+            yield* notificationTokenService.refresh({
+              projectId,
+              callerPersonId,
+              pushDeviceTokenId: payload.pushDeviceTokenId,
+              newPlatformToken: payload.platformToken,
+            });
+          }),
+        ).pipe(
+          Effect.catchTags({
+            PersonServiceError: (e) =>
+              Effect.fail(new ApiPushDeviceServiceError({ cause: String(e.cause) })),
+            NotificationTokenServiceError: (e) =>
+              Effect.fail(new ApiPushDeviceServiceError({ cause: e.cause })),
+            PushDeviceTokenNotFoundError: () =>
+              Effect.fail(new ApiPushDeviceNotFoundError({ message: "device token not found" })),
+          }),
+        ),
+      )
+      .handle("unregisterDevice", ({ payload }) =>
+        bridgeAuthSession(
+          Effect.gen(function* () {
+            const session = yield* AuthSession;
+            const project = session?.projects[0];
+            if (!project) {
+              return yield* Effect.fail(
+                new ApiAuthenticationError({
+                  cause: "No project associated with this SDK authentication session",
+                  message: "No project associated with this SDK authentication session",
+                }),
+              );
+            }
+            yield* requireNotificationsEnabled(project.organizationId);
+            const projectId = project.id;
+            const distinctId = session?.person?.distinctId;
+            if (!distinctId) {
+              return yield* Effect.fail(
+                new ApiAuthenticationError({
+                  cause: "No SDK person identity found in this authentication session",
+                  message: "No SDK person identity found in this authentication session",
+                }),
+              );
+            }
+
+            const resolution = yield* personIdentityService.resolveDistinctId({
+              projectId,
+              distinctId,
+              shouldCreatePerson: false,
+              eventTimestamp: new Date(),
+              setAttributes: {},
+              setOnceAttributes: {},
+            });
+            const callerPersonId = resolution.identity.personId;
+            if (!callerPersonId) {
+              return yield* Effect.fail(
+                new ApiPushDeviceNotFoundError({ message: "device token not found" }),
+              );
+            }
+
+            yield* notificationTokenService.unregister({
+              projectId,
+              callerPersonId,
+              pushDeviceTokenId: payload.pushDeviceTokenId,
+            });
+          }),
+        ).pipe(
+          Effect.catchTags({
+            PersonServiceError: (e) =>
+              Effect.fail(new ApiPushDeviceServiceError({ cause: String(e.cause) })),
+            NotificationTokenServiceError: (e) =>
+              Effect.fail(new ApiPushDeviceServiceError({ cause: e.cause })),
+            PushDeviceTokenNotFoundError: () =>
+              Effect.fail(new ApiPushDeviceNotFoundError({ message: "device token not found" })),
+          }),
+        ),
+      );
+  }),
+);

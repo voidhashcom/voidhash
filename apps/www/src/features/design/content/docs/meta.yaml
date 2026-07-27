@@ -1,0 +1,6 @@
+title: guide
+root: true
+pages:
+  - introduction
+  - foundations
+  - components

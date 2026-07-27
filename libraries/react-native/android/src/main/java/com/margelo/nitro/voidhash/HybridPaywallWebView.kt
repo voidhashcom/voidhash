@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.util.Base64
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import android.webkit.JavascriptInterface
@@ -239,9 +240,9 @@ class HybridPaywallWebView(
     init {
         refreshLayout.addView(
             webView,
-            SwipeRefreshLayout.LayoutParams(
-                SwipeRefreshLayout.LayoutParams.MATCH_PARENT,
-                SwipeRefreshLayout.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
             ),
         )
 
@@ -318,7 +319,7 @@ class HybridPaywallWebView(
                     navigationType = PaywallWebViewNavigationType.OTHER,
                     mainDocumentURL = request.url.toString(),
                     url = request.url.toString(),
-                    loading = view.isLoading,
+                    loading = view.progress < 100,
                     title = view.title ?: "",
                     canGoBack = view.canGoBack(),
                     canGoForward = view.canGoForward(),
@@ -337,7 +338,7 @@ class HybridPaywallWebView(
                     navigationType = PaywallWebViewNavigationType.OTHER,
                     mainDocumentURL = url,
                     url = url,
-                    loading = view.isLoading,
+                    loading = view.progress < 100,
                     title = view.title ?: "",
                     canGoBack = view.canGoBack(),
                     canGoForward = view.canGoForward(),
@@ -359,7 +360,7 @@ class HybridPaywallWebView(
                         code = error.errorCode.toDouble(),
                         description = error.description.toString(),
                         url = request.url.toString(),
-                        loading = view.isLoading,
+                        loading = view.progress < 100,
                         title = view.title ?: "",
                         canGoBack = view.canGoBack(),
                         canGoForward = view.canGoForward(),
@@ -379,7 +380,7 @@ class HybridPaywallWebView(
                         description = errorResponse.reasonPhrase ?: "HTTP Error",
                         statusCode = errorResponse.statusCode.toDouble(),
                         url = request.url.toString(),
-                        loading = view.isLoading,
+                        loading = view.progress < 100,
                         title = view.title ?: "",
                         canGoBack = view.canGoBack(),
                         canGoForward = view.canGoForward(),
@@ -589,7 +590,7 @@ class HybridPaywallWebView(
                             description = reasonPhrase,
                             statusCode = statusCode.toDouble(),
                             url = pendingRequest.uri,
-                            loading = webView.isLoading,
+                            loading = webView.progress < 100,
                             title = webView.title ?: "",
                             canGoBack = webView.canGoBack(),
                             canGoForward = webView.canGoForward(),
@@ -636,7 +637,7 @@ class HybridPaywallWebView(
             navigationType = navigationType,
             mainDocumentURL = url,
             url = url.orEmpty(),
-            loading = webView.isLoading,
+            loading = webView.progress < 100,
             title = webView.title ?: "",
             canGoBack = webView.canGoBack(),
             canGoForward = webView.canGoForward(),
@@ -648,7 +649,7 @@ class HybridPaywallWebView(
         return PaywallWebViewProgressEvent(
             progress = progress,
             url = url.orEmpty(),
-            loading = webView.isLoading,
+            loading = webView.progress < 100,
             title = webView.title ?: "",
             canGoBack = webView.canGoBack(),
             canGoForward = webView.canGoForward(),
@@ -659,7 +660,7 @@ class HybridPaywallWebView(
     private fun createBaseEvent(url: String?): PaywallWebViewBaseEvent {
         return PaywallWebViewBaseEvent(
             url = url.orEmpty(),
-            loading = webView.isLoading,
+            loading = webView.progress < 100,
             title = webView.title ?: "",
             canGoBack = webView.canGoBack(),
             canGoForward = webView.canGoForward(),
@@ -673,7 +674,7 @@ class HybridPaywallWebView(
             val event = PaywallWebViewMessageEvent(
                 data = data,
                 url = webView.url.orEmpty(),
-                loading = webView.isLoading,
+                loading = webView.progress < 100,
                 title = webView.title ?: "",
                 canGoBack = webView.canGoBack(),
                 canGoForward = webView.canGoForward(),

@@ -1,0 +1,22 @@
+export const ID_BLACKLIST = [
+  "no_user",
+  "null",
+  "none",
+  "nil",
+  "(null)",
+  "NaN",
+  "\u0000",
+  "",
+  "unidentified",
+  "undefined",
+  "unknown",
+  "anonymous",
+  "guest",
+  "-1",
+  "0",
+  "[]",
+  "{}",
+  "[object Object]",
+];
+
+export const SLUG_BLACKLIST = [...ID_BLACKLIST, "~", "login", "sign-up", "auth"];

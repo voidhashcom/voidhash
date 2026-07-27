@@ -1,11 +1,12 @@
+import { Context } from "effect";
+
 import type { VoidhashEventMap, VoidhashEventName } from "../types";
 
 export class EventBus {
   private listeners: {
-    [TEvent in VoidhashEventName]: Set<
-      (payload: VoidhashEventMap[TEvent]) => void
-    >;
+    [TEvent in VoidhashEventName]: Set<(payload: VoidhashEventMap[TEvent]) => void>;
   } = {
+    "analytics-flush-needed": new Set(),
     "analytics-flushed": new Set(),
     "analytics-partial-rejection": new Set(),
     error: new Set(),
@@ -14,10 +15,7 @@ export class EventBus {
     initialized: new Set(),
   };
 
-  emit<TEvent extends VoidhashEventName>(
-    event: TEvent,
-    payload: VoidhashEventMap[TEvent]
-  ) {
+  emit<TEvent extends VoidhashEventName>(event: TEvent, payload: VoidhashEventMap[TEvent]) {
     for (const listener of this.listeners[event] ?? []) {
       listener(payload);
     }
@@ -25,14 +23,14 @@ export class EventBus {
 
   off<TEvent extends VoidhashEventName>(
     event: TEvent,
-    listener: (payload: VoidhashEventMap[TEvent]) => void
+    listener: (payload: VoidhashEventMap[TEvent]) => void,
   ) {
     this.listeners[event]?.delete(listener);
   }
 
   on<TEvent extends VoidhashEventName>(
     event: TEvent,
-    listener: (payload: VoidhashEventMap[TEvent]) => void
+    listener: (payload: VoidhashEventMap[TEvent]) => void,
   ) {
     this.listeners[event]?.add(listener);
 
@@ -41,3 +39,7 @@ export class EventBus {
     };
   }
 }
+
+export class EventBusProvider extends Context.Service<EventBusProvider, EventBus>()(
+  "web-voidhash/EventBusProvider",
+) {}

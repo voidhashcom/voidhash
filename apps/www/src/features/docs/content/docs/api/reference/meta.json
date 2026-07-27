@@ -1,0 +1,20 @@
+{
+  "pages": [
+    "auth",
+    "api_keys",
+    "persons",
+    "organizations",
+    "perks",
+    "paywall_deploys",
+    "paywall_locations",
+    "schema",
+    "projects",
+    "products",
+    "product_perks",
+    "sdk",
+    "users",
+    "payment_provider_configurations",
+    "payment_provider_products",
+    "webhooks"
+  ]
+}

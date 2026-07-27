@@ -5,7 +5,7 @@ import { createProject } from "./create-project";
 
 export const selectProject = (
   organizationId: string,
-  projects: readonly { id: string; slug: string; name: string }[]
+  projects: readonly { id: string; slug: string; name: string }[],
 ) =>
   Effect.gen(function* selectProject() {
     if (projects.length === 0) {
@@ -21,7 +21,7 @@ export const selectProject = (
           { title: "(+) Create new project", value: "create-new-project" },
         ],
         message: "Select a project",
-      })
+      }),
     );
     if (projectSlug === "create-new-project") {
       return yield* createProject({ organizationId });
@@ -29,9 +29,7 @@ export const selectProject = (
 
     const project = projects.find((p) => p.slug === projectSlug);
     if (!project) {
-      return yield* Effect.die(
-        "Project not found even though it was selected and should exist."
-      );
+      return yield* Effect.die("Project not found even though it was selected and should exist.");
     }
     return project;
   });

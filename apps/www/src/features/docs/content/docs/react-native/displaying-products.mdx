@@ -1,0 +1,181 @@
+---
+title: Displaying Products
+description: Fetch live store products with useProducts and build your own paywall UI.
+---
+
+If you want full control over your paywall UI instead of using a [hosted paywall](/react-native/displaying-paywalls), fetch your products directly and render them with your own React Native components. Voidhash resolves the products declared in your [schema](/react-native/schema-and-types) against the native store SDK (StoreKit on iOS, Google Play Billing on Android), so every product comes back with live, store-formatted pricing.
+
+## Fetching Products
+
+Use the `useProducts()` hook returned by `createVoidhashClient`. It returns `{ data, error, isLoading }` and automatically waits for the [Provider](/react-native/configuration) to finish initializing:
+
+```tsx title="app/paywall.tsx"
+import { Text, View } from "react-native";
+import { voidhash } from "utils/voidhash/client";
+
+export default function PaywallScreen() {
+  const { data: products, error, isLoading } = voidhash.useProducts();
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return <ErrorMessage error={error} />;
+  }
+
+  return (
+    <View>
+      {products.toList().map((product) => (
+        <View key={product.slug}>
+          <Text>{product.name}</Text>
+          <Text>{product.displayPrice}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+```
+
+## Working with the Result
+
+`data` is a record keyed by your product slugs, with two helpers attached:
+
+- **`data.get(slug)`** — returns the product for a slug, or `null` if it isn't available (or products haven't loaded yet).
+- **`data.toList()`** — returns all products as an array, filtering out any `null` entries.
+
+```tsx
+const { data: products } = voidhash.useProducts();
+
+// Look up a specific product
+const monthly = products.get("pro-monthly");
+
+// Or iterate over everything the store returned
+const available = products.toList();
+```
+
+If you've generated types with `voidhash-cli types generate`, the slugs are typed as a literal union — `products.get()` autocompletes your real product slugs and rejects typos at compile time. See [Schema & Types](/react-native/schema-and-types).
+
+## Product Fields
+
+Each product combines your schema definition with live metadata from the store:
+
+| Field | Description |
+| --- | --- |
+| `slug` | The product's slug from your Voidhash schema. |
+| `id` | The native store product identifier (App Store Connect / Google Play product ID). |
+| `name` | The product name from your Voidhash schema. |
+| `displayName` | The localized product name from the store listing. |
+| `displayPrice` | The store-formatted price string, e.g. `$9.99` — already localized to the user's storefront. |
+| `price` | The price as a number. |
+| `currency` | The storefront currency code. |
+| `type` | The product type reported by the store SDK. |
+| `platform` | `"ios"` or `"android"`. |
+| `googlePlayOfferToken` | Android only — the offer token used when purchasing. |
+
+<Callout type="info" title="Always render displayPrice">
+  Prefer `displayPrice` over formatting `price` yourself. The store formats it for the user's
+  storefront — correct currency symbol, decimal separators, and locale conventions — which is very
+  hard to get right manually.
+</Callout>
+
+### Product Types
+
+In your schema, every product is one of three types:
+
+- **`subscription`** — auto-renewing subscription.
+- **`one-time`** — a single purchase that permanently unlocks its perks.
+- **`one-time-consumable`** — a purchase that can be bought repeatedly (credits, coins, boosts).
+
+## Complete Paywall Example
+
+A full paywall with product selection and purchase. Track the selection by slug and resolve the selected product from the list — this avoids having to store the product object in state:
+
+```tsx title="app/paywall.tsx"
+import { useState } from "react";
+import { Button, Text, TouchableOpacity, View } from "react-native";
+import { voidhash } from "utils/voidhash/client";
+
+export default function PaywallScreen() {
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+
+  const { data: products, isLoading: areProductsLoading } = voidhash.useProducts();
+  const { purchase, isLoading: isPurchasing } = voidhash.usePurchase();
+
+  if (areProductsLoading) {
+    return <LoadingSpinner />;
+  }
+
+  const selectedProduct = products.toList().find((product) => product.slug === selectedSlug) ?? null;
+
+  const handlePurchase = () => {
+    if (!selectedProduct) {
+      return;
+    }
+    purchase(selectedProduct);
+  };
+
+  return (
+    <View>
+      <Text>Choose a plan to continue</Text>
+
+      <View>
+        {products.toList().map((product) => (
+          <TouchableOpacity key={product.slug} onPress={() => setSelectedSlug(product.slug)}>
+            <View>
+              <Text>{product.name}</Text>
+              <Text>{product.displayPrice}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Button
+        onPress={handlePurchase}
+        disabled={!selectedProduct || isPurchasing}
+        title={isPurchasing ? "Purchasing..." : "Continue"}
+      />
+    </View>
+  );
+}
+```
+
+See [Making Purchases](/react-native/purchases) for the full purchase flow, including callbacks and error handling.
+
+## Troubleshooting: a Product Is `null`
+
+The products record always contains an entry for every product in your schema, but the value is `null` when the store SDK doesn't know about that product. Since `toList()` filters out `null` entries, this often shows up as a paywall with missing (or no) products.
+
+<Callout type="warn" title="null products almost always mean store misconfiguration">
+  Voidhash asks the store for the product IDs configured in your schema. If the store doesn't
+  return metadata for one, the most common causes are:
+
+  - The store product ID in your schema (`appleAppStore.productId`, or `googlePlay.productId` +
+    `basePlanId`) doesn't exactly match the ID in App Store Connect / Google Play Console.
+  - The product hasn't been created yet, or isn't in a ready/active state in the store console.
+  - The product has no provider configuration for the current platform — a product configured only
+    for `appleAppStore` resolves to `null` on Android, and vice versa.
+  - Store-side prerequisites are missing, such as unsigned paid app agreements in App Store Connect
+    or an app that hasn't been published to a testing track in Google Play Console.
+</Callout>
+
+Fetched store products are cached for up to 24 hours. If you've just fixed the store-side configuration and still see `null`, clear the app's storage or reinstall the development build to force a fresh fetch. Changing the schema itself (for example, correcting a product ID) invalidates the cache automatically.
+
+## Fetching Imperatively
+
+Outside of React, use `client.getProducts()`. It returns the same slug-keyed record (without the `get`/`toList` helpers) and rejects with a `FAILED_TO_GET_PRODUCTS` error if the fetch fails:
+
+```tsx
+import { voidhash } from "utils/voidhash/client";
+
+const products = await voidhash.client.getProducts();
+const monthly = products["pro-monthly"];
+```
+
+The client must be initialized first — calling it before the Provider has mounted throws a `VOIDHASH_CLIENT_NOT_INITIALIZED` error. See [Error Handling](/react-native/error-handling) for the error conventions.
+
+## Next Steps
+
+- [Making Purchases](/react-native/purchases) — purchase a product with `usePurchase`.
+- [Subscription Status](/react-native/subscription-status) — check what the user has access to after buying.
+- [Displaying Paywalls](/react-native/displaying-paywalls) — let Voidhash render a remotely configured paywall instead.

@@ -28,7 +28,7 @@ export default function WebViewSmokeScreen() {
         <Button
           onPress={() =>
             ref.current?.injectJavaScript(
-              "window.ReactNativeWebView.postMessage(JSON.stringify({version:1,type:'log',payload:{level:'info',message:'inject ok'}}));"
+              "window.ReactNativeWebView.postMessage(JSON.stringify({version:1,type:'log',payload:{level:'info',message:'inject ok'}}));",
             )
           }
           title="Inject"

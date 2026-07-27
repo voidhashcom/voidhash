@@ -1,0 +1,152 @@
+---
+title: Event Capture
+description: Ingest analytics events through the /i/v1 capture endpoints using a publishable project token.
+---
+
+Event capture is a separate, high-throughput ingestion surface for analytics events. It lives on the same host as the rest of the API (see [API Overview](/docs/api/overview) for base URLs) but under the `/i/v1` prefix, with its own authentication model and error shape. The [React Native SDK](/docs/react-native/analytics) uses these endpoints under the hood — call them directly when you are building your own client or forwarding events from another system.
+
+There are two endpoints:
+
+| Method + Path | Purpose |
+| --- | --- |
+| `POST /i/v1/capture` | Capture a single event |
+| `POST /i/v1/batch` | Capture multiple events in one request |
+
+## Authentication
+
+Unlike the `/api/v1` surface, event capture does **not** use authentication headers. Every request carries a publishable project `token` in the request body, and the token resolves the project the events belong to. A request with a missing or invalid token fails with `401 unauthorized`.
+
+Because the token is publishable, it is safe to embed in client applications — it can only submit events, and reserved server-side event names are rejected (see [Response semantics](#response-semantics) below).
+
+## The event object
+
+Both endpoints accept the same event shape:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `uuid` | string | Yes | Stable client-generated event id, used for deduplication |
+| `event` | string | Yes | The event name |
+| `distinct_id` | string | Yes | The distinct id of the person the event belongs to |
+| `properties` | object | Yes | Event properties (may be empty `{}`) |
+| `context` | object | Yes | Client context — device, app, and environment metadata (may be empty `{}`) |
+| `session_id` | string | No | Session identifier for grouping events |
+| `timestamp` | string | No | ISO 8601 time the event occurred on the client |
+
+`properties` and `context` values are JSON-like: strings, finite numbers, booleans, `null`, and arbitrarily nested arrays and objects of the same.
+
+<Callout type="info" title="uuid is your idempotency key">
+  Generate `uuid` on the client, once per event, and reuse the same value on retries. The server
+  deduplicates events by this id within the project, so resending an event after a timeout or a
+  `429`/`503` never produces duplicates. Never generate a fresh `uuid` for a retry of the same
+  event.
+</Callout>
+
+Alongside the events, the request body carries two top-level fields:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `token` | string | Yes | Publishable project token |
+| `sent_at` | string | Yes | ISO 8601 time the request left the client, recorded alongside the server's receive time |
+
+## Capture a single event
+
+`POST /i/v1/capture` takes one event: the event fields, plus `sent_at` and `token`, flattened into a single body.
+
+```bash
+curl https://api.voidhash.com/i/v1/capture \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "vh_pk_...",
+    "sent_at": "2026-07-17T12:00:01.000Z",
+    "uuid": "018f6d2e-4c3a-7b1d-9e5f-2a8c1b0d4e6f",
+    "event": "paywall_viewed",
+    "distinct_id": "user_123",
+    "properties": { "paywall": "onboarding", "plan": "pro" },
+    "context": { "app_version": "2.4.0", "os": "ios" },
+    "session_id": "sess_456",
+    "timestamp": "2026-07-17T12:00:00.000Z"
+  }'
+```
+
+## Capture a batch
+
+`POST /i/v1/batch` takes a non-empty `events` array plus the same top-level `sent_at` and `token`. Prefer batching when you buffer events on the client — one request consumes one unit of the per-project request rate limit regardless of how many events it carries.
+
+```bash
+curl https://api.voidhash.com/i/v1/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "vh_pk_...",
+    "sent_at": "2026-07-17T12:00:05.000Z",
+    "events": [
+      {
+        "uuid": "018f6d2e-4c3a-7b1d-9e5f-2a8c1b0d4e6f",
+        "event": "paywall_viewed",
+        "distinct_id": "user_123",
+        "properties": { "paywall": "onboarding" },
+        "context": { "app_version": "2.4.0", "os": "ios" },
+        "timestamp": "2026-07-17T12:00:00.000Z"
+      },
+      {
+        "uuid": "018f6d2e-5d4b-7c2e-8f6a-3b9d2c1e5f7a",
+        "event": "purchase_button_tapped",
+        "distinct_id": "user_123",
+        "properties": { "product": "pro-monthly" },
+        "context": { "app_version": "2.4.0", "os": "ios" },
+        "timestamp": "2026-07-17T12:00:03.000Z"
+      }
+    ]
+  }'
+```
+
+## Response semantics
+
+Both endpoints return `202 Accepted` with per-event counts:
+
+```json
+{
+  "accepted": 2,
+  "rejected": 0
+}
+```
+
+- `202` means the request was authenticated and processed — accepted events are enqueued for asynchronous ingestion, not yet stored.
+- `accepted` + `rejected` always equals the number of events you sent. A batch can partially succeed: the request still returns `202` even when `rejected > 0`.
+- Events are rejected individually when they use a reserved revenue event name (`$purchase.*` and `$subscription.*` are server-trusted and can never enter through the publishable-token surface) or when per-event processing fails. Rejected events are dropped — do not resend them.
+
+Every response (success or error) includes an `x-request-id` header. Log it and include it when reporting ingestion issues.
+
+## Errors
+
+Error responses use a flat shape, distinct from the tagged errors on `/api/v1`:
+
+```json
+{
+  "error": "request rate limit exceeded",
+  "code": "rate_limited"
+}
+```
+
+Branch on `code` — it is stable and machine-matchable. `error` is a human-readable message.
+
+| Status | `code` | Meaning | Retry? |
+| --- | --- | --- | --- |
+| `400` | `invalid_request` | Malformed body or events failing schema validation | No — fix the request |
+| `401` | `unauthorized` | Missing or invalid `token` | No — fix the token |
+| `413` | `payload_too_large` | Request body exceeds the size limit | No — split into smaller batches |
+| `429` | `rate_limited` | Per-project request rate limit exceeded, or capture is disabled for the project | Yes — after the indicated delay |
+| `503` | `dependency_unavailable` | A capture dependency is temporarily unavailable | Yes — with backoff |
+| `500` | `internal_error` | Unexpected server failure | Yes — with backoff |
+
+Rate-limited responses tell you how long to wait: the `retry-after` response header carries the delay in seconds, and the body may additionally include `retry_after_ms` with millisecond precision.
+
+<Callout type="warn" title="Retry safely, never re-generate uuids">
+  Treat `429`, `503`, and `500` (and network timeouts) as retryable: keep the events buffered and
+  resend the identical payload with exponential backoff, honoring `retry-after` when present.
+  Because deduplication keys on each event's `uuid`, replaying the same batch is safe. `400`,
+  `401`, and `413` are not retryable — retrying the same request will fail the same way.
+</Callout>
+
+## OpenAPI document
+
+The event capture surface publishes its own OpenAPI document at `GET /i/docs/openapi.json` if you want to generate a client. For the header-authenticated management API, see [Authentication](/docs/api/authentication).

@@ -1,0 +1,402 @@
+---
+title: Device SDK Endpoints
+description: The /api/v1/sdk surface the React Native SDK talks to — required headers, endpoints, and response shapes.
+---
+
+Everything under `/api/v1/sdk` is the device-facing API: the endpoints the [React Native SDK](/docs/react-native/overview) calls to identify persons, sync purchases, evaluate feature flags, resolve paywalls, and manage push tokens. You normally never call these yourself — the SDK does. They are documented here for transparency, and for anyone building a custom client on another platform.
+
+All endpoints authenticate with a **publishable key** plus a **distinct ID**, so the session is always scoped to a single person in a single project. See [Authentication](/docs/api/authentication) for the credential model and [API Overview](/docs/api/overview) for base URLs and error conventions.
+
+## Required headers
+
+Every SDK endpoint requires the same header set. Two headers carry authentication:
+
+| Header | Value |
+| --- | --- |
+| `x-publishable-key` | Your project's publishable key (`vh_pk_...`) |
+| `x-distinct-id` | The distinct ID of the person making the request |
+
+The rest is client telemetry the server uses for storefront resolution, diagnostics, and analytics. These are **required** on every request:
+
+| Header | Value |
+| --- | --- |
+| `x-client-bundle-id` | The app's bundle identifier, e.g. `com.yourcompany.yourapp` |
+| `x-is-backgrounded` | Must be `"false"` — the contract only accepts requests from foregrounded apps |
+| `x-is-debug-build` | `"true"` or `"false"` |
+| `x-observer-mode` | `"true"` or `"false"` — whether the client runs in read-only observer mode |
+| `x-platform` | Platform name, e.g. `ios` or `android` |
+| `x-platform-flavor` | `"native"` or `"browser"` |
+| `x-sdk` | `"react-native"` or `"web"` |
+| `x-sdk-version` | The SDK version string |
+
+And these are optional:
+
+| Header | Value |
+| --- | --- |
+| `x-client-locale` | Current locale of the app |
+| `x-client-version` | App version |
+| `x-nonce` | Client-generated request nonce |
+| `x-platform-brand` | Device brand |
+| `x-platform-device` | Device model |
+| `x-platform-flavor-version` | Version of the platform flavor |
+| `x-platform-version` | OS version |
+| `x-preferred-locales` | The user's preferred locales |
+| `x-storefront` | Store storefront identifier |
+
+A minimal request looks like this:
+
+```bash
+curl https://api.voidhash.com/api/v1/sdk/person \
+  -H "x-publishable-key: vh_pk_..." \
+  -H "x-distinct-id: vh:anon:1f2e3d..." \
+  -H "x-client-bundle-id: com.yourcompany.yourapp" \
+  -H "x-is-backgrounded: false" \
+  -H "x-is-debug-build: false" \
+  -H "x-observer-mode: false" \
+  -H "x-platform: ios" \
+  -H "x-platform-flavor: native" \
+  -H "x-sdk: react-native" \
+  -H "x-sdk-version: 0.0.1"
+```
+
+Missing or malformed required headers fail request decoding before the endpoint runs. On top of the common error conventions, most SDK endpoints can return `Api/SdkServiceError` (500), `Api/SdkValidationError` (400), and `Api/SdkPersonNotFoundError` (404); endpoint-specific errors are listed below.
+
+## Endpoint summary
+
+| Endpoint | Method + Path | Returns |
+| --- | --- | --- |
+| Get person | `GET /api/v1/sdk/person` | `SdkPerson` |
+| Identify person | `POST /api/v1/sdk/identify` | `SdkPerson` |
+| Sync person attributes | `POST /api/v1/sdk/person/traits` | `SdkPerson` |
+| Sync transaction | `POST /api/v1/sdk/sync-transaction` | `{ accepted: boolean }` |
+| Evaluate feature flags | `POST /api/v1/sdk/evaluate-flags` | `{ flags: [...] }` |
+| Resolve paywall | `POST /api/v1/sdk/resolve-paywall` | `SdkResolvedPaywall \| null` |
+| Get schema | `GET /api/v1/sdk/schema` | `SdkSchema` |
+| Register push device | `POST /api/v1/sdk/push-devices/register` | `{ pushDeviceTokenId }` |
+| Refresh push device | `POST /api/v1/sdk/push-devices/refresh` | (empty) |
+| Unregister push device | `POST /api/v1/sdk/push-devices/unregister` | (empty) |
+
+## Get person
+
+```
+GET /api/v1/sdk/person
+```
+
+Returns the [`SdkPerson`](#the-sdkperson-shape) snapshot for the person identified by `x-distinct-id`: profile fields, entitlement grants, current subscription plus history, and purchase history. This is what powers `useCurrentPerson()` and [subscription status](/docs/react-native/subscription-status) in the React Native SDK.
+
+Returns `404 Api/SdkPersonNotFoundError` when no person exists for the distinct ID.
+
+## Identify person
+
+```
+POST /api/v1/sdk/identify
+```
+
+Links the anonymous person behind `x-distinct-id` to your own user ID. The `distinctId` in the body is the **new** identity (typically your backend's user ID); the anonymous person's data is migrated onto it. See [Identifying Users](/docs/react-native/identifying-users) for the client-side semantics.
+
+```json
+{
+  "distinctId": "user_42",
+  "email": "jane@example.com",
+  "name": "Jane Doe",
+  "traits": { "plan_intent": "annual" }
+}
+```
+
+`email`, `name`, and `traits` are optional. Trait values are `string | number | boolean | null`. Returns the merged `SdkPerson`.
+
+| Status | Error | Meaning |
+| --- | --- | --- |
+| `409` | `Api/SdkPersonAlreadyIdentifiedError` | The person was already identified with a different ID. The body carries the conflicting `distinctId`. |
+| `404` | `Api/SdkPersonNotFoundError` | No person for the calling distinct ID |
+| `400` | `Api/SdkValidationError` | Invalid payload |
+
+<Callout type="info" title="Identify migrations are visible in the snapshot">
+  While an identify migration is in flight, the returned `SdkPerson` has
+  `snapshotContext.mode: "temporary_pending_transfer"` and `snapshotContext.includedPersonIds`
+  lists every person merged into the snapshot. Once the migration completes, `mode` returns to
+  `"persisted"`.
+</Callout>
+
+## Sync person attributes
+
+```
+POST /api/v1/sdk/person/traits
+```
+
+Writes profile fields and custom traits for the current person and returns the updated `SdkPerson`. Two write semantics are available:
+
+```json
+{
+  "email": "jane@example.com",
+  "name": "Jane Doe",
+  "traits": { "favorite_color": "green" },
+  "setOnce": { "first_seen_screen": "onboarding" },
+  "clientEventId": "9c2f2a1e-..."
+}
+```
+
+- `traits` uses **`$set` semantics** — newest write wins per key.
+- `setOnce` uses **`$set_once` semantics** — the earliest write wins, and any `$set` for the same key beats it.
+- `clientEventId` is an optional stable client-supplied ID used as a deterministic last-write-wins tie-break, so a synchronous attribute write and its eventual asynchronous `$set` echo through the analytics pipeline dedupe idempotently.
+
+All fields are optional; trait values are `string | number | boolean | null`.
+
+## The `SdkPerson` shape
+
+Returned by `getPerson`, `identifyPerson`, and `syncPersonAttributes`. Dates are ISO 8601 strings on the wire.
+
+```ts
+type SdkPerson = {
+  personId: string;
+  distinctId: string;
+  email: string | null;
+  name: string | null;
+  entitlements: {
+    grants: Array<{
+      perkId: string;
+      status: "active" | "expired";
+      source: "subscription" | "purchase" | "manual";
+      sourceId: string | null;
+      sourcePersonId: string;
+      expiresAt: string | null;
+    }>;
+  };
+  subscriptions: {
+    current: {
+      status: "none" | "active" | "canceled" | "past_due" | "trialing";
+      productId: string | null;
+      subscriptionId: string | null;
+      expiresAt: string | null;
+    } | null;
+    history: Array<{
+      subscriptionId: string;
+      productId: string | null;
+      status: "active" | "canceled" | "expired" | "trialing" | "past_due";
+      isTrial: boolean;
+      startsAt: string;
+      expiresAt: string | null;
+      canceledAt: string | null;
+      sourcePersonId: string;
+    }>;
+  };
+  purchases: {
+    history: Array<{
+      purchaseId: string;
+      productId: string | null;
+      providerKey: string;
+      type: "one_time" | "subscription";
+      createdAt: string;
+      sourcePersonId: string;
+    }>;
+  };
+  snapshotContext: {
+    mode: "persisted" | "temporary_pending_transfer";
+    includedPersonIds: string[];
+    migrationJobId: string | null;
+  };
+};
+```
+
+The `sourcePersonId` fields tell you which underlying person a grant, subscription, or purchase belongs to — relevant when a snapshot temporarily merges multiple persons during an identify migration.
+
+## Sync transaction
+
+```
+POST /api/v1/sdk/sync-transaction
+```
+
+Reports a store transaction (StoreKit or Play Billing) to the server for verification. This is the endpoint behind the SDK's [purchase flow](/docs/react-native/purchases) — the client reports what it observed, and the server independently verifies with the store before granting anything.
+
+```json
+{
+  "platform": "ios",
+  "productSlug": "pro-monthly",
+  "transactionId": "2000000123456789",
+  "purchaseDate": 1752691200000,
+  "quantity": 1,
+  "appAccountToken": "6e8bf430-...",
+  "providerProductId": "com.yourcompany.yourapp.pro.monthly"
+}
+```
+
+| Field | Notes |
+| --- | --- |
+| `platform` | `"ios"` or `"android"` |
+| `productSlug` | The Voidhash product slug |
+| `transactionId` | The store's transaction identifier |
+| `purchaseDate` | Purchase timestamp (number) |
+| `quantity` | Purchase quantity |
+| `appAccountToken` | Optional. See the callout below |
+| `providerProductId` | Optional. The native store product identifier, kept separate from the Voidhash slug because they are not generally equal |
+| `purchaseToken` | Optional. Play Billing purchase token (Android) |
+| `receipt` | Optional receipt payload |
+
+Responds `{ "accepted": boolean }` — the sync is accepted for processing, not synchronously settled. The endpoint is idempotent, so clients can safely re-report the same transaction during reconciliation.
+
+<Callout type="info" title="appAccountToken is advisory only">
+  The SDK sets a deterministic UUID derived from the distinct ID as Apple's `appAccountToken` /
+  Google's `obfuscatedAccountId`, and echoes it here. The server treats it as observability data
+  only — it re-fetches and verifies the signed transaction (JWS) directly with the store, and never
+  trusts the client-supplied token for authorization.
+</Callout>
+
+## Evaluate feature flags
+
+```
+POST /api/v1/sdk/evaluate-flags
+```
+
+Evaluates [feature flags](/docs/react-native/feature-flags) for the current person. Pass `flagKeys` to evaluate a subset, or omit it to evaluate all flags:
+
+```json
+{ "flagKeys": ["new-onboarding", "paywall-experiment"] }
+```
+
+Response:
+
+```json
+{
+  "flags": [
+    { "key": "new-onboarding", "enabled": true, "variantKey": null, "payload": null },
+    { "key": "paywall-experiment", "enabled": true, "variantKey": "variant-b", "payload": { "discount": 20 } }
+  ]
+}
+```
+
+`variantKey` and `payload` are `null` for plain boolean flags.
+
+## Resolve paywall
+
+```
+POST /api/v1/sdk/resolve-paywall
+```
+
+Resolves which paywall (if any) the current person should see at a paywall location. This powers `usePaywallByLocation` and [displaying paywalls](/docs/react-native/displaying-paywalls).
+
+```json
+{ "locationSlug": "onboarding" }
+```
+
+Returns `null` when nothing is assigned and published at the location, otherwise:
+
+```ts
+type SdkResolvedPaywall = {
+  location: { id: string; name: string; slug: string };
+  showing: {
+    id: string;
+    type: "paywall_release" | "feature_flag";
+    paywall: { id: string; name: string; slug: string } | null;
+    paywallId: string | null;
+    paywallRelease: {
+      releaseId: string;
+      version: number;
+      htmlUrl: string;
+      publishedAt: string | null;
+      runtime: {
+        contentHash: string;
+        productSlugs: string[];
+        variables: Record<string, string | number | boolean>;
+      } | null;
+    } | null;
+    paywallReleaseId: string | null;
+    startedAt: string;
+  };
+};
+```
+
+The `runtime` block is the code-release runtime from the [paywall deploy contract](/docs/api/paywall-deploys): present for code-deployed releases and `null` for visual-editor releases. For code releases the device SDK caches the bundle by `contentHash` (the `htmlUrl` points at an immutable artifact), maps `productSlugs` through its native store metadata to build the paywall's product list, and passes `variables` through to the paywall unchanged.
+
+## Get schema
+
+```
+GET /api/v1/sdk/schema
+```
+
+Returns the runtime project schema the SDK fetches on `Provider` mount — your products, perks, and paywall locations as configured on the server. This is the record-keyed sibling of the CLI-facing [`GET /api/v1/schema`](/docs/api/schema): collections are keyed by slug (the SDK looks products up by slug at runtime) instead of being arrays, and `enabledProviders` is omitted.
+
+```ts
+type SdkSchema = {
+  locations: Record<string, { name: string; slug: string; description: string | null }>;
+  perks: Record<string, { name: string; slug: string }>;
+  products: Record<string, {
+    slug: string;
+    type: "subscription" | "one-time" | "one-time-consumable";
+    properties: { name: string };
+    configuration: {
+      perks: Record<string, true>;
+      providers: {
+        appleAppStore?: Record<string, unknown>;
+        googlePlay?: Record<string, unknown>;
+      };
+    };
+  }>;
+  version: string;
+};
+```
+
+`version` is the same `sha256:<hex>` content hash as `GET /api/v1/schema/version` — the SDK compares it against the hash baked into generated types to warn about drift (see [Schema & Types](/docs/react-native/schema-and-types)). Provider configuration blobs are opaque records; the SDK reads provider-specific keys (`productId`, `basePlanId`, …) out of them at the native store boundary.
+
+## Push device lifecycle
+
+Three endpoints manage push notification tokens for the current person. The server exchanges the raw platform credential for its own opaque ID (`push_tok_*`) and only ever hands that ID back — the raw FCM/APNs token is never echoed. Sending notifications to registered devices is a separate, server-side API: see [Notifications](/docs/api/notifications).
+
+### Register
+
+```
+POST /api/v1/sdk/push-devices/register
+```
+
+```json
+{
+  "platform": "ios",
+  "provider": "apns",
+  "platformToken": "a1b2c3...",
+  "bundleId": "com.yourcompany.yourapp",
+  "environment": "production",
+  "previousPushDeviceTokenId": "push_tok_..."
+}
+```
+
+| Field | Notes |
+| --- | --- |
+| `platform` | `"ios"` or `"android"` |
+| `provider` | `"fcm"` or `"apns"` — routing is provider-driven, not platform-driven |
+| `platformToken` | FCM registration token or raw APNs device-token hex (non-empty) |
+| `bundleId` | Required for `apns`/iOS |
+| `environment` | `"sandbox"` or `"production"`, APNs only |
+| `previousPushDeviceTokenId` | Optional hint that lets the server eagerly reap the old registration after a reinstall |
+
+Responds `{ "pushDeviceTokenId": "push_tok_..." }`.
+
+### Refresh
+
+```
+POST /api/v1/sdk/push-devices/refresh
+```
+
+Rotates the platform token under the **same** `pushDeviceTokenId` (same-install only):
+
+```json
+{ "pushDeviceTokenId": "push_tok_...", "platformToken": "d4e5f6..." }
+```
+
+Responds with an empty body on success.
+
+### Unregister
+
+```
+POST /api/v1/sdk/push-devices/unregister
+```
+
+```json
+{ "pushDeviceTokenId": "push_tok_..." }
+```
+
+Responds with an empty body on success.
+
+<Callout type="info" title="Uniform 404s — no existence oracle">
+  `refresh` and `unregister` return the same `404 Api/PushDeviceNotFoundError` whether the token ID
+  does not exist or exists but belongs to another person. A caller can never use these endpoints to
+  probe whether someone else's token ID is valid.
+</Callout>

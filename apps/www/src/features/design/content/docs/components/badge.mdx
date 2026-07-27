@@ -1,0 +1,89 @@
+---
+title: Badge
+description: Displays a small label or indicator for status, categories, or counts.
+---
+
+## Usage
+
+<Preview>
+  <Badge>Badge</Badge>
+</Preview>
+
+```tsx
+import { Badge } from "@voidhash/ui";
+
+<Badge>Badge</Badge>;
+```
+
+## Variants
+
+<div className="flex flex-wrap gap-4">
+  <Preview className="p-4">
+    <Badge variant="default">Default</Badge>
+  </Preview>
+  <Preview className="p-4">
+    <Badge variant="secondary">Secondary</Badge>
+  </Preview>
+  <Preview className="p-4">
+    <Badge variant="destructive">Destructive</Badge>
+  </Preview>
+  <Preview className="p-4">
+    <Badge variant="outline">Outline</Badge>
+  </Preview>
+</div>
+
+```tsx
+<Badge variant="default">Default</Badge>
+<Badge variant="secondary">Secondary</Badge>
+<Badge variant="destructive">Destructive</Badge>
+<Badge variant="outline">Outline</Badge>
+```
+
+## Examples
+
+### With Icon
+
+<Preview>
+  <Badge>
+    <CheckIcon /> Verified
+  </Badge>
+</Preview>
+
+```tsx
+<Badge>
+  <CheckIcon /> Verified
+</Badge>
+```
+
+### As Link
+
+Use the `asChild` prop to render the badge as a link:
+
+<Preview>
+  <Badge asChild>
+    <a href="#">Clickable Badge</a>
+  </Badge>
+</Preview>
+
+```tsx
+<Badge asChild>
+  <a href="/category">Category</a>
+</Badge>
+```
+
+## Props
+
+<TypeTable
+  type={{
+    variant: {
+      description: "The visual style of the badge",
+      type: "'default' | 'secondary' | 'destructive' | 'outline'",
+      default: "'default'",
+    },
+    asChild: {
+      description: "Render as a child element using Radix Slot",
+      type: "boolean",
+      default: "false",
+    },
+  }}
+/>

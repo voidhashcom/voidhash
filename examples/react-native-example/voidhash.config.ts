@@ -1,7 +1,6 @@
-import { defineConfig } from 'voidhash-cli';
+import { defineConfig } from "voidhash-cli";
 
 export default defineConfig({
-  team: 'voidhash-dev-sro',
-  project: 'dev-proj',
-  schema: 'utils/voidhash/schema.ts'
+  team: "voidhash-s-r-o",
+  project: "react-native-example",
 });

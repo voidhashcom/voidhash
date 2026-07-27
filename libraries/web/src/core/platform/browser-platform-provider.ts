@@ -1,9 +1,7 @@
-const SDK_VERSION = "0.0.1-alpha.1";
+import { SDK_VERSION } from "../constants";
 
 const trimUndefined = (entries: Record<string, unknown>) =>
-  Object.fromEntries(
-    Object.entries(entries).filter(([, value]) => typeof value !== "undefined")
-  );
+  Object.fromEntries(Object.entries(entries).filter(([, value]) => typeof value !== "undefined"));
 
 const safeUrl = (value: string | undefined) => {
   if (!value) {
@@ -40,18 +38,13 @@ export class BrowserPlatformProvider {
     }
 
     const hostname = window.location.hostname;
-    return (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname.endsWith(".local")
-    );
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname.endsWith(".local");
   }
 
   buildAnalyticsContext() {
     const currentUrl = this.getCurrentUrl();
     const referrerUrl = this.getReferrerUrl();
-    const navigatorRef =
-      typeof navigator !== "undefined" ? navigator : undefined;
+    const navigatorRef = typeof navigator !== "undefined" ? navigator : undefined;
     const screenRef = typeof screen !== "undefined" ? screen : undefined;
     const viewport =
       typeof window !== "undefined"
@@ -63,8 +56,7 @@ export class BrowserPlatformProvider {
 
     return trimUndefined({
       locale: navigatorRef?.language,
-      page_title:
-        typeof document !== "undefined" ? document.title || undefined : undefined,
+      page_title: typeof document !== "undefined" ? document.title || undefined : undefined,
       referrer_origin: referrerUrl?.origin,
       referrer_path: referrerUrl?.pathname,
       screen_height: screenRef?.height,
@@ -84,8 +76,7 @@ export class BrowserPlatformProvider {
     observerMode: boolean;
     publishableKey: string;
   }): Record<string, string | undefined> {
-    const navigatorRef =
-      typeof navigator !== "undefined" ? navigator : undefined;
+    const navigatorRef = typeof navigator !== "undefined" ? navigator : undefined;
 
     return {
       "x-client-bundle-id": "",

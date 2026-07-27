@@ -1,0 +1,58 @@
+{
+  "name": "@voidhash/selfhost-entry",
+  "version": "0.0.1-alpha.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./Backend": "./src/backend/Backend.ts",
+    "./CompilerClient": "./src/compiler/CompilerClient.ts",
+    "./MimicNode": "./src/mimic/MimicNode.ts",
+    "./PgControlStore": "./src/mimic/PgControlStore.ts"
+  },
+  "scripts": {
+    "migrate": "tsx src/migrate.ts",
+    "start": "tsx src/main.ts",
+    "start:compiler": "tsx src/compiler/main.ts",
+    "start:mimic": "tsx src/mimic/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vp test run -c vitest.mts"
+  },
+  "dependencies": {
+    "@effect/platform-node": "catalog:",
+    "@effect/sql-pg": "catalog:",
+    "@voidhash/agent": "workspace:*",
+    "@voidhash/api-contracts": "workspace:*",
+    "@voidhash/app-store-server-sdk": "workspace:*",
+    "@voidhash/backend": "workspace:*",
+    "@voidhash/clickhouse-db": "workspace:*",
+    "@voidhash/core": "workspace:*",
+    "@voidhash/db": "workspace:*",
+    "@voidhash/mimic-core": "workspace:*",
+    "@voidhash/mimic-db": "workspace:*",
+    "@voidhash/mimic-schema": "workspace:*",
+    "@voidhash/paywall-renderer-preact": "workspace:*",
+    "@voidhash/paywall-renderer-web-core": "workspace:*",
+    "@voidhash/paywalls": "workspace:*",
+    "@voidhash/platform": "workspace:*",
+    "@voidhash/platform-node": "workspace:*",
+    "effect": "catalog:",
+    "esbuild": "^0.25.10",
+    "jose": "catalog:",
+    "preact": "^10.25.4",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "srvx": "0.11.15",
+    "tsx": "^4.19.3",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.12",
+    "@types/ws": "^8.18.1",
+    "@voidhash/mimic-core": "workspace:*",
+    "@voidhash/tsconfig": "workspace:*",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

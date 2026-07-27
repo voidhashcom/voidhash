@@ -43,7 +43,7 @@ The web package should expose:
 ## Goals
 
 - Ship a browser SDK that feels structurally similar to the React Native SDK.
-- Reuse existing shared packages where possible, especially `@voidhash/api-spec` and `@voidhash/shared`.
+- Reuse existing shared packages where possible, especially `@voidhash/generated-clients` and `@voidhash/shared`.
 - Make feature flags production-ready first, because the backend contract already exists.
 - Design analytics as a first-class SDK capability for web, even though the current React Native SDK does not yet implement an analytics transport.
 - Support anonymous and identified users.
@@ -65,16 +65,16 @@ The web package should expose:
 
 The React Native SDK already gives us the right architectural direction. The web SDK should intentionally mirror the same internal module boundaries where they still make sense.
 
-| React Native concept | Web plan |
-| --- | --- |
-| `createVoidhashClient` entrypoint | Keep a similar factory as the main way to construct the SDK. |
-| Initialization guards in `client.tsx` | Public methods should reject or no-op consistently until initialization completes. |
+| React Native concept                     | Web plan                                                                                      |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `createVoidhashClient` entrypoint        | Keep a similar factory as the main way to construct the SDK.                                  |
+| Initialization guards in `client.tsx`    | Public methods should reject or no-op consistently until initialization completes.            |
 | `client-effect.ts` runtime orchestration | Keep a dedicated internal runtime layer for networking, caching, identity, and feature flags. |
-| `IdentityManager` | Reuse the same anonymous-to-identified user model, adapted to browser storage. |
-| `CacheManager` with TTL support | Keep the same cache semantics, backed by memory plus optional persistent browser storage. |
-| Event bus | Reuse an internal event bus so hooks and client subscribers share the same update path. |
-| `useFeatureFlags` hook | Preserve the same basic return shape and behavior in React. |
-| Shared SDK headers | Reuse the existing header model and fill the browser-compatible subset. |
+| `IdentityManager`                        | Reuse the same anonymous-to-identified user model, adapted to browser storage.                |
+| `CacheManager` with TTL support          | Keep the same cache semantics, backed by memory plus optional persistent browser storage.     |
+| Event bus                                | Reuse an internal event bus so hooks and client subscribers share the same update path.       |
+| `useFeatureFlags` hook                   | Preserve the same basic return shape and behavior in React.                                   |
+| Shared SDK headers                       | Reuse the existing header model and fill the browser-compatible subset.                       |
 
 One important difference: analytics for web will need new implementation work and likely some API-spec additions, because the current React Native SDK does not yet appear to ship an analytics transport.
 
@@ -158,8 +158,8 @@ const enabled = voidhash.isFeatureEnabled("new-checkout");
 ### Core Client Methods
 
 - `initialize()`
-- `identify(appUserId, attributes?)`
-- `resetIdentity()`
+- `identify(externalUserId, attributes?)`
+- `reset()`
 - `getFeatureFlags(keys?)`
 - `refreshFeatureFlags(keys?)`
 - `isFeatureEnabled(key)`
@@ -174,11 +174,7 @@ const enabled = voidhash.isFeatureEnabled("new-checkout");
 ### React Surface
 
 ```ts
-import {
-  VoidhashProvider,
-  useFeatureFlags,
-  useVoidhash,
-} from "@voidhash/web/react";
+import { VoidhashProvider, useFeatureFlags, useVoidhash } from "@voidhash/web/react";
 ```
 
 The React hooks should mirror the React Native ergonomics as closely as possible:
@@ -194,7 +190,7 @@ Initialization should follow the same disciplined flow as the React Native SDK:
 1. Validate configuration.
 2. Create the browser platform provider.
 3. Resolve cache adapters.
-4. Resolve or create an anonymous `appUserId`.
+4. Resolve or create an anonymous `distinctId`.
 5. Build common headers and auth headers.
 6. Create the internal runtime services.
 7. Mark the client as initialized.
@@ -211,18 +207,18 @@ Important constraints:
 
 The web SDK should preserve the same identity concepts as React Native:
 
-- anonymous users get an SDK-managed generated `appUserId`
+- anonymous users get an SDK-managed generated `distinctId`
 - identified users can replace the anonymous user via `identify`
 - user attributes should be synchronized in a predictable order
 - resetting identity should rotate back to a new anonymous user
 
 ### Identity Requirements
 
-- Persist the current `appUserId` in browser storage.
+- Persist the current `distinctId` in browser storage.
 - Keep an in-memory copy for fast request construction.
 - Treat identity changes as cache boundaries.
 - Clear or segregate user-scoped caches when the identity changes.
-- Re-fetch feature flags after `identify` and `resetIdentity`.
+- Re-fetch feature flags after `identify` and `reset`.
 - Emit an identity-changed event so React hooks and host apps can respond.
 
 ## Feature Flags Plan
@@ -277,7 +273,7 @@ Analytics is a first-class goal of the web SDK, but it needs a clearer contract 
 
 ### Prerequisite: API Contract Alignment
 
-Before analytics implementation begins, the repo should define or confirm the following in `@voidhash/api-spec`:
+Before analytics implementation begins, the repo should define or confirm the following in `@voidhash/generated-clients`:
 
 - the analytics ingestion endpoint path
 - the request payload shape
@@ -301,14 +297,14 @@ This should be treated as a required upstream step. The web SDK should not inven
 
 ### Recommended Event Payload Shape
 
-The final schema should come from `@voidhash/api-spec`, but the SDK should plan around this structure:
+The final schema should come from `@voidhash/generated-clients`, but the SDK should plan around this structure:
 
 ```ts
 type AnalyticsEvent = {
   event: string;
   properties?: Record<string, unknown>;
   timestamp: string;
-  appUserId: string;
+  distinctId: string;
   anonymousId?: string;
   context: {
     url?: string;
@@ -389,7 +385,7 @@ Use a layered cache model:
 ### Cache Rules
 
 - Keep the 5-minute feature flag TTL from React Native by default.
-- Namespace cache keys by environment and `appUserId`.
+- Namespace cache keys by environment and `distinctId`.
 - Keep cache clearing explicit and testable.
 - Bound the analytics queue so storage growth is controlled.
 
@@ -471,7 +467,7 @@ An analytics hook can stay simple in V1:
 
 ### Contract Tests
 
-- feature flag request/response compatibility with `@voidhash/api-spec`
+- feature flag request/response compatibility with `@voidhash/generated-clients`
 - analytics contract compatibility once defined upstream
 
 ## Example Apps and Documentation
@@ -494,14 +490,14 @@ Documentation should cover:
 
 ## Phased Delivery Plan
 
-| Phase | Scope | Output |
-| --- | --- | --- |
-| 0 | API and package alignment | Confirm `libraries/web`, confirm `@voidhash/web`, finalize analytics API contract in `@voidhash/api-spec`. |
-| 1 | Core runtime | Create client factory, runtime layer, event bus, identity manager, cache manager, browser platform provider, fetch transport. |
-| 2 | Feature flags | Implement `getFeatureFlags`, caching, refetch behavior, React hook parity, tests. |
-| 3 | Analytics | Implement `track`, `page`, queueing, batching, retrying, page-exit flush, tests. |
-| 4 | React layer and examples | Add provider, hooks, example apps, usage docs. |
-| 5 | Hardening and release | Add observability, edge-case fixes, publishing config, release docs. |
+| Phase | Scope                     | Output                                                                                                                        |
+| ----- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 0     | API and package alignment | Confirm `libraries/web`, confirm `@voidhash/web`, finalize analytics API contract in `@voidhash/generated-clients`.           |
+| 1     | Core runtime              | Create client factory, runtime layer, event bus, identity manager, cache manager, browser platform provider, fetch transport. |
+| 2     | Feature flags             | Implement `getFeatureFlags`, caching, refetch behavior, React hook parity, tests.                                             |
+| 3     | Analytics                 | Implement `track`, `page`, queueing, batching, retrying, page-exit flush, tests.                                              |
+| 4     | React layer and examples  | Add provider, hooks, example apps, usage docs.                                                                                |
+| 5     | Hardening and release     | Add observability, edge-case fixes, publishing config, release docs.                                                          |
 
 ## Decisions To Lock Early
 
@@ -510,7 +506,7 @@ Documentation should cover:
 - Keep feature flags server-evaluated in V1.
 - Keep analytics manual-first in V1.
 - Exclude paywalls and payments completely from the initial implementation.
-- Upstream any shared contract changes into `@voidhash/api-spec` before depending on them in the SDK.
+- Upstream any shared contract changes into `@voidhash/generated-clients` before depending on them in the SDK.
 
 ## Open Questions
 
@@ -527,7 +523,7 @@ Documentation should cover:
 2. Port the React Native identity, cache, and event bus concepts into browser-safe modules.
 3. Implement feature flags first using the existing API contract and 5-minute TTL parity.
 4. Add the React provider and `useFeatureFlags` hook.
-5. Finalize the analytics API contract in `@voidhash/api-spec`.
+5. Finalize the analytics API contract in `@voidhash/generated-clients`.
 6. Implement analytics queueing, batching, and flush behavior.
 7. Add examples, tests, and publishable package metadata.
 
